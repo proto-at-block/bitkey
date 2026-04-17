@@ -6,16 +6,16 @@ import bitkey.verification.TxVerificationService
 import bitkey.verification.VerificationThreshold
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.BTC
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.ExchangeRateService
 import build.wallet.money.formatter.MoneyDisplayFormatter
-import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
-import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
-import build.wallet.statemachine.auth.Request
+import build.wallet.statemachine.auth.ActionProofType
+import build.wallet.statemachine.auth.HardwareAuthUiProps
+import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiProps
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiStateMachine
@@ -34,7 +34,7 @@ class TxVerificationPolicyStateMachineImpl(
   private val moneyInputStateMachine: MoneyCalculatorUiStateMachine,
   private val exchangeRateService: ExchangeRateService,
   private val minimumLoadingDuration: MinimumLoadingDuration,
-  private val hwProofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
+  private val hardwareAuthUiStateMachine: HardwareAuthUiStateMachine,
 ) : TxVerificationPolicyStateMachine {
   @Composable
   override fun model(props: TxVerificationPolicyProps): ScreenModel {
@@ -55,7 +55,7 @@ class TxVerificationPolicyStateMachineImpl(
           txVerificationService.updateThreshold(
             policy = TxVerificationPolicy.Active(current.threshold),
             amountBtc = current.amountBtc,
-            hwFactorProofOfPossession = current.hwFactorProofOfPossession
+            proof = current.proof
           )
         }
         result.onSuccess { policy ->
@@ -65,7 +65,7 @@ class TxVerificationPolicyStateMachineImpl(
               policy = policy,
               threshold = current.threshold,
               amountBtc = current.amountBtc,
-              hwFactorProofOfPossession = current.hwFactorProofOfPossession
+              proof = current.proof
             )
           }
         }.onFailure { error ->
@@ -73,7 +73,7 @@ class TxVerificationPolicyStateMachineImpl(
             error = error,
             threshold = current.threshold,
             amountBtc = current.amountBtc,
-            hwFactorProofOfPossession = current.hwFactorProofOfPossession
+            proof = current.proof
           )
         }
       }
@@ -150,19 +150,26 @@ class TxVerificationPolicyStateMachineImpl(
           }
         )
       )
-      is State.HardwareConfirmation -> hwProofOfPossessionNfcStateMachine.model(
-        props = ProofOfPossessionNfcProps(
-          request = Request.HwKeyProof(
-            onSuccess = { hwFactorProofOfPossession ->
-              viewState = State.Updating(
-                threshold = current.threshold,
-                amountBtc = current.amountBtc,
-                hwFactorProofOfPossession = hwFactorProofOfPossession
-              )
+      is State.HardwareConfirmation -> hardwareAuthUiStateMachine.model(
+        props = HardwareAuthUiProps(
+          account = props.account,
+          actionProofType = ActionProofType.SetVerificationThreshold(
+            threshold = when (current.threshold) {
+              VerificationThreshold.Disabled -> "NEVER"
+              VerificationThreshold.Companion.Always -> "ALWAYS"
+              is VerificationThreshold.Enabled -> current.threshold.amount.toString()
             }
           ),
-          fullAccountId = props.account.accountId,
+          segment = TxVerificationAppSegment.ManagePolicy,
+          actionDescription = "Setting tx verification policy",
           screenPresentationStyle = ScreenPresentationStyle.Modal,
+          onSuccess = { proof ->
+            viewState = State.Updating(
+              threshold = current.threshold,
+              amountBtc = current.amountBtc,
+              proof = proof
+            )
+          },
           onBack = { viewState = State.Overview }
         )
       )
@@ -195,7 +202,7 @@ class TxVerificationPolicyStateMachineImpl(
           viewState = State.Updating(
             threshold = current.threshold,
             amountBtc = current.amountBtc,
-            hwFactorProofOfPossession = current.hwFactorProofOfPossession
+            proof = current.proof
           )
         },
         onExit = {
@@ -265,11 +272,12 @@ class TxVerificationPolicyStateMachineImpl(
       val policy: TxVerificationPolicy.Pending,
       val threshold: VerificationThreshold,
       val amountBtc: BitcoinMoney?,
-      val hwFactorProofOfPossession: HwFactorProofOfPossession,
+      val proof: PrivilegedActionProof?,
     ) : State
 
     /**
-     * Hardware proof-of-possession confirmation screen.
+     * Hardware authorization (action proof signing) screen.
+     * Delegates to [HardwareAuthUiStateMachine] for the full NFC signing flow.
      */
     data class HardwareConfirmation(
       val threshold: VerificationThreshold,
@@ -282,7 +290,7 @@ class TxVerificationPolicyStateMachineImpl(
     data class Updating(
       val threshold: VerificationThreshold,
       val amountBtc: BitcoinMoney?,
-      val hwFactorProofOfPossession: HwFactorProofOfPossession,
+      val proof: PrivilegedActionProof?,
     ) : State
 
     /**
@@ -292,7 +300,7 @@ class TxVerificationPolicyStateMachineImpl(
       val error: Error,
       val threshold: VerificationThreshold,
       val amountBtc: BitcoinMoney?,
-      val hwFactorProofOfPossession: HwFactorProofOfPossession,
+      val proof: PrivilegedActionProof?,
     ) : State
   }
 }

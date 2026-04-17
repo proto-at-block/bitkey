@@ -2,6 +2,7 @@ package build.wallet.logging
 
 import build.wallet.account.analytics.AppInstallation
 import build.wallet.account.analytics.AppInstallationDaoMock
+import build.wallet.coroutines.createBackgroundScope
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.firmware.FirmwareDeviceInfoDaoMock
 import build.wallet.firmware.FirmwareDeviceInfoMock
@@ -21,7 +22,8 @@ class LogWriterContextStoreImplTests : FunSpec({
       LogWriterContextStoreImpl(
         appInstallationDao = AppInstallationDaoMock(),
         appSessionManager = AppSessionManagerFake(sessionId = "session-1"),
-        firmwareDeviceInfoDao = firmwareDeviceInfoDao
+        firmwareDeviceInfoDao = firmwareDeviceInfoDao,
+        appCoroutineScope = createBackgroundScope()
       )
 
     store.get().appSessionId shouldBe "session-1"
@@ -43,7 +45,8 @@ class LogWriterContextStoreImplTests : FunSpec({
       LogWriterContextStoreImpl(
         appInstallationDao = appInstallationDao,
         appSessionManager = appSessionManager,
-        firmwareDeviceInfoDao = firmwareDeviceInfoDao
+        firmwareDeviceInfoDao = firmwareDeviceInfoDao,
+        appCoroutineScope = createBackgroundScope()
       )
 
     store.syncContext()
@@ -64,7 +67,8 @@ class LogWriterContextStoreImplTests : FunSpec({
       LogWriterContextStoreImpl(
         appInstallationDao = AppInstallationDaoMock(),
         appSessionManager = appSessionManager,
-        firmwareDeviceInfoDao = firmwareDeviceInfoDao
+        firmwareDeviceInfoDao = firmwareDeviceInfoDao,
+        appCoroutineScope = createBackgroundScope()
       )
 
     store.get().appSessionId shouldBe "session-1"
@@ -72,5 +76,53 @@ class LogWriterContextStoreImplTests : FunSpec({
     appSessionManager.currentSessionId = "session-2"
 
     store.get().appSessionId shouldBe "session-2"
+  }
+
+  test("context updates reactively when hardware serial number changes") {
+    val appInstallationDao =
+      AppInstallationDaoMock().apply {
+        appInstallation =
+          AppInstallation(
+            localId = "install-1",
+            hardwareSerialNumber = null
+          )
+      }
+
+    val store =
+      LogWriterContextStoreImpl(
+        appInstallationDao = appInstallationDao,
+        appSessionManager = AppSessionManagerFake(sessionId = "session-1"),
+        firmwareDeviceInfoDao = firmwareDeviceInfoDao,
+        appCoroutineScope = createBackgroundScope()
+      )
+
+    store.syncContext()
+    store.get().hardwareSerialNumber shouldBe null
+
+    // Simulate serial update (e.g. after pairing or cloud backup restoration)
+    appInstallationDao.appInstallation =
+      AppInstallation(
+        localId = "install-1",
+        hardwareSerialNumber = "new-serial"
+      )
+
+    store.get().hardwareSerialNumber shouldBe "new-serial"
+  }
+
+  test("context updates reactively when firmware version changes") {
+    val store =
+      LogWriterContextStoreImpl(
+        appInstallationDao = AppInstallationDaoMock(),
+        appSessionManager = AppSessionManagerFake(sessionId = "session-1"),
+        firmwareDeviceInfoDao = firmwareDeviceInfoDao,
+        appCoroutineScope = createBackgroundScope()
+      )
+
+    store.syncContext()
+    store.get().firmwareVersion shouldBe null
+
+    firmwareDeviceInfoDao.setDeviceInfo(FirmwareDeviceInfoMock)
+
+    store.get().firmwareVersion shouldBe "1.2.3"
   }
 })

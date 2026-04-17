@@ -1,32 +1,36 @@
 package build.wallet.recovery
 
 import bitkey.account.AccountConfigServiceFake
+import bitkey.account.HardwareType
 import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.SpecificClientErrorMock
+import bitkey.f8e.error.code.CancelDelayNotifyRecoveryErrorCode.COMMS_VERIFICATION_REQUIRED
 import bitkey.f8e.error.code.CancelDelayNotifyRecoveryErrorCode.NO_RECOVERY_EXISTS
 import build.wallet.auth.AccountAuthTokensMock
 import build.wallet.auth.AccountAuthenticatorMock
 import build.wallet.auth.AuthTokensServiceFake
+import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.auth.HwAuthPublicKeyMock
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.keybox.AppKeyBundleMock
 import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.bitkey.recovery.HardwareKeysForRecovery
+import build.wallet.bitkey.spending.HwSpendingPublicKeyMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.db.DbQueryError
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.auth.AuthF8eClientMock
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.recovery.*
 import build.wallet.keybox.keys.AppKeysGeneratorMock
 import build.wallet.ktor.result.HttpError.ServerError
 import build.wallet.ktor.test.HttpResponseMock
 import build.wallet.notifications.DeviceTokenManagerMock
 import build.wallet.platform.random.UuidGeneratorFake
-import build.wallet.recovery.CancelDelayNotifyRecoveryError.F8eCancelDelayNotifyError
-import build.wallet.recovery.CancelDelayNotifyRecoveryError.LocalCancelDelayNotifyError
+import build.wallet.recovery.CancelDelayNotifyRecoveryError.*
 import build.wallet.recovery.LocalRecoveryAttemptProgress.CreatedPendingKeybundles
 import build.wallet.recovery.LostAppAndCloudRecoveryService.CompletedAuth
 import build.wallet.testing.shouldBeErrOfType
@@ -81,12 +85,13 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
   suspend fun LostAppAndCloudRecoveryService.cancel() =
     cancelRecovery(
       accountId = FullAccountIdMock,
-      hwProofOfPossession = HwFactorProofOfPossession("")
+      proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession(""))
     )
 
   beforeTest {
     cancelDelayNotifyRecoveryF8eClient.reset()
     accountConfigService.reset()
+    uuidGenerator.reset()
     authF8eClient.reset()
     accountAuthenticator.reset()
     authTokensService.reset()
@@ -118,6 +123,15 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
       Err(F8eError.ServerError(ServerError(HttpResponseMock(InternalServerError))))
 
     service.cancel().shouldBeErrOfType<F8eCancelDelayNotifyError>()
+
+    cancelDelayNotifyRecoveryF8eClient.cancelRecoveryCalls.awaitItem()
+  }
+
+  test("failure - comms verification required") {
+    cancelDelayNotifyRecoveryF8eClient.cancelResult =
+      Err(SpecificClientErrorMock(COMMS_VERIFICATION_REQUIRED))
+
+    service.cancel().shouldBeErrOfType<CommsVerificationRequiredError>()
 
     cancelDelayNotifyRecoveryF8eClient.cancelRecoveryCalls.awaitItem()
   }
@@ -155,9 +169,32 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
     val directKeys = completedAuth as CompletedAuth.WithDirectKeys
     directKeys.existingHwSpendingKeys.size shouldBe 1
     directKeys.existingHwSpendingKeys.first() shouldBe SpendingKeysetMock.hardwareKey
+    directKeys.bitcoinNetworkType shouldBe SIGNET // defaults from AccountConfigServiceFake
 
     // Consume the device token event
     deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
+  }
+
+  test("buildHardwareKeys produces HardwareKeysForRecovery with fresh localId and given network") {
+    val proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("proof-token"))
+    val spendingKey = HwSpendingPublicKeyMock
+    val authKey = HwAuthPublicKeyMock
+
+    val result = service.buildHardwareKeys(
+      proof = proof,
+      hardwareAuthKey = authKey,
+      spendingKey = spendingKey,
+      appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
+      bitcoinNetworkType = SIGNET,
+      hardwareType = HardwareType.W1
+    )
+
+    result.proof shouldBe proof
+    result.newAppGlobalAuthKeyHwSignature shouldBe AppGlobalAuthKeyHwSignatureMock
+    result.newKeyBundle.authKey shouldBe authKey
+    result.newKeyBundle.spendingKey shouldBe spendingKey
+    result.newKeyBundle.networkType shouldBe SIGNET
+    result.newKeyBundle.localId shouldBe "uuid-0" // UuidGeneratorFake starts at uuid-0
   }
 
   test("initiateRecovery passes null for originalAppGlobalAuthKey") {
@@ -166,12 +203,14 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
       authTokens = AccountAuthTokensMock,
       hwAuthKey = HwAuthPublicKeyMock,
       destinationAppKeys = AppKeyBundleMock,
+      bitcoinNetworkType = SIGNET,
       existingHwSpendingKeys = listOf(SpendingKeysetMock.hardwareKey)
     )
     val hardwareKeysForRecovery = HardwareKeysForRecovery(
       newKeyBundle = HwKeyBundleMock,
       newAppGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
-      hwProofOfPossession = HwFactorProofOfPossession("")
+      proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("")),
+      hardwareType = HardwareType.W1
     )
 
     val result = service.initiateRecovery(completedAuth, hardwareKeysForRecovery)

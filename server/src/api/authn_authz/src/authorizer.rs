@@ -92,7 +92,7 @@ impl AuthorizerConfig {
 pub async fn authorize_token_for_path(
     Path(path): Path<HashMap<String, String>>,
     JwtClaims(claims): JwtClaims<AccessTokenClaims>,
-    request: Request,
+    mut request: Request,
     next: Next,
 ) -> Result<Response, StatusCode> {
     path.get("account_id")
@@ -104,6 +104,7 @@ pub async fn authorize_token_for_path(
             if !cognito_user.is_app(&account_id) && !cognito_user.is_hardware(&account_id) {
                 return Err(StatusCode::UNAUTHORIZED);
             }
+            request.extensions_mut().insert(cognito_user);
             Ok(())
         })?;
 

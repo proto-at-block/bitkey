@@ -14,7 +14,7 @@ import build.wallet.analytics.v1.Action
 import build.wallet.cloud.backup.CloudBackupError
 import build.wallet.cloud.backup.CloudBackupError.RectifiableCloudBackupError
 import build.wallet.cloud.backup.CloudBackupError.UnrectifiableCloudBackupError
-import build.wallet.cloud.backup.CloudBackupRepository
+import build.wallet.cloud.backup.CloudBackupService
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreator
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.di.ActivityScope
@@ -43,7 +43,7 @@ import com.github.michaelbull.result.onSuccess
 
 @BitkeyInject(ActivityScope::class)
 class LiteAccountCloudSignInAndBackupUiStateMachineImpl(
-  private val cloudBackupRepository: CloudBackupRepository,
+  private val cloudBackupService: CloudBackupService,
   private val cloudSignInUiStateMachine: CloudSignInUiStateMachine,
   private val liteAccountCloudBackupCreator: LiteAccountCloudBackupCreator,
   private val deviceInfoProvider: DeviceInfoProvider,
@@ -110,7 +110,7 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImpl(
                 return@LaunchedEffect
               }
 
-          cloudBackupRepository.writeBackup(
+          cloudBackupService.writeBackup(
             props.liteAccount.accountId,
             uiState.cloudStoreAccount,
             backup = cloudBackup,

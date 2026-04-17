@@ -11,6 +11,9 @@
 
 #define TEST_CERT_ID          "w3_core_id_test"
 #define TEST_CERT_ID_TAMPERED "w3_core_id_test_tampered"
+#define TEST_TRAVERSAL_DIR    "sc_legacy_peer"
+#define TEST_TRAVERSAL_CERT   TEST_TRAVERSAL_DIR "/peer.cert"
+#define TEST_TRAVERSAL_SUBJ   "../sc_legacy_peer/peer"
 
 // External reference to product cert descriptors
 extern const secure_channel_cert_desc_t* const secure_channel_product_certs[];
@@ -32,18 +35,18 @@ static void cleanup_test_certs(void) {
   strncpy(test_cert_id, TEST_CERT_ID_TAMPERED, sizeof(test_cert_id) - 1);
   test_cert_id[sizeof(test_cert_id) - 1] = '\0';
   secure_channel_cert_clear_cert_and_key_files(test_cert_id);
-}
 
-static void cleanup_test_dir(void) {
-  if (fs_get_filetype(SC_CERT_DIRECTORY) == FS_FILE_TYPE_DIR) {
-    fs_remove(SC_CERT_DIRECTORY);
+  if (fs_file_exists(TEST_TRAVERSAL_CERT)) {
+    fs_remove(TEST_TRAVERSAL_CERT);
+  }
+  if (fs_get_filetype(TEST_TRAVERSAL_DIR) == FS_FILE_TYPE_DIR) {
+    fs_remove(TEST_TRAVERSAL_DIR);
   }
 }
 
 static bool test_initialize_certificates(void) {
   printf("\n[TEST] Initialize certificates\n");
   cleanup_test_certs();
-  cleanup_test_dir();
   secure_channel_cert_init();
   return true;
 }
@@ -288,6 +291,39 @@ static bool test_verify_pin_mismatched(void) {
   return true;
 }
 
+static bool test_reject_subject_path_traversal(void) {
+  printf("\n[TEST] Reject subject path traversal via legacy lookup\n");
+
+  cleanup_test_certs();
+
+  if (fs_mkdir(TEST_TRAVERSAL_DIR) != 0 &&
+      fs_get_filetype(TEST_TRAVERSAL_DIR) != FS_FILE_TYPE_DIR) {
+    printf("FAILED: Could not create traversal test directory\n");
+    return false;
+  }
+
+  secure_channel_cert_data_t stored_cert = {
+    .type = CERT_TYPE_PICOCERT,
+  };
+  if (!fs_util_write_global(TEST_TRAVERSAL_CERT, (uint8_t*)&stored_cert, sizeof(stored_cert))) {
+    printf("FAILED: Could not write traversal test certificate\n");
+    return false;
+  }
+
+  if (secure_channel_cert_exists(TEST_TRAVERSAL_SUBJ)) {
+    printf("FAILED: Traversal subject unexpectedly resolved to an existing cert\n");
+    return false;
+  }
+
+  secure_channel_cert_data_t loaded_cert = {0};
+  if (secure_channel_cert_load(TEST_TRAVERSAL_SUBJ, &loaded_cert)) {
+    printf("FAILED: Traversal subject unexpectedly loaded a cert\n");
+    return false;
+  }
+
+  return true;
+}
+
 static bool test_peer_signature_verification(void) {
   printf("\n[TEST] Peer signature verification\n");
 
@@ -447,6 +483,7 @@ void secure_channel_cert_test(void) {
   result &= test_verify_pin_exists();
   result &= test_verify_pin_not_exists();
   result &= test_verify_pin_mismatched();
+  result &= test_reject_subject_path_traversal();
   result &= test_verify_valid_self_signed_cert();
   result &= test_verify_invalid_self_signed_cert_signature();
   result &= test_verify_invalid_self_signed_cert_public_key();

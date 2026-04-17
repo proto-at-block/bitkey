@@ -1,5 +1,6 @@
 mcu_srcs = [
   'src/mcu_init.c',
+  'src/mcu_devinfo.c',
 ]
 
 mcu_posix_includes = [
@@ -15,6 +16,7 @@ mcu_posix_lib = library('mcu-posix',
 
 mcu_posix_dep = declare_dependency(
   link_with : mcu_posix_lib,
+  include_directories : mcu_posix_includes,
 )
 
 mcu_posix_bl_lib = library('mcu-posix-bl',
@@ -25,4 +27,5 @@ mcu_posix_bl_lib = library('mcu-posix-bl',
 
 mcu_posix_bl_dep = declare_dependency(
   link_with : mcu_posix_bl_lib,
+  include_directories : mcu_posix_includes,
 )

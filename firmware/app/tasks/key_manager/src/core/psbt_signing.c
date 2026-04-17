@@ -3,16 +3,15 @@
 #include "attributes.h"
 #include "bip32.h"
 #include "key_manager_task_impl.h"
-#include "rtos_notification.h"
 #include "rtos_thread.h"
 #include "wallet.h"
 
 #include <string.h>
 
 static key_manager_psbt_sign_result_t psbt_sign_hash_with_crypto_task(
-  rtos_thread_t* crypto_thread, const derivation_path_t* path,
-  const uint8_t hash[SHA256_DIGEST_SIZE], uint8_t signature_out[ECC_SIG_SIZE]) {
-  if (!crypto_thread || !path || !hash || !signature_out) {
+  const derivation_path_t* path, const uint8_t hash[SHA256_DIGEST_SIZE],
+  uint8_t signature_out[ECC_SIG_SIZE]) {
+  if (!path || !hash || !signature_out) {
     return KEY_MANAGER_PSBT_SIGN_INVALID_PARAM;
   }
 
@@ -21,7 +20,7 @@ static key_manager_psbt_sign_result_t psbt_sign_hash_with_crypto_task(
   }
 
   crypto_task_set_parameters((derivation_path_t*)path, (uint8_t*)hash);
-  rtos_notification_signal(crypto_thread);
+  crypto_task_signal();
 
   for (;;) {
     switch (crypto_task_get_status()) {
@@ -63,9 +62,9 @@ static bool psbt_pubkey_from_extended(const extended_key_t* key_pub,
 }
 
 key_manager_psbt_sign_result_t key_manager_psbt_sign_p2wsh_inputs(
-  const key_manager_psbt_input_t* inputs, size_t input_count, rtos_thread_t* crypto_thread,
+  const key_manager_psbt_input_t* inputs, size_t input_count,
   key_manager_psbt_signature_t* sigs_out, size_t sigs_out_len, size_t* sigs_written) {
-  if (!inputs || input_count == 0 || !crypto_thread || !sigs_out || !sigs_written) {
+  if (!inputs || input_count == 0 || !sigs_out || !sigs_written) {
     return KEY_MANAGER_PSBT_SIGN_INVALID_PARAM;
   }
 
@@ -124,8 +123,8 @@ key_manager_psbt_sign_result_t key_manager_psbt_sign_p2wsh_inputs(
     };
 
     uint8_t compact_sig[ECC_SIG_SIZE] = {0};
-    key_manager_psbt_sign_result_t sign_result = psbt_sign_hash_with_crypto_task(
-      crypto_thread, &match_path, signing_data->sighash, compact_sig);
+    key_manager_psbt_sign_result_t sign_result =
+      psbt_sign_hash_with_crypto_task(&match_path, signing_data->sighash, compact_sig);
     if (sign_result != KEY_MANAGER_PSBT_SIGN_OK) {
       *sigs_written = 0;
       return sign_result;
@@ -154,66 +153,5 @@ key_manager_psbt_sign_result_t key_manager_psbt_sign_p2wsh_inputs(
     (*sigs_written)++;
   }
 
-  return KEY_MANAGER_PSBT_SIGN_OK;
-}
-
-key_manager_psbt_sign_result_t key_manager_psbt_sign_p2wsh_psbt(
-  const uint8_t* psbt_bytes, size_t psbt_len, rtos_thread_t* crypto_thread, uint8_t* psbt_out,
-  size_t psbt_out_len, size_t* psbt_out_written) {
-  if (!psbt_bytes || psbt_len == 0 || !crypto_thread || !psbt_out || psbt_out_len == 0 ||
-      !psbt_out_written) {
-    return KEY_MANAGER_PSBT_SIGN_INVALID_PARAM;
-  }
-
-  *psbt_out_written = 0;
-
-  ew_psbt_t* psbt = NULL;
-  if (ew_psbt_from_bytes(psbt_bytes, psbt_len, &psbt) != EW_OK) {
-    return KEY_MANAGER_PSBT_SIGN_PSBT_ERROR;
-  }
-
-  size_t num_inputs = 0;
-  if (ew_psbt_get_num_inputs(psbt, &num_inputs) != EW_OK) {
-    ew_psbt_free(psbt);
-    return KEY_MANAGER_PSBT_SIGN_PSBT_ERROR;
-  }
-
-  for (size_t i = 0; i < num_inputs; i++) {
-    key_manager_psbt_input_t input = {
-      .input_index = i,
-      .signing_data = {0},
-    };
-
-    if (psbt_p2wsh_input_signing_data_from_psbt(psbt, i, &input.signing_data) != PSBT_OK) {
-      ew_psbt_free(psbt);
-      return KEY_MANAGER_PSBT_SIGN_PSBT_ERROR;
-    }
-
-    key_manager_psbt_signature_t sig = {0};
-    size_t sigs_written = 0;
-    key_manager_psbt_sign_result_t sign_result =
-      key_manager_psbt_sign_p2wsh_inputs(&input, 1, crypto_thread, &sig, 1, &sigs_written);
-    if (sign_result != KEY_MANAGER_PSBT_SIGN_OK) {
-      ew_psbt_free(psbt);
-      return sign_result;
-    }
-    if (sigs_written != 1) {
-      ew_psbt_free(psbt);
-      return KEY_MANAGER_PSBT_SIGN_CRYPTO_ERROR;
-    }
-
-    if (ew_psbt_input_add_signature(psbt, i, sig.pubkey, PSBT_P2WSH_PUBKEY_LEN, sig.signature,
-                                    sig.signature_len) != EW_OK) {
-      ew_psbt_free(psbt);
-      return KEY_MANAGER_PSBT_SIGN_PSBT_ERROR;
-    }
-  }
-
-  if (ew_psbt_to_bytes(psbt, psbt_out, psbt_out_len, psbt_out_written) != EW_OK) {
-    ew_psbt_free(psbt);
-    return KEY_MANAGER_PSBT_SIGN_OUTPUT_TOO_SMALL;
-  }
-
-  ew_psbt_free(psbt);
   return KEY_MANAGER_PSBT_SIGN_OK;
 }

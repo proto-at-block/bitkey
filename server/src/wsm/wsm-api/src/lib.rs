@@ -127,7 +127,7 @@ impl IntoResponse for ApiError {
     }
 }
 
-#[instrument(err, skip(customer_key_store, enclave_client))]
+#[instrument(err, skip(customer_key_store, enclave_client, request))]
 async fn create_key(
     State(customer_key_store): State<CustomerKeyStore>,
     State(enclave_client): State<Arc<EnclaveClient>>,
@@ -231,7 +231,7 @@ async fn create_key(
     }
 }
 
-#[instrument(err, skip(customer_key_share_store, enclave_client))]
+#[instrument(err, skip(customer_key_share_store, enclave_client, request))]
 async fn initiate_distributed_keygen(
     State(customer_key_share_store): State<CustomerKeyShareStore>,
     State(enclave_client): State<Arc<EnclaveClient>>,
@@ -281,7 +281,7 @@ async fn initiate_distributed_keygen(
     }))
 }
 
-#[instrument(err, skip(customer_key_share_store, enclave_client))]
+#[instrument(err, skip(customer_key_share_store, enclave_client, request))]
 async fn continue_distributed_keygen(
     State(customer_key_share_store): State<CustomerKeyShareStore>,
     State(enclave_client): State<Arc<EnclaveClient>>,
@@ -318,7 +318,7 @@ async fn continue_distributed_keygen(
     }
 }
 
-#[instrument(err, skip(customer_key_share_store, enclave_client))]
+#[instrument(err, skip(customer_key_share_store, enclave_client, request))]
 async fn create_self_sovereign_backup(
     State(customer_key_share_store): State<CustomerKeyShareStore>,
     State(enclave_client): State<Arc<EnclaveClient>>,
@@ -357,7 +357,7 @@ async fn create_self_sovereign_backup(
     }
 }
 
-#[instrument(err, skip(customer_key_share_store, enclave_client))]
+#[instrument(err, skip(customer_key_share_store, enclave_client, request))]
 async fn initiate_share_refresh(
     State(customer_key_share_store): State<CustomerKeyShareStore>,
     State(enclave_client): State<Arc<EnclaveClient>>,
@@ -409,7 +409,7 @@ async fn initiate_share_refresh(
     }
 }
 
-#[instrument(err, skip(customer_key_share_store, enclave_client))]
+#[instrument(err, skip(customer_key_share_store, enclave_client, request))]
 async fn continue_share_refresh(
     State(customer_key_share_store): State<CustomerKeyShareStore>,
     State(enclave_client): State<Arc<EnclaveClient>>,
@@ -468,7 +468,7 @@ async fn continue_share_refresh(
     }
 }
 
-#[instrument(err, skip(customer_key_share_store, enclave_client))]
+#[instrument(err, skip(customer_key_share_store, enclave_client, request))]
 async fn generate_partial_signatures(
     State(customer_key_share_store): State<CustomerKeyShareStore>,
     State(enclave_client): State<Arc<EnclaveClient>>,
@@ -509,7 +509,7 @@ async fn generate_partial_signatures(
     }
 }
 
-#[instrument(skip(customer_key_store, enclave_client))]
+#[instrument(skip(customer_key_store, enclave_client, request))]
 async fn sign_psbt(
     State(customer_key_store): State<CustomerKeyStore>,
     State(enclave_client): State<Arc<EnclaveClient>>,
@@ -552,7 +552,7 @@ async fn sign_psbt(
     }
 }
 
-#[instrument(skip(customer_key_store, enclave_client))]
+#[instrument(skip(customer_key_store, enclave_client, request))]
 async fn sign_psbt_v2(
     State(customer_key_store): State<CustomerKeyStore>,
     State(enclave_client): State<Arc<EnclaveClient>>,
@@ -653,12 +653,11 @@ async fn attestation_doc(
     Ok(Json(result))
 }
 
-#[instrument(err, skip(enclave_client))]
+#[instrument(err, skip(enclave_client, request))]
 async fn initiate_secure_channel(
     State(enclave_client): State<Arc<EnclaveClient>>,
     Json(request): Json<NoiseInitiateBundleRequest>,
 ) -> Result<Json<NoiseInitiateBundleResponse>, ApiError> {
-    tracing::info!("wsm-api initiate_secure_channel: {:?}", request);
     let result = enclave_client
         .initiate_secure_channel(request.bundle, &request.server_static_pubkey)
         .await
@@ -666,12 +665,11 @@ async fn initiate_secure_channel(
     Ok(Json(result))
 }
 
-#[instrument(err, skip(enclave_client))]
+#[instrument(err, skip(enclave_client, request))]
 async fn evaluate_pin(
     State(enclave_client): State<Arc<EnclaveClient>>,
     Json(request): Json<EvaluatePinRequest>,
 ) -> Result<Json<EvaluatePinResponse>, ApiError> {
-    tracing::info!("wsm-api evaluate_pin: {:?}", request);
     let result = enclave_client
         .evaluate_pin(request.sealed_request, request.noise_session_id)
         .await
@@ -679,12 +677,11 @@ async fn evaluate_pin(
     Ok(Json(result))
 }
 
-#[instrument(err, skip(enclave_client), fields(version = request.version, action = request.action))]
+#[instrument(err, skip(enclave_client, request), fields(version = request.version, action = request.action))]
 async fn approve_grant(
     State(enclave_client): State<Arc<EnclaveClient>>,
     Json(request): Json<GrantRequest>,
 ) -> Result<Json<GrantResponse>, ApiError> {
-    tracing::info!("wsm-api create_grant: {:?}", request);
     let result = enclave_client
         .approve_grant(request)
         .await
@@ -693,7 +690,7 @@ async fn approve_grant(
     Ok(Json(result))
 }
 
-#[instrument(err, skip(enclave_client))]
+#[instrument(err, skip(enclave_client, request))]
 async fn approve_psbt(
     State(enclave_client): State<Arc<EnclaveClient>>,
     Json(request): Json<ApprovePsbtRequest>,
@@ -706,12 +703,11 @@ async fn approve_psbt(
     Ok(Json(result))
 }
 
-#[instrument(err, skip(enclave_client))]
+#[instrument(err, skip(enclave_client, request))]
 async fn sign_public_keys(
     State(enclave_client): State<Arc<EnclaveClient>>,
     Json(request): Json<SignPublicKeysRequest>,
 ) -> Result<Json<SignPublicKeysResponse>, ApiError> {
-    tracing::info!("wsm-api sign_public_keys: {:?}", request);
     let result = enclave_client
         .sign_public_keys(request)
         .await

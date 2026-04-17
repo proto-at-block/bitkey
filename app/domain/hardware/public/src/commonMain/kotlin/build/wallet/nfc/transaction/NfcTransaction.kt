@@ -16,6 +16,9 @@ interface NfcTransaction<T> {
   /** Whether or not the hardware should be locked when the transaction completes */
   val shouldLock: Boolean
 
+  /** Whether to show a device confirmation screen on W3 after a successful transaction */
+  val showDeviceConfirmation: Boolean get() = false
+
   suspend fun session(
     session: NfcSession,
     commands: NfcCommands,

@@ -1,16 +1,19 @@
 package build.wallet.recovery
 
+import bitkey.account.HardwareType
 import bitkey.auth.AccountAuthTokens
 import bitkey.backup.DescriptorBackup
 import bitkey.recovery.InitiateDelayNotifyRecoveryError
+import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.recovery.HardwareKeysForRecovery
 import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.f8e.auth.AuthF8eClient.InitiateAuthenticationSuccess
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import com.github.michaelbull.result.Result
 
 /**
@@ -69,6 +72,9 @@ interface LostAppAndCloudRecoveryService {
     val hwAuthKey: HwAuthPublicKey
     val destinationAppKeys: AppKeyBundle
 
+    /** The bitcoin network type for the account, used for key derivation during recovery. */
+    val bitcoinNetworkType: BitcoinNetworkType
+
     /**
      * Hardware keys are directly available from keysets).
      */
@@ -77,6 +83,7 @@ interface LostAppAndCloudRecoveryService {
       override val authTokens: AccountAuthTokens,
       override val hwAuthKey: HwAuthPublicKey,
       override val destinationAppKeys: AppKeyBundle,
+      override val bitcoinNetworkType: BitcoinNetworkType,
       val existingHwSpendingKeys: List<HwSpendingPublicKey>,
     ) : CompletedAuth
 
@@ -92,16 +99,30 @@ interface LostAppAndCloudRecoveryService {
       override val authTokens: AccountAuthTokens,
       override val hwAuthKey: HwAuthPublicKey,
       override val destinationAppKeys: AppKeyBundle,
+      override val bitcoinNetworkType: BitcoinNetworkType,
       val descriptorBackups: List<DescriptorBackup>,
       val wrappedSsek: SealedSsek,
     ) : CompletedAuth
   }
 
   /**
+   * Builds [HardwareKeysForRecovery] from the given NFC-gathered data, assigning a
+   * fresh local key-bundle ID and the current account's bitcoin network type.
+   */
+  fun buildHardwareKeys(
+    proof: PrivilegedActionProof,
+    hardwareAuthKey: HwAuthPublicKey,
+    spendingKey: HwSpendingPublicKey,
+    appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+    bitcoinNetworkType: BitcoinNetworkType,
+    hardwareType: HardwareType,
+  ): HardwareKeysForRecovery
+
+  /**
    * Cancels in progress D&N recovery using hardware proof of possession.
    */
   suspend fun cancelRecovery(
     accountId: FullAccountId,
-    hwProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
   ): Result<Unit, CancelDelayNotifyRecoveryError>
 }

@@ -2,6 +2,7 @@ package build.wallet.statemachine.recovery.socrec.add
 
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
@@ -39,5 +40,8 @@ data class InheritanceInviteSetupBodyModel(
       treatment = ButtonModel.Treatment.Primary,
       size = ButtonModel.Size.Footer,
       onClick = StandardClick(onContinue)
+    ),
+    designSystemV2Model = FormDesignSystemV2Model(
+      useDesignSystemV2ScreenLayout = true
     )
   )

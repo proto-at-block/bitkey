@@ -10,8 +10,9 @@ interface LogWriterContextStore {
   fun get(): LogWriterContext
 
   /**
-   * Launches a non-blocking coroutine that will sync [LogWriterContext] as underlying data sources
-   * for the context are updated.
+   * Performs an initial sync of [LogWriterContext] from underlying data sources and keeps the
+   * context up to date as those sources change (e.g. hardware serial number updated during
+   * pairing or cloud backup restoration).
    */
   suspend fun syncContext()
 }

@@ -20,6 +20,17 @@ sealed interface SweepContext {
   data object PrivateWalletMigration : SweepContext
 
   /**
+   * Sweeping as part of a W3 hardware upgrade.
+   * Special handling: uses App + old Hardware to sign keysets that belonged to the
+   * replaced device. Keysets from other historical devices stay on AppAndServer.
+   *
+   * @param replacedHardwareFingerprint Master key fingerprint of the old hardware device
+   *   that was just replaced. Only keysets matching this fingerprint will use
+   *   AppAndHardware signing; other inactive keysets fall back to AppAndServer.
+   */
+  data class W3Upgrade(val replacedHardwareFingerprint: String) : SweepContext
+
+  /**
    * Sweeping as part of recovery after losing a factor.
    * @param recoveredFactor The factor that was recovered (App or Hardware).
    */

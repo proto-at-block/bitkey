@@ -1,6 +1,7 @@
 package bitkey.ui.screens.securityhub
 
 import androidx.compose.runtime.*
+import bitkey.account.HardwareType
 import bitkey.privilegedactions.FingerprintResetAvailabilityService
 import bitkey.securitycenter.SecurityAction
 import bitkey.securitycenter.SecurityActionRecommendation
@@ -27,6 +28,8 @@ import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.fwup.FirmwareData
 import build.wallet.fwup.FirmwareDataService
@@ -64,6 +67,7 @@ import build.wallet.statemachine.status.BannerType.OfflineStatus
 import build.wallet.statemachine.status.HomeStatusBannerUiProps
 import build.wallet.statemachine.status.HomeStatusBannerUiStateMachine
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 // TODO remove dependency on full account when children no longer need it
@@ -86,6 +90,7 @@ class SecurityHubPresenter(
   private val fingerprintResetAvailabilityService: FingerprintResetAvailabilityService,
   private val provisionAppAuthKeyTransactionProvider: ProvisionAppAuthKeyTransactionProvider,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
+  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : ScreenPresenter<SecurityHubScreen> {
   @Composable
   override fun model(
@@ -108,6 +113,15 @@ class SecurityHubPresenter(
     val isFingerprintResetEnabled by remember {
       fingerprintResetAvailabilityService.isAvailable()
     }.collectAsState(initial = false)
+
+    val firmwareUpdateData by remember {
+      firmwareDataService.firmwareData()
+    }.collectAsState()
+
+    val canEditFingerprints = when (val info = firmwareUpdateData.firmwareDeviceInfo) {
+      null -> true
+      else -> info.hardwareType() != HardwareType.W3
+    }
 
     val homeStatusBannerModel = homeStatusBannerUiStateMachine.model(
       props = HomeStatusBannerUiProps(
@@ -137,6 +151,9 @@ class SecurityHubPresenter(
     val functionalityStatus by remember {
       appFunctionalityService.status
     }.collectAsState()
+    val isDesignSystemV2Enabled by remember {
+      designSystemUpdatesFeatureFlag.flagValue().map { it.isEnabled() }
+    }.collectAsState(initial = designSystemUpdatesFeatureFlag.isEnabled())
 
     val cardsModel = CardListModel(
       cards = buildImmutableList {
@@ -191,10 +208,6 @@ class SecurityHubPresenter(
       }.filterNotNull().toImmutableList()
     )
 
-    val firmwareUpdateData by remember {
-      firmwareDataService.firmwareData()
-    }.collectAsState()
-
     // Mark all recommendations as viewed when Security Hub is entered
     LaunchedEffect("mark-all-recommendations-viewed") {
       securityActionsService.markAllRecommendationsViewed()
@@ -202,59 +215,81 @@ class SecurityHubPresenter(
 
     return when (uiState) {
       is SecurityHubUiState.ViewingSecurityHub -> {
-        SecurityHubBodyModel(
-          isOffline = functionalityStatus is AppFunctionalityStatus.LimitedFunctionality,
-          atRiskRecommendations = securityActionsWithRecommendations.atRiskRecommendations.toImmutableList(),
-          recommendations = securityActionsWithRecommendations.recommendations.toImmutableList(),
-          cardsModel = cardsModel,
-          securityActions = securityActionsWithRecommendations.securityActions,
-          recoveryActions = securityActionsWithRecommendations.recoveryActions,
-          onRecommendationClick = { recommendation ->
-            when (recommendation) {
-              COMPLETE_FINGERPRINT_RESET -> {
-                uiState = SecurityHubUiState.FingerprintResetState
-              }
-              PROVISION_APP_KEY_TO_HARDWARE -> {
-                uiState = SecurityHubUiState.ProvisioningAppKeyState
-              }
-              else -> {
-                if (recommendation.shouldShowEducation()) {
-                  navigator.goTo(
-                    screen = SecurityHubEducationScreen.RecommendationEducation(
-                      recommendation = recommendation,
-                      originScreen = screen,
-                      firmwareData = firmwareUpdateData.firmwareUpdateState
+        ScreenModel(
+          body = SecurityHubBodyModel(
+            isOffline = functionalityStatus is AppFunctionalityStatus.LimitedFunctionality,
+            atRiskRecommendations = securityActionsWithRecommendations.atRiskRecommendations.toImmutableList(),
+            recommendations = securityActionsWithRecommendations.recommendations.toImmutableList(),
+            cardsModel = cardsModel,
+            securityActions = securityActionsWithRecommendations.securityActions,
+            recoveryActions = securityActionsWithRecommendations.recoveryActions,
+            onRecommendationClick = { recommendation ->
+              when (recommendation) {
+                COMPLETE_FINGERPRINT_RESET -> {
+                  uiState = SecurityHubUiState.FingerprintResetState
+                }
+                PROVISION_APP_KEY_TO_HARDWARE -> {
+                  uiState = SecurityHubUiState.ProvisioningAppKeyState
+                }
+                else -> {
+                  if (recommendation.shouldShowEducation()) {
+                    navigator.goTo(
+                      screen = SecurityHubEducationScreen.RecommendationEducation(
+                        recommendation = recommendation,
+                        originScreen = screen,
+                        firmwareData = firmwareUpdateData.firmwareUpdateState
+                      )
                     )
-                  )
-                } else {
-                  navigator.navigateToScreen(
-                    id = recommendation.navigationScreenId(),
-                    originScreen = screen,
-                    firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
-                    isFingerprintResetEnabled = isFingerprintResetEnabled,
-                    onCannotUnlockFingerprints = onCannotUnlockFingerprints
-                  )
+                  } else {
+                    navigator.navigateToScreen(
+                      id = recommendation.navigationScreenId(),
+                      originScreen = screen,
+                      firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
+                      isFingerprintResetEnabled = isFingerprintResetEnabled,
+                      canEditFingerprints = canEditFingerprints,
+                      onCannotUnlockFingerprints = onCannotUnlockFingerprints
+                    )
+                  }
                 }
               }
-            }
+            },
+            onSecurityActionClick = { securityAction ->
+              navigator.navigateToScreen(
+                id = securityAction.navigationScreenId(),
+                originScreen = screen,
+                firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
+                isFingerprintResetEnabled = isFingerprintResetEnabled,
+                canEditFingerprints = canEditFingerprints,
+                onCannotUnlockFingerprints = onCannotUnlockFingerprints
+              )
+            },
+            onHomeTabClick = {
+              scope.launch {
+                haptics.vibrate(effect = HapticsEffect.LightClick)
+                navigator.exit()
+              }
+            },
+            trailingToolbarAccessoryModel = securityHubToolbarAccessoryModel(
+              onClick = {
+                navigator.navigateToScreen(
+                  id = NavigationScreenId.NAVIGATION_SCREEN_ID_SETTINGS,
+                  originScreen = screen,
+                  firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
+                  isFingerprintResetEnabled = isFingerprintResetEnabled,
+                  canEditFingerprints = canEditFingerprints,
+                  onCannotUnlockFingerprints = onCannotUnlockFingerprints
+                )
+              }
+            ),
+            haptics = haptics
+          ),
+          presentationStyle = if (isDesignSystemV2Enabled) {
+            ScreenPresentationStyle.RootFullScreen
+          } else {
+            ScreenPresentationStyle.Root
           },
-          onSecurityActionClick = { securityAction ->
-            navigator.navigateToScreen(
-              id = securityAction.navigationScreenId(),
-              originScreen = screen,
-              firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
-              isFingerprintResetEnabled = isFingerprintResetEnabled,
-              onCannotUnlockFingerprints = onCannotUnlockFingerprints
-            )
-          },
-          onHomeTabClick = {
-            scope.launch {
-              haptics.vibrate(effect = HapticsEffect.LightClick)
-              navigator.exit()
-            }
-          },
-          haptics = haptics
-        ).asRootScreen(statusBannerModel = homeStatusBannerModel)
+          statusBannerModel = homeStatusBannerModel
+        )
       }
 
       is SecurityHubUiState.FingerprintResetState -> {
@@ -276,7 +311,8 @@ class SecurityHubPresenter(
                 id = NavigationScreenId.NAVIGATION_SCREEN_ID_UPDATE_FIRMWARE,
                 originScreen = screen,
                 firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
-                isFingerprintResetEnabled = isFingerprintResetEnabled
+                isFingerprintResetEnabled = isFingerprintResetEnabled,
+                canEditFingerprints = canEditFingerprints
               )
             },
             account = screen.account
@@ -314,6 +350,7 @@ fun Navigator.navigateToScreen(
   originScreen: SecurityHubScreen,
   firmwareUpdateData: FirmwareData.FirmwareUpdateState,
   isFingerprintResetEnabled: Boolean,
+  canEditFingerprints: Boolean,
   onCannotUnlockFingerprints: (() -> Unit)? = null,
 ) {
   when (id) {
@@ -321,6 +358,7 @@ fun Navigator.navigateToScreen(
       showSheet(
         ManageFingerprintsOptionsSheet(
           fingerprintResetEnabled = isFingerprintResetEnabled,
+          canEditFingerprints = canEditFingerprints,
           onDismiss = {
             closeSheet()
           },

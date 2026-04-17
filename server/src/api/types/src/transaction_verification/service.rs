@@ -181,6 +181,7 @@ impl From<StaticWalletProvider> for VerificationWalletProvider {
 mod tests {
     use super::*;
     use crate::account::bitcoin::Network as AccountNetwork;
+
     use bdk_utils::bdk::bitcoin::psbt::Psbt;
     use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
     use std::str::FromStr;

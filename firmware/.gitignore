@@ -30,3 +30,4 @@ cscope.*
 nscope.*
 *fwup-bundle/
 *fwup-bundle*.zip
+release/

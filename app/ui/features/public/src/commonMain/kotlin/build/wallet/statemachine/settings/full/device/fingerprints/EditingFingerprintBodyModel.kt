@@ -1,6 +1,7 @@
 package build.wallet.statemachine.settings.full.device.fingerprints
 
 import build.wallet.compose.collections.immutableListOfNotNull
+import build.wallet.firmware.FingerprintHandle
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.*
@@ -32,11 +33,26 @@ data class EditingFingerprintBodyModel(
     toolbar = ToolbarModel(
       leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(onBackPressed)
     ),
+    designSystemV2Model = FormDesignSystemV2Model(
+      toolbar = null,
+      useLegacyToolbarFallback = false,
+      primaryButton = saveFingerprintButton(
+        isExistingFingerprint = isExistingFingerprint,
+        isEnabled = !isExistingFingerprint || label != textFieldValue,
+        onSave = onSave
+      ),
+      useLegacyPrimaryButtonFallback = false,
+      useLegacySecondaryButtonFallback = false,
+      secondaryButton = deleteFingerprintButton(onDelete).takeIf {
+        // Only show the delete button if this is an existing fingerprint and not a new enrollment
+        isExistingFingerprint
+      }
+    ),
     header = FormHeaderModel(
       headline = when {
         !isExistingFingerprint -> "Add fingerprint name"
         label.isNotBlank() -> "Manage $label"
-        else -> "Manage Finger ${index + 1}"
+        else -> "Manage ${FingerprintHandle.defaultLabel(index)}"
       },
       subline = "Give your fingerprint a title to help distinguish between multiple fingerprints."
     ),
@@ -45,6 +61,7 @@ data class EditingFingerprintBodyModel(
         fieldModel = TextFieldModel(
           value = textFieldValue,
           placeholderText = "Fingerprint name",
+          testTag = "editing-fingerprint-name-input",
           onValueChange = { newValue, _ -> onValueChange(newValue) },
           keyboardType = TextFieldModel.KeyboardType.Default,
           onDone = onSave,
@@ -61,20 +78,42 @@ data class EditingFingerprintBodyModel(
         )
       ).takeIf { attemptToDeleteLastFingerprint }
     ),
-    primaryButton = ButtonModel(
-      text = "Delete fingerprint",
-      treatment = ButtonModel.Treatment.Secondary,
-      size = ButtonModel.Size.Footer,
-      onClick = StandardClick(onDelete)
-    ).takeIf {
+    primaryButton = deleteFingerprintButton(onDelete).takeIf {
       // Only show the delete button if this is an existing fingerprint and not a new enrollment
       isExistingFingerprint
     },
-    secondaryButton = BitkeyInteractionButtonModel(
-      text = if (isExistingFingerprint) "Save fingerprint" else "Start fingerprint",
+    secondaryButton = saveFingerprintButton(
+      isExistingFingerprint = isExistingFingerprint,
       isEnabled = !isExistingFingerprint || label != textFieldValue,
-      onClick = StandardClick(onSave),
-      size = ButtonModel.Size.Footer
+      onSave = onSave
     ),
     renderContext = RenderContext.Sheet
+  ) {
+
+  override fun automateNextPrimaryScreen() {
+    // The primary path for this sheet is saving or starting enrollment, even though the
+    // legacy footer layout keeps delete in the raw primary slot.
+    if (!isExistingFingerprint || label != textFieldValue) {
+      onSave()
+    }
+  }
+}
+
+private fun saveFingerprintButton(
+  isExistingFingerprint: Boolean,
+  isEnabled: Boolean,
+  onSave: () -> Unit,
+) = BitkeyInteractionButtonModel(
+  text = if (isExistingFingerprint) "Save fingerprint" else "Start fingerprint",
+  isEnabled = isEnabled,
+  onClick = StandardClick(onSave),
+  size = ButtonModel.Size.Footer
+)
+
+private fun deleteFingerprintButton(onDelete: () -> Unit) =
+  ButtonModel(
+    text = "Delete fingerprint",
+    treatment = ButtonModel.Treatment.Secondary,
+    size = ButtonModel.Size.Footer,
+    onClick = StandardClick(onDelete)
   )

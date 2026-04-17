@@ -1,9 +1,16 @@
 package build.wallet.statemachine.partnerships.purchase
 
 import androidx.compose.runtime.*
+import bitkey.account.HardwareType
+import build.wallet.account.AccountService
+import build.wallet.account.getAccount
 import build.wallet.analytics.events.EventTracker
+import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.ADDRESS_VERIFICATION
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId
 import build.wallet.analytics.v1.Action
+import build.wallet.bitcoin.address.BitcoinAddressInfo
+import build.wallet.bitcoin.address.BitcoinAddressService
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.CashAppFeePromotionFeatureFlag
@@ -18,8 +25,12 @@ import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.form.RenderContext
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.partnerships.PartnerEventTrackerScreenIdContext
+import build.wallet.statemachine.receive.AddressVerificationPromptBodyModel
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableList
@@ -35,6 +46,9 @@ class PartnershipsPurchaseQuotesUiStateMachineImpl(
   private val exchangeRateService: ExchangeRateService,
   private val currencyConverter: CurrencyConverter,
   private val cashAppFeePromotionFeatureFlag: CashAppFeePromotionFeatureFlag,
+  private val accountService: AccountService,
+  private val bitcoinAddressService: BitcoinAddressService,
+  private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
 ) : PartnershipsPurchaseQuotesUiStateMachine {
   @Composable
   override fun model(props: PartnershipsPurchaseQuotesUiProps): ScreenModel {
@@ -94,7 +108,7 @@ class PartnershipsPurchaseQuotesUiStateMachineImpl(
             it.toQuoteModel(moneyDisplayFormatter, exchangeRates, currencyConverter)
           }.toImmutableList(),
           onSelectPartnerQuote = { quote ->
-            state = State.LoadingRedirect(quote = quote)
+            state = State.GeneratingAddress(quote = quote)
           },
           onClosed = props.onBack,
           previousPartnerIds = currentState.previousPartnerIds,
@@ -112,10 +126,109 @@ class PartnershipsPurchaseQuotesUiStateMachineImpl(
         )
       }
 
+      is State.GeneratingAddress -> {
+        LaunchedEffect("generate-address-for-verification") {
+          val account = accountService.getAccount<FullAccount>()
+            .onFailure { error ->
+              state = State.RedirectLoadingFailure(
+                partner = currentState.quote.partnerInfo,
+                error = error
+              )
+              return@LaunchedEffect
+            }
+            .component1()!!
+          val isW3 = account.config.hardwareType == HardwareType.W3
+
+          if (isW3) {
+            // Need address info (with index) for NFC verification
+            bitcoinAddressService.generateAddressInfo()
+              .onFailure { error ->
+                state = State.RedirectLoadingFailure(
+                  partner = currentState.quote.partnerInfo,
+                  error = error
+                )
+              }
+              .onSuccess { addressInfo ->
+                state = State.AddressVerificationPrompt(
+                  quote = currentState.quote,
+                  addressInfo = addressInfo
+                )
+              }
+          } else {
+            // No verification needed — go straight to loading redirect
+            state = State.LoadingRedirect(quote = currentState.quote, addressInfo = null)
+          }
+        }
+        LoadingBodyModel(
+          id = DepositEventTrackerScreenId.LOADING_PURCHASE_ADDRESS_GENERATION,
+          eventTrackerContext = PartnerEventTrackerScreenIdContext(currentState.quote.partnerInfo),
+          onBack = props.onBack
+        ).asModalFullScreen()
+      }
+
+      is State.AddressVerificationPrompt -> {
+        AddressVerificationPromptBodyModel(
+          onBack = props.onBack,
+          onVerify = {
+            state = State.VerifyingOnDevice(
+              quote = currentState.quote,
+              addressInfo = currentState.addressInfo
+            )
+          },
+          onSkip = {
+            state = State.LoadingRedirect(
+              quote = currentState.quote,
+              addressInfo = currentState.addressInfo
+            )
+          },
+          screenId = DepositEventTrackerScreenId.PURCHASE_ADDRESS_VERIFICATION
+        ).asModalFullScreen()
+      }
+
+      is State.VerifyingOnDevice -> {
+        nfcSessionUIStateMachine.model(
+          NfcSessionUIStateMachineProps(
+            session = { session, commands ->
+              commands.getAddress(session, currentState.addressInfo.index)
+            },
+            onSuccess = { nfcAddress ->
+              val expectedAddress = currentState.addressInfo.address.address
+              if (nfcAddress == expectedAddress) {
+                state = State.LoadingRedirect(
+                  quote = currentState.quote,
+                  addressInfo = currentState.addressInfo
+                )
+              } else {
+                logError {
+                  "Address verification mismatch: NFC-returned address does not match expected address"
+                }
+                state = State.RedirectLoadingFailure(
+                  partner = currentState.quote.partnerInfo,
+                  error = Error("Address verification failed: device address does not match expected address")
+                )
+              }
+            },
+            needsAuthentication = true,
+            onCancel = {
+              state = State.AddressVerificationPrompt(
+                quote = currentState.quote,
+                addressInfo = currentState.addressInfo
+              )
+            },
+            screenPresentationStyle = ScreenPresentationStyle.Modal,
+            eventTrackerContext = ADDRESS_VERIFICATION
+          )
+        )
+      }
+
       is State.LoadingRedirect -> {
         LaunchedEffect("load-purchase-partner-redirect-info") {
           partnershipPurchaseService
-            .preparePurchase(currentState.quote, props.purchaseAmount)
+            .preparePurchase(
+              quote = currentState.quote,
+              purchaseAmount = props.purchaseAmount,
+              address = currentState.addressInfo?.address?.address
+            )
             .onFailure { error ->
               state = State.RedirectLoadingFailure(
                 partner = currentState.quote.partnerInfo,
@@ -170,8 +283,23 @@ class PartnershipsPurchaseQuotesUiStateMachineImpl(
       val error: Error,
     ) : State
 
+    data class GeneratingAddress(
+      val quote: PurchaseQuote,
+    ) : State
+
+    data class AddressVerificationPrompt(
+      val quote: PurchaseQuote,
+      val addressInfo: BitcoinAddressInfo,
+    ) : State
+
+    data class VerifyingOnDevice(
+      val quote: PurchaseQuote,
+      val addressInfo: BitcoinAddressInfo,
+    ) : State
+
     data class LoadingRedirect(
       val quote: PurchaseQuote,
+      val addressInfo: BitcoinAddressInfo?,
     ) : State
 
     data class RedirectLoaded(

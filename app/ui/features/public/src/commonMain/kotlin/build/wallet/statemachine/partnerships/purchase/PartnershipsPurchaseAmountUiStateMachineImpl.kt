@@ -7,6 +7,8 @@ import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.logging.logError
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -19,11 +21,12 @@ import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.SheetSize.MIN40
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormMainContentModel.Loader
+import build.wallet.statemachine.core.form.FormMainContentModel.DotLoader
 import build.wallet.statemachine.core.form.RenderContext.Sheet
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.flow.map
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 
@@ -32,9 +35,14 @@ class PartnershipsPurchaseAmountUiStateMachineImpl(
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val partnershipPurchaseService: PartnershipPurchaseService,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
+  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : PartnershipsPurchaseAmountUiStateMachine {
   @Composable
   override fun model(props: PartnershipsPurchaseAmountUiProps): SheetModel {
+    val isDesignSystemV2Enabled by remember {
+      designSystemUpdatesFeatureFlag.flagValue().map { it.isEnabled() }
+    }.collectAsState(initial = designSystemUpdatesFeatureFlag.isEnabled())
+
     var state: State by remember {
       mutableStateOf(State.Loading(preSelectedAmount = props.selectedAmount))
     }
@@ -44,6 +52,7 @@ class PartnershipsPurchaseAmountUiStateMachineImpl(
         selectPurchaseAmountModel(
           purchaseAmounts = currentState.purchaseAmounts.displayOptions.toImmutableList(),
           selectedAmount = currentState.selectedAmount,
+          isDesignSystemV2Enabled = isDesignSystemV2Enabled,
           moneyDisplayFormatter = moneyDisplayFormatter,
           onSelectAmount = { amount ->
             // deselect amount if it's already selected
@@ -205,7 +214,7 @@ private data class AmountLoadingBodyModel(
     onBack = {},
     toolbar = null,
     header = null,
-    mainContentList = immutableListOf(Loader),
+    mainContentList = immutableListOf(DotLoader),
     primaryButton = null,
     renderContext = Sheet
   )

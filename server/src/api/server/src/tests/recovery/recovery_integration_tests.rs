@@ -22,15 +22,15 @@ use recovery::routes::delay_notify::{
 };
 use time::{Duration, OffsetDateTime};
 use types::account::bitcoin::Network;
-use types::account::entities::{Factor, FullAccountAuthKeysInput};
+use types::account::entities::{Factor, FullAccountAuthKeysInput, HardwareType};
 use types::account::identifiers::AccountId;
 use types::account::keys::FullAccountAuthKeys;
 
 use crate::tests::gen_services;
 use crate::tests::lib::{
     create_auth_keyset_model, create_default_account_with_predefined_wallet, create_full_account,
-    create_keypair, create_new_authkeys, create_phone_touchpoint, create_plain_keys, create_pubkey,
-    create_push_touchpoint, generate_delay_and_notify_recovery,
+    create_keypair, create_new_authkeys, create_onboarded_w3_account, create_phone_touchpoint,
+    create_plain_keys, create_pubkey, create_push_touchpoint, generate_delay_and_notify_recovery,
 };
 use crate::tests::requests::axum::TestClient;
 use crate::tests::requests::Response;
@@ -41,7 +41,7 @@ use rstest::rstest;
 #[case::basic(None, Factor::Hw, (true, true), true, StatusCode::OK, true, false, false)]
 #[case::without_recovery_auth_pubkey(None, Factor::Hw, (false, false), true, StatusCode::OK, true, false, false)]
 #[case::seven_day_delay_override(None, Factor::Hw, (true, true), false, StatusCode::OK, true, false, false)]
-#[case::no_signers(None, Factor::Hw, (true, true), true, StatusCode::BAD_REQUEST, false, false, false)]
+#[case::no_signers(None, Factor::Hw, (true, true), true, StatusCode::FORBIDDEN, false, false, false)]
 #[case::wrong_signer(None, Factor::Hw, (true, true), true, StatusCode::BAD_REQUEST, false, true, false)]
 #[case::both_signers(None, Factor::Hw, (true, true), true, StatusCode::BAD_REQUEST, true, true, false)]
 #[case::prior_contest(None, Factor::Hw, (true, true), true, StatusCode::OK, true, false, true)]
@@ -96,6 +96,7 @@ async fn test_create_delay_notify(
                 } else {
                     None
                 },
+                hardware_type: HardwareType::default(),
             },
             fixed_cur_time - Duration::days(15),
             RecoveryStatus::CanceledInContest,
@@ -124,6 +125,7 @@ async fn test_create_delay_notify(
             } else {
                 None
             },
+            hardware_type: HardwareType::default(),
         },
     };
     let mut response = client
@@ -148,13 +150,12 @@ async fn test_create_delay_notify(
         );
 
         // Request the verification code
+        let verification_factor = if app_signed { Factor::App } else { Factor::Hw };
         let send_code_response = client
             .send_delay_notify_verification_code(
                 &query_account_id.to_string(),
                 &SendAccountVerificationCodeRequest { touchpoint_id },
-                app_signed,
-                hw_signed,
-                &account_keys,
+                verification_factor,
             )
             .await;
 
@@ -171,9 +172,7 @@ async fn test_create_delay_notify(
                 &VerifyAccountVerificationCodeRequest {
                     verification_code: TEST_CODE.to_owned(),
                 },
-                app_signed,
-                hw_signed,
-                &account_keys,
+                verification_factor,
             )
             .await;
 
@@ -234,6 +233,7 @@ async fn test_create_delay_notify(
             } else {
                 None
             },
+            hardware_type: HardwareType::default(),
         },
     };
     assert_eq!(
@@ -362,7 +362,7 @@ async fn test_create_delay_notify(
 )]
 #[case::lost_hw_without_prior_contest(true, Factor::Hw, StatusCode::OK, true, false, false)]
 #[case::lost_app_without_prior_contest(true, Factor::App, StatusCode::OK, false, true, false)]
-#[case::no_signers(true, Factor::Hw, StatusCode::BAD_REQUEST, false, false, false)]
+#[case::no_signers(true, Factor::Hw, StatusCode::FORBIDDEN, false, false, false)]
 #[case::contest_without_prior_contest(true, Factor::Hw, StatusCode::OK, false, true, false)]
 #[case::cancel_prior_contest(true, Factor::Hw, StatusCode::OK, true, false, true)]
 #[case::contest_prior_contest(true, Factor::Hw, StatusCode::OK, false, true, true)]
@@ -396,6 +396,7 @@ async fn test_cancel_delay_notify(
                     create_pubkey()
                 },
                 recovery: Some(create_pubkey()),
+                hardware_type: HardwareType::default(),
             },
         };
         let (app_signed_create, hw_signed_create) = match lost_factor {
@@ -430,6 +431,7 @@ async fn test_cancel_delay_notify(
                 app_auth_pubkey: create_pubkey(),
                 hardware_auth_pubkey: account.hardware_auth_pubkey,
                 recovery_auth_pubkey: Some(create_pubkey()),
+                hardware_type: HardwareType::default(),
             },
             bootstrap.services.recovery_service.cur_time() - Duration::days(15),
             RecoveryStatus::CanceledInContest,
@@ -462,13 +464,12 @@ async fn test_cancel_delay_notify(
         );
 
         // Request the verification code
+        let verification_factor = if app_signed { Factor::App } else { Factor::Hw };
         let send_code_response = client
             .send_delay_notify_verification_code(
                 &account.id.to_string(),
                 &SendAccountVerificationCodeRequest { touchpoint_id },
-                app_signed,
-                hw_signed,
-                &keys,
+                verification_factor,
             )
             .await;
 
@@ -485,9 +486,7 @@ async fn test_cancel_delay_notify(
                 &VerifyAccountVerificationCodeRequest {
                     verification_code: TEST_CODE.to_owned(),
                 },
-                app_signed,
-                hw_signed,
-                &keys,
+                verification_factor,
             )
             .await;
 
@@ -609,6 +608,7 @@ async fn test_complete_delay_notify(
                 } else {
                     None
                 },
+                hardware_type: HardwareType::default(),
             },
             offset_dt,
             RecoveryStatus::Pending,
@@ -749,6 +749,7 @@ async fn test_complete_delay_notify_idempotency(
             app_auth_pubkey,
             hardware_auth_pubkey,
             recovery_auth_pubkey: Some(recovery_auth_pubkey),
+            hardware_type: HardwareType::default(),
         },
         fixed_cur_time,
         RecoveryStatus::Pending,
@@ -883,6 +884,7 @@ async fn test_get_status_with_delay_notify(
                 app_auth_pubkey,
                 hardware_auth_pubkey: account.hardware_auth_pubkey,
                 recovery_auth_pubkey,
+                hardware_type: HardwareType::default(),
             },
             offset_dt + delay_end_time_offset.unwrap(),
             recovery_status,
@@ -919,7 +921,8 @@ async fn test_get_status_with_delay_notify(
             FullAccountAuthKeysInput {
                 app: app_auth_pubkey,
                 hardware: account.hardware_auth_pubkey,
-                recovery: recovery_auth_pubkey
+                recovery: recovery_auth_pubkey,
+                hardware_type: HardwareType::default(),
             }
         );
     }
@@ -949,6 +952,7 @@ async fn test_create_lost_hw_delay_notify_with_existing_hardware_auth_key() {
             app: create_pubkey(),
             hardware: hw_authkey,
             recovery: Some(create_pubkey()),
+            hardware_type: HardwareType::default(),
         },
     };
 
@@ -1017,6 +1021,7 @@ async fn test_update_delay_for_test_recovery(
             app_auth_pubkey,
             hardware_auth_pubkey: account.hardware_auth_pubkey,
             recovery_auth_pubkey: Some(recovery_auth_pubkey),
+            hardware_type: HardwareType::default(),
         },
         offset_dt,
         RecoveryStatus::Pending,
@@ -1075,6 +1080,7 @@ async fn test_update_delay_for_test_recovery(
                     app: create_pubkey(),
                     hardware: create_pubkey(),
                     recovery: Some(create_pubkey()),
+                    hardware_type: HardwareType::default(),
                 },
             },
             true,
@@ -1161,6 +1167,7 @@ async fn test_reuse_auth_pubkey(
             app_pubkey: other_account_keys.app.public_key,
             hardware_pubkey: other_account_keys.hw.public_key,
             recovery_pubkey: Some(other_account_keys.recovery.public_key),
+            hardware_type: HardwareType::default(),
         }),
     )
     .await;
@@ -1173,6 +1180,7 @@ async fn test_reuse_auth_pubkey(
             app_auth_pubkey: other_recovery_keys.app.public_key,
             hardware_auth_pubkey: other_recovery_keys.hw.public_key,
             recovery_auth_pubkey: Some(other_recovery_keys.recovery.public_key),
+            hardware_type: HardwareType::default(),
         },
         fixed_cur_time + Duration::days(7),
         RecoveryStatus::Pending,
@@ -1279,6 +1287,7 @@ async fn test_reuse_auth_pubkey(
                     app: recovery_app_pubkey,
                     hardware: recovery_hardware_pubkey,
                     recovery: recovery_recover_pubkey,
+                    hardware_type: HardwareType::default(),
                 },
             },
             lost_factor == Factor::Hw,
@@ -1308,4 +1317,478 @@ async fn test_reuse_auth_pubkey(
     } else {
         assert_eq!(StatusCode::OK, response.status_code);
     }
+}
+
+// ---- W3 ActionProof tests for migrated recovery routes ----
+
+#[tokio::test]
+async fn w3_create_delay_notify_with_action_proof_succeeds() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let (account_id, keys) = create_onboarded_w3_account(&mut context, &client).await;
+
+    let new_keys = create_new_authkeys(&mut context);
+    let response = client
+        .create_delay_notify_recovery_with_action_proof(
+            &account_id,
+            &CreateAccountDelayNotifyRequest {
+                lost_factor: Factor::Hw,
+                delay_period_num_sec: None,
+                auth: FullAccountAuthKeysInput {
+                    app: new_keys.app.public_key,
+                    hardware: new_keys.hw.public_key,
+                    recovery: Some(new_keys.recovery.public_key),
+                    hardware_type: HardwareType::default(),
+                },
+            },
+            &keys,
+            true,  // sign_with_app (the non-lost factor)
+            false, // sign_with_hw (the lost factor)
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "W3 create_delay_notify with ActionProof should succeed"
+    );
+}
+
+#[tokio::test]
+async fn w3_create_delay_notify_rejects_keyclaims() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let (account_id, keys) = create_onboarded_w3_account(&mut context, &client).await;
+
+    let new_keys = create_new_authkeys(&mut context);
+    let response = client
+        .create_delay_notify_recovery(
+            &account_id,
+            &CreateAccountDelayNotifyRequest {
+                lost_factor: Factor::Hw,
+                delay_period_num_sec: None,
+                auth: FullAccountAuthKeysInput {
+                    app: new_keys.app.public_key,
+                    hardware: new_keys.hw.public_key,
+                    recovery: Some(new_keys.recovery.public_key),
+                    hardware_type: HardwareType::default(),
+                },
+            },
+            true,  // app_signed (KeyClaims)
+            false, // hw_signed (KeyClaims)
+            &keys,
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::FORBIDDEN,
+        "W3 create_delay_notify with KeyClaims should be rejected"
+    );
+}
+
+#[tokio::test]
+async fn w3_cancel_delay_notify_with_action_proof_succeeds() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let (account_id, keys) = create_onboarded_w3_account(&mut context, &client).await;
+
+    // First, create a recovery using ActionProof
+    let new_keys = create_new_authkeys(&mut context);
+    let create_response = client
+        .create_delay_notify_recovery_with_action_proof(
+            &account_id,
+            &CreateAccountDelayNotifyRequest {
+                lost_factor: Factor::Hw,
+                delay_period_num_sec: None,
+                auth: FullAccountAuthKeysInput {
+                    app: new_keys.app.public_key,
+                    hardware: new_keys.hw.public_key,
+                    recovery: Some(new_keys.recovery.public_key),
+                    hardware_type: HardwareType::default(),
+                },
+            },
+            &keys,
+            true,
+            false,
+        )
+        .await;
+    assert_eq!(create_response.status_code, StatusCode::OK);
+
+    // Cancel using ActionProof
+    let response = client
+        .cancel_delay_notify_recovery_with_action_proof(
+            &account_id,
+            Factor::Hw,
+            &keys,
+            true,  // sign_with_app
+            false, // sign_with_hw (lost factor)
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "W3 cancel_delay_notify with ActionProof should succeed"
+    );
+}
+
+#[tokio::test]
+async fn w3_create_delay_notify_lost_app_with_action_proof_succeeds() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let (account_id, keys) = create_onboarded_w3_account(&mut context, &client).await;
+
+    let new_keys = create_new_authkeys(&mut context);
+    let response = client
+        .create_delay_notify_recovery_with_action_proof(
+            &account_id,
+            &CreateAccountDelayNotifyRequest {
+                lost_factor: Factor::App,
+                delay_period_num_sec: None,
+                auth: FullAccountAuthKeysInput {
+                    app: new_keys.app.public_key,
+                    hardware: keys.hw.public_key,
+                    recovery: Some(new_keys.recovery.public_key),
+                    hardware_type: HardwareType::default(),
+                },
+            },
+            &keys,
+            false, // sign_with_app (lost factor)
+            true,  // sign_with_hw (the non-lost factor)
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "W3 create_delay_notify lost app with ActionProof should succeed: {}",
+        response.body_string
+    );
+}
+
+#[tokio::test]
+async fn w3_cancel_delay_notify_lost_app_with_action_proof_succeeds() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let (account_id, keys) = create_onboarded_w3_account(&mut context, &client).await;
+
+    // Create a lost-app recovery
+    let new_keys = create_new_authkeys(&mut context);
+    let create_response = client
+        .create_delay_notify_recovery_with_action_proof(
+            &account_id,
+            &CreateAccountDelayNotifyRequest {
+                lost_factor: Factor::App,
+                delay_period_num_sec: None,
+                auth: FullAccountAuthKeysInput {
+                    app: new_keys.app.public_key,
+                    hardware: keys.hw.public_key,
+                    recovery: Some(new_keys.recovery.public_key),
+                    hardware_type: HardwareType::default(),
+                },
+            },
+            &keys,
+            false,
+            true,
+        )
+        .await;
+    assert_eq!(create_response.status_code, StatusCode::OK);
+
+    // Cancel using ActionProof
+    let response = client
+        .cancel_delay_notify_recovery_with_action_proof(
+            &account_id,
+            Factor::App,
+            &keys,
+            false, // sign_with_app (lost factor)
+            true,  // sign_with_hw (the non-lost factor)
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "W3 cancel_delay_notify lost app with ActionProof should succeed: {}",
+        response.body_string
+    );
+}
+
+#[tokio::test]
+async fn w3_cancel_delay_notify_no_active_recovery_returns_conflict() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let (account_id, keys) = create_onboarded_w3_account(&mut context, &client).await;
+
+    // Cancel without ever creating a recovery — should get 409 Conflict.
+    // Factor::Hw is arbitrary here; the route errors before checking the action proof.
+    let response = client
+        .cancel_delay_notify_recovery_with_action_proof(&account_id, Factor::Hw, &keys, true, false)
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::CONFLICT,
+        "W3 cancel with no active recovery should return 409: {}",
+        response.body_string
+    );
+}
+
+#[tokio::test]
+async fn w3_cancel_delay_notify_wrong_factor_action_proof_rejected() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let (account_id, keys) = create_onboarded_w3_account(&mut context, &client).await;
+
+    // Create a lost-hw recovery
+    let new_keys = create_new_authkeys(&mut context);
+    let create_response = client
+        .create_delay_notify_recovery_with_action_proof(
+            &account_id,
+            &CreateAccountDelayNotifyRequest {
+                lost_factor: Factor::Hw,
+                delay_period_num_sec: None,
+                auth: FullAccountAuthKeysInput {
+                    app: new_keys.app.public_key,
+                    hardware: new_keys.hw.public_key,
+                    recovery: Some(new_keys.recovery.public_key),
+                    hardware_type: HardwareType::default(),
+                },
+            },
+            &keys,
+            true,
+            false,
+        )
+        .await;
+    assert_eq!(create_response.status_code, StatusCode::OK);
+
+    // Cancel with CancelLostAppRecovery action proof (wrong — recovery is lost-hw).
+    // The server determines the correct action from DB, so the mismatch is rejected.
+    let response = client
+        .cancel_delay_notify_recovery_with_explicit_action(
+            &account_id,
+            action_proof::Action::CancelLostAppRecovery,
+            &keys,
+            false,
+            true,
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::FORBIDDEN,
+        "Cancel with wrong factor action proof should be rejected: {}",
+        response.body_string
+    );
+}
+
+#[tokio::test]
+async fn w3_create_delay_notify_wrong_factor_action_proof_rejected() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let (account_id, keys) = create_onboarded_w3_account(&mut context, &client).await;
+
+    // Request says lost_factor: Hw, but sign with CreateLostAppRecovery action proof
+    let new_keys = create_new_authkeys(&mut context);
+    let response = client
+        .create_delay_notify_recovery_with_explicit_action(
+            &account_id,
+            &CreateAccountDelayNotifyRequest {
+                lost_factor: Factor::Hw,
+                delay_period_num_sec: None,
+                auth: FullAccountAuthKeysInput {
+                    app: new_keys.app.public_key,
+                    hardware: new_keys.hw.public_key,
+                    recovery: Some(new_keys.recovery.public_key),
+                    hardware_type: HardwareType::default(),
+                },
+            },
+            action_proof::Action::CreateLostAppRecovery, // wrong factor
+            &keys,
+            true,  // sign_with_app
+            false, // sign_with_hw
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::FORBIDDEN,
+        "Create with wrong factor action proof should be rejected: {}",
+        response.body_string
+    );
+}
+
+#[tokio::test]
+async fn w3_cancel_delay_notify_rejects_keyclaims() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let (account_id, keys) = create_onboarded_w3_account(&mut context, &client).await;
+
+    // First, create a recovery using ActionProof
+    let new_keys = create_new_authkeys(&mut context);
+    let create_response = client
+        .create_delay_notify_recovery_with_action_proof(
+            &account_id,
+            &CreateAccountDelayNotifyRequest {
+                lost_factor: Factor::Hw,
+                delay_period_num_sec: None,
+                auth: FullAccountAuthKeysInput {
+                    app: new_keys.app.public_key,
+                    hardware: new_keys.hw.public_key,
+                    recovery: Some(new_keys.recovery.public_key),
+                    hardware_type: HardwareType::default(),
+                },
+            },
+            &keys,
+            true,
+            false,
+        )
+        .await;
+    assert_eq!(create_response.status_code, StatusCode::OK);
+
+    // Cancel with KeyClaims should be rejected for W3
+    let response = client
+        .cancel_delay_notify_recovery(
+            &account_id,
+            true,  // app_signed
+            false, // hw_signed (lost factor)
+            &keys,
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::FORBIDDEN,
+        "W3 cancel_delay_notify with KeyClaims should be rejected"
+    );
+}
+
+#[rstest]
+#[case::app_factor(Factor::Hw, Factor::App)]
+#[case::hw_factor(Factor::App, Factor::Hw)]
+#[tokio::test]
+async fn send_and_verify_code_succeeds(
+    #[case] lost_factor: Factor,
+    #[case] verification_factor: Factor,
+) {
+    let (mut context, bootstrap) = gen_services().await;
+    let fixed_cur_time = bootstrap.services.recovery_service.cur_time();
+    let client = TestClient::new(bootstrap.router).await;
+
+    let (account_id, keys) = create_onboarded_w3_account(&mut context, &client).await;
+    let account_id_parsed: AccountId = account_id.parse().unwrap();
+
+    // Set up phone touchpoint (required for comms verification)
+    let touchpoint_id =
+        create_phone_touchpoint(&bootstrap.services, &account_id_parsed, true).await;
+
+    // Fetch the full account to get fields needed for generating a prior recovery
+    let full_account = bootstrap
+        .services
+        .account_service
+        .fetch_full_account(FetchAccountInput {
+            account_id: &account_id_parsed,
+        })
+        .await
+        .unwrap();
+
+    // Insert a prior contested recovery to trigger comms verification requirement
+    let prior_recovery = generate_delay_and_notify_recovery(
+        account_id_parsed.clone(),
+        RecoveryDestination {
+            source_auth_keys_id: full_account.common_fields.active_auth_keys_id.clone(),
+            app_auth_pubkey: create_pubkey(),
+            hardware_auth_pubkey: full_account.active_auth_keys().unwrap().hardware_pubkey,
+            recovery_auth_pubkey: Some(create_pubkey()),
+            hardware_type: HardwareType::default(),
+        },
+        fixed_cur_time - Duration::days(15),
+        RecoveryStatus::CanceledInContest,
+        lost_factor,
+    );
+    bootstrap
+        .services
+        .recovery_service
+        .create(&prior_recovery)
+        .await
+        .unwrap();
+
+    // Attempt D&N recovery — should require comms verification due to prior contest
+    let sign_with_app = verification_factor == Factor::App;
+    let sign_with_hw = verification_factor == Factor::Hw;
+    let new_keys = create_new_authkeys(&mut context);
+    let dn_request = CreateAccountDelayNotifyRequest {
+        lost_factor,
+        delay_period_num_sec: None,
+        auth: FullAccountAuthKeysInput {
+            app: new_keys.app.public_key,
+            hardware: if lost_factor == Factor::App {
+                full_account.active_auth_keys().unwrap().hardware_pubkey
+            } else {
+                new_keys.hw.public_key
+            },
+            recovery: Some(new_keys.recovery.public_key),
+            hardware_type: HardwareType::default(),
+        },
+    };
+    let response = client
+        .create_delay_notify_recovery_with_action_proof(
+            &account_id,
+            &dn_request,
+            &keys,
+            sign_with_app,
+            sign_with_hw,
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::FORBIDDEN,
+        "D&N with prior contest should require comms verification"
+    );
+
+    // Send verification code as the surviving factor
+    let send_response = client
+        .send_delay_notify_verification_code(
+            &account_id,
+            &SendAccountVerificationCodeRequest { touchpoint_id },
+            verification_factor,
+        )
+        .await;
+    assert_eq!(
+        send_response.status_code,
+        StatusCode::OK,
+        "send_verification_code should succeed"
+    );
+
+    // Verify the code
+    let verify_response = client
+        .verify_delay_notify_verification_code(
+            &account_id,
+            &VerifyAccountVerificationCodeRequest {
+                verification_code: TEST_CODE.to_owned(),
+            },
+            verification_factor,
+        )
+        .await;
+    assert_eq!(
+        verify_response.status_code,
+        StatusCode::OK,
+        "verify_code should succeed"
+    );
+
+    // Now the D&N recovery should succeed
+    let retry_response = client
+        .create_delay_notify_recovery_with_action_proof(
+            &account_id,
+            &dn_request,
+            &keys,
+            sign_with_app,
+            sign_with_hw,
+        )
+        .await;
+    assert_eq!(
+        retry_response.status_code,
+        StatusCode::OK,
+        "D&N should succeed after comms verification"
+    );
 }

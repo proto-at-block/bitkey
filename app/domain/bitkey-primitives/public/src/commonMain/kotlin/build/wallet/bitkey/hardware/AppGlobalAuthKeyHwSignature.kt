@@ -37,5 +37,11 @@ value class AppGlobalAuthKeyHwSignature(val value: String) {
      * hardware signature is unavailable.
      */
     const val ORPHANED_KEY_RECOVERY_SENTINEL = "orphaned-key-recovery-sentinel"
+
+    /**
+     * Sentinel value used during W3 onboarding. The real HW signature is obtained later
+     * via [verifyKeysAndBuildDescriptor] and written back to the Keybox.
+     */
+    const val W3_ONBOARDING_PLACEHOLDER = "hw-signature-w3-placeholder"
   }
 }

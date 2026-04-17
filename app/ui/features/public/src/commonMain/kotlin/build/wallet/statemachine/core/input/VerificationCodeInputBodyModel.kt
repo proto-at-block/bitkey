@@ -16,7 +16,6 @@ import build.wallet.statemachine.core.form.FormMainContentModel.Explainer
 import build.wallet.statemachine.core.form.FormMainContentModel.Explainer.Statement
 import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput
 import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput.ResendCodeContent
-import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput.SkipForNowContent
 import build.wallet.statemachine.core.form.RenderContext.Sheet
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.input.TextFieldModel.KeyboardType.Number
@@ -29,7 +28,6 @@ fun VerificationCodeInputBodyModel(
   subtitle: String,
   value: String = "",
   resendCodeContent: ResendCodeContent,
-  skipForNowContent: SkipForNowContent,
   explainerText: String?,
   errorOverlay: SheetModel? = null,
   onValueChange: (String) -> Unit,
@@ -41,7 +39,6 @@ fun VerificationCodeInputBodyModel(
     subtitle = subtitle,
     value = value,
     resendCodeContent = resendCodeContent,
-    skipForNowContent = skipForNowContent,
     explainerText = explainerText,
     onValueChange = onValueChange,
     onBack = onBack,
@@ -57,7 +54,6 @@ data class VerificationCodeInputFormBodyModel(
   val subtitle: String,
   val value: String,
   val resendCodeContent: ResendCodeContent,
-  val skipForNowContent: SkipForNowContent,
   val explainerText: String?,
   val onValueChange: (String) -> Unit,
   override val onBack: () -> Unit,
@@ -75,12 +71,12 @@ data class VerificationCodeInputFormBodyModel(
               TextFieldModel(
                 value = value,
                 placeholderText = "Verification code",
+                testTag = "verification-code-input",
                 onValueChange = { newValue, _ -> onValueChange(newValue) },
                 keyboardType = Number,
                 transformation = null
               ),
-            resendCodeContent = resendCodeContent,
-            skipForNowContent = skipForNowContent
+            resendCodeContent = resendCodeContent
           )
         )
         explainerText?.let {

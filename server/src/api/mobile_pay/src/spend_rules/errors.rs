@@ -20,8 +20,8 @@ pub enum SpendRuleCheckError {
     PsbtInputsDontBelongToOriginWallet,
     #[error("One or more script pub keys are invalid. Cannot check transaction.")]
     InvalidScriptPubKeys,
-    #[error("One or more outputs belong to sanctioned individuals.")]
-    OutputsBelongToSanctionedIndividuals,
+    #[error("One or more inputs/outputs belong to sanctioned individuals.")]
+    InputsOutputsBelongToSanctionedIndividuals,
     #[error("Error fetching spend amount: {0}")]
     CouldNotFetchSpendAmount(String),
     #[error("Transaction requires verification")]
@@ -74,8 +74,8 @@ impl From<SanctionsScreenerError> for SpendRuleCheckError {
             SanctionsScreenerError::InvalidScriptPubKeys => {
                 SpendRuleCheckError::InvalidScriptPubKeys
             }
-            SanctionsScreenerError::OutputsBelongToSanctionedIndividuals => {
-                SpendRuleCheckError::OutputsBelongToSanctionedIndividuals
+            SanctionsScreenerError::InputsOutputsBelongToSanctionedIndividuals => {
+                SpendRuleCheckError::InputsOutputsBelongToSanctionedIndividuals
             }
             SanctionsScreenerError::ScreenerError(_) => SpendRuleCheckError::ScreenerError,
         }

@@ -16,6 +16,7 @@ import build.wallet.ui.model.callout.CalloutModel
 import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.tab.CircularTabRowModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
@@ -30,6 +31,7 @@ enum class ManagingInheritanceTab {
 
 data class ManagingInheritanceBodyModel(
   override val onBack: () -> Unit,
+  val isDesignSystemV2Enabled: Boolean,
   val onLearnMore: () -> Unit,
   val onInviteClick: StandardClick,
   val onTabRowClick: (ManagingInheritanceTab) -> Unit,
@@ -89,7 +91,7 @@ data class ManagingInheritanceBodyModel(
             }
           ),
           SetupInheritanceUpsell(
-            icon = Icon.SmallIconInheritance,
+            icon = if (isDesignSystemV2Enabled) Icon.DotInheritance else Icon.SmallIconInheritance,
             title = "Add a beneficiary",
             body = "Your investment is worth passing on. Add a beneficiary to ensure it stays in good hands.",
             primaryButton = ButtonModel(
@@ -97,23 +99,35 @@ data class ManagingInheritanceBodyModel(
               size = ButtonModel.Size.Short,
               leadingIcon = Icon.SmallIconPlus,
               onClick = onInviteClick,
-              treatment = ButtonModel.Treatment.Accent
+              treatment = if (isDesignSystemV2Enabled) {
+                ButtonModel.Treatment.Primary
+              } else {
+                ButtonModel.Treatment.Accent
+              }
             ),
-            onSecondaryClick = StandardClick { onLearnMore() }
+            onSecondaryClick = StandardClick { onLearnMore() },
+            showIconBackground = !isDesignSystemV2Enabled,
+            iconTint = if (isDesignSystemV2Enabled) IconTint.Foreground else null
           ).takeIf {
             selectedTab == ManagingInheritanceTab.Beneficiaries && beneficiaries.items.isEmpty()
           },
           SetupInheritanceUpsell(
-            icon = Icon.SmallIconShieldPerson,
+            icon = if (isDesignSystemV2Enabled) Icon.DotInheritance else Icon.SmallIconShieldPerson,
             title = "Become a beneficiary",
             body = "Accept an invite code from your benefactor to get started.",
             primaryButton = ButtonModel(
               text = "Accept invite",
               size = ButtonModel.Size.Short,
               onClick = StandardClick(onAcceptInvitation),
-              treatment = ButtonModel.Treatment.Accent
+              treatment = if (isDesignSystemV2Enabled) {
+                ButtonModel.Treatment.Primary
+              } else {
+                ButtonModel.Treatment.Accent
+              }
             ),
-            onSecondaryClick = StandardClick { onLearnMore() }
+            onSecondaryClick = StandardClick { onLearnMore() },
+            showIconBackground = !isDesignSystemV2Enabled,
+            iconTint = if (isDesignSystemV2Enabled) IconTint.Foreground else null
           ).takeIf {
             selectedTab == ManagingInheritanceTab.Inheritance && benefactors.items.isEmpty()
           }
@@ -142,18 +156,28 @@ private fun SetupInheritanceUpsell(
   body: String,
   primaryButton: ButtonModel,
   onSecondaryClick: StandardClick,
+  showIconBackground: Boolean,
+  iconTint: IconTint?,
 ): FormMainContentModel.Upsell {
   return FormMainContentModel.Upsell(
     title = title,
     body = body,
-    iconModel = IconModel(
-      icon = icon,
-      iconSize = IconSize.Large,
-      iconBackgroundType = IconBackgroundType.Circle(
-        IconSize.Avatar,
-        IconBackgroundType.Circle.CircleColor.InheritanceSurface
+    iconModel = if (showIconBackground) {
+      IconModel(
+        icon = icon,
+        iconSize = IconSize.Large,
+        iconBackgroundType = IconBackgroundType.Circle(
+          IconSize.Avatar,
+          IconBackgroundType.Circle.CircleColor.InheritanceSurface
+        )
       )
-    ),
+    } else {
+      IconModel(
+        icon = icon,
+        iconSize = IconSize.Large,
+        iconTint = iconTint
+      )
+    },
     primaryButton = primaryButton,
     secondaryButton = ButtonModel(
       text = "Learn more",

@@ -23,7 +23,7 @@ impl SendEmail {
         }
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, touchpoint, payload))]
     pub async fn send(
         &self,
         account_id: &AccountId,

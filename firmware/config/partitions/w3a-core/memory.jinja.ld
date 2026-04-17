@@ -84,6 +84,8 @@ PROVIDE(__FLASH_segment_end__ = ORIGIN(FLASH_BOOTLOADER_PROGRAM) + 1536K);
 
 PROVIDE(flash_filesystem_addr = ORIGIN(FLASH_FILESYSTEM));
 PROVIDE(flash_filesystem_size = LENGTH(FLASH_FILESYSTEM));
+PROVIDE(flash_bio_addr = ORIGIN(FLASH_BIO_FLASH));
+PROVIDE(flash_bio_size = LENGTH(FLASH_BIO_FLASH));
 PROVIDE(ram_addr = ORIGIN(RAM));
 PROVIDE(ram_size = LENGTH(RAM));
 PROVIDE(__SRAM_segment_start__ = ORIGIN(RAM));

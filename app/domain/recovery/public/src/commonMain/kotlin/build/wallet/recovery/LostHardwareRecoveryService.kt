@@ -1,10 +1,10 @@
 package build.wallet.recovery
 
+import bitkey.account.HardwareType
 import bitkey.recovery.InitiateDelayNotifyRecoveryError
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
-import build.wallet.f8e.auth.HwFactorProofOfPossession
 import com.github.michaelbull.result.Result
 
 /**
@@ -27,6 +27,7 @@ interface LostHardwareRecoveryService {
     destinationAppKeyBundle: AppKeyBundle,
     destinationHardwareKeyBundle: HwKeyBundle,
     appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+    hardwareType: HardwareType,
   ): Result<Unit, InitiateDelayNotifyRecoveryError>
 
   /**
@@ -35,9 +36,8 @@ interface LostHardwareRecoveryService {
   suspend fun cancelRecovery(): Result<Unit, CancelDelayNotifyRecoveryError>
 
   /**
-   * Cancels in progress D&N using HW proof of possession
+   * Cancels a conflicting in-progress D&N recovery.
+   * Builds an app-signed CancelConflictingRecovery action proof for W3 accounts.
    */
-  suspend fun cancelRecoveryWithHwProofOfPossession(
-    proofOfPossession: HwFactorProofOfPossession,
-  ): Result<Unit, CancelDelayNotifyRecoveryError>
+  suspend fun cancelConflictingRecovery(): Result<Unit, CancelDelayNotifyRecoveryError>
 }

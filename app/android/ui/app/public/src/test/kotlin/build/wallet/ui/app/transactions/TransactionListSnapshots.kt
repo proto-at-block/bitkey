@@ -109,4 +109,15 @@ class TransactionListSnapshots : FunSpec({
       )
     }
   }
+
+  test("empty transaction list") {
+    paparazzi.snapshot {
+      TransactionList(
+        model = ListModel(
+          headerText = "Recent activity",
+          sections = immutableListOf()
+        )
+      )
+    }
+  }
 })

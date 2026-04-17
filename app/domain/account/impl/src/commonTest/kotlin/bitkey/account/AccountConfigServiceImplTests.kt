@@ -7,10 +7,8 @@ import build.wallet.bitcoin.BitcoinNetworkType.*
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.createBackgroundScope
 import build.wallet.coroutines.turbine.awaitUntil
-import build.wallet.coroutines.turbine.turbines
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.firmware.FirmwareDeviceInfoDaoMock
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.*
 import build.wallet.sqldelight.inMemorySqlDriver
@@ -23,15 +21,13 @@ import kotlin.time.Duration.Companion.seconds
 class AccountConfigServiceImplTests : FunSpec({
   val sqlDriverFactory = inMemorySqlDriver().factory
   val accountService = AccountServiceFake()
-  val firmwareDeviceInfoDao = FirmwareDeviceInfoDaoMock(turbines::create)
 
   fun TestScope.service(appVariant: AppVariant = Customer) =
     AccountConfigServiceImpl(
       appCoroutineScope = createBackgroundScope(),
       databaseProvider = BitkeyDatabaseProviderImpl(sqlDriverFactory),
       appVariant = appVariant,
-      accountService = accountService,
-      firmwareDeviceInfoDao = firmwareDeviceInfoDao
+      accountService = accountService
     )
 
   beforeTest {

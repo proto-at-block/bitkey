@@ -6,19 +6,23 @@
 #include "uc_route.h"
 #include "uxc.pb.h"
 
+#include <inttypes.h>
 #include <stdint.h>
 
 #define KEY_MANAGER_TASK_PRIORITY   (RTOS_THREAD_PRIORITY_NORMAL)
 #define KEY_MANAGER_TASK_STACK_SIZE (8192u)
-#define KEY_MANAGER_TASK_QUEUE_SIZE (2u)
+#define KEY_MANAGER_TASK_QUEUE_SIZE (4u)
 
-static void handle_secure_channel_establish(void* proto) {
-  fwpb_secure_channel_establish_cmd* establish_cmd =
-    &((fwpb_uxc_msg_host*)proto)->msg.secure_channel_establish;
+NO_OPTIMIZE static void handle_secure_channel_establish(void* proto) {
+  // Copy command to stack and free recv buffer immediately to avoid
+  // holding a shared UC recv buffer during ECDH crypto.
+  fwpb_secure_channel_establish_cmd establish_local =
+    ((fwpb_uxc_msg_host*)proto)->msg.secure_channel_establish;
+  uc_free_recv_proto(proto);
 
-  if (establish_cmd->protocol_version > SECURE_CHANNEL_PROTOCOL_VERSION) {
-    LOGE("Incompatable protocol version: %ld", establish_cmd->protocol_version);
-    uc_free_recv_proto(proto);
+  volatile uint32_t protocol_version = establish_local.protocol_version;
+  SECURE_IF_FAILIN(!secure_channel_protocol_version_supported(protocol_version)) {
+    LOGE("Incompat proto ver: %" PRIu32, protocol_version);
     return;
   }
 
@@ -27,13 +31,12 @@ static void handle_secure_channel_establish(void* proto) {
   fwpb_secure_channel_establish_rsp* rsp = &msg->msg.secure_channel_response;
 
   uint32_t pk_len = sizeof(rsp->pk_device.bytes);
-  if (secure_uart_channel_establish(establish_cmd->pk_host.bytes, establish_cmd->pk_host.size,
+  if (secure_uart_channel_establish(establish_local.pk_host.bytes, establish_local.pk_host.size,
                                     rsp->pk_device.bytes, &pk_len, rsp->exchange_sig.bytes,
                                     sizeof(rsp->exchange_sig.bytes),
                                     rsp->key_confirmation_tag.bytes) != SECURE_CHANNEL_OK) {
-    LOGE("UXC Secure Channel: key derivation failed");
+    LOGE("UXC SC: key derive fail");
     uc_free_send_proto(msg);
-    uc_free_recv_proto(proto);
     return;
   }
 
@@ -42,29 +45,30 @@ static void handle_secure_channel_establish(void* proto) {
   rsp->key_confirmation_tag.size = sizeof(rsp->key_confirmation_tag.bytes);
   rsp->protocol_version = SECURE_CHANNEL_PROTOCOL_VERSION;
 
-  uc_free_recv_proto(proto);
   (void)uc_send(msg);
 }
 
-static void handle_secure_channel_confirm(void* proto) {
-  fwpb_secure_channel_establish_confirm* confirmation_message =
-    &((fwpb_uxc_msg_host*)proto)->msg.secure_channel_confirm;
+NO_OPTIMIZE static void handle_secure_channel_confirm(void* proto) {
+  // Copy confirm data to stack and free recv buffer immediately to avoid
+  // holding a shared UC recv buffer during session confirmation.
+  fwpb_secure_channel_establish_confirm confirm_local =
+    ((fwpb_uxc_msg_host*)proto)->msg.secure_channel_confirm;
+  uc_free_recv_proto(proto);
 
-  if (confirmation_message->protocol_version > SECURE_CHANNEL_PROTOCOL_VERSION) {
-    LOGE("Incompatable protocol version: %ld", confirmation_message->protocol_version);
-    uc_free_recv_proto(proto);
+  volatile uint32_t protocol_version = confirm_local.protocol_version;
+  SECURE_IF_FAILIN(!secure_channel_protocol_version_supported(protocol_version)) {
+    LOGE("Incompat proto ver: %" PRIu32, protocol_version);
     return;
   }
 
-  secure_channel_err_t ret =
-    secure_uart_channel_confirm_session(confirmation_message->key_confirmation_tag.bytes);
+  secure_channel_err_t ret = secure_uart_channel_confirm_session(
+    confirm_local.key_confirmation_tag.bytes, confirm_local.exchange_sig.bytes,
+    confirm_local.exchange_sig.size);
   if (ret != SECURE_CHANNEL_OK) {
-    LOGE("UXC Secure Channel: confirmation failed: %d", ret);
+    LOGE("UXC SC: confirm fail: %d", ret);
   } else {
     LOGI("UXC Secure Channel: established.");
   }
-
-  uc_free_recv_proto(proto);
 }
 
 static void key_manager_thread(void* args) {

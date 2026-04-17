@@ -146,7 +146,7 @@ pub struct ErrorResponse<'a> {
 }
 
 pub trait ToErrorResponse {
-    fn to_response(&self) -> ErrorResponse;
+    fn to_response(&self) -> ErrorResponse<'_>;
 }
 
 pub struct NsmCtx {

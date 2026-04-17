@@ -55,10 +55,10 @@ static void memfault_cmd_handler(int argc, char** argv) {
     MEMFAULT_LOG_WARN("Warning log!");
     MEMFAULT_LOG_ERROR("Error log!");
 
-    LOGD("Debug log!");
-    LOGI("Info log!");
-    LOGW("Warning log!");
-    LOGE("Error log!");
+    LOGD("Dbg");
+    LOGI("Inf");
+    LOGW("Wrn");
+    LOGE("Err");
   } else if (memfault_cmd_args.coredump->header.found) {
     rtos_thread_enter_critical();
     memfault_coredump_storage_debug_test_begin();
@@ -83,26 +83,9 @@ static void memfault_cmd_handler(int argc, char** argv) {
     memfault_reboot_tracking_mark_reset_imminent(kMfltRebootReason_UserReset, NULL);
     memfault_platform_reboot();
   } else if (memfault_cmd_args.crash->header.found) {
-    LOGE("1 This is a log.");
-    LOGE("2 This is a log.");
-    LOGE("3 This is a log.");
-    LOGE("4 This is a log.");
-    LOGE("5 This is a log.");
-    LOGE("6 This is a log.");
-    LOGE("7 This is a log.");
-    LOGE("8 This is a log.");
-    LOGE("9 This is a log.");
-    LOGE("10 This is a log.");
-    LOGE("11 This is a log.");
-    LOGE("12 This is a log.");
-    LOGE("13 This is a log.");
-    LOGE("15 This is a log.");
-    LOGE("16 This is a log.");
-    LOGE("17 This is a log.");
-    LOGE("18 This is a log.");
-    LOGE("19 This is a log.");
-    LOGE("20 This is a log.");
-    LOGE("21 This is a log.");
+    for (int i = 1; i <= 21; i++) {
+      LOGE("%d", i);
+    }
     ASSERT(false);
   } else if (memfault_cmd_args.dump->header.found) {
     memfault_data_export_dump_chunks();

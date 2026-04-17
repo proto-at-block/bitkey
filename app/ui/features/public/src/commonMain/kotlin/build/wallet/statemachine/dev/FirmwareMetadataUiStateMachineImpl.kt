@@ -92,14 +92,36 @@ class FirmwareMetadataUiStateMachineImpl(
           NfcSessionUIStateMachineProps(
             session = { session, commands ->
               val deviceInfo = commands.getDeviceInfo(session)
+
+              // Query per-MCU metadata to get active slots for MCUs where it's not already set.
+              // New firmware includes active_slot in getDeviceInfo; old firmware needs fallback.
+              val enrichedMcuInfo = deviceInfo.mcuInfo.map { mcu ->
+                if (mcu.activeSlot != null) {
+                  // New firmware: activeSlot already set in getDeviceInfo response
+                  mcu
+                } else {
+                  // Old firmware fallback: query per-MCU metadata
+                  @Suppress("TooGenericExceptionCaught", "SwallowedException")
+                  try {
+                    val metadata = commands.getFirmwareMetadata(session, mcu.mcuRole)
+                    mcu.copy(activeSlot = metadata.activeSlot)
+                  } catch (e: Exception) {
+                    // Older firmware may not support per-MCU metadata query - keep original
+                    mcu
+                  }
+                }
+              }
+              val enrichedDeviceInfo = deviceInfo.copy(mcuInfo = enrichedMcuInfo)
+
               val firmwareMetadata = commands.getFirmwareMetadata(session)
-              Pair(deviceInfo, firmwareMetadata)
+              Pair(enrichedDeviceInfo, firmwareMetadata)
             },
             onSuccess = { fwInfoPair ->
               state = ReadMetadataSuccessUiState(fwInfoPair)
             },
             onCancel = { state = LoadingMetadataUiState },
             needsAuthentication = false,
+            skipFirmwareTelemetry = true,
             screenPresentationStyle = Modal,
             eventTrackerContext = METADATA
           )
@@ -134,7 +156,8 @@ class FirmwareMetadataUiStateMachineImpl(
     McuInfoModel(
       role = mcuRole.name,
       name = mcuName.name,
-      firmwareVersion = firmwareVersion
+      firmwareVersion = firmwareVersion,
+      activeSlot = activeSlot?.name
     )
 
   private sealed class State {

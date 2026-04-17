@@ -25,6 +25,7 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.recovery.LegacyRemoteKeyset
 import build.wallet.f8e.recovery.ListKeysetsF8eClientMock
+import build.wallet.f8e.recovery.PrivateMultisigRemoteKeyset
 import build.wallet.f8e.recovery.ListKeysetsResponse
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.Bdk2FeatureFlag
@@ -159,6 +160,16 @@ class SweepGeneratorImplTests : FunSpec({
         )
     )
 
+  // W3 upgrade fixtures: old W1 keyset with "cafebabe" fingerprint (from lostHwKeyset1)
+  val oldW1Keyset = lostHwKeyset1.copy(
+    f8eSpendingKeyset = F8eSpendingKeyset(
+      keysetId = "old-w1-keyset-server",
+      spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-old-w1")),
+      privateWalletRootXpub = null
+    )
+  )
+  val keyboxWithOldW1 = activeKeybox.copy(keysets = listOf(activeKeyset, oldW1Keyset))
+
   val keyboxDao = KeyboxDaoMock(turbines::create, defaultActiveKeybox = activeKeybox)
 
   // All keyset mocks
@@ -241,7 +252,7 @@ class SweepGeneratorImplTests : FunSpec({
     wallets.getValue(lostAppKeyset1.localId).createPsbtResult = Ok(psbtMock)
 
     val result =
-      sweepGenerator.generateSweep(keyboxWithLostAppKeyset).shouldBeOkOfType<List<SweepPsbt>>()
+      sweepGenerator.generateSweep(keyboxWithLostAppKeyset, sweepContext = SweepContext.InactiveWallet).shouldBeOkOfType<List<SweepPsbt>>()
     result.shouldHaveSize(1)
     result.first()
       .shouldBe(
@@ -283,7 +294,7 @@ class SweepGeneratorImplTests : FunSpec({
     wallets.getValue(lostAppKeyset2.localId).createPsbtResult = Ok(psbtMock)
 
     val result =
-      sweepGenerator.generateSweep(keyboxWithLostAppKeysets).shouldBeOkOfType<List<SweepPsbt>>()
+      sweepGenerator.generateSweep(keyboxWithLostAppKeysets, sweepContext = SweepContext.InactiveWallet).shouldBeOkOfType<List<SweepPsbt>>()
     result.shouldHaveSize(2)
     result.shouldBe(
       listOf(
@@ -350,7 +361,7 @@ class SweepGeneratorImplTests : FunSpec({
       Err(Generic(Exception("Dang."), null))
     wallets.getValue(lostAppKeyset1.localId).createPsbtResult = Ok(psbtMock)
 
-    sweepGenerator.generateSweep(keyboxWithLostAppKeyset)
+    sweepGenerator.generateSweep(keyboxWithLostAppKeyset, sweepContext = SweepContext.InactiveWallet)
       .shouldBeErrOfType<SweepGeneratorError.FailedToGenerateDestinationAddress>()
   }
 
@@ -360,7 +371,7 @@ class SweepGeneratorImplTests : FunSpec({
     )
 
     val result =
-      sweepGenerator.generateSweep(keyboxWithLostHwKeysets).shouldBeOkOfType<List<SweepPsbt>>()
+      sweepGenerator.generateSweep(keyboxWithLostHwKeysets, sweepContext = SweepContext.InactiveWallet).shouldBeOkOfType<List<SweepPsbt>>()
     result.shouldHaveSize(2)
     result.shouldBe(
       listOf(
@@ -396,7 +407,7 @@ class SweepGeneratorImplTests : FunSpec({
     wallets.getValue(lostAppKeyset1.localId).createPsbtResult = Ok(psbtMock)
 
     val result =
-      sweepGenerator.generateSweep(keyboxWithLostBothKeyset).shouldBeOkOfType<List<SweepPsbt>>()
+      sweepGenerator.generateSweep(keyboxWithLostBothKeyset, sweepContext = SweepContext.InactiveWallet).shouldBeOkOfType<List<SweepPsbt>>()
     result.shouldBeEmpty()
   }
 
@@ -408,7 +419,7 @@ class SweepGeneratorImplTests : FunSpec({
     wallets.getValue(lostAppKeyset1.localId).createPsbtResult = Ok(psbtMock)
 
     val result =
-      sweepGenerator.generateSweep(keyboxWithMixedKeysets).shouldBeOkOfType<List<SweepPsbt>>()
+      sweepGenerator.generateSweep(keyboxWithMixedKeysets, sweepContext = SweepContext.InactiveWallet).shouldBeOkOfType<List<SweepPsbt>>()
     result.shouldBe(
       listOf(
         SweepPsbt(
@@ -445,7 +456,7 @@ class SweepGeneratorImplTests : FunSpec({
       Err(InsufficientFunds(Exception("too poor"), null))
     wallets.getValue(lostHwKeyset2.localId).createPsbtResult = Ok(psbtMock)
 
-    sweepGenerator.generateSweep(keyboxWithLostHwKeysets)
+    sweepGenerator.generateSweep(keyboxWithLostHwKeysets, sweepContext = SweepContext.InactiveWallet)
       .shouldBe(
         Ok(
           listOf(
@@ -478,7 +489,7 @@ class SweepGeneratorImplTests : FunSpec({
       Err(Generic(Exception("Dang."), null))
     wallets.getValue(lostHwKeyset2.localId).createPsbtResult = Ok(psbtMock)
 
-    sweepGenerator.generateSweep(keyboxWithLostHwKeysets).shouldBeErrOfType<BdkFailedToCreatePsbt>()
+    sweepGenerator.generateSweep(keyboxWithLostHwKeysets, sweepContext = SweepContext.InactiveWallet).shouldBeErrOfType<BdkFailedToCreatePsbt>()
     // single address to watch, subsequent keysets fail and don't trigger
     processorMock.processBatchCalls.awaitItem()
 
@@ -515,7 +526,7 @@ class SweepGeneratorImplTests : FunSpec({
     wallets.getValue(lostHwKeyset1.localId).createPsbtResult = Ok(psbtMock)
 
     val result =
-      sweepGenerator.generateSweep(keyboxWithoutLocalKeysets).shouldBeOkOfType<List<SweepPsbt>>()
+      sweepGenerator.generateSweep(keyboxWithoutLocalKeysets, sweepContext = SweepContext.InactiveWallet).shouldBeOkOfType<List<SweepPsbt>>()
 
     // Should have 2 sweep PSBTs from F8e keysets
     result.shouldHaveSize(2)
@@ -539,6 +550,52 @@ class SweepGeneratorImplTests : FunSpec({
     wallets.getValue(lostHwKeyset1.localId).syncCalls.awaitItem()
   }
 
+  test("generateSweep filters out PrivateMultisigRemoteKeyset from F8e response") {
+    val keyboxWithoutLocalKeysets = activeKeybox.copy(
+      canUseKeyboxKeysets = false,
+      keysets = listOf(activeKeyset)
+    )
+
+    val legacyKeyset = LegacyRemoteKeyset(
+      keysetId = lostAppKeyset1.f8eSpendingKeyset.keysetId,
+      networkType = lostAppKeyset1.networkType.name,
+      appDescriptor = lostAppKeyset1.appKey.key.dpub,
+      hardwareDescriptor = lostAppKeyset1.hardwareKey.key.dpub,
+      serverDescriptor = lostAppKeyset1.f8eSpendingKeyset.spendingPublicKey.key.dpub
+    )
+
+    val privateKeyset = PrivateMultisigRemoteKeyset(
+      keysetId = "keyset-private-orphaned",
+      networkType = "SIGNET",
+      appPublicKey = "app-pub-key",
+      hardwarePublicKey = "hw-pub-key",
+      serverPublicKey = "server-pub-key"
+    )
+
+    listKeysetsF8eClient.result = Ok(
+      ListKeysetsResponse(
+        keysets = listOf(legacyKeyset, privateKeyset),
+        wrappedSsek = null,
+        descriptorBackups = emptyList(),
+        activeKeysetId = activeKeyset.f8eSpendingKeyset.keysetId
+      )
+    )
+
+    wallets.getValue(lostAppKeyset1.localId).createPsbtResult = Ok(psbtMock)
+
+    val result =
+      sweepGenerator.generateSweep(keyboxWithoutLocalKeysets, sweepContext = SweepContext.InactiveWallet).shouldBeOkOfType<List<SweepPsbt>>()
+
+    // Only the legacy keyset should produce a sweep PSBT; the private keyset is filtered out
+    result.shouldHaveSize(1)
+    result.first().sourceKeyset.f8eSpendingKeyset.keysetId shouldBe "keyset-lost-app-server-1"
+
+    processorMock.processBatchCalls.awaitItem()
+
+    wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(lostAppKeyset1.localId).syncCalls.awaitItem()
+  }
+
   test("uses revealAddress(0u) for private wallet destination keyset") {
     val peekedAddress = BitcoinAddress("bc1qpeek0000000000000000000000000000000000")
     val privateActiveKeyset = activeKeyset.copy(
@@ -556,7 +613,7 @@ class SweepGeneratorImplTests : FunSpec({
     wallets.getValue(privateActiveKeyset.localId).createPsbtResult = Ok(psbtMock)
     wallets.getValue(lostAppKeyset1.localId).createPsbtResult = Ok(psbtMock)
 
-    val result = sweepGenerator.generateSweep(keyboxWithPrivateDestination)
+    val result = sweepGenerator.generateSweep(keyboxWithPrivateDestination, sweepContext = SweepContext.InactiveWallet)
       .shouldBeOkOfType<List<SweepPsbt>>()
 
     result.shouldHaveSize(1)
@@ -598,7 +655,7 @@ class SweepGeneratorImplTests : FunSpec({
     wallets.getValue(destPrivateKeyset.localId).revealAddressResult =
       Ok(BitcoinAddress(destinationAddress))
 
-    val result = sweepGenerator.generateSweep(keyboxWithPrivateSweep)
+    val result = sweepGenerator.generateSweep(keyboxWithPrivateSweep, sweepContext = SweepContext.InactiveWallet)
       .shouldBeOkOfType<List<SweepPsbt>>()
 
     result.shouldHaveSize(1)
@@ -642,7 +699,7 @@ class SweepGeneratorImplTests : FunSpec({
     wallets.getValue(destPrivateKeyset.localId).createPsbtResult = Ok(psbtMock)
     wallets.getValue(sourceLegacyKeyset.localId).createPsbtResult = Ok(psbtMock)
 
-    val result = sweepGenerator.generateSweep(keyboxWithMigrationSweep)
+    val result = sweepGenerator.generateSweep(keyboxWithMigrationSweep, sweepContext = SweepContext.InactiveWallet)
       .shouldBeOkOfType<List<SweepPsbt>>()
 
     result.shouldHaveSize(1)
@@ -686,7 +743,7 @@ class SweepGeneratorImplTests : FunSpec({
     wallets.getValue(destPrivateKeyset.localId).revealAddressResult =
       Ok(BitcoinAddress(destinationAddress))
 
-    val result = sweepGenerator.generateSweep(keyboxWithMigrationSweep)
+    val result = sweepGenerator.generateSweep(keyboxWithMigrationSweep, sweepContext = SweepContext.InactiveWallet)
       .shouldBeOkOfType<List<SweepPsbt>>()
 
     result.shouldHaveSize(1)
@@ -723,7 +780,7 @@ class SweepGeneratorImplTests : FunSpec({
     wallets.getValue(destPrivateKeyset.localId).revealAddressResult =
       Ok(BitcoinAddress(destinationAddress))
 
-    val result = sweepGenerator.generateSweep(keyboxWithTweakFailure)
+    val result = sweepGenerator.generateSweep(keyboxWithTweakFailure, sweepContext = SweepContext.InactiveWallet)
 
     result.shouldBeErrOfType<SweepGeneratorError.FailedToTweakPsbt>()
 
@@ -766,7 +823,7 @@ class SweepGeneratorImplTests : FunSpec({
     wallets.getValue(lostAppKeyset1.localId).createPsbtResult = Ok(psbtMock)
     wallets.getValue(lostAppKeyset2.localId).createPsbtResult = Ok(psbtMock)
 
-    val result = sweepGenerator.generateSweep(keyboxWithMultipleOld).shouldBeOkOfType<List<SweepPsbt>>()
+    val result = sweepGenerator.generateSweep(keyboxWithMultipleOld, sweepContext = SweepContext.InactiveWallet).shouldBeOkOfType<List<SweepPsbt>>()
 
     result.shouldHaveSize(2)
     result.map { it.sourceKeyset.f8eSpendingKeyset.keysetId }
@@ -810,7 +867,7 @@ class SweepGeneratorImplTests : FunSpec({
     wallets.getValue(activeKeyset.localId).createPsbtResult = Ok(psbtMock)
     wallets.getValue(lostHwKeyset1.localId).createPsbtResult = Ok(psbtMock)
 
-    val result = sweepGenerator.generateSweep(keyboxAfterMigration).shouldBeOkOfType<List<SweepPsbt>>()
+    val result = sweepGenerator.generateSweep(keyboxAfterMigration, sweepContext = SweepContext.InactiveWallet).shouldBeOkOfType<List<SweepPsbt>>()
 
     result.shouldHaveSize(1)
     result.first().signaturePlan shouldBe SweepSignaturePlan.AppAndServer
@@ -847,7 +904,7 @@ class SweepGeneratorImplTests : FunSpec({
     wallets.getValue(activeKeyset.localId).createPsbtResult = Ok(psbtMock)
     wallets.getValue(lostAppKeyset1.localId).createPsbtResult = Ok(psbtMock)
 
-    val result = sweepGenerator.generateSweep(keyboxAfterMigration).shouldBeOkOfType<List<SweepPsbt>>()
+    val result = sweepGenerator.generateSweep(keyboxAfterMigration, sweepContext = SweepContext.InactiveWallet).shouldBeOkOfType<List<SweepPsbt>>()
 
     result.shouldHaveSize(1)
     result.first().signaturePlan shouldBe SweepSignaturePlan.HardwareAndServer
@@ -873,7 +930,7 @@ class SweepGeneratorImplTests : FunSpec({
       canUseKeyboxKeysets = false // This is the invalid state
     )
 
-    val result = sweepGenerator.generateSweep(privateKeyboxWithoutLocal)
+    val result = sweepGenerator.generateSweep(privateKeyboxWithoutLocal, sweepContext = SweepContext.InactiveWallet)
 
     result.shouldBeErr(SweepGeneratorError.PrivateWalletMissingLocalKeysets)
   }
@@ -887,7 +944,7 @@ class SweepGeneratorImplTests : FunSpec({
     )
     wallets.getValue(lostAppKeyset1.localId).createPsbtResult = Ok(psbtMock)
 
-    val result = sweepGenerator.generateSweep(keybox)
+    val result = sweepGenerator.generateSweep(keybox, sweepContext = SweepContext.InactiveWallet)
     result.shouldBeErrOfType<SweepGeneratorError.FailedToGenerateDestinationAddress>()
   }
 
@@ -903,6 +960,7 @@ class SweepGeneratorImplTests : FunSpec({
     // Generate sweep with Estimate context
     val result = sweepGenerator.generateSweep(
       keyboxWithLostAppKeyset,
+      SweepContext.InactiveWallet,
       SweepGenerationContext.Estimate
     ).shouldBeOkOfType<List<SweepPsbt>>()
 
@@ -933,5 +991,109 @@ class SweepGeneratorImplTests : FunSpec({
     wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
     wallets.getValue(lostAppKeyset1.localId).syncCalls.awaitItem()
     wallets.getValue(lostAppKeyset2.localId).syncCalls.awaitItem()
+  }
+
+  test("W3 upgrade sweep uses AppAndHardware for old keysets with matching replaced fingerprint") {
+    wallets.getValue(activeKeyset.localId).createPsbtResult = Ok(psbtMock)
+    wallets.getValue(lostHwKeyset1.localId).createPsbtResult = Ok(psbtMock)
+
+    val result = sweepGenerator.generateSweep(
+      keyboxWithOldW1,
+      sweepContext = SweepContext.W3Upgrade(replacedHardwareFingerprint = "cafebabe")
+    ).shouldBeOkOfType<List<SweepPsbt>>()
+
+    result.shouldHaveSize(1)
+    result.first().signaturePlan shouldBe SweepSignaturePlan.AppAndHardware
+    result.first().sourceKeyset.f8eSpendingKeyset.keysetId shouldBe "old-w1-keyset-server"
+
+    processorMock.processBatchCalls.awaitItem()
+    wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(lostHwKeyset1.localId).syncCalls.awaitItem()
+  }
+
+  test("W3 upgrade only applies AppAndHardware to keysets matching replaced fingerprint") {
+    // Simulate W3 upgrade with multiple old keysets from different hardware devices.
+    // Only the keyset matching the replaced W1 fingerprint ("cafebabe") should use
+    // AppAndHardware. A keyset from an even older device ("baadf00d") should use AppAndServer.
+    // Keyset from a different, even older hardware device — reuse lostBothKeyset's localId
+    // so the existing wallet mock is available
+    val olderHwKeyset = lostBothKeyset.copy(
+      f8eSpendingKeyset = F8eSpendingKeyset(
+        keysetId = "older-hw-keyset-server",
+        spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-older")),
+        privateWalletRootXpub = null
+      ),
+      hardwareKey = HwSpendingPublicKey(
+        DescriptorPublicKeyMock("hw-dpub-older", fingerprint = "baadf00d")
+      )
+    )
+    // Add app key for older keyset so it's app-signable
+    appPrivateKeyDao.appSpendingKeys[olderHwKeyset.appKey] = AppSpendingPrivateKey(
+      ExtendedPrivateKey(olderHwKeyset.appKey.key.xpub, "mnemonic")
+    )
+
+    val keyboxWithMultipleOldHw = activeKeybox.copy(
+      keysets = listOf(activeKeyset, oldW1Keyset, olderHwKeyset)
+    )
+
+    wallets.getValue(activeKeyset.localId).createPsbtResult = Ok(psbtMock)
+    wallets.getValue(lostHwKeyset1.localId).createPsbtResult = Ok(psbtMock)
+    wallets.getValue(lostBothKeyset.localId).createPsbtResult = Ok(psbtMock)
+
+    val result = sweepGenerator.generateSweep(
+      keyboxWithMultipleOldHw,
+      sweepContext = SweepContext.W3Upgrade(replacedHardwareFingerprint = "cafebabe")
+    ).shouldBeOkOfType<List<SweepPsbt>>()
+
+    result.shouldHaveSize(2)
+    // W1 keyset matches replaced fingerprint → AppAndHardware
+    val w1Sweep = result.first { it.sourceKeyset.f8eSpendingKeyset.keysetId == "old-w1-keyset-server" }
+    w1Sweep.signaturePlan shouldBe SweepSignaturePlan.AppAndHardware
+    // Older keyset does NOT match replaced fingerprint → AppAndServer
+    val olderSweep = result.first {
+      it.sourceKeyset.f8eSpendingKeyset.keysetId == "older-hw-keyset-server"
+    }
+    olderSweep.signaturePlan shouldBe SweepSignaturePlan.AppAndServer
+
+    processorMock.processBatchCalls.awaitItem()
+    processorMock.processBatchCalls.awaitItem()
+    wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(lostHwKeyset1.localId).syncCalls.awaitItem()
+    wallets.getValue(lostBothKeyset.localId).syncCalls.awaitItem()
+  }
+
+  test("without W3Upgrade context, fingerprint mismatch still uses AppAndServer") {
+    wallets.getValue(activeKeyset.localId).createPsbtResult = Ok(psbtMock)
+    wallets.getValue(lostHwKeyset1.localId).createPsbtResult = Ok(psbtMock)
+
+    val result = sweepGenerator.generateSweep(keyboxWithOldW1, sweepContext = SweepContext.InactiveWallet)
+      .shouldBeOkOfType<List<SweepPsbt>>()
+
+    result.shouldHaveSize(1)
+    result.first().signaturePlan shouldBe SweepSignaturePlan.AppAndServer
+    result.first().sourceKeyset.f8eSpendingKeyset.keysetId shouldBe "old-w1-keyset-server"
+
+    processorMock.processBatchCalls.awaitItem()
+    wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(lostHwKeyset1.localId).syncCalls.awaitItem()
+  }
+
+  test("skips descriptor backup check when context is Estimate for private wallet") {
+    // Set descriptor backup check to fail - this should NOT be reached during Estimate
+    descriptorBackupService.checkBackupForPrivateKeysetResult = Err(IllegalStateException("Backup not found"))
+
+    val keybox = activeKeybox.copy(
+      activeSpendingKeyset = PrivateSpendingKeysetMock,
+      keysets = listOf(PrivateSpendingKeysetMock, lostHwKeyset1)
+    )
+    wallets.getValue(lostHwKeyset1.localId).createPsbtResult = Ok(psbtMock)
+
+    // With Estimate context, the descriptor backup check should be skipped
+    val result = sweepGenerator.generateSweep(keybox, SweepContext.InactiveWallet, SweepGenerationContext.Estimate)
+    result.shouldBeOkOfType<List<SweepPsbt>>()
+
+    wallets.getValue(PrivateSpendingKeysetMock.localId).syncCalls.awaitItem()
+    wallets.getValue(lostHwKeyset1.localId).syncCalls.awaitItem()
   }
 })

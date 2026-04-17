@@ -1,11 +1,13 @@
 package build.wallet.cloud.backup.health
 
-import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.store.CloudStoreAccount
 
 class FullAccountCloudBackupRepairerFake : FullAccountCloudBackupRepairer {
   data class AttemptRepairCall(
-    val account: FullAccount,
+    val accountId: FullAccountId,
+    val keybox: Keybox,
     val cloudStoreAccount: CloudStoreAccount,
     val cloudBackupStatus: CloudBackupStatus,
   )
@@ -14,12 +16,13 @@ class FullAccountCloudBackupRepairerFake : FullAccountCloudBackupRepairer {
   var onRepairAttempt: (suspend () -> Unit)? = null
 
   override suspend fun attemptRepair(
-    account: FullAccount,
+    accountId: FullAccountId,
+    keybox: Keybox,
     cloudStoreAccount: CloudStoreAccount,
     cloudBackupStatus: CloudBackupStatus,
   ) {
     attemptRepairCalls.add(
-      AttemptRepairCall(account, cloudStoreAccount, cloudBackupStatus)
+      AttemptRepairCall(accountId, keybox, cloudStoreAccount, cloudBackupStatus)
     )
     onRepairAttempt?.invoke()
   }

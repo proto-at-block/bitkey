@@ -55,7 +55,7 @@ impl SecretKey {
         self.inner().public_key(&Secp256k1::new())
     }
 
-    pub fn inner(&self) -> MutexGuard<BitcoinSecretKey> {
+    pub fn inner(&self) -> MutexGuard<'_, BitcoinSecretKey> {
         self.0.lock().unwrap()
     }
 }

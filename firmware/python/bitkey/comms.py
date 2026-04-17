@@ -47,6 +47,7 @@ class NFCTransaction:
         # Use nfcpy's built-in terminate parameter for timeout support
         if self.global_timeout is not None and self.global_timeout > 0:
             started = time.monotonic()
+
             def terminate():
                 return time.monotonic() - started > self.global_timeout
             self.tag = self.clf.connect(
@@ -136,7 +137,8 @@ class NFCTransaction:
                 return self.tag.transceive(bytes(payload), timeout=per_transceive_timeout)
             except nfc.tag.tt4.Type4TagCommandError as _err:
                 if _err.errno == nfc.tag.TIMEOUT_ERROR:
-                    logger.info(f"Timed out during NFC transceive ({attempt=}), retrying...")
+                    logger.info(
+                        f"Timed out during NFC transceive ({attempt=}), retrying...")
                 else:
                     err = _err
                     print(f"NFC error during transceive, retrying...")
@@ -321,7 +323,7 @@ class ShellTransaction:
         return self.shell.command_binary("wca", bytes(payload))
 
     def close(self):
-        self.clf.close()
+        self.shell.close()
 
 
 class Wca:
@@ -375,16 +377,73 @@ class Wca:
 
 
 class WalletComms:
+    _DEFAULT_SEND_RETRY_MAX = 5
+    # Most responses are derived as "<command field without _cmd>_rsp".
+    # These entries are explicit exceptions where wallet.proto uses different names.
+    _CMD_TO_RSP_NAME_OVERRIDES = {
+        "derive_key_descriptor_cmd": "derive_rsp",
+        "derive_key_descriptor_and_sign_cmd": "derive_and_sign_rsp",
+        "sign_tx_request_cmd": "sign_tx_response",
+    }
+    # These commands intentionally return status-only wallet_rsp messages
+    # (no oneof msg) for some flows.
+    _STATUS_ONLY_ALLOWED_COMMANDS = {
+        "fwup_start_cmd",
+        "get_confirmation_result_cmd",
+        "wipe_state_cmd",
+    }
+
     def __init__(self, transport=None, debug=False):
-        if transport == None:
+        if transport is None:
             transport = NFCTransaction()
         self.transport = transport
         self.debug = debug
+        transport_retry_max = getattr(
+            self.transport, "retry_max", self._DEFAULT_SEND_RETRY_MAX)
+        if isinstance(transport_retry_max, int) and transport_retry_max > 0:
+            # Keep command-level retries bounded so we don't amplify
+            # large transport retry settings.
+            self.send_retry_max = min(
+                transport_retry_max, self._DEFAULT_SEND_RETRY_MAX)
+        else:
+            self.send_retry_max = self._DEFAULT_SEND_RETRY_MAX
 
     def _status_words_ok(self, sw1, sw2):
         return (sw1 == 0x90 and sw2 == 0x00) or (sw1 == 0x61)
 
-    def transceive(self, proto, timeout=None):
+    @classmethod
+    def response_name_for_command(cls, cmd):
+        cmd_name = cmd.WhichOneof("msg")
+        if cmd_name is None:
+            raise ValueError("wallet_cmd is missing oneof msg")
+
+        response_name = cls._CMD_TO_RSP_NAME_OVERRIDES.get(cmd_name)
+        if response_name is not None:
+            return response_name
+
+        if not cmd_name.endswith("_cmd"):
+            raise ValueError(
+                f"wallet_cmd msg field does not end with _cmd: {cmd_name}")
+        return f"{cmd_name[:-4]}_rsp"
+
+    @classmethod
+    def response_tag_for_command(cls, cmd):
+        response_name = cls.response_name_for_command(cmd)
+        response_field = wallet_pb.wallet_rsp.DESCRIPTOR.fields_by_name.get(
+            response_name)
+        if response_field is None:
+            raise ValueError(
+                f"wallet_rsp is missing expected field: {response_name}")
+        return response_field.number
+
+    @staticmethod
+    def response_tag_from_response(rsp):
+        response_name = rsp.WhichOneof("msg")
+        if response_name is None:
+            return None
+        return wallet_pb.wallet_rsp.DESCRIPTOR.fields_by_name[response_name].number
+
+    def _transceive_once(self, proto, timeout=None):
         serialized = proto.SerializeToString()
         chunks = Wca.from_serialized_proto(serialized)
 
@@ -415,6 +474,54 @@ class WalletComms:
             rsp.ParseFromString(bytes(response_bytes))
 
         return rsp
+
+    def transceive(self, proto, timeout=None):
+        # Only wallet_cmd responses can be validated by matching response oneof tags.
+        descriptor = getattr(proto, "DESCRIPTOR", None)
+        if descriptor is None or descriptor.full_name != wallet_pb.wallet_cmd.DESCRIPTOR.full_name:
+            return self._transceive_once(proto, timeout=timeout)
+
+        expected_response_tag = self.response_tag_for_command(proto)
+        return self.send(proto, expected_response_tag, timeout=timeout)
+
+    def send(self, proto, expected_response_tag, timeout=None):
+        """Send a command and validate the returned wallet_rsp oneof tag."""
+        cmd_name = proto.WhichOneof("msg")
+        last_response_tag = None
+
+        for attempt in range(self.send_retry_max):
+            rsp = self._transceive_once(proto, timeout=timeout)
+            response_tag = self.response_tag_from_response(rsp)
+
+            if response_tag == expected_response_tag:
+                return rsp
+
+            if response_tag is None:
+                # Older firmware can return status-only UNKNOWN_MESSAGE for
+                # unsupported command tags; preserve that signal for callers.
+                # Some firmware also uses the deprecated unknown_msg flag.
+                if rsp.status == wallet_pb.status.UNKNOWN_MESSAGE or rsp.unknown_msg:
+                    return rsp
+
+                # Only allow status-only responses for command flows that intentionally
+                # omit wallet_rsp.msg. This avoids treating malformed/empty responses
+                # as success for regular typed commands.
+                if cmd_name in self._STATUS_ONLY_ALLOWED_COMMANDS and rsp.status != wallet_pb.status.UNSPECIFIED:
+                    return rsp
+
+            last_response_tag = response_tag
+            logger.warning(
+                "Unexpected wallet_rsp tag. expected=%s actual=%s retry=%d/%d",
+                expected_response_tag,
+                response_tag,
+                attempt + 1,
+                self.send_retry_max,
+            )
+
+        raise IOError(
+            f"wallet_rsp tag mismatch after {self.send_retry_max} retries: "
+            f"expected={expected_response_tag} actual={last_response_tag}"
+        )
 
     def close(self):
         self.transport.close()

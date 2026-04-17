@@ -85,6 +85,16 @@ typedef struct {
 } boot_slot_t;
 
 /**
+ * @brief Checks if two addresses are in the same flash slot (app A, app B, or bootloader).
+ *
+ * @param addr_a  First address to check.
+ * @param addr_b  Second address to check.
+ *
+ * @return #SECURE_TRUE if both addresses are in the same slot, otherwise #SECURE_FALSE.
+ */
+secure_bool_t addrs_in_same_slot(uintptr_t addr_a, uintptr_t addr_b);
+
+/**
  * @brief Verifies a slotted application image.
  *
  * @param bl_cert         Pointer to the bootloader certificate, used to

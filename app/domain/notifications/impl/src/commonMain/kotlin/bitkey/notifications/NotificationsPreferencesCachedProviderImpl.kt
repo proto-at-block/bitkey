@@ -7,7 +7,7 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.logging.logFailure
@@ -90,14 +90,14 @@ class NotificationsPreferencesCachedProviderImpl(
   override suspend fun updateNotificationsPreferences(
     accountId: AccountId,
     preferences: NotificationPreferences,
-    hwFactorProofOfPossession: HwFactorProofOfPossession?,
+    proof: PrivilegedActionProof?,
   ): Result<Unit, NetworkingError> {
     val f8eEnvironment = accountConfigService.activeOrDefaultConfig().value.f8eEnvironment
     return notificationTouchpointF8eClient.updateNotificationsPreferences(
       f8eEnvironment = f8eEnvironment,
       accountId = accountId,
       preferences = preferences,
-      hwFactorProofOfPossession = hwFactorProofOfPossession
+      proof = proof
     ).onSuccess {
       val prefsCache = keyValueStoreFactory.getOrCreate(NOTIFICATIONS_PREFERENCES_CACHE)
       cacheNotificationPreferences(

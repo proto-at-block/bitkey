@@ -188,7 +188,10 @@ private fun createListItem(
     title = title,
     secondaryText = secondaryText,
     treatment = ListItemTreatment.PRIMARY,
-    trailingAccessory = IconAccessory(SmallIconCaretRight),
+    trailingAccessory = IconAccessory(
+      model = IconModel(SmallIconCaretRight, iconSize = Small),
+      testTag = "$title-chevron"
+    ),
     onClick = onClick
   )
 }

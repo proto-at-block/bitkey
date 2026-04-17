@@ -6,7 +6,6 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -95,13 +94,16 @@ class AccountConfigServiceFake : AccountConfigService {
     return Ok(Unit)
   }
 
-  override suspend fun disableDemoMode(): Result<Unit, Error> {
-    updateDefaultConfig { it.copy(isHardwareFake = true, isTestAccount = true) }
+  override suspend fun setSkipBuildHardwareDescriptorOnboarding(
+    value: Boolean,
+  ): Result<Unit, Error> {
+    updateDefaultConfig { it.copy(skipBuildHardwareDescriptorOnboarding = value) }
     return Ok(Unit)
   }
 
-  override suspend fun resolveHardwareTypeAndCreateFullAccountConfig(): FullAccountConfig {
-    return defaultConfig.first().toFullAccountConfig()
+  override suspend fun disableDemoMode(): Result<Unit, Error> {
+    updateDefaultConfig { it.copy(isHardwareFake = true, isTestAccount = true) }
+    return Ok(Unit)
   }
 
   override suspend fun enableDemoMode(): Result<Unit, Error> {

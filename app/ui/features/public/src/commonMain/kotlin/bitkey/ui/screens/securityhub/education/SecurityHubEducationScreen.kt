@@ -3,6 +3,7 @@ package bitkey.ui.screens.securityhub.education
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import bitkey.account.HardwareType
 import bitkey.privilegedactions.FingerprintResetAvailabilityService
 import bitkey.securitycenter.SecurityAction
 import bitkey.securitycenter.SecurityActionRecommendation
@@ -16,12 +17,12 @@ import bitkey.ui.screens.securityhub.navigationScreenId
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.fwup.FirmwareData
+import build.wallet.fwup.FirmwareDataService
 import build.wallet.statemachine.core.ScreenModel
 
 /**
  * Screen for displaying educational content related to security actions in the Security Hub.
  *
- * @property action The security action that triggered this screen.
  * @property originScreen The screen from which the user navigated to this screen.
  * @property firmwareData The firmware update state data.
  * @property onStateChange Callback function to communicate state changes back to the SecurityHub presenter.
@@ -49,6 +50,7 @@ sealed class SecurityHubEducationScreen(
 @BitkeyInject(ActivityScope::class)
 class SecurityHubEducationScreenPresenter(
   val fingerprintResetAvailabilityService: FingerprintResetAvailabilityService,
+  val firmwareDataService: FirmwareDataService,
 ) : ScreenPresenter<SecurityHubEducationScreen> {
   @Composable
   override fun model(
@@ -62,6 +64,12 @@ class SecurityHubEducationScreenPresenter(
 
     val isFingerprintResetEnabled by fingerprintResetAvailabilityService.isAvailable()
       .collectAsState(false)
+
+    val firmwareData by firmwareDataService.firmwareData().collectAsState()
+    val canEditFingerprints = when (val info = firmwareData.firmwareDeviceInfo) {
+      null -> true
+      else -> info.hardwareType() != HardwareType.W3
+    }
 
     return SecurityHubEducationBodyModel(
       actionType = when (screen) {
@@ -81,6 +89,7 @@ class SecurityHubEducationScreenPresenter(
           originScreen = screen.originScreen,
           firmwareUpdateData = screen.firmwareData,
           isFingerprintResetEnabled = isFingerprintResetEnabled,
+          canEditFingerprints = canEditFingerprints,
           onCannotUnlockFingerprints = {
             navigator.goTo(
               SecurityHubScreen(
@@ -91,6 +100,6 @@ class SecurityHubEducationScreenPresenter(
           }
         )
       }
-    ).asModalScreen()
+    ).asRootScreen()
   }
 }

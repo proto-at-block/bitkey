@@ -31,8 +31,8 @@ static inline uint16_t le_to_int(uint8_t* buf, bool extended_lc) {
   ASSERT(!extended_lc);  // Not supported
   if (buf[0] != 0) {     // Short coding
     return buf[0];
-  } else {  // Extended coding
-    return ntohs(*(uint16_t*)&buf[1]);
+  } else {  // Extended coding (big-endian, requires 3 bytes in buf)
+    return (uint16_t)((buf[1] << 8) | buf[2]);
   }
 }
 
@@ -40,8 +40,8 @@ static inline uint16_t le_to_int(uint8_t* buf, bool extended_lc) {
 static inline uint16_t lc_to_int(uint8_t* buf) {
   if (buf[0] != 0) {  // Short coding
     return buf[0];
-  } else {  // Extended coding
-    return ntohs(*(uint16_t*)&buf[1]);
+  } else {  // Extended coding (big-endian, requires 3 bytes in buf)
+    return (uint16_t)((buf[1] << 8) | buf[2]);
   }
 }
 

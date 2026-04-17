@@ -2,6 +2,7 @@ package build.wallet.statemachine.notifications
 
 import androidx.compose.runtime.*
 import bitkey.account.AccountConfigService
+import bitkey.account.HardwareType
 import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.code.AddTouchpointClientErrorCode
 import bitkey.f8e.error.code.VerifyTouchpointClientErrorCode
@@ -9,10 +10,9 @@ import bitkey.notifications.NotificationTouchpoint
 import bitkey.notifications.NotificationTouchpoint.EmailTouchpoint
 import bitkey.notifications.NotificationTouchpoint.PhoneNumberTouchpoint
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
-import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
 import build.wallet.feature.flags.UsSmsFeatureFlag
 import build.wallet.ktor.result.HttpError.NetworkError
@@ -22,16 +22,17 @@ import build.wallet.notifications.NotificationTouchpointType.Email
 import build.wallet.notifications.NotificationTouchpointType.PhoneNumber
 import build.wallet.platform.settings.TelephonyCountryCodeProvider
 import build.wallet.platform.settings.isCountry
-import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
-import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
-import build.wallet.statemachine.auth.Request
+import build.wallet.statemachine.auth.ActionProofType
+import build.wallet.statemachine.auth.HardwareAuthUiProps
+import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.input.*
 import build.wallet.statemachine.core.input.DataInputStyle.Edit
 import build.wallet.statemachine.core.input.DataInputStyle.Enter
 import build.wallet.statemachine.core.input.VerificationCodeInputProps.ResendCodeCallbacks
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint
-import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint.*
+import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint.OnboardingAndRecovery
+import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint.Settings
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiState.*
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiState.ActivationApprovalInstructionsUiState.ErrorBottomSheetState
 import build.wallet.statemachine.notifications.NotificationTouchpointSubmissionRequest.SendingTouchpointToServer
@@ -46,7 +47,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
   private val notificationTouchpointDao: NotificationTouchpointDao,
   private val notificationTouchpointF8eClient: NotificationTouchpointF8eClient,
   private val phoneNumberInputUiStateMachine: PhoneNumberInputUiStateMachine,
-  private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
+  private val hardwareAuthUiStateMachine: HardwareAuthUiStateMachine,
   private val verificationCodeInputStateMachine: VerificationCodeInputStateMachine,
   private val uiErrorHintSubmitter: UiErrorHintSubmitter,
   private val actionSuccessDuration: ActionSuccessDuration,
@@ -63,6 +64,14 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
       mutableStateOf(EnteringTouchpointUiState(touchpointPrefill = null))
     }
     val usSmsEnabled by remember { usSmsFeatureFlag.flagValue() }.collectAsState()
+
+    // Reactively load the stored touchpoint as prefill so returning users see their value
+    // pre-populated. Collected as state so the value is available on the first recomposition
+    // after the DAO emits.
+    val storedTouchpoint: NotificationTouchpoint? by when (props.touchpointType) {
+      Email -> remember { notificationTouchpointDao.emailTouchpoint() }
+      PhoneNumber -> remember { notificationTouchpointDao.phoneTouchpoint() }
+    }.collectAsState(initial = null)
 
     return when (val state = uiState) {
       is EnteringTouchpointUiState -> {
@@ -107,75 +116,86 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
           PhoneNumber ->
             phoneNumberInputUiStateMachine.model(
               props = PhoneNumberInputUiProps(
-                dataInputStyle = props.entryPoint.dataInputStyle(),
-                prefillValue = (state.touchpointPrefill as? PhoneNumberTouchpoint)?.value,
-                subline = if (props.entryPoint is Recovery) {
+                dataInputStyle = props.entryPoint.dataInputStyle(storedTouchpoint is PhoneNumberTouchpoint),
+                prefillValue = (state.touchpointPrefill as? PhoneNumberTouchpoint)?.value
+                  ?: (storedTouchpoint as? PhoneNumberTouchpoint)?.value,
+                subline = if (props.onLearnMore == null && props.entryPoint is OnboardingAndRecovery) {
                   "We'll only use this phone number to notify you of wallet recovery attempts and privacy updates, nothing else."
                 } else {
                   null
                 },
+                sublineModel = props.onLearnMore?.let { criticalAlertsSublineWithLearnMore(it) },
+                isCloseButton = props.entryPoint is Settings,
                 primaryButtonText =
                   when (props.entryPoint) {
-                    is Onboarding -> "Skip for Now"
-                    is Recovery -> "Use a different number"
+                    is OnboardingAndRecovery -> "Use a different number"
                     is Settings -> "Got it"
                   },
-                primaryButtonOnClick =
-                  when (props.entryPoint) {
-                    is Onboarding -> props.entryPoint.onSkip
-                    is Recovery -> null
-                    is Settings -> null
-                  },
+                primaryButtonOnClick = null,
                 secondaryButtonText =
                   when (props.entryPoint) {
-                    is Onboarding -> "Use Different Country Number"
-                    is Recovery -> "Skip"
+                    is OnboardingAndRecovery -> "Skip"
                     is Settings -> null
                   },
                 secondaryButtonOnClick =
                   when (props.entryPoint) {
-                    is Onboarding -> null
-                    is Recovery -> props.entryPoint.onSkip
+                    is OnboardingAndRecovery -> props.entryPoint.onSkip
                     is Settings -> null
                   },
                 onClose = props.onClose,
                 onSubmitPhoneNumber = { phoneNumber, onError ->
-                  mutableSubmissionState =
-                    SendingTouchpointToServer(
-                      touchpoint = PhoneNumberTouchpoint(touchpointId = "", value = phoneNumber),
-                      onError = { error ->
-                        if (error.isUnsupportedCountryCode() &&
-                          !usSmsEnabled.value &&
-                          telephonyCountryCodeProvider.isCountry("us")
-                        ) {
-                          phoneNotAvailable()
+                  val prefillPhone = (storedTouchpoint as? PhoneNumberTouchpoint)?.value
+                  if (phoneNumber == prefillPhone) {
+                    // Unchanged — skip server round-trip and re-verification.
+                    // Clear any stale phone error hint (e.g. NotAvailableInYourCountry) so
+                    // downstream settings screens don't incorrectly show SMS as unavailable.
+                    uiErrorHintSubmitter.phoneNone()
+                    props.onSuccess()
+                  } else {
+                    mutableSubmissionState =
+                      SendingTouchpointToServer(
+                        touchpoint = PhoneNumberTouchpoint(touchpointId = "", value = phoneNumber),
+                        onError = { error ->
+                          if (error.isUnsupportedCountryCode() &&
+                            !usSmsEnabled.value &&
+                            telephonyCountryCodeProvider.isCountry("us")
+                          ) {
+                            phoneNotAvailable()
+                          }
+                          onError(error)
                         }
-                        onError(error)
-                      }
-                    )
+                      )
+                  }
                 },
-                skipBottomSheetProvider = (props.entryPoint as? Onboarding)?.skipBottomSheetProvider,
-                onSkipSecondaryButton = (props.entryPoint as? Recovery)?.onSkip
+                onSkipSecondaryButton = (props.entryPoint as? OnboardingAndRecovery)?.onSkip
               )
             )
 
           Email -> {
             emailInputUiStateMachine.model(
               props = EmailInputUiProps(
-                dataInputStyle = props.entryPoint.dataInputStyle(),
-                previousEmail = (state.touchpointPrefill as? EmailTouchpoint)?.value,
-                subline = if (props.entryPoint is Recovery) {
-                  "We’ll only use this email to notify you of wallet recovery attempts and privacy updates, nothing else."
+                dataInputStyle = props.entryPoint.dataInputStyle(storedTouchpoint is EmailTouchpoint),
+                previousEmail = (state.touchpointPrefill as? EmailTouchpoint)?.value
+                  ?: (storedTouchpoint as? EmailTouchpoint)?.value,
+                subline = if (props.onLearnMore == null && props.entryPoint is OnboardingAndRecovery) {
+                  "We'll only use this email to notify you of wallet recovery attempts and privacy updates, nothing else."
                 } else {
                   null
                 },
+                sublineModel = props.onLearnMore?.let { criticalAlertsSublineWithLearnMore(it) },
                 onClose = props.onClose,
-                skipBottomSheetProvider = (props.entryPoint as? Onboarding)?.skipBottomSheetProvider,
+                isCloseButton = props.entryPoint is Settings,
                 onEmailEntered = { email, onError ->
-                  mutableSubmissionState = SendingTouchpointToServer(
-                    touchpoint = EmailTouchpoint(touchpointId = "", value = email),
-                    onError = onError
-                  )
+                  val prefillEmail = (storedTouchpoint as? EmailTouchpoint)?.value
+                  if (email == prefillEmail) {
+                    // Unchanged — skip server round-trip and re-verification
+                    props.onSuccess()
+                  } else {
+                    mutableSubmissionState = SendingTouchpointToServer(
+                      touchpoint = EmailTouchpoint(touchpointId = "", value = email),
+                      onError = onError
+                    )
+                  }
                 }
               )
             )
@@ -223,7 +243,6 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
               )
             },
             onResendCode = { resendCodeCallbacks = it },
-            skipBottomSheetProvider = (props.entryPoint as? Onboarding)?.skipBottomSheetProvider,
             screenId = when (props.touchpointType) {
               Email -> NotificationsEventTrackerScreenId.EMAIL_INPUT_ENTERING_CODE
               PhoneNumber -> NotificationsEventTrackerScreenId.SMS_INPUT_ENTERING_CODE
@@ -243,31 +262,20 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
               verificationCode = state.verificationCode
             )
             .onSuccess {
-              // Determine the next step based on the entry point.
-              // In onboarding, HW proof of possession is not required, so we can send the activation
-              // request to the server directly. Otherwise, we need the customer to perform a HW tap
-              // to get the proof of possession, so go to the activation instructions for that.
-              when (props.entryPoint) {
-                is Onboarding, is Recovery -> {
-                  SendingActivationToServerUiState(
-                    touchpointToActivate = state.touchpointToVerify,
-                    hwFactorProofOfPossession = null
-                  )
-                  uiState = SendingActivationToServerUiState(
-                    touchpointToActivate = state.touchpointToVerify,
-                    hwFactorProofOfPossession = null
-                  )
-                }
-                is Settings -> {
-                  ActivationApprovalInstructionsUiState(
-                    touchpointToActivate = state.touchpointToVerify,
-                    errorBottomSheetState = ErrorBottomSheetState.Hidden
-                  )
-                  uiState = ActivationApprovalInstructionsUiState(
-                    touchpointToActivate = state.touchpointToVerify,
-                    errorBottomSheetState = ErrorBottomSheetState.Hidden
-                  )
-                }
+              val requiresHwVerification = when (val entryPoint = props.entryPoint) {
+                is Settings -> true
+                is OnboardingAndRecovery -> entryPoint.fullAccount?.config?.hardwareType == HardwareType.W3
+              }
+              uiState = if (requiresHwVerification) {
+                ActivationApprovalInstructionsUiState(
+                  touchpointToActivate = state.touchpointToVerify,
+                  errorBottomSheetState = ErrorBottomSheetState.Hidden
+                )
+              } else {
+                SendingActivationToServerUiState(
+                  touchpointToActivate = state.touchpointToVerify,
+                  proof = null
+                )
               }
             }
             .onFailure { error ->
@@ -343,8 +351,10 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
 
       is ActivationApprovalInstructionsUiState ->
         NotificationOperationApprovalInstructionsFormScreenModel(
-          onExit = props.onClose,
-          operationDescription = operationDescription(state.touchpointToActivate.formattedDisplayValue),
+          onExit = { uiState = EnteringTouchpointUiState(touchpointPrefill = state.touchpointToActivate) },
+          headline = props.entryPoint.activationApprovalHeadline(),
+          operationDescription = props.entryPoint.activationApprovalDescription(state.touchpointToActivate),
+          primaryButtonText = props.entryPoint.activationApprovalPrimaryButtonText(),
           isApproveButtonLoading = false,
           errorBottomSheetState = ErrorBottomSheetState.Hidden,
           onApprove = {
@@ -355,8 +365,11 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
         )
 
       is VerifyingProofOfHwPossessionUiState -> {
-        require(props.accountId is FullAccountId) {
-          "Proof of Hw Possession should only be required for Full Accounts"
+        val fullAccount = when (val ep = props.entryPoint) {
+          is Settings -> ep.fullAccount
+          is OnboardingAndRecovery -> requireNotNull(ep.fullAccount) {
+            "fullAccount is required for HW verification in OnboardingAndRecovery entry point"
+          }
         }
 
         val goToActivationInstructions = {
@@ -365,25 +378,34 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
             errorBottomSheetState = ErrorBottomSheetState.Hidden
           )
         }
-        proofOfPossessionNfcStateMachine.model(
+
+        val actionProofType = state.touchpointToActivate.toActionProofType()
+
+        hardwareAuthUiStateMachine.model(
           props =
-            ProofOfPossessionNfcProps(
-              request = Request.HwKeyProof { hwFactorProofOfPossession: HwFactorProofOfPossession ->
+            HardwareAuthUiProps(
+              account = fullAccount,
+              actionProofType = actionProofType,
+              segment = NotificationsAppSegment,
+              actionDescription = "Activating notification touchpoint",
+              screenPresentationStyle = ScreenPresentationStyle.Modal,
+              onSuccess = { proof ->
                 uiState = SendingActivationToServerUiState(
                   touchpointToActivate = state.touchpointToActivate,
-                  hwFactorProofOfPossession = hwFactorProofOfPossession
+                  proof = proof
                 )
               },
-              fullAccountId = props.accountId,
+              shouldLock = props.entryPoint is Settings,
               onBack = goToActivationInstructions,
-              screenPresentationStyle = ScreenPresentationStyle.Modal,
               onTokenRefresh = {
                 // Provide a screen model to show while the token is being refreshed.
                 // We want this to be the same as [ActivationApprovalInstructionsUiState]
                 // but with the button in a loading state
                 NotificationOperationApprovalInstructionsFormScreenModel(
-                  onExit = props.onClose,
-                  operationDescription = operationDescription(state.touchpointToActivate.formattedDisplayValue),
+                  onExit = { uiState = EnteringTouchpointUiState(touchpointPrefill = state.touchpointToActivate) },
+                  headline = props.entryPoint.activationApprovalHeadline(),
+                  operationDescription = props.entryPoint.activationApprovalDescription(state.touchpointToActivate),
+                  primaryButtonText = props.entryPoint.activationApprovalPrimaryButtonText(),
                   isApproveButtonLoading = true,
                   errorBottomSheetState = ErrorBottomSheetState.Hidden,
                   onApprove = {
@@ -396,8 +418,10 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
                 // We want this to be the same as [ActivationApprovalInstructionsUiState]
                 // but with the error bottom sheet showing
                 NotificationOperationApprovalInstructionsFormScreenModel(
-                  onExit = props.onClose,
-                  operationDescription = operationDescription(state.touchpointToActivate.formattedDisplayValue),
+                  onExit = { uiState = EnteringTouchpointUiState(touchpointPrefill = state.touchpointToActivate) },
+                  headline = props.entryPoint.activationApprovalHeadline(),
+                  operationDescription = props.entryPoint.activationApprovalDescription(state.touchpointToActivate),
+                  primaryButtonText = props.entryPoint.activationApprovalPrimaryButtonText(),
                   isApproveButtonLoading = false,
                   errorBottomSheetState = ErrorBottomSheetState.Showing(
                     isConnectivityError = isConnectivityError,
@@ -420,12 +444,12 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
               f8eEnvironment = f8eEnvironment,
               accountId = props.accountId,
               touchpointId = state.touchpointToActivate.touchpointId,
-              hwFactorProofOfPossession = state.hwFactorProofOfPossession
+              proof = state.proof
             )
             .onSuccess {
               notificationTouchpointDao.storeTouchpoint(state.touchpointToActivate)
               uiState = SendingActivationToServerSuccessUiState(
-                requiredHwProofOfPossession = state.hwFactorProofOfPossession != null
+                requiredHwProofOfPossession = state.proof != null
               )
             }
             .onFailure(
@@ -450,7 +474,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
         NetworkErrorFormBodyModel(
           title = state.touchpointToActivate.activationErrorTitle(),
           isConnectivityError = state.error is NetworkError,
-          onBack = props.onClose,
+          onBack = { uiState = EnteringTouchpointUiState(touchpointPrefill = state.touchpointToActivate) },
           eventTrackerScreenId = when (props.touchpointType) {
             Email -> NotificationsEventTrackerScreenId.EMAIL_INPUT_SENDING_ACTIVATION_TO_SERVER_ERROR
             PhoneNumber -> NotificationsEventTrackerScreenId.SMS_INPUT_SENDING_ACTIVATION_TO_SERVER_ERROR
@@ -541,14 +565,13 @@ sealed interface NotificationTouchpointInputAndVerificationUiState {
   ) : NotificationTouchpointInputAndVerificationUiState
 
   /**
-   * We are sending the request to active the touchpoint to the server to finalize adding it to
-   * the customer's profile.
-   * @property hwFactorProofOfPossession: Proof of HW possession if verifying after the user has
-   * onboarded
+   * Activating the touchpoint on the server to finalize adding it to the customer's profile.
+   *
+   * @property proof authorization proof, if required (e.g. HW proof-of-possession after onboarding).
    */
   data class SendingActivationToServerUiState(
     val touchpointToActivate: NotificationTouchpoint,
-    val hwFactorProofOfPossession: HwFactorProofOfPossession?,
+    val proof: PrivilegedActionProof?,
   ) : NotificationTouchpointInputAndVerificationUiState
 
   /**
@@ -569,8 +592,29 @@ sealed interface NotificationTouchpointInputAndVerificationUiState {
   ) : NotificationTouchpointInputAndVerificationUiState
 }
 
-private fun operationDescription(formattedDisplayValue: String) =
-  "Notifications will be sent to $formattedDisplayValue"
+private fun EntryPoint.activationApprovalHeadline() =
+  when (this) {
+    is OnboardingAndRecovery -> "Confirm details on your Bitkey"
+    is Settings -> "Approve this change with your Bitkey device"
+  }
+
+private fun EntryPoint.activationApprovalPrimaryButtonText() =
+  when (this) {
+    is OnboardingAndRecovery -> "Continue"
+    is Settings -> "Approve"
+  }
+
+private fun EntryPoint.activationApprovalDescription(touchpoint: NotificationTouchpoint) =
+  when (this) {
+    is OnboardingAndRecovery ->
+      when (touchpoint) {
+        is EmailTouchpoint ->
+          "Your Bitkey must approve changes to your security settings. Review and approve saving ${touchpoint.formattedDisplayValue} as your recovery email."
+        is PhoneNumberTouchpoint ->
+          "Your Bitkey must approve changes to your security settings. Review and approve saving ${touchpoint.formattedDisplayValue} as your recovery phone number."
+      }
+    is Settings -> "Notifications will be sent to ${touchpoint.formattedDisplayValue}"
+  }
 
 private sealed interface NotificationTouchpointSubmissionRequest {
   /**
@@ -596,11 +640,43 @@ private fun NotificationTouchpoint.activationErrorTitle() =
     is EmailTouchpoint -> "We couldn’t activate this email address"
   }
 
-private fun EntryPoint.dataInputStyle() =
+private fun EntryPoint.dataInputStyle(hasExistingTouchpoint: Boolean) =
   when (this) {
-    is Onboarding, is Recovery -> Enter
-    is Settings -> Edit
+    is OnboardingAndRecovery -> Enter
+    is Settings -> if (hasExistingTouchpoint) Edit else Enter
   }
 
 private fun F8eError<AddTouchpointClientErrorCode>.isUnsupportedCountryCode(): Boolean =
   this is F8eError.SpecificClientError && errorCode == AddTouchpointClientErrorCode.UNSUPPORTED_COUNTRY_CODE
+
+/**
+ * Maps a [NotificationTouchpoint] to the corresponding [ActionProofType] for hardware signing.
+ * Always uses Set regardless of whether the touchpoint is new or replacing an existing one.
+ */
+private fun NotificationTouchpoint.toActionProofType(): ActionProofType =
+  when (this) {
+    is EmailTouchpoint ->
+      ActionProofType.SetRecoveryEmail(email = value.value, touchpointId = touchpointId)
+    is PhoneNumberTouchpoint ->
+      ActionProofType.SetRecoveryPhone(phone = value.formattedE164Value, touchpointId = touchpointId)
+  }
+
+/**
+ * App segment for notifications-related error tracking.
+ */
+internal object NotificationsAppSegment : AppSegment {
+  override val id: String = "Notifications"
+}
+
+private const val CRITICAL_ALERTS_SUBLINE =
+  "You will only receive alerts about recovery attempts, inheritance, and privacy updates.\nLearn more"
+
+private fun criticalAlertsSublineWithLearnMore(onLearnMore: () -> Unit): LabelModel.LinkSubstringModel =
+  LabelModel.LinkSubstringModel.from(
+    string = CRITICAL_ALERTS_SUBLINE,
+    substringToOnClick = mapOf("Learn more" to onLearnMore),
+    underline = false,
+    bold = false,
+    color = LabelModel.Color.PRIMARY
+  )
+

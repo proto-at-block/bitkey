@@ -22,6 +22,35 @@ pub enum CommandError {
     PoisonedLockError(String),
     #[error("command was unsuccessful: unspecified error")]
     UnspecifiedCommandError,
+    #[error("wipe state failed: hardware reported an error")]
+    WipeStateFailed,
+    #[error("firmware update start failed: hardware reported an error")]
+    FirmwareUpdateStartFailed,
+    #[error("firmware update transfer failed: hardware reported an error")]
+    FirmwareUpdateTransferFailed,
+    #[error("sign transaction failed: hardware reported an error")]
+    SignTransactionFailed,
+    #[error("derive and sign failed: hardware reported an error")]
+    DeriveAndSignFailed,
+    #[error("seal key failed: hardware reported an error")]
+    SealKeyFailed,
+    #[error("unseal key failed: hardware reported an error")]
+    UnsealKeyFailed,
+    #[error("derive key descriptor failed: hardware reported an error")]
+    DeriveKeyDescriptorFailed,
+    #[error("get metadata failed: hardware reported an error")]
+    GetMetadataFailed,
+    #[error("coredump retrieval failed: hardware reported an error")]
+    CoredumpFailed,
+    #[error("device info retrieval failed: hardware reported an error")]
+    DeviceInfoFailed,
+    #[error("fingerprint enrollment failed: hardware reported an error")]
+    FingerprintEnrollmentFailed,
+    #[error("feature flags update failed: hardware reported an error")]
+    FeatureFlagsFailed,
+    #[error("telemetry retrieval failed: hardware reported an error")]
+    TelemetryFailed,
+
     #[error("command was unsuccessful: general error")]
     GeneralCommandError,
     #[error("signing error")]
@@ -96,6 +125,12 @@ pub enum CommandError {
     PolicyViolation,
     #[error("request mismatch")]
     RequestMismatch,
+    #[error("wallet not initialized: hardware descriptor missing")]
+    DescriptorNotLoaded,
+    #[error("confirmation version mismatch")]
+    ConfirmationMismatch,
+    #[error("confirmation not completed on device")]
+    ConfirmationNotCompleted,
 }
 
 impl<T> From<PoisonError<T>> for CommandError {

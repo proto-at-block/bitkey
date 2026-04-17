@@ -101,11 +101,14 @@ class RecoveryDaoImpl(
       is RotatedAuthKeys -> markAuthKeysRotated()
       is CreatedSpendingKeys -> markSpendingKeysCreated(progress)
       is ActivatedSpendingKeys -> markSpendingKeysActivated()
+      is HwDescriptorValidated -> markHwDescriptorValidated(progress)
       is UploadedDescriptorBackups -> markUploadedDescriptorBackups(progress)
       DdkBackedUp -> markDdkBackedUp()
       BackedUpToCloud -> markCloudBackedUp()
       SweepingFunds -> markSweepInProgress()
-      is CompletedRecovery -> markFundsSwept(progress.keyboxToActivate)
+      is CompletedRecovery -> markFundsSwept(
+        keyboxToActivate = progress.keyboxToActivate
+      )
     }
   }
 
@@ -182,6 +185,18 @@ class RecoveryDaoImpl(
       }
   }
 
+  private suspend fun markHwDescriptorValidated(
+    progress: HwDescriptorValidated,
+  ): Result<Unit, DbTransactionError> {
+    return databaseProvider.database()
+      .awaitTransaction {
+        recoveryQueries.markHwDescriptorValidated(
+          appGlobalAuthKeyHwSignature = progress.appGlobalAuthKeyHwSignature,
+          sealedDdk = progress.sealedDdkData
+        )
+      }
+  }
+
   private suspend fun markUploadedDescriptorBackups(
     progress: UploadedDescriptorBackups,
   ): Result<Unit, DbError> {
@@ -227,10 +242,13 @@ class RecoveryDaoImpl(
       }
   }
 
-  private suspend fun markFundsSwept(keyboxToActivate: Keybox): Result<Unit, DbTransactionError> {
+  private suspend fun markFundsSwept(
+    keyboxToActivate: Keybox,
+  ): Result<Unit, DbTransactionError> {
     return databaseProvider.database()
       .awaitTransaction {
         recoveryQueries.clearLocalRecoveryAttempt()
+        w3UpgradeMigrationQueries.clear()
         saveKeyboxAsActive(keyboxToActivate)
       }
   }
@@ -448,6 +466,25 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
           sealedSsek = sealedSsek,
           keysets = storedKeysets,
           originalAppGlobalAuthKey = originalAppGlobalAuthKey
+        )
+      }
+
+      if (hwDescriptorValidated) {
+        return ServerIndependentRecovery.HwDescriptorValidated(
+          f8eSpendingKeyset = serverF8eSpendingKeyset,
+          fullAccountId = account,
+          appSpendingKey = destinationAppSpendingKey,
+          appGlobalAuthKey = destinationAppGlobalAuthKey,
+          appRecoveryAuthKey = destinationAppRecoveryAuthKey,
+          hardwareSpendingKey = destinationHardwareSpendingKey,
+          hardwareAuthKey = destinationHardwareAuthKey,
+          appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
+          factorToRecover = lostFactor,
+          sealedCsek = sealedCsek!!,
+          sealedSsek = sealedSsek,
+          keysets = storedKeysets,
+          originalAppGlobalAuthKey = originalAppGlobalAuthKey,
+          sealedDdkData = sealedDdk
         )
       }
 

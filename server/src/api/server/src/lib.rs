@@ -63,6 +63,7 @@ use recovery::service::social::{
     relationship::Service as RecoveryRelationshipService,
 };
 use repository::account::AccountRepository;
+use repository::anti_replay::AntiReplayRepository;
 use repository::consent::ConsentRepository;
 use repository::encrypted_attachment::EncryptedAttachmentRepository;
 use repository::privileged_action::PrivilegedActionRepository;
@@ -132,6 +133,7 @@ pub struct Services {
     pub web_shop_client: WebShopClient,
     pub webhook_validator: WebhookValidator,
     pub customer_feedback_service: CustomerFeedbackService,
+    pub anti_replay_repository: AntiReplayRepository,
     // Remove the following repositories from services
     pub consent_repository: ConsentRepository,
     pub privileged_action_repository: PrivilegedActionRepository,
@@ -235,6 +237,7 @@ struct BootstrapBuilder {
 struct Repositories {
     account_repository: AccountRepository,
     address_watchlist_repository: AddressRepository,
+    anti_replay_repository: AntiReplayRepository,
     consent_repository: ConsentRepository,
     notification_repository: NotificationRepository,
     wallet_recovery_repository: RecoveryRepository,
@@ -293,6 +296,7 @@ impl BootstrapBuilder {
         let repositories = Repositories {
             account_repository: AccountRepository::new(ddb_connection.clone()),
             address_watchlist_repository: AddressRepository::new(ddb_connection.clone()),
+            anti_replay_repository: AntiReplayRepository::new(ddb_connection.clone()),
             consent_repository: ConsentRepository::new(ddb_connection.clone()),
             notification_repository: NotificationRepository::new(ddb_connection.clone()),
             wallet_recovery_repository: RecoveryRepository::new_with_override(
@@ -360,6 +364,9 @@ impl BootstrapBuilder {
                 .encrypted_attachment_repository
                 .create_table_if_necessary(),
             repositories.screener_repository.create_table_if_necessary(),
+            repositories
+                .anti_replay_repository
+                .create_table_if_necessary(),
         )?;
 
         Ok(repositories)
@@ -537,6 +544,7 @@ impl BootstrapBuilder {
             webhook_validator,
             customer_feedback_service,
             // Repositories to be removed
+            anti_replay_repository: repositories.anti_replay_repository.clone(),
             consent_repository: repositories.consent_repository.clone(),
             privileged_action_repository: repositories.privileged_action_repository.clone(),
             inheritance_repository: repositories.inheritance_repository.clone(),
@@ -579,6 +587,7 @@ impl BootstrapBuilder {
             self.services.address_service.clone(),
             self.services.twilio_client.clone(),
             self.services.userpool_service.clone(),
+            self.services.anti_replay_repository.clone(),
         );
 
         let onboarding_state = onboarding::routes::RouteState(
@@ -593,6 +602,7 @@ impl BootstrapBuilder {
             self.services.twilio_client.clone(),
             self.services.feature_flags_service.clone(),
             self.services.privileged_action_service.clone(),
+            self.services.anti_replay_repository.clone(),
         );
 
         let mobile_pay_state = mobile_pay::routes::RouteState(
@@ -607,6 +617,7 @@ impl BootstrapBuilder {
             self.services.feature_flags_service.clone(),
             self.services.screener_service.clone(),
             self.services.transaction_verification_service.clone(),
+            self.services.anti_replay_repository.clone(),
         );
 
         let transaction_verification_state = transaction_verification::routes::RouteState(
@@ -617,6 +628,7 @@ impl BootstrapBuilder {
             self.services.transaction_verification_service.clone(),
             self.services.exchange_rate_service.clone(),
             self.services.privileged_action_service.clone(),
+            self.services.anti_replay_repository.clone(),
         );
 
         let delay_notify_state = recovery::routes::delay_notify::RouteState(
@@ -629,6 +641,7 @@ impl BootstrapBuilder {
             self.services.social_challenge_service.clone(),
             self.services.feature_flags_service.clone(),
             self.services.wsm_client.clone(),
+            self.services.anti_replay_repository.clone(),
         );
 
         let distributed_keys_state = recovery::routes::distributed_keys::RouteState(
@@ -660,6 +673,7 @@ impl BootstrapBuilder {
             self.services.feature_flags_service.clone(),
             self.services.promotion_code_service.clone(),
             self.services.inheritance_service.clone(),
+            self.services.anti_replay_repository.clone(),
         );
 
         let social_challenge_state = recovery::routes::social_challenge::RouteState(

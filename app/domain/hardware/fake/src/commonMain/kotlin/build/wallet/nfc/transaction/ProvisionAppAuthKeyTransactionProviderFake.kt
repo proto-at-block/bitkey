@@ -17,6 +17,7 @@ class ProvisionAppAuthKeyTransactionProviderFake : ProvisionAppAuthKeyTransactio
     return object : NfcTransaction<Unit> {
       override val needsAuthentication = true
       override val shouldLock = true
+      override val showDeviceConfirmation = true
 
       override suspend fun session(
         session: build.wallet.nfc.NfcSession,

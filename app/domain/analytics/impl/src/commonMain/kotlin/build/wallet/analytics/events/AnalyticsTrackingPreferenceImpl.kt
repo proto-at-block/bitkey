@@ -11,29 +11,48 @@ import build.wallet.sqldelight.awaitTransaction
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.flow.*
 
+/**
+ * Determines how analytics tracking preference behaves for a given app variant.
+ *
+ * [AlwaysEnabled] - analytics is always on and cannot be changed by the user.
+ * [Mutable] - analytics can be toggled via the debug menu, with a configurable [Mutable.default].
+ */
+private sealed interface AnalyticsBehavior {
+  data object AlwaysEnabled : AnalyticsBehavior
+
+  data class Mutable(val default: Boolean) : AnalyticsBehavior
+}
+
+private fun AppVariant.analyticsBehavior(): AnalyticsBehavior =
+  when (this) {
+    AppVariant.Customer, AppVariant.Emergency -> AnalyticsBehavior.AlwaysEnabled
+    AppVariant.Team -> AnalyticsBehavior.Mutable(default = true)
+    AppVariant.Development, AppVariant.Alpha -> AnalyticsBehavior.Mutable(default = false)
+  }
+
 @BitkeyInject(AppScope::class)
 class AnalyticsTrackingPreferenceImpl(
-  private val appVariant: AppVariant,
+  appVariant: AppVariant,
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : AnalyticsTrackingPreference {
+  private val behavior = appVariant.analyticsBehavior()
+
   override suspend fun get(): Boolean {
-    return if (appVariant == AppVariant.Customer || appVariant == AppVariant.Emergency) {
-      true
-    } else {
-      databaseProvider.debugDatabase()
-        .analyticsTrackingDebugConfigQueries
-        .getConfig()
-        .awaitAsOneOrNullResult()
-        .get()
-        ?.enabled
-        ?: false
+    return when (behavior) {
+      is AnalyticsBehavior.AlwaysEnabled -> true
+      is AnalyticsBehavior.Mutable ->
+        databaseProvider.debugDatabase()
+          .analyticsTrackingDebugConfigQueries
+          .getConfig()
+          .awaitAsOneOrNullResult()
+          .get()
+          ?.enabled
+          ?: behavior.default
     }
   }
 
   override suspend fun set(enabled: Boolean) {
-    if (appVariant == AppVariant.Customer || appVariant == AppVariant.Emergency) {
-      // Do nothing
-    } else {
+    if (behavior is AnalyticsBehavior.Mutable) {
       databaseProvider.debugDatabase()
         .analyticsTrackingDebugConfigQueries
         .awaitTransaction {
@@ -44,17 +63,17 @@ class AnalyticsTrackingPreferenceImpl(
   }
 
   override fun isEnabled(): Flow<Boolean> {
-    return if (appVariant == AppVariant.Customer) {
-      flowOf(true)
-    } else {
-      flow {
-        databaseProvider.debugDatabase()
-          .analyticsTrackingDebugConfigQueries
-          .getConfig()
-          .asFlowOfOneOrNull()
-          .map { it.get()?.enabled ?: false }
-          .collect(::emit)
-      }
+    return when (behavior) {
+      is AnalyticsBehavior.AlwaysEnabled -> flowOf(true)
+      is AnalyticsBehavior.Mutable ->
+        flow {
+          databaseProvider.debugDatabase()
+            .analyticsTrackingDebugConfigQueries
+            .getConfig()
+            .asFlowOfOneOrNull()
+            .map { it.get()?.enabled ?: behavior.default }
+            .collect(::emit)
+        }
     }
   }
 }

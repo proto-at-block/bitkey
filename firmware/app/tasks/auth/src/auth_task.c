@@ -12,6 +12,7 @@
 #include "ipc.h"
 #include "log.h"
 #include "onboarding.h"
+#include "platform.h"
 #include "proto_helpers.h"
 #include "rtos.h"
 #include "secure_channel.h"
@@ -20,14 +21,15 @@
 #include "ui_messaging.h"
 #include "unlock.h"
 
+#include <ctype.h>
+
 #define RATE_LIMIT_MS      (1000)
 #define RATE_LIMIT_FAIL_MS (1000)
-#define AUTH_EXPIRY_MS     (60000)
 
 typedef struct {
-  bool enrollment_in_progress;
-  secure_bool_t enroll_ok;
-  bio_template_id_t index;
+  volatile bool enrollment_in_progress;
+  volatile secure_bool_t enroll_ok;
+  volatile bio_template_id_t index;
   char label[BIO_LABEL_MAX_LEN];
 } enrollment_ctx_t;
 
@@ -53,6 +55,36 @@ static struct {
 };
 
 static const uint32_t bio_lib_retry_ms = 5000u;
+
+static void fingerprint_label_default_for_index(uint8_t index, char* label, size_t label_size) {
+  if (label == NULL || label_size == 0) {
+    return;
+  }
+
+  (void)snprintf(label, label_size, "Fingerprint %u", (unsigned)index + 1u);
+}
+
+static bool fingerprint_label_is_blank(const char* label) {
+  if (label == NULL) {
+    return true;
+  }
+
+  while (*label != '\0') {
+    if (!isspace((unsigned char)*label)) {
+      return false;
+    }
+    label++;
+  }
+
+  return true;
+}
+
+static void fingerprint_label_normalize_blank_for_index(uint8_t index, char* label,
+                                                        size_t label_size) {
+  if (fingerprint_label_is_blank(label)) {
+    fingerprint_label_default_for_index(index, label, label_size);
+  }
+}
 
 static fwpb_status unlock_err_to_fwpb_status(unlock_err_t err) {
   switch (err) {
@@ -119,14 +151,34 @@ NO_OPTIMIZE void handle_start_fingerprint_enrollment_internal(ipc_ref_t* message
   auth_start_fingerprint_enrollment_internal_t* cmd =
     (auth_start_fingerprint_enrollment_internal_t*)message->object;
 
+  // Cancel any in-progress enrollment before starting a new one
+  if (auth_priv.current_enrollment_ctx.enrollment_in_progress) {
+    LOGW("Enroll busy, cancel");
+    auth_priv.current_enrollment_ctx.enrollment_in_progress = false;
+    bio_enroll_cancel();
+  }
+
   // Set up enrollment context
   auth_priv.current_enrollment_ctx.index = cmd->index;
-  auth_priv.current_enrollment_ctx.enrollment_in_progress = true;
   SECURE_DO({ auth_priv.current_enrollment_ctx.enroll_ok = SECURE_FALSE; });
+  auth_priv.current_enrollment_ctx.enrollment_in_progress = true;
   strncpy(auth_priv.current_enrollment_ctx.label, cmd->label, BIO_LABEL_MAX_LEN);
+  auth_priv.current_enrollment_ctx.label[BIO_LABEL_MAX_LEN - 1] = '\0';
+  fingerprint_label_normalize_blank_for_index(auth_priv.current_enrollment_ctx.index,
+                                              auth_priv.current_enrollment_ctx.label,
+                                              sizeof(auth_priv.current_enrollment_ctx.label));
 
   // Send UI event to indicate enrollment has started
   UI_SHOW_EVENT(UI_EVENT_ENROLLMENT_START);
+}
+
+void handle_cancel_fingerprint_enrollment_internal(ipc_ref_t* UNUSED(message)) {
+  if (!auth_priv.current_enrollment_ctx.enrollment_in_progress) {
+    return;
+  }
+
+  auth_priv.current_enrollment_ctx.enrollment_in_progress = false;
+  bio_enroll_cancel();
 }
 
 NO_OPTIMIZE void handle_get_enrolled_fingerprints_internal(ipc_ref_t* UNUSED(message)) {
@@ -141,11 +193,10 @@ NO_OPTIMIZE void handle_get_enrolled_fingerprints_internal(ipc_ref_t* UNUSED(mes
 
       // Retrieve the label for this fingerprint
       if (!bio_storage_label_retrieve(i, response.labels[response.count])) {
-        // If label retrieval fails, use a default
-        snprintf(response.labels[response.count], sizeof(response.labels[response.count]),
-                 "Fingerprint %d", i + 1);
-        LOGE("Failed to retrieve label for fingerprint %d, using default", i);
+        LOGE("Label fail %d", i);
       }
+      fingerprint_label_normalize_blank_for_index(i, response.labels[response.count],
+                                                  sizeof(response.labels[response.count]));
 
       response.count++;
     }
@@ -160,8 +211,6 @@ NO_OPTIMIZE void handle_delete_fingerprint_internal(ipc_ref_t* message) {
 
   bio_err_t err = bio_storage_delete_template(cmd->index);
   bool success = (err == BIO_ERR_NONE);
-
-  LOGD("[Auth] Deleted fingerprint at slot %d: %s", cmd->index, success ? "success" : "failed");
 
   // Send UI event to update display
   if (success) {
@@ -186,8 +235,14 @@ NO_OPTIMIZE static void set_authenticated_via_fingerprint(uint8_t fingerprint_in
 }
 
 NO_OPTIMIZE void handle_match_fail(void) {
-  LOGE("Failed when trying to match fingerprint");
-  deauthenticate_without_animation();
+  LOGE("FP match fail");
+#if defined(PLATFORM_CFG_RELOCK_ON_FP_MISMATCH) && (PLATFORM_CFG_RELOCK_ON_FP_MISMATCH)
+  deauthenticate();
+#else
+  if (is_authenticated() != SECURE_TRUE) {
+    deauthenticate();
+  }
+#endif
   rtos_thread_sleep(RATE_LIMIT_FAIL_MS);
 }
 
@@ -198,17 +253,20 @@ NO_OPTIMIZE void handle_start_fingerprint_enrollment(ipc_ref_t* message) {
   rsp->which_msg = fwpb_wallet_rsp_start_fingerprint_enrollment_rsp_tag;
 
   if (!cmd->msg.start_fingerprint_enrollment_cmd.has_handle) {
-    LOGD("Handle not set; using defaults");
     auth_priv.current_enrollment_ctx.index = 0;
     memset(auth_priv.current_enrollment_ctx.label, 0, BIO_LABEL_MAX_LEN);
   } else {
     auth_priv.current_enrollment_ctx.index = cmd->msg.start_fingerprint_enrollment_cmd.handle.index;
     strncpy(auth_priv.current_enrollment_ctx.label,
             cmd->msg.start_fingerprint_enrollment_cmd.handle.label, BIO_LABEL_MAX_LEN);
+    auth_priv.current_enrollment_ctx.label[BIO_LABEL_MAX_LEN - 1] = '\0';
   }
+  fingerprint_label_normalize_blank_for_index(auth_priv.current_enrollment_ctx.index,
+                                              auth_priv.current_enrollment_ctx.label,
+                                              sizeof(auth_priv.current_enrollment_ctx.label));
 
-  auth_priv.current_enrollment_ctx.enrollment_in_progress = true;
   SECURE_DO({ auth_priv.current_enrollment_ctx.enroll_ok = SECURE_FALSE; });
+  auth_priv.current_enrollment_ctx.enrollment_in_progress = true;
 
   UI_SHOW_EVENT(UI_EVENT_ENROLLMENT_START);
 
@@ -228,8 +286,6 @@ void handle_get_fingerprint_enrollment_status(ipc_ref_t* message) {
 
   uint32_t existing_template_count = 0;
   bio_storage_get_template_count(&existing_template_count);
-  LOGD("Template count: %lu", existing_template_count);
-
   bool enroll_ok = false;
   if (cmd->msg.get_fingerprint_enrollment_status_cmd.app_knows_about_this_field) {
     // The app has been updated to a version that knows about this field, so we can use
@@ -308,13 +364,16 @@ void handle_unlock_secret(ipc_ref_t* message) {
   rsp->which_msg = fwpb_wallet_rsp_send_unlock_secret_rsp_tag;
   rsp->status = fwpb_status_ERROR;
 
+#ifdef CONFIG_PROD
   if (!feature_flags_get(fwpb_feature_flag_FEATURE_FLAG_UNLOCK)) {
     rsp->status = fwpb_status_FEATURE_NOT_SUPPORTED;
     goto out;
   }
+#endif
 
-  if (cmd->msg.send_unlock_secret_cmd.secret.ciphertext.size >
-      sizeof(cmd->msg.send_unlock_secret_cmd.secret.ciphertext.bytes)) {
+  if (!proto_secure_channel_message_has_valid_sizes(&cmd->msg.send_unlock_secret_cmd.secret,
+                                                    sizeof(unlock_secret_t))) {
+    rsp->status = fwpb_status_INVALID_ARGUMENT;
     goto out;
   }
 
@@ -329,7 +388,7 @@ void handle_unlock_secret(ipc_ref_t* message) {
         cmd->msg.send_unlock_secret_cmd.secret.ciphertext.size,
         cmd->msg.send_unlock_secret_cmd.secret.nonce.bytes,
         cmd->msg.send_unlock_secret_cmd.secret.mac.bytes) != SECURE_CHANNEL_OK) {
-    LOGE("Failed to decrypt unlock secret");
+    LOGE("Unlock decrypt fail");
     rsp->status = fwpb_status_SECURE_CHANNEL_ERROR;
     goto out;
   }
@@ -338,6 +397,9 @@ void handle_unlock_secret(ipc_ref_t* message) {
     unlock_check_secret(&decrypted_secret, &rsp->msg.send_unlock_secret_rsp.remaining_delay_ms,
                         &rsp->msg.send_unlock_secret_rsp.retry_counter);
   if (err == UNLOCK_OK) {
+#ifndef CONFIG_PROD
+    auth_authenticate_unlock_secret();
+#endif
     UI_SHOW_EVENT(UI_EVENT_AUTH_SUCCESS);
   }
   rsp->status = unlock_err_to_fwpb_status(err);
@@ -353,13 +415,16 @@ void handle_provision_unlock_secret(ipc_ref_t* message) {
   rsp->which_msg = fwpb_wallet_rsp_provision_unlock_secret_rsp_tag;
   rsp->status = fwpb_status_ERROR;
 
+#ifdef CONFIG_PROD
   if (!feature_flags_get(fwpb_feature_flag_FEATURE_FLAG_UNLOCK)) {
     rsp->status = fwpb_status_FEATURE_NOT_SUPPORTED;
     goto out;
   }
+#endif
 
-  if (cmd->msg.provision_unlock_secret_cmd.secret.ciphertext.size >
-      sizeof(cmd->msg.provision_unlock_secret_cmd.secret.ciphertext.bytes)) {
+  if (!proto_secure_channel_message_has_valid_sizes(&cmd->msg.provision_unlock_secret_cmd.secret,
+                                                    sizeof(unlock_secret_t))) {
+    rsp->status = fwpb_status_INVALID_ARGUMENT;
     goto out;
   }
 
@@ -376,7 +441,7 @@ void handle_provision_unlock_secret(ipc_ref_t* message) {
         cmd->msg.provision_unlock_secret_cmd.secret.ciphertext.size,
         cmd->msg.provision_unlock_secret_cmd.secret.nonce.bytes,
         cmd->msg.provision_unlock_secret_cmd.secret.mac.bytes) != SECURE_CHANNEL_OK) {
-    LOGE("Failed to decrypt unlock secret");
+    LOGE("Unlock decrypt fail");
     rsp->status = fwpb_status_SECURE_CHANNEL_ERROR;
     goto out;
   }
@@ -395,10 +460,12 @@ void handle_unlock_limit_response(ipc_ref_t* message) {
   rsp->which_msg = fwpb_wallet_rsp_configure_unlock_limit_response_rsp_tag;
   rsp->status = fwpb_status_ERROR;
 
+#ifdef CONFIG_PROD
   if (!feature_flags_get(fwpb_feature_flag_FEATURE_FLAG_UNLOCK)) {
     rsp->status = fwpb_status_FEATURE_NOT_SUPPORTED;
     goto out;
   }
+#endif
 
   unlock_limit_response_t limit_response = DEFAULT_LIMIT_RESPONSE;
 
@@ -410,13 +477,13 @@ void handle_unlock_limit_response(ipc_ref_t* message) {
       limit_response = RESPONSE_WIPE_STATE;
       break;
     default:
-      LOGE("Unknown limit response %d",
+      LOGE("Bad limit response %d",
            cmd->msg.configure_unlock_limit_response_cmd.unlock_limit_response);
       goto out;
   }
 
   if (unlock_set_configured_limit_response(limit_response) != UNLOCK_OK) {
-    LOGE("Failed to set limit response");
+    LOGE("Limit response set fail");
     goto out;
   }
 
@@ -477,10 +544,15 @@ void handle_get_enrolled_fingerprints(ipc_ref_t* message) {
     if (bio_fingerprint_index_exists(i)) {
       // Only increment handles_count and retrieve labels for existing templates
       rsp->msg.get_enrolled_fingerprints_rsp.handles[filled].index = i;
+      memset(rsp->msg.get_enrolled_fingerprints_rsp.handles[filled].label, 0,
+             sizeof(rsp->msg.get_enrolled_fingerprints_rsp.handles[filled].label));
       if (!bio_storage_label_retrieve(
             i, rsp->msg.get_enrolled_fingerprints_rsp.handles[filled].label)) {
-        LOGE("Failed to retrieve label for index %ld", i);
+        LOGE("Label fail %ld", i);
       }
+      fingerprint_label_normalize_blank_for_index(
+        i, rsp->msg.get_enrolled_fingerprints_rsp.handles[filled].label,
+        sizeof(rsp->msg.get_enrolled_fingerprints_rsp.handles[filled].label));
       filled++;
     }
   }
@@ -528,12 +600,16 @@ out:
 void handle_set_fingerprint_label(ipc_ref_t* message) {
   fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
   fwpb_wallet_rsp* rsp = proto_get_rsp();
+  char label[BIO_LABEL_MAX_LEN] = {0};
 
   rsp->which_msg = fwpb_wallet_rsp_set_fingerprint_label_rsp_tag;
   rsp->status = fwpb_status_ERROR;
 
-  if (!bio_storage_label_save(cmd->msg.set_fingerprint_label_cmd.handle.index,
-                              cmd->msg.set_fingerprint_label_cmd.handle.label)) {
+  strncpy(label, cmd->msg.set_fingerprint_label_cmd.handle.label, sizeof(label) - 1);
+  fingerprint_label_normalize_blank_for_index(cmd->msg.set_fingerprint_label_cmd.handle.index,
+                                              label, sizeof(label));
+
+  if (!bio_storage_label_save(cmd->msg.set_fingerprint_label_cmd.handle.index, label)) {
     rsp->status = fwpb_status_STORAGE_ERR;
     goto out;
   }
@@ -549,28 +625,47 @@ void handle_cancel_fingerprint_enrollment(ipc_ref_t* message) {
   fwpb_wallet_rsp* rsp = proto_get_rsp();
 
   rsp->which_msg = fwpb_wallet_rsp_cancel_fingerprint_enrollment_rsp_tag;
-  rsp->status = fwpb_status_ERROR;
 
   if (!auth_priv.current_enrollment_ctx.enrollment_in_progress) {
     rsp->status = fwpb_status_INVALID_STATE;
     goto out;
   }
 
+  auth_priv.current_enrollment_ctx.enrollment_in_progress = false;
+  // Don't clear index here — the matching thread may still need it if
+  // bio_enroll_finger completes despite the cancel. The matching thread
+  // saves used_index before clearing index itself.
   bio_enroll_cancel();
+  rsp->status = fwpb_status_SUCCESS;
 
 out:
-  rsp->status = fwpb_status_SUCCESS;
   proto_send_rsp(cmd, rsp);
 }
+
+#ifndef CONFIG_PROD
+static void handle_unlock_device(ipc_ref_t* message) {
+  fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
+  fwpb_wallet_rsp* rsp = proto_get_rsp();
+
+  rsp->which_msg = fwpb_wallet_rsp_unlock_device_rsp_tag;
+  rsp->status = fwpb_status_SUCCESS;
+  rsp->msg.unlock_device_rsp.rsp_status = fwpb_unlock_device_rsp_unlock_device_rsp_status_SUCCESS;
+  auth_authenticate_unlock_secret();
+
+  proto_send_rsp(cmd, rsp);
+}
+#endif
 
 void auth_main_thread(void* UNUSED(args)) {
   sysevent_wait(SYSEVENT_SLEEP_TIMER_READY | SYSEVENT_FEATURE_FLAGS_READY, true);
 
+#ifndef CONFIG_PROD
+  unlock_init_and_begin_delay();
+#else
   if (feature_flags_get(fwpb_feature_flag_FEATURE_FLAG_UNLOCK)) {
     unlock_init_and_begin_delay();
-  } else {
-    LOGI("Unlock feature flag is disabled");
   }
+#endif
 
   for (;;) {
     ipc_ref_t message = {0};
@@ -624,6 +719,14 @@ void auth_main_thread(void* UNUSED(args)) {
         handle_cancel_fingerprint_enrollment(&message);
         break;
       }
+      case IPC_PROTO_UNLOCK_DEVICE_CMD: {
+#ifndef CONFIG_PROD
+        handle_unlock_device(&message);
+#else
+        LOGE("Unsupported");
+#endif
+        break;
+      }
 
         // ========== INTERNAL COMMANDS (Firmware-to-Firmware) ==========
         // These commands come from internal firmware components
@@ -645,12 +748,16 @@ void auth_main_thread(void* UNUSED(args)) {
         handle_get_enrolled_fingerprints_internal(&message);
         break;
       }
+      case IPC_AUTH_CANCEL_FINGERPRINT_ENROLLMENT_INTERNAL: {
+        handle_cancel_fingerprint_enrollment_internal(&message);
+        break;
+      }
       case IPC_AUTH_DELETE_FINGERPRINT_INTERNAL: {
         handle_delete_fingerprint_internal(&message);
         break;
       }
       default: {
-        LOGE("unknown message %ld", message.tag);
+        LOGE("Unknown msg %ld", message.tag);
       }
     }
   }
@@ -658,19 +765,28 @@ void auth_main_thread(void* UNUSED(args)) {
 
 NO_OPTIMIZE void auth_matching_thread(void* UNUSED(args)) {
   bool bio_lib_ready = bio_lib_init();
+  if (bio_lib_ready) {
+    sysevent_set(SYSEVENT_BIO_READY);
+  }
   for (;;) {
     unsigned int glitch_count = secure_glitch_get_count();
     if (!bio_lib_ready) {
-      LOGW("retrying bio_lib_init");
+      LOGW("Retrying bio init");
       rtos_thread_sleep(bio_lib_retry_ms);
       bio_lib_reset();
       bio_lib_ready = bio_lib_init();
+      if (bio_lib_ready) {
+        sysevent_set(SYSEVENT_BIO_READY);
+      }
       continue;
     }
 
     // Wait indefinitely for an external interrupt from the fingerprint sensor
     // which indicates that there is a finger on the sensor.
-    bio_wait_for_finger_blocking(BIO_FINGER_DOWN);
+    if (!bio_wait_for_finger_blocking(BIO_FINGER_DOWN)) {
+      // Cancelled -- enrollment state already cleared by cancel handler
+      continue;
+    }
 
     sleep_refresh_power_timer();
 
@@ -689,7 +805,7 @@ NO_OPTIMIZE void auth_matching_thread(void* UNUSED(args)) {
       });
 
       if (auth_priv.current_enrollment_ctx.enroll_ok != SECURE_TRUE) {
-        LOGE("Enrollment of id %d failed", auth_priv.current_enrollment_ctx.index);
+        LOGE("Enroll fail id %d", auth_priv.current_enrollment_ctx.index);
       }
 
       uint32_t used_index = auth_priv.current_enrollment_ctx.index;
@@ -713,7 +829,7 @@ NO_OPTIMIZE void auth_matching_thread(void* UNUSED(args)) {
       finger_down_animation();
 
       if (!bio_fingerprint_exists()) {
-        LOGW("No fingerprint enrolled");
+        LOGW("No fp enrolled");
         rtos_thread_sleep(RATE_LIMIT_MS);
         goto wait_for_up;
       }
@@ -735,7 +851,7 @@ NO_OPTIMIZE void auth_matching_thread(void* UNUSED(args)) {
         // Reset retry unlock counter on successful fingerprint match.
         unlock_err_t unlock_err = unlock_reset_retry_counter();
         if ((unlock_err != UNLOCK_OK) && (unlock_err != UNLOCK_NOT_INITIALIZED)) {
-          LOGW("Failed to reset retry counter");
+          LOGW("Retry counter reset fail");
         }
       });
 
@@ -743,12 +859,13 @@ NO_OPTIMIZE void auth_matching_thread(void* UNUSED(args)) {
     }
 
   wait_for_up:
-    bio_wait_for_finger_blocking(BIO_FINGER_UP);
+    (void)bio_wait_for_finger_blocking(BIO_FINGER_UP);
   }
 }
 
 void auth_task_create(bool no_threads) {
-  auth_init((auth_config_t){.expiry_ms = AUTH_EXPIRY_MS}, (auth_callbacks_t){.on_lock = on_lock});
+  auth_init((auth_config_t){.expiry_ms = PLATFORM_CFG_AUTH_EXPIRY_MS},
+            (auth_callbacks_t){.on_lock = on_lock});
 
   if (no_threads) {
     // An unfortunate workaround, but: the mfgtest image calls functions that require

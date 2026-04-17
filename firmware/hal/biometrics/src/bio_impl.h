@@ -36,6 +36,16 @@ void toggle_cs(bool on);
 
 bool bio_quick_selftest(void);
 
+// Migrate fingerprint template 3 from filesystem to raw flash partition.
+// Safe to call on every boot — no-op if nothing to migrate.
+void bio_storage_migrate_to_flash(void);
+
+// Mutex protecting FPC sensor access. Internal to the bio HAL — all public bio_*
+// functions that perform SPI acquire this lock themselves. Only used directly by
+// wait_for_finger_status() which temporarily releases it during the EXTI wait.
+void bio_sensor_lock(void);
+void bio_sensor_unlock(void);
+
 void fpc_biometrics_init(void);
 
 bool bio_update_template(bio_template_id_t id, fpc_bep_template_t* template,

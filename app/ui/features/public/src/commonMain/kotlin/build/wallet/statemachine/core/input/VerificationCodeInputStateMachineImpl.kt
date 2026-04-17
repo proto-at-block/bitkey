@@ -4,22 +4,18 @@ import androidx.compose.runtime.*
 import bitkey.notifications.NotificationTouchpoint.EmailTouchpoint
 import bitkey.notifications.NotificationTouchpoint.PhoneNumberTouchpoint
 import build.wallet.analytics.events.EventTracker
-import build.wallet.analytics.v1.Action.*
+import build.wallet.analytics.v1.Action.ACTION_APP_EMAIL_RESEND
+import build.wallet.analytics.v1.Action.ACTION_APP_PHONE_NUMBER_RESEND
 import build.wallet.coroutines.flow.launchTicker
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput.ResendCodeContent
 import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput.ResendCodeContent.Button
 import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput.ResendCodeContent.Text
-import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput.SkipForNowContent
-import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput.SkipForNowContent.Hidden
-import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput.SkipForNowContent.Showing
 import build.wallet.statemachine.core.input.VerificationCodeInputProps.ResendCodeCallbacks
 import build.wallet.statemachine.core.input.VerificationCodeInputStateMachineImpl.State.ResendCodeState
 import build.wallet.statemachine.core.input.VerificationCodeInputStateMachineImpl.State.ResendCodeState.*
-import build.wallet.statemachine.core.input.VerificationCodeInputStateMachineImpl.State.SkipBottomSheetState
 import build.wallet.time.DurationFormatter
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -42,14 +38,12 @@ class VerificationCodeInputStateMachineImpl(
             BlockedState(
               resendCodeAvailableTime = resendCodeAvailableTime,
               content = blockedResendCodeContent(clock, durationFormatter, resendCodeAvailableTime)
-            ),
-          skipBottomSheetState = SkipBottomSheetState.Hidden
+            )
         )
       )
     }
 
     var enteredCode by remember { mutableStateOf("") }
-    var hasResentCodeOnce by remember { mutableStateOf(false) }
 
     // Update the resend state every 1 second
     LaunchedEffect("update-resend-code-state") {
@@ -60,7 +54,6 @@ class VerificationCodeInputStateMachineImpl(
               clock = clock,
               durationFormatter = durationFormatter,
               onSendCodeAgain = {
-                hasResentCodeOnce = true
                 resendCode(
                   clock, durationFormatter, eventTracker, props,
                   setState = { produceState ->
@@ -79,15 +72,6 @@ class VerificationCodeInputStateMachineImpl(
       subtitle = props.subtitle,
       value = enteredCode,
       resendCodeContent = state.resendCodeState.content,
-      skipForNowContent =
-        buildSkipForNowContent(
-          eventTracker,
-          hasResentCodeOnce,
-          props,
-          setState = { produceState ->
-            state = produceState(state)
-          }
-        ),
       explainerText =
         when (props.notificationTouchpoint) {
           is EmailTouchpoint -> "If the code doesn’t arrive, please check your spam folder."
@@ -113,11 +97,7 @@ class VerificationCodeInputStateMachineImpl(
               }
             )
 
-          else ->
-            when (val skipBottomSheetState = state.skipBottomSheetState) {
-              is SkipBottomSheetState.Hidden -> null
-              is SkipBottomSheetState.Showing -> skipBottomSheetState.sheet
-            }
+          else -> null
         },
       id = props.screenId
     )
@@ -125,14 +105,7 @@ class VerificationCodeInputStateMachineImpl(
 
   private data class State(
     val resendCodeState: ResendCodeState,
-    val skipBottomSheetState: SkipBottomSheetState,
   ) {
-    sealed interface SkipBottomSheetState {
-      data object Hidden : SkipBottomSheetState
-
-      data class Showing(val sheet: SheetModel) : SkipBottomSheetState
-    }
-
     sealed interface ResendCodeState {
       val content: ResendCodeContent
 
@@ -283,55 +256,6 @@ class VerificationCodeInputStateMachineImpl(
     val remainingDuration = clock.remainingResendCodeDuration(resendCodeAvailableTime)
     return Text(
       value = "Resend code in ${durationFormatter.formatWithMMSS(remainingDuration)}"
-    )
-  }
-
-  private fun buildSkipForNowContent(
-    eventTracker: EventTracker,
-    hasResentCodeOnce: Boolean,
-    props: VerificationCodeInputProps,
-    setState: (
-      produceState: (currentState: State) -> State,
-    ) -> Unit,
-  ): SkipForNowContent {
-    if (!hasResentCodeOnce) {
-      return Hidden
-    }
-
-    if (props.skipBottomSheetProvider == null) {
-      return Hidden
-    }
-
-    // Build the sheet with the go back behavior
-    val skipBottomSheet =
-      props.skipBottomSheetProvider.invoke {
-        // onBack
-        setState {
-          it.copy(skipBottomSheetState = SkipBottomSheetState.Hidden)
-        }
-      }
-
-    return Showing(
-      text = "Can’t receive the code?",
-      onSkipForNow = {
-        when (props.notificationTouchpoint) {
-          is EmailTouchpoint -> eventTracker.track(ACTION_APP_EMAIL_RESEND_SKIP_FOR_NOW)
-          is PhoneNumberTouchpoint ->
-            eventTracker.track(
-              ACTION_APP_PHONE_NUMBER_RESEND_SKIP_FOR_NOW
-            )
-        }
-
-        // Update the state to show the sheet
-        setState {
-          it.copy(
-            skipBottomSheetState =
-              SkipBottomSheetState.Showing(
-                sheet = skipBottomSheet
-              )
-          )
-        }
-      }
     )
   }
 }

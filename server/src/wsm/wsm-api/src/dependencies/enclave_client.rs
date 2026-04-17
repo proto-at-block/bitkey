@@ -106,7 +106,7 @@ impl EnclaveClient {
         Ok(())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, req))]
     pub async fn create_key(&self, req: EnclaveCreateKeyRequest) -> anyhow::Result<CreatedKey> {
         let result = self
             .post_request_with_dek(SecretRequest::new("create-key", req.dek_id.clone(), req))
@@ -114,7 +114,7 @@ impl EnclaveClient {
         Ok(result.json().await?)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, req))]
     pub async fn initiate_distributed_keygen(
         &self,
         req: EnclaveInitiateDistributedKeygenRequest,
@@ -129,7 +129,7 @@ impl EnclaveClient {
         Ok(result.json().await?)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, req))]
     pub async fn continue_distributed_keygen(
         &self,
         req: EnclaveContinueDistributedKeygenRequest,
@@ -144,7 +144,7 @@ impl EnclaveClient {
         Ok(result.json().await?)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, req))]
     pub async fn generate_partial_signatures(
         &self,
         req: EnclaveGeneratePartialSignaturesRequest,
@@ -159,7 +159,7 @@ impl EnclaveClient {
         Ok(result.json().await?)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, req))]
     pub async fn create_self_sovereign_backup(
         &self,
         req: EnclaveCreateSelfSovereignBackupRequest,
@@ -174,7 +174,7 @@ impl EnclaveClient {
         Ok(result.json().await?)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, req))]
     pub async fn initiate_share_refresh(
         &self,
         req: EnclaveInitiateShareRefreshRequest,
@@ -189,7 +189,7 @@ impl EnclaveClient {
         Ok(result.json().await?)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, req))]
     pub async fn continue_share_refresh(
         &self,
         req: EnclaveContinueShareRefreshRequest,
@@ -204,7 +204,7 @@ impl EnclaveClient {
         Ok(result.json().await?)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, req))]
     pub async fn derive_key(&self, req: EnclaveDeriveKeyRequest) -> anyhow::Result<DerivedKey> {
         let result = self
             .post_request_with_dek(SecretRequest::new("derive-key", req.dek_id.clone(), req))
@@ -212,7 +212,7 @@ impl EnclaveClient {
         Ok(result.json().await?)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, req))]
     pub async fn sign_psbt(&self, req: EnclaveSignRequest) -> anyhow::Result<SignedPsbt> {
         let result = self
             .post_request_with_dek(SecretRequest::new("sign-psbt", req.dek_id.clone(), req))
@@ -220,7 +220,7 @@ impl EnclaveClient {
         Ok(result.json().await?)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, req))]
     pub async fn sign_psbt_v2(&self, req: EnclaveSignRequestV2) -> anyhow::Result<SignedPsbt> {
         let result = self
             .post_request_with_dek(SecretRequest::new("v2/sign-psbt", req.dek_id.clone(), req))
@@ -239,7 +239,7 @@ impl EnclaveClient {
         Ok(result.json().await?)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, bundle, server_static_pubkey))]
     pub async fn initiate_secure_channel(
         &self,
         bundle: Vec<u8>,
@@ -257,7 +257,7 @@ impl EnclaveClient {
         Ok(result.json().await?)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, sealed_request))]
     pub async fn evaluate_pin(
         &self,
         sealed_request: Vec<u8>,
@@ -278,7 +278,7 @@ impl EnclaveClient {
         Ok(result.json().await?)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, request))]
     pub async fn approve_grant(&self, request: GrantRequest) -> anyhow::Result<GrantResponse> {
         self.load_integrity_key().await?;
         let result = self
@@ -293,7 +293,7 @@ impl EnclaveClient {
         Ok(result.json().await?)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, request))]
     pub async fn approve_psbt(
         &self,
         request: ApprovePsbtRequest,
@@ -312,7 +312,7 @@ impl EnclaveClient {
         Ok(result.json().await?)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, request))]
     pub async fn sign_public_keys(
         &self,
         request: SignPublicKeysRequest,
@@ -334,7 +334,7 @@ impl EnclaveClient {
     /// This method first tries an "optimistic" call to the enclave with the user's provided
     /// data-encryption key. Upon first failure, which is usually due to the DEK not being loaded
     /// onto the enclave, we "force" the load. Then, we try again.
-    #[instrument(skip(self))]
+    #[instrument(skip(self, req))]
     async fn post_request_with_dek<T: Serialize>(
         &self,
         req: SecretRequest<'_, T>,

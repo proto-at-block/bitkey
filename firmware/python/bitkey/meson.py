@@ -72,6 +72,12 @@ class BuildOptions:
         self._build_dir = build_dir
         self.options = """option('disable_printf', type : 'boolean', value : false)
 option('config_prod', type : 'boolean', value : false)
+option(
+  'chip_id',
+  type : 'string',
+  value : '',
+  description : 'Optional per-device chip ID (hex) for app signing'
+)
         """
 
     def write(self):
@@ -79,11 +85,28 @@ option('config_prod', type : 'boolean', value : false)
             with open("meson.options", "w") as f:
                 f.write(self.options)
 
+    def _normalized_chip_id(self) -> str:
+        chip_id = str(getattr(self._ctx, "chip_id", "") or "").strip()
+        if chip_id == "":
+            return ""
+        if not re.fullmatch(r"[0-9a-fA-F]+", chip_id):
+            raise RuntimeError("chip_id must contain only hex characters")
+        return chip_id.lower()
+
     def configure(self, build_variant) -> str:
+        chip_id = self._normalized_chip_id()
+
         if build_variant == BuildVariant.DEV:
             opts = "-Ddisable_printf=false -Dconfig_prod=false"
         else:
             opts = "-Ddisable_printf=true -Dconfig_prod=true"
+
+        opts = " ".join(
+            [
+                opts,
+                f"-Dchip_id={shlex.quote(chip_id)}",
+            ]
+        )
         self._ctx.run(f"meson configure {self._build_dir} {opts}")
 
 
@@ -95,6 +118,7 @@ class MesonBuild:
         build_dir: Optional[str] = None,
         ignore_codegen_cache: bool = False,
         target: Optional[str] = None,
+        sanitize: bool = True,
     ):
         self._ctx = invoke_context
         self._ignore_codegen_cache = ignore_codegen_cache
@@ -112,6 +136,7 @@ class MesonBuild:
         self._ctx.platform = self._platform
         self._ctx.target = self._target
 
+        self._sanitize = sanitize
         self._build_options = BuildOptions(self._ctx, self._build_dir)
 
     def setup(self):
@@ -265,21 +290,22 @@ class MesonBuild:
     def _setup(self):
         if not BUILD_ROOT_DIR.exists():
             BUILD_ROOT_DIR.mkdir()
+        self._build_options.write()
         if not self._build_dir.exists():
-            self._build_options.write()
             options = ""
             cross_file_arg = ""
             if self._platform != "posix":
                 cross_file_arg = f"--cross-file {self._crossfile}"
             else:
                 options = ()
+                sanitize_opt = "address" if self._sanitize else "none"
                 if sys.platform == "darwin":
                     options = (
-                        "-Db_sanitize=address -Db_lundef=false -Dc_args='-std=gnu11'"
+                        f"-Db_sanitize={sanitize_opt} -Db_lundef=false -Dc_args='-std=gnu11'"
                     )
                 else:
                     options = (
-                        "-Db_sanitize=address -Db_lundef=false -Dc_args='-std=gnu11 -fprofile-instr-generate "
+                        f"-Db_sanitize={sanitize_opt} -Db_lundef=false -Dc_args='-std=gnu11 -fprofile-instr-generate "
                         "-fcoverage-mapping' -Dcpp_args='-fprofile-instr-generate -fcoverage-mapping'"
                     )
             with self._ctx.cd(ROOT_DIR):
@@ -287,6 +313,11 @@ class MesonBuild:
                     f"meson setup {self._build_dir} {cross_file_arg} {options}",
                     pty=True,
                 )
+        else:
+            with self._ctx.cd(ROOT_DIR):
+                self._ctx.run(f"meson setup --reconfigure {self._build_dir}", pty=True)
+
+        self._targets = None
 
     def _prebuild(self):
         # Build and relocate nanopb_pb2.py

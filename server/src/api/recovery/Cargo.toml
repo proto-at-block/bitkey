@@ -41,7 +41,7 @@ migration = { workspace = true }
 mobile_pay = { workspace = true }
 notification = { workspace = true }
 promotion_code = { workspace = true }
-repository = { workspace = true, features = ["recovery"] }
+repository = { workspace = true, features = ["anti_replay", "recovery"] }
 screener = { workspace = true }
 types = { workspace = true, features = ["recovery"] }
 userpool = { workspace = true }

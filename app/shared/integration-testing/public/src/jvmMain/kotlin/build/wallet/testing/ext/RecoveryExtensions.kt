@@ -46,8 +46,7 @@ suspend fun AppTester.createLostHardwareKeyset(account: FullAccount): KeyboxWith
       hardwareSpendingKey = HwSpendingPublicKey(hwKeyBundle.spendingKey.key),
       appSpendingKey = appKeyBundle.spendingKey,
       network = appKeyBundle.networkType,
-      appAuthKey = account.keybox.activeAppKeyBundle.authKey,
-      hardwareProofOfPossession = getHardwareFactorProofOfPossession()
+      appAuthKey = account.keybox.activeAppKeyBundle.authKey
     )
     .getOrThrow()
 

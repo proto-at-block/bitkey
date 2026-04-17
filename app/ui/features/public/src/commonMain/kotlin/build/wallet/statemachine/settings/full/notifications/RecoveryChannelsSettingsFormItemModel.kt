@@ -3,7 +3,7 @@ package build.wallet.statemachine.settings.full.notifications
 import build.wallet.statemachine.account.create.full.onboard.notifications.UiErrorHint
 
 /**
- * Model for a line item in the [RecoveryChannelsSetupFormBodyModel]
+ * Model for a line item in the recovery channels settings screen.
  */
 data class RecoveryChannelsSettingsFormItemModel(
   val displayValue: String? = null,

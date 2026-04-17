@@ -7,7 +7,7 @@ Build and parse authorization payloads in 0x1F (Unit Separator) delimited format
 ## Usage
 
 ```rust
-use action_proof::{Action, Field, build_payload, compute_token_binding};
+use action_proof::{Action, build_payload, compute_token_binding};
 
 // 1. Compute token binding from JWT
 let jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
@@ -15,10 +15,8 @@ let token_binding = compute_token_binding(jwt);
 
 // 2. Build payload
 let payload = build_payload(
-    Action::Add,
-    Field::RecoveryContacts,
+    Action::AddRecoveryContact,
     Some("Alice"),
-    None,
     &[("tb", &token_binding)],
 ).expect("valid payload");
 
@@ -37,28 +35,17 @@ let payload = build_payload(
 Builds and parses payloads in this format:
 
 ```
-ACTIONPROOF␟1␟Action␟Field␟Value␟Current␟key1=val1,key2=val2
+ACTIONPROOF␟1␟Action␟Value␟key1=val1,key2=val2
 ```
 
 `␟` is byte 0x1F (Unit Separator).
 
 - `build_payload()` - Constructs payload with validation
 
-### actions
+### action
 
-The `Action` enum represents operations:
-
-- `Add` - Add new value
-- `Remove` - Remove existing value
-- `Set` - Set or change value
-- `Disable` - Disable feature
-- `Accept` - Accept invitation
-
-### fields
-
-The `Field` enum identifies what's being modified: `RecoveryContacts`, `SpendWithoutHardware`, `RecoveryEmail`, etc.
-
-Each field knows which actions are valid for it. For example, `RecoveryContacts` allows `Add` and `Remove`, while `SpendWithoutHardware` allows `Set` and `Disable`.
+The `Action` enum represents privileged actions. Each variant is a specific
+action, e.g. `SetRecoveryPhone`, `SetSpendWithoutHardware`, `DisableRecoveryEmail`.
 
 ### binding
 

@@ -9,13 +9,13 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use serde_with::{base64::Base64, serde_as};
 use time::OffsetDateTime;
-use tracing::{error, event, instrument, Level};
+use tracing::{error, instrument};
 use utoipa::{OpenApi, ToSchema};
 
 use account::service::{
     FetchAccountInput, FetchAndUpdateSpendingLimitInput, Service as AccountService,
 };
-use authn_authz::key_claims::KeyClaims;
+use authn_authz::{Action, Authorization, AuthorizationRequirements};
 use bdk_utils::{
     bdk::bitcoin::psbt::Psbt, bdk::bitcoin::secp256k1::PublicKey, generate_electrum_rpc_uris,
     TransactionBroadcasterTrait,
@@ -74,6 +74,7 @@ pub struct RouteState(
     pub FeatureFlagsService,
     pub Arc<ScreenerService>,
     pub TransactionVerificationService,
+    pub repository::anti_replay::AntiReplayRepository,
 );
 
 impl RouterBuilder for RouteState {
@@ -155,7 +156,9 @@ pub struct SignTransactionResponse {
         feature_flags_service,
         screener_service,
         transaction_broadcaster,
-        context_key
+        context_key,
+        full_account,
+        request
     ),
     fields(keyset_id, active_keyset_id)
 )]
@@ -388,6 +391,11 @@ async fn generate_partial_signatures_with_key_share(
 #[serde(rename_all = "snake_case")]
 pub struct MobilePaySetupRequest {
     pub limit: SpendingLimit,
+    /// BCP 47 locale tag for formatting the action proof value.
+    /// When present, the server formats the money amount for verification.
+    /// When absent (old clients), falls back to raw "{amount} {currency}" format.
+    #[serde(default)]
+    pub locale: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
@@ -409,43 +417,68 @@ pub struct MobilePaySetupResponse {}
 async fn setup_mobile_pay_for_account(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
-    key_proof: KeyClaims,
+    State(anti_replay_repository): State<repository::anti_replay::AntiReplayRepository>,
+    auth: Authorization,
     Json(request): Json<MobilePaySetupRequest>,
 ) -> Result<Json<MobilePaySetupResponse>, ApiError> {
-    setup_mobile_pay(account_id, account_service, key_proof, request).await
+    setup_mobile_pay(
+        account_id,
+        account_service,
+        anti_replay_repository,
+        auth,
+        request,
+    )
+    .await
 }
 
-#[instrument(err, skip(account_service, request))]
+#[instrument(err, skip(account_service, anti_replay_repository, request, auth))]
 async fn setup_mobile_pay(
     account_id: AccountId,
     account_service: AccountService,
-    key_proof: KeyClaims,
+    anti_replay_repository: repository::anti_replay::AntiReplayRepository,
+    auth: Authorization,
     request: MobilePaySetupRequest,
 ) -> Result<Json<MobilePaySetupResponse>, ApiError> {
-    if !(key_proof.hw_signed && key_proof.app_signed) {
-        event!(
-            Level::WARN,
-            "valid signature over access token required by both app and hw auth keys"
-        );
-        return Err(ApiError::GenericForbidden(
-            "valid signature over access token required by both app and hw auth keys".to_string(),
-        ));
-    }
-
-    if !Currency::supported_currency_codes().contains(&request.limit.amount.currency_code) {
-        return Err(ApiError::GenericForbidden(
-            "valid supported currency required to setup mobile pay".to_string(),
-        ));
-    }
-
-    account_service
-        .fetch_and_update_spend_limit(FetchAndUpdateSpendingLimitInput {
+    // Fetch account to get hardware type for auth mechanism enforcement
+    let full_account = account_service
+        .fetch_full_account(FetchAccountInput {
             account_id: &account_id,
-            new_spending_limit: Some(request.limit),
+        })
+        .await?;
+    let hardware_type = full_account
+        .active_hardware_type()
+        .map_err(|e| ApiError::GenericInternalApplicationError(e.to_string()))?;
+
+    let action_proof_value = match &request.locale {
+        Some(tag) => request
+            .limit
+            .amount
+            .format_display(&types::account::money::MoneyLocale::from_bcp47(tag)),
+        None => request.limit.amount.to_action_proof_value(),
+    };
+
+    let result = AuthorizationRequirements::new(Action::SetSpendWithoutHardware, hardware_type)
+        .value(action_proof_value)
+        .extra("currency", request.limit.amount.currency_code.to_string())
+        .execute(&auth, &anti_replay_repository, |_ctx| async move {
+            if !Currency::supported_currency_codes().contains(&request.limit.amount.currency_code) {
+                return Err(ApiError::GenericForbidden(
+                    "valid supported currency required to setup mobile pay".to_string(),
+                ));
+            }
+
+            account_service
+                .fetch_and_update_spend_limit(FetchAndUpdateSpendingLimitInput {
+                    account_id: &account_id,
+                    new_spending_limit: Some(request.limit),
+                })
+                .await?;
+
+            Ok::<_, ApiError>(MobilePaySetupResponse {})
         })
         .await?;
 
-    Ok(Json(MobilePaySetupResponse {}))
+    Ok(Json(result))
 }
 
 /// Response body representing the current state of the user's Mobile Pay setup.

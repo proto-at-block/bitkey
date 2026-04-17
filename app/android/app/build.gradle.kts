@@ -15,9 +15,9 @@ buildLogic {
   app {
     version(
       yyyy = 2026,
-      version = 2,
-      patch = 1,
-      build = 2
+      version = 5,
+      patch = 0,
+      build = 20
     )
   }
   compose {
@@ -35,6 +35,9 @@ android {
       buildConfig = true
     }
 
+    // Default for debug builds — avoids invalidating Gradle config cache on every commit.
+    buildConfigField("String", "BUILD_DATE", "\"dev\"")
+
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
@@ -48,6 +51,14 @@ android {
   }
 
   buildTypes {
+    // Resolve the git commit date once for non-debug build types.
+    @Suppress("UnstableApiUsage")
+    val gitBuildDate by lazy {
+      providers.exec {
+        commandLine("git", "log", "-1", "--format=%cd", "--date=short")
+      }.standardOutput.asText.get().trim()
+    }
+
     // Build Type for development builds.
     // App ID = "world.bitkey.debug"
     debug {
@@ -66,6 +77,7 @@ android {
       isMinifyEnabled = true
       isShrinkResources = true
       isDebuggable = false
+      buildConfigField("String", "BUILD_DATE", "\"${gitBuildDate}\"")
       reproducibleBuildVariables(project)
       proguardFiles(
         getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -79,6 +91,7 @@ android {
       isMinifyEnabled = true
       isShrinkResources = true
       isDebuggable = false
+      buildConfigField("String", "BUILD_DATE", "\"${gitBuildDate}\"")
       reproducibleBuildVariables(project)
       proguardFiles(
         getDefaultProguardFile("proguard-android-optimize.txt"),

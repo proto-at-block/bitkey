@@ -2,6 +2,7 @@
 
 package build.wallet.ui.components.toolbar
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -9,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -20,14 +22,12 @@ import bitkey.ui.framework_public.generated.resources.bitkey_gallery
 import bitkey.ui.framework_public.generated.resources.how_inheritance_works
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.icon.IconButton
-import build.wallet.ui.components.icon.iconStyle
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment.Secondary
 import build.wallet.ui.compose.getScreenSize
+import build.wallet.ui.compose.thenIf
 import build.wallet.ui.compose.thenIfNotNull
 import build.wallet.ui.model.icon.IconBackgroundType
-import build.wallet.ui.model.icon.IconImage
-import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.ButtonAccessory
@@ -44,9 +44,15 @@ import org.jetbrains.compose.resources.imageResource
 fun Toolbar(
   model: ToolbarModel,
   modifier: Modifier = Modifier,
+  showDesignSystemChrome: Boolean = true,
+  designSystemChromeBackgroundColor: Color = WalletTheme.colors.background,
+  showDesignSystemBottomGradient: Boolean = true,
 ) {
   Toolbar(
     modifier = modifier,
+    showDesignSystemChrome = showDesignSystemChrome,
+    designSystemChromeBackgroundColor = designSystemChromeBackgroundColor,
+    showDesignSystemBottomGradient = showDesignSystemBottomGradient,
     leadingContent = {
       model.leadingAccessory?.let {
         ToolbarAccessory(it)
@@ -98,22 +104,13 @@ fun ToolbarAccessory(model: ToolbarAccessoryModel) {
       }
 
       IconButton(
-        iconModel =
-          IconModel(
-            icon = (model.model.iconModel.iconImage as IconImage.LocalImage).icon,
-            iconSize = model.model.iconModel.iconSize,
-            iconBackgroundType = iconBackgroundType,
-            iconTint = model.model.iconModel.iconTint
-          ),
-        color =
-          WalletTheme.iconStyle(
-            icon = model.model.iconModel.iconImage,
-            color = Color.Unspecified,
-            tint = model.model.iconModel.iconTint
-          ).color,
-        text = model.model.iconModel.text,
-        enabled = model.model.enabled,
-        onClick = { model.model.onClick.invoke() }
+        model =
+          model.model.copy(
+            iconModel =
+              model.model.iconModel.copy(
+                iconBackgroundType = iconBackgroundType
+              )
+          )
       )
     }
   }
@@ -135,12 +132,16 @@ fun ToolbarAccessory(model: ToolbarAccessoryModel) {
 @Composable
 fun Toolbar(
   modifier: Modifier = Modifier,
+  showDesignSystemChrome: Boolean = true,
+  designSystemChromeBackgroundColor: Color = WalletTheme.colors.background,
+  showDesignSystemBottomGradient: Boolean = true,
   leadingContent: @Composable (() -> Unit)? = null,
   middleContent: @Composable (() -> Unit)? = null,
   trailingContent: @Composable (() -> Unit)? = null,
   backgroundDrawable: DrawableResource? = null,
 ) {
   val screenSize = getScreenSize()
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current && showDesignSystemChrome
 
   Box(
     modifier = Modifier
@@ -158,22 +159,86 @@ fun Toolbar(
             dstOffset = Offset(x = -xOffset, y = 0f).round(),
             dstSize = Size(width, height.toPx()).toIntSize()
           )
-        }.height(height)
+        }.heightIn(min = height)
       },
     contentAlignment = Alignment.TopCenter
   ) {
-    ToolbarContainer {
-      Box(
-        modifier = modifier.fillMaxWidth()
+    if (isDesignSystemV2Enabled) {
+      val hasHeroImage = backgroundDrawable != null
+      Column(
+        modifier = Modifier
+          .fillMaxWidth()
       ) {
-        ToolbarSlotBox(modifier = Modifier.align(Alignment.CenterStart)) {
-          leadingContent?.invoke()
+        Box(
+          modifier = Modifier
+            .fillMaxWidth()
+            .defaultMinSize(
+              minHeight = ToolbarTopPadding +
+                ToolbarHeight +
+                ToolbarBottomPadding
+            )
+            .thenIf(!hasHeroImage) {
+              Modifier.background(designSystemChromeBackgroundColor)
+            }
+        ) {
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(
+                top = ToolbarTopPadding,
+                bottom = ToolbarBottomPadding
+              )
+          ) {
+            ToolbarContainer {
+              Box(
+                modifier = modifier.fillMaxWidth()
+              ) {
+                ToolbarSlotBox(modifier = Modifier.align(Alignment.CenterStart)) {
+                  leadingContent?.invoke()
+                }
+                ToolbarSlotBox(modifier = Modifier.align(Alignment.Center)) {
+                  middleContent?.invoke()
+                }
+                ToolbarSlotBox(modifier = Modifier.align(Alignment.CenterEnd)) {
+                  trailingContent?.invoke()
+                }
+              }
+            }
+          }
         }
-        ToolbarSlotBox(modifier = Modifier.align(Alignment.Center)) {
-          middleContent?.invoke()
+        if (showDesignSystemBottomGradient && !hasHeroImage) {
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .height(ToolbarBottomGradientHeight)
+              .background(
+                brush =
+                  Brush.verticalGradient(
+                    colors =
+                      listOf(
+                        designSystemChromeBackgroundColor,
+                        designSystemChromeBackgroundColor.copy(alpha = 0.65f),
+                        Color.Transparent
+                      )
+                  )
+              )
+          )
         }
-        ToolbarSlotBox(modifier = Modifier.align(Alignment.CenterEnd)) {
-          trailingContent?.invoke()
+      }
+    } else {
+      ToolbarContainer {
+        Box(
+          modifier = modifier.fillMaxWidth()
+        ) {
+          ToolbarSlotBox(modifier = Modifier.align(Alignment.CenterStart)) {
+            leadingContent?.invoke()
+          }
+          ToolbarSlotBox(modifier = Modifier.align(Alignment.Center)) {
+            middleContent?.invoke()
+          }
+          ToolbarSlotBox(modifier = Modifier.align(Alignment.CenterEnd)) {
+            trailingContent?.invoke()
+          }
         }
       }
     }
@@ -205,7 +270,7 @@ private fun ToolbarContainer(content: @Composable () -> Unit) {
     modifier =
       Modifier
         .fillMaxWidth()
-        .height(ToolbarHeight),
+        .defaultMinSize(minHeight = ToolbarHeight),
     contentAlignment = Alignment.CenterStart
   ) {
     content()
@@ -213,3 +278,6 @@ private fun ToolbarContainer(content: @Composable () -> Unit) {
 }
 
 private val ToolbarHeight = 48.dp
+private val ToolbarTopPadding = 24.dp
+private val ToolbarBottomPadding = 8.dp
+private val ToolbarBottomGradientHeight = 20.dp

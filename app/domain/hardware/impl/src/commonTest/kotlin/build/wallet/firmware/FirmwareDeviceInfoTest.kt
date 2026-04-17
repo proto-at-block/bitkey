@@ -1,5 +1,6 @@
 package build.wallet.firmware
 
+import bitkey.account.HardwareType
 import build.wallet.firmware.FirmwareMetadata.FirmwareSlot
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.engine.test.logging.info
@@ -162,6 +163,113 @@ class FirmwareDeviceInfoTest : FunSpec({
         hwRevision = "w3b-core-mp"
       )
     info.fwupHwVersion().shouldBe("w3b-mp-dev")
+  }
+
+  test("w3 prod EIF 6 with secureBootConfig NOT_SET falls back to serial") {
+    val info =
+      infoTemplate.copy(
+        version = "1.1.10",
+        serial = "611WS27101600058",
+        swType = "app-a-prod",
+        secureBootConfig = SecureBootConfig.NOT_SET,
+        hwRevision = "w3a-core-pdvt"
+      )
+    info.fwupHwVersion().shouldBe("w3a-pdvt-prod")
+  }
+
+  test("w3 prod EIF 2 with secureBootConfig NOT_SET") {
+    val info =
+      infoTemplate.copy(
+        serial = "611WS27101200058",
+        swType = "app-a-prod",
+        secureBootConfig = SecureBootConfig.NOT_SET,
+        hwRevision = "w3a-core-pdvt"
+      )
+    info.fwupHwVersion().shouldBe("w3a-pdvt-prod")
+  }
+
+  test("w3 prod EIF 7 with secureBootConfig NOT_SET") {
+    val info =
+      infoTemplate.copy(
+        serial = "611WS27101700058",
+        swType = "app-a-prod",
+        secureBootConfig = SecureBootConfig.NOT_SET,
+        hwRevision = "w3a-core-pdvt"
+      )
+    info.fwupHwVersion().shouldBe("w3a-pdvt-prod")
+  }
+
+  test("w3 prod EIF 5 mfgtest with secureBootConfig NOT_SET") {
+    val info =
+      infoTemplate.copy(
+        serial = "611WS27101500058",
+        swType = "app-a-prod",
+        secureBootConfig = SecureBootConfig.NOT_SET,
+        hwRevision = "w3a-core-pdvt"
+      )
+    info.fwupHwVersion().shouldBe("w3a-pdvt-prod")
+  }
+
+  test("w3 prod EIF A mfgtest with secureBootConfig NOT_SET") {
+    val info =
+      infoTemplate.copy(
+        serial = "611WS27101A00058",
+        swType = "app-a-prod",
+        secureBootConfig = SecureBootConfig.NOT_SET,
+        hwRevision = "w3a-core-pdvt"
+      )
+    info.fwupHwVersion().shouldBe("w3a-pdvt-prod")
+  }
+
+  test("w3 prod EIF lowercase a with secureBootConfig NOT_SET") {
+    val info =
+      infoTemplate.copy(
+        serial = "611WS27101a00058",
+        swType = "app-a-prod",
+        secureBootConfig = SecureBootConfig.NOT_SET,
+        hwRevision = "w3a-core-pdvt"
+      )
+    info.fwupHwVersion().shouldBe("w3a-pdvt-prod")
+  }
+
+  test("w3 dev EIF 1 with secureBootConfig NOT_SET") {
+    val info =
+      infoTemplate.copy(
+        serial = "611WS27101100058",
+        swType = "app-a-dev",
+        secureBootConfig = SecureBootConfig.NOT_SET,
+        hwRevision = "w3a-core-pdvt"
+      )
+    info.fwupHwVersion().shouldBe("w3a-pdvt-dev")
+  }
+
+  test("w3 dev EIF 9 with secureBootConfig NOT_SET") {
+    val info =
+      infoTemplate.copy(
+        serial = "611WS27101900058",
+        swType = "app-a-dev",
+        secureBootConfig = SecureBootConfig.NOT_SET,
+        hwRevision = "w3a-core-pdvt"
+      )
+    info.fwupHwVersion().shouldBe("w3a-pdvt-dev")
+  }
+
+  test("w1 revision returns W1 hardware type") {
+    infoTemplate.copy(hwRevision = "w1a-dvt").hardwareType().shouldBe(HardwareType.W1)
+  }
+
+  test("w3 revision returns W3 hardware type") {
+    infoTemplate.copy(hwRevision = "w3a-core-evt").hardwareType().shouldBe(HardwareType.W3)
+  }
+
+  test("unknown revision defaults to W1 hardware type") {
+    infoTemplate.copy(hwRevision = "unknown-revision").hardwareType().shouldBe(HardwareType.W1)
+  }
+
+  test("batteryChargeForUninitializedModelGauge returns raw value for W3 hardware") {
+    // W3 has a properly initialized model gauge, so no correction is needed.
+    val info = infoTemplate.copy(hwRevision = "w3a-core-evt", batteryCharge = 83.0)
+    info.batteryChargeForUninitializedModelGauge().shouldBe(83)
   }
 
   test("batteryChargeForUninitializedModelGauge returns correct SOC table") {

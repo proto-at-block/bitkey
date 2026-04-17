@@ -21,6 +21,12 @@ services:
       - bitcoin-data:/data/.bitcoin
     ports:
       - 18443:18443
+    healthcheck:
+      test: ["CMD-SHELL", "bitcoin-cli -regtest -rpcuser=${BITCOIND_RPC_USER:-test} -rpcpassword=${BITCOIND_RPC_PASSWORD:-test} getblockchaininfo"]
+      interval: 3s
+      timeout: 5s
+      retries: 15
+      start_period: 5s
 
   esplora:
     image: mempool/electrs:latest
@@ -45,6 +51,12 @@ services:
       # Electrum HTTP Port
       - 8100:8100
       # RPC port is exposed in consumers of this base compose file.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8100/blocks/tip/height || exit 1"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
 
 volumes:
   bitcoin-data:

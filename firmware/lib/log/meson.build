@@ -2,7 +2,7 @@ srcs = [
   'src/log.c',
 ]
 
-deps = [printf_dep, assert_dep, memfault_log_dep]
+deps = [assert_dep, memfault_log_dep, printf_dep, rtos_dep]
 includes = ['inc', shell_includes]
 
 log_lib = library('log',

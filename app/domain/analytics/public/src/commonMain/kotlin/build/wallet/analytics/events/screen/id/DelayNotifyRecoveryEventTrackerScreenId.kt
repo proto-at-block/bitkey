@@ -110,4 +110,7 @@ enum class DelayNotifyRecoveryEventTrackerScreenId : EventTrackerScreenId {
 
   /** Screen shown when a recovery attempt has been canceled by another device */
   RECOVERY_CANCELED_NO_LONGER_RECOVERING,
+
+  /** Error screen shown when completing recovery fails after sweep for lost app D+N */
+  LOST_APP_DELAY_NOTIFY_COMPLETION_ERROR,
 }

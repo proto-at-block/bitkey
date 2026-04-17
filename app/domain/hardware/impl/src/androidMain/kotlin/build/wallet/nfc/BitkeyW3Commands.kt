@@ -1,98 +1,53 @@
 package build.wallet.nfc
 
-import build.wallet.Progress
-import build.wallet.asProgress
+import bitkey.data.PrivateData
+import build.wallet.bitcoin.BitcoinNetworkType
+import build.wallet.bitcoin.keys.DescriptorPublicKey
 import build.wallet.bitcoin.transactions.Psbt
+import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
-import build.wallet.nfc.platform.ChunkData
+import build.wallet.crypto.SealedData
+import build.wallet.crypto.SymmetricKey
+import build.wallet.crypto.SymmetricKeyImpl
+import build.wallet.encrypt.Secp256k1PublicKey
+import build.wallet.encrypt.SignatureUtils
+import build.wallet.money.display.BitcoinDisplayUnit
+import build.wallet.nfc.platform.*
 import build.wallet.nfc.platform.ConfirmationHandles
 import build.wallet.nfc.platform.ConfirmationResult
 import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.NfcCommands
-import build.wallet.rust.firmware.BooleanState
-import build.wallet.rust.firmware.GetAddress
-import build.wallet.rust.firmware.GetAddressResultState
-import build.wallet.rust.firmware.SignStart
-import build.wallet.rust.firmware.SignStartResultState
-import build.wallet.rust.firmware.SignTransfer
-import build.wallet.rust.firmware.SignTransferResult
-import build.wallet.rust.firmware.SignTransferResultState
-import build.wallet.rust.firmware.VerifyKeysAndBuildDescriptor
+import build.wallet.rust.firmware.*
 import build.wallet.toByteString
 import build.wallet.toUByteList
-import com.github.michaelbull.result.getOrElse
 import okio.ByteString
-import okio.ByteString.Companion.decodeBase64
+import okio.ByteString.Companion.decodeHex
+import build.wallet.rust.firmware.BtcDisplayUnit as FfiBtcDisplayUnit
+import build.wallet.rust.firmware.BtcNetwork as FfiBtcNetwork
+import build.wallet.rust.firmware.InputSignatureTuple as FfiInputSignatureTuple
+import build.wallet.rust.firmware.RecoveryAuthorizeLostAppResult as FfiRecoveryAuthorizeLostAppResult
+import build.wallet.rust.firmware.RecoveryAuthorizeLostHwResult as FfiRecoveryAuthorizeLostHwResult
+import build.wallet.rust.firmware.RotateAppAuthKeys as FfiRotateAppAuthKeys
+import build.wallet.rust.firmware.RotateAppAuthKeysResult as FfiRotateAppAuthKeysResult
+import build.wallet.rust.firmware.RotateAppAuthKeysResultState as FfiRotateAppAuthKeysResultState
+import build.wallet.rust.firmware.SignChallengeAndSealSeksResult as FfiSignChallengeAndSealSeksResult
+import build.wallet.rust.firmware.UpgradeAuthorizeW3 as FfiUpgradeAuthorizeW3
+import build.wallet.rust.firmware.UpgradeAuthorizeW3Result as FfiUpgradeAuthorizeW3Result
+import build.wallet.rust.firmware.UpgradeAuthorizeW3ResultState as FfiUpgradeAuthorizeW3ResultState
+import build.wallet.rust.firmware.UpgradeRotateAppAuthKeys as FfiUpgradeRotateAppAuthKeys
+import build.wallet.rust.firmware.UpgradeRotateAppAuthKeysResult as FfiUpgradeRotateAppAuthKeysResult
+import build.wallet.rust.firmware.UpgradeRotateAppAuthKeysResultState as FfiUpgradeRotateAppAuthKeysResultState
 
 /**
  * W3-specific NFC commands that delegate to the base implementation.
  *
  * Overrides W3-only features like [getAddress] which are not supported on W1 hardware.
  */
+@Suppress("LargeClass")
 class BitkeyW3Commands(
   private val delegate: NfcCommands,
+  private val signatureUtils: SignatureUtils,
 ) : NfcCommands by delegate {
-  companion object {
-    /**
-     * Maximum chunk size for PSBT transfer, defined by nanopb max_size annotation
-     * on sign_transfer_cmd.chunk_data in wallet.proto.
-     */
-    private const val PSBT_CHUNK_SIZE = 452
-
-    /**
-     * Maximum total size for chunked responses (1 MB).
-     * Safety limit to prevent infinite loops if firmware misbehaves.
-     */
-    private const val MAX_CHUNKED_RESPONSE_SIZE = 1_000_000
-  }
-
-  /**
-   * Fetches all chunks of data from the device using the generic
-   * getConfirmationResultChunk command.
-   *
-   * Uses chunk_index for idempotent retry - if NFC transmission fails after firmware
-   * responds, the same chunk can be re-requested safely.
-   *
-   * @param session the active NFC session
-   * @param commands NFC commands interface
-   * @param handles confirmation handles from the pending operation
-   * @param expectedSize expected total size from ChunkedDataAvailable (for validation)
-   * @return the reassembled data as a list of bytes
-   * @throws NfcException.CommandError if size exceeds safety limit or doesn't match expected
-   */
-  private suspend fun fetchAllChunks(
-    session: NfcSession,
-    commands: NfcCommands,
-    handles: ConfirmationHandles,
-    expectedSize: UInt,
-  ): List<UByte> {
-    val chunks = mutableListOf<UByte>()
-    var chunkIndex = 0u
-    var isLast = false
-
-    while (!isLast) {
-      val chunkData: ChunkData = commands.getConfirmationResultChunk(session, handles, chunkIndex)
-      chunks.addAll(chunkData.chunk)
-      isLast = chunkData.isLast
-      chunkIndex++
-
-      // Safety limit to prevent infinite loops if firmware never sets isLast
-      if (chunks.size > MAX_CHUNKED_RESPONSE_SIZE) {
-        throw NfcException.CommandError(
-          message = "Chunked response exceeded maximum size of $MAX_CHUNKED_RESPONSE_SIZE bytes"
-        )
-      }
-    }
-
-    if (chunks.size.toUInt() != expectedSize) {
-      throw NfcException.CommandError(
-        message = "Chunked response size mismatch: expected $expectedSize bytes, received ${chunks.size}"
-      )
-    }
-
-    return chunks
-  }
-
   /**
    * Generate and display a bitcoin address on the W3 hardware device.
    *
@@ -139,7 +94,8 @@ class BitkeyW3Commands(
     serverSpendingKey: ByteString,
     serverSpendingKeyChaincode: ByteString,
     wsmSignature: ByteString,
-  ): Boolean =
+    accountIndex: UInt,
+  ): String =
     executeCommand(
       session = session,
       generateCommand = {
@@ -150,115 +106,1090 @@ class BitkeyW3Commands(
           appAuthKey.toUByteList(),
           serverSpendingKey.toUByteList(),
           serverSpendingKeyChaincode.toUByteList(),
-          wsmSignature.toUByteList()
+          wsmSignature.toUByteList(),
+          accountIndex
         )
       },
       getNext = { command, data -> command.next(data) },
-      getResponse = { state: BooleanState.Data -> state.response },
-      generateResult = { state: BooleanState.Result -> state.value }
+      getResponse = { state: SignatureState.Data -> state.response },
+      generateResult = { state: SignatureState.Result -> state.value }
     )
 
   /**
-   * Sign a transaction on W3 hardware using chunked PSBT transfer.
+   * Maximum number of inputs/outputs supported by the one-shot sign_tx_request_cmd.
+   * Transactions exceeding this use the streaming signing protocol.
+   */
+  private companion object {
+    const val MAX_SIGN_TX_ENTRIES = 5
+    const val STREAM_CHUNK_SIZE = 452
+
+    /**
+     * Signatures per NFC round-trip for batched retrieval.
+     * Each TxSignatureEntry is ~112 bytes (33 pubkey + ~72 DER sig + proto tags).
+     * Must stay below MAX_PROTO_SIZE (505 bytes) including the WalletRsp wrapper.
+     * 4 × 112 + ~10 overhead ≈ 458 bytes — safely within the limit.
+     */
+    const val SIGNATURE_BATCH_SIZE = 4u
+  }
+
+  /**
+   * Sign a transaction on W3 hardware using the non-PSBT signing protocol.
    *
-   * W3 requires chunked transfer of the PSBT data, followed by on-device confirmation.
-   * This returns RequiresTransfer which handles the chunking flow internally.
+   * For transactions with ≤5 inputs AND ≤5 outputs, uses the one-shot
+   * `sign_tx_request_cmd` which fits in a single proto message.
    *
-   * The flow is:
-   * 1. SignStart - initialize signing session with PSBT size
-   * 2. SignTransfer (loop) - transfer PSBT chunks; last chunk returns ConfirmationPending
-   * 3. GetConfirmationResult - returns ChunkedDataAvailable after user confirms on device on device
-   * 4. GetConfirmationResultChunk (loop) - fetch signed PSBT data in chunks
+   * For larger transactions, uses the streaming protocol:
+   * 1. First tap: decomposes PSBT, streams canonical binary payload in 452-byte chunks,
+   *    then finalizes with commitment hash → gets back confirmation handles
+   * 2. Second tap: calls getConfirmationResult → firmware signals signatures ready,
+   *    then retrieves per-input signatures via get_tx_signature_cmd
    *
    * @param session the active NFC session
    * @param psbt the PSBT to sign
    * @param spendingKeyset the spending keyset containing hardware fingerprint
-   * @return HardwareInteraction that manages the W3 signing flow
+   * @return HardwareInteraction that resolves to the signed PSBT
    */
   override suspend fun signTransaction(
     session: NfcSession,
     psbt: Psbt,
     spendingKeyset: SpendingKeyset,
+    displayPreference: HwDisplayPreference?,
   ): HardwareInteraction<Psbt> {
-    return HardwareInteraction.RequiresTransfer { nfcSession, _, onProgress ->
-      // Decode base64 PSBT to binary ByteString for efficient transfer
-      val psbtBytes = psbt.base64.decodeBase64()
-        ?: throw NfcException.CommandError(message = "Failed to decode PSBT base64")
+    // Decompose the PSBT into raw transaction fields for the non-PSBT signing protocol.
+    val decomposed = try {
+      decomposePsbt(
+        psbtBase64 = psbt.base64,
+        originFingerprint = spendingKeyset.hardwareKey.key.origin.fingerprint
+      )
+    } catch (e: CommandException) {
+      throw NfcException.CommandError(
+        message = "Failed to decompose PSBT: ${e.message}",
+        cause = e
+      )
+    }
+
+    // Map display preferences to FFI types. Default to satoshi if not provided.
+    val ffiBtcUnit = displayPreference?.bitcoinDisplayUnit.toFfi()
+
+    // Route to streaming or one-shot based on input/output count.
+    val needsStreaming = decomposed.inputs.size > MAX_SIGN_TX_ENTRIES ||
+      decomposed.outputs.size > MAX_SIGN_TX_ENTRIES
+    return if (needsStreaming) {
+      signTransactionStreaming(psbt, decomposed, ffiBtcUnit)
+    } else {
+      signTransactionOneShot(session, psbt, decomposed, ffiBtcUnit)
+    }
+  }
+
+  /**
+   * One-shot signing for small transactions (≤5 inputs, ≤5 outputs).
+   * Uses the existing sign_tx_request_cmd which fits in a single proto message.
+   */
+  @Suppress("ThrowsCount")
+  private suspend fun signTransactionOneShot(
+    session: NfcSession,
+    psbt: Psbt,
+    decomposed: DecomposedPsbt,
+    btcDisplayUnit: FfiBtcDisplayUnit,
+  ): HardwareInteraction<Psbt> {
+    val result = executeCommand(
+      session = session,
+      generateCommand = {
+        SignTxRequest(decomposed.version, decomposed.lockTime, decomposed.inputs, decomposed.outputs, btcDisplayUnit)
+      },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: SignTxRequestResultState.Data -> state.response },
+      generateResult = { state: SignTxRequestResultState.Result -> state.value }
+    )
+
+    return when (result) {
+      is SignTxRequestResult.ConfirmationPending -> {
+        val handles = ConfirmationHandles(
+          responseHandle = result.responseHandle,
+          confirmationHandle = result.confirmationHandle
+        )
+        HardwareInteraction.RequiresConfirmation(
+          handles = handles,
+          mapResult = confirmationResultMapper<Psbt> { confirmResult ->
+            when (confirmResult) {
+              is ConfirmationResult.SignTx -> {
+                val ffiSignatures = confirmResult.signatures.map { sig ->
+                  FfiInputSignatureTuple(
+                    inputIndex = sig.inputIndex,
+                    publicKey = sig.publicKey,
+                    signature = sig.signature
+                  )
+                }
+                val signedBase64 = try {
+                  assemblePsbtSignatures(
+                    psbtBase64 = psbt.base64,
+                    signatures = ffiSignatures
+                  )
+                } catch (e: CommandException) {
+                  throw NfcException.CommandError(
+                    message = "Failed to assemble PSBT signatures: ${e.message}",
+                    cause = e
+                  )
+                }
+                HardwareInteraction.Completed(psbt.copy(base64 = signedBase64))
+              }
+              is ConfirmationResult.Pending ->
+                throw NfcException.ConfirmationPending()
+              is ConfirmationResult.Denied ->
+                throw NfcException.UserDenied()
+              else -> throw NfcException.CommandError(
+                message = "signTransaction expected SignTx result but got: ${confirmResult::class.simpleName}"
+              )
+            }
+          }
+        )
+      }
+    }
+  }
+
+  /**
+   * Streaming signing for large transactions (>5 inputs or >5 outputs).
+   *
+   * Returns [HardwareInteraction.RequiresTransfer] so the state machine's progress
+   * pipeline captures chunk upload progress (same visual pattern as FWUP).
+   *
+   * Flow:
+   * 1. [First tap] RequiresTransfer callback streams the payload:
+   *    sign_stream_start_cmd → sign_stream_transfer_cmd × N chunks → sign_stream_finalize_cmd
+   *    → returns RequiresConfirmation
+   * 2. [User confirms on device]
+   * 3. [Second tap] get_confirmation_result → SignStreamReady(num_inputs)
+   *    → RequiresTransfer callback retrieves per-input signatures via get_tx_signature_cmd
+   *    → returns Completed
+   */
+  private fun signTransactionStreaming(
+    psbt: Psbt,
+    decomposed: DecomposedPsbt,
+    btcDisplayUnit: FfiBtcDisplayUnit,
+  ): HardwareInteraction<Psbt> {
+    // Serialize the canonical binary payload and compute commitment hash eagerly
+    // so errors surface immediately, not inside the transfer callback.
+    val streamPayload = try {
+      serializeSignStreamPayload(
+        decomposed.version,
+        decomposed.lockTime,
+        decomposed.inputs,
+        decomposed.outputs
+      )
+    } catch (e: CommandException) {
+      throw NfcException.CommandError(
+        message = "Failed to serialize stream payload: ${e.message}",
+        cause = e
+      )
+    }
+
+    // Return RequiresTransfer — the state machine will call transferAndFetch with
+    // an onProgress callback, which drives the progress bar UI.
+    return HardwareInteraction.RequiresTransfer { transferSession, _, onProgress ->
+      streamPayloadAndFinalize(
+        session = transferSession,
+        psbt = psbt,
+        decomposed = decomposed,
+        streamPayload = streamPayload,
+        onProgress = onProgress,
+        btcDisplayUnit = btcDisplayUnit
+      )
+    }
+  }
+
+  /**
+   * Streams the canonical binary payload to the device and finalizes the session.
+   * Called inside a RequiresTransfer callback with progress reporting.
+   *
+   * Returns [HardwareInteraction.RequiresConfirmation] for the two-tap confirmation flow.
+   */
+  @Suppress("ThrowsCount")
+  private suspend fun streamPayloadAndFinalize(
+    session: NfcSession,
+    psbt: Psbt,
+    decomposed: DecomposedPsbt,
+    streamPayload: StreamPayload,
+    onProgress: NfcProgressCallback,
+    btcDisplayUnit: FfiBtcDisplayUnit,
+  ): HardwareInteraction<Psbt> {
+    // Step 1: Start the streaming session
+    val startResult = executeCommand(
+      session = session,
+      generateCommand = {
+        SignStreamStart(
+          decomposed.inputs.size.toUInt(),
+          decomposed.outputs.size.toUInt(),
+          decomposed.version,
+          decomposed.lockTime,
+          streamPayload.payloadSize,
+          btcDisplayUnit
+        )
+      },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: SignStreamStartResultState.Data -> state.response },
+      generateResult = { state: SignStreamStartResultState.Result -> state.value }
+    )
+    if (startResult != SignStreamStartResult.SUCCESS) {
+      throw NfcException.CommandError(
+        message = "sign_stream_start failed: $startResult"
+      )
+    }
+
+    // Step 2: Stream the payload in 452-byte chunks with progress reporting
+    val payloadBytes = streamPayload.data
+    val totalChunks = (payloadBytes.size + STREAM_CHUNK_SIZE - 1) / STREAM_CHUNK_SIZE
+    for (chunkIndex in 0 until totalChunks) {
+      val offset = chunkIndex * STREAM_CHUNK_SIZE
+      val end = minOf(offset + STREAM_CHUNK_SIZE, payloadBytes.size)
+      val chunkData = payloadBytes.subList(offset, end)
 
       executeCommand(
-        session = nfcSession,
-        generateCommand = { SignStart(psbtBytes.size.toUInt()) },
+        session = session,
+        generateCommand = {
+          SignStreamTransfer(chunkIndex.toUInt(), chunkData)
+        },
         getNext = { command, data -> command.next(data) },
-        getResponse = { state: SignStartResultState.Data -> state.response },
-        generateResult = { state: SignStartResultState.Result -> state.value }
+        getResponse = { state: SignStreamTransferResultState.Data -> state.response },
+        generateResult = { state: SignStreamTransferResultState.Result -> state.value }
       )
 
-      val maxChunkSize = PSBT_CHUNK_SIZE
+      // Report chunk upload progress (0.0 → 1.0)
+      onProgress.onProgress((chunkIndex.toFloat() + 1f) / totalChunks.toFloat())
+    }
 
-      var offset = 0
-      var sequenceId = 0u
-      var confirmationHandles: ConfirmationHandles? = null
+    // Step 3: Finalize with commitment hash → CONFIRMATION_PENDING
+    val finalizeResult = executeCommand(
+      session = session,
+      generateCommand = {
+        SignStreamFinalize(streamPayload.commitmentHash)
+      },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: SignStreamFinalizeResultState.Data -> state.response },
+      generateResult = { state: SignStreamFinalizeResultState.Result -> state.value }
+    )
 
-      while (offset < psbtBytes.size) {
-        val endIndex = minOf(offset + maxChunkSize, psbtBytes.size)
-        val chunk = psbtBytes.substring(offset, endIndex)
-
-        val transferResult = executeCommand(
-          session = nfcSession,
-          generateCommand = {
-            SignTransfer(
-              sequenceId = sequenceId,
-              chunkData = chunk.toUByteList()
-            )
-          },
-          getNext = { command, data -> command.next(data) },
-          getResponse = { state: SignTransferResultState.Data -> state.response },
-          generateResult = { state: SignTransferResultState.Result -> state.value }
+    return when (finalizeResult) {
+      is SignStreamFinalizeResult.ConfirmationPending -> {
+        val handles = ConfirmationHandles(
+          responseHandle = finalizeResult.responseHandle,
+          confirmationHandle = finalizeResult.confirmationHandle
         )
-
-        when (transferResult) {
-          is SignTransferResult.Success -> {}
-          is SignTransferResult.ConfirmationPending -> {
-            confirmationHandles = ConfirmationHandles(
-              responseHandle = transferResult.responseHandle,
-              confirmationHandle = transferResult.confirmationHandle
-            )
+        HardwareInteraction.RequiresConfirmation(
+          handles = handles,
+          mapResult = confirmationResultMapper<Psbt> { confirmResult ->
+            when (confirmResult) {
+              is ConfirmationResult.SignStreamReady -> {
+                // Return RequiresTransfer so the state machine's continuation
+                // retrieves per-input signatures with progress in the same NFC session.
+                HardwareInteraction.RequiresTransfer<Psbt> { signatureSession, _, sigProgress ->
+                  retrieveStreamingSignatures(
+                    session = signatureSession,
+                    psbt = psbt,
+                    numInputs = confirmResult.numInputs,
+                    onProgress = sigProgress
+                  )
+                }
+              }
+              is ConfirmationResult.Pending ->
+                throw NfcException.ConfirmationPending()
+              is ConfirmationResult.Denied ->
+                throw NfcException.UserDenied()
+              else -> throw NfcException.CommandError(
+                message = "signTransaction (streaming) expected SignStreamReady but got: ${confirmResult::class.simpleName}"
+              )
+            }
           }
-        }
+        )
+      }
+    }
+  }
 
-        offset = endIndex
-        sequenceId++
-        val progressValue = (offset.toFloat() / psbtBytes.size)
-          .coerceIn(0f, 1f)
-          .asProgress()
-          .getOrElse { Progress.Zero }
-        onProgress(progressValue)
+  /**
+   * Retrieves per-input signatures from the hardware after a confirmed streaming
+   * signing session and assembles them into the PSBT.
+   *
+   * Uses batched retrieval (4 signatures per NFC round-trip) to minimize latency.
+   * Deterministic ECDSA (RFC 6979) makes all calls idempotent — NFC retries are safe.
+   */
+  private suspend fun retrieveStreamingSignatures(
+    session: NfcSession,
+    psbt: Psbt,
+    numInputs: UInt,
+    onProgress: NfcProgressCallback,
+  ): HardwareInteraction<Psbt> {
+    val ffiSignatures = mutableListOf<FfiInputSignatureTuple>()
+    var startIndex = 0u
+
+    while (startIndex < numInputs) {
+      val batchCount = minOf(SIGNATURE_BATCH_SIZE, numInputs - startIndex)
+      val batchSigs = executeCommand(
+        session = session,
+        generateCommand = { GetTxSignaturesBatch(startIndex, batchCount) },
+        getNext = { command, data -> command.next(data) },
+        getResponse = { state: TxSignaturesBatchState.Data -> state.response },
+        generateResult = { state: TxSignaturesBatchState.Result -> state.`value` }
+      )
+
+      batchSigs.forEachIndexed { offset, txSig ->
+        ffiSignatures.add(
+          FfiInputSignatureTuple(
+            inputIndex = startIndex + offset.toUInt(),
+            publicKey = txSig.pubkey,
+            signature = txSig.signature
+          )
+        )
       }
 
-      val handles = confirmationHandles
-        ?: throw NfcException.CommandError(
-          message = "Expected ConfirmationPending from last SignTransfer but didn't receive it. " +
-            "W3 hardware must require user confirmation for transaction signing."
-        )
+      startIndex += batchSigs.size.toUInt()
+      // Report progress per batch
+      onProgress.onProgress(startIndex.toFloat() / numInputs.toFloat())
+    }
 
-      HardwareInteraction.RequiresConfirmation { confirmSession, confirmCommands ->
-        val confirmResult = confirmCommands.getConfirmationResult(confirmSession, handles)
-        when (confirmResult) {
-          is ConfirmationResult.ChunkedDataAvailable -> {
-            val chunks = fetchAllChunks(
-              confirmSession,
-              confirmCommands,
-              handles,
-              expectedSize = confirmResult.totalSize
-            )
-            val signedPsbtBase64 = chunks.toByteString().base64()
-            HardwareInteraction.Completed(psbt.copy(base64 = signedPsbtBase64))
+    // Assemble hardware signatures into the PSBT
+    val signedBase64 = try {
+      assemblePsbtSignatures(
+        psbtBase64 = psbt.base64,
+        signatures = ffiSignatures
+      )
+    } catch (e: CommandException) {
+      throw NfcException.CommandError(
+        message = "Failed to assemble streaming PSBT signatures: ${e.message}",
+        cause = e
+      )
+    }
+
+    return HardwareInteraction.Completed(psbt.copy(base64 = signedBase64))
+  }
+
+  /**
+   * Sign an action proof on W3 hardware with user confirmation.
+   *
+   * W3-only feature that allows the hardware to sign a proof for actions.
+   * This returns RequiresConfirmation which handles the confirmation flow.
+   *
+   * @param session the active NFC session
+   * @param version the version of the action proof
+   * @param action the action type
+   * @param value the new value (if applicable)
+   * @param bindings the bindings for the proof
+   * @return HardwareInteraction that manages the W3 signing flow
+   */
+  override suspend fun signActionProof(
+    session: NfcSession,
+    version: UInt,
+    action: ActionProofAction,
+    value: String?,
+    bindings: String,
+  ): HardwareInteraction<String> {
+    val result = executeCommand(
+      session = session,
+      generateCommand = {
+        SignActionProof(version, action.toPascalCase(), value, bindings)
+      },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: SignActionProofResultState.Data -> state.response },
+      generateResult = { state: SignActionProofResultState.Result -> state.value }
+    )
+    return when (result) {
+      is SignActionProofResult.Success ->
+        HardwareInteraction.Completed(result.signature.toByteString().hex())
+      is SignActionProofResult.ConfirmationPending -> {
+        val handles = ConfirmationHandles(
+          responseHandle = result.responseHandle,
+          confirmationHandle = result.confirmationHandle
+        )
+        HardwareInteraction.RequiresConfirmation(
+          handles = handles,
+          mapResult = confirmationResultMapper<String> { confirmResult ->
+            when (confirmResult) {
+              is ConfirmationResult.SignActionProof ->
+                HardwareInteraction.Completed(confirmResult.signature)
+              is ConfirmationResult.Pending ->
+                throw NfcException.ConfirmationPending()
+              is ConfirmationResult.Denied ->
+                throw NfcException.UserDenied()
+              else -> throw NfcException.CommandError(
+                message = "signActionProof expected SignActionProof result but got: ${confirmResult::class.simpleName}"
+              )
+            }
           }
-          else -> throw NfcException.CommandError(
-            message = "signTransaction expected ChunkedDataAvailable result but got: ${confirmResult::class.simpleName}"
-          )
-        }
+        )
+      }
+    }
+  }
+
+  /**
+   * Rotate app auth keys composite command.
+   *
+   * First tap: sends [RotateAppAuthKeys] command → gets ConfirmationPending.
+   * Second tap (after user confirms on device): getConfirmationResult returns
+   *   RotateAppAuthKeys with all signatures (action proof, signed account ID,
+   *   app auth key signature, HW auth public key).
+   */
+  override suspend fun rotateAppAuthKeys(
+    session: NfcSession,
+    params: RotateAppAuthKeysContinueParams,
+  ): HardwareInteraction<RotateAppAuthKeysCompositeResult> {
+    val result = executeCommand(
+      session = session,
+      generateCommand = {
+        FfiRotateAppAuthKeys(
+          params.actionProofVersion,
+          params.actionProofAction.toPascalCase(),
+          null,
+          params.actionProofBindings,
+          params.accountId,
+          params.appGlobalAuthPublicKey
+        )
+      },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: FfiRotateAppAuthKeysResultState.Data -> state.response },
+      generateResult = { state: FfiRotateAppAuthKeysResultState.Result -> state.value }
+    )
+
+    return when (result) {
+      is FfiRotateAppAuthKeysResult.ConfirmationPending -> {
+        val handles = ConfirmationHandles(
+          responseHandle = result.responseHandle,
+          confirmationHandle = result.confirmationHandle
+        )
+        HardwareInteraction.RequiresConfirmation(
+          handles = handles,
+          mapResult = confirmationResultMapper<RotateAppAuthKeysCompositeResult> { confirmResult ->
+            when (confirmResult) {
+              is ConfirmationResult.RotateAppAuthKeys -> {
+                HardwareInteraction.Completed(
+                  RotateAppAuthKeysCompositeResult(
+                    actionProofSignature = confirmResult.actionProofSignature.toByteString().hex(),
+                    hwSignedAccountId = signatureUtils.encodeSignatureToDer(confirmResult.hwSignedAccountId.toUByteArray().toByteArray()).hex(),
+                    appGlobalAuthKeyHwSignature = signatureUtils.encodeSignatureToDer(confirmResult.appAuthKeySignature.toUByteArray().toByteArray()).hex(),
+                    hwAuthPublicKey = HwAuthPublicKey(
+                      Secp256k1PublicKey(confirmResult.hwAuthPublicKey.toByteString().hex())
+                    )
+                  )
+                )
+              }
+              is ConfirmationResult.Pending ->
+                throw NfcException.ConfirmationPending()
+              is ConfirmationResult.Denied ->
+                throw NfcException.UserDenied()
+              else -> throw NfcException.CommandError(
+                message = "rotateAppAuthKeys expected RotateAppAuthKeys result but got: ${confirmResult::class.simpleName}"
+              )
+            }
+          }
+        )
+      }
+    }
+  }
+
+  /**
+   * Upgrade rotate app auth keys (W3 upgrade flow, no action proof signing).
+   */
+  override suspend fun upgradeRotateAppAuthKeys(
+    session: NfcSession,
+    params: UpgradeRotateAppAuthKeysParams,
+  ): HardwareInteraction<UpgradeRotateAppAuthKeysResult> {
+    val result = executeCommand(
+      session = session,
+      generateCommand = {
+        FfiUpgradeRotateAppAuthKeys(
+          params.accountId,
+          params.appGlobalAuthPublicKey
+        )
+      },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: FfiUpgradeRotateAppAuthKeysResultState.Data -> state.response },
+      generateResult = { state: FfiUpgradeRotateAppAuthKeysResultState.Result -> state.value }
+    )
+
+    return when (result) {
+      is FfiUpgradeRotateAppAuthKeysResult.ConfirmationPending -> {
+        val handles = ConfirmationHandles(
+          responseHandle = result.responseHandle,
+          confirmationHandle = result.confirmationHandle
+        )
+        HardwareInteraction.RequiresConfirmation(
+          handles = handles,
+          mapResult = confirmationResultMapper<UpgradeRotateAppAuthKeysResult> { confirmResult ->
+            when (confirmResult) {
+              is ConfirmationResult.UpgradeRotateAppAuthKeys -> {
+                HardwareInteraction.Completed(
+                  UpgradeRotateAppAuthKeysResult(
+                    hwSignedAccountId = signatureUtils.encodeSignatureToDer(confirmResult.hwSignedAccountId.toUByteArray().toByteArray()).hex(),
+                    appGlobalAuthKeyHwSignature = signatureUtils.encodeSignatureToDer(confirmResult.appAuthKeySignature.toUByteArray().toByteArray()).hex(),
+                    hwAuthPublicKey = HwAuthPublicKey(
+                      Secp256k1PublicKey(confirmResult.hwAuthPublicKey.toByteString().hex())
+                    )
+                  )
+                )
+              }
+              is ConfirmationResult.Pending ->
+                throw NfcException.ConfirmationPending()
+              is ConfirmationResult.Denied ->
+                throw NfcException.UserDenied()
+              else -> throw NfcException.CommandError(
+                message = "upgradeRotateAppAuthKeys expected UpgradeRotateAppAuthKeys result but got: ${confirmResult::class.simpleName}"
+              )
+            }
+          }
+        )
+      }
+    }
+  }
+
+  /**
+   * Signs a challenge with user confirmation during lost app recovery (W3 only).
+   *
+   * First tap: sends challenge → firmware shows confirmation prompt → CONFIRMATION_PENDING.
+   * Second tap: getConfirmationResult returns the signature.
+   */
+  override suspend fun lostAppRecoverySignChallenge(
+    session: NfcSession,
+    challenge: ByteString,
+  ): HardwareInteraction<String> {
+    val result = executeCommand(
+      session = session,
+      generateCommand = { LostAppRecoverySignChallenge(challenge.toUByteList()) },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: LostAppRecoverySignChallengeResultState.Data -> state.response },
+      generateResult = { state: LostAppRecoverySignChallengeResultState.Result -> state.value }
+    )
+
+    return when (result) {
+      is LostAppRecoverySignChallengeResult.ConfirmationPending -> {
+        val handles = ConfirmationHandles(
+          responseHandle = result.responseHandle,
+          confirmationHandle = result.confirmationHandle
+        )
+        HardwareInteraction.RequiresConfirmation(
+          handles = handles,
+          mapResult = confirmationResultMapper<String> { confirmResult ->
+            when (confirmResult) {
+              is ConfirmationResult.LostAppRecoverySignChallenge ->
+                HardwareInteraction.Completed(confirmResult.signature)
+              is ConfirmationResult.Pending ->
+                throw NfcException.ConfirmationPending()
+              is ConfirmationResult.Denied ->
+                throw NfcException.UserDenied()
+              else -> throw NfcException.CommandError(
+                message = "lostAppRecoverySignChallenge expected LostAppRecoverySignChallenge result but got: ${confirmResult::class.simpleName}"
+              )
+            }
+          }
+        )
+      }
+    }
+  }
+
+  /**
+   * Lost app recovery composite command.
+   *
+   * First tap: sends sealed SSEK → gets ConfirmationPending.
+   * Second tap (after user confirms on device): getConfirmationResult returns LostAppRecoverySsek,
+   *   the mapper returns RequiresTransfer which runs the async callback + continue command
+   *   within the same NFC session.
+   */
+  override suspend fun lostAppRecovery(
+    session: NfcSession,
+    sealedSsek: ByteString,
+    onSsekUnsealed: suspend (SymmetricKey) -> LostAppRecoveryContinueParams,
+  ): HardwareInteraction<LostAppRecoveryCompositeResult> {
+    val result = executeCommand(
+      session = session,
+      generateCommand = { LostAppRecovery(sealedSsek.toUByteList()) },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: LostAppRecoveryResultState.Data -> state.response },
+      generateResult = { state: LostAppRecoveryResultState.Result -> state.value }
+    )
+
+    return when (result) {
+      is LostAppRecoveryResult.ConfirmationPending -> {
+        val handles = ConfirmationHandles(
+          responseHandle = result.responseHandle,
+          confirmationHandle = result.confirmationHandle
+        )
+        HardwareInteraction.RequiresConfirmation(
+          handles = handles,
+          mapResult = confirmationResultMapper<LostAppRecoveryCompositeResult> { confirmResult ->
+            when (confirmResult) {
+              is ConfirmationResult.LostAppRecoverySsek -> {
+                // Return RequiresTransfer to do async work + continue command in next NFC session
+                HardwareInteraction.RequiresTransfer { transferSession, transferCommands, _ ->
+                  executeLostAppRecoveryContinue(
+                    session = transferSession,
+                    unsealedSsek = SymmetricKeyImpl(confirmResult.ssek.toByteString()),
+                    onSsekUnsealed = onSsekUnsealed
+                  )
+                }
+              }
+              is ConfirmationResult.Pending ->
+                throw NfcException.ConfirmationPending()
+              is ConfirmationResult.Denied ->
+                throw NfcException.UserDenied()
+              else -> throw NfcException.CommandError(
+                message = "lostAppRecovery expected LostAppRecoverySsek result but got: ${confirmResult::class.simpleName}"
+              )
+            }
+          }
+        )
+      }
+    }
+  }
+
+  /**
+   * EEK restoration unseal symmetric key on W3 hardware with user confirmation.
+   *
+   * First tap: sends sealed key → firmware shows "Decrypt your Emergency Exit Kit backup?"
+   * → returns RequiresConfirmation.
+   * Second tap: getConfirmationResult returns EekRestorationUnsealSymmetricKey with the key.
+   */
+  @OptIn(PrivateData::class)
+  override suspend fun eekRestorationUnsealSymmetricKey(
+    session: NfcSession,
+    sealedKey: SealedData,
+  ): HardwareInteraction<SymmetricKey> {
+    val result = executeCommand(
+      session = session,
+      generateCommand = { EekRestorationUnseal(sealedKey.toUByteList()) },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: EekRestorationUnsealResultState.Data -> state.response },
+      generateResult = { state: EekRestorationUnsealResultState.Result -> state.value }
+    )
+
+    return when (result) {
+      is EekRestorationUnsealResult.ConfirmationPending -> {
+        val handles = ConfirmationHandles(
+          responseHandle = result.responseHandle,
+          confirmationHandle = result.confirmationHandle
+        )
+        HardwareInteraction.RequiresConfirmation(
+          handles = handles,
+          mapResult = confirmationResultMapper<SymmetricKey> { confirmResult ->
+            when (confirmResult) {
+              is ConfirmationResult.EekRestorationUnsealSymmetricKey ->
+                HardwareInteraction.Completed(
+                  SymmetricKeyImpl(confirmResult.unsealedKey.toByteString())
+                )
+              is ConfirmationResult.Pending ->
+                throw NfcException.ConfirmationPending()
+              is ConfirmationResult.Denied ->
+                throw NfcException.UserDenied()
+              else -> throw NfcException.CommandError(
+                message = "eekRestorationUnsealSymmetricKey expected EekRestorationUnsealSymmetricKey result but got: ${confirmResult::class.simpleName}"
+              )
+            }
+          }
+        )
+      }
+    }
+  }
+
+  /**
+   * Full account cloud backup restoration on W3 hardware with user confirmation.
+   *
+   * First tap: firmware shows "Decrypt your wallet backups?" → returns RequiresConfirmation.
+   * Second tap: streams sealed CSEKs to firmware one at a time. When firmware successfully
+   * unseals one, returns the unsealed key and its index via [onCsekUnsealed].
+   */
+  override suspend fun <T> fullAccountCloudBackupRestoration(
+    session: NfcSession,
+    sealedCseks: List<SealedData>,
+    onCsekUnsealed: suspend (CsekUnsealResult) -> T,
+  ): HardwareInteraction<T> {
+    val result = executeCommand(
+      session = session,
+      generateCommand = { FullAccountCloudBackupRestoration() },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: FullAccountCloudBackupRestorationResultState.Data -> state.response },
+      generateResult = { state: FullAccountCloudBackupRestorationResultState.Result -> state.value }
+    )
+
+    return when (result) {
+      is FullAccountCloudBackupRestorationResult.ConfirmationPending -> {
+        val handles = ConfirmationHandles(
+          responseHandle = result.responseHandle,
+          confirmationHandle = result.confirmationHandle
+        )
+        HardwareInteraction.RequiresConfirmation(
+          handles = handles,
+          mapResult = confirmationResultMapper<T> { confirmResult ->
+            when (confirmResult) {
+              is ConfirmationResult.FullAccountCloudBackupRestoration -> {
+                // Session confirmed — stream sealed CSEKs to firmware until one succeeds.
+                HardwareInteraction.RequiresTransfer { transferSession, _, _ ->
+                  val unsealResult = streamCseksToFirmware(
+                    transferSession, sealedCseks, handles.responseHandle
+                  )
+                  HardwareInteraction.Completed(onCsekUnsealed(unsealResult))
+                }
+              }
+              is ConfirmationResult.Pending ->
+                throw NfcException.ConfirmationPending()
+              is ConfirmationResult.Denied ->
+                throw NfcException.UserDenied()
+              else -> throw NfcException.CommandError(
+                message = "fullAccountCloudBackupRestoration expected FullAccountCloudBackupRestoration result but got: ${confirmResult::class.simpleName}"
+              )
+            }
+          }
+        )
+      }
+    }
+  }
+
+  /**
+   * Streams sealed CSEKs to firmware one at a time within a confirmed restoration session.
+   * Each CSEK is sent with its index. On the first success, firmware returns the unsealed
+   * key and echoes the index back. Throws if none can be unsealed.
+   *
+   * Only unseal-mismatch errors are caught and retried with the next CSEK.
+   * Session/transport errors (tag lost, timeout, auth) propagate immediately.
+   */
+  private suspend fun streamCseksToFirmware(
+    session: NfcSession,
+    sealedCseks: List<SealedData>,
+    sessionToken: List<UByte>,
+  ): CsekUnsealResult {
+    var lastError: NfcException? = null
+    for ((index, sealedCsek) in sealedCseks.withIndex()) {
+      try {
+        return unsealCsekInRestorationSession(session, index, sealedCsek, sessionToken)
+      } catch (e: NfcException.CommandErrorSealCsekResponseUnsealException) {
+        lastError = e
+        // Firmware couldn't unseal this CSEK, try the next one
+      } catch (e: NfcException.CommandError) {
+        lastError = e
+        // Generic command error during unseal — try the next CSEK
+      }
+    }
+    throw lastError ?: NfcException.CommandError(
+      message = "Could not unseal any CSEK with this hardware"
+    )
+  }
+
+  /**
+   * Sends a single sealed CSEK with its index to firmware for unsealing within a confirmed
+   * cloud backup restoration session. Firmware attempts to unseal and returns the key
+   * along with the index on success, or throws on failure.
+   *
+   * @param session the active NFC session (same session as the confirmation)
+   * @param index zero-based index of this CSEK in the caller's candidate list
+   * @param sealedCsek the sealed CSEK to unseal
+   * @return [CsekUnsealResult] with the unsealed key and index
+   */
+  @OptIn(PrivateData::class)
+  private suspend fun unsealCsekInRestorationSession(
+    session: NfcSession,
+    index: Int,
+    sealedCsek: SealedData,
+    sessionToken: List<UByte>,
+  ): CsekUnsealResult {
+    val result = executeCommand(
+      session = session,
+      generateCommand = {
+        FullAccountCloudBackupRestorationContinue(
+          sealedCsek.toUByteList(),
+          index.toUInt(),
+          sessionToken
+        )
+      },
+      getNext = { command, data -> command.next(data) },
+      getResponse = {
+          state: FullAccountCloudBackupRestorationContinueResultState.Data ->
+        state.response
+      },
+      generateResult = {
+          state: FullAccountCloudBackupRestorationContinueResultState.Result ->
+        state.value
+      }
+    )
+    return CsekUnsealResult(
+      index = result.csekIndex.toInt(),
+      unsealedCsek = SymmetricKeyImpl(result.unsealedCsek.toByteString())
+    )
+  }
+
+  /**
+   * Executes the continue phase of lost app recovery: calls the [onSsekUnsealed] callback
+   * to decrypt descriptors and build continue params, then sends the continue command.
+   */
+  @Suppress("ThrowsCount")
+  private suspend fun executeLostAppRecoveryContinue(
+    session: NfcSession,
+    unsealedSsek: SymmetricKey,
+    onSsekUnsealed: suspend (SymmetricKey) -> LostAppRecoveryContinueParams,
+  ): HardwareInteraction<LostAppRecoveryCompositeResult> {
+    val params = onSsekUnsealed(unsealedSsek)
+    val continueResult = executeCommand(
+      session = session,
+      generateCommand = {
+        LostAppRecoveryContinue(
+          actionProofVersion = params.actionProofVersion,
+          action = params.actionProofAction.toPascalCase(),
+          value = null,
+          bindings = params.actionProofBindings,
+          existingDescriptorPublicKeys = params.existingHwSpendingKeys.map { it.key.dpub },
+          network = params.network.toFfiBtcNetwork(),
+          appGlobalAuthKey = params.appGlobalAuthKey.value.decodeHex().toUByteList()
+        )
+      },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: LostAppRecoveryContinueResultState.Data -> state.response },
+      generateResult = { state: LostAppRecoveryContinueResultState.Result -> state.value }
+    )
+    return HardwareInteraction.Completed(
+      LostAppRecoveryCompositeResult(
+        actionProofSignature = continueResult.actionProofSignature.toByteString().hex(),
+        spendingKeyDpub = DescriptorPublicKey(continueResult.spendingKeyDpub),
+        appAuthKeySignature = continueResult.appAuthKeySignature.toByteString().hex()
+      )
+    )
+  }
+
+  override suspend fun signChallenge(
+    session: NfcSession,
+    challenge: ByteString,
+  ): String {
+    throw NfcException.FeatureNotSupported()
+  }
+
+  override suspend fun signChallengeAndSealSeks(
+    session: NfcSession,
+    challenge: ByteString,
+    unsealedCsek: ByteString,
+    unsealedSsek: ByteString,
+  ): HardwareInteraction<SignChallengeAndSealSeksResult> {
+    val result = executeCommand(
+      session = session,
+      generateCommand = {
+        SignChallengeAndSealSeks(
+          challenge.toUByteList(),
+          unsealedCsek.toUByteList(),
+          unsealedSsek.toUByteList()
+        )
+      },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: SignChallengeAndSealSeksResultState.Data -> state.response },
+      generateResult = { state: SignChallengeAndSealSeksResultState.Result -> state.value }
+    )
+
+    return when (result) {
+      is FfiSignChallengeAndSealSeksResult.ConfirmationPending -> {
+        val handles = ConfirmationHandles(
+          responseHandle = result.responseHandle,
+          confirmationHandle = result.confirmationHandle
+        )
+        HardwareInteraction.RequiresConfirmation(
+          handles = handles,
+          mapResult = confirmationResultMapper<SignChallengeAndSealSeksResult> { confirmResult ->
+            when (confirmResult) {
+              is ConfirmationResult.SignChallengeAndSealSeks -> {
+                HardwareInteraction.Completed(
+                  SignChallengeAndSealSeksResult(
+                    signedChallenge = confirmResult.signature.toByteString().hex(),
+                    sealedCsek = confirmResult.sealedCsek.toByteString(),
+                    sealedSsek = confirmResult.sealedSsek.toByteString()
+                  )
+                )
+              }
+              is ConfirmationResult.Pending ->
+                throw NfcException.ConfirmationPending()
+              is ConfirmationResult.Denied ->
+                throw NfcException.UserDenied()
+              else -> throw NfcException.CommandError(
+                message = "signChallengeAndSealSeks expected SignChallengeAndSealSeks result but got: ${confirmResult::class.simpleName}"
+              )
+            }
+          }
+        )
+      }
+    }
+  }
+
+  override suspend fun recoveryAuthorizeLostApp(
+    session: NfcSession,
+    sealedDdkData: SealedData?,
+    sealedSsekForDecryption: SealedData?,
+    descriptorBackupsBindings: String,
+    activateKeysetBindings: String,
+    actionProofVersion: UInt,
+  ): HardwareInteraction<RecoveryAuthorizeLostAppResult> {
+    val result = executeCommand(
+      session = session,
+      generateCommand = {
+        RecoveryAuthorizeLostApp(
+          sealedDdk = sealedDdkData?.toUByteList().orEmpty(),
+          sealedSsek = sealedSsekForDecryption?.toUByteList().orEmpty(),
+          descriptorBackupsBindings = descriptorBackupsBindings,
+          activateKeysetBindings = activateKeysetBindings,
+          actionProofVersion = actionProofVersion
+        )
+      },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: RecoveryAuthorizeLostAppResultState.Data -> state.response },
+      generateResult = { state: RecoveryAuthorizeLostAppResultState.Result -> state.value }
+    )
+
+    return when (result) {
+      is FfiRecoveryAuthorizeLostAppResult.ConfirmationPending -> {
+        val handles = ConfirmationHandles(
+          responseHandle = result.responseHandle,
+          confirmationHandle = result.confirmationHandle
+        )
+        HardwareInteraction.RequiresConfirmation(
+          handles = handles,
+          mapResult = confirmationResultMapper<RecoveryAuthorizeLostAppResult> { confirmResult ->
+            when (confirmResult) {
+              is ConfirmationResult.RecoveryAuthorizeLostApp -> {
+                HardwareInteraction.Completed(
+                  RecoveryAuthorizeLostAppResult(
+                    descriptorBackupsSignature = confirmResult.descriptorBackupsSignature.toByteString().hex(),
+                    activateKeysetSignature = confirmResult.activateKeysetSignature.toByteString().hex(),
+                    unsealedDdkData = confirmResult.unsealedDdkData.takeIf { it.isNotEmpty() }?.toByteString(),
+                    unsealedSsek = confirmResult.unsealedSsek.takeIf { it.isNotEmpty() }?.toByteString()
+                  )
+                )
+              }
+              is ConfirmationResult.Pending ->
+                throw NfcException.ConfirmationPending()
+              is ConfirmationResult.Denied ->
+                throw NfcException.UserDenied()
+              else -> throw NfcException.CommandError(
+                message = "recoveryAuthorizeLostApp expected RecoveryAuthorizeLostApp result but got: ${confirmResult::class.simpleName}"
+              )
+            }
+          }
+        )
+      }
+    }
+  }
+
+  override suspend fun recoveryAuthorizeLostHw(
+    session: NfcSession,
+    ddkPrivateKeyBytes: ByteString?,
+    descriptorBackupsBindings: String,
+    activateKeysetBindings: String,
+    actionProofVersion: UInt,
+  ): HardwareInteraction<RecoveryAuthorizeLostHwResult> {
+    val result = executeCommand(
+      session = session,
+      generateCommand = {
+        RecoveryAuthorizeLostHw(
+          ddkPrivateKey = ddkPrivateKeyBytes?.toUByteList().orEmpty(),
+          descriptorBackupsBindings = descriptorBackupsBindings,
+          activateKeysetBindings = activateKeysetBindings,
+          actionProofVersion = actionProofVersion
+        )
+      },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: RecoveryAuthorizeLostHwResultState.Data -> state.response },
+      generateResult = { state: RecoveryAuthorizeLostHwResultState.Result -> state.value }
+    )
+
+    return when (result) {
+      is FfiRecoveryAuthorizeLostHwResult.ConfirmationPending -> {
+        val handles = ConfirmationHandles(
+          responseHandle = result.responseHandle,
+          confirmationHandle = result.confirmationHandle
+        )
+        HardwareInteraction.RequiresConfirmation(
+          handles = handles,
+          mapResult = confirmationResultMapper<RecoveryAuthorizeLostHwResult> { confirmResult ->
+            when (confirmResult) {
+              is ConfirmationResult.RecoveryAuthorizeLostHw -> {
+                HardwareInteraction.Completed(
+                  RecoveryAuthorizeLostHwResult(
+                    descriptorBackupsSignature = confirmResult.descriptorBackupsSignature.toByteString().hex(),
+                    activateKeysetSignature = confirmResult.activateKeysetSignature.toByteString().hex(),
+                    sealedDdkData = confirmResult.sealedDdkData.takeIf { it.isNotEmpty() }?.toByteString()
+                  )
+                )
+              }
+              is ConfirmationResult.Pending ->
+                throw NfcException.ConfirmationPending()
+              is ConfirmationResult.Denied ->
+                throw NfcException.UserDenied()
+              else -> throw NfcException.CommandError(
+                message = "recoveryAuthorizeLostHw expected RecoveryAuthorizeLostHw result but got: ${confirmResult::class.simpleName}"
+              )
+            }
+          }
+        )
+      }
+    }
+  }
+
+  override suspend fun upgradeAuthorizeW3(
+    session: NfcSession,
+    ddkPrivateKeyBytes: ByteString,
+    descriptorBackupsBindings: String,
+    activateKeysetBindings: String,
+    actionProofVersion: UInt,
+  ): HardwareInteraction<UpgradeAuthorizeW3Result> {
+    val result = executeCommand(
+      session = session,
+      generateCommand = {
+        FfiUpgradeAuthorizeW3(
+          ddkPrivateKey = ddkPrivateKeyBytes.toUByteList(),
+          descriptorBackupsBindings = descriptorBackupsBindings,
+          activateKeysetBindings = activateKeysetBindings,
+          actionProofVersion = actionProofVersion
+        )
+      },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: FfiUpgradeAuthorizeW3ResultState.Data -> state.response },
+      generateResult = { state: FfiUpgradeAuthorizeW3ResultState.Result -> state.value }
+    )
+
+    return when (result) {
+      is FfiUpgradeAuthorizeW3Result.ConfirmationPending -> {
+        val handles = ConfirmationHandles(
+          responseHandle = result.responseHandle,
+          confirmationHandle = result.confirmationHandle
+        )
+        HardwareInteraction.RequiresConfirmation(
+          handles = handles,
+          mapResult = confirmationResultMapper<UpgradeAuthorizeW3Result> { confirmResult ->
+            when (confirmResult) {
+              is ConfirmationResult.UpgradeAuthorizeW3 -> {
+                HardwareInteraction.Completed(
+                  UpgradeAuthorizeW3Result(
+                    descriptorBackupsSignature = confirmResult.descriptorBackupsSignature.toByteString().hex(),
+                    activateKeysetSignature = confirmResult.activateKeysetSignature.toByteString().hex(),
+                    sealedDdkData = confirmResult.sealedDdkData.toByteString()
+                  )
+                )
+              }
+              is ConfirmationResult.Pending ->
+                throw NfcException.ConfirmationPending()
+              is ConfirmationResult.Denied ->
+                throw NfcException.UserDenied()
+              else -> throw NfcException.CommandError(
+                message = "upgradeAuthorizeW3 expected UpgradeAuthorizeW3 result but got: ${confirmResult::class.simpleName}"
+              )
+            }
+          }
+        )
       }
     }
   }
 }
+
+private fun BitcoinNetworkType.toFfiBtcNetwork() =
+  when (this) {
+    BitcoinNetworkType.BITCOIN -> FfiBtcNetwork.BITCOIN
+    BitcoinNetworkType.TESTNET -> FfiBtcNetwork.TESTNET
+    BitcoinNetworkType.SIGNET -> FfiBtcNetwork.SIGNET
+    BitcoinNetworkType.REGTEST -> FfiBtcNetwork.REGTEST
+  }
+
+/**
+ * Maps the app's [BitcoinDisplayUnit] to the Rust FFI [FfiBtcDisplayUnit].
+ * Returns [FfiBtcDisplayUnit.SATOSHI] as the default when null.
+ */
+private fun BitcoinDisplayUnit?.toFfi(): FfiBtcDisplayUnit =
+  when (this) {
+    BitcoinDisplayUnit.Satoshi, null -> FfiBtcDisplayUnit.SATOSHI
+    BitcoinDisplayUnit.Bitcoin -> FfiBtcDisplayUnit.BITCOIN
+  }

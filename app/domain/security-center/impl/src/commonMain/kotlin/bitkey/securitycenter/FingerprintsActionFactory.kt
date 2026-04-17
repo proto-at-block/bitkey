@@ -1,5 +1,6 @@
 package bitkey.securitycenter
 
+import bitkey.account.HardwareType
 import bitkey.f8e.privilegedactions.AuthorizationStrategy
 import bitkey.firmware.HardwareUnlockInfoService
 import bitkey.privilegedactions.FingerprintResetService
@@ -7,21 +8,19 @@ import bitkey.privilegedactions.FingerprintResetState
 import bitkey.privilegedactions.isDelayAndNotifyReadyToComplete
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.FeatureFlagValue.BooleanFlag
-import build.wallet.feature.FeatureFlagValue.StringFlag
-import build.wallet.feature.flags.FingerprintResetFeatureFlag
 import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.firmware.UnlockMethod
 import build.wallet.fwup.semverToInt
 import build.wallet.nfc.HardwareProvisionedAppKeyStatusDao
-import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.datetime.Clock
 
@@ -37,45 +36,40 @@ class FingerprintsActionFactoryImpl(
   private val hardwareProvisionedAppKeyStatusDao: HardwareProvisionedAppKeyStatusDao,
   private val fingerprintResetMinFirmwareVersionFeatureFlag:
     FingerprintResetMinFirmwareVersionFeatureFlag,
-  private val fingerprintResetFeatureFlag: FingerprintResetFeatureFlag,
   private val clock: Clock,
 ) : FingerprintsActionFactory {
-  override suspend fun create(): Flow<SecurityAction> {
-    val fingerprintResetReadyFlow = createFingerprintResetReadyFlow()
-
-    return combine(
-      hardwareUnlockInfoService
-        .countUnlockInfo(unlockMethod = UnlockMethod.BIOMETRICS),
-      fingerprintResetReadyFlow,
-      firmwareDeviceInfoDao.deviceInfo(),
-      hardwareProvisionedAppKeyStatusDao.isKeyProvisionedForActiveAccountFlow(),
-      fingerprintResetFeatureFlag.flagValue(),
-      fingerprintResetMinFirmwareVersionFeatureFlag.flagValue()
-    ) { values ->
-      val count = values[0] as Int
-      val resetReady = values[1] as Boolean
-      val firmwareDeviceInfoResult = values[2] as Result<*, *>
+  override suspend fun create(): Flow<SecurityAction?> {
+    return firmwareDeviceInfoDao.deviceInfo().flatMapLatest { firmwareDeviceInfoResult ->
       val firmwareDeviceInfo = firmwareDeviceInfoResult.get() as FirmwareDeviceInfo?
-      val isAppKeyProvisioned = values[3] as Boolean
-      val fingerprintResetFlagValue = values[4] as BooleanFlag
-      val minFirmwareVersionFlagValue = values[5] as StringFlag
 
-      val firmwareVersion = firmwareDeviceInfo?.version
-      val minFirmwareVersion = minFirmwareVersionFlagValue.value
-      val isFirmwareVersionSupported = if (firmwareVersion != null && minFirmwareVersion.isNotEmpty()) {
-        semverToInt(firmwareVersion) >= semverToInt(minFirmwareVersion)
+      // W3 hardware does not support fingerprint management, so hide this tile entirely.
+      if (firmwareDeviceInfo?.hardwareType() == HardwareType.W3) {
+        flowOf(null)
       } else {
-        false
-      }
-      val isFingerprintResetEnabled = fingerprintResetFlagValue.value && isFirmwareVersionSupported
+        combine(
+          hardwareUnlockInfoService
+            .countUnlockInfo(unlockMethod = UnlockMethod.BIOMETRICS),
+          createFingerprintResetReadyFlow(),
+          hardwareProvisionedAppKeyStatusDao.isKeyProvisionedForActiveAccountFlow(),
+          fingerprintResetMinFirmwareVersionFeatureFlag.flagValue()
+        ) { count, resetReady, isAppKeyProvisioned, minFirmwareVersionFlagValue ->
+          val firmwareVersion = firmwareDeviceInfo?.version
+          val minFirmwareVersion = minFirmwareVersionFlagValue.value
+          val isFingerprintResetEnabled = if (firmwareVersion != null && minFirmwareVersion.isNotEmpty()) {
+            semverToInt(firmwareVersion) >= semverToInt(minFirmwareVersion)
+          } else {
+            false
+          }
 
-      FingerprintsAction(
-        fingerprintCount = count,
-        firmwareDeviceInfo = firmwareDeviceInfo,
-        fingerprintResetReady = resetReady,
-        isAppKeyProvisioned = isAppKeyProvisioned,
-        isFingerprintResetEnabled = isFingerprintResetEnabled
-      )
+          FingerprintsAction(
+            fingerprintCount = count,
+            firmwareDeviceInfo = firmwareDeviceInfo,
+            fingerprintResetReady = resetReady,
+            isAppKeyProvisioned = isAppKeyProvisioned,
+            isFingerprintResetEnabled = isFingerprintResetEnabled
+          )
+        }
+      }
     }
   }
 

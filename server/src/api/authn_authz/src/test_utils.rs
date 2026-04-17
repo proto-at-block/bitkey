@@ -52,18 +52,14 @@ pub fn sign_with_test_hw_key(message: &str) -> String {
     )
 }
 
-/// Sign a message with recoverable signature for ActionProof testing.
-/// Returns a hex-encoded 65-byte signature (64 bytes compact + 1 byte recovery ID).
-pub fn sign_recoverable(message: &[u8], secret_key: secp256k1::SecretKey) -> String {
+/// Sign a message with standard ECDSA for ActionProof testing.
+/// Returns a hex-encoded 64-byte signature (r + s).
+pub fn sign_action_proof(message: &[u8], secret_key: secp256k1::SecretKey) -> String {
     let secp = Secp256k1::new();
     let digest = Sha256::digest(message);
     let msg = secp256k1::Message::from_digest_slice(&digest).unwrap();
-    let sig = secp.sign_ecdsa_recoverable(&msg, &secret_key);
-    let (recovery_id, data) = sig.serialize_compact();
-    let mut bytes = [0u8; 65];
-    bytes[..64].copy_from_slice(&data);
-    bytes[64] = recovery_id.to_i32() as u8;
-    hex::encode(bytes)
+    let sig = secp.sign_ecdsa(&msg, &secret_key);
+    hex::encode(sig.serialize_compact())
 }
 
 /// Get the test hardware key

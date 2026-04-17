@@ -17,6 +17,7 @@ import build.wallet.platform.haptics.Haptics
 import build.wallet.platform.haptics.HapticsEffect
 import build.wallet.pricechart.*
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.money.amount.toAnimatedAmountValue
 import build.wallet.time.DateTimeFormatter
 import build.wallet.time.TimeZoneProvider
 import com.github.michaelbull.result.onFailure
@@ -26,7 +27,11 @@ import com.ionspin.kotlin.bignum.decimal.DecimalMode
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -34,9 +39,7 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.toLocalDateTime
-import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
-import kotlin.time.Duration.Companion.milliseconds
 
 @BitkeyInject(ActivityScope::class)
 class BitcoinPriceChartUiStateMachineImpl(
@@ -56,20 +59,33 @@ class BitcoinPriceChartUiStateMachineImpl(
   override fun model(props: BitcoinPriceChartUiProps): ScreenModel {
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
     var data by remember { mutableStateOf<ImmutableList<DataPoint>>(emptyImmutableList()) }
+    var dataFiatCurrency by remember { mutableStateOf<FiatCurrency?>(null) }
     var isLoading by remember { mutableStateOf(true) }
+    var preservePreviousChartWhileLoading by remember { mutableStateOf(false) }
     var failedToLoad by remember { mutableStateOf(false) }
     var selectedType by remember { mutableStateOf(props.initialType) }
     val timeScalePreference by remember { timeScalePreference.selectedRange }.collectAsState()
     var selectedRange by remember { mutableStateOf(timeScalePreference) }
     var selectedPoint by remember { mutableStateOf<DataPoint?>(null) }
+    val rangeCaches = remember(fiatCurrency) {
+      ChartRangeCaches(
+        btc = mutableStateMapOf(),
+        balance = mutableStateMapOf()
+      )
+    }
+    val prefetchScope = rememberCoroutineScope()
+    val pointTickEvents = remember {
+      MutableSharedFlow<DataPoint>(
+        extraBufferCapacity = 32,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+      )
+    }
     var selectedPointData by remember { mutableStateOf<SelectedPointData?>(null) }
-    var selectedPointPeriodText by remember { mutableStateOf<String?>(null) }
-    var placeholderPointData by remember { mutableStateOf<SelectedPointData?>(null) }
-    val priceDirection = remember { mutableStateOf(PriceDirection.STABLE) }
     val latestExchangeRateFlow = remember {
       currencyConverter.convert(BitcoinMoney.btc(1.0), fiatCurrency, atTime = null)
     }
     val latestExchangeRate by latestExchangeRateFlow.collectAsState(null)
+    val selectedRangeLabel = stringResource(selectedRange.diffLabel)
     val selectedPointTimeText by remember {
       derivedStateOf {
         selectedPoint?.x?.let { timestamp ->
@@ -77,92 +93,68 @@ class BitcoinPriceChartUiStateMachineImpl(
         }
       }
     }
-    GenerateHapticFeedback(selectedPoint)
-    TrackTypeChangeEvent(selectedType)
-    LaunchedEffect(selectedRange) {
-      // clear data and reset state for new data range
-      failedToLoad = false
-      data = emptyImmutableList()
-    }
-    LaunchedEffect(selectedType, selectedRange, fiatCurrency) {
-      if (placeholderPointData != null && selectedType == ChartType.BTC_PRICE) {
-        // debounce data loading when changing selected history
-        delay(250.milliseconds)
-      }
 
-      when (selectedType) {
-        ChartType.BTC_PRICE ->
-          latestExchangeRateFlow
-            .map { chartDataFetcherService.getChartData(selectedRange) }
-        ChartType.BALANCE ->
-          balanceHistoryService.observe(selectedRange)
-      }.onEach { result ->
-        result
-          .onSuccess { chartData ->
-            selectedPointPeriodText = getString(selectedRange.diffLabel)
-            data = chartData.toImmutableList()
-          }
-          .onFailure {
-            failedToLoad = true
-          }
+    GenerateSelectionLifecycleHapticFeedback(selectedPoint)
+    GenerateChartPointTickHapticFeedback(pointTickEvents, haptics)
+    TrackTypeChangeEvent(selectedType)
+    ObserveRequestedChartData(
+      selectedType = selectedType,
+      selectedRange = selectedRange,
+      fiatCurrency = fiatCurrency,
+      latestExchangeRateFlow = latestExchangeRateFlow,
+      rangeCaches = rangeCaches,
+      onDataLoaded = { immutableChartData, loadedFiatCurrency ->
+        failedToLoad = false
+        data = immutableChartData
+        dataFiatCurrency = loadedFiatCurrency
+        preservePreviousChartWhileLoading = false
+      },
+      onLoadFailed = { hasCachedData ->
+        if (!hasCachedData) {
+          failedToLoad = true
+        }
+        preservePreviousChartWhileLoading = false
+      },
+      onLoadingFinished = {
         isLoading = false
-        placeholderPointData = null
-      }.launchIn(this)
-    }
-    val selectedRangeLabel = stringResource(selectedRange.diffLabel)
-    LaunchedEffect(data, selectedType, selectedRange, selectedPoint) {
-      val selectedYValue = selectedPoint?.y?.toBigDecimal()
-      if (isLoading) return@LaunchedEffect
-      selectedPointData = when (selectedType) {
-        ChartType.BTC_PRICE -> {
-          val pointValue = selectedYValue ?: latestExchangeRate?.value
-          SelectedPointData.BtcPrice(
-            isUserSelected = selectedPoint != null,
-            primaryText = pointValue?.let { value ->
-              moneyDisplayFormatter.format(FiatMoney(fiatCurrency, value))
-            }.orEmpty(),
-            secondaryText = formatSelectedDiffText(
-              data.firstOrNull()?.y,
-              pointValue?.doubleValue(false),
-              priceDirection
-            ).orEmpty(),
-            secondaryTimePeriodText = selectedPointPeriodText.orEmpty(),
-            direction = priceDirection.value
-          )
-        }
-        ChartType.BALANCE -> {
-          val selectedBalanceAt = selectedPoint as? BalanceAt
-          val startPoint = data.firstOrNull { it.y > 0.0 } as? BalanceAt
-          val endPoint = (selectedPoint ?: data.lastOrNull()) as? BalanceAt
-          val lastPoint = data.lastOrNull() as? BalanceAt
-          SelectedPointData.Balance(
-            isUserSelected = selectedPoint != null,
-            primaryFiatText = (selectedBalanceAt ?: lastPoint)?.run {
-              moneyDisplayFormatter.format(FiatMoney(fiatCurrency, fiatBalance.toBigDecimal()))
-            }.orEmpty(),
-            secondaryFiatText = formatSelectedDiffText(
-              startPoint?.fiatBalance,
-              lastPoint?.fiatBalance
-            )?.run { "$this $selectedRangeLabel" }
-              .orEmpty(),
-            primaryBtcText = endPoint
-              ?.run { moneyDisplayFormatter.format(BitcoinMoney.btc(balance)) }
-              .orEmpty(),
-            secondaryBtcText = formatSelectedDiffText(
-              startPoint?.balance,
-              lastPoint?.balance
-            )?.run { "$this $selectedRangeLabel" }
-              .orEmpty()
-          )
-        }
       }
-    }
+    )
+    PrefetchChartRanges(
+      selectedType = selectedType,
+      selectedRange = selectedRange,
+      fiatCurrency = fiatCurrency,
+      data = data,
+      dataFiatCurrency = dataFiatCurrency,
+      isLoading = isLoading,
+      failedToLoad = failedToLoad,
+      rangeCaches = rangeCaches,
+      prefetchScope = prefetchScope,
+      onSelectedRangePrefetched = { prefetchedData, prefetchedFiatCurrency ->
+        data = prefetchedData
+        dataFiatCurrency = prefetchedFiatCurrency
+        failedToLoad = false
+        preservePreviousChartWhileLoading = false
+        isLoading = false
+      }
+    )
+    UpdateSelectedPointData(
+      data = data,
+      dataFiatCurrency = dataFiatCurrency,
+      selectedType = selectedType,
+      selectedPoint = selectedPoint,
+      isLoading = isLoading,
+      latestExchangeRateValue = latestExchangeRate?.value,
+      fiatCurrency = fiatCurrency,
+      selectedRangeLabel = selectedRangeLabel,
+      onSelectedPointDataChange = { selectedPointData = it }
+    )
     return ScreenModel(
       body = BitcoinPriceDetailsBodyModel(
         data = data,
         range = selectedRange,
         type = selectedType,
         isLoading = isLoading,
+        preservePreviousChartWhileLoading = preservePreviousChartWhileLoading,
         selectedPoint = selectedPoint,
         selectedPointData = selectedPointData,
         selectedPointTimestamp = selectedPointTimeText,
@@ -174,23 +166,188 @@ class BitcoinPriceChartUiStateMachineImpl(
           formatValue(value, precise, fiatCurrency)
         },
         onChartTypeSelected = {
-          if (selectedType != it) {
-            placeholderPointData = selectedPointData
-            isLoading = true
-            selectedType = it
-          }
+          handleChartTypeSelected(
+            nextType = it,
+            currentType = selectedType,
+            selectedRange = selectedRange,
+            fiatCurrency = fiatCurrency,
+            currentData = data,
+            currentDataFiatCurrency = dataFiatCurrency,
+            rangeCaches = rangeCaches,
+            onDataChange = { updatedData -> data = updatedData },
+            onDataFiatCurrencyChange = {
+                updatedFiatCurrency ->
+              dataFiatCurrency = updatedFiatCurrency
+            },
+            onLoadingChange = { loading -> isLoading = loading },
+            onPreservePreviousChartWhileLoadingChange = {
+                preserve ->
+              preservePreviousChartWhileLoading = preserve
+            },
+            onFailedToLoadChange = { failed -> failedToLoad = failed },
+            onSelectedPointChange = { point -> selectedPoint = point },
+            onTypeChange = { type -> selectedType = type }
+          )
         },
         onChartRangeSelected = {
-          if (selectedRange != it) {
-            placeholderPointData = selectedPointData
-            isLoading = true
-            selectedRange = it
-          }
+          handleChartRangeSelected(
+            nextRange = it,
+            currentRange = selectedRange,
+            selectedType = selectedType,
+            fiatCurrency = fiatCurrency,
+            currentData = data,
+            currentDataFiatCurrency = dataFiatCurrency,
+            rangeCaches = rangeCaches,
+            onDataChange = { updatedData -> data = updatedData },
+            onDataFiatCurrencyChange = {
+                updatedFiatCurrency ->
+              dataFiatCurrency = updatedFiatCurrency
+            },
+            onLoadingChange = { loading -> isLoading = loading },
+            onPreservePreviousChartWhileLoadingChange = {
+                preserve ->
+              preservePreviousChartWhileLoading = preserve
+            },
+            onFailedToLoadChange = { failed -> failedToLoad = failed },
+            onSelectedPointChange = { point -> selectedPoint = point },
+            onRangeChange = { range -> selectedRange = range }
+          )
         },
-        onPointSelected = { selectedPoint = it },
+        onPointSelected = {
+          selectedPoint = it
+        },
+        onDisplayedPointSelected = { point ->
+          point?.let(pointTickEvents::tryEmit)
+        },
         onBack = props.onBack
       )
     )
+  }
+
+  @Composable
+  private fun ObserveRequestedChartData(
+    selectedType: ChartType,
+    selectedRange: ChartRange,
+    fiatCurrency: FiatCurrency,
+    latestExchangeRateFlow: Flow<*>,
+    rangeCaches: ChartRangeCaches,
+    onDataLoaded: (ImmutableList<DataPoint>, FiatCurrency) -> Unit,
+    onLoadFailed: (hasCachedData: Boolean) -> Unit,
+    onLoadingFinished: () -> Unit,
+  ) {
+    LaunchedEffect(selectedType, selectedRange, fiatCurrency) {
+      val requestedType = selectedType
+      val requestedRange = selectedRange
+      val requestedFiatCurrency = fiatCurrency
+      chartDataFlow(
+        type = requestedType,
+        range = requestedRange,
+        latestExchangeRateFlow = latestExchangeRateFlow
+      ).onEach { result ->
+        result
+          .onSuccess { chartData ->
+            val immutableChartData = chartData.toImmutableDataPoints()
+            rangeCaches.forType(requestedType)[requestedRange] = immutableChartData
+            onDataLoaded(immutableChartData, requestedFiatCurrency)
+          }
+          .onFailure {
+            onLoadFailed(rangeCaches.cachedData(requestedType, requestedRange) != null)
+          }
+        onLoadingFinished()
+      }.launchIn(this)
+    }
+  }
+
+  @Composable
+  private fun PrefetchChartRanges(
+    selectedType: ChartType,
+    selectedRange: ChartRange,
+    fiatCurrency: FiatCurrency,
+    data: ImmutableList<DataPoint>,
+    dataFiatCurrency: FiatCurrency?,
+    isLoading: Boolean,
+    failedToLoad: Boolean,
+    rangeCaches: ChartRangeCaches,
+    prefetchScope: CoroutineScope,
+    onSelectedRangePrefetched: (ImmutableList<DataPoint>, FiatCurrency) -> Unit,
+  ) {
+    val latestSelectedRequest by rememberUpdatedState(
+      ChartSelectionKey(
+        type = selectedType,
+        range = selectedRange,
+        fiatCurrency = fiatCurrency
+      )
+    )
+    val inFlightPrefetches = remember(fiatCurrency) { mutableSetOf<ChartRangeCacheKey>() }
+    LaunchedEffect(selectedType, selectedRange, fiatCurrency, data, dataFiatCurrency, isLoading, failedToLoad) {
+      val hasCurrentFiatData = data.isNotEmpty() && dataFiatCurrency == fiatCurrency
+      if (isLoading || failedToLoad || !hasCurrentFiatData) return@LaunchedEffect
+
+      val activeType = selectedType
+      val activeFiatCurrency = fiatCurrency
+      val activeCache = rangeCaches.forType(activeType)
+      activeCache[selectedRange] = data
+
+      ChartRange.entries
+        .filter { range -> range != selectedRange && activeCache[range] == null }
+        .forEach { range ->
+          val cacheKey = ChartRangeCacheKey(activeType, range)
+          if (!inFlightPrefetches.add(cacheKey)) return@forEach
+
+          prefetchScope.launch {
+            try {
+              loadChartData(
+                type = activeType,
+                range = range
+              )?.let { prefetchedData ->
+                activeCache[range] = prefetchedData
+                if (latestSelectedRequest == ChartSelectionKey(activeType, range, activeFiatCurrency)) {
+                  onSelectedRangePrefetched(prefetchedData, activeFiatCurrency)
+                }
+              }
+            } finally {
+              inFlightPrefetches.remove(cacheKey)
+            }
+          }
+        }
+    }
+  }
+
+  @Composable
+  private fun UpdateSelectedPointData(
+    data: ImmutableList<DataPoint>,
+    dataFiatCurrency: FiatCurrency?,
+    selectedType: ChartType,
+    selectedPoint: DataPoint?,
+    isLoading: Boolean,
+    latestExchangeRateValue: BigDecimal?,
+    fiatCurrency: FiatCurrency,
+    selectedRangeLabel: String,
+    onSelectedPointDataChange: (SelectedPointData?) -> Unit,
+  ) {
+    LaunchedEffect(
+      data,
+      dataFiatCurrency,
+      selectedType,
+      selectedPoint,
+      isLoading,
+      latestExchangeRateValue,
+      fiatCurrency,
+      selectedRangeLabel
+    ) {
+      val hasStaleFiatData = data.isNotEmpty() && dataFiatCurrency != null && dataFiatCurrency != fiatCurrency
+      if (isLoading || hasStaleFiatData) return@LaunchedEffect
+      onSelectedPointDataChange(
+        buildSelectedPointData(
+          data = data,
+          selectedType = selectedType,
+          selectedPoint = selectedPoint,
+          latestExchangeRateValue = latestExchangeRateValue,
+          fiatCurrency = fiatCurrency,
+          selectedRangeLabel = selectedRangeLabel
+        )
+      )
+    }
   }
 
   private fun formatValue(
@@ -211,6 +368,157 @@ class BitcoinPriceChartUiStateMachineImpl(
     )
   }
 
+  private suspend fun loadChartData(
+    type: ChartType,
+    range: ChartRange,
+  ): ImmutableList<DataPoint>? {
+    var prefetchedData: ImmutableList<DataPoint>? = null
+    return when (type) {
+      ChartType.BTC_PRICE -> {
+        chartDataFetcherService.getChartData(range)
+          .onSuccess { chartData -> prefetchedData = chartData.toImmutableDataPoints() }
+        prefetchedData
+      }
+      ChartType.BALANCE -> {
+        balanceHistoryService.observe(range)
+          .first()
+          .onSuccess { chartData -> prefetchedData = chartData.toImmutableDataPoints() }
+        prefetchedData
+      }
+    }
+  }
+
+  private fun chartDataFlow(
+    type: ChartType,
+    range: ChartRange,
+    latestExchangeRateFlow: Flow<*>,
+  ) = when (type) {
+    ChartType.BTC_PRICE ->
+      latestExchangeRateFlow
+        .map { chartDataFetcherService.getChartData(range) }
+
+    ChartType.BALANCE ->
+      balanceHistoryService.observe(range)
+  }
+
+  private fun buildSelectedPointData(
+    data: ImmutableList<DataPoint>,
+    selectedType: ChartType,
+    selectedPoint: DataPoint?,
+    latestExchangeRateValue: BigDecimal?,
+    fiatCurrency: FiatCurrency,
+    selectedRangeLabel: String,
+  ): SelectedPointData {
+    val selectedYValue = selectedPoint?.y?.toBigDecimal()
+    return when (selectedType) {
+      ChartType.BTC_PRICE -> {
+        val pointValue = selectedYValue ?: latestExchangeRateValue
+        val priceDiff = calculateDiffDecimal(data.firstOrNull()?.y, pointValue?.doubleValue(false))
+        val primaryMoney = pointValue?.let { value -> FiatMoney(fiatCurrency, value) }
+        SelectedPointData.BtcPrice(
+          isUserSelected = selectedPoint != null,
+          primaryText = primaryMoney?.let(moneyDisplayFormatter::format).orEmpty(),
+          primaryValue = primaryMoney?.toAnimatedAmountValue(),
+          secondaryText = formatSelectedDiffText(
+            data.firstOrNull()?.y,
+            pointValue?.doubleValue(false),
+            includePrefix = false
+          ).orEmpty(),
+          secondaryTimePeriodText = selectedRangeLabel,
+          direction = priceDiff?.let(PriceDirection::from) ?: PriceDirection.STABLE
+        )
+      }
+
+      ChartType.BALANCE -> {
+        val selectedBalanceAt = selectedPoint as? BalanceAt
+        val startPoint = data.firstOrNull { it.y > 0.0 } as? BalanceAt
+        val endPoint = (selectedPoint ?: data.lastOrNull()) as? BalanceAt
+        val lastPoint = data.lastOrNull() as? BalanceAt
+        val primaryFiatMoney = (selectedBalanceAt ?: lastPoint)?.run {
+          FiatMoney(fiatCurrency, fiatBalance.toBigDecimal())
+        }
+        val primaryBtcMoney = endPoint?.run { BitcoinMoney.btc(balance) }
+        SelectedPointData.Balance(
+          isUserSelected = selectedPoint != null,
+          primaryFiatText = primaryFiatMoney?.let(moneyDisplayFormatter::format).orEmpty(),
+          primaryFiatValue = primaryFiatMoney?.toAnimatedAmountValue(),
+          secondaryFiatText = formatSelectedDiffText(
+            startPoint?.fiatBalance,
+            lastPoint?.fiatBalance
+          )?.run { "$this $selectedRangeLabel" }
+            .orEmpty(),
+          primaryBtcText = primaryBtcMoney?.let(moneyDisplayFormatter::format).orEmpty(),
+          primaryBtcValue = primaryBtcMoney?.toAnimatedAmountValue(),
+          secondaryBtcText = formatSelectedDiffText(
+            startPoint?.balance,
+            lastPoint?.balance
+          )?.run { "$this $selectedRangeLabel" }
+            .orEmpty()
+        )
+      }
+    }
+  }
+
+  private fun handleChartTypeSelected(
+    nextType: ChartType,
+    currentType: ChartType,
+    selectedRange: ChartRange,
+    fiatCurrency: FiatCurrency,
+    currentData: ImmutableList<DataPoint>,
+    currentDataFiatCurrency: FiatCurrency?,
+    rangeCaches: ChartRangeCaches,
+    onDataChange: (ImmutableList<DataPoint>) -> Unit,
+    onDataFiatCurrencyChange: (FiatCurrency?) -> Unit,
+    onLoadingChange: (Boolean) -> Unit,
+    onPreservePreviousChartWhileLoadingChange: (Boolean) -> Unit,
+    onFailedToLoadChange: (Boolean) -> Unit,
+    onSelectedPointChange: (DataPoint?) -> Unit,
+    onTypeChange: (ChartType) -> Unit,
+  ) {
+    if (currentType == nextType) return
+
+    val cachedData = rangeCaches.cachedData(nextType, selectedRange)
+    onDataChange(cachedData ?: currentData)
+    onDataFiatCurrencyChange(
+      if (cachedData != null) fiatCurrency else currentDataFiatCurrency
+    )
+    onLoadingChange(cachedData == null)
+    onPreservePreviousChartWhileLoadingChange(false)
+    onFailedToLoadChange(false)
+    onSelectedPointChange(null)
+    onTypeChange(nextType)
+  }
+
+  private fun handleChartRangeSelected(
+    nextRange: ChartRange,
+    currentRange: ChartRange,
+    selectedType: ChartType,
+    fiatCurrency: FiatCurrency,
+    currentData: ImmutableList<DataPoint>,
+    currentDataFiatCurrency: FiatCurrency?,
+    rangeCaches: ChartRangeCaches,
+    onDataChange: (ImmutableList<DataPoint>) -> Unit,
+    onDataFiatCurrencyChange: (FiatCurrency?) -> Unit,
+    onLoadingChange: (Boolean) -> Unit,
+    onPreservePreviousChartWhileLoadingChange: (Boolean) -> Unit,
+    onFailedToLoadChange: (Boolean) -> Unit,
+    onSelectedPointChange: (DataPoint?) -> Unit,
+    onRangeChange: (ChartRange) -> Unit,
+  ) {
+    if (currentRange == nextRange) return
+
+    val cachedData = rangeCaches.cachedData(selectedType, nextRange)
+    onDataChange(cachedData ?: currentData)
+    onDataFiatCurrencyChange(
+      if (cachedData != null) fiatCurrency else currentDataFiatCurrency
+    )
+    onLoadingChange(cachedData == null)
+    onPreservePreviousChartWhileLoadingChange(cachedData == null && currentData.isNotEmpty())
+    onFailedToLoadChange(false)
+    onSelectedPointChange(null)
+    onRangeChange(nextRange)
+  }
+
   @Composable
   private fun TrackTypeChangeEvent(selectedType: ChartType) {
     LaunchedEffect(selectedType) {
@@ -226,10 +534,10 @@ class BitcoinPriceChartUiStateMachineImpl(
   }
 
   /**
-   * Track the current and previous selection provide haptics when selecting/deselecting
+   * Track selection start/stop separately from scrub-point crossings.
    */
   @Composable
-  private fun GenerateHapticFeedback(selectedPoint: DataPoint?) {
+  private fun GenerateSelectionLifecycleHapticFeedback(selectedPoint: DataPoint?) {
     var previouslySelectedPoint by remember { mutableStateOf<DataPoint?>(null) }
     LaunchedEffect(selectedPoint) {
       val selectionStartedOrStopped =
@@ -237,8 +545,6 @@ class BitcoinPriceChartUiStateMachineImpl(
           (selectedPoint != null && previouslySelectedPoint == null)
       if (selectionStartedOrStopped) {
         launch { haptics.vibrate(HapticsEffect.MediumClick) }
-      } else if (selectedPoint != null && previouslySelectedPoint != null) {
-        launch { haptics.vibrate(HapticsEffect.Selection) }
       }
 
       previouslySelectedPoint = selectedPoint
@@ -248,22 +554,26 @@ class BitcoinPriceChartUiStateMachineImpl(
   private fun formatSelectedDiffText(
     start: Double?,
     end: Double?,
-    priceDirection: MutableState<PriceDirection>? = null,
+    includePrefix: Boolean = true,
   ): String? {
-    val diffDecimal = when {
-      end == null -> return null
-      start == null || start == 0.0 -> end
-      else -> (end - start) / start * 100
-    }.let { BigDecimal.fromDouble(it, DecimalMode.US_CURRENCY) }
+    val diffDecimal = calculateDiffDecimal(start, end) ?: return null
     val prefix = when {
-      priceDirection != null -> {
-        priceDirection.value = PriceDirection.from(diffDecimal)
-        ""
-      }
+      !includePrefix -> ""
       diffDecimal.isZero() -> ""
       else -> if (diffDecimal.isPositive) "+" else "-"
     }
     return "$prefix${diffDecimal.abs().toPlainString()}%"
+  }
+
+  private fun calculateDiffDecimal(
+    start: Double?,
+    end: Double?,
+  ): BigDecimal? {
+    return when {
+      end == null -> null
+      start == null || start == 0.0 -> end
+      else -> (end - start) / start * 100
+    }?.let { BigDecimal.fromDouble(it, DecimalMode.US_CURRENCY) }
   }
 
   /**
@@ -296,4 +606,38 @@ class BitcoinPriceChartUiStateMachineImpl(
       -> dateTimeFormatter.longLocalDate(datetime.date)
     }
   }
+
+  private fun List<out DataPoint>.toImmutableDataPoints(): ImmutableList<DataPoint> {
+    return map { dataPoint -> dataPoint as DataPoint }.toImmutableList()
+  }
+
+  private data class ChartRangeCaches(
+    val btc: MutableMap<ChartRange, ImmutableList<DataPoint>>,
+    val balance: MutableMap<ChartRange, ImmutableList<DataPoint>>,
+  ) {
+    fun forType(type: ChartType): MutableMap<ChartRange, ImmutableList<DataPoint>> {
+      return when (type) {
+        ChartType.BTC_PRICE -> btc
+        ChartType.BALANCE -> balance
+      }
+    }
+
+    fun cachedData(
+      type: ChartType,
+      range: ChartRange,
+    ): ImmutableList<DataPoint>? {
+      return forType(type)[range]
+    }
+  }
+
+  private data class ChartRangeCacheKey(
+    val type: ChartType,
+    val range: ChartRange,
+  )
+
+  private data class ChartSelectionKey(
+    val type: ChartType,
+    val range: ChartRange,
+    val fiatCurrency: FiatCurrency,
+  )
 }

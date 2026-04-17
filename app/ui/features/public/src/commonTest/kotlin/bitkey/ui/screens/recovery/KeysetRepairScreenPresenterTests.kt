@@ -8,6 +8,8 @@ import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.cloud.backup.csek.SealedSsekFake
 import build.wallet.cloud.backup.csek.SsekDaoFake
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.nfc.NfcCommandsMock
 import build.wallet.recovery.keyset.KeysetRepairError
 import build.wallet.recovery.keyset.KeysetRepairState
@@ -48,6 +50,7 @@ class KeysetRepairScreenPresenterTests : FunSpec({
 
   val refreshAuthTokensUiStateMachine = object : RefreshAuthTokensUiStateMachine,
     ScreenStateMachineMock<RefreshAuthTokensProps>("refresh-auth-tokens") {}
+  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(FeatureFlagDaoFake())
 
   val presenter = SpendingKeysetRepairScreenPresenter(
     spendingKeysetRepairService = spendingKeysetRepairService,
@@ -57,7 +60,8 @@ class KeysetRepairScreenPresenterTests : FunSpec({
     sweepUiStateMachine = sweepUiStateMachine,
     sweepService = sweepService,
     ssekDao = ssekDao,
-    refreshAuthTokensUiStateMachine = refreshAuthTokensUiStateMachine
+    refreshAuthTokensUiStateMachine = refreshAuthTokensUiStateMachine,
+    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag
   )
 
   val screen = KeysetRepairScreen(

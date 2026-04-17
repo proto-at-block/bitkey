@@ -12,6 +12,7 @@ import build.wallet.amount.Amount.WholeNumber
 import build.wallet.amount.AmountCalculator
 import build.wallet.amount.DecimalNumberCreator
 import build.wallet.amount.DoubleFormatter
+import build.wallet.amount.KeypadButton
 import build.wallet.amount.KeypadButton.Decimal
 import build.wallet.amount.KeypadButton.Delete
 import build.wallet.amount.KeypadButton.Digit
@@ -145,6 +146,12 @@ class MoneyCalculatorUiStateMachineImpl(
 
               else -> Unit
             }
+          },
+          isButtonPressRejected = { keypadButton ->
+            enteredAmount.isRejectedAmountEntryButton(
+              button = keypadButton,
+              amountCalculator = amountCalculator
+            )
           }
         )
       }
@@ -169,6 +176,17 @@ class MoneyCalculatorUiStateMachineImpl(
           BitcoinDisplayUnit.Satoshi -> FRACTIONAL_UNIT
         }
     }
+}
+
+internal fun Amount.isRejectedAmountEntryButton(
+  button: KeypadButton,
+  amountCalculator: AmountCalculator,
+): Boolean {
+  return when (button) {
+    Delete -> amountCalculator.delete(this) == this
+    is Digit -> amountCalculator.add(this, button.value) == this
+    Decimal -> amountCalculator.decimal(this) == this
+  }
 }
 
 private enum class AmountDenomination {

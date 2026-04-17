@@ -10,6 +10,7 @@ class SweepGeneratorMock : SweepGenerator {
 
   override suspend fun generateSweep(
     keybox: Keybox,
+    sweepContext: SweepContext,
     context: SweepGenerationContext,
   ): Result<List<SweepPsbt>, SweepGeneratorError> {
     return generateSweepResult ?: Ok(listOf())

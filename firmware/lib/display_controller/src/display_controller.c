@@ -1,6 +1,7 @@
 #include "display_controller.h"
 
 #include "auth.h"
+#include "battery_rescale.h"
 #include "display_controller_internal.h"
 #include "log.h"
 #include "rtos.h"
@@ -39,7 +40,7 @@ static fwpb_display_result display_controller_send_command(const fwpb_display_co
   // Allocate protobuf message for UXC communication
   fwpb_uxc_msg_host* msg = uc_alloc_send_proto();
   if (!msg) {
-    LOGE("Failed to allocate UC proto message");
+    LOGE("UC proto alloc fail");
     return fwpb_display_result_DISPLAY_RESULT_ERROR;
   }
 
@@ -49,11 +50,12 @@ static fwpb_display_result display_controller_send_command(const fwpb_display_co
   // Copy the display command directly (it's already in protobuf format)
   memcpy(&msg->msg.display_cmd, cmd, sizeof(fwpb_display_command));
 
-  // Send the message over UART
-  bool success = uc_send(msg);
+  // Display transitions are latency-sensitive and can come in bursts during
+  // rapid UI navigation, so request an immediate ACK from the UXC.
+  bool success = uc_send_immediate(msg);
 
   if (!success) {
-    LOGE("Failed to send display command, which_params: %d", cmd->command.show_screen.which_params);
+    LOGE("Display cmd fail: %d", cmd->command.show_screen.which_params);
     return fwpb_display_result_DISPLAY_RESULT_ERROR;
   }
 
@@ -68,24 +70,27 @@ static fwpb_display_result display_controller_send_command(const fwpb_display_co
 // Forward declarations for static functions
 static void lock_device(void);
 static void unlock_device(void);
+static void mark_device_locked(void);
 static void enter_flow(flow_id_t flow, const void* entry_data, bool clear_nav_stack);
 static void handle_flow_action_result(flow_action_result_t result);
 static void refresh_screen(void);
+static bool display_controller_menu_item_visible(fwpb_display_menu_item item);
 
 // Global controller instance
 display_controller_t UI_TASK_DATA controller = {
   .is_locked = true,  // Start locked
   .current_flow = FLOW_ONBOARDING,
+  .menu_root_return_flow = FLOW_SCAN,
   .show_screen.which_params = fwpb_display_show_screen_onboarding_tag,
   .nav_stack_depth = 0,
 };
 
 // Display flags sent with every show_screen command
-static SHARED_TASK_DATA uint32_t s_display_flags = 0;
+static SHARED_TASK_DATA uint32_t s_display_flags = fwpb_display_flag_DISPLAY_FLAG_ROTATE_180;
 
 void display_controller_query_fingerprint_status(void) {
 #ifdef EMBEDDED_BUILD
-  static SHARED_TASK_DATA auth_get_enrolled_fingerprints_internal_t cmd;
+  static SHARED_TASK_BSS auth_get_enrolled_fingerprints_internal_t cmd;
 
   ipc_send(auth_port, &cmd, sizeof(cmd), IPC_AUTH_GET_ENROLLED_FINGERPRINTS_INTERNAL);
 #endif
@@ -93,7 +98,7 @@ void display_controller_query_fingerprint_status(void) {
 
 static void display_controller_delete_fingerprint(uint8_t index) {
 #ifdef EMBEDDED_BUILD
-  static SHARED_TASK_DATA auth_delete_fingerprint_internal_t cmd;
+  static SHARED_TASK_BSS auth_delete_fingerprint_internal_t cmd;
   cmd.index = index;
 
   ipc_send(auth_port, &cmd, sizeof(cmd), IPC_AUTH_DELETE_FINGERPRINT_INTERNAL);
@@ -168,6 +173,7 @@ static const flow_handler_t fingerprint_menu_handler = {
   .on_action = display_controller_fingerprint_menu_on_action,
 };
 
+#ifdef MFGTEST
 static const flow_handler_t mfg_handler = {
   .on_enter = display_controller_mfg_on_enter,
   .on_exit = display_controller_mfg_on_exit,
@@ -175,6 +181,7 @@ static const flow_handler_t mfg_handler = {
   .on_event = display_controller_mfg_on_event,
   .on_action = display_controller_mfg_on_action,
 };
+#endif
 
 static const flow_handler_t locked_handler = {
   .on_enter = display_controller_locked_on_enter,
@@ -192,6 +199,38 @@ static const flow_handler_t privileged_action_handler = {
   .on_action = display_controller_privileged_action_on_action,
 };
 
+static const flow_handler_t confirmation_handler = {
+  .on_enter = display_controller_confirmation_on_enter,
+  .on_exit = display_controller_confirmation_on_exit,
+  .on_tick = display_controller_confirmation_on_tick,
+  .on_event = display_controller_confirmation_on_event,
+  .on_action = display_controller_confirmation_on_action,
+};
+
+static const flow_handler_t onboarding_complete_handler = {
+  .on_enter = display_controller_onboarding_complete_on_enter,
+  .on_exit = display_controller_onboarding_complete_on_exit,
+  .on_tick = display_controller_onboarding_complete_on_tick,
+  .on_event = NULL,
+  .on_action = display_controller_onboarding_complete_on_action,
+};
+
+static const flow_handler_t game_handler = {
+  .on_enter = display_controller_game_on_enter,
+  .on_exit = display_controller_game_on_exit,
+  .on_tick = display_controller_game_on_tick,
+  .on_event = NULL,
+  .on_action = display_controller_game_on_action,
+};
+
+static const flow_handler_t power_off_handler = {
+  .on_enter = display_controller_power_off_on_enter,
+  .on_exit = display_controller_power_off_on_exit,
+  .on_tick = display_controller_power_off_on_tick,
+  .on_event = display_controller_power_off_on_event,
+  .on_action = display_controller_power_off_on_action,
+};
+
 // Array mapping flow IDs to flow handlers
 static const flow_handler_t* flow_handlers[FLOW_COUNT] = {
   [FLOW_SCAN] = &scan_handler,
@@ -207,7 +246,13 @@ static const flow_handler_t* flow_handlers[FLOW_COUNT] = {
   [FLOW_PRIVILEGED_ACTIONS] = &privileged_action_handler,
   [FLOW_BRIGHTNESS] = &brightness_handler,
   [FLOW_INFO] = &info_handler,
+#ifdef MFGTEST
   [FLOW_MFG] = &mfg_handler,
+#endif
+  [FLOW_CONFIRMATION] = &confirmation_handler,
+  [FLOW_ONBOARDING_COMPLETE] = &onboarding_complete_handler,
+  [FLOW_GAME] = &game_handler,
+  [FLOW_POWER_OFF] = &power_off_handler,
 };
 
 // Returns true if we have a valid active flow (safe to access flow_handlers)
@@ -215,9 +260,117 @@ static inline bool in_flow(void) {
   return controller.current_flow < FLOW_COUNT;
 }
 
+// The power-off screen is terminal. Ignore subsequent interactions until sysinfo
+// finishes powering down or resets the device.
+static inline bool power_off_screen_active(void) {
+  return controller.current_flow == FLOW_POWER_OFF;
+}
+
+static inline bool onboarding_complete_terminal_active(void) {
+  return controller.current_flow == FLOW_ONBOARDING_COMPLETE;
+}
+
+static bool onboarding_complete_allows_ui_event(ui_event_type_t event) {
+  switch (event) {
+    case UI_EVENT_SET_DEVICE_INFO:
+    case UI_EVENT_POWER_OFF:
+    case UI_EVENT_BATTERY_SOC:
+    case UI_EVENT_CHARGING:
+    case UI_EVENT_CHARGING_FINISHED:
+    case UI_EVENT_CHARGING_FINISHED_PERSISTENT:
+    case UI_EVENT_CHARGING_UNPLUGGED:
+      return true;
+    default:
+      return false;
+  }
+}
+
 // Returns true if in a flow and accepting user input
 static inline bool accepting_input(void) {
   return !controller.is_locked && in_flow();
+}
+
+static bool display_controller_root_menu_returns_to_onboarding(void) {
+  return controller.current_flow == FLOW_MENU && controller.nav_stack_depth == 0 &&
+         controller.menu_root_return_flow == FLOW_ONBOARDING;
+}
+
+static bool display_controller_in_onboarding_owned_menu_session(void) {
+  if (controller.menu_root_return_flow != FLOW_ONBOARDING) {
+    return false;
+  }
+
+  if (controller.current_flow == FLOW_MENU) {
+    return true;
+  }
+
+  for (uint8_t i = 0; i < controller.nav_stack_depth; i++) {
+    if (controller.nav_stack[i].flow == FLOW_MENU) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+static void display_controller_begin_root_menu_session(flow_id_t origin_flow) {
+  controller.menu_root_return_flow = (origin_flow == FLOW_ONBOARDING) ? FLOW_ONBOARDING : FLOW_SCAN;
+}
+
+static bool display_controller_in_pre_onboarding_context(void) {
+  return controller.current_flow == FLOW_ONBOARDING ||
+         display_controller_in_onboarding_owned_menu_session();
+}
+
+static bool display_controller_menu_item_visible(fwpb_display_menu_item item) {
+  switch (item) {
+    case fwpb_display_menu_item_DISPLAY_MENU_ITEM_LOCK_DEVICE:
+      return display_controller_menu_show_lock_device();
+    case fwpb_display_menu_item_DISPLAY_MENU_ITEM_FINGERPRINTS:
+      return display_controller_menu_show_fingerprints();
+    case fwpb_display_menu_item_DISPLAY_MENU_ITEM_BACK:
+    case fwpb_display_menu_item_DISPLAY_MENU_ITEM_REGULATORY:
+      return false;
+    default:
+      return true;
+  }
+}
+
+static bool post_onboarding_menu_item_visible(void) {
+  if (display_controller_root_menu_returns_to_onboarding()) {
+    return false;
+  }
+
+  return onboarding_complete() == SECURE_TRUE;
+}
+
+bool display_controller_menu_show_lock_device(void) {
+  return post_onboarding_menu_item_visible();
+}
+
+bool display_controller_menu_show_fingerprints(void) {
+  return post_onboarding_menu_item_visible();
+}
+
+fwpb_display_menu_item display_controller_default_root_menu_selection(void) {
+  if (display_controller_menu_show_lock_device()) {
+    return fwpb_display_menu_item_DISPLAY_MENU_ITEM_LOCK_DEVICE;
+  }
+
+  return fwpb_display_menu_item_DISPLAY_MENU_ITEM_BRIGHTNESS;
+}
+
+fwpb_display_menu_item display_controller_normalize_menu_selection(
+  fwpb_display_menu_item selected_item) {
+  if (display_controller_menu_item_visible(selected_item)) {
+    return selected_item;
+  }
+
+  return display_controller_default_root_menu_selection();
+}
+
+bool display_controller_lock_device_action_supported(void) {
+  return !display_controller_in_pre_onboarding_context() && onboarding_complete() == SECURE_TRUE;
 }
 
 void display_controller_init(void) {
@@ -225,9 +378,15 @@ void display_controller_init(void) {
   controller.is_locked = true;
   // Initialize battery state (will be updated via UI_EVENT_BATTERY_SOC)
   controller.battery_percent = 0;
+  controller.battery_percent_raw = 0;
   controller.is_charging = false;
-  // Initialize brightness (will be updated via UI_EVENT_SET_DEVICE_INFO)
-  controller.show_screen.brightness_percent = 0;
+  controller.menu_root_return_flow = FLOW_SCAN;
+  controller.onboarding_resume_at_scan = false;
+  controller.scan_confirm_on_enter = false;
+  controller.scan_confirm_cancel_returns_to_onboarding = false;
+  battery_rescale_init(&controller.battery_rescale_state);
+  // Initialize brightness to default (will be updated via UI_EVENT_SET_DEVICE_INFO)
+  controller.show_screen.brightness_percent = 80;
 
 #ifdef EMBEDDED_BUILD
   // Wait for filesystem to be ready before checking onboarding status
@@ -264,16 +423,31 @@ void display_controller_tick(void) {
 }
 
 void display_controller_show_initial_screen(void) {
+  controller.uxc_ready = true;
+
+  // Defer the initial screen until device info has been received,
+  // so that brightness (and other settings) are correct from the start.
+  if (!controller.has_device_info) {
+    return;
+  }
+
   controller.initial_screen_shown = true;
   refresh_screen();
 }
 
 void display_controller_handle_ui_event(ui_event_type_t event, const void* data, uint32_t len) {
+  if (power_off_screen_active() && event != UI_EVENT_POWER_OFF &&
+      event != UI_EVENT_SET_DEVICE_INFO) {
+    return;
+  }
+
+  if (onboarding_complete_terminal_active() && !onboarding_complete_allows_ui_event(event)) {
+    return;
+  }
+
   switch (event) {
     case UI_EVENT_BUTTON: {
       if (data && len == sizeof(button_event_payload_t)) {
-        const button_event_payload_t* button_event = (const button_event_payload_t*)data;
-        LOGD("Button event: type=%d button=%d", button_event->type, button_event->button);
         // Touch-only UI - buttons not used for navigation
       }
       break;
@@ -284,32 +458,6 @@ void display_controller_handle_ui_event(ui_event_type_t event, const void* data,
         unlock_device();
       }
 
-      // If we're in the fingerprints menu and have template index data, trigger animation
-      if (controller.current_flow == FLOW_FINGERPRINTS_MENU && data &&
-          len == sizeof(fingerprint_auth_data_t)) {
-        const fingerprint_auth_data_t* auth_data = (const fingerprint_auth_data_t*)data;
-
-        if (auth_data->template_index < 3) {
-          LOGD("Fingerprint %d authenticated - triggering animation", auth_data->template_index);
-
-          // Store which fingerprint to animate and trigger it
-          controller.nav.fingerprint_menu.authenticated_index = auth_data->template_index;
-          controller.nav.fingerprint_menu.show_authenticated = true;
-
-          // Update params with animation flags
-          controller.show_screen.params.menu_fingerprints.show_authenticated = true;
-          controller.show_screen.params.menu_fingerprints.authenticated_index =
-            auth_data->template_index;
-
-          // Trigger a screen refresh to show the animation
-          display_controller_show_screen(
-            &controller, fwpb_display_show_screen_menu_fingerprints_tag,
-            fwpb_display_transition_DISPLAY_TRANSITION_NONE, TRANSITION_DURATION_NONE);
-
-          // Clear the flag after showing (one-shot trigger like bounce)
-          controller.nav.fingerprint_menu.show_authenticated = false;
-        }
-      }
       break;
     }
 
@@ -336,6 +484,13 @@ void display_controller_handle_ui_event(ui_event_type_t event, const void* data,
 
         // Set brightness
         controller.show_screen.brightness_percent = info->brightness_percent;
+
+        // If the UXC was ready before device info arrived, show the
+        // initial screen now that we have the correct brightness.
+        if (controller.uxc_ready && !controller.initial_screen_shown) {
+          controller.initial_screen_shown = true;
+          refresh_screen();
+        }
       }
       break;
     }
@@ -343,12 +498,19 @@ void display_controller_handle_ui_event(ui_event_type_t event, const void* data,
     case UI_EVENT_ENROLLMENT_START: {
       // Prevents resetting the page when enrollment is triggered internally
       if (controller.current_flow != FLOW_FINGERPRINT_MGMT) {
+        controller.fingerprint_enrollment_is_required =
+          display_controller_in_pre_onboarding_context();
         enter_flow(FLOW_FINGERPRINT_MGMT, NULL, false);
       }
       break;
     }
 
     case UI_EVENT_ENROLLMENT_COMPLETE: {
+      if (controller.current_flow == FLOW_FINGERPRINT_MGMT &&
+          controller.fingerprint_enrollment_is_required) {
+        controller.onboarding_complete_pending = true;
+      }
+
       // Query updated fingerprint enrollment status after completion
       if (controller.current_flow == FLOW_FINGERPRINT_MGMT) {
         display_controller_query_fingerprint_status();
@@ -375,10 +537,6 @@ void display_controller_handle_ui_event(ui_event_type_t event, const void* data,
             controller.fingerprint_labels[idx][31] = '\0';
           }
         }
-
-        LOGD("Updated fingerprint status: %d enrolled, array: [%d, %d, %d]", response->count,
-             controller.fingerprint_enrolled[0], controller.fingerprint_enrolled[1],
-             controller.fingerprint_enrolled[2]);
       }
       break;
     }
@@ -393,14 +551,18 @@ void display_controller_handle_ui_event(ui_event_type_t event, const void* data,
     }
 
     case UI_EVENT_SHOW_MENU: {
+      if (controller.current_flow != FLOW_MENU && controller.nav_stack_depth == 0) {
+        display_controller_begin_root_menu_session(controller.current_flow);
+      }
       enter_flow(FLOW_MENU, NULL, false);
       break;
     }
 
     case UI_EVENT_START_SEND_TRANSACTION: {
       if (!controller.is_locked && data && len == sizeof(send_transaction_data_t)) {
+        const send_transaction_data_t* send_data = (const send_transaction_data_t*)data;
         flow_transaction_entry_data_t entry = {
-          .is_receive_flow = false,
+          .flow = send_data->flow,  // SEND or SELF_SEND
         };
         memcpy(&entry.data.send, data, sizeof(send_transaction_data_t));
         enter_flow(FLOW_TRANSACTION, &entry, true);
@@ -411,7 +573,7 @@ void display_controller_handle_ui_event(ui_event_type_t event, const void* data,
     case UI_EVENT_START_RECEIVE_TRANSACTION: {
       if (!controller.is_locked && data && len == sizeof(receive_transaction_data_t)) {
         flow_transaction_entry_data_t entry = {
-          .is_receive_flow = true,
+          .flow = fwpb_money_movement_flow_MONEY_MOVEMENT_FLOW_RECEIVE,
         };
         memcpy(&entry.data.receive, data, sizeof(receive_transaction_data_t));
         enter_flow(FLOW_TRANSACTION, &entry, true);
@@ -426,35 +588,66 @@ void display_controller_handle_ui_event(ui_event_type_t event, const void* data,
       break;
     }
 
+    case UI_EVENT_SHOW_CONFIRMATION: {
+      if (!controller.is_locked && data && len == sizeof(fwpb_display_params_confirmation)) {
+        enter_flow(FLOW_CONFIRMATION, data, true);
+      }
+      break;
+    }
+
+    case UI_EVENT_SHOW_ONBOARDING_COMPLETE: {
+      if (display_controller_in_pre_onboarding_context() ||
+          controller.onboarding_complete_pending) {
+        controller.onboarding_complete_pending = false;
+        mark_device_locked();
+        enter_flow(FLOW_ONBOARDING_COMPLETE, NULL, true);
+      }
+      break;
+    }
+
     case UI_EVENT_POWER_OFF:
-      controller.current_flow = FLOW_COUNT;
+      memset(&controller.show_screen.params, 0, sizeof(controller.show_screen.params));
+      controller.current_flow = FLOW_POWER_OFF;
+      display_controller_power_off_on_enter(&controller, NULL);
       display_controller_show_screen(&controller, fwpb_display_show_screen_power_off_tag,
                                      fwpb_display_transition_DISPLAY_TRANSITION_NONE,
                                      TRANSITION_DURATION_NONE);
       break;
 
-    case UI_EVENT_BATTERY_SOC:
-      // 'break' intentionally omitted.
-    case UI_EVENT_CHARGING:
-      // 'break' intentionally omitted.
-    case UI_EVENT_CHARGING_FINISHED:
-      // 'break' intentionally omitted.
-    case UI_EVENT_CHARGING_FINISHED_PERSISTENT:
-      // 'break' intentionally omitted.
-    case UI_EVENT_CHARGING_UNPLUGGED: {
-      // Update global state first
-      if (event == UI_EVENT_BATTERY_SOC && data && len == sizeof(battery_soc_data_t)) {
+    case UI_EVENT_BATTERY_SOC: {
+      if (data && len == sizeof(battery_soc_data_t)) {
         const battery_soc_data_t* battery = (const battery_soc_data_t*)data;
-        controller.battery_percent = battery->battery_percent;
-      } else if (event == UI_EVENT_CHARGING) {
-        controller.is_charging = true;
-      } else if (event == UI_EVENT_CHARGING_UNPLUGGED) {
-        controller.is_charging = false;
+        controller.battery_percent_raw = battery->battery_percent;
+        controller.battery_percent = battery_rescale_get_display_percent(
+          &controller.battery_rescale_state, battery->battery_percent);
       }
-
       break;
     }
 
+    case UI_EVENT_CHARGING: {
+      controller.is_charging = true;
+      battery_rescale_on_charging_started(&controller.battery_rescale_state);
+      break;
+    }
+    case UI_EVENT_CHARGING_FINISHED:
+      // 'break' intentionally omitted.
+    case UI_EVENT_CHARGING_FINISHED_PERSISTENT: {
+      controller.is_charging = true;
+      controller.battery_percent = battery_rescale_on_charging_complete(
+        &controller.battery_rescale_state, controller.battery_percent_raw);
+      break;
+    }
+
+    case UI_EVENT_CHARGING_UNPLUGGED: {
+      controller.is_charging = false;
+      battery_rescale_on_unplugged(&controller.battery_rescale_state,
+                                   controller.battery_percent_raw);
+      controller.battery_percent = battery_rescale_get_display_percent(
+        &controller.battery_rescale_state, controller.battery_percent_raw);
+      break;
+    }
+
+#ifdef MFGTEST
     case UI_EVENT_MFGTEST_SHOW_SCREEN: {
       // Enter MFG flow if not already in it, passing payload as entry_data
       if (!in_flow() || controller.current_flow != FLOW_MFG) {
@@ -462,6 +655,7 @@ void display_controller_handle_ui_event(ui_event_type_t event, const void* data,
       }
       break;
     }
+#endif
 
     case UI_EVENT_CAPTOUCH: {
 #ifdef MFGTEST
@@ -494,14 +688,26 @@ void display_controller_handle_ui_event(ui_event_type_t event, const void* data,
 // ========================================================================
 
 static void lock_device(void) {
+  mark_device_locked();
+  enter_flow(FLOW_LOCKED, NULL, true);  // clear nav stack
+}
+
+static void mark_device_locked(void) {
   controller.is_locked = true;
 
-  // Reset menu state when locking
-  controller.nav.menu.selected_item =
-    fwpb_display_menu_item_DISPLAY_MENU_ITEM_LOCK_DEVICE;  // Default to Lock Device
-  controller.nav.fingerprint_menu.selected_item = 0;       // Reset fingerprint menu too
+  // Clear authentication state - critical for security!
+  // Use "without animation" since the caller handles the screen transition.
+  // This also avoids a circular callback: deauthenticate -> on_lock -> UI_EVENT_AUTH_LOCKED.
+  // Guard with is_authenticated() to avoid redundant deauth work when called from auth-driven
+  // lock events where auth already expired.
+#ifdef EMBEDDED_BUILD
+  if (is_authenticated() == SECURE_TRUE) {
+    deauthenticate_without_animation();
+  }
+#endif
 
-  enter_flow(FLOW_LOCKED, NULL, true);  // clear nav stack
+  controller.nav.menu.selected_item = fwpb_display_menu_item_DISPLAY_MENU_ITEM_LOCK_DEVICE;
+  controller.nav.fingerprint_menu.selected_item = 0;
 }
 
 static void unlock_device(void) {
@@ -521,7 +727,6 @@ static void enter_flow(flow_id_t flow, const void* entry_data, bool clear_nav_st
   // Clear navigation stack if requested (phone-driven flows)
   if (clear_nav_stack) {
     controller.nav_stack_depth = 0;
-    LOGD("Clearing nav stack: flow %d -> flow %d", controller.current_flow, flow);
   } else {
     // Push to stack when leaving menu/fingerprints menu for sub-flows
     if ((controller.current_flow == FLOW_MENU && flow != FLOW_MENU) ||
@@ -539,8 +744,6 @@ static void enter_flow(flow_id_t flow, const void* entry_data, bool clear_nav_st
             controller.nav.fingerprint_menu.selected_item;
         }
 
-        LOGD("Nav stack push: depth=%d, from_flow=%d, to_flow=%d", controller.nav_stack_depth,
-             controller.current_flow, flow);
         controller.nav_stack_depth++;
       }
     }
@@ -552,9 +755,9 @@ static void enter_flow(flow_id_t flow, const void* entry_data, bool clear_nav_st
   // Clear params before entering new flow
   memset(&controller.show_screen.params, 0, sizeof(controller.show_screen.params));
 
-  // Reset menu selection when entering from scan (not from sub-flow)
-  if (flow == FLOW_MENU && previous_flow == FLOW_SCAN) {
-    controller.nav.menu.selected_item = fwpb_display_menu_item_DISPLAY_MENU_ITEM_LOCK_DEVICE;
+  // Reset menu selection when entering from a root flow (not from sub-flow)
+  if (flow == FLOW_MENU && (previous_flow == FLOW_SCAN || previous_flow == FLOW_ONBOARDING)) {
+    controller.nav.menu.selected_item = display_controller_default_root_menu_selection();
   }
 
   // Initialize flow state via on_enter handler
@@ -583,6 +786,14 @@ static void handle_flow_action_result(flow_action_result_t result) {
     }
 
     case FLOW_RESULT_EXIT_FLOW: {
+      if (!controller.is_locked && controller.current_flow == FLOW_FINGERPRINT_MGMT &&
+          controller.fingerprint_enrollment_is_required) {
+        controller.scan_confirm_on_enter = true;
+        controller.scan_confirm_cancel_returns_to_onboarding = true;
+        enter_flow(FLOW_SCAN, NULL, true);
+        break;
+      }
+
       // Exit current flow and return to caller (or idle state if no caller)
       // Pop nav stack and restore previous flow
       if (controller.nav_stack_depth > 0) {
@@ -593,19 +804,24 @@ static void handle_flow_action_result(flow_action_result_t result) {
         if (return_flow == FLOW_MENU) {
           controller.nav.menu.selected_item =
             controller.nav_stack[controller.nav_stack_depth].saved_selection;
-          LOGD("Restored menu selection to %d (exiting flow, stack depth was %d)",
-               controller.nav.menu.selected_item, controller.nav_stack_depth + 1);
         } else if (return_flow == FLOW_FINGERPRINTS_MENU) {
           controller.nav.fingerprint_menu.selected_item =
             controller.nav_stack[controller.nav_stack_depth].saved_selection;
-          LOGD("Restored fingerprint menu selection to %d (exiting flow, stack depth was %d)",
-               controller.nav.fingerprint_menu.selected_item, controller.nav_stack_depth + 1);
         }
 
         enter_flow(return_flow, NULL, false);
       } else {
         // No caller on stack, return to idle state
-        enter_flow(controller.is_locked ? FLOW_LOCKED : FLOW_SCAN, NULL, false);
+        flow_id_t return_flow = controller.is_locked ? FLOW_LOCKED : FLOW_SCAN;
+
+        if (!controller.is_locked && controller.current_flow == FLOW_MENU) {
+          return_flow = controller.menu_root_return_flow;
+          if (return_flow == FLOW_ONBOARDING) {
+            controller.onboarding_resume_at_scan = true;
+          }
+        }
+
+        enter_flow(return_flow, NULL, true);
       }
       break;
     }
@@ -623,23 +839,26 @@ static void handle_flow_action_result(flow_action_result_t result) {
         controller.nav_stack_depth--;
         // Restore selection from popped entry
         if (result.target_flow == FLOW_MENU) {
-          uint8_t old_selection = controller.nav.menu.selected_item;
           controller.nav.menu.selected_item =
             controller.nav_stack[controller.nav_stack_depth].saved_selection;
-          LOGD("Restored menu selection from %d to %d (stack depth was %d)", old_selection,
-               controller.nav.menu.selected_item, controller.nav_stack_depth + 1);
         } else if (result.target_flow == FLOW_FINGERPRINTS_MENU) {
-          uint8_t old_selection = controller.nav.fingerprint_menu.selected_item;
           controller.nav.fingerprint_menu.selected_item =
             controller.nav_stack[controller.nav_stack_depth].saved_selection;
-          LOGD("Restored fingerprint menu selection from %d to %d (stack depth was %d)",
-               old_selection, controller.nav.fingerprint_menu.selected_item,
-               controller.nav_stack_depth + 1);
         }
+      }
+
+      if (result.target_flow == FLOW_MENU && controller.current_flow != FLOW_MENU &&
+          controller.nav_stack_depth == 0) {
+        display_controller_begin_root_menu_session(controller.current_flow);
       }
 
       // Enter new flow with provided data
       enter_flow(result.target_flow, entry_data, false);
+      break;
+    }
+
+    case FLOW_RESULT_LOCK: {
+      lock_device();
       break;
     }
   }
@@ -650,7 +869,7 @@ static void handle_flow_action_result(flow_action_result_t result) {
 void flow_update_current_screen(display_controller_t* controller,
                                 fwpb_display_transition transition, uint32_t duration_ms) {
   if (!in_flow()) {
-    LOGE("Attempted to update screen outside of flow");
+    LOGE("Screen update outside flow");
     return;
   }
 
@@ -693,34 +912,33 @@ void display_controller_show_screen(display_controller_t* ctrl, pb_size_t params
       // Always valid to enter the power off screen.
       valid_state = true;
       break;
+    case fwpb_display_show_screen_onboarding_complete_tag:
+      // This terminal screen is allowed to render while the controller is
+      // otherwise treating the device as locked.
+      valid_state = ctrl->current_flow == FLOW_ONBOARDING_COMPLETE;
+      break;
     case fwpb_display_show_screen_mfg_tag:
       // Manufacturing screen can be shown directly
       valid_state = true;
       break;
-    case fwpb_display_show_screen_test_gesture_tag:
-    case fwpb_display_show_screen_test_scroll_tag:
-    case fwpb_display_show_screen_test_pin_pad_tag:
-    case fwpb_display_show_screen_test_carousel_tag:
-    case fwpb_display_show_screen_test_slider_tag:
-    case fwpb_display_show_screen_test_progress_tag:
+#ifdef MFGTEST
+    case fwpb_display_show_screen_touch_debug_tag:
       // Test screens can be shown from any state
       valid_state = true;
       break;
+#endif
     default:
       // All other screens require being in a flow and accepting input
       valid_state = accepting_input();
       if (!valid_state) {
-        LOGE(
-          "Trying to show screen %lu but not accepting_input() (is_locked=%d, in_flow=%d, "
-          "current_flow=%d)",
-          (unsigned long)params_tag, ctrl->is_locked, in_flow(), ctrl->current_flow);
+        LOGE("Screen %lu reject", (unsigned long)params_tag);
       }
       break;
   }
 
   // If invalid state, log detailed error and return
   if (!valid_state) {
-    LOGE("BLOCKED: Invalid state for screen %lu", (unsigned long)params_tag);
+    LOGE("Blocked screen %lu", (unsigned long)params_tag);
     return;
   }
 
@@ -731,7 +949,7 @@ void display_controller_show_screen(display_controller_t* ctrl, pb_size_t params
   ctrl->show_screen.duration_ms = duration_ms;
   // Note: which_params is already set by the caller
 
-  // Set display flags (includes rotation setting from board_id)
+  // Set display flags (includes rotation)
   ctrl->show_screen.flags = s_display_flags;
 
   // Create command with the full show_screen struct
@@ -747,6 +965,18 @@ void display_controller_set_rotation(bool rotate_180) {
   } else {
     s_display_flags &= ~fwpb_display_flag_DISPLAY_FLAG_ROTATE_180;
   }
+}
+
+void display_controller_debug_show_confirm_scan(void) {
+  if (controller.is_locked) {
+    unlock_device();
+  }
+  controller.show_screen.which_params = fwpb_display_show_screen_scan_tag;
+  controller.show_screen.params.scan.action =
+    fwpb_display_params_scan_display_params_scan_action_CONFIRM;
+  controller.show_screen.params.scan.show_error = false;
+  display_controller_show_screen(&controller, fwpb_display_show_screen_scan_tag,
+                                 fwpb_display_transition_DISPLAY_TRANSITION_NONE, 0);
 }
 
 // ========================================================================
@@ -802,6 +1032,14 @@ void display_controller_handle_action_menu(void) {
 }
 
 void display_controller_handle_action_lock_device(void) {
+  if (power_off_screen_active()) {
+    return;
+  }
+
+  if (!display_controller_lock_device_action_supported()) {
+    return;
+  }
+
   lock_device();
 }
 
@@ -815,20 +1053,21 @@ void display_controller_handle_action_power_off(void) {
 }
 
 void display_controller_handle_action_start_enrollment(void) {
-  LOGI("handle_action_start_enrollment: current_flow=%d", controller.current_flow);
+  if (power_off_screen_active()) {
+    return;
+  }
+
   if (controller.current_flow != FLOW_FINGERPRINT_MGMT) {
-    LOGI("Not in FINGERPRINT_MGMT flow, entering it");
+    controller.fingerprint_enrollment_is_required = display_controller_in_pre_onboarding_context();
     enter_flow(FLOW_FINGERPRINT_MGMT, NULL, false);
   } else {
-    LOGI("Already in FINGERPRINT_MGMT flow, triggering enrollment");
-
 #ifdef EMBEDDED_BUILD
     // Trigger actual biometric enrollment via auth task
-    static SHARED_TASK_DATA auth_start_fingerprint_enrollment_internal_t cmd;
+    static SHARED_TASK_BSS auth_start_fingerprint_enrollment_internal_t cmd;
     cmd.index = controller.nav.fingerprint.slot_index;
-    snprintf(cmd.label, sizeof(cmd.label), "Fingerprint %d", cmd.index + 1);
+    (void)snprintf(cmd.label, sizeof(cmd.label), "Fingerprint %u", (unsigned)cmd.index + 1u);
+
     ipc_send(auth_port, &cmd, sizeof(cmd), IPC_AUTH_START_FINGERPRINT_ENROLLMENT_INTERNAL);
-    LOGI("Sent IPC to start enrollment at index %d", cmd.index);
 #endif
 
     // Also send event to update UI
@@ -842,7 +1081,24 @@ void display_controller_handle_action_start_enrollment(void) {
 }
 
 void display_controller_handle_action_delete_fingerprint(uint8_t fingerprint_index) {
-  if (fingerprint_index < 3) {
+  if (power_off_screen_active()) {
+    return;
+  }
+
+  if (fingerprint_index < FINGERPRINT_SLOT_COUNT) {
+    controller.fingerprint_enrolled[fingerprint_index] = false;
+    memset(controller.fingerprint_labels[fingerprint_index], 0,
+           sizeof(controller.fingerprint_labels[fingerprint_index]));
+
     display_controller_delete_fingerprint(fingerprint_index);
+  }
+}
+
+void display_controller_handle_action_page_confirmed(void) {
+  const flow_handler_t* handler = flow_handlers[controller.current_flow];
+  if (handler && handler->on_action) {
+    flow_action_result_t result = handler->on_action(
+      &controller, fwpb_display_action_display_action_type_DISPLAY_ACTION_PAGE_CONFIRMED, 0);
+    handle_flow_action_result(result);
   }
 }

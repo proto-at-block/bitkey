@@ -77,10 +77,16 @@ void __secure_glitch_random_delay(void) {
   ASSERT(secutils_priv.initialized == SECURE_TRUE);
   ASSERT(&secutils_priv.api != NULL);
   ASSERT(secutils_priv.api.secure_random != NULL);
+  ASSERT(secutils_priv.api.cpu_freq != NULL);
 
   // Freq is CPU cycles per second. Divide by 1,000,000 to get cycles per microsecond. (us)
   uint32_t cpu_freq_hz = secutils_priv.api.cpu_freq();
   uint32_t cycles_per_us = cpu_freq_hz / 1000000;
+  if (cycles_per_us == 0U) {
+    secure_glitch_detect();
+    // Keep a non-zero delay even if the glitch handler returns unexpectedly.
+    cycles_per_us = 1U;
+  }
 
   // This ranges from 0 - 65535 (16-bits) ticks
   unsigned int random_value = secutils_priv.api.secure_random();

@@ -6,16 +6,14 @@
 //! # Example
 //!
 //! ```rust
-//! use action_proof::{Action, Field, build_payload, compute_token_binding};
+//! use action_proof::{Action, build_payload, compute_token_binding};
 //!
 //! let jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
 //! let token_binding = compute_token_binding(jwt);
 //!
 //! let payload = build_payload(
-//!     Action::Add,
-//!     Field::RecoveryContacts,
+//!     Action::AddRecoveryContact,
 //!     Some("Alice"),
-//!     None,
 //!     &[("tb", &token_binding)],
 //! );
 //! ```
@@ -69,15 +67,13 @@ macro_rules! define_enum {
     };
 }
 
-pub mod actions;
+pub mod action;
 pub mod binding;
-pub mod fields;
 pub mod payload;
 pub mod validation;
 
-pub use actions::{Action, ParseActionError};
+pub use action::{Action, ContextBinding, ParseActionError, ValueFormat};
 pub use binding::compute_token_binding;
-pub use fields::{ContextBinding, Field, ParseFieldError, ValueFormat};
 pub use payload::{
     build_payload, parse_payload, BuildError, ParseError, ParsedPayload, CANONICAL_MAGIC,
     CANONICAL_VERSION, UNIT_SEPARATOR,
@@ -90,7 +86,7 @@ pub use validation::{
 mod tests {
     use super::*;
 
-    /// Integration test: demonstrates full workflow from JWT → token binding → payload.
+    /// Integration test: demonstrates full workflow from JWT -> token binding -> payload.
     #[test]
     fn full_workflow_integration() {
         let jwt = "test-jwt-token";
@@ -102,17 +98,14 @@ mod tests {
 
         // Build payload with multiple bindings (alphabetically sorted)
         let payload = build_payload(
-            Action::Add,
-            Field::RecoveryContacts,
+            Action::AddRecoveryContact,
             Some("Alice"),
-            None,
             &[("eid", "01HQXYZ123"), ("tb", &token_binding)],
         )
         .expect("should build");
 
         let parsed = parse_payload(&payload).expect("should parse");
-        assert_eq!(parsed.action, Action::Add);
-        assert_eq!(parsed.field, Field::RecoveryContacts);
+        assert_eq!(parsed.action, Action::AddRecoveryContact);
         assert_eq!(parsed.value, Some("Alice"));
         assert_eq!(
             parsed.bindings,

@@ -38,7 +38,9 @@ class AndroidNfcTagScanner(
           NfcAdapter.FLAG_READER_NFC_A or
             NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK or
             NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS,
-          Bundle()
+          Bundle().apply {
+            putInt(NfcAdapter.EXTRA_READER_PRESENCE_CHECK_DELAY, 500)
+          }
         )
         logDebug(tag = NFC_TAG) { "NFC enabled" }
       }

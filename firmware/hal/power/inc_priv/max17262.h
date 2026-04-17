@@ -21,7 +21,7 @@ typedef enum {
 
 max17262_status_t max17262_init(void);
 bool max17262_validate(void);
-uint32_t max17262_soc_millipercent(void);
+bool max17262_get_soc_millipercent(uint32_t* soc_out);
 uint32_t max17262_vcell_mv(void);
 bool max17262_por_initialise(void);
 int32_t max17262_average_current(void);

@@ -12,11 +12,13 @@ lvgl_patched_files = [
   'src/indev/lv_indev.h',
   'src/draw/lv_draw_label.c',
   'src/widgets/label/lv_label.c',
+  'src/core/lv_obj_scroll.c',
 ]
 
 lvgl_patches = [
   'indev-timestamp.patch',
   'label-trailing-space-centering.patch',
+  'scroll-animation-faster.patch',
 ]
 
 lvgl_patch_files = []

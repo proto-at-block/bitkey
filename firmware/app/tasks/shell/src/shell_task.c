@@ -3,6 +3,7 @@
 #include "assert.h"
 #include "attributes.h"
 #include "mcu_usart.h"
+#include "platform.h"
 #include "rtos.h"
 #include "serial.h"
 #include "shell.h"
@@ -29,8 +30,10 @@ static const shell_config_t shell_cfg = {
 };
 
 void shell_task_create(void) {
-  // NOTE: This is large because of crypto_cmd -- schnorr signing requires a deep stack.
-  thread = rtos_thread_create(shell_thread, NULL, RTOS_THREAD_PRIORITY_NORMAL, 8192);
+  // NOTE: This is large on some platforms because of crypto_cmd -- schnorr signing requires a deep
+  // stack.
+  thread = rtos_thread_create(shell_thread, NULL, RTOS_THREAD_PRIORITY_NORMAL,
+                              PLATFORM_CFG_SHELL_TASK_STACK_SIZE);
   ASSERT(thread != NULL);
 }
 

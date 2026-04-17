@@ -12,6 +12,7 @@ import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.crypto.PublicKey
+import build.wallet.crypto.SealedData
 
 /**
  * Represents progress made towards a recovery locally. Each member represents
@@ -72,6 +73,19 @@ sealed interface LocalRecoveryAttemptProgress {
    */
   data class ActivatedSpendingKeys(
     val f8eSpendingKeyset: F8eSpendingKeyset,
+  ) : LocalRecoveryAttemptProgress
+
+  /**
+   * Successfully validated the hardware descriptor via NFC tap (W3 only).
+   * This step occurs after spending key activation and before DDK backup.
+   *
+   * @property appGlobalAuthKeyHwSignature The app global auth key HW signature to persist.
+   *   For W3 this is the fresh signature from the descriptor validation tap.
+   *   For W1 this is the existing signature from props.recovery.
+   */
+  data class HwDescriptorValidated(
+    val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+    val sealedDdkData: SealedData?,
   ) : LocalRecoveryAttemptProgress
 
   /**

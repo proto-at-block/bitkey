@@ -42,6 +42,7 @@ impl RecoveryStateResponse for PendingRecoveryState {
                     app: destination.app_auth_pubkey,
                     hardware: destination.hardware_auth_pubkey,
                     recovery: destination.recovery_auth_pubkey,
+                    hardware_type: destination.hardware_type,
                 }
             }
         })

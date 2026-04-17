@@ -1,18 +1,15 @@
 package build.wallet.statemachine.inheritance
 
-import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.inheritance.InheritanceServiceMock
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
-import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
-import build.wallet.statemachine.auth.Request.HwKeyProof
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.nfc.HardwarePresenceProps
+import build.wallet.statemachine.nfc.HardwarePresenceUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.awaitSheet
@@ -23,7 +20,6 @@ import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.string.shouldContain
-import io.kotest.matchers.types.shouldBeTypeOf
 
 class CancelingClaimUiStateMachineTests : FunSpec({
   val inheritanceService = InheritanceServiceMock(
@@ -32,20 +28,20 @@ class CancelingClaimUiStateMachineTests : FunSpec({
   )
   val stateMachine = CancelingClaimUiStateMachineImpl(
     inheritanceService = inheritanceService,
-    proofOfPossessionNfcStateMachine =
-      object : ProofOfPossessionNfcStateMachine, ScreenStateMachineMock<ProofOfPossessionNfcProps>(
-        id = "pop-nfc"
+    hardwarePresenceUiStateMachine =
+      object : HardwarePresenceUiStateMachine, ScreenStateMachineMock<HardwarePresenceProps>(
+        id = "hardware-presence"
       ) {}
   )
   val onExitCalls = turbines.create<Unit>("Exit Remove Relationship State Machine")
   val onSuccessCalls = turbines.create<Unit>("Success Remove Relationship State Machine")
   val props = CancelingClaimUiProps(
     relationshipId = RelationshipId("fake-relationship-id"),
-    account = FullAccountMock,
     onExit = { onExitCalls.add(Unit) },
     onSuccess = { onSuccessCalls.add(Unit) },
     body = ManagingInheritanceBodyModel(
       onBack = {},
+      isDesignSystemV2Enabled = false,
       onLearnMore = {},
       onInviteClick = StandardClick {},
       onTabRowClick = {},
@@ -70,8 +66,8 @@ class CancelingClaimUiStateMachineTests : FunSpec({
         onPrimaryClick()
       }
 
-      awaitBodyMock<ProofOfPossessionNfcProps> {
-        request.shouldBeTypeOf<HwKeyProof>().onSuccess(HwFactorProofOfPossession("fake"))
+      awaitBodyMock<HardwarePresenceProps> {
+        onSuccess()
       }
 
       awaitSheet<DestructiveInheritanceActionBodyModel> {
@@ -92,8 +88,8 @@ class CancelingClaimUiStateMachineTests : FunSpec({
         onPrimaryClick()
       }
 
-      awaitBodyMock<ProofOfPossessionNfcProps> {
-        request.shouldBeTypeOf<HwKeyProof>().onSuccess(HwFactorProofOfPossession("fake"))
+      awaitBodyMock<HardwarePresenceProps> {
+        onSuccess()
       }
 
       awaitSheet<DestructiveInheritanceActionBodyModel> {

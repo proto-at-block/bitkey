@@ -10,6 +10,7 @@ const OS_TYPE_ATTRIBUTE_NAME: &str = "os_type";
 const OS_VERSION_ATTRIBUTE_NAME: &str = "os_version";
 const APP_INSTALLATION_ID_ATTRIBUTE_NAME: &str = "app_installation_id";
 const DEVICE_REGION_ATTRIBUTE_NAME: &str = "device_region";
+const HARDWARE_TYPE_ATTRIBUTE_NAME: &str = "hardware_type";
 
 static SEMANTIC_VERSION: Lazy<Regex> = Lazy::new(|| Regex::new(r"(\d+)\.(\d+)\.(\d+)").unwrap());
 
@@ -47,6 +48,9 @@ impl ToLaunchDarklyAttributes for ExperimentationClaims {
         if let Some(device_region) = &self.device_region {
             attributes.insert(DEVICE_REGION_ATTRIBUTE_NAME, device_region.to_owned());
         }
+        if let Some(hardware_type) = &self.hardware_type {
+            attributes.insert(HARDWARE_TYPE_ATTRIBUTE_NAME, hardware_type.to_owned());
+        }
         attributes
     }
 }
@@ -70,6 +74,7 @@ mod tests {
                 os_type: None,
                 os_version: None,
                 device_region: None,
+                hardware_type: None,
             };
 
             let attributes = claims.to_attributes();
@@ -101,5 +106,40 @@ mod tests {
         for test_case in test_cases {
             validate_app_version(test_case);
         }
+    }
+
+    #[tokio::test]
+    async fn test_hardware_type_attribute() {
+        let claims = ExperimentationClaims {
+            account_id: None,
+            app_installation_id: None,
+            app_version: None,
+            os_type: None,
+            os_version: None,
+            device_region: None,
+            hardware_type: Some("W3".to_string()),
+        };
+
+        let attributes = claims.to_attributes();
+        assert_eq!(
+            attributes.get("hardware_type").map(|s| s.as_str()),
+            Some("W3")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_hardware_type_attribute_absent_when_none() {
+        let claims = ExperimentationClaims {
+            account_id: None,
+            app_installation_id: None,
+            app_version: None,
+            os_type: None,
+            os_version: None,
+            device_region: None,
+            hardware_type: None,
+        };
+
+        let attributes = claims.to_attributes();
+        assert_eq!(attributes.get("hardware_type"), None);
     }
 }

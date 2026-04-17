@@ -29,6 +29,7 @@ import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconSize.Accessory
 import build.wallet.ui.model.icon.IconSize.Small
 import build.wallet.ui.model.icon.IconTint
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 
@@ -43,14 +44,16 @@ fun NewCard(
   modifier: Modifier = Modifier,
   model: CardModel,
 ) {
+  val cornerRadius = if (LocalDesignSystemUpdatesEnabled.current) 8.dp else 16.dp
   Card(
     modifier = modifier.scalingClickable(enabled = model.onClick != null) {
       model.onClick?.invoke()
     }.shadow(
       elevation = 2.dp,
-      shape = RoundedCornerShape(16.dp),
+      shape = RoundedCornerShape(cornerRadius),
       ambientColor = Color.Black.copy(.1f)
     ),
+    cornerRadius = cornerRadius,
     paddingValues = PaddingValues(vertical = 16.dp, horizontal = 14.dp),
     borderWidth = 0.dp
   ) {

@@ -23,6 +23,7 @@ static struct {
   uint32_t indices_scratch[BIP32_MAX_DERIVATION_DEPTH];
   uint8_t hash[SHA256_DIGEST_SIZE];
   uint8_t signature[ECC_SIG_SIZE];
+  rtos_thread_t* thread;
 } crypto_thread_priv = {
   .status = CRYPTO_TASK_WAITING,
   .derivation_path =
@@ -32,6 +33,7 @@ static struct {
     },
   .hash = {0},
   .signature = {0},
+  .thread = NULL,
 };
 
 crypto_task_status_t crypto_task_get_status(void) {
@@ -51,13 +53,14 @@ bool crypto_task_get_and_clear_signature(uint8_t expected_hash[SHA256_DIGEST_SIZ
 
   bool success = false;
 
-  const bool hashes_match = memcmp(crypto_thread_priv.hash, expected_hash, SHA256_DIGEST_SIZE) == 0;
-  const bool indices_match = memcmp(crypto_thread_priv.indices_scratch, expected_indices,
-                                    num_indices * sizeof(uint32_t)) == 0;
+  const bool hashes_match =
+    memcmp_s(crypto_thread_priv.hash, expected_hash, SHA256_DIGEST_SIZE) == 0;
+  const bool indices_match = memcmp_s(crypto_thread_priv.indices_scratch, expected_indices,
+                                      num_indices * sizeof(uint32_t)) == 0;
   if (!hashes_match) {
-    LOGE("Wrong hash");
+    LOGE("Hash mismatch");
   } else if (!indices_match) {
-    LOGE("Wrong indices");
+    LOGE("Index mismatch");
   } else {
     memcpy(signature, crypto_thread_priv.signature, ECC_SIG_SIZE);
     success = true;
@@ -112,15 +115,15 @@ static crypto_task_status_t crypto_derive_and_sign(void) {
       break;
     case POLICY_SIGN_SIGNING_ERROR:
       rsp = CRYPTO_TASK_SIGNING_FAILED;
-      LOGE("bip32_sign: signing failed");
+      LOGE("Sign fail");
       break;
     case POLICY_SIGN_POLICY_VIOLATION:
       rsp = CRYPTO_TASK_POLICY_VIOLATION;
-      LOGE("bip32_sign: policy enforced");
+      LOGE("Policy violation");
       break;
     default:
       rsp = CRYPTO_TASK_ERROR;
-      LOGE("bip32_sign: failed");
+      LOGE("Sign err");
       break;
   }
 
@@ -132,15 +135,20 @@ out:
 void crypto_thread(void* UNUSED(args)) {
   for (;;) {
     if (!rtos_notification_wait_signal(RTOS_NOTIFICATION_TIMEOUT_MAX)) {
-      LOGE("Failed to wait for signal");
+      LOGE("Signal wait fail");
     }
     crypto_derive_and_sign();
   }
 }
 
 rtos_thread_t* crypto_task_create(void) {
-  rtos_thread_t* crypto_task_handle =
+  crypto_thread_priv.thread =
     rtos_thread_create(crypto_thread, NULL, RTOS_THREAD_PRIORITY_NORMAL, 8192);
-  ASSERT(crypto_task_handle);
-  return crypto_task_handle;
+  ASSERT(crypto_thread_priv.thread);
+  return crypto_thread_priv.thread;
+}
+
+void crypto_task_signal(void) {
+  ASSERT(crypto_thread_priv.thread);
+  rtos_notification_signal(crypto_thread_priv.thread);
 }

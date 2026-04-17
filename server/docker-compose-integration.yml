@@ -55,7 +55,7 @@ services:
     # domain for esplora and external domain for the /api/bdk-configuration endpoint
     depends_on:
       esplora:
-        condition: service_started
+        condition: service_healthy
       dynamodb:
         condition: service_healthy
       wsm-api:
@@ -67,6 +67,9 @@ services:
     extends:
       file: docker-compose-bitcoin.base.yml
       service: esplora
+    depends_on:
+      bitcoind:
+        condition: service_healthy
 
   bitcoind:
     extends:

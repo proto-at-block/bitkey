@@ -1,7 +1,7 @@
 package bitkey.verification
 
 import build.wallet.bitcoin.transactions.Psbt
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.exchange.ExchangeRate
 import com.github.michaelbull.result.Result
@@ -33,7 +33,7 @@ interface TxVerificationService {
   suspend fun updateThreshold(
     policy: TxVerificationPolicy.Active,
     amountBtc: BitcoinMoney?,
-    hwFactorProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof?,
   ): Result<TxVerificationPolicy, Error>
 
   /**

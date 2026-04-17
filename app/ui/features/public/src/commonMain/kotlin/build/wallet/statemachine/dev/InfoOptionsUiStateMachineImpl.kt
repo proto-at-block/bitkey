@@ -12,6 +12,7 @@ import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.platform.clipboard.ClipItem.PlainText
 import build.wallet.platform.clipboard.Clipboard
+import build.wallet.platform.config.AppBuildDate
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVersion
 import build.wallet.platform.versions.OsVersionInfoProvider
@@ -25,6 +26,7 @@ import kotlinx.coroutines.flow.first
 @BitkeyInject(ActivityScope::class)
 class InfoOptionsUiStateMachineImpl(
   private val accountService: AccountService,
+  private val appBuildDate: AppBuildDate,
   private val appInstallationDao: AppInstallationDao,
   private val appVariant: AppVariant,
   private val appVersion: AppVersion,
@@ -121,6 +123,7 @@ class InfoOptionsUiStateMachineImpl(
     buildAccountIdItem(state),
     buildAppInstallationIdItem(state),
     buildAppVersionItem(),
+    buildBuildDateItem(),
     buildOsVersionItem(),
     buildCloudBackupVersionItem(state)
   )
@@ -156,6 +159,13 @@ class InfoOptionsUiStateMachineImpl(
     return ListItemModel(
       title = "App Version",
       sideText = appVersion.value
+    )
+  }
+
+  private fun buildBuildDateItem(): ListItemModel {
+    return ListItemModel(
+      title = "Build Date",
+      sideText = appBuildDate.value
     )
   }
 

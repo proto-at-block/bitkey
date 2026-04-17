@@ -68,6 +68,13 @@ typedef struct PACKED {
 #define PUBKEY_LENGTH    (BIP32_SEC1_KEY_SIZE)   // 33 bytes (compressed secp256k1)
 #define CHAINCODE_LENGTH (BIP32_CHAINCODE_SIZE)  // 32 bytes
 
+// BIP32 depth at which the keyset's app and hw xpubs are stored.
+// These are account-level keys at m/84'/coin_type'/account'.
+// The server xpub is stored at depth 0 (root), using full non-hardened derivation.
+// NOTE: This depth-0 server assumption holds because this code runs on W3, which
+// requires migration to a private wallet before use.
+#define WALLET_KEYSET_ACCOUNT_DEPTH (3u)
+
 typedef struct PACKED {
   uint8_t pubkey[PUBKEY_LENGTH];
   uint8_t chaincode[CHAINCODE_LENGTH];
@@ -83,32 +90,38 @@ _Static_assert(sizeof(xpub_t) == KEY_MATERIAL_SIZE, "xpub_t size mismatch");
 // Wallet keyset for multisig address derivation
 typedef struct PACKED {
   uint8_t version;
-  uint8_t network;  // NETWORK_MAINNET or NETWORK_TESTNET
-  xpub_t app;       // App spending key at m/84'/coin_type'/account'
-                    // coin_type: 0' (mainnet) or 1' (testnet)
-  xpub_t hw;        // HW spending key at m/84'/coin_type'/account'
-                    // coin_type: 0' (mainnet) or 1' (testnet)
-  xpub_t server;    // Server spending key at m/84'/coin_type'/account'
-                    // coin_type: 0' (mainnet) or 1' (testnet)
+  uint8_t network;        // NETWORK_MAINNET or NETWORK_TESTNET
+  uint8_t account_index;  // BIP84 account index (m/84'/coin'/account')
+  xpub_t app;             // App spending key at m/84'/coin_type'/account'
+                          // coin_type: 0' (mainnet) or 1' (testnet)
+  xpub_t hw;              // HW spending key at m/84'/coin_type'/account'
+                          // coin_type: 0' (mainnet) or 1' (testnet)
+  xpub_t server;          // Server spending key at depth 0 (root xpub);
+                          // child derivation uses the full non-hardened path.
 } wallet_keyset_t;
 
 #define WALLET_KEYSET_PATH    "wallet-keyset.bin"
-#define WALLET_KEYSET_VERSION (1)
-#define WALLET_KEYSET_SIZE    (2 + 3 * KEY_MATERIAL_SIZE)
+#define WALLET_KEYSET_VERSION (2)
+#define WALLET_KEYSET_SIZE    (3 + 3 * KEY_MATERIAL_SIZE)
 
 _Static_assert(sizeof(wallet_keyset_t) == WALLET_KEYSET_SIZE,
-               "wallet_keyset_t size must be 197 bytes");
+               "wallet_keyset_t size must be 198 bytes");
 
-#define WALLET_POOL_R0_SIZE (70)
-#define WALLET_POOL_R0_NUM  (6)
-#define WALLET_POOL_R1_SIZE (128)
-#define WALLET_POOL_R1_NUM  (2)
-#define WALLET_POOL_R2_SIZE (DERIVED_KEY_CACHE_CIPHERTEXT_SIZE)
-#define WALLET_POOL_R2_NUM  (1)
+#define WALLET_POOL_R0_SIZE           (70)
+#define WALLET_POOL_R0_NUM            (6)
+#define WALLET_POOL_R1_SIZE           (128)
+#define WALLET_POOL_R1_NUM            (2)
+#define WALLET_KEYSET_CIPHERTEXT_SIZE (sizeof(wallet_keyset_t) + AES_GCM_OVERHEAD)
+#define WALLET_POOL_R2_SIZE                                            \
+  ((DERIVED_KEY_CACHE_CIPHERTEXT_SIZE > WALLET_KEYSET_CIPHERTEXT_SIZE) \
+     ? DERIVED_KEY_CACHE_CIPHERTEXT_SIZE                               \
+     : WALLET_KEYSET_CIPHERTEXT_SIZE)
+#define WALLET_POOL_R2_NUM (1)
 
-_Static_assert(
-  WALLET_POOL_R2_SIZE >= DERIVED_KEY_CACHE_CIPHERTEXT_SIZE,
-  "There must a pool large enough to fully serialize an encrypted derived_key_cache_t");
+_Static_assert(WALLET_POOL_R2_SIZE >= DERIVED_KEY_CACHE_CIPHERTEXT_SIZE,
+               "Pool R2 must fit an encrypted derived_key_cache_t");
+_Static_assert(WALLET_POOL_R2_SIZE >= WALLET_KEYSET_CIPHERTEXT_SIZE,
+               "Pool R2 must fit an encrypted wallet_keyset_t");
 
 #define BITCOIN fwpb_btc_network_BITCOIN
 #define TESTNET fwpb_btc_network_TESTNET

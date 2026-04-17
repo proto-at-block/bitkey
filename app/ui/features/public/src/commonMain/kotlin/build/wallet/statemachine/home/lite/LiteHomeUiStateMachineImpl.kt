@@ -56,7 +56,7 @@ class LiteHomeUiStateMachineImpl(
       mutableStateOf(props.account)
     }
 
-    LaunchedEffect("deep-link-routing") {
+    DisposableEffect("deep-link-routing") {
       Router.onRouteChange { route ->
         when (route) {
           is Route.TrustedContactInvite -> {
@@ -82,9 +82,12 @@ class LiteHomeUiStateMachineImpl(
             )
             return@onRouteChange true
           }
+          // Lite account has no hardware — consume the route so the app opens normally.
+          is Route.HardwareSetup -> true
           else -> false
         }
       }
+      onDispose { }
     }
 
     // Observe the global status banner model

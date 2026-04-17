@@ -5,12 +5,15 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.BackgroundTreatment
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormDesignSystemV2Model
+import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.*
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
+import build.wallet.ui.tokens.LabelType
 
 data class InheritanceUpsellBodyModel(
   val onGetStarted: () -> Unit,
@@ -30,6 +33,7 @@ data class InheritanceUpsellBodyModel(
             ),
             iconTint = IconTint.OnTranslucent
           ),
+          testTag = "close-button",
           onClick = StandardClick { onClose() }
         )
       )
@@ -38,7 +42,7 @@ data class InheritanceUpsellBodyModel(
     mainContentList = immutableListOf(
       FormMainContentModel.Showcase(
         content = FormMainContentModel.Showcase.Content.IconContent(icon = Icon.InheritanceShowcase),
-        title = "BITKEY INHERITANCE",
+        title = "Bitkey Inheritance",
         body = LabelModel.StringModel("Safeguard the future of your bitcoin."),
         treatment = FormMainContentModel.Showcase.Treatment.INHERITANCE
       )
@@ -46,16 +50,37 @@ data class InheritanceUpsellBodyModel(
     primaryButton = ButtonModel(
       text = "Get started",
       size = ButtonModel.Size.Footer,
-      treatment = ButtonModel.Treatment.Accent,
+      treatment = ButtonModel.Treatment.Primary,
       onClick = StandardClick(onGetStarted)
     ),
     secondaryButton = ButtonModel(
       text = "Set up later",
       size = ButtonModel.Size.Footer,
-      treatment = ButtonModel.Treatment.White,
+      treatment = ButtonModel.Treatment.Secondary,
       onClick = StandardClick(onClose)
     ),
-    backgroundTreatment = BackgroundTreatment.Inheritance
+    backgroundTreatment = BackgroundTreatment.Inheritance,
+    designSystemV2Model = FormDesignSystemV2Model(
+      useDesignSystemV2ScreenLayout = true,
+      mainContentList = immutableListOf(
+        FormMainContentModel.Showcase(
+          content = FormMainContentModel.Showcase.Content.IconContent(icon = Icon.InheritanceShowcase),
+          title = null,
+          body = null,
+          treatment = FormMainContentModel.Showcase.Treatment.INHERITANCE,
+          fillAvailableSpace = false
+        )
+      ),
+      preFooterMainContentList = immutableListOf(
+        FormMainContentModel.HeaderBlock(
+          header = FormHeaderModel(
+            headline = "Bitkey Inheritance",
+            subline = "Safeguard the future of your bitcoin.",
+            headlineLabelType = LabelType.Display2
+          )
+        )
+      )
+    )
   )
 
 fun InheritanceUpsellSheetModel(

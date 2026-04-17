@@ -4,8 +4,8 @@ use repository::account::AccountRepository;
 use repository::consent::ConsentRepository;
 use types::account::bitcoin::Network;
 use types::account::entities::{
-    CommsVerificationClaim, CommsVerificationScope, DescriptorBackupsSet, FullAccount, Keyset,
-    LiteAccount, TouchpointPlatform,
+    CommsVerificationClaim, CommsVerificationScope, DescriptorBackupsSet, FullAccount,
+    HardwareType, Keyset, LiteAccount, TouchpointPlatform,
 };
 use types::account::identifiers::{AccountId, AuthKeysId, KeyDefinitionId, KeysetId, TouchpointId};
 use types::account::keys::{FullAccountAuthKeys, LiteAccountAuthKeys, SoftwareAccountAuthKeys};
@@ -93,6 +93,7 @@ pub struct CreateAndRotateAuthKeysInput<'a> {
     pub hardware_auth_pubkey: PublicKey,
     // This is optional as older clients won't have a recovery auth pubkey
     pub recovery_auth_pubkey: Option<PublicKey>,
+    pub hardware_type: HardwareType,
 }
 
 #[derive(Debug, Clone)]

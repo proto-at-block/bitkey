@@ -2,6 +2,7 @@ package build.wallet.statemachine.send
 
 import app.cash.turbine.test
 import bitkey.account.AccountConfigServiceFake
+import bitkey.account.HardwareType
 import bitkey.verification.TxVerificationServiceFake
 import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.bitcoin.address.someBitcoinAddress
@@ -13,11 +14,16 @@ import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.transactions.TransactionPriorityPreferenceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
+import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.FeatureFlagValue.BooleanFlag
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.feature.flags.TxVerificationFeatureFlag
+import build.wallet.limit.DailySpendingLimitStatus
 import build.wallet.limit.MobilePayServiceMock
 import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.StateMachineMock
@@ -33,6 +39,7 @@ import build.wallet.statemachine.send.signtransaction.SignTransactionNfcSessionU
 import build.wallet.statemachine.send.signtransaction.SignTransactionNfcSessionUiStateMachineMock
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.ui.model.icon.IconImage
 import com.github.michaelbull.result.Ok
@@ -82,6 +89,7 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
   // Define the TransferConfirmationUiProps with callbacks connected to the turbine instances
   @Suppress("DEPRECATION")
   val props = TransferConfirmationUiProps(
+    account = FullAccountMock,
     variant = TransferConfirmationScreenVariant.Regular,
     selectedPriority = THIRTY_MINUTES,
     recipientAddress = someBitcoinAddress,
@@ -107,6 +115,7 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
   val appFunctionalityService = AppFunctionalityServiceFake()
   val txVerificationService = TxVerificationServiceFake()
   val verificationFlag = TxVerificationFeatureFlag(FeatureFlagDaoFake())
+  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(FeatureFlagDaoFake())
   val accountConfigService = AccountConfigServiceFake()
 
   // Initialize the TransferConfirmationUiStateMachineImpl with all dependencies
@@ -120,7 +129,8 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
     appFunctionalityService = appFunctionalityService,
     accountConfigService = accountConfigService,
     txVerificationService = txVerificationService,
-    txVerificationFeatureFlag = verificationFlag
+    txVerificationFeatureFlag = verificationFlag,
+    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag
   )
 
   // Reset mocks before each test
@@ -131,6 +141,7 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
     bitcoinWalletService.spendingWallet.value = spendingWallet
     mobilePayService.reset()
     appFunctionalityService.reset()
+    accountConfigService.reset()
     txVerificationService.reset()
     verificationFlag.reset()
   }
@@ -257,6 +268,76 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
           .transactionDetails
           .feeAmount
           .shouldBe(BitcoinMoney.btc(BigDecimal.TEN))
+      }
+    }
+  }
+
+  test("design system enabled removes top divider and uses borderless data containers") {
+    designSystemUpdatesFeatureFlag.setFlagValue(BooleanFlag(true))
+
+    stateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      mobilePayService.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(props.sendAmount)
+
+      awaitBody<LoadingSuccessBodyModel>()
+
+      awaitBody<FormBodyModel> {
+        mainContentList[0].shouldBeTypeOf<FormMainContentModel.Spacer>()
+
+        mainContentList[1]
+          .shouldBeTypeOf<DataList>()
+          .containerStyle
+          .shouldBe(DataList.ContainerStyle.BORDERLESS)
+
+        mainContentList[2]
+          .shouldBeTypeOf<DataList>()
+          .containerStyle
+          .shouldBe(DataList.ContainerStyle.BORDERLESS)
+      }
+    }
+  }
+
+  test("W3 hardware with mobile pay shows Send button instead of Review on Bitkey") {
+    accountConfigService.setActiveConfig(FullAccountConfigMock.copy(hardwareType = HardwareType.W3))
+    mobilePayService.status = DailySpendingLimitStatus.MobilePayAvailable
+
+    stateMachine.test(props) {
+      mobilePayService.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(props.sendAmount)
+
+      awaitUntilBody<TransferConfirmationScreenModel> {
+        requiresHardwareReview.shouldBe(false)
+        primaryButton.shouldNotBeNull().text.shouldBe("Send")
+      }
+    }
+  }
+
+  test("W3 hardware requiring hardware signing shows Review on Bitkey button") {
+    accountConfigService.setActiveConfig(FullAccountConfigMock.copy(hardwareType = HardwareType.W3))
+    mobilePayService.status = DailySpendingLimitStatus.RequiresHardware
+
+    stateMachine.test(props) {
+      mobilePayService.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(props.sendAmount)
+
+      awaitUntilBody<TransferConfirmationScreenModel> {
+        requiresHardwareReview.shouldBe(true)
+        primaryButton.shouldNotBeNull().text.shouldBe("Review on Bitkey")
+      }
+    }
+  }
+
+  test("W1 hardware shows Send button regardless of signer") {
+    accountConfigService.setActiveConfig(FullAccountConfigMock.copy(hardwareType = HardwareType.W1))
+    mobilePayService.status = DailySpendingLimitStatus.RequiresHardware
+
+    stateMachine.test(props) {
+      mobilePayService.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(props.sendAmount)
+
+      awaitUntilBody<TransferConfirmationScreenModel> {
+        requiresHardwareReview.shouldBe(false)
+        primaryButton.shouldNotBeNull().text.shouldBe("Send")
       }
     }
   }

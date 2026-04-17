@@ -31,6 +31,9 @@ class EventTrackerMock(
   }
 
   override fun track(eventTrackerScreenInfo: EventTrackerScreenInfo) {
+    if (!eventTrackerScreenInfo.eventTrackerShouldTrack) {
+      return
+    }
     eventCalls +=
       TrackedAction(
         ACTION_APP_SCREEN_IMPRESSION,

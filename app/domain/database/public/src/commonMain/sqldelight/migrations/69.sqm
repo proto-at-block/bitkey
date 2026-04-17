@@ -1,0 +1,15 @@
+-- Add w3UpgradeMigrationEntity table for W3 hardware upgrade migration state
+CREATE TABLE w3UpgradeMigrationEntity(
+  rowId INTEGER NOT NULL PRIMARY KEY,
+  newHardwareKey TEXT,
+  newAppKey TEXT,
+  newServerKey TEXT,
+  keysetLocalId TEXT,
+  descriptorBackupCompleted INTEGER NOT NULL DEFAULT 0,
+  cloudBackupCompleted INTEGER NOT NULL DEFAULT 0,
+  serverKeysetActivated INTEGER NOT NULL DEFAULT 0,
+  authKeyRotationCompleted INTEGER NOT NULL DEFAULT 0,
+  sweepCompleted INTEGER NOT NULL DEFAULT 0
+);
+
+PRAGMA foreign_key_check;

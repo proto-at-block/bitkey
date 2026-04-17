@@ -25,12 +25,14 @@ ulid = { workspace = true }
 account = ["types/account"]
 all = [
   "account",
+  "anti_replay",
   "consent",
   "encrypted_attachment",
   "privileged_action",
   "recovery",
   "screener",
 ]
+anti_replay = []
 consent = ["types/consent"]
 encrypted_attachment = ["types/account", "types/encrypted_attachment"]
 privileged_action = ["types/privileged_action"]

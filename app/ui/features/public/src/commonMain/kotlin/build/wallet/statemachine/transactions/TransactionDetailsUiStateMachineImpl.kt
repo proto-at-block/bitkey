@@ -22,6 +22,8 @@ import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -60,6 +62,7 @@ import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -68,6 +71,7 @@ import kotlinx.datetime.toLocalDateTime
 
 @BitkeyInject(ActivityScope::class)
 class TransactionDetailsUiStateMachineImpl(
+  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
   private val bitcoinExplorer: BitcoinExplorer,
   private val timeZoneProvider: TimeZoneProvider,
   private val dateTimeFormatter: DateTimeFormatter,
@@ -93,6 +97,10 @@ class TransactionDetailsUiStateMachineImpl(
     var uiState: UiState by remember {
       mutableStateOf(ShowingTransactionDetailUiState(props.transaction))
     }
+
+    val isDesignSystemV2Enabled by remember {
+      designSystemUpdatesFeatureFlag.flagValue().map { it.isEnabled() }
+    }.collectAsState(initial = designSystemUpdatesFeatureFlag.isEnabled())
 
     val transaction by remember(props.transaction.id) {
       transactionsActivityService.transactionById(props.transaction.id)
@@ -177,6 +185,7 @@ class TransactionDetailsUiStateMachineImpl(
         val transactionDetailModel = bitcoinTransactionDetailModel(
           transaction = transaction,
           isLoading = isPreparingSpeedUp,
+          useCircularPendingIndicator = isDesignSystemV2Enabled,
           onViewSpeedUpEducation = {
             isShowingEducationSheet = true
           },
@@ -341,7 +350,7 @@ class TransactionDetailsUiStateMachineImpl(
             sideText = dateTimeFormatter.shortDateWithTime(
               localDateTime = transaction.created.toLocalDateTime(timeZoneProvider.current())
             )
-          )
+          ).asTransactionDetailTypography()
         )
       ),
       totalAmountTexts?.let {
@@ -351,7 +360,7 @@ class TransactionDetailsUiStateMachineImpl(
               title = "Amount",
               sideText = totalAmountTexts.primaryAmountText,
               secondarySideText = totalAmountTexts.secondaryAmountText
-            )
+            ).asTransactionDetailTypography()
           )
         )
       }
@@ -361,8 +370,10 @@ class TransactionDetailsUiStateMachineImpl(
   @Composable
   private fun bitcoinTransactionFormContent(
     transaction: BitcoinTransaction,
+    feeBumpEnabled: Boolean,
     onViewSpeedUpEducation: () -> Unit,
     onTransactionIdCopy: () -> Unit,
+    useCircularPendingIndicator: Boolean,
   ): ImmutableList<FormMainContentModel> {
     val coroutineScope = rememberStableCoroutineScope()
 
@@ -420,10 +431,11 @@ class TransactionDetailsUiStateMachineImpl(
         sideText = dateTimeFormatter.shortDateWithTime(
           localDateTime = status.blockTime.timestamp.toLocalDateTime(timeZoneProvider.current())
         )
-      )
+      ).asTransactionDetailTypography()
 
       is Pending -> pendingDataListItem(
         estimatedConfirmationTime = transaction.estimatedConfirmationTime,
+        feeBumpEnabled = feeBumpEnabled,
         onViewSpeedUpEducation = onViewSpeedUpEducation
       )
     }
@@ -435,7 +447,7 @@ class TransactionDetailsUiStateMachineImpl(
             title = "Amount",
             sideText = subtotalAmountTexts.primaryAmountText,
             secondarySideText = subtotalAmountTexts.secondaryAmountText
-          )
+          ).asTransactionDetailTypography()
         )
 
         UtxoConsolidation -> {
@@ -443,12 +455,12 @@ class TransactionDetailsUiStateMachineImpl(
             Data(
               title = "UTXOs consolidated",
               sideText = "${transaction.inputs.size} → 1"
-            ),
+            ).asTransactionDetailTypography(),
             Data(
               title = "Consolidation cost",
               sideText = transactionFeeAmountTexts.primaryAmountText,
               secondarySideText = transactionFeeAmountTexts.secondaryAmountText
-            )
+            ).asTransactionDetailTypography()
           )
         }
 
@@ -458,12 +470,12 @@ class TransactionDetailsUiStateMachineImpl(
               title = "Amount",
               sideText = subtotalAmountTexts.primaryAmountText,
               secondarySideText = subtotalAmountTexts.secondaryAmountText
-            ),
+            ).asTransactionDetailTypography(),
             Data(
               title = "Network fees",
               sideText = transactionFeeAmountTexts.primaryAmountText,
               secondarySideText = transactionFeeAmountTexts.secondaryAmountText
-            )
+            ).asTransactionDetailTypography()
           )
       },
       total = run {
@@ -473,12 +485,20 @@ class TransactionDetailsUiStateMachineImpl(
           sideText = totalAmountTexts.primaryAmountText,
           sideTextType = Data.SideTextType.BODY2BOLD,
           secondarySideText = totalAmountTexts.secondaryAmountText
+        ).asTransactionDetailTypography(
+          titleTextType = Data.TitleTextType.BODY1REGULAR,
+          sideTextType = Data.SideTextType.BODY1REGULAR,
+          secondarySideTextType = Data.SideTextType.BODY2REGULAR
         ).takeIf { shouldDisplayTotal }
       }
     )
 
     val stepper = when (transaction.confirmationStatus) {
-      Pending -> processingTransactionStepper
+      Pending -> if (useCircularPendingIndicator) {
+        processingTransactionStepperDesignSystemV2
+      } else {
+        processingTransactionStepper
+      }
       is Confirmed -> completeTransactionStepper
     }
 
@@ -499,7 +519,7 @@ class TransactionDetailsUiStateMachineImpl(
               onTransactionIdCopy()
             },
             endIcon = Icon.SmallIconCopy
-          )
+          ).asTransactionDetailTypography()
         )
       ),
       transactionDetails
@@ -508,6 +528,7 @@ class TransactionDetailsUiStateMachineImpl(
 
   private fun pendingDataListItem(
     estimatedConfirmationTime: Instant?,
+    feeBumpEnabled: Boolean,
     onViewSpeedUpEducation: () -> Unit,
   ): Data? {
     if (estimatedConfirmationTime == null) {
@@ -536,20 +557,22 @@ class TransactionDetailsUiStateMachineImpl(
             Data.Explainer(
               title = "Speed up transaction?",
               subtitle = "You can speed up this transaction by increasing the network fee.",
+              showTopDivider = true,
               iconButton = IconButtonModel(
                 iconModel = IconModel(
                   icon = Icon.SmallIconInformationFilled,
-                  iconSize = IconSize.XSmall,
+                  iconSize = IconSize.Accessory,
                   iconBackgroundType = IconBackgroundType.Circle(
-                    circleSize = IconSize.XSmall
+                    circleSize = IconSize.Accessory
                   ),
                   iconTint = IconTint.Foreground,
                   iconOpacity = 0.20f
                 ),
+                testTag = "transaction-detail-speed-up-education",
                 onClick = StandardClick(onViewSpeedUpEducation)
               )
-            )
-        )
+            ).takeIf { feeBumpEnabled }
+        ).asTransactionDetailTypography()
       } else {
         Data(
           title = "Arrival time",
@@ -557,7 +580,7 @@ class TransactionDetailsUiStateMachineImpl(
             dateTimeFormatter.shortDateWithTime(
               localDateTime = confirmationTime.toLocalDateTime(timeZoneProvider.current())
             )
-        )
+        ).asTransactionDetailTypography()
       }
     }
   }
@@ -566,6 +589,7 @@ class TransactionDetailsUiStateMachineImpl(
   private fun bitcoinTransactionDetailModel(
     transaction: Transaction,
     isLoading: Boolean,
+    useCircularPendingIndicator: Boolean,
     viewTransactionText: String?,
     onViewTransaction: () -> Unit,
     onClose: () -> Unit,
@@ -607,15 +631,19 @@ class TransactionDetailsUiStateMachineImpl(
       content = when (transaction) {
         is Transaction.BitcoinWalletTransaction -> bitcoinTransactionFormContent(
           transaction = transaction.details,
+          feeBumpEnabled = feeBumpEnabled,
           onViewSpeedUpEducation = onViewSpeedUpEducation,
-          onTransactionIdCopy = onTransactionIdCopy
+          onTransactionIdCopy = onTransactionIdCopy,
+          useCircularPendingIndicator = useCircularPendingIndicator
         )
 
         is Transaction.PartnershipTransaction -> if (transaction.bitcoinTransaction != null) {
           bitcoinTransactionFormContent(
             transaction = requireNotNull(transaction.bitcoinTransaction),
+            feeBumpEnabled = feeBumpEnabled,
             onViewSpeedUpEducation = onViewSpeedUpEducation,
-            onTransactionIdCopy = onTransactionIdCopy
+            onTransactionIdCopy = onTransactionIdCopy,
+            useCircularPendingIndicator = useCircularPendingIndicator
           )
         } else {
           partnershipTransactionFormContent(
@@ -632,6 +660,23 @@ class TransactionDetailsUiStateMachineImpl(
       actionDescription = "Speeding up an on-chain transaction",
       cause = cause ?: IllegalStateException("Unknown fee bump error")
     )
+
+  private fun Data.asTransactionDetailTypography(
+    titleTextType: Data.TitleTextType = Data.TitleTextType.BODY2REGULAR,
+    sideTextType: Data.SideTextType = Data.SideTextType.BODY2REGULAR,
+    secondarySideTextType: Data.SideTextType =
+      if (secondarySideText != null) {
+        Data.SideTextType.BODY2REGULAR
+      } else {
+        this.secondarySideTextType
+      },
+  ): Data {
+    return copy(
+      titleTextType = titleTextType,
+      sideTextType = sideTextType,
+      secondarySideTextType = secondarySideTextType
+    )
+  }
 
   private sealed interface UiState {
     /**

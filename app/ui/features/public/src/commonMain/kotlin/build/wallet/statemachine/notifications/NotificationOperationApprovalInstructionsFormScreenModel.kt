@@ -20,13 +20,17 @@ import dev.zacsweers.redacted.annotations.Redacted
 fun NotificationOperationApprovalInstructionsFormScreenModel(
   onExit: () -> Unit,
   operationDescription: String,
+  headline: String = "Approve this change with your Bitkey device",
+  primaryButtonText: String = "Approve",
   onApprove: () -> Unit,
   isApproveButtonLoading: Boolean,
   errorBottomSheetState: ErrorBottomSheetState,
 ) = ScreenModel(
   body = NotificationOperationApprovalInstructionsBodyModel(
     onExit = onExit,
+    headline = headline,
     operationDescription = operationDescription,
+    primaryButtonText = primaryButtonText,
     onApprove = onApprove,
     isApproveButtonLoading = isApproveButtonLoading
   ),
@@ -60,7 +64,11 @@ fun NotificationOperationApprovalInstructionsFormScreenModel(
 private data class NotificationOperationApprovalInstructionsBodyModel(
   val onExit: () -> Unit,
   @Redacted
+  val headline: String,
+  @Redacted
   val operationDescription: String,
+  @Redacted
+  val primaryButtonText: String,
   val onApprove: () -> Unit,
   val isApproveButtonLoading: Boolean,
 ) : FormBodyModel(
@@ -72,12 +80,12 @@ private data class NotificationOperationApprovalInstructionsBodyModel(
       ),
     header =
       FormHeaderModel(
-        headline = "Approve this change with your Bitkey device",
+        headline = headline,
         subline = operationDescription
       ),
     primaryButton =
       BitkeyInteractionButtonModel(
-        text = "Approve",
+        text = primaryButtonText,
         isLoading = isApproveButtonLoading,
         size = Footer,
         onClick = StandardClick(onApprove)

@@ -23,7 +23,7 @@ import build.wallet.encrypt.SignatureVerifierMock.VerifyEcdsaCall
 import build.wallet.f8e.recovery.LostHardwareServerRecoveryMock
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.AsyncNfcSigningFeatureFlag
-import build.wallet.feature.flags.CheckHardwareIsPairedFeatureFlag
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.feature.flags.NfcSessionRetryAttemptsFeatureFlag
 import build.wallet.feature.setFlagValue
 import build.wallet.nfc.NfcAvailability
@@ -51,6 +51,7 @@ import build.wallet.statemachine.ui.awaitBody
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 import okio.ByteString.Companion.encodeUtf8
@@ -66,8 +67,8 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
   val signatureVerifyCalls = turbines.create<VerifyEcdsaCall>("verifyEcdsa calls")
   val signatureVerifier = SignatureVerifierMock(signatureVerifyCalls)
   val accountService = AccountServiceFake()
-  val checkHardwareIsPairedFeatureFlag = CheckHardwareIsPairedFeatureFlag(FeatureFlagDaoFake())
   val nfcSessionRetryAttemptsFeatureFlag = NfcSessionRetryAttemptsFeatureFlag(FeatureFlagDaoFake())
+  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(FeatureFlagDaoFake())
   val recoveryStatusService = RecoveryStatusServiceMock(turbine = turbines::create)
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
 
@@ -80,9 +81,9 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
     accountConfigService = accountConfigService,
     signatureVerifier = signatureVerifier,
     accountService = accountService,
-    checkHardwareIsPairedFeatureFlag = checkHardwareIsPairedFeatureFlag,
     inAppBrowserNavigator = inAppBrowserNavigator,
     nfcSessionRetryAttemptsFeatureFlag = nfcSessionRetryAttemptsFeatureFlag,
+    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
     recoveryStatusService = recoveryStatusService,
     appVariant = AppVariant.Customer
   )
@@ -127,7 +128,7 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
     nfcTransactor.transactResult = Ok(Unit)
     stateMachine.test(props) {
       awaitBody<NfcBodyModel> {
-        text.shouldBe("Hold device here behind phone")
+        text.shouldBe("Hold your Bitkey to the back of your phone")
         status.shouldBeTypeOf<Searching>()
       }
 
@@ -141,12 +142,27 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
     }
   }
 
+  test("platform session cancellation immediately invokes onCancel") {
+    nfcTransactor.pauseNextTransact()
+
+    stateMachine.test(props) {
+      awaitBody<NfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+      }
+
+      val parameters = nfcTransactor.transactCalls.awaitItem().shouldBeTypeOf<Parameters>()
+      parameters.onSessionCanceled()
+
+      onCancelCalls.awaitItem()
+    }
+  }
+
   test("error path") {
     val error = NfcException.CommandError()
     nfcTransactor.transactResult = Err(error)
     stateMachine.test(props) {
       awaitBody<NfcBodyModel> {
-        text.shouldBe("Hold device here behind phone")
+        text.shouldBe("Hold your Bitkey to the back of your phone")
         status.shouldBeTypeOf<Searching>()
       }
       nfcTransactor.transactCalls.awaitItem()
@@ -176,7 +192,7 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
     nfcTransactor.transactResult = Err(error)
     stateMachine.test(props) {
       awaitBody<NfcBodyModel> {
-        text.shouldBe("Hold device here behind phone")
+        text.shouldBe("Hold your Bitkey to the back of your phone")
         status.shouldBeTypeOf<Searching>()
       }
       nfcTransactor.transactCalls.awaitItem()
@@ -194,8 +210,20 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
     }
   }
 
-  test("hardware pairing check - feature flag enabled - paired hardware") {
-    checkHardwareIsPairedFeatureFlag.setFlagValue(true)
+  test("searching screen hides NFC help when DSV2 is disabled") {
+    nfcTransactor.pauseNextTransact()
+
+    stateMachine.test(props) {
+      awaitBody<NfcBodyModel> {
+        onHelpClick.shouldBeNull()
+        text.shouldBe("Hold your Bitkey to the back of your phone")
+        status.shouldBeTypeOf<Searching>()
+      }
+      nfcTransactor.transactCalls.awaitItem()
+    }
+  }
+
+  test("hardware pairing check - paired hardware") {
     val propsWithPairing = createProps(requirePairedHardware = Required())
 
     accountService.accountState.value = Ok(AccountStatus.ActiveAccount(FullAccountMock))
@@ -203,7 +231,7 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
     nfcTransactor.transactResult = Ok(Unit)
     stateMachine.test(propsWithPairing) {
       awaitBody<NfcBodyModel> {
-        text.shouldBe("Hold device here behind phone")
+        text.shouldBe("Hold your Bitkey to the back of your phone")
         status.shouldBeTypeOf<Searching>()
       }
 
@@ -224,32 +252,7 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
     }
   }
 
-  test("hardware pairing check - feature flag disabled") {
-    checkHardwareIsPairedFeatureFlag.setFlagValue(false)
-    val propsWithPairing = createProps(requirePairedHardware = Required())
-
-    nfcTransactor.transactResult = Ok(Unit)
-    stateMachine.test(propsWithPairing) {
-      awaitBody<NfcBodyModel> {
-        text.shouldBe("Hold device here behind phone")
-        status.shouldBeTypeOf<Searching>()
-      }
-
-      val transactCalls = nfcTransactor.transactCalls.awaitItem()
-        .shouldBeTypeOf<Parameters>()
-
-      // Verify pairing check is NotRequired even though prop is Required
-      transactCalls.requirePairedHardware.shouldBe(RequirePairedHardware.NotRequired)
-      onSuccessCalls.awaitItem()
-
-      awaitBody<NfcBodyModel> {
-        status.shouldBeTypeOf<Success>()
-      }
-    }
-  }
-
   test("hardware pairing check - bypasses check if in EEK mode") {
-    checkHardwareIsPairedFeatureFlag.setFlagValue(true)
     val propsWithPairing = createProps(requirePairedHardware = Required())
     accountService.accountState.value = Ok(
       AccountStatus.ActiveAccount(
@@ -262,7 +265,7 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
     nfcTransactor.transactResult = Ok(Unit)
     stateMachine.test(propsWithPairing) {
       awaitBody<NfcBodyModel> {
-        text.shouldBe("Hold device here behind phone")
+        text.shouldBe("Hold your Bitkey to the back of your phone")
         status.shouldBeTypeOf<Searching>()
       }
 
@@ -280,7 +283,6 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
   }
 
   test("hardware pairing check - recovery in progress - checks against new hardware") {
-    checkHardwareIsPairedFeatureFlag.setFlagValue(true)
     val propsWithPairing = createProps(requirePairedHardware = Required(useRecoveryPubKey = true))
 
     // Set up current account
@@ -304,7 +306,7 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
     nfcTransactor.transactResult = Ok(Unit)
     stateMachine.test(propsWithPairing) {
       awaitBody<NfcBodyModel> {
-        text.shouldBe("Hold device here behind phone")
+        text.shouldBe("Hold your Bitkey to the back of your phone")
         status.shouldBeTypeOf<Searching>()
       }
 

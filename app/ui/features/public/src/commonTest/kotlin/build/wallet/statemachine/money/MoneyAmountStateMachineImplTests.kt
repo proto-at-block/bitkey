@@ -8,6 +8,7 @@ import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.money.amount.MoneyAmountModel
+import build.wallet.statemachine.money.amount.toAnimatedAmountAnimationKey
 import build.wallet.statemachine.money.amount.MoneyAmountUiProps
 import build.wallet.statemachine.money.amount.MoneyAmountUiStateMachineImpl
 import io.kotest.core.spec.style.FunSpec
@@ -31,12 +32,16 @@ class MoneyAmountStateMachineImplTests : FunSpec({
       awaitItem().shouldBe(
         MoneyAmountModel(
           primaryAmount = "$1.00",
+          primaryAmountValue = 100L,
+          primaryAmountAnimationKey = FiatMoney.usd(1.0).toAnimatedAmountAnimationKey(),
           secondaryAmount = "~~"
         )
       )
       awaitItem().shouldBe(
         MoneyAmountModel(
           primaryAmount = "$1.00",
+          primaryAmountValue = 100L,
+          primaryAmountAnimationKey = FiatMoney.usd(1.0).toAnimatedAmountAnimationKey(),
           secondaryAmount = "300,000,000 sats"
         )
       )
@@ -54,12 +59,16 @@ class MoneyAmountStateMachineImplTests : FunSpec({
       awaitItem().shouldBe(
         MoneyAmountModel(
           primaryAmount = "1,000,000 sats",
+          primaryAmountValue = 1_000_000L,
+          primaryAmountAnimationKey = BitcoinMoney.btc(0.01).toAnimatedAmountAnimationKey(),
           secondaryAmount = "~~"
         )
       )
       awaitItem().shouldBe(
         MoneyAmountModel(
           primaryAmount = "1,000,000 sats",
+          primaryAmountValue = 1_000_000L,
+          primaryAmountAnimationKey = BitcoinMoney.btc(0.01).toAnimatedAmountAnimationKey(),
           secondaryAmount = "$0.03"
         )
       )

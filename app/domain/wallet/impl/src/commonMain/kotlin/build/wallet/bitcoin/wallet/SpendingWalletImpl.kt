@@ -226,11 +226,13 @@ class SpendingWalletImpl(
           feeRate = constructionType.feeRate
         ).bind()
 
-        is ManualFeeBump -> {
-          // ManualFeeBump is only supported in SpendingWalletV2Impl (BDK2)
+        is FeeBumpWithDrain -> {
+          // FeeBumpWithDrain is only supported in SpendingWalletV2Impl (BDK2)
           // Legacy BDK handles output shrinking via allow_shrinking in createFeeBumpedPsbt
-          Err(Error("ManualFeeBump is not supported in legacy SpendingWalletImpl")).bind()
+          Err(Error("FeeBumpWithDrain is not supported in legacy SpendingWalletImpl")).bind()
         }
+
+        is Cpfp -> createCpfpPsbt(constructionType).bind()
       }
 
       signPsbt(unsignedPsbt).bind()
@@ -328,6 +330,38 @@ class SpendingWalletImpl(
           .bind()
       }
     }
+
+  /**
+   * Creates a CPFP PSBT that spends a single UTXO and drains to a recipient address.
+   */
+  private suspend fun createCpfpPsbt(
+    constructionType: PsbtConstructionMethod.Cpfp,
+  ): Result<Psbt, Throwable> =
+    coroutineBinding {
+      withContext(Dispatchers.BdkIO) {
+        val bdkAddress = bdkAddressBuilder.build(
+          constructionType.recipientAddress.address,
+          networkType.bdkNetwork
+        )
+          .result
+          .logFailure { "Error creating BdkAddress for CPFP" }
+          .bind()
+
+        val txBuilderResult = bdkTxBuilderFactory.txBuilder()
+          .addUtxos(listOf(constructionType.utxoOutpoint))
+          .manuallySelectedOnly()
+          .drainTo(address = bdkAddress)
+          .feePolicy(constructionType.feePolicy)
+          .enableRbf()
+          .finish(bdkWallet)
+          .result
+          .bind()
+
+        txBuilderResult
+          .getPsbt(bdkWallet)
+          .bind()
+      }
+    }.logFailure { "Error creating a CPFP PSBT." }
 
   private suspend fun createPsbtFromUtxos(
     recipientAddress: BitcoinAddress,

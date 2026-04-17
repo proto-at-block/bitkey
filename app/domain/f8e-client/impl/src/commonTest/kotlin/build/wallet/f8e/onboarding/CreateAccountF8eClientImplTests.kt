@@ -1,17 +1,11 @@
 package build.wallet.f8e.onboarding
 
+import bitkey.account.HardwareType
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
 import build.wallet.bitkey.keybox.AppKeyBundleMock
 import build.wallet.bitkey.keybox.HwKeyBundleMock
-import build.wallet.f8e.onboarding.model.CreateAccountV2RequestBody
-import build.wallet.f8e.onboarding.model.CreateAccountV2ResponseBody
-import build.wallet.f8e.onboarding.model.FullCreateAccountRequestBody
-import build.wallet.f8e.onboarding.model.FullCreateAccountResponseBody
-import build.wallet.f8e.onboarding.model.FullCreateAccountV2AuthKeys
-import build.wallet.f8e.onboarding.model.FullCreateAccountV2SpendingKeys
-import build.wallet.f8e.onboarding.model.LiteCreateAccountRequestBody
-import build.wallet.f8e.onboarding.model.LiteCreateAccountResponseBody
+import build.wallet.f8e.onboarding.model.*
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
 import kotlinx.serialization.encodeToString
@@ -94,7 +88,8 @@ class CreateAccountF8eClientImplTests : FunSpec({
       auth = FullCreateAccountV2AuthKeys(
         appGlobalAuthPublicKey = "app-global-auth-pubkey",
         hardwareAuthPublicKey = "hardware-auth-pubkey",
-        recoveryAuthPublicKey = "recovery-auth-pubkey"
+        recoveryAuthPublicKey = "recovery-auth-pubkey",
+        hardwareType = HardwareType.W1
       ),
       spend = FullCreateAccountV2SpendingKeys(
         app = "app-spending-pubkey",
@@ -106,7 +101,29 @@ class CreateAccountF8eClientImplTests : FunSpec({
     val result = Json.encodeToString(request)
 
     result.shouldBeEqual(
-      """{"auth":{"app_pub":"app-global-auth-pubkey","hardware_pub":"hardware-auth-pubkey","recovery_pub":"recovery-auth-pubkey"},"is_test_account":true,"spend":{"app_pub":"app-spending-pubkey","hardware_pub":"hardware-spending-pubkey","network":"bitcoin"}}"""
+      """{"auth":{"app_pub":"app-global-auth-pubkey","hardware_pub":"hardware-auth-pubkey","recovery_pub":"recovery-auth-pubkey","hardware_type":"W1"},"is_test_account":true,"spend":{"app_pub":"app-spending-pubkey","hardware_pub":"hardware-spending-pubkey","network":"bitcoin"}}"""
+    )
+  }
+
+  test("Create Account - Private - W3 HW - Request Serialization") {
+    val request = CreateAccountV2RequestBody(
+      auth = FullCreateAccountV2AuthKeys(
+        appGlobalAuthPublicKey = "app-global-auth-pubkey",
+        hardwareAuthPublicKey = "hardware-auth-pubkey",
+        recoveryAuthPublicKey = "recovery-auth-pubkey",
+        hardwareType = HardwareType.W3
+      ),
+      spend = FullCreateAccountV2SpendingKeys(
+        app = "app-spending-pubkey",
+        hardware = "hardware-spending-pubkey",
+        network = "bitcoin"
+      ),
+      isTestAccount = true
+    )
+    val result = Json.encodeToString(request)
+
+    result.shouldBeEqual(
+      """{"auth":{"app_pub":"app-global-auth-pubkey","hardware_pub":"hardware-auth-pubkey","recovery_pub":"recovery-auth-pubkey","hardware_type":"W3"},"is_test_account":true,"spend":{"app_pub":"app-spending-pubkey","hardware_pub":"hardware-spending-pubkey","network":"bitcoin"}}"""
     )
   }
 

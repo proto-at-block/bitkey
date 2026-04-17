@@ -26,6 +26,7 @@ def test_deps(c):
     """Installs dependencies for testing"""
     _install_criterion(c, "2.4.2")
     _install_openssl(c)
+    _install_pngquant(c)
 
 
 @task
@@ -129,3 +130,11 @@ def _install_openssl(c):
         c.run(f"brew install openssl")
     elif "linux" in sys.platform:
         c.run(f"sudo apt-get install --yes libssl-dev")
+
+
+def _install_pngquant(c):
+    """Install pngquant for LVGL image conversion."""
+    if sys.platform == "darwin":
+        c.run("brew install pngquant")
+    elif "linux" in sys.platform:
+        c.run("sudo apt-get install --yes pngquant")

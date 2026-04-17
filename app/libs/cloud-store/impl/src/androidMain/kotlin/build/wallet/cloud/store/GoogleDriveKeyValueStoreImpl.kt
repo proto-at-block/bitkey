@@ -73,16 +73,12 @@ class GoogleDriveKeyValueStoreImpl(
 
         val entryFile =
           drive.findEntryFile(key)
-            .flatMap { entryFile ->
-              when (entryFile) {
-                null -> {
-                  logInfo { "Google Drive: file not found for deletion, key=$key" }
-                  Err(GoogleDriveError(message = "Failed to delete key=$key; file does not exist"))
-                }
-                else -> Ok(entryFile)
-              }
-            }
             .bind()
+
+        if (entryFile == null) {
+          logInfo { "Google Drive: file already missing for deletion, key=$key" }
+          return@withLock
+        }
 
         drive.deleteExistingEntryFile(entryFile.id).bind()
         logInfo { "Google Drive: successfully deleted file for key=$key" }

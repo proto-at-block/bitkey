@@ -5,6 +5,7 @@ import build.wallet.bitkey.promotions.PromotionCode
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.ui.model.StandardClick
@@ -72,6 +73,9 @@ data class PromoCodeUpsellBodyModel(
       onClick = StandardClick({
         onShare()
       })
+    ),
+    designSystemV2Model = FormDesignSystemV2Model(
+      useDesignSystemV2ScreenLayout = true
     )
   ) {
   sealed interface Treatment {

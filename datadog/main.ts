@@ -9,6 +9,7 @@ import { Bdk1Monitors } from "./monitors/bdk1";
 import { Bdk2Monitors } from "./monitors/bdk2";
 import { CustomerFeedbackMonitors } from "./monitors/customerFeedback";
 import { Bdk2Dashboard } from "./dashboards/bdk2";
+import { W3BetaDashboard } from "./dashboards/w3-beta";
 import { Environment } from "./monitors/common/environments";
 import { InheritanceMonitors } from "./monitors/inheritance";
 import { RecoveryRelationshipMonitors } from "./monitors/recoveryRelationship";
@@ -18,6 +19,7 @@ import { ShopApiMonitors } from "./monitors/web/shop-api";
 import { ShopApiProcessOrderUpdatesJobMonitors } from "./monitors/web/shop-api-process-order-updates-job";
 import { ShopApiFetchOrderUpdatesJobMonitors } from "./monitors/web/shop-api-fetch-order-updates-job";
 import { ShopApiRevenueReportingJobMonitors } from "./monitors/web/shop-api-revenue-reporting-job";
+import { ShopApiTemporalWorkerMonitors } from "./monitors/web/shop-api-temporal-worker";
 import { RecoveryMonitors } from "./monitors/recovery";
 import { FingerprintResetMonitors } from "./monitors/fingerprintReset";
 import { MoneyMovementMonitors } from "./monitors/moneyMovement";
@@ -51,6 +53,7 @@ class MonitorsStack extends TerraformStack {
     new Bdk2Monitors(this, Environment.STAGING)
     new Bdk2Monitors(this, Environment.PRODUCTION)
     new Bdk2Dashboard(this)
+    new W3BetaDashboard(this)
 
     new PartnershipsMonitors(this, Environment.STAGING)
     new PartnershipsMonitors(this, Environment.PRODUCTION)
@@ -87,6 +90,9 @@ class MonitorsStack extends TerraformStack {
 
     new ShopApiRevenueReportingJobMonitors(this, Environment.STAGING)
     new ShopApiRevenueReportingJobMonitors(this, Environment.PRODUCTION)
+
+    new ShopApiTemporalWorkerMonitors(this, Environment.STAGING)
+    new ShopApiTemporalWorkerMonitors(this, Environment.PRODUCTION)
 
     new ShopApiStuckOrdersJobMonitors(this, Environment.STAGING)
     new ShopApiStuckOrdersJobMonitors(this, Environment.PRODUCTION)

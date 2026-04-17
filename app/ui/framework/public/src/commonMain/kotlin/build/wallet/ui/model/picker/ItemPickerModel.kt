@@ -12,6 +12,7 @@ data class ItemPickerModel<Option : Any>(
   val options: ImmutableList<Option>,
   val onOptionSelected: (Option) -> Unit,
   val titleSelector: (Option?) -> String,
+  val testTag: String? = null,
 ) {
   // Used in SwiftUI since Picker requires a Hashable conforming type, but `Option` is only `AnyObject`
   val items: List<Item<Option>> by lazy {
@@ -44,7 +45,8 @@ data class ItemPickerModel<Option : Any>(
         selectedOption = selectedOption,
         options = options,
         onOptionSelected = onOptionSelected,
-        titleSelector = { it ?: emptyValueTitle }
+        titleSelector = { it ?: emptyValueTitle },
+        testTag = null
       )
     }
   }

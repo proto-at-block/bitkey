@@ -70,8 +70,7 @@ class SecurityActionsInitializationFunctionalTests : FunSpec({
     )
     app.notificationsPreferencesCachedProvider.updateNotificationsPreferences(
       accountId = account.accountId,
-      preferences = preferences,
-      hwFactorProofOfPossession = null
+      preferences = preferences
     ).getOrThrow()
 
     // Wait for non-null state AND the at-risk recommendations to be cleared

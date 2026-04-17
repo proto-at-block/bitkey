@@ -260,7 +260,41 @@ async fn mobile_pay_disable() {
 }
 
 pub(crate) fn build_mobile_pay_request(limit: SpendingLimit) -> MobilePaySetupRequest {
-    MobilePaySetupRequest { limit }
+    MobilePaySetupRequest {
+        limit,
+        locale: None,
+    }
+}
+
+#[tokio::test]
+async fn mobile_pay_setup_with_locale_succeeds() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+    let (account, _) =
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
+    let keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .unwrap();
+
+    let request = MobilePaySetupRequest {
+        limit: SpendingLimit {
+            active: true,
+            amount: Money {
+                amount: 5000,
+                currency_code: USD,
+            },
+            ..Default::default()
+        },
+        locale: Some("en-US".to_string()),
+    };
+    let response = client.put_mobile_pay(&account.id, &request, &keys).await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "{}",
+        response.body_string
+    );
 }
 
 #[cfg(test)]

@@ -6,21 +6,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.InheritanceEventTrackerScreenId
 import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.inheritance.InheritanceService
-import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
-import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
-import build.wallet.statemachine.auth.Request
 import build.wallet.statemachine.core.*
+import build.wallet.statemachine.nfc.HardwarePresenceProps
+import build.wallet.statemachine.nfc.HardwarePresenceUiStateMachine
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
 @BitkeyInject(ActivityScope::class)
 class CancelingClaimUiStateMachineImpl(
-  private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
+  private val hardwarePresenceUiStateMachine: HardwarePresenceUiStateMachine,
   private val inheritanceService: InheritanceService,
 ) : CancelingClaimUiStateMachine {
   val headline = "Cancel Inheritance Claim?"
@@ -51,25 +51,28 @@ class CancelingClaimUiStateMachineImpl(
       }
 
       is State.ScanningToCancelClaim -> {
-        proofOfPossessionNfcStateMachine.model(
-          ProofOfPossessionNfcProps(
-            request =
-              Request.HwKeyProof(
-                onSuccess = { proof ->
-                  state =
-                    State.CancelingClaim(
-                      relationshipId = current.relationshipId
-                    )
-                }
-              ),
-            fullAccountId = props.account.accountId,
-            onBack = {
+        hardwarePresenceUiStateMachine.model(
+          HardwarePresenceProps(
+            onSuccess = {
+              state =
+                State.CancelingClaim(
+                  relationshipId = current.relationshipId
+                )
+            },
+            onFailure = {
               state =
                 State.ConfirmingClaimCancelation(
                   relationshipId = current.relationshipId
                 )
             },
-            screenPresentationStyle = ScreenPresentationStyle.Modal
+            onCancel = {
+              state =
+                State.ConfirmingClaimCancelation(
+                  relationshipId = current.relationshipId
+                )
+            },
+            screenPresentationStyle = ScreenPresentationStyle.Modal,
+            eventTrackerContext = NfcEventTrackerScreenIdContext.CANCEL_INHERITANCE_CLAIM
           )
         )
       }

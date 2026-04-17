@@ -77,6 +77,34 @@ fun AddressQrCodeScreenPreviewWithPartner() {
 
 @Preview
 @Composable
+fun AddressQrCodeScreenPreviewDesignSystemV2() {
+  val address = "bc1q42lja79elem0anu8q8s3h2n687re9jax556pcc"
+  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+    AddressQrCodeScreen(
+      model = AddressQrCodeBodyModel(
+        onBack = {},
+        onRefreshClick = {},
+        content = AddressQrCodeBodyModel.Content.QrCode(
+          address = address,
+          qrCodeState = QrCodeState.Success(
+            matrix = QRMatrix(
+              columnWidth = 45,
+              data = BooleanArray(2026) { it % 4 == 0 }
+            )
+          ),
+          copyButtonIcon = Icon.SmallIconCopy,
+          copyButtonLabelText = "Copy",
+          onCopyClick = {},
+          onPartnerClick = {},
+          onShareClick = {}
+        )
+      )
+    )
+  }
+}
+
+@Preview
+@Composable
 fun AddressQrCodeScreenPreviewWithPartners() {
   val address = "bc1q42lja79elem0anu8q8s3h2n687re9jax556pcc"
   PreviewWalletTheme {

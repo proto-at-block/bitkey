@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlin.time.Duration
 import kotlin.time.measureTime
@@ -38,32 +39,34 @@ class AppWorkerExecutorImpl(
   private var executionLock = Mutex()
 
   override suspend fun executeAll() {
-    executionLock.withLock {
-      if (executedWorkers) {
-        // TODO(W-2000): handle Android configuration changes more gracefully.
-        logWarn {
-          "Attempted to execute app workers more than once. Ignoring. " +
-            "This is likely due to a configuration change on Android, or due to a developer error."
+    withContext(appScope.coroutineContext) {
+      executionLock.withLock {
+        if (executedWorkers) {
+          // TODO(W-2000): handle Android configuration changes more gracefully.
+          logWarn {
+            "Attempted to execute app workers more than once. Ignoring. " +
+              "This is likely due to a configuration change on Android, or due to a developer error."
+          }
+          // safeguard to ensure that app workers are only ever executed once.
+          return@withLock
         }
-        // safeguard to ensure that app workers are only ever executed once.
-        return
-      }
 
-      workerProvider.allWorkers()
-        .flatMap { worker ->
-          worker.runStrategy
-            .filterIsInstance<RunStrategy.EventStrategy>()
-            .map { it to worker }
-        }
-        .forEach { (strategy, worker) ->
-          appScope.launch {
-            logDebug { "${worker.label} Waiting for trigger events" }
-            strategy.observer.collect {
-              runWorker(worker, strategy)
+        workerProvider.allWorkers()
+          .flatMap { worker ->
+            worker.runStrategy
+              .filterIsInstance<RunStrategy.EventStrategy>()
+              .map { it to worker }
+          }
+          .forEach { (strategy, worker) ->
+            appScope.launch {
+              logDebug { "${worker.label} Waiting for trigger events" }
+              strategy.observer.collect {
+                runWorker(worker, strategy)
+              }
             }
           }
-        }
-      executedWorkers = true
+        executedWorkers = true
+      }
     }
   }
 

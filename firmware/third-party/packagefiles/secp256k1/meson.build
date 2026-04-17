@@ -18,6 +18,7 @@ secp256k1_srcs = [
 secp256k1_lib = library('secp256k1',
   secp256k1_srcs,
   c_args : [
+    '-Os',
     '-Wno-unused-function',
     # Reduce signing precompute table to ~2KB (secp256k1 --with-ecmult-gen-kb=2).
     '-DCOMB_BLOCKS=2',

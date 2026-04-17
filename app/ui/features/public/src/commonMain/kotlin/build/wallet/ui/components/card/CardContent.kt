@@ -16,6 +16,7 @@ import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.CardModel.CardContent.BitcoinPrice
 import build.wallet.statemachine.moneyhome.card.CardModel.CardContent.DrillList
 import build.wallet.ui.components.button.Button
+import build.wallet.ui.components.button.OrderedButtonPair
 import build.wallet.ui.components.callout.Callout
 import build.wallet.ui.components.icon.Icon
 import build.wallet.ui.components.label.Label
@@ -33,6 +34,8 @@ import build.wallet.ui.tokens.painter
 fun CardContent(
   modifier: Modifier = Modifier,
   model: CardModel,
+  titleType: LabelType = LabelType.Title2,
+  titleTreatment: LabelTreatment = LabelTreatment.Primary,
 ) {
   Column {
     if (model.style is CardModel.CardStyle.Callout) {
@@ -67,7 +70,8 @@ fun CardContent(
             model.title?.let { title ->
               Label(
                 model = title,
-                type = LabelType.Title2
+                type = titleType,
+                treatment = titleTreatment
               )
             }
 
@@ -111,13 +115,13 @@ fun CardContent(
         }
 
         // CTA buttons
-        model.primaryButton?.let {
+        if (model.primaryButton != null || model.secondaryButton != null) {
           Spacer(modifier = Modifier.height(16.dp))
-          Button(model = it)
-        }
-        model.secondaryButton?.let {
-          Spacer(modifier = Modifier.height(16.dp))
-          Button(model = it)
+          OrderedButtonPair(
+            primary = model.primaryButton,
+            secondary = model.secondaryButton,
+            spacing = 16.dp
+          )
         }
       }
     }

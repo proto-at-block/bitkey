@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.github.kittinunf.result:result",
+    "components": [
+        {
+            "version": "3.1.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "result-3.1.0.jar": "e02e7e0a9395174bb57bbd4043fb1fa6c4a69aa4da5ce4c65331651d22e89313"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

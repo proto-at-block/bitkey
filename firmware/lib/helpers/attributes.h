@@ -7,17 +7,18 @@
 #define PACKED    __attribute__((__packed__))
 
 #ifdef EMBEDDED_BUILD
-#define RAMFUNC          __attribute__((section(".ram")))
-#define SYSCALL          __attribute__((section("freertos_system_calls")))
-#define SHARED_TASK_DATA __attribute__((section(".shared_task_data")))
-#define SHARED_TASK_BSS  __attribute__((section(".shared_task_bss")))
-#define FWUP_TASK_DATA   __attribute__((section(".fwup_task_data")))
-#define NFC_TASK_DATA    __attribute__((section(".nfc_task_data")))
-#define LED_TASK_DATA    __attribute__((section(".led_task_data")))
-#define UI_TASK_DATA     __attribute__((section(".ui_task_data")))
-#define USART_TASK_DATA  __attribute__((section(".usart_task_data")))
-#define PERIPHERALS_DATA __attribute__((section(".peripherals_data")))
-#define SECTION(x)       __attribute__((section(x)))
+#define RAMFUNC           __attribute__((section(".ram")))
+#define SYSCALL           __attribute__((section("freertos_system_calls")))
+#define SHARED_TASK_DATA  __attribute__((section(".shared_task_data")))
+#define SHARED_TASK_BSS   __attribute__((section(".shared_task_bss")))
+#define FWUP_TASK_DATA    __attribute__((section(".fwup_task_data")))
+#define NFC_TASK_DATA     __attribute__((section(".nfc_task_data")))
+#define LED_TASK_DATA     __attribute__((section(".led_task_data")))
+#define UI_TASK_DATA      __attribute__((section(".ui_task_data")))
+#define USART_TASK_DATA   __attribute__((section(".usart_task_data")))
+#define PERIPHERALS_DATA  __attribute__((section(".peripherals_data")))
+#define DISPLAY_TASK_DATA __attribute__((section(".display_task_data")))
+#define SECTION(x)        __attribute__((section(x)))
 #else
 #define RAMFUNC
 #define SYSCALL
@@ -29,6 +30,7 @@
 #define LED_TASK_DATA
 #define USART_TASK_DATA
 #define PERIPHERALS_DATA
+#define DISPLAY_TASK_DATA
 #define SECTION(x)
 #endif
 
@@ -57,6 +59,7 @@
 #define LED_TASK_DATA
 #define USART_TASK_DATA
 #define PERIPHERALS_DATA
+#define DISPLAY_TASK_DATA
 #define PACKED
 
 #endif

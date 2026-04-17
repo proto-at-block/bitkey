@@ -10,7 +10,7 @@ use crate::signed_psbt_cache::repository::PARTITION_KEY;
 use super::PsbtTxidCacheRepository;
 
 impl PsbtTxidCacheRepository {
-    #[instrument(skip(self))]
+    #[instrument(skip(self, txid))]
     pub(crate) async fn fetch(&self, txid: Txid) -> Result<CachedPsbtTxid, DatabaseError> {
         let table_name = self.get_table_name().await?;
         let database_object = self.get_database_object();

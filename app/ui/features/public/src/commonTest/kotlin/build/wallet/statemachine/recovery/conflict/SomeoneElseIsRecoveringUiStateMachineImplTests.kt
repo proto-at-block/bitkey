@@ -2,30 +2,28 @@ package build.wallet.statemachine.recovery.conflict
 
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.factor.PhysicalFactor.App
-import build.wallet.coroutines.turbine.turbines
+import build.wallet.bitkey.factor.PhysicalFactor.Hardware
+import build.wallet.recovery.RecoveryConflictServiceError.CommsVerificationRequired
+import build.wallet.recovery.RecoveryConflictServiceError.LocalCancelRecoveryConflictError
+import build.wallet.recovery.RecoveryConflictServiceFake
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
-import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
-import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData
+import build.wallet.statemachine.recovery.conflict.model.ShowingSomeoneElseIsRecoveringBodyModel
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiProps
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiStateMachine
-import build.wallet.statemachine.ui.clickPrimaryButton
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitUntilBody
+import build.wallet.statemachine.ui.awaitUntilBodyMock
+import com.github.michaelbull.result.Err
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
-import io.kotest.matchers.types.shouldBeInstanceOf
+import io.kotest.matchers.shouldBe
 
 class SomeoneElseIsRecoveringUiStateMachineImplTests : FunSpec({
-
-  val proofOfPossessionUiStateMachine =
-    object : ProofOfPossessionNfcStateMachine,
-      ScreenStateMachineMock<ProofOfPossessionNfcProps>(
-        id = "proof of possession"
-      ) {}
+  val recoveryConflictService = RecoveryConflictServiceFake()
 
   val recoveryNotificationVerificationUiStateMachine =
     object : RecoveryNotificationVerificationUiStateMachine,
@@ -35,90 +33,81 @@ class SomeoneElseIsRecoveringUiStateMachineImplTests : FunSpec({
 
   val stateMachine =
     SomeoneElseIsRecoveringUiStateMachineImpl(
-      proofOfPossessionNfcStateMachine = proofOfPossessionUiStateMachine,
+      recoveryConflictService = recoveryConflictService,
       recoveryNotificationVerificationUiStateMachine = recoveryNotificationVerificationUiStateMachine
     )
 
-  val showingSomeoneElseIsRecoveringDataOnCancelRecoveryConflictCalls =
-    turbines.create<Unit>(
-      "ShowingSomeoneElseIsRecoveringData onCancelRecoveryConflict calls"
-    )
-  val showingSomeoneElseIsRecoveringDataProps =
+  beforeTest {
+    recoveryConflictService.reset()
+  }
+
+  val appRecoveryConflictProps =
     SomeoneElseIsRecoveringUiProps(
-      data =
-        SomeoneElseIsRecoveringData.ShowingSomeoneElseIsRecoveringData(
-          cancelingRecoveryLostFactor = App,
-          onCancelRecoveryConflict = {
-            showingSomeoneElseIsRecoveringDataOnCancelRecoveryConflictCalls.add(Unit)
-          }
-        ),
+      cancelingRecoveryLostFactor = App,
       fullAccountId = FullAccountIdMock
     )
 
-  val cancelingSomeoneElsesRecoveryDataProps =
+  val hardwareRecoveryConflictProps =
     SomeoneElseIsRecoveringUiProps(
-      data =
-        SomeoneElseIsRecoveringData.CancelingSomeoneElsesRecoveryData(
-          cancelingRecoveryLostFactor = App
-        ),
+      cancelingRecoveryLostFactor = Hardware,
       fullAccountId = FullAccountIdMock
     )
 
-  val cancelingSomeoneElsesRecoveryFailedDataRetryCalls =
-    turbines.create<Unit>(
-      "CancelingSomeoneElsesRecoveryFailedData retry calls"
-    )
-  val cancelingSomeoneElsesRecoveryFailedDataRollbackCalls =
-    turbines.create<Unit>(
-      "CancelingSomeoneElsesRecoveryFailedData rollback calls"
-    )
-  val cancelingSomeoneElsesRecoveryFailedDataProps =
-    SomeoneElseIsRecoveringUiProps(
-      data =
-        SomeoneElseIsRecoveringData.CancelingSomeoneElsesRecoveryFailedData(
-          error = Error(),
-          cancelingRecoveryLostFactor = App,
-          rollback = { cancelingSomeoneElsesRecoveryFailedDataRollbackCalls.add(Unit) },
-          retry = { cancelingSomeoneElsesRecoveryFailedDataRetryCalls.add(Unit) }
-        ),
-      fullAccountId = FullAccountIdMock
-    )
+  test("app-factor journey: prompt -> cancel -> comms verification -> rollback to prompt") {
+    recoveryConflictService.cancelResult = Err(CommsVerificationRequired(Error()))
 
-  test("ShowingSomeoneElseIsRecoveringData") {
-    stateMachine.test(showingSomeoneElseIsRecoveringDataProps) {
-      val screen = awaitItem()
+    stateMachine.test(appRecoveryConflictProps) {
+      awaitBody<ShowingSomeoneElseIsRecoveringBodyModel> {
+        secondaryButton.shouldNotBeNull().onClick()
+      }
 
-      screen.bottomSheetModel.shouldBeNull()
+      awaitUntilBodyMock<RecoveryNotificationVerificationUiProps> {
+        fullAccountId.shouldBe(FullAccountIdMock)
+        onRollback()
+      }
 
-      val body = screen.body.shouldBeInstanceOf<FormBodyModel>()
-      val secondaryButton = body.secondaryButton.shouldNotBeNull()
-      secondaryButton.isLoading.shouldBeFalse()
-      secondaryButton.onClick()
-      showingSomeoneElseIsRecoveringDataOnCancelRecoveryConflictCalls.awaitItem()
+      awaitUntilBody<ShowingSomeoneElseIsRecoveringBodyModel> {
+        secondaryButton.shouldNotBeNull().isLoading.shouldBeFalse()
+      }
     }
   }
 
-  test("CancelingSomeoneElsesRecoveryData") {
-    stateMachine.test(cancelingSomeoneElsesRecoveryDataProps) {
-      val screen = awaitItem()
+  test("app-factor journey: prompt -> cancel -> failure sheet -> close returns to prompt") {
+    recoveryConflictService.cancelResult = Err(LocalCancelRecoveryConflictError(Error()))
 
-      screen.bottomSheetModel.shouldBeNull()
+    stateMachine.test(appRecoveryConflictProps) {
+      awaitBody<ShowingSomeoneElseIsRecoveringBodyModel> {
+        secondaryButton.shouldNotBeNull().onClick()
+      }
 
-      val body = screen.body.shouldBeInstanceOf<FormBodyModel>()
-      val secondaryButton = body.secondaryButton.shouldNotBeNull()
-      secondaryButton.isLoading.shouldBeTrue()
+      awaitBody<ShowingSomeoneElseIsRecoveringBodyModel> {
+        isLoading.shouldBeTrue()
+      }
+
+      awaitItem().bottomSheetModel.shouldNotBeNull()
+        .onClosed()
+
+      awaitUntilBody<ShowingSomeoneElseIsRecoveringBodyModel> {
+        secondaryButton.shouldNotBeNull().isLoading.shouldBeFalse()
+      }
     }
   }
 
-  test("CancelingSomeoneElsesRecoveryFailedData") {
-    stateMachine.test(cancelingSomeoneElsesRecoveryFailedDataProps) {
-      val screen = awaitItem()
-      val bottomSheet = screen.bottomSheetModel.shouldNotBeNull()
-      bottomSheet.onClosed()
-      cancelingSomeoneElsesRecoveryFailedDataRollbackCalls.awaitItem()
-      val bottomSheetBody = bottomSheet.body.shouldBeInstanceOf<FormBodyModel>()
-      bottomSheetBody.clickPrimaryButton()
-      cancelingSomeoneElsesRecoveryFailedDataRetryCalls.awaitItem()
+  test("hardware-factor journey: prompt -> cancel without hardware proof") {
+    // This state machine is only reachable from FullAccountUiStateMachineImpl, so the user
+    // is always logged in and ProofOfPossessionPlugin attaches X-App-Signature automatically.
+    // Hardware proof is therefore never required to cancel a conflicting recovery.
+    stateMachine.test(hardwareRecoveryConflictProps) {
+      awaitBody<ShowingSomeoneElseIsRecoveringBodyModel> {
+        secondaryButton.shouldNotBeNull().onClick()
+      }
+
+      awaitUntilBody<ShowingSomeoneElseIsRecoveringBodyModel>(
+        matching = { recoveryConflictService.latestCancelAccountId == FullAccountIdMock }
+      ) {
+        isLoading.shouldBeTrue()
+        recoveryConflictService.latestCancelAccountId.shouldBe(FullAccountIdMock)
+      }
     }
   }
 })

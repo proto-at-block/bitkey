@@ -21,19 +21,19 @@ static void thermal_thread(void* arg) {
 
     // Handle high temperature event
     if (sysevent_get(SYSEVENT_TEMP_HIGH)) {
-      LOGW("High temperature event detected");
+      LOGW("High temp event");
       sysevent_clear(SYSEVENT_TEMP_HIGH);
     }
 
     // Handle low temperature event
     if (sysevent_get(SYSEVENT_TEMP_LOW)) {
-      LOGW("Low temperature event detected");
+      LOGW("Low temp event");
       sysevent_clear(SYSEVENT_TEMP_LOW);
     }
 
     // Handle USB IC thermal fault
     if (sysevent_get(SYSEVENT_USB_THERMAL_FAULT)) {
-      LOGW("USB IC thermal fault");
+      LOGW("USB thermal fault");
       sysevent_clear(SYSEVENT_USB_THERMAL_FAULT);
     }
   }
@@ -42,7 +42,7 @@ static void thermal_thread(void* arg) {
 void thermal_task_create(void) {
   // Initialize the temperature monitoring library
   if (!temperature_init()) {
-    LOGE("Failed to initialize temperature monitoring library");
+    LOGE("Temp monitor init fail");
     ASSERT(false);
   }
 

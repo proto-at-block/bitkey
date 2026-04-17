@@ -17,7 +17,7 @@ import build.wallet.coroutines.flow.tickerFlow
 import build.wallet.crypto.PublicKey
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.sync.F8eSyncSequencer
 import build.wallet.isOk
 import build.wallet.logging.logFailure
@@ -88,7 +88,7 @@ class RelationshipsServiceImpl(
 
   override suspend fun removeRelationshipWithoutSyncing(
     accountId: AccountId,
-    hardwareProofOfPossession: HwFactorProofOfPossession?,
+    proof: PrivilegedActionProof?,
     authTokenScope: AuthTokenScope,
     relationshipId: String,
   ): Result<Unit, Error> {
@@ -96,7 +96,7 @@ class RelationshipsServiceImpl(
       .removeRelationship(
         accountId = accountId,
         f8eEnvironment = accountConfigService.activeOrDefaultConfig().value.f8eEnvironment,
-        hardwareProofOfPossession = hardwareProofOfPossession,
+        proof = proof,
         authTokenScope = authTokenScope,
         relationshipId = relationshipId
       )
@@ -104,7 +104,7 @@ class RelationshipsServiceImpl(
 
   override suspend fun removeRelationship(
     account: Account,
-    hardwareProofOfPossession: HwFactorProofOfPossession?,
+    proof: PrivilegedActionProof?,
     authTokenScope: AuthTokenScope,
     relationshipId: String,
   ): Result<Unit, Error> {
@@ -112,7 +112,7 @@ class RelationshipsServiceImpl(
       .removeRelationship(
         accountId = account.accountId,
         f8eEnvironment = account.config.f8eEnvironment,
-        hardwareProofOfPossession = hardwareProofOfPossession,
+        proof = proof,
         authTokenScope = authTokenScope,
         relationshipId = relationshipId
       )
@@ -124,7 +124,7 @@ class RelationshipsServiceImpl(
   override suspend fun createInvitation(
     account: FullAccount,
     trustedContactAlias: TrustedContactAlias,
-    hardwareProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
     roles: Set<TrustedContactRole>,
   ): Result<OutgoingInvitation, CreateInvitationError> =
     coroutineBinding {
@@ -138,7 +138,7 @@ class RelationshipsServiceImpl(
       relationshipsF8eClient()
         .createInvitation(
           account = account,
-          hardwareProofOfPossession = hardwareProofOfPossession,
+          proof = proof,
           trustedContactAlias = trustedContactAlias,
           protectedCustomerEnrollmentPakeKey = protectedCustomerEnrollmentPakeKey.publicKey,
           roles = roles
@@ -176,10 +176,10 @@ class RelationshipsServiceImpl(
   override suspend fun refreshInvitation(
     account: FullAccount,
     relationshipId: String,
-    hardwareProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
   ): Result<OutgoingInvitation, Error> {
     return relationshipsF8eClient()
-      .refreshInvitation(account, hardwareProofOfPossession, relationshipId)
+      .refreshInvitation(account, proof, relationshipId)
       .flatMap { invitation ->
         relationshipsEnrollmentAuthenticationDao.getByRelationshipId(relationshipId)
           .mapError { Error("Failed to get PAKE data", it) }

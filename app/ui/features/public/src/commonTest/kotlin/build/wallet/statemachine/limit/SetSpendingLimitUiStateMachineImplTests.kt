@@ -4,6 +4,7 @@ import app.cash.turbine.plusAssign
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.limit.MobilePayEnabledDataMock
 import build.wallet.limit.MobilePayServiceMock
 import build.wallet.limit.SpendingLimit
@@ -13,6 +14,7 @@ import build.wallet.money.FiatMoney
 import build.wallet.money.currency.USD
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
+import build.wallet.platform.settings.Locale
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -92,7 +94,8 @@ class SetSpendingLimitUiStateMachineImplTests : FunSpec({
         onSaveLimit(
           FiatMoney.usd(100.0),
           BitcoinMoney.btc(1.0),
-          HwFactorProofOfPossession("")
+          PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("")),
+          Locale("en-US")
         )
       }
       awaitBody<LoadingSuccessBodyModel> {

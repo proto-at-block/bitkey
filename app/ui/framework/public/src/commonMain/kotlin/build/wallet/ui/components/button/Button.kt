@@ -17,9 +17,11 @@ import androidx.compose.ui.unit.dp
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.statemachine.core.Icon
 import build.wallet.ui.components.icon.Icon
+import build.wallet.ui.components.loading.CircularLoadingBadge
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.loading.LoadingIndicator
 import build.wallet.ui.components.sheet.LocalSheetCloser
+import build.wallet.ui.compose.buttonTestTag
 import build.wallet.ui.compose.resId
 import build.wallet.ui.compose.scalingClickable
 import build.wallet.ui.compose.thenIf
@@ -31,6 +33,7 @@ import build.wallet.ui.model.button.ButtonModel.Size
 import build.wallet.ui.model.button.ButtonModel.Size.Regular
 import build.wallet.ui.model.button.ButtonModel.Treatment
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import kotlinx.coroutines.launch
 
@@ -50,7 +53,6 @@ fun Button(
       treatment = treatment,
       size = size,
       cornerRadius = cornerRadius,
-      testTag = testTag,
       onClick = model.onClick
     )
   }
@@ -72,7 +74,6 @@ fun Button(
   treatment: Treatment = Primary,
   size: Size = Regular,
   cornerRadius: Dp = 16.dp,
-  testTag: String? = null,
   onClick: Click,
 ) {
   // when the onClick is of type [Click.SheetClosingClick], we need to close the sheet first and then
@@ -106,7 +107,6 @@ fun Button(
         cornerRadius = cornerRadius,
         enabled = enabled
       ),
-    testTag = testTag,
     onClick = clickHandler
   )
 }
@@ -119,17 +119,17 @@ fun Button(
   isLoading: Boolean = false,
   enabled: Boolean = true,
   style: ButtonStyle,
-  testTag: String? = null,
   onClick: () -> Unit,
 ) {
   val disabledContentAlpha = 0.3f
+  val textToRender = if (style.isAllCaps) text.uppercase() else text
 
   Button(
     modifier = modifier,
     enabled = enabled,
     isLoading = isLoading,
     style = style,
-    testTag = testTag,
+    resolvedTestTag = buttonTestTag(text),
     onClick = onClick
   ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -140,10 +140,10 @@ fun Button(
           color = style.iconColor,
           modifier = if (enabled) Modifier else Modifier.alpha(disabledContentAlpha)
         )
-        if (text.isNotBlank()) Spacer(modifier = Modifier.width(4.dp))
+        if (textToRender.isNotBlank()) Spacer(modifier = Modifier.width(style.iconGap))
       }
       Label(
-        text = text,
+        text = textToRender,
         style = style.textStyle,
         modifier = if (enabled) Modifier else Modifier.alpha(disabledContentAlpha)
       )
@@ -157,14 +157,15 @@ internal fun Button(
   enabled: Boolean = true,
   isLoading: Boolean = false,
   style: ButtonStyle,
-  testTag: String? = null,
+  resolvedTestTag: String,
   onClick: () -> Unit,
   content: @Composable () -> Unit,
 ) {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
   Box(
     modifier =
       modifier
-        .resId(testTag)
+        .resId(resolvedTestTag)
         .run {
           style.height?.let { height(it) } ?: this
         }
@@ -200,10 +201,17 @@ internal fun Button(
         enter = fadeIn(),
         exit = fadeOut()
       ) {
-        LoadingIndicator(
-          modifier = Modifier.size(24.dp),
-          color = style.iconColor
-        )
+        if (isDesignSystemV2Enabled) {
+          CircularLoadingBadge(
+            modifier = Modifier.size(24.dp),
+            color = style.iconColor
+          )
+        } else {
+          LoadingIndicator(
+            modifier = Modifier.size(24.dp),
+            color = style.iconColor
+          )
+        }
       }
 
       AnimatedVisibility(

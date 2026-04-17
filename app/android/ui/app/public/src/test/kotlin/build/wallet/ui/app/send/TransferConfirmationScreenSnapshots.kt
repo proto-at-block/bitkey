@@ -85,7 +85,7 @@ class TransferConfirmationScreenSnapshots : FunSpec({
         ),
         requiresHardware = true,
         confirmButtonEnabled = true,
-        requiresHardwareConfirmation = false
+        requiresHardwareConfirmation = true
       )
     }
   }
@@ -143,6 +143,7 @@ private fun TransferConfirmationScreen(
             )
           TransferConfirmationScreenVariant.Regular,
           TransferConfirmationScreenVariant.PrivateWalletMigration,
+          TransferConfirmationScreenVariant.W3Upgrade,
           ->
             TransactionDetailModelType.Regular(
               transferAmountText = "$20.00",

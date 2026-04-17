@@ -130,10 +130,17 @@ class OnboardFullAccountUiStateMachineImpl(
             buildHardwareDescriptorUiStateMachine.model(
               props = BuildHardwareDescriptorUiProps(
                 fullAccount = props.fullAccount,
+                onBack = {
+                  scope.launch {
+                    // Mark the previous step (NotificationPreferences) as incomplete to go back
+                    onboardAccountService.markStepIncomplete(NotificationPreferences)
+                    state = LoadingOnboardingState
+                  }
+                },
                 onComplete = {
                   state = CompletingOnboardingStep(currentState.step)
                 },
-                onBackupFailed = { error ->
+                onError = { error ->
                   state = ErrorHandlingOnboardingStep(
                     step = currentState.step,
                     error = error

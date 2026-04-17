@@ -14,16 +14,16 @@ import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.ktor.result.HttpError
 import build.wallet.platform.clipboard.Clipboard
 import build.wallet.platform.clipboard.plainTextItemAndroid
 import build.wallet.platform.sharing.SharingManager
 import build.wallet.platform.sharing.shareInvitation
 import build.wallet.relationships.RelationshipsService
-import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
-import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
-import build.wallet.statemachine.auth.Request
+import build.wallet.statemachine.auth.ActionProofType
+import build.wallet.statemachine.auth.HardwareAuthUiProps
+import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.socrec.add.ShareInviteBodyModel
@@ -41,7 +41,7 @@ data class ReinviteTrustedContactScreen(
 
 @BitkeyInject(ActivityScope::class)
 class ReinviteTrustedContactScreenPresenter(
-  private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
+  private val hardwareAuthUiStateMachine: HardwareAuthUiStateMachine,
   private val sharingManager: SharingManager,
   private val clipboard: Clipboard,
   private val relationshipsService: RelationshipsService,
@@ -73,36 +73,42 @@ class ReinviteTrustedContactScreenPresenter(
           onBackPressed = { navigator.goTo(screen.origin) }
         ).asModalScreen()
 
-      is State.ScanningHardwareState ->
-        proofOfPossessionNfcStateMachine.model(
-          ProofOfPossessionNfcProps(
-            request =
-              Request.HwKeyProof(
-                onSuccess = { proof ->
-                  state =
-                    State.SavingWithBitkeyState(
-                      proofOfPossession = proof,
-                      tcName = current.tcName
-                    )
-                }
-              ),
-            fullAccountId = screen.account.accountId,
+      is State.ScanningHardwareState -> {
+        val actionProofType = if (isBeneficiary) {
+          ActionProofType.ReinviteBeneficiary(name = current.tcName, entityId = screen.invitation.relationshipId)
+        } else {
+          ActionProofType.ReinviteRecoveryContact(name = current.tcName, entityId = screen.invitation.relationshipId)
+        }
+        hardwareAuthUiStateMachine.model(
+          HardwareAuthUiProps(
+            account = screen.account,
+            actionProofType = actionProofType,
+            segment = RecoverySegment.SocRec.ProtectedCustomer.Setup,
+            actionDescription = "Reinviting trusted contact",
+            screenPresentationStyle = ScreenPresentationStyle.Modal,
+            onSuccess = { proof ->
+              state =
+                State.SavingWithBitkeyState(
+                  proof = proof,
+                  tcName = current.tcName
+                )
+            },
             onBack = {
               state =
                 State.SaveWithBitkeyRequestState(
                   tcName = current.tcName
                 )
-            },
-            screenPresentationStyle = ScreenPresentationStyle.Modal
+            }
           )
         )
+      }
 
       is State.SavingWithBitkeyState -> {
         LaunchedEffect("reinvite-tc-to-bitkey") {
           relationshipsService.refreshInvitation(
             account = screen.account,
             relationshipId = screen.invitation.relationshipId,
-            hardwareProofOfPossession = current.proofOfPossession
+            proof = current.proof
           )
             .onSuccess {
               state =
@@ -110,8 +116,8 @@ class ReinviteTrustedContactScreenPresenter(
                   invitation = it
                 )
             }.onFailure {
-              State.FailedToSaveState(
-                proofOfPossession = current.proofOfPossession,
+              state = State.FailedToSaveState(
+                proof = current.proof,
                 error = it,
                 tcName = current.tcName
               )
@@ -135,7 +141,7 @@ class ReinviteTrustedContactScreenPresenter(
           onRetry = {
             state =
               State.SavingWithBitkeyState(
-                proofOfPossession = current.proofOfPossession,
+                proof = current.proof,
                 tcName = current.tcName
               )
           },
@@ -186,9 +192,9 @@ class ReinviteTrustedContactScreenPresenter(
       State.Success ->
         SuccessBodyModel(
           id = if (isBeneficiary) {
-            SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_REINVITE_SENT
-          } else {
             SocialRecoveryEventTrackerScreenId.TC_BENEFICIARY_ENROLLMENT_REINVITE_SENT
+          } else {
+            SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_REINVITE_SENT
           },
           primaryButtonModel = ButtonDataModel("Got it", onClick = { navigator.goTo(screen.origin) }),
           title = "You're all set",
@@ -218,12 +224,12 @@ class ReinviteTrustedContactScreenPresenter(
     ) : State
 
     data class SavingWithBitkeyState(
-      val proofOfPossession: HwFactorProofOfPossession,
+      val proof: PrivilegedActionProof,
       val tcName: String,
     ) : State
 
     data class FailedToSaveState(
-      val proofOfPossession: HwFactorProofOfPossession,
+      val proof: PrivilegedActionProof,
       val error: Error,
       val tcName: String,
     ) : State

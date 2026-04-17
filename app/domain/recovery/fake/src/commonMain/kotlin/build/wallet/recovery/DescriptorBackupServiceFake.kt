@@ -4,6 +4,7 @@ import bitkey.backup.DescriptorBackup
 import bitkey.recovery.DescriptorBackupError
 import bitkey.recovery.DescriptorBackupPreparedData
 import bitkey.recovery.DescriptorBackupService
+import bitkey.recovery.DescriptorBackupService.SsekUnsealCheckResult
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.keys.DescriptorPublicKey
 import build.wallet.bitkey.app.AppGlobalAuthKey
@@ -18,7 +19,7 @@ import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.recovery.LegacyRemoteKeyset
 import build.wallet.recovery.DescriptorBackupServiceFake.Companion.HW_DESCRIPTOR_PUBKEY
 import com.github.michaelbull.result.Ok
@@ -38,11 +39,37 @@ class DescriptorBackupServiceFake : DescriptorBackupService {
   var uploadDescriptorBackupsResult: Result<List<SpendingKeyset>, DescriptorBackupError> =
     Ok(fakeKeysetList)
   var checkBackupForPrivateKeysetResult: Result<Unit, Throwable> = Ok(Unit)
+  var checkSsekUnsealingNeededResult: Result<SsekUnsealCheckResult, Error> =
+    Ok(SsekUnsealCheckResult.NotNeeded)
+  var lastUploadDescriptorBackupsArgs: UploadDescriptorBackupsArgs? = null
+
+  data class UploadDescriptorBackupsArgs(
+    val accountId: FullAccountId,
+    val sealedSsekForDecryption: SealedSsek?,
+    val sealedSsekForEncryption: SealedSsek,
+    val appAuthKey: PublicKey<AppGlobalAuthKey>,
+    val proof: PrivilegedActionProof?,
+    val descriptorsToDecrypt: List<DescriptorBackup>,
+    val keysetsToEncrypt: List<SpendingKeyset>,
+  )
 
   private val sealedDescriptorsStorage = mutableMapOf<String, XCiphertext>()
 
   override suspend fun checkBackupForPrivateKeyset(keysetId: String): Result<Unit, Throwable> {
     return checkBackupForPrivateKeysetResult
+  }
+
+  override suspend fun checkSsekUnsealingNeeded(
+    accountId: FullAccountId,
+    factorToRecover: PhysicalFactor,
+  ): Result<SsekUnsealCheckResult, Error> {
+    return checkSsekUnsealingNeededResult
+  }
+
+  var getNextAccountIndexResult: Result<UInt, Error> = Ok(0u)
+
+  override suspend fun getNextAccountIndex(accountId: FullAccountId): Result<UInt, Error> {
+    return getNextAccountIndexResult
   }
 
   override suspend fun prepareDescriptorBackupsForRecovery(
@@ -69,10 +96,19 @@ class DescriptorBackupServiceFake : DescriptorBackupService {
     sealedSsekForDecryption: SealedSsek?,
     sealedSsekForEncryption: SealedSsek,
     appAuthKey: PublicKey<AppGlobalAuthKey>,
-    hwKeyProof: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof?,
     descriptorsToDecrypt: List<DescriptorBackup>,
     keysetsToEncrypt: List<SpendingKeyset>,
   ): Result<List<SpendingKeyset>, DescriptorBackupError> {
+    lastUploadDescriptorBackupsArgs = UploadDescriptorBackupsArgs(
+      accountId = accountId,
+      sealedSsekForDecryption = sealedSsekForDecryption,
+      sealedSsekForEncryption = sealedSsekForEncryption,
+      appAuthKey = appAuthKey,
+      proof = proof,
+      descriptorsToDecrypt = descriptorsToDecrypt,
+      keysetsToEncrypt = keysetsToEncrypt
+    )
     return uploadDescriptorBackupsResult
   }
 
@@ -127,6 +163,8 @@ class DescriptorBackupServiceFake : DescriptorBackupService {
     uploadOnboardingDescriptorBackupResult = Ok(Unit)
     uploadDescriptorBackupsResult = Ok(fakeKeysetList)
     checkBackupForPrivateKeysetResult = Ok(Unit)
+    checkSsekUnsealingNeededResult = Ok(SsekUnsealCheckResult.NotNeeded)
+    lastUploadDescriptorBackupsArgs = null
   }
 }
 

@@ -18,7 +18,7 @@ typedef struct {
   bool initialized;
 } uc_route_registration_t;
 
-uc_route_registration_t _uc_route_registrations[UC_ROUTE_MAX_NUM_REGISTRATIONS] SHARED_TASK_DATA = {
+uc_route_registration_t _uc_route_registrations[UC_ROUTE_MAX_NUM_REGISTRATIONS] SHARED_TASK_BSS = {
   {0}};
 
 static void _uc_route_post_to_queue(void* proto, void* context);

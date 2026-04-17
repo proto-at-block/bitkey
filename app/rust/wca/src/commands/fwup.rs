@@ -60,6 +60,7 @@ fn fwup_start(
     fwup_mode: FwupMode,
     mcu_role: McuRole,
     version: String,
+    defer_commit: bool,
 ) -> Result<FwupStartResult, CommandError> {
     let m: fwpb::FwupMode = fwup_mode.into();
     let mr: fwpb::McuRole = mcu_role.into();
@@ -69,6 +70,7 @@ fn fwup_start(
         patch_size: patch_size.unwrap_or(0),
         mcu_role: mr.into(),
         version: Some(version_semver),
+        defer_commit,
     }
     .try_into()?;
 
@@ -90,7 +92,7 @@ fn fwup_start(
         match FwupStartRspStatus::try_from(rsp_status) {
             Ok(FwupStartRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
             Ok(FwupStartRspStatus::Success) => Ok(FwupStartResult::Success { value: true }),
-            Ok(FwupStartRspStatus::Error) => Err(CommandError::GeneralCommandError),
+            Ok(FwupStartRspStatus::Error) => Err(CommandError::FirmwareUpdateStartFailed),
             Ok(FwupStartRspStatus::Unauthenticated) => Err(CommandError::Unauthenticated),
             Err(_) => Err(CommandError::InvalidResponse),
         }
@@ -128,7 +130,7 @@ fn fwup_transfer(
         match FwupTransferRspStatus::try_from(rsp_status) {
             Ok(FwupTransferRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
             Ok(FwupTransferRspStatus::Success) => Ok(true),
-            Ok(FwupTransferRspStatus::Error) => Err(CommandError::GeneralCommandError),
+            Ok(FwupTransferRspStatus::Error) => Err(CommandError::FirmwareUpdateTransferFailed),
             Ok(FwupTransferRspStatus::Unauthenticated) => Err(CommandError::Unauthenticated),
             Err(_) => Err(CommandError::InvalidResponse),
         }
@@ -168,7 +170,7 @@ fn fwup_finish(
     }
 }
 
-command!(FwupStart = fwup_start -> FwupStartResult, patch_size: Option<u32>, fwup_mode: FwupMode, mcu_role: McuRole, version: String);
+command!(FwupStart = fwup_start -> FwupStartResult, patch_size: Option<u32>, fwup_mode: FwupMode, mcu_role: McuRole, version: String, defer_commit: bool);
 command!(FwupTransfer = fwup_transfer -> bool,
     sequence_id: u32,
     fwup_data: Vec<u8>,
@@ -206,7 +208,7 @@ mod tests {
 
     #[test]
     fn fwup_start_success() -> Result<(), CommandError> {
-        let command = FwupStart::new(None, FwupMode::Normal, McuRole::Core, "1.2.3".to_string());
+        let command = FwupStart::new(None, FwupMode::Normal, McuRole::Core, "1.2.3".to_string(), false);
         command.next(Vec::default())?;
 
         let response = make_response(WalletRsp {
@@ -230,7 +232,7 @@ mod tests {
 
     #[test]
     fn fwup_start_confirmation_pending() -> Result<(), CommandError> {
-        let command = FwupStart::new(None, FwupMode::Normal, McuRole::Core, "1.2.3".to_string());
+        let command = FwupStart::new(None, FwupMode::Normal, McuRole::Core, "1.2.3".to_string(), false);
         command.next(Vec::default())?;
 
         let response_handle = vec![0x01, 0x02, 0x03, 0x04];
@@ -262,8 +264,34 @@ mod tests {
     }
 
     #[test]
+    fn fwup_start_with_defer_commit() -> Result<(), CommandError> {
+        // Verify that fwup_start with defer_commit=true works end-to-end
+        let command =
+            FwupStart::new(None, FwupMode::Normal, McuRole::Uxc, "2.0.0".to_string(), true);
+        command.next(Vec::default())?;
+
+        let response = make_response(WalletRsp {
+            status: Status::Success.into(),
+            msg: Some(Msg::FwupStartRsp(FwupStartRsp {
+                rsp_status: FwupStartRspStatus::Success.into(),
+                max_chunk_size: 0,
+            })),
+            ..Default::default()
+        });
+
+        assert!(matches!(
+            command.next(response),
+            Ok(State::Result {
+                value: FwupStartResult::Success { value: true }
+            })
+        ));
+
+        Ok(())
+    }
+
+    #[test]
     fn fwup_start_error() {
-        let command = FwupStart::new(None, FwupMode::Normal, McuRole::Core, "1.2.3".to_string());
+        let command = FwupStart::new(None, FwupMode::Normal, McuRole::Core, "1.2.3".to_string(), false);
         command.next(Vec::default()).unwrap();
 
         let response = make_response(WalletRsp {
@@ -277,7 +305,7 @@ mod tests {
 
         assert!(matches!(
             command.next(response),
-            Err(CommandError::GeneralCommandError)
+            Err(CommandError::FirmwareUpdateStartFailed)
         ));
     }
 }

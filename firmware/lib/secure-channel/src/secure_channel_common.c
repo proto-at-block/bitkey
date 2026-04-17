@@ -1,5 +1,6 @@
 #include "secure_channel_common.h"
 
+#include "ecc.h"
 #include "hash.h"
 #include "key_exchange.h"
 #include "log.h"
@@ -64,7 +65,9 @@ secure_channel_err_t secure_channel_establish_impl(secure_channel_ctx_t* secure_
                                                    key_handle_t* sk_device, key_handle_t* pk_device,
                                                    uint8_t* exchange_sig,
                                                    uint32_t exchange_sig_len) {
-  ASSERT(secure_channel_ctx && pk_host && sk_device && pk_device && exchange_sig);
+  ASSERT(secure_channel_ctx && pk_host && sk_device && pk_device);
+  ASSERT((exchange_sig == NULL && exchange_sig_len == 0) ||
+         (exchange_sig != NULL && exchange_sig_len == ECC_SIG_SIZE));
 
   // Always establish new keys, even if we already have one. The other party may have lost theirs.
   memzero(secure_channel_ctx->send_key_buf, sizeof(secure_channel_ctx->send_key_buf));
@@ -72,7 +75,7 @@ secure_channel_err_t secure_channel_establish_impl(secure_channel_ctx_t* secure_
   secure_channel_ctx->established = false;
 
   if (pk_device->key.size > SECURE_CHANNEL_PUBKEY_MAX_LEN) {
-    LOGE("pubkey may be at most %d bytes", SECURE_CHANNEL_PUBKEY_MAX_LEN);
+    LOGE("Pubkey too large: max %d", SECURE_CHANNEL_PUBKEY_MAX_LEN);
     return SECURE_CHANNEL_FAILED_TO_DERIVE_KEY;
   }
 
@@ -115,7 +118,7 @@ secure_channel_err_t secure_channel_establish_impl(secure_channel_ctx_t* secure_
   }
 
   if (!crypto_key_exchange(&key_exchange_ctx, &key_material)) {
-    LOGE("crypto_key_exchange failed");
+    LOGE("Key exchange fail");
     return SECURE_CHANNEL_FAILED_TO_DERIVE_KEY;
   }
 
@@ -136,7 +139,7 @@ secure_channel_err_t secure_channel_cipher(secure_channel_ctx_t* secure_channel_
   secure_channel_err_t result = SECURE_CHANNEL_CIPHER_FAILED;
 
   if (!secure_channel_ctx->established) {
-    LOGE("secure channel not established");
+    LOGE("SC not established");
     result = SECURE_CHANNEL_NO_KEY;
     goto out;
   }

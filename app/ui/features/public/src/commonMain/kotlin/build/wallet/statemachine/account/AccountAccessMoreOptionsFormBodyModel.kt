@@ -63,8 +63,7 @@ data class AccountAccessMoreOptionsFormBodyModel(
               ),
               title = "Restore your wallet",
               onClick = onRestoreYourWalletClick,
-              trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30),
-              testTag = "restore-your-wallet"
+              trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30)
             ),
             onRecoverFromOrphanedKeysClick?.let {
               ListItemModel(
@@ -105,8 +104,7 @@ data class AccountAccessMoreOptionsFormBodyModel(
                 ),
                 title = "Contact Us",
                 onClick = onCustomerSupportClick,
-                trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30),
-                testTag = "contact-us"
+                trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30)
               )
             } else {
               null

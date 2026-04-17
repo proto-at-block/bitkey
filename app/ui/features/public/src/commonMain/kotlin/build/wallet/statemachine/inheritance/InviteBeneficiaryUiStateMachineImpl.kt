@@ -20,10 +20,10 @@ class InviteBeneficiaryUiStateMachineImpl(
       props = AddingTrustedContactUiProps(
         trustedContactRole = TrustedContactRole.Beneficiary,
         account = props.account,
-        onAddTc = { trustedContactAlias, hardwareProofOfPossession ->
+        onAddTc = { trustedContactAlias, proof ->
           inheritanceService.createInheritanceInvitation(
             trustedContactAlias = trustedContactAlias,
-            hardwareProofOfPossession = hardwareProofOfPossession
+            proof = proof
           )
         },
         onInvitationShared = props.onInvited,

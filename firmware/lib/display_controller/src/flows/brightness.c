@@ -17,7 +17,7 @@ void display_controller_brightness_on_enter(display_controller_t* controller,
 
 void display_controller_brightness_on_exit(display_controller_t* controller) {
 #ifdef EMBEDDED_BUILD
-  static SHARED_TASK_DATA sysinfo_set_brightness_internal_t brightness_msg;
+  static SHARED_TASK_BSS sysinfo_set_brightness_internal_t brightness_msg;
   brightness_msg.brightness_percent = controller->show_screen.brightness_percent;
   ipc_send(sysinfo_port, &brightness_msg, sizeof(brightness_msg),
            IPC_SYSINFO_SET_BRIGHTNESS_INTERNAL);

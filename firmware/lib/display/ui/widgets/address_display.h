@@ -4,10 +4,13 @@
 
 #include <stdbool.h>
 
+#define ADDRESS_DISPLAY_MAX_LABELS 200
+
 typedef struct {
-  lv_obj_t* char_labels[100];
+  lv_obj_t* char_labels[ADDRESS_DISPLAY_MAX_LABELS];
   int label_count;
   int total_pages;
+  int bottom_reserved_px;
   const char* address;
   bool is_initialized;
 } address_display_t;
@@ -16,12 +19,24 @@ typedef struct {
  * @brief Initialize address display widget and calculate pagination.
  *
  * Analyzes the address string and calculates how many pages are needed
- * to display it using the standard pagination layout (60 chars per page).
+ * to display it using the standard pagination layout (up to 80 chars per page).
  *
  * @param widget Pointer to address_display_t structure
  * @param address Address string to display (can be address, hash, or any text)
  */
 void address_display_init(address_display_t* widget, const char* address);
+
+/**
+ * @brief Reserve bottom space when vertically centering address content.
+ *
+ * Use this to reserve UI chrome at the bottom of the parent (for example,
+ * check button size + bottom margin). The address content will be centered
+ * between the top of the parent and the top edge of this reserved area.
+ *
+ * @param widget Pointer to initialized address_display_t structure
+ * @param bottom_reserved_px Bottom reserved space in pixels
+ */
+void address_display_set_bottom_reserved(address_display_t* widget, int bottom_reserved_px);
 
 /**
  * @brief Create and render a specific page of the address.
@@ -36,13 +51,26 @@ void address_display_init(address_display_t* widget, const char* address);
 void address_display_create_page(lv_obj_t* parent, address_display_t* widget, int page_num);
 
 /**
- * @brief Clean up and destroy the address display widget.
+ * @brief Create and render the full address without pagination.
  *
- * Frees all LVGL objects created by the widget.
+ * Renders the address using the same 4-character grouping as the paginated
+ * layout, but allows it to extend downward for scrollable containers.
  *
- * @param widget Pointer to address_display_t structure
+ * @param parent LVGL parent object to attach the address content to
+ * @param widget Pointer to initialized address_display_t structure
  */
-void address_display_destroy(address_display_t* widget);
+void address_display_create_full(lv_obj_t* parent, address_display_t* widget);
+
+/**
+ * @brief Get the total height needed to render the full address.
+ *
+ * Useful when embedding the address in a scrollable container so the parent
+ * can reserve enough vertical space before rendering.
+ *
+ * @param widget Pointer to initialized address_display_t structure
+ * @return Height in pixels required for the full address
+ */
+int address_display_get_full_height(const address_display_t* widget);
 
 /**
  * @brief Get the total number of pages needed for the address.

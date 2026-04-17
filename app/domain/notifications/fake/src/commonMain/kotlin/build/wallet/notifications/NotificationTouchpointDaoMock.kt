@@ -4,8 +4,6 @@ import app.cash.turbine.Turbine
 import bitkey.notifications.NotificationTouchpoint
 import bitkey.notifications.NotificationTouchpoint.EmailTouchpoint
 import bitkey.notifications.NotificationTouchpoint.PhoneNumberTouchpoint
-import build.wallet.email.Email
-import build.wallet.phonenumber.PhoneNumber
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
@@ -20,19 +18,23 @@ class NotificationTouchpointDaoMock(
   override suspend fun storeTouchpoint(touchpoint: NotificationTouchpoint): Result<Unit, Error> {
     storeTouchpointCalls.add(touchpoint)
     when (touchpoint) {
-      is PhoneNumberTouchpoint -> phoneNumberFlow.value = touchpoint.value
-      is EmailTouchpoint -> emailFlow.value = touchpoint.value
+      is PhoneNumberTouchpoint -> {
+        phoneTouchpointFlow.value = touchpoint
+      }
+      is EmailTouchpoint -> {
+        emailTouchpointFlow.value = touchpoint
+      }
     }
     return Ok(Unit)
   }
 
-  val phoneNumberFlow = MutableStateFlow<PhoneNumber?>(null)
+  val phoneTouchpointFlow = MutableStateFlow<PhoneNumberTouchpoint?>(null)
 
-  override fun phoneNumber(): Flow<PhoneNumber?> = phoneNumberFlow
+  override fun phoneTouchpoint(): Flow<PhoneNumberTouchpoint?> = phoneTouchpointFlow
 
-  val emailFlow = MutableStateFlow<Email?>(null)
+  val emailTouchpointFlow = MutableStateFlow<EmailTouchpoint?>(null)
 
-  override fun email(): Flow<Email?> = emailFlow
+  override fun emailTouchpoint(): Flow<EmailTouchpoint?> = emailTouchpointFlow
 
   override suspend fun clear(): Result<Unit, Error> {
     reset()
@@ -41,7 +43,7 @@ class NotificationTouchpointDaoMock(
   }
 
   fun reset() {
-    phoneNumberFlow.value = null
-    emailFlow.value = null
+    phoneTouchpointFlow.value = null
+    emailTouchpointFlow.value = null
   }
 }

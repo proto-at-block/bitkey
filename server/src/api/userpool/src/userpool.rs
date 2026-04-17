@@ -7,7 +7,6 @@ use aws_config::BehaviorVersion;
 use aws_sdk_cognitoidentityprovider::error::BuildError;
 use aws_sdk_cognitoidentityprovider::operation::admin_create_user::AdminCreateUserError;
 use aws_sdk_cognitoidentityprovider::operation::admin_get_user::AdminGetUserError;
-use aws_sdk_cognitoidentityprovider::operation::admin_respond_to_auth_challenge::AdminRespondToAuthChallengeError;
 use aws_sdk_cognitoidentityprovider::operation::admin_update_user_attributes::AdminUpdateUserAttributesError;
 use aws_sdk_cognitoidentityprovider::operation::admin_user_global_sign_out::AdminUserGlobalSignOutError;
 use aws_sdk_cognitoidentityprovider::operation::get_user::GetUserError;
@@ -32,7 +31,7 @@ use types::account::PubkeysToAccount;
 use types::authn_authz::cognito::{CognitoUser, CognitoUsername};
 
 use crate::test_utils::get_test_access_token_for_cognito_user;
-use crate::userpool::UserPoolError::InitiateAuthError;
+use crate::userpool::UserPoolError::{InitiateAuthClientError, InitiateAuthServerError};
 
 //IMPORTANT: Update terraform files and Lambdas when changing these attributes
 const PUBLIC_KEY_ATTRIBUTE: &str = "custom:publicKey";
@@ -60,7 +59,9 @@ pub enum UserPoolError {
     #[error("Could not change user attributes")]
     ChangeUserAttributes(#[from] AdminUpdateUserAttributesError),
     #[error("Could not initiate auth with cognito: {0}")]
-    InitiateAuthError(String),
+    InitiateAuthClientError(String),
+    #[error("Could not initiate auth with cognito: {0}")]
+    InitiateAuthServerError(String),
     #[error("Could not get user: {0}")]
     AdminGetUserError(#[from] AdminGetUserError),
     #[error("Could not get user: {0}")]
@@ -70,7 +71,9 @@ pub enum UserPoolError {
     #[error("Could not perform global user signout for user id: {0}")]
     PerformUserSignOut(#[from] AdminUserGlobalSignOutError),
     #[error("Could not complete auth challenge: {0}")]
-    AuthChallengeResponseError(#[from] AdminRespondToAuthChallengeError),
+    AuthChallengeClientError(String),
+    #[error("Could not complete auth challenge: {0}")]
+    AuthChallengeServerError(String),
     #[error("Missing authentication result from completing authentication challenge")]
     MissingAuthResult,
     #[error("Missing access token from completing authentication challenge")]
@@ -88,15 +91,28 @@ pub enum UserPoolError {
 impl From<UserPoolError> for ApiError {
     fn from(value: UserPoolError) -> Self {
         match value {
-            UserPoolError::AuthChallengeResponseError(_)
-            | UserPoolError::InvalidChallengeResponse => {
-                ApiError::GenericBadRequest("Could not ".to_string())
+            UserPoolError::InvalidChallengeResponse => {
+                ApiError::GenericBadRequest("Invalid challenge response".to_string())
             }
-            UserPoolError::InitiateAuthError(error_str) => ApiError::GenericBadRequest(format!(
-                "Could not initiate authentication: {error_str}"
-            )),
-            UserPoolError::NonExistentUser | UserPoolError::InvalidAccountId => {
-                ApiError::GenericBadRequest("account not found".to_string())
+            UserPoolError::AuthChallengeClientError(_) => {
+                ApiError::GenericBadRequest("Could not complete auth challenge".to_string())
+            }
+            UserPoolError::AuthChallengeServerError(_) => {
+                ApiError::GenericInternalApplicationError(
+                    "Could not complete auth challenge".to_string(),
+                )
+            }
+            UserPoolError::InitiateAuthClientError(_) => {
+                ApiError::GenericBadRequest("Could not initiate authentication".to_string())
+            }
+            UserPoolError::InitiateAuthServerError(_) => ApiError::GenericInternalApplicationError(
+                "Could not initiate authentication".to_string(),
+            ),
+            UserPoolError::NonExistentUser => ApiError::GenericInternalApplicationError(
+                "Unexpected missing user in userpool".to_string(),
+            ),
+            UserPoolError::InvalidAccountId => {
+                ApiError::GenericBadRequest("invalid account id".to_string())
             }
             UserPoolError::MissingAuthResult => ApiError::GenericInternalApplicationError(
                 "Missing auth result from userpool".to_string(),
@@ -334,15 +350,19 @@ impl CognitoIdpConnection for CognitoConnection {
             .auth_parameters("USERNAME", username.as_ref())
             .send()
             .await
-            .map_err(|err| InitiateAuthError(err.into_service_error().to_string()))?;
+            .map_err(|err| InitiateAuthServerError(err.into_service_error().to_string()))?;
         let challenge_str = initiate_auth_response
             .challenge_parameters()
-            .ok_or(InitiateAuthError("Missing auth parameters".to_string()))?
+            .ok_or(InitiateAuthServerError(
+                "Missing auth parameters".to_string(),
+            ))?
             .get("challenge")
-            .ok_or(InitiateAuthError("Missing auth challenge".to_string()))?;
+            .ok_or(InitiateAuthServerError(
+                "Missing auth challenge".to_string(),
+            ))?;
         let session = initiate_auth_response
             .session()
-            .ok_or(InitiateAuthError("Missing auth session".to_string()))?;
+            .ok_or(InitiateAuthServerError("Missing auth session".to_string()))?;
         Ok(AuthChallenge {
             username: username.clone(),
             challenge: challenge_str.to_string(),
@@ -361,7 +381,17 @@ impl CognitoIdpConnection for CognitoConnection {
             .auth_parameters("REFRESH_TOKEN", refresh_token.clone())
             .send()
             .await
-            .map_err(|err| InitiateAuthError(err.into_service_error().to_string()))?;
+            .map_err(|err| {
+                let service_error = err.into_service_error();
+                if service_error.is_not_authorized_exception()
+                    || service_error.is_invalid_parameter_exception()
+                    || service_error.is_user_not_found_exception()
+                {
+                    InitiateAuthClientError(service_error.to_string())
+                } else {
+                    InitiateAuthServerError(service_error.to_string())
+                }
+            })?;
         let auth_result = initiate_auth_response
             .authentication_result
             .ok_or(UserPoolError::MissingAuthResult)?;
@@ -393,7 +423,19 @@ impl CognitoIdpConnection for CognitoConnection {
             .challenge_responses("ANSWER", challenge_response)
             .send()
             .await
-            .map_err(|err| UserPoolError::AuthChallengeResponseError(err.into_service_error()))?;
+            .map_err(|err| {
+                let service_error = err.into_service_error();
+                if service_error.is_not_authorized_exception()
+                    || service_error.is_code_mismatch_exception()
+                    || service_error.is_expired_code_exception()
+                    || service_error.is_invalid_parameter_exception()
+                    || service_error.is_user_not_found_exception()
+                {
+                    UserPoolError::AuthChallengeClientError(service_error.to_string())
+                } else {
+                    UserPoolError::AuthChallengeServerError(service_error.to_string())
+                }
+            })?;
         let authentication_result = response
             .authentication_result
             .ok_or(UserPoolError::MissingAuthResult)?;
@@ -602,7 +644,7 @@ impl UserPoolService {
         self.cognito_client.is_existing_user(username).await
     }
 
-    #[instrument(err, skip(self))]
+    #[instrument(err, skip(self, pubkeys_to_account))]
     pub async fn initiate_auth_for_user(
         &self,
         user: CognitoUser,
@@ -704,7 +746,7 @@ impl UserPoolService {
         self.cognito_client.sign_out_user(username).await
     }
 
-    #[instrument(err, skip(self))]
+    #[instrument(err, skip(self, access_token))]
     pub async fn is_access_token_revoked(
         &self,
         access_token: String,
@@ -833,7 +875,7 @@ impl CognitoIdpConnection for FakeCognitoConnection {
         let session = get_64_random_hex_bytes_for_tests();
 
         let mut session_challenges = self.session_challenges.write().map_err(|_| {
-            UserPoolError::InitiateAuthError("Could not write to session store".to_string())
+            UserPoolError::InitiateAuthServerError("Could not write to session store".to_string())
         })?;
         session_challenges.insert(session.to_string(), challenge.to_string());
 
@@ -846,11 +888,13 @@ impl CognitoIdpConnection for FakeCognitoConnection {
 
     async fn refresh_auth_token(&self, refresh_token: String) -> Result<AuthTokens, UserPoolError> {
         let refresh_token_store = self.refresh_tokens.write().map_err(|_| {
-            UserPoolError::InitiateAuthError("Poisoned lock on in-memory userpool".to_string())
+            UserPoolError::InitiateAuthServerError(
+                "Poisoned lock on in-memory userpool".to_string(),
+            )
         })?;
         let username = refresh_token_store
             .get(&refresh_token)
-            .ok_or(UserPoolError::InitiateAuthError(
+            .ok_or(UserPoolError::InitiateAuthClientError(
                 "invalid refresh token".to_string(),
             ))?
             .clone();
@@ -887,7 +931,9 @@ impl CognitoIdpConnection for FakeCognitoConnection {
 
         let answer_correct = {
             let keystore = self.user_keys.read().map_err(|_| {
-                UserPoolError::InitiateAuthError("Poisoned lock on in-memory userpool".to_string())
+                UserPoolError::InitiateAuthServerError(
+                    "Poisoned lock on in-memory userpool".to_string(),
+                )
             })?;
             let public_key = keystore
                 .get(username.as_ref())
@@ -896,11 +942,8 @@ impl CognitoIdpConnection for FakeCognitoConnection {
             let challenge = session_store
                 .get(&session)
                 .ok_or(UserPoolError::InvalidSession)?;
-            let hash = sha256::Hash::hash(challenge.as_bytes()).to_byte_array();
-            let message = Message::from_digest(hash);
-
             if let Ok(signature) = Signature::from_str(&challenge_response) {
-                secp.verify_ecdsa(&message, &signature, public_key).is_ok()
+                verify_challenge_with_domain_tag(&secp, challenge, &signature, public_key)
             } else {
                 false
             }
@@ -978,6 +1021,36 @@ impl CognitoIdpConnection for FakeCognitoConnection {
             .unwrap()
             .contains(&access_token))
     }
+}
+
+/// Domain tag for hardware auth key signature domain separation on auth challenges.
+const DOMAIN_TAG_AUTH_CHALLENGE: &str = "BKAuthChallenge";
+
+/// Verify a Cognito auth challenge signature with domain separation, falling back to
+/// untagged for backwards compatibility.
+///
+/// TODO(W-16598): Add a `custom:hardwareType` attribute to the Cognito user pool so the
+/// verifier can enforce the domain tag for W3 hw users and reject untagged signatures.
+fn verify_challenge_with_domain_tag(
+    secp: &Secp256k1<secp256k1::All>,
+    challenge: &str,
+    signature: &Signature,
+    public_key: &PublicKey,
+) -> bool {
+    // Try domain-tagged verification first
+    let tagged = format!("{}{}", DOMAIN_TAG_AUTH_CHALLENGE, challenge);
+    let tagged_hash = sha256::Hash::hash(tagged.as_bytes()).to_byte_array();
+    let tagged_msg = Message::from_digest(tagged_hash);
+    if secp
+        .verify_ecdsa(&tagged_msg, signature, public_key)
+        .is_ok()
+    {
+        return true;
+    }
+    // Fall back to untagged for backwards compatibility
+    let hash = sha256::Hash::hash(challenge.as_bytes()).to_byte_array();
+    let message = Message::from_digest(hash);
+    secp.verify_ecdsa(&message, signature, public_key).is_ok()
 }
 
 fn get_64_random_hex_bytes_for_tests() -> String {

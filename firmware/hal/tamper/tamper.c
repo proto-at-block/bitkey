@@ -58,9 +58,8 @@ static void tamper_thread(void* UNUSED(args)) {
     BITLOG_EVENT(tamper_status, tamper_cause.se_status.tamper_status);
     BITLOG_EVENT(tamper_status_raw, tamper_cause.se_status.tamper_status_raw);
     BITLOG_EVENT(tamper_reset, tamper_cause.reset_reason);
-    LOGI("tamper_cause: tamper_status=%lu tamper_status_raw=%lu reset_reason=%lu",
-         tamper_cause.se_status.tamper_status, tamper_cause.se_status.tamper_status_raw,
-         tamper_cause.reset_reason);
+    LOGI("tamper: stat=%lu raw=%lu rst=%lu", tamper_cause.se_status.tamper_status,
+         tamper_cause.se_status.tamper_status_raw, tamper_cause.reset_reason);
   }
 }
 

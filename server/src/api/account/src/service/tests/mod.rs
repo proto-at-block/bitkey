@@ -52,6 +52,7 @@ impl From<TestAuthenticationKeys> for FullAccountAuthKeys {
             app_pubkey: keys.app.public_key,
             hardware_pubkey: keys.hw.public_key,
             recovery_pubkey: Some(keys.recovery.public_key),
+            hardware_type: Default::default(),
         }
     }
 }
@@ -223,6 +224,7 @@ pub async fn create_full_account_for_test(
                     app_pubkey: auth.app_pubkey,
                     hardware_pubkey: auth.hardware_pubkey,
                     recovery_pubkey: auth.recovery_pubkey,
+                    hardware_type: auth.hardware_type,
                 },
                 spending: spend,
             },
@@ -249,6 +251,7 @@ pub async fn create_full_account_for_test_v2(
                     app_pubkey: auth.app_pubkey,
                     hardware_pubkey: auth.hardware_pubkey,
                     recovery_pubkey: auth.recovery_pubkey,
+                    hardware_type: auth.hardware_type,
                 },
                 spending: spend,
             },

@@ -69,7 +69,7 @@ private fun enrolledFingerprintListItemModel(
         iconSize = IconSize.Small
       )
   ),
-  title = fingerprintHandle.label.ifEmpty { "Finger ${fingerprintHandle.index + 1}" },
+  title = fingerprintHandle.displayLabel,
   treatment = ListItemTreatment.PRIMARY,
   trailingAccessory = ListItemAccessory.ButtonAccessory(
     model = ButtonModel(
@@ -93,7 +93,7 @@ private fun placeholderFingerprintListItemModel(
         iconSize = IconSize.Small
       )
   ),
-  title = "Finger ${index + 1}",
+  title = FingerprintHandle.defaultLabel(index),
   treatment = ListItemTreatment.SECONDARY,
   trailingAccessory = ListItemAccessory.ButtonAccessory(
     model = ButtonModel(

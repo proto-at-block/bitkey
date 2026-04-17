@@ -21,7 +21,7 @@ use serde_json::json;
 use time::{Duration, OffsetDateTime};
 use types::{
     account::{
-        entities::{Account, Factor},
+        entities::{Account, Factor, HardwareType},
         AccountType,
     },
     recovery::inheritance::{claim::InheritanceClaim, router::BeneficiaryInheritanceClaimView},
@@ -103,6 +103,7 @@ async fn test_recreate_inheritance_claim_after_completing_delay_notify(
             app_auth_pubkey,
             hardware_auth_pubkey,
             recovery_auth_pubkey: Some(recovery_auth_pubkey),
+            hardware_type: HardwareType::default(),
         },
         OffsetDateTime::now_utc() - Duration::minutes(1),
         RecoveryStatus::Pending,
@@ -293,6 +294,7 @@ async fn test_rotate_authentication_keys_with_inheritance_claim(
                     key: new_auth_recovery_pubkey,
                     signature: recovery_signature,
                 }),
+                hardware_type: HardwareType::default(),
             },
             &keys,
         )

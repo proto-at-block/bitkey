@@ -65,7 +65,7 @@ bool nfc_timer_expired(uint32_t index) {
     return true;
   }
   index -= TIMER_INDEX_OFFSET;
-  ASSERT(index <= MAX_NFC_TIMERS);
+  ASSERT(index < MAX_NFC_TIMERS);
   return rtos_timer_expired(&timers[index]);
 }
 
@@ -75,7 +75,7 @@ void nfc_timer_stop(uint32_t index) {
     return;
   }
   index -= TIMER_INDEX_OFFSET;
-  ASSERT(index <= MAX_NFC_TIMERS);
+  ASSERT(index < MAX_NFC_TIMERS);
   rtos_timer_stop(&timers[index]);
 }
 

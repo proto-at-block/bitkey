@@ -13,6 +13,7 @@ import build.wallet.bitcoin.wallet.WatchingWalletProvider
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.f8e.recovery.LegacyRemoteKeyset
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.f8e.recovery.toSpendingKeysets
 import build.wallet.feature.flags.Bdk2FeatureFlag
@@ -109,6 +110,7 @@ class ExportTransactionsServiceImpl(
           .logNetworkFailure { "Error fetching keysets for an account when exporting transaction history." }
           .bind()
           .keysets
+          .filterIsInstance<LegacyRemoteKeyset>()
           .toSpendingKeysets(uuidGenerator)
       }
 

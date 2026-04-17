@@ -5,7 +5,6 @@ import bitkey.notifications.NotificationTouchpoint.PhoneNumberTouchpoint
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.v1.Action.ACTION_APP_PHONE_NUMBER_RESEND
-import build.wallet.analytics.v1.Action.ACTION_APP_PHONE_NUMBER_RESEND_SKIP_FOR_NOW
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.email.Email
 import build.wallet.phonenumber.PhoneNumberMock
@@ -15,8 +14,6 @@ import build.wallet.statemachine.core.form.FormMainContentModel.Explainer
 import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput
 import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput.ResendCodeContent.Button
 import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput.ResendCodeContent.Text
-import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput.SkipForNowContent.Hidden
-import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput.SkipForNowContent.Showing
 import build.wallet.statemachine.core.input.VerificationCodeInputProps.ResendCodeCallbacks
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.core.testWithVirtualTime
@@ -61,7 +58,6 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
       onBack = { onBackCalls.add(Unit) },
       onCodeEntered = { onCodeEnteredCalls.add(Unit) },
       onResendCode = { resendCodeCallbacks -> onResendCodeCalls.add(resendCodeCallbacks) },
-      skipBottomSheetProvider = { SheetModelMock(it) },
       screenId = null
     )
 
@@ -150,9 +146,6 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
 
       val resendCodeCallbacks = onResendCodeCalls.awaitItem()
 
-      // Showing skip for now
-      awaitBody<FormBodyModel>()
-
       // Resend code loading
       awaitBody<FormBodyModel> {
         mainContentList.first()
@@ -193,9 +186,6 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
 
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_PHONE_NUMBER_RESEND))
 
-      // Showing skip for now
-      awaitBody<FormBodyModel>()
-
       // Resend code loading
       awaitBody<FormBodyModel> {
         mainContentList.first()
@@ -208,122 +198,6 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
 
       // Showing error
       awaitItem().bottomSheetModel.shouldNotBeNull()
-    }
-  }
-
-  test("skip after resend code when skip sheet provided") {
-    stateMachine.testWithVirtualTime(props) {
-      // Resend code blocked
-      awaitBody<FormBodyModel> {
-        mainContentList.first()
-          .shouldBeTypeOf<VerificationCodeInput>()
-          .skipForNowContent.shouldBeInstanceOf<Hidden>()
-      }
-
-      clock.advanceBy(30.seconds)
-
-      // Resend code available
-      awaitBody<FormBodyModel> {
-        mainContentList.first()
-          .shouldBeTypeOf<VerificationCodeInput>()
-          .resendCodeContent.shouldBeInstanceOf<Button>()
-          .value.onClick()
-      }
-
-      onResendCodeCalls.awaitItem()
-      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_PHONE_NUMBER_RESEND))
-
-      // Showing skip for now
-      awaitBody<FormBodyModel>()
-
-      // Resend code loading
-      awaitBody<FormBodyModel> {
-        val skipForNowContent =
-          mainContentList.first()
-            .shouldBeTypeOf<VerificationCodeInput>()
-            .skipForNowContent.shouldBeInstanceOf<Showing>()
-
-        skipForNowContent.text.shouldBe("Can’t receive the code?")
-        skipForNowContent.button.text.shouldBe("Skip for now")
-        skipForNowContent.button.onClick()
-      }
-      awaitBody<FormBodyModel>()
-      eventTracker.eventCalls.awaitItem().shouldBe(
-        TrackedAction(ACTION_APP_PHONE_NUMBER_RESEND_SKIP_FOR_NOW)
-      )
-    }
-  }
-
-  test("no skip showing after resend code when skip sheet not provided") {
-    stateMachine.testWithVirtualTime(props.copy(skipBottomSheetProvider = null)) {
-      // Resend code blocked
-      awaitBody<FormBodyModel> {
-        mainContentList.first()
-          .shouldBeTypeOf<VerificationCodeInput>()
-          .skipForNowContent.shouldBeInstanceOf<Hidden>()
-      }
-
-      clock.advanceBy(30.seconds)
-
-      // Resend code available
-      awaitBody<FormBodyModel> {
-        mainContentList.first()
-          .shouldBeTypeOf<VerificationCodeInput>()
-          .resendCodeContent.shouldBeInstanceOf<Button>()
-          .value.onClick()
-      }
-
-      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_PHONE_NUMBER_RESEND))
-
-      onResendCodeCalls.awaitItem()
-
-      // Resend code loading
-      awaitBody<FormBodyModel> {
-        mainContentList.first()
-          .shouldBeTypeOf<VerificationCodeInput>()
-          .skipForNowContent.shouldBeInstanceOf<Hidden>()
-      }
-    }
-  }
-
-  test("skip for now - skip sheet - go back") {
-    stateMachine.testWithVirtualTime(props) {
-      // Resend code blocked
-      awaitBody<FormBodyModel>()
-      clock.advanceBy(30.seconds)
-      // Resend code available
-      awaitBody<FormBodyModel> {
-        mainContentList.first()
-          .shouldBeTypeOf<VerificationCodeInput>()
-          .resendCodeContent.shouldBeInstanceOf<Button>()
-          .value.onClick()
-      }
-      onResendCodeCalls.awaitItem()
-      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_PHONE_NUMBER_RESEND))
-
-      // Showing skip for now
-      awaitBody<FormBodyModel>()
-
-      // Resend code loading
-      awaitBody<FormBodyModel> {
-        mainContentList.first()
-          .shouldBeTypeOf<VerificationCodeInput>()
-          .skipForNowContent.shouldBeInstanceOf<Showing>()
-          .button.onClick()
-      }
-
-      eventTracker.eventCalls.awaitItem().shouldBe(
-        TrackedAction(ACTION_APP_PHONE_NUMBER_RESEND_SKIP_FOR_NOW)
-      )
-
-      // Showing skip sheet
-      awaitItem().bottomSheetModel
-        .shouldNotBeNull()
-        .onClosed()
-
-      // Dismissed skip sheet
-      awaitItem().bottomSheetModel
-        .shouldBeNull()
     }
   }
 

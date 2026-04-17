@@ -93,7 +93,7 @@ impl CustomerKeyStore {
         }
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, customer_key))]
     pub async fn put_customer_key(&self, customer_key: &CustomerKey) -> anyhow::Result<()> {
         let customer_key_item = to_item(customer_key)?;
 

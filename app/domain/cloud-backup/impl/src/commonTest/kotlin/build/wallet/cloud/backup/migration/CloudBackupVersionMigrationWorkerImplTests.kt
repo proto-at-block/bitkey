@@ -5,7 +5,7 @@ import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.cloud.backup.CloudBackupError
 import build.wallet.cloud.backup.CloudBackupOperationLockImpl
-import build.wallet.cloud.backup.CloudBackupRepositoryFake
+import build.wallet.cloud.backup.CloudBackupServiceFake
 import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
 import build.wallet.cloud.backup.CloudBackupV2WithLiteAccountMock
 import build.wallet.cloud.backup.CloudBackupV3
@@ -32,7 +32,7 @@ class CloudBackupVersionMigrationWorkerImplTests : FunSpec({
 
   val accountService = AccountServiceFake()
   val cloudStoreAccountRepository = CloudStoreAccountRepositoryMock()
-  val cloudBackupRepository = CloudBackupRepositoryFake()
+  val cloudBackupService = CloudBackupServiceFake()
   val fullAccountCloudBackupCreator = FullAccountCloudBackupCreatorMock(turbines::create)
   val liteAccountCloudBackupCreator = LiteAccountCloudBackupCreatorMock()
   val appSessionManager = AppSessionManagerFake()
@@ -45,7 +45,7 @@ class CloudBackupVersionMigrationWorkerImplTests : FunSpec({
   val worker = CloudBackupVersionMigrationWorkerImpl(
     accountService = accountService,
     cloudStoreAccountRepository = cloudStoreAccountRepository,
-    cloudBackupRepository = cloudBackupRepository,
+    cloudBackupService = cloudBackupService,
     fullAccountCloudBackupCreator = fullAccountCloudBackupCreator,
     liteAccountCloudBackupCreator = liteAccountCloudBackupCreator,
     cloudBackupDao = cloudBackupDao,
@@ -56,7 +56,7 @@ class CloudBackupVersionMigrationWorkerImplTests : FunSpec({
   beforeTest {
     accountService.reset()
     cloudStoreAccountRepository.reset()
-    cloudBackupRepository.reset()
+    cloudBackupService.reset()
     fullAccountCloudBackupCreator.reset()
     liteAccountCloudBackupCreator.reset()
     cloudBackupDao.reset()
@@ -66,7 +66,7 @@ class CloudBackupVersionMigrationWorkerImplTests : FunSpec({
   test("migrates V2 full account backup to V3") {
     accountService.setActiveAccount(fullAccount)
     cloudBackupDao.set(fullAccount.accountId.serverId, CloudBackupV2WithFullAccountMock)
-    cloudBackupRepository.writeBackup(
+    cloudBackupService.writeBackup(
       accountId = fullAccount.accountId,
       cloudStoreAccount = cloudAccount,
       backup = CloudBackupV2WithFullAccountMock,
@@ -81,14 +81,14 @@ class CloudBackupVersionMigrationWorkerImplTests : FunSpec({
       .shouldNotBeNull()
 
     // Verify V3 backup was written to cloud
-    val writtenBackup = cloudBackupRepository.awaitBackup(cloudAccount)
+    val writtenBackup = cloudBackupService.awaitBackup(cloudAccount)
     writtenBackup.shouldBeTypeOf<CloudBackupV3>()
   }
 
   test("migrates V2 lite account backup to V3") {
     accountService.setActiveAccount(liteAccount)
     cloudBackupDao.set(liteAccount.accountId.serverId, CloudBackupV2WithLiteAccountMock)
-    cloudBackupRepository.writeBackup(
+    cloudBackupService.writeBackup(
       accountId = liteAccount.accountId,
       cloudStoreAccount = cloudAccount,
       backup = CloudBackupV2WithLiteAccountMock,
@@ -99,14 +99,14 @@ class CloudBackupVersionMigrationWorkerImplTests : FunSpec({
     worker.executeWork()
 
     // Verify V3 backup was written to cloud
-    val writtenBackup = cloudBackupRepository.awaitBackup(cloudAccount)
+    val writtenBackup = cloudBackupService.awaitBackup(cloudAccount)
     writtenBackup.shouldBeTypeOf<CloudBackupV3>()
   }
 
   test("skips migration when backup is already V3") {
     accountService.setActiveAccount(fullAccount)
     cloudBackupDao.set(fullAccount.accountId.serverId, CloudBackupV3WithFullAccountMock)
-    cloudBackupRepository.writeBackup(
+    cloudBackupService.writeBackup(
       accountId = fullAccount.accountId,
       cloudStoreAccount = cloudAccount,
       backup = CloudBackupV3WithFullAccountMock,
@@ -119,7 +119,7 @@ class CloudBackupVersionMigrationWorkerImplTests : FunSpec({
     fullAccountCloudBackupCreator.createCalls.expectNoEvents()
 
     // Verify backup remains V3 (no re-write)
-    val backup = cloudBackupRepository.readActiveBackup(cloudAccount).value
+    val backup = cloudBackupService.readActiveBackup(cloudAccount).value
     backup.shouldBe(CloudBackupV3WithFullAccountMock)
   }
 
@@ -133,7 +133,7 @@ class CloudBackupVersionMigrationWorkerImplTests : FunSpec({
     fullAccountCloudBackupCreator.createCalls.expectNoEvents()
 
     // Verify no backup exists
-    val backup = cloudBackupRepository.readActiveBackup(cloudAccount).value
+    val backup = cloudBackupService.readActiveBackup(cloudAccount).value
     backup.shouldBe(null)
   }
 
@@ -146,14 +146,14 @@ class CloudBackupVersionMigrationWorkerImplTests : FunSpec({
     fullAccountCloudBackupCreator.createCalls.expectNoEvents()
 
     // Verify no backup exists
-    val backup = cloudBackupRepository.readActiveBackup(cloudAccount).value
+    val backup = cloudBackupService.readActiveBackup(cloudAccount).value
     backup.shouldBe(null)
   }
 
   test("handles missing cloud store account gracefully") {
     accountService.setActiveAccount(fullAccount)
     cloudBackupDao.set(fullAccount.accountId.serverId, CloudBackupV2WithFullAccountMock)
-    cloudBackupRepository.writeBackup(
+    cloudBackupService.writeBackup(
       accountId = fullAccount.accountId,
       cloudStoreAccount = cloudAccount,
       backup = CloudBackupV2WithFullAccountMock,
@@ -167,14 +167,14 @@ class CloudBackupVersionMigrationWorkerImplTests : FunSpec({
     fullAccountCloudBackupCreator.createCalls.expectNoEvents()
 
     // Verify backup remains V2 (no migration happened)
-    val backup = cloudBackupRepository.readActiveBackup(cloudAccount).value
+    val backup = cloudBackupService.readActiveBackup(cloudAccount).value
     backup.shouldBe(CloudBackupV2WithFullAccountMock)
   }
 
   test("handles backup creation error gracefully for full account") {
     accountService.setActiveAccount(fullAccount)
     cloudBackupDao.set(fullAccount.accountId.serverId, CloudBackupV2WithFullAccountMock)
-    cloudBackupRepository.writeBackup(
+    cloudBackupService.writeBackup(
       accountId = fullAccount.accountId,
       cloudStoreAccount = cloudAccount,
       backup = CloudBackupV2WithFullAccountMock,
@@ -189,14 +189,14 @@ class CloudBackupVersionMigrationWorkerImplTests : FunSpec({
     fullAccountCloudBackupCreator.createCalls.awaitItem()
 
     // Verify backup remains V2 (not updated due to creation error)
-    val backup = cloudBackupRepository.readActiveBackup(cloudAccount).value
+    val backup = cloudBackupService.readActiveBackup(cloudAccount).value
     backup.shouldBe(CloudBackupV2WithFullAccountMock)
   }
 
   test("handles backup creation error gracefully for lite account") {
     accountService.setActiveAccount(liteAccount)
     cloudBackupDao.set(liteAccount.accountId.serverId, CloudBackupV2WithLiteAccountMock)
-    cloudBackupRepository.writeBackup(
+    cloudBackupService.writeBackup(
       accountId = liteAccount.accountId,
       cloudStoreAccount = cloudAccount,
       backup = CloudBackupV2WithLiteAccountMock,
@@ -209,21 +209,21 @@ class CloudBackupVersionMigrationWorkerImplTests : FunSpec({
     worker.executeWork()
 
     // Verify backup remains V2 (not updated due to creation error)
-    val backup = cloudBackupRepository.readActiveBackup(cloudAccount).value
+    val backup = cloudBackupService.readActiveBackup(cloudAccount).value
     backup.shouldBe(CloudBackupV2WithLiteAccountMock)
   }
 
   test("handles cloud backup upload error gracefully") {
     accountService.setActiveAccount(fullAccount)
     cloudBackupDao.set(fullAccount.accountId.serverId, CloudBackupV2WithFullAccountMock)
-    cloudBackupRepository.writeBackup(
+    cloudBackupService.writeBackup(
       accountId = fullAccount.accountId,
       cloudStoreAccount = cloudAccount,
       backup = CloudBackupV2WithFullAccountMock,
       requireAuthRefresh = false
     )
     fullAccountCloudBackupCreator.backupResult = Ok(CloudBackupV3WithFullAccountMock)
-    cloudBackupRepository.returnWriteError =
+    cloudBackupService.returnWriteError =
       CloudBackupError.UnrectifiableCloudBackupError(Throwable("Upload failed"))
 
     worker.executeWork()
@@ -233,8 +233,8 @@ class CloudBackupVersionMigrationWorkerImplTests : FunSpec({
 
     // Verify backup remains V2 (not updated due to upload error)
     // Note: We need to clear the write error to read the backup
-    cloudBackupRepository.returnWriteError = null
-    val backup = cloudBackupRepository.readActiveBackup(cloudAccount).value
+    cloudBackupService.returnWriteError = null
+    val backup = cloudBackupService.readActiveBackup(cloudAccount).value
     backup.shouldBe(CloudBackupV2WithFullAccountMock)
   }
 
@@ -242,7 +242,7 @@ class CloudBackupVersionMigrationWorkerImplTests : FunSpec({
     accountService.setActiveAccount(fullAccount)
     val v2WithoutFields = CloudBackupV2WithFullAccountMock.copy(fullAccountFields = null)
     cloudBackupDao.set(fullAccount.accountId.serverId, v2WithoutFields)
-    cloudBackupRepository.writeBackup(
+    cloudBackupService.writeBackup(
       accountId = fullAccount.accountId,
       cloudStoreAccount = cloudAccount,
       backup = v2WithoutFields,
@@ -255,7 +255,7 @@ class CloudBackupVersionMigrationWorkerImplTests : FunSpec({
     fullAccountCloudBackupCreator.createCalls.expectNoEvents()
 
     // Verify backup remains unchanged
-    val backup = cloudBackupRepository.readActiveBackup(cloudAccount).value
+    val backup = cloudBackupService.readActiveBackup(cloudAccount).value
     backup.shouldBe(v2WithoutFields)
   }
 
@@ -263,7 +263,7 @@ class CloudBackupVersionMigrationWorkerImplTests : FunSpec({
     accountService.setActiveAccount(fullAccount)
     val v2Backup = CloudBackupV2WithFullAccountMock
     cloudBackupDao.set(fullAccount.accountId.serverId, v2Backup)
-    cloudBackupRepository.writeBackup(
+    cloudBackupService.writeBackup(
       accountId = fullAccount.accountId,
       cloudStoreAccount = cloudAccount,
       backup = v2Backup,

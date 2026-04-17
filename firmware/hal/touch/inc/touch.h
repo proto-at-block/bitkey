@@ -207,27 +207,6 @@ bool touch_pop_event(touch_event_t* event);
 uint8_t touch_event_buffer_count(void);
 
 /**
- * @brief Puts the touch controller in low power state
- *
- * @details Getting out of monitor mode is either done by hardware reset, or,
- *          if configured, a gesture can wake the touch controller
- *          (such as double tap)
- *
- * @return `true` if entered monitor mode successfully.
- */
-bool touch_enter_monitor_mode(void);
-
-/**
- * @brief Exits the touch controller from low power monitor mode
- *
- * @details Restores the touch controller to normal working mode.
- *          Should be called on boot to ensure correct state.
- *
- * @return `true` if exited monitor mode successfully.
- */
-bool touch_exit_monitor_mode(void);
-
-/**
  * @brief Process pending ESD check if needed.
  *
  * @details This function should be called periodically from your application task
@@ -268,6 +247,26 @@ bool touch_fwup_upgrade(void);
  * @return `true` if upgrade succeeded, `false` on failure.
  */
 bool touch_fwup_force_upgrade(void);
+
+#ifdef MFGTEST
+/**
+ * @brief Firmware upgrade result with ECC information (mfgtest only).
+ */
+typedef struct {
+  bool success;        /**< True if upgrade succeeded. */
+  uint16_t ecc_host;   /**< ECC calculated by host. */
+  uint16_t ecc_device; /**< ECC calculated by device (read back after flash). */
+  uint8_t fw_version;  /**< Firmware version after upgrade. */
+} touch_fwup_result_t;
+
+/**
+ * @brief Force touch controller firmware upgrade with ECC reporting (mfgtest only).
+ *
+ * @param[out] result  Pointer to result structure to fill with upgrade info.
+ * @return `true` if upgrade succeeded, `false` on failure.
+ */
+bool touch_fwup_force_upgrade_with_ecc(touch_fwup_result_t* result);
+#endif /* MFGTEST */
 
 /**
  * @brief Get the current firmware version from the touch controller.
@@ -334,5 +333,18 @@ void touch_set_fwup_in_progress(bool in_progress);
  * @return True if firmware upgrade is in progress.
  */
 bool touch_get_fwup_in_progress(void);
+
+#ifdef MFGTEST
+/**
+ * @brief Suspend ALL host I2C communications with the touch controller (mfgtest only).
+ *
+ * @details When set to true, the host will completely stop all I2C traffic
+ * to the touch IC, including coordinate reads and ESD health checks.
+ * This allows external I2C debugging tools to have exclusive bus access.
+ *
+ * @param[in] suspended  True to suspend all host I2C traffic.
+ */
+void touch_set_host_i2c_suspended(bool suspended);
+#endif /* MFGTEST */
 
 /** @} */

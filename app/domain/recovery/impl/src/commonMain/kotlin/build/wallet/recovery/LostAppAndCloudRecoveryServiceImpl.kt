@@ -1,6 +1,7 @@
 package build.wallet.recovery
 
 import bitkey.account.AccountConfigService
+import bitkey.account.HardwareType
 import bitkey.auth.AuthTokenScope.Global
 import bitkey.f8e.error.F8eError.SpecificClientError
 import bitkey.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
@@ -13,15 +14,19 @@ import bitkey.recovery.InitiateDelayNotifyRecoveryError.*
 import build.wallet.auth.AccountAuthenticator
 import build.wallet.auth.AuthTokensService
 import build.wallet.auth.logAuthFailure
+import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor.App
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.bitkey.hardware.HwKeyBundle
+import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.recovery.HardwareKeysForRecovery
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.AuthF8eClient
 import build.wallet.f8e.auth.AuthF8eClient.InitiateAuthenticationSuccess
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.recovery.*
 import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.logging.logFailure
@@ -39,6 +44,7 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.recoverIf
 import kotlinx.coroutines.sync.withLock
+import build.wallet.recovery.CancelDelayNotifyRecoveryError.CommsVerificationRequiredError as CancelCommsVerificationRequiredError
 
 @BitkeyInject(AppScope::class)
 class LostAppAndCloudRecoveryServiceImpl(
@@ -107,6 +113,7 @@ class LostAppAndCloudRecoveryServiceImpl(
             authTokens = authTokens,
             hwAuthKey = hwAuthKey,
             destinationAppKeys = destinationAppKeys,
+            bitcoinNetworkType = accountConfig.bitcoinNetworkType,
             descriptorBackups = descriptorBackups,
             wrappedSsek = wrappedSsek!!
           )
@@ -118,6 +125,7 @@ class LostAppAndCloudRecoveryServiceImpl(
             authTokens = authTokens,
             hwAuthKey = hwAuthKey,
             destinationAppKeys = destinationAppKeys,
+            bitcoinNetworkType = accountConfig.bitcoinNetworkType,
             existingHwSpendingKeys = keysets
               // A person could create a private keyset but not create a descriptor
               // backup for it IFF they started the migration process but didn't complete it.
@@ -162,9 +170,10 @@ class LostAppAndCloudRecoveryServiceImpl(
               lostFactor = App,
               appGlobalAuthKey = completedAuth.destinationAppKeys.authKey,
               appRecoveryAuthKey = completedAuth.destinationAppKeys.recoveryAuthKey,
-              hwFactorProofOfPossession = hardwareKeysForRecovery.hwProofOfPossession,
+              proof = hardwareKeysForRecovery.proof,
               delayPeriod = accountConfig.delayNotifyDuration,
-              hardwareAuthKey = hardwareKeysForRecovery.newKeyBundle.authKey
+              hardwareAuthKey = hardwareKeysForRecovery.newKeyBundle.authKey,
+              hardwareType = hardwareKeysForRecovery.hardwareType
             )
             .mapError {
               when (it) {
@@ -187,9 +196,29 @@ class LostAppAndCloudRecoveryServiceImpl(
       }
     }
 
+  override fun buildHardwareKeys(
+    proof: PrivilegedActionProof,
+    hardwareAuthKey: HwAuthPublicKey,
+    spendingKey: HwSpendingPublicKey,
+    appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+    bitcoinNetworkType: BitcoinNetworkType,
+    hardwareType: HardwareType,
+  ): HardwareKeysForRecovery =
+    HardwareKeysForRecovery(
+      proof = proof,
+      newAppGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
+      newKeyBundle = HwKeyBundle(
+        localId = uuidGenerator.random(),
+        spendingKey = spendingKey,
+        authKey = hardwareAuthKey,
+        networkType = bitcoinNetworkType
+      ),
+      hardwareType = hardwareType
+    )
+
   override suspend fun cancelRecovery(
     accountId: FullAccountId,
-    hwProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
   ): Result<Unit, CancelDelayNotifyRecoveryError> =
     coroutineBinding {
       recoveryLock.withLock {
@@ -198,7 +227,7 @@ class LostAppAndCloudRecoveryServiceImpl(
           .cancel(
             f8eEnvironment = f8eEnvironment,
             fullAccountId = accountId,
-            hwFactorProofOfPossession = hwProofOfPossession
+            proof = proof
           )
           .recoverIf(
             predicate = { f8eError ->
@@ -210,7 +239,14 @@ class LostAppAndCloudRecoveryServiceImpl(
             },
             transform = {}
           )
-          .mapError(::F8eCancelDelayNotifyError)
+          .mapError { f8eError ->
+            val clientError = f8eError as? SpecificClientError<CancelDelayNotifyRecoveryErrorCode>
+            if (clientError?.errorCode == CancelDelayNotifyRecoveryErrorCode.COMMS_VERIFICATION_REQUIRED) {
+              CancelCommsVerificationRequiredError(clientError.error)
+            } else {
+              F8eCancelDelayNotifyError(f8eError)
+            }
+          }
           .bind()
 
         recoveryDao.clear()

@@ -39,17 +39,18 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
     // Start a new app to attempt to onboard a new full account.
     val onboardApp = launchNewApp(
       cloudStoreAccountRepository = liteApp.cloudStoreAccountRepository,
-      cloudKeyValueStore = liteApp.cloudKeyValueStore
+      cloudBackupStore = liteApp.cloudBackupStore
     )
 
     // Sanity check that the cloud backup is available to the app that will now go through onboarding.
-    onboardApp.cloudKeyValueStore.keys(CloudStoreAccountFake.CloudStoreAccount1Fake)
+    onboardApp.cloudBackupStore.keys(CloudStoreAccountFake.CloudStoreAccount1Fake)
       .getOrThrow()
       .first()
       .let { key ->
-        onboardApp.cloudKeyValueStore.getString(CloudStoreAccountFake.CloudStoreAccount1Fake, key)
+        onboardApp.cloudBackupStore.get(CloudStoreAccountFake.CloudStoreAccount1Fake, key)
           .shouldBeOk()
           .shouldNotBeNull()
+          .utf8()
           .shouldBe(
             onboardApp.jsonSerializer.encodeToStringResult<CloudBackupV3>(liteBackup as CloudBackupV3)
               .getOrThrow()
@@ -103,17 +104,18 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
     // Start a new app to attempt to onboard a new full account.
     var onboardApp = launchNewApp(
       cloudStoreAccountRepository = liteApp.cloudStoreAccountRepository,
-      cloudKeyValueStore = liteApp.cloudKeyValueStore
+      cloudBackupStore = liteApp.cloudBackupStore
     )
 
     // Sanity check that the cloud backup is available to the app that will now go through onboarding.
-    onboardApp.cloudKeyValueStore.keys(CloudStoreAccountFake.CloudStoreAccount1Fake)
+    onboardApp.cloudBackupStore.keys(CloudStoreAccountFake.CloudStoreAccount1Fake)
       .getOrThrow()
       .first()
       .let { key ->
-        onboardApp.cloudKeyValueStore.getString(CloudStoreAccountFake.CloudStoreAccount1Fake, key)
+        onboardApp.cloudBackupStore.get(CloudStoreAccountFake.CloudStoreAccount1Fake, key)
           .shouldBeOk()
           .shouldNotBeNull()
+          .utf8()
           .shouldBe(
             onboardApp.jsonSerializer.encodeToStringResult<CloudBackupV3>(liteBackup as CloudBackupV3)
               .getOrThrow()
@@ -192,7 +194,7 @@ private suspend fun createLiteAccountWithInvite(
 
   val liteBackup = liteApp.liteAccountCloudBackupCreator.create(liteAccount).getOrThrow()
   // Note the cloud backup is written to shared settings.
-  liteApp.cloudBackupRepository.writeBackup(
+  liteApp.cloudBackupService.writeBackup(
     liteAccount.accountId,
     CloudStoreAccountFake.CloudStoreAccount1Fake,
     liteBackup,

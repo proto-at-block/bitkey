@@ -17,7 +17,7 @@ import build.wallet.chaincode.delegation.ChaincodeDelegationTweakService
 import build.wallet.coroutines.flow.tickerFlow
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.mobilepay.MobilePaySigningF8eClient
 import build.wallet.f8e.mobilepay.MobilePaySpendingLimitF8eClient
 import build.wallet.limit.DailySpendingLimitStatus.MobilePayAvailable
@@ -36,6 +36,7 @@ import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.money.exchange.ExchangeRateService
 import build.wallet.platform.app.AppSessionManager
+import build.wallet.platform.settings.Locale
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.get
@@ -178,7 +179,8 @@ class MobilePayServiceImpl(
 
   override suspend fun setLimit(
     spendingLimit: SpendingLimit,
-    hwFactorProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
+    locale: Locale,
   ): Result<Unit, Error> {
     return coroutineBinding {
       val account = accountService.getAccount<FullAccount>().bind()
@@ -187,7 +189,8 @@ class MobilePayServiceImpl(
           fullAccountId = account.accountId,
           f8eEnvironment = account.config.f8eEnvironment,
           limit = spendingLimit,
-          hwFactorProofOfPossession = hwFactorProofOfPossession
+          proof = proof,
+          locale = locale
         )
         .logNetworkFailure { "Unable to save limit to the backend" }
         .bind()

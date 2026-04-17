@@ -7,6 +7,7 @@ import build.wallet.statemachine.core.LabelModel
 import build.wallet.ui.model.icon.*
 import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
 import build.wallet.ui.model.list.ListItemModel
+import build.wallet.ui.model.list.ListItemSideTextTint
 import build.wallet.ui.model.list.ListItemSideTextTint.GREEN
 import build.wallet.ui.model.list.ListItemSideTextTint.PRIMARY
 
@@ -18,14 +19,33 @@ fun TransactionItemModel(
   transactionType: TransactionType,
   isPending: Boolean,
   isLate: Boolean,
+  pendingBadgeType: BadgeType = BadgeType.Loading,
   isLoading: Boolean = false,
   onClick: () -> Unit,
 ) = ListItemModel(
-  title = when (transactionType) {
+  title = transactionType.title(),
+  titleLabel = transactionType.titleLabel(truncatedRecipientAddress),
+  secondaryText = date,
+  sideText = amount,
+  secondarySideText = amountEquivalent,
+  leadingAccessory = IconAccessory(
+    model = transactionType.iconModel(isPending, isLate, pendingBadgeType)
+  ),
+  sideTextTint = transactionType.sideTextTint(),
+  onClick = onClick,
+  isLoading = isLoading
+)
+
+private fun TransactionType.title(): String =
+  when (this) {
     Incoming, Outgoing -> "" // titleLabel will be used
     UtxoConsolidation -> "Consolidation"
-  },
-  titleLabel = when (transactionType) {
+  }
+
+private fun TransactionType.titleLabel(
+  truncatedRecipientAddress: String,
+): LabelModel.StringWithStyledSubstringModel? =
+  when (this) {
     Incoming, Outgoing -> LabelModel.StringWithStyledSubstringModel(
       string = truncatedRecipientAddress,
       styledSubstrings = listOf(
@@ -36,38 +56,62 @@ fun TransactionItemModel(
       )
     )
     UtxoConsolidation -> null
-  },
-  secondaryText = date,
-  sideText = amount,
-  secondarySideText = amountEquivalent,
-  leadingAccessory = IconAccessory(
-    model = IconModel(
-      iconImage = when {
-        transactionType is UtxoConsolidation && !isPending -> IconImage.LocalImage(Icon.BitcoinConsolidation)
-        isLate || isPending -> IconImage.LocalImage(Icon.BitcoinBadged)
-        else -> IconImage.LocalImage(Icon.Bitcoin)
-      },
-      iconSize = when {
-        isLate || isPending || transactionType is UtxoConsolidation -> IconSize.Custom(48)
-        else -> IconSize.Custom(44)
-      },
-      iconBackgroundType = IconBackgroundType.Square(
-        size = IconSize.Custom(48),
-        color = IconBackgroundType.Square.Color.Transparent,
-        cornerRadius = 0
-      ),
-      iconAlignmentInBackground = IconAlignmentInBackground.Start,
-      badge = when {
-        isLate -> BadgeType.Error
-        isPending -> BadgeType.Loading
-        else -> null
-      }
-    )
-  ),
-  sideTextTint = when (transactionType) {
+  }
+
+private fun TransactionType.iconModel(
+  isPending: Boolean,
+  isLate: Boolean,
+  pendingBadgeType: BadgeType,
+): IconModel =
+  IconModel(
+    iconImage = iconImage(isPending, isLate, pendingBadgeType),
+    iconSize = iconSize(isPending, isLate, pendingBadgeType),
+    iconBackgroundType = IconBackgroundType.Square(
+      size = IconSize.Custom(48),
+      color = IconBackgroundType.Square.Color.Transparent,
+      cornerRadius = 0
+    ),
+    iconAlignmentInBackground = IconAlignmentInBackground.Start,
+    badge = badge(isPending, isLate, pendingBadgeType)
+  )
+
+private fun TransactionType.iconImage(
+  isPending: Boolean,
+  isLate: Boolean,
+  pendingBadgeType: BadgeType,
+): IconImage =
+  when {
+    this is UtxoConsolidation && !isPending -> IconImage.LocalImage(Icon.BitcoinConsolidation)
+    isPending && !isLate && pendingBadgeType == BadgeType.CircularLoading ->
+      IconImage.LocalImage(Icon.Bitcoin)
+    isLate || isPending -> IconImage.LocalImage(Icon.BitcoinBadged)
+    else -> IconImage.LocalImage(Icon.Bitcoin)
+  }
+
+private fun TransactionType.iconSize(
+  isPending: Boolean,
+  isLate: Boolean,
+  pendingBadgeType: BadgeType,
+): IconSize =
+  when {
+    isPending && !isLate && pendingBadgeType == BadgeType.CircularLoading -> IconSize.Custom(44)
+    isLate || isPending || this is UtxoConsolidation -> IconSize.Custom(48)
+    else -> IconSize.Custom(44)
+  }
+
+private fun badge(
+  isPending: Boolean,
+  isLate: Boolean,
+  pendingBadgeType: BadgeType,
+): BadgeType? =
+  when {
+    isLate -> BadgeType.Error
+    isPending -> pendingBadgeType
+    else -> null
+  }
+
+private fun TransactionType.sideTextTint(): ListItemSideTextTint =
+  when (this) {
     Incoming -> GREEN
     Outgoing, UtxoConsolidation -> PRIMARY
-  },
-  onClick = onClick,
-  isLoading = isLoading
-)
+  }

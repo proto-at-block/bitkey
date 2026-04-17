@@ -1,6 +1,7 @@
 package build.wallet.statemachine.home.full
 
 import androidx.compose.runtime.*
+import bitkey.account.isW3Hardware
 import bitkey.ui.framework.NavigatorPresenter
 import bitkey.ui.screens.device.DeviceSettingsScreen
 import bitkey.ui.screens.recovery.KeysetRepairScreen
@@ -92,6 +93,15 @@ class HomeUiStateMachineImpl(
       mutableStateOf<HomeScreen>(MoneyHome(origin = Origin.Launch))
     }
 
+    fun showSettings(screen: SettingsListState?) {
+      anchorRootScreen = when (val currentRootScreen = uiState.rootScreen) {
+        is Settings -> anchorRootScreen
+        is MoneyHome -> MoneyHome(origin = Origin.Settings)
+        is HomeScreen.SecurityHub -> currentRootScreen
+      }
+      uiState = uiState.copy(rootScreen = Settings(screen))
+    }
+
     LaunchedEffect("deep-link-routing") {
       Router.onRouteChange { route ->
         when (route) {
@@ -176,43 +186,31 @@ class HomeUiStateMachineImpl(
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_SETTINGS -> {
-                uiState = uiState.copy(rootScreen = Settings(null))
+                showSettings(null)
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_INHERITANCE -> {
-                uiState = uiState.copy(
-                  rootScreen = Settings(
-                    ShowingInheritanceUiState(ManagingInheritanceTab.Beneficiaries)
-                  )
-                )
+                showSettings(ShowingInheritanceUiState(ManagingInheritanceTab.Beneficiaries))
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_TX_VERIFICATION_POLICY -> {
-                uiState =
-                  uiState.copy(rootScreen = Settings(SettingsListState.ShowingTransactionVerificationPolicyState))
+                showSettings(SettingsListState.ShowingTransactionVerificationPolicyState)
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_INHERITANCE_BENEFACTOR -> {
-                uiState = uiState.copy(
-                  rootScreen = Settings(
-                    ShowingInheritanceUiState(ManagingInheritanceTab.Inheritance)
-                  )
-                )
+                showSettings(ShowingInheritanceUiState(ManagingInheritanceTab.Inheritance))
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_BIOMETRIC -> {
-                uiState =
-                  uiState.copy(rootScreen = Settings(SettingsListState.ShowingBiometricSettingUiState))
+                showSettings(SettingsListState.ShowingBiometricSettingUiState)
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_CRITICAL_ALERTS -> {
-                uiState =
-                  uiState.copy(rootScreen = Settings(SettingsListState.ShowingRecoveryChannelsUiState))
+                showSettings(SettingsListState.ShowingRecoveryChannelsUiState)
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_EAK_BACKUP_HEALTH -> {
-                uiState =
-                  uiState.copy(rootScreen = Settings(SettingsListState.ShowingCloudBackupHealthUiState))
+                showSettings(SettingsListState.ShowingCloudBackupHealthUiState)
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_FINGERPRINTS,
@@ -222,13 +220,11 @@ class HomeUiStateMachineImpl(
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_MOBILE_KEY_BACKUP -> {
-                uiState =
-                  uiState.copy(rootScreen = Settings(SettingsListState.ShowingCloudBackupHealthUiState))
+                showSettings(SettingsListState.ShowingCloudBackupHealthUiState)
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_RECOVERY_CONTACTS -> {
-                uiState =
-                  uiState.copy(rootScreen = Settings(SettingsListState.ShowingTrustedContactsUiState))
+                showSettings(SettingsListState.ShowingTrustedContactsUiState)
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_PAIR_DEVICE -> {
@@ -303,6 +299,19 @@ class HomeUiStateMachineImpl(
               uiState.copy(rootScreen = MoneyHome(origin = Origin.LostHardwareRecovery(false)))
             true
           }
+          is Route.HardwareSetup -> {
+            // If user has W1 hardware, navigate to W3 upgrade flow.
+            // If user already has W3, just consume the route (no-op).
+            val account = props.account
+            if (account is FullAccount && !account.config.isW3Hardware) {
+              uiState = uiState.copy(rootScreen = MoneyHome(origin = Origin.W3Upgrade))
+            }
+            true
+          }
+          is Route.W3UpgradeComplete -> {
+            uiState = uiState.copy(rootScreen = MoneyHome(origin = Origin.W3UpgradeComplete))
+            true
+          }
         }
       }
     }
@@ -346,8 +355,7 @@ class HomeUiStateMachineImpl(
               account = props.account,
               homeStatusBannerModel = homeStatusBannerModel,
               onSettings = {
-                anchorRootScreen = Settings(null)
-                uiState = uiState.copy(rootScreen = Settings(null))
+                showSettings(null)
               },
               origin = rootScreen.origin,
               onPartnershipsWebFlowCompleted = { partnerInfo, transaction ->
@@ -372,8 +380,7 @@ class HomeUiStateMachineImpl(
           is Settings -> settingsHomeUiStateMachine.model(
             props = SettingsHomeUiProps(
               onBack = {
-                anchorRootScreen = MoneyHome(origin = Origin.Settings)
-                uiState = uiState.copy(rootScreen = MoneyHome(origin = Origin.Settings))
+                uiState = uiState.copy(rootScreen = anchorRootScreen)
               },
               account = props.account,
               settingsListState = rootScreen.screen,

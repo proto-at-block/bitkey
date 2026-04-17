@@ -36,6 +36,7 @@ fun WalletTheme.iconStyle(
           else -> Color.Unspecified
         }
 
+        is DrawableResourceImage -> applyTint(color, tint)
         is MarketIconImage ->
           if (!icon.icon.multiColor) {
             applyTint(color, tint)
@@ -43,7 +44,7 @@ fun WalletTheme.iconStyle(
             Color.Unspecified
           }
         is UrlImage, IconImage.Loader -> color
-        IconImage.LoadingBadge -> Color.Unspecified
+        IconImage.LoadingBadge, IconImage.CircularLoadingBadge -> Color.Unspecified
       }
   )
 }
@@ -75,7 +76,7 @@ private fun WalletTheme.applyTint(
   }
 }
 
-private fun Icon.canApplyTint(): Boolean {
+internal fun Icon.canApplyTint(): Boolean {
   return when (this) {
     // Assets that don't support tint.
     Icon.LargeIconNetworkError,
@@ -92,6 +93,7 @@ private fun Icon.canApplyTint(): Boolean {
     Icon.BitcoinConsolidation,
     Icon.BitcoinBadged,
     Icon.LargeIconWarning,
+    Icon.NfcTwoTap,
     -> false
 
     else -> true

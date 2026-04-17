@@ -12,4 +12,5 @@ data class IconButtonModel(
   val iconModel: IconModel,
   val onClick: Click,
   val enabled: Boolean = true,
+  val testTag: String? = null,
 )

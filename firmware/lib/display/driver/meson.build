@@ -32,7 +32,7 @@ mfgtest_deps = [
   gfx_dep,
   log_dep,
   lvgl_dep,
-  touch_dep,
+  touch_mfgtest_dep,
 ]
 
 display_driver_mfgtest_lib = library('display_driver_mfgtest',

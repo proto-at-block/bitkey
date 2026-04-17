@@ -17,3 +17,8 @@ data class ActionProofHeader(
   val signatures: List<String>,
   val nonce: String? = null,
 )
+
+/**
+ * Alias for [ActionProofHeader] for use in Ktor plugin attributes.
+ */
+typealias ActionProof = ActionProofHeader

@@ -25,6 +25,8 @@ pub enum WsmIntegrityVerifierError {
     Base58DecodeFailure,
     #[error("Base16DecodeFailure")]
     Base16DecodeFailure,
+    #[error("PublicKeyLockFailure")]
+    PublicKeyLockFailure,
 }
 
 impl WsmContext {
@@ -63,6 +65,43 @@ impl WsmIntegrityVerifier {
         self.verify_with_unhashed_message(&unhashed_message, &signature)
     }
 
+    /// Verify a signature over 5 concatenated public keys using the `SignPublicKeysV1` context.
+    ///
+    /// The WSM enclave signs `SHA256("WsmIntegrityV1" + "SignPublicKeysV1" + concat(keys))`,
+    /// where each key is a 33-byte compressed secp256k1 public key provided as hex.
+    pub fn verify_public_keys(
+        &self,
+        app_auth_pub_hex: String,
+        hardware_auth_pub_hex: String,
+        app_spending_pub_hex: String,
+        hardware_spending_pub_hex: String,
+        server_spending_pub_hex: String,
+        signature: String,
+    ) -> Result<bool, WsmIntegrityVerifierError> {
+        // Parse and concatenate all 5 public keys (33 bytes each)
+        let keys_hex = [
+            &app_auth_pub_hex,
+            &hardware_auth_pub_hex,
+            &app_spending_pub_hex,
+            &hardware_spending_pub_hex,
+            &server_spending_pub_hex,
+        ];
+        let mut payload = Vec::with_capacity(33 * 5);
+        for key_hex in &keys_hex {
+            let key_bytes =
+                hex::decode(key_hex).map_err(|_| WsmIntegrityVerifierError::Base16DecodeFailure)?;
+            // Validate it's a valid 33-byte compressed public key
+            if key_bytes.len() != 33 {
+                return Err(WsmIntegrityVerifierError::MalformedPublicKey);
+            }
+            let pk = PublicKey::from_slice(&key_bytes)
+                .map_err(|_| WsmIntegrityVerifierError::MalformedPublicKey)?;
+            payload.extend_from_slice(&pk.serialize());
+        }
+
+        self.verify_with_context(b"SignPublicKeysV1", &payload, &signature)
+    }
+
     fn verify_with_unhashed_message(
         &self,
         message: &[u8],
@@ -82,7 +121,7 @@ impl WsmIntegrityVerifier {
         let pk = self
             .0
             .lock()
-            .map_err(|_| WsmIntegrityVerifierError::MalformedPublicKey)?;
+            .map_err(|_| WsmIntegrityVerifierError::PublicKeyLockFailure)?;
 
         let secp = Secp256k1::new();
 
@@ -99,6 +138,33 @@ impl WsmIntegrityVerifier {
         }
 
         Ok(false)
+    }
+
+    fn verify_with_context(
+        &self,
+        context: &[u8],
+        data: &[u8],
+        signature_hex: &str,
+    ) -> Result<bool, WsmIntegrityVerifierError> {
+        let signature_bytes = hex::decode(signature_hex)
+            .map_err(|_| WsmIntegrityVerifierError::Base16DecodeFailure)?;
+        let sig = Signature::from_compact(&signature_bytes)
+            .map_err(|_| WsmIntegrityVerifierError::MalformedSignature)?;
+
+        let pk = self
+            .0
+            .lock()
+            .map_err(|_| WsmIntegrityVerifierError::PublicKeyLockFailure)?;
+
+        let secp = Secp256k1::new();
+
+        let mut hash_input = Vec::new();
+        hash_input.extend_from_slice(GLOBAL_CONTEXT);
+        hash_input.extend_from_slice(context);
+        hash_input.extend_from_slice(data);
+
+        let digest = Message::from_digest(sha256::Hash::hash(&hash_input).to_byte_array());
+        Ok(secp.verify_ecdsa(&digest, &sig, &pk).is_ok())
     }
 }
 
@@ -119,6 +185,123 @@ mod tests {
         let result = verifier.verify(message.to_string(), signature.to_string());
         assert!(result.is_ok());
         assert!(result.unwrap());
+    }
+
+    #[test]
+    fn test_verify_public_keys() {
+        use bitcoin::secp256k1::SecretKey;
+
+        let secp = Secp256k1::new();
+
+        // Generate a signing key (simulating the WSM integrity key)
+        let sk = SecretKey::from_slice(&[0x42; 32]).unwrap();
+        let integrity_pk = PublicKey::from_secret_key(&secp, &sk);
+        let verifier = WsmIntegrityVerifier::new(integrity_pk);
+
+        // 5 distinct compressed public keys (generated from deterministic secret keys)
+        let keys: Vec<PublicKey> = (1u8..=5)
+            .map(|i| {
+                let mut bytes = [0u8; 32];
+                bytes[31] = i;
+                let sk = SecretKey::from_slice(&bytes).unwrap();
+                PublicKey::from_secret_key(&secp, &sk)
+            })
+            .collect();
+
+        let keys_hex: Vec<String> = keys.iter().map(|k| hex::encode(k.serialize())).collect();
+
+        // Build the expected digest: SHA256("WsmIntegrityV1" + "SignPublicKeysV1" + concat(keys))
+        let mut hash_input = Vec::new();
+        hash_input.extend_from_slice(b"WsmIntegrityV1");
+        hash_input.extend_from_slice(b"SignPublicKeysV1");
+        for key in &keys {
+            hash_input.extend_from_slice(&key.serialize());
+        }
+        let digest = Message::from_digest(sha256::Hash::hash(&hash_input).to_byte_array());
+        let sig = secp.sign_ecdsa(&digest, &sk);
+        let sig_hex = hex::encode(sig.serialize_compact());
+
+        let result = verifier.verify_public_keys(
+            keys_hex[0].clone(),
+            keys_hex[1].clone(),
+            keys_hex[2].clone(),
+            keys_hex[3].clone(),
+            keys_hex[4].clone(),
+            sig_hex,
+        );
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+    }
+
+    #[test]
+    fn test_verify_public_keys_wrong_signature() {
+        use bitcoin::secp256k1::SecretKey;
+
+        let secp = Secp256k1::new();
+        let sk = SecretKey::from_slice(&[0x42; 32]).unwrap();
+        let integrity_pk = PublicKey::from_secret_key(&secp, &sk);
+        let verifier = WsmIntegrityVerifier::new(integrity_pk);
+
+        let keys_hex: Vec<String> = (1u8..=5)
+            .map(|i| {
+                let mut bytes = [0u8; 32];
+                bytes[31] = i;
+                let sk = SecretKey::from_slice(&bytes).unwrap();
+                hex::encode(PublicKey::from_secret_key(&secp, &sk).serialize())
+            })
+            .collect();
+
+        // Use a bogus signature (valid format but wrong data)
+        let bogus_sig = hex::encode([0x01u8; 64]);
+
+        let result = verifier.verify_public_keys(
+            keys_hex[0].clone(),
+            keys_hex[1].clone(),
+            keys_hex[2].clone(),
+            keys_hex[3].clone(),
+            keys_hex[4].clone(),
+            bogus_sig,
+        );
+        // Should either return Ok(false) or an error for malformed signature
+        match result {
+            Ok(valid) => assert!(!valid),
+            Err(_) => {} // malformed signature error is also acceptable
+        }
+    }
+
+    #[test]
+    fn test_verify_public_keys_rejects_uncompressed() {
+        use bitcoin::secp256k1::SecretKey;
+
+        let secp = Secp256k1::new();
+        let sk = SecretKey::from_slice(&[0x42; 32]).unwrap();
+        let integrity_pk = PublicKey::from_secret_key(&secp, &sk);
+        let verifier = WsmIntegrityVerifier::new(integrity_pk);
+
+        let mut keys_hex: Vec<String> = (1u8..=5)
+            .map(|i| {
+                let mut bytes = [0u8; 32];
+                bytes[31] = i;
+                let sk = SecretKey::from_slice(&bytes).unwrap();
+                hex::encode(PublicKey::from_secret_key(&secp, &sk).serialize())
+            })
+            .collect();
+
+        // Replace one key with its uncompressed form (65 bytes)
+        let mut bytes = [0u8; 32];
+        bytes[31] = 1;
+        let sk1 = SecretKey::from_slice(&bytes).unwrap();
+        keys_hex[0] = hex::encode(PublicKey::from_secret_key(&secp, &sk1).serialize_uncompressed());
+
+        let result = verifier.verify_public_keys(
+            keys_hex[0].clone(),
+            keys_hex[1].clone(),
+            keys_hex[2].clone(),
+            keys_hex[3].clone(),
+            keys_hex[4].clone(),
+            "aa".repeat(32), // dummy signature
+        );
+        assert!(result.is_err());
     }
 
     #[test]

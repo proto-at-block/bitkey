@@ -3,43 +3,58 @@ package build.wallet.pricechart.ui
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import bitkey.ui.framework_public.generated.resources.Res
 import bitkey.ui.framework_public.generated.resources.bitcoin_orange
 import bitkey.ui.framework_public.generated.resources.small_icon_arrow_up
+import build.wallet.money.currency.BTC
 import build.wallet.pricechart.BitcoinPriceDetailsBodyModel
 import build.wallet.pricechart.PriceDirection
 import build.wallet.pricechart.SelectedPointData
 import build.wallet.statemachine.core.LabelModel
+import build.wallet.ui.components.label.AnimatedAmount
+import build.wallet.ui.components.label.AnimatedAmountAutoResizedLabel
+import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
+import build.wallet.ui.components.label.labelStyle
 import build.wallet.ui.components.label.loadingScrim
 import build.wallet.ui.components.layout.MeasureWithoutPlacement
 import build.wallet.ui.compose.thenIf
+import build.wallet.ui.model.icon.IconImage.MarketIconImage
+import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
+import build.wallet.ui.tokens.market.MarketIcons
 import org.jetbrains.compose.resources.vectorResource
 
 @Composable
 internal fun BitcoinPriceChartScreen(model: BitcoinPriceDetailsBodyModel) {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val showChart = model.data.isNotEmpty() && (!model.isLoading || model.preservePreviousChartWhileLoading)
   SelectedPointDetails(
     isLoading = model.isLoading,
+    fiatCurrencyCode = model.fiatCurrencyCode,
     data = model.selectedPointData as? SelectedPointData.BtcPrice
   )
 
   val alpha by animateFloatAsState(
-    targetValue = if (model.isLoading) 0f else 1f
+    targetValue = if (showChart) 1f else 0f
   )
   if (model.failedToLoad) {
     LoadingErrorMessage()
-  } else if (model.isLoading || model.data.isEmpty()) {
+  } else if (!showChart) {
     Spacer(modifier = Modifier.fillMaxSize())
   } else {
     Column(
@@ -55,8 +70,12 @@ internal fun BitcoinPriceChartScreen(model: BitcoinPriceDetailsBodyModel) {
         range = model.range,
         initialSelectedPoint = model.selectedPoint,
         onPointSelected = model.onPointSelected,
-        colorPrimary = WalletTheme.colors.bitcoinPrimary,
+        onDisplayedPointSelected = model.onDisplayedPointSelected,
+        colorPrimary = if (isDesignSystemV2Enabled) WalletTheme.colors.foreground else WalletTheme.colors.bitcoinPrimary,
         formatYLabel = model.formatFiatValue,
+        isInteractive = !model.isLoading,
+        useMidpointInterpolation = isDesignSystemV2Enabled,
+        lineCornerRadius = if (isDesignSystemV2Enabled) 12.dp else 0.dp,
         modifier = Modifier
           .fillMaxSize()
           .alpha(alpha)
@@ -94,8 +113,13 @@ internal fun SelectedPointTimeDisplay(selectedPointTimeText: String?) {
 @Composable
 private fun SelectedPointDetails(
   isLoading: Boolean,
+  fiatCurrencyCode: String?,
   data: SelectedPointData.BtcPrice?,
 ) {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val shouldAnimateSelectedAmount = isDesignSystemV2Enabled && data?.isUserSelected != true
+  val chartLoadingColor = if (isDesignSystemV2Enabled) WalletTheme.colors.subtleBackground else null
+  val showPrimaryValueLoadingScrim = isLoading && data == null
   Row(
     modifier = Modifier.fillMaxWidth(),
     horizontalArrangement = Arrangement.SpaceBetween,
@@ -118,7 +142,10 @@ private fun SelectedPointDetails(
 
       Box(
         modifier = Modifier
-          .loadingScrim(isLoading)
+          .loadingScrim(
+            isLoading = showPrimaryValueLoadingScrim,
+            loadingColor = chartLoadingColor
+          )
       ) {
         MeasureWithoutPlacement {
           // size the loader based on the expected value size, not displayed to user
@@ -127,17 +154,34 @@ private fun SelectedPointDetails(
             type = LabelType.Title1
           )
         }
-        Label(
-          model = LabelModel.StringModel(data?.primaryText.orEmpty()),
-          type = LabelType.Title1,
-          treatment = LabelTreatment.Primary
-        )
+        if (isDesignSystemV2Enabled && data?.primaryValue != null) {
+          AnimatedAmountAutoResizedLabel(
+            amount = AnimatedAmount(
+              text = data.primaryText,
+              value = data.primaryValue,
+              animationKey = currencyCodeAnimationKey(fiatCurrencyCode)
+            ),
+            type = LabelType.Title1,
+            treatment = LabelTreatment.Primary,
+            animate = shouldAnimateSelectedAmount,
+            minTextSize = bitcoinPriceMinTextSize()
+          )
+        } else {
+          Label(
+            model = LabelModel.StringModel(data?.primaryText.orEmpty()),
+            type = LabelType.Title1,
+            treatment = LabelTreatment.Primary
+          )
+        }
       }
       Row(
         horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-          .loadingScrim(isLoading)
+          .loadingScrim(
+            isLoading = isLoading,
+            loadingColor = chartLoadingColor
+          )
       ) {
         val retainedOrientation by produceState(
           (data?.direction ?: PriceDirection.STABLE).orientation,
@@ -190,10 +234,40 @@ private fun SelectedPointDetails(
         }
       }
     }
-    Image(
-      imageVector = vectorResource(Res.drawable.bitcoin_orange),
-      contentDescription = null,
-      modifier = Modifier.size(48.dp)
-    )
+    if (isDesignSystemV2Enabled) {
+      Box(
+        modifier = Modifier
+          .size(48.dp)
+          .background(
+            color = WalletTheme.colors.foreground,
+            shape = CircleShape
+          ),
+        contentAlignment = Alignment.Center
+      ) {
+        IconImage(
+          iconImage = MarketIconImage(MarketIcons.Bitcoin),
+          size = IconSize.Regular,
+          color = WalletTheme.colors.background
+        )
+      }
+    } else {
+      Image(
+        imageVector = vectorResource(Res.drawable.bitcoin_orange),
+        contentDescription = null,
+        modifier = Modifier.size(48.dp)
+      )
+    }
   }
+}
+
+@Composable
+private fun bitcoinPriceMinTextSize(): TextUnit {
+  return WalletTheme.labelStyle(
+    type = LabelType.Body2Medium,
+    treatment = LabelTreatment.Primary
+  ).fontSize
+}
+
+private fun currencyCodeAnimationKey(currencyCode: String?): Long {
+  return currencyCode?.hashCode()?.toLong() ?: BTC.textCode.code.hashCode().toLong()
 }

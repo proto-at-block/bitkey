@@ -2,15 +2,14 @@ package build.wallet.statemachine.biometric
 
 import bitkey.ui.framework.test
 import build.wallet.bitkey.keybox.FullAccountMock
-import build.wallet.encrypt.SignatureVerifierMock
 import build.wallet.inappsecurity.BiometricPreferenceFake
 import build.wallet.platform.biometrics.BiometricError
 import build.wallet.platform.biometrics.BiometricPrompterMock
 import build.wallet.platform.biometrics.BiometricTextProviderFake
 import build.wallet.platform.settings.SystemSettingsLauncherMock
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.HardwarePresenceProps
+import build.wallet.statemachine.nfc.HardwarePresenceUiStateMachine
 import build.wallet.statemachine.ui.*
 import build.wallet.testing.shouldBeOk
 import io.kotest.core.spec.style.FunSpec
@@ -20,20 +19,18 @@ import io.kotest.matchers.shouldBe
 
 class BiometricSettingsScreenPresenterTests : FunSpec({
 
-  val nfcSessionUIStateMachine =
-    object : NfcSessionUIStateMachine,
-      ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>("nfc") {}
+  val hardwarePresenceUiStateMachine =
+    object : HardwarePresenceUiStateMachine,
+      ScreenStateMachineMock<HardwarePresenceProps>("hw-proof-of-possession") {}
 
   val biometricPreference = BiometricPreferenceFake()
-  val signatureVerifier = SignatureVerifierMock()
   val biometricPrompter = BiometricPrompterMock()
 
   val biometricSettingsPresenter = BiometricSettingScreenPresenter(
     biometricPreference = biometricPreference,
     biometricTextProvider = BiometricTextProviderFake(),
-    nfcSessionUIStateMachine = nfcSessionUIStateMachine,
+    hardwarePresenceUiStateMachine = hardwarePresenceUiStateMachine,
     biometricPrompter = biometricPrompter,
-    signatureVerifier = signatureVerifier,
     settingsLauncher = SystemSettingsLauncherMock()
   )
 
@@ -43,7 +40,6 @@ class BiometricSettingsScreenPresenterTests : FunSpec({
   )
 
   beforeEach {
-    signatureVerifier.reset()
     biometricPreference.reset()
     biometricPrompter.reset()
   }
@@ -59,8 +55,8 @@ class BiometricSettingsScreenPresenterTests : FunSpec({
         onScanBitkeyDevice()
       }
 
-      awaitUntilBodyMock<NfcSessionUIStateMachineProps<String>> {
-        onSuccess("success")
+      awaitUntilBodyMock<HardwarePresenceProps> {
+        onSuccess()
       }
 
       awaitUntilBody<BiometricSettingsScreenBodyModel>()
@@ -69,9 +65,7 @@ class BiometricSettingsScreenPresenterTests : FunSpec({
     }
   }
 
-  test("unable to verify the signature of hw tap") {
-    signatureVerifier.isValid = false
-
+  test("hardware proof of possession fails") {
     biometricSettingsPresenter.test(screen) {
       awaitBody<BiometricSettingsScreenBodyModel> {
         isEnabled.shouldBeFalse()
@@ -82,9 +76,9 @@ class BiometricSettingsScreenPresenterTests : FunSpec({
         onScanBitkeyDevice()
       }
 
-      // go to nfc and successfully scan the hw
-      awaitUntilBodyMock<NfcSessionUIStateMachineProps<String>> {
-        onSuccess("success")
+      // go to nfc and proof of possession fails
+      awaitUntilBodyMock<HardwarePresenceProps> {
+        onFailure(Error("Serial number mismatch"))
       }
 
       // show the error sheet on the biometrics screen
@@ -126,9 +120,9 @@ class BiometricSettingsScreenPresenterTests : FunSpec({
         onScanBitkeyDevice()
       }
 
-      // go to nfc and successfully scan the hw
-      awaitUntilBodyMock<NfcSessionUIStateMachineProps<String>> {
-        onSuccess("success")
+      // go to nfc and proof of possession succeeds
+      awaitUntilBodyMock<HardwarePresenceProps> {
+        onSuccess()
       }
 
       awaitUntilSheet<ErrorSheetBodyModel> {
@@ -150,9 +144,9 @@ class BiometricSettingsScreenPresenterTests : FunSpec({
         onScanBitkeyDevice()
       }
 
-      // go to nfc and successfully scan the hw
-      awaitUntilBodyMock<NfcSessionUIStateMachineProps<String>> {
-        onSuccess("success")
+      // go to nfc and proof of possession succeeds
+      awaitUntilBodyMock<HardwarePresenceProps> {
+        onSuccess()
       }
 
       awaitUntilSheet<ErrorSheetBodyModel> {
@@ -178,8 +172,8 @@ class BiometricSettingsScreenPresenterTests : FunSpec({
         onScanBitkeyDevice()
       }
 
-      awaitUntilBodyMock<NfcSessionUIStateMachineProps<String>> {
-        onSuccess("success")
+      awaitUntilBodyMock<HardwarePresenceProps> {
+        onSuccess()
       }
 
       awaitUntilBody<BiometricSettingsScreenBodyModel> {

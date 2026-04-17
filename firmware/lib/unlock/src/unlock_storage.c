@@ -29,7 +29,7 @@ static unlock_err_t write_to_filesystem(char* path, uint8_t* data, uint32_t size
 
   ret = fs_file_write(file, data, size);
   if (ret != (int32_t)size) {
-    LOGE("Partial write");
+    LOGE("Short write");
     goto out;
   }
 
@@ -53,7 +53,7 @@ static unlock_err_t read_from_filesystem(char* path, uint8_t* data, uint32_t siz
 
   ret = fs_file_read(file, data, size);
   if (ret != (int32_t)size) {
-    LOGE("Partial read");
+    LOGE("Short read");
     goto out;
   }
 
@@ -71,7 +71,7 @@ unlock_err_t unlock_storage_init(void) {
                                            fwup_target_slot_address(), MCU_FLASH_PAGE_SIZE);
   if (!unlock_retry_counter_fs) {
     err = UNLOCK_STORAGE_ERR;
-    LOGE("Couldn't create retry counter filesystem");
+    LOGE("Retry fs err");
   }
 
   sysevent_wait(SYSEVENT_FILESYSTEM_READY, true);
@@ -86,20 +86,19 @@ unlock_err_t retry_counter_read(uint32_t* retry_counter) {
 
 unlock_err_t retry_counter_write(uint32_t new_value) {
   if (new_value == 0) {
-    LOGD("Clearing retry counter");
     if (!indexfs_clear(unlock_retry_counter_fs)) {
-      LOGE("Failed to clear retry counter");
+      LOGE("Retry clr err");
       return UNLOCK_STORAGE_ERR;
     }
   } else if (!indexfs_increment(unlock_retry_counter_fs)) {
-    LOGE("Failed to increment retry counter");
+    LOGE("Retry incr err");
     return UNLOCK_STORAGE_ERR;
   }
 
   // Read and check.
   uint32_t just_written = indexfs_count(unlock_retry_counter_fs);
   if (just_written != new_value) {
-    LOGE("Failed to write retry counter: %ld != %ld", just_written, new_value);
+    LOGE("Retry wr: %ld!=%ld", just_written, new_value);
     return UNLOCK_STORAGE_ERR;
   }
 
@@ -108,7 +107,7 @@ unlock_err_t retry_counter_write(uint32_t new_value) {
 
 unlock_err_t retry_counter_read_delay_period_status(unlock_delay_status_t* status) {
   if (!indexfs_get_flag(unlock_retry_counter_fs, status)) {
-    LOGE("Failed to read delay period status");
+    LOGE("Delay rd err");
     return UNLOCK_STORAGE_ERR;
   }
   return UNLOCK_OK;
@@ -116,7 +115,7 @@ unlock_err_t retry_counter_read_delay_period_status(unlock_delay_status_t* statu
 
 unlock_err_t retry_counter_write_delay_period_status(unlock_delay_status_t status) {
   if (!indexfs_set_flag(unlock_retry_counter_fs, status)) {
-    LOGE("Failed to write delay period status");
+    LOGE("Delay wr err");
     return UNLOCK_STORAGE_ERR;
   }
   return UNLOCK_OK;
@@ -152,7 +151,7 @@ unlock_err_t limit_response_read(unlock_limit_response_t* limit_response) {
     unlock_err_t write_result =
       write_to_filesystem(LIMIT_RESPONSE_PATH, (uint8_t*)limit_response, sizeof(*limit_response));
     if (write_result != UNLOCK_OK) {
-      LOGE("Couldn't write default limit response: %d", write_result);
+      LOGE("Limit wr: %d", write_result);
     }
   }
 

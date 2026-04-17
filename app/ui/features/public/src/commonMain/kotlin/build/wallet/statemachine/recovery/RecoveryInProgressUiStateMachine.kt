@@ -12,14 +12,13 @@ import build.wallet.coroutines.flow.launchTicker
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.recovery.getEventId
-import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
-import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
-import build.wallet.statemachine.auth.Request
+import build.wallet.statemachine.auth.ActionProofType
+import build.wallet.statemachine.auth.HardwareAuthUiProps
+import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.*
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
 import build.wallet.statemachine.recovery.inprogress.completing.CompletingRecoveryUiProps
 import build.wallet.statemachine.recovery.inprogress.completing.CompletingRecoveryUiStateMachine
 import build.wallet.statemachine.recovery.inprogress.waiting.AppDelayNotifyInProgressBodyModel
@@ -47,7 +46,7 @@ data class RecoveryInProgressUiProps(
 @BitkeyInject(ActivityScope::class)
 class RecoveryInProgressUiStateMachineImpl(
   private val completingRecoveryUiStateMachine: CompletingRecoveryUiStateMachine,
-  private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
+  private val hardwareAuthUiStateMachine: HardwareAuthUiStateMachine,
   private val durationFormatter: DurationFormatter,
   private val clock: Clock,
   private val eventTracker: EventTracker,
@@ -156,21 +155,20 @@ class RecoveryInProgressUiStateMachineImpl(
         )
 
       is AwaitingProofOfPossessionForCancellationData ->
-        proofOfPossessionNfcStateMachine.model(
-          ProofOfPossessionNfcProps(
-            request =
-              Request.HwKeyProof(
-                onSuccess = {
-                  recoveryInProgressData.addHardwareProofOfPossession(it)
-                }
-              ),
+        hardwareAuthUiStateMachine.model(
+          HardwareAuthUiProps(
             fullAccountId = recoveryInProgressData.fullAccountId,
+            hardwareType = recoveryInProgressData.hardwareType,
             appAuthKey = recoveryInProgressData.appAuthKey,
-            hardwareVerification = Required(useRecoveryPubKey = true),
-            screenPresentationStyle = Modal, // TODO Validate this is correct?
-            onBack = recoveryInProgressData.rollback,
-            onTokenRefresh = null,
-            onTokenRefreshError = null
+            useRecoveryPubKey = true,
+            actionProofType = ActionProofType.CancelLostAppRecovery,
+            segment = RecoverySegment.DelayAndNotify.LostApp.Cancellation,
+            actionDescription = "Cancelling lost app recovery",
+            screenPresentationStyle = Modal,
+            onSuccess = { proof ->
+              recoveryInProgressData.addProof(proof)
+            },
+            onBack = recoveryInProgressData.rollback
           )
         )
 
@@ -192,7 +190,6 @@ class RecoveryInProgressUiStateMachineImpl(
             RecoveryNotificationVerificationUiProps(
               fullAccountId = recoveryInProgressData.fullAccountId,
               localLostFactor = recoveryInProgressData.lostFactor,
-              hwFactorProofOfPossession = null,
               onComplete = recoveryInProgressData.onComplete,
               onRollback = recoveryInProgressData.onRollback
             )

@@ -10,6 +10,7 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.SellBitcoinMaxAmountFeatureFlag
 import build.wallet.feature.flags.SellBitcoinMinAmountFeatureFlag
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.code.IsoCurrencyTextCode
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
@@ -84,6 +85,7 @@ class PartnershipsSellUiStateMachineImplTests : FunSpec({
 
   val props =
     PartnershipsSellUiProps(
+      account = FullAccountMock,
       onBack = {
         onBack.add(Unit)
       },

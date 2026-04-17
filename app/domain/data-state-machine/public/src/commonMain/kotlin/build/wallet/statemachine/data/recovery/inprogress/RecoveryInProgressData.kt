@@ -1,18 +1,19 @@
 package build.wallet.statemachine.data.recovery.inprogress
 
+import bitkey.account.HardwareType
 import build.wallet.Progress
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.crypto.PublicKey
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.F8eEnvironment
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.nfc.transaction.NfcTransaction
+import build.wallet.nfc.transaction.RecoveryNfcSession
 import build.wallet.nfc.transaction.SealDelegatedDecryptionKey.SealedDataResult
-import build.wallet.nfc.transaction.SignChallengeAndSealSeks.SignedChallengeAndSeks
-import build.wallet.nfc.transaction.UnsealData
-import build.wallet.nfc.transaction.UnsealSsek
 import build.wallet.time.durationProgress
 import build.wallet.time.nonNegativeDurationBetween
 import com.github.michaelbull.result.getOrElse
@@ -55,7 +56,8 @@ sealed interface RecoveryInProgressData {
 
   data class AwaitingProofOfPossessionForCancellationData(
     val appAuthKey: PublicKey<AppGlobalAuthKey>,
-    val addHardwareProofOfPossession: (HwFactorProofOfPossession) -> Unit,
+    val hardwareType: HardwareType,
+    val addProof: (PrivilegedActionProof) -> Unit,
     val rollback: () -> Unit,
     val fullAccountId: FullAccountId,
   ) : RecoveryInProgressData
@@ -121,7 +123,7 @@ sealed interface RecoveryInProgressData {
        * Awaiting for hardware to sign app generated challenge, CSEK, and SSEK.
        */
       data class AwaitingChallengeAndCsekSignedWithHardwareData(
-        val nfcTransaction: NfcTransaction<SignedChallengeAndSeks>,
+        val nfcSession: RecoveryNfcSession,
       ) : RotatingAuthData
 
       data class FailedToRotateAuthData(
@@ -154,23 +156,12 @@ sealed interface RecoveryInProgressData {
       ) : RotatingAuthData
 
       /**
-       * Indicates that we are fetching sealed delegated decryption key from F8e.
-       */
-      data class FetchingSealedDelegatedDecryptionKeyFromF8eData(
-        val physicalFactor: PhysicalFactor,
-      ) : RotatingAuthData
-
-      /**
        * Indicates that we are removing trusted contacts from the account.
        */
       data class RemovingTrustedContactsData(
         val physicalFactor: PhysicalFactor,
       ) : RotatingAuthData
     }
-
-    data class FetchingSealedDelegatedDecryptionKeyStringData(
-      val nfcTransaction: NfcTransaction<UnsealData.UnsealedDataResult>,
-    ) : RotatingAuthData
 
     data class SealingDelegatedDecryptionKeyData(
       val nfcTransaction: NfcTransaction<SealedDataResult>,
@@ -183,25 +174,26 @@ sealed interface RecoveryInProgressData {
       val onContinue: () -> Unit,
     ) : RotatingAuthData
 
+    /** Loading state while preparing for proof-and-key-transfer NFC tap. */
+    data class PreparingProofAndKeyTransferData(
+      val physicalFactor: PhysicalFactor,
+    ) : CompletingRecoveryData
+
+    /** NFC tap 2 (Lost App): PoP + DDK unseal + SSEK unseal. */
+    data class AwaitingProofAndKeyTransferLostAppData(
+      val nfcSession: RecoveryNfcSession,
+    ) : CompletingRecoveryData
+
+    /** NFC tap 2 (Lost HW): PoP + DDK seal. */
+    data class AwaitingProofAndKeyTransferLostHwData(
+      val nfcSession: RecoveryNfcSession,
+    ) : CompletingRecoveryData
+
     /**
      * Indicates that we are the stage where we have completed D&N recovery with f8e and now are
      * creating new spending keys.
      */
     sealed interface CreatingSpendingKeysData : RotatingAuthData {
-      /**
-       * Awaiting hardware to provide hardware proof of possession (in this case, signed
-       * f8e access token).
-       *
-       * @property addHwFactorProofOfPossession accept hardware proof of possession. Should move
-       * to [CreatingSpendingKeysWithF8EData].
-       */
-      data class AwaitingHardwareProofOfPossessionData(
-        val fullAccountId: FullAccountId,
-        val appAuthKey: PublicKey<AppGlobalAuthKey>,
-        val addHwFactorProofOfPossession: (HwFactorProofOfPossession) -> Unit,
-        val rollback: () -> Unit,
-      ) : CreatingSpendingKeysData
-
       /**
        * Creating new spending keys and waiting for response from f8e. Once created, should move
        * to [PerformingCloudBackupData].
@@ -271,6 +263,7 @@ sealed interface RecoveryInProgressData {
       val physicalFactor: PhysicalFactor,
       val keybox: Keybox,
       val rollback: () -> Unit,
+      val onCompletionFailed: (Error) -> Unit,
     ) : CompletingRecoveryData
 
     data class ExitedPerformingSweepData(
@@ -279,18 +272,20 @@ sealed interface RecoveryInProgressData {
     ) : CompletingRecoveryData
 
     /**
+     * Recovery sweep succeeded but saving the new keybox locally failed.
+     * Funds have been transferred on-chain but the app hasn't activated the new keyset.
+     */
+    data class FailedToCompleteRecoveryData(
+      val physicalFactor: PhysicalFactor,
+      val cause: Throwable,
+      val retry: () -> Unit,
+    ) : CompletingRecoveryData
+
+    /**
      * Processing descriptor backups for recovery - encryption/decryption and F8e upload.
      */
     sealed interface ProcessingDescriptorBackupsData : CompletingRecoveryData {
       val physicalFactor: PhysicalFactor
-
-      /**
-       * Awaiting hardware to unseal the CSEK via NFC.
-       */
-      data class AwaitingSsekUnsealingData(
-        override val physicalFactor: PhysicalFactor,
-        val nfcTransaction: UnsealSsek,
-      ) : ProcessingDescriptorBackupsData
 
       /**
        * Processing (encrypt/decrypt) descriptor backups after CSEK has been unsealed.
@@ -324,21 +319,33 @@ sealed interface RecoveryInProgressData {
     }
 
     /**
-     * Awaiting hardware proof of possession before activating the spending keyset.
-     */
-    data class AwaitingHardwareProofOfPossessionForActivationData(
-      val physicalFactor: PhysicalFactor,
-      val appAuthKey: PublicKey<AppGlobalAuthKey>,
-      val addHardwareProofOfPossession: (HwFactorProofOfPossession) -> Unit,
-      val rollback: () -> Unit,
-      val fullAccountId: FullAccountId,
-    ) : CompletingRecoveryData
-
-    /**
      * Activating the spending keyset after it has been created and descriptor backups uploaded (if applicable).
      */
     data class ActivatingSpendingKeysetData(
       val physicalFactor: PhysicalFactor,
+    ) : CompletingRecoveryData
+
+    /**
+     * Building hardware descriptor via NFC.
+     */
+    data class BuildingHardwareDescriptorData(
+      val signedKeysResponse: build.wallet.f8e.recovery.SignedKeysetVerificationResponse,
+      val appSpendingKeyXpub: String,
+      val serverPrivateWalletRootXpub: String?,
+      val networkType: build.wallet.bitcoin.BitcoinNetworkType,
+      val f8eEnvironment: F8eEnvironment,
+      val accountIndex: UInt = 0u,
+      val onSuccess: (AppGlobalAuthKeyHwSignature) -> Unit,
+      val onFailure: (Throwable) -> Unit,
+    ) : CompletingRecoveryData
+
+    /**
+     * Failed to build hardware descriptor.
+     */
+    data class FailedToBuildHardwareDescriptorData(
+      val physicalFactor: PhysicalFactor,
+      val cause: Error,
+      val onRetry: () -> Unit,
     ) : CompletingRecoveryData
 
     /**

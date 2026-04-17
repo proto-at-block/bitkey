@@ -1,4 +1,5 @@
 #include "assert.h"
+#include "attributes.h"
 #include "bitops.h"
 #include "mcu.h"
 #include "mcu_nvic.h"
@@ -55,12 +56,14 @@ void rtos_thread_create_static(rtos_thread_t* thread, void (*func)(void*), const
 #endif
 }
 
-void rtos_thread_delete(rtos_thread_t* thread) {
-  if (thread == NULL) {
-    vTaskDelete(NULL);
-  } else {
-    vTaskDelete((TaskHandle_t)thread->handle);
-  }
+SYSCALL NO_OPTIMIZE void rtos_thread_delete(rtos_thread_t* thread) {
+  RTOS_THREAD_WITH_PRIVILEGE({
+    if (thread == NULL) {
+      vTaskDelete(NULL);
+    } else {
+      vTaskDelete((TaskHandle_t)thread->handle);
+    }
+  });
 }
 
 /* configSUPPORT_STATIC_ALLOCATION is set to 1, so the application must provide an
@@ -152,11 +155,46 @@ uint32_t rtos_thread_systime(void) {
 }
 
 uint64_t rtos_thread_micros(void) {
-  volatile uint64_t micros = 0;
-  micros = 1000 * rtos_thread_systime();
-  micros +=
-    ((mcu_systick_get_reload() - mcu_systick_get_value()) / (mcu_systick_get_reload() / 1000));
-  return micros;
+  /* Read tick count and SysTick value consistently using a double-read pattern.
+   * If the tick count changes between the two reads, a tick interrupt fired
+   * mid-sample, so we retry. This guarantees ticks and VAL are from the same
+   * tick period without needing to disable interrupts. */
+  const uint32_t reload = mcu_systick_get_reload();
+  uint32_t ticks;
+  uint32_t value;
+  do {
+    ticks = xTaskGetTickCount();
+    value = mcu_systick_get_value();
+  } while (ticks != xTaskGetTickCount());
+
+  /* Handle the case where SysTick has reloaded but the tick interrupt hasn't
+   * been serviced yet (e.g., interrupts masked by a higher-priority critical
+   * section). In this state both tick reads return the stale count while VAL
+   * already belongs to the next period. PENDSTSET in SCB->ICSR indicates a
+   * pending SysTick interrupt; if set and VAL is in the top half (recently
+   * reloaded), compensate by advancing the tick count.
+   *
+   * The top-half guard avoids a false increment when SysTick wraps between
+   * the double-read exit and this check: in that race, VAL was sampled near
+   * zero (end of the old period) but PENDSTSET is now set. Incrementing would
+   * cause a ~1ms forward jump followed by a backward jump on the next read.
+   * The guard limits the unhandled window to cases where an ISR blocks the
+   * tick handler for more than half a tick period (>500us), which indicates a
+   * larger system issue. All timeout-critical code uses rtos_thread_systime()
+   * and is not affected. */
+  if (mcu_systick_is_pending() && (value > (reload >> 1))) {
+    ticks++;
+  }
+
+  const uint64_t ms = TICKS2MS(ticks);
+
+  /* Compute sub-millisecond microseconds from SysTick counter.
+   * SysTick counts down from reload to 0. Use (elapsed * 1000) / (reload + 1)
+   * to avoid integer truncation that could produce values > 999. */
+  const uint32_t elapsed_ticks = reload - value;
+  const uint32_t sub_ms_us = (uint32_t)((uint64_t)elapsed_ticks * 1000 / (reload + 1));
+
+  return ms * 1000 + sub_ms_us;
 }
 
 bool rtos_in_isr(void) {

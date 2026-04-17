@@ -20,6 +20,12 @@ class MoneyHomeCardSnapshots : FunSpec({
     }
   }
 
+  test("Money Home Card Price Card Loaded with design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      PreviewMoneyHomePriceCard(isLoading = false)
+    }
+  }
+
   test("Money Home Card Price Card Large Font") {
     paparazzi.snapshot(deviceConfig = DeviceConfig.PIXEL_6.copy(fontScale = 1.5f)) {
       PreviewMoneyHomePriceCard(isLoading = false)
@@ -50,6 +56,18 @@ class MoneyHomeCardSnapshots : FunSpec({
     }
   }
 
+  test("Money Home Card Getting Started with firmware update") {
+    paparazzi.snapshot {
+      PreviewMoneyHomeGettingStartedWithFirmwareUpdate()
+    }
+  }
+
+  test("Money Home Card Getting Started with firmware update and design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      PreviewMoneyHomeGettingStartedWithFirmwareUpdate()
+    }
+  }
+
   test("Money Home Card Replacement Pending") {
     paparazzi.snapshot {
       PreviewMoneyHomeCardReplacementPending()
@@ -59,6 +77,30 @@ class MoneyHomeCardSnapshots : FunSpec({
   test("Money Home Card Replacement Ready") {
     paparazzi.snapshot {
       PreviewMoneyHomeCardReplacementReady()
+    }
+  }
+
+  test("Money Home Card Inactive Wallet with design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      PreviewMoneyHomeCardInactiveWallet()
+    }
+  }
+
+  test("Money Home Card Benefactor Pending Claim with design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      PreviewMoneyHomeCardBenefactorPendingClaim()
+    }
+  }
+
+  test("Money Home Card Benefactor Approved Claim with design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      PreviewMoneyHomeCardBenefactorApprovedClaim()
+    }
+  }
+
+  test("Money Home Card Beneficiary Pending Claim with design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      PreviewMoneyHomeCardBeneficiaryPendingClaim()
     }
   }
 

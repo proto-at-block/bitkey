@@ -27,6 +27,7 @@ typedef struct {
     uint32_t size;
     rtos_semaphore_t response_ready;
     wca_sem_take_t sem_take;
+    wca_sem_take_nowait_t sem_take_nowait;
     wca_sem_give_t sem_give;
   } encoded_proto_rsp_ctx;  // Holds an *encoded* proto, to be sent as a response from
                             // firmware->app.

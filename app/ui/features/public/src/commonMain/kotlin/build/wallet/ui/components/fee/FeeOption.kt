@@ -21,6 +21,7 @@ import build.wallet.ui.components.label.LabelTreatment.Secondary
 import build.wallet.ui.components.list.ListItem
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.list.ListItemModel
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 
@@ -35,6 +36,8 @@ fun FeeOption(
   infoText: String?,
   onClick: (() -> Unit)?,
 ) {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+
   Box(
     modifier =
       modifier
@@ -77,6 +80,8 @@ fun FeeOption(
             title = leadingText,
             sideText = trailingPrimaryText,
             secondarySideText = trailingSecondaryText,
+            titleType = if (isDesignSystemV2Enabled) LabelType.Body2Regular else null,
+            secondarySideTextType = LabelType.Body3Regular,
             enabled = enabled,
             onClick = onClick
           )

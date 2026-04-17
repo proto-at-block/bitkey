@@ -7,9 +7,15 @@ import bitkey.ui.screens.securityhub.SecurityHubEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.ui.app.core.form.FormScreen
 import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.model.icon.IconBackgroundType
+import build.wallet.ui.model.icon.IconModel
+import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.icon.IconTint
+import build.wallet.ui.tokens.LabelType
 
 data class SecurityHubEducationBodyModel(
   val actionType: SecurityActionType,
@@ -21,14 +27,22 @@ data class SecurityHubEducationBodyModel(
     toolbar = null,
     header = FormHeaderModel(
       customContent = FormHeaderModel.PosterImage(
-        icon = actionType.icon()
+        icon = actionType.posterImage()
       ),
       iconModel = null,
       headline = actionType.headline(),
       subline = actionType.subline()
     ),
     primaryButton = actionType.primaryButton(onContinue),
-    secondaryButton = actionType.secondaryButton(onBack)
+    secondaryButton = actionType.secondaryButton(onBack),
+    designSystemV2Model = FormDesignSystemV2Model(
+      header = FormHeaderModel(
+        iconModel = actionType.designSystemV2IconModel(),
+        headline = actionType.headline(),
+        subline = actionType.subline(),
+        headlineLabelType = LabelType.Body1Mono
+      )
+    )
   ) {
   @Composable
   override fun render(modifier: Modifier) {
@@ -47,13 +61,36 @@ private fun SecurityActionType.eventTrackerScreenId(): EventTrackerScreenId {
   }
 }
 
-private fun SecurityActionType.icon(): Icon {
+private fun SecurityActionType.posterImage(): Icon {
   return when (this) {
     SecurityActionType.EEK_BACKUP -> Icon.SecurityHubEducationEmergencyExit
     SecurityActionType.FINGERPRINTS -> Icon.SecurityHubEducationMultipleFingerprints
     SecurityActionType.SOCIAL_RECOVERY -> Icon.SecurityHubEducationTrustedContact
     SecurityActionType.CRITICAL_ALERTS -> Icon.SecurityHubEducationCriticalAlerts
     SecurityActionType.TRANSACTION_VERIFICATION -> Icon.SecurityHubEducationTransactionVerification
+    else -> error("Unsupported action type: $this")
+  }
+}
+
+private fun SecurityActionType.designSystemV2IconModel(): IconModel {
+  return IconModel(
+    icon = securityHubIcon(),
+    iconSize = IconSize.Custom(48),
+    iconTint = IconTint.Background,
+    iconBackgroundType = IconBackgroundType.Circle(
+      circleSize = IconSize.XLarge,
+      color = IconBackgroundType.Circle.CircleColor.InverseBackground
+    )
+  )
+}
+
+private fun SecurityActionType.securityHubIcon(): Icon {
+  return when (this) {
+    SecurityActionType.EEK_BACKUP -> Icon.DotEmergency
+    SecurityActionType.FINGERPRINTS -> Icon.DotFingerprintsMultiple
+    SecurityActionType.SOCIAL_RECOVERY -> Icon.DotRecoveryContact2
+    SecurityActionType.CRITICAL_ALERTS -> Icon.DotCriticalAlerts2
+    SecurityActionType.TRANSACTION_VERIFICATION -> Icon.DotAddressVerification
     else -> error("Unsupported action type: $this")
   }
 }

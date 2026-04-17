@@ -20,6 +20,8 @@ public class NotificationManagerImpl: NSObject, NotificationManager {
     private let notificationCenter: UserNotificationCenter
     private let pushNotificationPermissionStatusProvider: PushNotificationPermissionStatusProvider
 
+    private var addDeviceTokenTask: Task<Void, Never>?
+
     // MARK: - Life Cycle
 
     public init(
@@ -60,22 +62,37 @@ public class NotificationManagerImpl: NSObject, NotificationManager {
     ) {
         log { "Registered for remote notifications" }
 
+        guard addDeviceTokenTask == nil else {
+            log(.debug) { "Skipping addDeviceToken — already in progress" }
+            return
+        }
+
         let decodedDeviceToken = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
-        Task { @MainActor in
-            let result = try? await deviceTokenManager.addDeviceTokenIfActiveOrOnboardingAccount(
-                deviceToken: decodedDeviceToken,
-                touchpointPlatform: .from(appVariant: appVariant)
-            )
-            result?.onSuccess(action: { _ in
-                self.deviceTokenProvider.setDeviceToken(deviceToken: decodedDeviceToken)
-            })
-            result?.onFailure(action: { error in
-                log(.warn, error: error.asError()) { "Failed to add device token" }
-            })
+        addDeviceTokenTask = Task { @MainActor in
+            defer { self.addDeviceTokenTask = nil }
+            await self.addDeviceToken(decodedDeviceToken)
         }
     }
 
     // MARK: - Private Methods
+
+    @MainActor
+    private func addDeviceToken(_ decodedDeviceToken: String) async {
+        do {
+            let result = try await deviceTokenManager.addDeviceTokenIfActiveOrOnboardingAccount(
+                deviceToken: decodedDeviceToken,
+                touchpointPlatform: .from(appVariant: appVariant)
+            )
+            result.onSuccess { _ in
+                self.deviceTokenProvider.setDeviceToken(deviceToken: decodedDeviceToken)
+            }
+            result.onFailure { error in
+                log(.warn, error: error.asError()) { "Failed to add device token" }
+            }
+        } catch {
+            log(.warn, error: error) { "Failed to add device token" }
+        }
+    }
 
     private func checkNotificationAuthorizationAndRegisterForPushNotifications() async {
         let settings = await notificationCenter.notificationSettings()
@@ -93,13 +110,6 @@ public class NotificationManagerImpl: NSObject, NotificationManager {
         }
 
         DispatchQueue.main.async {
-            // W-11144: We can register for remote notifications twice: once by directly calling registerForRemoteNotifications in
-            // NotificationPermissionRequesterImpl when the user grants the permission, and again
-            // here when the app
-            // enters the foreground. If we've already registered, no need to do so again.
-            guard !UIApplication.shared.isRegisteredForRemoteNotifications else {
-                return
-            }
             UIApplication.shared.registerForRemoteNotifications()
         }
     }

@@ -77,7 +77,7 @@ impl From<SigningError> for ApiError {
                 if errors.has_error(&SpendRuleCheckError::SpendLimitInactive) {
                     ApiError::GenericForbidden(err_msg)
                 } else if errors
-                    .has_error(&SpendRuleCheckError::OutputsBelongToSanctionedIndividuals)
+                    .has_error(&SpendRuleCheckError::InputsOutputsBelongToSanctionedIndividuals)
                 {
                     ApiError::GenericUnavailableForLegalReasons(err_msg)
                 } else {

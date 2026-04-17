@@ -1,5 +1,8 @@
 #include "security_config.h"
 
+#include "attributes.h"
+#include "rtos.h"
+
 // To reprovision the development key: fpc -w 1234567890aabbccddeeff1c3dc0ffee
 static const uint8_t biometrics_development_mac_key[] = {
   0x12, 0x34, 0x56, 0x78, 0x90, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x1c, 0x3d, 0xc0, 0xff, 0xee,
@@ -32,3 +35,9 @@ security_config_t security_config FWUP_TASK_DATA = {
   .biometrics_mac_key = (uint8_t*)&biometrics_development_mac_key,
   .fwup_delta_patch_pubkey = (uint8_t*)&fwup_delta_patch_pubkey,
 };
+
+SYSCALL NO_OPTIMIZE secure_bool_t security_config_is_production(void) {
+  secure_bool_t is_production = SECURE_FALSE;
+  RTOS_THREAD_WITH_PRIVILEGE({ is_production = security_config.is_production; });
+  return is_production;
+}

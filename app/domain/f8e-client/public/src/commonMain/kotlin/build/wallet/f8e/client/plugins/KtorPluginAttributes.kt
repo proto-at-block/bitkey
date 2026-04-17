@@ -6,7 +6,9 @@ import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
+import build.wallet.f8e.auth.ActionProof
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.platform.device.DeviceInfo
 import io.ktor.client.request.*
 import io.ktor.util.*
@@ -21,6 +23,7 @@ val AccountIdAttribute = AttributeKey<AccountId>("account-id")
 val AuthTokenScopeAttribute = AttributeKey<AuthTokenScope>("auth-token-scope")
 val AppAuthKeyAttribute = AttributeKey<PublicKey<out AppAuthKey>>("app-auth-key")
 val HwProofOfPossessionAttribute = AttributeKey<HwFactorProofOfPossession>("hw-proof-of-possession")
+val ActionProofAttribute = AttributeKey<ActionProof>("action-proof")
 val DeviceInfoAttribute = AttributeKey<DeviceInfo>("device-info")
 val PlatformInfoAttribute = AttributeKey<PlatformInfo>("platform-info")
 val CheckReachabilityAttribute = AttributeKey<Boolean>("check-reachability")
@@ -54,4 +57,20 @@ fun HttpRequestBuilder.withHardwareFactor(hwFactorProofOfPossession: HwFactorPro
 
 fun HttpRequestBuilder.withAppAuthKey(appAuthKey: PublicKey<out AppAuthKey>) {
   attributes.put(AppAuthKeyAttribute, appAuthKey)
+}
+
+fun HttpRequestBuilder.withActionProof(actionProof: ActionProof) {
+  attributes.put(ActionProofAttribute, actionProof)
+}
+
+/**
+ * Applies the appropriate authorization header for the given [PrivilegedActionProof], if present.
+ */
+fun PrivilegedActionProof?.applyTo(builder: HttpRequestBuilder) {
+  when (this) {
+    is PrivilegedActionProof.HwKeyProof -> builder.withHardwareFactor(hwFactorProofOfPossession)
+    is PrivilegedActionProof.HwSignedAction -> builder.withActionProof(actionProof)
+    is PrivilegedActionProof.AppSignedAction -> builder.withActionProof(actionProof)
+    null -> Unit
+  }
 }

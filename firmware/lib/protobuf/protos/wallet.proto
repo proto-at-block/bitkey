@@ -328,6 +328,13 @@ message fwup_start_cmd {
   // Version of the firmware being transferred.
   // Firmware will display this and verify it matches the signed metadata after transfer.
   semver version = 4;
+
+  // When true, the firmware will defer committing the signature to flash until
+  // both UXC and Core updates have been verified.  Both chips reset together
+  // into the new firmware.  Set on the UXC fwup_start to opt in; Core inherits
+  // the setting for the session.  Old apps that omit this field get the legacy
+  // behavior (immediate commit and reset per-MCU).
+  bool defer_commit = 5;
 }
 
 // Response to the firmware update start command (`fwup_start_cmd`).
@@ -405,12 +412,36 @@ message fwup_finish_rsp {
     // Operation failed as device has not been unlocked.
     UNAUTHENTICATED = 6;
 
+    // Update failed, confirmed version does not match the flashed firmware version.
+    CONFIRMATION_MISMATCH = 7;
+
     // Reserved (unused).
-    reserved 7 to 9;
+    reserved 8 to 9;
   }
 
   // Status code in response to the FWUP finish command.
   fwup_finish_rsp_status rsp_status = 1;
+}
+
+// Command sent from Core to UXC to commit a previously verified firmware
+// signature to flash.  Part of the atomic FWUP reset protocol: UXC holds its
+// verified signature in RAM until Core explicitly requests the commit.
+message fwup_commit_sig_cmd {}
+
+// Response to `fwup_commit_sig_cmd`.
+message fwup_commit_sig_rsp {
+  enum fwup_commit_sig_rsp_status {
+    // Unused.
+    UNSPECIFIED = 0;
+
+    // Signature was successfully written to flash.
+    SUCCESS = 1;
+
+    // Signature write failed (flash error or no pending signature).
+    ERROR = 2;
+  }
+
+  fwup_commit_sig_rsp_status rsp_status = 1;
 }
 
 
@@ -754,9 +785,18 @@ message cert_get_cmd {
     DEVICE_SECURE_CHANNEL_CERT = 4;
   }
 
+  enum cert_origin {
+    // Return cert from this device's local store (identity or pinned peer cert).
+    CERT_ORIGIN_LOCAL = 0;
+    // Request cert from the peer MCU (Core forwards to UXC, returns UXC's response).
+    CERT_ORIGIN_PEER = 1;
+  }
+
   cert_type kind = 1;
   // For DEVICE_SECURE_CHANNEL_CERT: specifies which certificate to export.
   string cert_id = 2 [(nanopb).max_size = 32];
+  // For DEVICE_SECURE_CHANNEL_CERT on W3: LOCAL = local read, PEER = request from UXC. Default LOCAL.
+  cert_origin cert_source = 3;
 }
 
 message cert_get_rsp {
@@ -850,6 +890,19 @@ message cap_touch_cal_rsp {
 message empty_cmd {}
 message empty_rsp {}
 
+// A command to show a confirmation screen (checkmark + text) on the device display.
+// Used by the app to provide visual feedback after operations like hardware presence checks.
+// The text is resolved firmware-side to prevent a compromised app from showing arbitrary text.
+message show_confirmation_screen_cmd {
+  enum confirmation_screen_type {
+    APPROVED = 0;
+    SUCCESS = 1;
+  }
+  confirmation_screen_type type = 1;
+  bool lock_on_dismiss = 2;
+}
+message show_confirmation_screen_rsp {}
+
 // This command is sent on each NFC interaction from the mobile apps,
 // and the response must be kept as small as possible.
 message device_info_cmd {
@@ -891,6 +944,12 @@ message device_info_rsp {
 
     // Semantic version of the application image on the MCU.
     semver version = 3;
+
+    // Unique MCU chip identifier.
+    bytes chip_id = 4 [(nanopb).max_size = 16];
+
+    // Active firmware slot for this MCU (for delta FWUP patch selection).
+    firmware_slot active_slot = 5;
   }
 
   // Command status code.
@@ -1054,9 +1113,16 @@ message verify_keys_and_build_descriptor_cmd {
 
   // WSM signature over the keys (64-byte compact ECDSA signature)
   bytes wsm_signature = 7 [(nanopb).max_size = 64];
+
+  // Account index for BIP84 derivation path (m/84'/coin'/account')
+  // Defaults to 0 for backwards compatibility.
+  // Valid range: 0-255 (stored as uint8_t in firmware keyset).
+  uint32 account_index = 8;
 }
 
 message verify_keys_and_build_descriptor_rsp {
+  // HW signature over the app global auth key (64-byte compact ECDSA signature)
+  bytes app_auth_key_signature = 1 [(nanopb).max_size = 64];
 }
 
 enum status {
@@ -1082,6 +1148,10 @@ enum status {
   REQUEST_MISMATCH = 19;
   VERSION_MISMATCH = 20;
   CONFIRMATION_PENDING = 21;
+  CONFIRMATION_MISMATCH = 22;
+  SEAL_CSEK_UNSEAL_FAILED = 23;
+  DESCRIPTOR_NOT_LOADED = 24;
+  CONFIRMATION_NOT_COMPLETED = 25;
 }
 
 message get_confirmation_result_cmd {
@@ -1096,20 +1166,432 @@ message get_confirmation_result_rsp {
     get_address_rsp get_address_result = 3;
     chunked_data_info chunked_data_available = 4;
     sign_action_proof_rsp sign_action_proof_result = 5;
+    sign_tx_response sign_tx_result = 6;
+    sign_stream_signatures_ready sign_stream_signatures_ready = 7;
+    lost_app_recovery_ssek_rsp lost_app_recovery_ssek_rsp = 8;
+    lost_app_recovery_sign_challenge_rsp lost_app_recovery_sign_challenge_result = 9;
+    rotate_app_auth_keys_rsp rotate_app_auth_keys_rsp = 10;
+    sign_challenge_and_seal_seks_rsp sign_challenge_and_seal_seks_result = 11;
+    recovery_authorize_lost_app_rsp recovery_authorize_lost_app_result = 12;
+    recovery_authorize_lost_hw_rsp recovery_authorize_lost_hw_result = 13;
+    eek_restoration_unseal_symmetric_key_rsp eek_restoration_unseal_symmetric_key_result = 14;
+    full_account_cloud_backup_restoration_rsp full_account_cloud_backup_restoration_result = 15;
+    upgrade_authorize_w3_rsp upgrade_authorize_w3_result = 16;
+    upgrade_rotate_app_auth_keys_rsp upgrade_rotate_app_auth_keys_rsp = 17;
   }
+}
+
+// Initiates lost app recovery. Firmware shows "Confirm Lost App Recovery?" prompt.
+// After user confirms, the unsealed SSEK is returned via get_confirmation_result_rsp.
+message lost_app_recovery_cmd {
+  sealed_data sealed_ssek = 1;
+}
+
+// Returned in get_confirmation_result_rsp after user confirms lost app recovery.
+message lost_app_recovery_ssek_rsp {
+  bytes unsealed_ssek = 1 [(nanopb).max_size = 32];
+}
+
+// Continuation after app decrypts descriptors and extracts keys.
+// Must be sent within the same NFC session as get_confirmation_result.
+// The app passes canonical ActionProof fields to be signed by HW auth key.
+// App computes next_account_index from existing descriptor keys, matching get_next_spending_key pattern.
+message lost_app_recovery_continue_cmd {
+  uint32 action_proof_version = 1;
+  string action = 2 [(nanopb).max_size = 64];
+  string value = 3 [(nanopb).max_size = 128];
+  string bindings = 4 [(nanopb).max_size = 256];
+  uint32 next_account_index = 5;
+  btc_network network = 6;
+  bytes app_global_auth_key = 7 [(nanopb).max_size = 33];
+}
+
+// Final response with all signatures and derived key.
+message lost_app_recovery_continue_rsp {
+  bytes action_proof_signature = 1 [(nanopb).max_size = 64];
+  bytes bare_spending_key = 2 [(nanopb).max_size = 78];
+  bytes app_auth_key_signature = 3 [(nanopb).max_size = 64];
+  key_descriptor spending_key_descriptor = 4;
+}
+
+// Initiates rotate app auth keys. Firmware shows "Rotate App Auth Keys?" prompt.
+// After user confirms, the action proof is signed along with account ID and app auth key.
+// The result is returned via get_confirmation_result_rsp.
+message rotate_app_auth_keys_cmd {
+  uint32 action_proof_version = 1;
+  string action = 2 [(nanopb).max_size = 64];
+  string value = 3 [(nanopb).max_size = 128];
+  string bindings = 4 [(nanopb).max_size = 256];
+  string account_id = 5 [(nanopb).max_size = 64];
+  string app_global_auth_key = 6 [(nanopb).max_size = 67];
+}
+
+// Returned in get_confirmation_result_rsp after user confirms rotate app auth keys.
+message rotate_app_auth_keys_rsp {
+  bytes action_proof_signature = 1 [(nanopb).max_size = 64];
+  bytes hw_signed_account_id = 2 [(nanopb).max_size = 64];
+  bytes app_auth_key_signature = 3 [(nanopb).max_size = 64];
+  bytes hw_auth_public_key = 4 [(nanopb).max_size = 33];
+}
+
+// Initiates upgrade rotate app auth keys (W3 upgrade flow).
+// Like rotate_app_auth_keys_cmd but without action proof signing.
+// Firmware shows "Approve wallet upgrade" prompt. After user confirms,
+// account ID and app auth key are signed and the HW auth public key is returned
+// via get_confirmation_result_rsp.
+message upgrade_rotate_app_auth_keys_cmd {
+  string account_id = 1 [(nanopb).max_size = 64];
+  string app_global_auth_key = 2 [(nanopb).max_size = 67];
+}
+
+// Returned in get_confirmation_result_rsp after user confirms upgrade rotate app auth keys.
+message upgrade_rotate_app_auth_keys_rsp {
+  bytes hw_signed_account_id = 1 [(nanopb).max_size = 64];
+  bytes app_auth_key_signature = 2 [(nanopb).max_size = 64];
+  bytes hw_auth_public_key = 3 [(nanopb).max_size = 33];
 }
 
 message sign_action_proof_cmd {
   uint32 version = 1;
-  string action = 2 [(nanopb).max_size = 32];
-  string field = 3 [(nanopb).max_size = 32];
-  string value = 4 [(nanopb).max_size = 128];
-  string current = 5 [(nanopb).max_size = 128];
-  string bindings = 6 [(nanopb).max_size = 256];
+  string action = 2 [(nanopb).max_size = 64];
+  string value = 3 [(nanopb).max_size = 128];
+  string bindings = 4 [(nanopb).max_size = 256];
 }
 
 message sign_action_proof_rsp {
-  bytes signature = 1 [(nanopb).max_size = 65];
+  bytes signature = 1 [(nanopb).max_size = 64];
+}
+
+// Signs an auth challenge with user confirmation on the device screen.
+// Used during lost app recovery to ensure the user physically approves
+// the challenge signing. Returns CONFIRMATION_PENDING + handles.
+message lost_app_recovery_sign_challenge_cmd {
+  bytes challenge = 1 [(nanopb).max_size = 256];
+}
+
+// Returned in get_confirmation_result_rsp after user confirms challenge signing.
+message lost_app_recovery_sign_challenge_rsp {
+  bytes signature = 1 [(nanopb).max_size = 64];
+}
+
+// Signs D&N challenge with HW auth key and seals CSEK + SSEK with hardware sealing key.
+// Confirmable: returns CONFIRMATION_PENDING + handles; result via get_confirmation_result_rsp.
+message sign_challenge_and_seal_seks_cmd {
+  bytes challenge = 1 [(nanopb).max_size = 256];
+  bytes unsealed_csek = 2 [(nanopb).max_size = 32];
+  bytes unsealed_ssek = 3 [(nanopb).max_size = 32];
+}
+
+message sign_challenge_and_seal_seks_rsp {
+  bytes signature = 1 [(nanopb).max_size = 64];
+  sealed_data sealed_csek = 2;
+  sealed_data sealed_ssek = 3;
+}
+
+// Lost-app recovery tap 2: unseals DDK/SSEK, signs two SAP action proofs.
+// Confirmable: returns CONFIRMATION_PENDING + handles; result via get_confirmation_result_rsp.
+message recovery_authorize_lost_app_cmd {
+  sealed_data sealed_ddk = 1;
+  sealed_data sealed_ssek = 2;
+  string descriptor_backups_bindings = 3 [(nanopb).max_size = 256];
+  string activate_keyset_bindings = 4 [(nanopb).max_size = 256];
+  uint32 action_proof_version = 5;
+}
+
+message recovery_authorize_lost_app_rsp {
+  bytes descriptor_backups_signature = 1 [(nanopb).max_size = 64];
+  bytes activate_keyset_signature = 2 [(nanopb).max_size = 64];
+  bytes unsealed_ddk_data = 3 [(nanopb).max_size = 32];
+  bytes unsealed_ssek = 4 [(nanopb).max_size = 32];
+}
+
+// Lost-hw recovery tap 2: seals DDK private key, signs two SAP action proofs.
+// Confirmable: returns CONFIRMATION_PENDING + handles; result via get_confirmation_result_rsp.
+message recovery_authorize_lost_hw_cmd {
+  bytes ddk_private_key = 1 [(nanopb).max_size = 32];
+  string descriptor_backups_bindings = 2 [(nanopb).max_size = 256];
+  string activate_keyset_bindings = 3 [(nanopb).max_size = 256];
+  uint32 action_proof_version = 4;
+}
+
+message recovery_authorize_lost_hw_rsp {
+  bytes descriptor_backups_signature = 1 [(nanopb).max_size = 64];
+  bytes activate_keyset_signature = 2 [(nanopb).max_size = 64];
+  sealed_data sealed_ddk_data = 3;
+}
+
+// Composite command for W3 upgrade: signs both descriptor-backup and keyset-activation
+// action proofs and optionally seals the DDK private key, all in a single confirmable tap.
+// Firmware shows "Approve wallet upgrade" prompt. After user confirms, the result is returned
+// via get_confirmation_result_rsp.
+message upgrade_authorize_w3_cmd {
+  bytes ddk_private_key = 1 [(nanopb).max_size = 32];
+  string descriptor_backups_bindings = 2 [(nanopb).max_size = 256];
+  string activate_keyset_bindings = 3 [(nanopb).max_size = 256];
+  uint32 action_proof_version = 4;
+}
+
+message upgrade_authorize_w3_rsp {
+  bytes descriptor_backups_signature = 1 [(nanopb).max_size = 64];
+  bytes activate_keyset_signature = 2 [(nanopb).max_size = 64];
+  sealed_data sealed_ddk_data = 3;
+}
+
+// Unseals a sealed symmetric key during EEK (Emergency Exit Kit) restoration
+// with user confirmation. Firmware shows a confirmation prompt on screen.
+// Returns CONFIRMATION_PENDING + handles; unsealed key via get_confirmation_result_rsp.
+message eek_restoration_unseal_symmetric_key_cmd {
+  sealed_data sealed_key = 1;
+}
+
+// Returned in get_confirmation_result_rsp after user confirms EEK key unsealing.
+message eek_restoration_unseal_symmetric_key_rsp {
+  bytes unsealed_key = 1 [(nanopb).max_size = 32];
+}
+
+// Confirms the user's intent to decrypt full account cloud backups.
+// After approval, the app may repeatedly call the continue command in the same
+// NFC session with different sealed CSEKs until one succeeds.
+message full_account_cloud_backup_restoration_cmd {}
+
+// Returned in get_confirmation_result_rsp once the user approves full account
+// cloud backup restoration on-device. Carries no payload; success means the
+// session is ready for continuation commands.
+message full_account_cloud_backup_restoration_rsp {}
+
+// Continuation command for full account cloud backup restoration.
+// Must be sent within the same NFC session after confirmation succeeds.
+// The app streams sealed CSEKs one at a time. When firmware successfully
+// unseals one, it returns the unsealed key along with its index.
+message full_account_cloud_backup_restoration_continue_cmd {
+  sealed_data sealed_csek = 1;
+  // Zero-based index of this CSEK in the caller's list of candidates.
+  uint32 csek_index = 2;
+  // Session binding: must echo the response_handle from the initial
+  // full_account_cloud_backup_restoration_rsp to prove the caller is the
+  // same party that initiated and confirmed the session.
+  bytes session_token = 3 [(nanopb).max_size = 32];
+}
+
+// Response for full_account_cloud_backup_restoration_continue_cmd.
+// On success, returns the unsealed CSEK and the index that was provided in the command.
+// On failure (firmware cannot unseal), the command returns an error status and the app
+// should send the next candidate.
+message full_account_cloud_backup_restoration_continue_rsp {
+  bytes unsealed_csek = 1 [(nanopb).max_size = 32];
+  // Echo of csek_index from the command, so the app can correlate the result.
+  uint32 csek_index = 2;
+}
+
+// Display unit preference for Bitcoin amounts shown on the hardware screen
+// during transaction confirmation. The app sends this with each signing command;
+// the hardware applies it for the current session without persisting.
+enum btc_display_unit {
+  // Display amounts in the fractional unit (satoshi / ₿).
+  BTC_DISPLAY_UNIT_SATOSHI = 0;
+  // Display amounts in the main unit (BTC).
+  BTC_DISPLAY_UNIT_BITCOIN = 1;
+}
+
+// Per-input data for the non-PSBT transaction signing protocol.
+message sign_tx_input {
+  bytes prev_txid = 1 [(nanopb).max_size = 32];
+  uint32 prev_index = 2;
+  uint32 sequence = 3;
+  uint64 amount = 4;
+  // BIP-84/86 paths are exactly 5 levels (e.g. m/84'/0'/0'/0/7).
+  repeated uint32 derivation_path = 5 [(nanopb).max_count = 5];
+}
+
+// Per-output data for the non-PSBT transaction signing protocol.
+message sign_tx_output {
+  uint64 amount = 1;
+  // Covers all standard script types: P2WPKH (22), P2WSH (34), P2TR (34).
+  bytes destination_spk = 2 [(nanopb).max_size = 35];
+  // BIP-84/86 paths are exactly 5 levels (e.g. m/84'/0'/0'/1/0).
+  repeated uint32 derivation_path = 3 [(nanopb).max_count = 5];
+  bool has_derivation_path = 4;
+}
+
+// Command to request transaction signing using decomposed transaction fields
+// instead of a full PSBT. The hardware reconstructs the transaction from these
+// fields, displays it for user confirmation, and computes sighashes.
+// max_count kept small to fit in EFR32 RAM (each entry is statically allocated
+// by nanopb and the NFC pool keeps 4 copies of wallet_cmd).
+// For transactions with more than 5 inputs/outputs, use the PSBT-based
+// sign_start_cmd + sign_transfer_cmd chunked flow instead.
+message sign_tx_request_cmd {
+  uint32 lock_time = 1;
+  repeated sign_tx_input inputs = 2 [(nanopb).max_count = 5];
+  repeated sign_tx_output outputs = 3 [(nanopb).max_count = 5];
+
+  // Transaction version (e.g. 1 or 2). Used in BIP143 sighash preimage.
+  // Must match the version of the transaction the app will broadcast.
+  uint32 version = 4;
+
+  // Display preferences for the hardware screen during transaction confirmation.
+  // Sent by the app with each signing command; not persisted by firmware.
+  btc_display_unit btc_display_unit = 5;
+}
+
+// Per-input signature produced by the hardware during non-PSBT signing.
+message input_signature {
+  uint32 input_index = 1;
+  bytes public_key = 2 [(nanopb).max_size = 33];
+  bytes signature = 3 [(nanopb).max_size = 73];
+}
+
+// Response containing all input signatures from a confirmed non-PSBT signing.
+// Used by sign_tx_request_cmd (≤5 inputs). For streaming signing (>5 inputs),
+// signatures are retrieved one at a time via get_tx_signature_cmd.
+message sign_tx_response {
+  repeated input_signature signatures = 1 [(nanopb).max_count = 5];
+}
+
+// =============================================================================
+// Streaming transaction signing protocol
+// =============================================================================
+// For transactions with more inputs/outputs than sign_tx_request_cmd can handle
+// (limited to 5 by nanopb static allocation × NFC pool copies), the streaming
+// protocol sends the same compact fields in 452-byte NFC chunks. The firmware
+// accumulates BIP143 intermediate hashes incrementally during receive, then
+// computes per-input sighashes on demand after user confirmation.
+//
+// Flow:
+//   sign_stream_start_cmd  → sign_stream_start_rsp
+//   sign_stream_transfer_cmd (×N chunks) → sign_stream_transfer_rsp
+//   sign_stream_finalize_cmd → confirmation_pending (via global status)
+//   get_confirmation_result_cmd → sign_stream_signatures_ready
+//   get_tx_signature_cmd (×M inputs) → get_tx_signature_rsp
+
+// Initiates a streaming signing session. Firmware allocates the session buffer
+// and initializes SHA256 streaming contexts for BIP143 intermediate hashes.
+message sign_stream_start_cmd {
+  // Number of inputs in the transaction.
+  uint32 num_inputs = 1;
+  // Number of outputs in the transaction.
+  uint32 num_outputs = 2;
+  // Transaction version (e.g. 1 or 2). Used in BIP143 sighash preimage.
+  uint32 version = 3;
+  // Transaction lock_time.
+  uint32 lock_time = 4;
+  // Total size in bytes of the canonical payload that will be streamed.
+  // Firmware uses this to detect truncation or padding attacks.
+  uint32 payload_size = 5;
+
+  // Display preferences for the hardware screen during transaction confirmation.
+  // Sent by the app with each signing command; not persisted by firmware.
+  btc_display_unit btc_display_unit = 6;
+}
+
+message sign_stream_start_rsp {
+  enum sign_stream_start_rsp_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+    UNAUTHENTICATED = 3;
+    reserved 4 to 9;
+  }
+  sign_stream_start_rsp_status rsp_status = 1;
+}
+
+// Transfers a chunk of the canonical binary payload. Each chunk contains a
+// contiguous slice of the flat binary encoding of inputs followed by outputs.
+// Firmware parses records from the byte stream and updates BIP143 SHA256
+// streaming contexts incrementally.
+message sign_stream_transfer_cmd {
+  // Monotonically increasing sequence ID for chunk ordering.
+  uint32 sequence_id = 1;
+  // Chunk of canonical payload bytes.
+  bytes chunk_data = 2 [(nanopb).max_size = 452];
+}
+
+message sign_stream_transfer_rsp {
+  // Note: Uses the new-style global status code for response status.
+  // SEQUENCE_ERROR maps to INVALID_STATE in the global status enum.
+}
+
+// Finalizes the streaming session. Firmware:
+// 1. Verifies total bytes received == payload_size from start_cmd
+// 2. Finalizes BIP143 intermediate hashes (hashPrevouts, hashSequence, hashOutputs)
+// 3. Computes commitment = SHA256(all streamed bytes in order)
+// 4. Verifies commitment matches the app-provided hash (anti-tampering)
+// 5. Validates change outputs belong to the wallet policy
+// 6. Presents transaction details for user confirmation
+//
+// Returns CONFIRMATION_PENDING with handles via the global status code.
+message sign_stream_finalize_cmd {
+  // SHA256 hash of the entire canonical payload, computed by the app.
+  // Firmware independently computes the same hash during streaming and
+  // verifies they match. This ensures no byte was altered in transit.
+  bytes commitment_hash = 1 [(nanopb).max_size = 32];
+}
+
+// sign_stream_finalize_rsp uses CONFIRMATION_PENDING global status with
+// response_handle / confirmation_handle fields on wallet_rsp.
+// No dedicated response message is needed.
+
+// Signals that streaming signing is ready for per-input signature retrieval.
+// Returned from get_confirmation_result after user approves.
+message sign_stream_signatures_ready {
+  // Number of inputs ready for signing. App uses this to iterate
+  // get_tx_signature_cmd for i in 0..num_inputs-1.
+  uint32 num_inputs = 1;
+}
+
+// Retrieves a single input's signature from a confirmed streaming signing session.
+// Deterministic ECDSA (RFC 6979) makes this idempotent — NFC retries are safe
+// with no extra buffer needed.
+message get_tx_signature_cmd {
+  // Zero-based index into the streamed inputs array.
+  uint32 input_index = 1;
+}
+
+message get_tx_signature_rsp {
+  // Compressed public key that produced this signature (33 bytes).
+  bytes pubkey = 1 [(nanopb).max_size = 33];
+  // DER-encoded ECDSA signature + sighash type byte (max 73 bytes).
+  bytes signature = 2 [(nanopb).max_size = 73];
+}
+
+// Retrieves a batch of input signatures from a confirmed streaming signing session.
+// Same as get_tx_signature_cmd but returns up to `count` signatures per response,
+// reducing NFC round-trips from N to N/batch_size.
+// Idempotent (RFC 6979 deterministic ECDSA).
+message get_tx_signatures_batch_cmd {
+  // Zero-based index of the first input to sign in this batch.
+  uint32 start_index = 1;
+  // Number of signatures to return (clamped to num_inputs - start_index).
+  uint32 count = 2;
+}
+
+// Reuses the existing tx_signature layout (pubkey + signature) per entry.
+message tx_signature_entry {
+  bytes pubkey = 1 [(nanopb).max_size = 33];
+  bytes signature = 2 [(nanopb).max_size = 73];
+}
+
+message get_tx_signatures_batch_rsp {
+  repeated tx_signature_entry signatures = 1 [(nanopb).max_count = 10];
+}
+
+// DEVELOPMENT ONLY: Bypass authentication to unlock device for testing.
+message unlock_device_cmd {
+}
+
+// DEVELOPMENT ONLY: Response to `unlock_device_cmd`
+message unlock_device_rsp {
+  // Possible status codes returned in the response.
+  enum unlock_device_rsp_status {
+    // Unknown error.
+    UNSPECIFIED = 0;
+
+    // Device was successfully unlocked.
+    SUCCESS = 1;
+  }
+
+  // Response to the unlock command.
+  unlock_device_rsp_status rsp_status = 1;
 }
 
 message wallet_cmd {
@@ -1160,7 +1642,6 @@ message wallet_cmd {
     secure_channel_establish_cmd secure_channel_establish_cmd = 46;
     send_unlock_secret_cmd send_unlock_secret_cmd = 47;
     derive_public_key_cmd derive_public_key_cmd = 48;
-    derive_public_key_and_sign_cmd derive_public_key_and_sign_cmd = 49;
     provision_unlock_secret_cmd provision_unlock_secret_cmd = 50;
     configure_unlock_limit_response_cmd configure_unlock_limit_response_cmd = 51;
     delete_fingerprint_cmd delete_fingerprint_cmd = 52;
@@ -1188,9 +1669,32 @@ message wallet_cmd {
     ship_state_cmd ship_state_cmd = 74;
     mfgtest_touch_data_cmd mfgtest_touch_data_cmd = 75;
     sign_action_proof_cmd sign_action_proof_cmd = 76;
+    mfgtest_device_set_production_lock_cmd mfgtest_device_set_production_lock_cmd = 77;
+    mfgtest_device_get_production_lock_cmd mfgtest_device_get_production_lock_cmd = 78;
+    sign_tx_request_cmd sign_tx_request_cmd = 79;
+    sign_stream_start_cmd sign_stream_start_cmd = 80;
+    sign_stream_transfer_cmd sign_stream_transfer_cmd = 81;
+    sign_stream_finalize_cmd sign_stream_finalize_cmd = 82;
+    get_tx_signature_cmd get_tx_signature_cmd = 83;
+    get_tx_signatures_batch_cmd get_tx_signatures_batch_cmd = 84;
+    lost_app_recovery_cmd lost_app_recovery_cmd = 85;
+    lost_app_recovery_continue_cmd lost_app_recovery_continue_cmd = 86;
+    lost_app_recovery_sign_challenge_cmd lost_app_recovery_sign_challenge_cmd = 87;
+    rotate_app_auth_keys_cmd rotate_app_auth_keys_cmd = 88;
+    sign_challenge_and_seal_seks_cmd sign_challenge_and_seal_seks_cmd = 89;
+    recovery_authorize_lost_app_cmd recovery_authorize_lost_app_cmd = 90;
+    recovery_authorize_lost_hw_cmd recovery_authorize_lost_hw_cmd = 91;
+    eek_restoration_unseal_symmetric_key_cmd eek_restoration_unseal_symmetric_key_cmd = 92;
+    full_account_cloud_backup_restoration_cmd full_account_cloud_backup_restoration_cmd = 93;
+    full_account_cloud_backup_restoration_continue_cmd full_account_cloud_backup_restoration_continue_cmd = 94;
+    show_confirmation_screen_cmd show_confirmation_screen_cmd = 95;
+    upgrade_authorize_w3_cmd upgrade_authorize_w3_cmd = 96;
+    upgrade_rotate_app_auth_keys_cmd upgrade_rotate_app_auth_keys_cmd = 97;
+    unlock_device_cmd unlock_device_cmd = 98;
   }
   reserved 2, 5, 14, 21, 22, 23, 24; // The deprecated old cryptography stack (key bundle, etc.)
   reserved 30, 31, 34;  // The never used create_root_key, list_recent_root_keys, and sign_hash operations
+  reserved 49;  // was derive_public_key_and_sign_cmd (removed, never implemented in firmware)
 
   uint32 timestamp = 9999;
 }
@@ -1243,7 +1747,6 @@ message wallet_rsp {
     secure_channel_establish_rsp secure_channel_establish_rsp = 46;
     send_unlock_secret_rsp send_unlock_secret_rsp = 47;
     derive_public_key_rsp derive_public_key_rsp = 48;
-    derive_public_key_and_sign_rsp derive_public_key_and_sign_rsp = 49;
     provision_unlock_secret_rsp provision_unlock_secret_rsp = 50;
     configure_unlock_limit_response_rsp configure_unlock_limit_response_rsp = 51;
     delete_fingerprint_rsp delete_fingerprint_rsp = 52;
@@ -1271,9 +1774,30 @@ message wallet_rsp {
     ship_state_rsp ship_state_rsp = 74;
     mfgtest_touch_data_rsp mfgtest_touch_data_rsp = 75;
     sign_action_proof_rsp sign_action_proof_rsp = 76;
+    mfgtest_device_set_production_lock_rsp mfgtest_device_set_production_lock_rsp = 77;
+    mfgtest_device_get_production_lock_rsp mfgtest_device_get_production_lock_rsp = 78;
+    sign_tx_response sign_tx_response = 79;
+    sign_stream_start_rsp sign_stream_start_rsp = 80;
+    sign_stream_transfer_rsp sign_stream_transfer_rsp = 81;
+    // Field 82 intentionally skipped: sign_stream_finalize uses CONFIRMATION_PENDING
+    // global status with response_handle/confirmation_handle (no dedicated rsp msg).
+    get_tx_signature_rsp get_tx_signature_rsp = 83;
+    get_tx_signatures_batch_rsp get_tx_signatures_batch_rsp = 84;
+    // Field 85 intentionally skipped: lost_app_recovery_cmd uses CONFIRMATION_PENDING
+    // global status with response_handle/confirmation_handle (no dedicated rsp msg).
+    lost_app_recovery_continue_rsp lost_app_recovery_continue_rsp = 86;
+    lost_app_recovery_sign_challenge_rsp lost_app_recovery_sign_challenge_rsp = 87;
+    rotate_app_auth_keys_rsp rotate_app_auth_keys_rsp = 88;
+    eek_restoration_unseal_symmetric_key_rsp eek_restoration_unseal_symmetric_key_rsp = 92;
+    full_account_cloud_backup_restoration_rsp full_account_cloud_backup_restoration_rsp = 93;
+    full_account_cloud_backup_restoration_continue_rsp full_account_cloud_backup_restoration_continue_rsp = 94;
+    show_confirmation_screen_rsp show_confirmation_screen_rsp = 95;
+    unlock_device_rsp unlock_device_rsp = 98;
   }
   reserved 2, 5, 14, 21, 22, 23, 24; // The deprecated old cryptography stack (key bundle, etc.)
   reserved 30, 31, 34;  // The never used create_root_key, list_recent_root_keys, and sign_hash operations
+  reserved 49;  // was derive_public_key_and_sign_rsp (removed, never implemented in firmware)
+  reserved 82, 85, 89, 90, 91, 96;  // sign_stream_finalize, lost_app_recovery_cmd, sign_challenge_and_seal_seks, recovery_authorize_lost_app/hw, upgrade_authorize_w3 have no dedicated rsp; use CONFIRMATION_PENDING global status
 
   bytes response_handle = 9996 [(nanopb).max_size = 32];
   bytes confirmation_handle = 9997 [(nanopb).max_size = 32];

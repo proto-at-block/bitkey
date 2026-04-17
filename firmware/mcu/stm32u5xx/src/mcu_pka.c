@@ -486,7 +486,6 @@ mcu_err_t mcu_pka_ecdsa_verify(const mcu_pka_curve_params_t* curve_params,
   /* Check 2: Verify that the public key is on the curve. */
   mcu_err_t err = mcu_pka_point_check(curve_params, public_key->x, public_key->y);
   if (err != MCU_ERROR_OK) {
-    /* Invalid public key or curve provided. */
     return err;
   }
 
@@ -940,11 +939,10 @@ static mcu_err_t _mcu_pka_wait_for_completion(void) {
   ASSERT(pka != NULL);
 
 #ifdef IMAGE_TYPE_APPLICATION
-  const uint64_t start_time = rtos_thread_micros();
-  const uint64_t timeout_us = MCU_PKA_TIMEOUT_MS * 1000ULL;
+  const uint32_t start_time_ms = rtos_thread_systime();
 
   while (!LL_PKA_IsActiveFlag_PROCEND(pka)) {
-    if ((rtos_thread_micros() - start_time) >= timeout_us) {
+    if ((rtos_thread_systime() - start_time_ms) >= MCU_PKA_TIMEOUT_MS) {
       return MCU_ERROR_TIMEOUT;
     }
 

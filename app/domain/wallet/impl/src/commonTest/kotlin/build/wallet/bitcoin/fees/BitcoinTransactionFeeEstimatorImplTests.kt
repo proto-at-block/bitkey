@@ -32,6 +32,7 @@ class BitcoinTransactionFeeEstimatorImplTests : FunSpec({
     )
 
   beforeTest {
+    bitcoinFeeRateEstimator.reset()
     spendingWallet.reset()
     bitcoinWalletService.reset()
     bitcoinWalletService.spendingWallet.value = spendingWallet
@@ -65,6 +66,37 @@ class BitcoinTransactionFeeEstimatorImplTests : FunSpec({
     fees[FASTEST].shouldBe(Fee(amount = BitcoinMoney.sats(6192)))
     fees[THIRTY_MINUTES].shouldBe(Fee(amount = BitcoinMoney.sats(4128)))
     fees[SIXTY_MINUTES].shouldBe(Fee(amount = BitcoinMoney.sats(2064)))
+  }
+
+  test("estimator rounds fee amount up when fee rate produces fractional sats") {
+    spendingWallet.createPsbtResult =
+      Ok(
+        PsbtMock.copy(
+          fee = Fee(BitcoinMoney.sats(200)),
+          vsize = 2000,
+          numOfInputs = 1,
+          amountSats = 100UL
+        )
+      )
+    bitcoinFeeRateEstimator.getEstimatedFeeRateResult =
+      Ok(
+        FeeRatesByPriority(
+          fastestFeeRate = FeeRate(1.1f),
+          halfHourFeeRate = FeeRate(2.0f),
+          hourFeeRate = FeeRate(1.0f)
+        )
+      )
+
+    val fees =
+      estimator.getFeesForTransaction(
+        priorities = listOf(FASTEST),
+        account = FullAccountMock,
+        recipientAddress = BitcoinAddress(address = ""),
+        amount = BitcoinTransactionSendAmount.ExactAmount(BitcoinMoney.zero())
+      ).unwrap()
+
+    // vsize = 2064, so 1.1 sats/vbyte should be 2270.4 sats and round up to 2271.
+    fees[FASTEST].shouldBe(Fee(amount = BitcoinMoney.sats(2271)))
   }
 
   test("estimator propagates fee rate estimator errors") {

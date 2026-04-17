@@ -10,6 +10,7 @@ import build.wallet.account.getAccountOrNull
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilder
 import build.wallet.bitcoin.keys.DescriptorPublicKey
+import build.wallet.bitcoin.keys.extractAccountIndex
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.app.AppGlobalAuthKey
@@ -24,12 +25,15 @@ import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.cloud.backup.csek.SsekDao
 import build.wallet.crypto.PublicKey
+import build.wallet.crypto.firmwareSealedDataValidationError
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.SymmetricKeyEncryptor
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.recovery.LegacyRemoteKeyset
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
+import build.wallet.f8e.recovery.PrivateMultisigRemoteKeyset
+import build.wallet.f8e.recovery.RemoteKeyset
 import build.wallet.f8e.recovery.toSpendingKeysets
 import build.wallet.feature.flags.DescriptorBackupFailsafeFeatureFlag
 import build.wallet.feature.isEnabled
@@ -144,6 +148,14 @@ class DescriptorBackupServiceImpl(
     keysetsToEncrypt: List<SpendingKeyset>,
   ): Result<Unit, DescriptorBackupError> =
     coroutineBinding {
+      sealedSsekForEncryption.firmwareSealedDataValidationError()?.let { validationError ->
+        Err(
+          VerificationFailed(
+            "Invalid sealed SSEK for descriptor backup upload: $validationError"
+          )
+        ).bind<Unit>()
+      }
+
       require(keysetsToEncrypt.size == 1) {
         "must have keysets to encrypt, but had none"
       }
@@ -164,7 +176,7 @@ class DescriptorBackupServiceImpl(
         sealedSsek = sealedSsekForEncryption,
         descriptorBackups = encryptedDescriptors,
         appAuthKey = appAuthKey,
-        hwKeyProof = null
+        proof = null
       ).bind()
 
       verifyDescriptorBackups(
@@ -190,11 +202,19 @@ class DescriptorBackupServiceImpl(
     sealedSsekForDecryption: SealedSsek?,
     sealedSsekForEncryption: SealedSsek,
     appAuthKey: PublicKey<AppGlobalAuthKey>,
-    hwKeyProof: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof?,
     descriptorsToDecrypt: List<DescriptorBackup>,
     keysetsToEncrypt: List<SpendingKeyset>,
   ): Result<List<SpendingKeyset>, DescriptorBackupError> =
     coroutineBinding {
+      sealedSsekForEncryption.firmwareSealedDataValidationError()?.let { validationError ->
+        Err(
+          VerificationFailed(
+            "Invalid sealed SSEK for descriptor backup upload: $validationError"
+          )
+        ).bind<List<SpendingKeyset>>()
+      }
+
       val processedResult = processDescriptorBackupsForRecovery(
         descriptorsToDecrypt = descriptorsToDecrypt,
         keysetsToEncrypt = keysetsToEncrypt,
@@ -209,7 +229,7 @@ class DescriptorBackupServiceImpl(
         descriptorBackups = processedResult.encryptedDescriptors,
         sealedSsek = sealedSsekForEncryption,
         appAuthKey = appAuthKey,
-        hwKeyProof = hwKeyProof
+        proof = proof
       ).bind()
 
       verifyDescriptorBackups(
@@ -231,6 +251,71 @@ class DescriptorBackupServiceImpl(
 
       processedResult.allKeysets
     }
+
+  override suspend fun checkSsekUnsealingNeeded(
+    accountId: FullAccountId,
+    factorToRecover: PhysicalFactor,
+  ): Result<DescriptorBackupService.SsekUnsealCheckResult, Error> {
+    if (factorToRecover == PhysicalFactor.Hardware) {
+      return Ok(DescriptorBackupService.SsekUnsealCheckResult.NotNeeded)
+    }
+
+    return coroutineBinding {
+      val accountConfig = getAccountConfig()
+      val listKeysetsResponse = listKeysetsF8eClient.listKeysets(
+        f8eEnvironment = accountConfig.f8eEnvironment,
+        fullAccountId = accountId
+      ).mapError { Error(it) }.bind()
+
+      checkSsekAvailability(
+        listKeysetsResponse.descriptorBackups,
+        listKeysetsResponse.wrappedSsek
+      )
+    }
+  }
+
+  override suspend fun getNextAccountIndex(accountId: FullAccountId): Result<UInt, Error> {
+    return coroutineBinding {
+      val accountConfig = getAccountConfig()
+      val listKeysetsResponse = listKeysetsF8eClient.listKeysets(
+        f8eEnvironment = accountConfig.f8eEnvironment,
+        fullAccountId = accountId
+      ).mapError { Error(it) }.bind()
+      listKeysetsResponse.keysets
+        .mapNotNull { remoteKeyset ->
+          remoteKeyset.serverDescriptorPublicKeyOrNull()
+            ?.extractAccountIndex()
+        }
+        .maxOrNull()
+        ?.plus(1u)
+        ?: 0u
+    }
+  }
+
+  /**
+   * Checks whether the SSEK for an existing set of encrypted descriptors needs hardware
+   * unsealing, or is already available locally in [SsekDao].
+   *
+   * Shared between [checkSsekUnsealingNeeded] (pre-tap planning) and [prepareForAppRecovery]
+   * (post-keyset-creation descriptor processing).
+   */
+  private suspend fun checkSsekAvailability(
+    existingEncryptedDescriptors: List<DescriptorBackup>,
+    wrappedSsek: SealedSsek?,
+  ): DescriptorBackupService.SsekUnsealCheckResult {
+    if (existingEncryptedDescriptors.isEmpty() && wrappedSsek == null) {
+      return DescriptorBackupService.SsekUnsealCheckResult.NotNeeded
+    }
+    if (wrappedSsek == null) {
+      return DescriptorBackupService.SsekUnsealCheckResult.NotNeeded
+    }
+    val unwrappedSsek = ssekDao.get(wrappedSsek).get()
+    return if (unwrappedSsek != null) {
+      DescriptorBackupService.SsekUnsealCheckResult.NotNeeded
+    } else {
+      DescriptorBackupService.SsekUnsealCheckResult.NeedsUnsealing(wrappedSsek)
+    }
+  }
 
   override suspend fun sealDescriptors(
     sealedSsek: SealedSsek,
@@ -545,24 +630,19 @@ class DescriptorBackupServiceImpl(
         listOf(newActiveKeyset)
       }
 
-      // If we happen to have the unwrapped SSEK available, perhaps because this is a retry and it
-      // was previously populated, we make use of it!
-      val unwrappedSsek = wrappedSsek.let {
-        ssekDao.get(it).get()
-      }
-
-      if (unwrappedSsek != null) {
-        DescriptorBackupPreparedData.Available(
-          descriptorsToDecrypt = existingEncryptedDescriptors,
-          keysetsToEncrypt = newKeysets,
-          sealedSsek = wrappedSsek
-        )
-      } else {
-        DescriptorBackupPreparedData.NeedsUnsealed(
-          descriptorsToDecrypt = existingEncryptedDescriptors,
-          keysetsToEncrypt = newKeysets,
-          sealedSsek = wrappedSsek
-        )
+      when (checkSsekAvailability(existingEncryptedDescriptors, wrappedSsek)) {
+        is DescriptorBackupService.SsekUnsealCheckResult.NotNeeded ->
+          DescriptorBackupPreparedData.Available(
+            descriptorsToDecrypt = existingEncryptedDescriptors,
+            keysetsToEncrypt = newKeysets,
+            sealedSsek = wrappedSsek
+          )
+        is DescriptorBackupService.SsekUnsealCheckResult.NeedsUnsealing ->
+          DescriptorBackupPreparedData.NeedsUnsealed(
+            descriptorsToDecrypt = existingEncryptedDescriptors,
+            keysetsToEncrypt = newKeysets,
+            sealedSsek = wrappedSsek
+          )
       }
     }
 
@@ -575,7 +655,7 @@ class DescriptorBackupServiceImpl(
     sealedSsek: SealedSsek,
     descriptorBackups: List<DescriptorBackup>,
     appAuthKey: PublicKey<AppGlobalAuthKey>,
-    hwKeyProof: HwFactorProofOfPossession?,
+    proof: PrivilegedActionProof?,
   ): Result<Unit, DescriptorBackupError> =
     coroutineBinding {
       val accountConfig = getAccountConfig()
@@ -588,7 +668,7 @@ class DescriptorBackupServiceImpl(
         descriptorBackups = descriptorBackups,
         sealedSsek = sealedSsek,
         appAuthKey = appAuthKey,
-        hwKeyProof = hwKeyProof
+        proof = proof
       )
         .logFailure { "Failed to update descriptor backups" }
         .mapError { NetworkError(it) }
@@ -731,3 +811,13 @@ private data class ProcessedDescriptorBackupsResult(
   val encryptedDescriptors: List<DescriptorBackup>,
   val allKeysets: List<SpendingKeyset>,
 )
+
+private fun RemoteKeyset.serverDescriptorPublicKeyOrNull(): DescriptorPublicKey? =
+  try {
+    when (this) {
+      is LegacyRemoteKeyset -> DescriptorPublicKey(serverDescriptor)
+      is PrivateMultisigRemoteKeyset -> DescriptorPublicKey(serverPublicKey)
+    }
+  } catch (_: Throwable) {
+    null
+  }

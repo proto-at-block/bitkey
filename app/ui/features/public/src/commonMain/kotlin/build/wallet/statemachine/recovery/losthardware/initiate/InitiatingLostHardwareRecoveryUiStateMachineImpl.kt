@@ -1,10 +1,12 @@
 package build.wallet.statemachine.recovery.losthardware.initiate
 
 import androidx.compose.runtime.*
+import bitkey.account.HardwareType
 import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
 import bitkey.recovery.InitiateDelayNotifyRecoveryError.*
 import build.wallet.analytics.events.EventTracker
+import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.context.PairHardwareEventTrackerScreenIdContext.HW_RECOVERY
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_LOADING
@@ -16,18 +18,21 @@ import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+
+
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
+import build.wallet.feature.collectIsEnabledAsState
 import build.wallet.recovery.CancelDelayNotifyRecoveryError
 import build.wallet.recovery.LostHardwareRecoveryService
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareProps
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareProps.Request.Ready
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachine
 import build.wallet.statemachine.account.create.full.hardware.PairingContext
-import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
-import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
-import build.wallet.statemachine.auth.Request.HwKeyProof
+
+
 import build.wallet.statemachine.core.*
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
+import build.wallet.statemachine.nfc.HardwarePresenceProps
+import build.wallet.statemachine.nfc.HardwarePresenceUiStateMachine
 import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.hardware.initiating.HardwareReplacementInstructionsModel
 import build.wallet.statemachine.recovery.hardware.initiating.NewDeviceReadyQuestionModel
@@ -49,54 +54,34 @@ import com.github.michaelbull.result.onSuccess
 class InitiatingLostHardwareRecoveryUiStateMachineImpl(
   private val pairNewHardwareUiStateMachine: PairNewHardwareUiStateMachine,
   private val eventTracker: EventTracker,
-  private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
   private val recoveryNotificationVerificationUiStateMachine:
     RecoveryNotificationVerificationUiStateMachine,
+  private val hardwarePresenceUiStateMachine: HardwarePresenceUiStateMachine,
   private val lostHardwareRecoveryService: LostHardwareRecoveryService,
   private val minimumLoadingDuration: MinimumLoadingDuration,
+  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : InitiatingLostHardwareRecoveryUiStateMachine {
   @Composable
   override fun model(props: InitiatingLostHardwareRecoveryProps): ScreenModel {
     var state: UiState by remember { mutableStateOf(GeneratingNewAppKeys) }
+    val isDesignSystemV2Enabled by designSystemUpdatesFeatureFlag.collectIsEnabledAsState()
 
     return when (val currentState = state) {
       is AskingNewHardwareReadyQuestionState -> NewDeviceReadyQuestionModel(
         currentState = currentState,
         props = props,
+        isDesignSystemV2Enabled = isDesignSystemV2Enabled,
         setState = { state = it }
-      )
-      is AwaitingHardwareProofOfPossessionState -> proofOfPossessionNfcStateMachine.model(
-        ProofOfPossessionNfcProps(
-          request = HwKeyProof(
-            onSuccess = {
-              state = CancellingConflictingRecoveryWithF8eState(
-                destinationAppKeyBundle = currentState.destinationAppKeyBundle,
-                destinationHardwareKeyBundle = currentState.destinationHardwareKeyBundle,
-                appGlobalAuthKeyHwSignature = currentState.appGlobalAuthKeyHwSignature,
-                hwFactorProofOfPossession = it
-              )
-            }
-          ),
-          fullAccountId = props.account.accountId,
-          appAuthKey = props.account.keybox.activeAppKeyBundle.authKey,
-          segment = RecoverySegment.DelayAndNotify.LostHardware.Initiation,
-          actionDescription = "Error getting hardware keyproof",
-          screenPresentationStyle = props.screenPresentationStyle,
-          hardwareVerification = Required(true),
-          onBack = {
-            state = GeneratingNewAppKeys
-          }
-        )
       )
       is CancellingConflictingRecoveryWithF8eState -> {
         LaunchedEffect("cancelling-existing-recovery") {
-          lostHardwareRecoveryService.cancelRecoveryWithHwProofOfPossession(
-            currentState.hwFactorProofOfPossession
-          ).onSuccess {
+          lostHardwareRecoveryService.cancelConflictingRecovery()
+            .onSuccess {
             state = InitiatingServerRecoveryState(
               destinationAppKeyBundle = currentState.destinationAppKeyBundle,
               destinationHardwareKeyBundle = currentState.destinationHardwareKeyBundle,
-              appGlobalAuthKeyHwSignature = currentState.appGlobalAuthKeyHwSignature
+              appGlobalAuthKeyHwSignature = currentState.appGlobalAuthKeyHwSignature,
+              hardwareType = currentState.hardwareType
             )
           }
             .onFailure {
@@ -107,16 +92,16 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
                 VerifyingNotificationCommsState.VerifyingNotificationCommsForCancellationState(
                   destinationAppKeyBundle = currentState.destinationAppKeyBundle,
                   destinationHardwareKeyBundle = currentState.destinationHardwareKeyBundle,
-                  hwFactorProofOfPossession = currentState.hwFactorProofOfPossession,
-                  appGlobalAuthKeyHwSignature = currentState.appGlobalAuthKeyHwSignature
+                  appGlobalAuthKeyHwSignature = currentState.appGlobalAuthKeyHwSignature,
+                  hardwareType = currentState.hardwareType
                 )
               } else {
                 FailedToCancelConflictingRecoveryWithF8EState(
                   cause = it,
                   destinationAppKeyBundle = currentState.destinationAppKeyBundle,
                   destinationHardwareKeyBundle = currentState.destinationHardwareKeyBundle,
-                  hwFactorProofOfPossession = currentState.hwFactorProofOfPossession,
-                  appGlobalAuthKeyHwSignature = currentState.appGlobalAuthKeyHwSignature
+                  appGlobalAuthKeyHwSignature = currentState.appGlobalAuthKeyHwSignature,
+                  hardwareType = currentState.hardwareType
                 )
               }
             }
@@ -130,10 +115,11 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
       is DisplayingConflictingRecoveryState -> RecoveryConflictModel(
         cancelingRecoveryLostFactor = App,
         onCancelRecovery = {
-          state = AwaitingHardwareProofOfPossessionState(
-            currentState.destinationAppKeyBundle,
-            currentState.destinationHardwareKeyBundle,
-            currentState.appGlobalAuthKeyHwSignature
+          state = CancellingConflictingRecoveryWithF8eState(
+            destinationAppKeyBundle = currentState.destinationAppKeyBundle,
+            destinationHardwareKeyBundle = currentState.destinationHardwareKeyBundle,
+            appGlobalAuthKeyHwSignature = currentState.appGlobalAuthKeyHwSignature,
+            hardwareType = currentState.hardwareType
           )
         },
         presentationStyle = props.screenPresentationStyle
@@ -161,7 +147,8 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
           state = InitiatingServerRecoveryState(
             destinationAppKeyBundle = currentState.destinationAppKeyBundle,
             destinationHardwareKeyBundle = currentState.destinationHardwareKeyBundle,
-            appGlobalAuthKeyHwSignature = currentState.appGlobalAuthKeyHwSignature
+            appGlobalAuthKeyHwSignature = currentState.appGlobalAuthKeyHwSignature,
+            hardwareType = currentState.hardwareType
           )
         },
         onCancelClicked = {
@@ -204,7 +191,8 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
           lostHardwareRecoveryService.initiate(
             destinationAppKeyBundle = currentState.destinationAppKeyBundle,
             destinationHardwareKeyBundle = currentState.destinationHardwareKeyBundle,
-            appGlobalAuthKeyHwSignature = currentState.appGlobalAuthKeyHwSignature
+            appGlobalAuthKeyHwSignature = currentState.appGlobalAuthKeyHwSignature,
+            hardwareType = currentState.hardwareType
           )
             .onFailure {
               state = when (it) {
@@ -212,20 +200,23 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
                   VerifyingNotificationCommsState.VerifyingNotificationCommsForInitiationState(
                     destinationAppKeyBundle = currentState.destinationAppKeyBundle,
                     destinationHardwareKeyBundle = currentState.destinationHardwareKeyBundle,
-                    appGlobalAuthKeyHwSignature = currentState.appGlobalAuthKeyHwSignature
+                    appGlobalAuthKeyHwSignature = currentState.appGlobalAuthKeyHwSignature,
+                    hardwareType = currentState.hardwareType
                   )
                 is RecoveryAlreadyExistsError ->
                   DisplayingConflictingRecoveryState(
                     destinationAppKeyBundle = currentState.destinationAppKeyBundle,
                     destinationHardwareKeyBundle = currentState.destinationHardwareKeyBundle,
-                    appGlobalAuthKeyHwSignature = currentState.appGlobalAuthKeyHwSignature
+                    appGlobalAuthKeyHwSignature = currentState.appGlobalAuthKeyHwSignature,
+                    hardwareType = currentState.hardwareType
                   )
                 is OtherError ->
                   FailedInitiatingServerRecoveryState(
                     cause = it,
                     destinationAppKeyBundle = currentState.destinationAppKeyBundle,
                     destinationHardwareKeyBundle = currentState.destinationHardwareKeyBundle,
-                    appGlobalAuthKeyHwSignature = currentState.appGlobalAuthKeyHwSignature
+                    appGlobalAuthKeyHwSignature = currentState.appGlobalAuthKeyHwSignature,
+                    hardwareType = currentState.hardwareType
                   )
               }
             }
@@ -249,7 +240,8 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
               state = InitiatingServerRecoveryState(
                 destinationAppKeyBundle = currentState.newAppKeys,
                 destinationHardwareKeyBundle = response.keyBundle,
-                appGlobalAuthKeyHwSignature = response.appGlobalAuthKeyHwSignature
+                appGlobalAuthKeyHwSignature = response.appGlobalAuthKeyHwSignature,
+                hardwareType = response.hardwareType
               )
             }
           ),
@@ -267,18 +259,13 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
         },
         onClose = props.onExit
       ).asScreen(props.screenPresentationStyle)
-      is VerifyingFoundHardwareState -> proofOfPossessionNfcStateMachine.model(
-        ProofOfPossessionNfcProps(
-          request = HwKeyProof(
-            onSuccess = { currentState.onSuccess() }
-          ),
-          fullAccountId = props.account.accountId,
-          appAuthKey = props.account.keybox.activeAppKeyBundle.authKey,
-          segment = RecoverySegment.DelayAndNotify.LostHardware.Initiation,
-          actionDescription = "Error getting hardware keyproof",
+      is VerifyingFoundHardwareState -> hardwarePresenceUiStateMachine.model(
+        HardwarePresenceProps(
+          onSuccess = { currentState.onSuccess() },
+          onFailure = { currentState.onBack() },
+          onCancel = currentState.onBack,
           screenPresentationStyle = props.screenPresentationStyle,
-          hardwareVerification = Required(),
-          onBack = currentState.onBack
+          eventTrackerContext = NfcEventTrackerScreenIdContext.HW_DELAY_NOTIFY_VERIFY_FOUND_HARDWARE
         )
       )
       is VerifyingNotificationCommsState -> recoveryNotificationVerificationUiStateMachine.model(
@@ -287,7 +274,6 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
           localLostFactor = Hardware,
           segment = RecoverySegment.DelayAndNotify.LostHardware.Initiation,
           actionDescription = "Error verifying notification comms for contested recovery",
-          hwFactorProofOfPossession = null,
           onRollback = {
             state = GeneratingNewAppKeys
           },
@@ -297,8 +283,8 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
                 CancellingConflictingRecoveryWithF8eState(
                   destinationAppKeyBundle = currentState.destinationAppKeyBundle,
                   destinationHardwareKeyBundle = currentState.destinationHardwareKeyBundle,
-                  hwFactorProofOfPossession = currentState.hwFactorProofOfPossession,
-                  appGlobalAuthKeyHwSignature = currentState.appGlobalAuthKeyHwSignature
+                  appGlobalAuthKeyHwSignature = currentState.appGlobalAuthKeyHwSignature,
+                  hardwareType = currentState.hardwareType
                 )
               }
 
@@ -306,7 +292,8 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
                 InitiatingServerRecoveryState(
                   destinationAppKeyBundle = currentState.destinationAppKeyBundle,
                   destinationHardwareKeyBundle = currentState.destinationHardwareKeyBundle,
-                  appGlobalAuthKeyHwSignature = currentState.appGlobalAuthKeyHwSignature
+                  appGlobalAuthKeyHwSignature = currentState.appGlobalAuthKeyHwSignature,
+                  hardwareType = currentState.hardwareType
                 )
               }
             }
@@ -319,6 +306,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
   private fun NewDeviceReadyQuestionModel(
     currentState: AskingNewHardwareReadyQuestionState,
     props: InitiatingLostHardwareRecoveryProps,
+    isDesignSystemV2Enabled: Boolean,
     setState: (UiState) -> Unit,
   ) = NewDeviceReadyQuestionModel(
     showingNoDeviceAlert = currentState.showingNoDeviceAlert,
@@ -341,16 +329,17 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
       InstructionsStyle.ResumedRecoveryAttempt ->
         ButtonModel(
           text = "I’ve found my old Bitkey device",
-          onClick = StandardClick {
+          requiresBitkeyInteraction = isDesignSystemV2Enabled,
+          treatment = ButtonModel.Treatment.Tertiary,
+          size = ButtonModel.Size.Footer,
+          onClick = {
             setState(
               VerifyingFoundHardwareState(
                 onSuccess = { props.onFoundHardware() },
                 onBack = { setState(AskingNewHardwareReadyQuestionState(currentState.newAppKeys)) }
               )
             )
-          },
-          treatment = ButtonModel.Treatment.Tertiary,
-          size = ButtonModel.Size.Footer
+          }
         )
       else ->
         ButtonModel(
@@ -458,6 +447,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
       val destinationAppKeyBundle: AppKeyBundle,
       val destinationHardwareKeyBundle: HwKeyBundle,
       val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+      val hardwareType: HardwareType,
     ) : UiState
 
     data class FailedInitiatingServerRecoveryState(
@@ -465,24 +455,27 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
       val destinationAppKeyBundle: AppKeyBundle,
       val destinationHardwareKeyBundle: HwKeyBundle,
       val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+      val hardwareType: HardwareType,
     ) : UiState
 
     sealed interface VerifyingNotificationCommsState : UiState {
       val destinationAppKeyBundle: AppKeyBundle
       val destinationHardwareKeyBundle: HwKeyBundle
       val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature
+      val hardwareType: HardwareType
 
       data class VerifyingNotificationCommsForInitiationState(
         override val destinationAppKeyBundle: AppKeyBundle,
         override val destinationHardwareKeyBundle: HwKeyBundle,
         override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+        override val hardwareType: HardwareType,
       ) : VerifyingNotificationCommsState
 
       data class VerifyingNotificationCommsForCancellationState(
         override val destinationAppKeyBundle: AppKeyBundle,
         override val destinationHardwareKeyBundle: HwKeyBundle,
         override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
-        val hwFactorProofOfPossession: HwFactorProofOfPossession,
+        override val hardwareType: HardwareType,
       ) : VerifyingNotificationCommsState
     }
 
@@ -490,27 +483,22 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
       val destinationAppKeyBundle: AppKeyBundle,
       val destinationHardwareKeyBundle: HwKeyBundle,
       val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+      val hardwareType: HardwareType,
     ) : UiState
 
     data class CancellingConflictingRecoveryWithF8eState(
       val destinationAppKeyBundle: AppKeyBundle,
       val destinationHardwareKeyBundle: HwKeyBundle,
-      val hwFactorProofOfPossession: HwFactorProofOfPossession,
       val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+      val hardwareType: HardwareType,
     ) : UiState
 
     data class FailedToCancelConflictingRecoveryWithF8EState(
       val cause: Throwable,
       val destinationAppKeyBundle: AppKeyBundle,
       val destinationHardwareKeyBundle: HwKeyBundle,
-      val hwFactorProofOfPossession: HwFactorProofOfPossession,
       val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
-    ) : UiState
-
-    data class AwaitingHardwareProofOfPossessionState(
-      val destinationAppKeyBundle: AppKeyBundle,
-      val destinationHardwareKeyBundle: HwKeyBundle,
-      val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+      val hardwareType: HardwareType,
     ) : UiState
   }
 }

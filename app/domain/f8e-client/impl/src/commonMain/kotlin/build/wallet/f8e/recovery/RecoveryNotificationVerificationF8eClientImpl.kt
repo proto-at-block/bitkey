@@ -8,11 +8,9 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.client.plugins.withAccountId
 import build.wallet.f8e.client.plugins.withEnvironment
-import build.wallet.f8e.client.plugins.withHardwareFactor
 import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.RedactedRequestBody
@@ -33,7 +31,6 @@ class RecoveryNotificationVerificationF8eClientImpl(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
     touchpoint: NotificationTouchpoint,
-    hardwareProofOfPossession: HwFactorProofOfPossession?,
   ): Result<Unit, NetworkingError> {
     return f8eHttpClient.authenticated()
       .catching {
@@ -42,7 +39,6 @@ class RecoveryNotificationVerificationF8eClientImpl(
           setRedactedBody(SendVerificationCodeRequest(touchpoint.touchpointId))
           withEnvironment(f8eEnvironment)
           withAccountId(fullAccountId)
-          hardwareProofOfPossession?.run(::withHardwareFactor)
         }
       }.map { Unit }
   }
@@ -51,7 +47,6 @@ class RecoveryNotificationVerificationF8eClientImpl(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
     verificationCode: String,
-    hardwareProofOfPossession: HwFactorProofOfPossession?,
   ): Result<Unit, F8eError<VerifyTouchpointClientErrorCode>> {
     return f8eHttpClient.authenticated()
       .catching {
@@ -60,7 +55,6 @@ class RecoveryNotificationVerificationF8eClientImpl(
           setRedactedBody(VerifyTouchpointRequest(verificationCode))
           withEnvironment(f8eEnvironment)
           withAccountId(fullAccountId)
-          hardwareProofOfPossession?.run(::withHardwareFactor)
         }
       }
       .map { Unit }

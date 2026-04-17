@@ -46,5 +46,6 @@ class DatadogRumMonitorImpl : DatadogRumMonitor {
     message: String,
     source: ErrorSource,
     attributes: Map<String, String>,
+    cause: Throwable?,
   ) = Unit
 }

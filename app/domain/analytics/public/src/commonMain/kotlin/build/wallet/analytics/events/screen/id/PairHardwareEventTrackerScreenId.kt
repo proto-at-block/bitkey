@@ -10,6 +10,12 @@ enum class PairHardwareEventTrackerScreenId : EventTrackerScreenId {
   /** W3 onboarding: activation instructions introducing hardware round trip concept */
   HW_ACTIVATION_INSTRUCTIONS_V2,
 
+  /** W3 onboarding: Complete two-tap screen (waiting for fingerprint enrollment confirmation) */
+  HW_COMPLETE_TWO_TAP,
+
+  /** W3 onboarding: Fingerprint enrollment help screen */
+  HW_FINGERPRINT_ENROLLMENT_HELP,
+
   /** Instructions shown to the customer to pair their hardware (start fingerprint enrollment) */
   HW_PAIR_INSTRUCTIONS,
 

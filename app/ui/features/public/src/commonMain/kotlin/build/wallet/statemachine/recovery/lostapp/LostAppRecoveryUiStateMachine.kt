@@ -8,10 +8,8 @@ import build.wallet.recovery.Recovery.StillRecovering
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.InitiatingLostAppRecoveryData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryInProgressData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryDataStateMachine
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryProps
+import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachine
+import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressProps
 import build.wallet.statemachine.recovery.RecoveryInProgressUiProps
 import build.wallet.statemachine.recovery.RecoveryInProgressUiStateMachine
 import build.wallet.statemachine.recovery.lostapp.initiate.InitiatingLostAppRecoveryUiProps
@@ -39,36 +37,36 @@ data class LostAppRecoveryUiProps(
 
 @BitkeyInject(ActivityScope::class)
 class LostAppRecoveryUiStateMachineImpl(
-  private val lostAppRecoveryDataStateMachine: LostAppRecoveryDataStateMachine,
+  private val recoveryInProgressDataStateMachine: RecoveryInProgressDataStateMachine,
   private val initiatingLostAppRecoveryUiStateMachine: InitiatingLostAppRecoveryUiStateMachine,
   private val recoveryInProgressUiStateMachine: RecoveryInProgressUiStateMachine,
 ) : LostAppRecoveryUiStateMachine {
   @Composable
   override fun model(props: LostAppRecoveryUiProps): ScreenModel {
-    val recoveryData = lostAppRecoveryDataStateMachine.model(
-      LostAppRecoveryProps(
-        cloudBackups = props.cloudBackups,
-        activeRecovery = props.activeRecovery,
-        onRollback = props.onRollback,
-        goToLiteAccountCreation = props.goToLiteAccountCreation
-      )
-    )
-
-    return when (recoveryData) {
-      is InitiatingLostAppRecoveryData ->
+    return when (val activeRecovery = props.activeRecovery) {
+      null ->
         initiatingLostAppRecoveryUiStateMachine.model(
           InitiatingLostAppRecoveryUiProps(
-            initiatingLostAppRecoveryData = recoveryData
+            cloudBackups = props.cloudBackups,
+            onRollback = props.onRollback,
+            goToLiteAccountCreation = props.goToLiteAccountCreation
           )
         )
 
-      is LostAppRecoveryInProgressData ->
+      else -> {
+        val recoveryInProgressData = recoveryInProgressDataStateMachine.model(
+          RecoveryInProgressProps(
+            recovery = activeRecovery,
+            oldAppGlobalAuthKey = null
+          )
+        )
         recoveryInProgressUiStateMachine.model(
           RecoveryInProgressUiProps(
             presentationStyle = Root,
-            recoveryInProgressData = recoveryData.recoveryInProgressData
+            recoveryInProgressData = recoveryInProgressData
           )
         )
+      }
     }
   }
 }

@@ -35,7 +35,7 @@ class FullAccountAuthKeyRotationServiceImpl(
   private val cloudBackupDao: CloudBackupDao,
   private val fullAccountCloudBackupCreator: FullAccountCloudBackupCreator,
   private val cloudStoreAccountRepository: CloudStoreAccountRepository,
-  private val cloudBackupRepository: CloudBackupRepository,
+  private val cloudBackupService: CloudBackupService,
   private val relationshipsService: RelationshipsService,
   private val endorseTrustedContactsService: EndorseTrustedContactsService,
 ) : FullAccountAuthKeyRotationService {
@@ -252,7 +252,8 @@ class FullAccountAuthKeyRotationServiceImpl(
       oldAppAuthPublicKey = keyboxToRotate.activeAppKeyBundle.authKey,
       hwAuthPublicKey = request.hwAuthPublicKey,
       hwSignedAccountId = request.hwSignedAccountId,
-      hwFactorProofOfPossession = request.hwFactorProofOfPossession
+      proof = request.proof,
+      hardwareType = keyboxToRotate.config.hardwareType
     )
   }
 
@@ -372,7 +373,7 @@ class FullAccountAuthKeyRotationServiceImpl(
           .bind()
 
       // Upload new cloud backup.
-      cloudBackupRepository.writeBackup(
+      cloudBackupService.writeBackup(
         accountId = account.accountId,
         cloudStoreAccount = cloudStoreAccount,
         backup = newCloudBackup,

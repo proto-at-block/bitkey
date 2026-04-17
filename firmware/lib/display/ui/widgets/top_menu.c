@@ -12,10 +12,10 @@
 #define PILL_HEIGHT 36
 #define PILL_RADIUS 32
 #define TOP_MARGIN  32
-#define PILL_BG_OPA LV_OPA_80  // Semi-transparent grey
+#define PILL_BG_OPA LV_OPA_COVER  // Fully opaque
 
 // Colors
-#define COLOR_PILL 0x555555  // Grey
+#define COLOR_PILL 0x333333
 
 // External image declaration
 extern const lv_img_dsc_t ellipsis_horizontal;
@@ -33,8 +33,15 @@ void top_menu_create(lv_obj_t* parent, top_menu_t* widget, lv_event_cb_t custom_
   ASSERT(parent != NULL);
   ASSERT(widget != NULL);
 
+  widget->container = NULL;
+  widget->icon = NULL;
+  widget->is_initialized = false;
+
   // Create pill-shaped container
   widget->container = lv_obj_create(parent);
+  if (!widget->container) {
+    return;
+  }
   lv_obj_set_size(widget->container, PILL_WIDTH, PILL_HEIGHT);
   lv_obj_set_style_radius(widget->container, PILL_RADIUS, 0);
   lv_obj_set_style_bg_color(widget->container, lv_color_hex(COLOR_PILL), 0);
@@ -44,6 +51,7 @@ void top_menu_create(lv_obj_t* parent, top_menu_t* widget, lv_event_cb_t custom_
   lv_obj_set_style_pad_all(widget->container, 0, 0);
   lv_obj_clear_flag(widget->container, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_add_flag(widget->container, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_clear_flag(widget->container, LV_OBJ_FLAG_PRESS_LOCK);
   lv_obj_set_ext_click_area(widget->container, 40);  // Extend touch target beyond visible pill
 
   // Position at top center
@@ -51,7 +59,14 @@ void top_menu_create(lv_obj_t* parent, top_menu_t* widget, lv_event_cb_t custom_
 
   // Create ellipsis icon centered in pill
   widget->icon = lv_img_create(widget->container);
+  if (!widget->icon) {
+    lv_obj_del(widget->container);
+    widget->container = NULL;
+    return;
+  }
   lv_img_set_src(widget->icon, &ellipsis_horizontal);
+  lv_obj_set_style_img_recolor(widget->icon, lv_color_white(), 0);
+  lv_obj_set_style_img_recolor_opa(widget->icon, LV_OPA_COVER, 0);
   lv_obj_center(widget->icon);
 
   // Add click event handler to the container (custom or default)

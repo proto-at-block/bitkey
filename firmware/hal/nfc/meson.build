@@ -19,7 +19,7 @@ else
     'src/embedded/hal_nfc_timer.c',
   ]
   hal_private_includes = ['src/embedded', 'inc-private']
-  deps = [rtos_dep, log_dep, exti_dep, secutils_dep, wca_dep, t4t_dep]
+  deps = [rtos_dep, log_dep, exti_dep, secutils_dep, wca_dep, t4t_dep, ui_messaging_dep]
 endif
 
 
@@ -122,3 +122,7 @@ nfc_fuzz = executable('nfc-fuzz',
   link_args : fuzz_args,
   dependencies : [deps, fff_dep, fuzzed_data_provider_dep, hal_nfc_deps['posix']]
 )
+
+# nfc-timer-fuzz removed: BCW-05 range-check bug is fixed in production
+# firmware (hal_nfc_timer.c). The inline reproduction fuzzer was only proving
+# the vulnerability existed; with the fix landed it just crashes on every input.

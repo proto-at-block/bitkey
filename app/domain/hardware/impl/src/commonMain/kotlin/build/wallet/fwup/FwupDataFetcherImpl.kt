@@ -70,6 +70,22 @@ class FwupDataFetcherImpl(
         .takeIf { it.isNotEmpty() }
         ?.associate { it.mcuRole to it.firmwareVersion }
 
+      // Build map of per-MCU active slots for correct delta patch selection.
+      // Each MCU can have a different active slot (A or B) on W3 devices.
+      // If an MCU doesn't report its active slot (older firmware), the parser
+      // will fall back to using deviceInfo.activeSlot (CORE's slot).
+      val mcuActiveSlots = deviceInfo.mcuInfo
+        .mapNotNull { mcu ->
+          mcu.activeSlot?.let { slot ->
+            mcu.mcuRole to when (slot) {
+              A -> FwupSlot.A
+              B -> FwupSlot.B
+            }
+          }
+        }
+        .toMap()
+        .takeIf { it.isNotEmpty() }
+
       // Parser detects normal vs delta from the manifest content
       val manifest =
         fwupManifestParser
@@ -81,7 +97,8 @@ class FwupDataFetcherImpl(
                 A -> FwupSlot.A
                 B -> FwupSlot.B
               },
-            currentMcuVersions = currentMcuVersions
+            currentMcuVersions = currentMcuVersions,
+            mcuActiveSlots = mcuActiveSlots
           )
           .mapError { ParseError(it) }
           .bind()

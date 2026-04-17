@@ -607,3 +607,79 @@ async fn test_address_cleanup_when_money_movement_disabled() {
         "Addresses should be automatically deleted when money movement notifications are disabled"
     );
 }
+
+// ── W3 ActionProof tests ───────────────────────────────────────────────
+
+use crate::tests::lib::create_onboarded_w3_account;
+
+#[tokio::test]
+async fn w3_disable_account_security_channel_with_action_proof_succeeds() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+    let (account_id, keys) = create_onboarded_w3_account(&mut context, &client).await;
+
+    // First enable Push in account_security so we can disable it.
+    // Enabling is non-destructive and only requires JWT (no action proof).
+    let enable_prefs = NotificationsPreferences {
+        money_movement: HashSet::new(),
+        account_security: HashSet::from([NotificationChannel::Push]),
+        product_marketing: HashSet::new(),
+    };
+    let setup_response = client
+        .set_notifications_preferences(&account_id, &enable_prefs, false, false, &keys)
+        .await;
+    assert_eq!(
+        setup_response.status_code,
+        StatusCode::OK,
+        "Setup failed: {}",
+        setup_response.body_string
+    );
+
+    // Now disable Push from account_security
+    let disable_prefs = NotificationsPreferences {
+        money_movement: HashSet::new(),
+        account_security: HashSet::new(),
+        product_marketing: HashSet::new(),
+    };
+    let response = client
+        .set_notifications_preferences_with_action_proof(
+            &account_id,
+            &disable_prefs,
+            action_proof::Action::DisableRecoveryPushNotifications,
+            &keys,
+            true,
+            true,
+        )
+        .await;
+
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "{}",
+        response.body_string
+    );
+}
+
+#[tokio::test]
+async fn w3_non_security_notification_change_without_action_proof_succeeds() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+    let (account_id, keys) = create_onboarded_w3_account(&mut context, &client).await;
+
+    // Change only money_movement (non-security) — no action proof needed
+    let prefs = NotificationsPreferences {
+        money_movement: HashSet::from([NotificationChannel::Push]),
+        account_security: HashSet::new(),
+        product_marketing: HashSet::new(),
+    };
+    let response = client
+        .set_notifications_preferences(&account_id, &prefs, false, false, &keys)
+        .await;
+
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "W3 non-security change should succeed with JWT-only (no action proof): {}",
+        response.body_string
+    );
+}

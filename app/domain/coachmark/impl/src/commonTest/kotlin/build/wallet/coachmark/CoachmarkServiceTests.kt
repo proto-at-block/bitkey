@@ -78,12 +78,12 @@ class CoachmarkServiceTests :
       service
         .coachmarksToDisplay(
           setOf(
-            CoachmarkIdentifier.PrivateWalletHomeCoachmark
+            CoachmarkIdentifier.SecurityHubSettingsCoachmark
           )
         ).shouldBe(
           Ok(
             listOf(
-              CoachmarkIdentifier.PrivateWalletHomeCoachmark
+              CoachmarkIdentifier.SecurityHubSettingsCoachmark
             )
           )
         )
@@ -91,15 +91,15 @@ class CoachmarkServiceTests :
 
     test("didDisplayCoachmark") {
       service
-        .coachmarksToDisplay(setOf(CoachmarkIdentifier.PrivateWalletHomeCoachmark))
-        .shouldBe(Ok(listOf(CoachmarkIdentifier.PrivateWalletHomeCoachmark)))
-      service.markCoachmarkAsDisplayed(CoachmarkIdentifier.PrivateWalletHomeCoachmark)
+        .coachmarksToDisplay(setOf(CoachmarkIdentifier.SecurityHubSettingsCoachmark))
+        .shouldBe(Ok(listOf(CoachmarkIdentifier.SecurityHubSettingsCoachmark)))
+      service.markCoachmarkAsDisplayed(CoachmarkIdentifier.SecurityHubSettingsCoachmark)
       eventTracker.eventCalls
         .awaitItem()
         .action
-        .shouldBe(Action.ACTION_APP_COACHMARK_VIEWED_PRIVATE_WALLET_HOME)
+        .shouldBe(Action.ACTION_APP_COACHMARK_VIEWED_SECURITY_HUB_SETTINGS)
       service
-        .coachmarksToDisplay(setOf(CoachmarkIdentifier.PrivateWalletHomeCoachmark))
+        .coachmarksToDisplay(setOf(CoachmarkIdentifier.SecurityHubSettingsCoachmark))
         .shouldBe(Ok(emptyList()))
     }
 
@@ -107,37 +107,36 @@ class CoachmarkServiceTests :
       service
         .coachmarksToDisplay(
           setOf(
-            CoachmarkIdentifier.PrivateWalletHomeCoachmark
+            CoachmarkIdentifier.SecurityHubSettingsCoachmark
           )
         ).shouldBe(
           Ok(
             listOf(
-              CoachmarkIdentifier.PrivateWalletHomeCoachmark
+              CoachmarkIdentifier.SecurityHubSettingsCoachmark
             )
           )
         )
-      service.markCoachmarkAsDisplayed(CoachmarkIdentifier.PrivateWalletHomeCoachmark)
+      service.markCoachmarkAsDisplayed(CoachmarkIdentifier.SecurityHubSettingsCoachmark)
       eventTracker.eventCalls
         .awaitItem()
         .action
-        .shouldBe(Action.ACTION_APP_COACHMARK_VIEWED_PRIVATE_WALLET_HOME)
+        .shouldBe(Action.ACTION_APP_COACHMARK_VIEWED_SECURITY_HUB_SETTINGS)
       service.resetCoachmarks()
       service
         .coachmarksToDisplay(
           setOf(
-            CoachmarkIdentifier.PrivateWalletHomeCoachmark
+            CoachmarkIdentifier.SecurityHubSettingsCoachmark
           )
         ).shouldBe(
           Ok(
             listOf(
-              CoachmarkIdentifier.PrivateWalletHomeCoachmark
+              CoachmarkIdentifier.SecurityHubSettingsCoachmark
             )
           )
         )
     }
 
-    test("no coachmarks to display for lite accounts") {
-      accountService.setActiveAccount(LiteAccountMock)
+    test("PrivateWalletHomeCoachmark is hard-coded off") {
       service
         .coachmarksToDisplay(
           setOf(
@@ -148,9 +147,21 @@ class CoachmarkServiceTests :
         )
     }
 
+    test("no coachmarks to display for lite accounts") {
+      accountService.setActiveAccount(LiteAccountMock)
+      service
+        .coachmarksToDisplay(
+          setOf(
+            CoachmarkIdentifier.SecurityHubSettingsCoachmark
+          )
+        ).shouldBe(
+          Ok(emptyList())
+        )
+    }
+
     test("don't return expired coachmarks") {
       val coachmarkDao = CoachmarkDaoFake()
-      coachmarkDao.insertCoachmark(CoachmarkIdentifier.PrivateWalletHomeCoachmark, Instant.DISTANT_PAST)
+      coachmarkDao.insertCoachmark(CoachmarkIdentifier.SecurityHubSettingsCoachmark, Instant.DISTANT_PAST)
       service = CoachmarkServiceImpl(
         coachmarkDao,
         accountService,
@@ -161,15 +172,15 @@ class CoachmarkServiceTests :
         AppVariant.Development
       )
       service
-        .coachmarksToDisplay(setOf(CoachmarkIdentifier.PrivateWalletHomeCoachmark))
+        .coachmarksToDisplay(setOf(CoachmarkIdentifier.SecurityHubSettingsCoachmark))
         .shouldBe(Ok(emptyList()))
     }
 
     test("don't return viewed coachmarks") {
       val coachmarkDao = CoachmarkDaoFake()
       coachmarkDao
-        .insertCoachmark(CoachmarkIdentifier.PrivateWalletHomeCoachmark, Instant.DISTANT_FUTURE)
-      coachmarkDao.setViewed(CoachmarkIdentifier.PrivateWalletHomeCoachmark)
+        .insertCoachmark(CoachmarkIdentifier.SecurityHubSettingsCoachmark, Instant.DISTANT_FUTURE)
+      coachmarkDao.setViewed(CoachmarkIdentifier.SecurityHubSettingsCoachmark)
       service = CoachmarkServiceImpl(
         coachmarkDao,
         accountService,
@@ -180,7 +191,7 @@ class CoachmarkServiceTests :
         AppVariant.Development
       )
       service
-        .coachmarksToDisplay(setOf(CoachmarkIdentifier.PrivateWalletHomeCoachmark))
+        .coachmarksToDisplay(setOf(CoachmarkIdentifier.SecurityHubSettingsCoachmark))
         .shouldBe(Ok(emptyList()))
     }
 
@@ -189,7 +200,7 @@ class CoachmarkServiceTests :
       service
         .coachmarksToDisplay(
           setOf(
-            CoachmarkIdentifier.PrivateWalletHomeCoachmark
+            CoachmarkIdentifier.SecurityHubSettingsCoachmark
           )
         ).shouldBe(
           Ok(emptyList())
@@ -209,7 +220,7 @@ class CoachmarkServiceTests :
       eekService
         .coachmarksToDisplay(
           setOf(
-            CoachmarkIdentifier.PrivateWalletHomeCoachmark
+            CoachmarkIdentifier.SecurityHubSettingsCoachmark
           )
         ).shouldBe(
           Ok(emptyList())
@@ -316,16 +327,15 @@ class CoachmarkServiceTests :
 
       test("coachmark without expiration never expires") {
         accountService.setActiveAccount(FullAccountMock)
-        bitcoinDisplayPreferenceRepository.setBitcoinDisplayUnit(BitcoinDisplayUnit.Satoshi)
-        bip177FeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-        val eligibilityDao = Bip177CoachmarkEligibilityDaoFake()
 
         val clock = ClockFake()
         val coachmarkDao = CoachmarkDaoFake()
+        // Pre-insert with null expiration to test the no-expiration code path
+        coachmarkDao.insertCoachmark(CoachmarkIdentifier.SecurityHubSettingsCoachmark, null)
         val serviceWithFakeDao = CoachmarkServiceImpl(
           coachmarkDao,
           accountService,
-          createVisibilityDecider(clock = clock, eligibilityDao = eligibilityDao),
+          createVisibilityDecider(clock = clock),
           coachmarksGlobalFlag,
           eventTracker,
           clock,
@@ -333,14 +343,14 @@ class CoachmarkServiceTests :
         )
 
         serviceWithFakeDao
-          .coachmarksToDisplay(setOf(CoachmarkIdentifier.PrivateWalletHomeCoachmark))
-          .shouldBe(Ok(listOf(CoachmarkIdentifier.PrivateWalletHomeCoachmark)))
+          .coachmarksToDisplay(setOf(CoachmarkIdentifier.SecurityHubSettingsCoachmark))
+          .shouldBe(Ok(listOf(CoachmarkIdentifier.SecurityHubSettingsCoachmark)))
 
         // Coachmark should still be visible even after a long time since it has no expiration
         clock.advanceBy(15.days)
         serviceWithFakeDao
-          .coachmarksToDisplay(setOf(CoachmarkIdentifier.PrivateWalletHomeCoachmark))
-          .shouldBe(Ok(listOf(CoachmarkIdentifier.PrivateWalletHomeCoachmark)))
+          .coachmarksToDisplay(setOf(CoachmarkIdentifier.SecurityHubSettingsCoachmark))
+          .shouldBe(Ok(listOf(CoachmarkIdentifier.SecurityHubSettingsCoachmark)))
       }
     }
 

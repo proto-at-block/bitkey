@@ -2,6 +2,7 @@
 
 #include "attributes.h"
 #include "bitlog.h"
+#include "display_action.h"
 #include "display_driver.h"
 #include "display_send.h"
 #include "log.h"
@@ -11,7 +12,6 @@
 #include "rtos_queue.h"
 #include "secutils.h"
 #include "sysevent.h"
-#include "touch.h"
 #include "uc.h"
 #include "uc_route.h"
 #include "ui.h"
@@ -26,18 +26,19 @@
 #define DISPLAY_SEND_TASK_PRIORITY   RTOS_THREAD_PRIORITY_HIGH
 #define DISPLAY_SEND_QUEUE_SIZE      8
 
+#define DISPLAY_SEND_DROP_LOG_INTERVAL 10
+
 // Display configuration
 extern display_config_t display_config;
 
 // Display command queue
-static rtos_queue_t* display_cmd_queue = NULL;
+static rtos_queue_t* display_cmd_queue SHARED_TASK_BSS = NULL;
 
 // Display send queue (for sending gestures to Core)
-static rtos_queue_t* display_send_queue = NULL;
+static rtos_queue_t* display_send_queue SHARED_TASK_BSS = NULL;
 
 // Track dropped messages for telemetry
-static uint32_t display_send_dropped_count = 0;
-#define DISPLAY_SEND_DROP_LOG_INTERVAL 10
+static uint32_t display_send_dropped_count SHARED_TASK_BSS = 0;
 
 static bool display_send_queue_msg_impl(const display_send_msg_t* msg) {
   if (!display_send_queue || !msg) {
@@ -69,13 +70,6 @@ static void display_send_thread(void* UNUSED(args)) {
   // Wait for power to be ready before processing messages
   sysevent_wait(SYSEVENT_POWER_READY, true);
 
-  // Create send queue
-  display_send_queue = rtos_queue_create(display_send, display_send_msg_t, DISPLAY_SEND_QUEUE_SIZE);
-  if (!display_send_queue) {
-    LOGE("Failed to create display send queue");
-    return;
-  }
-
   // Register the queue implementation with lib/display
   display_send_register(display_send_queue_msg_impl);
 
@@ -102,7 +96,7 @@ static void display_send_thread(void* UNUSED(args)) {
           *msg.sent = true;
         }
       } else {
-        LOGW("Failed to allocate proto for display send");
+        LOGW("Display send proto alloc fail");
       }
     }
   }
@@ -126,33 +120,20 @@ static bool display_process_commands(void) {
 
   if (msg->which_msg == fwpb_uxc_msg_host_display_cmd_tag) {
     if (msg->msg.display_cmd.which_command == fwpb_display_command_show_screen_tag) {
-      // Execute the display command
-      fwpb_display_result result = ui_execute_command(&msg->msg.display_cmd);
+      // Copy command to stack and free recv buffer immediately to avoid
+      // holding a shared UC recv buffer during rendering.
+      fwpb_display_command cmd_local = msg->msg.display_cmd;
+      uc_free_recv_proto(msg);
+
+      fwpb_display_result result = ui_execute_command(&cmd_local);
       if (result != fwpb_display_result_DISPLAY_RESULT_SUCCESS) {
         LOGW("Display command failed with result: %d", result);
       }
 
-      processed = true;
-    } else if (msg->msg.display_cmd.which_command == fwpb_display_command_prepare_sleep_tag) {
-      // Handle prepare sleep command
-      bool touch_ready = touch_enter_monitor_mode();
-
-      // Send sleep ready action back to Core
-      fwpb_uxc_msg_device* rsp = uc_alloc_send_proto();
-      if (rsp) {
-        rsp->which_msg = fwpb_uxc_msg_device_display_action_tag;
-        rsp->msg.display_action.action =
-          fwpb_display_action_display_action_type_DISPLAY_ACTION_SLEEP_READY;
-        rsp->msg.display_action.data = touch_ready ? 1 : 0;
-        uc_send(rsp);
-      } else {
-        LOGE("Failed to allocate action proto for sleep ready");
-      }
-
-      processed = true;
+      return true;
     }
   } else {
-    LOGW("Received unexpected message on display queue (which_msg=%d)", msg->which_msg);
+    LOGW("Unexpected display msg (which=%d)", msg->which_msg);
   }
 
   // Free the received message
@@ -172,17 +153,10 @@ NO_OPTIMIZE void display_thread(void* UNUSED(args)) {
   // Register rotation callback so UI layer can apply rotation when flags change
   ui_set_rotation_callback(display_set_rotation);
 
-  // Create display command queue
-  display_cmd_queue = rtos_queue_create(display_cmd, void*, DISPLAY_TASK_QUEUE_SIZE);
-  if (!display_cmd_queue) {
-    LOGE("Failed to create display command queue");
-    return;
-  }
-
   // Register the queue for display command messages from w3-core
   uc_route_register_queue(fwpb_uxc_msg_host_display_cmd_tag, display_cmd_queue);
 
-  sysevent_wait(SYSEVENT_UXC_SECURE_COMMS_ESTABLISHED, true);
+  sysevent_wait_with_timeout(SYSEVENT_UXC_SECURE_COMMS_ESTABLISHED, true, 1000);
   // Send display ready action to signal we're ready to receive commands
   fwpb_uxc_msg_device* ready_msg = uc_alloc_send_proto();
   if (ready_msg) {
@@ -217,6 +191,14 @@ NO_OPTIMIZE void display_thread(void* UNUSED(args)) {
 }
 
 void display_task_create(void) {
+  // Create display command queue
+  display_cmd_queue = rtos_queue_create(display_cmd, void*, DISPLAY_TASK_QUEUE_SIZE);
+  ASSERT(display_cmd_queue != NULL);
+
+  // Create send queue
+  display_send_queue = rtos_queue_create(display_send, display_send_msg_t, DISPLAY_SEND_QUEUE_SIZE);
+  ASSERT(display_send_queue != NULL);
+
   rtos_thread_t* display_thread_handle =
     rtos_thread_create(display_thread, NULL, DISPLAY_TASK_PRIORITY, DISPLAY_TASK_STACK_SIZE);
   ASSERT(display_thread_handle);

@@ -17,7 +17,7 @@ impl SendSMS {
         }
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, touchpoint, payload))]
     pub async fn send(
         &self,
         touchpoint: &Touchpoint,

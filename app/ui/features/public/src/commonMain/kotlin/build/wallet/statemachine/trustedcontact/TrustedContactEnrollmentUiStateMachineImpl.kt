@@ -229,7 +229,8 @@ class TrustedContactEnrollmentUiStateMachineImpl(
                 )
               },
               screenPresentationStyle = Modal,
-              eventTrackerContext = NfcEventTrackerScreenIdContext.SEAL_DELEGATED_DECRYPTION_KEY
+              eventTrackerContext = NfcEventTrackerScreenIdContext.SEAL_DELEGATED_DECRYPTION_KEY,
+              showDeviceConfirmation = true
             )
           )
         }

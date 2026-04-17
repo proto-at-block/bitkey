@@ -4,8 +4,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import click
 import semver
-from bitkey.firmware_signer import Efr32ElfSigner, EFR32_PROPERTIES_MAGIC
+from bitkey.firmware_signer import Efr32ElfSigner, EFR32_PROPERTIES_MAGIC, parse_chip_id
 from bitkey.key_manager import LocalKeyManager, SigningKeys
 from bitkey.signer_utils import AssetInfo, ElfSymbol, semver_to_int
 from elftools.elf.elffile import ELFFile
@@ -49,6 +50,15 @@ def read_symbol_data(elf_path: Path, symbol_name: str) -> bytes:
     with open(elf_path, "rb") as f:
         f.seek(file_offset)
         return f.read(size)
+
+
+class TestChipIdParsing(unittest.TestCase):
+    def test_parse_chip_id(self):
+        self.assertEqual(parse_chip_id("0011223344556677", 8), bytes.fromhex("0011223344556677"))
+
+    def test_parse_chip_id_rejects_wrong_length(self):
+        with self.assertRaises(click.BadParameter):
+            parse_chip_id("00112233445566", 8)
 
 
 class TestEfr32ElfSigning(unittest.TestCase):
@@ -194,6 +204,40 @@ class TestEfr32ElfSigning(unittest.TestCase):
             version_string, expected_padded, f"Sysinfo version should be '{test_version}' null-padded to 12 bytes"
         )
 
+    def test_chip_id_sets_product_id(self):
+        """Test that chip_id is written into sl_app_properties.app.productId."""
+        chip_id = bytes.fromhex("0011223344556677")
+        asset_info = AssetInfo(
+            app_version="1.0.101",
+            slot="a",
+            product="w3a-core-evt",
+            image_type="app",
+            chip_id=chip_id,
+        )
+
+        signer = Efr32ElfSigner(self.temp_elf, str(PARTITIONS_CONFIG))
+        signer.codesign(self.key_manager, asset_info)
+
+        props = read_symbol_data(Path(signer.get_elf_path()), "sl_app_properties")
+        product_id = props[40:56]
+        self.assertEqual(product_id, chip_id + b"\x00" * 8)
+
+    def test_invalid_chip_id_length_raises_error(self):
+        """Test that chip_id length is validated for EFR32 app signing."""
+        asset_info = AssetInfo(
+            app_version="1.0.101",
+            slot="a",
+            product="w3a-core-evt",
+            image_type="app",
+            chip_id=bytes.fromhex("00112233445566"),
+        )
+
+        signer = Efr32ElfSigner(self.temp_elf, str(PARTITIONS_CONFIG))
+        with self.assertRaises(ValueError) as context:
+            signer.codesign(self.key_manager, asset_info)
+
+        self.assertIn("chip_id must be 8 bytes", str(context.exception))
+
 
 class TestEfr32BootloaderSigning(unittest.TestCase):
     """Test cases for EFR32 bootloader signing."""
@@ -221,17 +265,17 @@ class TestEfr32BootloaderSigning(unittest.TestCase):
         asset_info = AssetInfo(app_version="1.0.101", slot=None, product="w3a-core-evt", image_type="bl")
         signer = Efr32ElfSigner(self.temp_elf, str(PARTITIONS_CONFIG))
         signer.codesign(self.key_manager, asset_info)
-        
+
         # Verify signature
         self.assertTrue(signer.verify_signature(self.key_manager, asset_info))
 
     def test_bootloader_certificate_injection(self):
         """Test that bootloader certificate is correctly injected."""
         asset_info = AssetInfo(app_version="1.0.101", slot=None, product="w3a-core-evt", image_type="bl")
-        
+
         signer = Efr32ElfSigner(self.temp_elf, str(PARTITIONS_CONFIG))
         signer.codesign(self.key_manager, asset_info)
-        
+
         signed_elf = Path(signer.get_elf_path())
         cert_in_elf = read_symbol_data(signed_elf, "bl_certificate")
 
@@ -271,7 +315,7 @@ class TestEfr32BootloaderSigning(unittest.TestCase):
         # Now verify it (simulating the verify command)
         verify_signer = Efr32ElfSigner(Path(signer.get_elf_path()), str(PARTITIONS_CONFIG))
         verify_asset_info = AssetInfo(app_version=None, slot=None, product="w3a-core-evt", image_type="bl")
-        
+
         is_valid = verify_signer.verify_signature(self.key_manager, verify_asset_info)
         self.assertTrue(is_valid, "Signature verification should pass for properly signed bootloader")
 

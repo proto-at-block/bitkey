@@ -116,7 +116,9 @@ NO_OPTIMIZE int main(void) {
   // active for ~40ms.
   mcu_gpio_configure(&power_retain_gpio, true);
 
-  sl_se_init();
+  if (sl_se_init() != SL_STATUS_OK) {
+    mcu_reset_with_reason(MCU_RESET_FAULT);
+  }
   mcu_flash_init();
   secutils_init((secutils_api_t){
     .detect_glitch = &detect_glitch,
@@ -155,6 +157,8 @@ NO_OPTIMIZE int main(void) {
   select_slot_ok = bl_select_slot(&slot_a, &slot_b, &selected_slot);
   SECURE_DO_FAILIN(select_slot_ok != SECURE_TRUE,
                    { mcu_reset_with_reason(MCU_RESET_INVALID_PROPERTIES); });
+
+  SECURE_IF_FAILIN(selected_slot == NULL) { mcu_reset_with_reason(MCU_RESET_FATAL); }
 
   saved_boot_addr = selected_slot->boot_addr;
 

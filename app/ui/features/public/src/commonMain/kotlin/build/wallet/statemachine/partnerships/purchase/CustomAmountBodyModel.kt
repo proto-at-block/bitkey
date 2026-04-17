@@ -8,10 +8,11 @@ import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.keypad.KeypadModel
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
 import build.wallet.ui.app.partnerships.CustomAmountScreen
+import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
-import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 
@@ -20,6 +21,8 @@ data class CustomAmountBodyModel(
   val toolbar: ToolbarModel,
   val amountModel: MoneyAmountEntryModel,
   val keypadModel: KeypadModel,
+  val isAmountAboveMaximum: Boolean,
+  val amountContextLineTreatment: LabelTreatment = LabelTreatment.Primary,
   val primaryButton: ButtonModel,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? = null,
 ) : BodyModel() {
@@ -28,6 +31,8 @@ data class CustomAmountBodyModel(
     limits: String,
     amountModel: MoneyAmountEntryModel,
     keypadModel: KeypadModel,
+    isAmountAboveMaximum: Boolean,
+    amountContextLineTreatment: LabelTreatment = LabelTreatment.Primary,
     continueButtonEnabled: Boolean,
     onNext: () -> Unit,
   ) : this(
@@ -35,7 +40,7 @@ data class CustomAmountBodyModel(
     onBack = onBack,
     toolbar =
       ToolbarModel(
-        leadingAccessory = BackAccessory(onClick = onBack),
+        leadingAccessory = CloseAccessory(onClick = onBack),
         middleAccessory =
           ToolbarMiddleAccessoryModel(
             title = "Choose an amount",
@@ -44,6 +49,8 @@ data class CustomAmountBodyModel(
       ),
     amountModel = amountModel,
     keypadModel = keypadModel,
+    isAmountAboveMaximum = isAmountAboveMaximum,
+    amountContextLineTreatment = amountContextLineTreatment,
     primaryButton =
       ButtonModel(
         text = "Next",

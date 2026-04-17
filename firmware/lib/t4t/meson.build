@@ -14,34 +14,3 @@ t4t_dep = declare_dependency(
   include_directories : includes,
   dependencies : deps,
 )
-
-# This code is unused except for being fuzzed, but maybe
-# we'll use it someday.
-#
-# IMPORTANT: It has security issues, so those need to be
-# fixed before using.
-t4t_real_lib = library('t4t-real',
-  'src/t4t.c',
-  include_directories : includes,
-  dependencies : deps,
-)
-t4t_real_dep = declare_dependency(
-  link_with : t4t_real_lib,
-  include_directories : includes,
-  dependencies : deps,
-)
-
-t4t_fuzz = executable('t4t-fuzz',
-  'src/t4t_fuzz.cc',
-  'src/t4t_impl.h',
-  cpp_args : fuzz_args,
-  link_args : fuzz_args,
-  dependencies : [t4t_real_dep, fuzzed_data_provider_dep],
-)
-
-t4t_test = executable('t4t-test',
-  'src/t4t_test.c',
-  include_directories : [includes, 'src'],
-  dependencies : [t4t_real_dep, test_deps],
-)
-test('t4t test', t4t_test)

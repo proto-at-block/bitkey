@@ -1,6 +1,7 @@
 package build.wallet.statemachine.account.create.full.keybox.create
 
 import app.cash.turbine.plusAssign
+import bitkey.account.HardwareType
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.coroutines.turbine.turbines
@@ -49,7 +50,8 @@ class CreateKeyboxUiStateMachineImplTests : FunSpec({
     keyBundle = HwKeyBundleMock,
     sealedCsek = ByteString.EMPTY,
     sealedSsek = ByteString.EMPTY,
-    serial = "123"
+    serial = "123",
+    hardwareType = HardwareType.W1
   )
 
   test("happy path - account creation") {

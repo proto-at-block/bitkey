@@ -1,0 +1,3 @@
+ALTER TABLE w3UpgradeMigrationEntity ADD COLUMN oldHardwareFingerprint TEXT;
+
+PRAGMA foreign_key_check;

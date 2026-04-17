@@ -1,35 +1,39 @@
 package build.wallet.statemachine.account.create.full.onboard
 
 import app.cash.turbine.plusAssign
-import bitkey.account.HardwareType
+import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.BUILD_HARDWARE_DESCRIPTOR_INTRO
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.LOADING_ONBOARDING_STEP
-import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.bitkey.keybox.FullAccountMock
-import build.wallet.bitkey.keybox.KeyboxMock
-import build.wallet.chaincode.delegation.ChaincodeExtractorFake
+import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.f8e.onboarding.CompleteOnboardingResponseV2
-import build.wallet.f8e.onboarding.OnboardingF8eClientMock
-import build.wallet.ktor.result.HttpError
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
+import build.wallet.keybox.KeyboxDaoMock
+import build.wallet.onboarding.HardwareDescriptorDeliveryServiceFake
 import build.wallet.onboarding.OnboardingCompletionServiceFake
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
+import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.ui.clickPrimaryButton
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
 class BuildHardwareDescriptorUiStateMachineImplTests : FunSpec({
-  val onboardingF8eClient = OnboardingF8eClientMock(turbines::create)
+  val hardwareDescriptorDeliveryService = HardwareDescriptorDeliveryServiceFake()
   val onboardingCompletionService = OnboardingCompletionServiceFake()
-  val chaincodeExtractor = ChaincodeExtractorFake()
+  val cloudBackupHealthRepository = CloudBackupHealthRepositoryMock(turbines::create)
+  val keyboxDao = KeyboxDaoMock(turbines::create)
+  val featureFlagDao = FeatureFlagDaoFake()
+  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(featureFlagDao)
 
   val nfcSessionUIStateMachine = object :
     NfcSessionUIStateMachine,
@@ -39,97 +43,93 @@ class BuildHardwareDescriptorUiStateMachineImplTests : FunSpec({
 
   val stateMachine = BuildHardwareDescriptorUiStateMachineImpl(
     nfcSessionUIStateMachine = nfcSessionUIStateMachine,
-    onboardingF8eClient = onboardingF8eClient,
-    chaincodeExtractor = chaincodeExtractor,
-    onboardingCompletionService = onboardingCompletionService
+    hardwareDescriptorDeliveryService = hardwareDescriptorDeliveryService,
+    cloudBackupHealthRepository = cloudBackupHealthRepository,
+    keyboxDao = keyboxDao,
+    onboardingCompletionService = onboardingCompletionService,
+    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
   )
 
+  val onBack = turbines.create<Unit>("onBack")
   val onComplete = turbines.create<Unit>("onComplete")
-  val onBackupFailed = turbines.create<Throwable>("onBackupFailed")
+  val onBackupFailed = turbines.create<Throwable>("onError")
 
   val props = BuildHardwareDescriptorUiProps(
     fullAccount = FullAccountMock,
+    onBack = { onBack += Unit },
     onComplete = { onComplete += Unit },
-    onBackupFailed = { onBackupFailed += it }
-  )
-
-  val mockResponse = CompleteOnboardingResponseV2(
-    appAuthPub = "03a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd",
-    hardwareAuthPub = "02b4632d08485ff1df2db55b9dafd23347d1c47a457072a1e87be26896549a8737",
-    appSpendingPub = "03c4632d08485ff1df2db55b9dafd23347d1c47a457072a1e87be26896549a8737",
-    hardwareSpendingPub = "03b4632d08485ff1df2db55b9dafd23347d1c47a457072a1e87be26896549a8737",
-    serverSpendingPub = "02e3af28965693b9ce1228f9d468149b831d6a0540b25e8a9900f71372c11fb277",
-    signature = "304402201234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef02201234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+    onError = { onBackupFailed += it }
   )
 
   beforeTest {
-    onboardingF8eClient.reset()
+    hardwareDescriptorDeliveryService.reset()
     onboardingCompletionService.reset()
-    chaincodeExtractor.reset()
+    featureFlagDao.reset()
   }
 
-  test("shows loading screen and calls completeOnboardingV2") {
-    onboardingF8eClient.completeOnboardingV2Result = Ok(mockResponse)
+  test("completes onboarding and shows intro screen") {
+    hardwareDescriptorDeliveryService.fetchSignatureAndPrepareNfcSessionResult = Ok { _, _ -> "fake-hw-signature" }
 
     stateMachine.test(props) {
       awaitUntilBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP) {
         message.shouldBe("Completing onboarding")
       }
 
-      // Verify F8e client was called
-      onboardingF8eClient.completeOnboardingV2Calls.awaitItem()
+      awaitUntilBody<FormBodyModel>(id = BUILD_HARDWARE_DESCRIPTOR_INTRO) {
+        primaryButton?.text.shouldBe("Continue")
+      }
 
-      // Should transition to intro screen after successful call
-      awaitUntilScreenWithBody<PairNewHardwareBodyModel>()
-    }
-  }
-
-  test("records fallback completion after successful completeOnboardingV2") {
-    onboardingF8eClient.completeOnboardingV2Result = Ok(mockResponse)
-
-    stateMachine.test(props) {
-      awaitUntilBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
-
-      onboardingF8eClient.completeOnboardingV2Calls.awaitItem()
-
-      // Verify fallback completion was recorded
+      // Assert after awaiting the intro screen, since recordFallbackCompletion()
+      // is called in the LaunchedEffect before transitioning to ShowingIntroScreen.
       onboardingCompletionService.recordFallbackCompletionCalled.shouldBe(true)
-
-      awaitUntilScreenWithBody<PairNewHardwareBodyModel>()
     }
   }
 
-  test("calls onBackupFailed when completeOnboardingV2 fails") {
-    val error = HttpError.NetworkError(RuntimeException("F8e error"))
-    onboardingF8eClient.completeOnboardingV2Result = Err(error)
+  test("calls onError when preparation fails") {
+    val error = Error("Preparation failed")
+    hardwareDescriptorDeliveryService.fetchSignatureAndPrepareNfcSessionResult = Err(error)
 
     stateMachine.test(props) {
       awaitUntilScreenWithBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
-
-      onboardingF8eClient.completeOnboardingV2Calls.awaitItem()
-
-      // Should call onBackupFailed
       onBackupFailed.awaitItem().shouldBe(error)
     }
   }
 
-  test("uses W3 keybox hardware type") {
-    val w3Account = FullAccountMock.copy(
-      keybox = KeyboxMock.copy(
-        config = FullAccountConfigMock.copy(hardwareType = HardwareType.W3)
-      )
-    )
-    val w3Props = props.copy(fullAccount = w3Account)
+  test("transitions to NFC session and calls onComplete on success") {
+    hardwareDescriptorDeliveryService.fetchSignatureAndPrepareNfcSessionResult = Ok { _, _ -> "fake-hw-signature" }
 
-    onboardingF8eClient.completeOnboardingV2Result = Ok(mockResponse)
-
-    stateMachine.test(w3Props) {
+    stateMachine.test(props) {
       awaitUntilBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
 
-      // Verify F8e client was called with W3 account
-      onboardingF8eClient.completeOnboardingV2Calls.awaitItem()
+      awaitBody<FormBodyModel>(id = BUILD_HARDWARE_DESCRIPTOR_INTRO) {
+        clickPrimaryButton()
+      }
 
-      awaitBody<PairNewHardwareBodyModel>()
+      awaitBodyMock<NfcSessionUIStateMachineProps<*>> {
+        @Suppress("UNCHECKED_CAST")
+        (this as NfcSessionUIStateMachineProps<Any>).onSuccess("fake-hw-signature")
+      }
+
+      cloudBackupHealthRepository.performSyncCalls.awaitItem()
+      onComplete.awaitItem()
+    }
+  }
+
+  test("returns to intro screen when NFC session is cancelled") {
+    hardwareDescriptorDeliveryService.fetchSignatureAndPrepareNfcSessionResult = Ok { _, _ -> "fake-hw-signature" }
+
+    stateMachine.test(props) {
+      awaitUntilBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+
+      awaitBody<FormBodyModel>(id = BUILD_HARDWARE_DESCRIPTOR_INTRO) {
+        clickPrimaryButton()
+      }
+
+      awaitBodyMock<NfcSessionUIStateMachineProps<*>> {
+        onCancel()
+      }
+
+      awaitBody<FormBodyModel>(id = BUILD_HARDWARE_DESCRIPTOR_INTRO)
     }
   }
 })

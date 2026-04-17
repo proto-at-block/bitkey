@@ -1,3 +1,4 @@
+import build.wallet.firmware.FirmwareMetadata.FirmwareSlot;
 import build.wallet.firmware.McuName;
 import build.wallet.firmware.McuRole;
 
@@ -7,13 +8,14 @@ CREATE TABLE mcuInfoDeviceEntity(
   mcuName                TEXT AS McuName NOT NULL,
   firmwareVersion        TEXT NOT NULL,
   firmwareDeviceInfoId   INTEGER NOT NULL,
+  activeSlot             TEXT AS FirmwareSlot,
   FOREIGN KEY (firmwareDeviceInfoId) REFERENCES firmwareDeviceInfoEntity(rowId) ON DELETE CASCADE
 );
 
 setMcuInfo:
-INSERT OR REPLACE INTO mcuInfoDeviceEntity(mcuRole, mcuName, firmwareVersion, firmwareDeviceInfoId)
+INSERT OR REPLACE INTO mcuInfoDeviceEntity(mcuRole, mcuName, firmwareVersion, firmwareDeviceInfoId, activeSlot)
  -- firmwareDeviceInfoId is always 0
-VALUES(?, ?, ?, 0);
+VALUES(?, ?, ?, 0, ?);
 
 findMcuInfo:
 SELECT * FROM mcuInfoDeviceEntity

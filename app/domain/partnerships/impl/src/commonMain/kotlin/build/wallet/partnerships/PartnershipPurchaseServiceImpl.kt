@@ -2,6 +2,7 @@ package build.wallet.partnerships
 
 import build.wallet.account.AccountService
 import build.wallet.account.getAccount
+import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.address.BitcoinAddressService
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.AppScope
@@ -65,9 +66,11 @@ class PartnershipPurchaseServiceImpl(
   override suspend fun preparePurchase(
     quote: PurchaseQuote,
     purchaseAmount: FiatMoney,
+    address: String?,
   ): Result<PurchaseRedirectInfo, Throwable> =
     coroutineBinding {
-      val address = bitcoinAddressService.generateAddress().bind()
+      val address = address?.let { BitcoinAddress(it) }
+        ?: bitcoinAddressService.generateAddress().bind()
       val account = accountService.getAccount<FullAccount>().bind()
 
       val redirectInfo = getPurchaseRedirectF8eClient

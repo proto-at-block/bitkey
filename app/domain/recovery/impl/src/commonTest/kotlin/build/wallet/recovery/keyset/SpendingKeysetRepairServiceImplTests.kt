@@ -9,7 +9,7 @@ import build.wallet.account.AccountStatus
 import build.wallet.bitcoin.keys.DescriptorPublicKeyMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.spending.HwSpendingPublicKeyMock
-import build.wallet.cloud.backup.CloudBackupRepositoryFake
+import build.wallet.cloud.backup.CloudBackupServiceFake
 import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
 import build.wallet.cloud.backup.FullAccountCloudBackupCreatorMock
 import build.wallet.cloud.backup.csek.SealedSsekFake
@@ -50,7 +50,7 @@ class SpendingKeysetRepairServiceImplTests : FunSpec({
   val descriptorBackupService = DescriptorBackupServiceFake()
   val keyboxDao = KeyboxDaoMock(turbines::create)
   val fullAccountCloudBackupCreator = FullAccountCloudBackupCreatorMock(turbines::create)
-  val cloudBackupRepository = CloudBackupRepositoryFake()
+  val cloudBackupService = CloudBackupServiceFake()
   val cloudStoreAccountRepository = CloudStoreAccountRepositoryMock()
   val uuidGenerator = UuidGeneratorFake()
   val appSessionManager = AppSessionManagerFake()
@@ -67,7 +67,7 @@ class SpendingKeysetRepairServiceImplTests : FunSpec({
       descriptorBackupService = descriptorBackupService,
       keyboxDao = keyboxDao,
       fullAccountCloudBackupCreator = fullAccountCloudBackupCreator,
-      cloudBackupRepository = cloudBackupRepository,
+      cloudBackupService = cloudBackupService,
       cloudStoreAccountRepository = cloudStoreAccountRepository,
       uuidGenerator = uuidGenerator,
       appKeysGenerator = appKeysGenerator,
@@ -83,7 +83,7 @@ class SpendingKeysetRepairServiceImplTests : FunSpec({
     descriptorBackupService.reset()
     keyboxDao.reset()
     fullAccountCloudBackupCreator.reset()
-    cloudBackupRepository.reset()
+    cloudBackupService.reset()
     cloudStoreAccountRepository.reset()
     uuidGenerator.reset()
     appSessionManager.reset()
@@ -259,7 +259,7 @@ class SpendingKeysetRepairServiceImplTests : FunSpec({
       // Setup cloud backup
       cloudStoreAccountRepository.currentAccountResult = Ok(testCloudStoreAccount)
       // Pre-populate a backup so we can get the sealed CSEK
-      cloudBackupRepository.writeBackup(
+      cloudBackupService.writeBackup(
         accountId = FullAccountMock.accountId,
         cloudStoreAccount = testCloudStoreAccount,
         backup = CloudBackupV2WithFullAccountMock,
@@ -364,7 +364,7 @@ class SpendingKeysetRepairServiceImplTests : FunSpec({
       )
 
       cloudStoreAccountRepository.currentAccountResult = Ok(testCloudStoreAccount)
-      cloudBackupRepository.writeBackup(
+      cloudBackupService.writeBackup(
         accountId = FullAccountMock.accountId,
         cloudStoreAccount = testCloudStoreAccount,
         backup = CloudBackupV2WithFullAccountMock,
@@ -417,7 +417,7 @@ class SpendingKeysetRepairServiceImplTests : FunSpec({
 
       // Setup cloud backup
       cloudStoreAccountRepository.currentAccountResult = Ok(testCloudStoreAccount)
-      cloudBackupRepository.writeBackup(
+      cloudBackupService.writeBackup(
         accountId = FullAccountMock.accountId,
         cloudStoreAccount = testCloudStoreAccount,
         backup = CloudBackupV2WithFullAccountMock,
@@ -473,7 +473,7 @@ class SpendingKeysetRepairServiceImplTests : FunSpec({
 
       // Setup cloud backup
       cloudStoreAccountRepository.currentAccountResult = Ok(testCloudStoreAccount)
-      cloudBackupRepository.writeBackup(
+      cloudBackupService.writeBackup(
         accountId = FullAccountMock.accountId,
         cloudStoreAccount = testCloudStoreAccount,
         backup = CloudBackupV2WithFullAccountMock,
@@ -620,7 +620,7 @@ class SpendingKeysetRepairServiceImplTests : FunSpec({
       )
 
       cloudStoreAccountRepository.currentAccountResult = Ok(testCloudStoreAccount)
-      cloudBackupRepository.writeBackup(
+      cloudBackupService.writeBackup(
         accountId = FullAccountMock.accountId,
         cloudStoreAccount = testCloudStoreAccount,
         backup = CloudBackupV2WithFullAccountMock,

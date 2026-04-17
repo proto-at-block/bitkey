@@ -1,4 +1,5 @@
 deps = [
+  rtos_dep,
   secutils_bl_dep
 ]
 

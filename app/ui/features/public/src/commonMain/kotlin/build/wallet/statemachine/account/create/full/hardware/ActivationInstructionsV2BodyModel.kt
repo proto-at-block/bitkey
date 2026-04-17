@@ -13,35 +13,29 @@ import build.wallet.ui.model.video.VideoStartingPosition.START
 
 fun ActivationInstructionsV2BodyModel(
   onContinue: (() -> Unit)?,
-  onNoScreenClick: () -> Unit,
   onBack: () -> Unit,
   isNavigatingBack: Boolean,
   eventTrackerContext: EventTrackerContext,
 ) = PairNewHardwareBodyModel(
   onBack = onBack,
   header = FormHeaderModel(
-    headline = "Let's get set up",
-    subline = "Your device needs to be awake, then a fingerprint is needed to set up your " +
-      "Bitkey account. You'll need to do a hardware round trip."
+    headline = "Set up your Bitkey",
+    subline = "Tap the fingerprint sensor to wake your device." +
+      "\nScan your Bitkey with your phone to get started."
   ),
   primaryButton = ButtonModel(
-    text = "Tap to get started",
-    onClick = StandardClick { onContinue?.invoke() },
-    treatment = ButtonModel.Treatment.Primary,
+    text = "Let's go",
+    treatment = ButtonModel.Treatment.BitkeyInteraction,
     size = ButtonModel.Size.Footer,
     leadingIcon = Icon.SmallIconBitkey,
-    isLoading = onContinue == null
-  ),
-  secondaryButton = ButtonModel(
-    text = "My Bitkey doesn't have a screen",
-    onClick = StandardClick(onNoScreenClick),
-    treatment = ButtonModel.Treatment.Secondary,
-    size = ButtonModel.Size.Footer
+    isLoading = onContinue == null,
+    onClick = StandardClick { onContinue?.invoke() }
   ),
   backgroundVideo = PairNewHardwareBodyModel.BackgroundVideo(
     content = BitkeyFingerprint,
     startingPosition = if (isNavigatingBack) END else START
   ),
+  heroImageContent = PairNewHardwareBodyModel.HeroImageContent.FingerprintSetup,
   isNavigatingBack = isNavigatingBack,
   eventTrackerScreenInfo = EventTrackerScreenInfo(
     eventTrackerScreenId = PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2,

@@ -1,12 +1,15 @@
 package build.wallet.bitcoin.wallet
 
 import build.wallet.bdk.bindings.BdkError
+import build.wallet.bdk.bindings.BdkOutPointMock
+import build.wallet.bdk.bindings.BdkScriptMock
 import build.wallet.bdk.bindings.BdkUtxoMock
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.bdk.BdkTransactionMapperV2
 import build.wallet.bitcoin.bdk.BdkWalletSyncerV2Fake
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimatorMock
+import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
@@ -109,6 +112,62 @@ class SpendingWalletV2ImplTests : FunSpec({
       constructionType = PsbtConstructionMethod.FeeBump(
         txid = "abc123",
         feeRate = FeeRate(Float.POSITIVE_INFINITY)
+      )
+    )
+
+    result.shouldBeErrOfType<SpendingWalletV2Error.InvalidFeeRate>()
+      .satsPerVByte.shouldBe(Float.POSITIVE_INFINITY)
+  }
+
+  test("createSignedPsbt returns InvalidFeeRate for FeeBumpWithDrain with zero fee rate") {
+    val wallet = buildWallet()
+    val result = wallet.createSignedPsbt(
+      constructionType = PsbtConstructionMethod.FeeBumpWithDrain(
+        txid = "abc123",
+        feeRate = FeeRate(0f),
+        drainToScript = BdkScriptMock()
+      )
+    )
+
+    result.shouldBeErrOfType<SpendingWalletV2Error.InvalidFeeRate>()
+      .satsPerVByte.shouldBe(0f)
+  }
+
+  test("createSignedPsbt returns InvalidFeeRate for FeeBumpWithDrain with negative fee rate") {
+    val wallet = buildWallet()
+    val result = wallet.createSignedPsbt(
+      constructionType = PsbtConstructionMethod.FeeBumpWithDrain(
+        txid = "abc123",
+        feeRate = FeeRate(-1f),
+        drainToScript = BdkScriptMock()
+      )
+    )
+
+    result.shouldBeErrOfType<SpendingWalletV2Error.InvalidFeeRate>()
+      .satsPerVByte.shouldBe(-1f)
+  }
+
+  test("createSignedPsbt returns InvalidFeeRate for FeeBumpWithDrain with NaN fee rate") {
+    val wallet = buildWallet()
+    val result = wallet.createSignedPsbt(
+      constructionType = PsbtConstructionMethod.FeeBumpWithDrain(
+        txid = "abc123",
+        feeRate = FeeRate(Float.NaN),
+        drainToScript = BdkScriptMock()
+      )
+    )
+
+    result.shouldBeErrOfType<SpendingWalletV2Error.InvalidFeeRate>()
+      .satsPerVByte.shouldBeNaN()
+  }
+
+  test("createSignedPsbt returns InvalidFeeRate for FeeBumpWithDrain with infinite fee rate") {
+    val wallet = buildWallet()
+    val result = wallet.createSignedPsbt(
+      constructionType = PsbtConstructionMethod.FeeBumpWithDrain(
+        txid = "abc123",
+        feeRate = FeeRate(Float.POSITIVE_INFINITY),
+        drainToScript = BdkScriptMock()
       )
     )
 
@@ -224,5 +283,91 @@ class SpendingWalletV2ImplTests : FunSpec({
     val result = wallet.signPsbt(invalidPsbt)
 
     result.shouldBeErrOfType<SpendingWalletV2Error.PsbtSigningFailed>()
+  }
+
+  test("createSignedPsbt returns InvalidFeeRate for Cpfp with zero fee rate") {
+    val wallet = buildWallet()
+    val result = wallet.createSignedPsbt(
+      constructionType = PsbtConstructionMethod.Cpfp(
+        utxoOutpoint = BdkOutPointMock,
+        recipientAddress = testAddress,
+        feePolicy = FeePolicy.Rate(FeeRate(0f))
+      )
+    )
+
+    result.shouldBeErrOfType<SpendingWalletV2Error.InvalidFeeRate>()
+      .satsPerVByte.shouldBe(0f)
+  }
+
+  test("createSignedPsbt returns InvalidFeeRate for Cpfp with negative fee rate") {
+    val wallet = buildWallet()
+    val result = wallet.createSignedPsbt(
+      constructionType = PsbtConstructionMethod.Cpfp(
+        utxoOutpoint = BdkOutPointMock,
+        recipientAddress = testAddress,
+        feePolicy = FeePolicy.Rate(FeeRate(-1f))
+      )
+    )
+
+    result.shouldBeErrOfType<SpendingWalletV2Error.InvalidFeeRate>()
+      .satsPerVByte.shouldBe(-1f)
+  }
+
+  test("createSignedPsbt returns InvalidFeeRate for Cpfp with NaN fee rate") {
+    val wallet = buildWallet()
+    val result = wallet.createSignedPsbt(
+      constructionType = PsbtConstructionMethod.Cpfp(
+        utxoOutpoint = BdkOutPointMock,
+        recipientAddress = testAddress,
+        feePolicy = FeePolicy.Rate(FeeRate(Float.NaN))
+      )
+    )
+
+    result.shouldBeErrOfType<SpendingWalletV2Error.InvalidFeeRate>()
+      .satsPerVByte.shouldBeNaN()
+  }
+
+  test("createSignedPsbt returns InvalidFeeRate for Cpfp with infinite fee rate") {
+    val wallet = buildWallet()
+    val result = wallet.createSignedPsbt(
+      constructionType = PsbtConstructionMethod.Cpfp(
+        utxoOutpoint = BdkOutPointMock,
+        recipientAddress = testAddress,
+        feePolicy = FeePolicy.Rate(FeeRate(Float.POSITIVE_INFINITY))
+      )
+    )
+
+    result.shouldBeErrOfType<SpendingWalletV2Error.InvalidFeeRate>()
+      .satsPerVByte.shouldBe(Float.POSITIVE_INFINITY)
+  }
+
+  test("createSignedPsbt for Cpfp with MinRelayRate passes fee validation and attempts BDK build") {
+    val wallet = buildWallet()
+    val result = wallet.createSignedPsbt(
+      constructionType = PsbtConstructionMethod.Cpfp(
+        utxoOutpoint = BdkOutPointMock,
+        recipientAddress = testAddress,
+        feePolicy = FeePolicy.MinRelayRate
+      )
+    )
+
+    // NoPointer wallet causes BDK to fail, but it should not be an InvalidFeeRate error
+    result.shouldBeErrOfType<BdkError>()
+  }
+
+  test("createSignedPsbt for Cpfp with Absolute fee passes fee validation and attempts BDK build") {
+    val wallet = buildWallet()
+    val result = wallet.createSignedPsbt(
+      constructionType = PsbtConstructionMethod.Cpfp(
+        utxoOutpoint = BdkOutPointMock,
+        recipientAddress = testAddress,
+        feePolicy = FeePolicy.Absolute(
+          fee = Fee(amount = BitcoinMoney.sats(500))
+        )
+      )
+    )
+
+    // NoPointer wallet causes BDK to fail, but it should not be an InvalidFeeRate error
+    result.shouldBeErrOfType<BdkError>()
   }
 })

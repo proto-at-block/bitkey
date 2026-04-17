@@ -1,8 +1,11 @@
 package build.wallet.ui.components.label
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import app.cash.paparazzi.DeviceConfig
 import build.wallet.kotest.paparazzi.paparazziExtension
-import com.android.ide.common.rendering.api.SessionParams
 import io.kotest.core.spec.style.FunSpec
 
 class LabelSnapshots : FunSpec({
@@ -16,13 +19,18 @@ class LabelSnapshots : FunSpec({
 })
 
 class AllLabelSnapshots : FunSpec({
-  val paparazzi = paparazziExtension(
-    renderingMode = SessionParams.RenderingMode.FULL_EXPAND
-  )
+  val paparazzi = paparazziExtension(DeviceConfig.PIXEL_6)
 
   test("all labels") {
     paparazzi.snapshot {
-      AllLabelsPreview()
+      Box(
+        modifier = Modifier.requiredSize(
+          width = 160.dp,
+          height = 400.dp
+        )
+      ) {
+        AllLabelsPreview()
+      }
     }
   }
 })

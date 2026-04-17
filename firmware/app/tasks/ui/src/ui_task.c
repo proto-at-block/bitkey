@@ -32,7 +32,7 @@ static void service_ipc(void) {
   }
 
   if (!ui_priv.backend) {
-    LOGW("UI backend not initialized");
+    LOGW("UI backend not init");
     return;
   }
 
@@ -47,8 +47,8 @@ static void service_ipc(void) {
     case IPC_UI_SHOW_EVENT_WITH_DATA: {
       ui_show_event_with_data_t* msg = (ui_show_event_with_data_t*)message.object;
       if (msg && ui_priv.backend->show_event_with_data) {
-        ui_priv.backend->show_event_with_data((ui_event_type_t)msg->event, msg->data,
-                                              msg->data_len);
+        ui_priv.backend->show_event_with_data((ui_event_type_t)msg->event,
+                                              (const uint8_t*)&msg->data, msg->data_len);
       }
     } break;
 
@@ -67,7 +67,7 @@ static void service_ipc(void) {
     } break;
 
     default:
-      LOGW("UI task received unknown message: %ld", message.tag);
+      LOGW("UI unknown msg: %ld", message.tag);
       break;
   }
 }

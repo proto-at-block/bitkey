@@ -12,9 +12,27 @@ class MoneyHomeScreenSnapshots : FunSpec({
     }
   }
 
+  test("MoneyHome Screen Full with design system v2 feature flag on") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      MoneyHomeScreenFullNewWalletGettingStartedNoActivity()
+    }
+  }
+
+  test("MoneyHome Screen Full with design system v2 feature flag on and pending activity") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      MoneyHomeScreenFullWithPendingActivity(useCircularPendingIndicator = true)
+    }
+  }
+
   test("MoneyHome Screen Full with Sell Button") {
     paparazzi.snapshot {
       MoneyHomeScreenFull(showSellButton = true)
+    }
+  }
+
+  test("MoneyHome Screen Full with Buy and Sell enabled") {
+    paparazzi.snapshot {
+      MoneyHomeScreenFullWithBuyAndSellEnabled()
     }
   }
 
@@ -59,6 +77,20 @@ class MoneyHomeScreenSnapshots : FunSpec({
       MoneyHomeScreenFull(
         securityHubBadged = false
       )
+    }
+  }
+
+  test("MoneyHome Screen Full with security dot") {
+    paparazzi.snapshot {
+      MoneyHomeScreenFull(
+        securityHubBadged = true
+      )
+    }
+  }
+
+  test("MoneyHome Screen Full new wallet getting started no activity") {
+    paparazzi.snapshot {
+      MoneyHomeScreenFullNewWalletGettingStartedNoActivity()
     }
   }
 })

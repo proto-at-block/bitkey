@@ -21,6 +21,7 @@ import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.onboarding.CreateAccountKeysetV2F8eClient
 import build.wallet.f8e.onboarding.SetActiveSpendingKeysetF8eClient
 import build.wallet.f8e.recovery.LegacyRemoteKeyset
@@ -166,7 +167,7 @@ class PrivateWalletMigrationServiceImpl(
         )
       )
       else -> PrivateWalletMigrationState.NotAvailable.also {
-        logInfo { "Migration completed" }
+        logInfo { "Private wallet migration completed (sweep complete)" }
       }
     }
   }.distinctUntilChanged()
@@ -203,8 +204,7 @@ class PrivateWalletMigrationServiceImpl(
               createServerKeyAndActivate(
                 account = account,
                 newHwKey = state.newHwKeys,
-                newAppKey = state.newAppKeys,
-                proofOfPossession = proofOfPossession
+                newAppKey = state.newAppKeys
               )
                 .onSuccess { logInfo { "Keyset Activated" } }
                 .bind()
@@ -235,7 +235,9 @@ class PrivateWalletMigrationServiceImpl(
               logDebug { "Awaiting Cloud Backup" }
             }
             is PrivateWalletMigrationState.CloudBackupCompleted -> {
-              logDebug { "Migration completed in state ${state::class.simpleName}. Ready for sweep" }
+              logDebug {
+                "Private wallet migration completed in state ${state::class.simpleName}. Ready for sweep"
+              }
             }
             is PrivateWalletMigrationState.NotAvailable -> {
               Err(IllegalStateException("Can't start unavailable migration"))
@@ -296,7 +298,6 @@ class PrivateWalletMigrationServiceImpl(
     account: FullAccount,
     newHwKey: HwSpendingPublicKey,
     newAppKey: AppSpendingPublicKey,
-    proofOfPossession: HwFactorProofOfPossession,
   ): Result<SpendingKeyset, PrivateWalletMigrationError> {
     return coroutineBinding {
       val serverKeyset = createKeysetClient.createKeyset(
@@ -305,8 +306,7 @@ class PrivateWalletMigrationServiceImpl(
         hardwareSpendingKey = newHwKey,
         appSpendingKey = newAppKey,
         network = account.keybox.config.bitcoinNetworkType,
-        appAuthKey = account.keybox.activeAppKeyBundle.authKey,
-        hardwareProofOfPossession = proofOfPossession
+        appAuthKey = account.keybox.activeAppKeyBundle.authKey
       )
         .mapError { PrivateWalletMigrationError.KeysetServerActivationFailed(it) }
         .bind()
@@ -355,7 +355,7 @@ class PrivateWalletMigrationServiceImpl(
         fullAccountId = account.accountId,
         keysetId = serverKeyset.keysetId,
         appAuthKey = account.keybox.activeAppKeyBundle.authKey,
-        hwFactorProofOfPossession = proofOfPossession
+        proof = PrivilegedActionProof.HwKeyProof(proofOfPossession)
       )
         .mapError { PrivateWalletMigrationError.KeysetActivationFailed(it) }
         .bind()
@@ -419,7 +419,7 @@ class PrivateWalletMigrationServiceImpl(
         sealedSsekForDecryption = null,
         sealedSsekForEncryption = sealedSsek,
         appAuthKey = updatedKeybox.activeAppKeyBundle.authKey,
-        hwKeyProof = hwProofOfPossession,
+        proof = PrivilegedActionProof.HwKeyProof(hwProofOfPossession),
         descriptorsToDecrypt = listOf(),
         keysetsToEncrypt = keysetsToBackup
       )

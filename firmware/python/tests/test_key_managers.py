@@ -119,6 +119,34 @@ class TestSigningKeys(unittest.TestCase):
         self.assertNotIn("-production", keys.public_key_path)
         self.assertNotIn("-production", keys.cert_path)
 
+    def test_prod_bl_keys_no_production_suffix(self):
+        """Test that prod bootloader keys do NOT use -production suffix for any product."""
+        for product in [PRODUCT_W1A, PRODUCT_W3A_CORE]:
+            with self.subTest(product=product):
+                keys = SigningKeys(KEYS_DIR, product, "prod", "bl")
+                self.assertNotIn("-production", keys.public_key_path)
+                self.assertNotIn("-production", keys.cert_path)
+                # BL keys use version 1, not the app cert version
+                self.assertIn(".1.", keys.public_key_path)
+
+    def test_prod_bl_keys_w3a_uxc(self):
+        """Test that W3A-UXC prod bootloader keys have correct paths."""
+        keys = SigningKeys(KEYS_DIR, PRODUCT_W3A_UXC, "prod", "bl")
+        self.assertNotIn("-production", keys.public_key_path)
+        self.assertNotIn("-production", keys.cert_path)
+        self.assertIn(".1.", keys.public_key_path)
+        self.assertTrue(keys.cert_path.endswith(".pct"))
+
+    def test_prod_bl_key_paths_exist(self):
+        """Test that prod bootloader public key files actually exist on disk."""
+        for product in [PRODUCT_W1A, PRODUCT_W3A_CORE, PRODUCT_W3A_UXC]:
+            with self.subTest(product=product):
+                keys = SigningKeys(KEYS_DIR, product, "prod", "bl")
+                self.assertTrue(
+                    Path(keys.public_key_path).exists(),
+                    f"Public key not found: {keys.public_key_path}",
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

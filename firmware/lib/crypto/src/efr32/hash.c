@@ -8,6 +8,11 @@
 
 #include <string.h>
 
+// Verify that our opaque streaming context is large enough for the efr32 SE context.
+// If this fires, increase the buffer[] size in hash_stream_ctx_t (hash.h).
+_Static_assert(sizeof(hash_stream_ctx_t) >= sizeof(sl_se_sha256_multipart_context_t),
+               "hash_stream_ctx_t too small for sl_se_sha256_multipart_context_t");
+
 inline sl_se_hash_type_t convert_hash_type(hash_alg_t alg) {
   sl_se_hash_type_t hash_type = SL_SE_HASH_NONE;
   switch (alg) {

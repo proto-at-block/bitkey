@@ -169,7 +169,9 @@ fn init_twilio_supported_sms_countries() -> HashMap<&'static str, CountryCode> {
     map.insert("31", CountryCode::NLD); // Netherlands
     map.insert("47", CountryCode::NOR); // Norway
     map.insert("64", CountryCode::NZL); // New Zealand
-    map.insert("63", CountryCode::PHL); // Philippines
+
+    // map.insert("63", CountryCode::PHL); // Philippines
+
     map.insert("51", CountryCode::PER); // Peru
     map.insert("48", CountryCode::POL); // Poland
     map.insert("351", CountryCode::PRT); // Portugal
@@ -181,7 +183,9 @@ fn init_twilio_supported_sms_countries() -> HashMap<&'static str, CountryCode> {
     map.insert("421", CountryCode::SVK); // Slovakia
     map.insert("386", CountryCode::SVN); // Slovenia
     map.insert("46", CountryCode::SWE); // Sweden
-    map.insert("66", CountryCode::THA); // Thailand
+
+    // map.insert("66", CountryCode::THA); // Thailand
+
     map.insert("235", CountryCode::TCD); // Chad
     map.insert("992", CountryCode::TJK); // Tajikistan
     map.insert("90", CountryCode::TUR); // Turkey
@@ -272,7 +276,7 @@ impl TwilioClient {
         }
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, to, body))]
     pub async fn create_message(
         &self,
         country_code: CountryCode,
@@ -343,7 +347,7 @@ impl TwilioClient {
         }
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, phone_number))]
     pub async fn lookup(
         &self,
         phone_number: String,
@@ -396,7 +400,7 @@ impl TwilioClient {
         }
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, request, signature))]
     pub fn validate_callback_signature(
         &self,
         request: &HashMap<String, String>,

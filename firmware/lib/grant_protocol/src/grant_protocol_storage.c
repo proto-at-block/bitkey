@@ -15,13 +15,13 @@ static grant_protocol_result_t write_to_filesystem(const char* path, const uint8
   fs_file_t* file = NULL;
   int ret = fs_open_global(&file, path, FS_O_RDWR | FS_O_CREAT | FS_O_TRUNC);
   if (ret != 0) {
-    LOGE("Failed to open grant storage file %s for writing: %d", path, ret);
+    LOGE("Grant open W: %d", ret);
     return result;
   }
 
   ret = fs_file_write(file, data, size);
   if (ret != (int32_t)size) {
-    LOGE("Failed to write full grant request (%d != %ld)", ret, size);
+    LOGE("Grant wr: %d", ret);
     goto out;
   }
 
@@ -43,13 +43,13 @@ static grant_protocol_result_t read_from_filesystem(const char* path, uint8_t* d
   fs_file_t* file = NULL;
   int ret = fs_open_global(&file, path, FS_O_RDONLY);
   if (ret != 0) {
-    LOGE("Failed to open grant storage file %s for reading: %d", path, ret);
+    LOGE("Grant open R: %d", ret);
     return result;
   }
 
   ret = fs_file_read(file, data, size);
   if (ret != (int32_t)size) {
-    LOGE("Failed to read full grant request (%d != %ld)", ret, size);
+    LOGE("Grant rd: %d", ret);
     goto out;
   }
 
@@ -75,10 +75,9 @@ grant_protocol_result_t grant_storage_write_request(const grant_request_t* reque
 grant_protocol_result_t grant_storage_delete_request(void) {
   if (fs_file_exists(GRANT_REQUEST_PATH)) {
     if (fs_remove(GRANT_REQUEST_PATH) != 0) {
-      LOGE("Failed to delete grant request file");
+      LOGE("Grant req delete fail");
       return GRANT_RESULT_ERROR_STORAGE;
     }
-    LOGD("Deleted grant request file");
   }
   return GRANT_RESULT_OK;
 }
@@ -90,7 +89,6 @@ bool grant_storage_read_app_auth_pubkey(uint8_t* pubkey) {
   fs_file_t* file = NULL;
   int ret = fs_open_global(&file, APP_AUTH_PUBKEY_PATH, FS_O_RDONLY);
   if (ret != 0) {
-    LOGD("App auth pubkey file not found or cannot be opened: %d", ret);
     return false;
   }
 
@@ -98,7 +96,7 @@ bool grant_storage_read_app_auth_pubkey(uint8_t* pubkey) {
   fs_close_global(file);
 
   if (ret != 33) {
-    LOGE("Failed to read full app auth pubkey (%d != 33)", ret);
+    LOGE("App pk rd: %d", ret);
     return false;
   }
 
@@ -111,7 +109,7 @@ bool grant_storage_write_app_auth_pubkey(const uint8_t* pubkey) {
   fs_file_t* file = NULL;
   int ret = fs_open_global(&file, APP_AUTH_PUBKEY_PATH, FS_O_RDWR | FS_O_CREAT | FS_O_TRUNC);
   if (ret != 0) {
-    LOGE("Failed to open app auth pubkey file for writing: %d", ret);
+    LOGE("App pk open W: %d", ret);
     return false;
   }
 
@@ -119,11 +117,10 @@ bool grant_storage_write_app_auth_pubkey(const uint8_t* pubkey) {
   fs_close_global(file);
 
   if (ret != 33) {
-    LOGE("Failed to write full app auth pubkey (%d != 33)", ret);
+    LOGE("App pk wr: %d", ret);
     return false;
   }
 
-  LOGD("App auth pubkey written successfully");
   return true;
 }
 
@@ -134,10 +131,9 @@ bool grant_storage_app_auth_pubkey_exists(void) {
 bool grant_storage_delete_app_auth_pubkey(void) {
   if (fs_file_exists(APP_AUTH_PUBKEY_PATH)) {
     if (fs_remove(APP_AUTH_PUBKEY_PATH) != 0) {
-      LOGE("Failed to delete app auth pubkey file");
+      LOGE("App pubkey delete fail");
       return false;
     }
-    LOGD("Deleted app auth pubkey file");
   }
   return true;
 }
@@ -147,16 +143,15 @@ grant_protocol_result_t grant_protocol_provision_app_auth_pubkey(const uint8_t* 
 
   // Validate that the pubkey is a valid compressed secp256k1 public key on the curve
   if (!crypto_ecc_secp256k1_pubkey_verify(new_pubkey)) {
-    LOGE("Invalid public key: not a valid secp256k1 point");
+    LOGE("Bad secp256k1 pubkey");
     return GRANT_RESULT_ERROR_INVALID_ARGUMENT;
   }
 
   // Write the new app auth pubkey (no signature validation required)
   if (!grant_storage_write_app_auth_pubkey(new_pubkey)) {
-    LOGE("Failed to write new app auth pubkey");
+    LOGE("App pk store err");
     return GRANT_RESULT_ERROR_STORAGE;
   }
 
-  LOGD("App auth pubkey provisioned successfully");
   return GRANT_RESULT_OK;
 }

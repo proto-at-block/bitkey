@@ -59,6 +59,7 @@
     <!-- Setting the launchMode to singleTask ensures that deeplinking to the app opens the existing Activity of the Bitkey App or creates a new one -->
     <activity
         android:name="build.wallet.MainActivity"
+        android:configChanges="uiMode"
         android:exported="true"
         android:launchMode="singleTask">
       <intent-filter>
@@ -80,6 +81,17 @@
           <data android:scheme="https"
                 android:host="bitkey.world"
                 android:pathPrefix="/links" />
+      </intent-filter>
+        <intent-filter android:autoVerify="true">
+          <action android:name="android.intent.action.VIEW" />
+          <category android:name="android.intent.category.DEFAULT" />
+          <category android:name="android.intent.category.BROWSABLE" />
+          <data android:scheme="https"
+                android:host="bitkey.world"
+                android:pathPrefix="/download" />
+          <data android:scheme="https"
+                android:host="web-site.bitkeystaging.com"
+                android:pathPrefix="/download" />
       </intent-filter>
       <intent-filter>
         <action android:name="android.intent.action.VIEW" />

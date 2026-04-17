@@ -5,50 +5,75 @@ use action_proof::{BuildError, ValidationError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
-    Add,
-    Remove,
-    Set,
-    Disable,
-    Accept,
+    SetSpendWithoutHardware,
+    DisableSpendWithoutHardware,
+    SetVerificationThreshold,
+    SetRecoveryEmail,
+    DisableRecoveryEmail,
+    SetRecoveryPhone,
+    DisableRecoveryPhone,
+    SetRecoveryPushNotifications,
+    DisableRecoveryPushNotifications,
+    AddRecoveryContact,
+    RemoveRecoveryContact,
+    RemoveRecoveryCustomer,
+    AddBeneficiary,
+    RemoveBeneficiary,
+    RemoveBenefactor,
+    CreateSpendingKeyset,
+    RotateSpendingKeyset,
+    DeleteAccount,
+    UpdateDescriptorBackups,
+    CreateLostAppRecovery,
+    CreateLostHardwareRecovery,
+    CancelLostAppRecovery,
+    CancelLostHardwareRecovery,
+    CancelConflictingRecovery,
+    SendRecoveryVerificationCode,
+    VerifyRecoveryVerificationCode,
+    RotateAppAuthKeys,
 }
 
 impl From<Action> for action_proof::Action {
     fn from(a: Action) -> Self {
         match a {
-            Action::Add => action_proof::Action::Add,
-            Action::Remove => action_proof::Action::Remove,
-            Action::Set => action_proof::Action::Set,
-            Action::Disable => action_proof::Action::Disable,
-            Action::Accept => action_proof::Action::Accept,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Field {
-    SpendWithoutHardware,
-    VerificationThreshold,
-    RecoveryEmail,
-    RecoveryPhone,
-    RecoveryPushNotifications,
-    RecoveryContacts,
-    Beneficiaries,
-    RecoveryContactsInvite,
-    BeneficiariesInvite,
-}
-
-impl From<Field> for action_proof::Field {
-    fn from(f: Field) -> Self {
-        match f {
-            Field::SpendWithoutHardware => action_proof::Field::SpendWithoutHardware,
-            Field::VerificationThreshold => action_proof::Field::VerificationThreshold,
-            Field::RecoveryEmail => action_proof::Field::RecoveryEmail,
-            Field::RecoveryPhone => action_proof::Field::RecoveryPhone,
-            Field::RecoveryPushNotifications => action_proof::Field::RecoveryPushNotifications,
-            Field::RecoveryContacts => action_proof::Field::RecoveryContacts,
-            Field::Beneficiaries => action_proof::Field::Beneficiaries,
-            Field::RecoveryContactsInvite => action_proof::Field::RecoveryContactsInvite,
-            Field::BeneficiariesInvite => action_proof::Field::BeneficiariesInvite,
+            Action::SetSpendWithoutHardware => action_proof::Action::SetSpendWithoutHardware,
+            Action::DisableSpendWithoutHardware => {
+                action_proof::Action::DisableSpendWithoutHardware
+            }
+            Action::SetVerificationThreshold => action_proof::Action::SetVerificationThreshold,
+            Action::SetRecoveryEmail => action_proof::Action::SetRecoveryEmail,
+            Action::DisableRecoveryEmail => action_proof::Action::DisableRecoveryEmail,
+            Action::SetRecoveryPhone => action_proof::Action::SetRecoveryPhone,
+            Action::DisableRecoveryPhone => action_proof::Action::DisableRecoveryPhone,
+            Action::SetRecoveryPushNotifications => {
+                action_proof::Action::SetRecoveryPushNotifications
+            }
+            Action::DisableRecoveryPushNotifications => {
+                action_proof::Action::DisableRecoveryPushNotifications
+            }
+            Action::AddRecoveryContact => action_proof::Action::AddRecoveryContact,
+            Action::RemoveRecoveryContact => action_proof::Action::RemoveRecoveryContact,
+            Action::RemoveRecoveryCustomer => action_proof::Action::RemoveRecoveryCustomer,
+            Action::AddBeneficiary => action_proof::Action::AddBeneficiary,
+            Action::RemoveBeneficiary => action_proof::Action::RemoveBeneficiary,
+            Action::RemoveBenefactor => action_proof::Action::RemoveBenefactor,
+            Action::CreateSpendingKeyset => action_proof::Action::CreateSpendingKeyset,
+            Action::RotateSpendingKeyset => action_proof::Action::RotateSpendingKeyset,
+            Action::DeleteAccount => action_proof::Action::DeleteAccount,
+            Action::UpdateDescriptorBackups => action_proof::Action::UpdateDescriptorBackups,
+            Action::CreateLostAppRecovery => action_proof::Action::CreateLostAppRecovery,
+            Action::CreateLostHardwareRecovery => action_proof::Action::CreateLostHardwareRecovery,
+            Action::CancelLostAppRecovery => action_proof::Action::CancelLostAppRecovery,
+            Action::CancelLostHardwareRecovery => action_proof::Action::CancelLostHardwareRecovery,
+            Action::CancelConflictingRecovery => action_proof::Action::CancelConflictingRecovery,
+            Action::SendRecoveryVerificationCode => {
+                action_proof::Action::SendRecoveryVerificationCode
+            }
+            Action::VerifyRecoveryVerificationCode => {
+                action_proof::Action::VerifyRecoveryVerificationCode
+            }
+            Action::RotateAppAuthKeys => action_proof::Action::RotateAppAuthKeys,
         }
     }
 }
@@ -105,8 +130,6 @@ pub enum ActionProofError {
     InvalidBindingValue,
     #[error("duplicate binding key")]
     DuplicateBindingKey,
-    #[error("action is not valid for the specified field")]
-    InvalidActionForField,
     #[error("bindings not sorted")]
     BindingsNotSorted,
 }
@@ -132,7 +155,6 @@ impl From<BuildError> for ActionProofError {
             BuildError::InvalidBindingValue(_) => ActionProofError::InvalidBindingValue,
             BuildError::EmptyBindingKey => ActionProofError::EmptyBindingKey,
             BuildError::DuplicateBindingKey(_) => ActionProofError::DuplicateBindingKey,
-            BuildError::InvalidActionForField { .. } => ActionProofError::InvalidActionForField,
             BuildError::InvalidValue(v) => v.into(),
         }
     }
@@ -148,9 +170,7 @@ pub fn validate_value(value: String) -> Result<(), ActionProofError> {
 
 pub fn build_payload(
     action: Action,
-    field: Field,
     value: Option<String>,
-    current: Option<String>,
     bindings: Vec<ContextBindingPair>,
 ) -> Result<Vec<u8>, ActionProofError> {
     let mut bindings = bindings;
@@ -161,14 +181,8 @@ pub fn build_payload(
         .map(|b| (b.key.as_str(), b.value.as_str()))
         .collect();
 
-    action_proof::build_payload(
-        action.into(),
-        field.into(),
-        value.as_deref(),
-        current.as_deref(),
-        &binding_tuples,
-    )
-    .map_err(ActionProofError::from)
+    action_proof::build_payload(action.into(), value.as_deref(), &binding_tuples)
+        .map_err(ActionProofError::from)
 }
 
 uniffi::include_scaffolding!("action-proof");
@@ -192,10 +206,8 @@ mod tests {
             },
         ];
         let payload = build_payload(
-            Action::Add,
-            Field::RecoveryContacts,
+            Action::AddRecoveryContact,
             Some("Alice".to_string()),
-            None,
             bindings,
         )
         .unwrap();
@@ -206,30 +218,35 @@ mod tests {
     #[test]
     fn all_actions_mapped() {
         for action in [
-            Action::Add,
-            Action::Remove,
-            Action::Set,
-            Action::Disable,
-            Action::Accept,
+            Action::SetSpendWithoutHardware,
+            Action::DisableSpendWithoutHardware,
+            Action::SetVerificationThreshold,
+            Action::SetRecoveryEmail,
+            Action::DisableRecoveryEmail,
+            Action::SetRecoveryPhone,
+            Action::DisableRecoveryPhone,
+            Action::SetRecoveryPushNotifications,
+            Action::DisableRecoveryPushNotifications,
+            Action::AddRecoveryContact,
+            Action::RemoveRecoveryContact,
+            Action::RemoveRecoveryCustomer,
+            Action::AddBeneficiary,
+            Action::RemoveBeneficiary,
+            Action::RemoveBenefactor,
+            Action::CreateSpendingKeyset,
+            Action::RotateSpendingKeyset,
+            Action::DeleteAccount,
+            Action::UpdateDescriptorBackups,
+            Action::CreateLostAppRecovery,
+            Action::CreateLostHardwareRecovery,
+            Action::CancelLostAppRecovery,
+            Action::CancelLostHardwareRecovery,
+            Action::CancelConflictingRecovery,
+            Action::SendRecoveryVerificationCode,
+            Action::VerifyRecoveryVerificationCode,
+            Action::RotateAppAuthKeys,
         ] {
             let _: action_proof::Action = action.into();
-        }
-    }
-
-    #[test]
-    fn all_fields_mapped() {
-        for field in [
-            Field::SpendWithoutHardware,
-            Field::VerificationThreshold,
-            Field::RecoveryEmail,
-            Field::RecoveryPhone,
-            Field::RecoveryPushNotifications,
-            Field::RecoveryContacts,
-            Field::Beneficiaries,
-            Field::RecoveryContactsInvite,
-            Field::BeneficiariesInvite,
-        ] {
-            let _: action_proof::Field = field.into();
         }
     }
 

@@ -48,7 +48,7 @@ static i2c_transfer_t i2cTransfer[I2C_COUNT];
 // index (0x3) to reflect a default setting just in case.
 static const uint8_t i2cNSum[] = {4 + 4, 6 + 3, 11 + 6, 4 + 4};
 
-static bool PERIPHERALS_DATA bus_enabled[I2C_COUNT] = {false};
+static bool SHARED_TASK_BSS bus_enabled[I2C_COUNT] = {false};
 
 static mcu_i2c_err_t transfer_init(const mcu_i2c_device_t* device, mcu_i2c_transfer_seq_t* seq);
 static mcu_i2c_err_t transfer_update(const mcu_i2c_device_t* device);

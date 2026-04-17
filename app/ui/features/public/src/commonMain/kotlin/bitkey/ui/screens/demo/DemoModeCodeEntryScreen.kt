@@ -57,7 +57,8 @@ private data class DemoCodeEntryIdleBodyModel(
           value = "",
           placeholderText = "",
           onValueChange = { newValue, _ -> onValueChange(newValue) },
-          keyboardType = TextFieldModel.KeyboardType.Uri
+          keyboardType = TextFieldModel.KeyboardType.Uri,
+          testTag = "demo-mode-code-input"
         )
       )
     ),

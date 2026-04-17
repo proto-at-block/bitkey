@@ -12,7 +12,7 @@ use bdk_utils::signature::message_to_digest;
 use http::StatusCode;
 use onboarding::routes::CreateAccountRequest;
 use rstest::rstest;
-use types::account::entities::{FullAccountAuthKeysInput, SpendingKeysetInput};
+use types::account::entities::{FullAccountAuthKeysInput, HardwareType, SpendingKeysetInput};
 use types::account::identifiers::AccountId;
 
 use crate::tests::requests::axum::TestClient;
@@ -118,6 +118,7 @@ async fn auth_with_hw_test(
             app: keys.app.public_key,
             hardware: keys.hw.public_key,
             recovery: Some(keys.recovery.public_key),
+            hardware_type: HardwareType::default(),
         },
         spending: SpendingKeysetInput {
             network,
@@ -283,6 +284,7 @@ async fn auth_with_recovery_authkey_test(
             app: keys.app.public_key,
             hardware: keys.hw.public_key,
             recovery: Some(keys.recovery.public_key),
+            hardware_type: HardwareType::default(),
         },
         spending: SpendingKeysetInput {
             network,

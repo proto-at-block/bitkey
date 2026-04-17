@@ -28,20 +28,24 @@ messages:
       auth: never
     - name: fwpb_mfgtest_touch_data_cmd
       auth: never
+    - name: fwpb_mfgtest_device_set_production_lock_cmd
+      auth: never
+    - name: fwpb_mfgtest_device_get_production_lock_cmd
+      auth: never
   structs:
     - name: mfgtest_runin_complete_internal_t
       fields:
         - uint32_t loop_count
         - uint32_t initial_soc
-        - uint32_t final_soc
-        - uint32_t min_soc
         - uint32_t elapsed_ms
         - bool plugged_in
         - uint32_t button_events
         - uint32_t captouch_events
         - uint32_t touch_events
         - uint32_t fingerprint_events
-        - bool success
+        - uint32_t phase1_duration_ms
+        - uint32_t phase2_duration_ms
+        - uint32_t phase3_duration_ms
     - name: mfgtest_touch_test_result_internal_t
       fields:
         - bool timeout
@@ -49,6 +53,8 @@ messages:
         - uint16_t y
         - uint16_t boxes_remaining
     - name: mfgtest_coproc_gpio_response_t
+    - name: mfgtest_coproc_device_set_production_lock_response_t
+    - name: mfgtest_coproc_device_get_production_lock_response_t
     - name: mfgtest_touch_point_t
       fields:
         - uint16_t x

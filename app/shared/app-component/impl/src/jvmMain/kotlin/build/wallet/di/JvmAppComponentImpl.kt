@@ -8,6 +8,8 @@ import bitkey.recovery.fundslost.FundsLostRiskSyncWorker
 import build.wallet.bdk.bindings.BdkBlockchainFactory
 import build.wallet.bdk.bindings.BdkBlockchainFactoryImpl
 import build.wallet.bitcoin.AppPrivateKeyDao
+import build.wallet.cloud.backup.CloudBackupStore
+import build.wallet.cloud.backup.CloudBackupStoreImpl
 import build.wallet.cloud.store.*
 import build.wallet.coroutines.flow.TickerFlowFactory
 import build.wallet.coroutines.flow.TickerFlowFactoryImpl
@@ -47,6 +49,7 @@ import kotlin.time.Duration.Companion.seconds
   exclude = [
     BdkBlockchainFactoryImpl::class,
     CoroutinesComponent::class,
+    CloudBackupStoreImpl::class,
     CloudKeyValueStoreImpl::class,
     ExchangeRateF8eClientImpl::class,
     MemfaultClientImpl::class,
@@ -62,6 +65,7 @@ abstract class JvmAppComponentImpl(
   @get:Provides val bdkBlockchainFactory: BdkBlockchainFactory,
   @get:Provides override val writableCloudStoreAccountRepository:
     WritableCloudStoreAccountRepository,
+  @get:Provides override val cloudBackupStore: CloudBackupStore,
   @get:Provides override val cloudKeyValueStore: CloudKeyValueStore,
   @get:Provides override val cloudFileStore: CloudFileStore,
 ) : JvmAppComponent,

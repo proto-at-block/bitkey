@@ -17,9 +17,10 @@ import build.wallet.statemachine.core.ScreenPresentationStyle
 fun ScreenTheme(
   bodyModel: BodyModel,
   presentationStyle: ScreenPresentationStyle,
+  hasStatusBanner: Boolean = false,
   content: @Composable (ScreenStyle) -> Unit,
 ) {
-  val style = screenStyle(bodyModel, presentationStyle)
+  val style = screenStyle(bodyModel, presentationStyle, hasStatusBanner)
   ConfigureSystemUi(style)
 
   content(style)

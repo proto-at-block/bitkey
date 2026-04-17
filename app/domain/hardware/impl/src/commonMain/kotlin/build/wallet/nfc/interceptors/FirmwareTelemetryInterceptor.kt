@@ -1,9 +1,11 @@
 package build.wallet.nfc.interceptors
 
+import build.wallet.catchingResult
 import build.wallet.feature.FeatureFlag
 import build.wallet.feature.FeatureFlagValue.BooleanFlag
 import build.wallet.feature.isEnabled
 import build.wallet.firmware.*
+import build.wallet.logging.LogLevel
 import build.wallet.logging.logFailure
 import build.wallet.logging.logWarn
 import build.wallet.nfc.NfcSession
@@ -28,16 +30,15 @@ internal fun collectFirmwareTelemetry(
     { session, commands ->
       next(session, commands)
 
-      // TODO(W-8000) The query auth causes breakage on android; we see TagLost and then
-      // it looks like the FWUP failed but it didn't.
-
-      // Only attempt to collect telemetry if the hardware is unlocked, because
-      // the telemetry endpoints require authentication itself.
-      if (!session.parameters.skipFirmwareTelemetry && commands.queryAuthentication(session)) {
-        val deviceInfo = commands.getDeviceInfo(session)
-        interceptor.persistDeviceInfo(deviceInfo)
-        interceptor.uploadTelemetry(deviceInfo, commands, session)
-      }
+      // Telemetry collection is best-effort — failures must never propagate and
+      // surface as a transaction error to the user (W-8000).
+      catchingResult {
+        if (!session.parameters.skipFirmwareTelemetry && commands.queryAuthentication(session)) {
+          val deviceInfo = commands.getDeviceInfo(session)
+          interceptor.persistDeviceInfo(deviceInfo)
+          interceptor.uploadTelemetry(deviceInfo, commands, session)
+        }
+      }.logFailure(logLevel = LogLevel.Warn) { "Failed to collect firmware telemetry" }
 
       firmwareCommsLogBuffer.upload()
     }

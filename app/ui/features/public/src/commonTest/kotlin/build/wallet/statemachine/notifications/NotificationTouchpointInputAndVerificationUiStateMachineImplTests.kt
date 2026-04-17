@@ -9,9 +9,12 @@ import bitkey.f8e.error.code.VerifyTouchpointClientErrorCode
 import bitkey.notifications.NotificationTouchpoint.EmailTouchpoint
 import bitkey.notifications.NotificationTouchpoint.PhoneNumberTouchpoint
 import build.wallet.bitkey.f8e.FullAccountIdMock
+import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.bitkey.keybox.FullAccountW3Mock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.email.EmailFake
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClientMock
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClientMock.*
 import build.wallet.feature.FeatureFlagDaoFake
@@ -26,17 +29,19 @@ import build.wallet.notifications.NotificationTouchpointType.PhoneNumber
 import build.wallet.phonenumber.PhoneNumberMock
 import build.wallet.platform.settings.TelephonyCountryCodeProviderMock
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
-import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
-import build.wallet.statemachine.auth.Request
+import build.wallet.statemachine.auth.ActionProofType
+import build.wallet.statemachine.auth.HardwareAuthUiProps
+import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.input.*
+import build.wallet.statemachine.core.input.DataInputStyle.Edit
+import build.wallet.statemachine.core.input.DataInputStyle.Enter
 import build.wallet.statemachine.core.input.VerificationCodeInputProps.ResendCodeCallbacks
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint.Onboarding
+import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint.OnboardingAndRecovery
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint.Settings
 import build.wallet.statemachine.root.ActionSuccessDuration
 import build.wallet.statemachine.ui.awaitBody
@@ -90,10 +95,10 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
         object : PhoneNumberInputUiStateMachine, ScreenStateMachineMock<PhoneNumberInputUiProps>(
           "phone-number-input"
         ) {},
-      proofOfPossessionNfcStateMachine =
-        object : ProofOfPossessionNfcStateMachine,
-          ScreenStateMachineMock<ProofOfPossessionNfcProps>(
-            "proof-of-hw"
+      hardwareAuthUiStateMachine =
+        object : HardwareAuthUiStateMachine,
+          ScreenStateMachineMock<HardwareAuthUiProps>(
+            "hardware-auth"
           ) {},
       verificationCodeInputStateMachine =
         object : VerificationCodeInputStateMachine,
@@ -114,11 +119,11 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
       accountId = FullAccountIdMock,
       touchpointType = PhoneNumber,
       entryPoint =
-        Onboarding(
-          onSkip = { onSkipCalls += Unit },
-          skipBottomSheetProvider = { SheetModelMock(it) }
+        OnboardingAndRecovery(
+          onSkip = { onSkipCalls += Unit }
         ),
-      onClose = { onCloseCalls.add(Unit) }
+      onClose = { onCloseCalls.add(Unit) },
+      onSuccess = { onCloseCalls.add(Unit) }
     )
 
   beforeTest {
@@ -197,7 +202,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
         }
         with(notificationTouchpointF8eClient.activateTouchpointCalls.awaitItem()) {
           shouldBeTypeOf<ActivateTouchpointParams>()
-          hwFactorProofOfPossession.shouldBeNull()
+          proof.shouldBeNull()
         }
 
         notificationTouchpointDao.storeTouchpointCalls.awaitItem()
@@ -211,35 +216,55 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
     }
   }
 
-  test("needs hw proof of possession") {
+  test("needs hardware authorization (W1 hw proof of possession) - new touchpoint uses Set proof type") {
     val hwProofOfPossession = HwFactorProofOfPossession("signed-token")
+    val expectedProof = PrivilegedActionProof.HwKeyProof(hwProofOfPossession)
     // Test the flow for both phone and email
     listOf(PhoneNumber, Email).forEach { touchpointType ->
       stateMachine.test(
-        props.copy(entryPoint = Settings, touchpointType = touchpointType)
+        props.copy(
+          entryPoint = Settings(fullAccount = FullAccountMock),
+          touchpointType = touchpointType
+        )
       ) {
         progressToSendingVerificationCode(touchpointType)
 
         // Activation approval instructions
         awaitBody<FormBodyModel> {
-          expectActivationInstructions(touchpointType)
+          expectActivationInstructions(
+            entryPoint = Settings(fullAccount = FullAccountMock),
+            touchpointType = touchpointType
+          )
           clickPrimaryButton()
         }
 
-        // Verifying HW proof
-        awaitBodyMock<ProofOfPossessionNfcProps> {
+        // Hardware authorization via HardwareAuthUiStateMachine
+        awaitBodyMock<HardwareAuthUiProps>(id = "hardware-auth") {
+          // Verify the correct account and action proof type are passed
+          fullAccountId.shouldBe(FullAccountMock.accountId)
+          when (touchpointType) {
+            PhoneNumber -> actionProofType.shouldBeInstanceOf<ActionProofType.SetRecoveryPhone>()
+            Email -> actionProofType.shouldBeInstanceOf<ActionProofType.SetRecoveryEmail>()
+          }
+
           val errorScreenModel = onTokenRefreshError.shouldNotBeNull().invoke(false) {}
           errorScreenModel.body.shouldBeInstanceOf<FormBodyModel>()
-            .expectActivationInstructions(touchpointType)
+            .expectActivationInstructions(
+              entryPoint = Settings(fullAccount = FullAccountMock),
+              touchpointType = touchpointType
+            )
           errorScreenModel.bottomSheetModel.shouldNotBeNull()
 
           val refreshingScreenModel =
             onTokenRefresh.shouldNotBeNull().invoke()
               .body.shouldBeInstanceOf<FormBodyModel>()
-          refreshingScreenModel.expectActivationInstructions(touchpointType)
+          refreshingScreenModel.expectActivationInstructions(
+            entryPoint = Settings(fullAccount = FullAccountMock),
+            touchpointType = touchpointType
+          )
           refreshingScreenModel.primaryButton.shouldNotBeNull().shouldBeLoading()
 
-          (request as Request.HwKeyProof).onSuccess(hwProofOfPossession)
+          onSuccess(expectedProof)
         }
 
         // Sending activation request to server
@@ -248,8 +273,177 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
         }
         with(notificationTouchpointF8eClient.activateTouchpointCalls.awaitItem()) {
           shouldBeTypeOf<ActivateTouchpointParams>()
-          touchpointId.shouldBe(touchpointId)
-          hwFactorProofOfPossession.shouldBe(hwProofOfPossession)
+          touchpointId.shouldBe("123")
+          proof.shouldBe(expectedProof)
+        }
+
+        notificationTouchpointDao.storeTouchpointCalls.awaitItem()
+
+        awaitBody<LoadingSuccessBodyModel> {
+          state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Success>()
+        }
+
+        onCloseCalls.awaitItem()
+      }
+    }
+  }
+
+  test("Settings entry point with existing touchpoint uses Set proof type for replacement") {
+    val hwProofOfPossession = HwFactorProofOfPossession("signed-token")
+    val expectedProof = PrivilegedActionProof.HwKeyProof(hwProofOfPossession)
+    // Test the flow for both phone and email
+    listOf(PhoneNumber, Email).forEach { touchpointType ->
+      stateMachine.test(
+        props.copy(
+          entryPoint = Settings(fullAccount = FullAccountMock),
+          touchpointType = touchpointType
+        )
+      ) {
+        progressToSendingVerificationCode(touchpointType)
+
+        // Activation approval instructions
+        awaitBody<FormBodyModel> {
+          expectActivationInstructions(
+            entryPoint = Settings(fullAccount = FullAccountMock),
+            touchpointType = touchpointType
+          )
+          clickPrimaryButton()
+        }
+
+        // Hardware authorization via HardwareAuthUiStateMachine
+        awaitBodyMock<HardwareAuthUiProps>(id = "hardware-auth") {
+          // Replacing an existing touchpoint must use the SET variants, not ADD
+          fullAccountId.shouldBe(FullAccountMock.accountId)
+          when (touchpointType) {
+            PhoneNumber -> actionProofType.shouldBeInstanceOf<ActionProofType.SetRecoveryPhone>()
+            Email -> actionProofType.shouldBeInstanceOf<ActionProofType.SetRecoveryEmail>()
+          }
+
+          onSuccess(expectedProof)
+        }
+
+        // Sending activation request to server
+        awaitBody<LoadingSuccessBodyModel> {
+          state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Loading>()
+        }
+        with(notificationTouchpointF8eClient.activateTouchpointCalls.awaitItem()) {
+          shouldBeTypeOf<ActivateTouchpointParams>()
+          touchpointId.shouldBe("123")
+          proof.shouldBe(expectedProof)
+        }
+
+        notificationTouchpointDao.storeTouchpointCalls.awaitItem()
+
+        awaitBody<LoadingSuccessBodyModel> {
+          state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Success>()
+        }
+
+        onCloseCalls.awaitItem()
+      }
+    }
+  }
+
+  test("needs hardware authorization for W3 onboarding (Recovery entry point)") {
+    val hwProofOfPossession = HwFactorProofOfPossession("signed-token")
+    val expectedProof = PrivilegedActionProof.HwKeyProof(hwProofOfPossession)
+    // Test the flow for both phone and email
+    listOf(PhoneNumber, Email).forEach { touchpointType ->
+      stateMachine.test(
+        props.copy(
+          entryPoint = OnboardingAndRecovery(fullAccount = FullAccountW3Mock),
+          touchpointType = touchpointType
+        )
+      ) {
+        progressToSendingVerificationCode(touchpointType)
+
+        // Activation approval instructions
+        awaitBody<FormBodyModel> {
+          expectActivationInstructions(
+            entryPoint = OnboardingAndRecovery(fullAccount = FullAccountW3Mock),
+            touchpointType = touchpointType
+          )
+          clickPrimaryButton()
+        }
+
+        // Hardware authorization via HardwareAuthUiStateMachine
+        awaitBodyMock<HardwareAuthUiProps>(id = "hardware-auth") {
+          // Verify the correct account and action proof type are passed
+          fullAccountId.shouldBe(FullAccountW3Mock.accountId)
+          when (touchpointType) {
+            PhoneNumber -> actionProofType.shouldBeInstanceOf<ActionProofType.SetRecoveryPhone>()
+            Email -> actionProofType.shouldBeInstanceOf<ActionProofType.SetRecoveryEmail>()
+          }
+          onSuccess(expectedProof)
+        }
+
+        // Sending activation request to server
+        awaitBody<LoadingSuccessBodyModel> {
+          state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Loading>()
+        }
+        with(notificationTouchpointF8eClient.activateTouchpointCalls.awaitItem()) {
+          shouldBeTypeOf<ActivateTouchpointParams>()
+          touchpointId.shouldBe("123")
+          proof.shouldBe(expectedProof)
+        }
+
+        notificationTouchpointDao.storeTouchpointCalls.awaitItem()
+
+        awaitBody<LoadingSuccessBodyModel> {
+          state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Success>()
+        }
+
+        onCloseCalls.awaitItem()
+      }
+    }
+  }
+
+  test("W1 onboarding (Recovery entry point) skips hardware authorization") {
+    // Test the flow for both phone and email - W1 should skip HW auth
+    listOf(PhoneNumber, Email).forEach { touchpointType ->
+      stateMachine.test(
+        props.copy(
+          entryPoint = OnboardingAndRecovery(fullAccount = FullAccountMock),
+          touchpointType = touchpointType
+        )
+      ) {
+        progressToSendingVerificationCode(touchpointType)
+        // Should go directly to sending activation (no HW verification)
+        awaitBody<LoadingSuccessBodyModel> {
+          state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Loading>()
+        }
+        with(notificationTouchpointF8eClient.activateTouchpointCalls.awaitItem()) {
+          shouldBeTypeOf<ActivateTouchpointParams>()
+          proof.shouldBeNull()
+        }
+
+        notificationTouchpointDao.storeTouchpointCalls.awaitItem()
+
+        awaitBody<LoadingSuccessBodyModel> {
+          state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Success>()
+        }
+
+        onCloseCalls.awaitItem()
+      }
+    }
+  }
+
+  test("Recovery entry point without fullAccount skips hardware authorization") {
+    // Test that Recovery without fullAccount (e.g., actual recovery) keeps current behavior
+    listOf(PhoneNumber, Email).forEach { touchpointType ->
+      stateMachine.test(
+        props.copy(
+          entryPoint = OnboardingAndRecovery(),
+          touchpointType = touchpointType
+        )
+      ) {
+        progressToSendingVerificationCode(touchpointType)
+        // Should go directly to sending activation (no HW verification)
+        awaitBody<LoadingSuccessBodyModel> {
+          state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Loading>()
+        }
+        with(notificationTouchpointF8eClient.activateTouchpointCalls.awaitItem()) {
+          shouldBeTypeOf<ActivateTouchpointParams>()
+          proof.shouldBeNull()
         }
 
         notificationTouchpointDao.storeTouchpointCalls.awaitItem()
@@ -643,6 +837,82 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
       phoneNotAvailableCalls.expectNoEvents()
     }
   }
+
+  test("Settings entry point with no stored phone uses Enter style") {
+    stateMachine.test(
+      props.copy(
+        entryPoint = Settings(fullAccount = FullAccountMock),
+        touchpointType = PhoneNumber
+      )
+    ) {
+      awaitBodyMock<PhoneNumberInputUiProps> {
+        dataInputStyle.shouldBe(Enter)
+      }
+    }
+  }
+
+  test("Settings entry point with stored phone uses Edit style") {
+    notificationTouchpointDao.phoneTouchpointFlow.value = PhoneNumberMock.touchpoint()
+    stateMachine.test(
+      props.copy(
+        entryPoint = Settings(fullAccount = FullAccountMock),
+        touchpointType = PhoneNumber
+      )
+    ) {
+      // First emission uses initial null storedTouchpoint; second picks up the stored value
+      awaitBodyMock<PhoneNumberInputUiProps> {
+        dataInputStyle.shouldBe(Enter)
+      }
+      awaitBodyMock<PhoneNumberInputUiProps> {
+        dataInputStyle.shouldBe(Edit)
+      }
+    }
+  }
+
+  test("Settings entry point with no stored email uses Enter style") {
+    stateMachine.test(
+      props.copy(
+        entryPoint = Settings(fullAccount = FullAccountMock),
+        touchpointType = Email
+      )
+    ) {
+      awaitBodyMock<EmailInputUiProps> {
+        dataInputStyle.shouldBe(Enter)
+      }
+    }
+  }
+
+  test("Settings entry point with stored email uses Edit style") {
+    notificationTouchpointDao.emailTouchpointFlow.value = EmailFake.touchpoint()
+    stateMachine.test(
+      props.copy(
+        entryPoint = Settings(fullAccount = FullAccountMock),
+        touchpointType = Email
+      )
+    ) {
+      // First emission uses initial null storedTouchpoint; second picks up the stored value
+      awaitBodyMock<EmailInputUiProps> {
+        dataInputStyle.shouldBe(Enter)
+      }
+      awaitBodyMock<EmailInputUiProps> {
+        dataInputStyle.shouldBe(Edit)
+      }
+    }
+  }
+
+  test("OnboardingAndRecovery entry point always uses Enter style even with stored phone") {
+    notificationTouchpointDao.phoneTouchpointFlow.value = PhoneNumberMock.touchpoint()
+    stateMachine.test(props.copy(touchpointType = PhoneNumber)) {
+      // Initial emission with null storedTouchpoint
+      awaitBodyMock<PhoneNumberInputUiProps> {
+        dataInputStyle.shouldBe(Enter)
+      }
+      // After storedTouchpoint loads, still Enter for onboarding
+      awaitBodyMock<PhoneNumberInputUiProps> {
+        dataInputStyle.shouldBe(Enter)
+      }
+    }
+  }
 })
 
 private fun build.wallet.phonenumber.PhoneNumber.touchpoint(id: String = "123") =
@@ -651,19 +921,39 @@ private fun build.wallet.phonenumber.PhoneNumber.touchpoint(id: String = "123") 
 private fun build.wallet.email.Email.touchpoint(id: String = "123") = EmailTouchpoint(id, this)
 
 private fun FormBodyModel.expectActivationInstructions(
+  entryPoint: NotificationTouchpointInputAndVerificationProps.EntryPoint,
   touchpointType: NotificationTouchpointType,
 ) {
   with(header.shouldNotBeNull()) {
-    headline.shouldBe("Approve this change with your Bitkey device")
-    when (touchpointType) {
-      PhoneNumber ->
-        sublineModel.shouldNotBeNull().string.shouldBe(
-          "Notifications will be sent to (555) 555-5555"
-        )
-      Email ->
-        sublineModel.shouldNotBeNull().string.shouldBe(
-          "Notifications will be sent to asdf@block.xyz"
-        )
+    when (entryPoint) {
+      is Settings -> {
+        headline.shouldBe("Approve this change with your Bitkey device")
+        primaryButton.shouldNotBeNull().text.shouldBe("Approve")
+        when (touchpointType) {
+          PhoneNumber ->
+            sublineModel.shouldNotBeNull().string.shouldBe(
+              "Notifications will be sent to (555) 555-5555"
+            )
+          Email ->
+            sublineModel.shouldNotBeNull().string.shouldBe(
+              "Notifications will be sent to asdf@block.xyz"
+            )
+        }
+      }
+      is OnboardingAndRecovery -> {
+        headline.shouldBe("Confirm details on your Bitkey")
+        primaryButton.shouldNotBeNull().text.shouldBe("Continue")
+        when (touchpointType) {
+          PhoneNumber ->
+            sublineModel.shouldNotBeNull().string.shouldBe(
+              "Your Bitkey must approve changes to your security settings. Review and approve saving (555) 555-5555 as your recovery phone number."
+            )
+          Email ->
+            sublineModel.shouldNotBeNull().string.shouldBe(
+              "Your Bitkey must approve changes to your security settings. Review and approve saving asdf@block.xyz as your recovery email."
+            )
+        }
+      }
     }
   }
 }

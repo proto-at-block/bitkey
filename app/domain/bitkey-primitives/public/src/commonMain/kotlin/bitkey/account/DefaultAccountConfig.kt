@@ -19,7 +19,8 @@ data class DefaultAccountConfig(
   val isHardwareFake: Boolean,
   /**
    * Hardware type for the account.
-   * - `null`: Auto-detect from firmware device info during onboarding (defaults to W1 if unavailable)
+   * - `null`: Defaults to W1 in [toFullAccountConfig]; actual type is resolved from the
+   *   paired device during account creation.
    * - `W1`: Force W1 hardware type
    * - `W3`: Force W3 hardware type
    */
@@ -27,22 +28,22 @@ data class DefaultAccountConfig(
   val delayNotifyDuration: Duration? = null,
   val skipCloudBackupOnboarding: Boolean = false,
   val skipNotificationsOnboarding: Boolean = false,
+  val skipBuildHardwareDescriptorOnboarding: Boolean = false,
 ) : AccountConfig {
   /**
    * Returns [FullAccountConfig] for given [DefaultAccountConfig].
    *
-   * Note: This method defaults null hardwareType to W1. For proper hardware type resolution
-   * during onboarding, use [AccountConfigService.resolveHardwareTypeAndCreateFullAccountConfig].
+   * Defaults null [hardwareType] to [HardwareType.W1]. During onboarding, the actual hardware
+   * type is resolved from the paired device and applied when creating the account.
    */
-  fun toFullAccountConfig(hardwareTypeOverride: HardwareType? = hardwareType): FullAccountConfig {
-    val resolvedHardwareType = hardwareTypeOverride ?: HardwareType.W1
+  fun toFullAccountConfig(): FullAccountConfig {
     return FullAccountConfig(
       bitcoinNetworkType = bitcoinNetworkType,
       f8eEnvironment = f8eEnvironment,
       isTestAccount = isTestAccount,
       isUsingSocRecFakes = isUsingSocRecFakes,
       isHardwareFake = isHardwareFake,
-      hardwareType = resolvedHardwareType,
+      hardwareType = hardwareType ?: HardwareType.W1,
       delayNotifyDuration = delayNotifyDuration
     )
   }

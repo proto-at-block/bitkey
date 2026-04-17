@@ -2,41 +2,36 @@ package build.wallet.statemachine.core.input
 
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.core.SheetModel
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.TextInput
 import build.wallet.statemachine.core.form.RenderContext.Sheet
-import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.button.ButtonModel.Size.Compact
-import build.wallet.ui.model.button.ButtonModel.Treatment.TertiaryPrimaryNoUnderline
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.input.TextFieldModel.KeyboardType.Phone
-import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.ButtonAccessory
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 fun PhoneNumberInputScreenModel(
   title: String,
   subline: String? = null,
+  sublineModel: LabelModel? = null,
   textFieldValue: String,
   textFieldPlaceholder: String,
   textFieldSelection: IntRange,
   onTextFieldValueChange: (String, IntRange) -> Unit,
   primaryButton: ButtonModel,
   secondaryButton: ButtonModel? = null,
-  onClose: () -> Unit,
-  onSkip: (() -> Unit)?,
+  onClose: (() -> Unit)? = null,
+  isCloseButton: Boolean = false,
   errorOverlayModel: SheetModel? = null,
 ) = ScreenModel(
   body = PhoneNumberInputBodyModel(
     title = title,
     subline = subline,
+    sublineModel = sublineModel,
     textFieldValue = textFieldValue,
     textFieldPlaceholder = textFieldPlaceholder,
     textFieldSelection = textFieldSelection,
@@ -44,7 +39,7 @@ fun PhoneNumberInputScreenModel(
     primaryButton = primaryButton,
     secondaryButton = secondaryButton,
     onClose = onClose,
-    onSkip = onSkip
+    isCloseButton = isCloseButton
   ),
   presentationStyle = ScreenPresentationStyle.Modal,
   bottomSheetModel = errorOverlayModel
@@ -53,35 +48,29 @@ fun PhoneNumberInputScreenModel(
 data class PhoneNumberInputBodyModel(
   val title: String,
   val subline: String? = null,
+  val sublineModel: LabelModel? = null,
   val textFieldValue: String,
   val textFieldPlaceholder: String,
   val textFieldSelection: IntRange,
   val onTextFieldValueChange: (String, IntRange) -> Unit,
   override val primaryButton: ButtonModel,
   override val secondaryButton: ButtonModel? = null,
-  val onClose: () -> Unit,
-  val onSkip: (() -> Unit)?,
+  val onClose: (() -> Unit)? = null,
+  val isCloseButton: Boolean = false,
 ) : FormBodyModel(
     id = NotificationsEventTrackerScreenId.SMS_INPUT_ENTERING_SMS,
     onBack = onClose,
     onSwipeToDismiss = onClose,
     toolbar =
       ToolbarModel(
-        leadingAccessory = CloseAccessory(onClick = onClose),
-        trailingAccessory =
-          onSkip?.let {
-            ButtonAccessory(
-              model =
-                ButtonModel(
-                  text = "Skip",
-                  treatment = TertiaryPrimaryNoUnderline,
-                  onClick = StandardClick(onSkip),
-                  size = Compact
-                )
-            )
-          }
+        leadingAccessory = onClose?.let {
+          if (isCloseButton) CloseAccessory(onClick = it) else BackAccessory(onClick = it)
+        }
       ),
-    header = FormHeaderModel(headline = title, subline = subline),
+    header = FormHeaderModel(
+      headline = title,
+      sublineModel = sublineModel ?: subline?.let { LabelModel.StringModel(it) }
+    ),
     mainContentList =
       immutableListOf(
         TextInput(
@@ -89,6 +78,7 @@ data class PhoneNumberInputBodyModel(
             TextFieldModel(
               value = textFieldValue,
               placeholderText = textFieldPlaceholder,
+              testTag = "phone-number-input-field",
               selectionOverride = textFieldSelection,
               onValueChange = onTextFieldValueChange,
               keyboardType = Phone

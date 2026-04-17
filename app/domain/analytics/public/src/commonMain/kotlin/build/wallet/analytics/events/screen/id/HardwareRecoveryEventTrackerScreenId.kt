@@ -101,4 +101,7 @@ enum class HardwareRecoveryEventTrackerScreenId : EventTrackerScreenId {
 
   /** Error screen shown when canceling lost hw D+N fails */
   LOST_HW_DELAY_NOTIFY_CANCELLATION_ERROR,
+
+  /** Error screen shown when completing recovery fails after sweep for lost hardware D+N */
+  LOST_HW_DELAY_NOTIFY_COMPLETION_ERROR,
 }

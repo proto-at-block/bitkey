@@ -24,6 +24,12 @@ class McuConfig:
     include_bootloader: bool
 
 
+# Last firmware version that doesn't parse the BKFW delta patch version header.
+# Delta patches generated for updates FROM any version higher than this version
+# will include the header; patches targeting older 'from' images will not.
+FWUP_DELTA_HEADER_MAX_UNSUPPORTED_FROM_VERSION = "1.1.10"
+
+
 @dataclass
 class FwupDeltaInfo:
     """Information describing a delta update transition."""
@@ -43,6 +49,8 @@ class FwupDeltaInfo:
 class Patch:
     path: Path
     size: int
+    role: Optional[str] = None
+    from_image_type: Optional[str] = None
 
 
 @dataclass
@@ -53,16 +61,47 @@ class DeltaBundle:
     a2b_patches: Optional[List[Patch]] = None
     b2a_patches: Optional[List[Patch]] = None
 
+    @staticmethod
+    def _max_patch_size_for_patch(
+        role: Optional[str], from_image_type: Optional[str]
+    ) -> int:
+        # UXC has tighter filesystem headroom than EFR32.
+        if role == "uxc":
+            return 104 * 1024
+        # Factory EFR32 images have additional headroom for larger patches.
+        if from_image_type and from_image_type.startswith("mfgtest"):
+            return 168 * 1024
+        return 120 * 1024
+
+    def _patches(self) -> List[Patch]:
+        if self.a2b_patches is not None or self.b2a_patches is not None:
+            return (self.a2b_patches or []) + (self.b2a_patches or [])
+        return [self.a2b, self.b2a]
+
     @property
     def max_size(self):
         """Return the larger of the two patch sizes."""
         return max(self.a2b.size, self.b2a.size)
 
     @property
+    def invalid_details(self) -> List[str]:
+        """Return role-aware details for any patches that exceed limits."""
+        details = []
+        for patch in self._patches():
+            max_patch_size = self._max_patch_size_for_patch(
+                patch.role, patch.from_image_type
+            )
+            if patch.size > max_patch_size:
+                role = patch.role or "single"
+                details.append(
+                    f"{role}: {patch.path.name}={patch.size} (limit {max_patch_size})"
+                )
+        return details
+
+    @property
     def valid(self):
         """Check if the patch passes validity rules."""
-        MAX_PATCH_SIZE = 128 * 1024  # Matches fwup_delta.c
-        return self.max_size < MAX_PATCH_SIZE
+        return len(self.invalid_details) == 0
 
 
 def load_patch_signing_key(image_type: str, version: str, product="w1a", base_directory=None) -> str:
@@ -274,11 +313,16 @@ class FwupBundler:
 
         print(
             f"Generating {from_slot}->{to_slot} patch from {from_file} to {to_file}")
+        version = info.to_version if semver.compare(info.from_version, FWUP_DELTA_HEADER_MAX_UNSUPPORTED_FROM_VERSION) > 0 else None
         FwupDeltaPatchGenerator().create_and_sign(
-            key_pem, from_file, to_file, patch_file)
+            key_pem, from_file, to_file, patch_file, version=version)
         copy(sig_file, output_dir)
 
-        return Patch(path=Path(patch_file), size=os.stat(patch_file).st_size)
+        return Patch(
+            path=Path(patch_file),
+            size=os.stat(patch_file).st_size,
+            from_image_type=from_image_type,
+        )
 
     def generate_delta(self, info: FwupDeltaInfo, output_dir: Path, patch_signing_key_pem: str) -> DeltaBundle:
         """Generate a FWUP bundle for a delta firmware release.
@@ -407,8 +451,14 @@ class FwupBundler:
 
         print(
             f"Generating {mcu_config.role} {from_slot}->{to_slot} patch from {from_file} to {to_file}")
+        version = info.to_version if semver.compare(info.from_version, FWUP_DELTA_HEADER_MAX_UNSUPPORTED_FROM_VERSION) > 0 else None
         FwupDeltaPatchGenerator().create_and_sign(
-            key_pem, from_file, to_file, patch_file)
+            key_pem, from_file, to_file, patch_file, version=version)
         copy(sig_file, output_dir)
 
-        return Patch(path=Path(patch_file), size=os.stat(patch_file).st_size)
+        return Patch(
+            path=Path(patch_file),
+            size=os.stat(patch_file).st_size,
+            role=mcu_config.role,
+            from_image_type=from_image_type,
+        )

@@ -5,6 +5,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import build.wallet.statemachine.keypad.KeypadModel
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
 import build.wallet.statemachine.partnerships.purchase.CustomAmountBodyModel
+import build.wallet.ui.tokens.lightStyleDictionaryColors
 import build.wallet.ui.tooling.PreviewWalletTheme
 
 @Preview
@@ -26,6 +27,7 @@ fun CustomAmountScreenInvalidEntryPreview() {
             showDecimal = true,
             onButtonPress = {}
           ),
+        isAmountAboveMaximum = false,
         continueButtonEnabled = false,
         onNext = {}
       )
@@ -52,6 +54,39 @@ fun CustomAmountScreenValidEntryPreview() {
             showDecimal = true,
             onButtonPress = {}
           ),
+        isAmountAboveMaximum = false,
+
+        continueButtonEnabled = true,
+        onNext = {}
+      )
+    )
+  }
+}
+
+@Preview
+@Composable
+fun CustomAmountScreenValidEntryDesignSystemV2Preview() {
+  PreviewWalletTheme(
+    designSystemUpdatesEnabled = true,
+    backgroundColor = lightStyleDictionaryColors.subtleBackground
+  ) {
+    CustomAmountScreen(
+      model = CustomAmountBodyModel(
+        onBack = {},
+        limits = "From $20.00 to $100.00",
+        amountModel =
+          MoneyAmountEntryModel(
+            primaryAmount = "$50.00",
+            primaryAmountGhostedSubstringRange = null,
+            secondaryAmount = "50,000 sats"
+          ),
+        keypadModel =
+          KeypadModel(
+            showDecimal = true,
+            onButtonPress = {}
+          ),
+        isAmountAboveMaximum = false,
+
         continueButtonEnabled = true,
         onNext = {}
       )

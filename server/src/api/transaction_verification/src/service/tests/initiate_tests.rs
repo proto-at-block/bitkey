@@ -7,7 +7,7 @@ use bdk_utils::bdk::{KeychainKind, Wallet};
 use exchange_rate::currency_conversion::sats_for;
 use exchange_rate::service::Service as ExchangeRateService;
 use feature_flags::flag::ContextKey;
-use std::{collections::HashMap, str::FromStr};
+use std::collections::HashMap;
 use types::account::entities::TransactionVerificationPolicy;
 use types::account::money::Money;
 use types::currencies::CurrencyCode::USD;
@@ -53,14 +53,24 @@ async fn test_initiate_verification(
     let service = construct_test_transaction_verification_service().await;
     let account = setup_account_with_transaction_verification_policy(policy).await;
 
-    let psbt = Psbt::from_str("cHNidP8BAHUCAAAAASaBcTce3/KF6Tet7qSze3gADAVmy7OtZGQXE8pCFxv2AAAAAAD+////AtPf9QUAAAAAGXapFNDFmQPFusKGh2DpD9UhpGZap2UgiKwA4fUFAAAAABepFDVF5uM7gyxHBQ8k0+65PJwDlIvHh7MuEwAAAQD9pQEBAAAAAAECiaPHHqtNIOA3G7ukzGmPopXJRjr6Ljl/hTPMti+VZ+UBAAAAFxYAFL4Y0VKpsBIDna89p95PUzSe7LmF/////4b4qkOnHf8USIk6UwpyN+9rRgi7st0tAXHmOuxqSJC0AQAAABcWABT+Pp7xp0XpdNkCxDVZQ6vLNL1TU/////8CAMLrCwAAAAAZdqkUhc/xCX/Z4Ai7NK9wnGIZeziXikiIrHL++E4sAAAAF6kUM5cluiHv1irHU6m80GfWx6ajnQWHAkcwRAIgJxK+IuAnDzlPVoMR3HyppolwuAJf3TskAinwf4pfOiQCIAGLONfc0xTnNMkna9b7QPZzMlvEuqFEyADS8vAtsnZcASED0uFWdJQbrUqZY3LLh+GFbTZSYG2YVi/jnF6efkE/IQUCSDBFAiEA0SuFLYXc2WHS9fSrZgZU327tzHlMDDPOXMMJ/7X85Y0CIGczio4OFyXBl/saiK9Z9R5E5CVbIBZ8hoQDHAXR8lkqASECI7cr7vCWXRC+B3jv7NYfysb3mk6haTkzgHNEZPhPKrMAAAAAAAAA").unwrap();
-    let wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)", "wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)").0;
-    let network = wallet.network();
+    let mut source_wallet = Box::new(
+        get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/0/*)", "wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)").0,
+    );
+    let mut destination_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/2/*)", "wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/3/*)").0;
+    let destination_address = destination_wallet
+        .reveal_next_address(KeychainKind::External)
+        .address;
+    let network = source_wallet.network();
+    let psbt = make_psbt(
+        &mut source_wallet,
+        destination_address.script_pubkey(),
+        1_000,
+    );
     let result = service
         .initiate(
             &account,
             VerificationWalletProvider::Static(StaticWalletProvider {
-                wallet: Box::new(wallet),
+                wallet: source_wallet,
             }),
             psbt,
             network,
@@ -198,7 +208,7 @@ async fn initiate_rejects_blocked_addresses() {
 
     assert!(matches!(
         result,
-        Err(TransactionVerificationError::OutputsBelongToSanctionedIndividuals)
+        Err(TransactionVerificationError::InputsOutputsBelongToSanctionedIndividuals)
     ));
 }
 
@@ -251,7 +261,7 @@ async fn initiate_rejects_blocked_addresses_via_flag() {
 
     assert!(matches!(
         result,
-        Err(TransactionVerificationError::OutputsBelongToSanctionedIndividuals)
+        Err(TransactionVerificationError::InputsOutputsBelongToSanctionedIndividuals)
     ));
 }
 

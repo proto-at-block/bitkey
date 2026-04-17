@@ -28,6 +28,18 @@ typedef enum {
   CONFIRMATION_TYPE_NONE = 0,
   CONFIRMATION_TYPE_WIPE_STATE,
   CONFIRMATION_TYPE_FWUP_START,
+  CONFIRMATION_TYPE_SIGN_TRANSACTION,
+  CONFIRMATION_TYPE_SIGN_ACTION_PROOF,
+  CONFIRMATION_TYPE_LOST_APP_RECOVERY,
+  CONFIRMATION_TYPE_LOST_APP_RECOVERY_SIGN_CHALLENGE,
+  CONFIRMATION_TYPE_ROTATE_APP_AUTH_KEYS,
+  CONFIRMATION_TYPE_SIGN_CHALLENGE_AND_SEAL_SEKS,
+  CONFIRMATION_TYPE_RECOVERY_AUTHORIZE_LOST_APP,
+  CONFIRMATION_TYPE_RECOVERY_AUTHORIZE_LOST_HW,
+  CONFIRMATION_TYPE_EEK_RESTORATION_UNSEAL_SYMMETRIC_KEY,
+  CONFIRMATION_TYPE_FULL_ACCOUNT_CLOUD_BACKUP_RESTORATION,
+  CONFIRMATION_TYPE_UPGRADE_AUTHORIZE_W3,
+  CONFIRMATION_TYPE_UPGRADE_ROTATE_APP_AUTH_KEYS,
   CONFIRMATION_TYPE_COUNT,  // Must be last
 } confirmation_type_t;
 
@@ -138,6 +150,25 @@ bool confirmation_manager_is_pending(void);
  * @return The type of pending confirmation, or CONFIRMATION_TYPE_NONE if none pending
  */
 confirmation_type_t confirmation_manager_get_type(void);
+
+/**
+ * @brief Refresh the confirmation timestamp.
+ *
+ * Called when the user completes an intermediate confirmation step (e.g., holding
+ * to confirm a page in a multi-page address flow). Resets the timeout countdown
+ * so the user has the full timeout period for the next step.
+ */
+void confirmation_manager_refresh_timestamp(void);
+
+/**
+ * @brief Check if the pending confirmation has expired.
+ *
+ * Returns true if a confirmation is active but the timeout has elapsed.
+ * The caller is responsible for clearing the confirmation and acting on the expiry.
+ *
+ * @return true if confirmation is active and expired, false otherwise.
+ */
+bool confirmation_manager_is_expired(void);
 
 /**
  * @brief Handler function type for confirmation results

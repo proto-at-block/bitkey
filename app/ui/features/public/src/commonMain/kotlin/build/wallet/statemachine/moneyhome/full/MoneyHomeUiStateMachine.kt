@@ -26,6 +26,7 @@ data class MoneyHomeUiProps(
   val origin: Origin,
   val onDismissOrigin: () -> Unit,
   val onGoToSecurityHub: () -> Unit,
+  val isDesignSystemV2Enabled: Boolean = false,
 ) {
   sealed class Origin {
     data object Launch : Origin()
@@ -45,5 +46,9 @@ data class MoneyHomeUiProps(
     data class PartnershipTransferLink(
       val request: PartnerTransferLinkRequest,
     ) : Origin()
+
+    data object W3Upgrade : Origin()
+
+    data object W3UpgradeComplete : Origin()
   }
 }

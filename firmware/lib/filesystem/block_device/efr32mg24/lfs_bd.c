@@ -74,10 +74,10 @@ lfs_t* bd_mount(void) {
   int status = 0;
   const bool empty = is_flash_empty();
   if (empty) {
-    LOGI("Formatting filesystem");
+    LOGI("Formatting FS");
     status = lfs_format(&lfs_handle, &config);
     if (status < 0) {
-      LOGW("Error formatting filesystem");
+      LOGW("FS format fail");
       return NULL;
     }
   }
@@ -135,7 +135,7 @@ static int bd_read(const struct lfs_config* cfg, lfs_block_t block, lfs_off_t of
   ASSERT(size % cfg->read_size == 0);
   ASSERT(block < cfg->block_count);
   if ((off % cfg->read_size != 0) || (size % cfg->read_size != 0) || (block >= cfg->block_count)) {
-    LOGE("bd_read invalid args");
+    LOGE("bd_read bad args");
     return -1;
   }
 
@@ -156,7 +156,7 @@ static int bd_write(const struct lfs_config* cfg, lfs_block_t block, lfs_off_t o
   ASSERT(block < cfg->block_count);
 
   if ((off % cfg->prog_size != 0) || (size % cfg->prog_size != 0) || (block >= cfg->block_count)) {
-    LOGE("bd_write invalid args");
+    LOGE("bd_write bad args");
     return -1;
   }
 
@@ -172,7 +172,7 @@ static int bd_write(const struct lfs_config* cfg, lfs_block_t block, lfs_off_t o
 
 static int bd_erase(const struct lfs_config* cfg, lfs_block_t block) {
   if (block >= cfg->block_count) {
-    LOGE("bd_erase invalid args");
+    LOGE("bd_erase bad args");
     return -1;
   }
 

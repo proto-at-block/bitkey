@@ -47,8 +47,8 @@ pub enum TransactionVerificationError {
     InvalidTransactionVerificationGrantData,
     #[error("One or more script pub keys are invalid. Cannot check transaction.")]
     InvalidScriptPubKeys,
-    #[error("One or more outputs belong to sanctioned individuals.")]
-    OutputsBelongToSanctionedIndividuals,
+    #[error("One or more inputs/outputs belong to sanctioned individuals.")]
+    InputsOutputsBelongToSanctionedIndividuals,
     #[error("Error screening transaction")]
     ScreenerError(#[from] ApiError),
 }
@@ -88,7 +88,7 @@ impl From<TransactionVerificationError> for ApiError {
             | TransactionVerificationError::InvalidKeysetType(_)
             | TransactionVerificationError::InvalidTransactionVerificationGrantData
             | TransactionVerificationError::InvalidScriptPubKeys
-            | TransactionVerificationError::OutputsBelongToSanctionedIndividuals => {
+            | TransactionVerificationError::InputsOutputsBelongToSanctionedIndividuals => {
                 ApiError::GenericBadRequest(err_msg)
             }
             TransactionVerificationError::ScreenerError(inner) => inner,
@@ -102,8 +102,8 @@ impl From<SanctionsScreenerError> for TransactionVerificationError {
             SanctionsScreenerError::InvalidScriptPubKeys => {
                 TransactionVerificationError::InvalidScriptPubKeys
             }
-            SanctionsScreenerError::OutputsBelongToSanctionedIndividuals => {
-                TransactionVerificationError::OutputsBelongToSanctionedIndividuals
+            SanctionsScreenerError::InputsOutputsBelongToSanctionedIndividuals => {
+                TransactionVerificationError::InputsOutputsBelongToSanctionedIndividuals
             }
             SanctionsScreenerError::ScreenerError(err) => {
                 TransactionVerificationError::ScreenerError(err)

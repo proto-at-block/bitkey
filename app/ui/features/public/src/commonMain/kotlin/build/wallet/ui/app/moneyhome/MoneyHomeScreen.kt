@@ -10,7 +10,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.layout.positionInRoot
@@ -31,15 +34,24 @@ import build.wallet.ui.components.button.RowOfButtons
 import build.wallet.ui.components.coachmark.CoachmarkPresenter
 import build.wallet.ui.components.header.Header
 import build.wallet.ui.components.icon.IconButton
+import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.components.refresh.PullToRefreshBox
 import build.wallet.ui.components.tabbar.Tab
 import build.wallet.ui.components.tabbar.TabBar
+import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.components.toolbar.ToolbarAccessory
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.model.icon.IconBackgroundType
+import build.wallet.ui.model.icon.IconButtonModel
+import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
+import build.wallet.ui.tokens.LabelType
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.immutableListOf
 
 @Composable
 fun MoneyHomeScreen(
@@ -48,6 +60,7 @@ fun MoneyHomeScreen(
 ) {
   val localDensity = LocalDensity.current
   val listState = rememberLazyListState()
+  val collapseRangePx = with(localDensity) { MONEY_HOME_TITLE_COLLAPSE_RANGE.toPx() }
   var coachmarkOffset by remember {
     mutableStateOf(Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY))
   }
@@ -72,9 +85,27 @@ fun MoneyHomeScreen(
   val tabBarCoachmarkIds = setOf(
     CoachmarkIdentifier.PrivateWalletHomeCoachmark
   )
+  val balanceCoachmarkIds = setOf(
+    CoachmarkIdentifier.Bip177Coachmark,
+    CoachmarkIdentifier.W3UpgradeCompleteCoachmark
+  )
 
   val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
   val listHorizontalAlignment = if (isDesignSystemV2Enabled) Alignment.Start else Alignment.CenterHorizontally
+  val collapseProgress by remember(listState, collapseRangePx) {
+    derivedStateOf {
+      if (collapseRangePx <= 0f) {
+        0f
+      } else {
+        val scrollOffsetPx = if (listState.firstVisibleItemIndex > 0) {
+          collapseRangePx
+        } else {
+          listState.firstVisibleItemScrollOffset.toFloat()
+        }
+        (scrollOffsetPx / collapseRangePx).coerceIn(0f, 1f)
+      }
+    }
+  }
 
   PullToRefreshBox(
     refreshing = model.isRefreshing,
@@ -105,31 +136,22 @@ fun MoneyHomeScreen(
     ) {
       // Header
       item {
-        Row(
-          modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          Header(
-            headline = "Bitkey",
-            headlineTopSpacing = 8.dp,
-            fillsMaxWidth = false
-          )
-          Spacer(Modifier.weight(1F))
-          ToolbarAccessory(model.trailingToolbarAccessoryModel)
-        }
-        Spacer(Modifier.height(40.dp))
+        MoneyHomeHeader(
+          isDesignSystemV2Enabled = isDesignSystemV2Enabled,
+          trailingToolbarAccessoryModel = model.trailingToolbarAccessoryModel
+        )
       }
 
       // Balance + buttons
       item {
-        val hasBip177Coachmark = remember(model.coachmark) {
-          model.coachmark?.identifier == CoachmarkIdentifier.Bip177Coachmark
+        val hasBalanceCoachmark = remember(model.coachmark) {
+          model.coachmark?.identifier in balanceCoachmarkIds
         }
         Column(
           modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp),
-          horizontalAlignment = listHorizontalAlignment
+          horizontalAlignment = Alignment.CenterHorizontally
         ) {
           with(model.balanceModel) {
             HeroAmount(
@@ -141,7 +163,7 @@ fun MoneyHomeScreen(
                     model.onHideBalance()
                   }
                 )
-                .thenIf(hasBip177Coachmark) {
+                .thenIf(hasBalanceCoachmark) {
                   Modifier.onGloballyPositioned { layoutCoordinates ->
                     val positionInRoot = layoutCoordinates.positionInRoot()
                     val size = layoutCoordinates.size
@@ -152,9 +174,13 @@ fun MoneyHomeScreen(
                   }
                 },
               primaryAmount = AnnotatedString(primaryAmount),
+              primaryAmountValue = primaryAmountValue,
+              primaryAmountAnimationKey = primaryAmountAnimationKey,
               contextLine = secondaryAmount,
               hideBalance = model.hideBalance,
-              isLoading = isLoading
+              centerWhenDesignSystemV2 = true,
+              isLoading = isLoading,
+              animateValueChanges = isDesignSystemV2Enabled
             )
           }
         }
@@ -199,9 +225,31 @@ fun MoneyHomeScreen(
       }
     }
 
+    MoneyHomeOverlayToolbar(
+      isDesignSystemV2Enabled = isDesignSystemV2Enabled,
+      trailingToolbarAccessoryModel = model.trailingToolbarAccessoryModel,
+      collapseProgress = collapseProgress
+    )
+
     val hasCoachmark = remember(model.coachmark, coachmarkHeight) {
       model.coachmark?.identifier in tabBarCoachmarkIds && coachmarkHeight != null
     }
+    val tabs = immutableListOf(
+      HomeTab.MoneyHome(
+        selected = true,
+        onSelected = {}
+      ),
+      HomeTab.SecurityHub(
+        selected = false,
+        onSelected = model.onSecurityHubTabClick,
+        badged = model.isSecurityHubBadged
+      )
+    )
+    val selectedIndex = tabs.indexOfFirst { it.selected }.let {
+        index ->
+      if (index == -1) 0 else index
+    }
+
     TabBar(
       modifier = Modifier.align(Alignment.BottomCenter)
         .onGloballyPositioned { layoutCoordinates ->
@@ -215,27 +263,169 @@ fun MoneyHomeScreen(
               )
             } ?: Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
           }
-        }
+        },
+      selectedIndex = selectedIndex,
+      tabCount = tabs.size
     ) {
-      listOf(
-        HomeTab.MoneyHome(
-          selected = true,
-          onSelected = {}
-        ),
-        HomeTab.SecurityHub(
-          selected = false,
-          onSelected = model.onSecurityHubTabClick,
-          badged = model.isSecurityHubBadged
+      MoneyHomeTabs(
+        tabs = tabs,
+        isDesignSystemV2Enabled = isDesignSystemV2Enabled
+      )
+    }
+  }
+}
+
+@Composable
+private fun MoneyHomeHeader(
+  isDesignSystemV2Enabled: Boolean,
+  trailingToolbarAccessoryModel: ToolbarAccessoryModel,
+) {
+  if (isDesignSystemV2Enabled) {
+    // Reserve space for the fixed top toolbar.
+    Spacer(Modifier.height(MONEY_HOME_TOOLBAR_RESERVED_HEIGHT + MONEY_HOME_CONTENT_TOP_PADDING))
+  } else {
+    Row(
+      modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      MoneyHomeLeadingHeader(isDesignSystemV2Enabled = false)
+      Spacer(Modifier.weight(1F))
+      ToolbarAccessory(
+        model = trailingToolbarAccessoryModel.withCircleBackgroundIfDesignSystemV2(
+          isDesignSystemV2Enabled = false
         )
-      ).map {
+      )
+    }
+    Spacer(Modifier.height(40.dp))
+  }
+}
+
+@Composable
+private fun BoxScope.MoneyHomeOverlayToolbar(
+  isDesignSystemV2Enabled: Boolean,
+  trailingToolbarAccessoryModel: ToolbarAccessoryModel,
+  collapseProgress: Float,
+) {
+  if (isDesignSystemV2Enabled) {
+    MoneyHomeCollapsibleToolbar(
+      trailingAccessory = trailingToolbarAccessoryModel.withCircleBackgroundIfDesignSystemV2(
+        isDesignSystemV2Enabled = true
+      ),
+      collapseProgress = collapseProgress,
+      inlineTitle = null
+    )
+  }
+}
+
+@Composable
+private fun RowScope.MoneyHomeTabs(
+  tabs: ImmutableList<HomeTab>,
+  isDesignSystemV2Enabled: Boolean,
+) {
+  if (isDesignSystemV2Enabled) {
+    tabs.forEachIndexed { index, tab ->
+      Box(
+        modifier = Modifier.weight(1f),
+        contentAlignment = Alignment.Center
+      ) {
         Tab(
-          selected = it.selected,
-          onClick = it.onSelected,
-          icon = it.icon,
-          badged = it.badged
+          selected = tab.selected,
+          onClick = tab.onSelected,
+          icon = tab.icon,
+          badged = tab.badged,
+          modifier = Modifier.offset(x = if (index == 0) 3.dp else (-3).dp)
         )
       }
     }
+  } else {
+    tabs.forEach { tab ->
+      Tab(
+        selected = tab.selected,
+        onClick = tab.onSelected,
+        icon = tab.icon,
+        badged = tab.badged
+      )
+    }
+  }
+}
+
+@Composable
+private fun BoxScope.MoneyHomeCollapsibleToolbar(
+  trailingAccessory: ToolbarAccessoryModel,
+  collapseProgress: Float,
+  inlineTitle: String?,
+) {
+  Box(
+    modifier = Modifier
+      .fillMaxWidth()
+      .height(
+        MONEY_HOME_TOOLBAR_TOP_PADDING +
+          MONEY_HOME_TOOLBAR_HEIGHT +
+          MONEY_HOME_TOOLBAR_BOTTOM_PADDING +
+          MONEY_HOME_TOOLBAR_BOTTOM_GRADIENT_HEIGHT
+      )
+      .align(Alignment.TopCenter)
+  ) {
+    Box(
+      modifier = Modifier
+        .fillMaxWidth()
+        .height(MONEY_HOME_TOOLBAR_RESERVED_HEIGHT)
+        .background(WalletTheme.colors.background)
+    ) {
+      Box(
+        modifier = Modifier
+          .padding(
+            top = MONEY_HOME_TOOLBAR_TOP_PADDING,
+            start = MONEY_HOME_HORIZONTAL_PADDING,
+            end = MONEY_HOME_HORIZONTAL_PADDING
+          )
+          .fillMaxWidth()
+          .height(MONEY_HOME_TOOLBAR_HEIGHT)
+      ) {
+        Toolbar(
+          leadingContent = {
+            MoneyHomeLeadingHeader(isDesignSystemV2Enabled = true)
+          },
+          trailingContent = {
+            ToolbarAccessory(model = trailingAccessory)
+          },
+          showDesignSystemChrome = false
+        )
+
+        inlineTitle?.let { title ->
+          Label(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(
+                start = MONEY_HOME_INLINE_TITLE_START_WITH_LEADING,
+                end = MONEY_HOME_INLINE_TITLE_END_PADDING
+              )
+              .align(Alignment.CenterStart)
+              .alpha(collapseProgress),
+            text = title,
+            type = LabelType.Title2
+          )
+        }
+      }
+    }
+
+    Box(
+      modifier = Modifier
+        .fillMaxWidth()
+        .height(MONEY_HOME_TOOLBAR_BOTTOM_GRADIENT_HEIGHT)
+        .align(Alignment.BottomCenter)
+        .background(
+          brush =
+            Brush.verticalGradient(
+              colors =
+                listOf(
+                  WalletTheme.colors.background,
+                  WalletTheme.colors.background.copy(alpha = 0.65f),
+                  Color.Transparent
+                )
+            )
+        )
+    )
   }
 }
 
@@ -245,6 +435,7 @@ fun LiteMoneyHomeScreen(
   model: LiteMoneyHomeBodyModel,
 ) {
   val listState = rememberLazyListState()
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
   Column(
     modifier = modifier
       .background(WalletTheme.colors.background)
@@ -261,15 +452,15 @@ fun LiteMoneyHomeScreen(
         item {
           Row(
             modifier = Modifier.padding(horizontal = 20.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = if (isDesignSystemV2Enabled) Alignment.Top else Alignment.CenterVertically
           ) {
-            Header(
-              headline = "Bitkey",
-              headlineTopSpacing = 8.dp,
-              fillsMaxWidth = false
-            )
+            MoneyHomeLeadingHeader(isDesignSystemV2Enabled = isDesignSystemV2Enabled)
             Spacer(Modifier.weight(1F))
-            ToolbarAccessory(model.trailingToolbarAccessoryModel)
+            ToolbarAccessory(
+              model = model.trailingToolbarAccessoryModel.withCircleBackgroundIfDesignSystemV2(
+                isDesignSystemV2Enabled = isDesignSystemV2Enabled
+              )
+            )
           }
         }
 
@@ -290,6 +481,51 @@ fun LiteMoneyHomeScreen(
   }
 }
 
+private val MONEY_HOME_HORIZONTAL_PADDING = 20.dp
+private val MONEY_HOME_TOOLBAR_TOP_PADDING = 8.dp
+private val MONEY_HOME_TOOLBAR_HEIGHT = 48.dp
+private val MONEY_HOME_TOOLBAR_BOTTOM_PADDING = 8.dp
+private val MONEY_HOME_TOOLBAR_BOTTOM_GRADIENT_HEIGHT = 20.dp
+private val MONEY_HOME_TOOLBAR_RESERVED_HEIGHT =
+  MONEY_HOME_TOOLBAR_TOP_PADDING + MONEY_HOME_TOOLBAR_HEIGHT + MONEY_HOME_TOOLBAR_BOTTOM_PADDING
+private val MONEY_HOME_CONTENT_TOP_PADDING = 24.dp
+private val MONEY_HOME_INLINE_TITLE_START_WITH_LEADING = 56.dp
+private val MONEY_HOME_INLINE_TITLE_END_PADDING = 56.dp
+private val MONEY_HOME_TITLE_COLLAPSE_RANGE = 120.dp
+
+@Composable
+private fun MoneyHomeLeadingHeader(isDesignSystemV2Enabled: Boolean) {
+  if (isDesignSystemV2Enabled) {
+    Label(text = "Wallet", type = LabelType.Title2)
+  } else {
+    Header(
+      headline = "Bitkey",
+      headlineTopSpacing = 8.dp,
+      fillsMaxWidth = false
+    )
+  }
+}
+
+private fun ToolbarAccessoryModel.withCircleBackgroundIfDesignSystemV2(
+  isDesignSystemV2Enabled: Boolean,
+): ToolbarAccessoryModel {
+  if (!isDesignSystemV2Enabled) return this
+
+  return when (this) {
+    is ToolbarAccessoryModel.ButtonAccessory -> this
+    is ToolbarAccessoryModel.IconAccessory -> copy(
+      model = model.copy(
+        iconModel = model.iconModel.copy(
+          iconBackgroundType = IconBackgroundType.Circle(
+            circleSize = IconSize.Regular,
+            color = IconBackgroundType.Circle.CircleColor.SubtleBackground
+          )
+        )
+      )
+    )
+  }
+}
+
 @Composable
 private fun MoneyHomeButtons(model: MoneyHomeButtonsModel) {
   when (model) {
@@ -306,10 +542,16 @@ private fun MoneyHomeButtons(model: MoneyHomeButtonsModel) {
         val interButtonSpacing = chunkedWidth / 12
         // Button size is equal to the width of the chunk minus the padding on each side
         val buttonSize = chunkedWidth - (interButtonSpacing * 2)
+        val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+        val buttons = if (isDesignSystemV2Enabled && buttonSize >= 80.dp) {
+          model.buttons.map { it.withCircleSize(IconSize.Custom(80)) }
+        } else {
+          model.buttons
+        }
         RowOfButtons(
           modifier = Modifier.fillMaxWidth(),
           buttonContents = ButtonContentsList(
-            buttonContents = model.buttons.map {
+            buttonContents = buttons.map {
               {
                 IconButton(
                   modifier = Modifier.size(buttonSize),
@@ -332,6 +574,19 @@ private fun MoneyHomeButtons(model: MoneyHomeButtonsModel) {
             .padding(horizontal = 20.dp),
         model = model.button
       )
+  }
+}
+
+private fun IconButtonModel.withCircleSize(circleSize: IconSize): IconButtonModel {
+  val backgroundType = iconModel.iconBackgroundType
+  return if (backgroundType is IconBackgroundType.Circle) {
+    copy(
+      iconModel = iconModel.copy(
+        iconBackgroundType = backgroundType.copy(circleSize = circleSize)
+      )
+    )
+  } else {
+    this
   }
 }
 

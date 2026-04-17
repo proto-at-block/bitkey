@@ -2,6 +2,7 @@ package build.wallet.statemachine.send.signtransaction
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import bitkey.account.HardwareType
 import build.wallet.Progress
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.statemachine.core.BodyModel
@@ -16,10 +17,15 @@ import build.wallet.ui.app.nfc.SignTransactionNfcScreen
  * - Waiting for user confirmation on device
  * - Lost connection (with ability to retry)
  * - Success
+ *
+ * @property hardwareType The type of hardware device being tapped. Used to display
+ * the appropriate device imagery (W1 vs W3) during the NFC session.
  */
 data class SignTransactionNfcBodyModel(
   val onCancel: (() -> Unit)?,
   val status: Status,
+  val hardwareType: HardwareType = HardwareType.W3,
+  val showNativeSheetOnIos: Boolean = false,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo?,
 ) : BodyModel() {
   @Composable
@@ -35,6 +41,13 @@ data class SignTransactionNfcBodyModel(
      * Searching for NFC device to begin transaction signing.
      */
     data object Searching : Status
+
+    /**
+     * Connected and signing transaction on device.
+     * Shown with an indeterminate progress indicator for W1 signing
+     * where no streaming progress is available.
+     */
+    data object Signing : Status
 
     /**
      * Transferring PSBT data to the device (W3 chunked transfer).

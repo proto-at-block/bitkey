@@ -2,6 +2,7 @@ package build.wallet.ui.components.keypad
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import build.wallet.ui.tokens.lightStyleDictionaryColors
 import build.wallet.ui.tooling.PreviewWalletTheme
 
 @Preview
@@ -17,5 +18,16 @@ fun KeypadWithDecimalPreview() {
 fun KeypadNoDecimalPreview() {
   PreviewWalletTheme {
     Keypad(showDecimal = false, onButtonPress = {})
+  }
+}
+
+@Preview
+@Composable
+fun KeypadWithDecimalDesignSystemV2Preview() {
+  PreviewWalletTheme(
+    designSystemUpdatesEnabled = true,
+    backgroundColor = lightStyleDictionaryColors.subtleBackground
+  ) {
+    Keypad(showDecimal = true, onButtonPress = {})
   }
 }

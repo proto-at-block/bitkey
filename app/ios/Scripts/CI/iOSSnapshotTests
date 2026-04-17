@@ -6,15 +6,11 @@ echo "Activate Hermit"
 source bin/activate-hermit
 
 script_full_path=$(dirname "$0")
+snapshot_updater_script="$script_full_path/updateSnapshotsFromXcresult.py"
 
 echo "🐙 Getting GitHub token"
 GH_TOKEN=$("$script_full_path/GetGHToken")
 export GH_TOKEN
-
-echo "install xctesthtmlreport"
-brew install xctesthtmlreport
-echo "install imagemagick"
-brew install imagemagick
 
 git config user.name "iOSSnapshotTests"
 git config user.email "mobile-ci@squareup.com"
@@ -34,8 +30,7 @@ fi
 echo "🌲 Creating new branch: $new_branch"
 git checkout -b "$new_branch" "HEAD"
 
-echo "📄 Generating report with xctesthtmlreport"
-# Use xhtmlreport to generate a new .html report from the .xcresult file (this makes it easy to extract the images)
+echo "📄 Reading xcresult bundles"
 build_result=$WORKSPACE/ios-builder/scratch/ResultBundles_ios-snapshots_build-for-testing.xcresult
 test_result=$WORKSPACE/ios-builder/scratch/ResultBundles_ios-snapshots_test-without-building.xcresult
 
@@ -53,31 +48,24 @@ if [ ! -d "$test_result" ]; then
 fi
 result_bundle=$test_result
 
-xchtmlreport $result_bundle
-# Extract the .png files in the .xcresult. These are updated snapshots
-echo "📸 Extracing new snapshots"
-if ! find $result_bundle -type f -name '*.png' |
-    while IFS= read -r file; do
-        # Extract the new filename by removing the last two underscore parts and adding .png
-        new_name="$(basename "${file%_*_*}.png")"
-        # Copy new snapshots to the correct directory, ignoring the difference, failure, and reference images
-        if [[ "$new_name" != *difference.png && "$new_name" != *failure.png && "$new_name" != *reference.png ]]; then
-            # Copy the file to the current directory with the new name if it doesn't match the exclusion patterns
-            cp "$file" "app/ui/features/public/snapshots/images/$new_name"
-        fi
-    done
-then
-    echo "🟢 No snapshot changes."
-    exit 0  # Exit successfully if no files are found
-fi
+echo "📸 Updating snapshots from xcresult"
+changed_files_file=$(mktemp)
+trap 'rm -f "$changed_files_file"' EXIT
+python3 "$snapshot_updater_script" \
+    --result-bundle "$result_bundle" \
+    --repo-root "$PWD" \
+    --changed-files-output "$changed_files_file"
 
-# Handle modified images
-find $result_bundle -type f -name '*.png' > temp_image_list.txt
-ruby $script_full_path/compareImages.rb 'app/ui/features/public/snapshots/images/' 'temp_image_list.txt'
+if [ ! -s "$changed_files_file" ]; then
+    echo "🟢 No snapshot changes."
+    exit 0
+fi
 
 echo "🤖 Committing the new and updated snapshots"
 # Commit the updated screenshots and push them to the new branch
-git add *.png
+while IFS= read -r snapshot_file; do
+    git add "$snapshot_file"
+done < "$changed_files_file"
 git commit -m "Update iOS snapshots for #$PULL_REQUEST_ID"
 git push -u origin "$new_branch"
 

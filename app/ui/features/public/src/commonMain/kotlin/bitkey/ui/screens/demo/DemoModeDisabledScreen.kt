@@ -60,7 +60,8 @@ data class EnableDemoModeBodyModel(
           subline = "Demo mode enables you to test the app without having a physical hardware device.",
           switchModel = SwitchModel(
             checked = switchIsChecked,
-            onCheckedChange = onSwitchCheckedChange
+            onCheckedChange = onSwitchCheckedChange,
+            testTag = "demo-mode-enable-toggle"
           ),
           actionRows = emptyImmutableList()
         )

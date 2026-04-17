@@ -19,7 +19,7 @@ impl Service {
         Self { repo }
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, txid))]
     pub async fn get(&self, txid: Txid) -> Result<Option<CachedPsbtTxid>, SigningError> {
         match self.repo.fetch(txid).await {
             Ok(record) => Ok(Some(record)),
@@ -35,7 +35,7 @@ impl Service {
         Ok(self.repo.persist(&CachedPsbtTxid::try_new(psbt)?).await?)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, txid))]
     pub async fn delete(&self, txid: Txid) -> Result<(), SigningError> {
         Ok(self.repo.delete(txid).await?)
     }

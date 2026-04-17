@@ -201,6 +201,9 @@ interface StyleDictionaryColors {
   // Danger callout background color
   val calloutDangerBackground: Color
 
+  // Success title color
+  val nfcTitle: Color
+
   // Coachmark background color
   val coachmarkBackground: Color
 
@@ -300,7 +303,7 @@ val lightStyleDictionaryColors =
     override val deviceLEDBlue: Color = Color(0xff0059ff)
     override val deviceLEDWhite: Color = Color(0xffffffff)
     override val nfcBlue: Color = Color(0xff3d81ff)
-    override val bitkeyGetStartedBackground: Color = Color(0xff201e22)
+    override val bitkeyGetStartedBackground: Color = Color(0xff000000)
     override val bitkeyGetStartedTint: Color = Color(0xfff8f4e4)
     override val outOfDate: Color = Color(0xffeca900)
     override val calloutDefaultTitle: Color = Color(0xe5000000)
@@ -327,6 +330,7 @@ val lightStyleDictionaryColors =
     override val calloutDangerSubtitle: Color = Color(0xff74140d)
     override val calloutDangerTrailingIcon: Color = Color(0xffffffff)
     override val calloutDangerBackground: Color = Color(0x1ae14425)
+    override val nfcTitle: Color = Color(0xFF919191)
     override val coachmarkBackground: Color = Color(0xff333442)
     override val inheritanceSurface: Color = Color(0xffcfc4cd)
     override val bitcoinPrimary: Color = Color(0xfff7931a)
@@ -346,6 +350,21 @@ val lightStyleDictionaryColors =
     override val tabBarBackground: Color = Color(0xffffffff)
     override val refreshIndicatorContent: Color = Color(0xff000000)
     override val refreshIndicatorBackground: Color = Color(0xffffffff)
+  }
+
+/**
+ * Design system updates palette for light theme.
+ * Only tokens that differ from [lightStyleDictionaryColors] are overridden.
+ */
+val lightStyleDictionaryColorsDesignSystemUpdates =
+  object : StyleDictionaryColors by lightStyleDictionaryColors {
+    override val background: Color = Color(0xfff3f1ec)
+    override val subtleBackground: Color = Color(0xffebe9e1)
+    override val foreground: Color = Color(0xE6000000)
+    override val foreground60: Color = Color(0x99000000)
+    override val foreground30: Color = Color(0x4D000000)
+    override val foreground10: Color = Color(0x1A000000)
+    override val secondary: Color = Color(0xffffffff)
   }
 
 val darkStyleDictionaryColors =
@@ -389,7 +408,7 @@ val darkStyleDictionaryColors =
     override val deviceLEDBlue: Color = Color(0xFF0059FF)
     override val deviceLEDWhite: Color = Color(0xFFFFFFFF)
     override val nfcBlue: Color = Color(0xFF3D81FF)
-    override val bitkeyGetStartedBackground: Color = Color(0xFF201E22)
+    override val bitkeyGetStartedBackground: Color = Color(0xFF000000)
     override val bitkeyGetStartedTint: Color = Color(0xFFF8F4E4)
     override val outOfDate: Color = Color(0xFFECA900)
     override val calloutDefaultTitle: Color = Color(0xFFE5E5E5)
@@ -416,6 +435,7 @@ val darkStyleDictionaryColors =
     override val calloutDangerSubtitle: Color = Color(0xFF808080)
     override val calloutDangerTrailingIcon: Color = Color(0xFF595959)
     override val calloutDangerBackground: Color = Color(0xFF1A1A1A)
+    override val nfcTitle: Color = Color(0xFF919191)
     override val coachmarkBackground: Color = Color(0xFF262626)
     override val inheritanceSurface: Color = Color(0xFFCFC4CD)
     override val bitcoinPrimary: Color = Color(0xFFF7931A)

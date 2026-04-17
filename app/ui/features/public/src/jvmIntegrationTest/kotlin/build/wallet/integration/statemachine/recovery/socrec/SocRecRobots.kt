@@ -13,7 +13,9 @@ import build.wallet.integration.statemachine.create.restoreButton
 import build.wallet.integration.statemachine.create.walletsYoureProtectingCount
 import build.wallet.statemachine.account.AccountAccessMoreOptionsFormBodyModel
 import build.wallet.statemachine.account.ChooseAccountAccessModel
+import build.wallet.statemachine.account.create.full.hardware.CompleteTwoTapBodyModel
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
+import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.cloud.CloudSignInModelFake
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
@@ -24,9 +26,12 @@ import build.wallet.statemachine.core.input.NameInputBodyModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeBodyModel
+import build.wallet.statemachine.nfc.NfcBodyModel
+import build.wallet.statemachine.nfc.PromptSelectionFormBodyModel
 import build.wallet.statemachine.platform.permissions.EnableNotificationsBodyModel
 import build.wallet.statemachine.recovery.cloud.CloudBackupFoundModel
 import build.wallet.statemachine.recovery.cloud.SocialRecoveryExplanationModel
+import build.wallet.statemachine.recovery.socrec.add.ShareInviteBodyModel
 import build.wallet.statemachine.recovery.hardware.initiating.HardwareReplacementInstructionsModel
 import build.wallet.statemachine.recovery.hardware.initiating.NewDeviceReadyQuestionBodyModel
 import build.wallet.statemachine.recovery.inprogress.DelayAndNotifyNewKeyReady
@@ -36,6 +41,7 @@ import build.wallet.statemachine.recovery.socrec.help.model.ConfirmingIdentityFo
 import build.wallet.statemachine.recovery.socrec.help.model.EnterRecoveryCodeFormBodyModel
 import build.wallet.statemachine.recovery.socrec.help.model.VerifyingContactMethodFormBodyModel
 import build.wallet.statemachine.recovery.socrec.list.full.TrustedContactsListBodyModel
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationScreenModel
 import build.wallet.statemachine.settings.SettingsBodyModel
 import build.wallet.statemachine.settings.full.device.DeviceSettingsFormBodyModel
 import build.wallet.statemachine.trustedcontact.model.EnteringInviteCodeBodyModel
@@ -47,6 +53,7 @@ import build.wallet.statemachine.ui.matchers.hasProtectedCustomers
 import build.wallet.statemachine.ui.matchers.shouldHaveId
 import build.wallet.statemachine.ui.matchers.shouldHaveMessage
 import build.wallet.statemachine.ui.robots.*
+import build.wallet.testing.ext.HardwareCoverageMode
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -59,13 +66,56 @@ import io.kotest.matchers.types.shouldBeTypeOf
 /**
  * Advances through Trusted Contact invite screens starting at the Trusted Contact Management screen.
  */
-suspend fun ReceiveTurbine<ScreenModel>.advanceThroughTrustedContactInviteScreens(tcName: String) {
+suspend fun ReceiveTurbine<ScreenModel>.advanceThroughTrustedContactInviteScreens(
+  tcName: String,
+  coverageMode: HardwareCoverageMode = HardwareCoverageMode.W1Baseline,
+) {
   awaitUntilBody<TrustedContactsListBodyModel>()
     .onAddPressed()
   awaitUntilBody<NameInputBodyModel> {
     onValueChange(tcName)
   }
-  advanceUntilScreenWithBody<SuccessBodyModel>()
+  awaitUntilBody<NameInputBodyModel>(
+    matching = { it.primaryButton.isEnabled }
+  ) {
+    primaryButton.onClick.invoke()
+  }
+  awaitUntilBody<FormBodyModel>(
+    matching = { it.primaryButton?.isEnabled == true }
+  ) {
+    clickPrimaryButton()
+  }
+  awaitUntilBody<NfcBodyModel>()
+  when (coverageMode) {
+    HardwareCoverageMode.W1Baseline -> {
+      awaitUntilBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+    }
+    HardwareCoverageMode.W3Private -> {
+      awaitUntilScreenWithBody<NfcBodyModel>(
+        matchingScreen = { it.bottomSheetModel?.body is PromptSelectionFormBodyModel }
+      ).let { (checkNotNull(it.bottomSheetModel).body as PromptSelectionFormBodyModel).onApprove() }
+      when (val nextBody = awaitItem().body) {
+        is HardwareConfirmationScreenModel -> {
+          nextBody.onConfirm()
+          awaitUntilBody<LoadingSuccessBodyModel> {
+            state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+          }
+        }
+        is LoadingSuccessBodyModel -> {
+          nextBody.state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
+        else -> error(
+          "Unexpected body after W3 trusted contact approval: ${nextBody::class.simpleName}"
+        )
+      }
+    }
+  }
+  awaitUntilBody<ShareInviteBodyModel> {
+    clickPrimaryButton()
+  }
+  awaitUntilBody<SuccessBodyModel>()
 }
 
 /**
@@ -411,9 +461,13 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughLostAppAndCloudRecoveryToM
 /**
  * Starting at the Money Home screen, advances through lost hardware and cloud recovery back to the
  * Money Home screen.
+ *
+ * @param isW3 when true, handles W3 confirmable NFC sessions (spending key creation + DDK upload)
+ *   that occur between recovery completion and cloud backup.
  */
 suspend fun ReceiveTurbine<ScreenModel>.advanceThroughLostHardwareAndCloudRecoveryToMoneyHome(
   cloudStoreAccount: CloudStoreAccount = CloudStoreAccountFake.ProtectedCustomerFake,
+  isW3: Boolean = false,
 ) {
   awaitUntilBody<MoneyHomeBodyModel>()
     .onSecurityHubTabClick()
@@ -427,27 +481,20 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughLostHardwareAndCloudRecove
     .onContinue()
   awaitUntilBody<NewDeviceReadyQuestionBodyModel>()
     .clickPrimaryButton()
-  awaitUntilBody<PairNewHardwareBodyModel>(
-    PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS
-  )
-    .clickPrimaryButton()
-  awaitUntilBody<PairNewHardwareBodyModel>(
-    PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS
-  )
-    .clickPrimaryButton()
-  awaitUntilBody<PairNewHardwareBodyModel>(
-    PairHardwareEventTrackerScreenId.HW_SAVE_FINGERPRINT_INSTRUCTIONS
-  )
-    .clickPrimaryButton()
-
-  awaitUntilBody<DelayAndNotifyNewKeyReady>(
-    HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_READY
-  )
+  advanceThroughReplacementHardwarePairing()
     .onCompleteRecovery()
+  if (isW3) {
+    // W3: confirmable NFC session for spending key creation
+    awaitW3ConfirmableNfcSession()
+  }
   awaitUntilBody<LoadingSuccessBodyModel>(
     HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS
   ) {
     state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+  }
+  if (isW3) {
+    // W3: confirmable NFC session for DDK upload
+    awaitW3ConfirmableNfcSession()
   }
   awaitUntilBody<FormBodyModel>(
     CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_INSTRUCTIONS
@@ -470,4 +517,42 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughLostHardwareAndCloudRecove
     .onHomeTabClick()
   awaitUntilBody<MoneyHomeBodyModel>()
   cancelAndIgnoreRemainingEvents()
+}
+
+/**
+ * Handles a W3 confirmable NFC session: approve the emulated prompt in the bottom sheet,
+ * then confirm on the hardware confirmation screen.
+ */
+suspend fun ReceiveTurbine<ScreenModel>.awaitW3ConfirmableNfcSession() {
+  awaitUntilScreenWithBody<BodyModel>(
+    matchingScreen = { it.bottomSheetModel?.body is PromptSelectionFormBodyModel }
+  ).let { (checkNotNull(it.bottomSheetModel).body as PromptSelectionFormBodyModel).onApprove() }
+  awaitUntilBody<HardwareConfirmationScreenModel> { onConfirm() }
+}
+
+private suspend fun ReceiveTurbine<ScreenModel>.advanceThroughReplacementHardwarePairing():
+  DelayAndNotifyNewKeyReady {
+  // First screen: activation instructions (V1 or V2 depending on isW3Flow)
+  awaitUntilBody<PairNewHardwareBodyModel>(matching = { !it.primaryButton.isLoading })
+    .clickPrimaryButton()
+
+  // After NFC, the detected hardware type determines the rest of the flow:
+  // - W1 hardware → PairNewHardwareBodyModel (pair instructions) → fingerprint
+  // - W3 hardware → CompleteTwoTapBodyModel
+  val nextBody = awaitUntilScreenWithBody<BodyModel>(
+    matchingBody = { it is PairNewHardwareBodyModel || it is CompleteTwoTapBodyModel }
+  ).body
+
+  when (nextBody) {
+    is PairNewHardwareBodyModel -> {
+      // W1 hardware detected after NFC: click pair instructions to continue
+      nextBody.clickPrimaryButton()
+    }
+    is CompleteTwoTapBodyModel -> {
+      // W3 hardware detected: complete two tap
+      nextBody.clickPrimaryButton()
+    }
+  }
+
+  return awaitUntilBody<DelayAndNotifyNewKeyReady>(HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_READY)
 }

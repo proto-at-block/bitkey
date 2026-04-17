@@ -9,6 +9,7 @@
 #include "log.h"
 #include "policy.h"
 #include "secure_rng.h"
+#include "secutils.h"
 #include "wallet.h"
 #include "wsm_integrity_key.h"
 #include "wstring.h"
@@ -40,14 +41,14 @@ static bool sign_with_hw_auth_key(uint8_t* message, uint32_t message_len, uint8_
 
   extended_key_t key_priv = {0};
   if (!wallet_get_w1_auth_key(&key_priv)) {
-    LOGE("Failed to derive auth key");
+    LOGE("Auth key derive fail");
     memzero(&key_priv, sizeof(key_priv));
     return false;
   }
 
   uint8_t message_digest[SHA256_DIGEST_SIZE] = {0};
   if (!crypto_hash(message, message_len, message_digest, sizeof(message_digest), ALG_SHA256)) {
-    LOGE("Failed to hash message");
+    LOGE("Msg hash fail");
     memzero(&key_priv, sizeof(key_priv));
     return false;
   }
@@ -67,7 +68,7 @@ static grant_protocol_result_t sign_request(grant_request_t* request) {
          GRANT_REQUEST_EXCLUDING_SIGNATURE_LEN);
 
   if (!sign_with_hw_auth_key(signable_request, sizeof(signable_request), request->signature)) {
-    LOGE("Failed to sign request");
+    LOGE("Request sign fail");
     return GRANT_RESULT_ERROR_SIGNING;
   }
 
@@ -81,7 +82,7 @@ static grant_protocol_result_t verify_app_signature(const grant_t* grant,
   // Check if app auth pubkey exists
   uint8_t app_pubkey[33] = {0};
   if (!grant_storage_read_app_auth_pubkey(app_pubkey)) {
-    LOGE("App auth pubkey not provisioned");
+    LOGE("No app auth pubkey");
     return GRANT_RESULT_ERROR_NO_APP_PUBKEY;
   }
 
@@ -94,16 +95,15 @@ static grant_protocol_result_t verify_app_signature(const grant_t* grant,
   if (!crypto_ecc_secp256k1_verify_signature(
         app_pubkey, app_signed_message, APP_BIND_LABEL_LEN + GRANT_REQUEST_EXCLUDING_SIGNATURE_LEN,
         grant->app_signature)) {
-    LOGE("Failed to verify app signature");
+    LOGE("App sig verify fail");
     return GRANT_RESULT_ERROR_APP_VERIFICATION;
   }
 
   return GRANT_RESULT_OK;
 }
 
-static grant_protocol_result_t verify_grant_signature(const grant_t* grant,
-                                                      const grant_request_t* request) {
-  ASSERT(grant && request);
+static grant_protocol_result_t verify_grant_signature(const grant_t* grant) {
+  ASSERT(grant);
 
   // Verify the WIK signature over version + serialized_request + app_signature + "BKGrant"
   uint8_t signed_serialized_grant[GRANT_SIGNABLE_LEN] = {0};
@@ -111,7 +111,7 @@ static grant_protocol_result_t verify_grant_signature(const grant_t* grant,
   memcpy(signed_serialized_grant + GRANT_LABEL_LEN, grant, GRANT_EXCLUDING_WSM_SIGNATURE_LEN);
 
   if (!wsm_verify_signature(signed_serialized_grant, GRANT_SIGNABLE_LEN, grant->wsm_signature)) {
-    LOGE("Failed to verify WIK signature");
+    LOGE("WIK sig verify fail");
     return GRANT_RESULT_ERROR_VERIFICATION;
   }
 
@@ -124,28 +124,28 @@ static grant_protocol_result_t delete_outstanding_request(void) {
   return GRANT_RESULT_OK;
 }
 
-static void perform_action(grant_action_t action) {
+static grant_protocol_result_t validate_action(grant_action_t action) {
   switch (action) {
     case ACTION_FINGERPRINT_RESET:
-      LOGD("Presenting grant for fingerprint reset");
-      ipc_send_empty(auth_port, IPC_AUTH_PRESENT_GRANT_FOR_FINGERPRINT_ENROLLMENT);
-      return;
+      return GRANT_RESULT_OK;
     default:
-      ASSERT_LOG(false, "Invalid action");
-      return;
+      LOGE("Invalid action: %d", action);
+      return GRANT_RESULT_ERROR_INVALID_ARGUMENT;
   }
 }
 
-static grant_protocol_result_t get_original_request(grant_action_t action,
-                                                    grant_request_t* out_request) {
-  LOGD("Action: %d", action);
+static grant_protocol_result_t perform_action(grant_action_t action) {
+  grant_protocol_result_t validation_result = validate_action(action);
+  if (validation_result != GRANT_RESULT_OK) {
+    return validation_result;
+  }
+
   switch (action) {
     case ACTION_FINGERPRINT_RESET:
-      // Use what we persisted in flash.
-      LOGD("Reading original request from flash");
-      return grant_storage_read_request(out_request);
+      ipc_send_empty(auth_port, IPC_AUTH_PRESENT_GRANT_FOR_FINGERPRINT_ENROLLMENT);
+      return GRANT_RESULT_OK;
     default:
-      ASSERT_LOG(false, "Invalid action");
+      LOGE("Invalid action: %d", action);
       return GRANT_RESULT_ERROR_INTERNAL;
   }
 }
@@ -155,10 +155,15 @@ grant_protocol_result_t grant_protocol_create_request(grant_action_t action,
   ASSERT(out_request);
   ASSERT(grant_ctx.wik_pubkey);
 
+  grant_protocol_result_t validation_result = validate_action(action);
+  if (validation_result != GRANT_RESULT_OK) {
+    return validation_result;
+  }
+
   // For fingerprint reset, require app auth pubkey to be provisioned
   if (action == ACTION_FINGERPRINT_RESET) {
     if (!grant_storage_app_auth_pubkey_exists()) {
-      LOGE("App auth pubkey must be provisioned before creating fingerprint reset request");
+      LOGE("No app pubkey");
       return GRANT_RESULT_ERROR_NO_APP_PUBKEY;
     }
   }
@@ -169,12 +174,12 @@ grant_protocol_result_t grant_protocol_create_request(grant_action_t action,
   uint32_t len = GRANT_DEVICE_ID_LEN;
   sysinfo_chip_id_read(out_request->device_id, &len);
   if (len != GRANT_DEVICE_ID_LEN) {
-    LOGE("Failed to read device ID");
+    LOGE("Device ID read fail");
     return GRANT_RESULT_ERROR_INTERNAL;
   }
 
   if (!crypto_random(out_request->challenge, GRANT_CHALLENGE_LEN)) {
-    LOGE("Failed to generate challenge");
+    LOGE("Challenge gen fail");
     return GRANT_RESULT_ERROR_INTERNAL;
   }
 
@@ -189,7 +194,7 @@ grant_protocol_result_t grant_protocol_create_request(grant_action_t action,
   if (action == ACTION_FINGERPRINT_RESET) {
     result = grant_storage_write_request(out_request);
     if (result != GRANT_RESULT_OK) {
-      LOGE("Failed to write grant request");
+      LOGE("Grant req wr err");
       return result;
     }
   }
@@ -197,17 +202,16 @@ grant_protocol_result_t grant_protocol_create_request(grant_action_t action,
   return GRANT_RESULT_OK;
 }
 
-grant_protocol_result_t grant_protocol_verify_grant(const grant_t* grant) {
+NO_OPTIMIZE grant_protocol_result_t grant_protocol_verify_grant(const grant_t* grant) {
   ASSERT(grant);
   ASSERT(grant_ctx.wik_pubkey);
 
-  grant_action_t claimed_action = ((grant_request_t*)grant->serialized_request)->action;
-
   grant_request_t original_request = {0};
-  grant_protocol_result_t get_request_result =
-    get_original_request(claimed_action, &original_request);
+  // Load the trusted request first. Do not branch on the untrusted action
+  // embedded in grant->serialized_request before the request is authenticated.
+  grant_protocol_result_t get_request_result = grant_storage_read_request(&original_request);
   if (get_request_result != GRANT_RESULT_OK) {
-    LOGE("Failed to get original request");
+    LOGE("Grant req rd err");
     return get_request_result;
   }
 
@@ -215,36 +219,36 @@ grant_protocol_result_t grant_protocol_verify_grant(const grant_t* grant) {
 
   if (grant->version != GRANT_PROTOCOL_VERSION ||
       original_request.version != GRANT_PROTOCOL_VERSION) {
-    LOGE("Version mismatch: Grant=%u, Request=%u", grant->version, original_request.version);
+    LOGE("Grant ver: %u!=%u", grant->version, original_request.version);
     result = GRANT_RESULT_ERROR_VERSION_MISMATCH;
     goto out;
   }
 
   // Check that the grant request within the grant is exactly the same as the original request.
   if (memcmp(grant->serialized_request, &original_request, sizeof(grant_request_t)) != 0) {
-    LOGE("Serialized request mismatch between grant and original request");
+    LOGE("Grant request mismatch");
     result = GRANT_RESULT_ERROR_REQUEST_MISMATCH;
     goto out;
   }
 
   // Verify the app signature over the request core
-  result = verify_app_signature(grant, &original_request);
-  if (result != GRANT_RESULT_OK) {
-    LOGE("App signature verification failed");
+  volatile grant_protocol_result_t app_sig_result = GRANT_RESULT_ERROR_INTERNAL;
+  SECURE_DO_ONCE(app_sig_result = verify_app_signature(grant, &original_request));
+  SECURE_IF_FAILIN(app_sig_result != GRANT_RESULT_OK) {
+    result = app_sig_result;
     goto out;
   }
 
   // Verify the WIK signature over the grant (including app_signature)
-  result = verify_grant_signature(grant, &original_request);
-  if (result != GRANT_RESULT_OK) {
-    LOGE("WIK signature verification failed");
+  volatile grant_protocol_result_t wik_sig_result = GRANT_RESULT_ERROR_INTERNAL;
+  SECURE_DO_ONCE(wik_sig_result = verify_grant_signature(grant));
+  SECURE_IF_FAILIN(wik_sig_result != GRANT_RESULT_OK) {
+    result = wik_sig_result;
     goto out;
   }
 
-  // All checks passed.
-  perform_action(original_request.action);
-
-  result = GRANT_RESULT_OK;
+  // All checks passed; execute only supported, authenticated actions.
+  result = perform_action(original_request.action);
 
   // Note: outstanding grant request needs to be deleted still, but it only happens
   // when the action is successful (i.e. fingerprint reset is completed).

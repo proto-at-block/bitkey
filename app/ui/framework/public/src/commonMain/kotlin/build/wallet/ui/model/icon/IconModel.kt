@@ -7,6 +7,7 @@ import build.wallet.ui.model.icon.IconImage.MarketIconImage
 import build.wallet.ui.model.icon.IconImage.UrlImage
 import build.wallet.ui.model.icon.IconSize.Regular
 import build.wallet.ui.tokens.market.MarketIcon
+import org.jetbrains.compose.resources.DrawableResource
 
 sealed class IconImage {
   /**
@@ -25,6 +26,13 @@ sealed class IconImage {
   ) : IconImage()
 
   /**
+   * Represents drawable resources that should still participate in shared icon tinting.
+   */
+  data class DrawableResourceImage(
+    val resource: DrawableResource,
+  ) : IconImage()
+
+  /**
    * Represents images that can be rendered via a URL
    * @property - url: the website that will generate the image in string form
    * @property - fallbackIcon: local [Icon] used when the `url` does not generate an image
@@ -39,6 +47,9 @@ sealed class IconImage {
 
   /** Represents a circular loading badge */
   data object LoadingBadge : IconImage()
+
+  /** Represents a non-animated circular loading badge. */
+  data object CircularLoadingBadge : IconImage()
 }
 
 /**
@@ -172,8 +183,13 @@ sealed interface IconBackgroundType {
     enum class CircleColor {
       Foreground10,
 
+      SubtleBackground,
+
       /** primary color with a .2 transparency */
       PrimaryBackground20,
+
+      /** Matches the filled primary/Bitkey button background in the current theme. */
+      InverseBackground,
 
       /** Black with a .1 transparency */
       TranslucentBlack,
@@ -189,6 +205,9 @@ sealed interface IconBackgroundType {
       Dark,
 
       Primary,
+
+      /** Black in light mode, primary icon background in dark mode. */
+      Hero,
 
       BitkeyPrimary,
 
@@ -212,6 +231,7 @@ sealed interface IconBackgroundType {
       Success,
       Warning,
       Danger,
+      InverseBackground,
       Transparent,
       White,
     }
@@ -252,5 +272,6 @@ enum class IconAlignmentInBackground {
 
 enum class BadgeType {
   Loading,
+  CircularLoading,
   Error,
 }

@@ -6,14 +6,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.settings.full.mobilepay.MobilePayStatusModel
 import build.wallet.ui.app.core.form.FormScreen
+import build.wallet.ui.app.core.form.FormScreenContentVerticalAlignment
 import build.wallet.ui.components.alertdialog.AlertDialog
 import build.wallet.ui.components.limit.SpendingLimitCard
 import build.wallet.ui.components.switch.SwitchCard
-import build.wallet.ui.components.toolbar.Toolbar
-import build.wallet.ui.components.toolbar.ToolbarAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
+import build.wallet.ui.model.toolbar.ToolbarModel
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 
 @Composable
 fun MobilePayStatusScreen(
@@ -29,22 +31,23 @@ fun MobilePayStatusScreen(
   FormScreen(
     modifier = modifier,
     onBack = onBack,
-    toolbarContent = {
-      Toolbar(
-        leadingContent = {
-          ToolbarAccessory(
-            model = BackAccessory(onClick = model.onBack)
-          )
-        }
-      )
-    },
+    toolbarModel = ToolbarModel(
+      leadingAccessory = BackAccessory(onClick = onBack)
+    ),
+    designSystemV2Title = "Transfer Settings",
+    designSystemV2ContentSpacing = 40,
+    designSystemV2Scrollable = false,
+    designSystemV2MainContentAlignment = FormScreenContentVerticalAlignment.Top,
     mainContent = {
       SwitchCard(model = model.switchCardModel)
-      Spacer(modifier = Modifier.height(24.dp))
+      if (!LocalDesignSystemUpdatesEnabled.current) {
+        Spacer(modifier = Modifier.height(24.dp))
+      }
       model.spendingLimitCardModel?.let { cardModel ->
         SpendingLimitCard(
           modifier = Modifier.fillMaxWidth(),
-          model = cardModel
+          model = cardModel,
+          icon = Icon.DotVerification
         )
       }
 

@@ -8,6 +8,7 @@ import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.FeatureFlagValue.BooleanFlag
+import build.wallet.ui.compose.normalizeTestTagValue
 import build.wallet.ui.model.list.ListItemAccessory.SwitchAccessory
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.switch.SwitchModel
@@ -25,14 +26,17 @@ class BooleanFlagItemUiStateMachineImpl : BooleanFlagItemUiStateMachine {
 
     val scope = rememberStableCoroutineScope()
 
+    val flagTitle = props.featureFlag.title
+    val flagTag = normalizeTestTagValue(flagTitle, fallback = "flag")
     return ListItemModel(
-      title = props.featureFlag.title,
+      title = flagTitle,
       secondaryText = props.featureFlag.description,
       trailingAccessory =
         SwitchAccessory(
           model =
             SwitchModel(
               checked = flagValue.value,
+              testTag = "$flagTag-toggle",
               onCheckedChange = { newValue ->
                 scope.launch {
                   props.featureFlag.canSetValue(BooleanFlag(newValue))

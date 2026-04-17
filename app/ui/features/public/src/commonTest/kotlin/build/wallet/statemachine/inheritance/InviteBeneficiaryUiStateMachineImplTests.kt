@@ -5,6 +5,7 @@ import build.wallet.bitkey.relationships.InvitationFake
 import build.wallet.bitkey.relationships.TrustedContactAlias
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.inheritance.InheritanceServiceMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.test
@@ -39,7 +40,7 @@ class InviteBeneficiaryUiStateMachineImplTests : FunSpec({
       awaitBodyMock<AddingTrustedContactUiProps>("adding-trusted-contact") {
         onAddTc(
           TrustedContactAlias("alias"),
-          HwFactorProofOfPossession("signed-token")
+          PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("signed-token"))
         ).shouldBeOk().invitation.shouldBe(InvitationFake)
       }
     }

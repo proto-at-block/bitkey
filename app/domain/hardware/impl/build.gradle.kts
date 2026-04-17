@@ -25,6 +25,7 @@ kotlin {
         implementation(projects.domain.databasePublic)
         implementation(projects.libs.keyValueStorePublic)
         implementation(projects.domain.analyticsPublic)
+        implementation(projects.domain.recoveryPublic)
         implementation(projects.domain.walletPublic)
         implementation(projects.libs.grantsPublic)
         implementation(libs.kmp.okio)
@@ -62,6 +63,7 @@ kotlin {
         implementation(projects.libs.sqldelightTesting)
         implementation(projects.domain.walletFake)
         implementation(projects.domain.featureFlagFake)
+        implementation(projects.domain.recoveryFake)
       }
     }
     val commonJvmTest by getting {

@@ -529,6 +529,8 @@ pub struct BumpFeeTxBuilder {
     locktime: Option<LockTime>,
     allow_dust: bool,
     version: Option<i32>,
+    /// If set, clears recipients and drains all funds to this script for output shrinking.
+    drain_to: Option<BdkScriptBuf>,
 }
 
 #[uniffi::export]
@@ -543,6 +545,7 @@ impl BumpFeeTxBuilder {
             locktime: None,
             allow_dust: false,
             version: None,
+            drain_to: None,
         }
     }
 
@@ -606,6 +609,17 @@ impl BumpFeeTxBuilder {
         })
     }
 
+    /// Set a script to drain all funds to when bumping fees.
+    ///
+    /// When used on a fee bump, this redirects all transaction outputs
+    /// to the specified script, enabling output shrinking.
+    pub fn drain_to(&self, script: &Script) -> Arc<Self> {
+        Arc::new(BumpFeeTxBuilder {
+            drain_to: Some(script.0.clone()),
+            ..self.clone()
+        })
+    }
+
     /// Finish building the transaction.
     ///
     /// Uses the thread-local random number generator (rng).
@@ -635,6 +649,16 @@ impl BumpFeeTxBuilder {
         }
         if let Some(version) = self.version {
             tx_builder.version(version);
+        }
+
+        // Clear recipients and drain to a single script for output shrinking.
+        // Note: We intentionally do NOT call drain_wallet() here because
+        // build_fee_bump() already constrains inputs to the original transaction.
+        // drain_wallet() would pull in ALL confirmed UTXOs, which is incorrect
+        // for fee bumping.
+        if let Some(ref drain_script) = self.drain_to {
+            tx_builder.set_recipients(vec![]);
+            tx_builder.drain_to(drain_script.clone());
         }
 
         let psbt: BdkPsbt = tx_builder.finish()?;

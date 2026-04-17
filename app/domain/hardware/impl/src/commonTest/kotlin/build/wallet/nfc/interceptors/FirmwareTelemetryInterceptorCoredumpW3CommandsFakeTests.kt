@@ -1,5 +1,7 @@
 package build.wallet.nfc.interceptors
 
+import bitkey.account.AccountConfigServiceFake
+import bitkey.account.HardwareType
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilderMock
 import build.wallet.bitcoin.wallet.SpendingWalletProvider
 import build.wallet.bitcoin.wallet.SpendingWalletV2ProviderMock
@@ -25,12 +27,12 @@ import com.github.michaelbull.result.Result
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import okio.ByteString
+import kotlinx.coroutines.runBlocking
 import okio.ByteString.Companion.toByteString
 
 class FirmwareTelemetryInterceptorCoredumpW3CommandsFakeTests : FunSpec({
   test("returns null when BitkeyW3CommandsFake reports zero coredumps") {
-    val w1Commands = createBitkeyW1CommandsFake()
-    val w3Commands = BitkeyW3CommandsFake(w1Commands)
+    val (w1Commands, w3Commands) = createW3CommandsFake()
     val session = NfcSessionFake()
 
     val result = readFirmwareTelemetryCoredumpForMcu(w3Commands, session, mcuRole = McuRole.CORE)
@@ -39,8 +41,7 @@ class FirmwareTelemetryInterceptorCoredumpW3CommandsFakeTests : FunSpec({
   }
 
   test("concatenates fragments in order and advances offsets until complete (BitkeyW3CommandsFake)") {
-    val w1Commands = createBitkeyW1CommandsFake()
-    val w3Commands = BitkeyW3CommandsFake(w1Commands)
+    val (w1Commands, w3Commands) = createW3CommandsFake()
     val session = NfcSessionFake()
 
     w1Commands.setTelemetryCoredump(
@@ -80,7 +81,7 @@ private fun createBitkeyW1CommandsFake(): BitkeyW1CommandsFake {
       override fun sign(
         message: ByteString,
         key: Secp256k1PrivateKey,
-      ): String = "not-used"
+      ): String = "00" // Valid hex string for decodeHex() compatibility
     }
 
   val signatureUtils =
@@ -125,4 +126,56 @@ private fun createBitkeyW1CommandsFake(): BitkeyW1CommandsFake {
   ).also {
     it.clearTelemetryCoredump()
   }
+}
+
+private fun createW3CommandsFake(): Pair<BitkeyW1CommandsFake, BitkeyW3CommandsFake> {
+  val stubMessageSigner =
+    object : MessageSigner {
+      override fun sign(
+        message: ByteString,
+        key: Secp256k1PrivateKey,
+      ): String = "00" // Valid hex string for decodeHex() in signActionProof()
+    }
+
+  val stubSignatureUtils =
+    object : SignatureUtils {
+      override fun encodeSignatureToDer(compactSignature: ByteArray): ByteString = ByteString.EMPTY
+
+      override fun decodeSignatureFromDer(derSignature: ByteString): ByteArray = ByteArray(64)
+    }
+
+  val w1Commands = createBitkeyW1CommandsFake()
+  val fakeHardwareKeyStore = FakeHardwareKeyStoreFake()
+  val accountConfigService = AccountConfigServiceFake().also {
+    runBlocking { it.setHardwareType(HardwareType.W3) }
+  }
+  val featureFlagDao = FeatureFlagDaoFake()
+  val fakeHardwareSpendingWalletProvider =
+    FakeHardwareSpendingWalletProvider(
+      spendingWalletProvider = SpendingWalletProvider { Err(Throwable("Not used in this test")) },
+      spendingWalletV2Provider = SpendingWalletV2ProviderMock(),
+      bdk2FeatureFlag = Bdk2FeatureFlag(featureFlagDao),
+      descriptorBuilder = BitcoinMultiSigDescriptorBuilderMock(),
+      fakeHardwareKeyStore = fakeHardwareKeyStore
+    )
+  val fakeHardwareStatesDao =
+    object : FakeHardwareStatesDao {
+      override suspend fun setTransactionVerificationEnabled(
+        enabled: Boolean,
+      ): Result<Unit, DbError> = Ok(Unit)
+
+      override suspend fun getTransactionVerificationEnabled(): Result<Boolean?, DbError> = Ok(null)
+
+      override suspend fun clear(): Result<Unit, DbError> = Ok(Unit)
+    }
+
+  return w1Commands to BitkeyW3CommandsFake(
+    w1CommandsFake = w1Commands,
+    accountConfigService = accountConfigService,
+    fakeHardwareKeyStore = fakeHardwareKeyStore,
+    fakeHardwareSpendingWalletProvider = fakeHardwareSpendingWalletProvider,
+    fakeHardwareStatesDao = fakeHardwareStatesDao,
+    messageSigner = stubMessageSigner,
+    signatureUtils = stubSignatureUtils
+  )
 }

@@ -87,6 +87,7 @@ interface RelationshipsCrypto {
     oldHwAuthKey: HwAuthPublicKey,
     newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     newAppGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+    newHwAuthKey: HwAuthPublicKey = oldHwAuthKey,
   ): Result<TrustedContactKeyCertificate, RelationshipsCryptoError> =
     coroutineBinding {
       verifyKeyCertificate(
@@ -97,7 +98,7 @@ interface RelationshipsCrypto {
 
       generateKeyCertificate(
         delegatedDecryptionKey = oldCertificate.delegatedDecryptionKey,
-        hwAuthKey = oldHwAuthKey,
+        hwAuthKey = newHwAuthKey,
         appGlobalAuthKey = newAppGlobalAuthKey,
         appGlobalAuthKeyHwSignature = newAppGlobalAuthKeyHwSignature
       ).bind()

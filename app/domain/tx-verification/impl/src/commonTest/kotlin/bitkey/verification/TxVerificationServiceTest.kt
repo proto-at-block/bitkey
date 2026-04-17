@@ -14,6 +14,7 @@ import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.Bip177FeatureFlag
 import build.wallet.money.BitcoinMoney
@@ -113,7 +114,7 @@ class TxVerificationServiceTest : FunSpec({
     service.updateThreshold(
       policy = Active(VerificationThreshold.Always),
       amountBtc = BitcoinMoney.zero(),
-      hwFactorProofOfPossession = HwFactorProofOfPossession("fake")
+      proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("fake"))
     )
       .shouldBeOk()
   }

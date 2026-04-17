@@ -17,19 +17,24 @@ typedef struct {
   key_handle_t* pk_us;  // [in]
 
   // Signature over a label, our public key, and the peer's public key.
+  // Optional. Will skip signing if set to NULL.
+  // When `exchange_sig` is non-NULL, `exchange_sig_len` must be set to
+  // `ECC_SIG_SIZE` (i.e., the size of the signature buffer). When
+  // `exchange_sig` is NULL, `exchange_sig_len` must be 0.
   uint8_t* exchange_sig;      // [out]
   uint32_t exchange_sig_len;  // [in]
 
   bool use_sn;  // [in] If true use the device SN as an input to key derivation
 } crypto_key_exchange_ctx_t;
 
-// Both keys must point to a 32-byte buffer.
+// All derived keys must point to a 32-byte buffer.
 typedef struct {
   // Key for sending to the peer; i.e. encrypting.
   uint8_t* send_key;
   // Key for receiving from the peer; i.e. decrypting.
   uint8_t* recv_key;
-  // Key for key confirmation, using HMAC (truncated to 16 bytes).
+  // 32-byte key used for key confirmation HMAC.
+  // The confirmation tag output is truncated to KEY_CONFIRMATION_TAG_LEN (16 bytes).
   uint8_t* conf_key;
 } crypto_key_exchange_derived_key_material_t;
 

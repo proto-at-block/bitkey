@@ -38,12 +38,12 @@ data class AddressQrCodeBodyModel(
       val copyButtonLabelText: String,
       val onCopyClick: () -> Unit,
       val onShareClick: () -> Unit,
+      /** When true, the address section is collapsed by default with a chevron toggle. */
+      val hideAddressByDefault: Boolean = false,
+      /** When non-null, shows a "Verify" button to verify the address on hardware. */
+      val onVerifyClick: (() -> Unit)? = null,
       val loadingPartnerId: String? = null,
       val isRefreshing: Boolean = false,
-      /** Whether to show the verify on device button (W3 hardware only) */
-      val showVerifyOnDeviceButton: Boolean = false,
-      /** Callback when verify on device button is clicked */
-      val onVerifyOnDeviceClick: (() -> Unit)? = null,
     ) : Content {
       constructor(
         address: String?,
@@ -54,23 +54,12 @@ data class AddressQrCodeBodyModel(
         copyButtonLabelText: String,
         onCopyClick: () -> Unit,
         onShareClick: () -> Unit,
+        hideAddressByDefault: Boolean = false,
+        onVerifyClick: (() -> Unit)? = null,
         loadingPartnerId: String? = null,
         isRefreshing: Boolean = false,
-        showVerifyOnDeviceButton: Boolean = false,
-        onVerifyOnDeviceClick: (() -> Unit)? = null,
       ) : this(
-        // Chunk the address into 4-letter size groups and then color all the odd
-        // substrings ON60 (and the even substrings will be colored with primary color)
-        addressDisplayString = address?.chunked(4)?.let { addressParts ->
-          LabelModel.StringWithStyledSubstringModel.from(
-            string = addressParts.joinToString(" "),
-            substringToColor = addressParts
-              // Filter to only the odd indices to color those substrings
-              .filterIndexed { index, _ -> index % 2 != 0 }
-              // Map to ON60 color
-              .associateWith { LabelModel.Color.ON60 }
-          )
-        } // Fall back on showing "..." while we are loading an address
+        addressDisplayString = address?.let { LabelModel.chunkedAddress(it) }
           ?: LabelModel.StringModel("..."),
         qrCodeState = qrCodeState,
         partners = partners,
@@ -79,10 +68,10 @@ data class AddressQrCodeBodyModel(
         copyButtonLabelText = copyButtonLabelText,
         onCopyClick = onCopyClick,
         onShareClick = onShareClick,
+        hideAddressByDefault = hideAddressByDefault,
+        onVerifyClick = onVerifyClick,
         loadingPartnerId = loadingPartnerId,
-        isRefreshing = isRefreshing,
-        showVerifyOnDeviceButton = showVerifyOnDeviceButton,
-        onVerifyOnDeviceClick = onVerifyOnDeviceClick
+        isRefreshing = isRefreshing
       )
     }
 
@@ -112,6 +101,7 @@ data class AddressQrCodeBodyModel(
                     iconSize = IconSize.Accessory,
                     iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Regular)
                   ),
+                testTag = "receive-address-refresh",
                 onClick = StandardClick { onRefreshClick() }
               )
           )

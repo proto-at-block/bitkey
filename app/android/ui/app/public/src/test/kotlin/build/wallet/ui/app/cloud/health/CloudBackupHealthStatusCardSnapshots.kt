@@ -1,14 +1,8 @@
 package build.wallet.ui.app.cloud.health
 
 import build.wallet.kotest.paparazzi.paparazziExtension
-import build.wallet.statemachine.cloud.health.CloudBackupHealthStatusCardType
-import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.cloud.health.CloudBackupHealthStatusTone
 import build.wallet.ui.app.backup.health.*
-import build.wallet.ui.model.StandardClick
-import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.button.ButtonModel.Size.Footer
-import build.wallet.ui.model.list.ListItemAccessory
-import build.wallet.ui.model.list.ListItemModel
 import io.kotest.core.spec.style.FunSpec
 
 class CloudBackupHealthStatusCardSnapshots : FunSpec({
@@ -31,10 +25,34 @@ class CloudBackupHealthStatusCardSnapshots : FunSpec({
       CloudBackupHealthStatusCard(
         model = CloudBackupHealthStatusCardModelForPreview.copy(
           toolbarModel = null,
-          backupStatus = ListItemModel(
-            title = "Problem with Google account access",
-            trailingAccessory = ListItemAccessory.IconAccessory(Icon.SmallIconWarning)
+          backupStatus = CloudBackupHealthStatusProblemListItemForPreview,
+          backupStatusActionButton = CloudBackupHealthStatusActionButtonForPreview
+        )
+      )
+    }
+  }
+
+  test("backup health good with design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      CloudBackupHealthStatusCard(
+        model =
+          CloudBackupHealthStatusCardModelForPreview.copy(
+            backupStatusActionButton = null,
+            toolbarModel = null
           )
+      )
+    }
+  }
+
+  test("backup health error with design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      CloudBackupHealthStatusCard(
+        model = CloudBackupHealthStatusCardModelForPreview.copy(
+          toolbarModel = null,
+          backupStatus = CloudBackupHealthStatusProblemListItemForPreview,
+          designSystemV2StatusText = "No backup found",
+          designSystemV2StatusTone = CloudBackupHealthStatusTone.DANGER,
+          backupStatusActionButton = CloudBackupHealthStatusActionButtonForPreview
         )
       )
     }
@@ -44,7 +62,7 @@ class CloudBackupHealthStatusCardSnapshots : FunSpec({
     paparazzi.snapshot {
       CloudBackupHealthStatusCard(
         model =
-          CloudBackupHealthStatusCardModelForPreview.copy(
+          CloudBackupHealthStatusCardEekModelForPreview.copy(
             backupStatusActionButton = null
           )
       )
@@ -55,19 +73,34 @@ class CloudBackupHealthStatusCardSnapshots : FunSpec({
     paparazzi.snapshot {
       CloudBackupHealthStatusCard(
         model =
-          CloudBackupHealthStatusCardModelForPreview.copy(
-            backupStatusActionButton =
-              ButtonModel(
-                text = "Back up now",
-                size = Footer,
-                treatment = ButtonModel.Treatment.Primary,
-                onClick = StandardClick {}
-              ),
-            backupStatus = ListItemModel(
-              title = "Problem with Google account access",
-              trailingAccessory = ListItemAccessory.IconAccessory(Icon.SmallIconWarning)
-            ),
-            type = CloudBackupHealthStatusCardType.EEK_BACKUP
+          CloudBackupHealthStatusCardEekModelForPreview.copy(
+            backupStatusActionButton = CloudBackupHealthStatusActionButtonForPreview,
+            backupStatus = CloudBackupHealthStatusEekProblemListItemForPreview
+          )
+      )
+    }
+  }
+
+  test("EEK good with design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      CloudBackupHealthStatusCard(
+        model =
+          CloudBackupHealthStatusCardEekModelForPreview.copy(
+            backupStatusActionButton = null
+          )
+      )
+    }
+  }
+
+  test("EEK error with design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      CloudBackupHealthStatusCard(
+        model =
+          CloudBackupHealthStatusCardEekModelForPreview.copy(
+            designSystemV2StatusText = "No backup found",
+            designSystemV2StatusTone = CloudBackupHealthStatusTone.DANGER,
+            backupStatusActionButton = CloudBackupHealthStatusActionButtonForPreview,
+            backupStatus = CloudBackupHealthStatusEekProblemListItemForPreview
           )
       )
     }

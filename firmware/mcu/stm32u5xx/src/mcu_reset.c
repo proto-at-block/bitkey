@@ -3,12 +3,20 @@
 #include "attributes.h"
 #include "fatal.h"
 #include "mcu_debug.h"
+#include "rtos.h"
 #include "stm32u5xx.h"
 
 // Reset reason stored in no-init RAM (preserved across resets)
 SECTION(".noinit.reset_reason") USED static volatile mcu_reset_info_t info;
 
-NO_RETURN void mcu_reset_with_reason(const mcu_reset_reason_t reason) {
+SYSCALL NO_OPTIMIZE NO_RETURN void mcu_reset_with_reason(const mcu_reset_reason_t reason) {
+#if IMAGE_TYPE_APPLICATION
+  const bool is_privileged = (rtos_thread_is_privileged() || rtos_in_isr());
+  if (!is_privileged) {
+    rtos_thread_reset_privilege();
+    rtos_thread_raise_privilege();
+  }
+#endif
   mcu_reset_set_reason(reason);
 
   if (mcu_debug_debugger_attached()) {
@@ -21,6 +29,12 @@ NO_RETURN void mcu_reset_with_reason(const mcu_reset_reason_t reason) {
   // Should not be reached. If it somehow is, crash so that execution may not resume.
   FATAL();
   __builtin_unreachable();
+
+#if IMAGE_TYPE_APPLICATION
+  if (!is_privileged) {
+    rtos_thread_reset_privilege();
+  }
+#endif
 }
 
 void mcu_reset_set_reason(const mcu_reset_reason_t reason) {

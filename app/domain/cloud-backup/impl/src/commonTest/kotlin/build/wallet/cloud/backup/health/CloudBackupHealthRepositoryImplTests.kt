@@ -48,7 +48,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
   )
 
   val cloudStoreAccountRepository = CloudStoreAccountRepositoryMock()
-  val cloudBackupRepository = CloudBackupRepositoryFake()
+  val cloudBackupService = CloudBackupServiceFake()
   val cloudBackupDao = CloudBackupDaoFake()
   val emergencyExitKitRepository = EmergencyExitKitRepositoryFake()
   val fullAccountCloudBackupRepairer = FullAccountCloudBackupRepairerFake()
@@ -63,7 +63,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
   fun createHealthRepository() =
     CloudBackupHealthRepositoryImpl(
       cloudStoreAccountRepository = cloudStoreAccountRepository,
-      cloudBackupRepository = cloudBackupRepository,
+      cloudBackupService = cloudBackupService,
       cloudBackupDao = cloudBackupDao,
       emergencyExitKitRepository = emergencyExitKitRepository,
       fullAccountCloudBackupRepairer = fullAccountCloudBackupRepairer,
@@ -80,13 +80,13 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
     account: CloudStoreAccount,
     backup: CloudBackup,
   ) {
-    cloudBackupRepository.writeBackup(
+    cloudBackupService.writeBackup(
       accountId = fullAccount.accountId,
       cloudStoreAccount = account,
       backup = backup,
       requireAuthRefresh = false
     )
-    cloudBackupRepository.awaitBackup(account)
+    cloudBackupService.awaitBackup(account)
   }
 
   // Helper function to set up a backup mismatch scenario
@@ -123,7 +123,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
 
   beforeTest {
     cloudStoreAccountRepository.reset()
-    cloudBackupRepository.reset()
+    cloudBackupService.reset()
     cloudBackupDao.reset()
     emergencyExitKitRepository.reset()
     fullAccountCloudBackupRepairer.reset()
@@ -162,7 +162,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
             setCloudBackup(cloudAccount, cloudBackup)
             emergencyExitKitRepository.setEekData(cloudAccount, eekData)
 
-            val status = healthRepository.performSync(fullAccount)
+            val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
             status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
 
             healthRepository.appKeyBackupStatus().value.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
@@ -184,7 +184,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
             setCloudBackup(cloudAccount, cloudBackup)
             emergencyExitKitRepository.setEekData(cloudAccount, eekData)
 
-            val status = healthRepository.performSync(fullAccount)
+            val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
             status.eekBackupStatus.shouldBeInstanceOf<EekBackupStatus.Healthy>()
 
             healthRepository.eekBackupStatus().value.shouldBeInstanceOf<EekBackupStatus.Healthy>()
@@ -198,7 +198,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
           setCloudBackup(cloudAccount, cloudBackup)
           emergencyExitKitRepository.setEekData(cloudAccount, eekData)
 
-          val status = healthRepository.performSync(fullAccount)
+          val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
 
           status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
           status.eekBackupStatus.shouldBeInstanceOf<EekBackupStatus.Healthy>()
@@ -216,7 +216,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
           cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
           setCloudBackup(cloudAccount, differentCloudBackup)
 
-          val status = healthRepository.performSync(fullAccount)
+          val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
 
           status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.ProblemWithBackup.InvalidBackup>()
           (status.appKeyBackupStatus as AppKeyBackupStatus.ProblemWithBackup.InvalidBackup).cloudBackup shouldBe differentCloudBackup
@@ -232,13 +232,14 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
             setCloudBackup(cloudAccount, cloudBackup)
           }
 
-          val status = healthRepository.performSync(fullAccount)
+          val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
           status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
 
           // Verify repair was attempted
           fullAccountCloudBackupRepairer.attemptRepairCalls.size shouldBe 1
           val repairCall = fullAccountCloudBackupRepairer.attemptRepairCalls.first()
-          repairCall.account shouldBe fullAccount
+          repairCall.accountId shouldBe fullAccount.accountId
+          repairCall.keybox shouldBe fullAccount.keybox
           repairCall.cloudStoreAccount shouldBe cloudAccount
           repairCall.cloudBackupStatus.appKeyBackupStatus shouldBe AppKeyBackupStatus.ProblemWithBackup.BackupMissing
         }
@@ -251,7 +252,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
     val healthRepository = createHealthRepository()
     // No cloud account set
 
-    val status = healthRepository.performSync(fullAccount)
+    val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
 
     status.appKeyBackupStatus shouldBe AppKeyBackupStatus.ProblemWithBackup.NoCloudAccess
     status.eekBackupStatus shouldBe EekBackupStatus.ProblemWithBackup.NoCloudAccess
@@ -266,7 +267,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       // Set app functionality to have limited functionality (which makes cloudBackupHealth unavailable)
       appFunctionalityService.status.value = LimitedFunctionality(F8eUnreachable(null))
 
-      val status = healthRepository.performSync(fullAccount)
+      val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
 
       status.appKeyBackupStatus shouldBe AppKeyBackupStatus.ProblemWithBackup.ConnectivityUnavailable
     }
@@ -276,7 +277,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       cloudStoreAccountRepository.set(cloudAccount)
       // No local backup set
 
-      val status = healthRepository.performSync(fullAccount)
+      val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
 
       status.appKeyBackupStatus shouldBe AppKeyBackupStatus.ProblemWithBackup.BackupMissing
     }
@@ -286,7 +287,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       cloudStoreAccountRepository.set(cloudAccount)
       cloudBackupDao.returnError = true
 
-      val status = healthRepository.performSync(fullAccount)
+      val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
 
       status.appKeyBackupStatus shouldBe AppKeyBackupStatus.ProblemWithBackup.BackupMissing
     }
@@ -297,7 +298,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
       // No cloud backup set
 
-      val status = healthRepository.performSync(fullAccount)
+      val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
 
       status.appKeyBackupStatus shouldBe AppKeyBackupStatus.ProblemWithBackup.BackupMissing
     }
@@ -306,10 +307,10 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       val healthRepository = createHealthRepository()
       cloudStoreAccountRepository.set(cloudAccount)
       cloudBackupDao.set(fullAccount.accountId.serverId, cloudBackup)
-      cloudBackupRepository.returnReadError =
+      cloudBackupService.returnReadError =
         CloudBackupError.UnrectifiableCloudBackupError(CloudError())
 
-      val status = healthRepository.performSync(fullAccount)
+      val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
 
       status.appKeyBackupStatus shouldBe AppKeyBackupStatus.ProblemWithBackup.NoCloudAccess
     }
@@ -323,7 +324,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
     setCloudBackup(cloudAccount, cloudBackup)
     emergencyExitKitRepository.readError = Error("EEK read failed")
 
-    val status = healthRepository.performSync(fullAccount)
+    val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
 
     status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
     status.eekBackupStatus shouldBe EekBackupStatus.ProblemWithBackup.BackupMissing
@@ -338,7 +339,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       val cloudBackup = localBackup.copy(accountId = "different-account-id")
       setupBackupMismatch(localBackup, cloudBackup)
 
-      val status = healthRepository.performSync(fullAccount)
+      val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
 
       status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.ProblemWithBackup.InvalidBackup>()
       logWriter.mismatchLogs().shouldNotBeEmpty()
@@ -351,7 +352,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       val cloudBackup = localBackup.copy(accountId = "different-account-id")
       setupBackupMismatch(localBackup, cloudBackup)
 
-      val status = healthRepository.performSync(fullAccount)
+      val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
 
       status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.ProblemWithBackup.InvalidBackup>()
       logWriter.mismatchLogs().shouldBeEmpty()
@@ -366,7 +367,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       )
       setupBackupMismatch(localBackup, cloudBackup)
 
-      healthRepository.performSync(fullAccount)
+      healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
 
       val mismatchLog = logWriter.mismatchLogs().first()
       mismatchLog.message shouldContain "accountId"
@@ -385,7 +386,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       setCloudBackup(cloudAccount, largeBackup)
       emergencyExitKitRepository.setEekData(cloudAccount, eekData)
 
-      healthRepository.performSync(fullAccount)
+      healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
 
       logWriter.sizeWarningLogs().shouldNotBeEmpty()
       logWriter.sizeWarningLogs().first().message shouldContain "dek="
@@ -401,7 +402,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       setCloudBackup(cloudAccount, largeBackup)
       emergencyExitKitRepository.setEekData(cloudAccount, eekData)
 
-      healthRepository.performSync(fullAccount)
+      healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
 
       logWriter.sizeWarningLogs().shouldBeEmpty()
     }
@@ -436,7 +437,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       cloudBackupDao.set(fullAccount.accountId.serverId, oversizedBackup)
       emergencyExitKitRepository.setEekData(cloudAccount, eekData)
 
-      val status = healthRepository.performSync(fullAccount)
+      val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
 
       // Should return Health status since the fixed backup will be used to silently repair
       status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
@@ -470,7 +471,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       cloudBackupDao.set(fullAccount.accountId.serverId, oversizedBackup)
       emergencyExitKitRepository.setEekData(cloudAccount, eekData)
 
-      val status = healthRepository.performSync(fullAccount)
+      val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
 
       // Should return Health status since the fixed backup will be used to silently repair
       status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
@@ -503,7 +504,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       setCloudBackup(cloudAccount, oversizedBackup)
       emergencyExitKitRepository.setEekData(cloudAccount, eekData)
 
-      val status = healthRepository.performSync(fullAccount)
+      val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
 
       // Should have called the creator
       fullAccountCloudBackupCreator.createCalls.awaitItem()
@@ -521,7 +522,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
   context("force reupload timestamp feature flag") {
     beforeTest {
       cloudStoreAccountRepository.reset()
-      cloudBackupRepository.reset()
+      cloudBackupService.reset()
       cloudBackupDao.reset()
       emergencyExitKitRepository.reset()
       fullAccountCloudBackupRepairer.reset()
@@ -552,7 +553,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       )
       cloudBackupForceReuploadTimestampFeatureFlag.initializeFromDao()
 
-      val status = healthRepository.performSync(fullAccount)
+      val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
 
       // Should report as stale backup due to timestamp
       status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.ProblemWithBackup.StaleBackup>()
@@ -578,7 +579,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       )
       cloudBackupForceReuploadTimestampFeatureFlag.initializeFromDao()
 
-      val status = healthRepository.performSync(fullAccount)
+      val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
 
       // Should report as healthy since backup is newer than threshold
       status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
@@ -599,7 +600,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       )
       cloudBackupForceReuploadTimestampFeatureFlag.initializeFromDao()
 
-      val status = healthRepository.performSync(fullAccount)
+      val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
 
       // Should report as healthy, flag is disabled
       status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
@@ -620,7 +621,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       )
       cloudBackupForceReuploadTimestampFeatureFlag.initializeFromDao()
 
-      val status = healthRepository.performSync(fullAccount)
+      val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
 
       // Should report as healthy, invalid timestamp is ignored
       status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.Healthy>()
@@ -646,7 +647,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
       )
       cloudBackupForceReuploadTimestampFeatureFlag.initializeFromDao()
 
-      val status = healthRepository.performSync(fullAccount)
+      val status = healthRepository.performSync(fullAccount.accountId, fullAccount.keybox)
 
       // Should report as stale even though backups match
       status.appKeyBackupStatus.shouldBeInstanceOf<AppKeyBackupStatus.ProblemWithBackup.StaleBackup>()

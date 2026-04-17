@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.github.kittinunf.fuel:fuel",
+    "components": [
+        {
+            "version": "2.3.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "fuel-2.3.1.jar": "9e38b4b2b4f6bae5491c0975c1c4784ba9b7edc4a54f37acbca30db2c6516a35"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

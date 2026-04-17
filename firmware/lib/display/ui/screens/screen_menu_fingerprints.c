@@ -20,10 +20,9 @@
 #define MAX_FINGERPRINTS  3
 
 // Carousel layout configuration
-#define ITEM_WIDTH           220
+#define ITEM_WIDTH           230
 #define OPACITY_SELECTED     LV_OPA_COVER
 #define OPACITY_DIMMED       LV_OPA_40
-#define ANIM_DURATION        300
 #define SCROLL_ANIM_TIME     350
 #define ICON_CIRCLE_SIZE     120
 #define ICON_CIRCLE_SIZE_MIN 100
@@ -362,6 +361,7 @@ lv_obj_t* screen_menu_fingerprints_init(void* ctx) {
     lv_obj_set_style_pad_all(item_containers[i], 0, 0);
     lv_obj_clear_flag(item_containers[i], LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(item_containers[i], LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_flag(item_containers[i], LV_OBJ_FLAG_PRESS_LOCK);
     lv_obj_add_event_cb(item_containers[i], fingerprint_item_click_handler, LV_EVENT_CLICKED,
                         (void*)(uintptr_t)i);
 
@@ -384,6 +384,8 @@ lv_obj_t* screen_menu_fingerprints_init(void* ctx) {
     }
     const lv_img_dsc_t* icon = (params && params->enrolled[i]) ? &fingerprint : &plus;
     lv_img_set_src(item_icons[i], icon);
+    lv_obj_set_style_img_recolor(item_icons[i], lv_color_white(), 0);
+    lv_obj_set_style_img_recolor_opa(item_icons[i], LV_OPA_COVER, 0);
     lv_obj_set_width(item_icons[i], ICON_SIZE);
     lv_obj_set_height(item_icons[i], ICON_SIZE);
     lv_obj_align(item_icons[i], LV_ALIGN_CENTER, 0, 0);
@@ -419,7 +421,9 @@ lv_obj_t* screen_menu_fingerprints_init(void* ctx) {
 
   memset(&back_button, 0, sizeof(top_back_t));
   top_back_create(screen, &back_button, NULL);
-  lv_obj_move_foreground(back_button.container);
+  if (back_button.container) {
+    lv_obj_move_foreground(back_button.container);
+  }
 
   ui_set_local_brightness(SCREEN_BRIGHTNESS);
 

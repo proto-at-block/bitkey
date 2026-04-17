@@ -23,4 +23,16 @@ class CustomElectrumServerScreenSnapshots : FunSpec({
       CustomElectrumServerScreenEnabledWithDisablingDialogPreview()
     }
   }
+
+  test("custom electrum server screen with design system v2 - custom server enabled") {
+    paparazzi.snapshot {
+      CustomElectrumServerScreenEnabledDesignSystemV2Preview()
+    }
+  }
+
+  test("custom electrum server screen with design system v2 - custom server disabled") {
+    paparazzi.snapshot {
+      CustomElectrumServerScreenDisabledDesignSystemV2Preview()
+    }
+  }
 })

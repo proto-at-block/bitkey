@@ -11,6 +11,7 @@ import build.wallet.bitkey.hardware.HwAuthPublicKey;
 import build.wallet.bitkey.hardware.HwSpendingPublicKey;
 import build.wallet.cloud.backup.csek.SealedCsek;
 import build.wallet.cloud.backup.csek.SealedSsek;
+import build.wallet.crypto.SealedData;
 import build.wallet.bitcoin.BitcoinNetworkType;
 import kotlin.Boolean;
 import kotlinx.datetime.Instant;
@@ -58,8 +59,12 @@ CREATE TABLE localRecoveryAttemptEntity(
   -- presence of above means spending keys have been activated
   sweepInProgress                 INTEGER AS Boolean NOT NULL DEFAULT 0,
   -- presence of above means sweep is currently in progress
-  originalAppGlobalAuthKey        TEXT AS PublicKey<AppGlobalAuthKey>
+  originalAppGlobalAuthKey        TEXT AS PublicKey<AppGlobalAuthKey>,
   -- The original app global auth key before rotation (Lost Hardware recovery only).
+  hwDescriptorValidated           INTEGER AS Boolean NOT NULL DEFAULT 0,
+  -- presence of above means W3 hardware descriptor validation completed via NFC (appended via migration 67)
+  sealedDdk                       BLOB AS SealedData
+  -- sealed DDK (Delegated Decryption Key) from NFC tap 2 during Lost HW recovery (appended via migration 75)
 );
 
 -- Table for storing spending keysets during recovery
@@ -127,6 +132,9 @@ UPDATE localRecoveryAttemptEntity SET serverSpendingKey = ?;
 
 markSpendingKeysActivated:
 UPDATE localRecoveryAttemptEntity SET spendingKeysActivated = 1;
+
+markHwDescriptorValidated:
+UPDATE localRecoveryAttemptEntity SET hwDescriptorValidated = 1, appGlobalAuthKeyHwSignature = :appGlobalAuthKeyHwSignature, sealedDdk = :sealedDdk;
 
 markUploadedDescriptorBackups:
 UPDATE localRecoveryAttemptEntity SET uploadedDescriptorBackups = 1;

@@ -9,6 +9,7 @@
 #include "pb_decode.h"
 #include "pb_encode.h"
 #include "rtos.h"
+#include "security_config.h"
 #include "uc_impl.h"
 #include "uc_route_impl.h"
 #include "uxc.pb.h"
@@ -19,7 +20,7 @@
 #include <stdint.h>
 #include <string.h>
 
-uc_state_priv_t _uc_state_priv SHARED_TASK_DATA = {0};
+static uc_state_priv_t _uc_state_priv SHARED_TASK_BSS = {0};
 
 static secure_bool_t _cipher_no_op(uint8_t const* input, uint8_t* output, uint32_t len,
                                    uint8_t const* aad, uint32_t aad_len, uint8_t* nonce,
@@ -39,6 +40,10 @@ static uint32_t _uc_send_seq_no_op(void) {
 static bool _uc_check_recv_seq_no_op(uint32_t new_seq) {
   (void)new_seq;
   return true;
+}
+
+static bool _uc_has_session_no_op(void) {
+  return false;
 }
 
 static void _uc_write_seq_num(uint32_t seq_num, uint8_t* buffer) {
@@ -149,6 +154,78 @@ static bool _uc_send(void* proto, uint16_t flags) {
   return true;
 }
 
+static uc_err_t _uc_ack_with_timeout(uint32_t timeout_ms) {
+  if (!rtos_mutex_take(&_uc_state_priv.wr_mutex, timeout_ms)) {
+    return UC_ERR_MUTEX_FAILED;
+  }
+
+  (void)rtos_event_group_clear_bits(&_uc_state_priv.ack_events, UC_EVENT_ACK_TIMER);
+
+  uc_err_t err = UC_ERR_NONE;
+  do {
+    struct {
+      uc_msg_hdr_t hdr;
+      uint8_t payload[1];
+    } ack_msg = {0};
+
+    const uint8_t ack_seq_num = _uc_state_priv.recv_seq_num;
+
+    ack_msg.hdr.send_seq_num = ++_uc_state_priv.send_seq_num;
+    if (ack_msg.hdr.send_seq_num == 0) {
+      ack_msg.hdr.send_seq_num = ++_uc_state_priv.send_seq_num;
+    }
+    ack_msg.hdr.proto_tag = 0;
+    ack_msg.hdr.ack_seq_num = ack_seq_num;
+    ack_msg.hdr.flags = UC_MSG_HDR_FLAGS_ACK;
+    ack_msg.hdr.payload_len = 0;
+    ack_msg.hdr.crc = uc_compute_crc((uc_msg_t*)&ack_msg);
+
+    cobs_enc_ctx_t ctx;
+    cobs_ret_t ret = cobs_encode_inc_begin(_uc_state_priv.wr_enc_buffer,
+                                           sizeof(_uc_state_priv.wr_enc_buffer), &ctx);
+    if (ret != COBS_RET_SUCCESS) {
+      err = _uc_cobs_to_err(ret);
+      break;
+    }
+
+    ret = cobs_encode_inc(&ctx, &ack_msg.hdr, sizeof(ack_msg.hdr));
+    if (ret != COBS_RET_SUCCESS) {
+      err = _uc_cobs_to_err(ret);
+      break;
+    }
+
+    size_t enc_len;
+    ret = cobs_encode_inc_end(&ctx, &enc_len);
+    if (ret != COBS_RET_SUCCESS) {
+      err = _uc_cobs_to_err(ret);
+      break;
+    }
+
+    // If the ACK sequence number is still the same, then stop the ACK timer.
+    if (_uc_state_priv.recv_seq_num == ack_seq_num) {
+      rtos_timer_stop(&_uc_state_priv.ack_timer);
+    }
+
+    uint8_t* wr_buf = _uc_state_priv.wr_enc_buffer;
+    size_t remaining_bytes = enc_len;
+    while (remaining_bytes > 0) {
+      const size_t wr_size =
+        _uc_state_priv.send_cb(_uc_state_priv.context, wr_buf, remaining_bytes);
+      if (wr_size == 0) {
+        err = UC_ERR_WR_FAILED;
+        break;
+      }
+
+      const size_t bytes_written = (wr_size > remaining_bytes ? remaining_bytes : wr_size);
+      remaining_bytes -= bytes_written;
+      wr_buf += bytes_written;
+    }
+  } while (0);
+
+  ASSERT(rtos_mutex_unlock(&_uc_state_priv.wr_mutex));
+  return err;
+}
+
 uint16_t uc_compute_crc(uc_msg_t* msg) {
   uint16_t crc = UC_CRC_SEED;
 
@@ -180,6 +257,7 @@ uint16_t uc_compute_crc(uc_msg_t* msg) {
 uc_err_t uc_process_msg(uc_msg_t* msg, size_t msg_len, void* proto_buffer, size_t proto_buffer_len,
                         uc_recv_callback_t recv_callback, void* context) {
   ASSERT(msg != NULL);
+  ASSERT(msg_len <= UC_MSG_BUFFER_SIZE);
 
   uc_msg_hdr_t* hdr = &msg->hdr;
 
@@ -202,11 +280,12 @@ uc_err_t uc_process_msg(uc_msg_t* msg, size_t msg_len, void* proto_buffer, size_
     }
 
     if ((hdr->flags & UC_MSG_HDR_FLAGS_ENCRYPTED) && (hdr->payload_len > 0)) {
-      if (hdr->payload_len < AES_GCM_IV_LENGTH + AES_GCM_TAG_LENGTH) {
-        LOGE("Payload too small for encrypted message.");
+      if (hdr->payload_len < UC_ENCRYPTION_PADDING) {
+        LOGE("Payload too small");
         return UC_ERR_DECODE_FAILED;
       }
-      const size_t plaintext_len = hdr->payload_len - (UC_ENCRYPTION_PADDING);
+      const size_t plaintext_len = hdr->payload_len - UC_ENCRYPTION_PADDING;
+      ASSERT(plaintext_len < hdr->payload_len);
       // CRC is calculated after encryption so it is 0 when it is included in AAD
       msg->hdr.crc = 0;
 
@@ -236,9 +315,21 @@ uc_err_t uc_process_msg(uc_msg_t* msg, size_t msg_len, void* proto_buffer, size_
 
       msg->hdr.payload_len = plaintext_len;
       if (!_uc_state_priv.crypto.check_recv_seq(crypto_recv_seq_num)) {
+        const uint8_t flags = hdr->flags;
+        const uint32_t tag = hdr->proto_tag;
         _uc_put_msg_buffer(msg);
-        // Could be duplicate because of a retransmit so just log a warning.
-        LOGW("Message dropped to prevent replay (tag=%ld).", hdr->proto_tag);
+        // Re-ACK so the sender can make progress even if our original ACK
+        // was lost.
+        if (flags & UC_MSG_HDR_FLAGS_IMMEDIATE) {
+          rtos_event_group_set_bits(&_uc_state_priv.ack_events, UC_EVENT_ACK_TIMER);
+        } else {
+          if (!rtos_timer_expired(&_uc_state_priv.ack_timer)) {
+            rtos_timer_restart(&_uc_state_priv.ack_timer);
+          } else {
+            rtos_timer_start(&_uc_state_priv.ack_timer, UC_ACK_TIMEOUT_MS);
+          }
+        }
+        LOGW("Replay drop (tag=%ld)", tag);
         return UC_ERR_NONE;
       }
     }
@@ -297,9 +388,15 @@ uc_err_t uc_process_msg(uc_msg_t* msg, size_t msg_len, void* proto_buffer, size_
       // Either we:
       //   1. Received a duplicate message.
       //   2. Received an ACK message.
-      // In either case, no process is required, so we just return the
-      // message buffer.
+      // In either case, no payload processing is required.
+      const uint16_t payload_len = hdr->payload_len;
       _uc_put_msg_buffer(msg);
+
+      // Re-ACK duplicate messages so the sender can make progress even if
+      // our original ACK was lost.
+      if (payload_len > 0) {
+        rtos_event_group_set_bits(&_uc_state_priv.ack_events, UC_EVENT_ACK_TIMER);
+      }
     }
   } while (0);
 
@@ -318,6 +415,7 @@ void uc_init_mode(const void* enc_proto_fields, const size_t enc_proto_size,
 
   _uc_state_priv.send_seq_num = 0;
   _uc_state_priv.recv_seq_num = 0;
+  _uc_state_priv.sent_first_msg = false;
   _uc_state_priv.rd_index = 0;
   _uc_state_priv.send_cb = send_cb;
   _uc_state_priv.context = context;
@@ -343,8 +441,9 @@ void uc_init(uc_send_callback_t send_cb, uc_crypto_api_t const* crypto_api, void
       .gcm_decrypt = &_cipher_no_op,
       .check_recv_seq = &_uc_check_recv_seq_no_op,
       .get_send_seq = &_uc_send_seq_no_op,
+      .has_session = &_uc_has_session_no_op,
     };
-    LOGW("No crypto API provided. UXC message will not be encrypted.");
+    LOGW("No crypto, UXC plain");
   } else {
     ASSERT(crypto_api->gcm_encrypt != NULL);
     ASSERT(crypto_api->gcm_decrypt != NULL);
@@ -396,12 +495,13 @@ uc_err_t uc_encode(uint32_t proto_tag, void* proto, uint16_t proto_len, uint16_t
     msg->hdr.flags |= UC_MSG_HDR_FLAGS_FIRST_MSG;
   }
 
-  if (_uc_should_encrypt(proto_tag)) {
-    if (proto_len >
-        (msg_buffer_size - (sizeof(uc_msg_hdr_t) + AES_GCM_IV_LENGTH + AES_GCM_TAG_LENGTH))) {
+  // TODO[SECENG-9343]: Make encryption mandatory on all devices.
+  if (_uc_should_encrypt(proto_tag) &&
+      (_uc_state_priv.crypto.has_session() || (security_config_is_production() == SECURE_TRUE))) {
+    if (proto_len > (msg_buffer_size - (sizeof(uc_msg_hdr_t) + UC_ENCRYPTION_PADDING))) {
       _uc_put_msg_buffer(msg);
       ASSERT(rtos_mutex_unlock(&_uc_state_priv.wr_mutex));
-      LOGE("Buffer not large enough for payload plus encryption overhead");
+      LOGE("Buf too small");
       return UC_ERR_TOO_LARGE;
     }
     msg->hdr.flags |= UC_MSG_HDR_FLAGS_ENCRYPTED;
@@ -504,8 +604,9 @@ uc_err_t uc_encode(uint32_t proto_tag, void* proto, uint16_t proto_len, uint16_t
         return UC_ERR_WR_FAILED;
       }
 
-      remaining_bytes -= (wr_size > remaining_bytes ? remaining_bytes : wr_size);
-      wr_buf += wr_size;
+      const size_t bytes_written = (wr_size > remaining_bytes ? remaining_bytes : wr_size);
+      remaining_bytes -= bytes_written;
+      wr_buf += bytes_written;
     }
 
     if (proto_len == 0) {
@@ -527,8 +628,7 @@ uc_err_t uc_encode(uint32_t proto_tag, void* proto, uint16_t proto_len, uint16_t
 }
 
 uc_err_t uc_ack(void) {
-  (void)rtos_event_group_clear_bits(&_uc_state_priv.ack_events, UC_EVENT_ACK_TIMER);
-  return uc_encode(0, NULL, 0, 0, _uc_state_priv.send_cb, _uc_state_priv.context);
+  return _uc_ack_with_timeout(RTOS_SEMAPHORE_TIMEOUT_MAX);
 }
 
 void uc_handle_data(const uint8_t* data, uint32_t data_len, void* context) {
@@ -598,7 +698,7 @@ uc_err_t uc_decode(const uint8_t* data, uint32_t data_len, uc_recv_callback_t re
 void uc_idle(void* context) {
   (void)context;
   if (rtos_event_group_get_bits(&_uc_state_priv.ack_events) & UC_EVENT_ACK_TIMER) {
-    uc_ack();
+    (void)_uc_ack_with_timeout(0);
   }
 }
 

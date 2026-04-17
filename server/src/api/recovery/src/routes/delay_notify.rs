@@ -1,8 +1,9 @@
 use std::collections::HashSet;
 
+use crate::helpers::{check_hw_signature_with_domain_tag, DOMAIN_TAG_AUTH_ROTATION};
 use crate::{
     ensure_pubkeys_unique,
-    entities::{RecoveryDestination, ToActor, ToActorStrategy},
+    entities::{RecoveryDestination, RecoveryType},
     error::RecoveryError,
     metrics,
     repository::RecoveryRepository,
@@ -25,11 +26,11 @@ use account::{
         Service as AccountService,
     },
 };
-use authn_authz::key_claims::KeyClaims;
+use authn_authz::{Action, Authorization, AuthorizationRequirements};
 use axum::{
     extract::{Path, State},
     routing::{delete, get, post, put},
-    Json, Router,
+    Extension, Json, Router,
 };
 use bdk_utils::{bdk::bitcoin::secp256k1::PublicKey, signature::check_signature};
 use comms_verification::{
@@ -37,6 +38,7 @@ use comms_verification::{
     Service as CommsVerificationService, VerifyForScopeInput,
 };
 use errors::{ApiError, ErrorCode};
+use instrumentation::middleware::HardwareSerialHeader;
 use experimentation::claims::ExperimentationClaims;
 use feature_flags::{flag::evaluate_flag_value, service::Service as FeatureFlagsService};
 use http_server::{
@@ -51,9 +53,12 @@ use serde_with::{base64::Base64, serde_as};
 use time::Duration;
 use tracing::{event, instrument, Level};
 use types::account::{
-    entities::{Account, CommsVerificationScope, Factor, FullAccountAuthKeysInput, Touchpoint},
+    entities::{
+        Account, CommsVerificationScope, Factor, FullAccountAuthKeysInput, HardwareType, Touchpoint,
+    },
     identifiers::{AccountId, TouchpointId},
 };
+use types::authn_authz::cognito::CognitoUser;
 use userpool::userpool::UserPoolService;
 use utoipa::{OpenApi, ToSchema};
 use wsm_rust_client::{SigningService, WsmClient};
@@ -71,6 +76,7 @@ pub struct RouteState(
     pub SocialChallengeService,
     pub FeatureFlagsService,
     pub WsmClient,
+    pub repository::anti_replay::AntiReplayRepository,
 );
 
 impl RouterBuilder for RouteState {
@@ -173,6 +179,22 @@ impl From<RouteState> for SwaggerEndpoint {
 )]
 struct ApiDoc;
 
+/// Maps a lost factor to the corresponding create-recovery action proof.
+fn create_recovery_action(lost_factor: Factor) -> Action {
+    match lost_factor {
+        Factor::App => Action::CreateLostAppRecovery,
+        Factor::Hw => Action::CreateLostHardwareRecovery,
+    }
+}
+
+/// Maps a lost factor to the corresponding cancel-recovery action proof.
+fn cancel_recovery_action(lost_factor: Factor) -> Action {
+    match lost_factor {
+        Factor::App => Action::CancelLostAppRecovery,
+        Factor::Hw => Action::CancelLostHardwareRecovery,
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct CreateAccountDelayNotifyRequest {
@@ -191,6 +213,7 @@ pub struct CreateAccountDelayNotifyRequest {
         social_challenge_service,
         comms_verification_service,
         feature_flags_service,
+        anti_replay_repository,
     )
 )]
 #[utoipa::path(
@@ -214,65 +237,92 @@ pub async fn create_delay_notify(
     State(social_challenge_service): State<SocialChallengeService>,
     State(comms_verification_service): State<CommsVerificationService>,
     State(feature_flags_service): State<FeatureFlagsService>,
-    key_proof: KeyClaims,
+    State(anti_replay_repository): State<repository::anti_replay::AntiReplayRepository>,
+    auth: Authorization,
+    hw_serial: HardwareSerialHeader,
     Json(request): Json<CreateAccountDelayNotifyRequest>,
 ) -> Result<Json<Value>, ApiError> {
+    // Block W3 hardware claiming to be W1
+    HardwareType::reject_w3_claiming_w1(hw_serial.as_deref(), request.auth.hardware_type)
+        .map_err(|e| ApiError::GenericForbidden(e.to_string()))?;
+    // Require at least one factor for creating a recovery.
+    // The state machine's to_actor logic enforces the signing factor isn't the lost factor.
     let full_account = account_service
         .fetch_full_account(FetchAccountInput {
             account_id: &account_id,
         })
         .await?;
+    let hardware_type = full_account
+        .active_hardware_type()
+        .map_err(|e| ApiError::GenericInternalApplicationError(e.to_string()))?;
 
-    let destination = RecoveryDestination {
-        source_auth_keys_id: full_account.common_fields.active_auth_keys_id.to_owned(),
-        app_auth_pubkey: request.auth.app,
-        hardware_auth_pubkey: request.auth.hardware,
-        recovery_auth_pubkey: request.auth.recovery,
-    };
-    let events = vec![
-        RecoveryEvent::CheckAccountRecoveryState,
-        RecoveryEvent::CreateRecovery {
-            account: full_account.clone(),
-            lost_factor: request.lost_factor,
-            destination,
-            key_proof,
-        },
-    ];
-    let create_response = run_recovery_fsm(
-        account_id.clone(),
-        events,
-        &account_service,
-        &inheritance_service,
-        &recovery_service,
-        &notification_service,
-        &social_challenge_service,
-        &comms_verification_service,
-        &feature_flags_service,
-    )
-    .await
-    .map(|r| Json(r.response()))?;
+    let result =
+        AuthorizationRequirements::new(create_recovery_action(request.lost_factor), hardware_type)
+            .proof(authn_authz::ProofRequirement::AnyFactor)
+            .execute(
+                &auth,
+                &anti_replay_repository,
+                move |authorized_request| async move {
+                    let destination = RecoveryDestination {
+                        source_auth_keys_id: full_account
+                            .common_fields
+                            .active_auth_keys_id
+                            .to_owned(),
+                        app_auth_pubkey: request.auth.app,
+                        hardware_auth_pubkey: request.auth.hardware,
+                        recovery_auth_pubkey: request.auth.recovery,
+                        hardware_type: request.auth.hardware_type,
+                    };
+                    let events = vec![
+                        RecoveryEvent::CheckAccountRecoveryState,
+                        RecoveryEvent::CreateRecovery {
+                            account: full_account.clone(),
+                            lost_factor: request.lost_factor,
+                            destination,
+                            authorized_request,
+                        },
+                    ];
+                    let create_response = run_recovery_fsm(
+                        account_id.clone(),
+                        events,
+                        &account_service,
+                        &inheritance_service,
+                        &recovery_service,
+                        &notification_service,
+                        &social_challenge_service,
+                        &comms_verification_service,
+                        &feature_flags_service,
+                    )
+                    .await
+                    .map(|r| r.response())?;
 
-    //TODO: Remove this once recovery syncer on mobile isn't running always
-    if request.delay_period_num_sec.is_some()
-        && full_account.common_fields.properties.is_test_account
-    {
-        update_recovery_delay_for_test_account(
-            account_id,
-            account_service,
-            inheritance_service,
-            notification_service,
-            recovery_service,
-            social_challenge_service,
-            comms_verification_service,
-            feature_flags_service,
-            UpdateDelayForTestRecoveryRequest {
-                delay_period_num_sec: request.delay_period_num_sec,
-            },
-        )
-        .await
-    } else {
-        Ok(create_response)
-    }
+                    //TODO: Remove this once recovery syncer on mobile isn't running always
+                    if request.delay_period_num_sec.is_some()
+                        && full_account.common_fields.properties.is_test_account
+                    {
+                        let Json(v) = update_recovery_delay_for_test_account(
+                            account_id,
+                            account_service,
+                            inheritance_service,
+                            notification_service,
+                            recovery_service,
+                            social_challenge_service,
+                            comms_verification_service,
+                            feature_flags_service,
+                            UpdateDelayForTestRecoveryRequest {
+                                delay_period_num_sec: request.delay_period_num_sec,
+                            },
+                        )
+                        .await?;
+                        Ok::<_, ApiError>(v)
+                    } else {
+                        Ok(create_response)
+                    }
+                },
+            )
+            .await?;
+
+    Ok(Json(result))
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -347,7 +397,7 @@ pub async fn update_delay_for_test_account(
     State(social_challenge_service): State<SocialChallengeService>,
     State(comms_verification_service): State<CommsVerificationService>,
     State(feature_flags_service): State<FeatureFlagsService>,
-    key_proof: KeyClaims,
+    _auth: Authorization,
     Json(request): Json<UpdateDelayForTestRecoveryRequest>,
 ) -> Result<Json<Value>, ApiError> {
     update_recovery_delay_for_test_account(
@@ -374,6 +424,7 @@ pub async fn update_delay_for_test_account(
         social_challenge_service,
         comms_verification_service,
         feature_flags_service,
+        anti_replay_repository,
     )
 )]
 #[utoipa::path(
@@ -396,26 +447,66 @@ pub async fn cancel_delay_notify(
     State(social_challenge_service): State<SocialChallengeService>,
     State(comms_verification_service): State<CommsVerificationService>,
     State(feature_flags_service): State<FeatureFlagsService>,
-    key_proof: KeyClaims,
+    State(anti_replay_repository): State<repository::anti_replay::AntiReplayRepository>,
+    auth: Authorization,
 ) -> Result<(), ApiError> {
-    let events = vec![
-        RecoveryEvent::CheckAccountRecoveryState,
-        RecoveryEvent::CancelRecovery { key_proof },
-    ];
-    run_recovery_fsm(
-        account_id,
-        events,
-        &account_service,
-        &inheritance_service,
-        &recovery_service,
-        &notification_service,
-        &social_challenge_service,
-        &comms_verification_service,
-        &feature_flags_service,
-    )
-    .await?;
+    // Require at least one factor for canceling a recovery.
+    // The state machine's to_actor logic determines which factor is acting.
+    let full_account = account_service
+        .fetch_full_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await?;
+    let hardware_type = full_account
+        .active_hardware_type()
+        .map_err(|e| ApiError::GenericInternalApplicationError(e.to_string()))?;
 
-    Ok(())
+    // Look up the active recovery to determine which cancel action proof to require.
+    // This adds a DB call before the FSM execution, but cancellation is not a hot path
+    // and the server must be authoritative about which factor was lost (cannot trust client).
+    let cancel_action = match recovery_service
+        .fetch_pending(&account_id, RecoveryType::DelayAndNotify)
+        .await
+    {
+        Ok(Some(recovery)) => {
+            cancel_recovery_action(recovery.get_lost_factor().ok_or_else(|| {
+                ApiError::GenericInternalApplicationError(
+                    "Active recovery has no lost factor".to_string(),
+                )
+            })?)
+        }
+        Ok(None) => return Err(RecoveryError::NoExistingRecovery.into()),
+        Err(e) => return Err(ApiError::GenericInternalApplicationError(e.to_string())),
+    };
+
+    AuthorizationRequirements::new(cancel_action, hardware_type)
+        .or_action(Action::CancelConflictingRecovery)
+        .proof(authn_authz::ProofRequirement::AnyFactor)
+        .execute(
+            &auth,
+            &anti_replay_repository,
+            |authorized_request| async move {
+                let events = vec![
+                    RecoveryEvent::CheckAccountRecoveryState,
+                    RecoveryEvent::CancelRecovery { authorized_request },
+                ];
+                run_recovery_fsm(
+                    account_id,
+                    events,
+                    &account_service,
+                    &inheritance_service,
+                    &recovery_service,
+                    &notification_service,
+                    &social_challenge_service,
+                    &comms_verification_service,
+                    &feature_flags_service,
+                )
+                .await?;
+
+                Ok::<_, ApiError>(())
+            },
+        )
+        .await
 }
 
 #[instrument(
@@ -553,6 +644,16 @@ pub struct SendAccountVerificationCodeRequest {
 #[serde(rename_all = "snake_case")]
 pub struct SendAccountVerificationCodeResponse {}
 
+fn cognito_user_to_factor(cognito_user: &CognitoUser) -> Result<Factor, ApiError> {
+    match cognito_user {
+        CognitoUser::App(_) => Ok(Factor::App),
+        CognitoUser::Hardware(_) => Ok(Factor::Hw),
+        CognitoUser::Recovery(_) => Err(ApiError::GenericForbidden(
+            "Recovery factor cannot perform this action".to_string(),
+        )),
+    }
+}
+
 #[instrument(err, skip(account_service, comms_verification_service))]
 #[utoipa::path(
     post,
@@ -570,16 +671,17 @@ pub async fn send_verification_code(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
     State(comms_verification_service): State<CommsVerificationService>,
-    key_proof: KeyClaims,
+    Extension(cognito_user): Extension<CognitoUser>,
     Json(request): Json<SendAccountVerificationCodeRequest>,
 ) -> Result<Json<SendAccountVerificationCodeResponse>, ApiError> {
-    let account = account_service
-        .fetch_account(account::service::FetchAccountInput {
+    let full_account = account_service
+        .fetch_full_account(FetchAccountInput {
             account_id: &account_id,
         })
         .await?;
+    let account = Account::Full(full_account);
 
-    let actor = key_proof.to_actor(ToActorStrategy::ExclusiveOr)?;
+    let actor = cognito_user_to_factor(&cognito_user)?;
     let scope = CommsVerificationScope::DelayNotifyActor(actor);
 
     let touchpoint = account
@@ -621,7 +723,7 @@ pub struct VerifyAccountVerificationCodeRequest {
 #[serde(rename_all = "snake_case")]
 pub struct VerifyAccountVerificationCodeResponse {}
 
-#[instrument(err, skip(comms_verification_service))]
+#[instrument(err, skip(comms_verification_service, request))]
 #[utoipa::path(
     post,
     path = "/api/accounts/{account_id}/delay-notify/verify-code",
@@ -637,10 +739,10 @@ pub struct VerifyAccountVerificationCodeResponse {}
 pub async fn verify_code(
     Path(account_id): Path<AccountId>,
     State(comms_verification_service): State<CommsVerificationService>,
-    key_proof: KeyClaims,
+    Extension(cognito_user): Extension<CognitoUser>,
     Json(request): Json<VerifyAccountVerificationCodeRequest>,
 ) -> Result<Json<VerifyAccountVerificationCodeResponse>, ApiError> {
-    let actor = key_proof.to_actor(ToActorStrategy::ExclusiveOr)?;
+    let actor = cognito_user_to_factor(&cognito_user)?;
     let scope = CommsVerificationScope::DelayNotifyActor(actor);
 
     comms_verification_service
@@ -675,6 +777,8 @@ pub struct RotateAuthenticationKeysRequest {
     pub application: AuthenticationKey,
     pub hardware: AuthenticationKey,
     pub recovery: Option<AuthenticationKey>,
+    #[serde(default)]
+    pub hardware_type: HardwareType,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -691,6 +795,7 @@ pub struct RotateAuthenticationKeysResponse {}
         comms_verification_service,
         user_pool_service,
         feature_flags_service,
+        anti_replay_repository,
     )
 )]
 #[utoipa::path(
@@ -716,149 +821,161 @@ pub async fn rotate_authentication_keys(
     State(comms_verification_service): State<CommsVerificationService>,
     State(user_pool_service): State<UserPoolService>,
     State(feature_flags_service): State<FeatureFlagsService>,
-    key_proof: KeyClaims,
+    State(anti_replay_repository): State<repository::anti_replay::AntiReplayRepository>,
+    auth: Authorization,
     experimentation_claims: ExperimentationClaims,
+    hw_serial: HardwareSerialHeader,
     Json(request): Json<RotateAuthenticationKeysRequest>,
 ) -> Result<Json<RotateAuthenticationKeysResponse>, ApiError> {
-    if !(key_proof.hw_signed && key_proof.app_signed) {
-        event!(
-            Level::WARN,
-            "valid signature over access token required by both app and hw auth keys"
-        );
-        return Err(ApiError::GenericForbidden(
-            "valid signature over access token required by both app and hw auth keys".to_string(),
-        ));
-    }
-
+    // Block W3 hardware claiming to be W1
+    HardwareType::reject_w3_claiming_w1(hw_serial.as_deref(), request.hardware_type)
+        .map_err(|e| ApiError::GenericForbidden(e.to_string()))?;
     let account = account_service
         .fetch_full_account(FetchAccountInput {
             account_id: &account_id,
         })
         .await?;
-    let current_auth = account
-        .active_auth_keys()
-        .ok_or(AccountError::InvalidKeysetState)?;
+    let hardware_type = account
+        .active_hardware_type()
+        .map_err(|e| ApiError::GenericInternalApplicationError(e.to_string()))?;
 
-    check_signature(
-        &account_id.to_string(),
-        &request.application.signature,
-        request.application.key,
-    )?;
-    check_signature(
-        &account_id.to_string(),
-        &request.hardware.signature,
-        request.hardware.key,
-    )?;
+    let result = AuthorizationRequirements::new(Action::RotateAppAuthKeys, hardware_type)
+        .execute(&auth, &anti_replay_repository, move |authorized_request| async move {
+            let current_auth = account
+                .active_auth_keys()
+                .ok_or(AccountError::InvalidKeysetState)?;
 
-    // Ensure we aren't going from having a recovery authkey to having none
-    let existing_recovery_key = current_auth.recovery_pubkey.is_some();
-    let rotate_to_new_recovery_key = request.recovery.is_some();
-    if existing_recovery_key && !rotate_to_new_recovery_key {
-        return Err(ApiError::GenericBadRequest(
-            "Recovery Authentication key required".to_string(),
-        ));
-    }
+            check_signature(
+                &account_id.to_string(),
+                &request.application.signature,
+                request.application.key,
+            )?;
+            // The hardware signature is produced by the hw auth key signing the account ID.
+            // Use domain-tagged verification with fallback for firmware that doesn't tag yet.
+            if !check_hw_signature_with_domain_tag(
+                DOMAIN_TAG_AUTH_ROTATION,
+                &account_id.to_string(),
+                &request.hardware.signature,
+                request.hardware.key,
+            ) {
+                return Err(ApiError::GenericBadRequest(
+                    "Invalid hardware signature".to_string(),
+                ));
+            }
 
-    // Check signature for recovery authkey if it exists
-    if let Some(recovery_auth) = request.recovery.as_ref() {
-        check_signature(
-            &account_id.to_string(),
-            &recovery_auth.signature,
-            recovery_auth.key,
-        )?;
-    }
+            // Ensure we aren't going from having a recovery authkey to having none
+            let existing_recovery_key = current_auth.recovery_pubkey.is_some();
+            let rotate_to_new_recovery_key = request.recovery.is_some();
+            if existing_recovery_key && !rotate_to_new_recovery_key {
+                return Err(ApiError::GenericBadRequest(
+                    "Recovery Authentication key required".to_string(),
+                ));
+            }
 
-    ensure_pubkeys_unique(
-        &account_service,
-        &recovery_service,
-        Some(request.application.key),
-        None,
-        request.recovery.as_ref().map(|r| r.key),
-    )
-    .await?;
+            // Check signature for recovery authkey if it exists
+            if let Some(recovery_auth) = request.recovery.as_ref() {
+                check_signature(
+                    &account_id.to_string(),
+                    &recovery_auth.signature,
+                    recovery_auth.key,
+                )?;
+            }
 
-    //TODO: Remove this when the endpoint should allow hw key rotations
-    if request.hardware.key != current_auth.hardware_pubkey {
-        return Err(ApiError::GenericBadRequest(
-            "Hardware Authentication key mismatch".to_string(),
-        ));
-    }
+            // Only check uniqueness for keys that are actually being rotated
+            ensure_pubkeys_unique(
+                &account_service,
+                &recovery_service,
+                Some(request.application.key)
+                    .filter(|&key| key != current_auth.app_pubkey),
+                Some(request.hardware.key)
+                    .filter(|&key| key != current_auth.hardware_pubkey),
+                request.recovery.as_ref().map(|r| r.key)
+                    .filter(|&key| Some(key) != current_auth.recovery_pubkey),
+            )
+            .await?;
 
-    // Cancel D+N if exists
-    let events = vec![
-        RecoveryEvent::CheckAccountRecoveryState,
-        RecoveryEvent::CancelRecovery { key_proof },
-    ];
-    if let Err(e) = run_recovery_fsm(
-        account_id.clone(),
-        events,
-        &account_service,
-        &inheritance_service,
-        &recovery_service,
-        &notification_service,
-        &social_challenge_service,
-        &comms_verification_service,
-        &feature_flags_service,
-    )
-    .await
-    {
-        if !matches!(e.clone(), ApiError::Specific{code, ..} if code == ErrorCode::NoRecoveryExists)
-        {
-            return Err(e);
-        }
-    }
+            // Cancel D+N if exists
+            let events = vec![
+                RecoveryEvent::CheckAccountRecoveryState,
+                RecoveryEvent::CancelRecovery { authorized_request },
+            ];
+            if let Err(e) = run_recovery_fsm(
+                account_id.clone(),
+                events,
+                &account_service,
+                &inheritance_service,
+                &recovery_service,
+                &notification_service,
+                &social_challenge_service,
+                &comms_verification_service,
+                &feature_flags_service,
+            )
+            .await
+            {
+                if !matches!(e.clone(), ApiError::Specific{code, ..} if code == ErrorCode::NoRecoveryExists)
+                {
+                    return Err(e);
+                }
+            }
 
-    let updated_account = account_service
-        .create_and_rotate_auth_keys(CreateAndRotateAuthKeysInput {
-            account_id: &account_id,
-            app_auth_pubkey: request.application.key,
-            hardware_auth_pubkey: request.hardware.key,
-            recovery_auth_pubkey: request.recovery.as_ref().map(|r| r.key),
-        })
-        .await?;
-
-    user_pool_service
-        .create_or_update_account_users_if_necessary(
-            &account_id,
-            Some(request.application.key),
-            Some(request.hardware.key),
-            request.recovery.as_ref().map(|f| f.key),
-        )
-        .await
-        .map_err(RecoveryError::RotateAuthKeys)?;
-
-    account_service
-        .clear_push_touchpoints(ClearPushTouchpointsInput {
-            account_id: &account_id,
-        })
-        .await?;
-
-    // Recreate pending claims for beneficiary if account is full
-    if let Account::Full(updated_full_account) = updated_account {
-        let is_inheritance_enabled = experimentation_claims
-            .account_context_key()
-            .ok()
-            .and_then(|context_key| {
-                evaluate_flag_value(
-                    &feature_flags_service,
-                    INHERITANCE_ENABLED_FLAG_KEY,
-                    &context_key,
-                )
-                .ok()
-            })
-            .unwrap_or(false);
-
-        if is_inheritance_enabled {
-            inheritance_service
-                .recreate_pending_claims_for_beneficiary(RecreatePendingClaimsForBeneficiaryInput {
-                    beneficiary: &updated_full_account,
+            let updated_account = account_service
+                .create_and_rotate_auth_keys(CreateAndRotateAuthKeysInput {
+                    account_id: &account_id,
+                    app_auth_pubkey: request.application.key,
+                    hardware_auth_pubkey: request.hardware.key,
+                    recovery_auth_pubkey: request.recovery.as_ref().map(|r| r.key),
+                    hardware_type: request.hardware_type,
                 })
                 .await?;
-        }
-    }
 
-    metrics::AUTH_KEYS_ROTATED.add(1, &[]);
-    Ok(Json(RotateAuthenticationKeysResponse {}))
+            user_pool_service
+                .create_or_update_account_users_if_necessary(
+                    &account_id,
+                    Some(request.application.key),
+                    Some(request.hardware.key),
+                    request.recovery.as_ref().map(|f| f.key),
+                )
+                .await
+                .map_err(RecoveryError::RotateAuthKeys)?;
+
+            account_service
+                .clear_push_touchpoints(ClearPushTouchpointsInput {
+                    account_id: &account_id,
+                })
+                .await?;
+
+            // Recreate pending claims for beneficiary if account is full
+            if let Account::Full(updated_full_account) = updated_account {
+                let is_inheritance_enabled = experimentation_claims
+                    .account_context_key()
+                    .ok()
+                    .and_then(|context_key| {
+                        evaluate_flag_value(
+                            &feature_flags_service,
+                            INHERITANCE_ENABLED_FLAG_KEY,
+                            &context_key,
+                        )
+                        .ok()
+                    })
+                    .unwrap_or(false);
+
+                if is_inheritance_enabled {
+                    inheritance_service
+                        .recreate_pending_claims_for_beneficiary(
+                            RecreatePendingClaimsForBeneficiaryInput {
+                                beneficiary: &updated_full_account,
+                            },
+                        )
+                        .await?;
+                }
+            }
+
+            metrics::AUTH_KEYS_ROTATED.add(1, &[]);
+            Ok::<_, ApiError>(RotateAuthenticationKeysResponse {})
+        })
+        .await?;
+
+    Ok(Json(result))
 }
 
 #[serde_as]
@@ -877,7 +994,7 @@ pub struct EvaluatePinResponse {
     pub sealed_response: Vec<u8>,
 }
 
-#[instrument(err, skip(wsm_client))]
+#[instrument(err, skip(wsm_client, request))]
 pub async fn evaluate_pin(
     State(wsm_client): State<WsmClient>,
     Json(request): Json<EvaluatePinRequest>,

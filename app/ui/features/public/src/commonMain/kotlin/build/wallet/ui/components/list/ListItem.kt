@@ -26,6 +26,7 @@ import build.wallet.ui.components.label.LabelTreatment.Destructive
 import build.wallet.ui.components.label.loadingScrim
 import build.wallet.ui.components.layout.CollapsedMoneyView
 import build.wallet.ui.components.layout.CollapsibleLabelContainer
+import build.wallet.ui.compose.listItemTestTag
 import build.wallet.ui.compose.resId
 import build.wallet.ui.model.coachmark.CoachmarkLabelTreatment
 import build.wallet.ui.model.coachmark.CoachmarkModel
@@ -33,6 +34,7 @@ import build.wallet.ui.model.list.*
 import build.wallet.ui.model.list.ListItemAccessoryAlignment.CENTER
 import build.wallet.ui.model.list.ListItemAccessoryAlignment.TOP
 import build.wallet.ui.model.list.ListItemTreatment.*
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 
@@ -49,8 +51,21 @@ fun ListItem(
   collapseContent: Boolean = false,
 ) {
   with(model) {
+    val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
     val sideTextValue: AnnotatedString? = model.sideText()
     val secondarySideTextValue: AnnotatedString? = model.secondarySideText()
+    val resolvedTitleType = (
+      model.titleType ?: when (model.treatment) {
+        PRIMARY -> LabelType.Body2Medium
+        SECONDARY -> LabelType.Body2Regular
+        TERTIARY -> LabelType.Body3Regular
+        QUATERNARY -> LabelType.Label3
+        PRIMARY_TITLE -> LabelType.Title1
+        SECONDARY_DISPLAY -> LabelType.Display2
+        INFO -> LabelType.Body4Regular
+        DESTRUCTIVE -> LabelType.Body2Medium
+      }
+    ).regularizedForDesignSystemV2ListItems(isDesignSystemV2Enabled)
 
     ListItem(
       modifier = modifier,
@@ -78,17 +93,7 @@ fun ListItem(
             }
           false -> Disabled
         },
-      titleType =
-        when (model.treatment) {
-          PRIMARY -> LabelType.Body2Medium
-          SECONDARY -> LabelType.Body2Regular
-          TERTIARY -> LabelType.Body3Regular
-          QUATERNARY -> LabelType.Label3
-          PRIMARY_TITLE -> LabelType.Title1
-          SECONDARY_DISPLAY -> LabelType.Display2
-          INFO -> LabelType.Body4Regular
-          DESTRUCTIVE -> LabelType.Body2Medium
-        },
+      titleType = resolvedTitleType,
       listItemTitleBackgroundTreatment = listItemTitleBackgroundTreatment,
       secondaryText =
         secondaryText?.let { secondaryText ->
@@ -102,9 +107,11 @@ fun ListItem(
         when (model.treatment) {
           SECONDARY_DISPLAY -> LabelType.Body1Regular
           else -> LabelType.Body3Regular
-        },
+        }.regularizedForDesignSystemV2ListItems(isDesignSystemV2Enabled),
       sideText = sideTextValue,
       secondarySideText = secondarySideTextValue,
+      secondarySideTextType =
+        model.secondarySideTextType.regularizedForDesignSystemV2ListItems(isDesignSystemV2Enabled),
       leadingAccessory =
         when (enabled) {
           true -> leadingAccessory
@@ -125,7 +132,6 @@ fun ListItem(
       onClick = onClick,
       pickerMenu = pickerMenu,
       collapseContent = collapseContent,
-      testTag = testTag,
       coachmark = model.coachmark,
       coachmarkLabel = model.coachmarkLabel,
       isLoading = model.isLoading,
@@ -134,12 +140,28 @@ fun ListItem(
   }
 }
 
+private fun LabelType.regularizedForDesignSystemV2ListItems(
+  isDesignSystemV2Enabled: Boolean,
+): LabelType =
+  if (!isDesignSystemV2Enabled) {
+    this
+  } else {
+    when (this) {
+      LabelType.Body1Medium -> LabelType.Body1Regular
+      LabelType.Body2Medium -> LabelType.Body2Regular
+      LabelType.Body3Medium -> LabelType.Body3Regular
+      LabelType.Body4Medium -> LabelType.Body4Regular
+      else -> this
+    }
+  }
+
 @Composable
 fun ListItem(
   modifier: Modifier = Modifier,
   listItemTreatment: ListItemTreatment? = null,
   title: String,
   allowFontScaling: Boolean = true,
+  contentSpacing: Dp = 8.dp,
   contentAlignment: Alignment.Horizontal = Alignment.Start,
   titleTreatment: LabelTreatment = Primary,
   titleType: LabelType = LabelType.Body2Medium,
@@ -147,12 +169,12 @@ fun ListItem(
   secondaryText: String? = null,
   sideText: String? = null,
   secondarySideText: String? = null,
+  secondarySideTextType: LabelType = LabelType.Body3Regular,
   leadingAccessory: ListItemAccessory? = null,
   leadingAccessoryAlignment: Alignment.Vertical = Alignment.CenterVertically,
   trailingAccessory: ListItemAccessory? = null,
   onClick: (() -> Unit)? = null,
   pickerMenu: ListItemPickerMenu<*>? = null,
-  testTag: String? = null,
   titleLabel: LabelModel? = null,
   specialTrailingAccessory: ListItemAccessory? = null,
   coachmark: CoachmarkModel? = null,
@@ -165,6 +187,7 @@ fun ListItem(
     listItemTreatment = listItemTreatment,
     title = AnnotatedString(title),
     allowFontScaling = allowFontScaling,
+    contentSpacing = contentSpacing,
     contentAlignment = contentAlignment,
     titleTreatment = titleTreatment,
     titleType = titleType,
@@ -172,13 +195,13 @@ fun ListItem(
     secondaryText = secondaryText?.let(::AnnotatedString),
     sideText = sideText?.let(::AnnotatedString),
     secondarySideText = secondarySideText?.let(::AnnotatedString),
+    secondarySideTextType = secondarySideTextType,
     leadingAccessory = leadingAccessory,
     leadingAccessoryAlignment = leadingAccessoryAlignment,
     trailingAccessory = trailingAccessory,
     specialTrailingAccessory = specialTrailingAccessory,
     onClick = onClick,
     pickerMenu = pickerMenu,
-    testTag = testTag,
     titleLabel = titleLabel,
     coachmark = coachmark,
     coachmarkLabel = coachmarkLabel,
@@ -207,6 +230,7 @@ fun ListItem(
   listItemTreatment: ListItemTreatment? = null,
   title: AnnotatedString,
   allowFontScaling: Boolean = true,
+  contentSpacing: Dp = 8.dp,
   contentAlignment: Alignment.Horizontal = Alignment.Start,
   titleTreatment: LabelTreatment = Primary,
   titleType: LabelType = LabelType.Body2Medium,
@@ -215,6 +239,7 @@ fun ListItem(
   secondaryTextType: LabelType = LabelType.Body3Regular,
   sideText: AnnotatedString? = null,
   secondarySideText: AnnotatedString? = null,
+  secondarySideTextType: LabelType = LabelType.Body3Regular,
   leadingAccessory: ListItemAccessory? = null,
   leadingAccessoryAlignment: Alignment.Vertical = Alignment.CenterVertically,
   trailingAccessory: ListItemAccessory? = null,
@@ -222,7 +247,6 @@ fun ListItem(
   topAccessory: ListItemAccessory? = null,
   onClick: (() -> Unit)? = null,
   pickerMenu: ListItemPickerMenu<*>? = null,
-  testTag: String? = null,
   titleLabel: LabelModel? = null,
   collapseContent: Boolean = false,
   coachmark: CoachmarkModel?,
@@ -230,16 +254,23 @@ fun ListItem(
   isLoading: Boolean = false,
   explainer: ListItemExplainer? = null,
 ) {
+  val resolvedListItemTestTag = listItemTestTag(title.text)
+
   ListItem(
     modifier = modifier,
     onClick = onClick,
     leadingAccessoryContent =
       leadingAccessory?.let {
         {
-          ListItemAccessory(model = leadingAccessory, isLoading = isLoading)
+          ListItemAccessory(
+            model = leadingAccessory,
+            isLoading = isLoading,
+            parentTestTag = "$resolvedListItemTestTag-leading-accessory"
+          )
         }
       },
     leadingAccessoryAlignment = leadingAccessoryAlignment,
+    contentSpacing = contentSpacing,
     primaryContent = {
       Box(
         modifier = listItemTitleBackgroundTreatment?.let {
@@ -328,7 +359,7 @@ fun ListItem(
               .loadingScrim(isLoading)
               .hideWhenLoading(isLoading),
             text = secondarySideText,
-            type = LabelType.Body3Regular,
+            type = secondarySideTextType,
             treatment = LabelTreatment.Secondary,
             alignment = TextAlign.End,
             allowFontScaling = allowFontScaling
@@ -338,19 +369,31 @@ fun ListItem(
     specialTrailingAccessoryContent =
       specialTrailingAccessory?.let {
         {
-          ListItemAccessory(model = specialTrailingAccessory, isLoading = isLoading)
+          ListItemAccessory(
+            model = specialTrailingAccessory,
+            isLoading = isLoading,
+            parentTestTag = "$resolvedListItemTestTag-special-trailing-accessory"
+          )
         }
       },
     trailingAccessoryContent =
       trailingAccessory?.let {
         {
-          ListItemAccessory(model = trailingAccessory, isLoading = isLoading)
+          ListItemAccessory(
+            model = trailingAccessory,
+            isLoading = isLoading,
+            parentTestTag = "$resolvedListItemTestTag-trailing-accessory"
+          )
         }
       },
     topAccessoryContent =
       topAccessory?.let {
         {
-          ListItemAccessory(model = topAccessory, isLoading = isLoading)
+          ListItemAccessory(
+            model = topAccessory,
+            isLoading = isLoading,
+            parentTestTag = "$resolvedListItemTestTag-top-accessory"
+          )
         }
       },
     pickerMenuContent =
@@ -363,7 +406,7 @@ fun ListItem(
     horizontalPadding = if (listItemTreatment == INFO) 16.dp else 0.dp,
     offset = if (listItemTreatment == INFO) Offset(0f, -12f) else Offset.Zero,
     collapseContent = collapseContent,
-    testTag = testTag,
+    resolvedTestTag = resolvedListItemTestTag,
     coachmark = coachmark,
     explainerContent = explainer?.let {
       {
@@ -427,6 +470,7 @@ private fun ListItem(
   onClick: (() -> Unit)? = null,
   leadingAccessoryContent: @Composable (BoxScope.() -> Unit)?,
   leadingAccessoryAlignment: Alignment.Vertical,
+  contentSpacing: Dp = 8.dp,
   primaryContent: @Composable BoxScope.() -> Unit,
   contentAlignment: Alignment.Horizontal = Alignment.Start,
   secondaryContent: (@Composable BoxScope.() -> Unit)?,
@@ -441,14 +485,14 @@ private fun ListItem(
   offset: Offset = Offset.Zero,
   coachmark: CoachmarkModel?,
   collapseContent: Boolean = false,
-  testTag: String? = null,
+  resolvedTestTag: String,
   explainerContent: (@Composable () -> Unit)? = null,
 ) {
   Box(
     modifier =
       modifier
         .fillMaxWidth()
-        .resId(testTag)
+        .resId(resolvedTestTag)
         .clickable(
           interactionSource = MutableInteractionSource(),
           indication = null,
@@ -486,7 +530,7 @@ private fun ListItem(
             )
             .offset(offset.x.dp, offset.y.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(contentSpacing)
       ) {
         leadingAccessoryContent?.run {
           Box(modifier = Modifier.align(leadingAccessoryAlignment)) {

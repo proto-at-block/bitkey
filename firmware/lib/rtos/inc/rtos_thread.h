@@ -68,7 +68,13 @@ void rtos_thread_sleep_until(uint32_t* last_wake_time_ms, const uint32_t period_
 uint32_t rtos_thread_systime(void);
 uint64_t rtos_thread_micros(void);
 
+/**
+ * @brief Returns `true` if running thread is in an ISR context.
+ *
+ * @return `true` if executing in ISR context otherwise `false`.
+ */
 bool rtos_in_isr(void);
 
 #define rtos_thread_enter_critical taskENTER_CRITICAL
 #define rtos_thread_exit_critical  taskEXIT_CRITICAL
+#define rtos_thread_yield          taskYIELD

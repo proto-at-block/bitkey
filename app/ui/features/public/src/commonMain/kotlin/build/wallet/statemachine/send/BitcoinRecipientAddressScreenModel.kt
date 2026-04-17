@@ -26,6 +26,7 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
+import build.wallet.ui.tokens.market.MarketIcons
 import dev.zacsweers.redacted.annotations.Redacted
 
 /**
@@ -51,6 +52,7 @@ data class BitcoinRecipientAddressScreenModel(
   val onPasteButtonClick: () -> Unit,
   val showSelfSendWarningWithRedirect: Boolean,
   val onGoToUtxoConsolidation: () -> Unit,
+  val isDesignSystemV2Enabled: Boolean = false,
 ) : FormBodyModel(
     onBack = onBack,
     toolbar = ToolbarModel(
@@ -58,11 +60,21 @@ data class BitcoinRecipientAddressScreenModel(
       middleAccessory = ToolbarMiddleAccessoryModel(title = "Recipient"),
       trailingAccessory = IconAccessory(
         model = IconButtonModel(
-          iconModel = IconModel(
-            icon = SmallIconScan,
-            iconSize = IconSize.Accessory,
-            iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Regular)
-          ),
+          iconModel =
+            if (isDesignSystemV2Enabled) {
+              IconModel(
+                icon = MarketIcons.ScanQrCode,
+                iconSize = IconSize.Accessory,
+                iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Regular)
+              )
+            } else {
+              IconModel(
+                icon = SmallIconScan,
+                iconSize = IconSize.Accessory,
+                iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Regular)
+              )
+            },
+          testTag = "send-recipient-scan-qr",
           onClick = StandardClick(onScanQrCodeClick)
         )
       )
@@ -73,13 +85,14 @@ data class BitcoinRecipientAddressScreenModel(
         fieldModel = TextFieldModel(
           value = enteredText,
           placeholderText = "Bitcoin Address",
+          testTag = "send-recipient-address-input",
           onValueChange = { newText, _ -> onEnteredTextChanged(newText) },
           keyboardType = Default
         ),
         trailingButtonModel = if (showPasteButton) {
           ButtonModel(
             text = "Paste",
-            leadingIcon = Icon.SmallIconClipboard,
+            leadingIcon = if (isDesignSystemV2Enabled) Icon.SmallIconCopy else Icon.SmallIconClipboard,
             treatment = Secondary,
             size = Compact,
             onClick = StandardClick { onPasteButtonClick() }

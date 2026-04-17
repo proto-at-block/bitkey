@@ -2,7 +2,13 @@ import os
 from abc import ABC, abstractmethod
 
 from bitkey.picocert import PicocertV1
-from bitkey.signer_utils import APP_CERT_ENV_VERSIONS, DEV_CERT_VERSIONS, PRODUCT_W3A_UXC, SIGNER_PRODUCTION
+from bitkey.signer_utils import (
+    APP_CERT_ENV_VERSIONS,
+    DEV_CERT_VERSIONS,
+    PRODUCT_W3A_CORE,
+    PRODUCT_W3A_UXC,
+    SIGNER_PRODUCTION,
+)
 from Crypto.Hash import SHA256
 from Crypto.PublicKey import ECC
 from Crypto.Signature import DSS
@@ -13,9 +19,13 @@ class SigningKeys:
         directory = self._key_directory(keys_dir, product, key_type)
         env_suffix = ""
 
-        # Prod firmware uses APP_CERT_ENV_VERSIONS, dev firmware uses DEV_CERT_VERSIONS.
+        # Prod firmware uses APP_CERT_ENV_VERSIONS for app images.
+        # Bootloader keys always use version 1 across all products and environments.
         if key_type == "prod":
-            version = APP_CERT_ENV_VERSIONS[product][SIGNER_PRODUCTION]
+            if image_type == "bl":
+                version = DEV_CERT_VERSIONS[product][image_type]
+            else:
+                version = APP_CERT_ENV_VERSIONS[product][SIGNER_PRODUCTION]
         else:
             version = DEV_CERT_VERSIONS[product][image_type]
         version_suffix = f".{version}"
@@ -26,25 +36,30 @@ class SigningKeys:
             key_type_in_filename = "prod"
             version_suffix = ""
 
-        # W3A-UXC keys do not have an extra production suffix.
-        if key_type == "prod" and product != PRODUCT_W3A_UXC:
+        # Bootloader keys and W3A-UXC keys do not use the -production suffix.
+        # Only prod app keys for non-UXC products use it.
+        if key_type == "prod" and image_type != "bl" and product != PRODUCT_W3A_UXC:
             env_suffix = "-production"
 
         self.public_key_path = os.path.join(
-            directory, f"{product}-{image_type}-signing-key-{key_type_in_filename}{env_suffix}{version_suffix}.pub.pem"
+            directory,
+            f"{product}-{image_type}-signing-key-{key_type_in_filename}{env_suffix}{version_suffix}.pub.pem",
         )
         self.private_key_path = os.path.join(
-            directory, f"{product}-{image_type}-signing-key-{key_type_in_filename}{env_suffix}{version_suffix}.priv.pem"
+            directory,
+            f"{product}-{image_type}-signing-key-{key_type_in_filename}{env_suffix}{version_suffix}.priv.pem",
         )
 
         # UXC uses picocerts (.pct) instead of .bin certificates
         if product == PRODUCT_W3A_UXC:
             self.cert_path = os.path.join(
-                directory, f"{product}-{image_type}-signing-cert-{key_type_in_filename}{env_suffix}{version_suffix}.pct"
+                directory,
+                f"{product}-{image_type}-signing-cert-{key_type_in_filename}{env_suffix}{version_suffix}.pct",
             )
         else:
             self.cert_path = os.path.join(
-                directory, f"{product}-{image_type}-signing-cert-{key_type_in_filename}{env_suffix}{version_suffix}.bin"
+                directory,
+                f"{product}-{image_type}-signing-cert-{key_type_in_filename}{env_suffix}{version_suffix}.bin",
             )
 
         self.image_type = image_type
@@ -69,8 +84,12 @@ class PatchSigningKeys:
         directory = os.path.join(keys_dir, f"{key_prefix}-{key_type.lower()}")
         assert os.path.isdir(directory), f"Key directory not found: {directory}"
 
-        self.public_key_path = os.path.join(directory, f"{key_prefix}-patch-signing-key-{key_type.lower()}.1.pub.pem")
-        self.private_key_path = os.path.join(directory, f"{key_prefix}-patch-signing-key-{key_type.lower()}.1.priv.pem")
+        self.public_key_path = os.path.join(
+            directory, f"{key_prefix}-patch-signing-key-{key_type.lower()}.1.pub.pem"
+        )
+        self.private_key_path = os.path.join(
+            directory, f"{key_prefix}-patch-signing-key-{key_type.lower()}.1.priv.pem"
+        )
         self.cert_path = None
         self.key_type = key_type
         self.product = product

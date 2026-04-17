@@ -10,7 +10,7 @@ use types::transaction_verification::entities::TransactionVerification;
 use super::TransactionVerificationRepository;
 
 impl TransactionVerificationRepository {
-    #[instrument(skip(self))]
+    #[instrument(skip(self, tx_verification))]
     pub async fn persist(
         &self,
         tx_verification: &TransactionVerification,

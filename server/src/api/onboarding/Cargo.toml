@@ -38,6 +38,7 @@ instrumentation = { workspace = true }
 notification = { workspace = true }
 privileged_action = { workspace = true }
 recovery = { workspace = true }
+repository = { workspace = true, features = ["anti_replay"] }
 types = { workspace = true, features = ["account", "privileged_action"] }
 userpool = { workspace = true }
 wsm-rust-client = { workspace = true }

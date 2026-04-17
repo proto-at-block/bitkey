@@ -1,5 +1,4 @@
 import glob
-import shlex
 import click
 import os
 import subprocess
@@ -64,15 +63,26 @@ def targets(c, names_only=False):
 
 @task
 def clang_format(c):
-    """Run clang-format on the entire codebase, except for third-party"""
+    """Run clang-format on the entire codebase, except for excluded paths"""
     def g(path): return glob.glob(path, recursive=True)
-    files = set(g("./**/*.c") + g("./**/*.h")) \
-        - set(g("./third-party/**/*")) \
-        - set(g("./venv/**/*")) \
-        - set(g("./build/**/*")) \
-        - set(g("./lib/ipc/templates/**/*"))
-    for file in files:
-        subprocess.check_call(shlex.split(f"clang-format -i {file}"))
+    files = set(g("./**/*.c") + g("./**/*.h"))
+    excludes = (
+        set(g("./third-party/**/*"))
+        | set(g("./venv/**/*"))
+        | set(g("./build/**/*"))
+        | set(g("./lib/ipc/templates/**/*"))
+        | set(g("./lib/ipc/generated/**/*"))
+        | set(g("./.hermit/**/*"))
+    )
+    files = sorted(files - excludes)
+    if files:
+        jobs = str(os.cpu_count() or 1)
+        input_bytes = b"".join(os.fsencode(file) + b"\0" for file in files)
+        subprocess.run(
+            ["xargs", "-0", "-n", "20", "-P", jobs, "clang-format", "-i"],
+            input=input_bytes,
+            check=True,
+        )
 
 
 @task

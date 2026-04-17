@@ -46,6 +46,7 @@ pub struct McuInfo {
     pub name: McuName,
     pub role: McuRole,
     pub firmware_version: String,
+    pub active_slot: Option<FirmwareSlot>,
 }
 
 #[derive(Debug)]
@@ -120,7 +121,7 @@ fn telemetry_id() -> Result<TelemetryIdentifiers, CommandError> {
             Ok(TelemetryIdGetRspStatus::Unspecified) => {
                 return Err(CommandError::UnspecifiedCommandError)
             }
-            Ok(TelemetryIdGetRspStatus::Error) => return Err(CommandError::GeneralCommandError),
+            Ok(TelemetryIdGetRspStatus::Error) => return Err(CommandError::TelemetryFailed),
             Ok(TelemetryIdGetRspStatus::Success) => (),
             Err(_) => return Err(CommandError::InvalidResponse),
         };
@@ -173,7 +174,7 @@ fn device_info() -> Result<DeviceInfo, CommandError> {
             Ok(DeviceInfoRspStatus::Unspecified) => {
                 return Err(CommandError::UnspecifiedCommandError)
             }
-            Ok(DeviceInfoRspStatus::Error) => return Err(CommandError::GeneralCommandError),
+            Ok(DeviceInfoRspStatus::Error) => return Err(CommandError::DeviceInfoFailed),
             Ok(DeviceInfoRspStatus::MetadataError) => return Err(CommandError::MetadataError),
             Ok(DeviceInfoRspStatus::BatteryError) => return Err(CommandError::BatteryError),
             Ok(DeviceInfoRspStatus::SerialError) => return Err(CommandError::SerialError),
@@ -254,6 +255,11 @@ fn device_info() -> Result<DeviceInfo, CommandError> {
                                 _ => McuRole::Core,
                             },
                             firmware_version: version_string,
+                            active_slot: match fwpb::FirmwareSlot::try_from(mcu.active_slot) {
+                                Ok(fwpb::FirmwareSlot::SlotA) => Some(FirmwareSlot::A),
+                                Ok(fwpb::FirmwareSlot::SlotB) => Some(FirmwareSlot::B),
+                                _ => None, // SLOT_UNSPECIFIED (0) or unknown = None (old firmware)
+                            },
                         });
                     }
                 }

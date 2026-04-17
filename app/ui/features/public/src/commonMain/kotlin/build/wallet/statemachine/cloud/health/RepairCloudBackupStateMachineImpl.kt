@@ -46,7 +46,7 @@ import com.github.michaelbull.result.onSuccess
 class RepairCloudBackupStateMachineImpl(
   private val cloudSignInStateMachine: CloudSignInUiStateMachine,
   private val cloudBackupDao: CloudBackupDao,
-  private val cloudBackupRepository: CloudBackupRepository,
+  private val cloudBackupService: CloudBackupService,
   private val cloudBackupHealthRepository: CloudBackupHealthRepository,
   private val deviceInfoProvider: DeviceInfoProvider,
   private val sekGenerator: SekGenerator,
@@ -127,7 +127,7 @@ class RepairCloudBackupStateMachineImpl(
 
       is CheckingAppKeyCloudBackupState -> {
         LaunchedEffect("check-cloud-backup") {
-          cloudBackupRepository
+          cloudBackupService
             .readActiveBackup(currentState.cloudAccount)
             .onSuccess { cloudBackup ->
               state = currentState.determineNextState(props, cloudBackup)
@@ -297,7 +297,7 @@ class RepairCloudBackupStateMachineImpl(
       is UploadingBackupState -> {
         LaunchedEffect("upload-backup") {
           // Uploading App Key backup to cloud
-          cloudBackupRepository
+          cloudBackupService
             .writeBackup(
               accountId = props.account.keybox.fullAccountId,
               cloudStoreAccount = currentState.cloudAccount,
@@ -351,7 +351,7 @@ class RepairCloudBackupStateMachineImpl(
 
       is SyncingBackupHealthStatus -> {
         LaunchedEffect("sync-backup-health-status") {
-          val status = cloudBackupHealthRepository.performSync(props.account)
+          val status = cloudBackupHealthRepository.performSync(props.account.accountId, props.account.keybox)
           props.onRepaired(status)
         }
 

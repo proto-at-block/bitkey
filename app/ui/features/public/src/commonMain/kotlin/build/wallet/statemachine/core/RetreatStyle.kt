@@ -33,6 +33,11 @@ data class Retreat(
               iconSize = IconSize.Accessory,
               iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Regular)
             ),
+          testTag =
+            when (style) {
+              RetreatStyle.Back -> "back"
+              RetreatStyle.Close -> "close"
+            },
           onClick = StandardClick(onRetreat)
         )
     )

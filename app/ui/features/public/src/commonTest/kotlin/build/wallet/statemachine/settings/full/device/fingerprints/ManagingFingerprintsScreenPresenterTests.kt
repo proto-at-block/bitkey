@@ -140,7 +140,7 @@ class ManagingFingerprintsScreenPresenterTests : FunSpec({
         mainContentList[0].apply {
           shouldBeInstanceOf<ListGroup>()
           listGroupModel.items[0].shouldBeEnrolledFingerprint(title = "Left Thumb")
-          listGroupModel.items[1].shouldBeFingerprintPlaceholder(title = "Finger 2")
+          listGroupModel.items[1].shouldBeFingerprintPlaceholder(title = "Fingerprint 2")
           listGroupModel.items[2].shouldBeEnrolledFingerprint(title = "Right Thumb")
         }
       }
@@ -382,7 +382,7 @@ class ManagingFingerprintsScreenPresenterTests : FunSpec({
           .shouldBeInstanceOf<ListGroup>()
           .listGroupModel.apply {
             items[0].shouldBeEnrolledFingerprint(title = "New Finger")
-            items[1].shouldBeFingerprintPlaceholder(title = "Finger 2")
+            items[1].shouldBeFingerprintPlaceholder(title = "Fingerprint 2")
             items[2].shouldBeEnrolledFingerprint(title = "Right Thumb")
           }
 
@@ -497,8 +497,8 @@ class ManagingFingerprintsScreenPresenterTests : FunSpec({
           .shouldBeInstanceOf<ListGroup>()
           .listGroupModel.apply {
             items[0].shouldBeEnrolledFingerprint(title = "New Finger")
-            items[1].shouldBeFingerprintPlaceholder(title = "Finger 2")
-            items[2].shouldBeFingerprintPlaceholder(title = "Finger 3")
+            items[1].shouldBeFingerprintPlaceholder(title = "Fingerprint 2")
+            items[2].shouldBeFingerprintPlaceholder(title = "Fingerprint 3")
           }
 
         // Delete fingerprint toast is shown

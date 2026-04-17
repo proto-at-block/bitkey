@@ -14,3 +14,10 @@ tlv_test = executable('tlv-test',
   dependencies : [tlv_dep, test_deps],
 )
 test('tlv test', tlv_test)
+
+tlv_fuzz = executable('tlv-fuzz',
+  'tlv_fuzz.cc',
+  cpp_args : fuzz_args,
+  link_args : fuzz_args,
+  dependencies : [tlv_dep, fuzzed_data_provider_dep],
+)

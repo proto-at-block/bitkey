@@ -12,7 +12,7 @@ use types::{
 use wsm_compat::{bdk_pubkey_from_wsm, bdk_signature_from_wsm};
 
 impl Service {
-    #[instrument(skip(self))]
+    #[instrument(skip(self, token))]
     pub async fn verify_with_confirmation_token(
         &self,
         id: &TransactionVerificationId,
@@ -74,7 +74,7 @@ impl Service {
         Ok(updated)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, token))]
     pub async fn verify_with_cancellation_token(
         &self,
         id: &TransactionVerificationId,

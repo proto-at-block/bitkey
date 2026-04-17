@@ -221,6 +221,7 @@ async fn test_start_social_challenge(
                             },
                             time_zone_offset: UtcOffset::UTC,
                         },
+                        locale: None,
                     },
                     &keys,
                 )

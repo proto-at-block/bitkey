@@ -14,11 +14,20 @@ typedef enum {
   ALG_SHA1 = 4,
 } hash_alg_t;
 
+// Opaque SHA-256 streaming context (112 bytes).
+//
+// Must be large enough for the underlying platform implementation:
+//   - efr32: sl_se_sha256_multipart_context_t  (108 bytes)
+//   - posix: SHA256_CTX from OpenSSL/LibreSSL   (112 bytes)
+//
+// Keep this struct's size >= the larger of the two so that a single
+// allocation works on both targets without platform-specific ifdefs
+// in callers.
 typedef struct {
-  uint32_t hash_type;  // Hash streaming context
-  uint32_t total[2];   // Number of bytes processed
+  uint32_t hash_type;  // Streaming-context discriminator
+  uint32_t total[2];   // Bytes processed
   uint8_t state[32];   // Intermediate digest state
-  uint8_t buffer[64];  // Data block being processed
+  uint8_t buffer[68];  // Data block (64 bytes + 4-byte pad to fit platform contexts)
 } hash_stream_ctx_t;
 
 #define SHA256_DIGEST_SIZE  (32u)

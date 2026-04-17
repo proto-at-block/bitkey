@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::env;
 use std::str::FromStr;
 
+use account::error::AccountError;
 use account::service::{
     ActivateTouchpointForAccountInput, AddPushTouchpointToAccountInput, CompleteOnboardingInput,
     CreateAccountAndKeysetsInput, CreateInactiveSpendingKeysetInput, CreateLiteAccountInput,
@@ -15,9 +16,8 @@ use argon2::{
     password_hash::{PasswordHash, PasswordVerifier},
     Argon2,
 };
-use authn_authz::key_claims::KeyClaims;
-use authn_authz::Action;
 use authn_authz::Authorization as ProofAuthorization;
+use authn_authz::{Action, AuthorizationRequirements, ProofRequirement};
 use axum::routing::{delete, get, post, put};
 use axum::Router;
 use axum::{
@@ -42,6 +42,7 @@ use comms_verification::{
     Service as CommsVerificationService, VerifyForScopeInput,
 };
 use errors::{ApiError, ErrorCode, RouteError};
+use instrumentation::middleware::HardwareSerialHeader;
 use experimentation::claims::ExperimentationClaims;
 use external_identifier::ExternalIdentifier;
 use feature_flags::service::Service as FeatureFlagsService;
@@ -55,11 +56,12 @@ use notification::entities::NotificationTouchpoint;
 use once_cell::sync::Lazy;
 use privileged_action::service::authorize_privileged_action::{
     AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
-    PrivilegedActionRequestValidatorBuilder, ValidationContext,
+    PrivilegedActionRequestValidatorBuilder,
 };
 use privileged_action::service::Service as PrivilegedActionService;
 use recovery::repository::RecoveryRepository;
 use regex::Regex;
+use repository::anti_replay::AntiReplayRepository;
 use serde::{Deserialize, Serialize};
 
 use serde_with::{base64::Base64, serde_as};
@@ -70,7 +72,7 @@ use types::account::entities::v2::UpgradeLiteAccountAuthKeysInputV2;
 use types::account::entities::{
     v2::{FullAccountAuthKeysInputV2, SpendingKeysetInputV2},
     Account, CommsVerificationScope, DescriptorBackup, DescriptorBackupsSet,
-    FullAccountAuthKeysInput, Keyset, LiteAccount, LiteAccountAuthKeysInput,
+    FullAccountAuthKeysInput, HardwareType, Keyset, LiteAccount, LiteAccountAuthKeysInput,
     SoftwareAccountAuthKeysInput, SpendingKeysetInput, Touchpoint, TouchpointPlatform,
     UpgradeLiteAccountAuthKeysInput,
 };
@@ -79,6 +81,7 @@ use types::{
         identifiers::{AccountId, AuthKeysId, KeyDefinitionId, KeysetId, TouchpointId},
         keys::{FullAccountAuthKeys, LiteAccountAuthKeys, SoftwareAccountAuthKeys},
         spending::{SpendingDistributedKey, SpendingKeyDefinition, SpendingKeyset},
+        AccountType,
     },
     privileged_action::{
         router::generic::{
@@ -134,6 +137,7 @@ pub struct RouteState(
     pub TwilioClient,
     pub FeatureFlagsService,
     pub PrivilegedActionService,
+    pub AntiReplayRepository,
 );
 
 impl RouterBuilder for RouteState {
@@ -641,7 +645,8 @@ pub struct AccountActivateTouchpointResponse {}
         account_service,
         comms_verification_service,
         iterable_client,
-        privileged_action_service
+        privileged_action_service,
+        anti_replay_repository
     )
 )]
 #[utoipa::path(
@@ -661,6 +666,7 @@ async fn activate_touchpoint_for_account(
     State(comms_verification_service): State<CommsVerificationService>,
     State(iterable_client): State<IterableClient>,
     State(privileged_action_service): State<PrivilegedActionService>,
+    State(anti_replay_repository): State<AntiReplayRepository>,
     auth: ProofAuthorization,
     Path((account_id, touchpoint_id)): Path<(AccountId, TouchpointId)>,
     Json(privileged_action_request): Json<
@@ -669,7 +675,15 @@ async fn activate_touchpoint_for_account(
 ) -> Result<Json<PrivilegedActionResponse<AccountActivateTouchpointResponse>>, ApiError> {
     let scope = CommsVerificationScope::AddTouchpointId(touchpoint_id.clone());
 
-    // Fetch the touchpoint for ActionProof validation (uses action/field/value from touchpoint)
+    // Fetch the account to determine account type
+    let account = account_service
+        .fetch_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await?;
+    let account_type: AccountType = (&account).into();
+
+    // Fetch the touchpoint for ActionProof validation (derives action and value from touchpoint)
     let touchpoint_for_auth = account_service
         .fetch_touchpoint_by_id(FetchTouchpointByIdInput {
             account_id: &account_id,
@@ -677,108 +691,184 @@ async fn activate_touchpoint_for_account(
         })
         .await?;
 
-    let authorize_result = {
-        let account_id = account_id.clone();
-        let touchpoint_id = touchpoint_id.clone();
-        let scope = scope.clone();
-        let comms_verification_service = comms_verification_service.clone();
-        let account_service = account_service.clone();
+    match account_type {
+        AccountType::Full => {
+            // Full accounts: manually enforce AuthorizationRequirements
+            let action = set_action_for_touchpoint(&touchpoint_for_auth);
+            let (value, entity_id) = touchpoint_auth_context(&touchpoint_for_auth);
 
-        privileged_action_service
-            .authorize_privileged_action(AuthorizePrivilegedActionInput {
-                account_id: &account_id,
-                privileged_action_definition: &PrivilegedActionType::ActivateTouchpoint.into(),
-                authorization: (&auth).into(),
-                privileged_action_request: &privileged_action_request,
-                validation_context: Some(ValidationContext::from_touchpoint(
-                    Action::Add,
-                    &touchpoint_for_auth,
-                )),
-                request_validator: PrivilegedActionRequestValidatorBuilder::default()
-                    .on_initiate_delay_and_notify({
-                        let account_id = account_id.clone();
-                        let touchpoint_id = touchpoint_id.clone();
-                        let scope = scope.clone();
-                        let comms_verification_service = comms_verification_service.clone();
-                        let account_service = account_service.clone();
-                        Box::new(move |_| {
-                            Box::pin(async move {
-                                comms_verification_service
-                                    .consume_verification_for_scope(
-                                        ConsumeVerificationForScopeInput {
-                                            account_id: &account_id,
-                                            scope,
-                                        },
-                                    )
-                                    .await?;
+            // Extract hardware_type from the full account's active spending keyset
+            let full_account = match &account {
+                Account::Full(fa) => fa,
+                _ => {
+                    return Err(ApiError::GenericInternalApplicationError(
+                        "Expected full account".to_string(),
+                    ))
+                }
+            };
+            let hardware_type = full_account
+                .active_hardware_type()
+                .map_err(|e| ApiError::GenericInternalApplicationError(e.to_string()))?;
 
-                                account_service
-                                    .activate_touchpoint_for_account(
-                                        ActivateTouchpointForAccountInput {
-                                            account_id: &account_id,
-                                            touchpoint_id,
-                                            dry_run: true,
-                                        },
-                                    )
-                                    .await?;
+            // W1 hardware during onboarding skips signature requirements entirely —
+            // the device may not yet be provisioned, so a valid JWT alone is sufficient.
+            let onboarding_complete = account.get_common_fields().onboarding_complete;
+            let proof = if !onboarding_complete && matches!(hardware_type, HardwareType::W1) {
+                ProofRequirement::JwtOnly
+            } else {
+                ProofRequirement::BothFactors
+            };
 
-                                Ok::<(), ApiError>(())
-                            })
+            // Verify authorization + anti-replay in one call
+            let result = AuthorizationRequirements::new(action, hardware_type)
+                .proof(proof)
+                .value_opt(value.as_ref())
+                .entity_id_opt(entity_id.as_ref())
+                .execute(&auth, &anti_replay_repository, |_ctx| async move {
+                    // Consume verification scope
+                    comms_verification_service
+                        .consume_verification_for_scope(ConsumeVerificationForScopeInput {
+                            account_id: &account_id,
+                            scope,
                         })
-                    })
-                    .on_initiate_hardware_proof_of_possession({
-                        let account_id = account_id.clone();
-                        Box::new(move |_| {
-                            Box::pin(async move {
-                                comms_verification_service
-                                    .consume_verification_for_scope(
-                                        ConsumeVerificationForScopeInput {
-                                            account_id: &account_id,
-                                            scope,
-                                        },
-                                    )
-                                    .await?;
+                        .await?;
 
-                                Ok::<(), ApiError>(())
-                            })
+                    let touchpoint = account_service
+                        .activate_touchpoint_for_account(ActivateTouchpointForAccountInput {
+                            account_id: &account_id,
+                            touchpoint_id,
+                            dry_run: false,
                         })
+                        .await?;
+
+                    if let Touchpoint::Email {
+                        id: touchpoint_id,
+                        email_address,
+                        ..
+                    } = &touchpoint
+                    {
+                        upsert_account_iterable_user(
+                            &iterable_client,
+                            &account_id,
+                            Some(touchpoint_id),
+                            Some(email_address.to_owned()),
+                        )
+                        .await?;
+                    }
+
+                    Ok::<_, ApiError>(PrivilegedActionResponse::Completed(
+                        AccountActivateTouchpointResponse {},
+                    ))
+                })
+                .await?;
+
+            Ok(Json(result))
+        }
+        _ => {
+            // Non-Full accounts (Software, etc.): use PrivilegedActionService with DelayAndNotify
+            let authorize_result = {
+                let account_id = account_id.clone();
+                let touchpoint_id = touchpoint_id.clone();
+                let scope = scope.clone();
+                let comms_verification_service = comms_verification_service.clone();
+                let account_service = account_service.clone();
+
+                privileged_action_service
+                    .authorize_privileged_action(AuthorizePrivilegedActionInput {
+                        account_id: &account_id,
+                        privileged_action_definition: &PrivilegedActionType::ActivateTouchpoint
+                            .into(),
+                        privileged_action_request: &privileged_action_request,
+                        request_validator: PrivilegedActionRequestValidatorBuilder::default()
+                            .on_initiate_delay_and_notify({
+                                let account_id = account_id.clone();
+                                let touchpoint_id = touchpoint_id.clone();
+                                let scope = scope.clone();
+                                let comms_verification_service = comms_verification_service.clone();
+                                let account_service = account_service.clone();
+                                Box::new(move |_| {
+                                    Box::pin(async move {
+                                        comms_verification_service
+                                            .consume_verification_for_scope(
+                                                ConsumeVerificationForScopeInput {
+                                                    account_id: &account_id,
+                                                    scope,
+                                                },
+                                            )
+                                            .await?;
+
+                                        account_service
+                                            .activate_touchpoint_for_account(
+                                                ActivateTouchpointForAccountInput {
+                                                    account_id: &account_id,
+                                                    touchpoint_id,
+                                                    dry_run: true,
+                                                },
+                                            )
+                                            .await?;
+
+                                        Ok::<(), ApiError>(())
+                                    })
+                                })
+                            })
+                            .build()?,
                     })
-                    .build()?,
-            })
-            .await?
+                    .await?
+            };
+
+            match authorize_result {
+                AuthorizePrivilegedActionOutput::Pending(response) => Ok(Json(response)),
+                AuthorizePrivilegedActionOutput::Authorized(_request) => {
+                    let touchpoint = account_service
+                        .activate_touchpoint_for_account(ActivateTouchpointForAccountInput {
+                            account_id: &account_id,
+                            touchpoint_id,
+                            dry_run: false,
+                        })
+                        .await?;
+
+                    if let Touchpoint::Email {
+                        id: touchpoint_id,
+                        email_address,
+                        ..
+                    } = &touchpoint
+                    {
+                        upsert_account_iterable_user(
+                            &iterable_client,
+                            &account_id,
+                            Some(touchpoint_id),
+                            Some(email_address.to_owned()),
+                        )
+                        .await?;
+                    }
+
+                    Ok(Json(PrivilegedActionResponse::Completed(
+                        AccountActivateTouchpointResponse {},
+                    )))
+                }
+            }
+        }
+    }
+}
+
+/// Returns the Action for adding a given touchpoint type.
+fn set_action_for_touchpoint(touchpoint: &Touchpoint) -> Action {
+    match touchpoint {
+        Touchpoint::Email { .. } => Action::SetRecoveryEmail,
+        Touchpoint::Phone { .. } => Action::SetRecoveryPhone,
+        Touchpoint::Push { .. } => Action::SetRecoveryPushNotifications,
+    }
+}
+
+/// Extracts the value and entity_id from a touchpoint for authorization context.
+fn touchpoint_auth_context(touchpoint: &Touchpoint) -> (Option<String>, Option<String>) {
+    let value = match touchpoint {
+        Touchpoint::Email { email_address, .. } => Some(email_address.clone()),
+        Touchpoint::Phone { phone_number, .. } => Some(phone_number.clone()),
+        Touchpoint::Push { .. } => None,
     };
-
-    if let AuthorizePrivilegedActionOutput::Pending(response) = authorize_result {
-        return Ok(Json(response));
-    }
-
-    let touchpoint = account_service
-        .activate_touchpoint_for_account(ActivateTouchpointForAccountInput {
-            account_id: &account_id,
-            touchpoint_id,
-            dry_run: false,
-        })
-        .await?;
-
-    if let Touchpoint::Email {
-        id: touchpoint_id,
-        email_address,
-        ..
-    } = &touchpoint
-    {
-        // Ensure Iterable account "user" is updated
-        upsert_account_iterable_user(
-            &iterable_client,
-            &account_id,
-            Some(touchpoint_id),
-            Some(email_address.to_owned()),
-        )
-        .await?;
-    }
-
-    Ok(Json(PrivilegedActionResponse::Completed(
-        AccountActivateTouchpointResponse {},
-    )))
+    let entity_id = touchpoint.id().map(|id| id.to_string());
+    (value, entity_id)
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -991,6 +1081,7 @@ impl TryFrom<&Account> for CreateAccountResponse {
         user_pool_service,
         config,
         iterable_client,
+        request,
     )
 )]
 #[utoipa::path(
@@ -1012,8 +1103,15 @@ pub async fn create_account(
     State(user_pool_service): State<UserPoolService>,
     State(config): State<Config>,
     State(iterable_client): State<IterableClient>,
+    hw_serial: HardwareSerialHeader,
     Json(request): Json<CreateAccountRequest>,
 ) -> Result<Json<CreateAccountResponse>, ApiError> {
+    // V1 full account creation requires W1 hardware serial
+    if matches!(request, CreateAccountRequest::Full { .. }) {
+        HardwareType::require_w1_serial(hw_serial.as_deref())
+            .map_err(|e| ApiError::GenericForbidden(e.to_string()))?;
+    }
+
     if let Some(v) = AccountValidation::default()
         .validate(
             AccountValidationRequest::from(&request),
@@ -1067,9 +1165,9 @@ pub async fn create_account(
 
     match request {
         CreateAccountRequest::Full {
+            auth,
             spending,
             is_test_account,
-            ..
         } => {
             // Generate a server key in WSM
             let keyset_id = KeysetId::new(id_generator.gen_spending_keyset_id())
@@ -1103,11 +1201,12 @@ pub async fn create_account(
                 keyset_id,
                 auth_key_id: auth_key_id.clone(),
                 keyset: Keyset {
-                    auth: FullAccountAuthKeys {
-                        app_pubkey: app_auth_pubkey.unwrap(),
-                        hardware_pubkey: hardware_auth_pubkey.unwrap(),
-                        recovery_pubkey: recovery_auth_pubkey,
-                    },
+                    auth: FullAccountAuthKeys::new(
+                        auth.app,
+                        auth.hardware,
+                        auth.recovery,
+                        HardwareType::W1,
+                    ),
                     spending: SpendingKeyset::new_legacy_multi_sig(
                         spending.network.into(),
                         spending.app,
@@ -1229,8 +1328,12 @@ pub async fn upgrade_account(
     State(user_pool_service): State<UserPoolService>,
     State(config): State<Config>,
     Path(account_id): Path<AccountId>,
+    hw_serial: HardwareSerialHeader,
     Json(request): Json<UpgradeAccountRequest>,
 ) -> Result<Json<CreateAccountResponse>, ApiError> {
+    // V1 upgrade requires W1 hardware serial
+    HardwareType::require_w1_serial(hw_serial.as_deref())
+        .map_err(|e| ApiError::GenericForbidden(e.to_string()))?;
     let existing_account = &account_service
         .fetch_account(FetchAccountInput {
             account_id: &account_id,
@@ -1350,6 +1453,7 @@ pub async fn upgrade_account(
                     .ok_or(RouteError::NoActiveAuthKeys)?
                     .recovery_pubkey,
             ),
+            hardware_type: HardwareType::W1,
         },
     };
     let full_account = account_service
@@ -1384,7 +1488,7 @@ pub struct CreateKeysetResponse {
     pub spending_sig: Option<String>,
 }
 
-#[instrument(skip(account_service))]
+#[instrument(skip(account_service, request))]
 #[utoipa::path(
     post,
     path = "/api/accounts/{account_id}/keysets",
@@ -1399,21 +1503,14 @@ pub struct CreateKeysetResponse {
 )]
 pub async fn create_keyset(
     Path(account_id): Path<AccountId>,
-    key_proof: KeyClaims,
     State(account_service): State<AccountService>,
     State(wsm_client): State<WsmClient>,
+    hw_serial: HardwareSerialHeader,
     Json(request): Json<CreateKeysetRequest>,
 ) -> Result<Json<CreateKeysetResponse>, ApiError> {
-    if !(key_proof.hw_signed && key_proof.app_signed) {
-        event!(
-            Level::WARN,
-            "valid signature over access token required by both app and hw auth keys"
-        );
-        return Err(ApiError::GenericForbidden(
-            "valid signature over access token required by both app and hw auth keys".to_string(),
-        ));
-    }
-
+    // V1 keyset creation requires W1 hardware serial
+    HardwareType::require_w1_serial(hw_serial.as_deref())
+        .map_err(|e| ApiError::GenericForbidden(e.to_string()))?;
     let account = account_service
         .fetch_full_account(FetchAccountInput {
             account_id: &account_id,
@@ -1565,7 +1662,7 @@ pub struct GetAccountKeysetsResponse {
 )]
 pub async fn account_keysets(
     Path(account_id): Path<AccountId>,
-    key_proof: KeyClaims,
+    _auth: ProofAuthorization,
     State(account_service): State<AccountService>,
 ) -> Result<Json<GetAccountKeysetsResponse>, ApiError> {
     let account = account_service
@@ -1611,14 +1708,124 @@ pub async fn account_keysets(
     }))
 }
 
+/// Extracts the three spending public keys from a SpendingKeyset.
+/// Returns (app_spending_pub, hardware_spending_pub, server_spending_pub).
+fn extract_spending_keys(
+    spending_keyset: &SpendingKeyset,
+) -> Result<(PublicKey, PublicKey, PublicKey), ApiError> {
+    match spending_keyset {
+        SpendingKeyset::PrivateMultiSig(keyset) => {
+            Ok((keyset.app_pub, keyset.hardware_pub, keyset.server_pub))
+        }
+        SpendingKeyset::LegacyMultiSig(keyset) => {
+            let DescriptorPublicKey::XPub(app_xpub) = &keyset.app_dpub else {
+                return Err(ApiError::GenericInternalApplicationError(
+                    "Expected an xpub for app key".to_string(),
+                ));
+            };
+            let DescriptorPublicKey::XPub(hardware_xpub) = &keyset.hardware_dpub else {
+                return Err(ApiError::GenericInternalApplicationError(
+                    "Expected an xpub for hardware key".to_string(),
+                ));
+            };
+            let DescriptorPublicKey::XPub(server_xpub) = &keyset.server_dpub else {
+                return Err(ApiError::GenericInternalApplicationError(
+                    "Expected an xpub for server key".to_string(),
+                ));
+            };
+            Ok((
+                app_xpub.xkey.public_key,
+                hardware_xpub.xkey.public_key,
+                server_xpub.xkey.public_key,
+            ))
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct RotateSpendingKeysetRequest {}
 
 #[derive(Serialize, Deserialize, ToSchema)]
-pub struct RotateSpendingKeysetResponse {}
+#[serde(untagged)]
+pub enum RotateSpendingKeysetResponse {
+    /// Signed keyset verification for W3 hardware accounts
+    Signed {
+        /// App authentication public key
+        app_auth_pub: String,
+        /// Hardware authentication public key
+        hardware_auth_pub: String,
+        /// App spending public key
+        app_spending_pub: String,
+        /// Hardware spending public key
+        hardware_spending_pub: String,
+        /// Server spending public key
+        server_spending_pub: String,
+        /// WSM signature over all 5 public keys
+        signature: String,
+    },
+    /// Empty response for W1 hardware accounts
+    Empty {},
+}
 
-#[instrument(skip(account_service))]
+impl Default for RotateSpendingKeysetResponse {
+    fn default() -> Self {
+        Self::Empty {}
+    }
+}
+
+/// Signs the keyset public keys using WSM for W3 hardware accounts.
+/// Returns None for non-W3 accounts or if required data is missing.
+async fn sign_keyset_for_w3(
+    full_account: &types::account::entities::FullAccount,
+    wsm_client: &WsmClient,
+) -> Result<Option<RotateSpendingKeysetResponse>, ApiError> {
+    let hardware_type = full_account
+        .active_hardware_type()
+        .map_err(|e| ApiError::GenericInternalApplicationError(e.to_string()))?;
+    if hardware_type != HardwareType::W3 {
+        return Ok(None);
+    }
+
+    let spending_keyset = match full_account.active_spending_keyset() {
+        Some(keyset) => keyset,
+        None => return Ok(None),
+    };
+
+    let (app_spending_pub, hardware_spending_pub, server_spending_pub) =
+        extract_spending_keys(spending_keyset)?;
+
+    let auth_keys = full_account.active_auth_keys().ok_or_else(|| {
+        ApiError::GenericInternalApplicationError("No active auth keys found".to_string())
+    })?;
+
+    let app_auth_pub = auth_keys.app_pubkey;
+    let hardware_auth_pub = auth_keys.hardware_pubkey;
+
+    let sign_response = wsm_client
+        .sign_public_keys(
+            app_auth_pub,
+            hardware_auth_pub,
+            app_spending_pub,
+            hardware_spending_pub,
+            server_spending_pub,
+        )
+        .await
+        .map_err(|e| {
+            ApiError::GenericInternalApplicationError(format!("Failed to sign public keys: {}", e))
+        })?;
+
+    Ok(Some(RotateSpendingKeysetResponse::Signed {
+        app_auth_pub: app_auth_pub.to_string(),
+        hardware_auth_pub: hardware_auth_pub.to_string(),
+        app_spending_pub: app_spending_pub.to_string(),
+        hardware_spending_pub: hardware_spending_pub.to_string(),
+        server_spending_pub: server_spending_pub.to_string(),
+        signature: sign_response.signature,
+    }))
+}
+
+#[instrument(skip(account_service, anti_replay_repository, wsm_client))]
 #[utoipa::path(
     put,
     path = "/api/accounts/{account_id}/keysets/{keyset_id}",
@@ -1627,34 +1834,60 @@ pub struct RotateSpendingKeysetResponse {}
         ("keyset_id" = KeysetId, Path, description = "KeysetId"),
     ),
     responses(
-        (status = 200, description = "Updated the active spending keyset", body=AccountStatusResponse),
+        (status = 200, description = "Updated the active spending keyset", body=RotateSpendingKeysetResponse),
         (status = 403, description = "Invalid access token"),
         (status = 404, description = "Account not found")
     ),
 )]
 pub async fn rotate_spending_keyset(
     Path((account_id, keyset_id)): Path<(AccountId, KeysetId)>,
-    key_proof: KeyClaims,
+    auth: ProofAuthorization,
     State(account_service): State<AccountService>,
-    Json(request): Json<RotateSpendingKeysetRequest>,
+    State(anti_replay_repository): State<AntiReplayRepository>,
+    State(wsm_client): State<WsmClient>,
+    Json(_request): Json<RotateSpendingKeysetRequest>,
 ) -> Result<Json<RotateSpendingKeysetResponse>, ApiError> {
-    if !(key_proof.hw_signed && key_proof.app_signed) {
-        event!(
-            Level::WARN,
-            "valid signature over access token required by both app and hw auth keys"
-        );
-        return Err(ApiError::GenericForbidden(
-            "valid signature over access token required by both app and hw auth keys".to_string(),
-        ));
-    }
-
-    account_service
-        .rotate_to_spending_keyset(RotateToSpendingKeysetInput {
+    let full_account = account_service
+        .fetch_full_account(FetchAccountInput {
             account_id: &account_id,
-            keyset_id: &keyset_id,
         })
         .await?;
-    Ok(Json(RotateSpendingKeysetResponse {}))
+    if !full_account.spending_keysets.contains_key(&keyset_id) {
+        return Err(ApiError::GenericBadRequest(format!(
+            "Keyset {} not found on account",
+            keyset_id
+        )));
+    }
+    let hardware_type = full_account
+        .active_hardware_type()
+        .map_err(|e| ApiError::GenericInternalApplicationError(e.to_string()))?;
+
+    let response = AuthorizationRequirements::new(Action::RotateSpendingKeyset, hardware_type)
+        .entity_id(keyset_id.to_string())
+        .execute(&auth, &anti_replay_repository, |_ctx| async move {
+            // Rotate to the new keyset
+            let account = account_service
+                .rotate_to_spending_keyset(RotateToSpendingKeysetInput {
+                    account_id: &account_id,
+                    keyset_id: &keyset_id,
+                })
+                .await?;
+
+            // Sign keyset for W3 hardware (returns default for W1)
+            // This must be inside the closure so the signed response is cached
+            // for anti-replay - otherwise retries would fail if WSM is down.
+            let response = match account {
+                Account::Full(ref full_account) => sign_keyset_for_w3(full_account, &wsm_client)
+                    .await?
+                    .unwrap_or_default(),
+                _ => RotateSpendingKeysetResponse::default(),
+            };
+
+            Ok::<_, ApiError>(response)
+        })
+        .await?;
+
+    Ok(Json(response))
 }
 
 #[serde_as]
@@ -1677,7 +1910,7 @@ pub struct InititateDistributedKeygenResponse {
     pub sealed_response: Vec<u8>,
 }
 
-#[instrument(skip(account_service))]
+#[instrument(skip(account_service, request))]
 #[utoipa::path(
     post,
     path = "/api/accounts/{account_id}/distributed-keygen",
@@ -1766,7 +1999,7 @@ pub struct ContinueDistributedKeygenRequest {
 #[serde(rename_all = "snake_case")]
 pub struct ContinueDistributedKeygenResponse {}
 
-#[instrument(skip(account_service))]
+#[instrument(skip(account_service, request))]
 #[utoipa::path(
     put,
     path = "/api/accounts/{account_id}/distributed-keygen/{key_definition_id}",
@@ -1849,7 +2082,7 @@ pub struct ActivateSpendingKeyDefinitionRequest {
 #[serde(rename_all = "snake_case")]
 pub struct ActivateSpendingKeyDefinitionResponse {}
 
-#[instrument(skip(account_service))]
+#[instrument(skip(account_service, request))]
 #[utoipa::path(
     put,
     path = "/api/accounts/{account_id}/spending-key-definition",
@@ -2010,34 +2243,24 @@ pub async fn complete_onboarding_v2(
         ApiError::GenericInternalApplicationError("No active spending keyset found".to_string())
     })?;
 
+    // v2 onboarding completion requires W3 hardware
+    let hardware_type = full_account
+        .active_hardware_type()
+        .map_err(|e| ApiError::GenericInternalApplicationError(e.to_string()))?;
+    if hardware_type != HardwareType::W3 {
+        event!(
+            Level::WARN,
+            "onboard-complete-v2 attempted with non-W3 hardware: hardware_type={:?}",
+            hardware_type,
+        );
+        return Err(ApiError::GenericForbidden(
+            "onboard-complete-v2 requires W3 hardware. Use the legacy onboard-complete endpoint for W1 devices.".to_string(),
+        ));
+    }
+
     // Extract keys from the keyset (supports both private and legacy multi-sig)
-    let (app_spending_pub, hardware_spending_pub, server_spending_pub) = match spending_keyset {
-        SpendingKeyset::PrivateMultiSig(keyset) => {
-            (keyset.app_pub, keyset.hardware_pub, keyset.server_pub)
-        }
-        SpendingKeyset::LegacyMultiSig(keyset) => {
-            let DescriptorPublicKey::XPub(app_xpub) = &keyset.app_dpub else {
-                return Err(ApiError::GenericInternalApplicationError(
-                    "Expected an xpub for app key".to_string(),
-                ));
-            };
-            let DescriptorPublicKey::XPub(hardware_xpub) = &keyset.hardware_dpub else {
-                return Err(ApiError::GenericInternalApplicationError(
-                    "Expected an xpub for hardware key".to_string(),
-                ));
-            };
-            let DescriptorPublicKey::XPub(server_xpub) = &keyset.server_dpub else {
-                return Err(ApiError::GenericInternalApplicationError(
-                    "Expected an xpub for server key".to_string(),
-                ));
-            };
-            (
-                app_xpub.xkey.public_key,
-                hardware_xpub.xkey.public_key,
-                server_xpub.xkey.public_key,
-            )
-        }
-    };
+    let (app_spending_pub, hardware_spending_pub, server_spending_pub) =
+        extract_spending_keys(spending_keyset)?;
 
     // Get auth keys
     let auth_keys = full_account.active_auth_keys().ok_or_else(|| {
@@ -2149,7 +2372,7 @@ pub async fn get_bdk_config(
     }))
 }
 
-#[instrument(skip(account_service))]
+#[instrument(skip(account_service, anti_replay_repository))]
 #[utoipa::path(
     delete,
     path = "/api/accounts/{account_id}",
@@ -2163,22 +2386,35 @@ pub async fn get_bdk_config(
 )]
 pub async fn delete_account(
     State(account_service): State<AccountService>,
-    key_proof: KeyClaims,
+    State(anti_replay_repository): State<repository::anti_replay::AntiReplayRepository>,
+    auth: ProofAuthorization,
     Path(account_id): Path<AccountId>,
 ) -> Result<(), ApiError> {
-    if !(key_proof.app_signed && key_proof.hw_signed) {
-        let msg = "valid signature over access token required by both app and hw auth keys";
-        error!("{msg}");
-        return Err(ApiError::GenericForbidden(msg.to_string()));
-    }
-
-    account_service
-        .delete_account(DeleteAccountInput {
+    let account = account_service
+        .fetch_account(FetchAccountInput {
             account_id: &account_id,
         })
         .await?;
+    // Only non-onboarded full accounts are eligible for deletion.
+    // Return 409 early for all other account types.
+    let Account::Full(full_account) = account else {
+        return Err(AccountError::NotEligibleForDeletion.into());
+    };
+    let hardware_type = full_account
+        .active_hardware_type()
+        .map_err(|e| ApiError::GenericInternalApplicationError(e.to_string()))?;
 
-    Ok(())
+    AuthorizationRequirements::new(Action::DeleteAccount, hardware_type)
+        .entity_id(account_id.to_string())
+        .execute(&auth, &anti_replay_repository, |_ctx| async move {
+            account_service
+                .delete_account(DeleteAccountInput {
+                    account_id: &account_id,
+                })
+                .await?;
+            Ok::<_, ApiError>(())
+        })
+        .await
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -2227,7 +2463,7 @@ pub async fn initiate_demo_mode(
 #[serde(rename_all = "snake_case")]
 pub struct UpdateDescriptorBackupsResponse {}
 
-#[instrument(skip(account_service))]
+#[instrument(skip(account_service, anti_replay_repository, request))]
 #[utoipa::path(
     put,
     path = "/api/accounts/{account_id}/descriptor-backups",
@@ -2243,7 +2479,8 @@ pub struct UpdateDescriptorBackupsResponse {}
 pub async fn update_descriptor_backups(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
-    key_proof: KeyClaims,
+    State(anti_replay_repository): State<repository::anti_replay::AntiReplayRepository>,
+    auth: ProofAuthorization,
     Json(request): Json<DescriptorBackupsSet>,
 ) -> Result<Json<UpdateDescriptorBackupsResponse>, ApiError> {
     let full_account = account_service
@@ -2252,26 +2489,32 @@ pub async fn update_descriptor_backups(
         })
         .await?;
 
-    if full_account.common_fields.onboarding_complete
-        && !(key_proof.hw_signed && key_proof.app_signed)
-    {
-        event!(
-            Level::WARN,
-            "valid signature over access token required by both app and hw auth keys"
-        );
-        return Err(ApiError::GenericForbidden(
-            "valid signature over access token required by both app and hw auth keys".to_string(),
-        ));
-    }
+    let hardware_type = full_account
+        .active_hardware_type()
+        .map_err(|e| ApiError::GenericInternalApplicationError(e.to_string()))?;
 
-    account_service
-        .update_descriptor_backups(UpdateDescriptorBackupsInput {
-            account: &full_account,
-            descriptor_backups_set: request,
+    // After onboarding, require both app and hw signatures.
+    // During onboarding, JWT alone is sufficient (no additional signatures required).
+    let proof = if full_account.common_fields.onboarding_complete {
+        authn_authz::ProofRequirement::BothFactors
+    } else {
+        authn_authz::ProofRequirement::JwtOnly
+    };
+
+    let result = AuthorizationRequirements::new(Action::UpdateDescriptorBackups, hardware_type)
+        .proof(proof)
+        .execute(&auth, &anti_replay_repository, |_ctx| async move {
+            account_service
+                .update_descriptor_backups(UpdateDescriptorBackupsInput {
+                    account: &full_account,
+                    descriptor_backups_set: request,
+                })
+                .await?;
+            Ok::<_, ApiError>(UpdateDescriptorBackupsResponse {})
         })
         .await?;
 
-    Ok(Json(UpdateDescriptorBackupsResponse {}))
+    Ok(Json(result))
 }
 
 async fn maybe_get_wsm_integrity_sig(wsm_client: &WsmClient, keyset_id: &str) -> Option<String> {
@@ -2297,8 +2540,8 @@ mod tests {
         keys::DescriptorPublicKey,
     };
     use types::account::entities::{
-        FullAccountAuthKeysInput, LiteAccountAuthKeysInput, SoftwareAccountAuthKeysInput,
-        SpendingKeysetInput,
+        FullAccountAuthKeysInput, HardwareType, LiteAccountAuthKeysInput,
+        SoftwareAccountAuthKeysInput, SpendingKeysetInput,
     };
 
     use super::CreateAccountRequest;
@@ -2322,6 +2565,7 @@ mod tests {
                     app: public_key,
                     hardware: public_key,
                     recovery: Some(public_key),
+                    hardware_type: HardwareType::default(),
                 },
                 spending: SpendingKeysetInput {
                     network: Network::Bitcoin,

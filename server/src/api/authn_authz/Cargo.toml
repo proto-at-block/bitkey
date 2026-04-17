@@ -22,6 +22,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 serde_with = { workspace = true, features = ["base64"] }
 sha2 = { workspace = true }
+time = { workspace = true }
 tracing = { workspace = true }
 utoipa = { workspace = true }
 wsm-rust-client = { workspace = true }
@@ -33,6 +34,7 @@ errors = { workspace = true }
 feature_flags = { workspace = true }
 http_server = { workspace = true }
 instrumentation = { workspace = true }
+repository = { workspace = true, features = ["anti_replay"] }
 types = { workspace = true, features = ["account", "authn_authz"] }
 userpool = { workspace = true }
 

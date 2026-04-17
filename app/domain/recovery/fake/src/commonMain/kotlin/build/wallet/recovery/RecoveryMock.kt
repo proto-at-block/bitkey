@@ -43,3 +43,6 @@ val StillRecoveringInitiatedRecoveryMock =
     ),
     originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
   )
+
+val StillRecoveringHardwareRecoveryMock =
+  StillRecoveringInitiatedRecoveryMock.copy(factorToRecover = Hardware)

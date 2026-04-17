@@ -20,7 +20,8 @@
 extern touch_config_t touch_config;
 
 typedef bool (*touch_event_cb_t)(const touch_event_t* event);
-static touch_event_cb_t touch_event_callback = NULL;
+
+static touch_event_cb_t touch_event_callback SHARED_TASK_BSS = NULL;
 
 #ifdef MFGTEST
 /* During MFG test builds, we forward all touch events to Core, we rate limit by
@@ -35,7 +36,7 @@ _Static_assert(sizeof(touch_mfgtest_payload_t) <= DISPLAY_SEND_PAYLOAD_MAX_SIZE,
                "touch_mfgtest_payload_t exceeds DISPLAY_SEND_PAYLOAD_MAX_SIZE");
 
 // Flag to track if previous message has been sent
-static volatile bool mfgtest_touch_msg_sent = true;
+static volatile bool mfgtest_touch_msg_sent SHARED_TASK_DATA = true;
 
 /**
  * @brief Handler to encode touch mfgtest payload into protobuf.
@@ -72,7 +73,7 @@ static bool touch_mfgtest_event_cb(const touch_event_t* event) {
   mfgtest_touch_msg_sent = false;
 
   // Build message
-  display_send_msg_t msg = {
+  static display_send_msg_t msg SHARED_TASK_DATA = {
     .handler = touch_mfgtest_encode_handler,
     .flags = DISPLAY_SEND_FLAG_IMMEDIATE,
     .sent = &mfgtest_touch_msg_sent,
@@ -98,7 +99,7 @@ static void touch_task_thread(void* UNUSED(args)) {
 #ifdef MFGTEST
   touch_task_register_mfgtest_callback();
   if (!touch_enable()) {
-    LOGW("Touch controller not detected, touch task exiting");
+    LOGW("Touch not detected, task exiting");
     rtos_thread_delete(NULL);
   }
 #else

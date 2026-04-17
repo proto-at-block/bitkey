@@ -2,6 +2,8 @@ package build.wallet.statemachine.walletmigration
 
 import androidx.compose.runtime.*
 import bitkey.auth.AccountAuthTokens
+import build.wallet.account.AccountService
+import build.wallet.account.getAccount
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.WalletMigrationEventTrackerScreenId
@@ -9,10 +11,14 @@ import build.wallet.analytics.v1.Action
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.transactions.getTransactionData
 import build.wallet.bitcoin.utxo.UtxoConsolidationContext
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.Keybox
+import build.wallet.cloud.backup.CloudBackupV2
+import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.backup.csek.SekGenerator
+import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
@@ -40,9 +46,11 @@ import build.wallet.statemachine.send.NetworkFeesInfoSheetModel
 import build.wallet.statemachine.utxo.UtxoConsolidationProps
 import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachine
 import build.wallet.statemachine.walletmigration.PrivateWalletMigrationUiState.*
-import build.wallet.wallet.migration.PrivateWalletMigrationError
-import build.wallet.wallet.migration.PrivateWalletMigrationService
-import build.wallet.wallet.migration.PrivateWalletMigrationState
+import build.wallet.wallet.migration.MigrationError
+import build.wallet.wallet.migration.MigrationProgress
+import build.wallet.wallet.migration.MigrationService
+import build.wallet.wallet.migration.MigrationType
+import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.launch
@@ -54,7 +62,7 @@ class PrivateWalletMigrationUiStateMachineImpl(
   private val sweepUiStateMachine: SweepUiStateMachine,
   private val utxoConsolidationUiStateMachine: UtxoConsolidationUiStateMachine,
   private val uuidGenerator: UuidGenerator,
-  private val privateWalletMigrationService: PrivateWalletMigrationService,
+  private val migrationService: MigrationService,
   private val moneyAmountUiStateMachine: MoneyAmountUiStateMachine,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
@@ -64,6 +72,8 @@ class PrivateWalletMigrationUiStateMachineImpl(
   private val utxoMaxConsolidationCountFeatureFlag: UtxoMaxConsolidationCountFeatureFlag,
   private val fullAccountCloudSignInAndBackupUiStateMachine:
     FullAccountCloudSignInAndBackupUiStateMachine,
+  private val cloudBackupDao: CloudBackupDao,
+  private val accountService: AccountService,
 ) : PrivateWalletMigrationUiStateMachine {
   @Suppress("CyclomaticComplexMethod")
   @Composable
@@ -73,9 +83,16 @@ class PrivateWalletMigrationUiStateMachineImpl(
     }
     val scope = rememberStableCoroutineScope()
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
-    val migrationState by privateWalletMigrationService.migrationState.collectAsState(
-      PrivateWalletMigrationState.Available
-    )
+
+    // Check if migration is in progress by calling resume()
+    var isMigrationInProgress by remember { mutableStateOf(false) }
+    LaunchedEffect("check-migration-status") {
+      migrationService.resume(MigrationType.PrivateWalletMigration)
+        .onSuccess { progress ->
+          isMigrationInProgress = progress !is MigrationProgress.NotStarted &&
+            progress !is MigrationProgress.Completed
+        }
+    }
 
     return when (val current = uiState) {
       is ShowingIntroduction -> {
@@ -117,13 +134,13 @@ class PrivateWalletMigrationUiStateMachineImpl(
               )
             } else {
               // Otherwise, estimate fees and show fee estimate sheet
-              privateWalletMigrationService.estimateMigrationFees(props.account)
+              migrationService.estimateMigrationFees(props.account)
                 .onSuccess { fee ->
                   uiState = ShowingFeeEstimate(fee)
                 }
                 .onFailure { error ->
                   uiState =
-                    if (error is PrivateWalletMigrationError.InsufficientFundsForMigration) {
+                    if (error is MigrationError.InsufficientFundsForMigration) {
                       ShowingInsufficientFundsWarning
                     } else {
                       Error
@@ -268,6 +285,7 @@ class PrivateWalletMigrationUiStateMachineImpl(
       is UtxoConsolidation -> {
         utxoConsolidationUiStateMachine.model(
           UtxoConsolidationProps(
+            account = props.account,
             onConsolidationSuccess = {
               // After consolidation, go back to introduction to try again
               uiState = ShowingIntroduction
@@ -347,26 +365,75 @@ class PrivateWalletMigrationUiStateMachineImpl(
 
       is CreatingKeyset -> {
         LaunchedEffect(Unit) {
-          privateWalletMigrationService.initiateMigration(
-            account = props.account,
-            proofOfPossession = current.nfcData.proofOfPossession,
-            newHwKeys = current.nfcData.newHwKeys,
-            ssek = current.nfcData.ssek,
-            sealedSsek = current.nfcData.sealedSsek
-          ).onSuccess { state ->
-            when (state) {
-              is PrivateWalletMigrationState.CloudBackupCompleted -> {
-                uiState = Sweeping(keybox = state.updatedKeybox)
-              }
-              is PrivateWalletMigrationState.ServerKeysetActivated -> {
-                uiState = CloudBackup(
-                  sealedCsek = state.sealedCsek,
-                  keybox = state.updatedKeybox
-                )
-              }
+          // Start with NotStarted and add the credentials
+          val initialState = MigrationProgress.NotStarted(MigrationType.PrivateWalletMigration)
+            .next(
+              currentKeybox = props.account.keybox,
+              newHwSpendingKey = current.nfcData.newHwKeys.spendingKey,
+              hwProofOfPossession = current.nfcData.proofOfPossession,
+              ssek = current.nfcData.ssek,
+              sealedSsek = current.nfcData.sealedSsek
+            )
+
+          // Save the hardware key to the DAO for state persistence
+          // This is needed before calling proceed() since the DAO expects the HW key to be saved
+          var currentState: MigrationProgress = initialState
+
+          // Loop through states until we reach CloudBackup, LocalKeyboxActivation, or Completed
+          // CloudBackup requires UI interaction for cloud sign-in
+          // LocalKeyboxActivation means we need to sweep (skipping CloudBackup)
+          while (currentState !is MigrationProgress.CloudBackup &&
+            currentState !is MigrationProgress.LocalKeyboxActivation &&
+            currentState !is MigrationProgress.Completed
+          ) {
+            val result = migrationService.proceed(currentState)
+            result.onFailure {
+              uiState = Error
+              return@LaunchedEffect
             }
-          }.onFailure {
-            uiState = Error
+            result.onSuccess { nextState ->
+              currentState = nextState
+            }
+          }
+
+          // Transition to the appropriate UI state based on the migration progress
+          when (currentState) {
+            is MigrationProgress.CloudBackup -> {
+              val cloudBackupState = currentState as MigrationProgress.CloudBackup
+              // Fetch the existing sealedCsek from the current cloud backup so the
+              // cloud backup flow can skip the NFC "seal CSEK" step when possible.
+              val existingSealedCsek = cloudBackupDao
+                .get(props.account.accountId.serverId)
+                .get()
+                ?.let { backup ->
+                  when (backup) {
+                    is CloudBackupV2 -> backup.fullAccountFields?.sealedHwEncryptionKey
+                    is CloudBackupV3 -> backup.fullAccountFields?.sealedHwEncryptionKey
+                    else -> null
+                  }
+                }
+              uiState = CloudBackup(
+                sealedCsek = existingSealedCsek,
+                keybox = cloudBackupState.currentKeybox,
+                migrationProgress = cloudBackupState
+              )
+            }
+            is MigrationProgress.LocalKeyboxActivation -> {
+              // Cloud backup was skipped, go directly to sweeping
+              val localKeyboxState = currentState as MigrationProgress.LocalKeyboxActivation
+              uiState = Sweeping(
+                keybox = localKeyboxState.currentKeybox,
+                migrationProgress = localKeyboxState
+              )
+            }
+            is MigrationProgress.Completed -> {
+              // Migration completed without needing cloud backup or sweep UI
+              uiState = Success
+            }
+            else -> {
+              // Unexpected state
+              uiState = Error
+            }
           }
         }
 
@@ -388,10 +455,34 @@ class PrivateWalletMigrationUiStateMachineImpl(
             keybox = current.keybox,
             onBackupFailed = { uiState = Error },
             onBackupSaved = {
-              privateWalletMigrationService.completeCloudBackup()
-              uiState = Sweeping(
-                keybox = current.keybox
-              )
+              scope.launch {
+                // Proceed past the CloudBackup state
+                val cloudBackupProgress = current.migrationProgress
+                if (cloudBackupProgress != null) {
+                  migrationService.proceed(cloudBackupProgress)
+                    .onSuccess { nextState ->
+                      // After CloudBackup, we expect LocalKeyboxActivation (for PrivateWalletMigration)
+                      when (nextState) {
+                        is MigrationProgress.LocalKeyboxActivation -> {
+                          uiState = Sweeping(
+                            keybox = current.keybox,
+                            migrationProgress = nextState
+                          )
+                        }
+                        else -> {
+                          // For other migration types that might have more steps
+                          uiState = Sweeping(keybox = current.keybox)
+                        }
+                      }
+                    }
+                    .onFailure {
+                      uiState = Error
+                    }
+                } else {
+                  // Fallback for legacy compatibility - no progress tracking
+                  uiState = Sweeping(keybox = current.keybox)
+                }
+              }
             },
             presentationStyle = ScreenPresentationStyle.FullScreen,
             requireAuthRefreshForCloudBackup = false,
@@ -403,12 +494,27 @@ class PrivateWalletMigrationUiStateMachineImpl(
       is Sweeping -> {
         sweepUiStateMachine.model(
           SweepUiProps(
-            keybox = current.keybox,
+            account = FullAccount(current.keybox.fullAccountId, current.keybox),
             sweepContext = SweepContext.PrivateWalletMigration,
             presentationStyle = ScreenPresentationStyle.Root,
             onExit = null,
             onSuccess = {
-              uiState = Success
+              // After sweep completes, proceed to finalize the migration
+              scope.launch {
+                val migrationProgress = current.migrationProgress
+                if (migrationProgress != null) {
+                  migrationService.proceed(migrationProgress)
+                    .onSuccess {
+                      uiState = Success
+                    }
+                    .onFailure {
+                      uiState = Error
+                    }
+                } else {
+                  // Fallback for legacy compatibility
+                  uiState = Success
+                }
+              }
             },
             // Don't include these fields which only matter in recovery
             hasAttemptedSweep = false,
@@ -422,16 +528,14 @@ class PrivateWalletMigrationUiStateMachineImpl(
           body = PrivateWalletMigrationCompleteBodyModel(
             onBack = {
               scope.launch {
-                privateWalletMigrationService.completeMigration()
-                  .onSuccess {
-                    eventTracker.track(
-                      Action.ACTION_APP_PRIVATE_WALLET_MANUAL_UPGRADE
-                    )
-                    props.onMigrationComplete(props.account)
-                  }
-                  .onFailure {
-                    uiState = Error
-                  }
+                eventTracker.track(
+                  Action.ACTION_APP_PRIVATE_WALLET_MANUAL_UPGRADE
+                )
+                // Fetch the updated active account so downstream screens use
+                // the migrated keybox instead of the stale pre-migration one.
+                val updatedAccount = accountService.getAccount<FullAccount>()
+                  .get() ?: props.account
+                props.onMigrationComplete(updatedAccount)
               }
             }
           )
@@ -452,7 +556,7 @@ class PrivateWalletMigrationUiStateMachineImpl(
             secondaryButton = ButtonDataModel(
               text = "Cancel",
               onClick = props.onExit
-            ).takeUnless { migrationState is PrivateWalletMigrationState.InProgress },
+            ).takeUnless { isMigrationInProgress },
             eventTrackerScreenId = WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_ERROR
           )
         )
@@ -516,6 +620,7 @@ private sealed interface PrivateWalletMigrationUiState {
    */
   data class Sweeping(
     val keybox: Keybox,
+    val migrationProgress: MigrationProgress.LocalKeyboxActivation? = null,
   ) : PrivateWalletMigrationUiState
 
   /**
@@ -524,6 +629,7 @@ private sealed interface PrivateWalletMigrationUiState {
   data class CloudBackup(
     val sealedCsek: SealedCsek?,
     val keybox: Keybox,
+    val migrationProgress: MigrationProgress.CloudBackup? = null,
   ) : PrivateWalletMigrationUiState
 
   /**

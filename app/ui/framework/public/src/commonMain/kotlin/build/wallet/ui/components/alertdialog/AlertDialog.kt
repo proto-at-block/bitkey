@@ -151,6 +151,7 @@ fun InputAlertDialog(
           value = inputValue,
           onValueChange = { s, _ -> inputValue = s },
           placeholderText = "",
+          testTag = "debug-input-alert-input",
           keyboardType = model.keyboardType,
           onDone = {}
         ),

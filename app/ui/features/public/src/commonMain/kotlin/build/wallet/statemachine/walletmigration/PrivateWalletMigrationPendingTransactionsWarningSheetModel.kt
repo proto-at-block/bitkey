@@ -3,8 +3,10 @@ package build.wallet.statemachine.walletmigration
 import build.wallet.analytics.events.screen.id.WalletMigrationEventTrackerScreenId
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.RenderContext
+import build.wallet.statemachine.core.form.designSystemV2WarningIconHeader
 import build.wallet.ui.model.SheetClosingClick
 import build.wallet.ui.model.button.ButtonModel
 
@@ -23,6 +25,12 @@ data class PrivateWalletMigrationPendingTransactionsWarningSheetModel(
       headline = "Update can’t be completed",
       subline = "Your wallet has pending transactions. Once all transactions are confirmed, go to Settings > Private wallet update to complete the update.",
       alignment = FormHeaderModel.Alignment.LEADING
+    ),
+    designSystemV2Model = FormDesignSystemV2Model(
+      header = designSystemV2WarningIconHeader(
+        headline = "Update can’t be completed",
+        subline = "Your wallet has pending transactions. Once all transactions are confirmed, go to Settings > Private wallet update to complete the update."
+      )
     ),
     primaryButton = ButtonModel(
       text = "Got it",

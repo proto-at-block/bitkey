@@ -1,10 +1,10 @@
 package build.wallet.statemachine.notifications
 
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.notifications.NotificationTouchpointType
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.StateMachine
 
 /**
@@ -23,23 +23,30 @@ data class NotificationTouchpointInputAndVerificationProps(
   val accountId: AccountId,
   val touchpointType: NotificationTouchpointType,
   val entryPoint: EntryPoint,
-  val onClose: () -> Unit,
-  val onSuccess: () -> Unit = onClose,
+  val onClose: (() -> Unit)? = null,
+  val onSuccess: () -> Unit,
+  val onLearnMore: (() -> Unit)? = null,
 ) {
   sealed interface EntryPoint {
     /**
-     * @property onSkip: Handler for when 'Skip' button is clicked and we don't want to first show
-     * a bottom sheet asking for confirmation, if allowed. If not allowed this will be null.
-     * @property skipBottomSheetProvider: Bottom sheet to show asking for confirmation or informing
-     * the user it is not allowed when a 'Skip' button is clicked.
+     * Settings entry point, where hardware authorization (W1 proof-of-possession or W3 action
+     * proof) is needed for touchpoint activation.
+     *
+     * @property fullAccount The active full account for hardware authorization.
      */
-    data class Onboarding(
-      val onSkip: (() -> Unit)?,
-      val skipBottomSheetProvider: (onBack: () -> Unit) -> SheetModel,
+    data class Settings(val fullAccount: FullAccount) : EntryPoint
+
+    /**
+     * Onboarding and recovery entry point.
+     *
+     * @property fullAccount The full account, if available. When provided and the account uses
+     *   W3 hardware, hardware authorization (action proof) is required for touchpoint activation.
+     *   When null or W1 hardware, activation proceeds without hardware verification.
+     * @property onSkip Handler for when 'Skip' button is clicked.
+     */
+    data class OnboardingAndRecovery(
+      val fullAccount: FullAccount? = null,
+      val onSkip: (() -> Unit)? = null,
     ) : EntryPoint
-
-    data object Settings : EntryPoint
-
-    data class Recovery(val onSkip: (() -> Unit)? = null) : EntryPoint
   }
 }

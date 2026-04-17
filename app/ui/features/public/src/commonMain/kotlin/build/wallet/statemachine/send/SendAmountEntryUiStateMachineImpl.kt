@@ -41,7 +41,7 @@ class SendAmountEntryUiStateMachineImpl(
             onBack = props.onBack,
             initialAmount = props.initialAmount,
             exchangeRates = props.exchangeRates,
-            allowSendAll = props.allowSendAll,
+            flow = TransferAmountEntryUiProps.Flow.Send(allowSendAll = props.allowSendAll),
             onContinueClick = { continueParams ->
               if (isPreBuiltPsbtFlowEnabled) {
                 // Transition to building state when feature flag is enabled

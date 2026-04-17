@@ -28,7 +28,7 @@ static struct {
 static bool create_if_not_exist(void) {
   if (!fs_file_exists(KVSTORE_FILE_NAME)) {
     if (fs_touch(KVSTORE_FILE_NAME) != 0) {
-      LOGE("Failed to create %s", KVSTORE_FILE_NAME);
+      LOGE("KV create: %s", KVSTORE_FILE_NAME);
       return false;
     }
   }
@@ -41,7 +41,7 @@ static bool read_from_fs(void) {
   const bool ret =
     fs_util_read_all_global(KVSTORE_FILE_NAME, (uint8_t*)ctx.buf, sizeof(ctx.buf), &size_out);
   if (!ret || (size_out > KV_MAX_FILE_SIZE)) {
-    LOGE("Failed to read %s (%ld)", KVSTORE_FILE_NAME, size_out);
+    LOGE("KV read: %s", KVSTORE_FILE_NAME);
     return false;
   }
   ctx.len = size_out;
@@ -168,10 +168,15 @@ kv_result_t kv_get(const char* key, void* value, uint8_t* value_len) {
     goto out;
   }
 
+  if (tlv->len > KV_MAX_VALUE_LEN) {
+    result = KV_ERR_INVALID;
+    goto out;
+  }
+
   // Copy the value to the output buffer. If the output buffer is too small,
   // copy as much as possible and set the length to the actual value length.
   if (*value_len < tlv->len) {
-    LOGW("Truncating value for key %s (%d < %d)", key, *value_len, tlv->len);
+    LOGW("KV trunc %s", key);
     // Provided buffer is too small, copy as much as possible
     memcpy(value, tlv->value, *value_len);
     result = KV_ERR_TRUNCATED;

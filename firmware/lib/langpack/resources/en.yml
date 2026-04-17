@@ -2,29 +2,21 @@
 TestString: "Hello World"
 
 # About page.
-AboutTitle: "ABOUT"
 AboutFirmwareLabel: "FIRMWARE"
-AboutHardwareLabel: "HARDWARE"
 AboutSerialLabel: "SERIAL"
-
-# Brightness page.
-BrightnessTitle: "BRIGHTNESS"
+AboutRegulatoryHeader: "REGULATORY"
 
 # Fingerprint page.
 FingerprintTitle: "FINGERPRINT"
-FingerprintFinishTitle: "FINISH"
 FingerprintIntro: "Let's set up your fingerprint."
-FingerprintButton: "Get started"
 FingerprintSuccess: "Fingerprint saved"
-FingerprintFinish: "Scan Bitkey with your phone to finish saving."
-FingerprintAppDownload: "Now let's download the Bitkey app."
-FingerprintQR: "Get QR code"
 
 # Fingerprint enrollment page.
 FingerprintEnrollFirst: "Tap fingerprint sensor"
 FingerprintEnrollError: "Try again"
-FingerprintEnrollFail: "Enrollment failed - please try again"
-FingerprintEnrollRepeat: "Lift and repeat %lu times."
+FingerprintEnrollFailTitle: "ENROLLMENT FAILED"
+FingerprintEnrollFailBody: "Please try again"
+FingerprintEnrollRepeat: "Lift and repeat"
 
 # Fingerprint removal page.
 FingerprintRemoveTitle: "CONFIRM"
@@ -33,43 +25,67 @@ FingerprintRemoveBack: "Back"
 FingerprintRemoveRemoved: "Removed"
 
 # Scan page.
-ScanTitle: "Scan to start"
-ScanTap: "Scan with phone"
-ScanSign: "Scan to sign"
-ScanVerify: "Scan to verify"
-ScanConfirm: "Scan to confirm"
+ScanTap: "READY"
+ScanConfirm: "CONTINUE ON PHONE"
 
 # Fingerprint menu page.
 FingerprintMenuAdd: "Add fingerprint"
 
 # Regulatory page.
-RegulatoryTitle: "REGULATORY"
-RegulatoryFCCId: "FCC ID: 2ASAL1209"
-RegulatoryFCCNotesFMT: "FCC Notes (%d/2)"
-RegulatoryNote1: "(1) this device may not cause\nharmful interference, and (2)\nthis device must accept any..."
-RegulatoryNote2: "...interference received,\nincluding interference that may\ncause undesired operation."
+RegulatoryFCCId: "FCC ID: 2AF3K-BK003"
+RegulatoryCompany: "Block, Inc."
+RegulatoryProduct: "Bitkey"
+RegulatoryModel: "Model Number: BK003"
+RegulatoryUsHeader: "UNITED STATES"
+RegulatoryUsAddress: "Block, Inc., 1955 Broadway, Suite 600, Oakland, CA 94612, United States."
+RegulatoryCaHeader: "CANADA"
+RegulatoryCaIces: "CAN ICES-003(B)/NMB-003(B)"
+RegulatoryCaIc: "IC: 21827-BK003"
+RegulatoryEuHeader: "EU & UK"
+RegulatoryEuAddress: "Block Global, B.V. Strawinskylaan 1647, Tower Seven, 16th floor, 1077XX Amsterdam, The Netherlands."
+RegulatoryEuRating: "Electrical Rating: 5V DC 0.5A"
+RegulatoryAuHeader: "AUSTRALIA"
+RegulatoryNzHeader: "NEW ZEALAND"
+RegulatoryNzSupplier: "R-NZ"
 
 # Money movement page.
 MoneyMovementAmount: "AMOUNT"
 MoneyMovementFee: "FEE"
-MoneyMovementHold: "HOLD"
+MoneyMovementHold: "HOLD TO CONFIRM"
 MoneyMovementBTCSuffix: " BTC"
-MoneyMovementScanToFinish: "SCAN WITH PHONE TO FINISH"
+MoneyMovementSatsPrefix: "₿"
 MoneyMovementConfirmed: "CONFIRMED"
+MoneyMovementOK: "OK"
+MoneyMovementDone: "DONE"
+MoneyMovementAddress: "ADDRESS"
+MoneyMovementHowToVerify: "HOW TO VERIFY"
+MoneyMovementVerifyInstructions: "Verify the address above against the version that the sender is using."
+
+# Confirmation hints
+ConfirmationHoldToConfirm: "HOLD TO CONFIRM"
+ConfirmationKeepHolding: "KEEP HOLDING"
+ConfirmationSigning: "Signing..."
+ConfirmationDone: "Done"
+ConfirmationApproved: "APPROVED"
 
 # Hold Cancel Widget
+HoldCancelHold: "KEEP HOLDING"
 HoldCancelCancel: "CANCEL"
 HoldCancelCancelled: "CANCELLED"
+HoldCancelOnYourPhone: "ON YOUR PHONE"
+HoldCancelCancelTransactionInApp: "Cancel the transaction in the Bitkey app"
+HoldCancelCancelInApp: "Cancel in the Bitkey app"
+HoldCancelCancelUpdateInApp: "Cancel the update in the Bitkey app"
 
 # Menu Items
 MenuBack: ""
 MenuFingerprints: "Fingerprints"
 MenuBrightness: "Brightness"
 MenuAbout: "About"
-MenuRegulatory: "Regulatory"
-MenuLock: "Lock Device"
-MenuOff: "Power Off"
+MenuLock: "Lock device"
+MenuOff: "Power off"
 MenuTouchTest: "Touch Test"
+MenuTouchDebug: "Debug"
 MenuSleepEnabled: "Sleep: Enabled"
 MenuSleepDisabled: "Sleep: Disabled"
 MenuRunIn: "Run-In Test"
@@ -77,24 +93,63 @@ MenuMoneyMovement: "Money Movement"
 MenuTitle: "SETTINGS"
 
 # Privileged Actions
-PrivilegedActionScanToFinish: "Scan to finish"
 PrivilegedActionHash: "HASH"
 PrivilegedActionVersion: "VERSION"
-PrivilegedActionUnknownError: "Unknown action"
+PrivilegedActionUnknownError: "UNKNOWN ACTION"
+PrivilegedActionConfirmed: "CONFIRMED"
+PrivilegedActionWipeWarning: "This will erase all data"
+PrivilegedActionConfirm: "Confirm action"
 
 # Fingerprint Removal Actions
 FingerprintRemoveAction: "Remove"
 
 # Firmware Update
-FirmwareUpdateVerify: "Verify"
-FirmwareUpdateCancel: "Cancel"
-FirmwareUpdateInProgress: "Update in progress..."
-FirmwareUpdateHashTitle: "SHA-256"
-FirmwareUpdateFinishTitle: "FINISH"
-FirmwareUpdateUpdatingTitle: "UPDATING"
+FirmwareUpdateInProgress: "Updating..."
 FirmwareUpdateTitle: "FIRMWARE UPDATE"
-FirmwareUpdateMcuCore: "MCU: CORE"
-FirmwareUpdateMcuUxc: "MCU: UXC"
+FirmwareUpdateVersionUnknown: "Version Unknown"
+FirmwareUpdateVerifying: "Verifying..."
+FirmwareUpdateFailed: "Update failed"
 
 # Fingerprint Menu
 FingerprintMenuTitle: "FINGERPRINTS"
+
+# SAP Combined Action Display Names
+SapSetSpendWithoutHardware: "SET DAILY LIMIT"
+SapDisableSpendWithoutHardware: "DISABLE TRANSFER WITHOUT HARDWARE"
+SapSetVerificationThreshold: "SET VERIFICATION THRESHOLD"
+SapSetRecoveryEmail: "SET RECOVERY EMAIL"
+SapDisableRecoveryEmail: "DISABLE RECOVERY EMAIL"
+SapSetRecoveryPhone: "SET RECOVERY PHONE"
+SapDisableRecoveryPhone: "DISABLE RECOVERY PHONE"
+SapSetRecoveryPushNotifications: "ENABLE PUSH NOTIFICATIONS"
+SapDisableRecoveryPushNotifications: "DISABLE PUSH NOTIFICATIONS"
+SapAddRecoveryContact: "ADD RECOVERY CONTACT"
+SapRemoveRecoveryContact: "REMOVE RECOVERY CONTACT"
+SapRemoveRecoveryCustomer: "REMOVE CONTACT"
+SapAddBeneficiary: "ADD BENEFICIARY"
+SapRemoveBeneficiary: "REMOVE BENEFICIARY"
+SapRemoveBenefactor: "REMOVE BENEFACTOR"
+SapAcceptRecoveryContactsInvite: "ACCEPT RECOVERY CONTACT INVITE"
+SapAcceptBeneficiariesInvite: "ACCEPT BENEFICIARY INVITE"
+SapInitiateLostAppRecovery: "START APP RECOVERY"
+SapCancelLostAppRecovery: "CANCEL APP RECOVERY"
+SapCancelLostHardwareRecovery: "CANCEL HARDWARE RECOVERY"
+SapCancelConflictingRecovery: "CANCEL CONFLICTING RECOVERY"
+SapDeleteAccount: "DELETE ACCOUNT"
+SapRotateAppAuthKeys: "REMOVE ALL OTHER DEVICES"
+SapUpdateDescriptorBackups: "UPDATE DESCRIPTOR BACKUPS"
+SapRotateSpendingKeyset: "UPDATE SPENDING KEYSET"
+StartRecovery: "AUTHORIZE RECOVERY"
+EekRestorationUnseal: "DECRYPT EMERGENCY EXIT KEY"
+FullAccountCloudBackupRestoration: "DECRYPT CLOUD BACKUP"
+RecoverData: "AUTHORIZE APP RECOVERY"
+CompleteWallet: "AUTHORIZE HARDWARE RECOVERY"
+UpgradeWallet: "AUTHORIZE WALLET UPGRADE"
+InitiateWalletUpgrade: "START WALLET UPGRADE"
+
+# Self-Send
+SelfSendInfo: "Self-send funds to your wallet"
+
+# Error Screens
+ScanError: "Try again"
+LockedError: "Try again"

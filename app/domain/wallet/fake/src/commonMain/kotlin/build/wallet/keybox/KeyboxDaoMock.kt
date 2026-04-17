@@ -3,6 +3,8 @@ package build.wallet.keybox
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
 import build.wallet.bitkey.app.AppAuthPublicKeys
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
+import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.spending.SpendingKeyset
@@ -26,7 +28,9 @@ class KeyboxDaoMock(
     MutableStateFlow<Result<Keybox?, Error>>(Ok(defaultOnboardingKeybox))
 
   var rotateKeyboxResult: Result<Keybox, Error> = Ok(KeyboxMock)
+  var lastNewHwAuthPublicKey: HwAuthPublicKey? = null
 
+  var saveKeyboxAsActiveResult: Result<Unit, Error> = Ok(Unit)
   var keyset: SpendingKeyset? = null
 
   override fun activeKeybox(): Flow<Result<Keybox?, Error>> = activeKeybox
@@ -57,8 +61,10 @@ class KeyboxDaoMock(
   override suspend fun rotateKeyboxAuthKeys(
     keyboxToRotate: Keybox,
     appAuthKeys: AppAuthPublicKeys,
+    newHwAuthPublicKey: HwAuthPublicKey?,
   ): Result<Keybox, Error> {
     rotateAuthKeysCalls += Unit
+    lastNewHwAuthPublicKey = newHwAuthPublicKey
     return rotateKeyboxResult.also {
       if (it.isOk) {
         activeKeybox.value = Ok(it.value)
@@ -72,8 +78,20 @@ class KeyboxDaoMock(
   }
 
   override suspend fun saveKeyboxAsActive(keybox: Keybox): Result<Unit, Error> {
-    this.activeKeybox.value = Ok(keybox)
-    return Ok(Unit)
+    return saveKeyboxAsActiveResult.also {
+      if (it.isOk) {
+        this.activeKeybox.value = Ok(keybox)
+      }
+    }
+  }
+
+  override suspend fun updateAppGlobalAuthKeyHwSignature(
+    keybox: Keybox,
+    signature: AppGlobalAuthKeyHwSignature,
+  ): Result<Keybox, Error> {
+    val updated = keybox.copy(appGlobalAuthKeyHwSignature = signature)
+    activeKeybox.value = Ok(updated)
+    return Ok(updated)
   }
 
   override suspend fun clear(): Result<Unit, Error> {
@@ -87,5 +105,7 @@ class KeyboxDaoMock(
     activeKeybox.value = Ok(defaultActiveKeybox)
     keyset = null
     rotateKeyboxResult = Ok(KeyboxMock)
+    saveKeyboxAsActiveResult = Ok(Unit)
+    lastNewHwAuthPublicKey = null
   }
 }

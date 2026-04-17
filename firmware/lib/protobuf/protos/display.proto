@@ -27,6 +27,8 @@ enum display_menu_item {
   DISPLAY_MENU_ITEM_TOGGLE_SLEEP = 8;
   DISPLAY_MENU_ITEM_RUN_IN = 9;
   DISPLAY_MENU_ITEM_MONEY_MOVEMENT = 10;
+  DISPLAY_MENU_ITEM_GAME = 11;
+  DISPLAY_MENU_ITEM_TOUCH_DEBUG = 12;
 }
 
 // Display result codes
@@ -46,9 +48,15 @@ enum display_flag {
 message display_params_empty {
 }
 
+message display_params_onboarding {
+  bool resume_at_scan = 1;
+}
+
 message display_params_menu {
   bool sleep_disabled = 1;  // MFG only: true if sleep timer is inhibited
   uint32 selected_item = 2;     // Which menu item should be selected
+  bool hide_lock_device = 3;
+  bool hide_fingerprints = 4;
 }
 
 message display_params_about {
@@ -70,6 +78,7 @@ enum display_mfg_test_mode {
   DISPLAY_MFG_TEST_MODE_SCROLLING_H = 9;
   DISPLAY_MFG_TEST_MODE_CUSTOM_COLOR = 10;
   DISPLAY_MFG_TEST_MODE_TOUCH_TEST_BOXES = 11;
+  DISPLAY_MFG_TEST_MODE_BURNIN_CHECKER = 12;
 }
 
 message display_params_mfg {
@@ -85,17 +94,34 @@ message display_params_mfg {
   uint32 display_touch_events = 10;
   uint32 fingerprint_events = 11;
   uint32 countdown_value = 12;
-  uint32 power_phase = 13;           // 0=charge1, 1=discharge, 2=charge2, 3=complete
-  bool has_failures = 14;
+  uint32 power_phase = 13;  // 0=converge, 1=discharge, 2=final_charge, 3=complete
   bool test_complete = 15;
   uint32 custom_rgb = 16;            // RGB color as 0xRRGGBB for CUSTOM_COLOR mode
   uint32 brightness_percent = 17;    // Brightness (0 = don't change, 1-100 = set percent)
-  uint32 phase_time_remaining_ms = 18;  // Time remaining in current power phase
-  bool target_reached = 19;          // True if SOC target reached (holding)
+  bool is_discharging = 20;          // True if currently discharging (Phase 1 discharge or Phase 2).
+
+  reserved 14, 18, 19;      // was: has_failures, phase_time_remaining_ms, target_reached
+}
+
+// Display unit preference for Bitcoin amounts shown on the hardware screen.
+// Mirrors btc_display_unit from wallet.proto; defined separately here because
+// display.proto is compiled independently for the UXC display MCU.
+enum display_btc_unit {
+  // Display amounts in satoshi with ₿ prefix (BIP 177).
+  DISPLAY_BTC_UNIT_SATOSHI = 0;
+  // Display amounts in BTC with decimal notation.
+  DISPLAY_BTC_UNIT_BITCOIN = 1;
+}
+
+// Type of money movement flow.
+enum money_movement_flow {
+  MONEY_MOVEMENT_FLOW_SEND = 0;      // Normal send to external address
+  MONEY_MOVEMENT_FLOW_RECEIVE = 1;   // Receive flow (display address to receive funds)
+  MONEY_MOVEMENT_FLOW_SELF_SEND = 2; // Self-send (sweep/consolidation) - all outputs to wallet
 }
 
 message display_params_money_movement {
-  // Current step in the money movement flow.
+  // Current step in the money movement flow (unused - display MCU manages navigation).
   enum display_params_money_movement_step {
     // Unused.
     NONE = 0;
@@ -113,7 +139,10 @@ message display_params_money_movement {
   string amount_sats = 1 [(nanopb).max_size = 32];
   string fee_sats = 2 [(nanopb).max_size = 32];
   string address = 3 [(nanopb).max_size = 256];
-  bool is_receive_flow = 4;
+  money_movement_flow flow = 4;
+
+  // Display preference for Bitcoin amounts; sent per-transaction, not persisted.
+  display_btc_unit btc_display_unit = 5;
 }
 
 message display_params_scan {
@@ -137,6 +166,9 @@ message display_params_scan {
 
   // Action to take on scanning.
   display_params_scan_action action = 1;
+
+  // Briefly show "Try again" error overlay.
+  bool show_error = 2;
 }
 
 message display_params_fingerprint {
@@ -168,6 +200,7 @@ message display_params_locked {
   uint32 battery_percent = 1;
   bool is_charging = 2;
   bool show_unlocked = 3;
+  bool show_error = 4;  // Briefly show "Try again" error overlay.
 }
 
 message display_params_menu_fingerprints {
@@ -181,7 +214,7 @@ message display_params_menu_fingerprints {
 message display_params_firmware_update {
   string version = 1 [(nanopb).max_size = 32]; // Version string for in_progress page (e.g., "v2.1.0")
   reserved 2;                  // Was fwup_mode
-  uint32 mcu_role = 3;         // MCU_ROLE_CORE, MCU_ROLE_UXC (kept at original field number)
+  reserved 3;                  // Was mcu_role
   reserved 4;                  // Was patch_size
   uint32 page = 5;             // 0=confirmation, 1=scanning, 2=in_progress (kept at original field number)
 }
@@ -202,12 +235,6 @@ message display_params_privileged_action_confirm_string {
   string value = 1 [(nanopb).max_size = 128];
 }
 
-// Firmware update confirmation
-message display_params_privileged_action_fwup {
-  string hash = 1 [(nanopb).max_size = 65];  // SHA256 hex string
-  string version = 2 [(nanopb).max_size = 32]; // Semantic version
-}
-
 // Confirm action (e.g., wipe device)
 message display_params_privileged_action_confirm_action {
   display_privileged_action_type action_type = 1;
@@ -220,9 +247,27 @@ message display_params_privileged_action {
   oneof action {
     display_params_privileged_action_confirm_address confirm_address = 2;
     display_params_privileged_action_confirm_string confirm_string = 3;
-    display_params_privileged_action_fwup fwup = 4;
     display_params_privileged_action_confirm_action confirm_action = 5;
   }
+
+  // Previously used for privileged action fwup.
+  reserved 4;
+
+  // SAP combined action ID; maps to sap_action_t enum for display title lookup.
+  uint32 sap_action = 6;
+}
+
+// Generic confirmation screen parameters.
+message display_params_confirmation {
+  enum display_params_confirmation_mode {
+    DISPLAY_PARAMS_CONFIRMATION_MODE_SUCCESS = 0;
+    DISPLAY_PARAMS_CONFIRMATION_MODE_LOADING = 1;
+  }
+
+  string text = 1 [(nanopb).max_size = 32];
+  bool lock_on_dismiss = 2;
+  uint32 text_id = 3;
+  display_params_confirmation_mode mode = 4;
 }
 
 // Display show screen command
@@ -239,7 +284,7 @@ message display_show_screen {
     display_params_empty regulatory = 8;
     display_params_mfg mfg = 9;
     display_params_money_movement money_movement = 10;
-    display_params_empty onboarding = 11;
+    display_params_onboarding onboarding = 11;
     // Field numbers 12-13 skipped (previously display_params_success, display_params_error)
     display_params_scan scan = 14;
     display_params_fingerprint fingerprint = 15;
@@ -257,10 +302,20 @@ message display_show_screen {
 
     // Render the power off screen (USB-plugged power off).
     display_params_empty power_off = 27;
+    // Render the generic success confirmation screen (green ring, checkmark, text).
+    display_params_confirmation confirmation = 28;
+
+    // Render the game screen.
+    display_params_empty game = 29;
+
+    display_params_empty touch_debug = 30;
+
+    // Render the onboarding complete screen (bitkey fill icon).
+    display_params_empty onboarding_complete = 32;
   }
 
   // Reserved field numbers from oneof (previously used fields)
-  reserved 12, 13, 18;
+  reserved 12, 13, 18, 31;
 }
 
 // Prepare sleep command
@@ -350,6 +405,9 @@ message display_action {
     DISPLAY_ACTION_POWER_OFF = 9;          // Power off device
     DISPLAY_ACTION_START_ENROLLMENT = 10;  // Start fingerprint enrollment
     DISPLAY_ACTION_DELETE_FINGERPRINT = 11;// Delete fingerprint
+
+    // Money movement flow actions
+    DISPLAY_ACTION_PAGE_CONFIRMED = 12;    // Refresh timeout during multi-step confirmation
   }
 
   // The action type.

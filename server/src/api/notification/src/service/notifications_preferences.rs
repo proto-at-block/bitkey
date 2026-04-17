@@ -64,9 +64,7 @@ impl Service {
         if !old_preferences_state
             .account_security
             .is_subset(&input.notifications_preferences.account_security)
-            && !input
-                .key_proof
-                .is_some_and(|kp| kp.app_signed && kp.hw_signed)
+            && !input.signed_by_both_factors
         {
             return Err(ApiError::GenericForbidden(
                 "valid signature over access token required by both app and hw auth keys"

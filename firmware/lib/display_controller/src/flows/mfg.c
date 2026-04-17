@@ -16,23 +16,20 @@
 extern uint32_t rtos_thread_systime(void);
 #endif
 
-// Run-in test power phase configuration - fixed durations
-#define RUNIN_PHASE1_DURATION_MS  (10 * 60 * 1000)  // 10 minutes for initial charge
-#define RUNIN_PHASE2_DURATION_MS  (30 * 60 * 1000)  // 30 minutes for discharge
-#define RUNIN_PHASE3_DURATION_MS  (30 * 60 * 1000)  // 30 minutes for final charge
-#define RUNIN_SOC_LOG_INTERVAL_MS 10000             // Log SOC every 10 seconds
+// Run-in test power phase configuration
+#define RUNIN_SOC_LOG_INTERVAL_MS 10000  // Log SOC every 10 seconds
 // SOC targets in millipercent (1000 = 1%)
-#define RUNIN_TARGET_CHARGE_SOC       (65 * 1000)  // Phase 1 charge target SOC 65% (displays as 65%)
-#define RUNIN_TARGET_DISCHARGE_SOC    (30 * 1000)  // Phase 2 discharge target SOC 30% (best effort)
-#define RUNIN_TARGET_FINAL_CHARGE_SOC (65 * 1000)  // Phase 3 charge target SOC 65%
+#define RUNIN_TARGET_CONVERGE_SOC     (50 * 1000)  // Phase 1: converge to 50%
+#define RUNIN_TARGET_DISCHARGE_SOC    (30 * 1000)  // Phase 2: discharge to 30%
+#define RUNIN_TARGET_FINAL_CHARGE_SOC (90 * 1000)  // Phase 3: charge to 90%
 #define RUNIN_FINGERPRINT_CHECK_MS    (200)        // Check fingerprint sensor every 200ms
 
 // Power cycling phases for run-in test
 typedef enum {
-  RUNIN_POWER_PHASE_INITIAL_CHARGE = 0,  // Phase 1: Charge to 65%
-  RUNIN_POWER_PHASE_DISCHARGE,           // Phase 2: Discharge to 30%
-  RUNIN_POWER_PHASE_FINAL_CHARGE,        // Phase 3: Charge back to 65%
-  RUNIN_POWER_PHASE_COMPLETE,            // All phases done
+  RUNIN_POWER_PHASE_CONVERGE = 0,  // Phase 1: Converge to 50% (charge or discharge)
+  RUNIN_POWER_PHASE_DISCHARGE,     // Phase 2: Discharge to 30%
+  RUNIN_POWER_PHASE_FINAL_CHARGE,  // Phase 3: Charge to 90%
+  RUNIN_POWER_PHASE_COMPLETE,      // All phases done
 } runin_power_phase_t;
 
 // Run-in states
@@ -67,14 +64,106 @@ typedef struct {
   // Power cycling state
   runin_power_phase_t power_phase;  // Current power cycling phase
   uint32_t power_phase_start_ms;    // When current power phase started
-  uint32_t min_soc;                 // Minimum SOC observed during test
-  bool target_reached;              // True if SOC target reached (holding)
-  bool power_phase_failed;          // True if a power phase timed out or unplugged
+  uint32_t phase1_duration_ms;      // Duration of Phase 1 (converge to 50%)
+  uint32_t phase2_duration_ms;      // Duration of Phase 2 (discharge to 30%)
+  uint32_t phase3_duration_ms;      // Duration of Phase 3 (charge to 90%)
+  bool phase1_is_discharging;       // True if Phase 1 is discharging (initial SOC > 50%)
+  bool charger_active;              // Cached hardware charging state for run-in UI/status
 } runin_context_t;
 
 static UI_TASK_DATA runin_context_t runin_ctx = {0};
 
-static void _display_controller_show_countdown(display_controller_t* controller);
+static void show_countdown(display_controller_t* controller);
+static void refresh_runin_charge_state(display_controller_t* controller);
+#ifdef EMBEDDED_BUILD
+static void sample_runin_charge_state(void);
+static bool runin_phase_should_charge(void);
+static void apply_runin_phase_power_state(void);
+#endif
+
+// Common setup for applying a mfg screen payload. Handles mode-specific initialization
+// (touch test, run-in start screen) and screen param setup. Used by both on_enter
+// (fresh flow entry) and on_event (screen change while MFG flow is already active).
+static void apply_mfg_screen_payload(display_controller_t* controller,
+                                     const mfgtest_show_screen_payload_t* payload) {
+  // Handle touch test state transitions
+  if (payload->test_mode == fwpb_display_mfg_test_mode_DISPLAY_MFG_TEST_MODE_TOUCH_TEST_BOXES) {
+    controller->touch_test.active = true;
+    controller->touch_test.end_time_ms = rtos_thread_systime() + payload->timeout_ms;
+  } else {
+    controller->touch_test.active = false;
+  }
+
+  // Setup screen params
+  controller->show_screen.params.mfg.test_mode = payload->test_mode;
+  controller->show_screen.params.mfg.custom_rgb = payload->custom_rgb;
+  controller->show_screen.params.mfg.brightness_percent = payload->brightness_percent;
+
+  // For MFG tests, set global brightness to 100% (no dimming from device settings)
+  // The local brightness (set in screen_mfg) will control the actual brightness
+  if (payload->brightness_percent > 0) {
+    controller->show_screen.brightness_percent = 100;
+  }
+
+  // Initialize run-in context and battery info for START_SCREEN mode
+  if (payload->test_mode == fwpb_display_mfg_test_mode_DISPLAY_MFG_TEST_MODE_START_SCREEN) {
+    runin_ctx.state = RUNIN_STATE_START_SCREEN;
+    runin_ctx.test_start_ms = rtos_thread_systime();
+    runin_ctx.state_start_ms = runin_ctx.test_start_ms;
+#ifdef EMBEDDED_BUILD
+    runin_ctx.plugged_in = power_is_plugged_in();
+    runin_ctx.charger_active = power_is_charging();
+#else
+    runin_ctx.plugged_in = true;
+    runin_ctx.charger_active = false;
+#endif
+    runin_ctx.initial_soc = controller->battery_percent;
+    runin_ctx.power_phase = RUNIN_POWER_PHASE_CONVERGE;
+    runin_ctx.power_phase_start_ms = runin_ctx.test_start_ms;
+
+    controller->show_screen.params.mfg.initial_soc = runin_ctx.initial_soc;
+    controller->show_screen.params.mfg.battery_percent = controller->battery_percent;
+    refresh_runin_charge_state(controller);
+  }
+}
+
+static void refresh_runin_charge_state(display_controller_t* controller) {
+  controller->show_screen.params.mfg.is_charging = runin_ctx.charger_active;
+  controller->show_screen.params.mfg.plugged_in = runin_ctx.plugged_in;
+}
+
+#ifdef EMBEDDED_BUILD
+static void sample_runin_charge_state(void) {
+  runin_ctx.plugged_in = power_is_plugged_in();
+  runin_ctx.charger_active = power_is_charging();
+}
+
+static bool runin_phase_should_charge(void) {
+  switch (runin_ctx.power_phase) {
+    case RUNIN_POWER_PHASE_CONVERGE:
+      return !runin_ctx.phase1_is_discharging;
+    case RUNIN_POWER_PHASE_FINAL_CHARGE:
+      return true;
+    case RUNIN_POWER_PHASE_DISCHARGE:
+    case RUNIN_POWER_PHASE_COMPLETE:
+    default:
+      return false;
+  }
+}
+
+static void apply_runin_phase_power_state(void) {
+  if (runin_phase_should_charge()) {
+    power_fast_charge();
+    power_usb_suspend(false);
+    power_enable_charging();
+  } else {
+    power_usb_suspend(true);
+    power_disable_charging();
+  }
+
+  sample_runin_charge_state();
+}
+#endif
 
 void display_controller_mfg_on_enter(display_controller_t* controller, const void* entry_data) {
   ASSERT(controller);
@@ -90,88 +179,20 @@ void display_controller_mfg_on_enter(display_controller_t* controller, const voi
   // Set which_params for mfg screens
   controller->show_screen.which_params = fwpb_display_show_screen_mfg_tag;
 
-  // If entry_data provided, initialize immediately (no need to wait for event)
-  // If no entry_data (e.g., entering from menu), default to START_SCREEN
-  if (entry_data) {
-    const mfgtest_show_screen_payload_t* payload = (const mfgtest_show_screen_payload_t*)entry_data;
+  // Default to START_SCREEN when entering from menu (no entry_data)
+  const mfgtest_show_screen_payload_t default_payload = {
+    .test_mode = fwpb_display_mfg_test_mode_DISPLAY_MFG_TEST_MODE_START_SCREEN,
+  };
+  const mfgtest_show_screen_payload_t* payload =
+    entry_data ? (const mfgtest_show_screen_payload_t*)entry_data : &default_payload;
 
-    // test_mode == 0 means this was an exit request - don't initialize anything
-    // The flow will exit immediately via on_event handler
-    if (payload->test_mode == 0) {
-      return;
-    }
-
-    // Check if we are starting a standalone touch test
-    if (payload->test_mode == fwpb_display_mfg_test_mode_DISPLAY_MFG_TEST_MODE_TOUCH_TEST_BOXES) {
-      controller->touch_test.active = true;
-      controller->touch_test.end_time_ms = rtos_thread_systime() + payload->timeout_ms;
-    }
-
-    // Initialize run-in context if showing START_SCREEN
-    if (payload->test_mode == fwpb_display_mfg_test_mode_DISPLAY_MFG_TEST_MODE_START_SCREEN) {
-      runin_ctx.state = RUNIN_STATE_START_SCREEN;
-      runin_ctx.test_start_ms = rtos_thread_systime();
-      runin_ctx.state_start_ms = runin_ctx.test_start_ms;
-#ifdef EMBEDDED_BUILD
-      runin_ctx.plugged_in = power_is_plugged_in();
-#else
-      runin_ctx.plugged_in = true;
-#endif
-      runin_ctx.initial_soc = controller->battery_percent;
-      runin_ctx.min_soc = controller->battery_percent;
-      runin_ctx.power_phase = RUNIN_POWER_PHASE_INITIAL_CHARGE;
-      runin_ctx.power_phase_start_ms = runin_ctx.test_start_ms;
-    }
-
-    // Setup screen params
-    controller->show_screen.params.mfg.test_mode = payload->test_mode;
-    controller->show_screen.params.mfg.custom_rgb = payload->custom_rgb;
-    controller->show_screen.params.mfg.brightness_percent = payload->brightness_percent;
-
-    // For MFG tests, set global brightness to 100% (no dimming from device settings)
-    // The local brightness (set in screen_mfg) will control the actual brightness
-    if (payload->brightness_percent > 0) {
-      controller->show_screen.brightness_percent = 100;
-    }
-
-    // Set battery info for START_SCREEN
-    if (payload->test_mode == fwpb_display_mfg_test_mode_DISPLAY_MFG_TEST_MODE_START_SCREEN) {
-      controller->show_screen.params.mfg.initial_soc = runin_ctx.initial_soc;
-      controller->show_screen.params.mfg.battery_percent = controller->battery_percent;
-      controller->show_screen.params.mfg.is_charging = controller->is_charging;
-      controller->show_screen.params.mfg.plugged_in = runin_ctx.plugged_in;
-    }
-
-    display_controller_show_screen(controller, fwpb_display_show_screen_mfg_tag,
-                                   fwpb_display_transition_DISPLAY_TRANSITION_FADE,
-                                   TRANSITION_DURATION_STANDARD);
-  } else {
-    // No entry_data - default to START_SCREEN (e.g., when entering from menu)
-    runin_ctx.state = RUNIN_STATE_START_SCREEN;
-    runin_ctx.test_start_ms = rtos_thread_systime();
-    runin_ctx.state_start_ms = runin_ctx.test_start_ms;
-#ifdef EMBEDDED_BUILD
-    runin_ctx.plugged_in = power_is_plugged_in();
-#else
-    runin_ctx.plugged_in = true;
-#endif
-    runin_ctx.initial_soc = controller->battery_percent;
-    runin_ctx.min_soc = controller->battery_percent;
-    runin_ctx.power_phase = RUNIN_POWER_PHASE_INITIAL_CHARGE;
-    runin_ctx.power_phase_start_ms = runin_ctx.test_start_ms;
-
-    // Setup START_SCREEN params
-    controller->show_screen.params.mfg.test_mode =
-      fwpb_display_mfg_test_mode_DISPLAY_MFG_TEST_MODE_START_SCREEN;
-    controller->show_screen.params.mfg.initial_soc = runin_ctx.initial_soc;
-    controller->show_screen.params.mfg.battery_percent = controller->battery_percent;
-    controller->show_screen.params.mfg.is_charging = controller->is_charging;
-    controller->show_screen.params.mfg.plugged_in = runin_ctx.plugged_in;
-
-    display_controller_show_screen(controller, fwpb_display_show_screen_mfg_tag,
-                                   fwpb_display_transition_DISPLAY_TRANSITION_FADE,
-                                   TRANSITION_DURATION_STANDARD);
+  // test_mode == 0 means this was an exit request - don't initialize anything
+  // The flow will exit immediately via on_event handler
+  if (payload->test_mode == 0) {
+    return;
   }
+
+  apply_mfg_screen_payload(controller, payload);
 }
 
 void display_controller_mfg_on_exit(display_controller_t* controller) {
@@ -216,8 +237,33 @@ static void advance_runin_state(display_controller_t* controller) {
         runin_ctx.state = RUNIN_STATE_STATUS;
 #ifdef EMBEDDED_BUILD
         runin_ctx.finger_down = bio_wait_for_finger_non_blocking(BIO_FINGER_DOWN);
-        LOGI("[MFG RunIn] Starting Phase 1: Initial charge to %lu%%",
-             (unsigned long)(RUNIN_TARGET_CHARGE_SOC / 1000));
+
+        // Read current SOC (millipercent) for Phase 1 direction determination
+        uint32_t soc_mp, vcell, cycles;
+        int32_t current;
+        power_get_battery(&soc_mp, &vcell, &current, &cycles);
+        // Store initial SOC in percent (matching controller->battery_percent units)
+        runin_ctx.initial_soc = soc_mp / 1000;
+
+        // Determine Phase 1 direction based on initial SOC vs 50% target
+        if (soc_mp < RUNIN_TARGET_CONVERGE_SOC) {
+          runin_ctx.phase1_is_discharging = false;
+          apply_runin_phase_power_state();
+          LOGI("[MFG] Starting Phase 1: Charge to %lu%% (initial SOC=%lu.%03lu%%)",
+               (unsigned long)(RUNIN_TARGET_CONVERGE_SOC / 1000), (unsigned long)(soc_mp / 1000),
+               (unsigned long)(soc_mp % 1000));
+        } else if (soc_mp > RUNIN_TARGET_CONVERGE_SOC) {
+          runin_ctx.phase1_is_discharging = true;
+          apply_runin_phase_power_state();
+          LOGI("[MFG] Starting Phase 1: Discharge to %lu%% (initial SOC=%lu.%03lu%%)",
+               (unsigned long)(RUNIN_TARGET_CONVERGE_SOC / 1000), (unsigned long)(soc_mp / 1000),
+               (unsigned long)(soc_mp % 1000));
+        } else {
+          // SOC exactly at target, skip Phase 1 immediately
+          runin_ctx.phase1_duration_ms = 0;
+          runin_ctx.power_phase = RUNIN_POWER_PHASE_DISCHARGE;
+          apply_runin_phase_power_state();
+        }
 #endif
         runin_ctx.test_start_ms = rtos_thread_systime();           // Reset test start time
         runin_ctx.power_phase_start_ms = runin_ctx.test_start_ms;  // Reset power phase timer
@@ -291,7 +337,7 @@ static void advance_runin_state(display_controller_t* controller) {
       runin_ctx.loop_count++;
       controller->show_screen.params.mfg.test_mode =
         fwpb_display_mfg_test_mode_DISPLAY_MFG_TEST_MODE_STATUS;
-      LOGI("[MFG RunIn] Loop %lu complete", (unsigned long)runin_ctx.loop_count);
+      LOGI("[MFG] Loop %lu complete", (unsigned long)runin_ctx.loop_count);
       break;
 
     default:
@@ -345,7 +391,7 @@ flow_action_result_t display_controller_mfg_on_tick(display_controller_t* contro
       if (bio_wait_for_finger_non_blocking(BIO_FINGER_DOWN)) {
         if (!runin_ctx.finger_down) {
           runin_ctx.fingerprint_events++;
-          LOGI("[MFG RunIn] Phantom fingerprint event (total: %lu)",
+          LOGI("[MFG] Phantom fingerprint event (total: %lu)",
                (unsigned long)runin_ctx.fingerprint_events);
           runin_ctx.finger_down = true;
         }
@@ -355,14 +401,11 @@ flow_action_result_t display_controller_mfg_on_tick(display_controller_t* contro
     }
   }
 
-  // Test finishes when power cycling is complete (all 3 phases done) or failed
-  bool test_finished =
-    (runin_ctx.power_phase == RUNIN_POWER_PHASE_COMPLETE) || runin_ctx.power_phase_failed;
+  // Test finishes when power cycling is complete (all 3 phases done)
+  bool test_finished = (runin_ctx.power_phase == RUNIN_POWER_PHASE_COMPLETE);
 
   // Power phase state machine - only runs after countdown (during actual test)
   if ((runin_ctx.state >= RUNIN_STATE_STATUS) && !test_finished) {
-    uint32_t phase_elapsed = now - runin_ctx.power_phase_start_ms;
-
     // Get current SOC for phase transitions and min tracking
     uint32_t soc;
     uint32_t vcell;
@@ -370,177 +413,111 @@ flow_action_result_t display_controller_mfg_on_tick(display_controller_t* contro
     uint32_t cycles;
     power_get_battery(&soc, &vcell, &current, &cycles);
 
-    // Track minimum SOC
-    if (soc < runin_ctx.min_soc) {
-      runin_ctx.min_soc = soc;
+    // Log SOC periodically
+    static uint32_t last_soc_log_ms = 0;
+    uint32_t phase_elapsed = now - runin_ctx.power_phase_start_ms;
+    if (now - last_soc_log_ms >= RUNIN_SOC_LOG_INTERVAL_MS) {
+      LOGI("[MFG] Phase %d: SOC=%lu.%03lu%%, elapsed=%lu ms", runin_ctx.power_phase,
+           (unsigned long)(soc / 1000), (unsigned long)(soc % 1000), (unsigned long)phase_elapsed);
+      last_soc_log_ms = now;
     }
 
-    // Power phase state machine - fixed durations with SOC holding
-    if (!runin_ctx.power_phase_failed) {
-      // Debug: log SOC periodically
-      static uint32_t last_soc_log_ms = 0;
-      if (now - last_soc_log_ms >= RUNIN_SOC_LOG_INTERVAL_MS) {
-        LOGI("[MFG RunIn] Phase %d: SOC=%lu.%03lu%%, elapsed=%lu ms, target_reached=%d",
-             runin_ctx.power_phase, (unsigned long)(soc / 1000), (unsigned long)(soc % 1000),
-             (unsigned long)phase_elapsed, runin_ctx.target_reached);
-        last_soc_log_ms = now;
-      }
-
-      switch (runin_ctx.power_phase) {
-        case RUNIN_POWER_PHASE_INITIAL_CHARGE:
-          // Phase 1: Charge to RUNIN_TARGET_CHARGE_SOC within RUNIN_PHASE1_DURATION_MS, then hold
-          if (soc >= RUNIN_TARGET_CHARGE_SOC && !runin_ctx.target_reached) {
-            // Target reached - start holding (disable charging, keep USB connected)
-            LOGI("[MFG RunIn] Phase 1: Target reached (SOC=%lu.%03lu%%), holding",
-                 (unsigned long)(soc / 1000), (unsigned long)(soc % 1000));
-            power_disable_charging();
-            runin_ctx.target_reached = true;
-          }
-          if (phase_elapsed >= RUNIN_PHASE1_DURATION_MS) {
-            if (!runin_ctx.target_reached) {
-              // FAIL - didn't reach RUNIN_TARGET_CHARGE_SOC within time limit
-              LOGE("[MFG RunIn] FAIL - Phase 1 timeout (SOC=%lu.%03lu%%, needed %lu%%)",
-                   (unsigned long)(soc / 1000), (unsigned long)(soc % 1000),
-                   (unsigned long)(RUNIN_TARGET_CHARGE_SOC / 1000));
-              runin_ctx.power_phase_failed = true;
-            } else {
-              // Success - move to Phase 2 (discharge)
-              LOGI("[MFG RunIn] Phase 1 complete, starting Phase 2: Discharge");
-              power_usb_suspend(true);  // Disconnect USB power to force discharge
-              // Charging already disabled from hold
-              runin_ctx.power_phase = RUNIN_POWER_PHASE_DISCHARGE;
-              runin_ctx.power_phase_start_ms = now;
-              runin_ctx.target_reached = false;
-            }
-          }
-          break;
-
-        case RUNIN_POWER_PHASE_DISCHARGE:
-          // Phase 2: Discharge for RUNIN_PHASE2_DURATION_MS, target RUNIN_TARGET_DISCHARGE_SOC
-          if (soc <= RUNIN_TARGET_DISCHARGE_SOC && !runin_ctx.target_reached) {
-            // Target reached - start holding (reconnect USB, keep charging disabled)
-            LOGI("[MFG RunIn] Phase 2: Target reached (SOC=%lu.%03lu%%), holding",
-                 (unsigned long)(soc / 1000), (unsigned long)(soc % 1000));
-            power_usb_suspend(false);  // Reconnect USB power
-            // Charging still disabled - holds SOC
-            runin_ctx.target_reached = true;
-          }
-          if (phase_elapsed >= RUNIN_PHASE2_DURATION_MS) {
-            // Move to Phase 3 (no failure condition for discharge)
-            LOGI(
-              "[MFG RunIn] Phase 2 complete (min_soc=%lu.%03lu%%), starting Phase 3: Final charge",
-              (unsigned long)(runin_ctx.min_soc / 1000), (unsigned long)(runin_ctx.min_soc % 1000));
-            power_usb_suspend(false);
-            power_enable_charging();
-            runin_ctx.power_phase = RUNIN_POWER_PHASE_FINAL_CHARGE;
+    // SOC-target-driven phase transitions (no timeouts, no hold behavior)
+    switch (runin_ctx.power_phase) {
+      case RUNIN_POWER_PHASE_CONVERGE:
+        // Phase 1: Converge to 50% (charge or discharge depending on initial SOC)
+        if (runin_ctx.phase1_is_discharging) {
+          if (soc <= RUNIN_TARGET_CONVERGE_SOC) {
+            runin_ctx.phase1_duration_ms = now - runin_ctx.power_phase_start_ms;
+            LOGI("[MFG] Phase 1 complete (discharge to %lu%%), starting Phase 2",
+                 (unsigned long)(RUNIN_TARGET_CONVERGE_SOC / 1000));
+            // Phase 2 setup: discharge to 30%
+            runin_ctx.power_phase = RUNIN_POWER_PHASE_DISCHARGE;
+            apply_runin_phase_power_state();
             runin_ctx.power_phase_start_ms = now;
-            runin_ctx.target_reached = false;
           }
-          break;
+        } else {
+          if (soc >= RUNIN_TARGET_CONVERGE_SOC) {
+            runin_ctx.phase1_duration_ms = now - runin_ctx.power_phase_start_ms;
+            LOGI("[MFG] Phase 1 complete (charge to %lu%%), starting Phase 2",
+                 (unsigned long)(RUNIN_TARGET_CONVERGE_SOC / 1000));
+            // Phase 2 setup: discharge to 30%
+            runin_ctx.power_phase = RUNIN_POWER_PHASE_DISCHARGE;
+            apply_runin_phase_power_state();
+            runin_ctx.power_phase_start_ms = now;
+          }
+        }
+        break;
 
-        case RUNIN_POWER_PHASE_FINAL_CHARGE:
-          // Phase 3: Charge to RUNIN_TARGET_FINAL_CHARGE_SOC within RUNIN_PHASE3_DURATION_MS, then
-          // hold
-          if (soc >= RUNIN_TARGET_FINAL_CHARGE_SOC && !runin_ctx.target_reached) {
-            // Target reached - start holding
-            LOGI("[MFG RunIn] Phase 3: Target reached (SOC=%lu.%03lu%%), holding",
-                 (unsigned long)(soc / 1000), (unsigned long)(soc % 1000));
-            power_disable_charging();
-            runin_ctx.target_reached = true;
-          }
-          if (phase_elapsed >= RUNIN_PHASE3_DURATION_MS) {
-            if (!runin_ctx.target_reached) {
-              // FAIL - didn't reach RUNIN_TARGET_FINAL_CHARGE_SOC% within time limit
-              LOGE("[MFG RunIn] FAIL - Phase 3 timeout (SOC=%lu.%03lu%%, needed %lu%%)",
-                   (unsigned long)(soc / 1000), (unsigned long)(soc % 1000),
-                   (unsigned long)(RUNIN_TARGET_FINAL_CHARGE_SOC / 1000));
-              runin_ctx.power_phase_failed = true;
-            } else {
-              // Success - all phases complete!
-              LOGI("[MFG RunIn] Phase 3 complete - Power cycling SUCCESS");
-              runin_ctx.power_phase = RUNIN_POWER_PHASE_COMPLETE;
-            }
-          }
-          break;
+      case RUNIN_POWER_PHASE_DISCHARGE:
+        // Phase 2: Discharge to 30%
+        if (soc <= RUNIN_TARGET_DISCHARGE_SOC) {
+          runin_ctx.phase2_duration_ms = now - runin_ctx.power_phase_start_ms;
+          LOGI("[MFG] Phase 2 complete, starting Phase 3: Final charge");
+          // Phase 3 setup: charge to 90%
+          runin_ctx.power_phase = RUNIN_POWER_PHASE_FINAL_CHARGE;
+          apply_runin_phase_power_state();
+          runin_ctx.power_phase_start_ms = now;
+        }
+        break;
 
-        case RUNIN_POWER_PHASE_COMPLETE:
-          // All phases done - nothing to do
-          break;
-      }
+      case RUNIN_POWER_PHASE_FINAL_CHARGE:
+        // Phase 3: Charge to 90%
+        if (soc >= RUNIN_TARGET_FINAL_CHARGE_SOC) {
+          runin_ctx.phase3_duration_ms = now - runin_ctx.power_phase_start_ms;
+          LOGI("[MFG] Phase 3 complete - All phases done");
+          runin_ctx.power_phase = RUNIN_POWER_PHASE_COMPLETE;
+        }
+        break;
+
+      case RUNIN_POWER_PHASE_COMPLETE:
+        break;
     }
   }
 #endif
 
   // Re-evaluate test_finished after power phase updates
-  const bool test_now_finished =
-    (runin_ctx.power_phase == RUNIN_POWER_PHASE_COMPLETE) || runin_ctx.power_phase_failed;
+  const bool test_now_finished = (runin_ctx.power_phase == RUNIN_POWER_PHASE_COMPLETE);
 
   // Check if we are on the status screen or the test has finished.
   if ((runin_ctx.state >= RUNIN_STATE_STATUS) &&
       ((runin_ctx.state == RUNIN_STATE_STATUS) || test_now_finished)) {
-    // Determine pass/fail - includes phantom events AND power phase failures
-    const bool has_phantom_failures =
-      (runin_ctx.captouch_events > 0 || runin_ctx.display_touch_events > 0 ||
-       runin_ctx.fingerprint_events > 0);
-    const bool has_failures = has_phantom_failures || runin_ctx.power_phase_failed;
-
-    // Calculate phase time remaining
-    uint32_t phase_duration_ms = 0;
-    switch (runin_ctx.power_phase) {
-      case RUNIN_POWER_PHASE_INITIAL_CHARGE:
-        phase_duration_ms = RUNIN_PHASE1_DURATION_MS;
-        break;
-      case RUNIN_POWER_PHASE_DISCHARGE:
-        phase_duration_ms = RUNIN_PHASE2_DURATION_MS;
-        break;
-      case RUNIN_POWER_PHASE_FINAL_CHARGE:
-        phase_duration_ms = RUNIN_PHASE3_DURATION_MS;
-        break;
-      default:
-        phase_duration_ms = 0;
-        break;
-    }
-    uint32_t phase_elapsed = now - runin_ctx.power_phase_start_ms;
-    uint32_t phase_remaining =
-      (phase_elapsed < phase_duration_ms) ? (phase_duration_ms - phase_elapsed) : 0;
-
     // Populate all test statistics for display.
     controller->show_screen.params.mfg.initial_soc = runin_ctx.initial_soc;
     controller->show_screen.params.mfg.battery_percent = controller->battery_percent;
+    refresh_runin_charge_state(controller);
     controller->show_screen.params.mfg.loop_count = runin_ctx.loop_count;
     controller->show_screen.params.mfg.elapsed_ms = total_elapsed;
-    controller->show_screen.params.mfg.plugged_in = runin_ctx.plugged_in;
     controller->show_screen.params.mfg.captouch_events = runin_ctx.captouch_events;
     controller->show_screen.params.mfg.display_touch_events = runin_ctx.display_touch_events;
     controller->show_screen.params.mfg.fingerprint_events = runin_ctx.fingerprint_events;
     controller->show_screen.params.mfg.power_phase = (uint32_t)runin_ctx.power_phase;
-    controller->show_screen.params.mfg.phase_time_remaining_ms = phase_remaining;
-    controller->show_screen.params.mfg.target_reached = runin_ctx.target_reached;
-    controller->show_screen.params.mfg.has_failures = has_failures;
     controller->show_screen.params.mfg.test_complete = test_now_finished;
+    controller->show_screen.params.mfg.is_discharging =
+      (runin_ctx.power_phase == RUNIN_POWER_PHASE_DISCHARGE) ||
+      (runin_ctx.power_phase == RUNIN_POWER_PHASE_CONVERGE && runin_ctx.phase1_is_discharging);
 
     if (test_now_finished) {
-      LOGI("[MFG RunIn] Test complete after %lu loops, min_soc=%lu%%",
-           (unsigned long)runin_ctx.loop_count, (unsigned long)runin_ctx.min_soc);
+      LOGI("[MFG] Test complete after %lu loops", (unsigned long)runin_ctx.loop_count);
       runin_ctx.state = RUNIN_STATE_COMPLETE;
 
       controller->show_screen.params.mfg.test_mode =
         fwpb_display_mfg_test_mode_DISPLAY_MFG_TEST_MODE_STATUS;
 
 #ifdef EMBEDDED_BUILD
-      // Send completion results to mfgtest_task via IPC
+      // Send completion results to mfgtest_task via IPC (raw telemetry, no pass/fail)
       mfgtest_runin_complete_internal_t results = {
         .loop_count = runin_ctx.loop_count,
         .initial_soc = runin_ctx.initial_soc,
-        .final_soc = controller->battery_percent,
-        .min_soc = runin_ctx.min_soc,
         .elapsed_ms = total_elapsed,
         .plugged_in = runin_ctx.plugged_in,
         .button_events = 0,  // No buttons on W3
         .captouch_events = runin_ctx.captouch_events,
         .touch_events = runin_ctx.display_touch_events,
         .fingerprint_events = runin_ctx.fingerprint_events,
-        .success = !has_failures,
+        .phase1_duration_ms = runin_ctx.phase1_duration_ms,
+        .phase2_duration_ms = runin_ctx.phase2_duration_ms,
+        .phase3_duration_ms = runin_ctx.phase3_duration_ms,
       };
       ipc_send(mfgtest_port, &results, sizeof(results), IPC_MFGTEST_RUNIN_COMPLETE_INTERNAL);
 #endif
@@ -597,7 +574,7 @@ flow_action_result_t display_controller_mfg_on_tick(display_controller_t* contro
   return flow_result_handled();
 }
 
-static void _display_controller_show_countdown(display_controller_t* controller) {
+static void show_countdown(display_controller_t* controller) {
   runin_ctx.state = RUNIN_STATE_COUNTDOWN;
   runin_ctx.countdown_value = 5;
   runin_ctx.state_start_ms = rtos_thread_systime();
@@ -607,7 +584,6 @@ static void _display_controller_show_countdown(display_controller_t* controller)
   display_controller_show_screen(controller, fwpb_display_show_screen_mfg_tag,
                                  fwpb_display_transition_DISPLAY_TRANSITION_NONE,
                                  TRANSITION_DURATION_STANDARD);
-  LOGI("[MFG RunIn] Starting countdown");
 }
 
 flow_action_result_t display_controller_mfg_on_event(display_controller_t* controller,
@@ -615,7 +591,6 @@ flow_action_result_t display_controller_mfg_on_event(display_controller_t* contr
                                                      uint32_t len) {
   switch (event) {
     case UI_EVENT_MFGTEST_SHOW_SCREEN: {
-      // Handle screen updates when flow is already active
       if (data && len == sizeof(mfgtest_show_screen_payload_t)) {
         const mfgtest_show_screen_payload_t* payload = (const mfgtest_show_screen_payload_t*)data;
 
@@ -625,10 +600,7 @@ flow_action_result_t display_controller_mfg_on_event(display_controller_t* contr
                                                   TRANSITION_DURATION_STANDARD);
         }
 
-        // Setup params for the specified test mode
-        controller->show_screen.params.mfg.test_mode = payload->test_mode;
-        controller->show_screen.params.mfg.custom_rgb = payload->custom_rgb;
-        controller->show_screen.params.mfg.brightness_percent = payload->brightness_percent;
+        apply_mfg_screen_payload(controller, payload);
 
         display_controller_show_screen(controller, fwpb_display_show_screen_mfg_tag,
                                        fwpb_display_transition_DISPLAY_TRANSITION_FADE,
@@ -640,17 +612,31 @@ flow_action_result_t display_controller_mfg_on_event(display_controller_t* contr
       // 'break' intentionally omitted.
     case UI_EVENT_CHARGING:
       // 'break' intentionally omitted.
+    case UI_EVENT_CHARGING_FINISHED:
+      // 'break' intentionally omitted.
+    case UI_EVENT_CHARGING_FINISHED_PERSISTENT:
+      // 'break' intentionally omitted.
     case UI_EVENT_CHARGING_UNPLUGGED: {
-      // Update battery display on START_SCREEN
       if (runin_ctx.state == RUNIN_STATE_START_SCREEN) {
 #ifdef EMBEDDED_BUILD
-        runin_ctx.plugged_in = power_is_plugged_in();
+        sample_runin_charge_state();
 #else
         runin_ctx.plugged_in = controller->is_charging;
+        runin_ctx.charger_active = controller->is_charging;
 #endif
         controller->show_screen.params.mfg.battery_percent = controller->battery_percent;
-        controller->show_screen.params.mfg.is_charging = controller->is_charging;
-        controller->show_screen.params.mfg.plugged_in = runin_ctx.plugged_in;
+        refresh_runin_charge_state(controller);
+        display_controller_show_screen(controller, fwpb_display_show_screen_mfg_tag,
+                                       fwpb_display_transition_DISPLAY_TRANSITION_NONE, 0);
+      } else if (runin_ctx.state == RUNIN_STATE_COMPLETE) {
+#ifdef EMBEDDED_BUILD
+        sample_runin_charge_state();
+#else
+        runin_ctx.plugged_in = controller->is_charging;
+        runin_ctx.charger_active = controller->is_charging;
+#endif
+        controller->show_screen.params.mfg.battery_percent = controller->battery_percent;
+        refresh_runin_charge_state(controller);
         display_controller_show_screen(controller, fwpb_display_show_screen_mfg_tag,
                                        fwpb_display_transition_DISPLAY_TRANSITION_NONE, 0);
       }
@@ -661,8 +647,7 @@ flow_action_result_t display_controller_mfg_on_event(display_controller_t* contr
       // Count phantom capacitive touch events after countdown completes
       if ((runin_ctx.state >= RUNIN_STATE_STATUS) && (runin_ctx.state != RUNIN_STATE_COMPLETE)) {
         runin_ctx.captouch_events++;
-        LOGI("[MFG RunIn] Phantom captouch event (total: %lu)",
-             (unsigned long)runin_ctx.captouch_events);
+        LOGI("[MFG] Phantom captouch event (total: %lu)", (unsigned long)runin_ctx.captouch_events);
       }
       break;
     }
@@ -671,7 +656,7 @@ flow_action_result_t display_controller_mfg_on_event(display_controller_t* contr
       // Count phantom display touch events after countdown completes
       if ((runin_ctx.state >= RUNIN_STATE_STATUS) && (runin_ctx.state != RUNIN_STATE_COMPLETE)) {
         runin_ctx.display_touch_events++;
-        LOGI("[MFG RunIn] Phantom touch event (total: %lu)",
+        LOGI("[MFG] Phantom touch event (total: %lu)",
              (unsigned long)runin_ctx.display_touch_events);
       } else if (controller->touch_test.active) {
         if (data && (len == sizeof(ui_event_touch_t))) {
@@ -719,7 +704,7 @@ flow_action_result_t display_controller_mfg_on_event(display_controller_t* contr
       // Phantom fingerprint event during test (after countdown starts)
       if ((runin_ctx.state >= RUNIN_STATE_STATUS) && (runin_ctx.state != RUNIN_STATE_COMPLETE)) {
         runin_ctx.fingerprint_events++;
-        LOGI("[MFG RunIn] Phantom fingerprint event (total: %lu)",
+        LOGI("[MFG] Phantom fingerprint event (total: %lu)",
              (unsigned long)runin_ctx.fingerprint_events);
       }
       break;
@@ -744,11 +729,11 @@ flow_action_result_t display_controller_mfg_on_action(
     // Re-check USB status before starting countdown - block if unplugged
     runin_ctx.plugged_in = power_is_plugged_in();
     if (!runin_ctx.plugged_in) {
-      LOGW("[MFG RunIn] Cannot start - USB not plugged in");
+      LOGW("[MFG] Cannot start - USB not plugged in");
       return flow_result_handled();  // Ignore button press
     }
 #endif
-    _display_controller_show_countdown(controller);
+    show_countdown(controller);
     return flow_result_handled();
   }
 

@@ -2,7 +2,7 @@
 
 #include "assert.h"
 
-static assert_handler_t SHARED_TASK_DATA __assert_handler;
+static assert_handler_t SHARED_TASK_BSS __assert_handler;
 
 void assert_init(assert_handler_t handler_cb) {
   __assert_handler = handler_cb;

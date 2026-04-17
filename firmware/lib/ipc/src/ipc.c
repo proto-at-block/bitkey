@@ -24,7 +24,7 @@ static struct {
   uint8_t* response_buffer;
   ipc_proto_ready_cb_t ready_callback;
   rtos_mutex_t response_lock;
-} ipc_priv SHARED_TASK_DATA = {
+} ipc_priv SHARED_TASK_BSS = {
   .mempool = NULL,
   .response_buffer = NULL,
   .ready_callback = NULL,

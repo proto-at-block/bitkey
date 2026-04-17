@@ -1,17 +1,17 @@
 package build.wallet.statemachine.utxo
 
-import build.wallet.account.AccountServiceFake
-import build.wallet.account.AccountStatus
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.UTXO_CONSOLIDATION_SIGN_TRANSACTION
 import build.wallet.analytics.events.screen.id.UtxoConsolidationEventTrackerScreenId.UTXO_CONSOLIDATION_EXCEEDED_MAX_COUNT
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
 import build.wallet.bitcoin.transactions.PsbtMock
+import build.wallet.bitcoin.utxo.NotEnoughUtxosToConsolidateError
 import build.wallet.bitcoin.utxo.UtxoConsolidationContext
 import build.wallet.bitcoin.utxo.UtxoConsolidationParams
 import build.wallet.bitcoin.utxo.UtxoConsolidationServiceFake
 import build.wallet.bitcoin.utxo.UtxoConsolidationType
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney.Companion.sats
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryFake
 import build.wallet.money.exchange.CurrencyConverterFake
@@ -26,13 +26,13 @@ import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.awaitSheet
 import build.wallet.time.DateTimeFormatterMock
 import build.wallet.time.TimeZoneProviderMock
+import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 
 class UtxoConsolidationUiStateMachineImplTests : FunSpec({
-  val accountService = AccountServiceFake()
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryFake()
   val currencyConverter = CurrencyConverterFake()
   val moneyDisplayFormatter = MoneyDisplayFormatterFake
@@ -42,7 +42,6 @@ class UtxoConsolidationUiStateMachineImplTests : FunSpec({
   val signTransactionNfcSessionUiStateMachine = SignTransactionNfcSessionUiStateMachineMock("sign-txn-nfc")
 
   val stateMachine = UtxoConsolidationUiStateMachineImpl(
-    accountService = accountService,
     fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
     currencyConverter = currencyConverter,
     moneyDisplayFormatter = moneyDisplayFormatter,
@@ -53,15 +52,13 @@ class UtxoConsolidationUiStateMachineImplTests : FunSpec({
   )
 
   val props = UtxoConsolidationProps(
+    account = FullAccountMock,
     onConsolidationSuccess = {},
     onBack = {}
   )
 
   beforeTest {
-    accountService.reset()
     utxoConsolidationService.reset()
-
-    accountService.accountState.value = Ok(AccountStatus.ActiveAccount(FullAccountMock))
   }
 
   test("happy path") {
@@ -159,6 +156,7 @@ class UtxoConsolidationUiStateMachineImplTests : FunSpec({
     )
 
     val migrationProps = UtxoConsolidationProps(
+      account = FullAccountMock,
       onConsolidationSuccess = {},
       onBack = {},
       context = UtxoConsolidationContext.PrivateWalletMigration
@@ -215,6 +213,77 @@ class UtxoConsolidationUiStateMachineImplTests : FunSpec({
       awaitBody<UtxoConsolidationConfirmationModel> {
         balanceTitle.shouldBe("Value of UTXOs")
       }
+    }
+  }
+
+  test("auto-loop gracefully exits when subsequent prep has not enough UTXOs") {
+    utxoConsolidationService.prepareUtxoConsolidationResult = Ok(
+      listOf(
+        UtxoConsolidationParams(
+          type = UtxoConsolidationType.ConsolidateAll,
+          targetAddress = someBitcoinAddress,
+          eligibleUtxoCount = 10,
+          balance = sats(1000),
+          consolidationCost = sats(5),
+          appSignedPsbt = PsbtMock,
+          transactionPriority = SIXTY_MINUTES,
+          walletHasUnconfirmedUtxos = false,
+          walletExceedsMaxUtxoCount = true,
+          maxUtxoCount = 5
+        )
+      )
+    )
+
+    val onConsolidationSuccessCalls = turbines.create<Unit>("on-consolidation-success")
+    val migrationProps = UtxoConsolidationProps(
+      account = FullAccountMock,
+      onConsolidationSuccess = { onConsolidationSuccessCalls.add(Unit) },
+      onBack = {},
+      context = UtxoConsolidationContext.PrivateWalletMigration
+    )
+
+    stateMachine.test(migrationProps) {
+      // Loading
+      awaitBody<LoadingSuccessBodyModel>()
+
+      // First time: exceeds max count screen
+      awaitBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull().onClick()
+      }
+
+      // Confirmation screen (emits twice due to currency conversion)
+      awaitBody<UtxoConsolidationConfirmationModel>()
+      awaitBody<UtxoConsolidationConfirmationModel> {
+        onContinue.invoke()
+      }
+
+      // Tap & Hold
+      awaitSheet<TapAndHoldToConsolidateUtxosBodyModel> {
+        onConsolidate()
+      }
+
+      // NFC signing
+      awaitBodyMock<SignTransactionNfcSessionUiProps>("sign-txn-nfc") {
+        onSuccess(PsbtMock)
+      }
+
+      // Broadcasting
+      awaitBody<LoadingSuccessBodyModel>()
+
+      // Success screen - before tapping Done, change the fake to return NOT_ENOUGH_UTXOS
+      awaitBody<UtxoConsolidationTransactionSentModel> {
+        utxoConsolidationService.prepareUtxoConsolidationResult =
+          Err(NotEnoughUtxosToConsolidateError(utxoCount = 1))
+        onDone()
+      }
+
+      // Auto-loop fires, shows loading while preparing next consolidation
+      awaitBody<LoadingSuccessBodyModel>()
+
+      // Prep fails with NotEnoughUtxosToConsolidateError, but since
+      // preparationCount > 0, it calls onConsolidationSuccess instead
+      // of showing an error screen.
+      onConsolidationSuccessCalls.awaitItem()
     }
   }
 

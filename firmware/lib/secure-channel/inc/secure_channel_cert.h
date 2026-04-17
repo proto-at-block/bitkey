@@ -22,13 +22,17 @@
 #include <stdint.h>
 
 // Maximum buffer size for certificate ID (includes null terminator)
-#define SC_CERT_ID_MAX_SIZE PICOCERT_MAX_NAME_LEN
-#define SC_CERT_DIRECTORY   "/secure_channel"
+#define SC_CERT_ID_MAX_SIZE   PICOCERT_MAX_NAME_LEN
+#define SC_CERT_FILE_PREFIX   "sc-"
+#define SC_CERT_OLD_DIRECTORY "/secure_channel"
 
 // ECC public key format prefix for SEC1 uncompressed format (0x04 || X || Y)
 #define ECC_PUBKEY_SEC1_UNCOMPRESSED_PREFIX 0x04
 
-_Static_assert(((sizeof(SC_CERT_DIRECTORY) - 1) + SC_CERT_ID_MAX_SIZE + (sizeof("/.cert") - 1) +
+#define SC_CERT_UXC_ID  "w3_uxc_id"
+#define SC_CERT_CORE_ID "w3_core_id"
+
+_Static_assert(((sizeof(SC_CERT_FILE_PREFIX) - 1) + SC_CERT_ID_MAX_SIZE + (sizeof(".cert") - 1) +
                 1) <= FS_FILE_NAME_MAX_LEN,
                "Secure channel certificate file path may exceed maximum filename length");
 

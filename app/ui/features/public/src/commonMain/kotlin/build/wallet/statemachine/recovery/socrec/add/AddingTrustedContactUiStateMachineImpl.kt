@@ -13,7 +13,7 @@ import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.platform.clipboard.Clipboard
 import build.wallet.platform.clipboard.plainTextItemAndroid
 import build.wallet.platform.sharing.SharingManager
@@ -21,9 +21,9 @@ import build.wallet.platform.sharing.shareInvitation
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.relationships.CreateInvitationError
 import build.wallet.relationships.RelationshipsService
-import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
-import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
-import build.wallet.statemachine.auth.Request
+import build.wallet.statemachine.auth.ActionProofType
+import build.wallet.statemachine.auth.HardwareAuthUiProps
+import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.input.NameInputBodyModel
 import build.wallet.statemachine.notifications.TosInfo
@@ -37,6 +37,7 @@ import build.wallet.statemachine.trustedcontact.PromoCodeUpsellUiStateMachine
 import build.wallet.statemachine.trustedcontact.model.CreatingInviteWithF8eFailureBodyModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
+import com.github.michaelbull.result.getError
 import com.github.michaelbull.result.mapBoth
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -46,7 +47,7 @@ import kotlinx.coroutines.launch
 
 @BitkeyInject(ActivityScope::class)
 class AddingTrustedContactUiStateMachineImpl(
-  private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
+  private val hardwareAuthUiStateMachine: HardwareAuthUiStateMachine,
   private val relationshipsService: RelationshipsService,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val sharingManager: SharingManager,
@@ -121,10 +122,15 @@ class AddingTrustedContactUiStateMachineImpl(
       is EnterTcNameState -> {
         var input by remember { mutableStateOf(current.tcNameInitial) }
         val contactType = if (isInheritance) "beneficiary" else "Recovery Contact"
+        val validationResult = remember(input) {
+          TrustedContactAlias.validate(input)
+        }
+        val validationError = validationResult.getError()
+        val canContinue = input.isNotBlank() && validationError == null
 
         val continueClick = remember(input) {
           StandardClick {
-            if (input.isNotBlank()) {
+            if (canContinue) {
               val cleanedName = input.trim()
               state = if (isInheritance) {
                 LoadingNotificationPermissions(tcName = cleanedName)
@@ -142,11 +148,12 @@ class AddingTrustedContactUiStateMachineImpl(
             SocialRecoveryEventTrackerScreenId.TC_ADD_TC_NAME
           },
           title = "Add your $contactType's name",
-          subline = "Add a name, or nickname, to help you recognize your $contactType in the app.",
+          subline = validationError
+            ?: "Add a name, or nickname, to help you recognize your $contactType in the app.",
           value = input,
           primaryButton = ButtonModel(
             text = "Continue",
-            isEnabled = input.isNotBlank(),
+            isEnabled = canContinue,
             onClick = continueClick,
             size = ButtonModel.Size.Footer
           ),
@@ -255,35 +262,41 @@ class AddingTrustedContactUiStateMachineImpl(
           termsError = current.termsError
         ).asModalScreen()
 
-      is ScanningHardwareState ->
-        proofOfPossessionNfcStateMachine.model(
-          ProofOfPossessionNfcProps(
-            request =
-              Request.HwKeyProof(
-                onSuccess = { proof ->
-                  state =
-                    SavingWithBitkeyState(
-                      proofOfPossession = proof,
-                      tcName = current.tcName
-                    )
-                }
-              ),
-            fullAccountId = props.account.accountId,
+      is ScanningHardwareState -> {
+        val actionProofType = if (isInheritance) {
+          ActionProofType.CreateBeneficiary(name = current.tcName)
+        } else {
+          ActionProofType.CreateRecoveryContact(name = current.tcName)
+        }
+        hardwareAuthUiStateMachine.model(
+          HardwareAuthUiProps(
+            account = props.account,
+            actionProofType = actionProofType,
+            segment = RecoverySegment.SocRec.ProtectedCustomer.Setup,
+            actionDescription = "Adding trusted contact",
+            screenPresentationStyle = ScreenPresentationStyle.Modal,
+            onSuccess = { proof ->
+              state =
+                SavingWithBitkeyState(
+                  proof = proof,
+                  tcName = current.tcName
+                )
+            },
             onBack = {
               state =
                 SaveWithBitkeyRequestState(
                   tcName = current.tcName
                 )
-            },
-            screenPresentationStyle = ScreenPresentationStyle.Modal
+            }
           )
         )
+      }
 
       is SavingWithBitkeyState -> {
         LaunchedEffect("save-tc-to-bitkey") {
           props.onAddTc(
             TrustedContactAlias(current.tcName),
-            current.proofOfPossession
+            current.proof
           ).onSuccess { result ->
             if (!isInheritance) {
               state = ShareState(invitation = result)
@@ -304,7 +317,7 @@ class AddingTrustedContactUiStateMachineImpl(
             }
           }.onFailure {
             state = FailedToSaveState(
-              proofOfPossession = current.proofOfPossession,
+              proof = current.proof,
               error = it,
               tcName = current.tcName
             )
@@ -323,7 +336,7 @@ class AddingTrustedContactUiStateMachineImpl(
           onRetry = {
             state =
               SavingWithBitkeyState(
-                proofOfPossession = current.proofOfPossession,
+                proof = current.proof,
                 tcName = current.tcName
               )
           },
@@ -463,12 +476,12 @@ class AddingTrustedContactUiStateMachineImpl(
     ) : State
 
     data class SavingWithBitkeyState(
-      val proofOfPossession: HwFactorProofOfPossession,
+      val proof: PrivilegedActionProof,
       val tcName: String,
     ) : State
 
     data class FailedToSaveState(
-      val proofOfPossession: HwFactorProofOfPossession,
+      val proof: PrivilegedActionProof,
       val error: CreateInvitationError,
       val tcName: String,
     ) : State

@@ -13,11 +13,6 @@ const SEVENTY_TWO_HOURS_SECS: usize = 3 * ONE_DAY_SECS;
 const SEVEN_DAYS_SECS: usize = 7 * ONE_DAY_SECS;
 
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
-pub struct HardwareProofOfPossessionDefinition {
-    pub skip_during_onboarding: bool,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 pub struct DelayAndNotifyDefinition {
     pub delay_duration_secs: usize,
     pub delay_configurable: bool,
@@ -48,7 +43,6 @@ pub struct OutOfBandDefinition {
 #[serde(tag = "authorization_strategy_type")]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AuthorizationStrategyDefinition {
-    HardwareProofOfPossession(HardwareProofOfPossessionDefinition),
     DelayAndNotify(DelayAndNotifyDefinition),
     OutOfBand(OutOfBandDefinition),
 }
@@ -125,27 +119,17 @@ impl From<&PrivilegedActionType> for PrivilegedActionDefinition {
             },
             PrivilegedActionType::ActivateTouchpoint => PrivilegedActionDefinition {
                 privileged_action_type: value.clone(),
-                authorization_strategies: HashMap::from([
-                    (
-                        AccountType::Full,
-                        AuthorizationStrategyDefinition::HardwareProofOfPossession(
-                            HardwareProofOfPossessionDefinition {
-                                skip_during_onboarding: true,
-                            },
-                        ),
-                    ),
-                    (
-                        AccountType::Software,
-                        AuthorizationStrategyDefinition::DelayAndNotify(DelayAndNotifyDefinition {
-                            delay_duration_secs: SEVENTY_TWO_HOURS_SECS,
-                            delay_configurable: true,
-                            expose_tokens_on_fetch: false,
-                            concurrency: false,
-                            skip_during_onboarding: true,
-                            notification_summary: "update your contact information".to_string(),
-                        }),
-                    ),
-                ]),
+                authorization_strategies: HashMap::from([(
+                    AccountType::Software,
+                    AuthorizationStrategyDefinition::DelayAndNotify(DelayAndNotifyDefinition {
+                        delay_duration_secs: SEVENTY_TWO_HOURS_SECS,
+                        delay_configurable: true,
+                        expose_tokens_on_fetch: false,
+                        concurrency: false,
+                        skip_during_onboarding: true,
+                        notification_summary: "update your contact information".to_string(),
+                    }),
+                )]),
             },
             PrivilegedActionType::ResetFingerprint => PrivilegedActionDefinition {
                 privileged_action_type: value.clone(),

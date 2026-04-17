@@ -50,21 +50,49 @@ class SendUiStateMachineImpl(
 
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
 
-    // On initiating the send flow, we grab and lock in the current exchange rates, so we use
-    // the same rates over the duration of the flow. This is null when the exchange rates are not
-    // available or are out of date due to the customer being offline or unable to communicate with f8e
-    val exchangeRates: ImmutableList<ExchangeRate>? by remember {
-      mutableStateOf(
-        exchangeRateService.mostRecentRatesSinceDurationForCurrency(6.minutes, fiatCurrency)
-          ?.toImmutableList()
-      )
+    // Snapshot at flow entry for determining default input currency (stable, doesn't change mid-flow)
+    val initialRates = remember {
+      exchangeRateService.mostRecentRatesSinceDurationForCurrency(6.minutes, fiatCurrency)
+        ?.toImmutableList()
     }
 
-    // When no exchange rates are available, we default to entering amounts in bitcoin. Otherwise,
-    // default to entering amounts in fiat if the amount isn't provided (like through an invoice).
+    // Locked rates: set when user advances past amount entry, used for rest of flow
+    var lockedExchangeRates: ImmutableList<ExchangeRate>? by remember {
+      mutableStateOf(initialRates)
+    }
+    var rateLocked by remember { mutableStateOf(initialRates != null) }
+
+    // Observe live rates reactively so Compose recomposes when rates change,
+    // allowing fiat conversion to appear dynamically if rates arrive after flow start
+    val liveRates by exchangeRateService.exchangeRates.collectAsState()
+
+    // Effective rates: use locked rates once set, otherwise derive from fresh live rates.
+    // rateLocked ensures that even null rates are locked after advancing past amount entry.
+    // The freshness check prevents stale persisted rates from a prior session from leaking through.
+    // Falls back to previously locked rates if the freshness check fails after unlock-on-back,
+    // preventing a fiat transferMoney + null rates crash.
+    val exchangeRates: ImmutableList<ExchangeRate>? = if (rateLocked) {
+      lockedExchangeRates
+    } else {
+      liveRates // Read to trigger recomposition
+      exchangeRateService.mostRecentRatesSinceDurationForCurrency(6.minutes, fiatCurrency)
+        ?.toImmutableList()
+        ?: lockedExchangeRates
+    }
+
+    // Fallback: if no fresh rates at flow entry, trigger a sync as a last resort
+    LaunchedEffect(Unit) {
+      if (initialRates == null) {
+        exchangeRateService.syncRates()
+      }
+    }
+
+    // When no exchange rates are available at flow start, default to entering amounts in bitcoin.
+    // Otherwise, default to entering amounts in fiat if the amount isn't provided (like through
+    // an invoice). Based on initial snapshot so the input currency doesn't flip mid-flow.
     val defaultAmountEntryAmount by remember {
       mutableStateOf(
-        if (exchangeRates.isNullOrEmpty()) {
+        if (initialRates.isNullOrEmpty()) {
           BitcoinMoney.zero()
         } else {
           FiatMoney.zero(fiatCurrency)
@@ -151,12 +179,17 @@ class SendUiStateMachineImpl(
             initialAmount = state.transferMoney,
             exchangeRates = exchangeRates,
             onContinueClick = { sendAmount ->
+              // Lock exchange rates for consistency in fee selection and confirmation screens
+              lockedExchangeRates = exchangeRates
+              rateLocked = true
               uiState = SelectingTransactionPriorityUiState(
                 recipientAddress = state.recipientAddress,
                 sendAmount = sendAmount
               )
             },
             onContinueWithPreBuiltPsbts = { sendAmount, psbts ->
+              lockedExchangeRates = exchangeRates
+              rateLocked = true
               uiState = SelectingTransactionPriorityUiState(
                 recipientAddress = state.recipientAddress,
                 sendAmount = sendAmount,
@@ -169,11 +202,15 @@ class SendUiStateMachineImpl(
       is ConfirmingTransferUiState ->
         transferConfirmationUiStateMachine.model(
           props = TransferConfirmationUiProps(
+            account = props.account,
             selectedPriority = state.selectedPriority,
             recipientAddress = state.recipientAddress,
             sendAmount = state.sendAmount,
             onExit = props.onExit,
             onBack = {
+              // Unlock rates so amount entry can observe live rates again.
+              // Keep lockedExchangeRates as fallback if fresh rates aren't available.
+              rateLocked = false
               uiState = EnteringAmountUiState(
                 recipientAddress = state.recipientAddress,
                 transferMoney =
@@ -227,6 +264,9 @@ class SendUiStateMachineImpl(
               exchangeRates = exchangeRates,
               preBuiltPsbts = state.preBuiltPsbts,
               onBack = {
+                // Unlock rates so amount entry can observe live rates again.
+                // Keep lockedExchangeRates as fallback if fresh rates aren't available.
+                rateLocked = false
                 uiState =
                   EnteringAmountUiState(
                     recipientAddress = state.recipientAddress,

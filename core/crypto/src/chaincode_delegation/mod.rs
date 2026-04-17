@@ -5,7 +5,7 @@ use bitcoin::{
     bip32::{ChildNumber, DerivationPath, Fingerprint, Xpub},
     psbt::{raw::ProprietaryKey, Psbt},
     secp256k1::{All, PublicKey, Scalar, Secp256k1},
-    Network, NetworkKind,
+    NetworkKind,
 };
 use miniscript::{
     descriptor::{DescriptorPublicKey, DescriptorXKey, Wildcard},

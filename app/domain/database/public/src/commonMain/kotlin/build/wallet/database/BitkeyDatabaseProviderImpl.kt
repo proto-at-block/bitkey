@@ -196,7 +196,8 @@ class BitkeyDatabaseProviderImpl(
           lostFactorAdapter = EnumColumnAdapter(),
           sealedCsekAdapter = ByteStringColumnAdapter,
           sealedSsekAdapter = ByteStringColumnAdapter,
-          originalAppGlobalAuthKeyAdapter = PublicKeyColumnAdapter()
+          originalAppGlobalAuthKeyAdapter = PublicKeyColumnAdapter(),
+          sealedDdkAdapter = ByteStringColumnAdapter
         ),
       emailTouchpointEntityAdapter =
         EmailTouchpointEntity.Adapter(
@@ -218,7 +219,8 @@ class BitkeyDatabaseProviderImpl(
         ),
       mcuInfoDeviceEntityAdapter = McuInfoDeviceEntity.Adapter(
         mcuRoleAdapter = EnumColumnAdapter(),
-        mcuNameAdapter = EnumColumnAdapter()
+        mcuNameAdapter = EnumColumnAdapter(),
+        activeSlotAdapter = EnumColumnAdapter()
       ),
       fwupDataEntityAdapter =
         FwupDataEntity.Adapter(
@@ -408,6 +410,17 @@ class BitkeyDatabaseProviderImpl(
         newHardwareKeyAdapter = HwSpendingPublicKeyColumnAdapter,
         newAppKeyAdapter = AppSpendingPublicKeyColumnAdapter,
         newServerKeyAdapter = F8eSpendingKeysetColumnAdapter
+      ),
+      w3UpgradeMigrationEntityAdapter = W3UpgradeMigrationEntity.Adapter(
+        newHardwareKeyAdapter = HwSpendingPublicKeyColumnAdapter,
+        newAppKeyAdapter = AppSpendingPublicKeyColumnAdapter,
+        newServerKeyAdapter = F8eSpendingKeysetColumnAdapter,
+        pendingAppGlobalAuthKeyAdapter = PublicKeyColumnAdapter(),
+        pendingAppRecoveryAuthKeyAdapter = PublicKeyColumnAdapter(),
+        pendingAppGlobalAuthKeyHwSignatureAdapter = AppGlobalAuthKeyHwSignatureColumnAdapter,
+        pendingHwAuthPublicKeyAdapter = HwAuthPublicKeyColumnAdapter,
+        preRotationAppGlobalAuthKeyAdapter = PublicKeyColumnAdapter(),
+        preRotationHwAuthPublicKeyAdapter = HwAuthPublicKeyColumnAdapter
       )
     )
   }

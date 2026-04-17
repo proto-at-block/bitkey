@@ -4,7 +4,7 @@ use axum::http::request::Parts;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 
 use account::service::Service as AccountService;
-use authn_authz::key_claims::extract_account_id;
+use authn_authz::extract_account_id;
 use feature_flags::flag::ContextKey;
 use instrumentation::middleware::APP_INSTALLATION_ID_HEADER_NAME;
 use types::account::identifiers::AccountId;
@@ -25,6 +25,7 @@ pub struct ExperimentationClaims {
     pub os_type: Option<String>,
     pub os_version: Option<String>,
     pub device_region: Option<String>,
+    pub hardware_type: Option<String>,
 }
 
 impl ExperimentationClaims {
@@ -40,6 +41,8 @@ impl ExperimentationClaims {
             os_type: Self::extract_header_value(&headers, OS_TYPE_HEADER_NAME),
             os_version: Self::extract_header_value(&headers, OS_VERSION_HEADER_NAME),
             device_region: Self::extract_header_value(&headers, DEVICE_REGION_HEADER_NAME),
+            // Populated server-side by the route handler from the account's spending keyset.
+            hardware_type: None,
         }
     }
 
@@ -151,5 +154,7 @@ mod tests {
         assert_eq!(claims.os_type, Some(os_type.to_string()));
         assert_eq!(claims.os_version, Some(os_version.to_string()));
         assert_eq!(claims.device_region, Some(device_region.to_string()));
+        // hardware_type is populated server-side, not from headers
+        assert_eq!(claims.hardware_type, None);
     }
 }

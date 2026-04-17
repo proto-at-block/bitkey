@@ -39,7 +39,10 @@ use tokio::join;
 use types::account::spending::SpendingKeyset;
 use types::{
     account::{
-        bitcoin::Network, entities::Account, identifiers::AccountId, keys::FullAccountAuthKeys,
+        bitcoin::Network,
+        entities::{Account, HardwareType},
+        identifiers::AccountId,
+        keys::FullAccountAuthKeys,
         AccountType,
     },
     recovery::{
@@ -203,6 +206,7 @@ async fn start_inheritance_claim_test(
                 app_pubkey: k.app.public_key,
                 hardware_pubkey: k.hw.public_key,
                 recovery_pubkey: Some(k.recovery.public_key),
+                hardware_type: HardwareType::default(),
             }
         }
         Account::Software(_) => unimplemented!(),
@@ -730,6 +734,7 @@ async fn test_lock_inheritance_claim_success() {
         app_auth_pubkey,
         hardware_auth_pubkey,
         Some(recovery_auth_pubkey),
+        HardwareType::default(),
     );
 
     let pending_claim = create_lockable_claim(
@@ -1408,6 +1413,7 @@ async fn create_locked_claim(
         app_auth_pubkey,
         hardware_auth_pubkey,
         Some(recovery_auth_pubkey),
+        HardwareType::default(),
     );
 
     let pending_claim = create_lockable_claim(

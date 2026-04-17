@@ -94,7 +94,9 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
         onSectionSelected(AppearanceSection.CURRENCY)
       }
 
-      awaitBody<AppearancePreferenceBodyModel> {
+      awaitUntilBody<AppearancePreferenceBodyModel>(
+        matching = { it.selectedSection == AppearanceSection.CURRENCY }
+      ) {
         selectedSection.shouldBe(AppearanceSection.CURRENCY)
         moneyHomeHero.isHidden.shouldBeFalse()
         moneyHomeHero.primaryAmount.shouldBe("$0.00")

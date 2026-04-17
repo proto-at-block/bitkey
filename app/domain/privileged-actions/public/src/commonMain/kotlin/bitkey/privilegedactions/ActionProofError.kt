@@ -5,6 +5,13 @@ package bitkey.privilegedactions
  */
 sealed class ActionProofError : Error() {
   /**
+   * No active account found.
+   */
+  data object NoAccount : ActionProofError() {
+    override val message: String = "No active account found"
+  }
+
+  /**
    * No active account or auth token available.
    */
   data object NoAuthToken : ActionProofError() {
@@ -15,6 +22,13 @@ sealed class ActionProofError : Error() {
    * An underlying operation failed (token retrieval or FFI call).
    */
   data class InternalError(override val cause: Throwable) : ActionProofError() {
+    override val message: String? = cause.message
+  }
+
+  /**
+   * The F8e server returned an error (e.g., formatting request failed).
+   */
+  data class F8eError(override val cause: Throwable) : ActionProofError() {
     override val message: String? = cause.message
   }
 

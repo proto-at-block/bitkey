@@ -72,6 +72,14 @@ unlock_test = executable('unlock-test',
 )
 test('unlock test', unlock_test)
 
+unlock_fuzz = executable('unlock-fuzz',
+  'unlock_fuzz.cc',
+  include_directories : ['inc', 'src'],
+  cpp_args : fuzz_args,
+  link_args : fuzz_args,
+  dependencies : [unlock_dep, fff_dep, fuzzed_data_provider_dep],
+)
+
 unlock_cmd_lib = library('unlock-cmd',
   'unlock_cmd.c',
   include_directories : ['inc', 'src'],

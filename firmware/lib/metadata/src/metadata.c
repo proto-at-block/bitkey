@@ -45,6 +45,7 @@ STATIC_VISIBLE_FOR_TESTING metadata_result_t metadata_read(metadata_t* meta, voi
 static metadata_result_t metadata_read_from_serialized(metadata_t* meta, cmp_ctx_t* context);
 static metadata_result_t validate_meta(void* base_addr, size_t len, uint32_t crc);
 static uint32_t crc32b(unsigned char* message, size_t len);
+static bool metadata_read_str(cmp_ctx_t* context, char* dst, size_t dst_size);
 
 metadata_result_t metadata_get(metadata_target_t target, metadata_t* meta) {
   ASSERT(target < META_TGT_MAX);
@@ -183,6 +184,13 @@ static inline size_t memory_get_metadata_size(metadata_target_t target) {
   }
 }
 
+static bool metadata_read_str(cmp_ctx_t* context, char* dst, size_t dst_size) {
+  ASSERT(dst_size <= UINT32_MAX);
+
+  uint32_t len = (uint32_t)dst_size;
+  return cmp_read_str(context, dst, &len);
+}
+
 STATIC_VISIBLE_FOR_TESTING metadata_result_t metadata_read(metadata_t* meta, void* buffer,
                                                            size_t buffer_size) {
   cmp_ctx_t context;
@@ -204,7 +212,7 @@ static metadata_result_t metadata_read_from_serialized(metadata_t* meta, cmp_ctx
   bool error = false;
 
   if (!cmp_read_map(context, &key_count)) {
-    LOGE("Failed to parse root, error: %s", cmp_strerror(context));
+    LOGE("Parse root fail: %s", cmp_strerror(context));
     return METADATA_ROOT_ERROR;
   }
 
@@ -215,7 +223,7 @@ static metadata_result_t metadata_read_from_serialized(metadata_t* meta, cmp_ctx
     key_len = sizeof(key);
 
     if (!cmp_read_str(context, key, &key_len)) {
-      LOGE("Failed to parse key, error: %s\n", cmp_strerror(context));
+      LOGE("Parse key fail: %s", cmp_strerror(context));
       key[0] = '\0';
     }
 
@@ -223,11 +231,9 @@ static metadata_result_t metadata_read_from_serialized(metadata_t* meta, cmp_ctx
     bool success = false;
 
     if (!strncmp("git_id", key, key_len)) {
-      uint32_t len = METADATA_GIT_STR_MAX_LEN;
-      success = cmp_read_str(context, &meta->git.id[0], &len);
+      success = metadata_read_str(context, &meta->git.id[0], sizeof(meta->git.id));
     } else if (!strncmp("git_branch", key, key_len)) {
-      uint32_t len = METADATA_GIT_STR_MAX_LEN;
-      success = cmp_read_str(context, &meta->git.branch[0], &len);
+      success = metadata_read_str(context, &meta->git.branch[0], sizeof(meta->git.branch));
     } else if (!strncmp("ver_major", key, key_len)) {
       success = cmp_read_uchar(context, &meta->version.major);
     } else if (!strncmp("ver_minor", key, key_len)) {
@@ -237,22 +243,21 @@ static metadata_result_t metadata_read_from_serialized(metadata_t* meta, cmp_ctx
     } else if (!strncmp("timestamp", key, key_len)) {
       success = cmp_read_ulong(context, &meta->timestamp);
     } else if (!strncmp("build", key, key_len) || !strncmp("build_type", key, key_len)) {
-      uint32_t len = METADATA_GIT_STR_MAX_LEN;
-      success = cmp_read_str(context, &meta->build[0], &len);
+      success = metadata_read_str(context, &meta->build[0], sizeof(meta->build));
     } else if (!strncmp("hash", key, key_len)) {
       uint32_t len = METADATA_HASH_LENGTH;
       success = cmp_read_bin(context, &meta->sha1hash[0], &len);
     } else if (!strncmp("hw_rev", key, key_len)) {
-      uint32_t len = METADATA_HW_REV_STR_MAX_LEN;
-      success = cmp_read_str(context, &meta->hardware_revision[0], &len);
+      success =
+        metadata_read_str(context, &meta->hardware_revision[0], sizeof(meta->hardware_revision));
     } else {
-      LOGW("Skipping unknown msgpack key: %s", key);
+      LOGW("Unknown key: %s", key);
       cmp_object_t obj;
       success = cmp_skip_object(context, &obj);
     }
 
     if (!success) {
-      LOGE("Failed to parse value of key %s, error: %s", key, cmp_strerror(context));
+      LOGE("Parse val fail key=%s: %s", key, cmp_strerror(context));
       error = true;
     }
   }

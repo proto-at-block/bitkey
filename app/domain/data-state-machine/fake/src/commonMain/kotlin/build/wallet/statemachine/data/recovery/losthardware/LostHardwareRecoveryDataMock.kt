@@ -1,3 +1,0 @@
-package build.wallet.statemachine.data.recovery.losthardware
-
-val LostHardwareRecoveryDataMock = LostHardwareRecoveryData.LostHardwareRecoveryNotStarted

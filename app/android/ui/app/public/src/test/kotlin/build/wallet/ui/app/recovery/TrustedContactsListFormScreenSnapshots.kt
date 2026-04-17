@@ -21,42 +21,41 @@ class TrustedContactsListFormScreenSnapshots : FunSpec({
   test("Recovery Contacts list") {
     paparazzi.snapshot {
       FormScreen(
-        TrustedContactsListBodyModel(
+        trustedContactsListBodyModel(
           contacts =
             listOf(
-              EndorsedTrustedContact(
-                "",
-                trustedContactAlias = TrustedContactAlias(alias = "Bob"),
-                keyCertificate = TrustedContactKeyCertificate(
-                  delegatedDecryptionKey = PublicKey(""),
-                  appGlobalAuthPublicKey = PublicKey(""),
-                  hwAuthPublicKey = HwAuthPublicKey(Secp256k1PublicKey("")),
-                  appAuthGlobalKeyHwSignature = AppGlobalAuthKeyHwSignature(""),
-                  trustedContactIdentityKeyAppSignature = TcIdentityKeyAppSignature("")
-                ),
-                authenticationState = VERIFIED,
-                roles = setOf(TrustedContactRole.SocialRecoveryContact)
+              sampleEndorsedTrustedContact(
+                alias = "Bob",
+                relationshipId = "bob-contact-id"
               )
             ),
           invitations =
             listOf(
-              Invitation(
-                "",
-                TrustedContactAlias("Alice"),
-                setOf(TrustedContactRole.SocialRecoveryContact),
-                "",
-                20,
-                Instant.DISTANT_FUTURE
+              sampleInvitation(
+                alias = "Alice",
+                relationshipId = "alice-invite-id"
               )
             ),
-          protectedCustomers = immutableListOf(),
-          now = Clock.System.now().toEpochMilliseconds(),
-          onAddPressed = {},
-          onContactPressed = {},
-          onProtectedCustomerPressed = {},
-          onAcceptInvitePressed = {},
-          onBackPressed = {}
+          protectedCustomers =
+            immutableListOf(
+              sampleProtectedCustomer(
+                alias = "Charlie",
+                relationshipId = "charlie-protected-id"
+              ),
+              sampleProtectedCustomer(
+                alias = "Dana",
+                relationshipId = "dana-protected-id"
+              )
+            )
         )
+      )
+    }
+  }
+
+  test("Recovery Contacts list empty") {
+    paparazzi.snapshot {
+      FormScreen(
+        trustedContactsListBodyModel()
       )
     }
   }
@@ -80,4 +79,108 @@ class TrustedContactsListFormScreenSnapshots : FunSpec({
       )
     }
   }
+
+  test("Recovery Contacts list with design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      FormScreen(
+        trustedContactsListBodyModel(
+          contacts =
+            listOf(
+              sampleEndorsedTrustedContact(
+                alias = "Bob",
+                relationshipId = "bob-contact-id"
+              )
+            ),
+          invitations =
+            listOf(
+              sampleInvitation(
+                alias = "Alice",
+                relationshipId = "alice-invite-id"
+              )
+            ),
+          protectedCustomers =
+            immutableListOf(
+              sampleProtectedCustomer(
+                alias = "Charlie",
+                relationshipId = "charlie-protected-id"
+              ),
+              sampleProtectedCustomer(
+                alias = "Dana",
+                relationshipId = "dana-protected-id"
+              )
+            )
+        )
+      )
+    }
+  }
+
+  test("Recovery Contacts list empty with design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      FormScreen(
+        trustedContactsListBodyModel()
+      )
+    }
+  }
 })
+
+private fun trustedContactsListBodyModel(
+  contacts: List<EndorsedTrustedContact> = emptyList(),
+  invitations: List<Invitation> = emptyList(),
+  protectedCustomers: List<ProtectedCustomer> = emptyList(),
+): TrustedContactsListBodyModel {
+  return TrustedContactsListBodyModel(
+    contacts = contacts,
+    invitations = invitations,
+    protectedCustomers = protectedCustomers,
+    now = Clock.System.now().toEpochMilliseconds(),
+    onAddPressed = {},
+    onContactPressed = {},
+    onProtectedCustomerPressed = {},
+    onAcceptInvitePressed = {},
+    onBackPressed = {}
+  )
+}
+
+private fun sampleEndorsedTrustedContact(
+  alias: String,
+  relationshipId: String,
+): EndorsedTrustedContact {
+  return EndorsedTrustedContact(
+    relationshipId = relationshipId,
+    trustedContactAlias = TrustedContactAlias(alias = alias),
+    keyCertificate = TrustedContactKeyCertificate(
+      delegatedDecryptionKey = PublicKey(""),
+      appGlobalAuthPublicKey = PublicKey(""),
+      hwAuthPublicKey = HwAuthPublicKey(Secp256k1PublicKey("")),
+      appAuthGlobalKeyHwSignature = AppGlobalAuthKeyHwSignature(""),
+      trustedContactIdentityKeyAppSignature = TcIdentityKeyAppSignature("")
+    ),
+    authenticationState = VERIFIED,
+    roles = setOf(TrustedContactRole.SocialRecoveryContact)
+  )
+}
+
+private fun sampleInvitation(
+  alias: String,
+  relationshipId: String,
+): Invitation {
+  return Invitation(
+    relationshipId = relationshipId,
+    trustedContactAlias = TrustedContactAlias(alias),
+    roles = setOf(TrustedContactRole.SocialRecoveryContact),
+    code = "$relationshipId-code",
+    codeBitLength = 20,
+    expiresAt = Instant.DISTANT_FUTURE
+  )
+}
+
+private fun sampleProtectedCustomer(
+  alias: String,
+  relationshipId: String,
+): ProtectedCustomer {
+  return ProtectedCustomer(
+    relationshipId = relationshipId,
+    alias = ProtectedCustomerAlias(alias),
+    roles = setOf(TrustedContactRole.SocialRecoveryContact)
+  )
+}

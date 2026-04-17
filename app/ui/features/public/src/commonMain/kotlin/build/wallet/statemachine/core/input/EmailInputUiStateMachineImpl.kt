@@ -8,10 +8,10 @@ import build.wallet.di.BitkeyInject
 import build.wallet.email.Email
 import build.wallet.email.EmailValidator
 import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.input.DataInputStyle.Edit
 import build.wallet.statemachine.core.input.DataInputStyle.Enter
-import build.wallet.statemachine.core.input.EmailInputUiStateMachineImpl.State.BottomSheetState.*
+import build.wallet.statemachine.core.input.EmailInputUiStateMachineImpl.State.BottomSheetState.Hidden
+import build.wallet.statemachine.core.input.EmailInputUiStateMachineImpl.State.BottomSheetState.ShowingErrorSheet
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
@@ -22,7 +22,7 @@ class EmailInputUiStateMachineImpl(
 ) : EmailInputUiStateMachine {
   @Composable
   override fun model(props: EmailInputUiProps): ScreenModel {
-    var state by remember {
+    var state by remember(props.previousEmail) {
       val email = props.previousEmail ?: Email(value = "")
       val isValidEmail = emailValidator.validateEmail(email)
       mutableStateOf(State(email = email, isValid = isValidEmail))
@@ -34,6 +34,7 @@ class EmailInputUiStateMachineImpl(
         Edit -> "Edit your email address"
       },
       subline = props.subline,
+      sublineModel = props.sublineModel,
       value = state.email.value,
       primaryButton = ButtonModel(
         text = "Continue",
@@ -60,18 +61,11 @@ class EmailInputUiStateMachineImpl(
           isValid = emailValidator.validateEmail(updatedEmail)
         )
       },
-      onClose = { props.onClose() },
-      onSkip = props.skipBottomSheetProvider?.let {
-        {
-          handleOnSkip(it) { produceState ->
-            state = produceState(state)
-          }
-        }
-      }
+      onClose = props.onClose?.let { { it() } },
+      isCloseButton = props.isCloseButton
     ).asModalScreen(
       bottomSheetModel = when (val bottomSheetState = state.bottomSheetState) {
         is Hidden -> null
-        is ShowingSkipSheet -> bottomSheetState.sheet
         is ShowingErrorSheet ->
           when (bottomSheetState.error) {
             is F8eError.SpecificClientError ->
@@ -105,26 +99,9 @@ class EmailInputUiStateMachineImpl(
     sealed interface BottomSheetState {
       data object Hidden : BottomSheetState
 
-      data class ShowingSkipSheet(val sheet: SheetModel) : BottomSheetState
-
       data class ShowingErrorSheet(
         val error: F8eError<AddTouchpointClientErrorCode>,
       ) : BottomSheetState
-    }
-  }
-
-  private fun handleOnSkip(
-    skipBottomSheetProvider: (onBack: () -> Unit) -> SheetModel,
-    setState: (produceState: (currentState: State) -> State) -> Unit,
-  ) {
-    // Build the sheet with the onBack behavior
-    val skipBottomSheet =
-      skipBottomSheetProvider {
-        setState { it.copy(bottomSheetState = Hidden) }
-      }
-    // Update the state to show the sheet
-    setState {
-      it.copy(bottomSheetState = ShowingSkipSheet(skipBottomSheet))
     }
   }
 }

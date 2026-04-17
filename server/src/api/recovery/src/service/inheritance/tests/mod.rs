@@ -38,6 +38,7 @@ use std::sync::Arc;
 use time::{Duration, OffsetDateTime};
 use types::account::bitcoin::Network;
 use types::account::entities::FullAccount;
+use types::account::entities::HardwareType;
 use types::account::keys::FullAccountAuthKeys;
 use types::recovery::inheritance::claim::{
     InheritanceClaim, InheritanceClaimAuthKeys, InheritanceClaimCanceled,
@@ -370,6 +371,7 @@ pub fn setup_keys_and_signatures(
         app_auth_pubkey,
         hardware_auth_pubkey,
         Some(recovery_auth_pubkey),
+        HardwareType::default(),
     ));
 
     let challenge = "LockInheritanceClaim".to_string()

@@ -3,11 +3,16 @@ package build.wallet.statemachine.account.full
 import androidx.compose.runtime.Composable
 import bitkey.ui.statemachine.interstitial.InterstitialUiProps
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
+import build.wallet.auth.FullAccountAuthKeyRotationServiceMock
 import build.wallet.auth.PendingAuthKeyRotationAttempt
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.coroutines.turbine.turbines
 import build.wallet.inappsecurity.BiometricAuthServiceFake
+import build.wallet.recovery.Recovery
+import build.wallet.recovery.Recovery.NoActiveRecovery
+import build.wallet.recovery.RecoveryStatusServiceMock
 import build.wallet.statemachine.BodyModelMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.app.InterstitialUiStateMachineFake
@@ -16,10 +21,6 @@ import build.wallet.statemachine.biometric.BiometricPromptUiStateMachine
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.AccountData
-import build.wallet.statemachine.data.keybox.AccountData.CheckingActiveAccountData
-import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
-import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData
 import build.wallet.statemachine.home.full.HomeUiProps
 import build.wallet.statemachine.home.full.HomeUiStateMachine
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIOrigin
@@ -31,6 +32,7 @@ import build.wallet.statemachine.recovery.conflict.SomeoneElseIsRecoveringUiProp
 import build.wallet.statemachine.recovery.conflict.SomeoneElseIsRecoveringUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
+import build.wallet.statemachine.ui.awaitUntilBodyMock
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
@@ -69,8 +71,15 @@ class FullAccountUiStateMachineImplTests : FunSpec({
   }
 
   val interstitialUiStateMachine = InterstitialUiStateMachineFake()
+  val fullAccountAuthKeyRotationService = FullAccountAuthKeyRotationServiceMock(turbines::create)
+  val recoveryStatusService = RecoveryStatusServiceMock(
+    recovery = NoActiveRecovery,
+    turbines::create
+  )
 
   val stateMachine = FullAccountUiStateMachineImpl(
+    fullAccountAuthKeyRotationService = fullAccountAuthKeyRotationService,
+    recoveryStatusService = recoveryStatusService,
     homeUiStateMachine = homeUiStateMachine,
     noLongerRecoveringUiStateMachine = noLongerRecoveringUiStateMachine,
     someoneElseIsRecoveringUiStateMachine = someoneElseIsRecoveringUiStateMachine,
@@ -83,12 +92,15 @@ class FullAccountUiStateMachineImplTests : FunSpec({
   beforeTest {
     biometricAuthService.reset()
     interstitialUiStateMachine.reset()
+    fullAccountAuthKeyRotationService.reset()
+    recoveryStatusService.reset()
   }
 
   test("Loading screen shown when checking active account data") {
+    recoveryStatusService.recoveryStatus.value = Recovery.Loading
     stateMachine.test(
       props = FullAccountUiProps(
-        accountData = CheckingActiveAccountData
+        account = FullAccountMock
       )
     ) {
       awaitBody<LoadingSuccessBodyModel> {
@@ -101,13 +113,12 @@ class FullAccountUiStateMachineImplTests : FunSpec({
   test("Home screen shown for active account") {
     stateMachine.test(
       props = FullAccountUiProps(
-        accountData = ActiveKeyboxLoadedDataMock,
-        isNewlyCreatedAccount = false,
-        isRenderingViaAccountData = false
+        account = FullAccountMock,
+        isNewlyCreatedAccount = false
       )
     ) {
       awaitBodyMock<HomeUiProps> {
-        account.shouldBe(ActiveKeyboxLoadedDataMock.account)
+        account.shouldBe(FullAccountMock)
       }
     }
   }
@@ -117,9 +128,8 @@ class FullAccountUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(
       props = FullAccountUiProps(
-        accountData = ActiveKeyboxLoadedDataMock,
-        isNewlyCreatedAccount = false,
-        isRenderingViaAccountData = false
+        account = FullAccountMock,
+        isNewlyCreatedAccount = false
       )
     ) {
       awaitBodyMock<BiometricPromptProps> {
@@ -134,9 +144,8 @@ class FullAccountUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(
       props = FullAccountUiProps(
-        accountData = ActiveKeyboxLoadedDataMock,
-        isNewlyCreatedAccount = false,
-        isRenderingViaAccountData = false
+        account = FullAccountMock,
+        isNewlyCreatedAccount = false
       )
     ) {
       awaitBodyMock<InterstitialUiProps>(InterstitialUiStateMachineFake.BODY_MODEL_ID) {
@@ -152,30 +161,12 @@ class FullAccountUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(
       props = FullAccountUiProps(
-        accountData = ActiveKeyboxLoadedDataMock,
-        isNewlyCreatedAccount = true,
-        isRenderingViaAccountData = false
+        account = FullAccountMock,
+        isNewlyCreatedAccount = true
       )
     ) {
       awaitBodyMock<HomeUiProps> {
-        account.shouldBe(ActiveKeyboxLoadedDataMock.account)
-      }
-    }
-  }
-
-  test("No interstitial shown when rendering via account data") {
-    biometricAuthService.isBiometricAuthRequiredFlow.value = false
-    interstitialUiStateMachine.shouldShowInterstitial = true
-
-    stateMachine.test(
-      props = FullAccountUiProps(
-        accountData = ActiveKeyboxLoadedDataMock,
-        isNewlyCreatedAccount = false,
-        isRenderingViaAccountData = true
-      )
-    ) {
-      awaitBodyMock<HomeUiProps> {
-        account.shouldBe(ActiveKeyboxLoadedDataMock.account)
+        account.shouldBe(FullAccountMock)
       }
     }
   }
@@ -183,15 +174,14 @@ class FullAccountUiStateMachineImplTests : FunSpec({
   test("Auth key rotation screen shown for rotating auth keys") {
     stateMachine.test(
       props = FullAccountUiProps(
-        accountData = AccountData.HasActiveFullAccountData.RotatingAuthKeys(
-          account = FullAccountMock,
-          pendingAttempt = PendingAuthKeyRotationAttempt.ProposedAttempt
-        ),
-        isNewlyCreatedAccount = false,
-        isRenderingViaAccountData = false
+        account = FullAccountMock,
+        isNewlyCreatedAccount = false
       )
     ) {
-      awaitBodyMock<RotateAuthKeyUIStateMachineProps> {
+      awaitBodyMock<HomeUiProps>()
+      fullAccountAuthKeyRotationService.pendingKeyRotationAttempt.value =
+        PendingAuthKeyRotationAttempt.ProposedAttempt
+      awaitUntilBodyMock<RotateAuthKeyUIStateMachineProps> {
         account.shouldBe(FullAccountMock)
         origin.shouldBe(RotateAuthKeyUIOrigin.PendingAttempt(PendingAuthKeyRotationAttempt.ProposedAttempt))
       }
@@ -199,11 +189,10 @@ class FullAccountUiStateMachineImplTests : FunSpec({
   }
 
   test("No longer recovering screen shown") {
+    recoveryStatusService.recoveryStatus.value = Recovery.NoLongerRecovering(App)
     stateMachine.test(
       props = FullAccountUiProps(
-        accountData = AccountData.NoLongerRecoveringFullAccountData(
-          canceledRecoveryLostFactor = App
-        )
+        account = FullAccountMock
       )
     ) {
       awaitBodyMock<NoLongerRecoveringUiProps> {
@@ -213,16 +202,15 @@ class FullAccountUiStateMachineImplTests : FunSpec({
   }
 
   test("Someone else is recovering screen shown") {
+    recoveryStatusService.recoveryStatus.value = Recovery.SomeoneElseIsRecovering(App)
     stateMachine.test(
       props = FullAccountUiProps(
-        accountData = AccountData.SomeoneElseIsRecoveringFullAccountData(
-          data = SomeoneElseIsRecoveringData.ShowingSomeoneElseIsRecoveringData(App, {}),
-          fullAccountId = FullAccountIdMock
-        )
+        account = FullAccountMock
       )
     ) {
       awaitBodyMock<SomeoneElseIsRecoveringUiProps> {
         fullAccountId.shouldBe(FullAccountIdMock)
+        cancelingRecoveryLostFactor.shouldBe(App)
       }
     }
   }

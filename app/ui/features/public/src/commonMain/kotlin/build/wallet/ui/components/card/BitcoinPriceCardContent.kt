@@ -28,6 +28,7 @@ import build.wallet.ui.components.layout.MeasureWithoutPlacement
 import build.wallet.ui.model.icon.IconSize.Accessory
 import build.wallet.ui.model.icon.IconSize.Subtract
 import build.wallet.ui.model.icon.IconTint
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import org.jetbrains.compose.resources.painterResource
@@ -36,65 +37,78 @@ import org.jetbrains.compose.resources.vectorResource
 
 @Composable
 internal fun BitcoinPriceContent(model: BitcoinPrice) {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+
   Column(
     modifier = Modifier
-      .padding(bottom = 16.dp)
+      .padding(bottom = if (isDesignSystemV2Enabled) 0.dp else 16.dp)
       .fillMaxWidth()
   ) {
-    // title + updated at timestamp
-    Row(verticalAlignment = Alignment.Top) {
-      Row(verticalAlignment = Alignment.CenterVertically) {
-        Image(
-          painter = painterResource(Res.drawable.bitcoin_orange),
-          contentDescription = null,
-          modifier = Modifier.size(Accessory.value.dp)
-        )
+    val sparklineWidthModifier = if (isDesignSystemV2Enabled) {
+      Modifier.weight(0.27f, fill = false)
+    } else {
+      Modifier.weight(0.4f, fill = false)
+    }
 
-        Spacer(modifier = Modifier.width(4.dp))
+    if (!isDesignSystemV2Enabled) {
+      // title + updated at timestamp
+      Row(verticalAlignment = Alignment.Top) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          Image(
+            painter = painterResource(Res.drawable.bitcoin_orange),
+            contentDescription = null,
+            modifier = Modifier.size(Accessory.value.dp)
+          )
 
-        Label(
-          text = stringResource(Res.string.bitcoin_price_card_title),
-          type = LabelType.Body3Bold,
-          treatment = LabelTreatment.Unspecified,
-          color = WalletTheme.colors.bitcoinPrimary
-        )
-      }
+          Spacer(modifier = Modifier.width(4.dp))
 
-      Spacer(modifier = Modifier.weight(1f))
-
-      Row(
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        Box(
-          modifier = Modifier
-            .padding(2.dp)
-            .weight(1f, fill = false),
-          contentAlignment = Alignment.CenterStart
-        ) {
           Label(
-            model = LabelModel.StringModel(model.lastUpdated),
-            type = LabelType.Body4Regular,
-            treatment = LabelTreatment.SecondaryDark,
-            alignment = TextAlign.End
+            text = stringResource(Res.string.bitcoin_price_card_title),
+            type = LabelType.Body3Bold,
+            treatment = LabelTreatment.Unspecified,
+            color = WalletTheme.colors.bitcoinPrimary
           )
         }
 
-        Spacer(modifier = Modifier.requiredSize(1.dp))
+        Spacer(modifier = Modifier.weight(1f))
 
-        Icon(
-          icon = Icon.SmallIconCaretRight,
-          size = Subtract,
-          tint = IconTint.On30
-        )
+        Row(
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Box(
+            modifier = Modifier
+              .padding(2.dp)
+              .weight(1f, fill = false),
+            contentAlignment = Alignment.CenterStart
+          ) {
+            Label(
+              model = LabelModel.StringModel(model.lastUpdated),
+              type = LabelType.Body4Regular,
+              treatment = LabelTreatment.SecondaryDark,
+              alignment = TextAlign.End
+            )
+          }
+
+          Spacer(modifier = Modifier.requiredSize(1.dp))
+
+          Icon(
+            icon = Icon.SmallIconCaretRight,
+            size = Subtract,
+            tint = IconTint.On30
+          )
+        }
       }
     }
     Row(
       modifier = Modifier.fillMaxWidth(),
-      verticalAlignment = Alignment.Bottom,
+      verticalAlignment = if (isDesignSystemV2Enabled) Alignment.CenterVertically else Alignment.Bottom,
       horizontalArrangement = Arrangement.SpaceBetween
     ) {
       // bitcoin price + value change
-      PriceAndValueChangeColumn(model = model)
+      PriceAndValueChangeColumn(
+        model = model,
+        isDesignSystemV2Enabled = isDesignSystemV2Enabled
+      )
 
       Spacer(modifier = Modifier.weight(0.1f, fill = false))
 
@@ -102,9 +116,9 @@ internal fun BitcoinPriceContent(model: BitcoinPrice) {
       Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
-          .weight(0.4f, fill = false)
-          .height(70.dp)
-          .padding(top = 16.dp, end = 6.dp)
+          .then(sparklineWidthModifier)
+          .height(if (isDesignSystemV2Enabled) 60.dp else 70.dp)
+          .padding(top = if (isDesignSystemV2Enabled) 0.dp else 16.dp, end = 6.dp)
       ) {
         val placeholderAlpha by animateFloatAsState(
           label = "placeholder-visibility",
@@ -127,8 +141,14 @@ internal fun BitcoinPriceContent(model: BitcoinPrice) {
           PriceChart(
             dataPoints = model.data,
             range = ChartRange.DAY,
-            colorSparkLine = WalletTheme.colors.foreground.copy(alpha = 0.1f),
+            colorSparkLine = if (isDesignSystemV2Enabled) {
+              WalletTheme.colors.foreground
+            } else {
+              WalletTheme.colors.foreground.copy(alpha = 0.1f)
+            },
             sparkLineMode = true,
+            showSparkLineEndPoint = !isDesignSystemV2Enabled,
+            lineCornerRadius = if (isDesignSystemV2Enabled) 12.dp else 6.dp,
             yAxisIntervals = 10,
             modifier = Modifier
               .fillMaxSize()
@@ -145,12 +165,25 @@ internal fun BitcoinPriceContent(model: BitcoinPrice) {
 }
 
 @Composable
-private fun PriceAndValueChangeColumn(model: BitcoinPrice) {
+private fun PriceAndValueChangeColumn(
+  model: BitcoinPrice,
+  isDesignSystemV2Enabled: Boolean,
+) {
   Column(
     modifier = Modifier
       .wrapContentSize(),
-    verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.Bottom)
+    verticalArrangement = Arrangement.Bottom
   ) {
+    if (isDesignSystemV2Enabled) {
+      Label(
+        text = stringResource(Res.string.bitcoin_price_card_title),
+        type = LabelType.Body2Regular,
+        treatment = LabelTreatment.Primary
+      )
+    }
+
+    val priceLabelType = if (isDesignSystemV2Enabled) LabelType.Body1Regular else LabelType.Body1Bold
+
     Box(
       modifier = Modifier
         .loadingScrim(model.isLoading),
@@ -159,7 +192,7 @@ private fun PriceAndValueChangeColumn(model: BitcoinPrice) {
       MeasureWithoutPlacement {
         Label(
           model = LabelModel.StringModel("$000,000.00"),
-          type = LabelType.Body1Bold,
+          type = priceLabelType,
           treatment = LabelTreatment.Primary,
           maxLines = 1
         )
@@ -167,11 +200,13 @@ private fun PriceAndValueChangeColumn(model: BitcoinPrice) {
 
       Label(
         model = LabelModel.StringModel(model.price),
-        type = LabelType.Body1Bold,
+        type = priceLabelType,
         treatment = LabelTreatment.Primary,
         maxLines = 1
       )
     }
+
+    Spacer(modifier = Modifier.height(2.dp))
 
     Row(
       horizontalArrangement = Arrangement.spacedBy(2.dp),

@@ -6,6 +6,7 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.PsbtsForSendAmount
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
@@ -26,6 +27,7 @@ interface TransferConfirmationUiStateMachine :
  * @property onExit callback when we want to exit the send flow
  */
 data class TransferConfirmationUiProps(
+  val account: FullAccount,
   val variant: TransferConfirmationScreenVariant,
   val selectedPriority: EstimatedTransactionPriority,
   val recipientAddress: BitcoinAddress,

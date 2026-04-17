@@ -3,7 +3,6 @@ package bitkey.privilegedactions
 import app.cash.turbine.test
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.FeatureFlagValue
-import build.wallet.feature.flags.FingerprintResetFeatureFlag
 import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareMetadata
@@ -16,12 +15,10 @@ import kotlinx.datetime.Instant
 class FingerprintResetAvailabilityServiceImplTests : FunSpec({
 
   val featureFlagDao = FeatureFlagDaoFake()
-  val fingerprintResetFeatureFlag = FingerprintResetFeatureFlag(featureFlagDao)
   val fingerprintResetMinFirmwareVersionFeatureFlag = FingerprintResetMinFirmwareVersionFeatureFlag(featureFlagDao)
   val firmwareDataService = FirmwareDataServiceFake()
 
   val availability = FingerprintResetAvailabilityServiceImpl(
-    fingerprintResetFeatureFlag = fingerprintResetFeatureFlag,
     fingerprintResetMinFirmwareVersionFeatureFlag = fingerprintResetMinFirmwareVersionFeatureFlag,
     firmwareDataService = firmwareDataService
   )
@@ -31,8 +28,7 @@ class FingerprintResetAvailabilityServiceImplTests : FunSpec({
     firmwareDataService.reset()
   }
 
-  test("isAvailable returns true when feature flag enabled and firmware version meets minimum requirement") {
-    fingerprintResetFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+  test("isAvailable returns true when firmware version meets minimum requirement") {
     fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
 
     // Test with version equal to minimum
@@ -57,7 +53,6 @@ class FingerprintResetAvailabilityServiceImplTests : FunSpec({
   }
 
   test("isAvailable returns false when firmware version below minimum requirement") {
-    fingerprintResetFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
 
     firmwareDataService.firmwareData.value = FirmwareData(
@@ -70,22 +65,7 @@ class FingerprintResetAvailabilityServiceImplTests : FunSpec({
     }
   }
 
-  test("isAvailable returns false when feature flag disabled") {
-    fingerprintResetFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
-    fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
-
-    firmwareDataService.firmwareData.value = FirmwareData(
-      firmwareDeviceInfo = createFirmwareDeviceInfo("2.1.0"),
-      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
-    )
-
-    availability.isAvailable().test {
-      awaitItem() shouldBe false
-    }
-  }
-
   test("isAvailable returns false when no firmware device info") {
-    fingerprintResetFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
 
     firmwareDataService.firmwareData.value = FirmwareData(
@@ -99,7 +79,6 @@ class FingerprintResetAvailabilityServiceImplTests : FunSpec({
   }
 
   test("isAvailable returns false when minimum version flag is empty") {
-    fingerprintResetFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag(""))
 
     firmwareDataService.firmwareData.value = FirmwareData(
@@ -112,25 +91,7 @@ class FingerprintResetAvailabilityServiceImplTests : FunSpec({
     }
   }
 
-  test("isAvailable reacts to feature flag changes") {
-    fingerprintResetFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
-    fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
-
-    firmwareDataService.firmwareData.value = FirmwareData(
-      firmwareDeviceInfo = createFirmwareDeviceInfo("1.0.98"),
-      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
-    )
-
-    availability.isAvailable().test {
-      awaitItem() shouldBe false
-
-      fingerprintResetFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-      awaitItem() shouldBe true
-    }
-  }
-
   test("isAvailable reacts to firmware version changes") {
-    fingerprintResetFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
 
     firmwareDataService.firmwareData.value = FirmwareData(
@@ -150,7 +111,6 @@ class FingerprintResetAvailabilityServiceImplTests : FunSpec({
   }
 
   test("isAvailable reacts to minimum firmware version flag changes") {
-    fingerprintResetFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("3.0.0"))
 
     firmwareDataService.firmwareData.value = FirmwareData(
@@ -167,7 +127,6 @@ class FingerprintResetAvailabilityServiceImplTests : FunSpec({
   }
 
   test("isAvailable returns false when firmware feature flag is an empty string") {
-    fingerprintResetFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag(""))
 
     firmwareDataService.firmwareData.value = FirmwareData(

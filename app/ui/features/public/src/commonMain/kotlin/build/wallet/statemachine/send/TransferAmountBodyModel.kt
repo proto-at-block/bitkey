@@ -8,6 +8,8 @@ import build.wallet.statemachine.keypad.KeypadModel
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.ui.app.send.TransferAmountScreen
+import build.wallet.ui.components.label.LabelTreatment
+import build.wallet.ui.components.label.LabelTreatment.Secondary
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
@@ -25,7 +27,10 @@ data class TransferAmountBodyModel(
   val primaryButton: ButtonModel,
   val cardModel: CardModel?,
   val amountDisabled: Boolean,
-  val onSwapCurrencyClick: () -> Unit,
+  val amountContextLineTreatment: LabelTreatment = Secondary,
+  val shouldTriggerContextualErrorFeedback: Boolean = false,
+  val useSmartBar: Boolean = true,
+  val onSwapCurrencyClick: (() -> Unit)? = null,
   // We don't want to track this for privacy reasons
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? = null,
 ) : BodyModel() {
@@ -37,8 +42,11 @@ data class TransferAmountBodyModel(
     cardModel: CardModel?,
     continueButtonEnabled: Boolean,
     amountDisabled: Boolean,
+    amountContextLineTreatment: LabelTreatment = Secondary,
+    shouldTriggerContextualErrorFeedback: Boolean = false,
+    useSmartBar: Boolean = true,
     onContinueClick: () -> Unit,
-    onSwapCurrencyClick: () -> Unit,
+    onSwapCurrencyClick: (() -> Unit)? = null,
   ) : this(
     onBack = onBack,
     toolbar =
@@ -61,6 +69,9 @@ data class TransferAmountBodyModel(
       ),
     cardModel = cardModel,
     amountDisabled = amountDisabled,
+    amountContextLineTreatment = amountContextLineTreatment,
+    shouldTriggerContextualErrorFeedback = shouldTriggerContextualErrorFeedback,
+    useSmartBar = useSmartBar,
     onSwapCurrencyClick = onSwapCurrencyClick
   )
 

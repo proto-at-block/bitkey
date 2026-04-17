@@ -11,7 +11,7 @@ import build.wallet.statemachine.core.*
 
 data class FwupScreen(
   val firmwareUpdateData: FirmwareData.FirmwareUpdateState,
-  val onExit: () -> Unit,
+  val onExit: (() -> Unit)? = null,
 ) : Screen
 
 class FwupSegment : AppSegment {
@@ -27,19 +27,20 @@ class FwupScreenPresenter(
     navigator: Navigator,
     screen: FwupScreen,
   ): ScreenModel {
+    val exit = screen.onExit ?: { navigator.exit() }
     return when (screen.firmwareUpdateData) {
       is FirmwareData.FirmwareUpdateState.PendingUpdate ->
         fwupNfcUiStateMachine.model(
           props =
             FwupNfcUiProps(
-              onDone = screen.onExit
+              onDone = exit
             )
         )
       else -> ScreenModel(
         body = ErrorFormBodyModel(
           title = "No update available",
           subline = "Your device is up to date.",
-          primaryButton = ButtonDataModel("Got it", isLoading = false, onClick = screen.onExit),
+          primaryButton = ButtonDataModel("Got it", isLoading = false, onClick = exit),
           errorData = ErrorData(
             segment = FwupSegment(),
             actionDescription = "Starting firmware update",

@@ -1,7 +1,7 @@
 use next_gen::generator;
 
 use crate::attestation::{Attestation, AttestationError};
-use crate::fwpb::cert_get_cmd::CertType;
+use crate::fwpb::cert_get_cmd::{CertOrigin, CertType};
 use crate::fwpb::cert_get_rsp::CertGetRspStatus;
 use crate::fwpb::{
     wallet_rsp::Msg, CertGetCmd, CertGetRsp, HardwareAttestationCmd, HardwareAttestationRsp,
@@ -15,6 +15,8 @@ fn get_cert(kind: CertType) -> Result<Vec<u8>, CommandError> {
         // Cert ID is only used for DEVICE_SECURE_CHANNEL_CERT
         // Leave it empty for other certificate types
         cert_id: String::new(),
+        // Use local cert source (default) - reads from this device's local store
+        cert_source: CertOrigin::Local.into(),
     }
     .try_into()?;
 

@@ -11,6 +11,8 @@ sealed class Route {
     const val TRUSTED_CONTACT = "/links/downloads/trusted-contact"
     const val BENEFICIARY = "/links/downloads/beneficiary"
     const val APP_DEEPLINK = "/links/app"
+    const val DOWNLOAD = "/download"
+    const val DOWNLOAD_TRAILING = "/download/"
   }
 
   object SupportedHosts {
@@ -68,6 +70,7 @@ sealed class Route {
               BeneficiaryInvite(parsedUrl.fragment)
             }
           }
+          SupportedPaths.DOWNLOAD, SupportedPaths.DOWNLOAD_TRAILING -> HardwareSetup
           SupportedPaths.APP_DEEPLINK -> {
             when (parsedUrl.parameters[QueryParamKeys.CONTEXT]) {
               Context.PARTNER_TRANSFER_REDIRECT ->
@@ -205,6 +208,21 @@ sealed class Route {
     val event: String?,
     val partnerTransactionId: String?,
   ) : Route()
+
+  /**
+   * Navigates to either:
+   * a) W3 hardware upgrade flow if the user has a W1 device
+   * b) No-op if the user already has a W3 device or is not onboarded
+   *
+   * Triggered by the setup QR code / download link.
+   */
+  data object HardwareSetup : Route()
+
+  /**
+   * Navigates to Money Home after a successful W3 upgrade so the app can present
+   * post-upgrade UI that should only appear immediately after completion.
+   */
+  data object W3UpgradeComplete : Route()
 
   /**
    * Navigates to the hardware recovery flow which initializes a new recovery

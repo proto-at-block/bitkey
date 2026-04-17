@@ -12,7 +12,7 @@
 #define _GPIOINT_IF_EVEN_MASK ((_GPIO_IF_MASK)&0x55555555UL)
 #define _GPIOINT_IF_ODD_MASK  ((_GPIO_IF_MASK)&0xAAAAAAAAUL)
 
-static uint16_t PERIPHERALS_DATA exti_enabled = {0};
+static uint16_t SHARED_TASK_BSS exti_enabled = {0};
 
 void mcu_gpio_init(void) {
   CMU_ClockEnable(cmuClock_GPIO, true);

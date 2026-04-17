@@ -1,9 +1,10 @@
 import os
 from typing import Optional
 
-import bitkey_fwa
 import semver
 from bitkey.metadata import Metadata
+
+import bitkey_fwa
 from bitkey_fwa.constants import (
     ASSET_APP,
     ASSET_LOADER,
@@ -22,8 +23,21 @@ class VersionChecks(bitkey_fwa.TestCase):
 
     # Maximum version limits
     MAX_BL_VERSION = "2.0.0"
-    MAX_APP_VERSION = "2.0.0"
-    MAX_PROD_MFGTEST_VERSION = "1.0.50"  # Keep this lower than the packout app version
+
+    # Per-product maximum app version limits
+    MAX_APP_VERSION = {
+        PRODUCT_W1A: "1.3.0",
+        PRODUCT_W3A_CORE: "1.3.0",
+        PRODUCT_W3A_UXC: "1.3.0",
+    }
+
+    # Per-product maximum mfgtest version limits
+    # Keep these lower than the packout app version
+    MAX_PROD_MFGTEST_VERSION = {
+        PRODUCT_W1A: "1.0.50",
+        PRODUCT_W3A_CORE: "1.2.0",
+        PRODUCT_W3A_UXC: "1.2.0",
+    }
 
     # Magic values for app_properties structs
     EFR32_MAGIC = b"\x13\xb7\x79\xfa\xc9\x25\xdd\xb7\xad\xf3\xcf\xe0\xf1\xb6\x14\xb8"
@@ -250,10 +264,10 @@ class VersionChecks(bitkey_fwa.TestCase):
 
         max_version = semver.VersionInfo.parse(max_version_str)
 
-        self.assertLessEqual(
+        self.assertLess(
             actual,
             max_version,
-            f"{firmware_type} version {actual} exceeds maximum {max_version}",
+            f"{firmware_type} version {actual} must be less than {max_version}",
         )
 
     @bitkey_fwa.product(PRODUCT_W1A, PRODUCT_W3A_CORE)
@@ -268,8 +282,12 @@ class VersionChecks(bitkey_fwa.TestCase):
     @bitkey_fwa.suffix(SUFFIX_ELF)
     def fwtest_application_version_check(self):
         """Verify application version does not exceed maximum and metadata/app_properties match"""
+        product = FirmwareUnderTest.product
+        max_version = self.MAX_APP_VERSION.get(product)
+        if max_version is None:
+            self.fail(f"No max app version defined for product {product}")
         version = self._get_and_validate_version("Application")
-        self._compare_version(version, self.MAX_APP_VERSION, "Application")
+        self._compare_version(version, max_version, "Application")
 
     @bitkey_fwa.asset(ASSET_APP)
     @bitkey_fwa.suffix(SUFFIX_ELF)
@@ -277,11 +295,15 @@ class VersionChecks(bitkey_fwa.TestCase):
     @bitkey_fwa.security(SECURITY_PROD)
     def fwtest_mfgtest_version_check(self):
         """Verify production mfgtest application version does not exceed maximum and metadata/app_properties match"""
+        product = FirmwareUnderTest.product
+        max_version = self.MAX_PROD_MFGTEST_VERSION.get(product)
+        if max_version is None:
+            self.fail(f"No max mfgtest version defined for product {product}")
         mode = os.environ.get("FWA_MFGTEST_VERSION_CHECK", "").strip().lower()
         version = self._get_and_validate_version("Production mfgtest application")
         try:
             self._compare_version(
-                version, self.MAX_PROD_MFGTEST_VERSION, "Production mfgtest application"
+                version, max_version, "Production mfgtest application"
             )
         except AssertionError as ex:
             if mode == "warn":

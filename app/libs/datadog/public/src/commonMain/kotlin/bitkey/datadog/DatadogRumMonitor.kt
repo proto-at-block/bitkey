@@ -92,11 +92,13 @@ interface DatadogRumMonitor {
    * @param message: a message explaining the error
    * @param source: the source of the error
    * @param attributes: additional custom attributes
+   * @param cause: optional throwable associated with the error
    */
   fun addError(
     message: String,
     source: ErrorSource,
     attributes: Map<String, String>,
+    cause: Throwable? = null,
   )
 }
 

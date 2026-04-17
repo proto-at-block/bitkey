@@ -2,6 +2,8 @@ package build.wallet.cloud.store
 
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.logging.logDebug
+import build.wallet.logging.logWarn
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -84,6 +86,9 @@ class CloudKitDatabaseImpl(
       database.fetchRecordWithID(recordID) { record, error ->
         if (!continuation.isActive) return@fetchRecordWithID
         if (error != null) {
+          logWarn {
+            "CloudKit fetch failed for record [${recordID.recordName}] (${error.summary()})"
+          }
           continuation.resume(Err(error))
         } else {
           continuation.resume(Ok(record))
@@ -96,6 +101,9 @@ class CloudKitDatabaseImpl(
       database.saveRecord(record) { _, error ->
         if (!continuation.isActive) return@saveRecord
         if (error != null) {
+          logWarn {
+            "CloudKit save failed for record [${record.recordID.recordName}] (${error.summary()})"
+          }
           continuation.resume(Err(error))
         } else {
           continuation.resume(Ok(Unit))
@@ -108,6 +116,9 @@ class CloudKitDatabaseImpl(
       database.deleteRecordWithID(recordID) { _, error ->
         if (!continuation.isActive) return@deleteRecordWithID
         if (error != null) {
+          logWarn {
+            "CloudKit delete failed for record [${recordID.recordName}] (${error.summary()})"
+          }
           continuation.resume(Err(error))
         } else {
           continuation.resume(Ok(Unit))
@@ -120,16 +131,36 @@ class CloudKitDatabaseImpl(
     predicate: NSPredicate,
     desiredKeys: List<String>?,
   ): Result<List<CKRecord>, NSError> {
+    logDebug {
+      "CloudKit query started for recordType [$recordType] " +
+        "(desiredKeysCount=${desiredKeys?.size ?: -1})"
+    }
     val records = mutableListOf<CKRecord>()
     var cursor: CKQueryCursor? = null
+    var pageNumber = 0
 
     do {
       val page = queryPage(recordType, predicate, cursor, desiredKeys)
-        .getOrElse { return Err(it) }
+        .getOrElse {
+          logWarn {
+            "CloudKit query failed for recordType [$recordType] on page ${pageNumber + 1} " +
+              "(${it.summary()})"
+          }
+          return Err(it)
+        }
+      pageNumber += 1
       records.addAll(page.records)
       cursor = page.cursor
+      logDebug {
+        "CloudKit query page loaded for recordType [$recordType] " +
+          "(page=$pageNumber records=${page.records.size} hasMore=${cursor != null})"
+      }
     } while (cursor != null)
 
+    logDebug {
+      "CloudKit query completed for recordType [$recordType] " +
+        "(pages=$pageNumber totalRecords=${records.size})"
+    }
     return Ok(records)
   }
 
@@ -146,5 +177,10 @@ class CloudKitDatabaseImpl(
       cursor = cursor,
       desiredKeys = desiredKeys
     ).toResult()
+  }
+
+  private fun NSError.summary(): String {
+    val message = localizedDescription ?: description ?: "unknown CloudKit error"
+    return "domain=$domain code=$code message=$message"
   }
 }

@@ -8,14 +8,17 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.LabelType.Title3
+import build.wallet.ui.tokens.isAllCapsInCurrentDesignSystem
 
 private const val AUTO_SIZE_SCALING_FACTOR = .97
 
@@ -34,8 +37,9 @@ fun Label(
   allowFontScaling: Boolean = true,
   onClick: (() -> Unit)? = null,
 ) {
+  val textToRender = if (type.isAllCapsInCurrentDesignSystem()) text.uppercase() else text
   Label(
-    text = AnnotatedString(text),
+    text = AnnotatedString(textToRender),
     modifier = modifier,
     style = WalletTheme.labelStyle(type, treatment, alignment, color),
     allowFontScaling = allowFontScaling,
@@ -62,8 +66,17 @@ fun Label(
   allowFontScaling: Boolean = true,
   onTextLayout: (TextLayoutResult) -> Unit = {},
 ) {
+  val modelToRender = if (type.isAllCapsInCurrentDesignSystem()) {
+    when (model) {
+      is LabelModel.StringModel -> model.copy(string = model.string.uppercase())
+      is LabelModel.CalloutModel -> model.copy(string = model.string.uppercase())
+      else -> model
+    }
+  } else {
+    model
+  }
   Label(
-    model = model,
+    model = modelToRender,
     modifier = modifier,
     style = style,
     maxLines = maxLines,
@@ -105,8 +118,17 @@ fun Label(
   allowFontScaling: Boolean = true,
   onClick: ((TextClickPosition) -> Unit)? = null,
 ) {
+  val textToRender = if (type.isAllCapsInCurrentDesignSystem()) {
+    if (text.spanStyles.isEmpty() && text.paragraphStyles.isEmpty()) {
+      AnnotatedString(text.text.uppercase())
+    } else {
+      text
+    }
+  } else {
+    text
+  }
   Label(
-    text = text,
+    text = textToRender,
     modifier = modifier,
     style = WalletTheme.labelStyle(type, treatment, alignment, color),
     allowFontScaling = allowFontScaling,
@@ -158,8 +180,9 @@ fun AutoResizedLabel(
   allowFontScaling: Boolean = true,
   onClick: ((TextClickPosition) -> Unit)? = null,
 ) {
+  val textToRender = if (type.isAllCapsInCurrentDesignSystem()) text.uppercase() else text
   AutoResizedLabel(
-    text = AnnotatedString(text),
+    text = AnnotatedString(textToRender),
     modifier = modifier,
     type = type,
     alignment = alignment,
@@ -248,20 +271,24 @@ fun Label(
         lineHeight = style.lineHeight / fontScale
       )
     }
+  val textWithFeatureSpan = remember(text, styleWithFontScaling.fontFeatureSettings) {
+    text.withGlobalFontFeatureIfNeeded(styleWithFontScaling.fontFeatureSettings)
+  }
+  val styleToRender = styleWithFontScaling.copy(fontFeatureSettings = null)
   if (onClick != null) {
     ClickableText(
-      text = text,
+      text = textWithFeatureSpan,
       modifier = modifier,
-      style = styleWithFontScaling,
+      style = styleToRender,
       overflow = overflow,
       onClick = onClick,
       onTextLayout = onTextLayout
     )
   } else {
     BasicText(
-      text = text,
+      text = textWithFeatureSpan,
       modifier = modifier,
-      style = styleWithFontScaling,
+      style = styleToRender,
       softWrap = softWrap,
       overflow = overflow,
       onTextLayout = onTextLayout,
@@ -272,6 +299,23 @@ fun Label(
 
 private fun TextLayoutResult.isWithinFivePercentOfFullWidth(): Boolean {
   return ((layoutInput.constraints.maxWidth - size.width) / layoutInput.constraints.maxWidth.toFloat()) < .05f
+}
+
+private fun AnnotatedString.withGlobalFontFeatureIfNeeded(
+  fontFeatureSettings: String?,
+): AnnotatedString {
+  if (fontFeatureSettings.isNullOrBlank()) return this
+  val hasFontFeatureSpan = spanStyles.any { !it.item.fontFeatureSettings.isNullOrBlank() }
+  if (hasFontFeatureSpan) return this
+
+  return buildAnnotatedString {
+    append(this@withGlobalFontFeatureIfNeeded)
+    addStyle(
+      style = SpanStyle(fontFeatureSettings = fontFeatureSettings),
+      start = 0,
+      end = this@withGlobalFontFeatureIfNeeded.length
+    )
+  }
 }
 
 private typealias TextClickPosition = Int

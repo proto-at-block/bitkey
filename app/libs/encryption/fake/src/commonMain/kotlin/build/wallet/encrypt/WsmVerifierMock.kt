@@ -16,4 +16,14 @@ class WsmVerifierMock : WsmVerifier {
     signature: String,
     keyVariant: WsmIntegrityKeyVariant,
   ): WsmVerifierResult = WsmVerifierResult(true)
+
+  override fun verifyPublicKeys(
+    appAuthPubHex: String,
+    hardwareAuthPubHex: String,
+    appSpendingPubHex: String,
+    hardwareSpendingPubHex: String,
+    serverSpendingPubHex: String,
+    signature: String,
+    keyVariant: WsmIntegrityKeyVariant,
+  ): WsmVerifierResult = WsmVerifierResult(true)
 }

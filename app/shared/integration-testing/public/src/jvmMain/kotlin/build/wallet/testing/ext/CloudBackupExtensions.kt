@@ -20,7 +20,7 @@ import io.kotest.matchers.nulls.shouldNotBeNull
  */
 suspend fun AppTester.deleteBackupsFromFakeCloud(accountId: AccountId) {
   CloudStoreAccountFake.cloudStoreAccountFakes.forEach { fakeCloudAccount ->
-    cloudBackupRepository.clear(accountId, fakeCloudAccount, clearRemoteOnly = true)
+    cloudBackupService.clear(accountId, fakeCloudAccount, clearRemoteOnly = true)
   }
 }
 
@@ -32,7 +32,7 @@ suspend fun AppTester.readCloudBackup(cloudStoreAccount: CloudStoreAccount? = nu
     cloudStoreAccount
       ?: cloudStoreAccountRepository.currentAccount(cloudServiceProvider()).getOrThrow()
       ?: return null
-  return cloudBackupRepository.readActiveBackup(cloudAccount).getOrThrow()
+  return cloudBackupService.readActiveBackup(cloudAccount).getOrThrow()
 }
 
 /**

@@ -8,9 +8,13 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.recovery.sweep.SweepContext
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.Icon.*
+import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.core.form.designSystemV2HeroIconHeader
+import build.wallet.statemachine.core.form.designSystemV2WarningIconHeader
 import build.wallet.statemachine.money.amount.MoneyAmountModel
 import build.wallet.statemachine.send.NetworkFeesInfoSheetModel
 import build.wallet.ui.model.StandardClick
@@ -28,6 +32,7 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
+import build.wallet.ui.tokens.market.MarketIcons
 
 fun generatingPsbtsBodyModel(
   id: EventTrackerScreenId?,
@@ -184,7 +189,8 @@ data class SweepFundsPromptBodyModel(
             iconSize = Accessory,
             iconBackgroundType = Circle(circleSize = Regular)
           ),
-          onClick = StandardClick { onHelpClick() }
+          onClick = StandardClick { onHelpClick() },
+          testTag = "sweep-funds-help"
         )
       ).takeIf { sweepContext !is SweepFundsPromptContext.Recovery }
     ),
@@ -210,6 +216,19 @@ data class SweepFundsPromptBodyModel(
           is SweepFundsPromptContext.InactiveWallet -> "These funds were deposited in an inactive wallet. Transfer funds to your active wallet and discontinue use of your old address."
         }
       ),
+    designSystemV2Model = FormDesignSystemV2Model(
+      header = designSystemV2HeroIconHeader(
+        headline = when (sweepContext) {
+          is SweepFundsPromptContext.Recovery -> "Finalize recovery"
+          is SweepFundsPromptContext.InactiveWallet -> "Transfer funds to active wallet"
+        },
+        subline = when (sweepContext) {
+          is SweepFundsPromptContext.Recovery -> null
+          is SweepFundsPromptContext.InactiveWallet -> "These funds were deposited in an inactive wallet. Transfer funds to your active wallet and discontinue use of your old address."
+        },
+        icon = null
+      )
+    ),
     mainContentList = immutableListOf(
       FormMainContentModel.DataList(
         items = immutableListOf(
@@ -265,17 +284,20 @@ fun zeroBalancePrompt(
   id: EventTrackerScreenId?,
   onDone: () -> Unit,
   presentationStyle: ScreenPresentationStyle,
+  eyebrow: String? = null,
 ) = ScreenModel(
   presentationStyle = presentationStyle,
   body = ZeroBalancePromptBodyModel(
     id = id,
-    onDone = onDone
+    onDone = onDone,
+    eyebrow = eyebrow
   )
 )
 
 data class ZeroBalancePromptBodyModel(
   override val id: EventTrackerScreenId?,
   val onDone: () -> Unit,
+  val eyebrow: String? = null,
 ) : FormBodyModel(
     id = id,
     onBack = onDone,
@@ -285,6 +307,19 @@ data class ZeroBalancePromptBodyModel(
         headline = "No funds found",
         subline = "We didn’t find any funds to move, or the amount of funds are lower than the network fees required to move them"
       ),
+    designSystemV2Model = eyebrow?.let {
+      FormDesignSystemV2Model(
+        eyebrow = it,
+        title = "No funds found",
+        header = FormHeaderModel(
+          headline = null,
+          sublineModel = StringModel(
+            "We didn’t find any funds to move, or the amount of funds are lower than the network fees required to move them"
+          )
+        ),
+        scrollable = false
+      )
+    },
     primaryButton =
       ButtonModel(
         text = "OK",
@@ -304,7 +339,7 @@ fun broadcastingScreenModel(
   body =
     LoadingBodyModel(
       title = when (context) {
-        is SweepContext.PrivateWalletMigration -> "Updating wallet..."
+        is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> "Updating wallet..."
         else -> "Recovering funds..."
       },
       id = id,
@@ -353,6 +388,20 @@ data class SweepSuccessScreenBodyModel(
             Hardware -> "Your recovery is now complete and your new Bitkey device is ready to use. Take precautions to avoid sending money to your old wallet."
           }
       ),
+    designSystemV2Model = FormDesignSystemV2Model(
+      header = designSystemV2HeroIconHeader(
+        headline = when (recoveredFactor) {
+          App -> "Your App Key recovery is complete!"
+          Hardware -> "Success!"
+          null -> "Your transfer is complete!"
+        },
+        subline = when (recoveredFactor) {
+          App, null -> "You can now safely use this phone to manage your Bitkey. Take precautions to avoid sending money to your old wallet."
+          Hardware -> "Your recovery is now complete and your new Bitkey device is ready to use. Take precautions to avoid sending money to your old wallet."
+        },
+        icon = MarketIcons.Checkmark
+      )
+    ),
     mainContentList = immutableListOf(
       FormMainContentModel.Explainer(
         items = walletUpdateExplainers
@@ -407,6 +456,13 @@ private data class MultipleTransactionsWarningBodyModel(
       headline = "Multiple transactions to sign",
       subline = "This transfer requires $transactionCount separate transactions. " +
         "You'll need to approve each one on your Bitkey device."
+    ),
+    designSystemV2Model = FormDesignSystemV2Model(
+      header = designSystemV2WarningIconHeader(
+        headline = "Multiple transactions to sign",
+        subline = "This transfer requires $transactionCount separate transactions. " +
+          "You'll need to approve each one on your Bitkey device."
+      )
     ),
     primaryButton = ButtonModel(
       text = "Continue",

@@ -1,5 +1,8 @@
 #pragma once
 
+#include "display.pb.h"
+#include "wallet.pb.h"
+
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -29,6 +32,8 @@ typedef struct {
   char amount_sats[32];
   char fee_sats[32];
   char address[128];
+  uint32_t btc_display_unit;      // 0 = satoshi (default), 1 = bitcoin
+  fwpb_money_movement_flow flow;  // SEND or SELF_SEND
 } send_transaction_data_t;
 
 // Payload for UI_EVENT_START_RECEIVE_TRANSACTION
@@ -79,6 +84,28 @@ typedef struct {
 } fingerprint_auth_data_t;
 
 /**
+ * @brief Firmware update confirmation message.
+ */
+typedef struct {
+  /**
+   * @brief The received FWUP start proto from the host.
+   */
+  fwpb_fwup_start_cmd cmd;
+
+  /**
+   * @brief String formatted version string (major.minor.revision).
+   */
+  char version_str[32];
+
+  /**
+   * @brief Skip the confirmation page and go straight to in-progress.
+   * Set when confirmation is not needed (e.g., device not onboarded,
+   * or version already confirmed on another core).
+   */
+  bool skip_confirmation;
+} fwup_confirmation_data_t;
+
+/**
  * @brief UI touch event.
  */
 typedef struct {
@@ -92,6 +119,23 @@ typedef struct {
    */
   uint16_t y;
 } ui_event_touch_t;
+
+// Union of all UI event payloads -- sizeof this is the max payload size.
+// If adding a new payload type, include it here.
+typedef union {
+  button_event_payload_t button;
+  send_transaction_data_t send_txn;
+  receive_transaction_data_t receive_txn;
+  device_info_t device_info;
+  mfgtest_show_screen_payload_t mfgtest_screen;
+  mfgtest_button_bypass_payload_t mfgtest_bypass;
+  mfgtest_touch_test_status_payload_t mfgtest_touch_status;
+  battery_soc_data_t battery_soc;
+  enrollment_progress_data_t enrollment;
+  fingerprint_auth_data_t fingerprint_auth;
+  ui_event_touch_t touch;
+} ui_event_payload_t;
+#define UI_EVENT_MAX_DATA_SIZE sizeof(ui_event_payload_t)
 
 // Unified UI event types that both LED (W1) and Display (W3) can interpret
 // This provides a platform-agnostic way to communicate UI state
@@ -129,6 +173,7 @@ typedef enum {
   UI_EVENT_FWUP_CONFIRMATION,
   UI_EVENT_FWUP_START,
   UI_EVENT_FWUP_PROGRESS,
+  UI_EVENT_FWUP_VERIFYING,
   UI_EVENT_FWUP_COMPLETE,
   UI_EVENT_FWUP_FAILED,
 
@@ -164,6 +209,13 @@ typedef enum {
   UI_EVENT_START_RECEIVE_TRANSACTION,
   UI_EVENT_SHOW_MENU,
   UI_EVENT_START_PRIVILEGED_ACTION,
+  UI_EVENT_SHOW_CONFIRMATION,
+
+  // Onboarding complete
+  UI_EVENT_SHOW_ONBOARDING_COMPLETE,
+
+  // NFC events
+  UI_EVENT_NFC_ERROR,  // NFC communication error (show "try again" on scan screen)
 
   UI_EVENT_MAX
 } ui_event_type_t;

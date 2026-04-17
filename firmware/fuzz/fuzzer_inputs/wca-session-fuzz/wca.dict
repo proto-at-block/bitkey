@@ -1,0 +1,26 @@
+# WCA APDU dictionary for wca-session-fuzz and wca-proto-handlers-fuzz.
+# Byte tokens guide libfuzzer toward valid APDU structures.
+
+# WCA class byte
+kw0="\x87"
+
+# WCA instruction bytes
+kw1="\x74"  # WCA_INS_VERSION
+kw2="\x75"  # WCA_INS_PROTO
+kw3="\x77"  # WCA_INS_PROTO_CONT
+kw4="\x78"  # WCA_INS_GET_RESPONSE
+
+# ISO 7816 status words
+kw5="\x90\x00"  # SW_NO_ERROR
+kw6="\x6a\x82"  # SW_FILE_NOT_FOUND
+kw7="\x61\x00"  # SW_RESPONSE_AVAILABLE
+
+# APDU length edge cases
+kw8="\x00"      # Lc = 0 (BCW-09: zero-length PROTO_CONT replays stale state)
+kw9="\x04"      # Minimum APDU length (BCW-01: cmd[4] OOB read)
+
+# Protobuf wire type prefixes (field 1, length-delimited)
+kw10="\x0a"
+kw11="\x12"
+kw12="\x1a"
+kw13="\x22"

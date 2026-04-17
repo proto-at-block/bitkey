@@ -43,7 +43,7 @@ impl Service {
         }
     }
 
-    #[instrument(err, skip(self))]
+    #[instrument(err, skip(self, record))]
     pub async fn save_daily_spending_record(
         &self,
         record: DailySpendingRecord,
@@ -52,7 +52,7 @@ impl Service {
     }
 
     /// Remove a spending entry by txid, with retry on version conflicts.
-    #[instrument(err, skip(self))]
+    #[instrument(err, skip(self, txid))]
     pub async fn remove_spending_entry(
         &self,
         account_id: &AccountId,

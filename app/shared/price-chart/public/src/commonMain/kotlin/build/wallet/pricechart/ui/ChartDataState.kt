@@ -86,24 +86,46 @@ internal data class ChartDataState(
   }
 
   /**
+   * Returns the rendered chart position for the given [DataPoint], or null if it is not present.
+   */
+  fun pointOffset(
+    point: DataPoint,
+    canvasWidth: Float,
+    canvasHeight: Float,
+  ): Offset? {
+    val index = data.indexOf(point).takeIf { it >= 0 } ?: return null
+    val baseOffset = pathSize
+    val scaleX = canvasWidth / data.size
+    val normalizedY = canvasHeight - ((point.y - yFloor) / range * canvasHeight).toFloat()
+    return Offset(
+      x = baseOffset + (index * scaleX),
+      y = normalizedY
+    )
+  }
+
+  /**
    * Create a [Path] presenting the [data] within the bounds of
    * the [canvasWidth] and [canvasHeight].
    *
    * @param canvasWidth The width to evenly distribute data points across.
    * @param canvasHeight The height to distribute data points in.
    * @param stopAtDataPoint The data point at which the [Path] should terminate.
+   * @param useMidpointInterpolation Whether to interpolate line segments using midpoint smoothing.
    */
   fun createLinePath(
     path: Path,
     canvasWidth: Float,
     canvasHeight: Float,
     stopAtDataPoint: DataPoint? = null,
+    useMidpointInterpolation: Boolean = false,
   ): Path {
     path.rewind()
     // Use the pathSize as the base offset to ensure drawing
     // a Stroke with the path does not draw outside the parent
     val baseOffset = pathSize
-    val stopAtIndex = stopAtDataPoint?.let { data.indexOf(it) }
+    val stopAtIndex = stopAtDataPoint
+      ?.let { data.indexOf(it) }
+      ?.takeIf { it >= 0 }
     val normalizedData = data.map { point ->
       canvasHeight - ((point.y - yFloor) / range * canvasHeight).toFloat()
     }
@@ -116,6 +138,43 @@ internal data class ChartDataState(
 
     path.moveTo(baseOffset, normalizedData[0])
     val scaleX = canvasWidth / data.size
+    if (useMidpointInterpolation) {
+      val stopAtIndexInclusive = stopAtIndex ?: normalizedData.lastIndex
+      if (stopAtIndexInclusive == 0) {
+        path.lineTo(baseOffset + 1, normalizedData[0])
+        return path
+      }
+
+      val points = normalizedData.mapIndexed { index, y ->
+        Offset(
+          x = baseOffset + (index * scaleX),
+          y = y
+        )
+      }
+      for (targetIndex in 1 until stopAtIndexInclusive) {
+        val startPoint = points[targetIndex - 1]
+        val targetPoint = points[targetIndex]
+        val midPointX = (startPoint.x + targetPoint.x) / 2f
+        val midPointY = (startPoint.y + targetPoint.y) / 2f
+        path.quadraticTo(
+          x1 = startPoint.x,
+          y1 = startPoint.y,
+          x2 = midPointX,
+          y2 = midPointY
+        )
+      }
+
+      val penultimatePoint = points[stopAtIndexInclusive - 1]
+      val finalPoint = points[stopAtIndexInclusive]
+      path.quadraticTo(
+        x1 = penultimatePoint.x,
+        y1 = penultimatePoint.y,
+        x2 = finalPoint.x,
+        y2 = finalPoint.y
+      )
+      return path
+    }
+
     // Start at `i = 1` and make lines from `i - 1` to `i`.
     // use `..` to include the last point in the loop.
     for (targetIndex in 1..normalizedData.lastIndex) {

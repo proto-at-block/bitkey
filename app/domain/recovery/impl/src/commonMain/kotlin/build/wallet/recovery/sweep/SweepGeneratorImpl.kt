@@ -16,6 +16,7 @@ import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.chaincode.delegation.ChaincodeDelegationTweakService
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.f8e.recovery.LegacyRemoteKeyset
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.f8e.recovery.toSpendingKeysets
 import build.wallet.feature.flags.Bdk2FeatureFlag
@@ -50,6 +51,7 @@ class SweepGeneratorImpl(
 ) : SweepGenerator {
   override suspend fun generateSweep(
     keybox: Keybox,
+    sweepContext: SweepContext,
     context: SweepGenerationContext,
   ): Result<List<SweepPsbt>, SweepGeneratorError> =
     coroutineBinding {
@@ -70,6 +72,7 @@ class SweepGeneratorImpl(
           .logFailure { "Error fetching keysets for an account when generating sweep." }
           .bind()
           .keysets
+          .filterIsInstance<LegacyRemoteKeyset>()
           .toSpendingKeysets(uuidGenerator)
       }
 
@@ -82,7 +85,7 @@ class SweepGeneratorImpl(
       val signableKeysets = keysets
         .filter { it.f8eSpendingKeyset.keysetId != keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId }
         .mapNotNull { keyset ->
-          val isHwSignable = isHardwareSignable(hardwareMasterKeyFingerprint, keyset)
+          val isHwSignable = isHardwareSignable(hardwareMasterKeyFingerprint, keyset, sweepContext)
           val isAppSignable = isAppSignable(keyset).getOrElse { false }
 
           // Determine signature plan based keyset capabilities
@@ -134,10 +137,17 @@ class SweepGeneratorImpl(
   }
 
   private fun isHardwareSignable(
-    hardwareMasterKeyFingerPrint: String,
+    hardwareMasterKeyFingerprint: String,
     keyset: SpendingKeyset,
+    sweepContext: SweepContext,
   ): Boolean {
-    return hardwareMasterKeyFingerPrint == keyset.hardwareKey.key.origin.fingerprint
+    val keysetFingerprint = keyset.hardwareKey.key.origin.fingerprint
+    // During W3 upgrade, only the replaced device's fingerprint determines HW signability —
+    // the new W3 hardware is not relevant for signing old keysets.
+    return when (sweepContext) {
+      is SweepContext.W3Upgrade -> keysetFingerprint == sweepContext.replacedHardwareFingerprint
+      else -> hardwareMasterKeyFingerprint == keysetFingerprint
+    }
   }
 
   private suspend fun buildPsbt(
@@ -154,7 +164,7 @@ class SweepGeneratorImpl(
           .mapError(::ErrorCreatingWallet)
           .bind()
 
-      if (destinationKeyset.isPrivateWallet) {
+      if (destinationKeyset.isPrivateWallet && context is SweepGenerationContext.Real) {
         descriptorBackupService.checkBackupForPrivateKeyset(destinationKeyset.f8eSpendingKeyset.keysetId)
           .mapError(::FailedToGenerateDestinationAddress)
           .bind()

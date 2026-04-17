@@ -45,7 +45,7 @@ http_server = { workspace = true }
 instrumentation = { workspace = true }
 migration = { workspace = true }
 queue = { workspace = true }
-repository = { workspace = true, features = ["consent"] }
+repository = { workspace = true, features = ["anti_replay", "consent"] }
 types = { workspace = true, features = [
   "account",
   "notification",

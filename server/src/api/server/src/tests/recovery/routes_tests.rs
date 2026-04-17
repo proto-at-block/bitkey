@@ -46,14 +46,14 @@ const VALID_CREATE_RESPONSE_PATTERN: &str = r#"\{"invitation":\{"recovery_relati
     CognitoAuthentication::Wallet{ is_app_signed: false, is_hardware_signed: true },
     vec![SocialRecoveryContact],
     StatusCode::FORBIDDEN,
-    "valid signature over access token required by both app and hw auth keys"
+    "app signature required"
 )]
 #[case::no_hw_sig(
     AccountType::Full,
     CognitoAuthentication::Wallet{ is_app_signed: true, is_hardware_signed: false },
     vec![SocialRecoveryContact],
     StatusCode::FORBIDDEN,
-    "valid signature over access token required by both app and hw auth keys"
+    "hardware signature required"
 )]
 #[case::lite_account(
     AccountType::Full,

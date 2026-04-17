@@ -25,17 +25,22 @@ import build.wallet.platform.links.DeepLinkHandlerMock
 import build.wallet.platform.sharing.SharingManagerMock
 import build.wallet.platform.sharing.SharingManagerMock.SharedText
 import build.wallet.statemachine.BodyModelMock
-import build.wallet.statemachine.core.BodyModel
+import build.wallet.statemachine.ScreenStateMachineMock
+import build.wallet.statemachine.nfc.DescriptorRepairUiProps
+import build.wallet.statemachine.nfc.DescriptorRepairUiStateMachine
+import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineFake
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.partnerships.PartnerEventTrackerScreenIdContext
 import build.wallet.statemachine.qr.QrCodeServiceFake
 import build.wallet.statemachine.qr.QrCodeState
 import build.wallet.statemachine.root.AddressQrCodeLoadingDuration
 import build.wallet.statemachine.root.RestoreCopyAddressStateDelay
 import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.ThemePreference
@@ -44,6 +49,7 @@ import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldNotBeEmpty
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
@@ -80,6 +86,10 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
     nfcCommands = nfcCommands
   )
 
+  val descriptorRepairUiStateMachine = object :
+    DescriptorRepairUiStateMachine,
+    ScreenStateMachineMock<DescriptorRepairUiProps>("descriptor-repair") {}
+
   val stateMachine = AddressQrCodeUiStateMachineImpl(
     clipboard = clipboard,
     restoreCopyAddressStateDelay = RestoreCopyAddressStateDelay(10.milliseconds),
@@ -94,22 +104,24 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
     haptics = haptics,
     eventTracker = eventTracker,
     addressQrCodeLoadingDuration = AddressQrCodeLoadingDuration(0.milliseconds),
-    nfcSessionUIStateMachine = nfcSessionUIStateMachine
+    nfcSessionUIStateMachine = nfcSessionUIStateMachine,
+    descriptorRepairUiStateMachine = descriptorRepairUiStateMachine
   )
 
   val onBackCalls = turbines.create<Unit>("back calls")
   val onWebLinkOpenedCalls = turbines.create<Triple<String, PartnerInfo, PartnershipTransaction>>("web link opened calls")
 
-  fun props(account: build.wallet.bitkey.account.FullAccount = FullAccountMock) =
-    AddressQrCodeUiProps(
-      account = account,
-      onBack = {
-        onBackCalls += Unit
-      },
-      onWebLinkOpened = { url, partnerInfo, transaction ->
-        onWebLinkOpenedCalls += Triple(url, partnerInfo, transaction)
-      }
-    )
+  fun props(
+    account: build.wallet.bitkey.account.FullAccount = FullAccountMock,
+  ) = AddressQrCodeUiProps(
+    account = account,
+    onBack = {
+      onBackCalls += Unit
+    },
+    onWebLinkOpened = { url, partnerInfo, transaction ->
+      onWebLinkOpenedCalls += Triple(url, partnerInfo, transaction)
+    }
+  )
 
   beforeTest {
     bitcoinAddressService.reset()
@@ -677,53 +689,43 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("W1 account does not show verify on device button") {
+  test("W1 account goes directly to QR code without verification prompt") {
     stateMachine.test(props(account = FullAccountMock)) {
       awaitPartnersLoaded(getTransferPartnerListF8eClient, eventTracker)
 
-      // Partners loaded
+      // Partners loaded - should show QR directly (no verification prompt)
+      awaitBody<AddressQrCodeBodyModel>()
+    }
+  }
+
+  test("W3 account shows QR code with verify button") {
+    stateMachine.test(props(account = FullAccountW3Mock)) {
+      awaitPartnersLoaded(getTransferPartnerListF8eClient, eventTracker)
+
+      // Should show QR code directly with verify button
       awaitBody<AddressQrCodeBodyModel> {
         with(content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()) {
-          showVerifyOnDeviceButton.shouldBe(false)
-          onVerifyOnDeviceClick.shouldBe(null)
+          addressDisplayString.string.shouldBe("bc1z w508 d6qe jxtd g4y5 r3za rvar yvax xpcs")
+          onVerifyClick.shouldNotBeNull()
         }
       }
     }
   }
 
-  test("W3 account shows verify on device button") {
+  test("W3 verify button triggers NFC and then shows QR code") {
     stateMachine.test(props(account = FullAccountW3Mock)) {
       awaitPartnersLoaded(getTransferPartnerListF8eClient, eventTracker)
 
-      // Partners loaded
+      // QR code shown with verify button, click verify
       awaitBody<AddressQrCodeBodyModel> {
-        with(content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()) {
-          showVerifyOnDeviceButton.shouldBe(true)
-          onVerifyOnDeviceClick.shouldNotBeNull()
-        }
-      }
-    }
-  }
-
-  test("W3 verify on device button triggers NFC session") {
-    stateMachine.test(props(account = FullAccountW3Mock)) {
-      awaitPartnersLoaded(getTransferPartnerListF8eClient, eventTracker)
-
-      // Partners loaded, click verify on device button
-      awaitBody<AddressQrCodeBodyModel> {
-        with(content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()) {
-          showVerifyOnDeviceButton.shouldBe(true)
-          onVerifyOnDeviceClick.shouldNotBeNull()
-          onVerifyOnDeviceClick!!.invoke()
-        }
+        content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()
+          .onVerifyClick.shouldNotBeNull().invoke()
       }
 
       // NFC session is shown (fake returns BodyModelMock)
-      awaitBody<BodyModelMock<*>> {
-        id.shouldBe("nfc-session")
-      }
+      awaitBodyMock<NfcSessionUIStateMachineProps<*>>(id = "nfc-session") {}
 
-      // After NFC session completes (onSuccess called), return to address loaded state
+      // After NFC completes, should show QR code
       awaitBody<AddressQrCodeBodyModel> {
         with(content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()) {
           addressDisplayString.string.shouldBe("bc1z w508 d6qe jxtd g4y5 r3za rvar yvax xpcs")
@@ -757,7 +759,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
  * Helper to await partner loading sequence without assertions on the events.
  * Use this when you don't need to verify the specific analytics event contents.
  */
-private suspend fun StateMachineTester<AddressQrCodeUiProps, BodyModel>.awaitPartnersLoaded(
+private suspend fun StateMachineTester<AddressQrCodeUiProps, ScreenModel>.awaitPartnersLoaded(
   getTransferPartnerListF8eClient: GetTransferPartnerListF8eClientMock,
   eventTracker: EventTrackerMock,
 ) {

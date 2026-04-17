@@ -16,6 +16,17 @@ class EndorseTrustedContactsServiceMock(
 ) : EndorseTrustedContactsService {
   val backgroundAuthenticateAndEndorseCalls = turbine("background authenticate and endorse calls")
 
+  var lastRegenerateAndEndorseArgs: RegenerateAndEndorseArgs? = null
+
+  data class RegenerateAndEndorseArgs(
+    val accountId: FullAccountId,
+    val oldAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>?,
+    val oldHwAuthKey: HwAuthPublicKey,
+    val newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
+    val newAppGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+    val newHwAuthKey: HwAuthPublicKey,
+  )
+
   override suspend fun authenticateRegenerateAndEndorse(
     accountId: FullAccountId,
     contacts: List<EndorsedTrustedContact>,
@@ -23,7 +34,20 @@ class EndorseTrustedContactsServiceMock(
     oldHwAuthKey: HwAuthPublicKey,
     newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     newAppGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+    newHwAuthKey: HwAuthPublicKey,
   ): Result<Unit, Error> {
+    lastRegenerateAndEndorseArgs = RegenerateAndEndorseArgs(
+      accountId = accountId,
+      oldAppGlobalAuthKey = oldAppGlobalAuthKey,
+      oldHwAuthKey = oldHwAuthKey,
+      newAppGlobalAuthKey = newAppGlobalAuthKey,
+      newAppGlobalAuthKeyHwSignature = newAppGlobalAuthKeyHwSignature,
+      newHwAuthKey = newHwAuthKey
+    )
     return Ok(Unit)
+  }
+
+  fun reset() {
+    lastRegenerateAndEndorseArgs = null
   }
 }

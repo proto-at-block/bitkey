@@ -4,6 +4,8 @@ import androidx.compose.runtime.*
 import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.recovery.socrec.SocRecService
 import build.wallet.statemachine.core.InAppBrowserModel
@@ -14,6 +16,7 @@ import build.wallet.statemachine.recovery.socrec.help.HelpingWithRecoveryUiState
 import build.wallet.statemachine.recovery.socrec.view.ViewingProtectedCustomerProps
 import build.wallet.statemachine.recovery.socrec.view.ViewingProtectedCustomerUiStateMachine
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.flow.map
 
 @BitkeyInject(ActivityScope::class)
 class LiteMoneyHomeUiStateMachineImpl(
@@ -21,10 +24,15 @@ class LiteMoneyHomeUiStateMachineImpl(
   private val viewingProtectedCustomerUiStateMachine: ViewingProtectedCustomerUiStateMachine,
   private val helpingWithRecoveryUiStateMachine: HelpingWithRecoveryUiStateMachine,
   private val socRecService: SocRecService,
+  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : LiteMoneyHomeUiStateMachine {
   @Composable
   override fun model(props: LiteMoneyHomeUiProps): ScreenModel {
     var state: State by remember { mutableStateOf(State.ViewingMoneyHome) }
+
+    val isDesignSystemV2Enabled by remember {
+      designSystemUpdatesFeatureFlag.flagValue().map { it.isEnabled() }
+    }.collectAsState(initial = designSystemUpdatesFeatureFlag.isEnabled())
 
     val protectedCustomers =
       socRecService.socRecRelationships.collectAsState().value?.protectedCustomers.orEmpty()
@@ -37,7 +45,6 @@ class LiteMoneyHomeUiStateMachineImpl(
             onSetUpBitkeyDevice = { props.onUpgradeAccount() }
           ),
           protectedCustomers = protectedCustomers.toImmutableList(),
-          badgedSettingsIcon = false,
           onProtectedCustomerClick = {
             state = State.ViewingProtectedCustomerDetail(it)
           },
@@ -45,7 +52,8 @@ class LiteMoneyHomeUiStateMachineImpl(
             state = State.ViewingBuyOwnBitkeyUrl
           },
           onAcceptInviteClick = props.onAcceptInvite,
-          onIHaveABitkeyClick = props.onBecomeBeneficiary
+          onIHaveABitkeyClick = props.onBecomeBeneficiary,
+          isDesignSystemV2Enabled = isDesignSystemV2Enabled
         ),
         statusBannerModel = props.homeStatusBannerModel
       )

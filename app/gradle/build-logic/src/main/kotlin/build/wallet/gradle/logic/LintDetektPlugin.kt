@@ -13,7 +13,6 @@ import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.withType
 import org.gradle.language.base.plugins.LifecycleBasePlugin.VERIFICATION_GROUP
-import org.jetbrains.kotlin.gradle.dsl.kotlinExtension
 
 /**
  * Plugin for applying and configuring Detekt Gradle plugin.
@@ -46,18 +45,9 @@ internal class LintDetektPlugin : Plugin<Project> {
       }
 
       // Configure plugins with additional rules
-      if (project.pluginManager.hasPlugin("org.jetbrains.kotlin.multiplatform")) {
-        kotlinExtension.sourceSets.apply {
-          dependencies {
-            detektPlugin(libs.pluginClasspath.detekt.compose)
-            detektPlugin("build.wallet:detekt-rules")
-          }
-        }
-      } else {
-        dependencies {
-          detektPlugin(libs.pluginClasspath.detekt.compose)
-          detektPlugin("build.wallet:detekt-rules")
-        }
+      dependencies {
+        detektPlugin(libs.pluginClasspath.detekt.compose)
+        detektPlugin(project(":gradle:detekt-rules"))
       }
 
       // Configure Detekt Gradle task

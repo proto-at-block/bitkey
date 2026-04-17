@@ -2,6 +2,7 @@ package build.wallet.nfc.di
 
 import bitkey.datadog.DatadogRumMonitor
 import bitkey.datadog.DatadogTracer
+import bitkey.recovery.RecoveryStatusService
 import build.wallet.analytics.events.EventTracker
 import build.wallet.di.ActivityScope
 import build.wallet.di.SingleIn
@@ -33,12 +34,14 @@ interface NfcComponent {
     datadogRumMonitor: DatadogRumMonitor,
     datadogTracer: DatadogTracer,
     eventTracker: EventTracker,
+    recoveryStatusService: RecoveryStatusService,
   ): NfcTransactor {
     return NfcTransactorImpl(
       commandsProvider = nfcCommandsProvider,
       sessionProvider = nfcSessionProvider,
       interceptors = listOf(
-        validateHardwareIsPaired(),
+        rejectDuringHardwareDelayNotify(recoveryStatusService),
+        validateHardwareIsPaired(firmwareDeviceInfoDao),
         retryCommands(),
         iosMessages(),
         collectFirmwareTelemetry(
@@ -47,6 +50,7 @@ interface NfcComponent {
           firmwareCommsLogBuffer = firmwareCommsLogBuffer,
           firmwareCommsLoggingFeatureFlag = firmwareCommsLoggingFeatureFlag
         ),
+        showConfirmation(),
         lockDevice(),
         haptics(nfcHaptics),
         timeoutSession(),

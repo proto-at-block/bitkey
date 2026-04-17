@@ -5,7 +5,6 @@ import bitkey.f8e.error.code.VerifyTouchpointClientErrorCode
 import bitkey.notifications.NotificationTouchpoint
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.f8e.auth.HwFactorProofOfPossession
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
 
@@ -31,7 +30,6 @@ interface NotificationTouchpointService {
   suspend fun sendVerificationCodeToTouchpoint(
     fullAccountId: FullAccountId,
     touchpoint: NotificationTouchpoint,
-    hwProofOfPossession: HwFactorProofOfPossession?,
   ): Result<Unit, Error>
 
   /**
@@ -44,6 +42,5 @@ interface NotificationTouchpointService {
   suspend fun verifyCode(
     fullAccountId: FullAccountId,
     verificationCode: String,
-    hwProofOfPossession: HwFactorProofOfPossession?,
   ): Result<Unit, F8eError<VerifyTouchpointClientErrorCode>>
 }

@@ -8,6 +8,7 @@ import build.wallet.ui.model.list.ListGroupModel
  * - account ID, if any
  * - app installation ID
  * - app version
+ * - build date
  * - OS version
  * - cloud backup version (v2, v3, or None)
  */

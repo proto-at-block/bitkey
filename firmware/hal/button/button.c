@@ -39,9 +39,9 @@ typedef struct {
   uint8_t count;
 } event_buffer_t;
 
-static button_state_t button_state[HAL_BUTTON_COUNT] SHARED_TASK_DATA = {0};
-static both_state_t both_state SHARED_TASK_DATA = {0};
-static event_buffer_t event_buffer SHARED_TASK_DATA = {0};
+static button_state_t button_state[HAL_BUTTON_COUNT] SHARED_TASK_BSS = {0};
+static both_state_t both_state SHARED_TASK_BSS = {0};
+static event_buffer_t event_buffer SHARED_TASK_BSS = {0};
 
 static void queue_event(hal_button_id_t button, button_event_type_t type, uint32_t timestamp_ms,
                         uint32_t duration_ms) {

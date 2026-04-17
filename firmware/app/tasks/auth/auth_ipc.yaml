@@ -24,6 +24,8 @@ messages:
       auth: after_onboarding
     - name: fwpb_cancel_fingerprint_enrollment_cmd
       auth: never
+    - name: fwpb_unlock_device_cmd
+      auth: dev
   structs:
     - name: auth_set_timestamp_t
       fields:
@@ -41,6 +43,8 @@ messages:
         - uint8_t count              # Number of enrolled fingerprints
         - uint8_t indices[3]         # Indices of enrolled fingerprints
         - char labels[3][32]         # Labels for enrolled fingerprints
+    - name: auth_cancel_fingerprint_enrollment_internal_t
+      # No fields needed - just a request to cancel in-progress enrollment
     - name: auth_delete_fingerprint_internal_t
       fields:
         - uint8_t index             # Fingerprint slot to delete (0-2)

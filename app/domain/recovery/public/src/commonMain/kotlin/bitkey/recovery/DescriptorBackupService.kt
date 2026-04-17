@@ -14,7 +14,7 @@ import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.crypto.PublicKey
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import com.github.michaelbull.result.Result
 
 /**
@@ -109,7 +109,9 @@ interface DescriptorBackupService {
    * @param sealedSsekForDecryption The sealed SSEK for decrypting existing descriptors (null if no existing descriptors)
    * @param sealedSsekForEncryption The sealed SSEK for encrypting new descriptors
    * @param appAuthKey The app's authentication key for F8e
-   * @param hwKeyProof Hardware proof of possession for the upload operation
+   * @param hwKeyProof Hardware proof of possession for the upload operation.
+   *   Null when HW proof is not required (e.g., W3 upgrade where the new hardware
+   *   doesn't support PoP and the server handles it like onboarding).
    * @param descriptorsToDecrypt List of existing encrypted descriptor backups to decrypt
    * @param keysetsToEncrypt List of spending keysets to encrypt as descriptors
    *
@@ -124,7 +126,7 @@ interface DescriptorBackupService {
     sealedSsekForDecryption: SealedSsek?,
     sealedSsekForEncryption: SealedSsek,
     appAuthKey: PublicKey<AppGlobalAuthKey>,
-    hwKeyProof: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof?,
     descriptorsToDecrypt: List<DescriptorBackup>,
     keysetsToEncrypt: List<SpendingKeyset>,
   ): Result<List<SpendingKeyset>, DescriptorBackupError>
@@ -168,6 +170,37 @@ interface DescriptorBackupService {
     sealedSsek: SealedSsek,
     encryptedDescriptorBackups: List<DescriptorBackup>,
   ): Result<List<SpendingKeyset>, DescriptorBackupError>
+
+  /**
+   * Result of checking whether SSEK unsealing is needed for recovery.
+   */
+  sealed interface SsekUnsealCheckResult {
+    /** No SSEK unsealing needed (hardware recovery, no existing backups, or SSEK already available). */
+    data object NotNeeded : SsekUnsealCheckResult
+
+    /** The old SSEK needs to be unsealed via hardware NFC tap. */
+    data class NeedsUnsealing(val sealedSsek: SealedSsek) : SsekUnsealCheckResult
+  }
+
+  /**
+   * Checks whether SSEK unsealing is needed during recovery.
+   *
+   * For Hardware recovery: always [SsekUnsealCheckResult.NotNeeded].
+   * For App recovery: checks if existing encrypted descriptors and a wrapped SSEK exist on F8e,
+   * and whether the SSEK is already available locally.
+   */
+  suspend fun checkSsekUnsealingNeeded(
+    accountId: FullAccountId,
+    factorToRecover: PhysicalFactor,
+  ): Result<SsekUnsealCheckResult, Error>
+
+  /**
+   * Returns the next BIP84 account index to use for spending key derivation during recovery.
+   *
+   * This is derived from the highest existing server spending key account index on F8e, rather
+   * than the raw number of descriptor backups, so gaps in backup history do not cause reuse.
+   */
+  suspend fun getNextAccountIndex(accountId: FullAccountId): Result<UInt, Error>
 
   /**
    * Parses a descriptor string to extract the three public keys and create a SpendingKeyset.

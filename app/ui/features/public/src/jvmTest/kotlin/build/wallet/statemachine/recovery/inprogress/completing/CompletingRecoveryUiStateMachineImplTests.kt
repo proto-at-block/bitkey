@@ -1,23 +1,24 @@
 package build.wallet.statemachine.recovery.inprogress.completing
 
 import app.cash.turbine.plusAssign
+import bitkey.account.HardwareType
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.bitkey.challange.DelayNotifyChallenge
 import build.wallet.bitkey.challange.SignedChallenge.HardwareSignedChallenge
-import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.keybox.KeyboxMock
+import build.wallet.chaincode.delegation.ChaincodeExtractorFake
 import build.wallet.cloud.backup.csek.*
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.crypto.PublicKey
-import build.wallet.crypto.SymmetricKeyImpl
+import build.wallet.encrypt.WsmVerifierMock
+import build.wallet.f8e.F8eEnvironment.Development
+import build.wallet.f8e.recovery.SignedKeysetVerificationResponse
 import build.wallet.nfc.transaction.*
+import build.wallet.nfc.transaction.RecoveryNfcSession
 import build.wallet.recovery.LocalRecoveryAttemptProgress
 import build.wallet.recovery.RecoveryStatusServiceMock
 import build.wallet.recovery.socrec.PostSocRecTaskRepositoryMock
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
-import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiStateMachine
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
@@ -29,6 +30,8 @@ import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.*
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.ProcessingDescriptorBackupsData.*
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.*
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.inprogress.DelayAndNotifyNewKeyReady
@@ -55,11 +58,6 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
   val postSocRecTaskRepository = PostSocRecTaskRepositoryMock()
   val recoveryStatusService = RecoveryStatusServiceMock(turbine = turbines::create)
 
-  val proofOfPossessionNfcStateMachine = object : ProofOfPossessionNfcStateMachine,
-    ScreenStateMachineMock<ProofOfPossessionNfcProps>(
-      id = "proof-of-possession-nfc"
-    ) {}
-
   val fullAccountCloudSignInAndBackupUiStateMachine =
     object : FullAccountCloudSignInAndBackupUiStateMachine,
       ScreenStateMachineMock<FullAccountCloudSignInAndBackupProps>(
@@ -76,16 +74,24 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
       id = "nfc-session-ui"
     ) {}
 
+  val nfcConfirmableSessionUiStateMachine = object : NfcConfirmableSessionUiStateMachine,
+    ScreenStateMachineMock<NfcConfirmableSessionUIStateMachineProps<*>>(
+      id = "nfc-confirmable-session-ui"
+    ) {}
+
   val eventTracker = EventTrackerMock(turbines::create)
+  val chaincodeExtractor = ChaincodeExtractorFake()
 
   val stateMachine = CompletingRecoveryUiStateMachineImpl(
-    proofOfPossessionNfcStateMachine = proofOfPossessionNfcStateMachine,
     fullAccountCloudSignInAndBackupUiStateMachine = fullAccountCloudSignInAndBackupUiStateMachine,
     sweepUiStateMachine = sweepUiStateMachine,
     nfcSessionUIStateMachine = nfcSessionUIStateMachine,
+    nfcConfirmableSessionUiStateMachine = nfcConfirmableSessionUiStateMachine,
+    chaincodeExtractor = chaincodeExtractor,
     postSocRecTaskRepository = postSocRecTaskRepository,
     recoveryStatusService = recoveryStatusService,
-    eventTracker = eventTracker
+    eventTracker = eventTracker,
+    wsmVerifier = WsmVerifierMock()
   )
 
   val baseProps = CompletingRecoveryUiProps(
@@ -103,6 +109,7 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
   beforeTest {
     postSocRecTaskRepository.reset()
     recoveryStatusService.reset()
+    chaincodeExtractor.reset()
   }
 
   test("ReadyToCompleteRecoveryData for App factor shows DelayAndNotifyNewKeyReady") {
@@ -290,7 +297,7 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
     )
     val props = baseProps.copy(
       completingRecoveryData = AwaitingChallengeAndCsekSignedWithHardwareData(
-        nfcTransaction = nfcTransaction
+        nfcSession = RecoveryNfcSession.Standard(nfcTransaction)
       )
     )
 
@@ -299,6 +306,7 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
         // Verify the NFC props are correctly configured
         eventTrackerContext.shouldNotBeNull()
         screenPresentationStyle.shouldBe(ScreenPresentationStyle.Root)
+        config.hardwareTypeOverride.shouldBe(HardwareType.W1)
       }
     }
   }
@@ -322,7 +330,7 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
     )
     val props = baseProps.copy(
       completingRecoveryData = AwaitingChallengeAndCsekSignedWithHardwareData(
-        nfcTransaction = nfcTransaction
+        nfcSession = RecoveryNfcSession.Standard(nfcTransaction)
       )
     )
 
@@ -355,75 +363,12 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
     )
     val props = baseProps.copy(
       completingRecoveryData = AwaitingChallengeAndCsekSignedWithHardwareData(
-        nfcTransaction = nfcTransaction
+        nfcSession = RecoveryNfcSession.Standard(nfcTransaction)
       )
     )
 
     stateMachine.test(props) {
       awaitBodyMock<NfcSessionUIStateMachineProps<SignChallengeAndSealSeks.SignedChallengeAndSeks>> {
-        // Simulate user canceling NFC transaction
-        onCancel()
-      }
-
-      // Verify the transaction's onCancel callback was triggered
-      onCancelCalls.awaitItem()
-    }
-  }
-
-  test("FetchingSealedDelegatedDecryptionKeyStringData shows NFC session") {
-    val nfcTransaction = NfcTransactionMock(
-      value = UnsealData.UnsealedDataResult("unsealed-data".encodeUtf8())
-    )
-    val props = baseProps.copy(
-      completingRecoveryData = FetchingSealedDelegatedDecryptionKeyStringData(
-        nfcTransaction = nfcTransaction
-      )
-    )
-
-    stateMachine.test(props) {
-      awaitBodyMock<NfcSessionUIStateMachineProps<*>>()
-    }
-  }
-
-  test("FetchingSealedDelegatedDecryptionKeyStringData NFC success triggers callback") {
-    val onSuccessCalls = turbines.create<UnsealData.UnsealedDataResult>("fetch-nfc-success")
-    val testValue = UnsealData.UnsealedDataResult("unsealed-data".encodeUtf8())
-    val nfcTransaction = NfcTransactionMock(
-      value = testValue,
-      onSuccess = { onSuccessCalls += it }
-    )
-    val props = baseProps.copy(
-      completingRecoveryData = FetchingSealedDelegatedDecryptionKeyStringData(
-        nfcTransaction = nfcTransaction
-      )
-    )
-
-    stateMachine.test(props) {
-      awaitBodyMock<NfcSessionUIStateMachineProps<UnsealData.UnsealedDataResult>> {
-        // Simulate successful NFC transaction
-        onSuccess(testValue)
-      }
-
-      // Verify the transaction's onSuccess callback was triggered
-      onSuccessCalls.awaitItem()
-    }
-  }
-
-  test("FetchingSealedDelegatedDecryptionKeyStringData NFC cancel triggers callback") {
-    val onCancelCalls = turbines.create<Unit>("fetch-nfc-cancel")
-    val testValue = UnsealData.UnsealedDataResult("unsealed-data".encodeUtf8())
-    val nfcTransaction = NfcTransactionMock(
-      value = testValue,
-      onCancel = { onCancelCalls += Unit }
-    )
-    val props = baseProps.copy(
-      completingRecoveryData = FetchingSealedDelegatedDecryptionKeyStringData(
-        nfcTransaction = nfcTransaction
-      )
-    )
-
-    stateMachine.test(props) {
-      awaitBodyMock<NfcSessionUIStateMachineProps<UnsealData.UnsealedDataResult>> {
         // Simulate user canceling NFC transaction
         onCancel()
       }
@@ -521,18 +466,6 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("FetchingSealedDelegatedDecryptionKeyFromF8eData shows LoadingBodyModel") {
-    val props = baseProps.copy(
-      completingRecoveryData = FetchingSealedDelegatedDecryptionKeyFromF8eData(
-        physicalFactor = PhysicalFactor.App
-      )
-    )
-
-    stateMachine.test(props) {
-      awaitBody<LoadingSuccessBodyModel>()
-    }
-  }
-
   test("RemovingTrustedContactsData shows LoadingBodyModel") {
     val props = baseProps.copy(
       completingRecoveryData = RemovingTrustedContactsData(
@@ -608,21 +541,6 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("AwaitingHardwareProofOfPossessionData shows ProofOfPossessionNfcStateMachine") {
-    val props = baseProps.copy(
-      completingRecoveryData = AwaitingHardwareProofOfPossessionData(
-        fullAccountId = FullAccountIdMock,
-        appAuthKey = PublicKey("test-key"),
-        addHwFactorProofOfPossession = {},
-        rollback = {}
-      )
-    )
-
-    stateMachine.test(props) {
-      awaitBodyMock<ProofOfPossessionNfcProps>()
-    }
-  }
-
   test("CreatingSpendingKeysWithF8EData shows LoadingBodyModel") {
     val props = baseProps.copy(
       completingRecoveryData = CreatingSpendingKeysWithF8EData(
@@ -689,7 +607,7 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
 
   test("PerformingCloudBackupData shows FullAccountCloudSignInAndBackupUiStateMachine") {
     val onBackupFinishedCalls = turbines.create<Unit>("onBackupFinished-cloud")
-    val onBackupFailedCalls = turbines.create<Throwable?>("onBackupFailed-cloud")
+    val onBackupFailedCalls = turbines.create<Throwable?>("onError-cloud")
     val props = baseProps.copy(
       completingRecoveryData = PerformingCloudBackupData(
         sealedCsek = SealedCsekFake,
@@ -710,6 +628,7 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
         physicalFactor = PhysicalFactor.App,
         keybox = KeyboxMock,
         rollback = {},
+        onCompletionFailed = {},
         hasAttemptedSweep = false
       )
     )
@@ -724,6 +643,27 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
     val props = baseProps.copy(
       completingRecoveryData = ExitedPerformingSweepData(
         physicalFactor = PhysicalFactor.App,
+        retry = { retryCalls += Unit }
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBody<FormBodyModel> {
+        // Test that clicking the primary button (retry) triggers callback
+        primaryButton.shouldNotBeNull().onClick.invoke()
+      }
+
+      // Verify callback was invoked
+      retryCalls.awaitItem()
+    }
+  }
+
+  test("FailedToCompleteRecoveryData shows ErrorFormBodyModel") {
+    val retryCalls = turbines.create<Unit>("retry-complete-recovery")
+    val props = baseProps.copy(
+      completingRecoveryData = FailedToCompleteRecoveryData(
+        physicalFactor = PhysicalFactor.App,
+        cause = Error("Test error"),
         retry = { retryCalls += Unit }
       )
     )
@@ -791,49 +731,6 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
 
       // Verify callback was invoked
       retryCalls.awaitItem()
-    }
-  }
-
-  test("AwaitingSsekUnsealingData shows NFC session") {
-    val props = baseProps.copy(
-      completingRecoveryData = AwaitingSsekUnsealingData(
-        physicalFactor = PhysicalFactor.App,
-        nfcTransaction = UnsealSsek(
-          sealedSsek = SealedSsekFake,
-          success = { },
-          failure = { }
-        )
-      )
-    )
-
-    stateMachine.test(props) {
-      awaitBodyMock<NfcSessionUIStateMachineProps<*>>()
-    }
-  }
-
-  test("AwaitingSsekUnsealingData NFC success triggers callback") {
-    val onSuccessCalls = turbines.create<Ssek>("ssek-nfc-success")
-    val testValue = Ssek(SymmetricKeyImpl(raw = "unsealed-ssek".encodeUtf8()))
-    val nfcTransaction = UnsealSsek(
-      sealedSsek = SealedSsekFake,
-      success = { onSuccessCalls += it },
-      failure = { }
-    )
-    val props = baseProps.copy(
-      completingRecoveryData = AwaitingSsekUnsealingData(
-        physicalFactor = PhysicalFactor.App,
-        nfcTransaction = nfcTransaction
-      )
-    )
-
-    stateMachine.test(props) {
-      awaitBodyMock<NfcSessionUIStateMachineProps<Ssek>> {
-        // Simulate successful NFC transaction
-        onSuccess(testValue)
-      }
-
-      // Verify the transaction's onSuccess callback was triggered
-      onSuccessCalls.awaitItem()
     }
   }
 
@@ -914,19 +811,47 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("AwaitingHardwareProofOfPossessionForActivationData shows ProofOfPossessionNfcStateMachine") {
+  test("BuildingHardwareDescriptorData shows NFC session") {
     val props = baseProps.copy(
-      completingRecoveryData = AwaitingHardwareProofOfPossessionForActivationData(
-        physicalFactor = PhysicalFactor.Hardware,
-        fullAccountId = FullAccountIdMock,
-        appAuthKey = PublicKey("test-key"),
-        addHardwareProofOfPossession = {},
-        rollback = {}
+      completingRecoveryData = BuildingHardwareDescriptorData(
+        signedKeysResponse = SignedKeysetVerificationResponse(
+          appAuthPub = "02" + "a".repeat(64),
+          hardwareAuthPub = "03" + "b".repeat(64),
+          appSpendingPub = "02" + "c".repeat(64),
+          hardwareSpendingPub = "03" + "d".repeat(64),
+          serverSpendingPub = "02" + "e".repeat(64),
+          signature = "f".repeat(128)
+        ),
+        appSpendingKeyXpub = "tpubD6NzVbkrYhZ4X2X1vVjXgZ9Y5Wq9g8G4vH8C3x3N3u4d7w2n9Y6m8Q5r1s2t3u4v5w6x7y8z9A1B2C3D4E5F6G",
+        serverPrivateWalletRootXpub = "tpubD6NzVbkrYhZ4X2X1vVjXgZ9Y5Wq9g8G4vH8C3x3N3u4d7w2n9Y6m8Q5r1s2t3u4v5w6x7y8z9A1B2C3D4E5F6G",
+        networkType = build.wallet.bitcoin.BitcoinNetworkType.BITCOIN,
+        f8eEnvironment = Development,
+        onSuccess = { _ -> },
+        onFailure = {}
       )
     )
 
     stateMachine.test(props) {
-      awaitBodyMock<ProofOfPossessionNfcProps>()
+      awaitBodyMock<NfcSessionUIStateMachineProps<*>>()
+    }
+  }
+
+  test("FailedToBuildHardwareDescriptorData retry button triggers callback") {
+    val onRetryCalls = turbines.create<Unit>("onRetry-build-hardware-descriptor")
+    val props = baseProps.copy(
+      completingRecoveryData = FailedToBuildHardwareDescriptorData(
+        physicalFactor = PhysicalFactor.Hardware,
+        cause = Error("Test error"),
+        onRetry = { onRetryCalls += Unit }
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull().onClick.invoke()
+      }
+
+      onRetryCalls.awaitItem()
     }
   }
 
@@ -957,6 +882,7 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
         physicalFactor = PhysicalFactor.App,
         keybox = KeyboxMock,
         rollback = {},
+        onCompletionFailed = {},
         hasAttemptedSweep = false
       )
     )
@@ -970,6 +896,240 @@ class CompletingRecoveryUiStateMachineImplTests : FunSpec({
       // Verify the transaction's onSuccess callback was triggered
       val recoveryProgress = recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
       recoveryProgress.shouldBe(LocalRecoveryAttemptProgress.SweepingFunds)
+    }
+  }
+
+  test("PerformingSweepData success completes lost hardware recovery") {
+    val props = baseProps.copy(
+      completingRecoveryData = PerformingSweepData(
+        physicalFactor = PhysicalFactor.Hardware,
+        keybox = KeyboxMock,
+        rollback = {},
+        onCompletionFailed = {},
+        hasAttemptedSweep = false
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBodyMock<SweepUiProps> {
+        onSuccess()
+      }
+
+      val recoveryProgress = recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+      recoveryProgress.shouldBe(
+        LocalRecoveryAttemptProgress.CompletedRecovery(
+          keyboxToActivate = KeyboxMock
+        )
+      )
+      onCompleteCalls.awaitItem()
+    }
+  }
+
+  test("PerformingSweepData success completes lost app recovery") {
+    val props = baseProps.copy(
+      completingRecoveryData = PerformingSweepData(
+        physicalFactor = PhysicalFactor.App,
+        keybox = KeyboxMock,
+        rollback = {},
+        onCompletionFailed = {},
+        hasAttemptedSweep = false
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBodyMock<SweepUiProps> {
+        onSuccess()
+      }
+
+      val recoveryProgress = recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+      recoveryProgress.shouldBe(
+        LocalRecoveryAttemptProgress.CompletedRecovery(
+          keyboxToActivate = KeyboxMock
+        )
+      )
+      onCompleteCalls.awaitItem()
+    }
+  }
+
+  // --- W3 / RecoveryNfcSession.Confirmable tests ---
+
+  test("AwaitingChallengeAndCsekSignedWithHardwareData with Confirmable shows NfcConfirmableSessionUiStateMachine") {
+    val onSuccessCalls = turbines.create<Unit>("w3-challenge-nfc-success")
+    val onCancelCalls = turbines.create<Unit>("w3-challenge-nfc-cancel")
+    val props = baseProps.copy(
+      completingRecoveryData = AwaitingChallengeAndCsekSignedWithHardwareData(
+        nfcSession = RecoveryNfcSession.Confirmable(
+          session = { _, _ ->
+            build.wallet.nfc.platform.HardwareInteraction.Completed(Unit)
+          },
+          onSuccess = { onSuccessCalls += Unit },
+          onCancel = { onCancelCalls += Unit }
+        )
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<*>> {
+        eventTrackerContext.shouldBe(
+          build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.W3_SIGN_CHALLENGE_AND_SEAL_SEKS
+        )
+        screenPresentationStyle.shouldBe(ScreenPresentationStyle.Root)
+        config.hardwareTypeOverride.shouldBe(HardwareType.W3)
+      }
+    }
+  }
+
+  test("AwaitingChallengeAndCsekSignedWithHardwareData Confirmable onCancel triggers callback") {
+    val onCancelCalls = turbines.create<Unit>("w3-challenge-cancel")
+    val props = baseProps.copy(
+      completingRecoveryData = AwaitingChallengeAndCsekSignedWithHardwareData(
+        nfcSession = RecoveryNfcSession.Confirmable(
+          session = { _, _ ->
+            build.wallet.nfc.platform.HardwareInteraction.Completed(Unit)
+          },
+          onSuccess = { },
+          onCancel = { onCancelCalls += Unit }
+        )
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<*>> {
+        onCancel()
+      }
+      onCancelCalls.awaitItem()
+    }
+  }
+
+  test("AwaitingProofAndKeyTransferLostAppData with Confirmable shows NfcConfirmableSessionUiStateMachine") {
+    val onSuccessCalls = turbines.create<Unit>("w3-lost-app-nfc-success")
+    val onCancelCalls = turbines.create<Unit>("w3-lost-app-nfc-cancel")
+    val props = baseProps.copy(
+      completingRecoveryData = AwaitingProofAndKeyTransferLostAppData(
+        nfcSession = RecoveryNfcSession.Confirmable(
+          session = { _, _ ->
+            build.wallet.nfc.platform.HardwareInteraction.Completed(Unit)
+          },
+          onSuccess = { onSuccessCalls += Unit },
+          onCancel = { onCancelCalls += Unit }
+        )
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<*>> {
+        eventTrackerContext.shouldBe(
+          build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.W3_RECOVERY_AUTHORIZE_LOST_APP
+        )
+        screenPresentationStyle.shouldBe(ScreenPresentationStyle.Root)
+        config.hardwareTypeOverride.shouldBe(HardwareType.W3)
+      }
+    }
+  }
+
+  test("AwaitingProofAndKeyTransferLostAppData Confirmable onCancel triggers callback") {
+    val onCancelCalls = turbines.create<Unit>("w3-lost-app-cancel")
+    val props = baseProps.copy(
+      completingRecoveryData = AwaitingProofAndKeyTransferLostAppData(
+        nfcSession = RecoveryNfcSession.Confirmable(
+          session = { _, _ ->
+            build.wallet.nfc.platform.HardwareInteraction.Completed(Unit)
+          },
+          onSuccess = { },
+          onCancel = { onCancelCalls += Unit }
+        )
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<*>> {
+        onCancel()
+      }
+      onCancelCalls.awaitItem()
+    }
+  }
+
+  test("AwaitingProofAndKeyTransferLostHwData with Confirmable shows NfcConfirmableSessionUiStateMachine") {
+    val onSuccessCalls = turbines.create<Unit>("w3-lost-hw-nfc-success")
+    val onCancelCalls = turbines.create<Unit>("w3-lost-hw-nfc-cancel")
+    val props = baseProps.copy(
+      completingRecoveryData = AwaitingProofAndKeyTransferLostHwData(
+        nfcSession = RecoveryNfcSession.Confirmable(
+          session = { _, _ ->
+            build.wallet.nfc.platform.HardwareInteraction.Completed(Unit)
+          },
+          onSuccess = { onSuccessCalls += Unit },
+          onCancel = { onCancelCalls += Unit }
+        )
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<*>> {
+        eventTrackerContext.shouldBe(
+          build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.W3_RECOVERY_AUTHORIZE_LOST_HW
+        )
+        screenPresentationStyle.shouldBe(ScreenPresentationStyle.Root)
+        config.hardwareTypeOverride.shouldBe(HardwareType.W3)
+      }
+    }
+  }
+
+  test("AwaitingProofAndKeyTransferLostHwData Confirmable onCancel triggers callback") {
+    val onCancelCalls = turbines.create<Unit>("w3-lost-hw-cancel")
+    val props = baseProps.copy(
+      completingRecoveryData = AwaitingProofAndKeyTransferLostHwData(
+        nfcSession = RecoveryNfcSession.Confirmable(
+          session = { _, _ ->
+            build.wallet.nfc.platform.HardwareInteraction.Completed(Unit)
+          },
+          onSuccess = { },
+          onCancel = { onCancelCalls += Unit }
+        )
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<*>> {
+        onCancel()
+      }
+      onCancelCalls.awaitItem()
+    }
+  }
+
+  test("AwaitingProofAndKeyTransferLostAppData Standard shows NfcSessionUiStateMachine") {
+    val nfcTransaction = NfcTransactionMock(value = Unit)
+    val props = baseProps.copy(
+      completingRecoveryData = AwaitingProofAndKeyTransferLostAppData(
+        nfcSession = RecoveryNfcSession.Standard(nfcTransaction)
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBodyMock<NfcSessionUIStateMachineProps<*>> {
+        eventTrackerContext.shouldBe(
+          build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.RECOVERY_PROOF_AND_KEY_TRANSFER_LOST_APP
+        )
+        config.hardwareTypeOverride.shouldBe(HardwareType.W1)
+      }
+    }
+  }
+
+  test("AwaitingProofAndKeyTransferLostHwData Standard shows NfcSessionUiStateMachine") {
+    val nfcTransaction = NfcTransactionMock(value = Unit)
+    val props = baseProps.copy(
+      completingRecoveryData = AwaitingProofAndKeyTransferLostHwData(
+        nfcSession = RecoveryNfcSession.Standard(nfcTransaction)
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitBodyMock<NfcSessionUIStateMachineProps<*>> {
+        eventTrackerContext.shouldBe(
+          build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.RECOVERY_PROOF_AND_KEY_TRANSFER_LOST_HARDWARE
+        )
+        config.hardwareTypeOverride.shouldBe(HardwareType.W1)
+      }
     }
   }
 })

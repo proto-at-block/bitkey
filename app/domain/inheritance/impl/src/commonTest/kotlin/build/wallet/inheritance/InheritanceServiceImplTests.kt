@@ -20,6 +20,7 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.inheritance.*
 import build.wallet.isOk
 import build.wallet.ktor.result.HttpError
@@ -128,7 +129,7 @@ class InheritanceServiceImplTests : FunSpec({
 
   test("creating an invitation") {
     val result = inheritanceService.createInheritanceInvitation(
-      hardwareProofOfPossession = HwFactorProofOfPossession("signed-token"),
+      proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("signed-token")),
       trustedContactAlias = TrustedContactAlias("trusted-contact-alias")
     )
 
@@ -147,7 +148,7 @@ class InheritanceServiceImplTests : FunSpec({
     relationshipsService.createInvitationResult = Err(propagatedError)
 
     val result = inheritanceService.createInheritanceInvitation(
-      hardwareProofOfPossession = HwFactorProofOfPossession("signed-token"),
+      proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("signed-token")),
       trustedContactAlias = TrustedContactAlias("trusted-contact-alias")
     )
 
@@ -422,5 +423,46 @@ class InheritanceServiceImplTests : FunSpec({
     inheritanceService.executeWork()
 
     claimsRepository.syncServerClaimsCalls.awaitItem()
+  }
+
+  test("pendingBenefactorClaim returns pending claim for relationship when historical canceled claims exist") {
+    val relationship = RelationshipId("beneficiary-relationship-id")
+    val pendingClaim = BenefactorPendingClaimFake.copy(
+      claimId = InheritanceClaimId("pending-claim-id"),
+      relationshipId = relationship
+    )
+    claimsRepository.claims.value = Ok(
+      InheritanceClaims(
+        benefactorClaims = listOf(
+          BenefactorCanceledClaimFake.copy(
+            claimId = InheritanceClaimId("canceled-claim-id"),
+            relationshipId = relationship
+          ),
+          pendingClaim
+        ),
+        beneficiaryClaims = emptyList()
+      )
+    )
+
+    inheritanceService.pendingBenefactorClaim(relationship)
+      .shouldBe(pendingClaim)
+  }
+
+  test("pendingBenefactorClaim returns null when relationship has no pending benefactor claim") {
+    val relationship = RelationshipId("beneficiary-relationship-id")
+    claimsRepository.claims.value = Ok(
+      InheritanceClaims(
+        benefactorClaims = listOf(
+          BenefactorCanceledClaimFake.copy(
+            claimId = InheritanceClaimId("canceled-claim-id"),
+            relationshipId = relationship
+          )
+        ),
+        beneficiaryClaims = emptyList()
+      )
+    )
+
+    inheritanceService.pendingBenefactorClaim(relationship)
+      .shouldBe(null)
   }
 })

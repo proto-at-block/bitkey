@@ -6,13 +6,17 @@ import build.wallet.platform.device.DevicePlatform
 import build.wallet.platform.device.DevicePlatform.*
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
+import build.wallet.statemachine.core.form.designSystemV2HeroIconHeader
 import build.wallet.statemachine.recovery.cloud.iCloudTroubleshootingStepsMainContentList
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
+import build.wallet.ui.tokens.market.MarketIcons
 
 data class CloudSignInFailedScreenModel(
   val onContactSupport: () -> Unit,
@@ -41,9 +45,28 @@ data class CloudSignInFailedScreenModel(
       }
     ),
     mainContentList = when (devicePlatform) {
-      Android, Jvm -> immutableListOf()
+        Android, Jvm -> immutableListOf()
       IOS -> iCloudTroubleshootingStepsMainContentList()
     },
+    designSystemV2Model = FormDesignSystemV2Model(
+      header = designSystemV2HeroIconHeader(
+        headline = when (devicePlatform) {
+          Android, Jvm -> "You’re not signed in to Google"
+          IOS -> "Check your iCloud settings"
+        },
+        subline = when (devicePlatform) {
+          Android, Jvm ->
+            "Sign in to Google in order to save a copy of the key from your phone to your " +
+              "personal cloud, so you can easily recover your wallet on a new phone."
+          IOS -> null
+        },
+        icon = when (devicePlatform) {
+          Android, Jvm -> MarketIcons.Cloud1Slash
+          IOS -> MarketIcons.Cloud1Slash
+        },
+        iconTint = IconTint.White
+      )
+    ),
     primaryButton = RetryCloudSignInButton(
       androidText = "Sign in to Google",
       onTryAgain = onTryAgain,

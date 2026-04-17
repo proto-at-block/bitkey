@@ -81,7 +81,8 @@ class OnboardFullAccountServiceImplTests : FunSpec({
     keyBundle = WithAppKeysAndHardwareKeysMock.hardwareKeyBundle,
     sealedCsek = SealedCsekFake,
     sealedSsek = SealedSsekFake,
-    serial = "test-serial-123"
+    serial = "test-serial-123",
+    hardwareType = HardwareType.W1
   )
 
   beforeTest {

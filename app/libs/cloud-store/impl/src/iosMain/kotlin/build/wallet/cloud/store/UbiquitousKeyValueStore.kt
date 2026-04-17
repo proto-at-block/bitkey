@@ -3,8 +3,8 @@ package build.wallet.cloud.store
 import build.wallet.catchingResult
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.logging.logDebug
 import build.wallet.logging.logError
-import build.wallet.logging.logInfo
 import build.wallet.logging.logWarn
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.fold
@@ -19,27 +19,6 @@ import platform.Foundation.NSUbiquitousKeyValueStoreDidChangeExternallyNotificat
 import platform.Foundation.NSUbiquitousKeyValueStoreInitialSyncChange
 import platform.Foundation.NSUbiquitousKeyValueStoreQuotaViolationChange
 import platform.Foundation.NSUbiquitousKeyValueStoreServerChange
-
-@Suppress("ClassName")
-interface UbiquitousKeyValueStore {
-  fun setString(
-    account: iCloudAccount,
-    key: String,
-    value: String,
-  ): Result<Unit, UbiquitousKeyValueStoreError>
-
-  fun getString(
-    account: iCloudAccount,
-    key: String,
-  ): Result<String?, UbiquitousKeyValueStoreError>
-
-  fun removeString(
-    account: CloudStoreAccount,
-    key: String,
-  ): Result<Unit, CloudError>
-
-  fun keys(account: CloudStoreAccount): Result<List<String>, CloudError>
-}
 
 @Suppress("unused", "ClassName")
 @BitkeyInject(AppScope::class)
@@ -66,9 +45,9 @@ class UbiquitousKeyValueStoreImpl(
 
       when (reason) {
         NSUbiquitousKeyValueStoreServerChange ->
-          logInfo { "iCloud KVS: sync from server, changedKeys=[$keysDescription]" }
+          logDebug { "iCloud KVS: sync from server, changedKeys=[$keysDescription]" }
         NSUbiquitousKeyValueStoreInitialSyncChange ->
-          logInfo { "iCloud KVS: initial sync completed, changedKeys=[$keysDescription]" }
+          logDebug { "iCloud KVS: initial sync completed, changedKeys=[$keysDescription]" }
         NSUbiquitousKeyValueStoreQuotaViolationChange ->
           logError { "iCloud KVS: quota exceeded, changedKeys=[$keysDescription]" }
         NSUbiquitousKeyValueStoreAccountChange ->
@@ -98,14 +77,21 @@ class UbiquitousKeyValueStoreImpl(
         aString = value
       )
     }
-      .mapError { UbiquitousKeyValueStoreError(message = it.toString()) }
+      .mapError {
+        UbiquitousKeyValueStoreError(
+          message = it.message ?: it.toString(),
+          cause = it
+        )
+      }
       .also { result ->
         result.fold(
           success = {
-            logInfo { "iCloud KVS: successfully wrote value for key=$key (size=${value.length} chars)" }
+            logDebug { "iCloud KVS: successfully wrote value for key=$key (size=${value.length} chars)" }
           },
           failure = { error ->
-            logError { "iCloud KVS: error writing key=$key: $error" }
+            logError(throwable = error.cause ?: error) {
+              "iCloud KVS: error writing key=$key: $error"
+            }
           }
         )
         requestSync()
@@ -119,18 +105,25 @@ class UbiquitousKeyValueStoreImpl(
     requestSync()
 
     return catchingResult { iCloudKeyValueStore.stringForKey(key) }
-      .mapError { UbiquitousKeyValueStoreError(message = it.toString()) }
+      .mapError {
+        UbiquitousKeyValueStoreError(
+          message = it.message ?: it.toString(),
+          cause = it
+        )
+      }
       .also { result ->
         result.fold(
           success = { value ->
             if (value == null) {
-              logInfo { "iCloud KVS: no value found for key=$key" }
+              logDebug { "iCloud KVS: no value found for key=$key" }
             } else {
-              logInfo { "iCloud KVS: successfully read value for key=$key (size=${value.length} chars)" }
+              logDebug { "iCloud KVS: successfully read value for key=$key (size=${value.length} chars)" }
             }
           },
           failure = { error ->
-            logError { "iCloud KVS: error reading key=$key: $error" }
+            logError(throwable = error.cause ?: error) {
+              "iCloud KVS: error reading key=$key: $error"
+            }
           }
         )
       }
@@ -145,14 +138,49 @@ class UbiquitousKeyValueStoreImpl(
       // Remove dummy value that was added in the init
       iCloudKeyValueStore.removeObjectForKey("fake")
     }
-      .mapError { UbiquitousKeyValueStoreError(message = it.toString()) }
-      .also { requestSync() }
+      .mapError {
+        UbiquitousKeyValueStoreError(
+          message = it.message ?: it.toString(),
+          cause = it
+        )
+      }
+      .also { result ->
+        result.fold(
+          success = {
+            logDebug { "iCloud KVS: removed value for key=$key" }
+            requestSync()
+          },
+          failure = { error ->
+            logError(throwable = error.cause ?: error) {
+              "iCloud KVS: error removing key=$key: $error"
+            }
+          }
+        )
+      }
   }
 
   override fun keys(account: CloudStoreAccount): Result<List<String>, CloudError> {
     return catchingResult {
       iCloudKeyValueStore.dictionaryRepresentation.keys.map { it as String }
-    }.mapError { UbiquitousKeyValueStoreError(message = it.toString()) }
+    }
+      .mapError {
+        UbiquitousKeyValueStoreError(
+          message = it.message ?: it.toString(),
+          cause = it
+        )
+      }
+      .also { result ->
+        result.fold(
+          success = { keys ->
+            logDebug { "iCloud KVS: listed ${keys.size} keys" }
+          },
+          failure = { error ->
+            logError(throwable = error.cause ?: error) {
+              "iCloud KVS: error listing keys: $error"
+            }
+          }
+        )
+      }
   }
 
   /**

@@ -6,6 +6,7 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Showcase.Content.VideoContent.Video.BITKEY_WIPE
@@ -17,7 +18,8 @@ class WipingDeviceSuccessUiStateMachineImpl : WipingDeviceSuccessUiStateMachine 
   @Composable
   override fun model(props: WipingDeviceSuccessProps): ScreenModel {
     return ScreenModel(
-      body = WipingDeviceSuccess(onDone = props.onDone)
+      body = WipingDeviceSuccess(onDone = props.onDone),
+      presentationStyle = ScreenPresentationStyle.Modal
     )
   }
 }

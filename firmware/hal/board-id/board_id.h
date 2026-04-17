@@ -20,19 +20,16 @@
  */
 typedef enum {
   W3_BOARD_ID_BUTTONS = 0x00, /**< PDVT-M3 main board
-                                   EVT-equivalent config with buttons,
-                                   normal display orientation.
+                                   EVT-equivalent config with buttons.
                                    */
 
   W3_BOARD_ID_TOUCH_WAKE = 0x01, /**< PDVT-mini, M1, R1
-                                      PDVT touch-to-wake main config (POR),
-                                      display rotated 180°.
+                                      PDVT touch-to-wake main config (POR).
                                       */
 
   W3_BOARD_ID_TOUCH_NOWAKE = 0x02, /**< PDVT-M2 main board
-                                        non-touch-to-wake variant,
-                                        display rotated 180°.
-                                        Expected to be DEPRECATED after pre-DVT build;
+                                        non-touch-to-wake variant.
+                                        Expected to be DEPRECATED after pre-DVT build.
                                         */
 } w3_board_id_t;
 

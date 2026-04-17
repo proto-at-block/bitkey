@@ -18,4 +18,13 @@ exception_functions = [
     "mpu_regions_init",
     "__secure_glitch_random_delay",
     "st25r3916PerformCollisionAvoidance",
+    "nfc_task_mpu_init",
+    "fwup_task_mpu_init",
+    "usart_task_mpu_init",
+    "ui_task_mpu_init",
+    "mfgtest_mpu_init",
+    "sysinfo_task_mpu_init",
+    "display_task_mpu_init",
+    "display_send_task_mpu_init",
+    "touch_task_mpu_init",
 ]

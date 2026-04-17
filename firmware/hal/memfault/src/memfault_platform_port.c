@@ -44,9 +44,18 @@ void memfault_platform_get_device_info(sMemfaultDeviceInfo* info) {
 // Last function called after a coredump is saved. Should perform
 // any final cleanup and then reset the device
 void memfault_platform_reboot(void) {
-  telemetry_coredump_save();
-
-  mcu_reset_with_reason(MCU_RESET_FAULT);
+  // Only persist the coredump to the filesystem if no other context is
+  // mid-filesystem-operation.  Writing into LittleFS while its in-memory
+  // state is partially updated (another task holds fs_lock) can corrupt
+  // the filesystem metadata on flash.
+  if (!fs_is_busy()) {
+    telemetry_coredump_save();
+    mcu_reset_with_reason(MCU_RESET_FAULT);
+  } else {
+    // Coredump lost — filesystem was busy and we can't safely write.
+    // Use a distinct reset reason so this shows up in Memfault telemetry.
+    mcu_reset_with_reason(MCU_RESET_FAULT_COREDUMP_SKIPPED);
+  }
 
   FATAL()
 

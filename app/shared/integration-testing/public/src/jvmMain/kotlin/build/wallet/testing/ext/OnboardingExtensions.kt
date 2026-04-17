@@ -1,5 +1,6 @@
 package build.wallet.testing.ext
 
+import bitkey.account.HardwareType
 import bitkey.account.LiteAccountConfig
 import bitkey.notifications.NotificationTouchpoint
 import build.wallet.bitkey.account.FullAccount
@@ -12,10 +13,15 @@ import build.wallet.email.Email
 import build.wallet.f8e.F8eEnvironment.Staging
 import build.wallet.onboarding.CreateFullAccountContext
 import build.wallet.testing.AppTester
+import build.wallet.testing.fakeTransact
 import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.unwrap
 import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.flow.first
+import okio.ByteString.Companion.decodeHex
+import okio.ByteString.Companion.encodeUtf8
+import okio.ByteString.Companion.toByteString
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -29,14 +35,19 @@ import kotlin.time.Duration.Companion.seconds
  * false to test accounts created prior to descriptor backups being introduced.
  * @param cloudStoreAccountForBackup If provided, the fake cloud store account instance to use
  * for backing up the keybox. If none is provided, the keybox will not be backed up.
+ * @param hardwareType The hardware type to use for the fake hardware. If omitted, the helper
+ * prefers the default app config's hardware type and falls back to W1.
  */
 suspend fun AppTester.onboardFullAccountWithFakeHardware(
   shouldSetUpNotifications: Boolean = false,
   shouldUploadDescriptorBackups: Boolean = true,
   cloudStoreAccountForBackup: CloudStoreAccountFake? = null,
   delayNotifyDuration: Duration = 1.seconds,
+  hardwareType: HardwareType? = null,
 ): FullAccount {
   fakeNfcCommands.wipeDevice()
+  fakeW3NfcCommands.wipeDevice()
+
   defaultAccountConfigService.apply {
     setBitcoinNetworkType(initialBitcoinNetworkType)
     setIsHardwareFake(true)
@@ -44,19 +55,36 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
     setIsTestAccount(true)
     setUsingSocRecFakes(isUsingSocRecFakes)
     setDelayNotifyDuration(delayNotifyDuration)
+    hardwareType?.let { setHardwareType(it) }
   }
+
+  // Wait for StateFlow to be updated with the config changes we just made.
+  val settledConfig = defaultAccountConfigService.defaultConfig().first { config ->
+    config.delayNotifyDuration == delayNotifyDuration
+  }
+
+  val resolvedHardwareType =
+    hardwareType ?: settledConfig.hardwareType ?: HardwareType.W1
 
   // Generate app keys
   val appKeys = onboardFullAccountService.createAppKeys().getOrThrow()
-  // Activate hardware
-  val hwActivation = startAndCompleteFingerprintEnrolment(appKeys.appKeyBundle.authKey)
+  val hwActivation = startAndCompleteFingerprintEnrolment(
+    appAuthKey = appKeys.appKeyBundle.authKey,
+    hardwareType = resolvedHardwareType
+  )
 
   // Create f8e account
-  val account = onboardFullAccountService.createAccount(
+  var account = onboardFullAccountService.createAccount(
     context = CreateFullAccountContext.NewFullAccount,
     appKeys = appKeys,
     hwActivation = hwActivation
   ).getOrThrow()
+
+  if (resolvedHardwareType == HardwareType.W3) {
+    account = account.copy(
+      keybox = signW3AppGlobalAuthKeyHwSignature(account.keybox, appKeys.appKeyBundle.authKey)
+    )
+  }
 
   if (shouldUploadDescriptorBackups) {
     descriptorBackupService.uploadOnboardingDescriptorBackup(
@@ -65,6 +93,25 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
       appAuthKey = appKeys.appKeyBundle.authKey,
       keysetsToEncrypt = account.keybox.keysets
     ).getOrThrow()
+  }
+
+  // W3 onboarding step: deliver the wallet descriptor to the hardware device.
+  // In real onboarding, BuildHardwareDescriptorUiStateMachine drives this via NFC.
+  // Here we call verifyKeysAndBuildDescriptor directly on the fake so it can
+  // derive addresses and sign transactions.
+  if (resolvedHardwareType == HardwareType.W3) {
+    nfcTransactor.fakeTransact(hardwareType = HardwareType.W3) { session, commands ->
+      commands.verifyKeysAndBuildDescriptor(
+        session = session,
+        appSpendingKey = "00".repeat(33).decodeHex(),
+        appSpendingKeyChaincode = "00".repeat(32).decodeHex(),
+        networkMainnet = initialBitcoinNetworkType == build.wallet.bitcoin.BitcoinNetworkType.BITCOIN,
+        appAuthKey = "00".repeat(33).decodeHex(),
+        serverSpendingKey = "00".repeat(33).decodeHex(),
+        serverSpendingKeyChaincode = "00".repeat(32).decodeHex(),
+        wsmSignature = "00".repeat(64).decodeHex(),
+      )
+    }.getOrThrow()
   }
 
   if (shouldSetUpNotifications) {
@@ -86,8 +133,7 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
     notificationTouchpointF8eClient.activateTouchpoint(
       f8eEnvironment = initialF8eEnvironment,
       accountId = account.accountId,
-      touchpointId = addedTouchpoint.touchpointId,
-      hwFactorProofOfPossession = null
+      touchpointId = addedTouchpoint.touchpointId
     ).getOrThrow()
   }
 
@@ -98,7 +144,7 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
         sealedCsek = hwActivation.sealedCsek
       )
       .getOrThrow()
-    cloudBackupRepository.writeBackup(
+    cloudBackupService.writeBackup(
       account.accountId,
       cloudStoreAccountForBackup,
       backup,
@@ -112,6 +158,9 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
 
   // Mark account as active
   onboardFullAccountService.activateAccount(keybox = account.keybox).getOrThrow()
+
+  // Verify the account was created with the expected hardware type
+  account.keybox.config.hardwareType shouldBe resolvedHardwareType
 
   return account
 }
@@ -161,7 +210,7 @@ suspend fun AppTester.onboardLiteAccountFromInvitation(
 
   if (cloudStoreAccountForBackup != null) {
     val backup = liteAccountCloudBackupCreator.create(account).getOrThrow()
-    cloudBackupRepository.writeBackup(
+    cloudBackupService.writeBackup(
       account.accountId,
       cloudStoreAccountForBackup,
       backup,

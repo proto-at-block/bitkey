@@ -1,6 +1,9 @@
 package build.wallet.statemachine.partnerships
 
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
+import build.wallet.feature.setFlagValue
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
@@ -9,15 +12,17 @@ import build.wallet.partnerships.PartnershipPurchaseServiceFake
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormMainContentModel.DotLoader
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
-import build.wallet.statemachine.core.form.FormMainContentModel.Loader
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseAmountUiProps
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseAmountUiStateMachineImpl
 import build.wallet.statemachine.partnerships.purchase.SelectPurchaseAmountBodyModel
 import build.wallet.statemachine.ui.awaitSheet
+import build.wallet.ui.model.list.ListGroupStyle
 import com.github.michaelbull.result.Err
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
@@ -29,11 +34,13 @@ class PartnershipsPurchaseAmountUiStateMachineImplTests : FunSpec({
     turbines.create<Pair<FiatMoney, FiatMoney>>("on select custom amount calls")
   val onExitCalls = turbines.create<Unit>("on exit calls")
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
+  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(FeatureFlagDaoFake())
 
   val stateMachine = PartnershipsPurchaseAmountUiStateMachineImpl(
     moneyDisplayFormatter = MoneyDisplayFormatterFake,
     partnershipPurchaseService = partnershipPurchaseService,
-    fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
+    fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
+    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag
   )
 
   fun props(selectedAmount: FiatMoney? = null) =
@@ -47,6 +54,7 @@ class PartnershipsPurchaseAmountUiStateMachineImplTests : FunSpec({
   beforeTest {
     partnershipPurchaseService.reset()
     fiatCurrencyPreferenceRepository.reset()
+    designSystemUpdatesFeatureFlag.setFlagValue(false)
   }
 
   test("no partnerships purchase options") {
@@ -166,10 +174,25 @@ class PartnershipsPurchaseAmountUiStateMachineImplTests : FunSpec({
       onExitCalls.awaitItem()
     }
   }
+
+  test("dsv2 purchase options show header and keypad style") {
+    designSystemUpdatesFeatureFlag.setFlagValue(true)
+
+    stateMachine.test(props()) {
+      awaitLoader()
+
+      awaitSheet<SelectPurchaseAmountBodyModel> {
+        header?.headline.shouldBe("Choose an amount")
+        toolbar.shouldBeNull()
+        mainContentList[0].shouldBeTypeOf<ListGroup>().listGroupModel.style
+          .shouldBe(ListGroupStyle.THREE_COLUMN_KEYPAD_ITEM)
+      }
+    }
+  }
 })
 
 private suspend fun StateMachineTester<PartnershipsPurchaseAmountUiProps, SheetModel>.awaitLoader() {
   awaitSheet<FormBodyModel> {
-    mainContentList[0].shouldBeTypeOf<Loader>()
+    mainContentList[0].shouldBeTypeOf<DotLoader>()
   }
 }

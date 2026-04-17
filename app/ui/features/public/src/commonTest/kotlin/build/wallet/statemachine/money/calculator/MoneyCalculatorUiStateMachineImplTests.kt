@@ -27,6 +27,16 @@ import io.kotest.matchers.shouldBe
 
 class MoneyCalculatorUiStateMachineImplTests : FunSpec({
   val localeProvider = LocaleProviderFake()
+  val doubleFormatter = DoubleFormatterImpl(localeProvider)
+  val decimalNumberCreator = DecimalNumberCreatorImpl(localeProvider, doubleFormatter)
+  val amountCalculator = AmountCalculatorImpl(
+    decimalNumberCalculator = DecimalNumberCalculatorImpl(
+      decimalNumberCreator,
+      localeProvider,
+      doubleFormatter
+    ),
+    wholeNumberCalculator = WholeNumberCalculatorImpl()
+  )
   val defaultMoneyAmountEntryModel =
     MoneyAmountEntryModel(
       primaryAmount = "$1",
@@ -39,25 +49,52 @@ class MoneyCalculatorUiStateMachineImplTests : FunSpec({
         defaultMoneyAmountEntryModel
       ) {}
 
-  val doubleFormatter = DoubleFormatterImpl(localeProvider)
-  val decimalNumberCreator = DecimalNumberCreatorImpl(localeProvider, doubleFormatter)
   val preferenceDisplayRepository = BitcoinDisplayPreferenceRepositoryMock()
   val stateMachine =
     MoneyCalculatorUiStateMachineImpl(
       bitcoinDisplayPreferenceRepository = preferenceDisplayRepository,
       currencyConverter = CurrencyConverterFake(),
       moneyAmountEntryUiStateMachine = moneyAmountEntryUiStateMachineMock,
-      amountCalculator = AmountCalculatorImpl(
-        decimalNumberCalculator = DecimalNumberCalculatorImpl(
-          decimalNumberCreator,
-          localeProvider,
-          doubleFormatter
-        ),
-        wholeNumberCalculator = WholeNumberCalculatorImpl()
-      ),
+      amountCalculator = amountCalculator,
       decimalNumberCreator = decimalNumberCreator,
       doubleFormatter
     )
+
+  test("delete feedback only rejects when delete would be a no-op") {
+    decimalNumber("0").isRejectedAmountEntryButton(KeypadButton.Delete, amountCalculator)
+      .shouldBeTrue()
+    decimalNumber("0.").isRejectedAmountEntryButton(KeypadButton.Delete, amountCalculator)
+      .shouldBeFalse()
+    decimalNumber("0.0").isRejectedAmountEntryButton(KeypadButton.Delete, amountCalculator)
+      .shouldBeFalse()
+  }
+
+  test("decimal feedback rejects only duplicate decimal taps") {
+    decimalNumber("1").isRejectedAmountEntryButton(KeypadButton.Decimal, amountCalculator)
+      .shouldBeFalse()
+    decimalNumber("1.").isRejectedAmountEntryButton(KeypadButton.Decimal, amountCalculator)
+      .shouldBeTrue()
+    decimalNumber("1.23").isRejectedAmountEntryButton(KeypadButton.Decimal, amountCalculator)
+      .shouldBeTrue()
+  }
+
+  test("hard cap feedback still allows valid decimal continuation") {
+    decimalNumber("999999999").isRejectedAmountEntryButton(KeypadButton.Digit.Zero, amountCalculator)
+      .shouldBeTrue()
+    decimalNumber("999999999").isRejectedAmountEntryButton(KeypadButton.Decimal, amountCalculator)
+      .shouldBeFalse()
+    decimalNumber("999999999.").isRejectedAmountEntryButton(KeypadButton.Digit.Zero, amountCalculator)
+      .shouldBeFalse()
+    decimalNumber("999999999.").isRejectedAmountEntryButton(KeypadButton.Digit.One, amountCalculator)
+      .shouldBeFalse()
+  }
+
+  test("digit feedback rejects taps ignored by fractional precision limits") {
+    decimalNumber("1.2").isRejectedAmountEntryButton(KeypadButton.Digit.Three, amountCalculator)
+      .shouldBeFalse()
+    decimalNumber("1.23").isRejectedAmountEntryButton(KeypadButton.Digit.Four, amountCalculator)
+      .shouldBeTrue()
+  }
 
   context("fiat as input") {
     val props =
@@ -135,3 +172,12 @@ class MoneyCalculatorUiStateMachineImplTests : FunSpec({
     }
   }
 })
+
+private fun decimalNumber(
+  numberString: String,
+  maximumFractionDigits: Int = 2,
+) = Amount.DecimalNumber(
+  numberString = numberString,
+  maximumFractionDigits = maximumFractionDigits,
+  decimalSeparator = '.'
+)

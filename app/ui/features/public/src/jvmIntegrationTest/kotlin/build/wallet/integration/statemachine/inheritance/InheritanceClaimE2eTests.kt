@@ -1,12 +1,9 @@
 package build.wallet.integration.statemachine.inheritance
 
+import bitkey.account.HardwareType
 import build.wallet.analytics.events.screen.context.AuthKeyRotationEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.InactiveAppEventTrackerScreenId
-import build.wallet.integration.statemachine.inheritance.robots.InheritanceTestApps
-import build.wallet.integration.statemachine.inheritance.robots.advanceThroughClaimStart
-import build.wallet.integration.statemachine.inheritance.robots.launchInheritanceApps
-import build.wallet.integration.statemachine.inheritance.robots.setupInheritanceBetween
-import build.wallet.integration.statemachine.inheritance.robots.skipDelayPeriod
+import build.wallet.integration.statemachine.inheritance.robots.*
 import build.wallet.integration.statemachine.recovery.cloud.screenDecideIfShouldRotate
 import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
@@ -14,6 +11,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.inheritance.*
 import build.wallet.statemachine.inheritance.claims.complete.EmptyBenefactorWalletScreenModel
+import build.wallet.statemachine.inheritance.claims.complete.InheritanceTransferConfirmationScreenModel
 import build.wallet.statemachine.inheritance.claims.complete.InheritanceTransferSuccessScreenModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.settings.SettingsBodyModel
@@ -23,11 +21,7 @@ import build.wallet.statemachine.ui.robots.advanceUntilScreenWithBody
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchLegacyWalletApp
 import build.wallet.testing.AppTester.Companion.launchNewApp
-import build.wallet.testing.ext.AppMode
-import build.wallet.testing.ext.addSomeFunds
-import build.wallet.testing.ext.getActiveWallet
-import build.wallet.testing.ext.returnFundsToTreasury
-import build.wallet.testing.ext.testWithTwoApps
+import build.wallet.testing.ext.*
 import build.wallet.testing.shouldBeOk
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
@@ -73,7 +67,7 @@ class InheritanceClaimE2eTests : FunSpec({
   test("Complete Inheritance Claim [private -> legacy]") {
     val benefactorApp = launchNewApp(executeWorkers = false)
     val beneficiaryApp = launchLegacyWalletApp(
-      cloudKeyValueStore = benefactorApp.cloudKeyValueStore
+      cloudBackupStore = benefactorApp.cloudBackupStore
     )
     val apps = setupInheritanceBetween(
       benefactorApp = benefactorApp,
@@ -81,6 +75,202 @@ class InheritanceClaimE2eTests : FunSpec({
     )
 
     completeInheritanceClaim(apps)
+  }
+
+  test("Complete Inheritance Claim [W3 -> W3]") {
+    val apps = launchInheritanceApps(
+      benefactorHardwareType = HardwareType.W3,
+      beneficiaryHardwareType = HardwareType.W3
+    )
+
+    completeInheritanceClaim(apps)
+    apps.benefactor.app.assertActiveHardwareType(HardwareType.W3)
+    apps.beneficiary.app.assertActiveHardwareType(HardwareType.W3)
+  }
+
+  test("Start Inheritance Claim [W3 -> W3]") {
+    val apps = launchInheritanceApps(
+      benefactorHardwareType = HardwareType.W3,
+      beneficiaryHardwareType = HardwareType.W3
+    )
+    apps.advanceThroughClaimStart()
+
+    // Assert that Claim enters pending state:
+    apps.beneficiary.app.inheritanceManagementUiStateMachine.test(
+      turbineTimeout = 60.seconds,
+      props = InheritanceManagementUiProps(
+        account = apps.beneficiary.account(),
+        selectedTab = ManagingInheritanceTab.Beneficiaries,
+        onBack = { error("No exit calls expected") },
+        onGoToUtxoConsolidation = { error("No UTXO consolidation expected") }
+      )
+    ) {
+      awaitUntilBody<ManagingInheritanceBodyModel>(
+        matching = { model ->
+          model.benefactors.items.any { it.title == apps.benefactor.name } &&
+            model.benefactors.items.single { it.title == apps.benefactor.name }.secondaryText == "Claim pending"
+        }
+      )
+      cancelAndIgnoreRemainingEvents()
+    }
+
+    apps.benefactor.app.assertActiveHardwareType(HardwareType.W3)
+    apps.beneficiary.app.assertActiveHardwareType(HardwareType.W3)
+  }
+
+  test("Beneficiary cancels inheritance claim [W3 -> W3]") {
+    val apps = launchInheritanceApps(
+      benefactorHardwareType = HardwareType.W3,
+      beneficiaryHardwareType = HardwareType.W3
+    )
+    apps.advanceThroughClaimStart()
+
+    apps.beneficiary.app.inheritanceManagementUiStateMachine.test(
+      turbineTimeout = 60.seconds,
+      props = InheritanceManagementUiProps(
+        account = apps.beneficiary.account(),
+        selectedTab = ManagingInheritanceTab.Beneficiaries,
+        onBack = { error("No exit calls expected") },
+        onGoToUtxoConsolidation = { error("No UTXO consolidation expected") }
+      )
+    ) {
+      awaitUntilBody<ManagingInheritanceBodyModel>(
+        matching = { model ->
+          model.benefactors.items.any { it.title == apps.benefactor.name } &&
+            model.benefactors.items.single { it.title == apps.benefactor.name }.secondaryText == "Claim pending"
+        }
+      ) {
+        benefactors.items.single { it.title == apps.benefactor.name }
+          .trailingAccessory
+          .shouldBeInstanceOf<ListItemAccessory.ButtonAccessory>()
+          .model
+          .onClick()
+      }
+      awaitUntilSheet<ManageInheritanceContactBodyModel>(
+        matching = { it.claimControls is ManageInheritanceContactBodyModel.ClaimControls.Cancel }
+      ) {
+        claimControls.shouldBeInstanceOf<ManageInheritanceContactBodyModel.ClaimControls.Cancel>()
+          .onClick()
+      }
+      awaitUntilSheet<DestructiveInheritanceActionBodyModel> {
+        onPrimaryClick()
+      }
+      awaitUntilBody<ManagingInheritanceBodyModel>(
+        matching = { model ->
+          model.benefactors.items.any { it.title == apps.benefactor.name } &&
+            model.benefactors.items.single { it.title == apps.benefactor.name }.secondaryText == "Active"
+        }
+      )
+      cancelAndIgnoreRemainingEvents()
+    }
+
+    apps.benefactor.app.assertActiveHardwareType(HardwareType.W3)
+    apps.beneficiary.app.assertActiveHardwareType(HardwareType.W3)
+  }
+
+  test("Benefactor cancels inheritance claim [W3 -> W3]") {
+    val apps = launchInheritanceApps(
+      benefactorHardwareType = HardwareType.W3,
+      beneficiaryHardwareType = HardwareType.W3
+    )
+    apps.advanceThroughClaimStart()
+
+    apps.benefactor.app.inheritanceManagementUiStateMachine.test(
+      turbineTimeout = 60.seconds,
+      props = InheritanceManagementUiProps(
+        account = apps.benefactor.account(),
+        selectedTab = ManagingInheritanceTab.Beneficiaries,
+        onBack = { error("No exit calls expected") },
+        onGoToUtxoConsolidation = { error("No UTXO consolidation expected") }
+      )
+    ) {
+      apps.benefactor.app.claimsRepository.syncServerClaims()
+      awaitUntilBody<ManagingInheritanceBodyModel>(
+        matching = { model ->
+          model.beneficiaries.items.any { it.title == apps.beneficiary.name } &&
+            model.beneficiaries.items.single {
+              it.title == apps.beneficiary.name
+            }.secondaryText == "Claim pending"
+        }
+      ) {
+        beneficiaries.items.single { it.title == apps.beneficiary.name }
+          .trailingAccessory
+          .shouldBeInstanceOf<ListItemAccessory.ButtonAccessory>()
+          .model
+          .onClick()
+      }
+      awaitUntilSheet<ManageInheritanceContactBodyModel>(
+        matching = { it.claimControls is ManageInheritanceContactBodyModel.ClaimControls.Cancel }
+      ) {
+        claimControls.shouldBeInstanceOf<ManageInheritanceContactBodyModel.ClaimControls.Cancel>()
+          .onClick()
+      }
+      advanceUntilScreenWithBody<ManagingInheritanceBodyModel>(
+        stopCondition = { model ->
+          model.beneficiaries.items.any { it.title == apps.beneficiary.name } &&
+            model.beneficiaries.items.single { it.title == apps.beneficiary.name }.secondaryText == "Active"
+        }
+      )
+      cancelAndIgnoreRemainingEvents()
+    }
+
+    apps.benefactor.app.assertActiveHardwareType(HardwareType.W3)
+    apps.beneficiary.app.assertActiveHardwareType(HardwareType.W3)
+  }
+
+  test("Complete Inheritance Claim -- empty wallet [W3 -> W3]") {
+    val apps = launchInheritanceApps(
+      benefactorHardwareType = HardwareType.W3,
+      beneficiaryHardwareType = HardwareType.W3
+    )
+    apps.advanceThroughClaimStart()
+    apps.skipDelayPeriod()
+
+    apps.beneficiary.app.inheritanceManagementUiStateMachine.test(
+      turbineTimeout = 60.seconds,
+      props = InheritanceManagementUiProps(
+        account = apps.beneficiary.account(),
+        selectedTab = ManagingInheritanceTab.Beneficiaries,
+        onBack = { error("No exit calls expected") },
+        onGoToUtxoConsolidation = { error("No UTXO consolidation expected") }
+      )
+    ) {
+      apps.beneficiary.app.claimsRepository.syncServerClaims()
+      awaitUntilBody<ManagingInheritanceBodyModel>(
+        matching = { model ->
+          model.benefactors.items.any { it.title == apps.benefactor.name } &&
+            model.benefactors.items.single {
+              it.title == apps.benefactor.name
+            }.secondaryText == "Claim approved"
+        }
+      ) {
+        benefactors.items.single { it.title == apps.benefactor.name }
+          .trailingAccessory
+          .shouldBeInstanceOf<ListItemAccessory.ButtonAccessory>()
+          .model
+          .onClick()
+      }
+      awaitUntilSheet<ManageInheritanceContactBodyModel>(
+        matching = { it.claimControls is ManageInheritanceContactBodyModel.ClaimControls.Complete }
+      ) {
+        claimControls.shouldBeInstanceOf<ManageInheritanceContactBodyModel.ClaimControls.Complete>()
+          .onClick()
+      }
+      advanceUntilScreenWithBody<EmptyBenefactorWalletScreenModel>()
+        .onClose()
+      awaitUntilBody<ManagingInheritanceBodyModel>(
+        matching = { model ->
+          model.benefactors.items.any { it.title == apps.benefactor.name } &&
+            model.benefactors.items.single {
+              it.title == apps.benefactor.name
+            }.secondaryText == "Claim approved"
+        }
+      )
+      cancelAndIgnoreRemainingEvents()
+    }
+
+    apps.benefactor.app.assertActiveHardwareType(HardwareType.W3)
+    apps.beneficiary.app.assertActiveHardwareType(HardwareType.W3)
   }
 
   testAcrossWalletModes("Complete Inheritance Claim -- empty wallet") { apps ->
@@ -326,9 +516,9 @@ private suspend fun TestScope.launchBeneficiaryForMode(
   mode: AppMode,
 ): AppTester =
   when (mode) {
-    AppMode.Legacy -> launchLegacyWalletApp(cloudKeyValueStore = benefactorApp.cloudKeyValueStore)
+    AppMode.Legacy -> launchLegacyWalletApp(cloudBackupStore = benefactorApp.cloudBackupStore)
     AppMode.Private -> launchNewApp(
-      cloudKeyValueStore = benefactorApp.cloudKeyValueStore
+      cloudBackupStore = benefactorApp.cloudBackupStore
     )
   }
 
@@ -370,8 +560,12 @@ private suspend fun TestScope.completeInheritanceClaim(apps: InheritanceTestApps
       claimControls.shouldBeInstanceOf<ManageInheritanceContactBodyModel.ClaimControls.Complete>()
         .onClick()
     }
-    advanceUntilScreenWithBody<InheritanceTransferSuccessScreenModel>()
-      .onDone()
+    awaitUntilBody<InheritanceTransferConfirmationScreenModel> {
+      onTransfer()
+    }
+    awaitUntilBody<InheritanceTransferSuccessScreenModel> {
+      onDone()
+    }
     awaitUntilBody<ManagingInheritanceBodyModel>(
       matching = { model ->
         model.benefactors.items.any { it.title == apps.benefactor.name } &&
@@ -382,13 +576,16 @@ private suspend fun TestScope.completeInheritanceClaim(apps: InheritanceTestApps
     )
     cancelAndIgnoreRemainingEvents()
   }
+
   apps.beneficiary.app.getActiveWallet().run {
     sync().shouldBeOk()
     balance().first().total.value.isZero().shouldBeFalse()
   }
+
   apps.benefactor.app.getActiveWallet().run {
     sync().shouldBeOk()
     balance().first().total.value.isZero().shouldBeTrue()
   }
+
   apps.beneficiary.app.returnFundsToTreasury()
 }

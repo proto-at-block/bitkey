@@ -7,22 +7,38 @@ import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.switch.SwitchModel
+import build.wallet.ui.tokens.LabelType
 
 sealed interface ListItemAccessory {
   /** Shows a singular character with a grey circle background */
   data class CircularCharacterAccessory(
     val character: Char,
+    val circleSize: IconSize = IconSize.Small,
+    val characterType: LabelType = LabelType.Label3,
   ) : ListItemAccessory {
     val text = character.toString()
 
     companion object {
-      fun fromLetters(input: String): CircularCharacterAccessory {
+      fun fromLetters(
+        input: String,
+        circleSize: IconSize = IconSize.Small,
+        characterType: LabelType = LabelType.Label3,
+      ): CircularCharacterAccessory {
         return CircularCharacterAccessory(
-          character = input.firstOrNull(Char::isLetter)?.uppercaseChar() ?: '?'
+          character = input.firstOrNull(Char::isLetter)?.uppercaseChar() ?: '?',
+          circleSize = circleSize,
+          characterType = characterType
         )
       }
     }
   }
+
+  data class CircularIconAccessory(
+    val icon: Icon,
+    val circleSize: IconSize = IconSize.Small,
+    val iconSize: IconSize = IconSize.Small,
+    val iconTint: IconTint? = null,
+  ) : ListItemAccessory
 
   data class ContactAvatarAccessory(
     val name: String,
@@ -45,8 +61,10 @@ sealed interface ListItemAccessory {
   data class IconAccessory(
     /** The padding to apply to the icon on all sides  */
     val iconPadding: Int? = null,
+    val opticalOffsetX: Int? = null,
     val model: IconModel,
     val onClick: (() -> Unit)? = null,
+    val testTag: String? = null,
   ) : ListItemAccessory {
     constructor(icon: Icon) :
       this(
@@ -78,16 +96,20 @@ sealed interface ListItemAccessory {
    * Common accessories.
    */
   companion object {
-    fun drillIcon(tint: IconTint? = null) =
-      IconAccessory(
-        iconPadding = null,
-        IconModel(
-          icon = Icon.SmallIconCaretRight,
-          iconSize = IconSize.Small,
-          iconBackgroundType = IconBackgroundType.Transient,
-          iconTint = tint
-        )
+    fun drillIcon(
+      tint: IconTint? = null,
+      iconSize: IconSize = IconSize.Small,
+      opticalOffsetX: Int? = null,
+    ) = IconAccessory(
+      iconPadding = null,
+      opticalOffsetX = opticalOffsetX,
+      model = IconModel(
+        icon = Icon.SmallIconCaretRight,
+        iconSize = iconSize,
+        iconBackgroundType = IconBackgroundType.Transient,
+        iconTint = tint
       )
+    )
 
     fun checkIcon(): ListItemAccessory = CheckAccessory(isChecked = true)
   }

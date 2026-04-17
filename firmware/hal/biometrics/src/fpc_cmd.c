@@ -15,6 +15,7 @@ static struct {
   arg_lit_t* security_test;
   arg_int_t* failure_analysis;
   arg_lit_t* diagnostics;
+  arg_lit_t* fps_status;
   arg_end_t* end;
 } fpc_cmd_args;
 
@@ -31,6 +32,8 @@ static void fpc_cmd_register(void) {
   fpc_cmd_args.security_test = ARG_LIT_OPT('s', "security-test", "run security test");
   fpc_cmd_args.failure_analysis = ARG_INT_OPT('f', "failure-analysis", "run FA capture");
   fpc_cmd_args.diagnostics = ARG_LIT_OPT('d', "diagnostics", "diagnostics dump");
+  fpc_cmd_args.fps_status =
+    ARG_LIT_OPT('q', "query-status", "query FPS security_enabled and otp_locked");
   fpc_cmd_args.end = ARG_END();
 
   static shell_command_t fpc_cmd = {
@@ -55,23 +58,23 @@ NO_OPTIMIZE static void fpc_cmd_handler(int argc, char** argv) {
     bio_selftest_result_t result;
     bio_selftest(&result);
   } else if (fpc_cmd_args.enroll->header.found) {
-    bio_wait_for_finger_blocking(BIO_FINGER_DOWN);
+    (void)bio_wait_for_finger_blocking(BIO_FINGER_DOWN);
     bio_enroll_stats_t stats;
     bio_enroll_finger(fpc_cmd_args.enroll->value, "test", &stats);
   } else if (fpc_cmd_args.match->header.found) {
     secure_bool_t match = SECURE_FALSE;
     bio_template_id_t id = 0;
-    bio_wait_for_finger_blocking(BIO_FINGER_DOWN);
+    (void)bio_wait_for_finger_blocking(BIO_FINGER_DOWN);
     bio_authenticate_finger(&match, &id, 0);
-    SECURE_IF_FAILOUT(match == SECURE_TRUE) { LOGI("Matched to template %d", id); }
+    SECURE_IF_FAILOUT(match == SECURE_TRUE) { LOGI("Match: %d", id); }
     else {
-      LOGI("Authentication failed");
+      LOGI("Auth fail");
     }
   } else if (fpc_cmd_args.provision->header.found) {
     if (bio_provision_cryptographic_keys(fpc_cmd_args.provision->value, true)) {
-      LOGI("Provisioned FPC sensor cryptographic keys");
+      LOGI("FPC keys OK");
     } else {
-      LOGE("Failed to provision FPC sensor cryptographic keys");
+      LOGE("FPC key fail");
     }
   } else if (fpc_cmd_args.write_key->header.found) {
     const char* hex_encoded_key = fpc_cmd_args.write_key->value;
@@ -79,17 +82,25 @@ NO_OPTIMIZE static void fpc_cmd_handler(int argc, char** argv) {
   } else if (fpc_cmd_args.security_test->header.found) {
     fpc_bep_security_test_result_t res;
     if (bio_security_test(&res)) {
-      LOGI("FPC security test passed");
+      LOGI("FPC sec: OK");
     } else {
-      LOGE("FPC security test failed");
+      LOGE("FPC sec: FAIL");
     }
   } else if (fpc_cmd_args.failure_analysis->header.found) {
     fpc_bep_analyze_result_t test_result;
     if (bio_image_analysis_test(fpc_cmd_args.failure_analysis->value, &test_result)) {
-      LOGI("Image analysis test passed");
+      LOGI("Img test: OK");
     } else {
-      LOGE("Image analysis test failed");
+      LOGE("Img test: FAIL");
     }
+  } else if (fpc_cmd_args.fps_status->header.found) {
+    bool secured = false;
+    bool locked = false;
+    bool sec_ok = bio_sensor_is_secured(&secured);
+    bool otp_ok = bio_sensor_is_otp_locked(&locked);
+    printf("security_enabled: %s (call %s)\n", secured ? "true" : "false",
+           sec_ok ? "ok" : "FAILED");
+    printf("otp_locked: %s (call %s)\n", locked ? "true" : "false", otp_ok ? "ok" : "FAILED");
   } else if (fpc_cmd_args.diagnostics->header.found) {
     bio_diagnostics_t diagnostics = bio_get_diagnostics();
 

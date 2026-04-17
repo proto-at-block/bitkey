@@ -50,6 +50,7 @@ impl From<CreateAndRotateAuthKeysInput<'_>> for FullAccountAuthKeys {
             input.app_auth_pubkey,
             input.hardware_auth_pubkey,
             input.recovery_auth_pubkey,
+            input.hardware_type,
         )
     }
 }

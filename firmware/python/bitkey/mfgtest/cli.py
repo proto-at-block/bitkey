@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from typing import List, Optional
 
@@ -10,6 +11,23 @@ import click
 from .platform_config import PlatformConfig, Gpio, Port, DeviceIdentifiers, SerialNumber, DevInfo, ChipId, BoardId, ChargerInfo, FuelStatus
 from .. import comms, uxc
 from ..shell import Shell
+
+
+CHARGER_MODE_STRINGS = {
+    0: "Charger off",
+    1: "Prequalification mode",
+    2: "Fast-charge constant-current (CC) mode",
+    3: "JEITA CC mode",
+    4: "Fast-charge constant-voltage (CV) mode",
+    5: "JEITA CV mode",
+    6: "Top-off mode",
+    7: "JEITA-modified top-off mode",
+    8: "Done",
+    9: "JEITA-modified done",
+    10: "Prequalification timer fault",
+    11: "Fast-charge timer fault",
+    12: "Battery temperature fault",
+}
 
 
 # TODO: Remove this once we have a settled-upon set of identifiers so that we can introspect.
@@ -72,8 +90,10 @@ class W3UXCController(Controller):
             interfaces = [serial_port_name]
 
         self.config: PlatformConfig = config
-        self._transport: comms.SerialTransport = comms.SerialTransport(interfaces=interfaces)
-        self._host: uxc.UXCHost = uxc.UXCHost(write=self._transport.write, read=self._transport.read)
+        self._transport: comms.SerialTransport = comms.SerialTransport(
+            interfaces=interfaces)
+        self._host: uxc.UXCHost = uxc.UXCHost(
+            write=self._transport.write, read=self._transport.read)
 
         self._transport.open()
         self._host.start()
@@ -180,14 +200,40 @@ class W1Controller(Controller):
             int(seconds) + (int(millis) * 0.001)
         return seconds
 
+    def _parse_charger_status(self, output: str) -> bool:
+        for line in reversed([line.strip() for line in output.splitlines() if line.strip()]):
+            match = re.search(r"Battery charging:\s*(\d+)", line)
+            if match:
+                return bool(int(match.group(1)))
+            if "charger NOT connected" in line:
+                return False
+            if "charger connected" in line:
+                return True
+        raise IOError("Unable to parse charger status")
+
+    def _parse_charger_mode(self, output: str) -> str:
+        lines = [line.strip() for line in output.splitlines() if line.strip()]
+
+        for line in reversed(lines):
+            match = re.search(r"Charger mode:\s*(\d+)", line)
+            if match:
+                mode = int(match.group(1))
+                return CHARGER_MODE_STRINGS.get(mode, f"Unknown charger mode ({mode})")
+
+            for mode_string in CHARGER_MODE_STRINGS.values():
+                if mode_string in line:
+                    return mode_string
+
+        raise IOError("Unable to parse charger mode")
+
     def charger_info(self) -> ChargerInfo:
         charger_info = ChargerInfo(None, None, None)
 
-        output = self.shell.command("charger -s").split("\n")[1]
-        charger_info.status = not ("NOT" in output)
+        output = self.shell.command("charger -s")
+        charger_info.status = self._parse_charger_status(output)
 
-        output = self.shell.command("charger -m").split("\n")[2].lstrip()
-        charger_info.mode = output
+        output = self.shell.command("charger -m")
+        charger_info.mode = self._parse_charger_mode(output)
 
         output = self.shell.command("charger -d").split("\n")[1:]
         charger_info.registers = output
@@ -195,8 +241,7 @@ class W1Controller(Controller):
         return charger_info
 
     def charger_mode(self) -> str:
-        output = self.shell.command("charger -m").split("\n")
-        return output[1] + output[2]
+        return f"Charger Mode:{self._parse_charger_mode(self.shell.command('charger -m'))}"
 
     def led_off(self) -> str:
         self.shell.command("led-anim -o").split("\n")
@@ -219,7 +264,8 @@ class W1Controller(Controller):
         :param timeout: timeout, in milliseconds, for the loopback test (default: 5000ms)
         :returns: `True` if test was successful, otherwise `False`.
         """
-        output = self.shell.command(f"nfc --loopback {nfc_test_type} --timeout {timeout}")
+        output = self.shell.command(
+            f"nfc --loopback {nfc_test_type} --timeout {timeout}")
         if "Card detected" in output:
             return True
         return False

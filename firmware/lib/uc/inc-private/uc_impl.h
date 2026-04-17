@@ -53,7 +53,7 @@
 /**
  * @brief Maximum number of messages for each of send and receive buffers.
  */
-#define UC_MSG_MAX_NUM 3u
+#define UC_MSG_MAX_NUM 4u
 
 /**
  * @brief Size of a message header in bytes.

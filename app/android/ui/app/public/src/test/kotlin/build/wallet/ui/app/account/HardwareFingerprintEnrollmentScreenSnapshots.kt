@@ -15,13 +15,33 @@ class HardwareFingerprintEnrollmentScreenSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
   test("hardware fingerprint enrollment instructions screen") {
-    paparazzi.snapshot {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
       FingerprintEnrollmentScreen()
     }
   }
 
   test("hardware fingerprint enrollment instructions screen - with troubleshooting button") {
-    paparazzi.snapshot {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      FingerprintEnrollmentScreen(
+        headline = "Set up your fingerprint",
+        troubleshootingButton = ButtonModel(
+          text = "Having trouble?",
+          treatment = ButtonModel.Treatment.TertiaryNoUnderlineWhite,
+          onClick = StandardClick {},
+          size = ButtonModel.Size.Footer
+        )
+      )
+    }
+  }
+
+  test("hardware fingerprint enrollment instructions screen with design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      FingerprintEnrollmentScreen()
+    }
+  }
+
+  test("hardware fingerprint enrollment instructions screen - with troubleshooting button with design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
       FingerprintEnrollmentScreen(
         headline = "Set up your fingerprint",
         troubleshootingButton = ButtonModel(
@@ -51,6 +71,7 @@ private fun FingerprintEnrollmentScreen(
     eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION,
     presentationStyle = ScreenPresentationStyle.Root,
     headline = headline,
+    isDesignSystemV2Enabled = true,
     instructions = "Place your finger on the sensor until you see a blue light. Lift your" +
       " finger and repeat (15-20 times) adjusting your finger position slightly each time," +
       " until the light turns green. Then save your fingerprint."

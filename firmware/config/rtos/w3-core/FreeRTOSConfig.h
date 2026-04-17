@@ -23,7 +23,7 @@
 #define configRECORD_STACK_HIGH_ADDRESS         0
 
 #define configMINIMAL_STACK_SIZE             160
-#define configTOTAL_HEAP_SIZE                52000
+#define configTOTAL_HEAP_SIZE                54000
 #define configAPPLICATION_ALLOCATED_HEAP     1
 #define configTICK_RATE_HZ                   1000
 #define configTIMER_TASK_STACK_DEPTH         250

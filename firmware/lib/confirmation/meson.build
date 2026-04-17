@@ -27,6 +27,5 @@ if embedded_build
 else
   confirmation_dep = declare_dependency(
     include_directories : include_directories('inc'),
-    dependencies : [ipc_dep],
   )
 endif

@@ -128,6 +128,76 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
     }
   }
 
+  test("editing fingerprint only removes the toolbar and reorders footer buttons in design system v2") {
+    stateMachine.test(props) {
+      awaitSheet<FormBodyModel> {
+        toolbar
+          .shouldNotBeNull()
+          .leadingAccessory
+          .shouldBeInstanceOf<IconAccessory>()
+
+        primaryButton.shouldNotBeNull().text.shouldBe("Delete fingerprint")
+        secondaryButton.shouldNotBeNull().text.shouldBe("Save fingerprint")
+
+        val designSystemV2Model = designSystemV2Model.shouldNotBeNull()
+
+        designSystemV2Model.toolbar.shouldBeNull()
+        designSystemV2Model.useLegacyToolbarFallback.shouldBe(false)
+        designSystemV2Model.primaryButton.shouldNotBeNull().text.shouldBe("Save fingerprint")
+        designSystemV2Model.useLegacyPrimaryButtonFallback.shouldBe(false)
+        designSystemV2Model.secondaryButton.shouldNotBeNull().text.shouldBe("Delete fingerprint")
+        designSystemV2Model.useLegacySecondaryButtonFallback.shouldBe(false)
+      }
+    }
+  }
+
+  test("automation follows the save action for an existing fingerprint") {
+    stateMachine.test(props) {
+      awaitSheet<FormBodyModel> {
+        mainContentList[0]
+          .shouldBeInstanceOf<FormMainContentModel.TextInput>()
+          .fieldModel.onValueChange("Right index", 0..0)
+      }
+
+      awaitSheet<FormBodyModel> {
+        automateNextPrimaryScreen()
+      }
+
+      onSaveCalls.awaitItem()
+        .shouldBe(FingerprintHandle(index = 0, label = "Right index"))
+    }
+  }
+
+  test("adding a new fingerprint only shows one footer button in design system v2") {
+    stateMachine.test(props.copy(isExistingFingerprint = false)) {
+      awaitSheet<FormBodyModel> {
+        toolbar.shouldNotBeNull()
+        primaryButton.shouldBeNull()
+        secondaryButton.shouldNotBeNull().text.shouldBe("Start fingerprint")
+
+        val designSystemV2Model = designSystemV2Model.shouldNotBeNull()
+
+        designSystemV2Model.toolbar.shouldBeNull()
+        designSystemV2Model.useLegacyToolbarFallback.shouldBe(false)
+        designSystemV2Model.primaryButton.shouldNotBeNull().text.shouldBe("Start fingerprint")
+        designSystemV2Model.useLegacyPrimaryButtonFallback.shouldBe(false)
+        designSystemV2Model.secondaryButton.shouldBeNull()
+        designSystemV2Model.useLegacySecondaryButtonFallback.shouldBe(false)
+      }
+    }
+  }
+
+  test("automation follows the start action for a new fingerprint") {
+    stateMachine.test(props.copy(isExistingFingerprint = false)) {
+      awaitSheet<FormBodyModel> {
+        automateNextPrimaryScreen()
+      }
+
+      onSaveCalls.awaitItem()
+        .shouldBe(FingerprintHandle(index = 0, label = "Left Thumb"))
+    }
+  }
+
   test("edit fingerprint label for a new fingerprint") {
     stateMachine.test(props.copy(isExistingFingerprint = false)) {
       // Change the fingerprint label

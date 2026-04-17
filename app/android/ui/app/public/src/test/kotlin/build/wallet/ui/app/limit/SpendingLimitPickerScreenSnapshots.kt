@@ -17,4 +17,10 @@ class SpendingLimitPickerScreenSnapshots : FunSpec({
       PreviewSpendingLimitPickerScreenWithValueKeypad()
     }
   }
+
+  test("spending limit picker screen with values using keypad and design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      PreviewSpendingLimitPickerScreenWithValueKeypadDesignSystemV2()
+    }
+  }
 })

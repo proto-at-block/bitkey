@@ -1,12 +1,13 @@
 package build.wallet.f8e.recovery
 
+import bitkey.account.HardwareType
 import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import com.github.michaelbull.result.Result
 
 interface RotateAuthKeysF8eClient {
@@ -23,6 +24,7 @@ interface RotateAuthKeysF8eClient {
     newAppAuthPublicKeys: AppAuthPublicKeys,
     hwAuthPublicKey: HwAuthPublicKey,
     hwSignedAccountId: String,
-    hwFactorProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
+    hardwareType: HardwareType,
   ): Result<Unit, Throwable>
 }

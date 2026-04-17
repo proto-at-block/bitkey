@@ -7,17 +7,23 @@ import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.SheetSize
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.ui.model.SheetClosingClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
+import build.wallet.ui.model.icon.IconImage
+import build.wallet.ui.model.icon.IconModel
+import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
+import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.list.ListItemTitleAlignment
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
+import build.wallet.ui.tokens.market.MarketIcons
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 
@@ -37,6 +43,7 @@ import kotlinx.collections.immutable.toImmutableList
 fun selectPurchaseAmountModel(
   purchaseAmounts: ImmutableList<FiatMoney>,
   selectedAmount: FiatMoney?,
+  isDesignSystemV2Enabled: Boolean = false,
   moneyDisplayFormatter: MoneyDisplayFormatter,
   onSelectAmount: (FiatMoney) -> Unit,
   onSelectCustomAmount: () -> Unit,
@@ -58,6 +65,18 @@ fun selectPurchaseAmountModel(
     ListItemModel(
       title = "...",
       titleAlignment = ListItemTitleAlignment.CENTER,
+      leadingAccessory =
+        if (isDesignSystemV2Enabled) {
+          IconAccessory(
+            model =
+              IconModel(
+                iconImage = IconImage.MarketIconImage(MarketIcons.EllipsisHorizontal),
+                iconSize = IconSize.Small
+              )
+          )
+        } else {
+          null
+        },
       onClick = onSelectCustomAmount,
       selected = selectedAmount?.let { !purchaseAmounts.contains(it) } ?: false
     )
@@ -68,6 +87,7 @@ fun selectPurchaseAmountModel(
       items = items.toImmutableList(),
       purchaseAmounts = purchaseAmounts,
       selectedAmount = selectedAmount,
+      isDesignSystemV2Enabled = isDesignSystemV2Enabled,
       moneyDisplayFormatter = moneyDisplayFormatter,
       onSelectAmount = onSelectAmount,
       onSelectCustomAmount = onSelectCustomAmount,
@@ -83,6 +103,7 @@ internal data class SelectPurchaseAmountBodyModel(
   val items: ImmutableList<ListItemModel>,
   val purchaseAmounts: ImmutableList<FiatMoney>,
   val selectedAmount: FiatMoney?,
+  val isDesignSystemV2Enabled: Boolean,
   val moneyDisplayFormatter: MoneyDisplayFormatter,
   val onSelectAmount: (FiatMoney) -> Unit,
   val onSelectCustomAmount: () -> Unit,
@@ -90,17 +111,32 @@ internal data class SelectPurchaseAmountBodyModel(
   val onExit: () -> Unit,
 ) : FormBodyModel(
     id = DepositEventTrackerScreenId.PARTNER_PURCHASE_OPTIONS,
-    header = null,
+    header =
+      if (isDesignSystemV2Enabled) {
+        FormHeaderModel(headline = "Choose an amount", subline = null)
+      } else {
+        null
+      },
     onBack = onExit,
-    toolbar = ToolbarModel(
-      middleAccessory = ToolbarMiddleAccessoryModel(title = "Choose an amount")
-    ),
+    toolbar =
+      if (isDesignSystemV2Enabled) {
+        null
+      } else {
+        ToolbarModel(
+          middleAccessory = ToolbarMiddleAccessoryModel(title = "Choose an amount")
+        )
+      },
     mainContentList =
       immutableListOf(
         FormMainContentModel.ListGroup(
           listGroupModel =
             ListGroupModel(
-              style = ListGroupStyle.THREE_COLUMN_CARD_ITEM,
+              style =
+                if (isDesignSystemV2Enabled) {
+                  ListGroupStyle.THREE_COLUMN_KEYPAD_ITEM
+                } else {
+                  ListGroupStyle.THREE_COLUMN_CARD_ITEM
+                },
               items = items
             )
         )

@@ -1,0 +1,19 @@
+# addr_in_range() boundary dictionary for indexfs-addr-fuzz.
+# uint32_t boundary values for (addr, range_start, range_size) triples.
+
+# Zero / empty range
+kw0="\x00\x00\x00\x00"
+
+# UINT32_MAX
+kw1="\xff\xff\xff\xff"
+
+# Midpoint
+kw2="\x00\x00\x00\x80"
+
+# Common flash addresses
+kw3="\x00\x00\x04\x00"   # 0x00040000 (typical flash base)
+kw4="\x00\x20\x00\x00"   # 0x00002000 (flash page size)
+kw5="\x00\x00\x10\x00"   # 0x00100000
+
+# range_size = 1 (single byte range)
+kw6="\x01\x00\x00\x00"

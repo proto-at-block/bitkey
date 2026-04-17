@@ -31,8 +31,8 @@ srcs = [
   'src/bl_secureboot.c',
 ]
 
-bl_deps = [crypto_dep, secutils_bl_dep, log_dep]
-app_deps = [crypto_dep, secutils_dep, log_dep]
+bl_deps = [crypto_dep, mcu_bl_deps[system], secutils_bl_dep, log_dep, wstd_dep]
+app_deps = [crypto_dep, mcu_deps[system], secutils_dep, log_dep, wstd_dep]
 
 bootloader_bl_libs = {}
 bootloader_bl_deps = {}
@@ -57,7 +57,7 @@ foreach bootloader_platform : bootloader_platform_configs.keys()
       link_with : bootloader_bl_libs[bootloader_platform],
       include_directories : incs,
       compile_args : bootloader_config['compile_args'],
-      dependencies : bootloader_config['dependencies'],
+      dependencies : bl_deps + bootloader_config['dependencies'],
     )
   }
 
@@ -74,7 +74,7 @@ foreach bootloader_platform : bootloader_platform_configs.keys()
       link_with : bootloader_app_libs[bootloader_platform],
       include_directories : incs,
       compile_args : bootloader_config['compile_args'],
-      dependencies : bootloader_config['dependencies'],
+      dependencies : app_deps + bootloader_config['dependencies'],
     )
   }
 endforeach

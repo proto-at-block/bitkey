@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.12
-FROM rust:1.86.0-alpine@sha256:661d708cc863ce32007cf46807a72062a80d2944a6fae9e0d83742d2e04d5375 AS builder
+FROM rust:1.91.1-alpine@sha256:45c1c35cd364b8055e9e86f8ecd3e8c874b2dcb658d8a4f94b5d111aa0d651a2 AS builder
 
 RUN apk add --no-cache \
     cmake \
@@ -22,71 +22,71 @@ WORKDIR ${REALWORKDIR}
 RUN git clone -b v1.0.2 https://github.com/awslabs/aws-lc.git
 WORKDIR aws-lc
 RUN git checkout 11b50d39cf2378703a4ca6b6fee9d76a2e9852d1
-RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S aws-lc -B aws-lc/build .
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_C_FLAGS="-Wno-error=unterminated-string-initialization" -GNinja -S . -B build
 RUN go env -w GOPROXY=direct
-RUN cmake --build aws-lc/build --target install
+RUN cmake --build build --target install
 
 WORKDIR ${REALWORKDIR}
 RUN git clone -b v1.3.11 https://github.com/aws/s2n-tls.git
 WORKDIR s2n-tls
 RUN git checkout 0d41122bd2ca62a5de384b79c524dd48852b2071
-RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -S . -B build
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -S . -B build
 RUN cmake --build build --target install
 
 WORKDIR ${REALWORKDIR}
 RUN git clone -b v0.6.20 https://github.com/awslabs/aws-c-common.git
 WORKDIR aws-c-common
 RUN git checkout 68f28f8df258390744f3c5b460250f8809161041
-RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S . -B build
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -GNinja -S . -B build
 RUN cmake --build build --target install
 
 WORKDIR ${REALWORKDIR}
 RUN git clone -b v0.1.2 https://github.com/awslabs/aws-c-sdkutils.git
 WORKDIR aws-c-sdkutils
 RUN git checkout e3c23f4aca31d9e66df25827645f72cbcbfb657a
-RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S . -B build
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -GNinja -S . -B build
 RUN cmake --build build --target install
 
 WORKDIR ${REALWORKDIR}
 RUN git clone -b v0.5.17 https://github.com/awslabs/aws-c-cal.git
 WORKDIR aws-c-cal
 RUN git checkout 7eb1d7360ea205ff275d2acc6cce2682063b643f
-RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S . -B build
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -GNinja -S . -B build
 RUN cmake --build build --target install
 
 WORKDIR ${REALWORKDIR}
 RUN git clone -b v0.10.21 https://github.com/awslabs/aws-c-io.git
 WORKDIR aws-c-io
 RUN git checkout 0457935752729d02b3ccc224205622fd275be2bb
-RUN cmake -DUSE_VSOCK=1 -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S . -B build
+RUN cmake -DUSE_VSOCK=1 -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -GNinja -S . -B build
 RUN cmake --build build --target install
 
 WORKDIR ${REALWORKDIR}
 RUN git clone -b v0.2.14 http://github.com/awslabs/aws-c-compression.git
 WORKDIR aws-c-compression
 RUN git checkout 5fab8bc5ab5321d86f6d153b06062419080820ec
-RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S . -B build
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -GNinja -S . -B build
 RUN cmake --build build --target install
 
 WORKDIR ${REALWORKDIR}
 RUN git clone -b v0.6.13 https://github.com/awslabs/aws-c-http.git
 WORKDIR aws-c-http
 RUN git checkout 3f8ffda541eab815646f739cef2b350d6e7d5406
-RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S . -B build
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -GNinja -S . -B build
 RUN cmake --build build --target install
 
 WORKDIR ${REALWORKDIR}
 RUN git clone -b v0.6.11 https://github.com/awslabs/aws-c-auth.git
 WORKDIR aws-c-auth
 RUN git checkout e1b95cca6f2248c28b66ddb40bcccd35a59cb8b5
-RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S . -B build
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -GNinja -S . -B build
 RUN cmake --build build --target install
 
 WORKDIR ${REALWORKDIR}
 RUN git clone -b json-c-0.16-20220414 https://github.com/json-c/json-c.git
 WORKDIR json-c
 RUN git checkout 2f2ddc1f2dbca56c874e8f9c31b5b963202d80e7
-RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=OFF -GNinja -S . -B build
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DBUILD_SHARED_LIBS=OFF -GNinja -S . -B build
 RUN cmake --build build --target install
 
 WORKDIR ${REALWORKDIR}
@@ -102,7 +102,7 @@ WORKDIR ${REALWORKDIR}
 RUN git clone -b v0.3.2 https://github.com/aws/aws-nitro-enclaves-sdk-c.git
 WORKDIR aws-nitro-enclaves-sdk-c
 RUN git checkout e751fd8ae0fcbe635e6f177d36314978c7f99ea3
-RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S . -B build
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -GNinja -S . -B build
 RUN cmake --build build --target install
 
 # Test

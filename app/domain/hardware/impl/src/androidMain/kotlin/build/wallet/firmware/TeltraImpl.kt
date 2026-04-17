@@ -20,7 +20,7 @@ class TeltraImpl : Teltra {
           serial = identifiers.serial,
           version = identifiers.version,
           swType = identifiers.hwRevisionWithSwType(),
-          hwRevision = identifiers.hwRevisionWithoutProduct()
+          hwRevision = identifiers.memfaultHwRevision()
         )
       )
     }.getOrElse {

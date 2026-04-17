@@ -19,6 +19,7 @@ import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeyset
+import build.wallet.f8e.recovery.LegacyRemoteKeyset
 import build.wallet.crypto.PrivateKey
 import build.wallet.crypto.PublicKey
 import build.wallet.di.AppScope
@@ -218,7 +219,9 @@ class OrphanedKeyRecoveryServiceImpl(
     }
     logWarn { "$LOG_TAG Successfully fetched ${keysetResponse.keysets.size} keysets" }
 
-    val allKeysets = keysetResponse.keysets.toSpendingKeysets(uuidGenerator)
+    val allKeysets = keysetResponse.keysets
+      .filterIsInstance<LegacyRemoteKeyset>()
+      .toSpendingKeysets(uuidGenerator)
 
     // Find matching keysets with spending keys in keychain
     val matchingKeysets = allKeysets.filter { keyset ->

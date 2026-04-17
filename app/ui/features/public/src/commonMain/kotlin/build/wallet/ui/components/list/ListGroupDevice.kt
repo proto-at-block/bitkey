@@ -34,6 +34,7 @@ import build.wallet.ui.model.list.ListGroupStyle.DIVIDER
 import build.wallet.ui.model.list.ListGroupStyle.NONE
 import build.wallet.ui.model.list.ListGroupStyle.THREE_COLUMN_CARD_ITEM
 import build.wallet.ui.model.list.ListGroupStyle.THREE_COLUMN_CARD_ITEM_LARGE
+import build.wallet.ui.model.list.ListGroupStyle.THREE_COLUMN_KEYPAD_ITEM
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
@@ -77,6 +78,8 @@ fun ListGroupDevice(
         cardWidth = 98,
         cardHeight = 80
       )
+
+      THREE_COLUMN_KEYPAD_ITEM -> FixedColumnCardListGroup(model, columnCount = 3)
     }
     model.explainerSubtext?.let {
       Label(

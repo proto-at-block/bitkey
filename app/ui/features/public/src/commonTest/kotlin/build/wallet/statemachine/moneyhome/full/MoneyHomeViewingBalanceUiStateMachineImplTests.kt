@@ -11,9 +11,11 @@ import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.coachmark.CoachmarkServiceMock
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoMock
 import build.wallet.feature.flags.Bip177FeatureFlag
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.fwup.FirmwareDataServiceFake
 import build.wallet.home.GettingStartedTaskDaoMock
 import build.wallet.inappsecurity.MoneyHomeHiddenStatusProviderFake
@@ -41,11 +43,14 @@ import build.wallet.statemachine.trustedcontact.view.ViewingInvitationUiStateMac
 import build.wallet.statemachine.trustedcontact.view.ViewingRecoveryContactProps
 import build.wallet.statemachine.trustedcontact.view.ViewingRecoveryContactUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
-import build.wallet.wallet.migration.PrivateWalletMigrationServiceFake
-import build.wallet.wallet.migration.PrivateWalletMigrationState
+import build.wallet.wallet.migration.MigrationProgress
+import build.wallet.wallet.migration.MigrationServiceFake
+import build.wallet.wallet.migration.MigrationType
 import build.wallet.worker.RefreshExecutor
 import build.wallet.worker.RefreshOperation
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -64,14 +69,18 @@ class MoneyHomeViewingBalanceUiStateMachineImplTests : FunSpec({
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
   val securityActionsService = SecurityActionsServiceFake()
   val firmwareDataService = FirmwareDataServiceFake()
-  val privateWalletMigrationService = PrivateWalletMigrationServiceFake()
+  val migrationService = MigrationServiceFake()
   val featureFlagDao = FeatureFlagDaoMock()
   val bip177FeatureFlag = Bip177FeatureFlag(featureFlagDao)
+  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(featureFlagDao)
   val bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryFake()
 
   val setStateCalls = turbines.create<MoneyHomeUiState>("setState calls")
   val onSettingsCalls = turbines.create<Unit>("onSettings calls")
   val transactionsActivityService = TransactionsActivityServiceFake()
+
+  val transactionsActivityUiStateMachine = object : TransactionsActivityUiStateMachine,
+    StateMachineMock<TransactionsActivityProps, TransactionsActivityModel?>(null) {}
 
   val props = MoneyHomeViewingBalanceUiProps(
     account = FullAccountMock,
@@ -95,8 +104,7 @@ class MoneyHomeViewingBalanceUiStateMachineImplTests : FunSpec({
     gettingStartedTaskDao = gettingStartedTaskDao,
     moneyHomeCardsUiStateMachine = object : MoneyHomeCardsUiStateMachine,
       StateMachineMock<MoneyHomeCardsProps, CardListModel>(CardListModel(cards = immutableListOf())) {},
-    transactionsActivityUiStateMachine = object : TransactionsActivityUiStateMachine,
-      StateMachineMock<TransactionsActivityProps, TransactionsActivityModel?>(null) {},
+    transactionsActivityUiStateMachine = transactionsActivityUiStateMachine,
     viewingInvitationUiStateMachine = object : ViewingInvitationUiStateMachine,
       ScreenStateMachineMock<ViewingInvitationProps>("viewing-invitation") {},
     viewingRecoveryContactUiStateMachine = object : ViewingRecoveryContactUiStateMachine,
@@ -114,22 +122,25 @@ class MoneyHomeViewingBalanceUiStateMachineImplTests : FunSpec({
     },
     partnerTransferLinkUiStateMachine = object : PartnerTransferLinkUiStateMachine,
       ScreenStateMachineMock<PartnerTransferLinkProps>("partner-transfer-link") {},
-    privateWalletMigrationService = privateWalletMigrationService,
+    migrationService = migrationService,
     bip177FeatureFlag = bip177FeatureFlag,
+    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
     bitcoinDisplayPreferenceRepository = bitcoinDisplayPreferenceRepository
   )
 
   beforeTest {
     coachmarkService.reset()
     bitcoinWalletService.reset()
-    privateWalletMigrationService.reset()
+    migrationService.reset()
   }
 
   test("displays PrivateWalletHomeCoachmark when available") {
     coachmarkService.defaultCoachmarks = listOf(
       CoachmarkIdentifier.PrivateWalletHomeCoachmark
     )
-    privateWalletMigrationService.migrationState.value = PrivateWalletMigrationState.Available
+    migrationService.resumeResult = com.github.michaelbull.result.Ok(
+      MigrationProgress.NotStarted(MigrationType.PrivateWalletMigration)
+    )
     bitcoinWalletService.transactionsData.value = TransactionsDataMock
 
     stateMachine.test(props) {
@@ -159,7 +170,9 @@ class MoneyHomeViewingBalanceUiStateMachineImplTests : FunSpec({
       CoachmarkIdentifier.Bip177Coachmark,
       CoachmarkIdentifier.PrivateWalletHomeCoachmark
     )
-    privateWalletMigrationService.migrationState.value = PrivateWalletMigrationState.Available
+    migrationService.resumeResult = com.github.michaelbull.result.Ok(
+      MigrationProgress.NotStarted(MigrationType.PrivateWalletMigration)
+    )
 
     stateMachine.test(props) {
       // Coachmark should be null while balance is loading
@@ -174,6 +187,176 @@ class MoneyHomeViewingBalanceUiStateMachineImplTests : FunSpec({
       awaitBody<MoneyHomeBodyModel> {
         coachmark.shouldNotBeNull()
         coachmark.identifier.shouldBe(CoachmarkIdentifier.Bip177Coachmark)
+      }
+    }
+  }
+
+  test("displays W3 upgrade completion coachmark when launched from completed upgrade") {
+    coachmarkService.defaultCoachmarks = listOf(
+      CoachmarkIdentifier.W3UpgradeCompleteCoachmark
+    )
+    bitcoinWalletService.transactionsData.value = TransactionsDataMock
+
+    stateMachine.test(
+      props.copy(
+        state = ViewingBalanceUiState(showW3UpgradeCompleteCoachmark = true)
+      )
+    ) {
+      awaitBody<MoneyHomeBodyModel>()
+
+      awaitBody<MoneyHomeBodyModel> {
+        coachmark.shouldNotBeNull()
+        coachmark.identifier.shouldBe(CoachmarkIdentifier.W3UpgradeCompleteCoachmark)
+        coachmark.title.shouldBe("Your wallet is ready")
+        coachmark.description.shouldBe("Start using your new Bitkey device anytime.")
+        coachmark.dismiss()
+      }
+
+      setStateCalls.awaitItem().shouldBe(
+        ViewingBalanceUiState(showW3UpgradeCompleteCoachmark = false)
+      )
+      coachmarkService.markDisplayedTurbine.awaitItem().shouldBe(
+        CoachmarkIdentifier.W3UpgradeCompleteCoachmark
+      )
+
+      awaitBody<MoneyHomeBodyModel> {
+        coachmark.shouldBeNull()
+      }
+    }
+  }
+
+  test("does not display W3 upgrade completion coachmark when coachmark service suppresses it") {
+    bitcoinWalletService.transactionsData.value = TransactionsDataMock
+
+    stateMachine.test(
+      props.copy(
+        state = ViewingBalanceUiState(showW3UpgradeCompleteCoachmark = true)
+      )
+    ) {
+      awaitBody<MoneyHomeBodyModel> {
+        coachmark.shouldBeNull()
+      }
+
+      coachmarkService.markDisplayedTurbine.expectNoEvents()
+      setStateCalls.expectNoEvents()
+      eventTracker.eventCalls.expectNoEvents()
+    }
+  }
+
+  test("does not request W3 upgrade completion coachmark until balance data is loaded") {
+    coachmarkService.defaultCoachmarks = listOf(
+      CoachmarkIdentifier.W3UpgradeCompleteCoachmark
+    )
+    bitcoinWalletService.transactionsData.value = null
+
+    stateMachine.test(
+      props.copy(
+        state = ViewingBalanceUiState(showW3UpgradeCompleteCoachmark = true)
+      )
+    ) {
+      awaitBody<MoneyHomeBodyModel> {
+        coachmark.shouldBeNull()
+      }
+
+      coachmarkService.coachmarksToDisplayRequestsTurbine.awaitUntil(
+        setOf(
+          CoachmarkIdentifier.Bip177Coachmark,
+          CoachmarkIdentifier.PrivateWalletHomeCoachmark
+        )
+      )
+
+      bitcoinWalletService.transactionsData.value = TransactionsDataMock
+
+      awaitBody<MoneyHomeBodyModel> {
+        coachmark.shouldNotBeNull()
+        coachmark.identifier.shouldBe(CoachmarkIdentifier.W3UpgradeCompleteCoachmark)
+      }
+
+      coachmarkService.coachmarksToDisplayRequestsTurbine.awaitUntil(
+        setOf(
+          CoachmarkIdentifier.Bip177Coachmark,
+          CoachmarkIdentifier.PrivateWalletHomeCoachmark,
+          CoachmarkIdentifier.W3UpgradeCompleteCoachmark
+        )
+      )
+    }
+  }
+
+  test("shows other available money home coachmarks when W3 upgrade coachmark is unavailable") {
+    coachmarkService.defaultCoachmarks = listOf(
+      CoachmarkIdentifier.Bip177Coachmark
+    )
+    bitcoinWalletService.transactionsData.value = TransactionsDataMock
+
+    stateMachine.test(
+      props.copy(
+        state = ViewingBalanceUiState(showW3UpgradeCompleteCoachmark = true)
+      )
+    ) {
+      awaitBody<MoneyHomeBodyModel>()
+
+      awaitBody<MoneyHomeBodyModel> {
+        coachmark.shouldNotBeNull()
+        coachmark.identifier.shouldBe(
+          CoachmarkIdentifier.Bip177Coachmark
+        )
+      }
+      coachmarkService.markDisplayedTurbine.expectNoEvents()
+      setStateCalls.expectNoEvents()
+      eventTracker.eventCalls.expectNoEvents()
+    }
+  }
+
+  test("transactions list shows empty state when no transactions and not loading") {
+    bitcoinWalletService.transactionsData.value = TransactionsDataMock
+
+    stateMachine.test(props.copy(isDesignSystemV2Enabled = true)) {
+      awaitBody<MoneyHomeBodyModel> {
+        transactionsModel.shouldNotBeNull()
+        transactionsModel.headerText.shouldBe("Recent activity")
+        transactionsModel.sections.shouldBeEmpty()
+      }
+    }
+  }
+
+  test("transactions list is hidden when empty and V2 disabled") {
+    bitcoinWalletService.transactionsData.value = TransactionsDataMock
+
+    stateMachine.test(props.copy(isDesignSystemV2Enabled = false)) {
+      awaitBody<MoneyHomeBodyModel> {
+        transactionsModel.shouldBeNull()
+      }
+    }
+  }
+
+  test("transactions list is null when loading") {
+    // ensure transactionsData is null to simulate loading
+    bitcoinWalletService.transactionsData.value = null
+
+    stateMachine.test(props) {
+      awaitBody<MoneyHomeBodyModel> {
+        transactionsModel.shouldBeNull()
+      }
+    }
+  }
+
+  test("transactions list shows transactions when they exist and V2 enabled") {
+    val mockModel = TransactionsActivityModel(
+      listModel = build.wallet.ui.model.list.ListGroupModel(
+        items = immutableListOf(
+          build.wallet.ui.model.list.ListItemModel(title = "Tx 1")
+        ),
+        style = build.wallet.ui.model.list.ListGroupStyle.NONE
+      ),
+      hasMoreTransactions = false
+    )
+    transactionsActivityUiStateMachine.emitModel(mockModel)
+
+    stateMachine.test(props.copy(isDesignSystemV2Enabled = true)) {
+      awaitBody<MoneyHomeBodyModel> {
+        transactionsModel.shouldNotBeNull()
+        // It should contain the sections from mockModel
+        transactionsModel.sections.shouldNotBeEmpty()
       }
     }
   }

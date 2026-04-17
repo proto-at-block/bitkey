@@ -69,10 +69,6 @@ void fingerprint_dots_create(lv_obj_t* parent, fingerprint_dots_t* dots) {
   ASSERT(dots != NULL);
 
   memset(dots, 0, sizeof(fingerprint_dots_t));
-  dots->parent = parent;
-
-  dots->offset_x = (LV_HOR_RES - SVG_WIDTH) / 2;
-  dots->offset_y = (LV_VER_RES - SVG_HEIGHT) / 2;
 
   dots->container = lv_obj_create(parent);
   lv_obj_set_size(dots->container, SVG_WIDTH, SVG_HEIGHT);
@@ -105,7 +101,6 @@ void fingerprint_dots_create(lv_obj_t* parent, fingerprint_dots_t* dots) {
   }
 
   dots->is_initialized = true;
-  dots->is_visible = false;
 }
 
 void fingerprint_dots_show(fingerprint_dots_t* dots) {
@@ -118,8 +113,6 @@ void fingerprint_dots_show(fingerprint_dots_t* dots) {
       lv_obj_clear_flag(dots->dots[i], LV_OBJ_FLAG_HIDDEN);
     }
   }
-
-  dots->is_visible = true;
 }
 
 void fingerprint_dots_hide(fingerprint_dots_t* dots) {
@@ -132,8 +125,6 @@ void fingerprint_dots_hide(fingerprint_dots_t* dots) {
       lv_obj_add_flag(dots->dots[i], LV_OBJ_FLAG_HIDDEN);
     }
   }
-
-  dots->is_visible = false;
 }
 
 void fingerprint_dots_set_percent(fingerprint_dots_t* dots, uint8_t percent) {
@@ -146,7 +137,6 @@ void fingerprint_dots_set_percent(fingerprint_dots_t* dots, uint8_t percent) {
   }
 
   uint16_t target_active = (uint16_t)((FINGERPRINT_DOTS_COUNT * percent) / 100);
-  dots->active_count = target_active;
 
   for (uint16_t order = 0; order < FINGERPRINT_DOTS_COUNT; order++) {
     uint8_t dot_idx = activation_order[order];
@@ -205,32 +195,6 @@ void fingerprint_dots_set_percent(fingerprint_dots_t* dots, uint8_t percent) {
       }
     }
   }
-}
-
-void fingerprint_dots_reset(fingerprint_dots_t* dots) {
-  if (!dots || !dots->is_initialized) {
-    return;
-  }
-
-  for (uint16_t i = 0; i < FINGERPRINT_DOTS_COUNT; i++) {
-    lv_anim_del(&dots->anim_ctx[i], dot_activate_anim_cb);
-    lv_anim_del(&dots->anim_ctx[i], dot_mid_anim_cb);
-    lv_anim_del(&dots->anim_ctx[i], dot_mid_to_full_anim_cb);
-
-    if (dots->dots[i]) {
-      lv_coord_t x = dot_positions[i].x;
-      lv_coord_t y = dot_positions[i].y;
-
-      lv_obj_set_size(dots->dots[i], FINGERPRINT_DOT_SIZE_INACTIVE, FINGERPRINT_DOT_SIZE_INACTIVE);
-      lv_obj_set_pos(dots->dots[i], x - (FINGERPRINT_DOT_SIZE_INACTIVE / 2),
-                     y - (FINGERPRINT_DOT_SIZE_INACTIVE / 2));
-      lv_obj_set_style_bg_color(dots->dots[i], lv_color_hex(COLOR_INACTIVE), 0);
-      lv_obj_set_style_bg_opa(dots->dots[i], INACTIVE_OPA, 0);
-    }
-    dots->dot_state[i] = FINGERPRINT_DOT_STATE_INACTIVE;
-  }
-
-  dots->active_count = 0;
 }
 
 void fingerprint_dots_destroy(fingerprint_dots_t* dots) {

@@ -1,6 +1,7 @@
 package bitkey.recovery
 
 import bitkey.auth.AuthTokenScope.Global
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.recovery.LostAppAndCloudRecoveryService.CompletedAuth.WithDescriptorBackups
 import build.wallet.recovery.LostAppAndCloudRecoveryService.CompletedAuth.WithDirectKeys
 import build.wallet.testing.AppTester.Companion.launchNewApp
@@ -58,7 +59,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     val account = app.onboardFullAccountWithFakeHardware()
     val hwProofOfPossession = app.getHardwareFactorProofOfPossession()
     app.lostAppAndCloudRecoveryService
-      .cancelRecovery(account.accountId, hwProofOfPossession)
+      .cancelRecovery(account.accountId, PrivilegedActionProof.HwKeyProof(hwProofOfPossession))
       .shouldBeOk()
   }
 })

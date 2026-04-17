@@ -265,7 +265,7 @@ impl IterableClient {
         Self::from_mode(config.iterable)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, data_fields))]
     pub async fn send_targeted_email(
         &self,
         recipient_user_id: IterableUserId<'_>,
@@ -414,7 +414,7 @@ impl IterableClient {
         }
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, email_address, data_fields))]
     pub async fn update_user(
         &self,
         user_id: IterableUserId<'_>,

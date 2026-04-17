@@ -15,6 +15,7 @@ kotlin {
       dependencies {
         implementation(compose.runtime)
         implementation(projects.libs.composeRuntimePublic)
+        implementation(projects.domain.dataStateMachinePublic)
 
         implementation(projects.domain.accountPublic)
         implementation(projects.domain.analyticsPublic)
@@ -37,6 +38,7 @@ kotlin {
         implementation(projects.libs.stateMachinePublic)
         implementation(projects.libs.composeRuntimePublic)
         implementation(projects.libs.loggingPublic)
+        implementation(projects.domain.privilegedActionsPublic)
         implementation(projects.domain.relationshipsPublic)
         implementation(libs.kmp.molecule.runtime)
       }
@@ -64,6 +66,7 @@ kotlin {
         implementation(projects.libs.contactMethodFake)
         implementation(projects.libs.platformFake)
         implementation(projects.libs.queueProcessorFake)
+        implementation(projects.domain.privilegedActionsFake)
         implementation(projects.domain.recoveryFake)
         implementation(projects.domain.mobilePayFake)
         implementation(projects.domain.dataStateMachineFake)

@@ -5,6 +5,8 @@ import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.toErrorIfNull
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.cancel
 
 class NfcTransactorMock(
   turbine: (String) -> Turbine<Any>,
@@ -18,6 +20,7 @@ class NfcTransactorMock(
    * When empty, falls back to [transactResult].
    */
   private val transactResultQueue = mutableListOf<Result<Any, NfcException>>()
+  private val transactPauseGates = mutableListOf<CompletableDeferred<Unit>>()
 
   override var isTransacting: Boolean = false
 
@@ -29,26 +32,43 @@ class NfcTransactorMock(
     transactResultQueue.addAll(results)
   }
 
+  /**
+   * Pauses the next [transact] call until the returned gate is completed or cancelled.
+   */
+  fun pauseNextTransact(): CompletableDeferred<Unit> {
+    return CompletableDeferred<Unit>().also { gate ->
+      transactPauseGates.add(gate)
+    }
+  }
+
   override suspend fun <T> transact(
     parameters: NfcSession.Parameters,
     transaction: TransactionFn<T>,
   ): Result<T, NfcException> {
     isTransacting = true
     transactCalls.add(parameters)
-    val result = if (transactResultQueue.isNotEmpty()) {
-      transactResultQueue.removeAt(0)
-    } else {
-      transactResult
-    }
-    return result.map { it as? T }
-      .toErrorIfNull { NfcException.UnknownError() }
-      .also {
-        isTransacting = false
+    return try {
+      transactPauseGates.firstOrNull()?.let { gate ->
+        transactPauseGates.removeAt(0)
+        gate.await()
       }
+
+      val result = if (transactResultQueue.isNotEmpty()) {
+        transactResultQueue.removeAt(0)
+      } else {
+        transactResult
+      }
+      result.map { it as? T }
+        .toErrorIfNull { NfcException.UnknownError() }
+    } finally {
+      isTransacting = false
+    }
   }
 
   fun reset() {
     transactResult = Err(NfcException.UnknownError())
     transactResultQueue.clear()
+    transactPauseGates.forEach { it.cancel() }
+    transactPauseGates.clear()
   }
 }

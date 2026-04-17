@@ -18,8 +18,6 @@ import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeypair
 import build.wallet.bitkey.spending.SpendingPrivateKey
 import build.wallet.bitkey.spending.SpendingPublicKey
-import build.wallet.di.AppScope
-import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.Secp256k1KeyGenerator
 import build.wallet.encrypt.Secp256k1PrivateKey
 import build.wallet.nfc.FakeHardwareKeyStore.FakeHwSpendingPrivateKey
@@ -28,14 +26,14 @@ import build.wallet.store.getOrPutString
 import com.github.michaelbull.result.getOrThrow
 import okio.ByteString.Companion.toByteString
 
-@BitkeyInject(AppScope::class)
 class FakeHardwareKeyStoreImpl(
   private val bdkMnemonicGenerator: BdkMnemonicGenerator,
   private val bdkDescriptorSecretKeyGenerator: BdkDescriptorSecretKeyGenerator,
   private val secp256k1KeyGenerator: Secp256k1KeyGenerator,
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
+  private val storeName: String = DEFAULT_STORE_NAME,
 ) : FakeHardwareKeyStore {
-  private suspend fun store() = encryptedKeyValueStoreFactory.getOrCreate(STORE_NAME)
+  private suspend fun store() = encryptedKeyValueStoreFactory.getOrCreate(storeName)
 
   override suspend fun getSeed(): FakeHardwareKeyStore.Seed {
     val seed = store().getOrPutString(SEED_KEY) {
@@ -130,22 +128,22 @@ class FakeHardwareKeyStoreImpl(
     store().clear()
   }
 
-  private companion object {
-    // changing these values is a breaking change and will cause data loss
-    // this class is only used for testing but will disrupt existing installations
-    const val STORE_NAME = "fakeHardware"
-    const val SEED_KEY = "seed-key"
-
-    val pathPattern = Regex("""^/84'/(\d+)'/(\d+)'""")
-
-    fun extractPathParts(derivationPath: String): PathParts? {
-      val match = pathPattern.matchEntire(derivationPath) ?: return null
-      return PathParts(
-        coinType = match.groupValues[1].toInt(),
-        account = match.groupValues[2].toInt()
-      )
-    }
+  private fun extractPathParts(derivationPath: String): PathParts? {
+    val match = pathPattern.matchEntire(derivationPath) ?: return null
+    return PathParts(
+      coinType = match.groupValues[1].toInt(),
+      account = match.groupValues[2].toInt()
+    )
   }
 
   private data class PathParts(val coinType: Int, val account: Int)
+
+  companion object {
+    // changing these values is a breaking change and will cause data loss
+    // this class is only used for testing but will disrupt existing installations
+    const val DEFAULT_STORE_NAME = "fakeHardware"
+    const val W3_STORE_NAME = "fakeHardwareW3"
+    private const val SEED_KEY = "seed-key"
+    private val pathPattern = Regex("""^/84'/(\d+)'/(\d+)'""")
+  }
 }

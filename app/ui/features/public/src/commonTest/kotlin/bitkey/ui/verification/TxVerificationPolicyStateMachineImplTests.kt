@@ -6,6 +6,7 @@ import bitkey.verification.VerificationThreshold
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryFake
@@ -13,8 +14,8 @@ import build.wallet.money.exchange.ExchangeRateServiceFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
-import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
-import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
+import build.wallet.statemachine.auth.HardwareAuthUiProps
+import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.keypad.KeypadModel
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
@@ -57,9 +58,9 @@ class TxVerificationPolicyStateMachineImplTests : FunSpec({
       defaultMoneyCalculatorModel
     ) {}
 
-  val hwProofOfPossessionNfcStateMachine = object : ProofOfPossessionNfcStateMachine,
-    ScreenStateMachineMock<ProofOfPossessionNfcProps>(
-      id = "proof-of-possession-nfc"
+  val hardwareAuthUiStateMachine = object : HardwareAuthUiStateMachine,
+    ScreenStateMachineMock<HardwareAuthUiProps>(
+      id = "hardware-auth"
     ) {}
 
   val stateMachine = TxVerificationPolicyStateMachineImpl(
@@ -69,7 +70,7 @@ class TxVerificationPolicyStateMachineImplTests : FunSpec({
     moneyInputStateMachine = moneyInputStateMachine,
     exchangeRateService = exchangeRateService,
     minimumLoadingDuration = minimumLoadingDuration,
-    hwProofOfPossessionNfcStateMachine = hwProofOfPossessionNfcStateMachine
+    hardwareAuthUiStateMachine = hardwareAuthUiStateMachine
   )
 
   val onExitCalls = turbines.create<Unit>("onExit calls")
@@ -101,7 +102,7 @@ class TxVerificationPolicyStateMachineImplTests : FunSpec({
     txVerificationService.updateThreshold(
       policy = policy,
       amountBtc = BitcoinMoney.btc(1.0),
-      hwFactorProofOfPossession = HwFactorProofOfPossession("fake")
+      proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("fake"))
     )
 
     stateMachine.test(props) {
@@ -146,7 +147,7 @@ class TxVerificationPolicyStateMachineImplTests : FunSpec({
       awaitSheet<VerificationThresholdPickerModel> {
         onConfirmClick()
       }
-      awaitBodyMock<ProofOfPossessionNfcProps>()
+      awaitBodyMock<HardwareAuthUiProps>(id = "hardware-auth")
     }
   }
 
@@ -164,7 +165,7 @@ class TxVerificationPolicyStateMachineImplTests : FunSpec({
         onAlwaysClick()
       }
 
-      awaitBodyMock<ProofOfPossessionNfcProps>()
+      awaitBodyMock<HardwareAuthUiProps>(id = "hardware-auth")
     }
   }
 
@@ -183,9 +184,8 @@ class TxVerificationPolicyStateMachineImplTests : FunSpec({
         onAlwaysClick()
       }
 
-      awaitBodyMock<ProofOfPossessionNfcProps> {
-        val hwKeyProof = request.shouldBeInstanceOf<build.wallet.statemachine.auth.Request.HwKeyProof>()
-        hwKeyProof.onSuccess(HwFactorProofOfPossession("test-proof"))
+      awaitBodyMock<HardwareAuthUiProps>(id = "hardware-auth") {
+        onSuccess(PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("test-proof")))
       }
 
       awaitBody<TxVerificationPolicyStateModel>()
@@ -210,9 +210,8 @@ class TxVerificationPolicyStateMachineImplTests : FunSpec({
         onAlwaysClick()
       }
 
-      awaitBodyMock<ProofOfPossessionNfcProps> {
-        val hwKeyProof = request.shouldBeInstanceOf<build.wallet.statemachine.auth.Request.HwKeyProof>()
-        hwKeyProof.onSuccess(HwFactorProofOfPossession("test-proof"))
+      awaitBodyMock<HardwareAuthUiProps>(id = "hardware-auth") {
+        onSuccess(PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("test-proof")))
       }
 
       awaitBody<TxVerificationPolicyStateModel>()
@@ -242,9 +241,8 @@ class TxVerificationPolicyStateMachineImplTests : FunSpec({
         onAlwaysClick()
       }
 
-      awaitBodyMock<ProofOfPossessionNfcProps> {
-        val hwKeyProof = request.shouldBeInstanceOf<build.wallet.statemachine.auth.Request.HwKeyProof>()
-        hwKeyProof.onSuccess(HwFactorProofOfPossession("test-proof"))
+      awaitBodyMock<HardwareAuthUiProps>(id = "hardware-auth") {
+        onSuccess(PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("test-proof")))
       }
 
       awaitBody<TxVerificationPolicyStateModel>()
@@ -256,7 +254,7 @@ class TxVerificationPolicyStateMachineImplTests : FunSpec({
         resendButton.onClick()
       }
 
-      awaitBodyMock<ProofOfPossessionNfcProps>()
+      awaitBodyMock<HardwareAuthUiProps>(id = "hardware-auth")
     }
   }
 
@@ -274,9 +272,8 @@ class TxVerificationPolicyStateMachineImplTests : FunSpec({
         onAlwaysClick()
       }
 
-      awaitBodyMock<ProofOfPossessionNfcProps> {
-        val hwKeyProof = request.shouldBeInstanceOf<build.wallet.statemachine.auth.Request.HwKeyProof>()
-        hwKeyProof.onSuccess(HwFactorProofOfPossession("test-proof"))
+      awaitBodyMock<HardwareAuthUiProps>(id = "hardware-auth") {
+        onSuccess(PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("test-proof")))
       }
 
       awaitBody<TxVerificationPolicyStateModel>()
@@ -301,9 +298,8 @@ class TxVerificationPolicyStateMachineImplTests : FunSpec({
         onAlwaysClick()
       }
 
-      awaitBodyMock<ProofOfPossessionNfcProps> {
-        val hwKeyProof = request.shouldBeInstanceOf<build.wallet.statemachine.auth.Request.HwKeyProof>()
-        hwKeyProof.onSuccess(HwFactorProofOfPossession("test-proof"))
+      awaitBodyMock<HardwareAuthUiProps>(id = "hardware-auth") {
+        onSuccess(PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("test-proof")))
       }
 
       awaitBody<TxVerificationPolicyStateModel>()
@@ -333,9 +329,8 @@ class TxVerificationPolicyStateMachineImplTests : FunSpec({
         onAlwaysClick()
       }
 
-      awaitBodyMock<ProofOfPossessionNfcProps> {
-        val hwKeyProof = request.shouldBeInstanceOf<build.wallet.statemachine.auth.Request.HwKeyProof>()
-        hwKeyProof.onSuccess(HwFactorProofOfPossession("test-proof"))
+      awaitBodyMock<HardwareAuthUiProps>(id = "hardware-auth") {
+        onSuccess(PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("test-proof")))
       }
 
       awaitBody<TxVerificationPolicyStateModel>()

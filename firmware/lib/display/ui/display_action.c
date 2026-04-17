@@ -32,6 +32,10 @@ void display_send_action(fwpb_display_action_display_action_type action, uint32_
   // Build message with handler and payload
   display_send_msg_t msg = {
     .handler = action_encode_handler,
+    // Actions drive navigation on Core, so request an immediate ACK to avoid
+    // retransmits during bursts of back/menu input.
+    .flags = DISPLAY_SEND_FLAG_IMMEDIATE,
+    .sent = NULL,
   };
   memcpy(msg.payload, &payload, sizeof(payload));
 

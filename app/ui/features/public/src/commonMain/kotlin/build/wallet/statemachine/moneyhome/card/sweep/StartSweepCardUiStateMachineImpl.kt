@@ -31,6 +31,7 @@ class StartSweepCardUiStateMachineImpl(
             title = "Funds in inactive wallet",
             subtitle = LabelModel.StringModel("Transfer funds now"),
             treatment = Treatment.Warning,
+            useMonochromeStyleInDesignSystemV2 = true,
             leadingIcon = Icon.SmallIconInformationFilled,
             trailingIcon = Icon.SmallIconArrowRight,
             onClick = StandardClick(props.onStartSweepClicked)

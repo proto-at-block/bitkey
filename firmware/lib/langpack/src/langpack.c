@@ -12,7 +12,7 @@ static struct {
    * @brief TLV for the loaded language pack data.
    */
   tlv_t db;
-} langpack_priv SHARED_TASK_DATA = {0};
+} langpack_priv SHARED_TASK_BSS = {0};
 
 void __attribute__((weak)) langpack_load_default(void) {
   // No-op.

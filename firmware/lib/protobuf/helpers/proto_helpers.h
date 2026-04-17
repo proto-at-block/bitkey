@@ -4,11 +4,14 @@
 #include "wallet.pb.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 fwpb_wallet_cmd* proto_get_cmd(uint8_t* serialized_cmd, uint32_t length);
 fwpb_wallet_rsp* proto_get_rsp(void);
 void proto_send_rsp(fwpb_wallet_cmd* cmd, fwpb_wallet_rsp* rsp);
+bool proto_secure_channel_message_has_valid_sizes(const fwpb_secure_channel_message* message,
+                                                  size_t ciphertext_size);
 
 // This pair of functions should rarely be used. They're used a task
 // needs to send a response immediately over NFC, but still use the data

@@ -12,12 +12,12 @@ import build.wallet.bitkey.relationships.Invitation
 import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.ktor.result.HttpError
 import build.wallet.relationships.RelationshipsService
-import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
-import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
-import build.wallet.statemachine.auth.Request
+import build.wallet.statemachine.auth.ActionProofType
+import build.wallet.statemachine.auth.HardwareAuthUiProps
+import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.recovery.RecoverySegment
 import com.github.michaelbull.result.onFailure
@@ -26,7 +26,7 @@ import kotlinx.datetime.Clock
 
 @BitkeyInject(ActivityScope::class)
 class RemoveTrustedContactUiStateMachineImpl(
-  private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
+  private val hardwareAuthUiStateMachine: HardwareAuthUiStateMachine,
   private val clock: Clock,
   private val relationshipsService: RelationshipsService,
 ) : RemoveTrustedContactUiStateMachine {
@@ -41,6 +41,9 @@ class RemoveTrustedContactUiStateMachineImpl(
         false
       }
 
+    val isBeneficiary = props.trustedContact.roles.contains(TrustedContactRole.Beneficiary)
+    val actionDescription = if (isBeneficiary) "Removing Beneficiary" else "Removing Recovery Contact"
+
     return when (val current = state) {
       is State.RemoveRequestState ->
         RemoveTrustedContactBodyModel(
@@ -50,37 +53,41 @@ class RemoveTrustedContactUiStateMachineImpl(
             // For removing expired invitations we don't need to scan hardware
             state =
               if (isExpiredInvitation) {
-                State.RemovingWithBitkeyState(proofOfPossession = null)
+                State.RemovingState(proof = null)
               } else {
                 State.ScanningHardwareState
               }
           },
           onClosed = props.onClosed,
-          isBeneficiary = TrustedContactRole.Beneficiary == props.trustedContact.roles.singleOrNull()
+          isBeneficiary = isBeneficiary
         ).asModalScreen()
 
       is State.ScanningHardwareState ->
-        proofOfPossessionNfcStateMachine.model(
-          ProofOfPossessionNfcProps(
-            request =
-              Request.HwKeyProof(
-                onSuccess = { proof ->
-                  state = State.RemovingWithBitkeyState(proof)
-                }
-              ),
-            fullAccountId = props.account.accountId,
+        hardwareAuthUiStateMachine.model(
+          HardwareAuthUiProps(
+            account = props.account,
+            actionProofType = if (isBeneficiary) {
+              ActionProofType.RemoveBeneficiary(entityId = props.trustedContact.relationshipId, name = props.trustedContact.trustedContactAlias.alias)
+            } else {
+              ActionProofType.RemoveRecoveryContact(entityId = props.trustedContact.relationshipId, name = props.trustedContact.trustedContactAlias.alias)
+            },
+            segment = RecoverySegment.SocRec.ProtectedCustomer.Setup,
+            actionDescription = actionDescription,
+            screenPresentationStyle = ScreenPresentationStyle.Modal,
+            onSuccess = { proof ->
+              state = State.RemovingState(proof)
+            },
             onBack = {
               state = State.RemoveRequestState
-            },
-            screenPresentationStyle = ScreenPresentationStyle.Modal
+            }
           )
         )
 
-      is State.RemovingWithBitkeyState -> {
+      is State.RemovingState -> {
         LaunchedEffect("remove-tc-with-bitkey") {
           relationshipsService.removeRelationship(
             account = props.account,
-            hardwareProofOfPossession = current.proofOfPossession,
+            proof = current.proof,
             authTokenScope = AuthTokenScope.Global,
             relationshipId = props.trustedContact.relationshipId
           ).onSuccess {
@@ -88,7 +95,7 @@ class RemoveTrustedContactUiStateMachineImpl(
           }.onFailure {
             state =
               State.FailedToRemoveState(
-                proofOfPossession = current.proofOfPossession,
+                proof = current.proof,
                 error = it
               )
           }
@@ -103,13 +110,13 @@ class RemoveTrustedContactUiStateMachineImpl(
           isConnectivityError = current.error is HttpError.NetworkError,
           errorData = ErrorData(
             segment = RecoverySegment.SocRec.ProtectedCustomer.Setup,
-            actionDescription = "Removing Recovery Contact",
+            actionDescription = actionDescription,
             cause = current.error
           ),
           onRetry = {
             state =
-              State.RemovingWithBitkeyState(
-                proofOfPossession = current.proofOfPossession
+              State.RemovingState(
+                proof = current.proof
               )
           },
           onBack = {
@@ -128,14 +135,14 @@ private sealed interface State {
   /** Scanning hardware for proof of possession */
   data object ScanningHardwareState : State
 
-  /** Calling the server with established proof of possession */
-  data class RemovingWithBitkeyState(
-    val proofOfPossession: HwFactorProofOfPossession?,
+  /** Calling the server with established proof */
+  data class RemovingState(
+    val proof: PrivilegedActionProof?,
   ) : State
 
   /** Error state */
   data class FailedToRemoveState(
-    val proofOfPossession: HwFactorProofOfPossession?,
+    val proof: PrivilegedActionProof?,
     val error: Error,
   ) : State
 }

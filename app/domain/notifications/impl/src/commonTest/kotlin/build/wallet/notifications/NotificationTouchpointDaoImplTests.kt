@@ -28,7 +28,7 @@ class NotificationTouchpointDaoImplTests : FunSpec({
       )
   }
 
-  test("Phone number flow") {
+  test("Phone touchpoint flow returns value and ID") {
     val phone1 =
       PhoneNumber(
         countryDialingCode = 1,
@@ -42,34 +42,46 @@ class NotificationTouchpointDaoImplTests : FunSpec({
         formattedE164Value = "+12222222222"
       )
 
-    dao.phoneNumber().test {
+    dao.phoneTouchpoint().test {
       awaitItem().shouldBeNull()
 
       phoneNumberValidator.validatePhoneNumberResult = phone1
-      dao.storeTouchpoint(PhoneNumberTouchpoint("id-1", phone1))
-      awaitItem().shouldNotBeNull().shouldBe(phone1)
+      dao.storeTouchpoint(PhoneNumberTouchpoint("tp-1", phone1))
+      with(awaitItem().shouldNotBeNull()) {
+        value.shouldBe(phone1)
+        touchpointId.shouldBe("tp-1")
+      }
 
       phoneNumberValidator.validatePhoneNumberResult = phone2
-      dao.storeTouchpoint(PhoneNumberTouchpoint("id-2", phone2))
-      awaitItem().shouldNotBeNull().shouldBe(phone2)
+      dao.storeTouchpoint(PhoneNumberTouchpoint("tp-2", phone2))
+      with(awaitItem().shouldNotBeNull()) {
+        value.shouldBe(phone2)
+        touchpointId.shouldBe("tp-2")
+      }
 
       dao.clear()
       awaitItem().shouldBeNull()
     }
   }
 
-  test("Email flow") {
+  test("Email touchpoint flow returns value and ID") {
     val email1 = Email(value = "dwayne@wade.com")
     val email2 = Email(value = "allen@iverson.com")
 
-    dao.email().test {
+    dao.emailTouchpoint().test {
       awaitItem().shouldBeNull()
 
-      dao.storeTouchpoint(EmailTouchpoint("id-1", email1))
-      awaitItem().shouldBe(email1)
+      dao.storeTouchpoint(EmailTouchpoint("tp-1", email1))
+      with(awaitItem().shouldNotBeNull()) {
+        value.shouldBe(email1)
+        touchpointId.shouldBe("tp-1")
+      }
 
-      dao.storeTouchpoint(EmailTouchpoint("id-2", email2))
-      awaitItem().shouldBe(email2)
+      dao.storeTouchpoint(EmailTouchpoint("tp-2", email2))
+      with(awaitItem().shouldNotBeNull()) {
+        value.shouldBe(email2)
+        touchpointId.shouldBe("tp-2")
+      }
 
       dao.clear()
       awaitItem().shouldBeNull()

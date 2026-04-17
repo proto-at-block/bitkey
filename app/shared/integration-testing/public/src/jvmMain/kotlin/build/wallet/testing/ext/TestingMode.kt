@@ -1,11 +1,13 @@
 package build.wallet.testing.ext
 
+import bitkey.account.HardwareType
 import build.wallet.feature.flags.setBdk2Enabled
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchLegacyWalletApp
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.tags.TestTag.FlakyTest
 import build.wallet.testing.tags.TestTag.IsolatedTest
+import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.test.TestScope
 
@@ -30,6 +32,99 @@ fun FunSpec.testForLegacyAndPrivateWallet(
     .config(tags = tags) {
       this.block(launchNewApp())
     }
+}
+
+/**
+ * Hardware-focused matrix used by the W3 functional coverage program.
+ *
+ * We intentionally keep the matrix to the user-facing paths we want in CI:
+ * - W1 baseline on the legacy app mode
+ * - W3 on the private app mode
+ *
+ * This is a test-selection choice for the current coverage program, not a semantic mapping
+ * between private wallets and W3 hardware.
+ */
+enum class HardwareCoverageMode(
+  val testName: String,
+  val appMode: AppMode,
+  val hardwareType: HardwareType,
+) {
+  W1Baseline(
+    testName = "W1",
+    appMode = AppMode.Legacy,
+    hardwareType = HardwareType.W1
+  ),
+  W3Private(
+    testName = "W3",
+    appMode = AppMode.Private,
+    hardwareType = HardwareType.W3
+  ),
+}
+
+enum class RecoveryHardwareTransition(
+  val testName: String,
+  val appMode: AppMode,
+  val sourceHardwareType: HardwareType,
+  val replacementHardwareType: HardwareType,
+) {
+  W1ToW1(
+    testName = "W1 -> W1",
+    appMode = AppMode.Legacy,
+    sourceHardwareType = HardwareType.W1,
+    replacementHardwareType = HardwareType.W1
+  ),
+  W1ToW3(
+    testName = "W1 -> W3",
+    appMode = AppMode.Legacy,
+    sourceHardwareType = HardwareType.W1,
+    replacementHardwareType = HardwareType.W3
+  ),
+  W3ToW3(
+    testName = "W3 -> W3",
+    appMode = AppMode.Private,
+    sourceHardwareType = HardwareType.W3,
+    replacementHardwareType = HardwareType.W3
+  ),
+}
+
+fun FunSpec.testForHardwareHappyPaths(
+  name: String,
+  isIsolatedTest: Boolean = false,
+  isFlakyTest: Boolean = false,
+  block: suspend TestScope.(app: AppTester, coverageMode: HardwareCoverageMode) -> Unit,
+) {
+  val tags = setOf(IsolatedTest).takeIf { isIsolatedTest }.orEmpty()
+    .union(setOf(FlakyTest).takeIf { isFlakyTest }.orEmpty())
+
+  listOf(HardwareCoverageMode.W1Baseline, HardwareCoverageMode.W3Private).forEach { coverageMode ->
+    test("$name [${coverageMode.testName}]")
+      .config(tags = tags) {
+        val app = launchAppForHardwareCoverageMode(coverageMode)
+        this.block(app, coverageMode)
+      }
+  }
+}
+
+fun FunSpec.testForRecoveryTransitions(
+  name: String,
+  isIsolatedTest: Boolean = false,
+  isFlakyTest: Boolean = false,
+  transitions: List<RecoveryHardwareTransition> = listOf(
+    RecoveryHardwareTransition.W1ToW1,
+    RecoveryHardwareTransition.W1ToW3,
+    RecoveryHardwareTransition.W3ToW3
+  ),
+  block: suspend TestScope.(transition: RecoveryHardwareTransition) -> Unit,
+) {
+  val tags = setOf(IsolatedTest).takeIf { isIsolatedTest }.orEmpty()
+    .union(setOf(FlakyTest).takeIf { isFlakyTest }.orEmpty())
+
+  transitions.forEach { transition ->
+    test("$name [${transition.testName}]")
+      .config(tags = tags) {
+        this.block(transition)
+      }
+  }
 }
 
 /*
@@ -110,6 +205,14 @@ private suspend fun TestScope.launchAppForMode(mode: AppMode): AppTester =
     AppMode.Legacy -> launchLegacyWalletApp()
     AppMode.Private -> launchNewApp()
   }
+
+suspend fun TestScope.launchAppForHardwareCoverageMode(
+  coverageMode: HardwareCoverageMode,
+): AppTester {
+  val app = launchAppForMode(coverageMode.appMode)
+  app.accountConfigService.setHardwareType(coverageMode.hardwareType).getOrThrow()
+  return app
+}
 
 private suspend fun TestScope.launchAppForTestingMode(mode: TestingMode): AppTester {
   val app = launchNewApp()

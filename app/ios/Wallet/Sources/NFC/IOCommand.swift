@@ -87,6 +87,11 @@ extension QueryAuthentication: IOCommand {
     typealias ResultType = Bool
 }
 
+extension ShowConfirmationScreen: IOCommand {
+    typealias FFIStateType = BooleanState
+    typealias ResultType = Bool
+}
+
 // `SealKey` returns something it calls the `sealant` in bytes. The `sealant` should be the
 // input to `UnsealKey` when you wish to unseal the key passed to `SealKey`.
 extension SealKey: IOCommand {
@@ -216,8 +221,103 @@ extension GetAddress: IOCommand {
 }
 
 extension VerifyKeysAndBuildDescriptor: IOCommand {
-    typealias FFIStateType = BooleanState
-    typealias ResultType = Bool
+    typealias FFIStateType = SignatureState
+    typealias ResultType = Signature
+}
+
+extension SignActionProof: IOCommand {
+    typealias FFIStateType = SignActionProofResultState
+    typealias ResultType = SignActionProofResult
+}
+
+extension LostAppRecovery: IOCommand {
+    typealias FFIStateType = LostAppRecoveryResultState
+    typealias ResultType = LostAppRecoveryResult
+}
+
+extension LostAppRecoveryContinue: IOCommand {
+    typealias FFIStateType = LostAppRecoveryContinueResultState
+    typealias ResultType = LostAppRecoveryContinueResult
+}
+
+extension LostAppRecoverySignChallenge: IOCommand {
+    typealias FFIStateType = LostAppRecoverySignChallengeResultState
+    typealias ResultType = LostAppRecoverySignChallengeResult
+}
+
+extension RotateAppAuthKeys: IOCommand {
+    typealias FFIStateType = RotateAppAuthKeysResultState
+    typealias ResultType = RotateAppAuthKeysResult
+}
+
+extension UpgradeRotateAppAuthKeys: IOCommand {
+    typealias FFIStateType = UpgradeRotateAppAuthKeysResultState
+    typealias ResultType = firmware.UpgradeRotateAppAuthKeysResult
+}
+
+extension firmware.SignChallengeAndSealSeks: IOCommand {
+    typealias FFIStateType = SignChallengeAndSealSeksResultState
+    typealias ResultType = firmware.SignChallengeAndSealSeksResult
+}
+
+extension RecoveryAuthorizeLostApp: IOCommand {
+    typealias FFIStateType = RecoveryAuthorizeLostAppResultState
+    typealias ResultType = firmware.RecoveryAuthorizeLostAppResult
+}
+
+extension RecoveryAuthorizeLostHw: IOCommand {
+    typealias FFIStateType = RecoveryAuthorizeLostHwResultState
+    typealias ResultType = firmware.RecoveryAuthorizeLostHwResult
+}
+
+extension UpgradeAuthorizeW3: IOCommand {
+    typealias FFIStateType = UpgradeAuthorizeW3ResultState
+    typealias ResultType = firmware.UpgradeAuthorizeW3Result
+}
+
+extension EekRestorationUnseal: IOCommand {
+    typealias FFIStateType = EekRestorationUnsealResultState
+    typealias ResultType = EekRestorationUnsealResult
+}
+
+extension FullAccountCloudBackupRestoration: IOCommand {
+    typealias FFIStateType = FullAccountCloudBackupRestorationResultState
+    typealias ResultType = FullAccountCloudBackupRestorationResult
+}
+
+extension FullAccountCloudBackupRestorationContinue: IOCommand {
+    typealias FFIStateType = FullAccountCloudBackupRestorationContinueResultState
+    typealias ResultType = FullAccountCloudBackupRestorationContinueResult
+}
+
+extension SignTxRequest: IOCommand {
+    typealias FFIStateType = SignTxRequestResultState
+    typealias ResultType = SignTxRequestResult
+}
+
+extension SignStreamStart: IOCommand {
+    typealias FFIStateType = SignStreamStartResultState
+    typealias ResultType = SignStreamStartResult
+}
+
+extension SignStreamTransfer: IOCommand {
+    typealias FFIStateType = SignStreamTransferResultState
+    typealias ResultType = SignStreamTransferResult
+}
+
+extension SignStreamFinalize: IOCommand {
+    typealias FFIStateType = SignStreamFinalizeResultState
+    typealias ResultType = SignStreamFinalizeResult
+}
+
+extension GetTxSignature: IOCommand {
+    typealias FFIStateType = TxSignatureState
+    typealias ResultType = TxSignature
+}
+
+extension GetTxSignaturesBatch: IOCommand {
+    typealias FFIStateType = TxSignaturesBatchState
+    typealias ResultType = [TxSignature]
 }
 
 extension IOCommand {
@@ -441,13 +541,200 @@ extension IOCommand {
         case let .result(value: value): return .result(value: value)
         }
     }
+
+    func next(_ response: [UInt8]) throws -> IOResult<SignActionProofResult>
+        where FFIStateType == SignActionProofResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<LostAppRecoveryResult>
+        where FFIStateType == LostAppRecoveryResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<LostAppRecoveryContinueResult>
+        where FFIStateType == LostAppRecoveryContinueResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<LostAppRecoverySignChallengeResult>
+        where FFIStateType == LostAppRecoverySignChallengeResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<RotateAppAuthKeysResult>
+        where FFIStateType == RotateAppAuthKeysResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.UpgradeRotateAppAuthKeysResult>
+        where FFIStateType == UpgradeRotateAppAuthKeysResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.SignChallengeAndSealSeksResult>
+        where FFIStateType == SignChallengeAndSealSeksResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.RecoveryAuthorizeLostAppResult>
+        where FFIStateType == RecoveryAuthorizeLostAppResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.RecoveryAuthorizeLostHwResult>
+        where FFIStateType == RecoveryAuthorizeLostHwResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.UpgradeAuthorizeW3Result>
+        where FFIStateType == UpgradeAuthorizeW3ResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<EekRestorationUnsealResult>
+        where FFIStateType == EekRestorationUnsealResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<FullAccountCloudBackupRestorationResult>
+        where FFIStateType == FullAccountCloudBackupRestorationResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws
+        -> IOResult<FullAccountCloudBackupRestorationContinueResult>
+        where FFIStateType == FullAccountCloudBackupRestorationContinueResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<SignTxRequestResult>
+        where FFIStateType == SignTxRequestResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<SignStreamStartResult>
+        where FFIStateType == SignStreamStartResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<SignStreamTransferResult>
+        where FFIStateType == SignStreamTransferResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<SignStreamFinalizeResult>
+        where FFIStateType == SignStreamFinalizeResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<TxSignature>
+        where FFIStateType == TxSignatureState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<[TxSignature]>
+        where FFIStateType == TxSignaturesBatchState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
 }
 
 // MARK: - NFC command driver
 
+/// Commands that are executed frequently and should not produce start/success/failure logs.
+private let quietNFCCommands: Set<ObjectIdentifier> = [
+    ObjectIdentifier(SignTxRequest.self),
+    ObjectIdentifier(SignStreamStart.self),
+    ObjectIdentifier(SignStreamTransfer.self),
+    ObjectIdentifier(SignStreamFinalize.self),
+    ObjectIdentifier(SignTransaction.self),
+]
+
 extension IOCommand {
+    private var isQuiet: Bool {
+        quietNFCCommands.contains(ObjectIdentifier(type(of: self)))
+    }
+
     @discardableResult func transceive(session: NfcSession) async throws -> ResultType {
-        log(tag: "NFC") { "NFC Command \(self) started" }
+        if !isQuiet {
+            log(tag: "NFC") { "NFC Command \(self) started" }
+        }
 
         var data: [KotlinUByte] = []
         while true {
@@ -455,23 +742,42 @@ extension IOCommand {
                 switch try next(data.map(\.uint8Value)) {
                 case let .data(response: response):
                     let buffer = response.map { KotlinUByte(value: $0) }
-                    data = try await session.transceive(buffer: buffer)
+                    data = try await NfcResponseChainingKt.transceiveWithChaining(session, buffer: buffer)
 
                 case let .result(value: value):
-                    log(tag: "NFC") { "NFC Command \(self) succeeded" }
+                    if !isQuiet {
+                        log(tag: "NFC") { "NFC Command \(self) succeeded" }
+                    }
                     return value
                 }
             } catch {
-                log(.warn, tag: "NFC", error: error) { "NFC Command \(self) failed" }
+                if !isQuiet {
+                    log(.warn, tag: "NFC", error: error) { "NFC Command \(self) failed" }
+                }
                 switch error {
+                case CommandError.InProgress:
+                    throw NfcException.ConfirmationPending().asError()
+
+                case CommandError.UserDenied:
+                    throw NfcException.UserDenied().asError()
+
                 case CommandError.Unauthenticated:
                     throw NfcException.CommandErrorUnauthenticated().asError()
+
+                case CommandError.FeatureNotSupported:
+                    throw NfcException.FeatureNotSupported().asError()
 
                 case CommandError.SealCsekResponseUnsealError:
                     throw NfcException.CommandErrorSealCsekResponseUnsealException().asError()
 
                 case CommandError.FileNotFound:
                     throw NfcException.CommandErrorFileNotFound().asError()
+
+                case CommandError.DescriptorNotLoaded:
+                    throw NfcException.DescriptorNotLoaded().asError()
+
+                case CommandError.ConfirmationNotCompleted:
+                    throw NfcException.ConfirmationNotCompleted().asError()
 
                 // If there was an issue with the specific command, it will be thrown as a
                 // `CommandError`

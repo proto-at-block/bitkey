@@ -1,22 +1,5 @@
 # Keep this sorted by name please.
 ---
-name: bitkey-firmware
-core_reviewers: [bitkey-firmware-eng, hwsec]
-message: "Someone working on Bitkey Firmware or HWSEC must approve this pull request."
-slack: "#bitkey-firmware"
-minimum_core_approvals: 1
-autounapprove: true
-auto_assign: false
----
-name: bitkey-mobile
-core_reviewers: [bitkey-mobile]
-message: "Someone working on Bitkey Mobile (KMP, Swift) must approve this pull request."
-slack: "#bitkey-mobile"
-minimum_core_approvals: 1
-exclude_author_from_core_reviewers: true
-autounapprove: true
-auto_assign: false
----
 name: bitkey-cryptosec
 core_reviewers: [bitkey-cryptosec-eng]
 message: "Someone working on Crypto/Security must approve this pull request."
@@ -35,19 +18,19 @@ exclude_author_from_core_reviewers: true
 autounapprove: true
 auto_assign: false
 ---
-name: bitkey-server
-core_reviewers: [bitkey-server-eng]
-message: "Someone working on Bitkey Server (WSM, F8E & Infra) must approve this pull request."
-slack: "#bitkey-server"
+name: bitkey-software
+core_reviewers: [bitkey-software]
+slack: "#bitkey-software"
 minimum_core_approvals: 1
 exclude_author_from_core_reviewers: true
 autounapprove: true
 auto_assign: false
 ---
-name: bitkey-software
+name: bitkey-software-require-review
 core_reviewers: [bitkey-software]
 slack: "#bitkey-software"
 minimum_core_approvals: 1
+autounapprove: true
 exclude_author_from_core_reviewers: true
 auto_assign: false
 ---
@@ -56,14 +39,6 @@ core_reviewers: [bitkey-web-eng]
 message: "Someone working on Bitkey Web (Web, Shop) must approve this pull request."
 slack: "#bitkey-web"
 minimum_core_approvals: 1
-exclude_author_from_core_reviewers: true
-auto_assign: false
----
-name: bitkey-software-require-review
-core_reviewers: [bitkey-software]
-slack: "#bitkey-software"
-minimum_core_approvals: 1
-autounapprove: true
 exclude_author_from_core_reviewers: true
 auto_assign: false
 ---

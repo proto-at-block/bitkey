@@ -7,9 +7,12 @@ from pathlib import Path
 import click.testing
 from bitkey.firmware_signer import (
     FwupDeltaPatchGenerator,
+    PLACEHOLDER_SIGNATURE,
     apply_patch,
     cli,
+    verify_bootloader_signature_with_metadata,
     verify_delta_update,
+    verify_firmware_signature_embedded,
     verify_firmware_signature_with_padding,
     verify_patch_signature,
 )
@@ -445,6 +448,399 @@ class TestVerifyFirmwareSignatureWithPadding(unittest.TestCase):
 
         success, error = verify_firmware_signature_with_padding(tampered, signature, self.flash_slot_size, self.key_manager)
         self.assertFalse(success)
+
+    def test_verify_placeholder_signature_fails(self):
+        success, error = verify_firmware_signature_with_padding(
+            self.test_firmware, PLACEHOLDER_SIGNATURE, self.flash_slot_size, self.key_manager
+        )
+        self.assertFalse(success)
+        self.assertIn("placeholder", error.lower())
+
+
+class TestVerifyFirmwareSignatureEmbedded(unittest.TestCase):
+    """Test cases for verify_firmware_signature_embedded function."""
+
+    def setUp(self):
+        self.firmware_keys = SigningKeys(KEYS_DIR, PRODUCT_W3A_CORE, "dev", "app")
+        self.key_manager = LocalKeyManager(self.firmware_keys)
+
+    def test_verify_valid_signature_embedded(self):
+        firmware_data = b"Embedded signature firmware content"
+        digest = SHA256.new(firmware_data)
+        signature = self.key_manager.generate_signature(digest)
+        signed_bin_data = firmware_data + signature
+
+        success, error = verify_firmware_signature_embedded(
+            signed_bin_data, self.key_manager
+        )
+        self.assertTrue(success, f"Verification failed: {error}")
+        self.assertIsNone(error)
+
+    def test_verify_embedded_too_small(self):
+        success, error = verify_firmware_signature_embedded(b"tiny", self.key_manager)
+        self.assertFalse(success)
+        self.assertIn("Binary too small", error)
+
+    def test_verify_embedded_placeholder_signature(self):
+        signed_bin_data = b"\x00" * 128 + PLACEHOLDER_SIGNATURE
+        success, error = verify_firmware_signature_embedded(
+            signed_bin_data, self.key_manager
+        )
+        self.assertFalse(success)
+        self.assertIn("placeholder", error.lower())
+
+
+class TestVerifyBootloaderSignatureWithMetadata(unittest.TestCase):
+    """Test cases for detached bootloader verification with metadata reconstruction."""
+
+    def setUp(self):
+        self.bootloader_keys = SigningKeys(KEYS_DIR, PRODUCT_W3A_CORE, "dev", "bl")
+        self.key_manager = LocalKeyManager(self.bootloader_keys)
+        self.bootloader_size = 48 * 1024
+        self.metadata_offset = self.bootloader_size - 1024 - 64
+        self.metadata_size = 1024
+
+    def test_verify_valid_detached_bootloader(self):
+        signed_bin_data = b"loader-program-bytes"
+        detached_metadata = b"loader-metadata"
+        signing_input = (
+            signed_bin_data
+            + (b"\xff" * (self.metadata_offset - len(signed_bin_data)))
+            + detached_metadata
+            + (b"\xff" * (self.metadata_size - len(detached_metadata)))
+        )
+        digest = SHA256.new(signing_input)
+        detached_signature = self.key_manager.generate_signature(digest)
+
+        success, error = verify_bootloader_signature_with_metadata(
+            signed_bin_data,
+            detached_signature,
+            detached_metadata,
+            self.bootloader_size,
+            self.metadata_offset,
+            self.metadata_size,
+            self.key_manager,
+        )
+        self.assertTrue(success, f"Verification failed: {error}")
+        self.assertIsNone(error)
+
+    def test_metadata_too_large(self):
+        signed_bin_data = b"loader-program-bytes"
+        detached_signature = bytes(64)
+        detached_metadata = b"x" * (self.metadata_size + 1)
+
+        success, error = verify_bootloader_signature_with_metadata(
+            signed_bin_data,
+            detached_signature,
+            detached_metadata,
+            self.bootloader_size,
+            self.metadata_offset,
+            self.metadata_size,
+            self.key_manager,
+        )
+        self.assertFalse(success)
+        self.assertIn("Metadata too large", error)
+
+
+class TestVerifyBinCLI(unittest.TestCase):
+    """Test cases for verify-bin CLI command."""
+
+    def setUp(self):
+        self.runner = click.testing.CliRunner()
+        self.firmware_keys = SigningKeys(KEYS_DIR, PRODUCT_W3A_CORE, "dev", "app")
+        self.key_manager = LocalKeyManager(self.firmware_keys)
+        self.partition_size = 632 * 1024
+
+    def _write_temp_file(self, data: bytes, suffix: str) -> Path:
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+        tmp.write(data)
+        tmp.close()
+        return Path(tmp.name)
+
+    def test_verify_bin_cli_embedded_mode(self):
+        signing_input = b"\x42" * (self.partition_size - 64)
+        digest = SHA256.new(signing_input)
+        signature = self.key_manager.generate_signature(digest)
+        signed_bin_path = self._write_temp_file(
+            signing_input + signature, ".signed.bin"
+        )
+
+        try:
+            result = self.runner.invoke(
+                cli,
+                [
+                    "verify-bin",
+                    "--input-bin",
+                    str(signed_bin_path),
+                    "--product",
+                    PRODUCT_W3A_CORE,
+                    "--image-type",
+                    "app",
+                    "--key-type",
+                    "dev",
+                    "--keys-dir",
+                    str(KEYS_DIR),
+                ],
+            )
+            self.assertEqual(0, result.exit_code, f"Command failed: {result.output}")
+            self.assertIn("Mode: embedded", result.output)
+            self.assertIn("Bin verification: PASSED", result.output)
+        finally:
+            signed_bin_path.unlink(missing_ok=True)
+
+    def test_verify_bin_cli_detached_mode(self):
+        firmware_data = b"detached-mode-firmware"
+        padding_needed = (self.partition_size - 64) - len(firmware_data)
+        digest = SHA256.new(firmware_data + (b"\xff" * padding_needed))
+        signature = self.key_manager.generate_signature(digest)
+
+        signed_bin_path = self._write_temp_file(firmware_data, ".signed.bin")
+        detached_sig_path = self._write_temp_file(signature, ".detached_signature")
+
+        try:
+            result = self.runner.invoke(
+                cli,
+                [
+                    "verify-bin",
+                    "--input-bin",
+                    str(signed_bin_path),
+                    "--detached-signature",
+                    str(detached_sig_path),
+                    "--product",
+                    PRODUCT_W3A_CORE,
+                    "--image-type",
+                    "app",
+                    "--key-type",
+                    "dev",
+                    "--keys-dir",
+                    str(KEYS_DIR),
+                ],
+            )
+            self.assertEqual(0, result.exit_code, f"Command failed: {result.output}")
+            self.assertIn("Mode: detached", result.output)
+            self.assertIn("Bin verification: PASSED", result.output)
+        finally:
+            signed_bin_path.unlink(missing_ok=True)
+            detached_sig_path.unlink(missing_ok=True)
+
+    def test_verify_bin_cli_missing_detached_signature(self):
+        signed_bin_path = self._write_temp_file(
+            b"missing-detached-signature", ".signed.bin"
+        )
+
+        try:
+            result = self.runner.invoke(
+                cli,
+                [
+                    "verify-bin",
+                    "--input-bin",
+                    str(signed_bin_path),
+                    "--product",
+                    PRODUCT_W3A_CORE,
+                    "--image-type",
+                    "app",
+                    "--key-type",
+                    "dev",
+                    "--keys-dir",
+                    str(KEYS_DIR),
+                ],
+            )
+            self.assertNotEqual(0, result.exit_code)
+            self.assertIn("Detached signature is required", result.output)
+        finally:
+            signed_bin_path.unlink(missing_ok=True)
+
+    def test_verify_bin_cli_bootloader_requires_detached_metadata(self):
+        signed_bin_path = self._write_temp_file(b"bootloader", ".signed.bin")
+        detached_sig_path = self._write_temp_file(bytes(64), ".detached_signature")
+
+        try:
+            result = self.runner.invoke(
+                cli,
+                [
+                    "verify-bin",
+                    "--input-bin",
+                    str(signed_bin_path),
+                    "--detached-signature",
+                    str(detached_sig_path),
+                    "--product",
+                    PRODUCT_W3A_CORE,
+                    "--image-type",
+                    "bl",
+                    "--key-type",
+                    "dev",
+                    "--keys-dir",
+                    str(KEYS_DIR),
+                ],
+            )
+            self.assertNotEqual(0, result.exit_code)
+            self.assertIn("Detached metadata is required", result.output)
+        finally:
+            signed_bin_path.unlink(missing_ok=True)
+            detached_sig_path.unlink(missing_ok=True)
+
+    def test_verify_bin_cli_bootloader_detached_with_metadata(self):
+        bootloader_size = 48 * 1024
+        metadata_offset = bootloader_size - 1024 - 64
+        metadata_size = 1024
+        signed_bin_data = b"loader-program-bytes"
+        detached_metadata = b"loader-metadata"
+
+        signing_input = (
+            signed_bin_data
+            + (b"\xff" * (metadata_offset - len(signed_bin_data)))
+            + detached_metadata
+            + (b"\xff" * (metadata_size - len(detached_metadata)))
+        )
+        bl_keys = SigningKeys(KEYS_DIR, PRODUCT_W3A_CORE, "dev", "bl")
+        bl_key_manager = LocalKeyManager(bl_keys)
+        detached_signature = bl_key_manager.generate_signature(
+            SHA256.new(signing_input)
+        )
+
+        signed_bin_path = self._write_temp_file(signed_bin_data, ".signed.bin")
+        detached_sig_path = self._write_temp_file(
+            detached_signature, ".detached_signature"
+        )
+        detached_meta_path = self._write_temp_file(
+            detached_metadata, ".detached_metadata"
+        )
+
+        try:
+            result = self.runner.invoke(
+                cli,
+                [
+                    "verify-bin",
+                    "--input-bin",
+                    str(signed_bin_path),
+                    "--detached-signature",
+                    str(detached_sig_path),
+                    "--detached-metadata",
+                    str(detached_meta_path),
+                    "--product",
+                    PRODUCT_W3A_CORE,
+                    "--image-type",
+                    "bl",
+                    "--key-type",
+                    "dev",
+                    "--keys-dir",
+                    str(KEYS_DIR),
+                ],
+            )
+            self.assertEqual(0, result.exit_code, f"Command failed: {result.output}")
+            self.assertIn("Mode: detached", result.output)
+            self.assertIn("Bin verification: PASSED", result.output)
+        finally:
+            signed_bin_path.unlink(missing_ok=True)
+            detached_sig_path.unlink(missing_ok=True)
+            detached_meta_path.unlink(missing_ok=True)
+
+    def test_verify_bin_cli_image_type_mismatch(self):
+        # Use a deterministic filename so image type can be inferred as app.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            input_bin_path = Path(tmpdir) / "w3a-core-pdvt-app-a-dev.signed.bin"
+            input_bin_path.write_bytes(b"app-bytes")
+            detached_sig_path = Path(tmpdir) / "w3a-core-pdvt-app-a-dev.detached_signature"
+            detached_sig_path.write_bytes(bytes(64))
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "verify-bin",
+                    "--input-bin",
+                    str(input_bin_path),
+                    "--detached-signature",
+                    str(detached_sig_path),
+                    "--product",
+                    PRODUCT_W3A_CORE,
+                    "--image-type",
+                    "bl",
+                    "--key-type",
+                    "dev",
+                    "--keys-dir",
+                    str(KEYS_DIR),
+                ],
+            )
+            self.assertNotEqual(0, result.exit_code)
+            self.assertIn("--image-type does not match input file name", result.output)
+
+    def test_verify_bin_cli_infers_image_type_from_name(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            firmware_data = b"infer-app-from-name"
+            input_bin_path = Path(tmpdir) / "w3a-core-pdvt-app-a-dev.signed.bin"
+            input_bin_path.write_bytes(firmware_data)
+
+            padding_needed = (self.partition_size - 64) - len(firmware_data)
+            digest = SHA256.new(firmware_data + (b"\xff" * padding_needed))
+            detached_sig = self.key_manager.generate_signature(digest)
+
+            detached_sig_path = Path(tmpdir) / "w3a-core-pdvt-app-a-dev.detached_signature"
+            detached_sig_path.write_bytes(detached_sig)
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "verify-bin",
+                    "--input-bin",
+                    str(input_bin_path),
+                    "--detached-signature",
+                    str(detached_sig_path),
+                    "--product",
+                    PRODUCT_W3A_CORE,
+                    "--key-type",
+                    "dev",
+                    "--keys-dir",
+                    str(KEYS_DIR),
+                ],
+            )
+            self.assertEqual(0, result.exit_code, f"Command failed: {result.output}")
+            self.assertIn("Image Type: app", result.output)
+            self.assertIn("Bin verification: PASSED", result.output)
+
+    def test_verify_bin_cli_requires_image_type_when_name_not_inferable(self):
+        input_bin_path = self._write_temp_file(b"unknown-name", ".signed.bin")
+        try:
+            result = self.runner.invoke(
+                cli,
+                [
+                    "verify-bin",
+                    "--input-bin",
+                    str(input_bin_path),
+                    "--product",
+                    PRODUCT_W3A_CORE,
+                    "--key-type",
+                    "dev",
+                    "--keys-dir",
+                    str(KEYS_DIR),
+                ],
+            )
+            self.assertNotEqual(0, result.exit_code)
+            self.assertIn("Could not infer image type from input file name", result.output)
+        finally:
+            input_bin_path.unlink(missing_ok=True)
+
+    def test_verify_bin_cli_loader_placeholder_signature(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            input_bin_path = Path(tmpdir) / "w3a-core-evt-loader-dev.bin"
+            loader_size = 48 * 1024
+            input_bin_path.write_bytes((b"\x00" * (loader_size - 64)) + PLACEHOLDER_SIGNATURE)
+
+            result = self.runner.invoke(
+                cli,
+                [
+                    "verify-bin",
+                    "--input-bin",
+                    str(input_bin_path),
+                    "--product",
+                    PRODUCT_W3A_CORE,
+                    "--key-type",
+                    "dev",
+                    "--keys-dir",
+                    str(KEYS_DIR),
+                ],
+            )
+            self.assertNotEqual(0, result.exit_code)
+            self.assertIn("placeholder", result.output.lower())
 
 
 class TestVerifyPatchCLI(unittest.TestCase):

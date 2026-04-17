@@ -2,6 +2,8 @@ package build.wallet.statemachine.dev
 
 import androidx.compose.runtime.Composable
 import build.wallet.compose.collections.buildImmutableList
+import build.wallet.debug.cloud.availableCloudBackupStoreTypes
+import build.wallet.debug.cloud.name
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.platform.config.AppVariant
@@ -41,8 +43,7 @@ class AppStateDeleterOptionsUiStateMachineImpl(
                           text = "Delete",
                           treatment = TertiaryDestructive,
                           size = Compact,
-                          onClick = StandardClick(props.onDeleteAppKeyRequest),
-                          testTag = "delete-app-key"
+                          onClick = StandardClick(props.onDeleteAppKeyRequest)
                         )
                     )
                 ).run(::add)
@@ -57,8 +58,7 @@ class AppStateDeleterOptionsUiStateMachineImpl(
                           text = "Delete",
                           treatment = TertiaryDestructive,
                           size = Compact,
-                          onClick = StandardClick(props.onDeleteAppKeyBackupRequest),
-                          testTag = "delete-mobile-key-backup"
+                          onClick = StandardClick(props.onDeleteAppKeyBackupRequest)
                         )
                     )
                 ).run(::add)
@@ -67,22 +67,6 @@ class AppStateDeleterOptionsUiStateMachineImpl(
 
             else -> Unit
           }
-          ListItemModel(
-            title = "Delete App Key and Backup",
-            secondaryText = "Only use this if instructed to by a Bitkey team member. You may lose access to your money.",
-            trailingAccessory =
-              ButtonAccessory(
-                model =
-                  ButtonModel(
-                    text = "Delete",
-                    treatment = TertiaryDestructive,
-                    size = Compact,
-                    onClick = StandardClick { props.onDeleteAppKeyAndBackupRequest() },
-                    testTag = "delete-app-key-and-backup"
-                  )
-              )
-          ).run(::add)
-
           ListItemModel(
             title = "Delete All App Key Backups",
             secondaryText = "Only use this if instructed to by a Bitkey team member. You may lose access to your money.",
@@ -93,8 +77,39 @@ class AppStateDeleterOptionsUiStateMachineImpl(
                     text = "Delete",
                     treatment = TertiaryDestructive,
                     size = Compact,
-                    onClick = StandardClick { props.onDeleteAllBackupRequest() },
-                    testTag = "delete-all-backup"
+                    onClick = StandardClick(props.onDeleteAllBackupsRequest)
+                  )
+              )
+          ).run(::add)
+
+          availableCloudBackupStoreTypes().forEachIndexed { index, target ->
+            ListItemModel(
+              title = "Delete App Key Backups (${target.name})",
+              secondaryText = "Only use this if instructed to by a Bitkey team member. You may lose access to your money.",
+              trailingAccessory =
+                ButtonAccessory(
+                  model =
+                    ButtonModel(
+                      text = "Delete",
+                      treatment = TertiaryDestructive,
+                      size = Compact,
+                      onClick = StandardClick { props.onDeleteBackupsInStoreRequest(target) }
+                    )
+                )
+            ).run(::add)
+          }
+
+          ListItemModel(
+            title = "Delete App Key and Backup",
+            secondaryText = "Only use this if instructed to by a Bitkey team member. You may lose access to your money.",
+            trailingAccessory =
+              ButtonAccessory(
+                model =
+                  ButtonModel(
+                    text = "Delete",
+                    treatment = TertiaryDestructive,
+                    size = Compact,
+                    onClick = StandardClick { props.onDeleteAppKeyAndBackupRequest() }
                   )
               )
           ).run(::add)
@@ -112,8 +127,7 @@ class AppStateDeleterOptionsUiStateMachineImpl(
                         text = "Delete",
                         treatment = TertiaryDestructive,
                         size = Compact,
-                        onClick = StandardClick { props.onDeleteOnboardingAppKeyRequest() },
-                        testTag = "delete-onboarding-app-key"
+                        onClick = StandardClick { props.onDeleteOnboardingAppKeyRequest() }
                       )
                   )
               ).run(::add)

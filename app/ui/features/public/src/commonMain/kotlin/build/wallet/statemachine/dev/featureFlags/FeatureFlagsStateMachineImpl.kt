@@ -151,6 +151,7 @@ private fun FilterFieldModel(
 ) = TextFieldModel(
   value = value,
   placeholderText = "Search",
+  testTag = "feature-flags-search-input",
   onValueChange = { newValue, _ ->
     onValueChange(newValue)
   },

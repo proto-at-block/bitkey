@@ -12,10 +12,10 @@ public final class FirmwareCommsLogBufferImpl: Shared.FirmwareCommsLogBuffer {
     public func configure(enabled: Bool) {
         self.enabled = enabled
         if self.enabled {
-            log { "FirmwareCommsLogBufferImpl enabled" }
+            log(.debug) { "FirmwareCommsLogBufferImpl enabled" }
             firmware.enableProtoExchangeLogging()
         } else {
-            log { "FirmwareCommsLogBufferImpl disabled" }
+            log(.debug) { "FirmwareCommsLogBufferImpl disabled" }
             firmware.disableProtoExchangeLogging()
         }
     }
@@ -28,7 +28,7 @@ public final class FirmwareCommsLogBufferImpl: Shared.FirmwareCommsLogBuffer {
         }
 
         for logEntry in firmware.getProtoExchangeLogs() {
-            log(tag: "WCA") { logEntry }
+            log(.debug, tag: "WCA") { logEntry }
         }
     }
 }

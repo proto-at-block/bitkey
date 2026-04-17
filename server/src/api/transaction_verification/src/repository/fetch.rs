@@ -48,7 +48,7 @@ impl TransactionVerificationRepository {
             .and_then(|item| try_from_item(item, database_object))
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, token))]
     pub(crate) async fn fetch_by_web_auth_token(
         &self,
         token: String,
@@ -81,7 +81,7 @@ impl TransactionVerificationRepository {
             .and_then(|item| try_from_item(item, database_object))
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, txid))]
     pub(crate) async fn fetch_pending_by_txid(
         &self,
         txid: &Txid,

@@ -18,6 +18,7 @@ import build.wallet.bitkey.keybox.Keybox
  */
 data class FullAccount(
   override val accountId: FullAccountId,
-  override val config: FullAccountConfig,
   val keybox: Keybox,
-) : Account
+) : Account {
+  override val config: FullAccountConfig get() = keybox.config
+}

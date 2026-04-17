@@ -33,6 +33,7 @@ foreach hardware : w3_core_hardware_configs.keys()
 
     hardware_deps = w3_core_hardware_configs[hardware][0]
     build_env_deps = w3_build_env_configs[build_env][0]
+    build_env_args = w3_build_env_configs[build_env][1]
     key_type = w3_build_env_configs[build_env][2]
 
     ldscript = custom_target(ldscript_name,
@@ -57,7 +58,7 @@ foreach hardware : w3_core_hardware_configs.keys()
         f'-Wl,-Map=@prog@.map,--cref',
         f'-T' + ldscript.full_path(),
       ],
-      c_args : [],
+      c_args : build_env_args,
       include_directories : includes,
       dependencies : [bl_deps, hardware_deps, build_env_deps]
     )

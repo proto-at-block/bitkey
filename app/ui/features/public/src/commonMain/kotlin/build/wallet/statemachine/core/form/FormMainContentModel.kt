@@ -2,6 +2,7 @@ package build.wallet.statemachine.core.form
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import bitkey.account.HardwareType
 import build.wallet.Progress
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.statemachine.core.Icon
@@ -11,6 +12,8 @@ import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.TimerDirection
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.ui.app.core.form.UpsellContainer
+import build.wallet.ui.components.label.LabelTreatment
+import build.wallet.ui.components.video.VideoScalingMode
 import build.wallet.ui.model.ComposeModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
@@ -19,11 +22,13 @@ import build.wallet.ui.model.datetime.DatePickerModel
 import build.wallet.ui.model.icon.IconButtonModel
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconModel
+import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListItemTreatment
 import build.wallet.ui.model.picker.ItemPickerModel
 import build.wallet.ui.model.tab.CircularTabRowModel
+import build.wallet.ui.tokens.LabelType
 import dev.zacsweers.redacted.annotations.Redacted
 import kotlinx.collections.immutable.ImmutableList
 
@@ -47,6 +52,9 @@ sealed class FormMainContentModel {
   data class DeviceStatusCard(
     val deviceImage: IconModel? = null,
     val deviceVideo: VideoContent? = null,
+    val deviceSerialNumber: String? = null,
+    val deviceBatteryPercentage: Int? = null,
+    val hardwareType: HardwareType = HardwareType.W3,
     val statusCallout: CalloutModel,
   ) : FormMainContentModel() {
     init {
@@ -57,6 +65,7 @@ sealed class FormMainContentModel {
 
     enum class VideoContent {
       BITKEY_ROTATE,
+      BITKEY_WAITING_3D,
     }
   }
 
@@ -85,9 +94,17 @@ sealed class FormMainContentModel {
   ) : FormMainContentModel() {
     data class Statement(
       val leadingIcon: Icon? = null,
+      val leadingIconSize: IconSize = IconSize.Small,
+      val leadingText: String? = null,
+      val leadingTextType: LabelType = LabelType.Body2MonoCaps,
+      val leadingTextLabelTreatment: LabelTreatment? = null,
       val title: String?,
       val body: LabelModel,
+      val titleLabelType: LabelType = LabelType.Body2Bold,
       val treatment: Treatment = Treatment.PRIMARY,
+      val titleLabelTreatment: LabelTreatment? = null,
+      val bodyType: LabelType = LabelType.Body2Regular,
+      val bodyLabelTreatment: LabelTreatment? = null,
     ) {
       enum class Treatment {
         PRIMARY,
@@ -98,9 +115,18 @@ sealed class FormMainContentModel {
         leadingIcon: Icon? = null,
         title: String?,
         body: String,
+        titleLabelType: LabelType = LabelType.Body2Bold,
         treatment: Treatment = Treatment.PRIMARY,
+        leadingIconSize: IconSize = IconSize.Small,
       ) :
-        this(leadingIcon, title, StringModel(body), treatment)
+        this(
+          leadingIcon = leadingIcon,
+          leadingIconSize = leadingIconSize,
+          title = title,
+          body = StringModel(body),
+          titleLabelType = titleLabelType,
+          treatment = treatment
+        )
     }
   }
 
@@ -109,24 +135,49 @@ sealed class FormMainContentModel {
    */
   data class Showcase(
     val content: Content,
-    val title: String,
-    val body: LabelModel,
+    val title: String? = null,
+    val body: LabelModel? = null,
     val treatment: Treatment = Treatment.DEFAULT,
+    val fillAvailableSpace: Boolean = true,
   ) : FormMainContentModel() {
     sealed class Content {
       data class IconContent(
         val icon: Icon,
-      ) : Content()
+        val widthDp: Int? = null,
+        val heightDp: Int? = null,
+      ) : Content() {
+        init {
+          require((widthDp == null) == (heightDp == null)) {
+            "IconContent widthDp and heightDp must both be null or both be set."
+          }
+        }
+      }
 
       data class VideoContent(
         val video: Video,
+        val hardwareType: HardwareType = HardwareType.W3,
       ) : Content() {
         enum class Video {
           BITKEY_WIPE,
           BITKEY_ROTATE,
+          BITKEY_WAITING_3D,
           ;
 
           open val looping: Boolean = false
+
+          open val scalingMode: VideoScalingMode = VideoScalingMode.FIT
+            get() = when (this) {
+              BITKEY_WAITING_3D -> VideoScalingMode.CROP
+              else -> field
+            }
+        }
+      }
+
+      data class ImageContent(
+        val image: Image,
+      ) : Content() {
+        enum class Image {
+          BITKEY_TILT,
         }
       }
     }
@@ -138,6 +189,13 @@ sealed class FormMainContentModel {
   }
 
   /**
+   * A centered header-style text block that can be placed in form main content.
+   */
+  data class HeaderBlock(
+    val header: FormHeaderModel,
+  ) : FormMainContentModel()
+
+  /**
    * A display list of data with a left-aligned label and a right-aligned primary and secondary
    * data and an optional "total" row that will be displayed at the bottom.
    */
@@ -147,6 +205,7 @@ sealed class FormMainContentModel {
     val items: ImmutableList<Data>,
     val total: Data? = null,
     val buttons: ImmutableList<ButtonModel> = emptyImmutableList(),
+    val containerStyle: ContainerStyle = ContainerStyle.DEFAULT,
   ) : FormMainContentModel() {
     init {
       require(items.isNotEmpty())
@@ -185,9 +244,9 @@ sealed class FormMainContentModel {
       // only displayed if onClick is not null
       val endIcon: Icon = SmallIconCaretRight,
     ) {
-      enum class TitleTextType { REGULAR, BOLD }
+      enum class TitleTextType { REGULAR, BODY2REGULAR, BODY1REGULAR, BOLD }
 
-      enum class SideTextType { REGULAR, MEDIUM, BOLD, BODY2BOLD }
+      enum class SideTextType { REGULAR, MEDIUM, BOLD, BODY2BOLD, BODY2REGULAR, BODY1REGULAR }
 
       enum class SideTextTreatment { PRIMARY, SECONDARY, WARNING, STRIKETHROUGH }
 
@@ -195,7 +254,13 @@ sealed class FormMainContentModel {
         val title: String,
         val subtitle: String,
         val iconButton: IconButtonModel? = null,
+        val showTopDivider: Boolean = false,
       )
+    }
+
+    enum class ContainerStyle {
+      DEFAULT,
+      BORDERLESS,
     }
   }
 
@@ -249,7 +314,6 @@ sealed class FormMainContentModel {
   data class VerificationCodeInput(
     val fieldModel: TextFieldModel,
     val resendCodeContent: ResendCodeContent,
-    val skipForNowContent: SkipForNowContent,
   ) : FormMainContentModel() {
     sealed interface ResendCodeContent {
       data class Text(val value: String) : ResendCodeContent
@@ -263,29 +327,6 @@ sealed class FormMainContentModel {
               treatment = ButtonModel.Treatment.Tertiary,
               size = ButtonModel.Size.Compact,
               onClick = StandardClick(onSendCodeAgain)
-            )
-        )
-      }
-    }
-
-    sealed interface SkipForNowContent {
-      data object Hidden : SkipForNowContent
-
-      data class Showing(
-        val text: String,
-        val button: ButtonModel,
-      ) : SkipForNowContent {
-        constructor(
-          text: String,
-          onSkipForNow: () -> Unit,
-        ) : this(
-          text = text,
-          button =
-            ButtonModel(
-              text = "Skip for now",
-              treatment = ButtonModel.Treatment.Tertiary,
-              size = ButtonModel.Size.Compact,
-              onClick = StandardClick(onSkipForNow)
             )
         )
       }
@@ -397,23 +438,28 @@ sealed class FormMainContentModel {
      */
     enum class StepStyle {
       /**
-       * The step is in progress; uses bitkeyPrimary for the circle and foreground10 for the next line.
+       * The step is in progress; uses the highlighted stepper color for the circle and next line.
        */
       PENDING,
 
       /**
-       * The step is completed; uses bitkeyPrimary for the circle and next line.
+       * The step is completed; uses the highlighted stepper color for the circle and next line.
        */
       COMPLETED,
 
       /**
-       * The step is still upcoming; uses foreground10 for the circle and next line.
+       * The step is still upcoming; uses the inactive stepper color for the circle and next line.
        */
       UPCOMING,
     }
   }
 
   data object Loader : FormMainContentModel()
+
+  /**
+   * A design-system-v2 loading treatment using the dots loader artwork.
+   */
+  data object DotLoader : FormMainContentModel()
 
   /**
    * Allows a [CalloutModel] to be rendered in the [FormMainContentModel] list
@@ -446,6 +492,19 @@ sealed class FormMainContentModel {
    */
   data class CircularTabRow(
     val item: CircularTabRowModel,
+  ) : FormMainContentModel()
+
+  /**
+   * A collapsible address section with a chevron toggle and label.
+   * Used to display a destination address that can be expanded/collapsed.
+   *
+   * @property address The address text to display when expanded.
+   * @property label The label shown next to the chevron (e.g. "DESTINATION ADDRESS").
+   */
+  @Redacted
+  data class CollapsibleAddress(
+    val address: String,
+    val label: String,
   ) : FormMainContentModel()
 
   /**

@@ -43,7 +43,8 @@ class FirmwareDeviceInfoDaoImpl(
         mcuInfoDeviceQueries.setMcuInfo(
           mcuRole = mcuInfo.mcuRole,
           mcuName = mcuInfo.mcuName,
-          firmwareVersion = mcuInfo.firmwareVersion
+          firmwareVersion = mcuInfo.firmwareVersion,
+          activeSlot = mcuInfo.activeSlot
         )
       }
     }
@@ -112,7 +113,8 @@ class FirmwareDeviceInfoDaoImpl(
           McuInfo(
             mcuRole = mcuInfo.mcuRole,
             mcuName = mcuInfo.mcuName,
-            firmwareVersion = mcuInfo.firmwareVersion
+            firmwareVersion = mcuInfo.firmwareVersion,
+            activeSlot = mcuInfo.activeSlot
           )
         }
       }

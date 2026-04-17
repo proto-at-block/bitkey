@@ -1,24 +1,29 @@
 package bitkey.ui.screens.device
 
+import bitkey.account.AccountConfigServiceFake
 import bitkey.privilegedactions.FingerprintResetAvailabilityServiceImpl
 import bitkey.ui.framework.test
 import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.F8eUnreachable
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock2
+import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.db.DbError
+import build.wallet.encrypt.Secp256k1PublicKey
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.FeatureFlagValue
-import build.wallet.feature.flags.FingerprintResetFeatureFlag
 import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
+import build.wallet.feature.setFlagValue
 import build.wallet.firmware.FirmwareDeviceInfoDaoMock
 import build.wallet.firmware.FirmwareDeviceInfoMock
 import build.wallet.fwup.*
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.nfc.NfcCommandsMock
+import build.wallet.nfc.NfcException
+import build.wallet.nfc.NfcSessionFake
 import build.wallet.recovery.RecoveryStatusServiceMock
 import build.wallet.router.Route
 import build.wallet.router.Router
@@ -32,6 +37,7 @@ import build.wallet.statemachine.fwup.FwupScreen
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineFake
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsScreen
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetProps
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetUiStateMachine
@@ -39,6 +45,8 @@ import build.wallet.statemachine.settings.full.device.wipedevice.WipingDevicePro
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
+import build.wallet.statemachine.walletmigration.W3UpgradeUiProps
+import build.wallet.statemachine.walletmigration.W3UpgradeUiStateMachine
 import build.wallet.time.ClockFake
 import build.wallet.time.DateTimeFormatterMock
 import build.wallet.time.DurationFormatterFake
@@ -47,6 +55,7 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldBeNull
@@ -64,13 +73,12 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
   val firmwareDataService = FirmwareDataServiceFake()
   val clock = ClockFake()
   val recoveryStatusService = RecoveryStatusServiceMock(turbine = turbines::create)
+  val accountConfigService = AccountConfigServiceFake()
 
   val featureFlagDao = FeatureFlagDaoFake()
-  val fingerprintResetFeatureFlag = FingerprintResetFeatureFlag(featureFlagDao)
   val fingerprintResetMinFirmwareVersionFeatureFlag = FingerprintResetMinFirmwareVersionFeatureFlag(featureFlagDao)
 
   val fingerprintResetAvailability = FingerprintResetAvailabilityServiceImpl(
-    fingerprintResetFeatureFlag = fingerprintResetFeatureFlag,
     fingerprintResetMinFirmwareVersionFeatureFlag = fingerprintResetMinFirmwareVersionFeatureFlag,
     firmwareDataService = firmwareDataService
   )
@@ -93,7 +101,10 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
       ScreenStateMachineMock<FingerprintResetProps>("fingerprint-reset") {},
     fingerprintResetAvailabilityService = fingerprintResetAvailability,
     recoveryStatusService = recoveryStatusService,
-    clock = clock
+    clock = clock,
+    w3UpgradeUiStateMachine = object : W3UpgradeUiStateMachine,
+      ScreenStateMachineMock<W3UpgradeUiProps>("w3-upgrade") {},
+    accountConfigService = accountConfigService
   )
 
   val screen = DeviceSettingsScreen(
@@ -106,7 +117,10 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
     firmwareDeviceInfoDao.reset()
     firmwareDataService.reset()
     recoveryStatusService.reset()
+    accountConfigService.reset()
     clock.reset()
+    featureFlagDao.reset()
+    nfcCommandsMock.reset()
   }
 
   test("metadata is appropriately formatted with update") {
@@ -155,8 +169,12 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
 
       // Syncing info via NFC
       awaitBodyMock<NfcSessionUIStateMachineProps<Result<Unit, DbError>>> {
+        hardwareVerification.shouldBe(NotRequired)
+
         // Verify getDeviceInfo was called
         nfcCommandsMock.getDeviceInfoCalls.awaitItem().shouldBe(FirmwareDeviceInfoMock)
+        // W1 devices require auth key lookup to verify the tapped device matches the paired device
+        nfcCommandsMock.getAuthenticationKeyCalls.awaitItem()
 
         // Verify the device info was stored
         firmwareDeviceInfoDao.getDeviceInfo().get().shouldNotBeNull()
@@ -167,12 +185,129 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
     }
   }
 
+  test("metadata sync rejects W3 mismatch before auth key lookup") {
+    val expectedPairedDeviceInfo = FirmwareDeviceInfoMock.copy(
+      hwRevision = "w1a-dvt",
+      serial = "paired-w1"
+    )
+    nfcCommandsMock.deviceInfoResult = FirmwareDeviceInfoMock.copy(
+      hwRevision = "w3a-core-evt",
+      serial = "unpaired-w3"
+    )
+
+    shouldThrow<NfcException.UnpairedHardwareError> {
+      verifyTappedDeviceInfoForMetadataSync(
+        expectedPairedDeviceInfo = expectedPairedDeviceInfo,
+        expectedHwAuthKey = FullAccountMock.keybox.activeHwKeyBundle.authKey,
+        session = NfcSessionFake(),
+        commands = nfcCommandsMock
+      )
+    }
+
+    nfcCommandsMock.getDeviceInfoCalls.awaitItem().shouldBe(
+      FirmwareDeviceInfoMock.copy(
+        hwRevision = "w3a-core-evt",
+        serial = "unpaired-w3"
+      )
+    )
+    nfcCommandsMock.getAuthenticationKeyCalls.expectNoEvents()
+  }
+
+  test("metadata sync rejects W3 when no paired device info exists") {
+    nfcCommandsMock.deviceInfoResult = FirmwareDeviceInfoMock.copy(
+      hwRevision = "w3a-core-evt",
+      serial = "candidate-w3"
+    )
+
+    shouldThrow<NfcException.UnpairedHardwareError> {
+      verifyTappedDeviceInfoForMetadataSync(
+        expectedPairedDeviceInfo = null,
+        expectedHwAuthKey = FullAccountMock.keybox.activeHwKeyBundle.authKey,
+        session = NfcSessionFake(),
+        commands = nfcCommandsMock
+      )
+    }
+
+    nfcCommandsMock.getDeviceInfoCalls.awaitItem().shouldBe(
+      FirmwareDeviceInfoMock.copy(
+        hwRevision = "w3a-core-evt",
+        serial = "candidate-w3"
+      )
+    )
+    nfcCommandsMock.getAuthenticationKeyCalls.expectNoEvents()
+  }
+
+  test("metadata sync uses auth key matching for W1 when needed") {
+    nfcCommandsMock.deviceInfoResult = FirmwareDeviceInfoMock.copy(
+      hwRevision = "w1a-dvt",
+      serial = "candidate-w1"
+    )
+    nfcCommandsMock.authenticationKeyResult =
+      HwAuthPublicKey(Secp256k1PublicKey("different-hw-auth-dpub"))
+
+    shouldThrow<NfcException.UnpairedHardwareError> {
+      verifyTappedDeviceInfoForMetadataSync(
+        expectedPairedDeviceInfo = null,
+        expectedHwAuthKey = FullAccountMock.keybox.activeHwKeyBundle.authKey,
+        session = NfcSessionFake(),
+        commands = nfcCommandsMock
+      )
+    }
+
+    nfcCommandsMock.getDeviceInfoCalls.awaitItem().shouldBe(
+      FirmwareDeviceInfoMock.copy(
+        hwRevision = "w1a-dvt",
+        serial = "candidate-w1"
+      )
+    )
+    nfcCommandsMock.getAuthenticationKeyCalls.awaitItem().shouldBe(Unit)
+  }
+
+  test("metadata sync accepts W3 when serial matches paired device") {
+    val pairedW3DeviceInfo = FirmwareDeviceInfoMock.copy(
+      hwRevision = "w3a-core-evt",
+      serial = "paired-w3-serial"
+    )
+    nfcCommandsMock.deviceInfoResult = pairedW3DeviceInfo
+
+    val result = verifyTappedDeviceInfoForMetadataSync(
+      expectedPairedDeviceInfo = pairedW3DeviceInfo,
+      expectedHwAuthKey = FullAccountMock.keybox.activeHwKeyBundle.authKey,
+      session = NfcSessionFake(),
+      commands = nfcCommandsMock
+    )
+
+    result.shouldBe(pairedW3DeviceInfo)
+    nfcCommandsMock.getDeviceInfoCalls.awaitItem().shouldBe(pairedW3DeviceInfo)
+    nfcCommandsMock.getAuthenticationKeyCalls.expectNoEvents()
+  }
+
+  test("metadata sync accepts W1 when auth key matches") {
+    val pairedW1DeviceInfo = FirmwareDeviceInfoMock.copy(
+      hwRevision = "w1a-dvt",
+      serial = "paired-w1-serial"
+    )
+    nfcCommandsMock.deviceInfoResult = pairedW1DeviceInfo
+    // authenticationKeyResult defaults to HwAuthSecp256k1PublicKeyMock which matches FullAccountMock
+
+    val result = verifyTappedDeviceInfoForMetadataSync(
+      expectedPairedDeviceInfo = pairedW1DeviceInfo,
+      expectedHwAuthKey = FullAccountMock.keybox.activeHwKeyBundle.authKey,
+      session = NfcSessionFake(),
+      commands = nfcCommandsMock
+    )
+
+    result.shouldBe(pairedW1DeviceInfo)
+    nfcCommandsMock.getDeviceInfoCalls.awaitItem().shouldBe(pairedW1DeviceInfo)
+    nfcCommandsMock.getAuthenticationKeyCalls.awaitItem().shouldBe(Unit)
+  }
+
   test("lost or stolen device") {
     presenter.test(screen) { navigator ->
       awaitBody<FormBodyModel> {
         mainContentList[1].apply {
           shouldBeInstanceOf<SettingsList>()
-            .items[3].apply {
+            .items[4].apply {
             title.shouldBe("Replace device")
             onClick.shouldNotBeNull().invoke()
           }
@@ -197,7 +332,22 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
           .invoke()
       }
 
+      awaitBody<FormBodyModel>()
       navigator.exitCalls.awaitItem().shouldBe(Unit)
+    }
+  }
+
+  test("device settings configures collapsible toolbar for design system screens") {
+    presenter.test(screen) { _ ->
+      awaitBody<FormBodyModel> {
+        designSystemV2Model.shouldNotBeNull().apply {
+          title.shouldBe("Bitkey Device")
+          toolbar.shouldNotBeNull().apply {
+            middleAccessory.shouldBeNull()
+            leadingAccessory.shouldBeInstanceOf<IconAccessory>()
+          }
+        }
+      }
     }
   }
 
@@ -224,7 +374,7 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
 
       // Going to firmware update screen
       val fwupScreen = navigator.goToCalls.awaitItem().shouldBeTypeOf<FwupScreen>()
-      fwupScreen.onExit()
+      fwupScreen.onExit.shouldNotBeNull().invoke()
 
       // Back to device settings
       val deviceSettingsScreen = navigator.goToCalls.awaitItem().shouldBeTypeOf<DeviceSettingsScreen>()
@@ -238,7 +388,7 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
         // Replace device is in the SettingsList at index 1, item index 3
         mainContentList[1].apply {
           shouldBeInstanceOf<SettingsList>()
-          items[3].apply {
+          items[4].apply {
             title.shouldBe("Replace device")
             isEnabled.shouldBeTrue()
           }
@@ -254,7 +404,7 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
       awaitBody<FormBodyModel> {
         mainContentList[1].apply {
           shouldBeInstanceOf<SettingsList>()
-          items[3].apply {
+          items[4].apply {
             title.shouldBe("Replace device")
             isEnabled.shouldBeFalse()
           }
@@ -281,6 +431,50 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
 
       // Going to manage fingerprints
       navigator.goToCalls.awaitItem().shouldBeTypeOf<ManagingFingerprintsScreen>()
+    }
+  }
+
+  test("fingerprints row is hidden for W3 hardware") {
+    val serialNumber = "350FS20304400455"
+    firmwareDataService.firmwareData.value = FirmwareDataUpToDateMock.copy(
+      firmwareDeviceInfo = FirmwareDeviceInfoMock.copy(
+        hwRevision = "w3a-core-evt",
+        version = "1.0.98",
+        serial = serialNumber
+      )
+    )
+
+    presenter.test(screen) { _ ->
+      awaitBody<FormBodyModel> {
+        val settingsItems = mainContentList[1].shouldBeInstanceOf<SettingsList>().items
+        settingsItems.none { it.title == "Fingerprints" }.shouldBe(true)
+      }
+    }
+  }
+
+  test("fingerprints row is hidden when activeHardwareType is W3 even if firmware metadata is stale") {
+    // Simulate the window immediately after a W3 upgrade where accountConfig is already W3
+    // but firmwareDeviceInfo still has a W1 hwRevision.
+    accountConfigService.setActiveConfig(
+      bitkey.account.FullAccountConfig(
+        bitcoinNetworkType = build.wallet.bitcoin.BitcoinNetworkType.BITCOIN,
+        f8eEnvironment = build.wallet.f8e.F8eEnvironment.Production,
+        isTestAccount = false,
+        isUsingSocRecFakes = false,
+        isHardwareFake = false,
+        hardwareType = bitkey.account.HardwareType.W3
+      )
+    )
+    // Firmware info still shows W1 revision
+    firmwareDataService.firmwareData.value = FirmwareDataUpToDateMock.copy(
+      firmwareDeviceInfo = FirmwareDeviceInfoMock.copy(hwRevision = "evta")
+    )
+
+    presenter.test(screen) { _ ->
+      awaitBody<FormBodyModel> {
+        val settingsItems = mainContentList[1].shouldBeInstanceOf<SettingsList>().items
+        settingsItems.none { it.title == "Fingerprints" }.shouldBe(true)
+      }
     }
   }
 
@@ -322,7 +516,7 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
 
       // Going to firmware update screen
       val fwupScreen = navigator.goToCalls.awaitItem().shouldBeTypeOf<FwupScreen>()
-      fwupScreen.onExit()
+      fwupScreen.onExit.shouldNotBeNull().invoke()
 
       // Back to device settings
       val deviceSettingsScreen =
@@ -429,12 +623,10 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
 
   test("fingerprint reset option shows correctly when version requirements met") {
     val featureFlagDao = FeatureFlagDaoFake()
-    val fingerprintResetFeatureFlag = FingerprintResetFeatureFlag(featureFlagDao)
     val fingerprintResetMinFirmwareVersionFeatureFlag =
       FingerprintResetMinFirmwareVersionFeatureFlag(featureFlagDao)
 
     val fingerprintResetAvailability = FingerprintResetAvailabilityServiceImpl(
-      fingerprintResetFeatureFlag = fingerprintResetFeatureFlag,
       fingerprintResetMinFirmwareVersionFeatureFlag = fingerprintResetMinFirmwareVersionFeatureFlag,
       firmwareDataService = firmwareDataService
     )
@@ -460,11 +652,13 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
         ) {},
       fingerprintResetAvailabilityService = fingerprintResetAvailability,
       recoveryStatusService = recoveryStatusService,
-      clock = clock
+      clock = clock,
+      w3UpgradeUiStateMachine = object : W3UpgradeUiStateMachine,
+        ScreenStateMachineMock<W3UpgradeUiProps>("w3-upgrade") {},
+      accountConfigService = accountConfigService
     )
 
-    // Enable feature flag and set supported firmware version
-    fingerprintResetFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    // Set supported firmware version
     fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
     firmwareDataService.firmwareData.value = FirmwareData(
       firmwareDeviceInfo = FirmwareDeviceInfoMock.copy(version = "1.0.98"),
@@ -504,12 +698,10 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
 
   test("fingerprint reset option disabled when version requirements not met") {
     val featureFlagDao = FeatureFlagDaoFake()
-    val fingerprintResetFeatureFlag = FingerprintResetFeatureFlag(featureFlagDao)
     val fingerprintResetMinFirmwareVersionFeatureFlag =
       FingerprintResetMinFirmwareVersionFeatureFlag(featureFlagDao)
 
     val fingerprintResetAvailability = FingerprintResetAvailabilityServiceImpl(
-      fingerprintResetFeatureFlag = fingerprintResetFeatureFlag,
       fingerprintResetMinFirmwareVersionFeatureFlag = fingerprintResetMinFirmwareVersionFeatureFlag,
       firmwareDataService = firmwareDataService
     )
@@ -535,11 +727,13 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
         ) {},
       fingerprintResetAvailabilityService = fingerprintResetAvailability,
       recoveryStatusService = recoveryStatusService,
-      clock = clock
+      clock = clock,
+      w3UpgradeUiStateMachine = object : W3UpgradeUiStateMachine,
+        ScreenStateMachineMock<W3UpgradeUiProps>("w3-upgrade") {},
+      accountConfigService = accountConfigService
     )
 
-    // Enable feature flag but set unsupported firmware version
-    fingerprintResetFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    // Set unsupported firmware version
     fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
     firmwareDataService.firmwareData.value = FirmwareData(
       firmwareDeviceInfo = FirmwareDeviceInfoMock.copy(version = "1.0.95"),
@@ -714,6 +908,29 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
             .shouldBe("Awaiting confirmation")
         }
       }
+    }
+  }
+
+  test("W3 upgrade completion navigates to Money Home with post-upgrade origin") {
+    presenter.test(screen) { navigator ->
+      // Tap the Upgrade device button (index 3 in SettingsList, after About, Fingerprints, Wipe device)
+      awaitBody<FormBodyModel> {
+        mainContentList[1].apply {
+          shouldBeInstanceOf<SettingsList>()
+            .items[3].apply {
+            title.shouldBe("Upgrade device")
+            onClick.shouldNotBeNull().invoke()
+          }
+        }
+      }
+
+      // W3 upgrade state machine is shown - invoke onUpgradeComplete callback
+      awaitBodyMock<W3UpgradeUiProps> {
+        onUpgradeComplete(FullAccountMock)
+      }
+
+      // Verify navigation to Money Home via Router
+      Router.route.shouldBe(Route.W3UpgradeComplete)
     }
   }
 })

@@ -37,8 +37,8 @@ enum class ChartRange(
     label = Res.string.chart_history_label_month,
     diffLabel = Res.string.chart_history_label_month_diff,
     duration = 30.days,
-    interval = 1.days,
-    maxPricePoints = 30
+    interval = 6.hours,
+    maxPricePoints = 30 * 4
   ),
   YEAR(
     label = Res.string.chart_history_label_year,

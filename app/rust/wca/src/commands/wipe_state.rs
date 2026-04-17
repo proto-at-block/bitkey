@@ -41,7 +41,7 @@ fn wipe_state() -> Result<WipeStateResult, CommandError> {
         match WipeStateRspStatus::try_from(rsp_status) {
             Ok(WipeStateRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
             Ok(WipeStateRspStatus::Success) => Ok(WipeStateResult::Success { value: true }),
-            Ok(WipeStateRspStatus::Error) => Err(CommandError::GeneralCommandError),
+            Ok(WipeStateRspStatus::Error) => Err(CommandError::WipeStateFailed),
             Ok(WipeStateRspStatus::Unauthenticated) => Err(CommandError::Unauthenticated),
             Err(_) => Err(CommandError::InvalidResponse),
         }

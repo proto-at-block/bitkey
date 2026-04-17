@@ -6,7 +6,6 @@ import bitkey.f8e.error.code.VerifyTouchpointClientErrorCode
 import bitkey.notifications.NotificationTouchpoint
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.ktor.result.NetworkingError
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -17,13 +16,11 @@ class RecoveryNotificationVerificationF8eClientMock(
   data class SendTouchpointCall(
     val fullAccountId: FullAccountId,
     val touchpoint: NotificationTouchpoint,
-    val hwFactorProofOfPossession: HwFactorProofOfPossession?,
   )
 
   data class VerifyTouchpointCall(
     val fullAccountId: FullAccountId,
     val verificationCode: String,
-    val hwFactorProofOfPossession: HwFactorProofOfPossession?,
   )
 
   val sendCodeCalls = turbine("send code calls")
@@ -36,9 +33,8 @@ class RecoveryNotificationVerificationF8eClientMock(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
     touchpoint: NotificationTouchpoint,
-    hardwareProofOfPossession: HwFactorProofOfPossession?,
   ): Result<Unit, NetworkingError> {
-    sendCodeCalls.add(SendTouchpointCall(fullAccountId, touchpoint, hardwareProofOfPossession))
+    sendCodeCalls.add(SendTouchpointCall(fullAccountId, touchpoint))
     return sendCodeResult
   }
 
@@ -46,10 +42,9 @@ class RecoveryNotificationVerificationF8eClientMock(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
     verificationCode: String,
-    hardwareProofOfPossession: HwFactorProofOfPossession?,
   ): Result<Unit, F8eError<VerifyTouchpointClientErrorCode>> {
     verifyCodeCalls.add(
-      VerifyTouchpointCall(fullAccountId, verificationCode, hardwareProofOfPossession)
+      VerifyTouchpointCall(fullAccountId, verificationCode)
     )
     return verifyCodeResult
   }

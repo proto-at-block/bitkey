@@ -14,6 +14,7 @@ DEFINE_FFF_GLOBALS;
 FAKE_VOID_FUNC(rtos_mutex_create, rtos_mutex_t*);
 FAKE_VALUE_FUNC(bool, rtos_mutex_lock, rtos_mutex_t*);
 FAKE_VALUE_FUNC(bool, rtos_mutex_unlock, rtos_mutex_t*);
+FAKE_VALUE_FUNC(bool, rtos_in_isr);
 
 extern uint8_t bitlog_storage[];
 extern policy_ctx_t policy_ctx;
@@ -59,7 +60,7 @@ static void init(void) {
 }
 
 Test(policy_test, policy_disabled, .init = init) {
-  policy_init(get_w1_auth_path, false);
+  policy_init(get_w1_auth_path, SECURE_FALSE);
 
   extended_key_t key_priv = {0};
   uint8_t digest[SHA256_DIGEST_SIZE] = {0};
@@ -79,7 +80,7 @@ Test(policy_test, policy_disabled, .init = init) {
 }
 
 Test(policy_test, policy_enabled_no_grant, .init = init) {
-  policy_init(get_w1_auth_path, true);
+  policy_init(get_w1_auth_path, SECURE_TRUE);
 
   extended_key_t key_priv = {0};
   uint8_t digest[SHA256_DIGEST_SIZE] = {0};
@@ -99,7 +100,7 @@ Test(policy_test, policy_enabled_no_grant, .init = init) {
 }
 
 Test(policy_test, policy_enabled_yes_grant, .init = init) {
-  policy_init(get_w1_auth_path, true);
+  policy_init(get_w1_auth_path, SECURE_TRUE);
 
   extended_key_t key_priv = {0};
   uint8_t digest[SHA256_DIGEST_SIZE] = {0};
@@ -114,14 +115,14 @@ Test(policy_test, policy_enabled_yes_grant, .init = init) {
     .num_indices = 1,
   };
 
-  policy_ctx.grant_presented = true;
+  policy_ctx.grant_presented = SECURE_TRUE;
 
   policy_sign_result_t result = bip32_sign_with_policy(&key_priv, any_path, digest, signature);
   cr_assert_eq(result, POLICY_SIGN_SUCCESS, "Signing should succeed when policy is enabled.");
 }
 
 Test(policy_test, policy_enabled_auth_key, .init = init) {
-  policy_init(get_w1_auth_path, true);
+  policy_init(get_w1_auth_path, SECURE_TRUE);
 
   extended_key_t key_priv = {0};
   uint8_t digest[SHA256_DIGEST_SIZE] = {0};

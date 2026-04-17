@@ -3,40 +3,44 @@ srcs = [
   'ui/screens.c',
   'ui/display_send.c',
   'ui/display_action.c',
-  'ui/gesture_tx.c',
   'ui/widgets/top_back.c',
-  'ui/widgets/orbital_dots_animation.c',
   'ui/widgets/nfc_dots_animation.c',
   'ui/widgets/mfg_starfield_fps.c',
   'ui/widgets/mfg_burnin_grid.c',
+  'ui/widgets/mfg_burnin_checker.c',
   'ui/widgets/mfg_scrolling_h.c',
   'ui/widgets/top_menu.c',
   'ui/widgets/hold_cancel.c',
   'ui/widgets/address_display.c',
+  'ui/widgets/approval_button.c',
   'ui/widgets/dot_ring.c',
+  'ui/widgets/loading_ring.c',
   'ui/widgets/fingerprint_dots.c',
+  'ui/widgets/scroll_arc_indicator.c',
   'ui/screens/screen_about.c',
   'ui/screens/screen_money_movement.c',
   'ui/screens/screen_scan.c',
   'ui/screens/screen_onboarding.c',
   'ui/screens/screen_brightness.c',
-  'ui/screens/screen_regulatory.c',
   'ui/screens/screen_locked.c',
   'ui/screens/screen_menu.c',
   'ui/screens/screen_menu_fingerprints.c',
   'ui/screens/screen_firmware_update.c',
-  'ui/screens/screen_test_gesture.c',
-  'ui/screens/screen_test_scroll.c',
-  'ui/screens/screen_test_pin_pad.c',
-  'ui/screens/screen_test_carousel.c',
-  'ui/screens/screen_test_slider.c',
-  'ui/screens/screen_test_progress.c',
+
+
   'ui/screens/screen_mfg.c',
   'ui/screens/screen_mfg_run_in.c',
   'ui/screens/screen_mfg_touch_test.c',
+
   'ui/screens/screen_fingerprint.c',
   'ui/screens/screen_privileged_action.c',
   'ui/screens/screen_power_off.c',
+  'ui/screens/screen_mfg_touch_debug.c',
+  'ui/screens/screen_mfg_touch_debug_viewers.c',
+  'ui/screens/screen_mfg_touch_debug_diag.c',
+  'ui/screens/screen_confirmation.c',
+  'ui/screens/screen_onboarding_complete.c',
+  'ui/screens/screen_game.c',
 ]
 
 includes = [
@@ -48,6 +52,7 @@ includes = [
   '../../third-party',
   'ui/images',
   'ui/fonts',
+  touch_includes,
 ]
 
 deps = [
@@ -58,6 +63,7 @@ deps = [
   lvgl_dep,
   mcu_dep,
   protos_dep,
+
   uc_dep,
 ]
 
@@ -66,27 +72,40 @@ python = find_program('python3')
 # Font sizes we need for CashSansMono
 font_sizes = [20, 22, 24, 26, 28, 30, 34, 36, 40, 48]
 
-# Font variants: Regular and Medium
+# Font variants: Regular
 font_variants = {
-  'regular': 'CashSansMono-Regular.otf',
-  # 'medium': 'CashSansMono-Medium.otf',  # Uncomment to enable Medium weight
+  'regular': ['CashSansMono-Regular.otf', 'CashSansMono-Regular-slashed-zero.otf'],
 }
 
 lv_font_conv = find_program('lv_font_conv')
 
-# Generate CashSansMono fonts at build time (both Regular and Medium)
-foreach variant_name, font_file : font_variants
+# Generate CashSansMono fonts at build time
+foreach variant_name, font_files : font_variants
+  base_font_file = font_files[0]
+  slashed_zero_font_file = font_files[1]
+
   foreach size : font_sizes
     font_target = custom_target(
       'cash_sans_mono_' + variant_name + '_' + size.to_string(),
-      input : files('ui/fonts/' + font_file),
+      input : [
+        files('ui/fonts/' + base_font_file),
+        files('ui/fonts/' + slashed_zero_font_file),
+        files('ui/fonts/CashSansMono-Regular-v3.ttf'),
+      ],
       output : ['cash_sans_mono_' + variant_name + '_' + size.to_string() + '.c'],
       command : [
         lv_font_conv,
         '--bpp', '4',
         '--size', size.to_string(),
-        '--font', '@INPUT@',
-        '--range', '0x20-0x7F',
+        '--font', '@INPUT0@',
+        '--range', '0x20-0x2F',
+        '--range', '0x31-0x7F',
+        # Pull U+0030 from the slashed-zero companion font.
+        '--font', '@INPUT1@',
+        '--range', '0x30',
+        # Pull ₿ (U+20BF, BIP 177 double-stroke Bitcoin sign) from v3 font.
+        '--font', '@INPUT2@',
+        '--range', '0x20BF',
         '--format', 'lvgl',
         '--no-compress',
         '--no-prefilter',
@@ -94,7 +113,9 @@ foreach variant_name, font_file : font_variants
         '-o', '@OUTPUT@'
       ],
       depend_files : [
-        meson.project_source_root() + '/lib/display/ui/fonts/' + font_file
+        meson.project_source_root() + '/lib/display/ui/fonts/' + base_font_file,
+        meson.project_source_root() + '/lib/display/ui/fonts/' + slashed_zero_font_file,
+        meson.project_source_root() + '/lib/display/ui/fonts/CashSansMono-Regular-v3.ttf',
       ],
       build_always_stale : true,
     )
@@ -107,8 +128,8 @@ image_pngs_rgb565 = [
   # Currently empty, but keeping for future RGB images
 ]
 
-# Monochrome images (1-bit indexed)
-image_pngs_i1 = [
+# Alpha-only images preserve anti-aliased edges while staying much smaller than ARGB8888.
+image_pngs_a8 = [
   'ui/images/arrow_right.png',
   'ui/images/back_arrow.png',
   'ui/images/brightness.png',
@@ -122,16 +143,10 @@ image_pngs_i1 = [
   'ui/images/lock.png',
   'ui/images/locked.png',
   'ui/images/unlocked.png',
-  'ui/images/paper_ribbon.png',
   'ui/images/power.png',
   'ui/images/check.png',
   'ui/images/cross.png',
-  'ui/images/bitkey_qr.png',
-  'ui/images/bitkey_logo_key.png',
-  'ui/images/ce_logo.png',
   'ui/images/dot.png',
-  'ui/images/eac_logo.png',
-  'ui/images/fcc_logo.png',
   'ui/images/battery_10.png',
   'ui/images/battery_25.png',
   'ui/images/battery_50.png',
@@ -142,6 +157,13 @@ image_pngs_i1 = [
   'ui/images/sleep.png',
   'ui/images/run_in.png',
   'ui/images/plus.png',
+]
+
+# Monochrome images (1-bit indexed)
+image_pngs_i1 = [
+  'ui/images/bitkey_logo_key.png',
+  'ui/images/bitkey_text.png',
+  'ui/images/rcm_logo.png',
 ]
 
 foreach img : image_pngs_rgb565
@@ -155,6 +177,29 @@ foreach img : image_pngs_rgb565
       meson.project_source_root() + '/third-party/lvgl/scripts/LVGLImage.py',
       '--ofmt', 'C',
       '--cf',   'RGB565',
+      '-o',     'lib/display/',
+      '@INPUT@'
+    ],
+    depend_files : [
+      meson.project_source_root() + '/third-party/lvgl/scripts/LVGLImage.py'
+    ],
+    build_always_stale : true,
+  )
+
+  srcs += image_target
+endforeach
+
+foreach img : image_pngs_a8
+  img_base = img.split('/')[-1].split('.')[0]
+  image_target = custom_target(
+    img_base + '_lvgl_image',
+    input : files(img),
+    output : [img_base + '.c'],
+    command : [
+      python,
+      meson.project_source_root() + '/third-party/lvgl/scripts/LVGLImage.py',
+      '--ofmt', 'C',
+      '--cf',   'A8',
       '-o',     'lib/display/',
       '@INPUT@'
     ],

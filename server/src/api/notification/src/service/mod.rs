@@ -1,7 +1,7 @@
 use std::{collections::HashSet, env};
 
 use account::service::Service as AccountService;
-use authn_authz::key_claims::KeyClaims;
+
 use database::ddb::{Connection, Repository as _};
 use queue::sqs::SqsQueue;
 use repository::account::AccountRepository;
@@ -162,7 +162,7 @@ pub struct FetchNotificationsPreferencesInput<'a> {
 pub struct UpdateNotificationsPreferencesInput<'a> {
     pub account_id: &'a AccountId,
     pub notifications_preferences: &'a NotificationsPreferences,
-    pub key_proof: Option<KeyClaims>,
+    pub signed_by_both_factors: bool,
 }
 
 #[derive(Debug)]

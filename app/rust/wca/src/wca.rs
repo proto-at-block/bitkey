@@ -134,7 +134,6 @@ adpu_from_proto!(WipeStateCmd);
 adpu_from_proto!(LockDeviceCmd);
 adpu_from_proto!(CertGetCmd);
 adpu_from_proto!(DerivePublicKeyCmd);
-adpu_from_proto!(DerivePublicKeyAndSignCmd);
 adpu_from_proto!(HardwareAttestationCmd);
 adpu_from_proto!(SetFingerprintLabelCmd);
 adpu_from_proto!(GetEnrolledFingerprintsCmd);
@@ -148,6 +147,26 @@ adpu_from_proto!(GetConfirmationResultCmd);
 adpu_from_proto!(GetAddressCmd);
 adpu_from_proto!(VerifyKeysAndBuildDescriptorCmd);
 adpu_from_proto!(SignActionProofCmd);
+// Note: SignTxRequestCmd uses encode_proto_cmd() directly for proto continuation
+// support, since it can exceed MAX_PROTO_SIZE with 5 inputs + 5 outputs.
+adpu_from_proto!(SignStreamStartCmd);
+adpu_from_proto!(SignStreamTransferCmd);
+adpu_from_proto!(SignStreamFinalizeCmd);
+adpu_from_proto!(GetTxSignatureCmd);
+adpu_from_proto!(GetTxSignaturesBatchCmd);
+adpu_from_proto!(LostAppRecoveryCmd);
+adpu_from_proto!(LostAppRecoveryContinueCmd);
+adpu_from_proto!(LostAppRecoverySignChallengeCmd);
+adpu_from_proto!(RotateAppAuthKeysCmd);
+adpu_from_proto!(UpgradeRotateAppAuthKeysCmd);
+adpu_from_proto!(SignChallengeAndSealSeksCmd);
+adpu_from_proto!(RecoveryAuthorizeLostAppCmd);
+adpu_from_proto!(RecoveryAuthorizeLostHwCmd);
+adpu_from_proto!(UpgradeAuthorizeW3Cmd);
+adpu_from_proto!(EekRestorationUnsealSymmetricKeyCmd);
+adpu_from_proto!(FullAccountCloudBackupRestorationCmd);
+adpu_from_proto!(FullAccountCloudBackupRestorationContinueCmd);
+adpu_from_proto!(ShowConfirmationScreenCmd);
 
 impl TryFrom<crate::fwpb::CoredumpGetCmd> for apdu::Command {
     type Error = EncodeError;
@@ -163,19 +182,57 @@ impl TryFrom<crate::fwpb::wallet_cmd::Msg> for Vec<apdu::Command> {
     type Error = EncodeError;
 
     fn try_from(command: crate::fwpb::wallet_cmd::Msg) -> Result<Self, Self::Error> {
-        let mut proto_bytes = Vec::new();
-        command.encode(&mut proto_bytes);
-        let mut fragments = proto_bytes.chunks(MAX_PROTO_SIZE).map(|c| c.to_vec());
-
-        let mut rv = Vec::new();
-        let first = fragments.next().ok_or(EncodeError::TruncatedProto)?;
-        rv.push(WCA::Proto(first).try_into()?);
-        for chunk in fragments {
-            rv.push(WCA::ProtoContinuation(chunk).try_into()?);
-        }
-
-        Ok(rv)
+        encode_proto_cmd(command)
     }
+}
+
+/// Encode a protobuf command message into one or more APDUs, using proto
+/// continuation (`WCA_INS_PROTO_CONTINUATION`) for messages that exceed
+/// `MAX_PROTO_SIZE`.
+///
+/// The first APDU uses `WCA_INS_PROTO` with P1/P2 set to the **total** proto
+/// size (as the firmware's `wca_proto` handler expects). Continuation APDUs use
+/// `WCA_INS_PROTO_CONTINUATION`.
+///
+/// For single-fragment messages this behaves identically to `adpu_from_proto!`.
+pub fn encode_proto_cmd(
+    msg: crate::fwpb::wallet_cmd::Msg,
+) -> Result<Vec<apdu::Command>, EncodeError> {
+    let cmd = build_cmd(msg);
+    encode_proto_apdus(cmd.encode_to_vec())
+}
+
+fn encode_proto_apdus(proto_bytes: Vec<u8>) -> Result<Vec<apdu::Command>, EncodeError> {
+    let total_size: u16 = proto_bytes.len().try_into()?;
+    let p = total_size.to_be_bytes();
+
+    let mut apdus = Vec::new();
+    let mut chunks = proto_bytes.chunks(MAX_PROTO_SIZE);
+
+    // First chunk: WCA_INS_PROTO with P1/P2 = total proto size
+    let first = chunks.next().ok_or(EncodeError::TruncatedProto)?;
+    apdus.push(apdu::Command::new(
+        WCA_CLA,
+        WCA_INS_PROTO,
+        p[0],
+        p[1],
+        first.to_vec(),
+    ));
+
+    // Continuation chunks: WCA_INS_PROTO_CONTINUATION
+    for chunk in chunks {
+        let chunk_size: u16 = chunk.len().try_into()?;
+        let cp = chunk_size.to_be_bytes();
+        apdus.push(apdu::Command::new(
+            WCA_CLA,
+            WCA_INS_PROTO_CONTINUATION,
+            cp[0],
+            cp[1],
+            chunk.to_vec(),
+        ));
+    }
+
+    Ok(apdus)
 }
 
 /// Decode an APDU response into a protobuf, and check for errors set on the global status fields.
@@ -229,6 +286,18 @@ pub fn decode_and_check(
             Err(crate::errors::CommandError::VersionInvalid)
         }
         Ok(crate::fwpb::Status::ConfirmationPending) => Ok(message),
+        Ok(crate::fwpb::Status::DescriptorNotLoaded) => {
+            Err(crate::errors::CommandError::DescriptorNotLoaded)
+        }
+        Ok(crate::fwpb::Status::ConfirmationMismatch) => {
+            Err(crate::errors::CommandError::ConfirmationMismatch)
+        }
+        Ok(crate::fwpb::Status::SealCsekUnsealFailed) => {
+            Err(crate::errors::CommandError::SealCsekResponseUnsealError)
+        }
+        Ok(crate::fwpb::Status::ConfirmationNotCompleted) => {
+            Err(crate::errors::CommandError::ConfirmationNotCompleted)
+        }
         Err(_) => Ok(message), // TODO(W-1211): Same as above comment.
     }
 }

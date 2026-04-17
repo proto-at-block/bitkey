@@ -37,7 +37,7 @@ fn unseal_key(sealed_key: SealedKey) -> Result<UnsealedKey, CommandError> {
             Ok(UnsealCsekRspStatus::Success) => {
                 unsealed_csek.try_into().map_err(CommandError::KeySizeError)
             }
-            Ok(UnsealCsekRspStatus::Error) => Err(CommandError::GeneralCommandError),
+            Ok(UnsealCsekRspStatus::Error) => Err(CommandError::UnsealKeyFailed),
             Ok(UnsealCsekRspStatus::UnsealError) => Err(CommandError::SealCsekResponseUnsealError),
             Ok(UnsealCsekRspStatus::Unauthenticated) => {
                 Err(CommandError::SealCsekResponseUnauthenticatedError)

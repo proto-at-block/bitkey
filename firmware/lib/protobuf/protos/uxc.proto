@@ -4,6 +4,7 @@ package fwpb;
 
 import "display.proto";
 import "mfgtest.proto";
+import "nanopb.proto";
 import "secure-channel.proto";
 import "wallet.proto";
 
@@ -46,6 +47,12 @@ message uxc_boot_status_msg {
 
   // Semantic version of the active application image.
   semver version = 3;
+
+  // Unique MCU chip identifier.
+  bytes chip_id = 4 [(nanopb).max_size = 16];
+
+  // Active firmware slot for this MCU.
+  firmware_slot active_slot = 5;
 }
 
 // Messages sent from the host to the UXC device.
@@ -95,6 +102,15 @@ message uxc_msg_host {
 
     // Contains information used by UXC to verify the authenticity of the session.
     secure_channel_establish_confirm secure_channel_confirm = 15;
+
+    // Set device production lock state on UXC.
+    mfgtest_device_set_production_lock_cmd mfgtest_device_set_production_lock_cmd = 16;
+
+    // Read device production lock state on UXC.
+    mfgtest_device_get_production_lock_cmd mfgtest_device_get_production_lock_cmd = 17;
+
+    // Instructs UXC to commit its pending FWUP signature to flash.
+    fwup_commit_sig_cmd fwup_commit_sig_cmd = 18;
   }
 }
 
@@ -145,5 +161,14 @@ message uxc_msg_device {
 
     // Contains UXC public key as well as information used by EFR32 to verify the authenticity of the session.
     secure_channel_establish_rsp secure_channel_response = 15;
+
+    // Response to setting device production lock state on UXC.
+    mfgtest_device_set_production_lock_rsp mfgtest_device_set_production_lock_rsp = 16;
+
+    // Response to reading device production lock state on UXC.
+    mfgtest_device_get_production_lock_rsp mfgtest_device_get_production_lock_rsp = 17;
+
+    // Response to FWUP signature commit command.
+    fwup_commit_sig_rsp fwup_commit_sig_rsp = 18;
   }
 }

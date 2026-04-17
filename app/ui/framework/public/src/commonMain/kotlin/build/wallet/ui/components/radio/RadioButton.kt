@@ -14,6 +14,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import build.wallet.ui.compose.resId
+import build.wallet.ui.compose.resolveTestTag
 import build.wallet.ui.theme.WalletTheme
 
 /**
@@ -32,6 +34,7 @@ fun RadioButton(
   selected: Boolean,
   onClick: () -> Unit,
   modifier: Modifier = Modifier,
+  testTag: String? = null,
   enabled: Boolean = true,
   selectedColor: Color = WalletTheme.colors.bitkeyPrimary,
   unselectedColor: Color = WalletTheme.colors.foreground30,
@@ -48,6 +51,7 @@ fun RadioButton(
 
   Canvas(
     modifier = modifier
+      .resId(resolveTestTag(testTag, "radio-button"))
       .selectable(
         selected = selected,
         onClick = onClick,

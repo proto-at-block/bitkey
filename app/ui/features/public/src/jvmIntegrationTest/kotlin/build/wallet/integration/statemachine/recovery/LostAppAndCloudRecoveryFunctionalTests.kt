@@ -1,5 +1,7 @@
 package build.wallet.integration.statemachine.recovery
 
+import app.cash.turbine.ReceiveTurbine
+import bitkey.account.HardwareType
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.*
 import build.wallet.bitkey.f8e.FullAccountIdMock
@@ -9,8 +11,12 @@ import build.wallet.statemachine.account.AccountAccessMoreOptionsFormBodyModel
 import build.wallet.statemachine.account.ChooseAccountAccessModel
 import build.wallet.statemachine.cloud.CloudSignInModelFake
 import build.wallet.statemachine.cloud.SaveBackupInstructionsBodyModel
+import build.wallet.statemachine.core.BodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
+import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
+import build.wallet.statemachine.nfc.PromptSelectionFormBodyModel
 import build.wallet.statemachine.platform.permissions.EnableNotificationsBodyModel
 import build.wallet.statemachine.recovery.cloud.CloudWarningBodyModel
 import build.wallet.statemachine.recovery.inprogress.DelayAndNotifyNewKeyReady
@@ -19,12 +25,15 @@ import build.wallet.statemachine.recovery.inprogress.waiting.AppDelayNotifyInPro
 import build.wallet.statemachine.recovery.sweep.SweepFundsPromptBodyModel
 import build.wallet.statemachine.recovery.sweep.SweepSuccessScreenBodyModel
 import build.wallet.statemachine.recovery.sweep.ZeroBalancePromptBodyModel
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationScreenModel
 import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.robots.awaitLoadingScreen
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchLegacyWalletApp
+import build.wallet.testing.ext.HardwareCoverageMode
+import build.wallet.testing.ext.assertActiveHardwareType
 import build.wallet.testing.ext.*
 import build.wallet.ui.model.alert.ButtonAlertModel
 import com.github.michaelbull.result.getOrThrow
@@ -38,8 +47,12 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
   suspend fun AppTester.setupForLostApp(
     initWithTreasuryFunds: BitcoinMoney = BitcoinMoney.zero(),
     delayNotifyDuration: kotlin.time.Duration = 5.seconds,
+    hardwareType: bitkey.account.HardwareType = bitkey.account.HardwareType.W1,
   ) {
-    onboardFullAccountWithFakeHardware(delayNotifyDuration = delayNotifyDuration)
+    onboardFullAccountWithFakeHardware(
+      delayNotifyDuration = delayNotifyDuration,
+      hardwareType = hardwareType
+    )
     if (initWithTreasuryFunds != BitcoinMoney.zero()) {
       val wallet = getActiveWallet()
       treasuryWallet.fund(wallet, initWithTreasuryFunds)
@@ -58,8 +71,8 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     }
   }
 
-  testForLegacyAndPrivateWallet("delay & notify - no cloud backup") { app ->
-    app.setupForLostApp()
+  testForHardwareHappyPaths("delay & notify - no cloud backup") { app, coverageMode ->
+    app.setupForLostApp(hardwareType = coverageMode.hardwareType)
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -81,15 +94,12 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       // Initiate Delay & Notify recovery
       awaitUntilBody<RecoverYourAppKeyBodyModel>()
         .onStartRecovery()
-      awaitUntilBody<EnableNotificationsBodyModel>()
-        .onComplete()
+      advanceThroughDelayNotifyInitiation(coverageMode.hardwareType)
       awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
 
       // Complete recovery
-      awaitUntilBody<DelayAndNotifyNewKeyReady>()
-        .onCompleteRecovery()
-      awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
-      awaitUntilBody<SaveBackupInstructionsBodyModel>()
+      awaitUntilRotatingAuthAfterDelayNotifyReady(coverageMode.hardwareType)
+      advanceToSaveBackupInstructionsAfterDelayNotify(coverageMode.hardwareType)
         .onBackupClick()
       awaitUntilBody<CloudSignInModelFake>()
         .signInSuccess(CloudStoreAccount1Fake)
@@ -103,11 +113,12 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
+    app.assertActiveHardwareType(coverageMode.hardwareType)
     app.verifyPostRecoveryState()
   }
 
-  testForLegacyAndPrivateWallet("delay & notify - no cloud access") { app ->
-    app.setupForLostApp()
+  testForHardwareHappyPaths("delay & notify - no cloud access") { app, coverageMode ->
+    app.setupForLostApp(hardwareType = coverageMode.hardwareType)
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -129,15 +140,12 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       // Initiate Delay & Notify recovery
       awaitUntilBody<RecoverYourAppKeyBodyModel>()
         .onStartRecovery()
-      awaitUntilBody<EnableNotificationsBodyModel>()
-        .onComplete()
+      advanceThroughDelayNotifyInitiation(coverageMode.hardwareType)
       awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
 
       // Complete recovery
-      awaitUntilBody<DelayAndNotifyNewKeyReady>()
-        .onCompleteRecovery()
-      awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
-      awaitUntilBody<SaveBackupInstructionsBodyModel>()
+      awaitUntilRotatingAuthAfterDelayNotifyReady(coverageMode.hardwareType)
+      advanceToSaveBackupInstructionsAfterDelayNotify(coverageMode.hardwareType)
         .onBackupClick()
       awaitUntilBody<CloudSignInModelFake>()
         .signInSuccess(CloudStoreAccount1Fake)
@@ -152,12 +160,13 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
+    app.assertActiveHardwareType(coverageMode.hardwareType)
     app.verifyPostRecoveryState()
   }
 
-  testForLegacyAndPrivateWallet("recovery lost app - force exiting in the middle of initiating") { initialApp ->
+  testForHardwareHappyPaths("recovery lost app - force exiting in the middle of initiating") { initialApp, coverageMode ->
     var app = initialApp
-    app.setupForLostApp()
+    app.setupForLostApp(hardwareType = coverageMode.hardwareType)
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -179,8 +188,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       // Initiate Delay & Notify recovery
       awaitUntilBody<RecoverYourAppKeyBodyModel>()
         .onStartRecovery()
-      awaitUntilBody<EnableNotificationsBodyModel>()
-        .onComplete()
+      advanceThroughDelayNotifyInitiation(coverageMode.hardwareType)
       awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
       cancelAndIgnoreRemainingEvents()
     }
@@ -196,10 +204,8 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
 
       // Complete recovery
-      awaitUntilBody<DelayAndNotifyNewKeyReady>()
-        .onCompleteRecovery()
-      awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
-      awaitUntilBody<SaveBackupInstructionsBodyModel>()
+      awaitUntilRotatingAuthAfterDelayNotifyReady(coverageMode.hardwareType)
+      advanceToSaveBackupInstructionsAfterDelayNotify(coverageMode.hardwareType)
         .onBackupClick()
       awaitUntilBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
         .signInSuccess(CloudStoreAccount1Fake)
@@ -212,12 +218,13 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
 
       cancelAndIgnoreRemainingEvents()
     }
+    app.assertActiveHardwareType(coverageMode.hardwareType)
     app.verifyPostRecoveryState()
   }
 
-  testForLegacyAndPrivateWallet("force exiting before spending key activation takes you back to spending key activation") { initialApp ->
+  testForHardwareHappyPaths("force exiting before spending key activation takes you back to spending key activation") { initialApp, coverageMode ->
     var app = initialApp
-    app.setupForLostApp()
+    app.setupForLostApp(hardwareType = coverageMode.hardwareType)
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -239,14 +246,17 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       // Initiate Delay & Notify recovery
       awaitUntilBody<RecoverYourAppKeyBodyModel>()
         .onStartRecovery()
-      awaitUntilBody<EnableNotificationsBodyModel>()
-        .onComplete()
+      advanceThroughDelayNotifyInitiation(coverageMode.hardwareType)
       awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
 
       // Start completing recovery
-      awaitUntilBody<DelayAndNotifyNewKeyReady>()
-        .onCompleteRecovery()
-      awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
+      awaitUntilRotatingAuthAfterDelayNotifyReady(coverageMode.hardwareType)
+      if (coverageMode.hardwareType == HardwareType.W3) {
+        awaitUntilScreenWithBody<BodyModel>(
+          matchingScreen = { it.bottomSheetModel?.body is PromptSelectionFormBodyModel }
+        ).let { (checkNotNull(it.bottomSheetModel).body as PromptSelectionFormBodyModel).onApprove() }
+        awaitUntilBody<HardwareConfirmationScreenModel> { onConfirm() }
+      }
       awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_ACTIVATING_SPENDING_KEYS)
     }
 
@@ -257,6 +267,12 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       testTimeout = 20.seconds,
       turbineTimeout = 10.seconds
     ) {
+      if (coverageMode.hardwareType == HardwareType.W3) {
+        awaitUntilScreenWithBody<BodyModel>(
+          matchingScreen = { it.bottomSheetModel?.body is PromptSelectionFormBodyModel }
+        ).let { (checkNotNull(it.bottomSheetModel).body as PromptSelectionFormBodyModel).onApprove() }
+        awaitUntilBody<HardwareConfirmationScreenModel> { onConfirm() }
+      }
       awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_ACTIVATING_SPENDING_KEYS)
       awaitUntilBody<SaveBackupInstructionsBodyModel>()
         .onBackupClick()
@@ -272,12 +288,13 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
+    app.assertActiveHardwareType(coverageMode.hardwareType)
     app.verifyPostRecoveryState()
   }
 
-  testForLegacyAndPrivateWallet("force exiting before cloud backup takes you back to icloud backup") { initialApp ->
+  testForHardwareHappyPaths("force exiting before cloud backup takes you back to icloud backup") { initialApp, coverageMode ->
     var app = initialApp
-    app.setupForLostApp()
+    app.setupForLostApp(hardwareType = coverageMode.hardwareType)
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -299,15 +316,12 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       // Initiate Delay & Notify recovery
       awaitUntilBody<RecoverYourAppKeyBodyModel>()
         .onStartRecovery()
-      awaitUntilBody<EnableNotificationsBodyModel>()
-        .onComplete()
+      advanceThroughDelayNotifyInitiation(coverageMode.hardwareType)
       awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
 
       // Start completing recovery
-      awaitUntilBody<DelayAndNotifyNewKeyReady>()
-        .onCompleteRecovery()
-      awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
-      awaitUntilBody<SaveBackupInstructionsBodyModel>()
+      awaitUntilRotatingAuthAfterDelayNotifyReady(coverageMode.hardwareType)
+      advanceToSaveBackupInstructionsAfterDelayNotify(coverageMode.hardwareType)
     }
 
     // Force quit app before cloud backup was saved
@@ -333,12 +347,13 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
+    app.assertActiveHardwareType(coverageMode.hardwareType)
     app.verifyPostRecoveryState()
   }
 
-  testForLegacyAndPrivateWallet("force exiting after cloud backup & before sweep takes you back to sweep") { initialApp ->
+  testForHardwareHappyPaths("force exiting after cloud backup & before sweep takes you back to sweep") { initialApp, coverageMode ->
     var app = initialApp
-    app.setupForLostApp()
+    app.setupForLostApp(hardwareType = coverageMode.hardwareType)
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -360,15 +375,12 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       // Initiate Delay & Notify recovery
       awaitUntilBody<RecoverYourAppKeyBodyModel>()
         .onStartRecovery()
-      awaitUntilBody<EnableNotificationsBodyModel>()
-        .onComplete()
+      advanceThroughDelayNotifyInitiation(coverageMode.hardwareType)
       awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
 
       // Start completing recovery
-      awaitUntilBody<DelayAndNotifyNewKeyReady>()
-        .onCompleteRecovery()
-      awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
-      awaitUntilBody<SaveBackupInstructionsBodyModel>()
+      awaitUntilRotatingAuthAfterDelayNotifyReady(coverageMode.hardwareType)
+      advanceToSaveBackupInstructionsAfterDelayNotify(coverageMode.hardwareType)
         .onBackupClick()
       awaitUntilBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
         .signInSuccess(CloudStoreAccount1Fake)
@@ -395,12 +407,13 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
+    app.assertActiveHardwareType(coverageMode.hardwareType)
     app.verifyPostRecoveryState()
   }
 
-  testForLegacyAndPrivateWallet("force exiting during D&N wait") { initialApp ->
+  testForHardwareHappyPaths("force exiting during D&N wait") { initialApp, coverageMode ->
     var app = initialApp
-    app.setupForLostApp()
+    app.setupForLostApp(hardwareType = coverageMode.hardwareType)
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -422,8 +435,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       // Initiate Delay & Notify recovery
       awaitUntilBody<RecoverYourAppKeyBodyModel>()
         .onStartRecovery()
-      awaitUntilBody<EnableNotificationsBodyModel>()
-        .onComplete()
+      advanceThroughDelayNotifyInitiation(coverageMode.hardwareType)
       awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
 
       cancelAndIgnoreRemainingEvents()
@@ -441,17 +453,18 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
 
       // Complete recovery
-      awaitUntilBody<DelayAndNotifyNewKeyReady>()
-        .onCompleteRecovery()
-      awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
-      awaitUntilBody<SaveBackupInstructionsBodyModel>()
+      awaitUntilRotatingAuthAfterDelayNotifyReady(coverageMode.hardwareType)
+      advanceToSaveBackupInstructionsAfterDelayNotify(coverageMode.hardwareType)
 
       cancelAndIgnoreRemainingEvents()
     }
   }
 
-  testForLegacyAndPrivateWallet("ensure funds are swept after recovery") { app ->
-    app.setupForLostApp(initWithTreasuryFunds = BitcoinMoney.sats(10_000))
+  testForHardwareHappyPaths("ensure funds are swept after recovery") { app, coverageMode ->
+    app.setupForLostApp(
+      initWithTreasuryFunds = BitcoinMoney.sats(10_000),
+      hardwareType = coverageMode.hardwareType
+    )
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -473,21 +486,24 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       // Initiate recovery
       awaitUntilBody<RecoverYourAppKeyBodyModel>()
         .onStartRecovery()
-      awaitUntilBody<EnableNotificationsBodyModel>()
-        .onComplete()
+      advanceThroughDelayNotifyInitiation(coverageMode.hardwareType)
       awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
 
       // Complete recovery
-      awaitUntilBody<DelayAndNotifyNewKeyReady>()
-        .onCompleteRecovery()
-      awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
-      awaitUntilBody<SaveBackupInstructionsBodyModel>()
+      awaitUntilRotatingAuthAfterDelayNotifyReady(coverageMode.hardwareType)
+      advanceToSaveBackupInstructionsAfterDelayNotify(coverageMode.hardwareType)
         .onBackupClick()
       awaitUntilBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
         .signInSuccess(CloudStoreAccount1Fake)
       awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
       awaitUntilBody<SweepFundsPromptBodyModel>()
         .onSubmit()
+      if (coverageMode.hardwareType == HardwareType.W3) {
+        awaitUntilScreenWithBody<BodyModel>(
+          matchingScreen = { it.bottomSheetModel?.body is PromptSelectionFormBodyModel }
+        ).let { (checkNotNull(it.bottomSheetModel).body as PromptSelectionFormBodyModel).onApprove() }
+        awaitUntilBody<HardwareConfirmationScreenModel> { onConfirm() }
+      }
       awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING)
       awaitUntilBody<SweepSuccessScreenBodyModel>()
         .onDone()
@@ -500,11 +516,12 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
+    app.assertActiveHardwareType(coverageMode.hardwareType)
     app.verifyPostRecoveryState()
   }
 
-  testForLegacyAndPrivateWallet("cancel initiated delay & notify recovery when delay period is in progress") { app ->
-    app.setupForLostApp()
+  testForHardwareHappyPaths("cancel initiated delay & notify recovery when delay period is in progress") { app, coverageMode ->
+    app.setupForLostApp(hardwareType = coverageMode.hardwareType)
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -526,8 +543,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       // Initiate Delay & Notify recovery
       awaitUntilBody<RecoverYourAppKeyBodyModel>()
         .onStartRecovery()
-      awaitUntilBody<EnableNotificationsBodyModel>()
-        .onComplete()
+      advanceThroughDelayNotifyInitiation(coverageMode.hardwareType)
       awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
         .onStopRecovery()
 
@@ -538,14 +554,21 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
           .onPrimaryButtonClick()
       }
 
+      if (coverageMode.hardwareType == HardwareType.W3) {
+        awaitUntilScreenWithBody<BodyModel>(
+          matchingScreen = { it.bottomSheetModel?.body is PromptSelectionFormBodyModel }
+        ).let { (checkNotNull(it.bottomSheetModel).body as PromptSelectionFormBodyModel).onApprove() }
+        awaitUntilBody<HardwareConfirmationScreenModel> { onConfirm() }
+      }
+
       awaitUntilBody<ChooseAccountAccessModel>()
 
       app.awaitNoActiveRecovery()
     }
   }
 
-  testForLegacyAndPrivateWallet("cancel initiated delay & notify recovery when delay period has finished") { app ->
-    app.setupForLostApp()
+  testForHardwareHappyPaths("cancel initiated delay & notify recovery when delay period has finished") { app, coverageMode ->
+    app.setupForLostApp(hardwareType = coverageMode.hardwareType)
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -567,8 +590,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       // Initiate Delay & Notify recovery
       awaitUntilBody<RecoverYourAppKeyBodyModel>()
         .onStartRecovery()
-      awaitUntilBody<EnableNotificationsBodyModel>()
-        .onComplete()
+      advanceThroughDelayNotifyInitiation(coverageMode.hardwareType)
       awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
 
       awaitUntilBody<DelayAndNotifyNewKeyReady>(
@@ -582,6 +604,13 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       ) {
         alertModel.shouldBeTypeOf<ButtonAlertModel>()
           .onPrimaryButtonClick()
+      }
+
+      if (coverageMode.hardwareType == HardwareType.W3) {
+        awaitUntilScreenWithBody<BodyModel>(
+          matchingScreen = { it.bottomSheetModel?.body is PromptSelectionFormBodyModel }
+        ).let { (checkNotNull(it.bottomSheetModel).body as PromptSelectionFormBodyModel).onApprove() }
+        awaitUntilBody<HardwareConfirmationScreenModel> { onConfirm() }
       }
 
       awaitUntilBody<ChooseAccountAccessModel>()
@@ -617,6 +646,49 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
   }
 })
 
+private suspend fun ReceiveTurbine<ScreenModel>.advanceThroughDelayNotifyInitiation(
+  hardwareType: HardwareType = HardwareType.W1,
+) {
+  if (hardwareType == HardwareType.W3) {
+    // Sign auth challenge (confirmable NFC session)
+    awaitUntilScreenWithBody<BodyModel>(
+      matchingScreen = { it.bottomSheetModel?.body is PromptSelectionFormBodyModel }
+    ).let { (checkNotNull(it.bottomSheetModel).body as PromptSelectionFormBodyModel).onApprove() }
+    awaitUntilBody<HardwareConfirmationScreenModel> { onConfirm() }
+    // Composite lost app recovery (confirmable NFC session)
+    awaitUntilScreenWithBody<BodyModel>(
+      matchingScreen = { it.bottomSheetModel?.body is PromptSelectionFormBodyModel }
+    ).let { (checkNotNull(it.bottomSheetModel).body as PromptSelectionFormBodyModel).onApprove() }
+    awaitUntilBody<HardwareConfirmationScreenModel> { onConfirm() }
+  }
+  awaitUntilBody<EnableNotificationsBodyModel> { onComplete() }
+}
+
+private suspend fun ReceiveTurbine<ScreenModel>.awaitUntilRotatingAuthAfterDelayNotifyReady(
+  hardwareType: HardwareType = HardwareType.W1,
+) {
+  awaitUntilBody<DelayAndNotifyNewKeyReady> { onCompleteRecovery() }
+  if (hardwareType == HardwareType.W3) {
+    awaitUntilScreenWithBody<BodyModel>(
+      matchingScreen = { it.bottomSheetModel?.body is PromptSelectionFormBodyModel }
+    ).let { (checkNotNull(it.bottomSheetModel).body as PromptSelectionFormBodyModel).onApprove() }
+    awaitUntilBody<HardwareConfirmationScreenModel> { onConfirm() }
+  }
+  awaitUntilBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
+}
+
+private suspend fun ReceiveTurbine<ScreenModel>.advanceToSaveBackupInstructionsAfterDelayNotify(
+  hardwareType: HardwareType = HardwareType.W1,
+): SaveBackupInstructionsBodyModel {
+  if (hardwareType == HardwareType.W3) {
+    awaitUntilScreenWithBody<BodyModel>(
+      matchingScreen = { it.bottomSheetModel?.body is PromptSelectionFormBodyModel }
+    ).let { (checkNotNull(it.bottomSheetModel).body as PromptSelectionFormBodyModel).onApprove() }
+    awaitUntilBody<HardwareConfirmationScreenModel> { onConfirm() }
+  }
+  return awaitUntilBody<SaveBackupInstructionsBodyModel>()
+}
+
 suspend fun AppTester.performRecovery() {
   appUiStateMachine.test(
     props = Unit,
@@ -638,14 +710,11 @@ suspend fun AppTester.performRecovery() {
     // Initiate Delay & Notify recovery
     awaitUntilBody<RecoverYourAppKeyBodyModel>()
       .onStartRecovery()
-    awaitUntilBody<EnableNotificationsBodyModel>()
-      .onComplete()
+    advanceThroughDelayNotifyInitiation()
 
     // Complete recovery
-    awaitUntilBody<DelayAndNotifyNewKeyReady>()
-      .onCompleteRecovery()
-    awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
-    awaitUntilBody<SaveBackupInstructionsBodyModel>()
+    awaitUntilRotatingAuthAfterDelayNotifyReady()
+    advanceToSaveBackupInstructionsAfterDelayNotify()
       .onBackupClick()
     awaitUntilBody<CloudSignInModelFake>()
       .signInSuccess(CloudStoreAccount1Fake)

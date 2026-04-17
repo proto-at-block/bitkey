@@ -1,3 +1,4 @@
+#include "bio_flash_storage.h"
 #include "lfs_bd.h"
 #include "printf.h"
 #include "shell_cmd.h"
@@ -36,10 +37,14 @@ static void cmd_erase_run(int argc, char** argv) {
   if (cmd_erase_args.yes->header.found) {
     int ret = bd_erase_all();
     if (ret == 0) {
-      printf("filesystem erased\ndevice must be reset, fs is in an unknown state!\n");
+      printf("filesystem erased\n");
     } else {
       print_bd_error("erase", ret);
     }
+
+    printf("bio flash %s\n", bio_flash_storage_erase() ? "erased" : "erase failed");
+
+    printf("pls reboot\n");
   }
 }
 

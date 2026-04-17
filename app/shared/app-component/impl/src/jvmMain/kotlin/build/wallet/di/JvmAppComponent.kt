@@ -26,11 +26,7 @@ import build.wallet.bitcoin.keys.ExtendedKeyGenerator
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.utxo.UtxoConsolidationService
 import build.wallet.bitcoin.wallet.SpendingWalletProvider
-import build.wallet.cloud.backup.CloudBackupRepository
-import build.wallet.cloud.backup.CloudBackupRestorer
-import build.wallet.cloud.backup.FullAccountCloudBackupCreator
-import build.wallet.cloud.backup.JsonSerializer
-import build.wallet.cloud.backup.LiteAccountCloudBackupCreator
+import build.wallet.cloud.backup.*
 import build.wallet.cloud.backup.csek.CsekDao
 import build.wallet.cloud.backup.csek.SekGenerator
 import build.wallet.cloud.backup.local.CloudBackupDao
@@ -51,19 +47,11 @@ import build.wallet.f8e.onboarding.CreateAccountKeysetV2F8eClient
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.f8e.recovery.UpdateDelayNotifyPeriodForTestingApi
 import build.wallet.feature.FeatureFlagService
-import build.wallet.feature.flags.AgeRangeVerificationFeatureFlag
-import build.wallet.feature.flags.Bdk2FeatureFlag
-import build.wallet.feature.flags.ChaincodeDelegationFeatureFlag
-import build.wallet.feature.flags.PrivateWalletMigrationBalanceThresholdFeatureFlag
-import build.wallet.feature.flags.PrivateWalletMigrationFeatureFlag
-import build.wallet.feature.flags.SharedCloudBackupsFeatureFlag
-import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
-import build.wallet.feature.flags.UsSmsFeatureFlag
-import build.wallet.feature.flags.UtxoMaxConsolidationCountFeatureFlag
-import build.wallet.feature.flags.W3OnboardingFeatureFlag
+import build.wallet.feature.flags.*
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.fwup.FirmwareDataService
 import build.wallet.home.GettingStartedTaskDao
+import build.wallet.inheritance.InheritanceService
 import build.wallet.inheritance.InheritanceUpsellService
 import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.keys.AppKeysGenerator
@@ -74,6 +62,7 @@ import build.wallet.limit.MobilePayService
 import build.wallet.logging.LoggerInitializer
 import build.wallet.memfault.MemfaultClientMock
 import build.wallet.nfc.BitkeyW1CommandsFake
+import build.wallet.nfc.BitkeyW3CommandsFake
 import build.wallet.nfc.FakeHardwareKeyStore
 import build.wallet.nfc.transaction.PairingTransactionProvider
 import build.wallet.onboarding.*
@@ -88,7 +77,6 @@ import build.wallet.recovery.LostAppAndCloudRecoveryService
 import build.wallet.recovery.RecoveryDao
 import build.wallet.recovery.socrec.*
 import build.wallet.relationships.*
-import build.wallet.statemachine.data.keybox.AccountDataStateMachine
 import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachine
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.wallet.migration.PrivateWalletMigrationDao
@@ -104,7 +92,6 @@ import kotlinx.coroutines.CoroutineScope
  * The actual component implementation is in [JvmAppComponentImpl].
  */
 interface JvmAppComponent {
-  val accountDataStateMachine: AccountDataStateMachine
   val accountService: AccountService
   val appInstallationDao: AppInstallationDao
   val jsonSerializer: JsonSerializer
@@ -122,7 +109,8 @@ interface JvmAppComponent {
   val cloudBackupDao: CloudBackupDao
   val cloudBackupDeleter: CloudBackupDeleter
   val socRecCloudBackupSyncWorker: SocRecCloudBackupSyncWorker
-  val cloudBackupRepository: CloudBackupRepository
+  val cloudBackupService: CloudBackupService
+  val cloudBackupStore: CloudBackupStore
   val cloudFileStore: CloudFileStore
   val cloudKeyValueStore: CloudKeyValueStore
   val cloudStoreAccountRepository: CloudStoreAccountRepository
@@ -141,7 +129,10 @@ interface JvmAppComponent {
   val f8eNetworkReachabilityService: F8eNetworkReachabilityService
   val fingerprintResetService: FingerprintResetService
   val fakeHardwareKeyStore: FakeHardwareKeyStore
+  @get:W1 val w1FakeHardwareKeyStore: FakeHardwareKeyStore
+  @get:W3 val w3FakeHardwareKeyStore: FakeHardwareKeyStore
   val fakeNfcCommands: BitkeyW1CommandsFake
+  val fakeW3NfcCommands: BitkeyW3CommandsFake
   val featureFlagService: FeatureFlagService
   val fileDirectoryProvider: FileDirectoryProvider
   val fullAccountAuthKeyRotationService: FullAccountAuthKeyRotationService
@@ -150,6 +141,7 @@ interface JvmAppComponent {
   val csekDao: CsekDao
   val fundsRiskLossService: FundsLostRiskService
   val gettingStartedTaskDao: GettingStartedTaskDao
+  val inheritanceService: InheritanceService
   val inheritanceUpsellService: InheritanceUpsellService
   val keyboxDao: KeyboxDao
   val keysetWalletProvider: KeysetWalletProvider
@@ -205,6 +197,7 @@ interface JvmAppComponent {
   val utxoMaxConsolidationCountFeatureFlag: UtxoMaxConsolidationCountFeatureFlag
   val ageRangeVerificationFeatureFlag: AgeRangeVerificationFeatureFlag
   val w3OnboardingFeatureFlag: W3OnboardingFeatureFlag
+  val updateToPrivateWalletOnRecoveryFeatureFlag: UpdateToPrivateWalletOnRecoveryFeatureFlag
   val bdk2FeatureFlag: Bdk2FeatureFlag
   val sharedCloudBackupsFeatureFlag: SharedCloudBackupsFeatureFlag
   val usSmsFeatureFlag: UsSmsFeatureFlag

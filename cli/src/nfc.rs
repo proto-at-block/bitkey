@@ -127,7 +127,7 @@ impl<T: Transactor + ?Sized> NFCTransactions for T {
     }
 
     fn metadata(&self) -> Result<FirmwareMetadata, TransactorError> {
-        self.perform(GetFirmwareMetadata::new())
+        self.perform(GetFirmwareMetadata::new(wca::commands::McuRole::Core))
     }
 
     fn upload(&mut self, upload: &Upload) -> Result<FwupFinishRspStatus, PairingError> {
@@ -136,6 +136,7 @@ impl<T: Transactor + ?Sized> NFCTransactions for T {
             wca::commands::FwupMode::Normal,
             wca::commands::McuRole::Core,
             upload.version.clone(),
+            false,
         ))? {
             FwupStartResult::Success { value: true } => {}
             FwupStartResult::Success { value: false } => return Err(PairingError::FwupStart),

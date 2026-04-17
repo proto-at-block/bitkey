@@ -1,5 +1,6 @@
 import re
 import sys
+from importlib.metadata import version
 from pathlib import Path
 from typing import Optional
 
@@ -18,6 +19,7 @@ def validate_stack_name(ctx, param, value):
 
 
 @click.group("bitkey-fwa")
+@click.version_option(version=version("bitkey-fwa"), prog_name="bitkey-fwa")
 @click.pass_context
 def cli(ctx):
     """Bitkey firmware analysis tool."""

@@ -39,7 +39,14 @@ typedef enum {
 typedef enum {
   DOT_RING_FILL_CLOCKWISE = 0,  // Fill from bottom, going clockwise (for battery/percentage)
   DOT_RING_FILL_SPLIT = 1,      // Fill from bottom, spreading up both sides (for hold-to-confirm)
+  DOT_RING_FILL_CLOCKWISE_TOP = 2,  // Fill from top, going clockwise (for success confirmation)
 } dot_ring_fill_dir_t;
+
+typedef enum {
+  DOT_RING_ANIM_NONE = 0,
+  DOT_RING_ANIM_FORWARD = 1,
+  DOT_RING_ANIM_REVERSE = 2,
+} dot_ring_anim_t;
 
 /**
  * @brief Callback invoked when animated fill completes
@@ -56,22 +63,26 @@ typedef struct {
   int dot_index;  // Index of this dot
 } dot_ring_anim_ctx_t;
 
+typedef struct dot_ring_storage dot_ring_storage_t;
+
 /**
  * @brief Dot ring widget state
  */
 typedef struct {
-  lv_obj_t* parent;                                     // Parent object
-  lv_obj_t* dots[DOT_RING_MAX_DOTS];                    // Dot objects
-  lv_coord_t dot_centers_x[DOT_RING_MAX_DOTS];          // Dot center X positions
-  lv_coord_t dot_centers_y[DOT_RING_MAX_DOTS];          // Dot center Y positions
-  bool dot_active[DOT_RING_MAX_DOTS];                   // Activation state per dot
-  dot_ring_anim_ctx_t dot_contexts[DOT_RING_MAX_DOTS];  // Per-dot animation contexts
+  lv_obj_t* parent;             // Parent object
+  dot_ring_storage_t* storage;  // Shared backing storage for dot objects/state
 
   uint16_t dot_count;     // Actual number of dots in the ring
   uint16_t active_count;  // Number of currently active dots
+  uint16_t target_count;  // Target number of active dots for current animation
+  uint32_t anim_start_tick_ms;
+  uint32_t anim_duration_ms;
 
-  lv_anim_t fill_anim;  // Fill progress animation
-  bool is_animating;    // True if fill animation is running
+  lv_anim_t fill_anim;                // Fill progress animation
+  bool is_animating;                  // True if fill animation is running
+  bool hide_when_animation_complete;  // Hide the ring when the current animation completes
+  bool suppress_ready_cb;             // Ignore the ready callback for a cancelled animation
+  dot_ring_anim_t anim_type;          // Current animation direction/state
 
   dot_ring_color_t active_color;       // Color for active dots
   dot_ring_fill_dir_t fill_dir;        // Fill direction
@@ -126,9 +137,29 @@ void dot_ring_set_percent(dot_ring_t* ring, uint8_t percent, dot_ring_color_t co
                           dot_ring_fill_dir_t fill_dir);
 
 /**
- * @brief Animate fill from current state to target percentage
+ * @brief Set a single dot to a custom active/inactive visual state
  *
- * Animates dots progressively from current active count to target.
+ * Applies the standard active/inactive sizing and positioning while allowing
+ * the caller to provide custom colors/opacities for screen-specific effects.
+ *
+ * @param ring Ring widget structure
+ * @param dot_index Dot index to update
+ * @param should_be_active Whether the dot should render active or inactive
+ * @param active_color Color to use when active
+ * @param active_opa Opacity to use when active
+ * @param inactive_color Color to use when inactive
+ * @param inactive_opa Opacity to use when inactive
+ */
+void dot_ring_set_dot_state(dot_ring_t* ring, uint16_t dot_index, bool should_be_active,
+                            lv_color_t active_color, lv_opa_t active_opa, lv_color_t inactive_color,
+                            lv_opa_t inactive_opa);
+
+/**
+ * @brief Animate fill from zero to target percentage
+ *
+ * Animates dots progressively from zero to target. Split-fill hold rings use a
+ * slightly cheaper fast-start so the first visible progress appears sooner
+ * without shortening the overall hold threshold.
  *
  * @param ring Ring widget structure
  * @param target_percent Target percentage (0-100)
@@ -141,6 +172,41 @@ void dot_ring_set_percent(dot_ring_t* ring, uint8_t percent, dot_ring_color_t co
 void dot_ring_animate_fill(dot_ring_t* ring, uint8_t target_percent, uint32_t duration_ms,
                            dot_ring_color_t color, dot_ring_fill_dir_t fill_dir,
                            dot_ring_complete_cb_t complete_cb, void* user_data);
+
+/**
+ * @brief Animate fill from the current state to target percentage
+ *
+ * Resumes the fill from the ring's current active count. This is intended for
+ * hold interactions that should continue from partially rewound progress when
+ * the user presses again.
+ *
+ * @param ring Ring widget structure
+ * @param target_percent Target percentage (0-100)
+ * @param duration_ms Animation duration in milliseconds
+ * @param color Color for active dots
+ * @param fill_dir Fill direction (clockwise or split from bottom)
+ * @param complete_cb Callback invoked when animation completes (can be NULL)
+ * @param user_data User data passed to callback
+ */
+void dot_ring_animate_fill_from_current(dot_ring_t* ring, uint8_t target_percent,
+                                        uint32_t duration_ms, dot_ring_color_t color,
+                                        dot_ring_fill_dir_t fill_dir,
+                                        dot_ring_complete_cb_t complete_cb, void* user_data);
+
+/**
+ * @brief Animate the ring back to the start and hide it
+ *
+ * Cancels any active forward fill, preserves the current visual progress, then
+ * rewinds the ring back to zero. The reverse animation duration is scaled to
+ * the current progress and shortened slightly so releasing halfway through the
+ * hold rewinds a bit faster than the forward fill.
+ *
+ * @param ring Ring widget structure
+ * @param full_duration_ms Full hold duration in milliseconds
+ * @return true if the forward hold had already reached its threshold and the
+ *         completion callback was fired instead of starting a rewind
+ */
+bool dot_ring_animate_release(dot_ring_t* ring, uint32_t full_duration_ms);
 
 /**
  * @brief Stop any running fill animation

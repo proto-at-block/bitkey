@@ -7,6 +7,7 @@ import com.github.michaelbull.result.Result
 class CloudKeyValueStoreFake : CloudKeyValueStore {
   private val values = mutableMapOf<CloudStoreAccount, MutableMap<String, String?>>()
   var returnError = false
+  var returnKeysError = false
 
   override suspend fun setString(
     account: CloudStoreAccount,
@@ -39,11 +40,14 @@ class CloudKeyValueStoreFake : CloudKeyValueStore {
   }
 
   override suspend fun keys(account: CloudStoreAccount): Result<List<String>, CloudError> {
+    if (returnKeysError) return Err(CloudError())
+
     return Ok(values[account]?.keys?.toList() ?: emptyList())
   }
 
   fun reset() {
     values.clear()
     returnError = false
+    returnKeysError = false
   }
 }

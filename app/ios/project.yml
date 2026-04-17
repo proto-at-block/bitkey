@@ -19,8 +19,8 @@ targets:
         CODE_SIGN_STYLE: Manual
         ENABLE_BITCODE: false
         PROJECT_BUNDLE_NAME: W1 Beta
-        PROJECT_BUNDLE_SHORT_VERSION: 2026.2.1
-        PROJECT_BUNDLE_VERSION: 2
+        PROJECT_BUNDLE_SHORT_VERSION: 2026.5.0
+        PROJECT_BUNDLE_VERSION: 20
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
@@ -118,6 +118,8 @@ targets:
         UIViewControllerBasedStatusBarAppearance: false
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UILaunchStoryboardName: SplashScreen
+        UIAppFonts:
+        - cash_sans_mono_regular.otf
         NSCameraUsageDescription: Allow access to your camera in order to scan QR codes
         NFCReaderUsageDescription: We use NFC to connect your phone to your Bitkey Hardware
         NSFaceIDUsageDescription: We use Face ID to allow the secure use of Bitkey
@@ -163,7 +165,7 @@ targets:
         com.apple.developer.ubiquity-kvstore-identifier: "$(AppIdentifierPrefix)$(CFBundleIdentifier)"
         com.apple.developer.icloud-container-identifiers: ["iCloud.$(CFBundleIdentifier)"]
         com.apple.developer.ubiquity-container-identifiers: ["iCloud.$(CFBundleIdentifier)"]
-        com.apple.developer.icloud-services: ["CloudDocuments"]
+        com.apple.developer.icloud-services: ["CloudKit", "CloudDocuments"]
     preBuildScripts:
       - name: Verify SPM lock file
         basedOnDependencyAnalysis: false
@@ -195,6 +197,15 @@ targets:
           if [ -e "$REPRODUCIBLE_BUILD_VARIABLES_PATH" ]; then
             cp "$REPRODUCIBLE_BUILD_VARIABLES_PATH" "$TARGET_BUILD_DIR"/"$UNLOCALIZED_RESOURCES_FOLDER_PATH"
           fi
+    postCompileScripts:
+      - name: Stamp build date into Info.plist
+        basedOnDependencyAnalysis: false
+        shell: /usr/bin/env bash
+        script: |
+          set -e
+          BUILD_DATE=$(git -C "$SRCROOT" log -1 --format=%cd --date=short)
+          /usr/libexec/PlistBuddy -c "Add :BuildDate string $BUILD_DATE" "$TARGET_BUILD_DIR/$INFOPLIST_PATH" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :BuildDate $BUILD_DATE" "$TARGET_BUILD_DIR/$INFOPLIST_PATH"
 
     scheme:
       gatherCoverageData: true
@@ -286,7 +297,7 @@ packages:
     exactVersion: 6.28.0
   dd-sdk-ios:
     url: https://github.com/Datadog/dd-sdk-ios
-    exactVersion: 2.24.0
+    exactVersion: 2.30.2
   PhoneNumberKit:
     url: https://github.com/marmelroy/PhoneNumberKit
     exactVersion: 3.7.6
@@ -296,4 +307,3 @@ packages:
   ZIPFoundation:
     url: https://github.com/weichsel/ZIPFoundation
     exactVersion: 0.9.19
-

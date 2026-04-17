@@ -442,4 +442,18 @@ class NoActiveAccountUiStateMachineImplTests : FunSpec({
       awaitAnalyticsEvent()
     }
   }
+
+  test("HardwareSetup deep link is consumed without navigating away from getting started") {
+    stateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel>()
+      awaitBodyMock<ChooseAccountAccessUiProps>()
+      awaitAnalyticsEvent()
+
+      Router.route = Route.HardwareSetup
+
+      // Route should be consumed (cleared) but no navigation should occur
+      Router.route.shouldBe(null)
+      expectNoEvents()
+    }
+  }
 })

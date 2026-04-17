@@ -14,18 +14,18 @@ import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.bitkey.relationships.TrustedContact
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.inheritance.InheritanceService
 import build.wallet.relationships.RelationshipsService
-import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
-import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
-import build.wallet.statemachine.auth.Request
+import build.wallet.statemachine.auth.ActionProofType
+import build.wallet.statemachine.auth.HardwareAuthUiProps
+import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
 import build.wallet.statemachine.core.*
 import com.github.michaelbull.result.*
 
 @BitkeyInject(ActivityScope::class)
 class RemovingRelationshipUiStateMachineImpl(
-  private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
+  private val hardwareAuthUiStateMachine: HardwareAuthUiStateMachine,
   private val inheritanceService: InheritanceService,
   private val relationshipsService: RelationshipsService,
 ) : RemovingRelationshipUiStateMachine {
@@ -75,26 +75,41 @@ class RemovingRelationshipUiStateMachineImpl(
       }
 
       is State.ScanningToRemoveClaim -> {
-        proofOfPossessionNfcStateMachine.model(
-          ProofOfPossessionNfcProps(
-            request =
-              Request.HwKeyProof(
-                onSuccess = { proof ->
-                  state =
-                    State.RemovingRelationship(
-                      hwFactorProofOfPossession = proof,
-                      relationshipId = current.relationshipId
-                    )
-                }
-              ),
-            fullAccountId = props.account.accountId,
+        hardwareAuthUiStateMachine.model(
+          HardwareAuthUiProps(
+            account = props.account,
+            actionProofType = when (val entity = props.recoveryEntity) {
+              // Customer removing a beneficiary or canceling an invitation: bind TC's alias.
+              is TrustedContact -> ActionProofType.RemoveBeneficiary(
+                entityId = current.relationshipId.value,
+                name = entity.trustedContactAlias.alias
+              )
+              is Invitation -> ActionProofType.RemoveBeneficiary(
+                entityId = current.relationshipId.value,
+                name = entity.trustedContactAlias.alias
+              )
+              // TC (beneficiary) removing themselves from a benefactor's wallet.
+              is ProtectedCustomer -> ActionProofType.RemoveBenefactor(
+                entityId = current.relationshipId.value,
+                name = entity.alias.alias
+              )
+            },
+            segment = InheritanceAppSegment.BeneficiaryClaim.Cancel,
+            actionDescription = "Removing inheritance relationship",
+            screenPresentationStyle = ScreenPresentationStyle.Modal,
+            onSuccess = { proof ->
+              state =
+                State.RemovingRelationship(
+                  proof = proof,
+                  relationshipId = current.relationshipId
+                )
+            },
             onBack = {
               state =
                 State.ConfirmingRelationshipRemoval(
                   relationshipId = current.relationshipId
                 )
-            },
-            screenPresentationStyle = ScreenPresentationStyle.Modal
+            }
           )
         )
       }
@@ -114,11 +129,8 @@ class RemovingRelationshipUiStateMachineImpl(
             .onSuccess {
               relationshipsService.removeRelationship(
                 account = props.account,
-                hardwareProofOfPossession = current.hwFactorProofOfPossession,
-                authTokenScope = when (props.recoveryEntity) {
-                  is ProtectedCustomer -> AuthTokenScope.Recovery
-                  else -> AuthTokenScope.Global
-                },
+                proof = current.proof,
+                authTokenScope = AuthTokenScope.Global,
                 relationshipId = current.relationshipId.value
               ).onSuccess {
                 props.onSuccess()
@@ -179,7 +191,7 @@ class RemovingRelationshipUiStateMachineImpl(
 
     data class RemovingRelationship(
       val relationshipId: RelationshipId,
-      val hwFactorProofOfPossession: HwFactorProofOfPossession,
+      val proof: PrivilegedActionProof,
     ) : State
   }
 }

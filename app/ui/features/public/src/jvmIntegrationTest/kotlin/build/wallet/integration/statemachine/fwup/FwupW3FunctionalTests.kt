@@ -18,6 +18,7 @@ import build.wallet.firmware.McuRole
 import build.wallet.firmware.SecureBootConfig
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.fwup.FwupNextComponentReadyModel
 import build.wallet.statemachine.fwup.FwupNfcBodyModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.nfc.FwupInstructionsBodyModel
@@ -56,6 +57,7 @@ class FwupW3FunctionalTests : FunSpec({
       startFirmwareUpdate()
       awaitNfcSearching()
       approveW3DeviceConfirmation() // First MCU (UXC)
+      continueToNextMcu() // Intermediate screen between MCU updates
       approveW3DeviceConfirmation() // Second MCU (CORE)
       awaitFwupSuccess()
       awaitReturnToSecurityHub()
@@ -84,6 +86,32 @@ class FwupW3FunctionalTests : FunSpec({
       .firmwareUpdateState.shouldBeTypeOf<PendingUpdate>()
   }
 
+  test("W3 FWUP - deferCommit is set for UXC in multi-MCU update") {
+    val app = launchW3AppWithPendingUpdate()
+
+    app.appUiStateMachine.test(
+      props = Unit,
+      testTimeout = 30.seconds,
+      turbineTimeout = 10.seconds
+    ) {
+      navigateToSecurityHub()
+      clickFirmwareUpdateRecommendation()
+      startFirmwareUpdate()
+      awaitNfcSearching()
+      approveW3DeviceConfirmation() // First MCU (UXC)
+      continueToNextMcu()
+      approveW3DeviceConfirmation() // Second MCU (CORE)
+      awaitFwupSuccess()
+      awaitReturnToSecurityHub()
+      cancelAndIgnoreRemainingEvents()
+    }
+
+    // Verify deferCommit was set correctly for each MCU
+    val deferCommitCalls = app.fakeW3NfcCommands.fwupStartDeferCommitCalls
+    deferCommitCalls[McuRole.UXC] shouldBe true
+    deferCommitCalls[McuRole.CORE] shouldBe false
+  }
+
   test("W3 FWUP - user approves first MCU but denies second") {
     val app = launchW3AppWithPendingUpdate()
 
@@ -96,8 +124,9 @@ class FwupW3FunctionalTests : FunSpec({
       clickFirmwareUpdateRecommendation()
       startFirmwareUpdate()
       awaitNfcSearching()
-      approveW3DeviceConfirmation() // Approve CORE
-      denyW3DeviceConfirmation() // Deny UXC
+      approveW3DeviceConfirmation() // Approve first MCU (UXC)
+      continueToNextMcu() // Intermediate screen between MCU updates
+      denyW3DeviceConfirmation() // Deny second MCU (CORE)
       awaitReturnToInstructions()
       cancelAndIgnoreRemainingEvents()
     }
@@ -152,15 +181,23 @@ private suspend fun TestContext.awaitNfcSearching() {
  */
 private suspend fun TestContext.approveW3DeviceConfirmation() {
   awaitUntilBody<PromptSelectionFormBodyModel> {
-    options.shouldBe(listOf("Approve", "Deny"))
-    onOptionSelected(0)
+    onApprove()
   }
 }
 
 private suspend fun TestContext.denyW3DeviceConfirmation() {
   awaitUntilBody<PromptSelectionFormBodyModel> {
-    options.shouldBe(listOf("Approve", "Deny"))
-    onOptionSelected(1)
+    onDeny()
+  }
+}
+
+/**
+ * Handles the intermediate screen between MCU updates.
+ * After first MCU completes, user must click Continue to start the second MCU.
+ */
+private suspend fun TestContext.continueToNextMcu() {
+  awaitUntilBody<FwupNextComponentReadyModel> {
+    onContinue()
   }
 }
 
@@ -186,12 +223,14 @@ private suspend fun TestContext.awaitReturnToInstructions() {
 private suspend fun TestScope.launchW3AppWithPendingUpdate(): AppTester {
   val app = launchNewApp()
 
-  app.accountConfigService.setHardwareType(HardwareType.W3).getOrThrow()
-
   val account = app.onboardFullAccountWithFakeHardware(
     cloudStoreAccountForBackup = CloudStoreAccount1Fake,
-    shouldSetUpNotifications = true
+    shouldSetUpNotifications = true,
+    hardwareType = HardwareType.W3
   )
+
+  // Verify the account was created with W3 hardware type
+  account.keybox.config.hardwareType.shouldBe(HardwareType.W3)
 
   app.configureNotificationPreferences(account.accountId)
   app.awaitNotificationRecommendationsCleared()
@@ -212,8 +251,7 @@ private suspend fun AppTester.configureNotificationPreferences(accountId: FullAc
   )
   notificationsPreferencesCachedProvider.updateNotificationsPreferences(
     accountId = accountId,
-    preferences = preferences,
-    hwFactorProofOfPossession = null
+    preferences = preferences
   ).getOrThrow()
 }
 
@@ -264,7 +302,7 @@ private suspend fun AppTester.configureW3FirmwareUpdate() {
  */
 private val TestW3FirmwareDeviceInfo = FirmwareDeviceInfo(
   version = "1.2.3",
-  serial = "test-w3-serial",
+  serial = "fakeS271serial",
   swType = "dev",
   hwRevision = "w3a-core-evt",
   activeSlot = FirmwareMetadata.FirmwareSlot.B,

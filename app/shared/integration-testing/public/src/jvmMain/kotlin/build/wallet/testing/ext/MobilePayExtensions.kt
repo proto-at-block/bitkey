@@ -4,10 +4,12 @@ import app.cash.turbine.test
 import bitkey.auth.AuthTokenScope
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.limit.MobilePayData
 import build.wallet.limit.SpendingLimit
 import build.wallet.money.FiatMoney
 import build.wallet.nfc.platform.signAccessToken
+import build.wallet.platform.settings.Locale
 import build.wallet.testing.AppTester
 import build.wallet.testing.fakeTransact
 import com.github.michaelbull.result.getOrThrow
@@ -31,7 +33,8 @@ suspend fun AppTester.setupMobilePay(limit: FiatMoney): SpendingLimit {
   val spendingLimit = SpendingLimit(true, limit, TimeZone.UTC)
   mobilePayService.setLimit(
     spendingLimit = spendingLimit,
-    hwFactorProofOfPossession = HwFactorProofOfPossession(signResponse)
+    proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession(signResponse)),
+    locale = Locale("en-US")
   ).getOrThrow()
 
   mobilePayService.mobilePayData.test {

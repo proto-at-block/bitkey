@@ -1,7 +1,7 @@
 use account::service::FetchAccountInput;
 use account::service::Service as AccountService;
 use async_trait::async_trait;
-use authn_authz::key_claims::KeyClaims;
+use authn_authz::AuthorizedContext;
 use comms_verification::Service as CommsVerificationService;
 use errors::ApiError;
 use experimentation::claims::ExperimentationClaims;
@@ -52,7 +52,7 @@ pub enum RecoveryEvent {
         account: FullAccount,
         lost_factor: Factor,
         destination: RecoveryDestination,
-        key_proof: KeyClaims,
+        authorized_request: AuthorizedContext,
     },
     CheckEligibleForCompletion {
         challenge: String,
@@ -60,7 +60,7 @@ pub enum RecoveryEvent {
         hardware_signature: String,
     },
     CancelRecovery {
-        key_proof: KeyClaims,
+        authorized_request: AuthorizedContext,
     },
     RotateKeyset {
         user_pool_service: UserPoolService,

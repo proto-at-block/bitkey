@@ -3,6 +3,7 @@
 #include "confirmation_manager.h"
 #include "ecc.h"
 #include "exti.h"
+#include "log.h"
 #include "psbt.h"
 
 // These are here instead of in sysinfo.c because propagating cflags to dependencies
@@ -59,7 +60,7 @@ NO_OPTIMIZE int main(void) {
   SECURE_DO_ONCE({ canary_init(); });
   SECURE_DO_ONCE({ crypto_ecc_secp256k1_init(); });
 
-  psbt_lib_init();
+  ASSERT(psbt_lib_init());
 
   bitlog_init((bitlog_api_t){
     .timestamp_cb = &rtos_thread_systime,
@@ -101,6 +102,7 @@ NO_OPTIMIZE int main(void) {
     .gcm_decrypt = &secure_uart_channel_decrypt,
     .check_recv_seq = &secure_uart_channel_check_recv_seq_number,
     .get_send_seq = &secure_uart_channel_get_send_seq_number,
+    .has_session = &secure_uart_channel_confirmed,
   };
   uc_init((uc_send_callback_t)mcu_usart_write, &crypto_api, (void*)&comms_usart_config);
 #endif

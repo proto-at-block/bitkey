@@ -5,6 +5,8 @@
 #include "sysevent.h"
 #include "wallet.pb.h"
 
+#include <stdint.h>
+
 #define FEATURE_FLAGS_FILE_NAME "feature-flags.bin"
 #define FEATURE_FLAG_COUNT      _fwpb_feature_flag_ARRAYSIZE
 
@@ -31,14 +33,28 @@ bool* feature_flags_get_all(pb_size_t* len) {
 }
 
 bool feature_flags_set(fwpb_feature_flag flag, bool value) {
-  feature_flags[flag] = value;
+  int32_t flag_i = (int32_t)flag;
+  if (flag_i < 0 || flag_i >= (int32_t)FEATURE_FLAG_COUNT) {
+    LOGE("Invalid feature flag %ld", (long)flag_i);
+    return false;
+  }
+
+  feature_flags[flag_i] = value;
   return feature_flags_write();
 }
 
 bool feature_flags_set_multiple(fwpb_feature_flag_cfg* flags, pb_size_t num_flags) {
   for (int i = 0; i < num_flags; i++) {
-    fwpb_feature_flag_cfg cfg = flags[i];
-    feature_flags[cfg.flag] = cfg.enabled;
+    int32_t flag_i = (int32_t)flags[i].flag;
+    if (flag_i < 0 || flag_i >= (int32_t)FEATURE_FLAG_COUNT) {
+      LOGE("Invalid feature flag %ld", (long)flag_i);
+      return false;
+    }
+  }
+
+  for (int i = 0; i < num_flags; i++) {
+    int32_t flag_i = (int32_t)flags[i].flag;
+    feature_flags[flag_i] = flags[i].enabled;
   }
   return feature_flags_write();
 }
@@ -53,7 +69,6 @@ static void set_default_values(void) {
         // unlock, but the app doesn't support it. Just in case there's a security problem, we
         // left the feature flag turned off.
         feature_flags[i] = false;
-        LOGD("Feature flag %ld is disabled by default", i);
         continue;
     }
     feature_flags[i] = true;
@@ -65,7 +80,7 @@ static void set_default_values(void) {
 static bool feature_flags_read(void) {
   if (!fs_util_read_all_global(FEATURE_FLAGS_FILE_NAME, (uint8_t*)feature_flags,
                                sizeof(feature_flags), &feature_flags_len)) {
-    LOGE("Failed to read feature flags; recreating the file");
+    LOGE("FF read fail, recreating");
     set_default_values();
     fs_remove(FEATURE_FLAGS_FILE_NAME);
     return feature_flags_write();
@@ -82,7 +97,7 @@ static bool feature_flags_read(void) {
 
 static bool feature_flags_write(void) {
   if (!fs_util_write_global(FEATURE_FLAGS_FILE_NAME, (uint8_t*)feature_flags, feature_flags_len)) {
-    LOGE("Failed to write feature flags");
+    LOGE("FF write fail");
     return false;
   }
   return true;

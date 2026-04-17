@@ -46,6 +46,7 @@ valid-dependencies/**/target
 META-INF/*
 
 build/*
+**/.gradle-logs
 
 # Node
 node_modules

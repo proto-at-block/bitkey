@@ -8,6 +8,7 @@ static struct {
   rtos_mutex_t lock;
   bool timer_running;
   uint32_t inhibit_duration_ms;
+  uint32_t charger_extra_ms;
 } sleep_ctx SHARED_TASK_DATA = {
   .power_timer =
     {
@@ -16,13 +17,14 @@ static struct {
   .lock = {0},
   .timer_running = false,
   .inhibit_duration_ms = 0,
+  .charger_extra_ms = 0,
 };
 
 static uint32_t get_timeout_ms(void) {
   if (sleep_ctx.inhibit_duration_ms == SLEEP_INHIBIT_INFINITE) {
     return SLEEP_INHIBIT_INFINITE;
   }
-  return POWER_TIMEOUT_MS + sleep_ctx.inhibit_duration_ms;
+  return POWER_TIMEOUT_MS + sleep_ctx.inhibit_duration_ms + sleep_ctx.charger_extra_ms;
 }
 
 void sleep_init(sleep_timer_callback_t callback) {
@@ -84,6 +86,21 @@ void sleep_clear_inhibit(void) {
   rtos_mutex_lock(&sleep_ctx.lock);
 
   sleep_ctx.inhibit_duration_ms = 0;
+
+  // Restart timer with new timeout if running
+  if (sleep_ctx.timer_running) {
+    uint32_t timeout_ms = get_timeout_ms();
+    rtos_timer_stop(&sleep_ctx.power_timer);
+    rtos_timer_start(&sleep_ctx.power_timer, timeout_ms);
+  }
+
+  rtos_mutex_unlock(&sleep_ctx.lock);
+}
+
+void sleep_set_charger_extension(uint32_t extra_ms) {
+  rtos_mutex_lock(&sleep_ctx.lock);
+
+  sleep_ctx.charger_extra_ms = extra_ms;
 
   // Restart timer with new timeout if running
   if (sleep_ctx.timer_running) {

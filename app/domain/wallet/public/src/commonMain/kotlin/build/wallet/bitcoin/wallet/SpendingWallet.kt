@@ -1,10 +1,10 @@
 package build.wallet.bitcoin.wallet
 
+import build.wallet.bdk.bindings.BdkOutPoint
 import build.wallet.bdk.bindings.BdkScript
 import build.wallet.bdk.bindings.BdkTxIn
 import build.wallet.bdk.bindings.BdkUtxo
 import build.wallet.bitcoin.address.BitcoinAddress
-import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
@@ -81,24 +81,40 @@ interface SpendingWallet : WatchingWallet {
     ) : PsbtConstructionMethod
 
     /**
-     * Manual fee bump for transactions requiring output shrinking.
+     * Fee bump for transactions requiring output shrinking.
      *
-     * Used for sweeps and single-UTXO consolidations where BDK's BumpFeeTxBuilder
-     * cannot add inputs to cover the fee increase - instead, the output is reduced.
+     * Used for sweeps and single-UTXO consolidations where BDK's standard BumpFeeTxBuilder
+     * cannot add inputs to cover the fee increase. Instead, the output amount is reduced.
      *
-     * @property originalInputs The inputs from the original transaction.
-     * @property outputScript The script for the single output (shrinking target).
-     * @property absoluteFee The exact fee amount.
+     * Uses BumpFeeTxBuilder.drainTo() which clears recipients and drains all funds
+     * to the specified script.
+     *
+     * @param txid - The transaction ID of the transaction to bump the fee of.
+     * @param feeRate - The new fee rate to use.
+     * @param drainToScript - The script to drain all funds to (typically the original output script).
      */
-    data class ManualFeeBump(
-      val originalInputs: List<BdkTxIn>,
-      val outputScript: BdkScript,
-      val absoluteFee: Fee,
-    ) : PsbtConstructionMethod {
-      init {
-        require(originalInputs.isNotEmpty()) { "Original inputs cannot be empty" }
-      }
-    }
+    data class FeeBumpWithDrain(
+      val txid: String,
+      val feeRate: FeeRate,
+      val drainToScript: BdkScript,
+    ) : PsbtConstructionMethod
+
+    /**
+     * Represents a Child-Pays-For-Parent (CPFP) transaction.
+     *
+     * Spends a single UTXO (from the parent or a prior CPFP child) and drains
+     * all funds to the recipient address with the given fee policy. The fee is
+     * set high enough so the combined parent+child package reaches the target rate.
+     *
+     * @param utxoOutpoint - The outpoint of the UTXO to spend (tip of the CPFP chain).
+     * @param recipientAddress - Self-transfer address to drain funds to.
+     * @param feePolicy - Fee policy (absolute fee for real tx, MinRelayRate for weight estimation).
+     */
+    data class Cpfp(
+      val utxoOutpoint: BdkOutPoint,
+      val recipientAddress: BitcoinAddress,
+      val feePolicy: FeePolicy,
+    ) : PsbtConstructionMethod
   }
 }
 
@@ -107,7 +123,7 @@ interface SpendingWallet : WatchingWallet {
  */
 sealed interface CoinSelectionStrategy {
   /**
-   * Default coin selection strategy - let's the BDK choose from all available inputs
+   * Default coin selection strategy - lets the BDK choose from all available inputs
    */
   data object Default : CoinSelectionStrategy
 

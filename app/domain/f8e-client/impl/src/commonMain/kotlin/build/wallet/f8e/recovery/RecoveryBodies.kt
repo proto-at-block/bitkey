@@ -1,5 +1,6 @@
 package build.wallet.f8e.recovery
 
+import bitkey.account.HardwareType
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.factor.PhysicalFactor.App
@@ -35,6 +36,8 @@ data class AuthKeypairBody(
    */
   @SerialName("hardware")
   val hardware: String,
+  @SerialName("hardware_type")
+  val hardwareType: HardwareType = HardwareType.W1,
 )
 
 @Serializable

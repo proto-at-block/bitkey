@@ -28,7 +28,7 @@ bip32_fuzz = executable('bip32-fuzz',
   'bip32_fuzz.cc',
   cpp_args : fuzz_args,
   link_args : fuzz_args,
-  dependencies : [bip32_dep, fuzzed_data_provider_dep],
+  dependencies : [bip32_dep, crypto_deps['posix'], fuzzed_data_provider_dep],
 )
 
 bip32_test = executable('bip32-test',

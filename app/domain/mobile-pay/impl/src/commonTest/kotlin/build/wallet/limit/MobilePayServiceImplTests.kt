@@ -25,6 +25,7 @@ import build.wallet.coroutines.turbine.awaitNoEvents
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.mobilepay.MobilePaySigningF8eClientMock
 import build.wallet.f8e.mobilepay.MobilePaySpendingLimitF8eClientMock
 import build.wallet.f8e.mobilepay.isServerSigned
@@ -42,6 +43,7 @@ import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.exchange.ExchangeRateServiceFake
 import build.wallet.money.exchange.USDtoBTC
 import build.wallet.platform.app.AppSessionManagerFake
+import build.wallet.platform.settings.Locale
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -125,7 +127,7 @@ class MobilePayServiceImplTests : FunSpec({
     )
   }
 
-  val hwPop = HwFactorProofOfPossession("")
+  val proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession(""))
 
   test("executeWork refreshes mobile pay status when transactions are loaded") {
     // Use a larger sync frequency here to ensure we only capture the initial refresh call
@@ -185,7 +187,7 @@ class MobilePayServiceImplTests : FunSpec({
   }
 
   test("enable mobile pay by setting the limit for the first time") {
-    mobilePayService.setLimit(SpendingLimitMock, hwPop).shouldBeOk()
+    mobilePayService.setLimit(SpendingLimitMock, proof, Locale("en-US")).shouldBeOk()
 
     // verify that the active spending limit was set
     spendingLimitDao.activeSpendingLimit().firstOrNull().shouldBe(SpendingLimitMock)
@@ -201,7 +203,7 @@ class MobilePayServiceImplTests : FunSpec({
     // prepopulate database
     spendingLimitDao.saveAndSetSpendingLimit(SpendingLimitMock)
 
-    mobilePayService.setLimit(SpendingLimitMock, hwPop).shouldBeOk()
+    mobilePayService.setLimit(SpendingLimitMock, proof, Locale("en-US")).shouldBeOk()
 
     // verify that the active spending limit was updated
     spendingLimitDao.activeSpendingLimit().firstOrNull().shouldBe(SpendingLimitMock)
@@ -217,7 +219,7 @@ class MobilePayServiceImplTests : FunSpec({
     // prepopulate database
     spendingLimitDao.saveAndSetSpendingLimit(SpendingLimitMock)
 
-    mobilePayService.setLimit(SpendingLimitMock2, hwPop).shouldBeOk()
+    mobilePayService.setLimit(SpendingLimitMock2, proof, Locale("en-US")).shouldBeOk()
 
     // verify that the active spending limit was updated
     spendingLimitDao.activeSpendingLimit().firstOrNull().shouldBe(SpendingLimitMock2)
@@ -264,7 +266,7 @@ class MobilePayServiceImplTests : FunSpec({
 
   test("enable and then disable mobile pay") {
     // setup
-    mobilePayService.setLimit(SpendingLimitMock, hwPop).shouldBeOk()
+    mobilePayService.setLimit(SpendingLimitMock, proof, Locale("en-US")).shouldBeOk()
     eventTracker.eventCalls.awaitItem().shouldBe(
       TrackedAction(ACTION_APP_MOBILE_TRANSACTIONS_ENABLED)
     )

@@ -13,12 +13,15 @@ import build.wallet.bitcoin.blockchain.NoopBlockchainControl
 import build.wallet.bitcoin.blockchain.RegtestControl
 import build.wallet.bitcoin.treasury.TreasuryWallet
 import build.wallet.bitcoin.treasury.TreasuryWalletFactory
+import build.wallet.cloud.backup.CloudBackupStore
+import build.wallet.cloud.backup.CloudBackupStoreImpl
 import build.wallet.cloud.store.*
 import build.wallet.coroutines.createBackgroundScope
 import build.wallet.di.JvmActivityComponent
 import build.wallet.di.JvmAppComponent
 import build.wallet.di.JvmAppComponentImpl
 import build.wallet.di.create
+import build.wallet.feature.setFlagValue
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.F8eEnvironment.Local
 import build.wallet.logging.LogLevel
@@ -92,10 +95,12 @@ class AppTester(
       bdkBlockchainFactory = bdkBlockchainFactory,
       f8eEnvironment = f8eEnvironment,
       cloudStoreAccountRepository = cloudStoreAccountRepository,
-      cloudKeyValueStore = cloudKeyValueStore,
+      cloudBackupStore = cloudBackupStore,
       isUsingSocRecFakes = isUsingSocRecFakes,
-      hardwareSeed = fakeHardwareKeyStore.getSeed(),
-      executeWorkers = executeWorkers
+      hardwareSeed = w1FakeHardwareKeyStore.getSeed(),
+      w3HardwareSeed = w3FakeHardwareKeyStore.getSeed(),
+      executeWorkers = executeWorkers,
+      appMode = appMode
     )
   }
 
@@ -108,8 +113,9 @@ class AppTester(
       f8eEnvironment: F8eEnvironment? = null,
       bitcoinNetworkType: BitcoinNetworkType? = null,
       cloudStoreAccountRepository: CloudStoreAccountRepository? = null,
-      cloudKeyValueStore: CloudKeyValueStore? = null,
+      cloudBackupStore: CloudBackupStore? = null,
       hardwareSeed: FakeHardwareKeyStore.Seed? = null,
+      w3HardwareSeed: FakeHardwareKeyStore.Seed? = null,
       isUsingSocRecFakes: Boolean = false,
       executeWorkers: Boolean = true,
     ): AppTester {
@@ -119,10 +125,11 @@ class AppTester(
         f8eEnvironment,
         bitcoinNetworkType,
         cloudStoreAccountRepository,
-        cloudKeyValueStore,
+        cloudBackupStore,
         hardwareSeed,
-        isUsingSocRecFakes,
-        executeWorkers,
+        w3HardwareSeed = w3HardwareSeed,
+        isUsingSocRecFakes = isUsingSocRecFakes,
+        executeWorkers = executeWorkers,
         appMode = AppMode.Private
       )
     }
@@ -135,8 +142,9 @@ class AppTester(
       f8eEnvironment: F8eEnvironment? = null,
       bitcoinNetworkType: BitcoinNetworkType? = null,
       cloudStoreAccountRepository: CloudStoreAccountRepository? = null,
-      cloudKeyValueStore: CloudKeyValueStore? = null,
+      cloudBackupStore: CloudBackupStore? = null,
       hardwareSeed: FakeHardwareKeyStore.Seed? = null,
+      w3HardwareSeed: FakeHardwareKeyStore.Seed? = null,
       isUsingSocRecFakes: Boolean = false,
       executeWorkers: Boolean = true,
     ): AppTester {
@@ -145,8 +153,9 @@ class AppTester(
         f8eEnvironment = f8eEnvironment,
         bitcoinNetworkType = bitcoinNetworkType,
         cloudStoreAccountRepository = cloudStoreAccountRepository,
-        cloudKeyValueStore = cloudKeyValueStore,
+        cloudBackupStore = cloudBackupStore,
         hardwareSeed = hardwareSeed,
+        w3HardwareSeed = w3HardwareSeed,
         isUsingSocRecFakes = isUsingSocRecFakes,
         executeWorkers = executeWorkers,
         appMode = AppMode.Legacy
@@ -179,8 +188,9 @@ class AppTester(
       f8eEnvironment: F8eEnvironment? = null,
       bitcoinNetworkType: BitcoinNetworkType? = null,
       cloudStoreAccountRepository: CloudStoreAccountRepository? = null,
-      cloudKeyValueStore: CloudKeyValueStore? = null,
+      cloudBackupStore: CloudBackupStore? = null,
       hardwareSeed: FakeHardwareKeyStore.Seed? = null,
+      w3HardwareSeed: FakeHardwareKeyStore.Seed? = null,
       isUsingSocRecFakes: Boolean,
       executeWorkers: Boolean = true,
       appMode: AppMode = AppMode.Private,
@@ -212,12 +222,15 @@ class AppTester(
         appDir = appDir,
         bdkBlockchainFactory = bdkBlockchainFactory,
         cloudStoreAccountRepositoryOverride = cloudStoreAccountRepository,
-        cloudKeyValueStoreOverride = cloudKeyValueStore
+        cloudBackupStoreOverride = cloudBackupStore
       )
       appComponent.loggerInitializer.initialize()
 
       if (hardwareSeed != null) {
-        appComponent.fakeHardwareKeyStore.setSeed(hardwareSeed)
+        appComponent.w1FakeHardwareKeyStore.setSeed(hardwareSeed)
+      }
+      if (w3HardwareSeed != null) {
+        appComponent.w3FakeHardwareKeyStore.setSeed(w3HardwareSeed)
       }
       val blockchainControl = createBlockchainControl(bitcoinNetworkType)
       val activityComponent = appComponent.activityComponent()
@@ -242,6 +255,8 @@ class AppTester(
           .filter { initialized -> initialized }
           .first() // Suspend until first `true` value
       }
+
+      appComponent.chaincodeDelegationFeatureFlag.setFlagValue(appMode == AppMode.Private)
 
       return AppTester(
         testScope = this,
@@ -280,7 +295,7 @@ private fun createAppComponent(
   appDir: String,
   bdkBlockchainFactory: BdkBlockchainFactory,
   cloudStoreAccountRepositoryOverride: CloudStoreAccountRepository? = null,
-  cloudKeyValueStoreOverride: CloudKeyValueStore? = null,
+  cloudBackupStoreOverride: CloudBackupStore? = null,
 ): JvmAppComponentImpl {
   val fileDirectoryProvider = FileDirectoryProviderImpl(appDir)
   val fileManager = FileManagerImpl(fileDirectoryProvider)
@@ -288,8 +303,9 @@ private fun createAppComponent(
   val writableCloudStoreAccountRepository =
     (cloudStoreAccountRepositoryOverride as? WritableCloudStoreAccountRepository)
       ?: CloudStoreAccountRepositoryImpl(keyValueStoreFactory)
-  val cloudKeyValueStore =
-    cloudKeyValueStoreOverride ?: CloudKeyValueStoreImpl(keyValueStoreFactory)
+  val cloudBackupStore =
+    cloudBackupStoreOverride ?: CloudBackupStoreImpl(keyValueStoreFactory)
+  val cloudKeyValueStore = CloudKeyValueStoreImpl(keyValueStoreFactory)
   val cloudFileStore = CloudFileStoreFake(
     parentDir = fileDirectoryProvider.filesDir(),
     fileManager = fileManager
@@ -299,6 +315,7 @@ private fun createAppComponent(
     appDir = appDir,
     bdkBlockchainFactory = bdkBlockchainFactory,
     writableCloudStoreAccountRepository = writableCloudStoreAccountRepository,
+    cloudBackupStore = cloudBackupStore,
     cloudKeyValueStore = cloudKeyValueStore,
     cloudFileStore = cloudFileStore
   ).also {

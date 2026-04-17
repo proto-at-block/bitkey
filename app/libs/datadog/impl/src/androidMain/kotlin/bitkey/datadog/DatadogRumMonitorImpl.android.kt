@@ -87,12 +87,13 @@ class DatadogRumMonitorImpl : DatadogRumMonitor {
     message: String,
     source: ErrorSource,
     attributes: Map<String, String>,
+    cause: Throwable?,
   ) {
     GlobalRumMonitor.get()
       .addError(
         message = message,
         source = source.rumErrorSource,
-        throwable = null,
+        throwable = cause,
         attributes
       )
   }

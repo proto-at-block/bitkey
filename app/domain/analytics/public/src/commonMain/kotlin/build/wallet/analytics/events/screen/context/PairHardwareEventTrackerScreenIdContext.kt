@@ -15,4 +15,7 @@ enum class PairHardwareEventTrackerScreenIdContext : EventTrackerContext {
 
   /** Events for resetting fingerprints during hardware pairing */
   RESET_FINGERPRINTS,
+
+  /** Events for pairing new hardware during W3 upgrade */
+  PAIR_NEW_DEVICE_DURING_W3_UPGRADE,
 }

@@ -1,5 +1,8 @@
-use axum::extract::Request;
+use axum::async_trait;
+use axum::extract::{FromRequestParts, Request};
 use axum::http::header::USER_AGENT;
+use axum::http::request::Parts;
+use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::{body::Body, extract::MatchedPath, response::Response};
 use futures_util::future::BoxFuture;
@@ -13,6 +16,33 @@ use crate::metrics::{KeyValue, APP_ID_KEY};
 
 pub const APP_INSTALLATION_ID_HEADER_NAME: &str = "Bitkey-App-Installation-ID";
 pub const HARDWARE_SERIAL_HEADER_NAME: &str = "Bitkey-Hardware-Serial";
+
+/// Axum extractor for the optional `Bitkey-Hardware-Serial` header.
+#[derive(Debug, Clone)]
+pub struct HardwareSerialHeader(pub Option<String>);
+
+impl HardwareSerialHeader {
+    pub fn as_deref(&self) -> Option<&str> {
+        self.0.as_deref()
+    }
+}
+
+#[async_trait]
+impl<S> FromRequestParts<S> for HardwareSerialHeader
+where
+    S: Send + Sync,
+{
+    type Rejection = (StatusCode, &'static str);
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        let serial = parts
+            .headers
+            .get(HARDWARE_SERIAL_HEADER_NAME)
+            .and_then(|h| h.to_str().ok())
+            .map(|v| v.to_string());
+        Ok(HardwareSerialHeader(serial))
+    }
+}
 
 const METHOD_KEY: &str = "method";
 const PATH_KEY: &str = "path";

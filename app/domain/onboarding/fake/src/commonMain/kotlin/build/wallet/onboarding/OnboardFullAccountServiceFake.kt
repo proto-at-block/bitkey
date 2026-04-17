@@ -32,13 +32,19 @@ class OnboardFullAccountServiceFake : OnboardFullAccountService {
     return activateAccountResult
   }
 
+  var cancelAccountCreationResult: Result<Unit, Throwable> = Ok(Unit)
+  var cancelAccountCreationCalls = 0
+
   override suspend fun cancelAccountCreation(): Result<Unit, Throwable> {
-    return Ok(Unit)
+    cancelAccountCreationCalls += 1
+    return cancelAccountCreationResult
   }
 
   fun reset() {
     createAppKeysResult = Ok(WithAppKeysMock)
     createAccountResult = Ok(FullAccountMock)
     activateAccountResult = Ok(Unit)
+    cancelAccountCreationResult = Ok(Unit)
+    cancelAccountCreationCalls = 0
   }
 }

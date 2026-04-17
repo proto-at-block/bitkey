@@ -1,5 +1,6 @@
 package build.wallet.emergencyexitkit
 
+import bitkey.account.HardwareType
 import bitkey.account.FullAccountConfig
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.f8e.FullAccountId
@@ -25,9 +26,11 @@ interface EmergencyExitPayloadRestorer {
    * returns [CsekMissing] error.
    *
    * @param payload to restore from
+   * @param hardwareType the hardware device type detected during restore, used to build the [FullAccountConfig]
    */
   suspend fun restoreFromPayload(
     payload: EmergencyExitKitPayload,
+    hardwareType: HardwareType,
   ): Result<AccountRestoration, EmergencyExitPayloadRestorerError>
 
   data class AccountRestoration(

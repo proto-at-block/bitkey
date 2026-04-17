@@ -37,6 +37,8 @@ pub enum AccountError {
     UnauthorizedDeviceTokenRegistration,
     #[error("Touchpoint already active")]
     TouchpointAlreadyActive,
+    #[error("Email domain unavailable for legal reasons")]
+    SanctionedEmailDomain,
     #[error("Conflicting spending key definition state during rotation for account")]
     ConflictingSpendingKeyDefinitionStateForRotation,
     #[error("Missing keyset ID(s)")]
@@ -95,6 +97,11 @@ impl From<AccountError> for ApiError {
             }
             AccountError::TouchpointAlreadyActive => ApiError::Specific {
                 code: ErrorCode::TouchpointAlreadyActive,
+                detail: Some(err_msg),
+                field: None,
+            },
+            AccountError::SanctionedEmailDomain => ApiError::Specific {
+                code: ErrorCode::UnavailableForLegalReasons,
                 detail: Some(err_msg),
                 field: None,
             },

@@ -6,14 +6,15 @@ import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.FAILURE
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.onboarding.OnboardingKeyboxStep.DescriptorBackup
+import build.wallet.onboarding.OnboardFullAccountServiceFake
 import build.wallet.onboarding.OnboardingKeyboxStepState.Complete
-import build.wallet.onboarding.OnboardingKeyboxStepState.Incomplete
 import build.wallet.onboarding.OnboardingKeyboxStepStateDaoFake
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
-import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
-import build.wallet.statemachine.auth.Request.HwKeyProof
+import build.wallet.statemachine.auth.ActionProofType
+import build.wallet.statemachine.auth.HardwareAuthUiProps
+import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitBody
@@ -26,7 +27,6 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
-import kotlinx.coroutines.flow.first
 
 class OverwriteFullAccountCloudBackupUiStateMachineImplTests : FunSpec({
 
@@ -35,6 +35,7 @@ class OverwriteFullAccountCloudBackupUiStateMachineImplTests : FunSpec({
 
   val rollbackCalls = turbines.create<Unit>("rollback calls")
   val onOverwriteCalls = turbines.create<Unit>("overwrite calls")
+  val onboardFullAccountService = OnboardFullAccountServiceFake()
 
   val props = OverwriteFullAccountCloudBackupUiProps(
     keybox = KeyboxMock,
@@ -45,16 +46,17 @@ class OverwriteFullAccountCloudBackupUiStateMachineImplTests : FunSpec({
   val overwriteFullAccountCloudBackupUiStateMachine =
     OverwriteFullAccountCloudBackupUiStateMachineImpl(
       deleteFullAccountService = deleteFullAccountService,
-      proofOfPossessionNfcStateMachine =
-        object : ProofOfPossessionNfcStateMachine,
-          ScreenStateMachineMock<ProofOfPossessionNfcProps>(
-            id = "pop-nfc"
+      hardwareAuthUiStateMachine =
+        object : HardwareAuthUiStateMachine,
+          ScreenStateMachineMock<HardwareAuthUiProps>(
+            id = "hw-auth"
           ) {},
-      onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao
+      onboardFullAccountService = onboardFullAccountService
     )
 
   beforeTest {
     deleteFullAccountService.reset()
+    onboardFullAccountService.reset()
     onboardingKeyboxStepStateDao.clear()
   }
 
@@ -64,13 +66,14 @@ class OverwriteFullAccountCloudBackupUiStateMachineImplTests : FunSpec({
       awaitBody<OverwriteFullAccountCloudBackupWarningModel> {
         onCancel()
       }
-      awaitBodyMock<ProofOfPossessionNfcProps> {
-        request.shouldBeTypeOf<HwKeyProof>().onSuccess(HwFactorProofOfPossession("fake"))
+      awaitBodyMock<HardwareAuthUiProps> {
+        actionProofType.shouldBe(ActionProofType.DeleteAccount(accountId = KeyboxMock.fullAccountId.serverId))
+        onSuccess(PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("fake")))
       }
       awaitLoadingScreen(DELETING_FULL_ACCOUNT)
       deleteFullAccountService.deleteAccountCalls.awaitItem()
       rollbackCalls.awaitItem()
-      onboardingKeyboxStepStateDao.stateForStep(DescriptorBackup).first().shouldBe(Incomplete)
+      onboardFullAccountService.cancelAccountCreationCalls.shouldBe(1)
     }
   }
 
@@ -79,7 +82,7 @@ class OverwriteFullAccountCloudBackupUiStateMachineImplTests : FunSpec({
       awaitBody<OverwriteFullAccountCloudBackupWarningModel> {
         onCancel()
       }
-      awaitBodyMock<ProofOfPossessionNfcProps> {
+      awaitBodyMock<HardwareAuthUiProps> {
         onBack()
       }
       awaitBody<OverwriteFullAccountCloudBackupWarningModel>()
@@ -92,15 +95,16 @@ class OverwriteFullAccountCloudBackupUiStateMachineImplTests : FunSpec({
       awaitBody<OverwriteFullAccountCloudBackupWarningModel> {
         onCancel()
       }
-      awaitBodyMock<ProofOfPossessionNfcProps> {
-        request.shouldBeTypeOf<HwKeyProof>().onSuccess(HwFactorProofOfPossession("fake"))
+      awaitBodyMock<HardwareAuthUiProps> {
+        actionProofType.shouldBe(ActionProofType.DeleteAccount(accountId = KeyboxMock.fullAccountId.serverId))
+        onSuccess(PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("fake")))
       }
       awaitLoadingScreen(DELETING_FULL_ACCOUNT)
       awaitBody<FormBodyModel>(FAILURE_DELETING_FULL_ACCOUNT) {
         clickPrimaryButton()
       }
       deleteFullAccountService.deleteAccountCalls.awaitItem()
-      awaitBodyMock<ProofOfPossessionNfcProps>()
+      awaitBodyMock<HardwareAuthUiProps>()
     }
   }
 
@@ -110,8 +114,9 @@ class OverwriteFullAccountCloudBackupUiStateMachineImplTests : FunSpec({
       awaitBody<OverwriteFullAccountCloudBackupWarningModel> {
         onCancel()
       }
-      awaitBodyMock<ProofOfPossessionNfcProps> {
-        request.shouldBeTypeOf<HwKeyProof>().onSuccess(HwFactorProofOfPossession("fake"))
+      awaitBodyMock<HardwareAuthUiProps> {
+        actionProofType.shouldBe(ActionProofType.DeleteAccount(accountId = KeyboxMock.fullAccountId.serverId))
+        onSuccess(PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("fake")))
       }
       awaitLoadingScreen(DELETING_FULL_ACCOUNT)
       awaitBody<FormBodyModel>(FAILURE_DELETING_FULL_ACCOUNT) {

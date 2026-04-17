@@ -7,7 +7,14 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define SECURE_CHANNEL_PROTOCOL_VERSION (1)
+#define SECURE_CHANNEL_PROTOCOL_VERSION     (1)
+#define SECURE_CHANNEL_PROTOCOL_MIN_VERSION (1)
+
+static inline bool secure_channel_protocol_version_supported(uint32_t protocol_version) {
+  // Peers may advertise newer versions as long as they remain backward compatible
+  // with the oldest protocol version we still support.
+  return protocol_version >= SECURE_CHANNEL_PROTOCOL_MIN_VERSION;
+}
 
 #define SECURE_CHANNEL_PUBKEY_MAX_LEN           (64)
 #define SECURE_CHANNEL_SESSION_KEY_LEN          (32)
@@ -19,7 +26,10 @@ typedef enum {
   SECURE_CHANNEL_FAILED_TO_DERIVE_KEY,
   SECURE_CHANNEL_CIPHER_FAILED,
   SECURE_CHANNEL_CONFIRMATION_FAILED,
+  SECURE_CHANNEL_VERIFY_FAILED,
   SECURE_CHANNEL_ERROR_NO_CONFIRMATION,
+  SECURE_CHANNEL_ERROR_PARAMS,
+  SECURE_CHANNEL_ERROR_READ_CERT,
 } secure_channel_err_t;
 
 typedef enum {
@@ -187,19 +197,19 @@ secure_bool_t secure_uart_channel_decrypt(uint8_t const* ciphertext, uint8_t* pl
  *
  * Sets the session as confirmed on success, enabling subsequent encryption/decryption operations.
  *
- * TODO [SECENG-8961]: This function should also verify the signature once certs are added
- *
  * @param[in] received_tag The key confirmation tag received from the peer.
  *                         Must be SECURE_CHANNEL_KEY_CONFIRMATION_TAG_LEN bytes.
  * @return SECURE_CHANNEL_OK if tags match, SECURE_CHANNEL_CONFIRMATION_FAILED otherwise.
  */
-secure_channel_err_t secure_uart_channel_confirm_session(uint8_t* received_tag);
+NO_OPTIMIZE secure_channel_err_t secure_uart_channel_confirm_session(uint8_t* received_tag,
+                                                                     uint8_t* exchange_sig,
+                                                                     uint32_t exchange_sig_len);
 
 /**
  * @brief Check if the UART secure channel session has been confirmed.
  *
  * A session is confirmed after secure_uart_channel_confirm_session() successfully
- * verifies the peer's key confirmation tag (and signature after SECENG-8961 is complete).
+ * verifies the peer's key confirmation tag and signature.
  *
  * @return true if the session is confirmed, false otherwise.
  */

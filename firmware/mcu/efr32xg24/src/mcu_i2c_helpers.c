@@ -2,7 +2,7 @@
 
 static const uint32_t flush_rx_timeout_ms = 5;
 
-static mcu_i2c_bus_state_t PERIPHERALS_DATA state[I2C_COUNT] = {0};
+static mcu_i2c_bus_state_t SHARED_TASK_BSS state[I2C_COUNT] = {0};
 
 static void flush_rx(mcu_i2c_bus_t* bus);
 

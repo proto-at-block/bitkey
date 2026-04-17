@@ -16,8 +16,6 @@ messages:
       auth: never
     - name: fwpb_derive_public_key_cmd
       auth: always
-    - name: fwpb_derive_public_key_and_sign_cmd
-      auth: always
     # Auth task should handle these, but it doesn't have the
     # stack space for libsecp256k1...
     - name: fwpb_fingerprint_reset_request_cmd
@@ -30,8 +28,47 @@ messages:
       auth: after_onboarding
     - name: fwpb_verify_keys_and_build_descriptor_cmd
       auth: after_onboarding
+    - name: fwpb_sign_action_proof_cmd
+      auth: after_onboarding
+    - name: fwpb_lost_app_recovery_cmd
+      auth: after_onboarding
+    - name: fwpb_lost_app_recovery_continue_cmd
+      auth: after_onboarding
+    - name: fwpb_lost_app_recovery_sign_challenge_cmd
+      auth: after_onboarding
+    - name: fwpb_rotate_app_auth_keys_cmd
+      auth: after_onboarding
+    - name: fwpb_sign_challenge_and_seal_seks_cmd
+      auth: after_onboarding
+    - name: fwpb_recovery_authorize_lost_app_cmd
+      auth: after_onboarding
+    - name: fwpb_recovery_authorize_lost_hw_cmd
+      auth: after_onboarding
+    - name: fwpb_eek_restoration_unseal_symmetric_key_cmd
+      auth: after_onboarding
+    - name: fwpb_full_account_cloud_backup_restoration_cmd
+      auth: after_onboarding
+    - name: fwpb_full_account_cloud_backup_restoration_continue_cmd
+      auth: after_onboarding
+    - name: fwpb_upgrade_authorize_w3_cmd
+      auth: after_onboarding
+    - name: fwpb_upgrade_rotate_app_auth_keys_cmd
+      auth: after_onboarding
+    - name: fwpb_sign_tx_request_cmd
+      auth: after_onboarding
+    - name: fwpb_sign_stream_start_cmd
+      auth: after_onboarding
+    - name: fwpb_sign_stream_transfer_cmd
+      auth: after_onboarding
+    - name: fwpb_sign_stream_finalize_cmd
+      auth: after_onboarding
+    - name: fwpb_get_tx_signature_cmd
+      auth: after_onboarding
+    - name: fwpb_get_tx_signatures_batch_cmd
+      auth: after_onboarding
   structs:
     - name: key_manager_remove_wallet_state_t
     - name: key_manager_clear_derived_key_cache_t
-    - name: key_manager_uxc_boot_t
+    - name: key_manager_sign_deferred_t
+    - name: key_manager_uxc_session_init_t
     - name: key_manager_uxc_session_response_t

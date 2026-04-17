@@ -1,14 +1,30 @@
 #include "assert.h"
+#include "attributes.h"
 #include "fwup_addr.h"
 #include "fwup_flash_impl.h"
 #include "fwup_impl.h"
 #include "log.h"
 #include "mcu_flash.h"
 #include "perf.h"
+#include "rtos.h"
 
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+SYSCALL NO_OPTIMIZE static mcu_flash_status_t _fwup_flash_erase_page(uint32_t* address) {
+  mcu_flash_status_t result;
+  RTOS_THREAD_WITH_PRIVILEGE({ result = mcu_flash_erase_page(address); });
+  return result;
+}
+
+SYSCALL NO_OPTIMIZE static mcu_flash_status_t _fwup_flash_write_word(uint32_t* address,
+                                                                     void const* data,
+                                                                     uint32_t len) {
+  mcu_flash_status_t result;
+  RTOS_THREAD_WITH_PRIVILEGE({ result = mcu_flash_write_word(address, data, len); });
+  return result;
+}
 
 size_t fwup_flash_get_max_chunk_size(void) {
   size_t max_chunk_size = sizeof(((fwpb_fwup_transfer_cmd_fwup_data_t*)0)->bytes);
@@ -27,7 +43,7 @@ bool fwup_flash_erase(perf_counter_t* perf, void* slot_addr, size_t size) {
   for (size_t page = 0; page < pages; page++) {
     const uint32_t* page_address = (uint32_t*)((uintptr_t)slot_addr + (page * FLASH_PAGE_SIZE));
 
-    const mcu_flash_status_t result = mcu_flash_erase_page((uint32_t*)page_address);
+    const mcu_flash_status_t result = _fwup_flash_erase_page((uint32_t*)page_address);
 
     if (result != MCU_FLASH_STATUS_OK) {
       LOGE("Error %i erasing flash", result);
@@ -62,7 +78,7 @@ bool fwup_flash_erase_bl(perf_counter_t* perf, void* slot_addr, size_t bl_size) 
 
 bool fwup_flash_write(perf_counter_t* perf, void* address, void const* data, size_t len) {
   perf_begin(perf);
-  const mcu_flash_status_t result = mcu_flash_write_word((uint32_t*)address, data, len);
+  const mcu_flash_status_t result = _fwup_flash_write_word((uint32_t*)address, data, len);
   if (result != MCU_FLASH_STATUS_OK) {
     LOGE("Error %i writing flash", result);
   }

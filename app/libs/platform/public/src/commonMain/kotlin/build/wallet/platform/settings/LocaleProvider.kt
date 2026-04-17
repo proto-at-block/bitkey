@@ -24,5 +24,11 @@ fun interface LocaleProvider {
  */
 @JvmInline
 value class Locale(val value: String) {
+  /**
+   * Returns the locale identifier normalized to BCP 47 format (using '-' separator).
+   * iOS uses '_' (e.g. "en_US") while Android uses '-' (e.g. "en-US").
+   */
+  fun toBcp47(): String = value.replace('_', '-')
+
   companion object // for companion extensions.
 }

@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.ui.model.callout.CalloutModel
+import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tooling.PreviewWalletTheme
 
 @Preview
@@ -25,8 +26,16 @@ fun CalloutPreviews() {
   }
 }
 
+@Preview
 @Composable
-fun CalloutList() {
+fun CalloutPreviewsDesignSystemV2() {
+  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+    CalloutList(useThemeBackground = true)
+  }
+}
+
+@Composable
+fun CalloutList(useThemeBackground: Boolean = false) {
   val multipleLines = listOf(false, true)
   val treatments = CalloutModel.Treatment.entries
   val configs = treatments.flatMap { treatment ->
@@ -41,7 +50,9 @@ fun CalloutList() {
   LazyVerticalGrid(
     modifier = Modifier
       .fillMaxWidth()
-      .background(color = Color.White)
+      .background(
+        color = if (useThemeBackground) WalletTheme.colors.background else Color.White
+      )
       .padding(all = 10.dp),
     columns = GridCells.Fixed(2),
     verticalArrangement = Arrangement.spacedBy(10.dp),

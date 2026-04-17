@@ -1,0 +1,4 @@
+-- Add oldDeviceSerial column to track the old device's serial number during W3 upgrade
+ALTER TABLE w3UpgradeMigrationEntity ADD COLUMN oldDeviceSerial TEXT;
+
+PRAGMA foreign_key_check;

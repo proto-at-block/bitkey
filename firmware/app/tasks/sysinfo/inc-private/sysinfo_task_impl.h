@@ -13,13 +13,6 @@
 #include <stdint.h>
 
 /**
- * @brief Starts the shutdown timer for power off fallback.
- *
- * @param timeout_ms Milliseconds to wait before forcing shutdown.
- */
-void sysinfo_task_start_shutdown_timer(uint32_t timeout_ms);
-
-/**
  * @brief Returns `true` if the wallet device is in ship state.
  *
  * @details Ship state is a low power state designed to reduce as much current
@@ -112,6 +105,18 @@ void sysinfo_task_port_power_down(void);
 bool sysinfo_task_port_dispatch_confirmation_result(ipc_ref_t* message);
 
 /**
+ * @brief Platform-specific handler for wipe_state command.
+ *
+ * On W3: Requires on-device confirmation. Creates a confirmation, shows the
+ * privileged action screen, and returns CONFIRMATION_PENDING status.
+ * On W1: Returns false (no confirmation needed, caller does direct wipe).
+ *
+ * @param message IPC message containing wipe_state_cmd
+ * @return true if handled (W3 confirmation flow), false if caller should proceed with direct wipe
+ */
+bool sysinfo_task_port_handle_wipe_state(ipc_ref_t* message);
+
+/**
  * @brief Requests a coredump from a co-processor.
  *
  * @param cmd  Pointer to the received wallet command.
@@ -131,5 +136,20 @@ void sysinfo_task_request_coproc_events(fwpb_wallet_cmd* cmd);
  * @param[out] rsp  Device info response to populate with MCU information.
  */
 void sysinfo_task_port_populate_mcu_info(fwpb_device_info_rsp* rsp);
+
+/**
+ * @brief Handle host cert_get for DEVICE_SECURE_CHANNEL_CERT with cert_id (W3 only).
+ *
+ * @details When kind is #DEVICE_SECURE_CHANNEL_CERT and `cert_id` is set,
+ * the port may handle the request (local read or request-from-UXC). If handled, returns
+ * `true`, otherwise defers response (PEER) and returns `false`.
+ *
+ * @param cmd        Wallet cert_get_cmd (caller retains ownership if rsp_filled is false).
+ * @param rsp        Wallet cert_get_rsp to fill when returning local cert.
+ * @return true if rsp was filled (caller must proto_send_rsp),
+ *         false if response will be sent later (e.g. waiting on UXC).
+ */
+bool sysinfo_task_port_handle_host_secure_channel_cert_get(fwpb_wallet_cmd* cmd,
+                                                           fwpb_wallet_rsp* rsp);
 
 /** @} */

@@ -3,6 +3,7 @@ package build.wallet.f8e.recovery
 import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.code.InitiateAccountDelayNotifyErrorCode
 import bitkey.f8e.error.toF8eError
+import bitkey.account.HardwareType
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
@@ -12,11 +13,11 @@ import build.wallet.crypto.PublicKey
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.applyTo
 import build.wallet.f8e.client.plugins.withAccountId
 import build.wallet.f8e.client.plugins.withEnvironment
-import build.wallet.f8e.client.plugins.withHardwareFactor
 import build.wallet.f8e.logging.withDescription
 import build.wallet.f8e.recovery.InitiateAccountDelayNotifyF8eClient.SuccessfullyInitiated
 import build.wallet.ktor.result.HttpError.UnhandledException
@@ -44,9 +45,10 @@ class InitiateAccountDelayNotifyF8eClientImpl(
     lostFactor: PhysicalFactor,
     appGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     appRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
-    hwFactorProofOfPossession: HwFactorProofOfPossession?,
+    proof: PrivilegedActionProof?,
     delayPeriod: Duration?,
     hardwareAuthKey: HwAuthPublicKey,
+    hardwareType: HardwareType,
   ): Result<SuccessfullyInitiated, F8eError<InitiateAccountDelayNotifyErrorCode>> {
     return f8eHttpClient.authenticated()
       .bodyResult<ResponseBody> {
@@ -54,7 +56,7 @@ class InitiateAccountDelayNotifyF8eClientImpl(
           withDescription("Initiate D&N recovery.")
           withEnvironment(f8eEnvironment)
           withAccountId(fullAccountId)
-          hwFactorProofOfPossession?.run(::withHardwareFactor)
+          proof.applyTo(this)
           setRedactedBody(
             RequestBody(
               // TODO(W-3092): Remove delayPeriodNumSec
@@ -63,7 +65,8 @@ class InitiateAccountDelayNotifyF8eClientImpl(
                 AuthKeypairBody(
                   appGlobal = appGlobalAuthKey.value,
                   appRecovery = appRecoveryAuthKey.value,
-                  hardware = hardwareAuthKey.pubKey.value
+                  hardware = hardwareAuthKey.pubKey.value,
+                  hardwareType = hardwareType
                 ),
               lostFactor = lostFactor.toServerString()
             )

@@ -3,18 +3,12 @@ package build.wallet.bitcoin.transactions
 import app.cash.turbine.test
 import app.cash.turbine.turbineScope
 import build.wallet.bdk.bindings.BdkError
-import build.wallet.bdk.bindings.BdkOutPoint
-import build.wallet.bdk.bindings.BdkScript
-import build.wallet.bdk.bindings.BdkTxIn
-import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
 import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod
-import build.wallet.bitcoin.wallet.SpendingWalletV2Error
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.feature.flags.setBdk2Enabled
-import build.wallet.money.BitcoinMoney
 import build.wallet.money.BitcoinMoney.Companion.sats
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.addSomeFunds
@@ -29,22 +23,16 @@ import build.wallet.testing.shouldBeOk
 import build.wallet.testing.tags.TestTag.IsolatedTest
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
+import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.comparables.shouldBeGreaterThan
+import io.kotest.matchers.comparables.shouldBeLessThan
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.flow.first
 import kotlin.time.Duration.Companion.seconds
 
 class FeeBumpFunctionalTests : FunSpec({
-
-  // Valid P2WPKH scriptPubKey for error path tests: OP_0 <20-byte-pubkey-hash>
-  val fakeP2WPKHScript = object : BdkScript {
-    override val rawOutputScript: List<UByte> = listOf(
-      0x00u, 0x14u,
-      0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
-      0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u
-    )
-  }
 
   context("FeeBump - transactions with change") {
     test("creates valid replacement PSBT with higher fee")
@@ -388,83 +376,9 @@ class FeeBumpFunctionalTests : FunSpec({
       }
   }
 
-  context("ManualFeeBump - sweeps with output shrinking") {
-    test("creates valid PSBT with inputs from pending sweep transaction")
-      .config(tags = setOf(IsolatedTest)) {
-        val app = launchNewApp()
-        app.bdk2FeatureFlag.setBdk2Enabled(true)
-        app.onboardFullAccountWithFakeHardware()
+  context("FeeBumpWithDrain - sweeps and consolidations") {
 
-        val fundingAmount = sats(50_000L)
-
-        app.addSomeFunds(amount = fundingAmount)
-        app.waitForFunds { it.total == fundingAmount }
-
-        val spendingWallet = app.getActiveWallet()
-
-        val treasuryAddress = app.treasuryWallet.getReturnAddress()
-
-        // Create a sweep transaction (SendAll)
-        val originalPsbt = spendingWallet.createSignedPsbt(
-          PsbtConstructionMethod.Regular(
-            recipientAddress = treasuryAddress,
-            amount = BitcoinTransactionSendAmount.SendAll,
-            feePolicy = FeePolicy.Rate(FeeRate(1.0f))
-          )
-        ).shouldBeOk()
-
-        originalPsbt.numOfInputs.shouldBe(1)
-
-        val hwSignedPsbt = app.signPsbtWithHardware(originalPsbt)
-        app.bitcoinBlockchain.broadcast(hwSignedPsbt).shouldBeOk()
-
-        turbineScope(timeout = 30.seconds) {
-          spendingWallet.transactions().test {
-            spendingWallet.sync().shouldBeOk()
-
-            val txs = awaitUntil { txs ->
-              txs.any { it.id == hwSignedPsbt.id && it.confirmationStatus == Pending }
-            }
-
-            val pendingTx = txs.single { it.id == hwSignedPsbt.id }
-            val originalInputs = pendingTx.inputs.toList()
-
-            val outputScript = pendingTx.outputs.single().scriptPubkey
-
-            val originalFeeSats = pendingTx.fee.shouldNotBeNull()
-              .fractionalUnitValue.longValue()
-            val newFeeSats = originalFeeSats * 3
-
-            // Create ManualFeeBump PSBT
-            val manualFeeBumpPsbt = spendingWallet.createSignedPsbt(
-              PsbtConstructionMethod.ManualFeeBump(
-                originalInputs = originalInputs,
-                outputScript = outputScript,
-                absoluteFee = Fee(BitcoinMoney.sats(newFeeSats))
-              )
-            ).shouldBeOk()
-
-            manualFeeBumpPsbt.should {
-              it.numOfInputs.shouldBe(originalInputs.size)
-              it.fee.amount.fractionalUnitValue.longValue().shouldBe(newFeeSats)
-              // Verify RBF signaling is preserved (sequence < 0xFFFFFFFE)
-              it.inputs.any { input -> input.sequence < 0xFFFFFFFEu }.shouldBeTrue()
-            }
-
-            // Verify output shrinking
-            val originalOutputSats = pendingTx.outputs.single().value.toLong()
-            val expectedOutputSats = originalOutputSats - (newFeeSats - originalFeeSats)
-            manualFeeBumpPsbt.amountSats.toLong().shouldBe(expectedOutputSats)
-
-            val hwSignedReplacement = app.signPsbtWithHardware(manualFeeBumpPsbt)
-            app.bitcoinBlockchain.broadcast(hwSignedReplacement).shouldBeOk()
-          }
-        }
-
-        app.returnFundsToTreasury()
-      }
-
-    test("handles multiple inputs from pending consolidation transaction")
+    test("fee bump consolidation reduces output to cover higher fee")
       .config(tags = setOf(IsolatedTest)) {
         val app = launchNewApp()
         app.bdk2FeatureFlag.setBdk2Enabled(true)
@@ -483,7 +397,7 @@ class FeeBumpFunctionalTests : FunSpec({
         val spendingWallet = app.getActiveWallet()
         val selfAddress = spendingWallet.getNewAddress().shouldBeOk()
 
-        // Create consolidation (sends all to self)
+        // Create consolidation (sends all to self) with low fee
         val originalPsbt = spendingWallet.createSignedPsbt(
           PsbtConstructionMethod.Regular(
             recipientAddress = selfAddress,
@@ -506,39 +420,28 @@ class FeeBumpFunctionalTests : FunSpec({
             }
 
             val pendingTx = txs.single { it.id == hwSignedPsbt.id }
-            val originalInputs = pendingTx.inputs.toList()
-            originalInputs.size.shouldBe(2)
-
             val outputScript = pendingTx.outputs.single().scriptPubkey
 
-            val originalFeeSats = pendingTx.fee.shouldNotBeNull()
-              .fractionalUnitValue.longValue()
-            val newFeeSats = originalFeeSats * 2
-
-            val manualFeeBumpPsbt = spendingWallet.createSignedPsbt(
-              PsbtConstructionMethod.ManualFeeBump(
-                originalInputs = originalInputs,
-                outputScript = outputScript,
-                absoluteFee = Fee(BitcoinMoney.sats(newFeeSats))
+            // Use FeeBumpWithDrain which uses BumpFeeTxBuilder.drainTo() to shrink the output
+            val feeBumpWithDrainPsbt = spendingWallet.createSignedPsbt(
+              PsbtConstructionMethod.FeeBumpWithDrain(
+                txid = pendingTx.id,
+                feeRate = FeeRate(5.0f),
+                drainToScript = outputScript
               )
             ).shouldBeOk()
 
-            manualFeeBumpPsbt.should {
+            feeBumpWithDrainPsbt.should {
+              // Should have same inputs as original
               it.numOfInputs.shouldBe(2)
-              it.fee.amount.fractionalUnitValue.longValue().shouldBe(newFeeSats)
-              // Verify RBF signaling is preserved (sequence < 0xFFFFFFFE)
+              // Should have higher fee
+              it.fee.amount.fractionalUnitValue.longValue()
+                .shouldBeGreaterThan(pendingTx.fee.shouldNotBeNull().fractionalUnitValue.longValue())
+              // Should preserve RBF signaling
               it.inputs.any { input -> input.sequence < 0xFFFFFFFEu }.shouldBeTrue()
             }
 
-            // Verify output shrinking
-            // Note: For self-consolidation, amountSats is 0 since all outputs are "mine".
-            // Instead, verify the actual output value in the PSBT.
-            val originalOutputSats = pendingTx.outputs.single().value.toLong()
-            val expectedOutputSats = originalOutputSats - (newFeeSats - originalFeeSats)
-            val actualOutputSats = manualFeeBumpPsbt.outputs.single().value.toLong()
-            actualOutputSats.shouldBe(expectedOutputSats)
-
-            val hwSignedReplacement = app.signPsbtWithHardware(manualFeeBumpPsbt)
+            val hwSignedReplacement = app.signPsbtWithHardware(feeBumpWithDrainPsbt)
             app.bitcoinBlockchain.broadcast(hwSignedReplacement).shouldBeOk()
           }
         }
@@ -546,88 +449,222 @@ class FeeBumpFunctionalTests : FunSpec({
         app.returnFundsToTreasury()
       }
 
-    test("fails when txid not in wallet graph")
+    test("fee bump with drain does not sweep extra confirmed UTXOs")
       .config(tags = setOf(IsolatedTest)) {
         val app = launchNewApp()
         app.bdk2FeatureFlag.setBdk2Enabled(true)
         app.onboardFullAccountWithFakeHardware()
 
-        val fundingAmount = sats(50_000L)
+        // Fund wallet with 3 separate confirmed UTXOs
+        val utxoAmount1 = sats(5_000L)
+        val utxoAmount2 = sats(7_000L)
+        val utxoAmount3 = sats(8_000L)
 
-        app.addSomeFunds(amount = fundingAmount)
-        app.waitForFunds { it.total == fundingAmount }
+        app.addSomeFunds(amount = utxoAmount1)
+        app.waitForFunds { it.total == utxoAmount1 }
 
-        val spendingWallet = app.getActiveWallet()
+        app.addSomeFunds(amount = utxoAmount2)
+        app.waitForFunds { it.total == utxoAmount1 + utxoAmount2 }
 
-        // Fabricate inputs with a non-existent txid
-        val fakeInputs = listOf(
-          BdkTxIn(
-            outpoint = BdkOutPoint(
-              txid = "abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234",
-              vout = 0u
-            ),
-            sequence = 0xFFFFFFFDu, // RBF enabled
-            witness = emptyList()
-          )
-        )
-
-        val result = spendingWallet.createSignedPsbt(
-          PsbtConstructionMethod.ManualFeeBump(
-            originalInputs = fakeInputs,
-            outputScript = fakeP2WPKHScript,
-            absoluteFee = Fee(BitcoinMoney.sats(1000L))
-          )
-        )
-
-        result.shouldBeErrOfType<SpendingWalletV2Error.PreviousTransactionNotFound>()
-
-        app.returnFundsToTreasury()
-      }
-
-    test("fails when vout index is out of bounds")
-      .config(tags = setOf(IsolatedTest)) {
-        val app = launchNewApp()
-        app.bdk2FeatureFlag.setBdk2Enabled(true)
-        app.onboardFullAccountWithFakeHardware()
-
-        val fundingAmount = sats(50_000L)
-
-        app.addSomeFunds(amount = fundingAmount)
-        app.waitForFunds { it.total == fundingAmount }
+        app.addSomeFunds(amount = utxoAmount3)
+        app.waitForFunds { it.total == utxoAmount1 + utxoAmount2 + utxoAmount3 }
 
         val spendingWallet = app.getActiveWallet()
+        spendingWallet.sync().shouldBeOk()
+
+        // Get all 3 UTXOs
+        val allUtxos = spendingWallet.unspentOutputs().first()
+        allUtxos.shouldHaveSize(3)
+
+        // Select only 2 UTXOs for the original transaction (sorted by value for determinism)
+        val sortedUtxos = allUtxos.sortedBy { it.txOut.value }
+        val utxosToUse = sortedUtxos.take(2).toSet()
+        val selfAddress = spendingWallet.getNewAddress().shouldBeOk()
+
+        // Create original transaction draining only the 2 selected UTXOs
+        val originalPsbt = spendingWallet.createSignedPsbt(
+          PsbtConstructionMethod.DrainAllFromUtxos(
+            recipientAddress = selfAddress,
+            feePolicy = FeePolicy.Rate(FeeRate(1.0f)),
+            utxos = utxosToUse
+          )
+        ).shouldBeOk()
+
+        // Verify original uses exactly 2 inputs
+        originalPsbt.numOfInputs.shouldBe(2)
+        val originalOutpoints = originalPsbt.inputs.map { it.outpoint }.toSet()
+        originalOutpoints.shouldHaveSize(2)
+
+        val hwSignedOriginal = app.signPsbtWithHardware(originalPsbt)
+        app.bitcoinBlockchain.broadcast(hwSignedOriginal).shouldBeOk()
 
         turbineScope(timeout = 30.seconds) {
           spendingWallet.transactions().test {
             spendingWallet.sync().shouldBeOk()
 
-            // Get a real transaction from the wallet graph (the funding tx)
-            val txs = awaitUntil { it.isNotEmpty() }
-            val realTxid = txs.first().id
+            val txs = awaitUntil { txs ->
+              txs.any { it.id == hwSignedOriginal.id && it.confirmationStatus == Pending }
+            }
 
-            // Use real txid but invalid vout index
-            val fakeInputs = listOf(
-              BdkTxIn(
-                outpoint = BdkOutPoint(
-                  txid = realTxid,
-                  vout = 999u // Invalid - transaction won't have this many outputs
-                ),
-                sequence = 0xFFFFFFFDu,
-                witness = emptyList()
+            val pendingTx = txs.single { it.id == hwSignedOriginal.id }
+            val outputScript = pendingTx.outputs.single().scriptPubkey
+
+            // Fee bump using FeeBumpWithDrain
+            val feeBumpPsbt = spendingWallet.createSignedPsbt(
+              PsbtConstructionMethod.FeeBumpWithDrain(
+                txid = pendingTx.id,
+                feeRate = FeeRate(5.0f),
+                drainToScript = outputScript
+              )
+            ).shouldBeOk()
+
+            // Verify the fee bump uses ONLY the original 2 inputs, not the 3rd UTXO
+            feeBumpPsbt.numOfInputs.shouldBe(2)
+            val bumpedOutpoints = feeBumpPsbt.inputs.map { it.outpoint }.toSet()
+            bumpedOutpoints.shouldBe(originalOutpoints)
+
+            // Verify higher fee
+            feeBumpPsbt.fee.amount.fractionalUnitValue.longValue()
+              .shouldBeGreaterThan(pendingTx.fee.shouldNotBeNull().fractionalUnitValue.longValue())
+
+            // Verify RBF signaling preserved
+            feeBumpPsbt.inputs.any { it.sequence < 0xFFFFFFFEu }.shouldBeTrue()
+
+            val hwSignedReplacement = app.signPsbtWithHardware(feeBumpPsbt)
+            app.bitcoinBlockchain.broadcast(hwSignedReplacement).shouldBeOk()
+
+            // Sync after RBF replacement so wallet sees the new transaction
+            spendingWallet.sync().shouldBeOk()
+          }
+        }
+
+        app.returnFundsToTreasury()
+      }
+
+    test("fee bump with drain shrinks external sweep output and preserves script")
+      .config(tags = setOf(IsolatedTest)) {
+        val app = launchNewApp()
+        app.bdk2FeatureFlag.setBdk2Enabled(true)
+        app.onboardFullAccountWithFakeHardware()
+
+        val fundingAmount = sats(25_000L)
+
+        app.addSomeFunds(amount = fundingAmount)
+        app.waitForFunds { it.total == fundingAmount }
+
+        val spendingWallet = app.getActiveWallet()
+        val treasuryAddress = app.treasuryWallet.getReturnAddress()
+
+        val originalPsbt = spendingWallet.createSignedPsbt(
+          PsbtConstructionMethod.Regular(
+            recipientAddress = treasuryAddress,
+            amount = BitcoinTransactionSendAmount.SendAll,
+            feePolicy = FeePolicy.Rate(FeeRate(1.0f))
+          )
+        ).shouldBeOk()
+
+        originalPsbt.outputs.shouldHaveSize(1)
+        val originalOutputScript = originalPsbt.outputs.single().scriptPubkey
+        val originalAmountSats = originalPsbt.amountSats.toLong()
+
+        val hwSignedOriginal = app.signPsbtWithHardware(originalPsbt)
+        app.bitcoinBlockchain.broadcast(hwSignedOriginal).shouldBeOk()
+
+        turbineScope(timeout = 30.seconds) {
+          spendingWallet.transactions().test {
+            spendingWallet.sync().shouldBeOk()
+
+            val txs = awaitUntil { txs ->
+              txs.any { it.id == hwSignedOriginal.id && it.confirmationStatus == Pending }
+            }
+
+            val pendingTx = txs.single { it.id == hwSignedOriginal.id }
+            val outputScript = pendingTx.outputs.single().scriptPubkey
+
+            val bumpFeePsbt = spendingWallet.createSignedPsbt(
+              PsbtConstructionMethod.FeeBumpWithDrain(
+                txid = pendingTx.id,
+                feeRate = FeeRate(5.0f),
+                drainToScript = outputScript
+              )
+            ).shouldBeOk()
+
+            bumpFeePsbt.outputs.shouldHaveSize(1)
+            bumpFeePsbt.outputs.single().scriptPubkey.shouldBe(outputScript)
+            outputScript.shouldBe(originalOutputScript)
+
+            bumpFeePsbt.amountSats.toLong().shouldBeLessThan(originalAmountSats)
+            bumpFeePsbt.fee.amount.fractionalUnitValue.longValue()
+              .shouldBeGreaterThan(originalPsbt.fee.amount.fractionalUnitValue.longValue())
+
+            val hwSignedReplacement = app.signPsbtWithHardware(bumpFeePsbt)
+            app.bitcoinBlockchain.broadcast(hwSignedReplacement).shouldBeOk()
+
+            // Sync after RBF replacement so wallet sees the new transaction
+            spendingWallet.sync().shouldBeOk()
+
+            awaitUntil { replacementTxs ->
+              replacementTxs.any { it.id == hwSignedReplacement.id && it.confirmationStatus == Pending }
+            }
+          }
+        }
+
+        app.returnFundsToTreasury()
+      }
+
+    test("fee bump with drain fails with insufficient funds when output would be below dust limit")
+      .config(tags = setOf(IsolatedTest)) {
+        val app = launchNewApp()
+        app.bdk2FeatureFlag.setBdk2Enabled(true)
+        app.onboardFullAccountWithFakeHardware()
+
+        val fundingAmount = sats(2_000L)
+
+        app.addSomeFunds(amount = fundingAmount)
+        app.waitForFunds { it.total == fundingAmount }
+
+        val spendingWallet = app.getActiveWallet()
+        val selfAddress = spendingWallet.getNewAddress().shouldBeOk()
+
+        val originalPsbt = spendingWallet.createSignedPsbt(
+          PsbtConstructionMethod.Regular(
+            recipientAddress = selfAddress,
+            amount = BitcoinTransactionSendAmount.SendAll,
+            feePolicy = FeePolicy.Rate(FeeRate(1.0f))
+          )
+        ).shouldBeOk()
+
+        val hwSignedOriginal = app.signPsbtWithHardware(originalPsbt)
+        app.bitcoinBlockchain.broadcast(hwSignedOriginal).shouldBeOk()
+
+        turbineScope(timeout = 30.seconds) {
+          spendingWallet.transactions().test {
+            spendingWallet.sync().shouldBeOk()
+
+            val txs = awaitUntil { txs ->
+              txs.any { it.id == hwSignedOriginal.id && it.confirmationStatus == Pending }
+            }
+
+            val pendingTx = txs.single { it.id == hwSignedOriginal.id }
+            val originalFee =
+              pendingTx.fee.shouldNotBeNull().fractionalUnitValue.longValue()
+            val originalOutput = pendingTx.outputs.single().value.toLong()
+            val vsize = pendingTx.vsize.shouldNotBeNull().toLong()
+            val inputSum = originalFee + originalOutput
+            // Intentionally below any reasonable dust threshold, independent of relay fee and script type.
+            val targetOutput = 1L
+            val targetFee = inputSum - targetOutput
+            val targetFeeRate = FeeRate(targetFee.toFloat() / vsize.toFloat())
+
+            val bumpResult = spendingWallet.createSignedPsbt(
+              PsbtConstructionMethod.FeeBumpWithDrain(
+                txid = pendingTx.id,
+                feeRate = targetFeeRate,
+                drainToScript = pendingTx.outputs.single().scriptPubkey
               )
             )
 
-            val result = spendingWallet.createSignedPsbt(
-              PsbtConstructionMethod.ManualFeeBump(
-                originalInputs = fakeInputs,
-                outputScript = fakeP2WPKHScript,
-                absoluteFee = Fee(BitcoinMoney.sats(1000L))
-              )
-            )
-
-            result.shouldBeErrOfType<SpendingWalletV2Error.PreviousOutputNotFound>()
-
-            cancelAndConsumeRemainingEvents()
+            bumpResult.shouldBeErrOfType<BdkError.InsufficientFunds>()
           }
         }
 

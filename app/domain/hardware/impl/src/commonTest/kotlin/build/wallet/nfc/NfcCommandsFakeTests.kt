@@ -1,5 +1,7 @@
 package build.wallet.nfc
 
+import bitkey.account.AccountConfigServiceFake
+import bitkey.account.HardwareType
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilderMock
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.wallet.SpendingWalletFake
@@ -22,7 +24,26 @@ import com.github.michaelbull.result.Ok
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
+import okio.ByteString.Companion.decodeHex
 import okio.ByteString.Companion.encodeUtf8
+import kotlinx.coroutines.runBlocking
+
+/**
+ * Helper to deliver the descriptor to a W3 fake, unblocking [getAddress] and [signTransaction].
+ */
+private suspend fun BitkeyW3CommandsFake.deliverDescriptor(session: NfcSession) {
+  verifyKeysAndBuildDescriptor(
+    session = session,
+    appSpendingKey = "00".repeat(33).decodeHex(),
+    appSpendingKeyChaincode = "00".repeat(32).decodeHex(),
+    networkMainnet = true,
+    appAuthKey = "00".repeat(33).decodeHex(),
+    serverSpendingKey = "00".repeat(33).decodeHex(),
+    serverSpendingKeyChaincode = "00".repeat(32).decodeHex(),
+    wsmSignature = "00".repeat(64).decodeHex(),
+    accountIndex = 0u,
+  )
+}
 
 class NfcCommandsFakeTests : FunSpec({
   val sqlDriver = inMemorySqlDriver()
@@ -79,6 +100,12 @@ class NfcCommandsFakeTests : FunSpec({
         nfcCommands.unsealData(sessionFake, sealedCsek)
       }
     }
+
+    test("maps malformed sealed data to unseal exception") {
+      shouldThrow<NfcException.CommandErrorSealCsekResponseUnsealException> {
+        nfcCommands.unsealData(sessionFake, "not-protobuf".encodeUtf8())
+      }
+    }
   }
 
   context("sign transaction") {
@@ -107,9 +134,31 @@ class NfcCommandsFakeTests : FunSpec({
   }
 
   context("W3 getAddress") {
-    val w3Commands = BitkeyW3CommandsFake(nfcCommands)
+    val accountConfigService = AccountConfigServiceFake().also {
+      runBlocking { it.setHardwareType(HardwareType.W3) }
+    }
+    val w3Commands = BitkeyW3CommandsFake(
+      w1CommandsFake = nfcCommands,
+      accountConfigService = accountConfigService,
+      fakeHardwareKeyStore = fakeHardwareKeyStore,
+      fakeHardwareSpendingWalletProvider = fakeHardwareSpendingWalletProvider,
+      fakeHardwareStatesDao = fakeHardwareStatesDao,
+      messageSigner = messageSigner,
+      signatureUtils = signatureUtils
+    )
 
-    test("W3 fake returns address at index 0") {
+    test("W3 fake throws DescriptorNotLoaded before descriptor delivery") {
+      shouldThrow<NfcException.DescriptorNotLoaded> {
+        w3Commands.getAddress(
+          session = sessionFake,
+          addressIndex = 0u
+        )
+      }
+    }
+
+    test("W3 fake returns address at index 0 after descriptor delivery") {
+      w3Commands.deliverDescriptor(sessionFake)
+
       val result = w3Commands.getAddress(
         session = sessionFake,
         addressIndex = 0u
@@ -118,7 +167,9 @@ class NfcCommandsFakeTests : FunSpec({
       result.shouldBeEqual("bc1q_fake_w3_0")
     }
 
-    test("W3 fake returns address at index 5") {
+    test("W3 fake returns address at index 5 after descriptor delivery") {
+      w3Commands.deliverDescriptor(sessionFake)
+
       val result = w3Commands.getAddress(
         session = sessionFake,
         addressIndex = 5u
@@ -127,7 +178,9 @@ class NfcCommandsFakeTests : FunSpec({
       result.shouldBeEqual("bc1q_fake_w3_5")
     }
 
-    test("W3 fake returns different addresses for different indices") {
+    test("W3 fake returns different addresses for different indices after descriptor delivery") {
+      w3Commands.deliverDescriptor(sessionFake)
+
       val result0 = w3Commands.getAddress(sessionFake, 0u)
       val result1 = w3Commands.getAddress(sessionFake, 1u)
       val result2 = w3Commands.getAddress(sessionFake, 2u)
@@ -135,6 +188,41 @@ class NfcCommandsFakeTests : FunSpec({
       result0.shouldBeEqual("bc1q_fake_w3_0")
       result1.shouldBeEqual("bc1q_fake_w3_1")
       result2.shouldBeEqual("bc1q_fake_w3_2")
+    }
+  }
+
+  context("W3 descriptor delivery") {
+    val accountConfigService = AccountConfigServiceFake().also {
+      runBlocking { it.setHardwareType(HardwareType.W3) }
+    }
+    val w3Commands = BitkeyW3CommandsFake(
+      w1CommandsFake = nfcCommands,
+      accountConfigService = accountConfigService,
+      fakeHardwareKeyStore = fakeHardwareKeyStore,
+      fakeHardwareSpendingWalletProvider = fakeHardwareSpendingWalletProvider,
+      fakeHardwareStatesDao = fakeHardwareStatesDao,
+      messageSigner = messageSigner,
+      signatureUtils = signatureUtils
+    )
+
+    test("getAddress throws DescriptorNotLoaded when descriptor has not been delivered") {
+      shouldThrow<NfcException.DescriptorNotLoaded> {
+        w3Commands.getAddress(sessionFake, 0u)
+      }
+    }
+
+    test("signTransaction throws DescriptorNotLoaded when descriptor has not been delivered") {
+      shouldThrow<NfcException.DescriptorNotLoaded> {
+        w3Commands.signTransaction(sessionFake, PsbtMock, SpendingKeysetMock)
+      }
+    }
+
+    test("getAddress works after descriptor delivery") {
+      // Deliver the descriptor
+      w3Commands.deliverDescriptor(sessionFake)
+
+      // Now getAddress should work
+      w3Commands.getAddress(sessionFake, 0u).shouldBeEqual("bc1q_fake_w3_0")
     }
   }
 })

@@ -1,5 +1,7 @@
 #[cfg(feature = "account")]
 pub mod account;
+#[cfg(feature = "anti_replay")]
+pub mod anti_replay;
 #[cfg(feature = "consent")]
 pub mod consent;
 #[cfg(feature = "encrypted_attachment")]

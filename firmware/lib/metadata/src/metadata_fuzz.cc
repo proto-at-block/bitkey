@@ -12,6 +12,7 @@ size_t app_b_metadata_size;
 size_t app_b_metadata_page;
 
 FAKE_VALUE_FUNC(int, _putchar, int);
+FAKE_VALUE_FUNC(bool, rtos_in_isr);
 }
 
 #include <stddef.h>

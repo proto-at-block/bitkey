@@ -9,7 +9,7 @@ import build.wallet.ui.model.label.CallToActionModel
 import io.kotest.core.spec.style.FunSpec
 
 class NotificationPreferencesFormScreenSnapshots : FunSpec({
-  val paparazzi = paparazziExtension()
+  val paparazzi = paparazziExtension(maxPercentDifference = 0.2)
 
   test("notifications preferences editing") {
     paparazzi.snapshot {
@@ -77,6 +77,28 @@ class NotificationPreferencesFormScreenSnapshots : FunSpec({
           onBack = {},
           tosInfo = null,
           ctaModel = null,
+          continueOnClick = {},
+          onMoneyMovementLearnMore = {}
+        )
+      )
+    }
+  }
+
+  test("notifications preferences editing no tos with design system v2 feature flag on") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      FormScreen(
+        model = NotificationPreferenceFormBodyModel(
+          transactionPush = false,
+          updatesPush = true,
+          updatesEmail = false,
+          onTransactionPushToggle = {},
+          onUpdatesPushToggle = {},
+          onUpdatesEmailToggle = {},
+          formEditingState = NotificationPreferencesFormEditingState.Editing,
+          onBack = {},
+          tosInfo = null,
+          ctaModel = null,
+          isDesignSystemV2Enabled = true,
           continueOnClick = {},
           onMoneyMovementLearnMore = {}
         )

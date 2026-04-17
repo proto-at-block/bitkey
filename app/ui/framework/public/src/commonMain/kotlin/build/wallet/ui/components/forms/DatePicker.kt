@@ -13,6 +13,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
+import build.wallet.ui.compose.datePickerTestTag
+import build.wallet.ui.compose.resId
+import build.wallet.ui.compose.resolveTestTag
 import build.wallet.ui.model.datetime.DatePickerModel
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
@@ -21,6 +24,7 @@ import build.wallet.ui.tokens.LabelType
 fun DatePickerField(
   modifier: Modifier = Modifier,
   model: DatePickerModel,
+  testTag: String? = null,
 ) {
   var isShowingDatePicker by remember {
     mutableStateOf(false)
@@ -29,6 +33,12 @@ fun DatePickerField(
   Row(
     modifier =
       modifier
+        .resId(
+          resolveTestTag(
+            testTag ?: model.testTag,
+            datePickerTestTag(model.valueStringRepresentation)
+          )
+        )
         .clip(RoundedCornerShape(size = 32.dp))
         .defaultMinSize(
           minWidth = 280.dp, // Material3 default TextField minimum width

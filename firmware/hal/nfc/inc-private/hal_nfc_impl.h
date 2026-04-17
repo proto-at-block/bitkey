@@ -31,6 +31,26 @@
 #define HAL_NFC_LOG_COMMS (0)
 
 /**
+ * @brief Timeout (ms) before an NFC session without WCA is considered background reading.
+ */
+#define NFC_SESSION_TIMEOUT_MS (1500)
+
+/**
+ * @brief Post-timeout cooldown (ms) to keep the tag invisible for foreground handoff.
+ */
+#define NFC_COOLDOWN_MS (100)
+
+/**
+ * @brief NFC listener session states for iOS background tag reading detection.
+ */
+typedef enum {
+  NFC_SESSION_IDLE,         // No active session. Ready to accept activation.
+  NFC_SESSION_ACTIVATED,    // ISO-DEP session active. Timer running. Waiting for WCA.
+  NFC_SESSION_ESTABLISHED,  // WCA command received. Session is permanent. Timer cancelled.
+  NFC_SESSION_COOLDOWN,     // Post-deactivation ignore window.
+} nfc_session_state_t;
+
+/**
  * @brief Event bitmask posted to the NFC event group.
  */
 typedef enum {
@@ -114,6 +134,16 @@ typedef struct {
    * @brief Number of bytes written to #hal_nfc_priv_t.rx_buf.
    */
   uint16_t* rx_len;
+
+  /**
+   * @brief iOS session timeout state for detecting background tag reading.
+   */
+  nfc_session_state_t session_state;
+
+  /**
+   * @brief Timestamp for session timeout / cooldown deadline.
+   */
+  uint32_t session_timer_start;
 } hal_nfc_priv_t;
 
 /** @} */

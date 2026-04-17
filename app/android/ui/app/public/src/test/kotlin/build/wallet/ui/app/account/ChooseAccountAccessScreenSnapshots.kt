@@ -18,4 +18,16 @@ class ChooseAccountAccessScreenSnapshots : FunSpec({
       )
     }
   }
+
+  test("create or recover wallet screen with design system v2 feature flag on") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      ChooseAccountAccessScreen(
+        model = ChooseAccountAccessModel(
+          onLogoClick = {},
+          onSetUpNewWalletClick = {},
+          onMoreOptionsClick = {}
+        )
+      )
+    }
+  }
 })

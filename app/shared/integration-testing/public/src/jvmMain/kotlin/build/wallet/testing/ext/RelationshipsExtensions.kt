@@ -5,6 +5,7 @@ import build.wallet.bitkey.relationships.*
 import build.wallet.cloud.backup.SocRecV1BackupFeatures
 import build.wallet.cloud.backup.socRecDataAvailable
 import build.wallet.cloud.store.CloudStoreAccountFake
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.realDelay
 import build.wallet.statemachine.core.test
 import build.wallet.testing.AppTester
@@ -51,7 +52,7 @@ suspend fun AppTester.createTcInvite(tcName: String): TrustedContactFullInvite {
     .createInvitation(
       account = account,
       trustedContactAlias = TrustedContactAlias(tcName),
-      hardwareProofOfPossession = hwPop,
+      proof = PrivilegedActionProof.HwKeyProof(hwPop),
       roles = setOf(TrustedContactRole.SocialRecoveryContact)
     )
     .getOrThrow { error ->

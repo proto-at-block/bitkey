@@ -6,11 +6,32 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.AppearanceEventTrackerScreenId
@@ -19,10 +40,16 @@ import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.ui.app.core.form.MoneyHomeHero
+import build.wallet.ui.components.card.Card
 import build.wallet.ui.components.header.Header
+import build.wallet.ui.components.label.Label
+import build.wallet.ui.components.label.LabelTreatment
+import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.components.list.ListGroup
+import build.wallet.ui.components.list.ListItem
 import build.wallet.ui.components.tab.CircularTabRow
 import build.wallet.ui.components.toolbar.Toolbar
+import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
@@ -32,9 +59,12 @@ import build.wallet.ui.model.list.ListItemSideTextTint
 import build.wallet.ui.model.switch.SwitchModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
+import build.wallet.ui.system.BackHandler
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
+import build.wallet.ui.tokens.LabelType
 import kotlinx.collections.immutable.toImmutableList
 import org.jetbrains.compose.resources.stringResource
 
@@ -69,6 +99,15 @@ class AppearancePreferenceBodyModel(
 
   @Composable
   override fun render(modifier: Modifier) {
+    if (LocalDesignSystemUpdatesEnabled.current) {
+      AppearancePreferenceScreenDesignSystem(modifier = modifier)
+    } else {
+      AppearancePreferenceScreenLegacy(modifier = modifier)
+    }
+  }
+
+  @Composable
+  private fun AppearancePreferenceScreenLegacy(modifier: Modifier = Modifier) {
     Column(
       modifier = modifier
         .background(WalletTheme.colors.background)
@@ -108,63 +147,300 @@ class AppearancePreferenceBodyModel(
 
       AnimatedContent(
         targetState = selectedSection,
-        modifier = Modifier.weight(1f),
         transitionSpec = {
           fadeIn(tween(200, delayMillis = 90))
             .togetherWith(fadeOut(tween(90)))
         }
       ) { section ->
         Column(
-          modifier = Modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState()),
+          modifier = Modifier.fillMaxWidth(),
           verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-          when (section) {
-            AppearanceSection.DISPLAY -> {
-              val displayContent = displaySectionContent(
-                themePreferenceString = themePreferenceString,
-                onThemePreferenceClick = onThemePreferenceClick
-              )
-              ListGroup(
-                model = displayContent.listGroupModel,
-                modifier = Modifier.fillMaxWidth()
-              )
-            }
-            AppearanceSection.CURRENCY -> {
-              val currencyContent = currencySectionContent(
-                fiatCurrencyPreferenceString = fiatCurrencyPreferenceString,
-                onFiatCurrencyPreferenceClick = onFiatCurrencyPreferenceClick,
-                bitcoinDisplayPreferenceString = bitcoinDisplayPreferenceString,
-                onBitcoinDisplayPreferenceClick = onBitcoinDisplayPreferenceClick,
-                isBitcoinPriceCardEnabled = isBitcoinPriceCardEnabled,
-                onBitcoinPriceCardPreferenceClick = onBitcoinPriceCardPreferenceClick,
-                defaultTimeScalePreferenceString = defaultTimeScalePreferenceString,
-                onDefaultTimeScalePreferenceClick = onDefaultTimeScalePreferenceClick
-              )
-              currencyContent.forEach { listGroup ->
-                ListGroup(
-                  model = listGroup.listGroupModel,
-                  modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-              }
-            }
-            AppearanceSection.PRIVACY -> {
-              val privacyContent = privacySectionContent(
-                isHideBalanceEnabled = isHideBalanceEnabled,
-                onEnableHideBalanceChanged = onEnableHideBalanceChanged
-              )
-              ListGroup(
-                model = privacyContent.listGroupModel,
-                modifier = Modifier.fillMaxWidth()
-              )
+          appearanceSectionModels(section).forEachIndexed { index, listGroupModel ->
+            ListGroup(
+              model = listGroupModel,
+              modifier = Modifier.fillMaxWidth()
+            )
+
+            if (section == AppearanceSection.CURRENCY && index < appearanceSectionModels(section).lastIndex) {
+              Spacer(modifier = Modifier.height(8.dp))
             }
           }
         }
       }
     }
   }
+
+  @Composable
+  private fun AppearancePreferenceScreenDesignSystem(modifier: Modifier = Modifier) {
+    BackHandler(onBack = onBack)
+
+    val scrollState = rememberScrollState()
+    val collapseRangePx = with(LocalDensity.current) { APPEARANCE_TITLE_COLLAPSE_RANGE.toPx() }
+    val title = header.headline ?: "Appearance"
+
+    val collapseProgress by remember(scrollState, collapseRangePx) {
+      derivedStateOf {
+        if (collapseRangePx <= 0f) {
+          0f
+        } else {
+          (scrollState.value / collapseRangePx).coerceIn(0f, 1f)
+        }
+      }
+    }
+
+    Box(
+      modifier = modifier
+        .fillMaxSize()
+        .background(WalletTheme.colors.background)
+        .imePadding()
+    ) {
+      Column(
+        modifier = Modifier
+          .fillMaxSize()
+          .verticalScroll(scrollState)
+          .padding(horizontal = APPEARANCE_HORIZONTAL_PADDING)
+      ) {
+        Spacer(modifier = Modifier.height(APPEARANCE_TOOLBAR_RESERVED_HEIGHT))
+
+        Label(
+          modifier = Modifier
+            .padding(top = APPEARANCE_LARGE_TITLE_TOP_SPACING)
+            .alpha(1f - collapseProgress),
+          text = title,
+          type = LabelType.Display3
+        )
+
+        header.sublineModel?.let { sublineModel ->
+          Label(
+            modifier = Modifier.padding(top = 8.dp),
+            model = sublineModel,
+            type = LabelType.Body2Regular,
+            treatment = LabelTreatment.Secondary
+          )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        MoneyHomeHero(
+          model = moneyHomeHero,
+          selectedSection = selectedSection,
+          isDarkMode = LocalTheme.current == Theme.DARK,
+          isPriceGraphEnabled = isBitcoinPriceCardEnabled
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        CircularTabRow(
+          items = AppearanceSection.entries.map { stringResource(it.label) }.toImmutableList(),
+          selectedItemIndex = selectedSection.ordinal,
+          onClick = { index -> onSectionSelected(AppearanceSection.entries[index]) },
+          backgroundColor = WalletTheme.colors.subtleBackground
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        AnimatedContent(
+          targetState = selectedSection,
+          modifier = Modifier.fillMaxWidth(),
+          transitionSpec = {
+            fadeIn(tween(200, delayMillis = 90))
+              .togetherWith(fadeOut(tween(90)))
+          }
+        ) { section ->
+          Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            appearanceSectionModels(section).forEach { listGroupModel ->
+              AppearancePreferenceDesignSystemListGroup(
+                model = listGroupModel,
+                modifier = Modifier.fillMaxWidth()
+              )
+            }
+          }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+      }
+
+      AppearancePreferenceCollapsibleToolbar(
+        title = title,
+        collapseProgress = collapseProgress
+      )
+    }
+  }
+
+  @Composable
+  private fun AppearancePreferenceDesignSystemListGroup(
+    model: ListGroupModel,
+    modifier: Modifier = Modifier,
+  ) {
+    Card(
+      modifier = modifier,
+      backgroundColor = WalletTheme.colors.secondary,
+      cornerRadius = 8.dp,
+      borderWidth = 0.dp,
+      paddingValues = PaddingValues(0.dp)
+    ) {
+      model.items.forEachIndexed { index, item ->
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .defaultMinSize(minHeight = 64.dp),
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          ListItem(model = item.designSystemAppearanceItemModel())
+        }
+
+        if (index < model.items.lastIndex) {
+          Divider(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            color = appearanceDividerColor()
+          )
+        }
+      }
+    }
+
+    model.explainerSubtext?.let { explainerSubtext ->
+      Label(
+        modifier = Modifier
+          .padding(horizontal = 16.dp)
+          .padding(top = 8.dp),
+        text = explainerSubtext,
+        treatment = LabelTreatment.Secondary,
+        type = LabelType.Body4Regular
+      )
+    }
+  }
+
+  @Composable
+  private fun BoxScope.AppearancePreferenceCollapsibleToolbar(
+    title: String,
+    collapseProgress: Float,
+  ) {
+    Box(
+      modifier = Modifier
+        .fillMaxWidth()
+        .height(
+          APPEARANCE_TOP_PADDING +
+            APPEARANCE_TOOLBAR_HEIGHT +
+            APPEARANCE_TOOLBAR_BOTTOM_PADDING +
+            APPEARANCE_TOOLBAR_BOTTOM_GRADIENT_HEIGHT
+        )
+    ) {
+      Box(
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(APPEARANCE_TOP_PADDING + APPEARANCE_TOOLBAR_HEIGHT + APPEARANCE_TOOLBAR_BOTTOM_PADDING)
+          .background(WalletTheme.colors.background)
+      ) {
+        Box(
+          modifier = Modifier
+            .padding(
+              top = APPEARANCE_TOP_PADDING,
+              start = APPEARANCE_HORIZONTAL_PADDING,
+              end = APPEARANCE_HORIZONTAL_PADDING
+            )
+            .fillMaxWidth()
+            .height(APPEARANCE_TOOLBAR_HEIGHT)
+        ) {
+          Toolbar(
+            model = ToolbarModel(
+              leadingAccessory = toolbar.leadingAccessory,
+              middleAccessory = null,
+              trailingAccessory = toolbar.trailingAccessory
+            ),
+            showDesignSystemChrome = false
+          )
+
+          Label(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(
+                start = if (toolbar.leadingAccessory != null) APPEARANCE_INLINE_TITLE_START_PADDING else 0.dp,
+                end = APPEARANCE_INLINE_TITLE_END_PADDING
+              )
+              .align(Alignment.CenterStart)
+              .alpha(collapseProgress),
+            text = title,
+            type = LabelType.Title2
+          )
+        }
+      }
+
+      Box(
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(APPEARANCE_TOOLBAR_BOTTOM_GRADIENT_HEIGHT)
+          .align(Alignment.BottomCenter)
+          .background(
+            brush = Brush.verticalGradient(
+              colors = listOf(
+                WalletTheme.colors.background,
+                WalletTheme.colors.background.copy(alpha = 0.65f),
+                Color.Transparent
+              )
+            )
+          )
+      )
+    }
+  }
+
+  private fun appearanceSectionModels(section: AppearanceSection): List<ListGroupModel> {
+    return when (section) {
+      AppearanceSection.DISPLAY -> listOf(
+        displaySectionContent(
+          themePreferenceString = themePreferenceString,
+          onThemePreferenceClick = onThemePreferenceClick
+        ).listGroupModel
+      )
+      AppearanceSection.CURRENCY ->
+        currencySectionContent(
+          fiatCurrencyPreferenceString = fiatCurrencyPreferenceString,
+          onFiatCurrencyPreferenceClick = onFiatCurrencyPreferenceClick,
+          bitcoinDisplayPreferenceString = bitcoinDisplayPreferenceString,
+          onBitcoinDisplayPreferenceClick = onBitcoinDisplayPreferenceClick,
+          isBitcoinPriceCardEnabled = isBitcoinPriceCardEnabled,
+          onBitcoinPriceCardPreferenceClick = onBitcoinPriceCardPreferenceClick,
+          defaultTimeScalePreferenceString = defaultTimeScalePreferenceString,
+          onDefaultTimeScalePreferenceClick = onDefaultTimeScalePreferenceClick
+        ).map(FormMainContentModel.ListGroup::listGroupModel)
+
+      AppearanceSection.PRIVACY -> listOf(
+        privacySectionContent(
+          isHideBalanceEnabled = isHideBalanceEnabled,
+          onEnableHideBalanceChanged = onEnableHideBalanceChanged
+        ).listGroupModel
+      )
+    }
+  }
+}
+
+@Composable
+private fun appearanceDividerColor(): Color {
+  return if (LocalTheme.current == Theme.DARK) {
+    WalletTheme.colors.foreground30
+  } else {
+    WalletTheme.colors.foreground10
+  }
+}
+
+private fun ListItemModel.designSystemAppearanceItemModel(): ListItemModel {
+  val adjustedTrailingAccessory = when (val accessory = trailingAccessory) {
+    is ListItemAccessory.IconAccessory ->
+      accessory.copy(
+        opticalOffsetX = accessory.opticalOffsetX ?: 4,
+        model = accessory.model.copy(iconSize = IconSize.Accessory)
+      )
+    else -> accessory
+  }
+
+  return copy(
+    titleType = LabelType.Body2Regular,
+    trailingAccessory = adjustedTrailingAccessory
+  )
 }
 
 private fun displaySectionContent(
@@ -228,7 +504,8 @@ private fun currencySectionContent(
             trailingAccessory = ListItemAccessory.SwitchAccessory(
               model = SwitchModel(
                 checked = isBitcoinPriceCardEnabled,
-                onCheckedChange = onBitcoinPriceCardPreferenceClick
+                onCheckedChange = onBitcoinPriceCardPreferenceClick,
+                testTag = "appearance-currency-show-price-graph-toggle"
               )
             )
           ),
@@ -257,7 +534,8 @@ private fun privacySectionContent(
           trailingAccessory = ListItemAccessory.SwitchAccessory(
             model = SwitchModel(
               checked = isHideBalanceEnabled,
-              onCheckedChange = onEnableHideBalanceChanged
+              onCheckedChange = onEnableHideBalanceChanged,
+              testTag = "appearance-privacy-hide-balance-toggle"
             )
           )
         )
@@ -267,3 +545,18 @@ private fun privacySectionContent(
     )
   )
 }
+
+private val APPEARANCE_TOP_PADDING: Dp = 8.dp
+private val APPEARANCE_HORIZONTAL_PADDING: Dp = 20.dp
+private val APPEARANCE_TOOLBAR_HEIGHT: Dp = 48.dp
+private val APPEARANCE_TOOLBAR_BOTTOM_PADDING: Dp = 8.dp
+private val APPEARANCE_TOOLBAR_BOTTOM_GRADIENT_HEIGHT: Dp = 20.dp
+private val APPEARANCE_TOOLBAR_RESERVED_HEIGHT =
+  APPEARANCE_TOP_PADDING +
+    APPEARANCE_TOOLBAR_HEIGHT +
+    APPEARANCE_TOOLBAR_BOTTOM_PADDING +
+    APPEARANCE_TOOLBAR_BOTTOM_GRADIENT_HEIGHT
+private val APPEARANCE_LARGE_TITLE_TOP_SPACING: Dp = 24.dp
+private val APPEARANCE_INLINE_TITLE_START_PADDING: Dp = 56.dp
+private val APPEARANCE_INLINE_TITLE_END_PADDING: Dp = 56.dp
+private val APPEARANCE_TITLE_COLLAPSE_RANGE: Dp = 120.dp

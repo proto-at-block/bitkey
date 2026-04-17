@@ -18,4 +18,19 @@ enum class NfcEventTrackerScreenId : EventTrackerScreenId {
 
   /** Screen shown when the NFC interaction fails */
   NFC_FAILURE,
+
+  /** Placeholder help screen shown from the Android DSV2 NFC flow */
+  NFC_HELP,
+
+  /**
+   * W3 two-tap flow: Screen shown when user taps before approving/denying on the device.
+   * Prompts user to make a decision on the hardware device.
+   */
+  NFC_CONFIRMATION_PENDING,
+
+  /**
+   * W3 two-tap flow: Screen shown when user explicitly denied on the device.
+   * Acknowledges denial and allows retry.
+   */
+  NFC_CONFIRMATION_DENIED,
 }

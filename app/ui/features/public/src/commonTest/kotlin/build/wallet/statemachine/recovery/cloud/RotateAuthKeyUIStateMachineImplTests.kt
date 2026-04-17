@@ -1,25 +1,39 @@
 package build.wallet.statemachine.recovery.cloud
 
+import bitkey.privilegedactions.ActionProofServiceFake
 import build.wallet.analytics.events.screen.id.InactiveAppEventTrackerScreenId
+import build.wallet.auth.AccountAuthTokensMock
 import build.wallet.auth.AuthKeyRotationFailure
 import build.wallet.auth.FullAccountAuthKeyRotationServiceMock
 import build.wallet.auth.PendingAuthKeyRotationAttempt
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
+import build.wallet.bitkey.auth.HwAuthPublicKeyMock
 import build.wallet.bitkey.auth.HwAuthSecp256k1PublicKeyMock
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.bitkey.keybox.FullAccountW3Mock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.keybox.keys.AppKeysGeneratorMock
+import build.wallet.nfc.platform.RotateAppAuthKeysCompositeResult
+import build.wallet.nfc.transaction.ProvisionAppAuthKeyTransactionProviderFake
 import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
+import build.wallet.statemachine.auth.RefreshAuthTokensProps
+import build.wallet.statemachine.auth.RefreshAuthTokensUiStateMachine
 import build.wallet.statemachine.auth.Request
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachineMock
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
+import build.wallet.statemachine.ui.awaitUntilBody
+import build.wallet.statemachine.ui.awaitUntilBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.clickSecondaryButton
 import build.wallet.statemachine.ui.matchers.shouldBeDisabled
@@ -35,15 +49,33 @@ class RotateAuthKeyUIStateMachineImplTests : FunSpec({
     object : ProofOfPossessionNfcStateMachine,
       ScreenStateMachineMock<ProofOfPossessionNfcProps>(id = "hw-proof-of-possession") {}
 
+  val refreshAuthTokensUiStateMachine =
+    object : RefreshAuthTokensUiStateMachine,
+      ScreenStateMachineMock<RefreshAuthTokensProps>(id = "refresh-auth-tokens") {}
+
+  val nfcConfirmableSessionUiStateMachine =
+    NfcConfirmableSessionUiStateMachineMock(id = "nfc-confirmable-session")
+
+  val nfcSessionUIStateMachine =
+    object : NfcSessionUIStateMachine,
+      ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(id = "nfc-session") {}
+
   val fullAccountAuthKeyRotationService = FullAccountAuthKeyRotationServiceMock(turbines::create)
   val appKeysGenerator = AppKeysGeneratorMock()
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
+  val actionProofService = ActionProofServiceFake()
+  val provisionAppAuthKeyTransactionProvider = ProvisionAppAuthKeyTransactionProviderFake()
 
   val stateMachine = RotateAuthKeyUIStateMachineImpl(
     appKeysGenerator = appKeysGenerator,
     proofOfPossessionNfcStateMachine = proofOfPossessionUIStateMachine,
     fullAccountAuthKeyRotationService = fullAccountAuthKeyRotationService,
-    inAppBrowserNavigator = inAppBrowserNavigator
+    inAppBrowserNavigator = inAppBrowserNavigator,
+    refreshAuthTokensUiStateMachine = refreshAuthTokensUiStateMachine,
+    nfcConfirmableSessionUiStateMachine = nfcConfirmableSessionUiStateMachine,
+    actionProofService = actionProofService,
+    provisionAppAuthKeyTransactionProvider = provisionAppAuthKeyTransactionProvider,
+    nfcSessionUIStateMachine = nfcSessionUIStateMachine
   )
 
   val onBackCalls = turbines.create<Unit>("onBack calls")
@@ -57,6 +89,8 @@ class RotateAuthKeyUIStateMachineImplTests : FunSpec({
 
   beforeTest {
     fullAccountAuthKeyRotationService.reset()
+    actionProofService.reset()
+    provisionAppAuthKeyTransactionProvider.reset()
   }
 
   test("deactivate other devices -- success") {
@@ -92,7 +126,45 @@ class RotateAuthKeyUIStateMachineImplTests : FunSpec({
         fullAccountAuthKeyRotationService.rotateAuthKeysCalls.awaitItem()
       }
 
+      // Provisioning hardware with new app auth key
+      awaitUntilBodyMock<NfcSessionUIStateMachineProps<Unit>>(id = "nfc-session") {
+        onSuccess(Unit)
+      }
+
+      awaitUntilBody<FormBodyModel> {
+        this.id.shouldBe(InactiveAppEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH)
+      }
+    }
+  }
+
+  test("provision cancel still succeeds") {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
+        secondaryButton.shouldNotBeNull().shouldBeDisabled()
+      }
+      awaitBody<FormBodyModel> {
+        clickSecondaryButton()
+      }
+
+      awaitBodyMock<ProofOfPossessionNfcProps>(id = "hw-proof-of-possession") {
+        (request as Request.HwKeyProofAndAccountSignature).onSuccess(
+          "",
+          HwAuthSecp256k1PublicKeyMock,
+          HwFactorProofOfPossession(""),
+          AppGlobalAuthKeyHwSignatureMock
+        )
+      }
+
+      awaitBody<LoadingSuccessBodyModel> {
+        fullAccountAuthKeyRotationService.rotateAuthKeysCalls.awaitItem()
+      }
+
+      // Cancel provisioning — should still show success
+      awaitUntilBodyMock<NfcSessionUIStateMachineProps<*>>(id = "nfc-session") {
+        onCancel()
+      }
+
+      awaitUntilBody<FormBodyModel> {
         this.id.shouldBe(InactiveAppEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH)
       }
     }
@@ -334,6 +406,123 @@ class RotateAuthKeyUIStateMachineImplTests : FunSpec({
       }
 
       onBackCalls.awaitItem()
+    }
+  }
+
+  // -- W3 path tests --
+
+  test("W3 deactivate other devices -- success") {
+    val w3Props = RotateAuthKeyUIStateMachineProps(
+      account = FullAccountW3Mock,
+      origin = RotateAuthKeyUIOrigin.PendingAttempt(
+        attempt = PendingAuthKeyRotationAttempt.ProposedAttempt
+      )
+    )
+
+    stateMachine.test(w3Props) {
+      // Initial loading state (keys generating)
+      awaitBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull()
+        secondaryButton
+          .shouldNotBeNull()
+          .shouldBeDisabled()
+      }
+      // Keys generated — kick other people out
+      awaitBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull()
+        clickSecondaryButton()
+      }
+
+      // W3 step 1: refreshing auth tokens
+      awaitUntilBodyMock<RefreshAuthTokensProps>(id = "refresh-auth-tokens") {
+        onSuccess(AccountAuthTokensMock)
+      }
+
+      // W3 step 2: building payload auto-transitions with fakes
+      // W3 step 3: composite NFC tap
+      awaitUntilBodyMock<NfcConfirmableSessionUIStateMachineProps<RotateAppAuthKeysCompositeResult>>(
+        id = "nfc-confirmable-session"
+      ) {
+        onSuccess(
+          RotateAppAuthKeysCompositeResult(
+            actionProofSignature = "ab".repeat(64),
+            appGlobalAuthKeyHwSignature = "cd".repeat(64),
+            hwSignedAccountId = "ef".repeat(64),
+            hwAuthPublicKey = HwAuthPublicKeyMock
+          )
+        )
+      }
+
+      // Rotating auth keys
+      awaitUntilBody<LoadingSuccessBodyModel> {
+        id.shouldBe(InactiveAppEventTrackerScreenId.ROTATING_AUTH)
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        fullAccountAuthKeyRotationService.rotateAuthKeysCalls.awaitItem()
+      }
+
+      // Provisioning hardware
+      awaitUntilBodyMock<NfcSessionUIStateMachineProps<Unit>>(id = "nfc-session") {
+        onSuccess(Unit)
+      }
+
+      // Success
+      awaitUntilBody<FormBodyModel> {
+        this.id.shouldBe(InactiveAppEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH)
+      }
+    }
+  }
+
+  test("W3 deactivate other devices -- rotation failure") {
+    val w3Props = RotateAuthKeyUIStateMachineProps(
+      account = FullAccountW3Mock,
+      origin = RotateAuthKeyUIOrigin.PendingAttempt(
+        attempt = PendingAuthKeyRotationAttempt.ProposedAttempt
+      )
+    )
+
+    stateMachine.test(w3Props) {
+      fullAccountAuthKeyRotationService.rotationResult.value = { request, _ ->
+        Err(AuthKeyRotationFailure.Unexpected(retryRequest = request))
+      }
+
+      // Initial loading → keys generated
+      awaitBody<FormBodyModel> {
+        secondaryButton.shouldNotBeNull().shouldBeDisabled()
+      }
+      awaitBody<FormBodyModel> {
+        clickSecondaryButton()
+      }
+
+      // Refresh tokens
+      awaitUntilBodyMock<RefreshAuthTokensProps>(id = "refresh-auth-tokens") {
+        onSuccess(AccountAuthTokensMock)
+      }
+
+      // Composite NFC tap
+      awaitUntilBodyMock<NfcConfirmableSessionUIStateMachineProps<RotateAppAuthKeysCompositeResult>>(
+        id = "nfc-confirmable-session"
+      ) {
+        onSuccess(
+          RotateAppAuthKeysCompositeResult(
+            actionProofSignature = "ab".repeat(64),
+            appGlobalAuthKeyHwSignature = "cd".repeat(64),
+            hwSignedAccountId = "ef".repeat(64),
+            hwAuthPublicKey = HwAuthPublicKeyMock
+          )
+        )
+      }
+
+      // Rotating auth keys
+      awaitUntilBody<LoadingSuccessBodyModel> {
+        fullAccountAuthKeyRotationService.rotateAuthKeysCalls.awaitItem()
+      }
+
+      // Unexpected failure
+      awaitUntilBody<FormBodyModel> {
+        this.id.shouldBe(InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_UNEXPECTED)
+        primaryButton.shouldNotBeNull()
+        secondaryButton.shouldNotBeNull()
+      }
     }
   }
 })

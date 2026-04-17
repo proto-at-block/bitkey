@@ -1,5 +1,7 @@
 #include "log.h"
 
+#include "rtos.h"
+
 #include <stdarg.h>
 
 #ifdef EMBEDDED_BUILD
@@ -21,18 +23,19 @@ log_level_t log_get_level(void) {
   return g_level;
 }
 
-void _log(log_level_t level, const char* colour, const char* file, int line, const char* format,
-          ...) {
+SYSCALL NO_OPTIMIZE void _log(log_level_t level, const char* colour, const char* file, int line,
+                              const char* format, ...) {
   if (level < g_level) {
     return;
   }
 
-  printf("%s[%s](%s:%d) " SHELL_COLOUR_RESET, colour, log_level_strings[level], file, line);
+  RTOS_THREAD_WITH_PRIVILEGE(
+    { printf("%s[%s](%s:%d) " SHELL_COLOUR_RESET, colour, log_level_strings[level], file, line); });
 
   va_list args;
   va_start(args, format);
-  vprintf(format, args);
+  RTOS_THREAD_WITH_PRIVILEGE({ vprintf(format, args); });
   va_end(args);
 
-  printf("\n");
+  RTOS_THREAD_WITH_PRIVILEGE({ printf("\n"); });
 }

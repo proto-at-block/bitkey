@@ -1,7 +1,7 @@
 package bitkey.notifications
 
 import build.wallet.bitkey.f8e.AccountId
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.ktor.result.NetworkingError
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
@@ -40,6 +40,6 @@ interface NotificationsPreferencesCachedProvider {
   suspend fun updateNotificationsPreferences(
     accountId: AccountId,
     preferences: NotificationPreferences,
-    hwFactorProofOfPossession: HwFactorProofOfPossession?,
+    proof: PrivilegedActionProof? = null,
   ): Result<Unit, NetworkingError>
 }

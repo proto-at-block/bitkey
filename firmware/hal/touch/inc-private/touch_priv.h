@@ -47,6 +47,11 @@ typedef struct {
   touch_event_buffer_t event_buffer; /**< Circular buffer for touch events. */
   uint32_t last_esd_check_ms;        /**< Timestamp of last ESD check. */
   bool fwup_in_progress;             /**< True when firmware upgrade is running. */
+  /* This is defensively being wrapped in MFGTEST since we do not want to expose this functionality
+   * in production */
+#ifdef MFGTEST
+  bool host_i2c_suspended; /**< True to suspend ALL host I2C traffic for external debugging. */
+#endif
 } touch_priv_t;
 
 /**

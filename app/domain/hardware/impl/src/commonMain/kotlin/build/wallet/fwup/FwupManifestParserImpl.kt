@@ -40,6 +40,7 @@ class FwupManifestParserImpl : FwupManifestParser {
     currentVersion: String,
     activeSlot: FwupSlot,
     currentMcuVersions: Map<McuRole, String>?,
+    mcuActiveSlots: Map<McuRole, FwupSlot>?,
   ): Result<ParseFwupManifestSuccess, ParseFwupManifestError> {
     // Parse both manifest version and bundle type in a single lightweight probe
     val header =
@@ -55,8 +56,8 @@ class FwupManifestParserImpl : FwupManifestParser {
         Delta -> parseDeltaFwupManifestV1(manifestJson, currentVersion, activeSlot, fwupMode)
       }
       FWUP_MANIFEST_VERSION_V2 -> when (fwupMode) {
-        Normal -> parseNormalFwupManifestV2(manifestJson, currentVersion, activeSlot, fwupMode, currentMcuVersions)
-        Delta -> parseDeltaFwupManifestV2(manifestJson, currentVersion, activeSlot, fwupMode, currentMcuVersions)
+        Normal -> parseNormalFwupManifestV2(manifestJson, currentVersion, activeSlot, fwupMode, currentMcuVersions, mcuActiveSlots)
+        Delta -> parseDeltaFwupManifestV2(manifestJson, currentVersion, activeSlot, fwupMode, currentMcuVersions, mcuActiveSlots)
       }
       else -> Err(UnknownManifestVersion)
     }
@@ -161,6 +162,7 @@ class FwupManifestParserImpl : FwupManifestParser {
     activeSlot: FwupSlot,
     fwupMode: FwupMode,
     currentMcuVersions: Map<McuRole, String>?,
+    mcuActiveSlots: Map<McuRole, FwupSlot>?,
   ): Result<ParseFwupManifestSuccess, ParseFwupManifestError> {
     val manifest =
       json.decodeFromStringResult<FwupManifestV2>(manifestJson)
@@ -182,8 +184,10 @@ class FwupManifestParserImpl : FwupManifestParser {
       return Err(NoUpdateNeeded)
     }
 
-    val target = targetSlot(activeSlot)
-    val mcuUpdates = mcusNeedingUpdate.mapValues { (_, mcu) ->
+    val mcuUpdates = mcusNeedingUpdate.mapValues { (mcuRole, mcu) ->
+      // Use per-MCU active slot if available, otherwise fall back to global activeSlot
+      val mcuActiveSlot = mcuActiveSlots?.get(mcuRole) ?: activeSlot
+      val target = targetSlot(mcuActiveSlot)
       val selectedAsset = when (target) {
         A -> mcu.assets.application_a
         B -> mcu.assets.application_b
@@ -200,6 +204,7 @@ class FwupManifestParserImpl : FwupManifestParser {
     activeSlot: FwupSlot,
     fwupMode: FwupMode,
     currentMcuVersions: Map<McuRole, String>?,
+    mcuActiveSlots: Map<McuRole, FwupSlot>?,
   ): Result<ParseFwupManifestSuccess, ParseFwupManifestError> {
     val manifest =
       json.decodeFromStringResult<FwupDeltaManifestV2>(manifestJson)
@@ -221,12 +226,16 @@ class FwupManifestParserImpl : FwupManifestParser {
       return Err(NoUpdateNeeded)
     }
 
-    val target = targetSlot(activeSlot)
-    val mcuUpdates = mcusNeedingUpdate.mapValues { (_, mcu) ->
+    val mcuUpdates = mcusNeedingUpdate.mapValues { (mcuRole, mcu) ->
+      // Use per-MCU active slot if available, otherwise fall back to global activeSlot
+      val mcuActiveSlot = mcuActiveSlots?.get(mcuRole) ?: activeSlot
+      val target = targetSlot(mcuActiveSlot)
+
       val selectedAsset = when (target) {
         A -> mcu.assets.b2a_patch
         B -> mcu.assets.a2b_patch
       }
+
       createMcuUpdate(mcu.mcu_name, selectedAsset, mcu.parameters)
     }
 

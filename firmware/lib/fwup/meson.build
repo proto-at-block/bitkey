@@ -56,6 +56,8 @@ srcs = [
   'src/fwup.c',
   'src/fwup_delta.c',
   'src/fwup_addr.c',
+  'src/fwup_utils.c',
+  'src/fwup_staged_sig.c',
 ]
 
 deps = [
@@ -64,6 +66,7 @@ deps = [
   fs_dep,
   log_dep,
   mempool_dep,
+  metadata_dep,
   perf_dep,
   protos_dep,
   wstd_dep,
@@ -96,11 +99,39 @@ foreach fwup_platform : fwup_platform_configs.keys()
       include_directories : ['inc'],
     )
   }
+
+  fwup_libs += {
+    fwup_config['name'] + '-mfgtest' : library('fwup-' + fwup_config['name'] + '-mfgtest',
+      srcs + fwup_config['sources'],
+      c_args : detools_c_flags + ['-DMFGTEST=1'],
+      include_directories : ['inc', 'inc-private', 'src'] + fwup_config['includes'],
+      dependencies : deps + fwup_config['dependencies'],
+    )
+  }
+
+  fwup_deps += {
+    fwup_config['name'] + '-mfgtest' : declare_dependency(
+      link_with : fwup_libs[fwup_config['name'] + '-mfgtest'],
+      include_directories : ['inc'],
+    )
+  }
 endforeach
 
 fwup_fuzz = executable('fwup-fuzz',
   'fwup_fuzz.cc',
-  include_directories : ['inc', 'inc-private', 'src', security_config_includes],
+  include_directories : ['inc', 'inc-private', 'src', gecko_sdk_bootloader_includes, security_config_includes],
+  cpp_args : fuzz_args,
+  link_args : fuzz_args,
+  dependencies : deps + [fwup_deps['posix'], crypto_deps['posix'], fff_dep, fuzzed_data_provider_dep],
+)
+
+# Firmware update arithmetic overflow and delta-patch callback bounds fuzzer.
+# Extends fwup-fuzz with: (a) full uint32_t sequence_id/offset for
+# multiplication overflow, and (b) delta-mode (FWUP_MODE_DELTA_ONESHOT) with
+# arbitrary detools patch bytes for unbounded pointer advance.
+fwup_delta_fuzz = executable('fwup-delta-fuzz',
+  'fwup_delta_fuzz.cc',
+  include_directories : ['inc', 'inc-private', 'src', gecko_sdk_bootloader_includes, security_config_includes],
   cpp_args : fuzz_args,
   link_args : fuzz_args,
   dependencies : deps + [fwup_deps['posix'], crypto_deps['posix'], fff_dep, fuzzed_data_provider_dep],

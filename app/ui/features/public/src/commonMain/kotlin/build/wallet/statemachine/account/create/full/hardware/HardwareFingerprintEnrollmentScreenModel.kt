@@ -13,7 +13,6 @@ import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.RenderContext.Sheet
-import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.video.VideoStartingPosition.END
@@ -32,6 +31,7 @@ fun HardwareFingerprintEnrollmentScreenModel(
   eventTrackerContext: EventTrackerContext,
   presentationStyle: ScreenPresentationStyle,
   isNavigatingBack: Boolean,
+  isDesignSystemV2Enabled: Boolean,
   headline: String,
   instructions: String,
 ) = ScreenModel(
@@ -46,11 +46,11 @@ fun HardwareFingerprintEnrollmentScreenModel(
       primaryButton =
         ButtonModel(
           text = "Save fingerprint",
+          requiresBitkeyInteraction = isDesignSystemV2Enabled,
           treatment = ButtonModel.Treatment.Translucent,
           leadingIcon = Icon.SmallIconBitkey,
-          onClick = StandardClick(onSaveFingerprint),
           size = Footer,
-          testTag = "save-fingerprint"
+          onClick = onSaveFingerprint
         ),
       secondaryButton = troubleshootingButton,
       backgroundVideo = PairNewHardwareBodyModel.BackgroundVideo(

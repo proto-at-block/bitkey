@@ -11,14 +11,18 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define NFC_DOTS_COUNT      88
-#define NFC_DOT_SIZE_ACTIVE 10
+#define NFC_DOTS_COUNT       154
+#define NFC_DOT_SIZE_RESTING 3
+#define NFC_DOT_SIZE_FAR     6  // mid-level highlight
+#define NFC_DOT_SIZE_ACTIVE  10
 
 typedef struct {
-  lv_obj_t* parent;
   lv_obj_t* container;
   lv_obj_t* dots[NFC_DOTS_COUNT];
   lv_timer_t* update_timer;
+  uint16_t radiate_phase;      // Inner-to-outer ring pulse phase
+  lv_color_t highlight_color;  // active dot color; set in create(), override before start()
+  lv_color_t resting_color;    // computed: color at rest (always dark grey)
   bool is_initialized;
   bool is_animating;
 } nfc_dots_animation_t;

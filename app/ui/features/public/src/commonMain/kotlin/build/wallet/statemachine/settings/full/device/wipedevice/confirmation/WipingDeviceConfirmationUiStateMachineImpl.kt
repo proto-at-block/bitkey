@@ -1,22 +1,30 @@
 package build.wallet.statemachine.settings.full.device.wipedevice.confirmation
 
 import androidx.compose.runtime.*
+import bitkey.account.AccountConfigService
+import bitkey.account.DefaultAccountConfig
+import bitkey.account.FullAccountConfig
+import bitkey.account.HardwareType
 import bitkey.firmware.HardwareUnlockInfoService
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.logging.logDebug
-import build.wallet.nfc.platform.EmulatedPromptOption
+import build.wallet.nfc.NfcException
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.nfc.ConfirmationHandlerOverride
+import build.wallet.statemachine.nfc.ConfirmationResultContent
 import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
 import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationContent
+import build.wallet.statemachine.settings.full.device.wipedevice.WipeContext
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceEventTrackerScreenId
 import build.wallet.statemachine.settings.full.device.wipedevice.confirmation.WipingDeviceConfirmationUiState.ConfirmationScreen
 import build.wallet.statemachine.settings.full.device.wipedevice.confirmation.WipingDeviceConfirmationUiState.WipingDevice
@@ -38,6 +46,7 @@ class WipingDeviceConfirmationUiStateMachineImpl(
   private val nfcConfirmableSessionUiStateMachine: NfcConfirmableSessionUiStateMachine,
   private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
   private val hardwareUnlockInfoService: HardwareUnlockInfoService,
+  private val accountConfigService: AccountConfigService,
 ) : WipingDeviceConfirmationUiStateMachine {
   private val confirmationMessages = arrayOf(
     "This device can no longer be used to access the funds in my Bitkey wallet.",
@@ -46,9 +55,12 @@ class WipingDeviceConfirmationUiStateMachineImpl(
 
   @Composable
   override fun model(props: WipingDeviceConfirmationProps): ScreenModel {
-    var uiState: WipingDeviceConfirmationUiState by remember {
+    var uiState: WipingDeviceConfirmationUiState by remember(props.wipeContext) {
       mutableStateOf(
-        ConfirmationScreen()
+        when (props.wipeContext) {
+          is WipeContext.W3UpgradeOldDevice -> WipingDevice
+          is WipeContext.Default -> ConfirmationScreen()
+        }
       )
     }
     // List to manage the states of the checkboxes
@@ -120,11 +132,16 @@ class WipingDeviceConfirmationUiStateMachineImpl(
 
       is WipingDevice -> {
         return WipeDeviceModel(
+          fullAccount = props.fullAccount,
           onSuccess = props.onWipeDevice,
           onCancel = {
-            uiState = ConfirmationScreen()
+            when (props.wipeContext) {
+              is WipeContext.W3UpgradeOldDevice -> props.onBack()
+              is WipeContext.Default -> uiState = ConfirmationScreen()
+            }
           },
-          isDevicePaired = props.isDevicePaired
+          isDevicePaired = props.isDevicePaired,
+          wipeContext = props.wipeContext
         )
       }
     }
@@ -229,13 +246,40 @@ class WipingDeviceConfirmationUiStateMachineImpl(
 
   @Composable
   private fun WipeDeviceModel(
+    fullAccount: FullAccount?,
     onSuccess: () -> Unit,
     onCancel: () -> Unit,
     isDevicePaired: Boolean,
+    wipeContext: WipeContext = WipeContext.Default,
   ): ScreenModel {
+    val defaultConfig by remember {
+      accountConfigService.activeOrDefaultConfig()
+    }.collectAsState()
+    val hardwareType = fullAccount?.config?.hardwareType
+      ?: when (defaultConfig) {
+        is FullAccountConfig -> (defaultConfig as FullAccountConfig).hardwareType
+        // Fail-safe to W3 behavior when hardware type is unknown.
+        is DefaultAccountConfig -> (defaultConfig as DefaultAccountConfig).hardwareType ?: HardwareType.W3
+        else -> HardwareType.W3
+      }
+    val isW3 = hardwareType == HardwareType.W3
+
+    val (hardwareTypeOverride, hardwareVerification, needsAuth) =
+      resolveWipeConfig(wipeContext, isDevicePaired)
     return nfcConfirmableSessionUiStateMachine.model(
       NfcConfirmableSessionUIStateMachineProps(
-        session = { session, commands -> commands.wipeDevice(session) },
+        session = { session, commands ->
+          // For W3 upgrade, verify the tapped device is the old device before wiping
+          if (wipeContext is WipeContext.W3UpgradeOldDevice && wipeContext.oldSerial != null) {
+            val deviceInfo = commands.getDeviceInfo(session)
+            if (deviceInfo.serial != wipeContext.oldSerial) {
+              throw NfcException.CommandError(
+                "Wrong device: expected serial ${wipeContext.oldSerial} but got ${deviceInfo.serial}"
+              )
+            }
+          }
+          commands.wipeDevice(session)
+        },
         onSuccess = { success: Boolean ->
           if (success) {
             val firmwareSerial = firmwareDeviceInfoDao.deviceInfo().firstOrNull()?.get()?.serial
@@ -251,27 +295,64 @@ class WipingDeviceConfirmationUiStateMachineImpl(
           }
         },
         onCancel = onCancel,
-        hardwareVerification = if (isDevicePaired) {
-          HardwareVerification.Required()
-        } else {
-          HardwareVerification.NotRequired
-        },
+        needsAuthentication = needsAuth,
+        hardwareVerification = hardwareVerification,
         screenPresentationStyle = ScreenPresentationStyle.Modal,
         shouldLock = false,
         eventTrackerContext = NfcEventTrackerScreenIdContext.WIPE_DEVICE,
-        onRequiresConfirmation = { _ ->
-          ConfirmationHandlerOverride.CompleteImmediately(true)
+        confirmationContent = HardwareConfirmationContent.WipeDevice,
+        confirmationResultContent = ConfirmationResultContent(
+          pendingHeadline = "Confirm the wipe on your Bitkey",
+          pendingSubline = "You'll need to approve or deny the wipe on your Bitkey device before tapping again."
+        ),
+        showNativeSheetOnIos = !isW3,
+        // W1: Skip second tap (legacy behavior - firmware wipes immediately).
+        // W3: Use full two-tap flow (firmware requires on-device confirmation).
+        hardwareTypeOverride = hardwareTypeOverride,
+        onRequiresConfirmation = if (isW3) {
+          null // Use default two-tap behavior
+        } else {
+          { _ -> ConfirmationHandlerOverride.CompleteImmediately(true) }
         },
-        onEmulatedPromptSelected = { option ->
-          when (option.name) {
-            EmulatedPromptOption.APPROVE -> ConfirmationHandlerOverride.CompleteImmediately(true)
-            else -> ConfirmationHandlerOverride.CompleteImmediately(false)
+        onEmulatedPromptSelected = if (isW3) {
+          null // Use default emulated prompt behavior (show confirmation screen)
+        } else {
+          { isApprove, _ ->
+            // W1 fake hardware: skip the second NFC tap and complete immediately
+            ConfirmationHandlerOverride.CompleteImmediately(isApprove)
           }
         }
       )
     )
   }
 }
+
+private data class WipeDeviceConfig(
+  val hardwareTypeOverride: HardwareType?,
+  val hardwareVerification: HardwareVerification,
+  val needsAuth: Boolean,
+)
+
+private fun resolveWipeConfig(
+  wipeContext: WipeContext,
+  isDevicePaired: Boolean,
+): WipeDeviceConfig =
+  when (wipeContext) {
+    is WipeContext.W3UpgradeOldDevice -> WipeDeviceConfig(
+      hardwareTypeOverride = wipeContext.oldHardwareType,
+      hardwareVerification = HardwareVerification.NotRequired,
+      needsAuth = false
+    )
+    is WipeContext.Default -> WipeDeviceConfig(
+      hardwareTypeOverride = null,
+      hardwareVerification = if (isDevicePaired) {
+        HardwareVerification.Required()
+      } else {
+        HardwareVerification.NotRequired
+      },
+      needsAuth = true
+    )
+  }
 
 private fun WipingDeviceConfirmationState.leadingAccessory(
   onClick: () -> Unit,

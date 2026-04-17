@@ -73,6 +73,7 @@ static bool is_run_in_mode(fwpb_display_mfg_test_mode test_mode) {
           test_mode == fwpb_display_mfg_test_mode_DISPLAY_MFG_TEST_MODE_ANIMATION ||
           test_mode == fwpb_display_mfg_test_mode_DISPLAY_MFG_TEST_MODE_NFC_TEST ||
           test_mode == fwpb_display_mfg_test_mode_DISPLAY_MFG_TEST_MODE_BURNIN_GRID ||
+          test_mode == fwpb_display_mfg_test_mode_DISPLAY_MFG_TEST_MODE_BURNIN_CHECKER ||
           test_mode == fwpb_display_mfg_test_mode_DISPLAY_MFG_TEST_MODE_BUTTON_BYPASS_WARNING);
 }
 
@@ -157,13 +158,6 @@ void screen_mfg_destroy(void) {
 
   lv_obj_del(screen);
   screen = NULL;
-}
-
-uint16_t screen_mfg_get_touch_boxes_remaining(void) {
-  if (current_screen_type == SCREEN_TYPE_TOUCH_TEST) {
-    return screen_mfg_touch_test_get_boxes_remaining();
-  }
-  return 0;
 }
 
 void screen_mfg_update(void* ctx) {

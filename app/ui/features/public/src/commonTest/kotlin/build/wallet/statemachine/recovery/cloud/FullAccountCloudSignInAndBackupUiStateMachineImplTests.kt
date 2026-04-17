@@ -46,12 +46,12 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 
 class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
-  val cloudBackupRepository = CloudBackupRepositoryFake()
+  val cloudBackupService = CloudBackupServiceFake()
   val cloudSignInStateMachine = CloudSignInUiStateMachineMock()
   val cloudBackupCreator = FullAccountCloudBackupCreatorMock(turbines::create)
   val eventTracker = EventTrackerMock(turbines::create)
   val stateMachine = FullAccountCloudSignInAndBackupUiStateMachineImpl(
-    cloudBackupRepository = cloudBackupRepository,
+    cloudBackupService = cloudBackupService,
     cloudSignInUiStateMachine = cloudSignInStateMachine,
     fullAccountCloudBackupCreator = cloudBackupCreator,
     eventTracker = eventTracker,
@@ -107,7 +107,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
   }
 
   afterTest {
-    cloudBackupRepository.reset()
+    cloudBackupService.reset()
   }
 
   test("show backup instructions by default") {
@@ -134,7 +134,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
 
       cloudBackupCreator.createCalls.awaitItem()
 
-      cloudBackupRepository.awaitBackup(cloudAccount)
+      cloudBackupService.awaitBackup(cloudAccount)
         .shouldBe(CloudBackupV3WithFullAccountMock)
 
       onBackupSavedCalls.awaitItem()
@@ -143,7 +143,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
 
   test("initiate backup - failed to upload backup") {
     cloudBackupCreator.backupResult = Ok(CloudBackupV3WithFullAccountMock)
-    cloudBackupRepository.returnWriteError = UnrectifiableCloudBackupError(Exception("foo"))
+    cloudBackupService.returnWriteError = UnrectifiableCloudBackupError(Exception("foo"))
     stateMachine.test(props) {
       // save backup instructions
       awaitBody<FormBodyModel> {
@@ -194,7 +194,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
 
       cloudBackupCreator.createCalls.awaitItem()
 
-      cloudBackupRepository.awaitBackup(cloudAccount)
+      cloudBackupService.awaitBackup(cloudAccount)
         .shouldBe(CloudBackupV3WithFullAccountMock)
 
       onBackupSavedCalls.awaitItem()
@@ -203,7 +203,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
 
   test("find existing V3 backup and proceed automatically without callback") {
     cloudBackupCreator.backupResult = Ok(CloudBackupV3WithFullAccountMock)
-    cloudBackupRepository.writeBackup(
+    cloudBackupService.writeBackup(
       FullAccountIdMock,
       cloudAccount,
       CloudBackupV3WithFullAccountMock,
@@ -224,7 +224,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
 
       cloudBackupCreator.createCalls.awaitItem()
 
-      cloudBackupRepository.awaitBackup(cloudAccount)
+      cloudBackupService.awaitBackup(cloudAccount)
         .shouldBe(CloudBackupV3WithFullAccountMock)
 
       onBackupSavedCalls.awaitItem()
@@ -233,7 +233,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
 
   test("find existing V3 backup and proceed with callback") {
     cloudBackupCreator.backupResult = Ok(CloudBackupV3WithFullAccountMock)
-    cloudBackupRepository.writeBackup(
+    cloudBackupService.writeBackup(
       FullAccountIdMock,
       cloudAccount,
       CloudBackupV3WithFullAccountMock,
@@ -265,7 +265,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       onExistingAppDataFoundCalls.awaitItem()
         .shouldNotBeNull().shouldBeEqual(CloudBackupV3WithFullAccountMock)
 
-      cloudBackupRepository.awaitBackup(cloudAccount)
+      cloudBackupService.awaitBackup(cloudAccount)
         .shouldBe(CloudBackupV3WithFullAccountMock)
 
       onBackupSavedCalls.awaitItem()
@@ -274,7 +274,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
 
   test("upgrades from V2 to V3 when existing V2 backup found") {
     // Set up existing V2 backup
-    cloudBackupRepository.writeBackup(
+    cloudBackupService.writeBackup(
       FullAccountIdMock,
       cloudAccount,
       CloudBackupV2WithFullAccountMock,
@@ -300,7 +300,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       cloudBackupCreator.createCalls.awaitItem()
 
       // Verify V3 backup was created despite V2 existing
-      cloudBackupRepository.awaitBackup(cloudAccount)
+      cloudBackupService.awaitBackup(cloudAccount)
         .shouldBe(CloudBackupV3WithFullAccountMock)
 
       onBackupSavedCalls.awaitItem()
@@ -320,7 +320,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
 
       cloudBackupCreator.createCalls.awaitItem()
 
-      cloudBackupRepository.awaitBackup(cloudAccount)
+      cloudBackupService.awaitBackup(cloudAccount)
         .shouldBe(CloudBackupV3WithFullAccountMock)
 
       onBackupSavedCalls.awaitItem()

@@ -14,8 +14,8 @@ typedef struct {
 // TODO(W-4581)
 #define rtos_queue_create(name, item_type, queue_length)                          \
   ({                                                                              \
-    static item_type _##name##_buffer[queue_length * sizeof(item_type)] = {0};    \
-    static SHARED_TASK_DATA rtos_queue_t _##name##_queue = {0};                   \
+    static item_type _##name##_buffer[queue_length] = {0};                        \
+    static SHARED_TASK_BSS rtos_queue_t _##name##_queue = {0};                    \
     static StaticQueue_t _##name##_static_queue = {0};                            \
     _rtos_queue_create_static(&_##name##_queue, sizeof(item_type), queue_length,  \
                               (void*)&_##name##_buffer, &_##name##_static_queue); \

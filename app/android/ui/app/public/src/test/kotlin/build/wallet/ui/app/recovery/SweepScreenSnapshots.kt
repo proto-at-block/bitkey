@@ -47,4 +47,22 @@ class SweepScreenSnapshots : FunSpec({
       )
     }
   }
+
+  test("sweep screen - inactive wallet context with design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      FormScreen(
+        model = sweepFundsPromptBodyModel(SweepFundsPromptContext.InactiveWallet)
+      )
+    }
+  }
+
+  test("sweep screen - recovery context with design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      FormScreen(
+        model = sweepFundsPromptBodyModel(
+          SweepFundsPromptContext.Recovery(PhysicalFactor.App)
+        )
+      )
+    }
+  }
 })

@@ -69,6 +69,9 @@ class Shell:
 
         return None
 
+    def close(self):
+        self.miniterm.close()
+
 
 if __name__ == "__main__":
     Shell().interactive()

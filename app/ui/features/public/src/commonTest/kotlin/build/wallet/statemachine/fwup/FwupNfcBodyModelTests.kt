@@ -1,8 +1,13 @@
 package build.wallet.statemachine.fwup
 
 import build.wallet.firmware.McuRole
+import build.wallet.platform.device.DevicePlatform
+import build.wallet.statemachine.core.ScreenPresentationStyle.FullScreen
+import build.wallet.statemachine.core.ScreenPresentationStyle.ModalFullScreen
 import build.wallet.statemachine.fwup.FwupNfcBodyModel.Status.InProgress
 import build.wallet.statemachine.fwup.FwupNfcBodyModel.Status.LostConnection
+import build.wallet.ui.theme.Theme
+import build.wallet.ui.theme.ThemePreference
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
@@ -85,5 +90,89 @@ class FwupNfcBodyModelTests : FunSpec({
   test("LostConnection progressPercentage is normalized 0-1") {
     val status = LostConnection(fwupProgress = 75f)
     status.progressPercentage.shouldBe(0.75f)
+  }
+
+  test("platform FWUP NFC screen inherits system theme on iOS") {
+    val model = FwupNfcBodyModel(
+      onCancel = null,
+      status = FwupNfcBodyModel.Status.Searching(),
+      showNativeSheetOnIos = true,
+      eventTrackerScreenInfo = null
+    ).asPlatformNfcScreen(
+      designSystemV2Enabled = true,
+      devicePlatform = DevicePlatform.IOS
+    )
+
+    model.presentationStyle.shouldBe(ModalFullScreen)
+    model.themePreference.shouldBe(ThemePreference.System)
+  }
+
+  test("platform FWUP NFC stays dark on iOS when native sheet is disabled") {
+    val model = FwupNfcBodyModel(
+      onCancel = null,
+      status = FwupNfcBodyModel.Status.Searching(),
+      showNativeSheetOnIos = false,
+      eventTrackerScreenInfo = null
+    ).asPlatformNfcScreen(
+      designSystemV2Enabled = true,
+      devicePlatform = DevicePlatform.IOS
+    )
+
+    model.themePreference.shouldBe(ThemePreference.Manual(Theme.DARK))
+  }
+
+  test("platform FWUP NFC screen inherits system theme on Android") {
+    val model = FwupNfcBodyModel(
+      onCancel = null,
+      status = FwupNfcBodyModel.Status.Searching(),
+      eventTrackerScreenInfo = null
+    ).asPlatformNfcScreen(
+      designSystemV2Enabled = true,
+      devicePlatform = DevicePlatform.Android
+    )
+
+    model.themePreference.shouldBe(ThemePreference.System)
+  }
+
+  test("platform FWUP NFC stays dark on iOS when dsv2 is disabled") {
+    val model = FwupNfcBodyModel(
+      onCancel = null,
+      status = FwupNfcBodyModel.Status.Searching(),
+      eventTrackerScreenInfo = null
+    ).asPlatformNfcScreen(
+      designSystemV2Enabled = false,
+      devicePlatform = DevicePlatform.IOS
+    )
+
+    model.presentationStyle.shouldBe(FullScreen)
+    model.themePreference.shouldBe(ThemePreference.Manual(Theme.DARK))
+    model.platformNfcScreen.shouldBe(false)
+  }
+
+  test("legacy FWUP screen preserves the native sheet only when enabled") {
+    val model = FwupNfcBodyModel(
+      onCancel = null,
+      status = FwupNfcBodyModel.Status.Searching(),
+      showNativeSheetOnIos = true,
+      eventTrackerScreenInfo = null
+    ).asPlatformNfcScreen(
+      designSystemV2Enabled = false,
+      devicePlatform = DevicePlatform.IOS
+    )
+
+    model.presentationStyle.shouldBe(FullScreen)
+    model.themePreference.shouldBe(ThemePreference.Manual(Theme.DARK))
+    model.platformNfcScreen.shouldBe(true)
+  }
+
+  test("full screen FWUP NFC stays dark on iOS") {
+    val model = FwupNfcBodyModel(
+      onCancel = null,
+      status = FwupNfcBodyModel.Status.Searching(),
+      eventTrackerScreenInfo = null
+    ).asFullScreen()
+
+    model.presentationStyle.shouldBe(FullScreen)
+    model.themePreference.shouldBe(ThemePreference.Manual(Theme.DARK))
   }
 })

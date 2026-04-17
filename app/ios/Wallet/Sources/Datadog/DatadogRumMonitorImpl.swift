@@ -2,7 +2,13 @@ import DatadogRUM
 import Shared
 
 public final class DatadogRumMonitorImpl: DatadogRumMonitor {
-    public func addError(message: String, source: ErrorSource, attributes: [String: String] = [:]) {
+    public func addError(
+        message: String,
+        source: ErrorSource,
+        attributes: [String: String] = [:],
+        cause _: KotlinThrowable? = nil
+    ) {
+        // Kept for KMP API parity. iOS currently reports message/source for this path.
         RUMMonitor.shared().addError(
             message: message,
             source: source.rumErrorSource,

@@ -3,6 +3,7 @@
 #include "assert.h"
 #include "display.pb.h"
 #include "dot_ring.h"
+#include "langpack.h"
 #include "ui.h"
 
 #include <stdio.h>
@@ -10,30 +11,34 @@
 // Screen configuration
 #define SCREEN_BRIGHTNESS 100
 
+// Battery state thresholds
+#define BATTERY_LOW_THRESHOLD_PERCENT 10
+#define BATTERY_FULL_PERCENT          100
+
 // Layout configuration
 #define BATTERY_Y_OFFSET     (-30)
 #define BATTERY_ICON_SPACING 5  // Space between battery icon and percentage text
+
+// Error overlay layout
+#define ERROR_ICON_Y_OFFSET  (-30)
+#define ERROR_LABEL_Y_OFFSET 30
 
 // Colors
 #define COLOR_BATTERY_FULL_CHARGING \
   lv_color_make(0xD1, 0xFB, 0x96)                                   // Lime green (matches dot ring)
 #define COLOR_BATTERY_CHARGING     lv_color_make(0xFF, 0xFF, 0xFF)  // White
 #define COLOR_BATTERY_LOW          lv_color_make(0xF8, 0x47, 0x52)  // Red (#F84752)
-#define COLOR_BATTERY_MEDIUM_LOW   lv_color_make(0xAD, 0x6B, 0x00)  // Muted orange
-#define COLOR_BATTERY_NORMAL       lv_color_make(0xAD, 0xAD, 0xAD)  // Grey
 #define COLOR_BATTERY_PERCENT_TEXT lv_color_make(0xAD, 0xAD, 0xAD)  // Grey
 
 // Fonts
 #define FONT_BATTERY (&cash_sans_mono_regular_26)
+#define FONT_ERROR   (&cash_sans_mono_regular_30)
 
 // External image declarations
 extern const lv_img_dsc_t locked;
 extern const lv_img_dsc_t unlocked;
+extern const lv_img_dsc_t exclamation_circle;
 extern const lv_img_dsc_t battery_10;
-extern const lv_img_dsc_t battery_25;
-extern const lv_img_dsc_t battery_50;
-extern const lv_img_dsc_t battery_75;
-extern const lv_img_dsc_t battery_100;
 extern const lv_img_dsc_t battery_charging;
 
 static lv_obj_t* screen = NULL;
@@ -44,38 +49,99 @@ static lv_obj_t* battery_icon = NULL;
 static lv_obj_t* battery_percent_label = NULL;
 static dot_ring_t charging_ring = {0};
 static bool charging_ring_visible = false;
+static lv_obj_t* error_icon = NULL;
+static lv_obj_t* error_label = NULL;
 
-static const lv_img_dsc_t* get_battery_icon(uint8_t percent, bool is_charging) {
-  if (is_charging) {
-    return &battery_charging;
-  }
-
-  if (percent <= 10) {
-    return &battery_10;
-  } else if (percent <= 25) {
-    return &battery_25;
-  } else if (percent <= 50) {
-    return &battery_50;
-  } else if (percent <= 75) {
-    return &battery_75;
-  } else {
-    return &battery_100;
-  }
+static bool is_low_battery(uint8_t percent) {
+  return percent <= BATTERY_LOW_THRESHOLD_PERCENT;
 }
 
-static lv_color_t get_battery_color(uint8_t percent, bool is_charging) {
-  if (is_charging && percent == 100) {
+static bool is_fully_charged(uint8_t percent) {
+  return percent == BATTERY_FULL_PERCENT;
+}
+
+static bool should_show_battery_icon(uint8_t percent) {
+  return is_low_battery(percent);
+}
+
+static lv_color_t get_battery_indicator_color(uint8_t percent, bool is_charging) {
+  if (is_charging && is_fully_charged(percent)) {
     return COLOR_BATTERY_FULL_CHARGING;
   } else if (is_charging) {
     return COLOR_BATTERY_CHARGING;
   }
 
-  if (percent <= 10) {
-    return COLOR_BATTERY_LOW;
-  } else if (percent <= 30) {
-    return COLOR_BATTERY_MEDIUM_LOW;
+  return is_low_battery(percent) ? COLOR_BATTERY_LOW : COLOR_BATTERY_PERCENT_TEXT;
+}
+
+static void update_battery_indicator(uint8_t battery_percent, bool is_charging) {
+  lv_color_t indicator_color = get_battery_indicator_color(battery_percent, is_charging);
+
+  if (battery_icon) {
+    if (is_charging) {
+      lv_img_set_src(battery_icon, &battery_charging);
+      lv_img_set_zoom(battery_icon, LV_SCALE_NONE);
+      lv_obj_set_style_img_recolor(battery_icon, indicator_color, 0);
+      lv_obj_set_style_img_recolor_opa(battery_icon, LV_OPA_100, 0);
+      lv_obj_clear_flag(battery_icon, LV_OBJ_FLAG_HIDDEN);
+    } else if (should_show_battery_icon(battery_percent)) {
+      lv_img_set_src(battery_icon, &battery_10);
+      lv_img_set_zoom(battery_icon, LV_SCALE_NONE);
+      lv_obj_set_style_img_recolor(battery_icon, indicator_color, 0);
+      lv_obj_set_style_img_recolor_opa(battery_icon, LV_OPA_100, 0);
+      lv_obj_clear_flag(battery_icon, LV_OBJ_FLAG_HIDDEN);
+    } else {
+      lv_obj_add_flag(battery_icon, LV_OBJ_FLAG_HIDDEN);
+    }
+  }
+
+  if (battery_percent_label) {
+    char percent_text[8];
+    snprintf(percent_text, sizeof(percent_text), "%d%%", battery_percent);
+    lv_label_set_text(battery_percent_label, percent_text);
+
+    lv_obj_set_style_text_color(battery_percent_label, indicator_color, 0);
+  }
+}
+
+static void update_lock_icon_color(uint8_t battery_percent, bool is_charging) {
+  (void)battery_percent;
+  (void)is_charging;
+
+  if (lock_icon) {
+    lv_obj_set_style_img_recolor(lock_icon, lv_color_white(), 0);
+    lv_obj_set_style_img_recolor_opa(lock_icon, LV_OPA_COVER, 0);
+  }
+  if (unlocked_icon) {
+    lv_obj_set_style_img_recolor(unlocked_icon, lv_color_white(), 0);
+    lv_obj_set_style_img_recolor_opa(unlocked_icon, LV_OPA_COVER, 0);
+  }
+}
+
+static void update_charging_ring(uint8_t battery_percent, bool is_charging) {
+  // Update charging ring visibility and percentage
+  if (is_charging) {
+    if (!charging_ring_visible) {
+      dot_ring_show(&charging_ring);
+      charging_ring_visible = true;
+    }
+    dot_ring_color_t ring_color =
+      is_fully_charged(battery_percent) ? DOT_RING_COLOR_GREEN : DOT_RING_COLOR_WHITE;
+    dot_ring_set_percent(&charging_ring, battery_percent, ring_color, DOT_RING_FILL_CLOCKWISE);
+  } else if (is_low_battery(battery_percent)) {
+    // Show red ring when battery is critically low (not charging)
+    if (!charging_ring_visible) {
+      dot_ring_show(&charging_ring);
+      charging_ring_visible = true;
+    }
+    dot_ring_set_percent(&charging_ring, battery_percent, DOT_RING_COLOR_RED,
+                         DOT_RING_FILL_CLOCKWISE);
   } else {
-    return COLOR_BATTERY_NORMAL;
+    if (charging_ring_visible) {
+      dot_ring_hide(&charging_ring);
+      dot_ring_reset(&charging_ring);
+      charging_ring_visible = false;
+    }
   }
 }
 
@@ -139,12 +205,7 @@ lv_obj_t* screen_locked_init(void* ctx) {
   if (!battery_icon) {
     return NULL;
   }
-  const lv_img_dsc_t* battery_img = get_battery_icon(battery_percent, is_charging);
-  lv_img_set_src(battery_icon, battery_img);
-
-  lv_color_t battery_color = get_battery_color(battery_percent, is_charging);
-  lv_obj_set_style_img_recolor(battery_icon, battery_color, 0);
-  lv_obj_set_style_img_recolor_opa(battery_icon, LV_OPA_100, 0);
+  lv_img_set_src(battery_icon, &battery_10);
 
   // Battery percentage label
   battery_percent_label = lv_label_create(battery_container);
@@ -154,51 +215,37 @@ lv_obj_t* screen_locked_init(void* ctx) {
   char percent_text[8];
   snprintf(percent_text, sizeof(percent_text), "%d%%", battery_percent);
   lv_label_set_text(battery_percent_label, percent_text);
-  // Text color: use battery color when charging or low, otherwise grey
-  lv_color_t text_color = COLOR_BATTERY_PERCENT_TEXT;
-  if (is_charging) {
-    text_color = battery_color;
-  } else if (battery_percent <= 10) {
-    text_color = COLOR_BATTERY_LOW;
-  }
-  lv_obj_set_style_text_color(battery_percent_label, text_color, 0);
   lv_obj_set_style_text_font(battery_percent_label, FONT_BATTERY, 0);
 
-  // Set lock icon color based on charging state and battery level
-  lv_color_t icon_color = lv_color_white();  // Default
-  if (is_charging && battery_percent == 100) {
-    icon_color = COLOR_BATTERY_FULL_CHARGING;  // Lime green at 100%
-  } else if (is_charging) {
-    icon_color = lv_color_white();  // White while charging
-  } else if (battery_percent <= 10) {
-    icon_color = COLOR_BATTERY_LOW;  // Red when low
-  }
-
-  if (is_charging || battery_percent <= 10) {
-    lv_obj_set_style_img_recolor(lock_icon, icon_color, 0);
-    lv_obj_set_style_img_recolor_opa(lock_icon, LV_OPA_100, 0);
-    lv_obj_set_style_img_recolor(unlocked_icon, icon_color, 0);
-    lv_obj_set_style_img_recolor_opa(unlocked_icon, LV_OPA_100, 0);
-  }
+  update_battery_indicator(battery_percent, is_charging);
+  update_lock_icon_color(battery_percent, is_charging);
 
   // Create charging ring (initially hidden)
   dot_ring_create(screen, &charging_ring);
   charging_ring_visible = false;
+  update_charging_ring(battery_percent, is_charging);
 
-  // Show charging ring with current percentage if charging
-  if (is_charging) {
-    dot_ring_show(&charging_ring);
-    dot_ring_color_t ring_color =
-      (battery_percent == 100) ? DOT_RING_COLOR_GREEN : DOT_RING_COLOR_WHITE;
-    dot_ring_set_percent(&charging_ring, battery_percent, ring_color, DOT_RING_FILL_CLOCKWISE);
-    charging_ring_visible = true;
-  } else if (battery_percent <= 10) {
-    // Show red ring when battery is critically low (not charging)
-    dot_ring_show(&charging_ring);
-    dot_ring_set_percent(&charging_ring, battery_percent, DOT_RING_COLOR_RED,
-                         DOT_RING_FILL_CLOCKWISE);
-    charging_ring_visible = true;
+  // Error overlay: exclamation icon + "Try again" label (initially hidden)
+  error_icon = lv_img_create(screen);
+  if (!error_icon) {
+    return NULL;
   }
+  lv_img_set_src(error_icon, &exclamation_circle);
+  lv_obj_set_style_img_recolor(error_icon, lv_color_white(), 0);
+  lv_obj_set_style_img_recolor_opa(error_icon, LV_OPA_COVER, 0);
+  lv_obj_align(error_icon, LV_ALIGN_CENTER, 0, ERROR_ICON_Y_OFFSET);
+  lv_obj_add_flag(error_icon, LV_OBJ_FLAG_HIDDEN);
+
+  error_label = lv_label_create(screen);
+  if (!error_label) {
+    return NULL;
+  }
+  lv_label_set_text(error_label, langpack_get_string(LANGPACK_ID_LOCKED_ERROR));
+  lv_obj_set_style_text_color(error_label, lv_color_white(), 0);
+  lv_obj_set_style_text_font(error_label, FONT_ERROR, 0);
+  lv_obj_set_style_text_align(error_label, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(error_label, LV_ALIGN_CENTER, 0, ERROR_LABEL_Y_OFFSET);
+  lv_obj_add_flag(error_label, LV_OBJ_FLAG_HIDDEN);
 
   ui_set_local_brightness(SCREEN_BRIGHTNESS);
 
@@ -221,6 +268,8 @@ void screen_locked_destroy(void) {
   battery_container = NULL;
   battery_icon = NULL;
   battery_percent_label = NULL;
+  error_icon = NULL;
+  error_label = NULL;
 }
 
 void screen_locked_update(void* ctx) {
@@ -237,6 +286,47 @@ void screen_locked_update(void* ctx) {
   uint8_t battery_percent = show_screen->params.locked.battery_percent;
   bool is_charging = show_screen->params.locked.is_charging;
   bool show_unlocked = show_screen->params.locked.show_unlocked;
+  bool show_error = show_screen->params.locked.show_error;
+
+  // Handle error overlay
+  if (show_error) {
+    // Hide normal screen elements
+    if (lock_icon) {
+      lv_obj_add_flag(lock_icon, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (unlocked_icon) {
+      lv_obj_add_flag(unlocked_icon, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (battery_container) {
+      lv_obj_add_flag(battery_container, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (charging_ring_visible) {
+      dot_ring_hide(&charging_ring);
+      charging_ring_visible = false;
+    }
+
+    // Show error elements
+    if (error_icon) {
+      lv_obj_clear_flag(error_icon, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (error_label) {
+      lv_obj_clear_flag(error_label, LV_OBJ_FLAG_HIDDEN);
+    }
+    return;
+  }
+
+  // Hide error elements when not in error state
+  if (error_icon) {
+    lv_obj_add_flag(error_icon, LV_OBJ_FLAG_HIDDEN);
+  }
+  if (error_label) {
+    lv_obj_add_flag(error_label, LV_OBJ_FLAG_HIDDEN);
+  }
+
+  // Restore battery container visibility
+  if (battery_container) {
+    lv_obj_clear_flag(battery_container, LV_OBJ_FLAG_HIDDEN);
+  }
 
   // Toggle lock/unlock icon
   if (show_unlocked) {
@@ -255,82 +345,7 @@ void screen_locked_update(void* ctx) {
     }
   }
 
-  // Update battery
-  if (battery_icon) {
-    const lv_img_dsc_t* battery_img = get_battery_icon(battery_percent, is_charging);
-    lv_img_set_src(battery_icon, battery_img);
-
-    lv_color_t battery_color = get_battery_color(battery_percent, is_charging);
-    lv_obj_set_style_img_recolor(battery_icon, battery_color, 0);
-    lv_obj_set_style_img_recolor_opa(battery_icon, LV_OPA_100, 0);
-  }
-
-  if (battery_percent_label) {
-    char percent_text[8];
-    snprintf(percent_text, sizeof(percent_text), "%d%%", battery_percent);
-    lv_label_set_text(battery_percent_label, percent_text);
-    lv_color_t battery_color = get_battery_color(battery_percent, is_charging);
-    // Text color: use battery color when charging or low, otherwise grey
-    lv_color_t text_color = COLOR_BATTERY_PERCENT_TEXT;
-    if (is_charging) {
-      text_color = battery_color;
-    } else if (battery_percent <= 10) {
-      text_color = COLOR_BATTERY_LOW;
-    }
-    lv_obj_set_style_text_color(battery_percent_label, text_color, 0);
-  }
-
-  // Update lock icon color based on charging state and battery level
-  lv_color_t icon_color = lv_color_white();  // Default
-  if (is_charging && battery_percent == 100) {
-    icon_color = COLOR_BATTERY_FULL_CHARGING;  // Lime green at 100%
-  } else if (is_charging) {
-    icon_color = lv_color_white();  // White while charging
-  } else if (battery_percent <= 10) {
-    icon_color = COLOR_BATTERY_LOW;  // Red when low
-  }
-
-  if (is_charging || battery_percent <= 10) {
-    if (lock_icon) {
-      lv_obj_set_style_img_recolor(lock_icon, icon_color, 0);
-      lv_obj_set_style_img_recolor_opa(lock_icon, LV_OPA_100, 0);
-    }
-    if (unlocked_icon) {
-      lv_obj_set_style_img_recolor(unlocked_icon, icon_color, 0);
-      lv_obj_set_style_img_recolor_opa(unlocked_icon, LV_OPA_100, 0);
-    }
-  } else {
-    // Reset icon color when not charging and not low battery
-    if (lock_icon) {
-      lv_obj_set_style_img_recolor_opa(lock_icon, LV_OPA_0, 0);
-    }
-    if (unlocked_icon) {
-      lv_obj_set_style_img_recolor_opa(unlocked_icon, LV_OPA_0, 0);
-    }
-  }
-
-  // Update charging ring visibility and percentage
-  if (is_charging) {
-    if (!charging_ring_visible) {
-      dot_ring_show(&charging_ring);
-      charging_ring_visible = true;
-    }
-    dot_ring_color_t ring_color =
-      (battery_percent == 100) ? DOT_RING_COLOR_GREEN : DOT_RING_COLOR_WHITE;
-    dot_ring_set_percent(&charging_ring, battery_percent, ring_color, DOT_RING_FILL_CLOCKWISE);
-  } else if (battery_percent <= 10) {
-    // Show red ring when battery is critically low (not charging)
-    if (!charging_ring_visible) {
-      dot_ring_show(&charging_ring);
-      charging_ring_visible = true;
-    }
-    dot_ring_set_percent(&charging_ring, battery_percent, DOT_RING_COLOR_RED,
-                         DOT_RING_FILL_CLOCKWISE);
-  } else {
-    if (charging_ring_visible) {
-      dot_ring_hide(&charging_ring);
-      dot_ring_reset(&charging_ring);
-      charging_ring_visible = false;
-    }
-  }
+  update_battery_indicator(battery_percent, is_charging);
+  update_lock_icon_color(battery_percent, is_charging);
+  update_charging_ring(battery_percent, is_charging);
 }

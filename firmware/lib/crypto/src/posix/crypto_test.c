@@ -16,6 +16,7 @@ DEFINE_FFF_GLOBALS;
 FAKE_VALUE_FUNC(bool, crypto_hkdf, key_handle_t*, hash_alg_t, uint8_t*, size_t, uint8_t*, size_t,
                 key_handle_t*);
 FAKE_VALUE_FUNC(bool, export_pubkey, key_handle_t*, key_handle_t*);
+FAKE_VALUE_FUNC(bool, rtos_in_isr);
 
 static int fill_random(unsigned char* data, size_t size) {
   memset(data, 'a', size);

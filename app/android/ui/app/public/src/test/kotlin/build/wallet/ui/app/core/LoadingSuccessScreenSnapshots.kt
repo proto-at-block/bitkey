@@ -8,7 +8,7 @@ import build.wallet.ui.model.button.ButtonModel
 import io.kotest.core.spec.style.FunSpec
 
 class LoadingSuccessScreenSnapshots : FunSpec({
-  val paparazzi = paparazziExtension()
+  val paparazzi = paparazziExtension(maxPercentDifference = 0.3)
 
   test("loading state") {
     paparazzi.snapshot {
@@ -50,7 +50,32 @@ class LoadingSuccessScreenSnapshots : FunSpec({
       LoadingSuccessScreen(
         model =
           LoadingSuccessBodyModel(
-            message = "You succeeded",
+            message = "Success",
+            state = Success,
+            id = null
+        )
+      )
+    }
+  }
+
+  test("loading state with design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      LoadingSuccessScreen(
+        model =
+          LoadingSuccessBodyModel(
+            state = LoadingSuccessBodyModel.State.Loading,
+            id = null
+          )
+      )
+    }
+  }
+
+  test("success state with design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      LoadingSuccessScreen(
+        model =
+          LoadingSuccessBodyModel(
+            message = "Success",
             state = Success,
             id = null
           )

@@ -33,9 +33,9 @@ fn seal_key(key: UnsealedKey) -> Result<SealedKey, CommandError> {
         match SealCsekRspStatus::try_from(rsp_status) {
             Ok(SealCsekRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
             Ok(SealCsekRspStatus::Success) => sealed_csek
-                .ok_or(CommandError::GeneralCommandError)
+                .ok_or(CommandError::InvalidResponse)
                 .map(|s| s.encode_to_vec()),
-            Ok(SealCsekRspStatus::Error) => Err(CommandError::GeneralCommandError),
+            Ok(SealCsekRspStatus::Error) => Err(CommandError::SealKeyFailed),
             Ok(SealCsekRspStatus::SealError) => Err(CommandError::SealCsekResponseSealError),
             Err(_) => Err(CommandError::InvalidResponse),
         }

@@ -45,7 +45,7 @@ class OnboardDescriptorBackupUiStateMachineImplTests : FunSpec({
   )
 
   val onBackupCompleteCalls = turbines.create<Unit>("onBackupComplete")
-  val onBackupFailedCalls = turbines.create<Throwable>("onBackupFailed")
+  val onBackupFailedCalls = turbines.create<Throwable>("onError")
 
   beforeTest {
     descriptorBackupService.reset()
@@ -107,7 +107,7 @@ class OnboardDescriptorBackupUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("calls onBackupFailed when nfc sealing is cancelled") {
+  test("calls onError when nfc sealing is cancelled") {
     val props = OnboardDescriptorBackupUiProps(
       fullAccount = FullAccountMock,
       sealedSsek = null,
@@ -131,7 +131,7 @@ class OnboardDescriptorBackupUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("calls onBackupFailed when ssek dao storage fails") {
+  test("calls onError when ssek dao storage fails") {
     ssekDao.setResult = Err(Error("Storage failed"))
 
     val props = OnboardDescriptorBackupUiProps(
@@ -184,7 +184,7 @@ class OnboardDescriptorBackupUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("calls onBackupFailed when descriptor backup upload fails") {
+  test("calls onError when descriptor backup upload fails") {
     val uploadError = DescriptorBackupError.NetworkError(
       cause = Error("Server error")
     )

@@ -15,6 +15,7 @@ import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.onboarding.CreateAccountKeysetV2F8eClient
 import build.wallet.f8e.onboarding.SetActiveSpendingKeysetF8eClient
 import build.wallet.f8e.recovery.LegacyRemoteKeyset
@@ -62,7 +63,7 @@ class SpendingKeysetRepairServiceImpl(
   private val descriptorBackupService: DescriptorBackupService,
   private val keyboxDao: KeyboxDao,
   private val fullAccountCloudBackupCreator: FullAccountCloudBackupCreator,
-  private val cloudBackupRepository: CloudBackupRepository,
+  private val cloudBackupService: CloudBackupService,
   private val cloudStoreAccountRepository: CloudStoreAccountRepository,
   private val uuidGenerator: UuidGenerator,
   private val appKeysGenerator: AppKeysGenerator,
@@ -75,7 +76,6 @@ class SpendingKeysetRepairServiceImpl(
   override val syncStatus: StateFlow<SpendingKeysetSyncStatus> = _syncStatus
 
   override val runStrategy: Set<RunStrategy> = setOf(
-    RunStrategy.Startup(),
     RunStrategy.OnEvent(
       observer = appSessionManager.appSessionState.filter { it == AppSessionState.FOREGROUND }
     ),
@@ -243,7 +243,7 @@ class SpendingKeysetRepairServiceImpl(
           )
         ).bind()
 
-      cloudBackupRepository.writeBackup(
+      cloudBackupService.writeBackup(
         accountId = account.accountId,
         cloudStoreAccount = cloudAccount,
         backup = backup,
@@ -291,8 +291,7 @@ class SpendingKeysetRepairServiceImpl(
         hardwareSpendingKey = hwSpendingKey,
         appSpendingKey = appKeyBundle.spendingKey,
         network = account.keybox.config.bitcoinNetworkType,
-        appAuthKey = account.keybox.activeAppKeyBundle.authKey,
-        hardwareProofOfPossession = hwProofOfPossession
+        appAuthKey = account.keybox.activeAppKeyBundle.authKey
       )
         .mapError { KeysetRepairError.FetchKeysetsFailed(cause = it) }
         .bind()
@@ -343,7 +342,7 @@ class SpendingKeysetRepairServiceImpl(
           sealedSsekForDecryption = sealedSsek,
           sealedSsekForEncryption = sealedSsek,
           appAuthKey = keyboxWithNewKeyset.activeAppKeyBundle.authKey,
-          hwKeyProof = hwProofOfPossession,
+          proof = PrivilegedActionProof.HwKeyProof(hwProofOfPossession),
           descriptorsToDecrypt = existingDescriptors,
           keysetsToEncrypt = keysetsToBackup
         )
@@ -360,7 +359,7 @@ class SpendingKeysetRepairServiceImpl(
         fullAccountId = account.accountId,
         keysetId = f8eSpendingKeyset.keysetId,
         appAuthKey = keyboxWithNewKeyset.activeAppKeyBundle.authKey,
-        hwFactorProofOfPossession = hwProofOfPossession
+        proof = PrivilegedActionProof.HwKeyProof(hwProofOfPossession)
       )
         .mapError { KeysetRepairError.KeysetActivationFailed(cause = it) }
         .bind()
@@ -389,7 +388,7 @@ class SpendingKeysetRepairServiceImpl(
           )
         ).bind()
 
-      cloudBackupRepository.writeBackup(
+      cloudBackupService.writeBackup(
         accountId = account.accountId,
         cloudStoreAccount = cloudAccount,
         backup = backup,
@@ -416,7 +415,7 @@ class SpendingKeysetRepairServiceImpl(
     val cloudAccount = cloudStoreAccountRepository.currentAccount(cloudServiceProvider())
       .get() ?: return null
 
-    val backup = cloudBackupRepository.readActiveBackup(cloudAccount)
+    val backup = cloudBackupService.readActiveBackup(cloudAccount)
       .get() ?: return null
 
     return backup.fullAccountFields?.sealedHwEncryptionKey

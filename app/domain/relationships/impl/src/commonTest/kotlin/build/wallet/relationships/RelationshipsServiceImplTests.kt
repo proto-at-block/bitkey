@@ -18,6 +18,7 @@ import build.wallet.coroutines.turbine.awaitNoEvents
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.relationships.RelationshipsF8eClient
 import build.wallet.f8e.relationships.RelationshipsF8eClientFake
 import build.wallet.f8e.relationships.isEmpty
@@ -265,7 +266,7 @@ class RelationshipsServiceImplTests : FunSpec({
       service.createInvitation(
         account = FullAccountMock,
         trustedContactAlias = TrustedContactAlias("Alice"),
-        hardwareProofOfPossession = HwFactorProofOfPossession("proof"),
+        proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("proof")),
         roles = setOf(TrustedContactRole.SocialRecoveryContact)
       )
     val error = result.shouldBeErrOfType<CreateInvitationError.F8ePropagatedError>()

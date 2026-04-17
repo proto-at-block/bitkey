@@ -6,13 +6,20 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import bitkey.ui.framework_public.generated.resources.Res
 import bitkey.ui.framework_public.generated.resources.hidden_hero_asterisk
 import build.wallet.ui.components.label.shimmer
 import build.wallet.ui.compose.thenIf
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
+import build.wallet.ui.theme.LocalTheme
+import build.wallet.ui.theme.Theme
 import org.jetbrains.compose.resources.painterResource
+
+private val dsv2LightModeHiddenMoneyTint = Color(0xFFC4C3C0)
 
 /**
  * Displays a redacted label with shimmering effect.
@@ -25,11 +32,19 @@ fun CollapsedMoneyView(
   modifier: Modifier = Modifier,
   shimmer: Boolean = true,
 ) {
+  val shouldUseDsv2LightModeTint =
+    LocalDesignSystemUpdatesEnabled.current && LocalTheme.current == Theme.LIGHT
+
   Image(
     painter = painterResource(Res.drawable.hidden_hero_asterisk),
     contentDescription = "value is hidden",
     contentScale = ContentScale.FillHeight,
     alignment = Alignment.Center,
+    colorFilter = if (shouldUseDsv2LightModeTint) {
+      ColorFilter.tint(dsv2LightModeHiddenMoneyTint)
+    } else {
+      null
+    },
     modifier =
       modifier
         .height(height)

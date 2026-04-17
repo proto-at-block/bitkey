@@ -13,7 +13,7 @@ class NfcConfirmableSessionUiStateMachineMock(
   val id: String,
 ) : NfcConfirmableSessionUiStateMachine {
   @Composable
-  override fun <T> model(props: NfcConfirmableSessionUIStateMachineProps<T>): ScreenModel {
+  override fun model(props: NfcConfirmableSessionUIStateMachineProps<*>): ScreenModel {
     return BodyModelMock(
       id = id,
       latestProps = props

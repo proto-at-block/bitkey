@@ -17,10 +17,12 @@ import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.feature.flags.TxVerificationFeatureFlag
 import build.wallet.limit.MobilePayServiceMock
 import build.wallet.money.BitcoinMoney
 import build.wallet.partnerships.PartnerInfoFake
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.Bitcoin
@@ -82,6 +84,7 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
   // Define the TransferConfirmationUiProps with callbacks connected to the turbine instances
   @Suppress("DEPRECATION")
   val sellProps = TransferConfirmationUiProps(
+    account = FullAccountMock,
     variant = TransferConfirmationScreenVariant.Sell(PartnerInfoFake),
     selectedPriority = FASTEST,
     recipientAddress = someBitcoinAddress,
@@ -107,6 +110,7 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
   val appFunctionalityService = AppFunctionalityServiceFake()
   val txVerificationService = TxVerificationServiceFake()
   val verificationFlag = TxVerificationFeatureFlag(FeatureFlagDaoFake())
+  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(FeatureFlagDaoFake())
   val accountConfigService = AccountConfigServiceFake()
 
   val stateMachine = TransferConfirmationUiStateMachineImpl(
@@ -119,7 +123,8 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
     appFunctionalityService = appFunctionalityService,
     accountConfigService = accountConfigService,
     txVerificationService = txVerificationService,
-    txVerificationFeatureFlag = verificationFlag
+    txVerificationFeatureFlag = verificationFlag,
+    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag
   )
 
   // Reset mocks before each test

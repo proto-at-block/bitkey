@@ -38,4 +38,20 @@ class BitcoinQrCodeScanScreenSnapshots : FunSpec({
       )
     }
   }
+
+  test("Bitcoin Scan Screen with valid address in clipboard and design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      QrCodeScanViewFinder()
+      QrCodeScanWidgets(
+        model =
+          BitcoinQrCodeScanBodyModel(
+            showSendToCopiedAddressButton = true,
+            onQrCodeScanned = {},
+            onEnterAddressClick = {},
+            onClose = {},
+            onSendToCopiedAddressClick = {}
+          )
+      )
+    }
+  }
 })

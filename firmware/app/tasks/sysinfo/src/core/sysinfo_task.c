@@ -8,6 +8,7 @@
 #include "filesystem.h"
 #include "ipc.h"
 #include "kv.h"
+#include "langpack_ids.h"
 #include "log.h"
 #include "mcu_reset.h"
 #include "mcu_wdog.h"
@@ -18,6 +19,7 @@
 #include "proto_helpers.h"
 #include "rtos.h"
 #include "rtos_notification.h"
+#include "secure_channel_cert.h"
 #include "secure_engine.h"
 #include "secutils.h"
 #include "sleep.h"
@@ -31,8 +33,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define SYSINFO_WDOG_REFRESH_MS      (1000)
-#define SYSINFO_BITLOG_SAVE_DELAY_MS (50)
+#define SYSINFO_WDOG_REFRESH_MS (1000)
 
 extern char active_slot[];
 extern power_config_t power_config;
@@ -40,7 +41,7 @@ extern power_config_t power_config;
 static struct {
   rtos_queue_t* queue;
   rtos_timer_t wdog_timer;
-  rtos_timer_t shutdown_timer;
+
   uint32_t power_timeout_ms;
   uint32_t wdog_timer_refresh_ms;
   platform_hwrev_t hwrev;
@@ -66,22 +67,16 @@ static bool kv_mutex_unlock(void) {
 }
 
 static void power_system_down_callback(rtos_timer_handle_t UNUSED(timer)) {
-  sysinfo_task_port_prepare_power_down();
+  // Do not call prepare_power_down directly here — this callback runs in the
+  // RTOS timer service task, and prepare_power_down blocks in a polling loop
+  // which would starve all other timer callbacks (including the watchdog feeder).
+  // Instead, send an IPC message so the sysinfo thread handles it.
+  ipc_send_empty(sysinfo_port, IPC_SYSINFO_POWER_OFF_REQUESTED);
 }
 
 static void wdog_feed_callback(rtos_timer_handle_t UNUSED(timer)) {
   mcu_wdog_feed();
   rtos_timer_restart(&sysinfo_task_priv.wdog_timer);
-}
-
-static void _sysinfo_task_shutdown_timer_callback(rtos_timer_handle_t UNUSED(timer)) {
-  // Device failed to shutdown before shutdown timer expired, so we're
-  // falling back to force power off.
-  BITLOG_EVENT(sleep_prep_timeout, 0);
-
-  // Give bitlog time to save.
-  rtos_thread_sleep(SYSINFO_BITLOG_SAVE_DELAY_MS);
-  sysinfo_task_port_power_down();
 }
 
 void copy_metadata_to_proto(metadata_t* metadata, fwpb_firmware_metadata* proto) {
@@ -164,6 +159,15 @@ void handle_device_id_cmd(ipc_ref_t* message) {
 }
 
 NO_OPTIMIZE void handle_wipe_state(ipc_ref_t* message) {
+  // On W3, require on-device confirmation before wiping.
+  // The port handler allocates its own cmd/rsp, creates a confirmation,
+  // shows the privileged action screen, and returns CONFIRMATION_PENDING status.
+  // The actual wipe happens on the second NFC tap via the confirmation result handler.
+  if (sysinfo_task_port_handle_wipe_state(message)) {
+    return;
+  }
+
+  // Direct wipe path (W1 or pre-onboarding on W3).
   fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
   fwpb_wallet_rsp* rsp = proto_get_rsp();
 
@@ -174,9 +178,6 @@ NO_OPTIMIZE void handle_wipe_state(ipc_ref_t* message) {
   rsp->msg.wipe_state_rsp.rsp_status = fwpb_wipe_state_rsp_wipe_state_rsp_status_SUCCESS;
 
   SECURE_DO({ deauthenticate(); });
-
-  // Resume the pre-onboarding rest animation after state is wiped.
-  UI_SET_IDLE_STATE(UI_EVENT_IDLE);
 
   proto_send_rsp(cmd, rsp);
 }
@@ -203,7 +204,7 @@ void handle_ship_state_cmd(ipc_ref_t* message) {
 
   // Enable ship state flag - LDO will be disabled during shutdown sequence
   sysinfo_task_priv.ship_state_active = true;
-  LOGI("Ship state enabled - LDO will be disabled on next shutdown");
+  LOGI("Ship mode set");
 
   // Optionally trigger shutdown
   if (cmd->msg.ship_state_cmd.shutdown_after) {
@@ -384,7 +385,7 @@ void handle_secinfo_get(ipc_ref_t* message) {
   se_info_t se_info = {0};
   if (se_get_secinfo(&se_info) != SL_STATUS_OK) {
     rsp->msg.secinfo_get_rsp.rsp_status = fwpb_secinfo_get_rsp_secinfo_rsp_status_OTP_READ_FAIL;
-    LOGE("Failed to get secinfo; is the device fused?");
+    LOGE("Secinfo read fail");
     goto out;
   }
 
@@ -441,19 +442,29 @@ void handle_cert_get(ipc_ref_t* message) {
 
   rsp->which_msg = fwpb_wallet_rsp_cert_get_rsp_tag;
 
-  sl_se_command_context_t cmd_ctx = {0};
-  if (sl_se_init_command_context(&cmd_ctx) != SL_STATUS_OK) {
-    goto out;
-  }
+  const fwpb_cert_get_cmd* cert_cmd = &cmd->msg.cert_get_cmd;
+  if (cert_cmd->kind == fwpb_cert_get_cmd_cert_type_DEVICE_SECURE_CHANNEL_CERT &&
+      cert_cmd->cert_id[0] != '\0') {
+    if (!sysinfo_task_port_handle_host_secure_channel_cert_get(cmd, rsp)) {
+      /* PEER path: Waiting for response so free buffers for now */
+      proto_free_buffers(cmd, rsp);
+      return;
+    }
+  } else {
+    sl_se_command_context_t cmd_ctx = {0};
+    if (sl_se_init_command_context(&cmd_ctx) != SL_STATUS_OK) {
+      goto out;
+    }
 
-  if (se_read_cert(cmd->msg.cert_get_cmd.kind, rsp->msg.cert_get_rsp.cert.bytes,
-                   &rsp->msg.cert_get_rsp.cert.size) != SL_STATUS_OK) {
-    LOGE("Failed to get certs");
-    rsp->msg.cert_get_rsp.rsp_status = fwpb_cert_get_rsp_cert_get_rsp_status_CERT_READ_FAIL;
-    goto out;
-  }
+    if (se_read_cert(cmd->msg.cert_get_cmd.kind, rsp->msg.cert_get_rsp.cert.bytes,
+                     &rsp->msg.cert_get_rsp.cert.size) != SL_STATUS_OK) {
+      LOGE("Cert get fail");
+      rsp->msg.cert_get_rsp.rsp_status = fwpb_cert_get_rsp_cert_get_rsp_status_CERT_READ_FAIL;
+      goto out;
+    }
 
-  rsp->msg.cert_get_rsp.rsp_status = fwpb_cert_get_rsp_cert_get_rsp_status_SUCCESS;
+    rsp->msg.cert_get_rsp.rsp_status = fwpb_cert_get_rsp_cert_get_rsp_status_SUCCESS;
+  }
 
 out:
   proto_send_rsp(cmd, rsp);
@@ -473,7 +484,7 @@ void handle_pubkeys_get(ipc_ref_t* message) {
   };
 
   if (se_read_pubkeys(&pubkeys) != SL_STATUS_OK) {
-    LOGE("Failed to get pubkeys");
+    LOGE("Pubkeys read fail");
     rsp->msg.pubkeys_get_rsp.rsp_status =
       fwpb_pubkeys_get_rsp_pubkeys_get_rsp_status_PUBKEYS_READ_FAIL;
     goto out;
@@ -517,7 +528,7 @@ void handle_pubkey_get(ipc_ref_t* message) {
 
   if (se_read_pubkey(kind, rsp->msg.pubkey_get_rsp.pubkey.bytes,
                      sizeof(rsp->msg.pubkey_get_rsp.pubkey.bytes)) != SL_STATUS_OK) {
-    LOGE("Failed to get pubkey");
+    LOGE("Pubkey read fail");
     rsp->msg.pubkey_get_rsp.rsp_status = fwpb_pubkey_get_rsp_pubkey_get_rsp_status_PUBKEY_READ_FAIL;
     goto out;
   }
@@ -535,6 +546,16 @@ void handle_fingerprint_settings_get(ipc_ref_t* message) {
 
   rsp->which_msg = fwpb_wallet_rsp_fingerprint_settings_get_rsp_tag;
 
+  // Wait for bio_lib_init to complete before querying the sensor.
+  // This prevents reading stale values from an uninitialized sensor.
+  sysevent_wait_with_timeout(SYSEVENT_BIO_READY, true, 5000);
+  if (!sysevent_get(SYSEVENT_BIO_READY)) {
+    LOGE("FP sensor not ready");
+    rsp->msg.fingerprint_settings_get_rsp.status =
+      fwpb_fingerprint_settings_get_rsp_fingerprint_settings_get_rsp_status_FINGERPRINT_SETTINGS_READ_FAIL;
+    goto out;
+  }
+
   bool check_security_ok =
     bio_sensor_is_secured(&rsp->msg.fingerprint_settings_get_rsp.security_enabled);
   bool check_otp_ok = bio_sensor_is_otp_locked(&rsp->msg.fingerprint_settings_get_rsp.otp_locked);
@@ -544,6 +565,7 @@ void handle_fingerprint_settings_get(ipc_ref_t* message) {
       ? fwpb_fingerprint_settings_get_rsp_fingerprint_settings_get_rsp_status_SUCCESS
       : fwpb_fingerprint_settings_get_rsp_fingerprint_settings_get_rsp_status_FINGERPRINT_SETTINGS_READ_FAIL;
 
+out:
   proto_send_rsp(cmd, rsp);
 }
 
@@ -569,7 +591,6 @@ void handle_cap_touch_calibrate(ipc_ref_t* message) {
 
   rtos_timer_start(&sysinfo_task_priv.cap_touch_cal_timer, power_config.cap_touch_cal.hold_ms);
   if (sysinfo_task_priv.cap_touch_cal_timer.active) {
-    LOGD("Starting cap touch calibration (%lims)", power_config.cap_touch_cal.hold_ms);
     mcu_gpio_set(&power_config.cap_touch_cal.gpio);
     rsp->status = fwpb_cap_touch_cal_rsp_cap_touch_cal_status_SUCCESS;
   } else {
@@ -578,6 +599,43 @@ void handle_cap_touch_calibrate(ipc_ref_t* message) {
 
 out:
   proto_send_rsp(wallet_cmd, wallet_rsp);
+}
+
+static uint32_t confirmation_screen_text_id(
+  fwpb_show_confirmation_screen_cmd_confirmation_screen_type type) {
+  switch (type) {
+    case fwpb_show_confirmation_screen_cmd_confirmation_screen_type_APPROVED:
+      return LANGPACK_ID_CONFIRMATION_APPROVED;
+    case fwpb_show_confirmation_screen_cmd_confirmation_screen_type_SUCCESS:
+      return LANGPACK_ID_CONFIRMATION_DONE;
+    default:
+      return LANGPACK_ID_RESERVED;
+  }
+}
+
+void handle_show_confirmation_screen(ipc_ref_t* message) {
+  fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
+  fwpb_wallet_rsp* rsp = proto_get_rsp();
+
+  rsp->which_msg = fwpb_wallet_rsp_show_confirmation_screen_rsp_tag;
+
+  uint32_t text_id = confirmation_screen_text_id(cmd->msg.show_confirmation_screen_cmd.type);
+  if (text_id == LANGPACK_ID_RESERVED) {
+    rsp->status = fwpb_status_ERROR;
+    goto out;
+  }
+
+  fwpb_display_params_confirmation confirmation = {0};
+  confirmation.mode =
+    fwpb_display_params_confirmation_display_params_confirmation_mode_DISPLAY_PARAMS_CONFIRMATION_MODE_SUCCESS;
+  confirmation.text_id = text_id;
+  confirmation.lock_on_dismiss = cmd->msg.show_confirmation_screen_cmd.lock_on_dismiss;
+  UI_SHOW_EVENT_WITH_DATA(UI_EVENT_SHOW_CONFIRMATION, &confirmation, sizeof(confirmation));
+
+  rsp->status = fwpb_status_SUCCESS;
+
+out:
+  proto_send_rsp(cmd, rsp);
 }
 
 void handle_empty(ipc_ref_t* message) {
@@ -666,7 +724,6 @@ out:
 }
 
 static void cap_touch_cal_callback(rtos_timer_handle_t UNUSED(timer)) {
-  LOGD("Cap touch calibration completed");
   mcu_gpio_clear(&power_config.cap_touch_cal.gpio);
   rtos_timer_stop(&sysinfo_task_priv.cap_touch_cal_timer);
 }
@@ -691,15 +748,17 @@ void sysinfo_thread(void* UNUSED(args)) {
   sysevent_wait(SYSEVENT_FILESYSTEM_READY, true);
 
   if (!sysinfo_load()) {
-    LOGW("Failed to load system information, using placeholders.");
+    LOGW("Sysinfo defaults");
   }
 
   feature_flags_init();
 
   if (kv_init((kv_api_t){.lock = &kv_mutex_lock, .unlock = &kv_mutex_unlock}) != KV_ERR_NONE) {
-    LOGE("Failed to initialize key-value store");
+    LOGE("KV init fail");
     BITLOG_EVENT(kv_init, 0);
   }
+
+  secure_channel_cert_init();
 
   sysinfo_task_register_listeners();
 
@@ -768,6 +827,9 @@ void sysinfo_thread(void* UNUSED(args)) {
       case IPC_PROTO_EMPTY_CMD:
         handle_empty(&message);
         break;
+      case IPC_PROTO_SHOW_CONFIRMATION_SCREEN_CMD:
+        handle_show_confirmation_screen(&message);
+        break;
       case IPC_PROTO_DEVICE_INFO_CMD:
         handle_device_info(&message);
         break;
@@ -784,24 +846,23 @@ void sysinfo_thread(void* UNUSED(args)) {
         sysinfo_task_handle_coproc_events(&message);
         break;
       case IPC_SYSINFO_POWER_OFF_REQUESTED:
-        LOGI("[Sysinfo] Power off requested");
         sysinfo_task_port_prepare_power_down();
         break;
       case IPC_SYSINFO_POWER_OFF:
-        LOGI("[Sysinfo] Powering off device");
+        LOGI("Powering off");
         sysinfo_task_port_power_down();
         break;
       case IPC_PROTO_GET_CONFIRMATION_RESULT_CMD:
         if (!sysinfo_task_port_dispatch_confirmation_result(&message)) {
-          LOGE("No handler registered for pending confirmation type");
+          LOGE("No confirmation handler");
           fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message.object, message.length);
           fwpb_wallet_rsp* rsp = proto_get_rsp();
-          rsp->status = fwpb_status_ERROR;
+          rsp->status = fwpb_status_CONFIRMATION_NOT_COMPLETED;
           proto_send_rsp(cmd, rsp);
         }
         break;
       default:
-        LOGE("unknown message %ld", message.tag);
+        LOGE("Unknown msg %ld", message.tag);
     }
   }
 }
@@ -817,19 +878,13 @@ void sysinfo_task_create(const platform_hwrev_t hwrev) {
     rtos_timer_create_static(&sysinfo_task_priv.cap_touch_cal_timer, cap_touch_cal_callback);
   }
 
-  rtos_thread_t* sysinfo_thread_handle =
-    rtos_thread_create(sysinfo_thread, NULL, RTOS_THREAD_PRIORITY_NORMAL, 2048);
+  rtos_thread_t* sysinfo_thread_handle = rtos_thread_create(
+    sysinfo_thread, NULL, RTOS_THREAD_PRIORITY_NORMAL, PLATFORM_CFG_SYSINFO_TASK_STACK_SIZE);
   ASSERT(sysinfo_thread_handle);
 
   rtos_mutex_create(&sysinfo_task_priv.kv_mutex);
 
   rtos_timer_create_static(&sysinfo_task_priv.wdog_timer, wdog_feed_callback);
-  rtos_timer_create_static(&sysinfo_task_priv.shutdown_timer,
-                           _sysinfo_task_shutdown_timer_callback);
-}
-
-void sysinfo_task_start_shutdown_timer(uint32_t timeout_ms) {
-  rtos_timer_start(&sysinfo_task_priv.shutdown_timer, timeout_ms);
 }
 
 bool sysinfo_task_in_ship_state(void) {

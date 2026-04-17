@@ -19,12 +19,6 @@ if get_option('config_prod')
   message('Production config')
 endif
 
-display_rotate_env = run_command('sh', '-c', 'echo $W3_ENV_DISPLAY_ROTATE_180', check: true).stdout().strip()
-if display_rotate_env != ''
-  add_project_arguments('-DDISPLAY_ROTATE_180=' + display_rotate_env, language: 'c')
-  message('DISPLAY_ROTATE_180=' + display_rotate_env)
-endif
-
 fs = import('fs')
 
 system = meson.get_external_property('system', build_machine.system())
@@ -127,6 +121,7 @@ subdir('hal/sysevent')
 subdir('lib/perf')
 memfault_event_defs = include_directories('hal/memfault/defs')
 subdir('lib/bitlog')
+subdir('lib/bio-flash-storage')
 subdir('lib/filesystem')
 subdir('lib/crypto')
 subdir('lib/secure-channel')
@@ -140,6 +135,7 @@ subdir('lib/feature-flags')
 subdir('hal/board-id')
 subdir('hal/sysinfo')
 subdir('hal/memfault')
+subdir('hal/opt')
 subdir('hal/tamper')
 subdir('lib/telemetry-translator')
 
@@ -160,16 +156,20 @@ subdir('lib/langpack')
 
 
 subdir('lib/onboarding')
-# IPC (uses onboarding_dep)
+subdir('lib/ui_messaging')
+# IPC (uses onboarding_dep, ui_events_dep)
 subdir('lib/ipc')
+subdir('lib/ui_messaging/lib')
+subdir('lib/ui_messaging/cmd')
 
 # Confirmation depends on ipc_dep
 subdir('lib/confirmation')
 
+subdir('lib/sap')
+
 subdir('lib/protobuf/helpers')
 subdir('lib/mpu_regions')
 subdir('lib/wca')
-subdir('lib/ui_messaging')
 subdir('lib/temperature')
 subdir('lib/animation')
 subdir('hal/serial')

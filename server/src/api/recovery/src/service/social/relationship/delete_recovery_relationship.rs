@@ -1,4 +1,3 @@
-use authn_authz::key_claims::KeyClaims;
 use notification::payloads::recovery_relationship_deleted::RecoveryRelationshipDeletedPayload;
 use notification::service::SendNotificationInput;
 use notification::{NotificationPayloadBuilder, NotificationPayloadType};
@@ -20,12 +19,14 @@ use super::{error::ServiceError, Service};
 ///
 /// * `acting_account_id` - The account that is trying to server the recovery relationship
 /// * `recovery_relationship_id` - The ID of the recovery relationship to be terminated
-/// * `key_proof` - The keyproof containing checks for both app and hardware signatures over the access token
+/// * `signed_by_both_factors` - Whether the request was signed by both app and hardware keys
+/// * `acting_account_is_w3` - Whether the acting account is a W3 Full Account
 /// * `cognito_user` - The Cognito user linked to the access token
 pub struct DeleteRecoveryRelationshipInput<'a> {
     pub acting_account_id: &'a AccountId,
     pub recovery_relationship_id: &'a RecoveryRelationshipId,
-    pub key_proof: &'a KeyClaims,
+    pub signed_by_both_factors: bool,
+    pub acting_account_is_w3: bool,
     pub cognito_user: &'a CognitoUser,
 }
 
@@ -64,7 +65,7 @@ impl Service {
                 let trusted_contact_account_id = &connection_fields.trusted_contact_account_id;
 
                 if customer_account_id == input.acting_account_id {
-                    if !(input.key_proof.app_signed && input.key_proof.hw_signed) {
+                    if !input.signed_by_both_factors {
                         event!(
                             Level::WARN,
                             "valid signature over access token required both app and hw auth key"
@@ -87,9 +88,30 @@ impl Service {
                         trusted_contact_roles: common_fields.trusted_contact_info.roles.clone(),
                     }))
                 } else if trusted_contact_account_id == input.acting_account_id {
-                    let CognitoUser::Recovery(_) = *input.cognito_user else {
-                        return Err(ServiceError::InvalidOperationForAccessToken);
+                    // W3 TCs with hardware must prove via action proof to prevent
+                    // a compromised app from silently removing RC relationships at scale.
+                    if input.acting_account_is_w3 && !input.signed_by_both_factors {
+                        event!(
+                            Level::WARN,
+                            "W3 trusted contact must sign with both factors to remove relationship"
+                        );
+                        return Err(ServiceError::InvalidActionProof);
+                    }
+
+                    // W3 TCs must use a Global-scoped token (App/Hardware) since the
+                    // hardware auth flow refreshes with Global scope.
+                    // Non-W3 TCs may use either Global or Recovery scope since we
+                    // cannot enforce which scope W1 TCs use.
+                    let has_global_scope = input.cognito_user.is_app(input.acting_account_id)
+                        || input.cognito_user.is_hardware(input.acting_account_id);
+                    let cognito_user_valid = if input.acting_account_is_w3 {
+                        has_global_scope
+                    } else {
+                        has_global_scope || input.cognito_user.is_recovery(input.acting_account_id)
                     };
+                    if !cognito_user_valid {
+                        return Err(ServiceError::InvalidOperationForAccessToken);
+                    }
 
                     Ok(Some(NotificationParams {
                         acting_account_role: RecoveryRelationshipRole::TrustedContact,

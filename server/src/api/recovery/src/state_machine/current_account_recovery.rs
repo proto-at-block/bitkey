@@ -66,7 +66,8 @@ impl RecoveryStateResponse for CurrentAccountRecoveryState {
                 auth_keys: FullAccountAuthKeysInput {
                     app: destination.app_auth_pubkey,
                     hardware: destination.hardware_auth_pubkey,
-                    recovery: destination.recovery_auth_pubkey
+                    recovery: destination.recovery_auth_pubkey,
+                    hardware_type: destination.hardware_type,
                 }
             }),
             active_contest: self.active_contest,
@@ -91,10 +92,10 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
             account,
             lost_factor,
             destination,
-            key_proof,
+            authorized_request,
         } = &event
         {
-            let actor = key_proof.to_actor(ToActorStrategy::ExclusiveOr)?;
+            let actor = authorized_request.to_actor(ToActorStrategy::ExclusiveOr)?;
             if actor == *lost_factor {
                 tracing::error!(
                     recovery_state = std::any::type_name_of_val(&self),
@@ -416,7 +417,7 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
                     active_contest,
                 },
             ))
-        } else if let RecoveryEvent::CancelRecovery { key_proof } = &event {
+        } else if let RecoveryEvent::CancelRecovery { authorized_request } = &event {
             let recovery = self.recovery.as_ref().ok_or_else(|| {
                 tracing::error!(
                     recovery_state = std::any::type_name_of_val(&self),
@@ -432,7 +433,7 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
                 .as_ref()
                 .unwrap();
 
-            let actor = key_proof.to_actor(ToActorStrategy::PreferNonLostFactor(
+            let actor = authorized_request.to_actor(ToActorStrategy::PreferNonLostFactor(
                 requirements.lost_factor,
             ))?;
             let is_contesting_recovery = actor == requirements.lost_factor;

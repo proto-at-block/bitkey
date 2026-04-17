@@ -17,12 +17,14 @@
 
 // Display configuration.
 extern display_config_t display_config;
+static void display_power_on(void);
 
 // Double buffers
-#define MAX_DISP_WIDTH  466
-#define MAX_DISP_HEIGHT 466
-#define MAX_BUF_HEIGHT  233
-#define MAX_BUF_SIZE    (MAX_DISP_WIDTH * MAX_BUF_HEIGHT)
+#define MAX_DISP_WIDTH      466
+#define MAX_DISP_HEIGHT     466
+#define ALIGN_UP_TO_EVEN(x) (((x) + 1u) & ~1u)
+#define MAX_BUF_HEIGHT      ALIGN_UP_TO_EVEN((MAX_DISP_HEIGHT + 1u) / 2u)
+#define MAX_BUF_SIZE        (MAX_DISP_WIDTH * MAX_BUF_HEIGHT)
 static lv_color16_t buf1[MAX_BUF_SIZE];
 static lv_color16_t buf2[MAX_BUF_SIZE];
 static lv_draw_buf_t draw_buf1;
@@ -56,14 +58,22 @@ static void gfx_flush_complete(void* user_data) {
 }
 
 static void lvgl_flush_cb(lv_display_t* disp, const lv_area_t* area, uint8_t* color_p) {
-  // Swap the RGB565 bytes
-  const uint32_t w = area->x2 - area->x1 + 1;
-  const uint32_t h = area->y2 - area->y1 + 1;
-  const uint32_t pixel_count = w * h;
-  lv_draw_sw_rgb565_swap((lv_color16_t*)color_p, pixel_count);
-
-  // Flush to display
   gfx_flush(color_p, area->x1, area->y1, area->x2, area->y2, gfx_flush_complete, disp);
+}
+
+static uint16_t get_draw_buf_height(uint16_t disp_height) {
+  uint16_t buf_height = MAX_BUF_HEIGHT;
+
+  if (disp_height < buf_height) {
+    buf_height = disp_height;
+  }
+
+  // Keep height even to satisfy the ICNA3312 rounder constraints.
+  if ((buf_height & 1u) != 0u && buf_height > 1u) {
+    buf_height--;
+  }
+
+  return buf_height;
 }
 
 static void display_configure_power_pins(void) {
@@ -164,16 +174,17 @@ void display_init(void) {
   // Setup draw buffers using config dimensions
   uint16_t disp_width = display_config.gfx_config.display_width;
   uint16_t disp_height = display_config.gfx_config.display_height;
-  uint16_t buf_height = MAX_BUF_HEIGHT;
+  uint16_t buf_height = get_draw_buf_height(disp_height);
   uint32_t stride = disp_width * sizeof(lv_color16_t);
 
-  lv_draw_buf_init(&draw_buf1, disp_width, buf_height, LV_COLOR_FORMAT_RGB565, stride, buf1,
+  lv_draw_buf_init(&draw_buf1, disp_width, buf_height, LV_COLOR_FORMAT_RGB565_SWAPPED, stride, buf1,
                    sizeof(buf1));
-  lv_draw_buf_init(&draw_buf2, disp_width, buf_height, LV_COLOR_FORMAT_RGB565, stride, buf2,
+  lv_draw_buf_init(&draw_buf2, disp_width, buf_height, LV_COLOR_FORMAT_RGB565_SWAPPED, stride, buf2,
                    sizeof(buf2));
   // Setup display
   lv_display_t* disp = lv_display_create(disp_width, disp_height);
   s_display = disp;  // Store for runtime rotation updates
+  lv_display_set_color_format(disp, LV_COLOR_FORMAT_RGB565_SWAPPED);
   lv_display_set_draw_buffers(disp, &draw_buf1, &draw_buf2);
   lv_display_set_flush_cb(disp, lvgl_flush_cb);
 
@@ -185,7 +196,7 @@ void display_init(void) {
 
   // Initialize touch driver
   if (!display_touch_init()) {
-    LOGE("Touch initialization failed, continuing without touch");
+    LOGE("Touch init fail, continuing");
   }
 }
 
@@ -202,7 +213,7 @@ void display_update(void) {
   lv_task_handler();
 }
 
-void display_power_on(void) {
+static void display_power_on(void) {
   // Power sequencing: 1v8 -> 3v3 -> avdd -> vbat
   if (display_config.pwr.pwr_1v8_en != (mcu_gpio_config_t*)NULL) {
     mcu_gpio_set(display_config.pwr.pwr_1v8_en);
@@ -222,28 +233,6 @@ void display_power_on(void) {
   if (display_config.pwr.pwr_vbat_en != (mcu_gpio_config_t*)NULL) {
     mcu_gpio_set(display_config.pwr.pwr_vbat_en);
     rtos_thread_sleep(DISPLAY_PWR_RESET_DELAY_MS);
-  }
-}
-
-void display_power_off(void) {
-  // Power sequencing: reverse order - vbat -> avdd -> 3v3 -> 1v8
-  if (display_config.pwr.pwr_vbat_en != (mcu_gpio_config_t*)NULL) {
-    mcu_gpio_clear(display_config.pwr.pwr_vbat_en);
-    rtos_thread_sleep(DISPLAY_PWR_RAIL_MIN_DELAY_MS);
-  }
-
-  if (display_config.pwr.pwr_avdd_en != (mcu_gpio_config_t*)NULL) {
-    mcu_gpio_clear(display_config.pwr.pwr_avdd_en);
-    rtos_thread_sleep(DISPLAY_PWR_RAIL_MIN_DELAY_MS);
-  }
-
-  if (display_config.pwr.pwr_3v3_en != (mcu_gpio_config_t*)NULL) {
-    mcu_gpio_clear(display_config.pwr.pwr_3v3_en);
-    rtos_thread_sleep(DISPLAY_PWR_RAIL_MIN_DELAY_MS);
-  }
-
-  if (display_config.pwr.pwr_1v8_en != (mcu_gpio_config_t*)NULL) {
-    mcu_gpio_clear(display_config.pwr.pwr_1v8_en);
   }
 }
 

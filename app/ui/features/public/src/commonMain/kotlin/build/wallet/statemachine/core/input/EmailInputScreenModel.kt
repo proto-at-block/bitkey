@@ -5,17 +5,15 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.SheetModel
+import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.TextInput
 import build.wallet.statemachine.core.form.RenderContext.Sheet
-import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.button.ButtonModel.Size.Compact
-import build.wallet.ui.model.button.ButtonModel.Treatment.Tertiary
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.input.TextFieldModel.KeyboardType.Email
-import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.ButtonAccessory
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 
@@ -27,38 +25,30 @@ import build.wallet.ui.model.toolbar.ToolbarModel
  * @param primaryButton - Model of the primary continue button
  * @param onValueChange - Function handler invoked once the user changes the field value
  * @param onClose - invoked once the screen is closed
- * @param onSkip - invoked once the user chooses to skip email input
- * @param errorOverlayModel - model for the current sheet error
  */
 data class EmailInputScreenModel(
   val title: String,
   val subline: String? = null,
+  val sublineModel: LabelModel? = null,
   val value: String = "",
   override val primaryButton: ButtonModel,
   val onValueChange: (String) -> Unit,
-  val onClose: () -> Unit,
-  val onSkip: (() -> Unit)?,
+  val onClose: (() -> Unit)? = null,
+  val isCloseButton: Boolean = false,
 ) : FormBodyModel(
     id = NotificationsEventTrackerScreenId.EMAIL_INPUT_ENTERING_EMAIL,
     onSwipeToDismiss = onClose,
     onBack = onClose,
     toolbar =
       ToolbarModel(
-        leadingAccessory = CloseAccessory(onClick = onClose),
-        trailingAccessory =
-          onSkip?.let {
-            ButtonAccessory(
-              model =
-                ButtonModel(
-                  text = "Skip",
-                  treatment = Tertiary,
-                  onClick = StandardClick(onSkip),
-                  size = Compact
-                )
-            )
-          }
+        leadingAccessory = onClose?.let {
+          if (isCloseButton) CloseAccessory(onClick = it) else BackAccessory(onClick = it)
+        }
       ),
-    header = FormHeaderModel(headline = title, subline = subline),
+    header = FormHeaderModel(
+      headline = title,
+      sublineModel = sublineModel ?: subline?.let { LabelModel.StringModel(it) }
+    ),
     mainContentList =
       immutableListOf(
         TextInput(
@@ -66,6 +56,7 @@ data class EmailInputScreenModel(
             TextFieldModel(
               value = value,
               placeholderText = "Email",
+              testTag = "email-input-field",
               onValueChange = { newValue, _ -> onValueChange(newValue) },
               keyboardType = Email,
               onDone =

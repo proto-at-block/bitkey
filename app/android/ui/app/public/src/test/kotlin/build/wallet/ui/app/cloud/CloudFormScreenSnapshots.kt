@@ -33,6 +33,34 @@ class CloudFormScreenSnapshots : FunSpec({
             onBack = {},
             onTryAgain = {},
             devicePlatform = DevicePlatform.Android
+        )
+      )
+    }
+  }
+
+  test("cloud sign in instructions screen with design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      FormScreen(
+        SaveBackupInstructionsBodyModel(
+          onBackupClick = {},
+          onLearnMoreClick = {},
+          devicePlatform = DevicePlatform.Android,
+          requiresHardware = false,
+          isLoading = false
+        )
+      )
+    }
+  }
+
+  test("cloud sign in failed screen with design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      FormScreen(
+        model =
+          CloudSignInFailedScreenModel(
+            onContactSupport = {},
+            onBack = {},
+            onTryAgain = {},
+            devicePlatform = DevicePlatform.Android
           )
       )
     }

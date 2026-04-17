@@ -1,0 +1,4 @@
+-- Add ddkBackedUp column to track DDK re-sealing during W3 upgrade
+ALTER TABLE w3UpgradeMigrationEntity ADD COLUMN ddkBackedUp INTEGER NOT NULL DEFAULT 0;
+
+PRAGMA foreign_key_check;

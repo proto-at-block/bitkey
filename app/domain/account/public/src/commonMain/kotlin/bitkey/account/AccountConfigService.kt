@@ -50,6 +50,8 @@ interface AccountConfigService {
 
   suspend fun setSkipNotificationsOnboarding(value: Boolean): Result<Unit, Error>
 
+  suspend fun setSkipBuildHardwareDescriptorOnboarding(value: Boolean): Result<Unit, Error>
+
   /**
    * Enables fake hardware and test account. Bypasses validations so it works in the Customer app
    */
@@ -59,15 +61,4 @@ interface AccountConfigService {
    * Disables fake hardware and test account. Bypasses validations so it works in the Customer app
    */
   suspend fun disableDemoMode(): Result<Unit, Error>
-
-  /**
-   * Resolves the hardware type in [DefaultAccountConfig] and returns a [FullAccountConfig]
-   * with a concrete [HardwareType] (W1 or W3).
-   *
-   * This should be called during onboarding when converting the default config to a full account config.
-   * Resolution logic:
-   * - If `defaultConfig.hardwareType` is set (W1 or W3): uses that value
-   * - If `defaultConfig.hardwareType` is null: detects from firmware device info, defaults to W1
-   */
-  suspend fun resolveHardwareTypeAndCreateFullAccountConfig(): FullAccountConfig
 }

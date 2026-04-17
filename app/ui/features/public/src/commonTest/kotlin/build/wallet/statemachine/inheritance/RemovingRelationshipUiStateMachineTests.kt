@@ -7,12 +7,12 @@ import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.inheritance.InheritanceServiceMock
 import build.wallet.relationships.RelationshipsServiceMock
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
-import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
-import build.wallet.statemachine.auth.Request.HwKeyProof
+import build.wallet.statemachine.auth.HardwareAuthUiProps
+import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitBody
@@ -27,7 +27,6 @@ import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.string.shouldContain
-import io.kotest.matchers.types.shouldBeTypeOf
 
 class RemovingRelationshipUiStateMachineTests : FunSpec({
   val clock = ClockFake()
@@ -39,9 +38,9 @@ class RemovingRelationshipUiStateMachineTests : FunSpec({
   val stateMachine = RemovingRelationshipUiStateMachineImpl(
     inheritanceService = inheritanceService,
     relationshipsService = relationshipsService,
-    proofOfPossessionNfcStateMachine =
-      object : ProofOfPossessionNfcStateMachine, ScreenStateMachineMock<ProofOfPossessionNfcProps>(
-        id = "pop-nfc"
+    hardwareAuthUiStateMachine =
+      object : HardwareAuthUiStateMachine, ScreenStateMachineMock<HardwareAuthUiProps>(
+        id = "hardware-auth"
       ) {}
   )
   val onExitCalls = turbines.create<Unit>("Exit Remove Relationship State Machine")
@@ -53,6 +52,7 @@ class RemovingRelationshipUiStateMachineTests : FunSpec({
     onSuccess = { onSuccessCalls.add(Unit) },
     body = ManagingInheritanceBodyModel(
       onBack = {},
+      isDesignSystemV2Enabled = false,
       onLearnMore = {},
       onInviteClick = StandardClick {},
       onTabRowClick = {},
@@ -81,8 +81,8 @@ class RemovingRelationshipUiStateMachineTests : FunSpec({
         onPrimaryClick()
       }
 
-      awaitBodyMock<ProofOfPossessionNfcProps> {
-        request.shouldBeTypeOf<HwKeyProof>().onSuccess(HwFactorProofOfPossession("fake"))
+      awaitBodyMock<HardwareAuthUiProps> {
+        onSuccess(PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("fake")))
       }
 
       awaitSheet<DestructiveInheritanceActionBodyModel> {
@@ -104,8 +104,8 @@ class RemovingRelationshipUiStateMachineTests : FunSpec({
         onPrimaryClick()
       }
 
-      awaitBodyMock<ProofOfPossessionNfcProps> {
-        request.shouldBeTypeOf<HwKeyProof>().onSuccess(HwFactorProofOfPossession("fake"))
+      awaitBodyMock<HardwareAuthUiProps> {
+        onSuccess(PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("fake")))
       }
 
       awaitSheet<DestructiveInheritanceActionBodyModel> {

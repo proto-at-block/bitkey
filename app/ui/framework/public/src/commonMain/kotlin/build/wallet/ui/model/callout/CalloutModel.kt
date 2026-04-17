@@ -17,6 +17,8 @@ data class CalloutModel(
   val title: String? = null,
   val subtitle: LabelModel? = null,
   val treatment: Treatment = Treatment.Default,
+  val useMonochromeStyleInDesignSystemV2: Boolean = false,
+  val leadingIconOverrideInDesignSystemV2: Icon? = null,
   val leadingIcon: Icon? = null,
   val trailingIcon: Icon? = null,
   val onClick: Click? = null,

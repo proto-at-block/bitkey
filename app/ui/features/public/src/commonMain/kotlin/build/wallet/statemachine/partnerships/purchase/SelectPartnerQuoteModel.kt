@@ -14,6 +14,7 @@ import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.core.form.RenderContext.Screen
+import build.wallet.ui.compose.normalizeTestTagValue
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.*
@@ -54,6 +55,10 @@ internal fun selectPartnerPurchaseQuoteModel(
         )
         .map { quoteDisplay ->
           val isCashApp = quoteDisplay.quote.partnerInfo.partnerId == PartnerId("CashApp")
+          val partnerTagSuffix = normalizeTestTagValue(
+            quoteDisplay.quote.partnerInfo.partnerId.value,
+            fallback = "partner"
+          )
           ListItemModel(
             title = quoteDisplay.quote.partnerInfo.name,
             secondaryText = "Previously Used".takeIf {
@@ -77,7 +82,7 @@ internal fun selectPartnerPurchaseQuoteModel(
             ),
             trailingAccessory = ListItemAccessory.drillIcon(tint = IconTint.On30),
             explainer = when {
-              isCashApp && isCashAppPromotionEnabled -> ListItemExplainer(
+              isCashApp && isCashAppPromotionEnabled && quoteDisplay.quote.cryptoAmount >= 0.001 -> ListItemExplainer(
                 title = "No fees, no spread · Ends 4/29",
                 iconButton = IconButtonModel(
                   iconModel = IconModel(
@@ -85,6 +90,7 @@ internal fun selectPartnerPurchaseQuoteModel(
                     iconSize = IconSize.Small,
                     iconTint = IconTint.On30
                   ),
+                  testTag = "partner-purchase-quote-$partnerTagSuffix-promo-info",
                   onClick = StandardClick(onShowCashAppInfo)
                 )
               )

@@ -21,17 +21,33 @@ class HardwareConfirmationUiStateMachineImpl : HardwareConfirmationUiStateMachin
       HardwareConfirmationUiState.ShowingConfirmation -> {
         ScreenModel(
           body = HardwareConfirmationScreenModel(
-            onBack = {
+            onBack = props.onBack,
+            onCancel = {
               uiState = HardwareConfirmationUiState.ShowingCancellation
             },
-            onConfirm = props.onConfirm
+            onConfirm = props.onConfirm,
+            onHelpClick =
+              props.content.helpContent?.let {
+                { uiState = HardwareConfirmationUiState.ShowingHelp }
+              },
+            content = props.content,
+            isHardwareFake = props.isHardwareFake
+          )
+        )
+      }
+      HardwareConfirmationUiState.ShowingHelp -> {
+        ScreenModel(
+          body = HardwareConfirmationHelpBodyModel(
+            onBack = { uiState = HardwareConfirmationUiState.ShowingConfirmation },
+            content = requireNotNull(props.content.helpContent)
           )
         )
       }
       HardwareConfirmationUiState.ShowingCancellation -> {
         ScreenModel(
           body = HardwareConfirmationCanceledScreenModel(
-            onBack = props.onBack
+            onBack = props.onCancel,
+            content = props.content
           )
         )
       }
@@ -41,6 +57,8 @@ class HardwareConfirmationUiStateMachineImpl : HardwareConfirmationUiStateMachin
 
 private sealed interface HardwareConfirmationUiState {
   data object ShowingConfirmation : HardwareConfirmationUiState
+
+  data object ShowingHelp : HardwareConfirmationUiState
 
   data object ShowingCancellation : HardwareConfirmationUiState
 }

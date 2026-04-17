@@ -47,10 +47,10 @@ void captouch_thread(void* UNUSED(args)) {
 
         if (duration > LONG_PRESS_THRESHOLD_MS) {
           if (is_authenticated() == SECURE_TRUE) {
-            LOGW("sysevent: break glass");
+            LOGW("break glass");
             sysevent_set(SYSEVENT_BREAK_GLASS_READY);
           } else {
-            LOGW("not authenticated, won't break glass");
+            LOGW("unauthed, no break glass");
           }
         }
       }

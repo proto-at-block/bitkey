@@ -8,14 +8,22 @@ public class DatadogLogWriter: Shared.Kermit_coreLogWriter {
     private var logWriterContextStore: LogWriterContextStore
     private var minSeverity: Kermit_coreSeverity
 
-    private lazy var logger: DatadogLoggerProtocol = {
-        let logWriterContext = self.logWriterContextStore.get()
-        Datadog.addUserExtraInfo([
-            "app_installation_id": logWriterContext.appInstallationId,
-            "hardware_serial_number": logWriterContext.hardwareSerialNumber,
-            "firmware_version": logWriterContext.firmwareVersion,
-        ])
-        return DatadogLogger.create(
+    private let loggerLock = NSLock()
+    private var logger: DatadogLoggerProtocol?
+
+    /// Tracks the last user properties pushed to Datadog so we only call addUserExtraInfo
+    /// when values actually change (e.g. after pairing sets the hardware serial number).
+    private var lastUserProperties: UserProperties?
+
+    private func getLogger() -> DatadogLoggerProtocol {
+        loggerLock.lock()
+        defer { loggerLock.unlock() }
+
+        if let logger {
+            return logger
+        }
+
+        let logger = DatadogLogger.create(
             with: .init(
                 name: "Default",
                 networkInfoEnabled: false,
@@ -23,7 +31,25 @@ public class DatadogLogWriter: Shared.Kermit_coreLogWriter {
                 bundleWithTraceEnabled: true
             )
         )
-    }()
+        self.logger = logger
+        return logger
+    }
+
+    private func refreshUserPropertiesIfNeeded(_ context: LogWriterContext) {
+        let current = UserProperties(
+            appInstallationId: context.appInstallationId,
+            hardwareSerialNumber: context.hardwareSerialNumber,
+            firmwareVersion: context.firmwareVersion
+        )
+        if current != lastUserProperties {
+            lastUserProperties = current
+            Datadog.addUserExtraInfo([
+                "app_installation_id": current.appInstallationId,
+                "hardware_serial_number": current.hardwareSerialNumber,
+                "firmware_version": current.firmwareVersion,
+            ])
+        }
+    }
 
     public init(logWriterContextStore: LogWriterContextStore, minSeverity: Kermit_coreSeverity) {
         self.logWriterContextStore = logWriterContextStore
@@ -40,6 +66,12 @@ public class DatadogLogWriter: Shared.Kermit_coreLogWriter {
         tag: String,
         throwable: Shared.KotlinThrowable?
     ) {
+        let logContext: LogWriterContext
+        loggerLock.lock()
+        logContext = logWriterContextStore.get()
+        refreshUserPropertiesIfNeeded(logContext)
+        loggerLock.unlock()
+
         let strongThrowable = throwable
 
         let error: Error? = if let strongThrowable {
@@ -49,16 +81,22 @@ public class DatadogLogWriter: Shared.Kermit_coreLogWriter {
         }
 
         var attributes: [String: Encodable] = ["tag": tag]
-        if let appSessionId = logWriterContextStore.get().appSessionId {
+        if let appSessionId = logContext.appSessionId {
             attributes["app_session_id"] = appSessionId
         }
-        logger.log(
+        getLogger().log(
             level: severity.asLogLevel(),
             message: message,
             error: error,
             attributes: attributes
         )
     }
+}
+
+private struct UserProperties: Equatable {
+    let appInstallationId: String?
+    let hardwareSerialNumber: String?
+    let firmwareVersion: String?
 }
 
 extension Shared.Kermit_coreSeverity {

@@ -21,6 +21,7 @@ class FirmwareUnderTest(object):
     @classmethod
     def reset(cls):
         # artifacts
+        cls.path = None
         cls.product = None
         cls.platform = None
         cls.asset = None
@@ -118,6 +119,7 @@ class FirmwareUnderTest(object):
     def load(cls, fwut_path: Path):
         cls.reset()
         cls._extract_tags_from_path(fwut_path)
+        cls.path = fwut_path
 
         with open(fwut_path, "rb") as fw:
             cls.firmware = bytes(fw.read())

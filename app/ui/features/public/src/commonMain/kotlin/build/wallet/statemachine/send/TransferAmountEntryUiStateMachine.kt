@@ -30,12 +30,23 @@ data class ContinueTransferParams(
 data class TransferAmountEntryUiProps(
   val onBack: () -> Unit,
   val initialAmount: Money,
-  val minAmount: BitcoinMoney? = null,
-  val maxAmount: BitcoinMoney? = null,
   val exchangeRates: ImmutableList<ExchangeRate>?,
-  val allowSendAll: Boolean = true,
+  val flow: Flow = Flow.Send(),
   val onContinueClick: (ContinueTransferParams) -> Unit,
-)
+) {
+  sealed interface Flow {
+    data class Send(
+      val allowSendAll: Boolean = true,
+      val minAmount: BitcoinMoney? = null,
+      val maxAmount: BitcoinMoney? = null,
+    ) : Flow
+
+    data class Sell(
+      val minAmount: BitcoinMoney,
+      val maxAmount: BitcoinMoney,
+    ) : Flow
+  }
+}
 
 sealed interface TransferAmountUiState {
   sealed interface ValidAmountEnteredUiState : TransferAmountUiState {

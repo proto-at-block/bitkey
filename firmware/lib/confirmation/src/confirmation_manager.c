@@ -12,11 +12,12 @@
 #include "secure_rng.h"
 #include "secutils.h"
 #include "wallet.pb.h"
+#include "wstring.h"
 
 #include <string.h>
 
-// Timeout for pending confirmations: 30 seconds
-#define CONFIRMATION_TIMEOUT_MS (30 * 1000)
+// Timeout for pending confirmations: 60 seconds
+#define CONFIRMATION_TIMEOUT_MS (60 * 1000)
 
 // Static assertions to ensure sizes match proto definitions
 _Static_assert(CONFIRMATION_HANDLE_SIZE == sizeof(((fwpb_wallet_rsp*)0)->response_handle.bytes),
@@ -37,15 +38,14 @@ typedef struct {
   size_t operation_data_size;
 } pending_confirmation_t;
 
-static SHARED_TASK_DATA pending_confirmation_t pending_confirmation = {0};
+static SHARED_TASK_BSS pending_confirmation_t pending_confirmation = {0};
 
 // Mutex for thread-safe access to confirmation state
-static SHARED_TASK_DATA rtos_mutex_t confirmation_mutex = {0};
+static SHARED_TASK_BSS rtos_mutex_t confirmation_mutex = {0};
 
 // Handler table for confirmation result dispatch
 // Index corresponds to confirmation_type_t enum values
-static SHARED_TASK_DATA confirmation_result_handler_t result_handlers[CONFIRMATION_TYPE_COUNT] = {
-  0};
+static SHARED_TASK_BSS confirmation_result_handler_t result_handlers[CONFIRMATION_TYPE_COUNT] = {0};
 
 void confirmation_manager_init(void) {
   rtos_mutex_create(&confirmation_mutex);
@@ -58,36 +58,34 @@ confirmation_manager_create(confirmation_type_t type, const void* operation_data
   ASSERT(confirmation_mutex.handle != NULL);
   rtos_mutex_lock(&confirmation_mutex);
 
-  if (pending_confirmation.active) {
-    LOGE("Confirmation already pending");
-    rtos_mutex_unlock(&confirmation_mutex);
-    return CONFIRMATION_RESULT_ALREADY_PENDING;
-  }
-
   if (data_size > MAX_OPERATION_DATA_SIZE) {
-    LOGE("Operation data too large: %zu bytes (max: %d)", data_size, MAX_OPERATION_DATA_SIZE);
+    LOGE("Op data too large");
     rtos_mutex_unlock(&confirmation_mutex);
     return CONFIRMATION_RESULT_INVALID_PARAMS;
   }
 
   if (!operation_data || !response_handle_out || !confirmation_handle_out) {
-    LOGE("Invalid parameters");
+    LOGE("Invalid params");
     rtos_mutex_unlock(&confirmation_mutex);
     return CONFIRMATION_RESULT_INVALID_PARAMS;
   }
 
   if (response_handle_size != CONFIRMATION_HANDLE_SIZE ||
       confirmation_handle_size != CONFIRMATION_HANDLE_SIZE) {
-    LOGE("Invalid handle sizes (expected: %d, got response: %zu, confirmation: %zu)",
-         CONFIRMATION_HANDLE_SIZE, response_handle_size, confirmation_handle_size);
+    LOGE("Bad handle size");
     rtos_mutex_unlock(&confirmation_mutex);
     return CONFIRMATION_RESULT_INVALID_PARAMS;
+  }
+
+  if (pending_confirmation.active) {
+    LOGW("Replacing confirm");
+    memset(&pending_confirmation, 0, sizeof(pending_confirmation));
   }
 
   // Generate cryptographically secure random handles
   if (!crypto_random(pending_confirmation.response_handle,
                      sizeof(pending_confirmation.response_handle))) {
-    LOGE("Failed to generate response_handle");
+    LOGE("RNG fail");
     memset(&pending_confirmation, 0, sizeof(pending_confirmation));
     rtos_mutex_unlock(&confirmation_mutex);
     return CONFIRMATION_RESULT_ERROR;
@@ -95,7 +93,7 @@ confirmation_manager_create(confirmation_type_t type, const void* operation_data
 
   if (!crypto_random(pending_confirmation.confirmation_handle,
                      sizeof(pending_confirmation.confirmation_handle))) {
-    LOGE("Failed to generate confirmation_handle");
+    LOGE("RNG fail");
     memset(&pending_confirmation, 0, sizeof(pending_confirmation));
     rtos_mutex_unlock(&confirmation_mutex);
     return CONFIRMATION_RESULT_ERROR;
@@ -126,21 +124,18 @@ NO_OPTIMIZE confirmation_result_t confirmation_manager_validate(const uint8_t* r
   rtos_mutex_lock(&confirmation_mutex);
 
   if (!pending_confirmation.active) {
-    LOGE("No active confirmation");
+    LOGE("No active confirm");
     rtos_mutex_unlock(&confirmation_mutex);
     return CONFIRMATION_RESULT_INVALID_PARAMS;
   }
 
   if (!response_handle || !confirmation_handle) {
-    LOGE("Invalid handle parameters");
     rtos_mutex_unlock(&confirmation_mutex);
     return CONFIRMATION_RESULT_INVALID_PARAMS;
   }
 
   if (response_handle_size != CONFIRMATION_HANDLE_SIZE ||
       confirmation_handle_size != CONFIRMATION_HANDLE_SIZE) {
-    LOGE("Invalid handle sizes (expected: %d, got response: %zu, confirmation: %zu)",
-         CONFIRMATION_HANDLE_SIZE, response_handle_size, confirmation_handle_size);
     rtos_mutex_unlock(&confirmation_mutex);
     return CONFIRMATION_RESULT_INVALID_PARAMS;
   }
@@ -149,25 +144,25 @@ NO_OPTIMIZE confirmation_result_t confirmation_manager_validate(const uint8_t* r
   uint32_t current_time = rtos_thread_systime();
   uint32_t elapsed_time = current_time - pending_confirmation.timestamp;
   if (elapsed_time > CONFIRMATION_TIMEOUT_MS) {
-    LOGE("Confirmation timeout (elapsed: %lu ms)", (unsigned long)elapsed_time);
+    LOGE("Confirm timeout");
     memset(&pending_confirmation, 0, sizeof(pending_confirmation));
     rtos_mutex_unlock(&confirmation_mutex);
     return CONFIRMATION_RESULT_TIMEOUT;
   }
 
   // Validate handles
-  if (memcmp(response_handle, pending_confirmation.response_handle,
-             sizeof(pending_confirmation.response_handle)) != 0 ||
-      memcmp(confirmation_handle, pending_confirmation.confirmation_handle,
-             sizeof(pending_confirmation.confirmation_handle)) != 0) {
-    LOGE("Invalid confirmation handles");
+  if (memcmp_s(response_handle, pending_confirmation.response_handle,
+               sizeof(pending_confirmation.response_handle)) != 0 ||
+      memcmp_s(confirmation_handle, pending_confirmation.confirmation_handle,
+               sizeof(pending_confirmation.confirmation_handle)) != 0) {
+    LOGE("Invalid handles");
     rtos_mutex_unlock(&confirmation_mutex);
     return CONFIRMATION_RESULT_INVALID_PARAMS;
   }
 
   // Check if user approved on device screen
   SECURE_IF_FAILIN(!pending_confirmation.user_approved) {
-    LOGE("User has not approved confirmation on device");
+    LOGE("Not approved on device");
     rtos_mutex_unlock(&confirmation_mutex);
     return CONFIRMATION_RESULT_NOT_APPROVED;
   }
@@ -182,20 +177,17 @@ bool confirmation_manager_get_operation_data(confirmation_type_t expected_type, 
   rtos_mutex_lock(&confirmation_mutex);
 
   if (!pending_confirmation.active) {
-    LOGE("No active confirmation");
     rtos_mutex_unlock(&confirmation_mutex);
     return false;
   }
 
   if (pending_confirmation.type != expected_type) {
-    LOGE("Confirmation type mismatch (expected: %d, actual: %d)", expected_type,
-         pending_confirmation.type);
+    LOGE("Confirm type err");
     rtos_mutex_unlock(&confirmation_mutex);
     return false;
   }
 
   if (!data_out || !data_size_out) {
-    LOGE("Invalid output parameters");
     rtos_mutex_unlock(&confirmation_mutex);
     return false;
   }
@@ -260,6 +252,31 @@ confirmation_type_t confirmation_manager_get_type(void) {
 
   rtos_mutex_unlock(&confirmation_mutex);
   return result;
+}
+
+void confirmation_manager_refresh_timestamp(void) {
+  ASSERT(confirmation_mutex.handle != NULL);
+  rtos_mutex_lock(&confirmation_mutex);
+
+  if (pending_confirmation.active) {
+    pending_confirmation.timestamp = rtos_thread_systime();
+  }
+
+  rtos_mutex_unlock(&confirmation_mutex);
+}
+
+bool confirmation_manager_is_expired(void) {
+  ASSERT(confirmation_mutex.handle != NULL);
+  rtos_mutex_lock(&confirmation_mutex);
+
+  bool expired = false;
+  if (pending_confirmation.active && !pending_confirmation.user_approved) {
+    uint32_t elapsed = rtos_thread_systime() - pending_confirmation.timestamp;
+    expired = (elapsed > CONFIRMATION_TIMEOUT_MS);
+  }
+
+  rtos_mutex_unlock(&confirmation_mutex);
+  return expired;
 }
 
 void confirmation_manager_register_result_handler(confirmation_type_t type,

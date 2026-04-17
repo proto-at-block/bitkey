@@ -17,6 +17,7 @@ kotlin {
         api(projects.libs.platformPublic)
         api(projects.libs.grantsPublic)
         api(projects.domain.featureFlagPublic)
+        api(projects.rust.actionProofFfi)
       }
     }
   }

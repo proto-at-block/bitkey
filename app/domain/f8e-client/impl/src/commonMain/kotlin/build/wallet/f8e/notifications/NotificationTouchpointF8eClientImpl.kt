@@ -14,11 +14,11 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.email.Email
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.applyTo
 import build.wallet.f8e.client.plugins.withAccountId
 import build.wallet.f8e.client.plugins.withEnvironment
-import build.wallet.f8e.client.plugins.withHardwareFactor
 import build.wallet.f8e.logging.withDescription
 import build.wallet.f8e.notifications.F8eNotificationTouchpoint.F8eEmailTouchpoint
 import build.wallet.f8e.notifications.F8eNotificationTouchpoint.F8ePhoneNumberTouchpoint
@@ -111,7 +111,7 @@ class NotificationTouchpointF8eClientImpl(
     f8eEnvironment: F8eEnvironment,
     accountId: AccountId,
     touchpointId: String,
-    hwFactorProofOfPossession: HwFactorProofOfPossession?,
+    proof: PrivilegedActionProof?,
   ): Result<Unit, NetworkingError> {
     return f8eHttpClient.authenticated()
       .catching {
@@ -119,7 +119,7 @@ class NotificationTouchpointF8eClientImpl(
           withDescription("Activate notification touchpoint")
           withEnvironment(f8eEnvironment)
           withAccountId(accountId)
-          hwFactorProofOfPossession?.run(::withHardwareFactor)
+          proof.applyTo(this)
           setRedactedBody(EmptyRequestBody)
         }
       }
@@ -150,18 +150,15 @@ class NotificationTouchpointF8eClientImpl(
               )
 
             is F8ePhoneNumberTouchpoint -> {
-              val phoneNumber = phoneNumberValidator.validatePhoneNumber(f8eTouchpoint.phoneNumber)
-              when (phoneNumber) {
-                null -> {
-                  logError { "Unable to validate phone number from server" }
-                  null
-                }
-
-                else ->
-                  PhoneNumberTouchpoint(
-                    touchpointId = f8eTouchpoint.touchpointId,
-                    value = phoneNumber
-                  )
+              phoneNumberValidator.validatePhoneNumber(f8eTouchpoint.phoneNumber)?.let {
+                  phoneNumber ->
+                PhoneNumberTouchpoint(
+                  touchpointId = f8eTouchpoint.touchpointId,
+                  value = phoneNumber
+                )
+              } ?: run {
+                logError { "Unable to validate phone number from server" }
+                null
               }
             }
           }
@@ -198,7 +195,7 @@ class NotificationTouchpointF8eClientImpl(
     f8eEnvironment: F8eEnvironment,
     accountId: AccountId,
     preferences: NotificationPreferences,
-    hwFactorProofOfPossession: HwFactorProofOfPossession?,
+    proof: PrivilegedActionProof?,
   ): Result<Unit, NetworkingError> {
     val prefRequest = NotificationsPreferencesRequest(
       moneyMovement = preferences.moneyMovement.map { it.name },
@@ -212,7 +209,7 @@ class NotificationTouchpointF8eClientImpl(
           setRedactedBody(prefRequest)
           withEnvironment(f8eEnvironment)
           withAccountId(accountId)
-          hwFactorProofOfPossession?.run(::withHardwareFactor)
+          proof.applyTo(this)
         }
       }
       .logNetworkFailure { "Failed to update notification preferences" }

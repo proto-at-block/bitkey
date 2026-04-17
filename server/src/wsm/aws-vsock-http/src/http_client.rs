@@ -219,7 +219,7 @@ impl Service<Uri> for TlsVsockServiceConnector {
             let stream = tls_connector
                 .connect(server_name, vsock_stream)
                 .await
-                .map_err(|e| VsockError::HttpRequest(io::Error::new(io::ErrorKind::Other, e)))?;
+                .map_err(|e| VsockError::HttpRequest(io::Error::other(e)))?;
 
             Ok(TlsVsockConnection { stream })
         })
@@ -258,7 +258,7 @@ impl VsockStream {
         // notifications
         socket
             .set_nonblocking(true)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            .map_err(|e| io::Error::other(e))?;
         let async_fd = AsyncFd::new(socket)?;
 
         Ok(Self { async_fd })

@@ -8,6 +8,7 @@ import build.wallet.statemachine.core.form.FormHeaderModel.SublineTreatment.REGU
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
+import build.wallet.ui.tokens.LabelType
 import dev.zacsweers.redacted.annotations.Redacted
 
 data class FormHeaderModel(
@@ -25,6 +26,8 @@ data class FormHeaderModel(
   val sublineTreatment: SublineTreatment = REGULAR,
   val alignment: Alignment = LEADING,
   val customContent: CustomContent? = null,
+  val headlineLabelType: LabelType = LabelType.Title1,
+  val bottomContent: CustomContent? = null,
 ) {
   constructor(
     headline: String,
@@ -33,13 +36,17 @@ data class FormHeaderModel(
     sublineTreatment: SublineTreatment = REGULAR,
     alignment: Alignment = LEADING,
     customContent: CustomContent? = null,
+    headlineLabelType: LabelType = LabelType.Title1,
+    bottomContent: CustomContent? = null,
   ) : this(
     iconModel = iconModel,
     headline = headline,
     sublineModel = subline?.let { StringModel(it) },
     sublineTreatment = sublineTreatment,
     alignment = alignment,
-    customContent = customContent
+    customContent = customContent,
+    headlineLabelType = headlineLabelType,
+    bottomContent = bottomContent
   )
 
   constructor(
@@ -48,6 +55,8 @@ data class FormHeaderModel(
     subline: String?,
     sublineTreatment: SublineTreatment = REGULAR,
     alignment: Alignment = LEADING,
+    headlineLabelType: LabelType = LabelType.Title1,
+    bottomContent: CustomContent? = null,
   ) : this(
     iconModel = icon?.let {
       IconModel(
@@ -59,7 +68,9 @@ data class FormHeaderModel(
     headline = headline,
     subline = subline,
     sublineTreatment = sublineTreatment,
-    alignment = alignment
+    alignment = alignment,
+    headlineLabelType = headlineLabelType,
+    bottomContent = bottomContent
   )
 
   constructor(
@@ -68,6 +79,8 @@ data class FormHeaderModel(
     sublineModel: LabelModel? = null,
     sublineTreatment: SublineTreatment = REGULAR,
     alignment: Alignment = LEADING,
+    headlineLabelType: LabelType = LabelType.Title1,
+    bottomContent: CustomContent? = null,
   ) : this(
     iconModel = icon?.let {
       IconModel(
@@ -76,10 +89,12 @@ data class FormHeaderModel(
         iconTint = IconTint.Primary
       )
     },
-    headline,
-    sublineModel,
-    sublineTreatment,
-    alignment
+    headline = headline,
+    sublineModel = sublineModel,
+    sublineTreatment = sublineTreatment,
+    alignment = alignment,
+    headlineLabelType = headlineLabelType,
+    bottomContent = bottomContent
   )
 
   enum class Alignment {
@@ -103,6 +118,10 @@ data class FormHeaderModel(
       ),
       val partnerIcon: IconModel,
     ) : CustomContent()
+
+    data object AsteriskWave : CustomContent()
+
+    data object ScanAnimation : CustomContent()
   }
 
   data class PosterImage(

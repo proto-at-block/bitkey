@@ -33,9 +33,10 @@ use onboarding::account_validation::error::AccountValidationError;
 use onboarding::routes::{
     AccountActivateTouchpointRequest, AccountAddDeviceTokenRequest, AccountAddTouchpointRequest,
     AccountVerifyTouchpointRequest, ActivateSpendingKeyDefinitionRequest,
-    CompleteOnboardingRequest, ContinueDistributedKeygenRequest, CreateAccountRequest,
-    InititateDistributedKeygenRequest, UpgradeAccountRequest,
+    CompleteOnboardingRequest, CompleteOnboardingRequestV2, ContinueDistributedKeygenRequest,
+    CreateAccountRequest, InititateDistributedKeygenRequest, UpgradeAccountRequest,
 };
+use onboarding::routes_v2::CreateAccountRequestV2;
 use recovery::entities::{RecoveryDestination, RecoveryStatus};
 use recovery::routes::distributed_keys::CreateSelfSovereignBackupRequest;
 use rstest::rstest;
@@ -43,7 +44,8 @@ use serde_json::{json, Value};
 use time::{Duration, OffsetDateTime};
 use types::account::bitcoin::Network as AccountNetwork;
 use types::account::entities::{
-    DescriptorBackup, DescriptorBackupsSet, Factor, FullAccountAuthKeysInput,
+    v2::{FullAccountAuthKeysInputV2, SpendingKeysetInputV2},
+    DescriptorBackup, DescriptorBackupsSet, Factor, FullAccountAuthKeysInput, HardwareType,
     LiteAccountAuthKeysInput, SoftwareAccountAuthKeysInput, SpendingKeysetInput, Touchpoint,
     TouchpointPlatform, UpgradeLiteAccountAuthKeysInput,
 };
@@ -97,6 +99,7 @@ async fn onboarding_test(
             } else {
                 None
             },
+            hardware_type: HardwareType::default(),
         },
         spending: SpendingKeysetInput {
             network,
@@ -933,6 +936,7 @@ async fn test_duplicate_hw_auth_key_fails_onboarding() {
             app: keys.app.public_key,
             hardware: keys.hw.public_key,
             recovery: Some(keys.recovery.public_key),
+            hardware_type: HardwareType::default(),
         },
         spending: SpendingKeysetInput {
             network: Network::Testnet,
@@ -949,6 +953,7 @@ async fn test_duplicate_hw_auth_key_fails_onboarding() {
             app: create_pubkey(),
             hardware: keys.hw.public_key,
             recovery: Some(create_pubkey()),
+            hardware_type: HardwareType::default(),
         },
         spending: SpendingKeysetInput {
             network: Network::Testnet,
@@ -973,6 +978,7 @@ async fn test_duplicate_recovery_auth_key_fails_onboarding() {
             app: keys.app.public_key,
             hardware: keys.hw.public_key,
             recovery: Some(keys.recovery.public_key),
+            hardware_type: HardwareType::default(),
         },
         spending: SpendingKeysetInput {
             network: Network::Testnet,
@@ -990,6 +996,7 @@ async fn test_duplicate_recovery_auth_key_fails_onboarding() {
             app: new_keys.app.public_key,
             hardware: new_keys.hw.public_key,
             recovery: Some(keys.recovery.public_key),
+            hardware_type: HardwareType::default(),
         },
         spending: SpendingKeysetInput {
             network: Network::Testnet,
@@ -1014,6 +1021,7 @@ async fn test_idempotent_account_creation() {
             app: keys.app.public_key,
             hardware: keys.hw.public_key,
             recovery: Some(keys.recovery.public_key),
+            hardware_type: HardwareType::default(),
         },
         spending: SpendingKeysetInput {
             network: Network::Testnet,
@@ -1031,6 +1039,7 @@ async fn test_idempotent_account_creation() {
             app: new_keys.app.public_key,
             hardware: keys.hw.public_key,
             recovery: Some(keys.recovery.public_key),
+            hardware_type: HardwareType::default(),
         },
         spending: SpendingKeysetInput {
             network: Network::Testnet,
@@ -1059,6 +1068,7 @@ async fn idempotent_create_account_test(
             app: keys.app.public_key,
             hardware: keys.hw.public_key,
             recovery: Some(keys.recovery.public_key),
+            hardware_type: HardwareType::default(),
         },
         spending: SpendingKeysetInput {
             network: Network::Testnet,
@@ -1093,6 +1103,7 @@ async fn idempotent_create_account_test(
             app: app_pubkey,
             hardware: hw_pubkey,
             recovery: recovery_pubkey,
+            hardware_type: HardwareType::default(),
         },
         spending: SpendingKeysetInput {
             network: Network::Testnet,
@@ -1149,6 +1160,7 @@ async fn create_test_account_with_network(
             app: keys.app.public_key,
             hardware: keys.hw.public_key,
             recovery: Some(keys.recovery.public_key),
+            hardware_type: HardwareType::default(),
         },
         spending: SpendingKeysetInput {
             network: Network::from(network),
@@ -1209,6 +1221,7 @@ async fn create_account_key_validation_test(
             app_auth_pubkey: keys.app.public_key,
             hardware_auth_pubkey: keys.hw.public_key,
             recovery_auth_pubkey: Some(keys.recovery.public_key),
+            hardware_type: HardwareType::default(),
         },
         fixed_cur_time + Duration::days(7),
         RecoveryStatus::Pending,
@@ -1264,6 +1277,7 @@ async fn create_account_key_validation_test(
                     app: account_app_pubkey,
                     hardware: account_hardware_pubkey,
                     recovery: Some(account_recovery_pubkey),
+                    hardware_type: HardwareType::default(),
                 },
                 spending: SpendingKeysetInput {
                     network: Network::Signet,
@@ -1439,6 +1453,7 @@ async fn upgrade_account_test(
             app_auth_pubkey: other_recovery_auth_keys.app.public_key,
             hardware_auth_pubkey: other_recovery_auth_keys.hw.public_key,
             recovery_auth_pubkey: Some(other_recovery_auth_keys.recovery.public_key),
+            hardware_type: HardwareType::default(),
         },
         fixed_cur_time + Duration::days(7),
         RecoveryStatus::Pending,
@@ -1743,6 +1758,7 @@ async fn test_revoked_access_token_add_push_touchpoint() {
             app: keys.app.public_key,
             hardware: keys.hw.public_key,
             recovery: None,
+            hardware_type: HardwareType::default(),
         },
         spending: SpendingKeysetInput {
             network: Network::Signet,
@@ -2302,7 +2318,6 @@ async fn test_descriptor_backup(
                     hardware: DescriptorPublicKey::from_str("xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y").unwrap(),
                 },
             },
-            keys.as_ref().unwrap(),
         )
         .await;
         assert_eq!(
@@ -2367,32 +2382,65 @@ async fn test_descriptor_backup(
 async fn activate_touchpoint_with_action_proof_both_signatures_succeeds() {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
-    let account = create_full_account(
-        &mut context,
-        &bootstrap.services,
-        AccountNetwork::BitcoinSignet,
-        None,
-    )
-    .await;
 
-    // Complete onboarding so we require HardwareProofOfPossession
+    // Create a W3 account via the V2 HTTP route (ActionProof requires W3 hardware)
+    let (spending_app_pub, spending_hw_pub) = (create_pubkey(), create_pubkey());
+    let keys = create_new_authkeys(&mut context);
+    let create_request = CreateAccountRequestV2 {
+        auth: FullAccountAuthKeysInputV2 {
+            app_pub: keys.app.public_key,
+            hardware_pub: keys.hw.public_key,
+            recovery_pub: keys.recovery.public_key,
+            hardware_type: HardwareType::W3,
+        },
+        spend: SpendingKeysetInputV2 {
+            network: Network::Signet,
+            app_pub: spending_app_pub,
+            hardware_pub: spending_hw_pub,
+        },
+        is_test_account: true,
+    };
+    let create_response = client
+        .create_account_v2(&mut context, &create_request)
+        .await;
+    assert_eq!(create_response.status_code, StatusCode::OK);
+    let create_body = create_response.body.unwrap();
+    let account_id = create_body.account_id.to_string();
+
+    // W3 accounts require a descriptor backup before completing onboarding
     assert_eq!(
         client
-            .complete_onboarding(&account.id.to_string(), &CompleteOnboardingRequest {})
+            .update_descriptor_backups(
+                &account_id,
+                &DescriptorBackupsSet {
+                    wrapped_ssek: vec![],
+                    descriptor_backups: vec![DescriptorBackup::Private {
+                        keyset_id: create_body.keyset_id.clone(),
+                        sealed_descriptor: "test".to_string(),
+                        sealed_server_root_xpub: "test".to_string(),
+                    }],
+                },
+                Some(&keys),
+            )
             .await
             .status_code,
         StatusCode::OK,
     );
 
-    let keys = context
-        .get_authentication_keys_for_account_id(&account.id)
-        .unwrap();
+    // Complete onboarding so we require authorization (BothFactors)
+    assert_eq!(
+        client
+            .complete_onboarding_v2(&account_id, &CompleteOnboardingRequestV2 {}, Some(&keys))
+            .await
+            .status_code,
+        StatusCode::OK,
+    );
 
     // Add email touchpoint
     let email = "test@example.com";
     let add_response = client
         .add_touchpoint(
-            &account.id.to_string(),
+            &account_id,
             &AccountAddTouchpointRequest::Email {
                 email_address: email.to_owned(),
             },
@@ -2405,7 +2453,7 @@ async fn activate_touchpoint_with_action_proof_both_signatures_succeeds() {
     // Verify touchpoint
     let verify_response = client
         .verify_touchpoint(
-            &account.id.to_string(),
+            &account_id,
             &touchpoint_id.to_string(),
             &AccountVerifyTouchpointRequest {
                 verification_code: comms_verification::TEST_CODE.to_owned(),
@@ -2417,11 +2465,10 @@ async fn activate_touchpoint_with_action_proof_both_signatures_succeeds() {
     // Activate with ActionProof using both signatures
     let activate_response = client
         .activate_touchpoint_with_action_proof(
-            &account.id.to_string(),
+            &account_id,
             &touchpoint_id.to_string(),
             &PrivilegedActionRequest::Initiate(AccountActivateTouchpointRequest {}),
-            action_proof::Action::Add,
-            action_proof::Field::RecoveryEmail,
+            action_proof::Action::SetRecoveryEmail,
             Some(email),
             &keys,
             true, // sign_with_app
@@ -2438,11 +2485,12 @@ async fn activate_touchpoint_with_action_proof_both_signatures_succeeds() {
     );
 
     // Verify the touchpoint is now active
+    let account_id_parsed: types::account::identifiers::AccountId = account_id.parse().unwrap();
     let account = bootstrap
         .services
         .account_service
         .fetch_account(FetchAccountInput {
-            account_id: &account.id,
+            account_id: &account_id_parsed,
         })
         .await
         .unwrap();
@@ -2455,32 +2503,65 @@ async fn activate_touchpoint_with_action_proof_both_signatures_succeeds() {
 async fn activate_touchpoint_with_action_proof_wrong_value_fails() {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
-    let account = create_full_account(
-        &mut context,
-        &bootstrap.services,
-        AccountNetwork::BitcoinSignet,
-        None,
-    )
-    .await;
 
-    // Complete onboarding so we require HardwareProofOfPossession
+    // Create a W3 account via the V2 HTTP route (ActionProof requires W3 hardware)
+    let (spending_app_pub, spending_hw_pub) = (create_pubkey(), create_pubkey());
+    let keys = create_new_authkeys(&mut context);
+    let create_request = CreateAccountRequestV2 {
+        auth: FullAccountAuthKeysInputV2 {
+            app_pub: keys.app.public_key,
+            hardware_pub: keys.hw.public_key,
+            recovery_pub: keys.recovery.public_key,
+            hardware_type: HardwareType::W3,
+        },
+        spend: SpendingKeysetInputV2 {
+            network: Network::Signet,
+            app_pub: spending_app_pub,
+            hardware_pub: spending_hw_pub,
+        },
+        is_test_account: true,
+    };
+    let create_response = client
+        .create_account_v2(&mut context, &create_request)
+        .await;
+    assert_eq!(create_response.status_code, StatusCode::OK);
+    let create_body = create_response.body.unwrap();
+    let account_id = create_body.account_id.to_string();
+
+    // W3 accounts require a descriptor backup before completing onboarding
     assert_eq!(
         client
-            .complete_onboarding(&account.id.to_string(), &CompleteOnboardingRequest {})
+            .update_descriptor_backups(
+                &account_id,
+                &DescriptorBackupsSet {
+                    wrapped_ssek: vec![],
+                    descriptor_backups: vec![DescriptorBackup::Private {
+                        keyset_id: create_body.keyset_id.clone(),
+                        sealed_descriptor: "test".to_string(),
+                        sealed_server_root_xpub: "test".to_string(),
+                    }],
+                },
+                Some(&keys),
+            )
             .await
             .status_code,
         StatusCode::OK,
     );
 
-    let keys = context
-        .get_authentication_keys_for_account_id(&account.id)
-        .unwrap();
+    // Complete onboarding so we require authorization (BothFactors)
+    assert_eq!(
+        client
+            .complete_onboarding_v2(&account_id, &CompleteOnboardingRequestV2 {}, Some(&keys))
+            .await
+            .status_code,
+        StatusCode::OK,
+    );
 
     // Add email touchpoint
     let actual_email = "actual@example.com";
     let add_response = client
         .add_touchpoint(
-            &account.id.to_string(),
+            &account_id,
             &AccountAddTouchpointRequest::Email {
                 email_address: actual_email.to_owned(),
             },
@@ -2493,7 +2574,7 @@ async fn activate_touchpoint_with_action_proof_wrong_value_fails() {
     // Verify touchpoint
     let verify_response = client
         .verify_touchpoint(
-            &account.id.to_string(),
+            &account_id,
             &touchpoint_id.to_string(),
             &AccountVerifyTouchpointRequest {
                 verification_code: comms_verification::TEST_CODE.to_owned(),
@@ -2506,11 +2587,10 @@ async fn activate_touchpoint_with_action_proof_wrong_value_fails() {
     let wrong_email = "wrong@example.com";
     let activate_response = client
         .activate_touchpoint_with_action_proof(
-            &account.id.to_string(),
+            &account_id,
             &touchpoint_id.to_string(),
             &PrivilegedActionRequest::Initiate(AccountActivateTouchpointRequest {}),
-            action_proof::Action::Add,
-            action_proof::Field::RecoveryEmail,
+            action_proof::Action::SetRecoveryEmail,
             Some(wrong_email), // Wrong value!
             &keys,
             true, // sign_with_app
@@ -2528,20 +2608,19 @@ async fn activate_touchpoint_with_action_proof_wrong_value_fails() {
 
     // Verify the error is due to signature verification failure (wrong value = unknown key)
     assert!(
-        activate_response
-            .body_string
-            .contains("hardware proof of possession")
-            || activate_response.body_string.contains("signature"),
+        activate_response.body_string.contains("signature")
+            || activate_response.body_string.contains("Forbidden"),
         "Expected error about signature/proof failure, got: {}",
         activate_response.body_string
     );
 
     // Verify touchpoint was NOT activated (no side effects from failed auth)
+    let account_id_parsed: types::account::identifiers::AccountId = account_id.parse().unwrap();
     let account = bootstrap
         .services
         .account_service
         .fetch_account(FetchAccountInput {
-            account_id: &account.id,
+            account_id: &account_id_parsed,
         })
         .await
         .unwrap();
@@ -2557,32 +2636,65 @@ async fn activate_touchpoint_with_action_proof_wrong_value_fails() {
 async fn activate_touchpoint_with_action_proof_missing_hw_signature_fails() {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
-    let account = create_full_account(
-        &mut context,
-        &bootstrap.services,
-        AccountNetwork::BitcoinSignet,
-        None,
-    )
-    .await;
 
-    // Complete onboarding so we require HardwareProofOfPossession (Signers::All)
+    // Create a W3 account via the V2 HTTP route (ActionProof requires W3 hardware)
+    let (spending_app_pub, spending_hw_pub) = (create_pubkey(), create_pubkey());
+    let keys = create_new_authkeys(&mut context);
+    let create_request = CreateAccountRequestV2 {
+        auth: FullAccountAuthKeysInputV2 {
+            app_pub: keys.app.public_key,
+            hardware_pub: keys.hw.public_key,
+            recovery_pub: keys.recovery.public_key,
+            hardware_type: HardwareType::W3,
+        },
+        spend: SpendingKeysetInputV2 {
+            network: Network::Signet,
+            app_pub: spending_app_pub,
+            hardware_pub: spending_hw_pub,
+        },
+        is_test_account: true,
+    };
+    let create_response = client
+        .create_account_v2(&mut context, &create_request)
+        .await;
+    assert_eq!(create_response.status_code, StatusCode::OK);
+    let create_body = create_response.body.unwrap();
+    let account_id = create_body.account_id.to_string();
+
+    // W3 accounts require a descriptor backup before completing onboarding
     assert_eq!(
         client
-            .complete_onboarding(&account.id.to_string(), &CompleteOnboardingRequest {})
+            .update_descriptor_backups(
+                &account_id,
+                &DescriptorBackupsSet {
+                    wrapped_ssek: vec![],
+                    descriptor_backups: vec![DescriptorBackup::Private {
+                        keyset_id: create_body.keyset_id.clone(),
+                        sealed_descriptor: "test".to_string(),
+                        sealed_server_root_xpub: "test".to_string(),
+                    }],
+                },
+                Some(&keys),
+            )
             .await
             .status_code,
         StatusCode::OK,
     );
 
-    let keys = context
-        .get_authentication_keys_for_account_id(&account.id)
-        .unwrap();
+    // Complete onboarding so we require authorization (BothFactors)
+    assert_eq!(
+        client
+            .complete_onboarding_v2(&account_id, &CompleteOnboardingRequestV2 {}, Some(&keys))
+            .await
+            .status_code,
+        StatusCode::OK,
+    );
 
     // Add email touchpoint
     let email = "test@example.com";
     let add_response = client
         .add_touchpoint(
-            &account.id.to_string(),
+            &account_id,
             &AccountAddTouchpointRequest::Email {
                 email_address: email.to_owned(),
             },
@@ -2595,7 +2707,7 @@ async fn activate_touchpoint_with_action_proof_missing_hw_signature_fails() {
     // Verify touchpoint
     let verify_response = client
         .verify_touchpoint(
-            &account.id.to_string(),
+            &account_id,
             &touchpoint_id.to_string(),
             &AccountVerifyTouchpointRequest {
                 verification_code: comms_verification::TEST_CODE.to_owned(),
@@ -2604,14 +2716,13 @@ async fn activate_touchpoint_with_action_proof_missing_hw_signature_fails() {
         .await;
     assert_eq!(verify_response.status_code, StatusCode::OK);
 
-    // Try to activate with only app signature - should fail (Signers::All requires both)
+    // Try to activate with only app signature - should fail (BothFactors requires both)
     let activate_response = client
         .activate_touchpoint_with_action_proof(
-            &account.id.to_string(),
+            &account_id,
             &touchpoint_id.to_string(),
             &PrivilegedActionRequest::Initiate(AccountActivateTouchpointRequest {}),
-            action_proof::Action::Add,
-            action_proof::Field::RecoveryEmail,
+            action_proof::Action::SetRecoveryEmail,
             Some(email),
             &keys,
             true,  // sign_with_app
@@ -2630,20 +2741,18 @@ async fn activate_touchpoint_with_action_proof_missing_hw_signature_fails() {
     // Verify the error indicates missing hardware signature
     assert!(
         activate_response.body_string.contains("hardware")
-            || activate_response.body_string.contains("signature")
-            || activate_response
-                .body_string
-                .contains("proof of possession"),
+            || activate_response.body_string.contains("signature"),
         "Expected error about missing hardware signature, got: {}",
         activate_response.body_string
     );
 
     // Verify touchpoint was NOT activated (no side effects from failed auth)
+    let account_id_parsed: types::account::identifiers::AccountId = account_id.parse().unwrap();
     let account = bootstrap
         .services
         .account_service
         .fetch_account(FetchAccountInput {
-            account_id: &account.id,
+            account_id: &account_id_parsed,
         })
         .await
         .unwrap();
@@ -2652,5 +2761,188 @@ async fn activate_touchpoint_with_action_proof_missing_hw_signature_fails() {
     assert!(
         !touchpoint.unwrap().get_active(),
         "Touchpoint should NOT be active after failed authorization"
+    );
+}
+
+// Anti-replay wiring smoke test.
+// Proves the anti-replay mechanism is correctly integrated into the HTTP stack.
+// Uses a shared JWT so both requests produce the same content hash, directly
+// exercising the AntiReplayGuard burn-and-cache path.
+#[tokio::test]
+async fn action_proof_replay_returns_idempotent_success() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    // Create a W3 account via the V2 HTTP route (ActionProof requires W3 hardware)
+    let (spending_app_pub, spending_hw_pub) = (create_pubkey(), create_pubkey());
+    let keys = create_new_authkeys(&mut context);
+    let create_request = CreateAccountRequestV2 {
+        auth: FullAccountAuthKeysInputV2 {
+            app_pub: keys.app.public_key,
+            hardware_pub: keys.hw.public_key,
+            recovery_pub: keys.recovery.public_key,
+            hardware_type: HardwareType::W3,
+        },
+        spend: SpendingKeysetInputV2 {
+            network: Network::Signet,
+            app_pub: spending_app_pub,
+            hardware_pub: spending_hw_pub,
+        },
+        is_test_account: true,
+    };
+    let create_response = client
+        .create_account_v2(&mut context, &create_request)
+        .await;
+    assert_eq!(create_response.status_code, StatusCode::OK);
+    let create_body = create_response.body.unwrap();
+    let account_id = create_body.account_id.to_string();
+
+    // W3 accounts require a descriptor backup before completing onboarding
+    assert_eq!(
+        client
+            .update_descriptor_backups(
+                &account_id,
+                &DescriptorBackupsSet {
+                    wrapped_ssek: vec![],
+                    descriptor_backups: vec![DescriptorBackup::Private {
+                        keyset_id: create_body.keyset_id.clone(),
+                        sealed_descriptor: "test".to_string(),
+                        sealed_server_root_xpub: "test".to_string(),
+                    }],
+                },
+                Some(&keys),
+            )
+            .await
+            .status_code,
+        StatusCode::OK,
+    );
+
+    // Complete onboarding so authorization (BothFactors) is required
+    assert_eq!(
+        client
+            .complete_onboarding_v2(&account_id, &CompleteOnboardingRequestV2 {}, Some(&keys))
+            .await
+            .status_code,
+        StatusCode::OK,
+    );
+
+    // Add and verify email touchpoint
+    let email = "replay-test@example.com";
+    let add_response = client
+        .add_touchpoint(
+            &account_id,
+            &AccountAddTouchpointRequest::Email {
+                email_address: email.to_owned(),
+            },
+            Some(&keys),
+        )
+        .await;
+    assert_eq!(add_response.status_code, StatusCode::OK);
+    let touchpoint_id = add_response.body.unwrap().touchpoint_id;
+
+    let verify_response = client
+        .verify_touchpoint(
+            &account_id,
+            &touchpoint_id.to_string(),
+            &AccountVerifyTouchpointRequest {
+                verification_code: comms_verification::TEST_CODE.to_owned(),
+            },
+        )
+        .await;
+    assert_eq!(verify_response.status_code, StatusCode::OK);
+
+    // Generate a single JWT to use for both requests. This ensures both
+    // requests produce the same content hash (via identical token binding),
+    // which is required for the anti-replay cache to detect the replay.
+    let access_token = userpool::test_utils::get_test_access_token_for_cognito_user(
+        &types::authn_authz::cognito::CognitoUser::App(create_body.account_id.clone()),
+    );
+
+    // First request: activate with Action Proof — should succeed
+    let first_response = client
+        .activate_touchpoint_with_action_proof_token(
+            &account_id,
+            &touchpoint_id.to_string(),
+            &PrivilegedActionRequest::Initiate(AccountActivateTouchpointRequest {}),
+            action_proof::Action::SetRecoveryEmail,
+            Some(email),
+            &keys,
+            true,
+            true,
+            &access_token,
+        )
+        .await;
+
+    assert_eq!(
+        first_response.status_code,
+        StatusCode::OK,
+        "First request should succeed, got: {}",
+        first_response.body_string
+    );
+
+    // Verify the touchpoint is active
+    let account_id_parsed: types::account::identifiers::AccountId = account_id.parse().unwrap();
+    let fetched = bootstrap
+        .services
+        .account_service
+        .fetch_account(FetchAccountInput {
+            account_id: &account_id_parsed,
+        })
+        .await
+        .unwrap();
+    assert!(
+        fetched
+            .get_touchpoint_by_id(touchpoint_id.clone())
+            .unwrap()
+            .get_active(),
+        "Touchpoint should be active after first activation"
+    );
+
+    // Replay: send the exact same request with the same Action Proof (same JWT).
+    // The anti-replay cache should detect the burned content hash and
+    // return the cached response as IdempotencyResponse (200 OK).
+    let replay_response = client
+        .activate_touchpoint_with_action_proof_token(
+            &account_id,
+            &touchpoint_id.to_string(),
+            &PrivilegedActionRequest::Initiate(AccountActivateTouchpointRequest {}),
+            action_proof::Action::SetRecoveryEmail,
+            Some(email),
+            &keys,
+            true,
+            true,
+            &access_token,
+        )
+        .await;
+
+    assert_eq!(
+        replay_response.status_code,
+        StatusCode::OK,
+        "Replay should return idempotent success, got: {}",
+        replay_response.body_string
+    );
+
+    // The replay response body must match the first — proves the server returned
+    // the cached result rather than re-executing the closure.
+    assert_eq!(
+        first_response.body_string, replay_response.body_string,
+        "Replay response body should match the original (cached idempotent response)"
+    );
+
+    // Touchpoint should still be active
+    let fetched_after = bootstrap
+        .services
+        .account_service
+        .fetch_account(FetchAccountInput {
+            account_id: &account_id_parsed,
+        })
+        .await
+        .unwrap();
+    assert!(
+        fetched_after
+            .get_touchpoint_by_id(touchpoint_id)
+            .unwrap()
+            .get_active(),
+        "Touchpoint should remain active after second activation"
     );
 }

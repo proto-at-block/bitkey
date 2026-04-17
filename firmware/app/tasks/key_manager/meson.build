@@ -9,7 +9,7 @@ core_common_deps = [
   fs_dep,
   sysevent_dep,
   ui_messaging_dep,
-  secure_channel_dep,
+  ui_messaging_lib_dep,
   onboarding_dep,
   grant_dep,
   policy_dep,
@@ -26,17 +26,24 @@ key_manager_platform_configs = {
       'src/core/crypto_task.c',
       'src/core/psbt_signing.c',
     ],
-    'deps' : core_common_deps,
+    'deps' : core_common_deps + [secure_channel_deps['w1']],
   },
   'w3-core' : {
     'srcs' : [
       'src/core/key_manager_task.c',
       'src/w3-core/key_manager_task_port.c',
+      'src/w3-core/full_account_cloud_backup_restoration.c',
+      'src/w3-core/eek_restoration.c',
+      'src/w3-core/lost_app_recovery.c',
+      'src/w3-core/rotate_app_auth_keys.c',
+      'src/w3-core/upgrade_rotate_app_auth_keys.c',
+      'src/w3-core/recovery_composites.c',
+      'src/w3-core/sealed_data_utils.c',
       'src/core/key_manager_mpu.c',
       'src/core/crypto_task.c',
       'src/core/psbt_signing.c',
     ],
-    'deps' : core_common_deps + [uc_dep, libew_dep],
+    'deps' : core_common_deps + [secure_channel_deps['w3-core'], uc_dep, libew_dep, confirmation_dep, psbt_dep, sap_dep, langpack_dep],
   },
   'w3-uxc' : {
     'srcs' : [
@@ -46,7 +53,7 @@ key_manager_platform_configs = {
     'deps' : [
       rtos_dep,
       uc_dep,
-      secure_channel_dep,
+      secure_channel_deps['w3-uxc'],
     ],
   },
 }
@@ -76,3 +83,27 @@ foreach platform : key_manager_platform_configs.keys()
     )
   }
 endforeach
+
+lost_app_recovery_test = executable('lost-app-recovery-test',
+  'src/w3-core/lost_app_recovery_test.c',
+  dependencies : [sap_core_dep, wallet_dep, test_deps],
+)
+test('lost_app_recovery test', lost_app_recovery_test)
+
+rotate_app_auth_keys_test = executable('rotate-app-auth-keys-test',
+  'src/w3-core/rotate_app_auth_keys_test.c',
+  dependencies : [sap_core_dep, test_deps],
+)
+test('rotate_app_auth_keys test', rotate_app_auth_keys_test)
+
+recovery_composites_test = executable('recovery-composites-test',
+  'src/w3-core/recovery_composites_test.c',
+  dependencies : [sap_core_dep, test_deps],
+)
+test('recovery_composites test', recovery_composites_test)
+
+streaming_signing_test = executable('streaming-signing-test',
+  'src/w3-core/streaming_signing_test.c',
+  dependencies : [wallet_dep, test_deps],
+)
+test('streaming_signing test', streaming_signing_test)

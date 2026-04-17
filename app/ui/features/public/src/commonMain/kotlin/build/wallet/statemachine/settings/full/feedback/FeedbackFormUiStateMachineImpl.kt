@@ -14,6 +14,7 @@ import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.root.ActionSuccessDuration
 import build.wallet.support.*
 import build.wallet.time.DateTimeFormatter
+import build.wallet.ui.compose.normalizeTestTagValue
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.list.*
@@ -302,6 +303,7 @@ class FeedbackFormUiStateMachineImpl(
       is SupportTicketField.TextField ->
         TextFieldModel(
           title = title,
+          testTag = "feedback-text-input-${feedbackTagSuffix(title)}",
           placeholder = "",
           value = data[field] ?: "",
           onValueChange = { data[field] = it }
@@ -325,6 +327,7 @@ class FeedbackFormUiStateMachineImpl(
       is SupportTicketField.Date ->
         DatePickerModel(
           title = title,
+          testTag = "feedback-date-picker-${feedbackTagSuffix(title)}",
           value = data[field],
           onValueChange = { data[field] = it }
         )
@@ -343,13 +346,15 @@ class FeedbackFormUiStateMachineImpl(
         placeholderText = "hello@example.org",
         onValueChange = { newValue, _ -> onEmailChange(Email(newValue)) },
         keyboardType = build.wallet.ui.model.input.TextFieldModel.KeyboardType.Email,
-        focusByDefault = true
+        focusByDefault = true,
+        testTag = "feedback-email-input"
       )
   )
 
   @Composable
   private fun TextFieldModel(
     title: String,
+    testTag: String,
     placeholder: String,
     value: String,
     onValueChange: (String) -> Unit,
@@ -363,7 +368,8 @@ class FeedbackFormUiStateMachineImpl(
           onValueChange(newValue)
         },
         keyboardType = build.wallet.ui.model.input.TextFieldModel.KeyboardType.Default,
-        focusByDefault = false
+        focusByDefault = false,
+        testTag = testTag
       )
   )
 
@@ -383,7 +389,8 @@ class FeedbackFormUiStateMachineImpl(
           onValueChange(newValue)
         },
         keyboardType = build.wallet.ui.model.input.TextFieldModel.KeyboardType.Default,
-        focusByDefault = false
+        focusByDefault = false,
+        testTag = "feedback-text-area-${feedbackTagSuffix(title)}"
       )
   )
 
@@ -403,7 +410,8 @@ class FeedbackFormUiStateMachineImpl(
                 ListItemAccessory.SwitchAccessory(
                   SwitchModel(
                     checked = checked,
-                    onCheckedChange = onCheckedChange
+                    onCheckedChange = onCheckedChange,
+                    testTag = "feedback-checkbox-${feedbackTagSuffix(title)}-toggle"
                   )
                 )
             )
@@ -415,6 +423,7 @@ class FeedbackFormUiStateMachineImpl(
   @Composable
   private fun DatePickerModel(
     title: String,
+    testTag: String,
     value: LocalDate?,
     onValueChange: (LocalDate) -> Unit,
   ) = FormMainContentModel.DatePicker(
@@ -423,7 +432,8 @@ class FeedbackFormUiStateMachineImpl(
       build.wallet.ui.model.datetime.DatePickerModel(
         valueStringRepresentation = value?.let { dateTimeFormatter.longLocalDate(it) } ?: "",
         value = value,
-        onValueChange = onValueChange
+        onValueChange = onValueChange,
+        testTag = testTag
       )
   )
 
@@ -575,7 +585,8 @@ class FeedbackFormUiStateMachineImpl(
           onOptionSelected = { option ->
             onOptionSelected(option)
           },
-          titleSelector = titleSelector
+          titleSelector = titleSelector,
+          testTag = "feedback-picker-${feedbackTagSuffix(title)}"
         )
     )
   }
@@ -599,6 +610,7 @@ class FeedbackFormUiStateMachineImpl(
                   ListItemAccessory.SwitchAccessory(
                     SwitchModel(
                       checked = option in selectedItems,
+                      testTag = "feedback-multi-choice-${feedbackTagSuffix(title)}-${feedbackTagSuffix(option.title)}-toggle",
                       onCheckedChange = { checked ->
                         onItemSelectionChanged(option, checked)
                       }
@@ -627,6 +639,7 @@ class FeedbackFormUiStateMachineImpl(
                 ListItemAccessory.SwitchAccessory(
                   SwitchModel(
                     checked = sendDebugData,
+                    testTag = "feedback-send-device-info-toggle",
                     onCheckedChange = onSendDebugDataChange
                   )
                 )
@@ -653,7 +666,8 @@ class FeedbackFormUiStateMachineImpl(
           onOptionSelected = { option ->
             onOptionSelected(option)
           },
-          titleSelector = titleSelector
+          titleSelector = titleSelector,
+          testTag = "feedback-picker-${feedbackTagSuffix(title)}"
         )
     )
   }
@@ -723,6 +737,9 @@ class FeedbackFormUiStateMachineImpl(
       }
     }
   }
+
+  private fun feedbackTagSuffix(value: String): String =
+    normalizeTestTagValue(value, fallback = "field")
 }
 
 private sealed interface FeedbackFormUiState {

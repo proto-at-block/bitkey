@@ -1,7 +1,6 @@
 package build.wallet.bitcoin.transactions
 
 import build.wallet.bdk.bindings.BdkError
-import build.wallet.bdk.bindings.BdkScript
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
@@ -10,8 +9,7 @@ import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod.FeeBump
-import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod.ManualFeeBump
-import build.wallet.bitcoin.wallet.SpendingWalletV2Error
+import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod.FeeBumpWithDrain
 import build.wallet.bitkey.account.Account
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -24,10 +22,7 @@ import build.wallet.money.BitcoinMoney
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.getOrElse
-import com.github.michaelbull.result.mapError
-import kotlin.math.ceil
 
 @BitkeyInject(AppScope::class)
 class SpeedUpTransactionServiceImpl(
@@ -65,7 +60,7 @@ class SpeedUpTransactionServiceImpl(
       originalWeight = txData.weight
     )
 
-    // When BDK2 is enabled, check if we need manual fee bump (output shrinking) for sweeps
+    // When BDK2 is enabled, check if we need output shrinking (FeeBumpWithDrain) for sweeps
     // and single-UTXO consolidations. Only attempt when confirmed UTXO data is available;
     // otherwise fall back to FeeBump to avoid shrinking when additional confirmed UTXOs might exist.
     val walletUtxos = bitcoinWalletService.transactionsData().value?.utxos?.confirmed?.toList()
@@ -78,26 +73,35 @@ class SpeedUpTransactionServiceImpl(
       null // Legacy path or missing UTXO data - FeeBump handles internally
     }
 
-    val psbt = if (shrinkingScript != null) {
-      createManualFeeBumpPsbt(transaction, txData, targetFeeRate, shrinkingScript)
-        .getOrElse { return Err(it) }
+    val constructionMethod = if (shrinkingScript != null) {
+      FeeBumpWithDrain(
+        txid = transaction.id,
+        feeRate = targetFeeRate,
+        drainToScript = shrinkingScript
+      )
     } else {
-      txData.wallet
-        .createSignedPsbt(FeeBump(txid = transaction.id, feeRate = targetFeeRate))
-        // BDK enforces BIP125 rule #2 by only allowing unconfirmed inputs already present in the
-        // original transaction to be reused inside the bump-fee template. Rule #3 (absolute fee
-        // must be >= originals) is also handled internally by BDK's fee bump logic.
-        .logFailure { "Unable to build fee bump psbt" }
-        .getOrElse {
-          return Err(
-            when (it) {
-              is BdkError.InsufficientFunds -> SpeedUpTransactionError.InsufficientFunds
-              is BdkError.FeeRateTooLow -> SpeedUpTransactionError.FeeRateTooLow
-              else -> SpeedUpTransactionError.FailedToPrepareData
-            }
-          )
-        }
+      FeeBump(txid = transaction.id, feeRate = targetFeeRate)
     }
+
+    val psbt = txData.wallet
+      .createSignedPsbt(constructionMethod)
+      // BDK enforces BIP125 rule #2 by only allowing unconfirmed inputs already present in the
+      // original transaction to be reused inside the bump-fee template. Rule #3 (absolute fee
+      // must be >= originals) is also handled internally by BDK's fee bump logic.
+      .logFailure {
+        val method = if (shrinkingScript != null) "FeeBumpWithDrain" else "FeeBump"
+        "Unable to build fee bump PSBT using $method"
+      }
+      .getOrElse {
+        return Err(
+          when (it) {
+            is BdkError.InsufficientFunds -> SpeedUpTransactionError.InsufficientFunds
+            is BdkError.FeeRateTooLow -> SpeedUpTransactionError.FeeRateTooLow
+            is BdkError.OutputBelowDustLimit -> SpeedUpTransactionError.OutputBelowDustLimit
+            else -> SpeedUpTransactionError.FailedToPrepareData
+          }
+        )
+      }
 
     val details = SpeedUpTransactionDetails(
       txid = transaction.id,
@@ -230,80 +234,4 @@ class SpeedUpTransactionServiceImpl(
 
   private fun BitcoinTransaction.signalsOptInRbf(): Boolean =
     inputs.any { it.sequence < BIP125_SEQUENCE_SIGNAL_THRESHOLD }
-
-  /**
-   * Creates a manual fee bump PSBT for transactions requiring output shrinking.
-   *
-   * This is used for sweeps and single-UTXO consolidations where BDK's BumpFeeTxBuilder
-   * cannot handle the case because there are no additional inputs to pull in.
-   *
-   * The output amount is reduced to cover the increased fee.
-   */
-  private suspend fun createManualFeeBumpPsbt(
-    transaction: BitcoinTransaction,
-    txData: ValidatedTxData,
-    targetFeeRate: FeeRate,
-    shrinkingScript: BdkScript,
-  ): Result<Psbt, SpeedUpTransactionError> {
-    val oldFeeSats = txData.fee.fractionalUnitValue.longValue()
-    val oldVsize = txData.vsize.toLong()
-    val oldWeight = txData.weight
-
-    // Calculate exact new fee (ceil to avoid underpayment).
-    // Use original vsize as an approximation since the replacement should have a similar structure;
-    // the actual fee is validated after PSBT construction (see post-check below).
-    val newFeeSats = ceil(targetFeeRate.satsPerVByte.toDouble() * oldVsize).toLong()
-
-    // BIP 125 Rule #4: must pay at least original + (incremental relay fee).
-    // Incremental relay fee is 1 sat/vB = 0.25 sat/WU, so use ceil(weight/4) sats.
-    val incrementalRelaySats = (oldWeight + 3uL) / 4uL // ceil(weight/4)
-    val minBip125Fee = oldFeeSats + incrementalRelaySats.toLong()
-    val effectiveFee = maxOf(newFeeSats, minBip125Fee)
-
-    // Note: BIP 125 Rule #3 requires the replacement fee to be >= the original.
-    // Rule #4 enforces a strict increase via the minimum relay increment (oldFee + increment),
-    // which means effectiveFee > oldFeeSats as long as oldWeight > 0.
-    // The actual fee rate is validated after PSBT construction (see post-check below).
-
-    val psbtResult = txData.wallet.createSignedPsbt(
-      ManualFeeBump(
-        originalInputs = transaction.inputs.toList(),
-        outputScript = shrinkingScript,
-        absoluteFee = Fee(BitcoinMoney.sats(effectiveFee))
-      )
-    )
-
-    return psbtResult
-      .mapError { throwable ->
-        when (throwable) {
-          is BdkError.OutputBelowDustLimit -> SpeedUpTransactionError.OutputBelowDustLimit
-          is BdkError.InsufficientFunds -> SpeedUpTransactionError.InsufficientFunds
-          is BdkError.FeeRateTooLow -> SpeedUpTransactionError.FeeRateTooLow
-          is SpendingWalletV2Error -> {
-            logWarn(throwable = throwable) { "ManualFeeBump failed: ${throwable::class.simpleName}" }
-            SpeedUpTransactionError.FailedToPrepareData
-          }
-          else -> SpeedUpTransactionError.FailedToPrepareData
-        }
-      }
-      .flatMap { psbt ->
-        // Post-check: verify actual fee rate exceeds original (enforces Rules #3 and #4).
-        // Cross-multiply to avoid float division.
-        val actualFeeSats = psbt.fee.amount.fractionalUnitValue.longValue()
-        val actualVsize = psbt.vsize
-        if (actualFeeSats * oldVsize <= oldFeeSats * actualVsize) {
-          logWarn {
-            "Actual fee rate ($actualFeeSats/$actualVsize) <= old fee rate ($oldFeeSats/$oldVsize) after build"
-          }
-          Err(SpeedUpTransactionError.FeeRateTooLow)
-        } else {
-          Ok(psbt)
-        }
-      }
-  }
-
-  private companion object {
-    // Transactions signal opt-in RBF when any input's nSequence is less than 0xFFFFFFFE.
-    private val BIP125_SEQUENCE_SIGNAL_THRESHOLD = UInt.MAX_VALUE - 1u
-  }
 }

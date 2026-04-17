@@ -1,5 +1,6 @@
 package build.wallet.onboarding
 
+import bitkey.account.HardwareType
 import build.wallet.bitkey.f8e.F8eSpendingPublicKey
 import build.wallet.bitkey.keybox.KeyCrossDraft
 import build.wallet.home.GettingStartedTask
@@ -8,7 +9,9 @@ import build.wallet.home.GettingStartedTask.TaskState
 import build.wallet.testing.ext.createTcInvite
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.onboardLiteAccountFromInvitation
+import build.wallet.testing.ext.signW3AppGlobalAuthKeyHwSignature
 import build.wallet.testing.ext.startAndCompleteFingerprintEnrolment
+import build.wallet.testing.ext.testForHardwareHappyPaths
 import build.wallet.testing.ext.testForLegacyAndPrivateWallet
 import build.wallet.testing.ext.testWithTwoApps
 import build.wallet.testing.shouldBeErr
@@ -52,7 +55,7 @@ class CreateFullAccountFunctionalTests : FunSpec({
     keys1.config.shouldBe(expectedConfig)
   }
 
-  testForLegacyAndPrivateWallet("create and activate brand new full account using fake hardware keys successfully") { app ->
+  testForHardwareHappyPaths("create and activate brand new full account using fake hardware keys successfully") { app, coverageMode ->
     // Create app keys
     val appKeys = app.onboardFullAccountService.createAppKeys().shouldBeOk()
     // Pair hardware
@@ -60,7 +63,7 @@ class CreateFullAccountFunctionalTests : FunSpec({
       app.startAndCompleteFingerprintEnrolment(appAuthKey = appKeys.appKeyBundle.authKey)
 
     // Create new Full account
-    val account = app.onboardFullAccountService.createAccount(
+    var account = app.onboardFullAccountService.createAccount(
       context = CreateFullAccountContext.NewFullAccount,
       appKeys = appKeys,
       hwActivation = hwActivation
@@ -69,6 +72,13 @@ class CreateFullAccountFunctionalTests : FunSpec({
     account.config.shouldBe(appKeys.config)
     account.keybox.activeAppKeyBundle.shouldBe(appKeys.appKeyBundle)
     account.keybox.activeHwKeyBundle.shouldBe(hwActivation.keyBundle)
+
+    // W3: sign app auth key with hardware (required before descriptor backup upload)
+    if (coverageMode.hardwareType == HardwareType.W3) {
+      account = account.copy(
+        keybox = app.signW3AppGlobalAuthKeyHwSignature(account.keybox, appKeys.appKeyBundle.authKey)
+      )
+    }
 
     // Account is not activated yet
     app.accountService.activeAccount().first().shouldBeNull()
@@ -153,7 +163,7 @@ class CreateFullAccountFunctionalTests : FunSpec({
     )
   }
 
-  testForLegacyAndPrivateWallet("cannot pair hardware that is already in use") { app ->
+  testForHardwareHappyPaths("cannot pair hardware that is already in use") { app, _ ->
     // Pair hardware with one account
     app.onboardFullAccountWithFakeHardware()
 
@@ -169,7 +179,7 @@ class CreateFullAccountFunctionalTests : FunSpec({
     ).shouldBeErrOfType<HardwareKeyAlreadyInUseError>()
   }
 
-  testForLegacyAndPrivateWallet("createAccount - cannot create account using app key that is already associated with an account") { app ->
+  testForHardwareHappyPaths("createAccount - cannot create account using app key that is already associated with an account") { app, _ ->
     // Pair hardware with one account
     val account = app.onboardFullAccountWithFakeHardware()
     // Setup quirk: reset the keybox database so that we can create a new account.
@@ -192,7 +202,7 @@ class CreateFullAccountFunctionalTests : FunSpec({
     ).shouldBeErr(AppKeyAlreadyInUseError)
   }
 
-  testForLegacyAndPrivateWallet("createAccount - when reusing same app and hardware keys, we get the same account") { app ->
+  testForHardwareHappyPaths("createAccount - when reusing same app and hardware keys, we get the same account") { app, coverageMode ->
     // Pair hardware with one account
     val account1 = app.onboardFullAccountWithFakeHardware()
     // Setup quirk: reset the keybox database so that we can create a new account.
@@ -202,7 +212,7 @@ class CreateFullAccountFunctionalTests : FunSpec({
       app.startAndCompleteFingerprintEnrolment(appAuthKey = account1.keybox.activeAppKeyBundle.authKey)
 
     // Cannot pair hardware that is already in use
-    val account2 = app.onboardFullAccountService.createAccount(
+    var account2 = app.onboardFullAccountService.createAccount(
       context = CreateFullAccountContext.NewFullAccount,
       appKeys = KeyCrossDraft.WithAppKeys(
         config = account1.config,
@@ -210,6 +220,17 @@ class CreateFullAccountFunctionalTests : FunSpec({
       ),
       hwActivation = hwActivation
     ).shouldBeOk()
+
+    // W3: compute the HW signature for account2 so both accounts have the same
+    // locally-derived field (same keys → same signature).
+    if (coverageMode.hardwareType == HardwareType.W3) {
+      account2 = account2.copy(
+        keybox = app.signW3AppGlobalAuthKeyHwSignature(
+          account2.keybox,
+          account1.keybox.activeAppKeyBundle.authKey
+        )
+      )
+    }
 
     // Canonicalize both accounts by stripping random localIds and blanking server-derived
     // fields inside f8eSpendingKeyset (but keep keysetId intact). Then deep-compare.

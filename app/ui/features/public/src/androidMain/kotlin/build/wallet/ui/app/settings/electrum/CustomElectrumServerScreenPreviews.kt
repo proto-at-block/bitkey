@@ -68,3 +68,40 @@ fun CustomElectrumServerScreenEnabledWithDisablingDialogPreview() {
     )
   }
 }
+
+@Preview
+@Composable
+fun CustomElectrumServerScreenEnabledDesignSystemV2Preview() {
+  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+    CustomElectrumServerScreen(
+      model = CustomElectrumServerBodyModel(
+        onBack = {},
+        switchIsChecked = true,
+        electrumServerRow =
+          ActionRow(
+            title = "Connected to: ",
+            sideText = "ssl://bitkey.mempool.space:50002",
+            onClick = {}
+          ),
+        onSwitchCheckedChange = {},
+        disableAlertModel = null
+      )
+    )
+  }
+}
+
+@Preview
+@Composable
+fun CustomElectrumServerScreenDisabledDesignSystemV2Preview() {
+  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+    CustomElectrumServerScreen(
+      model = CustomElectrumServerBodyModel(
+        onBack = {},
+        switchIsChecked = false,
+        electrumServerRow = null,
+        onSwitchCheckedChange = {},
+        disableAlertModel = null
+      )
+    )
+  }
+}

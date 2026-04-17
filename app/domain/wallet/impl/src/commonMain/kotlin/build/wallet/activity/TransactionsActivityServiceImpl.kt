@@ -16,6 +16,7 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.f8e.recovery.LegacyRemoteKeyset
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.f8e.recovery.toSpendingKeysets
 import build.wallet.feature.flags.Bdk2FeatureFlag
@@ -192,6 +193,7 @@ class TransactionsActivityServiceImpl(
           .logNetworkFailure { "Error fetching keysets for comprehensive transaction tracking." }
           .bind()
           .keysets
+          .filterIsInstance<LegacyRemoteKeyset>()
           .toSpendingKeysets(uuidGenerator)
       }
         .filter { it.f8eSpendingKeyset.keysetId != activeKeysetId }

@@ -60,6 +60,14 @@ bool secure_channel_cert_write_cert(const char* subject,
 bool secure_channel_cert_load(const char* subject, secure_channel_cert_data_t* cert_data_out);
 
 /**
+ * @brief Validate a certificate subject before using it in filesystem paths
+ * @param subject Subject
+ * @return true if subject is non-empty, null-terminated, and consists only of
+ * [A-Za-z0-9_-] characters
+ */
+bool secure_channel_cert_subject_is_valid(const char* subject);
+
+/**
  * @brief Check if a certificate exists
  * @param subject Subject
  * @return true if exists, false otherwise

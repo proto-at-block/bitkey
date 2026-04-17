@@ -112,6 +112,7 @@ class PartnershipsSellConfirmationUiStateMachineImpl(
       is LoadedSellConfirmation -> {
         transferConfirmationUiStateMachine.model(
           TransferConfirmationUiProps(
+            account = props.account,
             variant = TransferConfirmationScreenVariant.Sell(currentState.partnerInfo),
             selectedPriority = FASTEST,
             recipientAddress = BitcoinAddress(currentState.sellWalletAddress),

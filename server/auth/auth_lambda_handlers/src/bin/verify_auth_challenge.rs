@@ -26,6 +26,9 @@ const LAMBDA_CHALLENGE_ANSWER_PARAM: &str = "challengeAnswer";
 const LAMBDA_RESPONSE_PARAM: &str = "response";
 const LAMBDA_ANSWER_CORRECT_PARAM: &str = "answerCorrect";
 
+/// Domain tag for hardware auth key signature domain separation on auth challenges.
+const DOMAIN_TAG_AUTH_CHALLENGE: &str = "BKAuthChallenge";
+
 async fn handler(event: LambdaEvent<Value>) -> Result<Value, Error> {
     // Request and response schema documented here: https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-lambda-verify-auth-challenge-response.html
 
@@ -79,15 +82,12 @@ async fn handler(event: LambdaEvent<Value>) -> Result<Value, Error> {
         .to_string();
 
     let secp = Secp256k1::new();
-    let digest = sha256::Hash::hash(challenge.as_bytes());
-    let message = Message::from_digest(digest.to_byte_array());
     let answer_correct = if let Ok(signature) = Signature::from_str(&challenge_answer) {
-        if secp.verify_ecdsa(&message, &signature, &public_key).is_ok() {
+        if verify_challenge_with_domain_tag(&secp, challenge, &signature, &public_key) {
             true
         } else {
             println!(
-                "Bad signature {} for message {}! Returning False",
-                signature, message
+                "Bad signature for challenge! Returning False"
             );
             false
         }
@@ -116,6 +116,33 @@ async fn handler(event: LambdaEvent<Value>) -> Result<Value, Error> {
     Ok(Value::Object(payload))
 }
 
+/// Verify a Cognito auth challenge signature with domain separation, falling back to
+/// untagged for backwards compatibility.
+///
+/// TODO(W-16598): Add a `custom:hardwareType` attribute to the Cognito user pool so the
+/// verifier can enforce the domain tag for W3 hw users and reject untagged signatures.
+fn verify_challenge_with_domain_tag(
+    secp: &Secp256k1<secp256k1::All>,
+    challenge: &str,
+    signature: &Signature,
+    public_key: &PublicKey,
+) -> bool {
+    // Try domain-tagged verification first
+    let tagged = format!("{}{}", DOMAIN_TAG_AUTH_CHALLENGE, challenge);
+    let tagged_digest = sha256::Hash::hash(tagged.as_bytes());
+    let tagged_msg = Message::from_digest(tagged_digest.to_byte_array());
+    if secp
+        .verify_ecdsa(&tagged_msg, signature, public_key)
+        .is_ok()
+    {
+        return true;
+    }
+    // Fall back to untagged for backwards compatibility
+    let digest = sha256::Hash::hash(challenge.as_bytes());
+    let message = Message::from_digest(digest.to_byte_array());
+    secp.verify_ecdsa(&message, signature, public_key).is_ok()
+}
+
 #[cfg(test)]
 mod test {
     use crate::{
@@ -126,7 +153,7 @@ mod test {
     use bitcoin_hashes::{sha256, Hash};
     use lambda_runtime::{Context, LambdaEvent};
     use secp256k1::ecdsa::Signature;
-    use secp256k1::{Message, PublicKey, Secp256k1};
+    use secp256k1::{Message, PublicKey, Secp256k1, SecretKey};
     use serde_json::{json, Map, Value};
     use std::str::FromStr;
 
@@ -271,6 +298,50 @@ mod test {
                     attrs.2.0: attrs.2.1
                 },
                 LAMBDA_CHALLENGE_ANSWER_PARAM: data.recovery.1.to_string()
+            }
+        });
+
+        let event = LambdaEvent {
+            payload,
+            context: Context::default(),
+        };
+
+        let result = handler(event).await.unwrap();
+        assert_eq!(
+            result
+                .get(LAMBDA_RESPONSE_PARAM)
+                .unwrap()
+                .get(LAMBDA_ANSWER_CORRECT_PARAM)
+                .unwrap(),
+            &Value::Bool(true)
+        );
+    }
+
+    #[tokio::test]
+    async fn test_hw_user_with_domain_tagged_signature() {
+        // hw_seckey from gen_test_data comments
+        let secp = Secp256k1::new();
+        let hw_sk = SecretKey::from_str(
+            "c8a078a5a4b5f7b01344c506948fa44b84e22bbfa676d75a2c1dff2615ffcae6",
+        )
+        .unwrap();
+        let hw_pk = hw_sk.public_key(&secp);
+
+        // Sign challenge WITH domain tag (simulating tagged W3 firmware)
+        let tagged_challenge = format!("{}{}", crate::DOMAIN_TAG_AUTH_CHALLENGE, TEST_CHALLENGE);
+        let tagged_hash = sha256::Hash::hash(tagged_challenge.as_bytes());
+        let tagged_msg = Message::from_slice(&tagged_hash[..]).unwrap();
+        let tagged_sig = secp.sign_ecdsa(&tagged_msg, &hw_sk);
+
+        let payload = json!({
+            LAMBDA_REQUEST_PARAM: {
+                LAMBDA_PRIVATE_CHALLENGE_PARAMS_PARAM: {
+                    LAMBDA_CHALLENGE_PARAM: TEST_CHALLENGE
+                },
+                LAMBDA_USER_ATTRIBUTES_PARAM: {
+                    PUBLIC_KEY_ATTRIBUTE: hw_pk.to_string()
+                },
+                LAMBDA_CHALLENGE_ANSWER_PARAM: tagged_sig.to_string()
             }
         });
 

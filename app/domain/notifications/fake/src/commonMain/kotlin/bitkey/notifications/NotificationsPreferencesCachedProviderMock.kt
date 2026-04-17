@@ -1,7 +1,7 @@
 package bitkey.notifications
 
 import build.wallet.bitkey.f8e.AccountId
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.ktor.result.NetworkingError
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -18,6 +18,14 @@ data class NotificationsPreferencesCachedProviderMock(
 ) : NotificationsPreferencesCachedProvider {
   val notificationPreferences = MutableStateFlow(getNotificationPreferencesResult)
 
+  /** Captured proof from the last [updateNotificationsPreferences] call. */
+  var lastUpdateProof: PrivilegedActionProof? = null
+    private set
+
+  /** Captured preferences from the last [updateNotificationsPreferences] call. */
+  var lastUpdatePreferences: NotificationPreferences? = null
+    private set
+
   override suspend fun initialize() {
     // no-op in mock
   }
@@ -28,6 +36,10 @@ data class NotificationsPreferencesCachedProviderMock(
   override suspend fun updateNotificationsPreferences(
     accountId: AccountId,
     preferences: NotificationPreferences,
-    hwFactorProofOfPossession: HwFactorProofOfPossession?,
-  ): Result<Unit, NetworkingError> = updateNotificationsPreferencesResult
+    proof: PrivilegedActionProof?,
+  ): Result<Unit, NetworkingError> {
+    lastUpdateProof = proof
+    lastUpdatePreferences = preferences
+    return updateNotificationsPreferencesResult
+  }
 }

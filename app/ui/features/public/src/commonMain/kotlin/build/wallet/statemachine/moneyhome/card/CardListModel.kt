@@ -13,6 +13,7 @@ import build.wallet.ui.model.ComposeModel
 import build.wallet.ui.model.Model
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.callout.CalloutModel
+import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.list.ListItemModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlin.time.Duration
@@ -36,6 +37,7 @@ data class CardListModel(
  * @property leadingImage - an optional image that can be shown to the left of the title + subtitle
  * @property content - the optional contents of the card that can render in various forms
  * @property animation - optional list of animations to play out on the card
+ * @property kind - semantic card metadata used for stable, non-display-based rendering decisions
  */
 @Immutable
 data class CardModel(
@@ -50,7 +52,32 @@ data class CardModel(
   val primaryButton: ButtonModel? = null,
   val secondaryButton: ButtonModel? = null,
   val animation: ImmutableList<AnimationSet>? = null,
+  val titleTreatment: TitleTreatment = TitleTreatment.Default,
+  val kind: Kind = Kind.Default,
 ) : Model {
+  sealed interface Kind {
+    data object Default : Kind
+
+    data class GettingStarted(
+      val tiles: ImmutableList<GettingStartedTileModel>,
+    ) : Kind
+  }
+
+  data class GettingStartedTileModel(
+    val id: Id,
+    val title: String,
+    val leadingIcon: IconModel?,
+    val isEnabled: Boolean,
+    val isComplete: Boolean,
+    val onClick: (() -> Unit)? = null,
+  ) {
+    enum class Id {
+      UpdateFirmware,
+      AddBitcoin,
+      EnableSpendingLimit,
+    }
+  }
+
   /** The style of the card */
   sealed class CardStyle {
     data object Plain : CardStyle()
@@ -64,6 +91,11 @@ data class CardModel(
     }
 
     data class Callout(val model: CalloutModel) : CardStyle()
+  }
+
+  enum class TitleTreatment {
+    Default,
+    Destructive,
   }
 
   /** The optional image for the card */
@@ -109,6 +141,7 @@ data class CardModel(
       val timeRemaining: Duration,
       val progress: Progress,
       val onClick: (() -> Unit)?,
+      val useMonochromeStyleInDesignSystemV2: Boolean = false,
       override val key: String = "pending-claim",
     ) : CardContent, ComposeModel {
       @Composable

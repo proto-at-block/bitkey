@@ -31,7 +31,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
-import io.ktor.client.request.*
+import io.ktor.client.request.post
 
 @BitkeyInject(AppScope::class)
 class CreateAccountF8eClientImpl(
@@ -104,7 +104,8 @@ class CreateAccountF8eClientImpl(
         auth = FullCreateAccountV2AuthKeys(
           appGlobalAuthPublicKey = keyCrossDraft.appKeyBundle.authKey.value,
           hardwareAuthPublicKey = keyCrossDraft.hardwareKeyBundle.authKey.pubKey.value,
-          recoveryAuthPublicKey = keyCrossDraft.appKeyBundle.recoveryAuthKey.value
+          recoveryAuthPublicKey = keyCrossDraft.appKeyBundle.recoveryAuthKey.value,
+          hardwareType = keyCrossDraft.config.hardwareType
         ),
         spend = FullCreateAccountV2SpendingKeys(
           app = appSpendingPubKey,

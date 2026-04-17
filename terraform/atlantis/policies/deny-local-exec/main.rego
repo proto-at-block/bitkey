@@ -1,6 +1,8 @@
 package main
 
-local_exec_provisioners[resource] {
+import rego.v1
+
+local_exec_provisioners contains resource if {
 	[path, value] := walk(input)
 
 	resource := value.resources[_]
@@ -8,7 +10,7 @@ local_exec_provisioners[resource] {
 	provisioner.type == "local-exec"
 }
 
-deny[msg] {
+deny contains msg if {
 	count(local_exec_provisioners) > 0
 	msg := "local-exec provisioners cannot be used"
 }

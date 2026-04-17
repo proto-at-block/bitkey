@@ -13,3 +13,7 @@ messages:
     - name: fwup_transfer_coproc_rsp_t
     - name: fwup_finish_coproc_rsp_t
     - name: fwup_confirmation_result_t
+    - name: fwup_coproc_version_t
+      fields:
+        - fwpb_semver version
+    - name: fwup_commit_sig_coproc_rsp_t

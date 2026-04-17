@@ -50,9 +50,9 @@ pub struct FirmwareMetadata {
 }
 
 #[generator(yield(Vec<u8>), resume(Vec<u8>))]
-fn metadata() -> Result<FirmwareMetadata, CommandError> {
+fn metadata(mcu_role: McuRole) -> Result<FirmwareMetadata, CommandError> {
     let apdu: apdu::Command = MetaCmd {
-        mcu_role: fwpb::McuRole::Core.into(),
+        mcu_role: fwpb::McuRole::from(mcu_role).into(),
     }
     .try_into()?;
 
@@ -74,7 +74,7 @@ fn metadata() -> Result<FirmwareMetadata, CommandError> {
     {
         match MetaRspStatus::try_from(rsp_status) {
             Ok(MetaRspStatus::Unspecified) => return Err(CommandError::UnspecifiedCommandError),
-            Ok(MetaRspStatus::Error) => return Err(CommandError::GeneralCommandError),
+            Ok(MetaRspStatus::Error) => return Err(CommandError::GetMetadataFailed),
             Ok(MetaRspStatus::Success) => (),
             Err(_) => return Err(CommandError::InvalidResponse),
         };
@@ -136,4 +136,4 @@ fn metadata() -> Result<FirmwareMetadata, CommandError> {
     }
 }
 
-command!(GetFirmwareMetadata = metadata -> FirmwareMetadata);
+command!(GetFirmwareMetadata = metadata -> FirmwareMetadata, mcu_role: McuRole);

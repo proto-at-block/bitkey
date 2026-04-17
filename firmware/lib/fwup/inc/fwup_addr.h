@@ -9,9 +9,23 @@
 #pragma once
 
 #include "attributes.h"
+#include "wallet.pb.h"
 
 #include <stddef.h>
 #include <stdint.h>
+
+/**
+ * @brief Returns the target (inactive) firmware slot identifier.
+ */
+NO_OPTIMIZE fwpb_firmware_slot fwup_target_slot(void);
+
+/**
+ * @brief Returns the signature flash address for a given slot.
+ *
+ * @param slot  SLOT_A or SLOT_B.
+ * @return Flash address, or NULL if the slot is invalid.
+ */
+NO_OPTIMIZE void* fwup_slot_signature_address(fwpb_firmware_slot slot);
 
 /**
  * @brief Retrieves the inactive firmware slot address for firmware update.

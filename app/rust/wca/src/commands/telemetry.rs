@@ -42,7 +42,7 @@ fn get_events(mcu_role: McuRole) -> Result<EventFragment, CommandError> {
                 return Err(CommandError::UnspecifiedCommandError)
             }
             Ok(EventsGetRspStatus::Success) => {}
-            Ok(EventsGetRspStatus::Error) => return Err(CommandError::GeneralCommandError),
+            Ok(EventsGetRspStatus::Error) => return Err(CommandError::TelemetryFailed),
             Err(_) => return Err(CommandError::InvalidResponse),
         };
 

@@ -15,7 +15,7 @@ import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.promotions.PromotionCode
 import build.wallet.bitkey.relationships.*
 import build.wallet.crypto.PublicKey
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.StateFlow
 
@@ -54,7 +54,7 @@ interface RelationshipsService {
    */
   suspend fun removeRelationship(
     account: Account,
-    hardwareProofOfPossession: HwFactorProofOfPossession?,
+    proof: PrivilegedActionProof?,
     authTokenScope: AuthTokenScope,
     relationshipId: String,
   ): Result<Unit, Error>
@@ -62,28 +62,30 @@ interface RelationshipsService {
   /** Like [removeRelationship] but without syncing relationships afterward. */
   suspend fun removeRelationshipWithoutSyncing(
     accountId: AccountId,
-    hardwareProofOfPossession: HwFactorProofOfPossession?,
+    proof: PrivilegedActionProof?,
     authTokenScope: AuthTokenScope,
     relationshipId: String,
   ): Result<Unit, Error>
 
   /**
    * Create an invitation to add a new Trusted Contact.
+   * @param proof authorization proof — either HW proof-of-possession or a signed action proof
    */
   suspend fun createInvitation(
     account: FullAccount,
     trustedContactAlias: TrustedContactAlias,
-    hardwareProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
     roles: Set<TrustedContactRole>,
   ): Result<OutgoingInvitation, CreateInvitationError>
 
   /**
    * Update an invitation for an existing Trusted Contact.
+   * @param proof authorization proof — either HW proof-of-possession or a signed action proof
    */
   suspend fun refreshInvitation(
     account: FullAccount,
     relationshipId: String,
-    hardwareProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
   ): Result<OutgoingInvitation, Error>
 
   /**

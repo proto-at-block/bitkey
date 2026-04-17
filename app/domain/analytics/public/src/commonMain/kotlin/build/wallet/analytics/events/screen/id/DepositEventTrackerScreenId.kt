@@ -60,4 +60,10 @@ enum class DepositEventTrackerScreenId : EventTrackerScreenId {
 
   /** Error sheet shown when the redirect for a partner fails */
   PURCHASE_PARTNER_REDIRECT_ERROR,
+
+  /** Loading screen shown while generating an address before purchase verification */
+  LOADING_PURCHASE_ADDRESS_GENERATION,
+
+  /** Address verification prompt shown before completing a purchase */
+  PURCHASE_ADDRESS_VERIFICATION,
 }

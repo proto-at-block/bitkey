@@ -4,25 +4,17 @@ import app.cash.turbine.plusAssign
 import bitkey.recovery.DescriptorBackupError
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_FAILED
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_LOADING
-import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.LOADING_ONBOARDING_STEP
-import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.NEW_ACCOUNT_DESCRIPTOR_BACKUP_FAILURE
-import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.NEW_ACCOUNT_DESCRIPTOR_BACKUP_LOADING
+import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.SAVE_NOTIFICATIONS_LOADING
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
-import build.wallet.cloud.backup.AllFullAccountBackupMocks
-import build.wallet.cloud.backup.AllLiteAccountBackupMocks
-import build.wallet.cloud.backup.CloudBackupV2
-import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
-import build.wallet.cloud.backup.CloudBackupV2WithLiteAccountMock
-import build.wallet.cloud.backup.CloudBackupV3
+import build.wallet.cloud.backup.*
 import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.cloud.backup.csek.SealedSsekFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.onboarding.OnboardAccountServiceFake
+import build.wallet.onboarding.OnboardAccountStep.*
 import build.wallet.onboarding.OnboardAccountStep.CloudBackup
-import build.wallet.onboarding.OnboardAccountStep.DescriptorBackup
-import build.wallet.onboarding.OnboardAccountStep.NotificationPreferences
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.account.create.full.OnboardFullAccountUiProps
 import build.wallet.statemachine.account.create.full.OnboardFullAccountUiStateMachineImpl
@@ -688,6 +680,89 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
           }
         }
       }
+    }
+  }
+
+  test("complete BuildHardwareDescriptor step") {
+    onboardAccountService.setPendingSteps(BuildHardwareDescriptor)
+
+    stateMachine.test(props) {
+      // Loading initial onboarding state
+      awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+
+      // BuildHardwareDescriptor state machine is invoked
+      awaitBodyMock<BuildHardwareDescriptorUiProps> {
+        fullAccount.shouldBe(FullAccountMock)
+        onComplete()
+      }
+
+      awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+
+      // Onboarding is complete
+      onboardAccountService.awaitPendingStep(null)
+      onOnboardingComplete.awaitItem()
+    }
+  }
+
+  test("BuildHardwareDescriptor step - go back to previous step") {
+    onboardAccountService.setPendingSteps(BuildHardwareDescriptor)
+
+    stateMachine.test(props) {
+      // Loading initial onboarding state
+      awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+
+      // BuildHardwareDescriptor state machine is invoked
+      awaitBodyMock<BuildHardwareDescriptorUiProps> {
+        fullAccount.shouldBe(FullAccountMock)
+        // Press back to go to previous step
+        onBack()
+      }
+
+      // Should go back to loading state and then show NotificationPreferences
+      awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+
+      // NotificationPreferences should be the pending step now
+      onboardAccountService.awaitPendingStep(NotificationPreferences)
+
+      awaitBodyMock<NotificationPreferencesSetupUiProps> {
+        accountId.shouldBe(KeyboxMock.fullAccountId)
+        source.shouldBe(Onboarding)
+      }
+    }
+  }
+
+  test("BuildHardwareDescriptor step - failed and retry") {
+    onboardAccountService.setPendingSteps(BuildHardwareDescriptor)
+
+    stateMachine.test(props) {
+      // Loading initial onboarding state
+      awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+
+      // BuildHardwareDescriptor state machine reports failure
+      awaitBodyMock<BuildHardwareDescriptorUiProps> {
+        fullAccount.shouldBe(FullAccountMock)
+        onError(Error("Hardware descriptor error"))
+      }
+
+      // Should show error screen
+      awaitBody<FormBodyModel> {
+        header.shouldNotBeNull().headline.shouldBe("Error building hardware descriptor")
+        // Retry
+        clickPrimaryButton()
+      }
+
+      // BuildHardwareDescriptor state machine is invoked again
+      awaitBodyMock<BuildHardwareDescriptorUiProps> {
+        fullAccount.shouldBe(FullAccountMock)
+        // Succeed this time
+        onComplete()
+      }
+
+      awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+
+      // Onboarding is complete
+      onboardAccountService.awaitPendingStep(null)
+      onOnboardingComplete.awaitItem()
     }
   }
 })

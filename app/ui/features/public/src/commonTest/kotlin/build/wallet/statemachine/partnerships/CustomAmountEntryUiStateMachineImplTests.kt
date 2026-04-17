@@ -16,6 +16,7 @@ import build.wallet.statemachine.partnerships.purchase.CustomAmountBodyModel
 import build.wallet.statemachine.partnerships.purchase.CustomAmountEntryUiProps
 import build.wallet.statemachine.partnerships.purchase.CustomAmountEntryUiStateMachineImpl
 import build.wallet.statemachine.ui.awaitBody
+import build.wallet.ui.components.label.LabelTreatment
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -61,14 +62,17 @@ class CustomAmountEntryUiStateMachineImplTests : FunSpec({
 
   beforeTest {
     fiatCurrencyPreferenceRepository.reset()
+    moneyCalculatorUiStateMachine.reset()
   }
 
   test("custom amount entry not in range") {
     stateMachine.test(props()) {
       awaitBody<CustomAmountBodyModel> {
-        this.amountModel.shouldBe(defaultMoneyCalculatorModel.amountModel)
         this.toolbar.middleAccessory.shouldNotBeNull().subtitle.shouldBe("From $20.00 to $100.00")
         this.primaryButton.isEnabled.shouldBeFalse()
+
+        this.amountModel.secondaryAmount.shouldBe("Minimum buy amount is $20.00")
+        this.amountContextLineTreatment.shouldBe(LabelTreatment.Destructive)
       }
     }
   }
@@ -77,6 +81,53 @@ class CustomAmountEntryUiStateMachineImplTests : FunSpec({
     stateMachine.test(props(minimumAmount = FiatMoney.usd(10.0))) {
       awaitBody<CustomAmountBodyModel> {
         this.primaryButton.isEnabled.shouldBeTrue()
+
+      }
+    }
+  }
+
+  test("custom amount entry at zero shows no error") {
+    moneyCalculatorUiStateMachine.emitModel(
+      defaultMoneyCalculatorModel.copy(
+        primaryAmount = FiatMoney.zeroUsd(),
+        secondaryAmount = BitcoinMoney.zero(),
+        amountModel =
+          MoneyAmountEntryModel(
+            primaryAmount = "$0",
+            primaryAmountGhostedSubstringRange = null,
+            secondaryAmount = "0 sats"
+          )
+      )
+    )
+
+    stateMachine.test(props()) {
+      awaitBody<CustomAmountBodyModel> {
+        this.primaryButton.isEnabled.shouldBeFalse()
+
+      }
+    }
+  }
+
+  test("custom amount entry above maximum shows max error in context line") {
+    moneyCalculatorUiStateMachine.emitModel(
+      defaultMoneyCalculatorModel.copy(
+        primaryAmount = FiatMoney.usd(150.0),
+        secondaryAmount = BitcoinMoney.sats(15_000),
+        amountModel =
+          MoneyAmountEntryModel(
+            primaryAmount = "$150",
+            primaryAmountGhostedSubstringRange = null,
+            secondaryAmount = "15,000 sats"
+          )
+      )
+    )
+
+    stateMachine.test(props()) {
+      awaitBody<CustomAmountBodyModel> {
+        this.primaryButton.isEnabled.shouldBeFalse()
+
+        this.amountModel.secondaryAmount.shouldBe("Maximum buy amount is $100.00")
+        this.amountContextLineTreatment.shouldBe(LabelTreatment.Destructive)
       }
     }
   }

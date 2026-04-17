@@ -55,12 +55,14 @@ fun FirmwareMetadataWithMultipleMcusPreview() {
                 McuInfoModel(
                   role = "CORE",
                   name = "EFR32",
-                  firmwareVersion = "2.0.1"
+                  firmwareVersion = "2.0.1",
+                  activeSlot = "A"
                 ),
                 McuInfoModel(
                   role = "UXC",
                   name = "STM32U5",
-                  firmwareVersion = "1.5.0"
+                  firmwareVersion = "1.5.0",
+                  activeSlot = "B"
                 )
               )
             )

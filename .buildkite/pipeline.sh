@@ -6,20 +6,22 @@ set -euo pipefail
 ### https://github.com/squareup/runway-pipeline-config/blob/main/pipelines/mdx-ios/wallet.yaml
 ### It `cat` .yml files to populate a BK pipeline based on env vars
 
-# Check if .buildkite/ files changed (auto-triggers iOS builds for CI config validation)
-buildkite_changed() {
+# Check if relevant files changed (auto-triggers iOS builds)
+# Covers app/, core/, and .buildkite/ so iOS CI runs even if GitHub's
+# automated labelling is delayed.
+relevant_files_changed() {
     local default_branch="${BUILDKITE_PIPELINE_DEFAULT_BRANCH:-main}"
 
     if ! git fetch origin "${default_branch}" --depth=1 2>/dev/null; then
-        echo "Warning: git fetch origin ${default_branch} failed; skipping .buildkite/ change detection." >&2
+        echo "Warning: git fetch origin ${default_branch} failed; skipping change detection." >&2
         return 1
     fi
 
-    git diff --name-only "origin/${default_branch}...HEAD" 2>/dev/null | grep -q "^\.buildkite/"
+    git diff --name-only "origin/${default_branch}...HEAD" 2>/dev/null | grep -qE "^(\\.buildkite/|app/|core/)"
 }
 
 if [[ "${BUILDKITE_PULL_REQUEST:-}" != "false" ]]; then
-    if [[ "${BUILDKITE_PULL_REQUEST_LABELS:-}" =~ (app|core|ios|ci) ]] || buildkite_changed; then
+    if [[ "${BUILDKITE_PULL_REQUEST_LABELS:-}" =~ (app|core|ios|ci) ]] || relevant_files_changed; then
         cat .buildkite/mobuild/pipeline.pr.yml
     else
         cat .buildkite/mobuild/pipeline.pr.noop.yml

@@ -18,6 +18,7 @@ import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.*
 import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.recovery.OrphanedKeyDetectionService
 import build.wallet.recovery.OrphanedKeyRecoveryService
 import build.wallet.recovery.OrphanedKeyRecoveryService.RecoverableAccount
@@ -26,6 +27,7 @@ import build.wallet.statemachine.account.ChooseAccountAccessUiStateMachineImpl.S
 import build.wallet.statemachine.account.create.CreateAccountOptionsModel
 import build.wallet.statemachine.account.create.CreateSoftwareWalletProps
 import build.wallet.statemachine.account.create.CreateSoftwareWalletUiStateMachine
+import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.dev.DebugMenuScreen
@@ -37,6 +39,7 @@ import build.wallet.statemachine.settings.full.feedback.FeedbackUiStateMachine
 import build.wallet.time.DateTimeFormatter
 import build.wallet.time.TimeZoneProvider
 import build.wallet.ui.model.alert.ButtonAlertModel
+import build.wallet.ui.theme.Theme
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableList
@@ -53,6 +56,7 @@ class ChooseAccountAccessUiStateMachineImpl(
   private val orphanedKeyDetectionService: OrphanedKeyDetectionService,
   private val orphanedKeyRecoveryService: OrphanedKeyRecoveryService,
   private val orphanedKeyRecoveryFeatureFlag: OrphanedKeyRecoveryFeatureFlag,
+  private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val feedbackUiStateMachine: FeedbackUiStateMachine,
   private val publicCustomerSupportFeatureFlag: PublicCustomerSupportFeatureFlag,
   private val wipeHardwareLoggedOutFeatureFlag: WipeHardwareLoggedOutFeatureFlag,
@@ -64,6 +68,8 @@ class ChooseAccountAccessUiStateMachineImpl(
 ) : ChooseAccountAccessUiStateMachine {
   private companion object {
     const val LOG_TAG = "[OrphanedKeyRecovery]"
+    const val PRIVACY_NOTICE_URL = "https://bitkey.world/en-US/legal/privacy-notice"
+    const val TERMS_OF_SERVICE_URL = "https://bitkey.world/en-US/legal/terms-of-service"
   }
 
   @Composable
@@ -96,7 +102,7 @@ class ChooseAccountAccessUiStateMachineImpl(
     val showOrphanedKeyRecovery = orphanedKeyRecoveryFlag.value &&
       orphanedKeysState is OrphanedKeysState.OrphanedKeysFound
 
-    return when (state) {
+    return when (val currentState = state) {
       is ShowingCreateAccountOptions -> {
         CreateAccountOptionsModel(
           onBack = { state = ShowingChooseAccountAccess },
@@ -130,11 +136,19 @@ class ChooseAccountAccessUiStateMachineImpl(
               }
             }
           },
-          onMoreOptionsClick = { state = ShowingAccountAccessMoreOptions }
+          onMoreOptionsClick = { state = ShowingAccountAccessMoreOptions },
+          onTermsOfServiceClick = { state = ShowingLegalBrowser(TERMS_OF_SERVICE_URL) },
+          onPrivacyNoticeClick = { state = ShowingLegalBrowser(PRIVACY_NOTICE_URL) }
         ).asRootFullScreen(
-          alertModel = alert
+          alertModel = alert,
+          theme = Theme.DARK
         )
       }
+
+      is ShowingLegalBrowser -> openBrowser(
+        url = currentState.url,
+        onClose = { state = ShowingChooseAccountAccess }
+      )
 
       is ShowingAccountAccessMoreOptions -> {
         if (isEekBuild) {
@@ -258,6 +272,20 @@ class ChooseAccountAccessUiStateMachineImpl(
       id = null
     ).asRootScreen()
   }
+
+  @Composable
+  private fun openBrowser(
+    url: String,
+    onClose: () -> Unit,
+  ): ScreenModel =
+    InAppBrowserModel(
+      open = {
+        inAppBrowserNavigator.open(
+          url = url,
+          onClose = onClose
+        )
+      }
+    ).asModalScreen()
 
   @Composable
   private fun SelectingOrphanedAccountScreen(
@@ -387,6 +415,13 @@ class ChooseAccountAccessUiStateMachineImpl(
      * Showing flow to create a new software wallet.
      */
     data object CreatingSoftwareWallet : State
+
+    /**
+     * Showing a legal document in the in-app browser.
+     */
+    data class ShowingLegalBrowser(
+      val url: String,
+    ) : State
 
     /**
      * Discovering recoverable accounts from orphaned keychain entries.

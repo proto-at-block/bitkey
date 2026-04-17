@@ -20,6 +20,7 @@ import build.wallet.coroutines.scopes.mapAsStateFlow
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.Bip177FeatureFlag
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.fwup.FirmwareData
 import build.wallet.fwup.FirmwareDataService
@@ -34,10 +35,13 @@ import build.wallet.platform.haptics.HapticsEffect
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.list.ListModel
 import build.wallet.statemachine.limit.MobilePayOnboardingScreenModel
 import build.wallet.statemachine.money.amount.MoneyAmountModel
+import build.wallet.statemachine.money.amount.toAnimatedAmountAnimationKey
+import build.wallet.statemachine.money.amount.toAnimatedAmountValue
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.moneyhome.MoneyHomeButtonsModel
 import build.wallet.statemachine.moneyhome.card.CardListModel
@@ -52,6 +56,7 @@ import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceU
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint.BALANCE
 import build.wallet.statemachine.moneyhome.full.coachmarks.Bip177CoachmarkModel
 import build.wallet.statemachine.moneyhome.full.coachmarks.PrivateWalletHomeCoachmarkModel
+import build.wallet.statemachine.moneyhome.full.coachmarks.W3UpgradeCompleteCoachmarkModel
 import build.wallet.statemachine.partnerships.AddBitcoinBottomSheetDisplayState
 import build.wallet.statemachine.partnerships.AddBitcoinUiProps
 import build.wallet.statemachine.partnerships.AddBitcoinUiStateMachine
@@ -71,12 +76,16 @@ import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.coachmark.CoachmarkModel
+import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconButtonModel
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
-import build.wallet.wallet.migration.PrivateWalletMigrationService
-import build.wallet.wallet.migration.PrivateWalletMigrationState
+import build.wallet.ui.tokens.market.MarketIcons
+import build.wallet.wallet.migration.MigrationProgress
+import build.wallet.wallet.migration.MigrationService
+import build.wallet.wallet.migration.MigrationType
 import build.wallet.worker.RefreshExecutor
 import build.wallet.worker.runRefreshOperations
 import com.github.michaelbull.result.onSuccess
@@ -106,8 +115,9 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val securityActionsService: SecurityActionsService,
   private val refreshExecutor: RefreshExecutor,
   private val partnerTransferLinkUiStateMachine: PartnerTransferLinkUiStateMachine,
-  private val privateWalletMigrationService: PrivateWalletMigrationService,
+  private val migrationService: MigrationService,
   private val bip177FeatureFlag: Bip177FeatureFlag,
+  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
   private val bitcoinDisplayPreferenceRepository: BitcoinDisplayPreferenceRepository,
 ) : MoneyHomeViewingBalanceUiStateMachine {
   @Composable
@@ -115,8 +125,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
     val scope = rememberStableCoroutineScope()
     if (props.state.isRefreshing) {
       LaunchedEffect("refresh-transactions") {
-        refreshExecutor.runRefreshOperations(TransactionActivityOperations)
-        transactionsActivityService.sync()
+        refreshMoneyHomeData()
         props.setState(props.state.copy(isRefreshing = false))
       }
     }
@@ -131,26 +140,46 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
         status == MoneyHomeHiddenStatus.HIDDEN
       }
     }.collectAsState()
-    val privateWalletMigrationState by privateWalletMigrationService.migrationState.collectAsState(
-      PrivateWalletMigrationState.NotAvailable
-    )
+
+    // Check if migration is available by calling resume()
+    var isMigrationAvailable by remember { mutableStateOf(false) }
+    LaunchedEffect("check-migration-status") {
+      migrationService.resume(MigrationType.PrivateWalletMigration)
+        .onSuccess { progress ->
+          isMigrationAvailable = progress is MigrationProgress.NotStarted
+        }
+    }
 
     val isBip177Enabled by remember {
       bip177FeatureFlag.flagValue().map { it.isEnabled() }
     }.collectAsState(initial = bip177FeatureFlag.isEnabled())
+    val isDesignSystemV2Enabled by remember {
+      designSystemUpdatesFeatureFlag.flagValue().map { it.isEnabled() }
+    }.collectAsState(initial = designSystemUpdatesFeatureFlag.isEnabled())
     val bitcoinDisplayUnit by bitcoinDisplayPreferenceRepository.bitcoinDisplayUnit.collectAsState()
 
     var coachmarksToDisplay by remember { mutableStateOf(listOf<CoachmarkIdentifier>()) }
     var coachmarkDisplayed by remember { mutableStateOf(0) }
 
-    LaunchedEffect("coachmarks", coachmarkDisplayed, isBip177Enabled, bitcoinDisplayUnit) {
+    LaunchedEffect(
+      "coachmarks",
+      coachmarkDisplayed,
+      isBip177Enabled,
+      bitcoinDisplayUnit,
+      props.state.showW3UpgradeCompleteCoachmark,
+      transactionsData != null
+    ) {
+      val requestedCoachmarks = mutableSetOf(
+        CoachmarkIdentifier.Bip177Coachmark,
+        CoachmarkIdentifier.PrivateWalletHomeCoachmark
+      ).apply {
+        if (props.state.showW3UpgradeCompleteCoachmark && transactionsData != null) {
+          add(CoachmarkIdentifier.W3UpgradeCompleteCoachmark)
+        }
+      }
+
       coachmarkService
-        .coachmarksToDisplay(
-          setOf(
-            CoachmarkIdentifier.Bip177Coachmark,
-            CoachmarkIdentifier.PrivateWalletHomeCoachmark
-          )
-        )
+        .coachmarksToDisplay(requestedCoachmarks)
         .onSuccess {
           coachmarksToDisplay = it
         }
@@ -198,13 +227,15 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             onDismissAlert = { alertModel = null }
           ),
           transactionsModel = createTransactionsListModel(
-            transactionsModel = transactionsModel
+            transactionsModel = transactionsModel,
+            isLoading = transactionsData == null,
+            isDesignSystemV2Enabled = props.isDesignSystemV2Enabled
           ),
           seeAllButtonModel = createSeeAllButtonModel(transactionsModel, props),
           coachmark = transactionsData?.let {
             createCoachmarkModel(
               coachmarksToDisplay = coachmarksToDisplay.toImmutableList(),
-              privateWalletMigrationState = privateWalletMigrationState,
+              isMigrationAvailable = isMigrationAvailable,
               scope = scope,
               props = props,
               onCoachmarkDisplayed = { coachmarkDisplayed++ }
@@ -219,10 +250,24 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
           },
           trailingToolbarAccessoryModel = ToolbarAccessoryModel.IconAccessory(
             model = IconButtonModel(
-              iconModel = IconModel(
-                icon = Icon.SmallIconSettings,
-                iconSize = IconSize.HeaderToolbar
-              ),
+              iconModel = if (isDesignSystemV2Enabled) {
+                IconModel(
+                  icon = MarketIcons.EllipsisHorizontal,
+                  iconSize = IconSize.HeaderToolbar,
+                  iconBackgroundType = IconBackgroundType.Circle(
+                    circleSize = IconSize.Regular,
+                    color = IconBackgroundType.Circle.CircleColor.SubtleBackground
+                  ),
+                  iconTint = IconTint.Foreground
+                )
+              } else {
+                IconModel(
+                  icon = Icon.SmallIconSettings,
+                  iconSize = IconSize.HeaderToolbar,
+                  iconBackgroundType = IconBackgroundType.Transient
+                )
+              },
+              testTag = "money-home-settings",
               onClick = StandardClick({ props.onSettings() })
             )
           ),
@@ -236,6 +281,11 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             .collectAsState(false).value,
           haptics = haptics
         ),
+        presentationStyle = if (isDesignSystemV2Enabled) {
+          ScreenPresentationStyle.RootFullScreen
+        } else {
+          ScreenPresentationStyle.Root
+        },
         bottomSheetModel = MoneyHomeBottomSheetModel(
           props = props
         ),
@@ -248,20 +298,26 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
     )
   }
 
+  private suspend fun refreshMoneyHomeData() {
+    refreshExecutor.runRefreshOperations(TransactionActivityOperations)
+    transactionsActivityService.sync()
+  }
+
   private fun createBalanceModel(
     transactionsData: build.wallet.bitcoin.transactions.TransactionsData?,
   ): MoneyAmountModel {
+    val primaryBalance =
+      when (transactionsData) {
+        null -> null
+        else -> transactionsData.fiatBalance ?: transactionsData.balance.total
+      }
+
     // if fiat balance is null because currency conversion hasn't happened yet, we will show
     // the sats value as the primary until the fiat balance isn't null
     return MoneyAmountModel(
-      primaryAmount =
-        when (transactionsData) {
-          null -> ""
-          else -> when (val balance = transactionsData.fiatBalance) {
-            null -> moneyDisplayFormatter.format(transactionsData.balance.total)
-            else -> moneyDisplayFormatter.format(balance)
-          }
-        },
+      primaryAmount = primaryBalance?.let(moneyDisplayFormatter::format).orEmpty(),
+      primaryAmountValue = primaryBalance?.toAnimatedAmountValue(),
+      primaryAmountAnimationKey = primaryBalance?.toAnimatedAmountAnimationKey() ?: 0L,
       secondaryAmount = when (transactionsData) {
         null -> ""
         else -> when (transactionsData.fiatBalance) {
@@ -276,7 +332,15 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
 
   private fun createTransactionsListModel(
     transactionsModel: TransactionsActivityModel?,
+    isLoading: Boolean,
+    isDesignSystemV2Enabled: Boolean,
   ): ListModel? {
+    if (transactionsModel == null && !isLoading && isDesignSystemV2Enabled) {
+      return ListModel(
+        headerText = "Recent activity",
+        sections = immutableListOf()
+      )
+    }
     return transactionsModel?.let {
       ListModel(
         headerText = "Recent activity",
@@ -307,12 +371,28 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   @Composable
   private fun createCoachmarkModel(
     coachmarksToDisplay: kotlinx.collections.immutable.ImmutableList<CoachmarkIdentifier>,
-    privateWalletMigrationState: PrivateWalletMigrationState,
+    isMigrationAvailable: Boolean,
     scope: kotlinx.coroutines.CoroutineScope,
     props: MoneyHomeViewingBalanceUiProps,
     onCoachmarkDisplayed: () -> Unit,
   ): CoachmarkModel? {
     return when {
+      props.state.showW3UpgradeCompleteCoachmark &&
+        coachmarksToDisplay.contains(CoachmarkIdentifier.W3UpgradeCompleteCoachmark) -> {
+        W3UpgradeCompleteCoachmarkModel(
+          onDismiss = {
+            props.setState(
+              props.state.copy(showW3UpgradeCompleteCoachmark = false)
+            )
+            scope.launch {
+              coachmarkService.markCoachmarkAsDisplayed(
+                coachmarkId = CoachmarkIdentifier.W3UpgradeCompleteCoachmark
+              )
+              onCoachmarkDisplayed()
+            }
+          }
+        )
+      }
       coachmarksToDisplay.contains(CoachmarkIdentifier.Bip177Coachmark) -> {
         Bip177CoachmarkModel(
           onDismiss = {
@@ -326,7 +406,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
         )
       }
 
-      privateWalletMigrationState == PrivateWalletMigrationState.Available &&
+      isMigrationAvailable &&
         coachmarksToDisplay.contains(CoachmarkIdentifier.PrivateWalletHomeCoachmark) -> {
         val markCoachmarkAsDisplayed: () -> Unit = {
           scope.launch {
@@ -413,6 +493,11 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
     onShowAlert: (ButtonAlertModel) -> Unit,
     onDismissAlert: () -> Unit,
   ): CardListModel {
+    val firmwareUpdateState = remember { firmwareDataService.firmwareData() }
+      .collectAsState()
+      .value
+      .firmwareUpdateState
+
     return moneyHomeCardsUiStateMachine.model(
       props =
         MoneyHomeCardsProps(
@@ -432,6 +517,14 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
                   ViewingBalanceUiState(bottomSheetDisplayState = MobilePay(skipped = false))
                 )
               },
+              onUpdateFirmware = {
+                (firmwareUpdateState as? FirmwareData.FirmwareUpdateState.PendingUpdate)?.let {
+                    pendingUpdate ->
+                  props.setState(FwupFlowUiState(pendingUpdate))
+                }
+              },
+              showUpdateFirmwareTile =
+                firmwareUpdateState is FirmwareData.FirmwareUpdateState.PendingUpdate,
               onShowAlert = onShowAlert,
               onDismissAlert = onDismissAlert
             ),

@@ -1,0 +1,4 @@
+-- Add activeSlot column to mcuInfoDeviceEntity for per-MCU delta FWUP patch selection
+ALTER TABLE mcuInfoDeviceEntity ADD COLUMN activeSlot TEXT;
+
+PRAGMA foreign_key_check;

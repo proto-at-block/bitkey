@@ -1,8 +1,16 @@
 package build.wallet.statemachine.fwup
 
 import androidx.compose.runtime.*
+import bitkey.account.AccountConfig
+import bitkey.account.AccountConfigService
+import bitkey.account.DefaultAccountConfig
+import bitkey.account.FullAccountConfig
+import bitkey.account.HardwareType
+import build.wallet.analytics.events.EventTracker
+import build.wallet.analytics.v1.Action
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.keybox.KeyboxDao
 import build.wallet.nfc.NfcException
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.web.InAppBrowserNavigator
@@ -13,13 +21,18 @@ import build.wallet.statemachine.fwup.FwupNfcUiState.ShowingUpdateInstructionsUi
 import build.wallet.statemachine.fwup.FwupNfcUiState.ShowingUpdateInstructionsUiState.UpdateErrorBottomSheetState.Hidden
 import build.wallet.statemachine.fwup.FwupNfcUiState.ShowingUpdateInstructionsUiState.UpdateErrorBottomSheetState.Showing
 import build.wallet.statemachine.fwup.FwupTransactionType.StartFromBeginning
+import com.github.michaelbull.result.get
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.map
 
 @BitkeyInject(ActivityScope::class)
 class FwupNfcUiStateMachineImpl(
   private val deviceInfoProvider: DeviceInfoProvider,
   private val fwupNfcSessionUiStateMachine: FwupNfcSessionUiStateMachine,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
+  private val accountConfigService: AccountConfigService,
+  private val keyboxDao: KeyboxDao,
+  private val eventTracker: EventTracker,
 ) : FwupNfcUiStateMachine {
   @Composable
   override fun model(props: FwupNfcUiProps): ScreenModel {
@@ -46,6 +59,9 @@ class FwupNfcUiStateMachineImpl(
           props =
             FwupNfcSessionUiProps(
               transactionType = uiState.transactionType,
+              selectedMcuUpdates = props.selectedMcuUpdates,
+              hardwareTypeOverride = props.hardwareTypeOverride,
+              showNativeSheetOnIos = props.showNativeSheetOnIos,
               onBack = {
                 uiState = ShowingUpdateInstructionsUiState()
               },
@@ -83,6 +99,15 @@ class FwupNfcUiStateMachineImpl(
     onLaunchFwup: () -> Unit,
     onReleaseNotes: () -> Unit,
   ): ScreenModel {
+    val activeKeybox by remember {
+      keyboxDao.activeKeybox().map { it.get() }
+    }.collectAsState(initial = null)
+    val defaultConfig by remember {
+      accountConfigService.activeOrDefaultConfig()
+    }.collectAsState()
+    val hardwareType = props.hardwareTypeOverride
+      ?: activeKeybox?.config?.hardwareType
+      ?: extractHardwareType(defaultConfig)
     var isRelaunchingFwup: Boolean by remember { mutableStateOf(false) }
     var updateErrorBottomSheetState: UpdateErrorBottomSheetState
       by remember { mutableStateOf(state.updateErrorBottomSheetState) }
@@ -96,8 +121,13 @@ class FwupNfcUiStateMachineImpl(
     }
 
     return FwupUpdateDeviceModel(
+      devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
+      hardwareType = hardwareType,
       onClose = props.onDone,
-      onLaunchFwup = onLaunchFwup,
+      onLaunchFwup = {
+        eventTracker.track(Action.ACTION_APP_TAP_FWUP_CARD)
+        onLaunchFwup()
+      },
       onReleaseNotes = onReleaseNotes,
       bottomSheetModel =
         when (val sheetState = updateErrorBottomSheetState) {
@@ -108,8 +138,17 @@ class FwupNfcUiStateMachineImpl(
                 FwupUpdateDeviceBottomSheet.UnauthenticatedErrorModel(
                   onClosed = { updateErrorBottomSheetState = Hidden }
                 )
+              is NfcException.PreviousMcuUpdateNotApplied ->
+                FwupUpdateDeviceBottomSheet.PreviousMcuUpdateNotAppliedModel(
+                  onClosed = { updateErrorBottomSheetState = Hidden },
+                  onRelaunchFwup = {
+                    updateErrorBottomSheetState = Hidden
+                    isRelaunchingFwup = true
+                  }
+                )
               else ->
                 FwupUpdateDeviceBottomSheet.UpdateErrorModel(
+                  error = sheetState.error,
                   deviceInfo = deviceInfoProvider.getDeviceInfo(),
                   wasInProgress = sheetState.updateWasInProgress,
                   onClosed = { updateErrorBottomSheetState = Hidden },
@@ -122,6 +161,14 @@ class FwupNfcUiStateMachineImpl(
         }
     )
   }
+
+  private fun extractHardwareType(accountConfig: AccountConfig): HardwareType {
+    return when (accountConfig) {
+      is FullAccountConfig -> accountConfig.hardwareType
+      is DefaultAccountConfig -> accountConfig.hardwareType ?: HardwareType.W1
+      else -> HardwareType.W1
+    }
+  }
 }
 
 private sealed interface FwupNfcUiState {
@@ -129,7 +176,7 @@ private sealed interface FwupNfcUiState {
 
   data class ShowingUpdateInstructionsUiState(
     val updateErrorBottomSheetState: UpdateErrorBottomSheetState = Hidden,
-    override val transactionType: FwupTransactionType = StartFromBeginning,
+    override val transactionType: FwupTransactionType = StartFromBeginning(),
   ) : FwupNfcUiState {
     sealed interface UpdateErrorBottomSheetState {
       data object Hidden : UpdateErrorBottomSheetState
@@ -148,6 +195,6 @@ private sealed interface FwupNfcUiState {
   data class InNfcSessionUiState(override val transactionType: FwupTransactionType) : FwupNfcUiState
 
   data class ReleaseNotesUiState(
-    override val transactionType: FwupTransactionType = StartFromBeginning,
+    override val transactionType: FwupTransactionType = StartFromBeginning(),
   ) : FwupNfcUiState
 }

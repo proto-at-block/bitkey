@@ -51,6 +51,7 @@ class NetworkingDebugConfigPickerUiStateMachineImpl(
                         model =
                           SwitchModel(
                             checked = networkingDebugConfig.value.failF8eRequests,
+                            testTag = "networking-debug-fail-f8e-requests-toggle",
                             onCheckedChange = { failF8eRequests ->
                               scope.launch {
                                 networkingDebugService.setFailF8eRequests(failF8eRequests)

@@ -39,6 +39,7 @@ class PartnershipPurchaseServiceFake : PartnershipPurchaseService {
   override suspend fun preparePurchase(
     quote: PurchaseQuote,
     purchaseAmount: FiatMoney,
+    address: String?,
   ): Result<PurchaseRedirectInfo, Throwable> {
     return Ok(
       PurchaseRedirectInfo(

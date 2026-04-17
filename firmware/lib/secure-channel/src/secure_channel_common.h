@@ -27,7 +27,7 @@ typedef struct {
   secure_channel_type_t channel_type;         /**< Session type */
   uint8_t send_key_buf[AES_256_LENGTH_BYTES]; /**< Buffer for sending encryption key */
   uint8_t recv_key_buf[AES_256_LENGTH_BYTES]; /**< Buffer for receiving decryption key */
-  uint8_t conf_key_buf[AES_256_LENGTH_BYTES]; /**< Buffer for key confirmation tag */
+  uint8_t conf_key_buf[AES_256_LENGTH_BYTES]; /**< Buffer for key confirmation key */
   key_handle_t session_send_key;              /**< Handle for sending key */
   key_handle_t session_recv_key;              /**< Handle for receiving key */
   key_handle_t session_conf_key;              /**< Handle for confirmation key */

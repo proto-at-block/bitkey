@@ -8,13 +8,14 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use utoipa::{OpenApi, ToSchema};
 
-use account::service::Service as AccountService;
+use account::service::{FetchAccountInput, Service as AccountService};
 use errors::ApiError;
 use feature_flags::{
     flag::{evaluate_flags, FeatureFlag},
     service::Service as FeatureFlagsService,
 };
 use http_server::swagger::{SwaggerEndpoint, Url};
+use types::account::entities::Account;
 use types::account::identifiers::AccountId;
 
 use crate::claims::ExperimentationClaims;
@@ -84,7 +85,10 @@ pub struct GetFeatureFlagsResponse {
     pub flags: Vec<FeatureFlag>,
 }
 
-#[instrument(fields(account_id), skip(request, feature_flags_service))]
+#[instrument(
+    fields(account_id),
+    skip(account_service, feature_flags_service, request)
+)]
 #[utoipa::path(
     post,
     path = "/api/accounts/{account_id}/feature-flags",
@@ -95,11 +99,27 @@ pub struct GetFeatureFlagsResponse {
     ),
 )]
 async fn get_account_feature_flags(
-    Path(_account_id): Path<AccountId>,
+    Path(account_id): Path<AccountId>,
+    State(account_service): State<AccountService>,
     State(feature_flags_service): State<FeatureFlagsService>,
-    experimentation_claims: ExperimentationClaims,
+    mut experimentation_claims: ExperimentationClaims,
     Json(request): Json<GetAccountFeatureFlagsRequest>,
 ) -> Result<Json<GetFeatureFlagsResponse>, ApiError> {
+    // Look up the account's hardware type from the spending keyset so LD can
+    // target flags by W1 vs W3 without requiring a client-side change.
+    if let Ok(account) = account_service
+        .fetch_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await
+    {
+        if let Account::Full(full_account) = account {
+            if let Ok(hw_type) = full_account.active_hardware_type() {
+                experimentation_claims.hardware_type = Some(hw_type.to_string());
+            }
+        }
+    }
+
     let context_key = experimentation_claims.account_context_key()?;
     let flags = evaluate_flags(&feature_flags_service, request.flag_keys, &context_key)
         .map_err(ExperimentationError::from)?;

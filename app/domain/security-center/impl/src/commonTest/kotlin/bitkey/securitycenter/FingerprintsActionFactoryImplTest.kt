@@ -12,7 +12,6 @@ import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.FeatureFlagValue
-import build.wallet.feature.flags.FingerprintResetFeatureFlag
 import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
 import build.wallet.firmware.*
 import build.wallet.grants.Grant
@@ -22,6 +21,7 @@ import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactly
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlin.time.Duration.Companion.days
@@ -40,7 +40,6 @@ class FingerprintsActionFactoryImplTest : FunSpec({
   )
   val hardwareProvisionedAppKeyStatusDao = HardwareProvisionedAppKeyStatusDaoFake()
   val featureFlagDao = FeatureFlagDaoFake()
-  val fingerprintResetFeatureFlag = FingerprintResetFeatureFlag(featureFlagDao)
   val fingerprintResetMinFirmwareVersionFeatureFlag =
     FingerprintResetMinFirmwareVersionFeatureFlag(featureFlagDao)
 
@@ -50,7 +49,6 @@ class FingerprintsActionFactoryImplTest : FunSpec({
     fingerprintResetService = fingerprintResetService,
     hardwareProvisionedAppKeyStatusDao = hardwareProvisionedAppKeyStatusDao,
     fingerprintResetMinFirmwareVersionFeatureFlag = fingerprintResetMinFirmwareVersionFeatureFlag,
-    fingerprintResetFeatureFlag = fingerprintResetFeatureFlag,
     clock = clock
   )
 
@@ -62,7 +60,6 @@ class FingerprintsActionFactoryImplTest : FunSpec({
     hardwareProvisionedAppKeyStatusDao.reset()
     featureFlagDao.reset()
     // Set default feature flag values
-    fingerprintResetFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
     // By default, set up the app key as provisioned so tests don't get the provisioning recommendation
     // unless they specifically test for it
@@ -186,7 +183,7 @@ class FingerprintsActionFactoryImplTest : FunSpec({
 
     factory.create().test {
       // First emission: delay not complete
-      val action1 = awaitItem()
+      val action1 = awaitItem().shouldNotBeNull()
       action1.getRecommendations().shouldContainExactly(
         SecurityActionRecommendation.ADD_FINGERPRINTS
       )
@@ -195,7 +192,7 @@ class FingerprintsActionFactoryImplTest : FunSpec({
       clock.advanceBy(10.milliseconds)
 
       // Second emission: delay complete, should recommend both fingerprint reset and add
-      val action2 = awaitItem()
+      val action2 = awaitItem().shouldNotBeNull()
       action2.getRecommendations().shouldContainExactly(
         SecurityActionRecommendation.COMPLETE_FINGERPRINT_RESET,
         SecurityActionRecommendation.ADD_FINGERPRINTS
@@ -209,7 +206,7 @@ class FingerprintsActionFactoryImplTest : FunSpec({
 
     factory.create().test {
       // Initial state: no fingerprints, should recommend ADD_FINGERPRINTS (has firmware info)
-      val action1 = awaitItem()
+      val action1 = awaitItem().shouldNotBeNull()
       action1.getRecommendations().shouldContainExactly(
         SecurityActionRecommendation.ADD_FINGERPRINTS
       )
@@ -219,7 +216,7 @@ class FingerprintsActionFactoryImplTest : FunSpec({
         listOf(UnlockInfo(unlockMethod = UnlockMethod.BIOMETRICS, fingerprintIdx = 1))
       )
 
-      val action2 = awaitItem()
+      val action2 = awaitItem().shouldNotBeNull()
       action2.getRecommendations().shouldContainExactly(
         SecurityActionRecommendation.ADD_FINGERPRINTS
       )
@@ -232,7 +229,7 @@ class FingerprintsActionFactoryImplTest : FunSpec({
         )
       )
 
-      val action3 = awaitItem()
+      val action3 = awaitItem().shouldNotBeNull()
       action3.getRecommendations().shouldBeEmpty()
     }
   }
@@ -293,11 +290,11 @@ class FingerprintsActionFactoryImplTest : FunSpec({
     )
 
     factory.create().test {
-      awaitItem().getRecommendations().shouldContainExactly(SecurityActionRecommendation.ADD_FINGERPRINTS)
+      awaitItem().shouldNotBeNull().getRecommendations().shouldContainExactly(SecurityActionRecommendation.ADD_FINGERPRINTS)
 
       firmwareDeviceInfoDao.setDeviceInfo(FirmwareDeviceInfoMock)
 
-      awaitItem().getRecommendations().shouldBeEmpty()
+      awaitItem().shouldNotBeNull().getRecommendations().shouldBeEmpty()
     }
   }
 
@@ -344,27 +341,6 @@ class FingerprintsActionFactoryImplTest : FunSpec({
     }
   }
 
-  test("should not recommend provisioning when fingerprint reset feature flag is disabled") {
-    // Disable fingerprint reset feature flag
-    fingerprintResetFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
-
-    hardwareUnlockInfoService.replaceAllUnlockInfo(
-      listOf(
-        UnlockInfo(unlockMethod = UnlockMethod.BIOMETRICS, fingerprintIdx = 1),
-        UnlockInfo(unlockMethod = UnlockMethod.BIOMETRICS, fingerprintIdx = 2)
-      )
-    )
-    firmwareDeviceInfoDao.setDeviceInfo(FirmwareDeviceInfoMock)
-
-    factory.create().test {
-      val action = awaitItem()
-      action.shouldBeInstanceOf<FingerprintsAction>()
-
-      // Should not recommend provisioning since feature flag is disabled
-      action.getRecommendations().shouldBeEmpty()
-    }
-  }
-
   test("should not recommend provisioning when firmware version is below minimum") {
     // Set minimum firmware version higher than device's version
     fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("2.0.0"))
@@ -382,7 +358,7 @@ class FingerprintsActionFactoryImplTest : FunSpec({
       val action = awaitItem()
 
       // Should not recommend provisioning since firmware is below minimum version
-      action.getRecommendations().shouldBeEmpty()
+      action.shouldNotBeNull().getRecommendations().shouldBeEmpty()
     }
   }
 
@@ -412,8 +388,22 @@ class FingerprintsActionFactoryImplTest : FunSpec({
     }
   }
 
+  test("should return null for W3 hardware") {
+    hardwareUnlockInfoService.replaceAllUnlockInfo(
+      listOf(
+        UnlockInfo(unlockMethod = UnlockMethod.BIOMETRICS, fingerprintIdx = 1),
+        UnlockInfo(unlockMethod = UnlockMethod.BIOMETRICS, fingerprintIdx = 2)
+      )
+    )
+    firmwareDeviceInfoDao.setDeviceInfo(FirmwareDeviceInfoMock.copy(hwRevision = "w3a-core-evt"))
+
+    factory.create().test {
+      val action = awaitItem()
+      action shouldBe null
+    }
+  }
+
   test("should not recommend provisioning when firmware device info is null") {
-    fingerprintResetFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.0"))
 
     hardwareUnlockInfoService.replaceAllUnlockInfo(

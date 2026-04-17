@@ -54,7 +54,7 @@ class OnboardAccountServiceImpl(
       // Check if BuildHardwareDescriptor step is needed (only for W3 hardware)
       val account = accountService.getActiveOrOnboardingAccountOrNull<FullAccount>().bind()
       val isW3Hardware = account?.config?.hardwareType == HardwareType.W3
-      if (isW3Hardware) {
+      if (isW3Hardware && !defaultConfig.skipBuildHardwareDescriptorOnboarding) {
         val buildHardwareDescriptorStepState =
           onboardingKeyboxStepStateDao.stateForStep(OnboardingKeyboxStep.BuildHardwareDescriptor).first()
         if (buildHardwareDescriptorStepState == OnboardingKeyboxStepState.Incomplete) {

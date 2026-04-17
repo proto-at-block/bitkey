@@ -47,7 +47,11 @@ class GettingStartedCardUiStateMachineImpl(
 
     LaunchedEffect("set-state-based-on-tasks") {
       gettingStartedTaskDao.tasks().collectLatest { activeTasks ->
-        uiState = uiState.copy(activeTasks = activeTasks.toImmutableList())
+        uiState =
+          uiState.copy(
+            activeTasks = activeTasks.toImmutableList(),
+            animations = uiState.animations?.takeIf { activeTasks.isNotEmpty() }
+          )
       }
     }
 
@@ -85,35 +89,37 @@ class GettingStartedCardUiStateMachineImpl(
 
     // Clear tasks when all are complete
     if (uiState.activeTasks.isNotEmpty() && uiState.activeTasks.all { it.state == Complete }) {
-      LaunchedEffect("clear-tasks") {
+      LaunchedEffect("clear-tasks", props.showUpdateFirmwareTile) {
         // First, pause for 1 second to show the completed state.
         delay(1.seconds)
-        // Then, animate the card.
-        val emphasisAnimationDurationInSeconds = 0.55
-        val disappearAnimationDurationInSeconds = 0.55
-        uiState =
-          uiState.copy(
-            animations =
-              immutableListOf(
-                AnimationSet(
-                  animations = setOf(Scale(1.05f)),
-                  durationInSeconds = emphasisAnimationDurationInSeconds
-                ),
-                AnimationSet(
-                  animations =
-                    setOf(
-                      Scale(0.001f), // iOS can't animate all the way to 0
-                      Height(0f)
-                    ),
-                  durationInSeconds = disappearAnimationDurationInSeconds
+        if (!props.showUpdateFirmwareTile) {
+          // Then, animate the card if there is nothing left to show afterwards.
+          val emphasisAnimationDurationInSeconds = 0.55
+          val disappearAnimationDurationInSeconds = 0.55
+          uiState =
+            uiState.copy(
+              animations =
+                immutableListOf(
+                  AnimationSet(
+                    animations = setOf(Scale(1.05f)),
+                    durationInSeconds = emphasisAnimationDurationInSeconds
+                  ),
+                  AnimationSet(
+                    animations =
+                      setOf(
+                        Scale(0.001f), // iOS can't animate all the way to 0
+                        Height(0f)
+                      ),
+                    durationInSeconds = disappearAnimationDurationInSeconds
+                  )
                 )
-              )
-          )
-        // Finally, clear the cards, making sure to first give enough
-        // time for animations to complete
-        val totalAnimationDurationInSeconds =
-          emphasisAnimationDurationInSeconds + disappearAnimationDurationInSeconds
-        delay(totalAnimationDurationInSeconds.seconds)
+            )
+          // Finally, clear the cards, making sure to first give enough
+          // time for animations to complete.
+          val totalAnimationDurationInSeconds =
+            emphasisAnimationDurationInSeconds + disappearAnimationDurationInSeconds
+          delay(totalAnimationDurationInSeconds.seconds)
+        }
         gettingStartedTaskDao.clearTasks()
           .onSuccess {
             eventTracker.track(ACTION_APP_GETTINGSTARTED_COMPLETED)
@@ -122,9 +128,12 @@ class GettingStartedCardUiStateMachineImpl(
       }
     }
 
-    return if (uiState.activeTasks.isNotEmpty()) {
+    return if (uiState.activeTasks.isNotEmpty() || props.showUpdateFirmwareTile) {
       GettingStartedCardModel(
         animations = uiState.animations,
+        firmwareUpdateTile =
+          props.showUpdateFirmwareTile.takeIf { it }
+            ?.let { FirmwareUpdateGettingStartedTileModel(onClick = props.onUpdateFirmware) },
         taskModels =
           uiState.activeTasks.map {
             GettingStartedTaskRowModel(

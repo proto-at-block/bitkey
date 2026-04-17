@@ -12,11 +12,15 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
+import build.wallet.bitcoin.transactions.PsbtMock
+import build.wallet.bitcoin.transactions.PsbtsForSendAmount
 import build.wallet.bitcoin.transactions.TransactionPriorityPreferenceFake
 import build.wallet.bitcoin.transactions.TransactionsDataMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -43,12 +47,14 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
   val bitcoinTransactionBaseCalculator = BitcoinTransactionBaseCalculatorMock(BitcoinMoney.zero())
   val bitcoinWalletService = BitcoinWalletServiceFake()
   val accountService = AccountServiceFake()
+  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(FeatureFlagDaoFake())
   val feeEstimationErrorUiStateMachine = FeeEstimationErrorUiStateMachineImpl()
 
   val stateMachine =
     FeeSelectionUiStateMachineImpl(
       bitcoinTransactionFeeEstimator = bitcoinTransactionFeeEstimator,
       transactionPriorityPreference = transactionPriorityPreference,
+      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
       feeOptionListUiStateMachine = feeOptionListUiStateMachine,
       transactionBaseCalculator = bitcoinTransactionBaseCalculator,
       bitcoinWalletService = bitcoinWalletService,
@@ -249,6 +255,49 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       awaitBody<FormBodyModel> {
+        with(mainContentList.first().shouldBeInstanceOf<FeeOptionList>()) {
+          options[0].verifyFeeOption(selected = true)
+          options[1].verifyFeeOption(selected = false)
+          options[2].verifyFeeOption(selected = false)
+        }
+        clickPrimaryButton()
+      }
+
+      onContinueCalls.awaitItem().shouldBe(FASTEST)
+    }
+  }
+
+  test("when all fees are the same with pre-built PSBTs, FASTEST is selected") {
+    val equalFee = Fee(BitcoinMoney.btc(0.001))
+    val preBuiltPsbts = PsbtsForSendAmount(
+      fastest = PsbtMock.copy(
+        id = "fastest",
+        amountSats = 10000UL,
+        fee = equalFee
+      ),
+      thirtyMinutes = PsbtMock.copy(
+        id = "thirty",
+        amountSats = 10000UL,
+        fee = equalFee
+      ),
+      sixtyMinutes = PsbtMock.copy(
+        id = "sixty",
+        amountSats = 10000UL,
+        fee = equalFee
+      )
+    )
+
+    stateMachine.test(
+      props.copy(
+        preBuiltPsbts = preBuiltPsbts
+      )
+    ) {
+      awaitBody<FormBodyModel> {
+        with(mainContentList.first().shouldBeInstanceOf<FeeOptionList>()) {
+          options[0].verifyFeeOption(selected = true)
+          options[1].verifyFeeOption(selected = false)
+          options[2].verifyFeeOption(selected = false)
+        }
         clickPrimaryButton()
       }
 
@@ -326,18 +375,18 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
   }
 
   test("skips loading state when pre-built PSBTs are provided") {
-    val preBuiltPsbts = build.wallet.bitcoin.transactions.PsbtsForSendAmount(
-      fastest = build.wallet.bitcoin.transactions.PsbtMock.copy(
+    val preBuiltPsbts = PsbtsForSendAmount(
+      fastest = PsbtMock.copy(
         id = "fastest",
         amountSats = 10000UL,
         fee = Fee(BitcoinMoney.btc(0.001))
       ),
-      thirtyMinutes = build.wallet.bitcoin.transactions.PsbtMock.copy(
+      thirtyMinutes = PsbtMock.copy(
         id = "thirty",
         amountSats = 10000UL,
         fee = Fee(BitcoinMoney.btc(0.0005))
       ),
-      sixtyMinutes = build.wallet.bitcoin.transactions.PsbtMock.copy(
+      sixtyMinutes = PsbtMock.copy(
         id = "sixty",
         amountSats = 10000UL,
         fee = Fee(BitcoinMoney.btc(0.0003))

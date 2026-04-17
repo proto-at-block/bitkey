@@ -1,7 +1,8 @@
 package build.wallet.statemachine.account.create.full.onboard.notifications
 
 /**
- * Model for a line item in the [RecoveryChannelsSetupFormBodyModel]
+ * Model tracking the state of an individual notification channel (email, SMS, push)
+ * in the sequential onboarding notification flow.
  */
 data class RecoveryChannelsSetupFormItemModel(
   val state: State,

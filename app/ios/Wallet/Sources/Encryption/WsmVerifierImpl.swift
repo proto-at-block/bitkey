@@ -28,4 +28,24 @@ class WsmVerifierImpl: Shared.WsmVerifier {
             signature: signature
         ))
     }
+
+    func verifyPublicKeys(
+        appAuthPubHex: String,
+        hardwareAuthPubHex: String,
+        appSpendingPubHex: String,
+        hardwareSpendingPubHex: String,
+        serverSpendingPubHex: String,
+        signature: String,
+        keyVariant: WsmIntegrityKeyVariant
+    ) throws -> WsmVerifierResult {
+        let verifier = core.WsmIntegrityVerifier(pubkey: keyVariant.pubkey)
+        return try Shared.WsmVerifierResult(isValid: verifier.verifyPublicKeys(
+            appAuthPubHex: appAuthPubHex,
+            hardwareAuthPubHex: hardwareAuthPubHex,
+            appSpendingPubHex: appSpendingPubHex,
+            hardwareSpendingPubHex: hardwareSpendingPubHex,
+            serverSpendingPubHex: serverSpendingPubHex,
+            signature: signature
+        ))
+    }
 }

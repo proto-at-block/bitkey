@@ -1,0 +1,241 @@
+#!/bin/bash
+set -euo pipefail
+
+display_usage() {
+  echo "Run a oneoff ECS task derived from an existing ECS service task definition"
+  echo ""
+  echo "Usage: $0 [OPTIONS]"
+  echo "Options:"
+  echo "  --region                         AWS region (required if AWS_REGION/AWS_DEFAULT_REGION not set)"
+  echo "  -c, --cluster                    ECS cluster name (required)"
+  echo "  -s, --service                    ECS service name to derive task configuration from (required)"
+  echo "  -i, --image                      Docker image to run, including tag (required)"
+  echo "  --command                        Oneoff command to run (default: oneoffs-job)"
+  echo "  --container                      Container name to update/execute (defaults to service task's single container)"
+  echo "  --timeout                        Wait timeout in seconds for the task to stop (default: 3600)"
+  echo "  -h, --help                       Display this help message"
+}
+
+AWS_REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-}}"
+ECS_CLUSTER_NAME=""
+ECS_SERVICE_NAME=""
+DOCKER_IMAGE=""
+ONEOFF_COMMAND="oneoffs-job"
+CONTAINER_NAME=""
+TIMEOUT_SECONDS="3600"
+
+while [[ $# -gt 0 ]]; do
+  key="$1"
+  case $key in
+    --region)
+      AWS_REGION="$2"
+      shift
+      ;;
+    -c|--cluster)
+      ECS_CLUSTER_NAME="$2"
+      shift
+      ;;
+    -s|--service)
+      ECS_SERVICE_NAME="$2"
+      shift
+      ;;
+    -i|--image)
+      DOCKER_IMAGE="$2"
+      shift
+      ;;
+    --command)
+      ONEOFF_COMMAND="$2"
+      shift
+      ;;
+    --container)
+      CONTAINER_NAME="$2"
+      shift
+      ;;
+    --timeout)
+      TIMEOUT_SECONDS="$2"
+      shift
+      ;;
+    -h|--help)
+      display_usage
+      exit 0
+      ;;
+    *)
+      echo "Invalid option: $1"
+      display_usage
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+if [[ -z "${AWS_REGION}" || -z "${ECS_CLUSTER_NAME}" || -z "${ECS_SERVICE_NAME}" || -z "${DOCKER_IMAGE}" ]]; then
+  echo "Missing required options"
+  display_usage
+  exit 1
+fi
+
+if ! [[ "${TIMEOUT_SECONDS}" =~ ^[0-9]+$ ]]; then
+  echo "--timeout must be a non-negative integer"
+  exit 1
+fi
+
+service_json="$(aws ecs describe-services \
+  --region "${AWS_REGION}" \
+  --cluster "${ECS_CLUSTER_NAME}" \
+  --services "${ECS_SERVICE_NAME}")"
+
+service_status="$(jq -r '.services[0].status // empty' <<<"${service_json}")"
+if [[ -z "${service_status}" || "${service_status}" == "INACTIVE" ]]; then
+  echo "Unable to load active ECS service ${ECS_SERVICE_NAME} in cluster ${ECS_CLUSTER_NAME}"
+  echo "${service_json}" | jq .
+  exit 1
+fi
+
+if [[ "$(jq -r '.failures | length' <<<"${service_json}")" != "0" ]]; then
+  echo "ECS returned service lookup failures"
+  echo "${service_json}" | jq .
+  exit 1
+fi
+
+task_definition_arn="$(jq -r '.services[0].taskDefinition' <<<"${service_json}")"
+network_configuration="$(jq -c '.services[0].networkConfiguration' <<<"${service_json}")"
+launch_type="$(jq -r '.services[0].launchType // "FARGATE"' <<<"${service_json}")"
+platform_version="$(jq -r '.services[0].platformVersion // empty' <<<"${service_json}")"
+
+if [[ -z "${task_definition_arn}" || "${task_definition_arn}" == "null" ]]; then
+  echo "Unable to determine task definition for service ${ECS_SERVICE_NAME}"
+  exit 1
+fi
+
+if [[ -z "${network_configuration}" || "${network_configuration}" == "null" ]]; then
+  echo "Unable to determine network configuration for service ${ECS_SERVICE_NAME}"
+  exit 1
+fi
+
+task_definition_json="$(aws ecs describe-task-definition \
+  --region "${AWS_REGION}" \
+  --task-definition "${task_definition_arn}")"
+
+if [[ -z "${CONTAINER_NAME}" ]]; then
+  container_count="$(jq -r '.taskDefinition.containerDefinitions | length' <<<"${task_definition_json}")"
+  if [[ "${container_count}" != "1" ]]; then
+    echo "Task definition has ${container_count} containers. Pass --container explicitly."
+    echo "${task_definition_json}" | jq '.taskDefinition.containerDefinitions[].name'
+    exit 1
+  fi
+  CONTAINER_NAME="$(jq -r '.taskDefinition.containerDefinitions[0].name' <<<"${task_definition_json}")"
+fi
+
+if [[ "$(jq -r --arg container "${CONTAINER_NAME}" '.taskDefinition.containerDefinitions | map(select(.name == $container)) | length' <<<"${task_definition_json}")" == "0" ]]; then
+  echo "Container ${CONTAINER_NAME} not found in task definition ${task_definition_arn}"
+  exit 1
+fi
+
+new_task_definition_json="$(jq -c \
+  --arg image "${DOCKER_IMAGE}" \
+  --arg container "${CONTAINER_NAME}" \
+  --arg command "${ONEOFF_COMMAND}" \
+  '
+    .taskDefinition
+    | .containerDefinitions = (
+      .containerDefinitions
+      | map(
+        if .name == $container
+        then .image = $image | .command = ($command | split(" "))
+        else .
+        end
+      )
+    )
+    | {
+      family,
+      taskRoleArn,
+      executionRoleArn,
+      networkMode,
+      containerDefinitions,
+      volumes,
+      placementConstraints,
+      requiresCompatibilities,
+      cpu,
+      memory,
+      pidMode,
+      ipcMode,
+      proxyConfiguration,
+      inferenceAccelerators,
+      ephemeralStorage,
+      runtimePlatform
+    }
+    | with_entries(
+      select(
+        .value != null
+        and (.value | type != "array" or length > 0)
+        and (.value | type != "object" or length > 0)
+      )
+    )
+  ' <<<"${task_definition_json}")"
+
+new_task_definition_arn="$(aws ecs register-task-definition \
+  --region "${AWS_REGION}" \
+  --cli-input-json "${new_task_definition_json}" \
+  | jq -r '.taskDefinition.taskDefinitionArn')"
+
+echo "Registered task definition ${new_task_definition_arn} for oneoffs command '${ONEOFF_COMMAND}'"
+
+run_task_cmd=(
+  aws ecs run-task
+  --region "${AWS_REGION}"
+  --cluster "${ECS_CLUSTER_NAME}"
+  --task-definition "${new_task_definition_arn}"
+  --launch-type "${launch_type}"
+  --network-configuration "${network_configuration}"
+)
+
+if [[ -n "${platform_version}" && "${launch_type}" == "FARGATE" ]]; then
+  run_task_cmd+=(--platform-version "${platform_version}")
+fi
+
+run_task_result="$("${run_task_cmd[@]}")"
+
+if [[ "$(jq -r '.failures | length' <<<"${run_task_result}")" != "0" ]]; then
+  echo "Failed to start oneoffs task"
+  echo "${run_task_result}" | jq .
+  exit 1
+fi
+
+task_arn="$(jq -r '.tasks[0].taskArn // empty' <<<"${run_task_result}")"
+if [[ -z "${task_arn}" ]]; then
+  echo "Unable to read taskArn from run-task result"
+  echo "${run_task_result}" | jq .
+  exit 1
+fi
+
+echo "Started oneoffs task ${task_arn}, waiting up to ${TIMEOUT_SECONDS}s for completion..."
+
+if ! timeout "${TIMEOUT_SECONDS}" aws ecs wait tasks-stopped \
+  --region "${AWS_REGION}" \
+  --cluster "${ECS_CLUSTER_NAME}" \
+  --tasks "${task_arn}"; then
+  echo "Timed out waiting for task ${task_arn} to stop"
+  exit 1
+fi
+
+task_result="$(aws ecs describe-tasks \
+  --region "${AWS_REGION}" \
+  --cluster "${ECS_CLUSTER_NAME}" \
+  --tasks "${task_arn}")"
+
+stopped_reason="$(jq -r '.tasks[0].stoppedReason // ""' <<<"${task_result}")"
+container_exit_code="$(jq -r --arg container "${CONTAINER_NAME}" '.tasks[0].containers[] | select(.name == $container) | .exitCode // empty' <<<"${task_result}")"
+container_reason="$(jq -r --arg container "${CONTAINER_NAME}" '.tasks[0].containers[] | select(.name == $container) | .reason // ""' <<<"${task_result}")"
+
+if [[ "${container_exit_code}" != "0" ]]; then
+  echo "Oneoffs task failed"
+  echo "taskArn=${task_arn}"
+  echo "container=${CONTAINER_NAME}"
+  echo "exitCode=${container_exit_code:-none}"
+  echo "containerReason=${container_reason}"
+  echo "stoppedReason=${stopped_reason}"
+  exit 1
+fi
+
+echo "Oneoffs task completed successfully"
+echo "taskArn=${task_arn}"

@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -19,13 +20,20 @@ import build.wallet.ui.components.icon.IconButton
 import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
+import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.coachmark.CoachmarkLabelTreatment
 import build.wallet.ui.model.coachmark.CoachmarkModel
+import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.list.CoachmarkLabelModel
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
+import build.wallet.ui.theme.LocalTheme
+import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
+import build.wallet.ui.tokens.darkStyleDictionaryColors
+import build.wallet.ui.tokens.market.MarketIcons
 import build.wallet.ui.tokens.painter
 
 /**
@@ -39,8 +47,10 @@ fun Coachmark(
   model: CoachmarkModel,
   offset: Offset,
 ) {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
   val density = LocalDensity.current
-  val coachmarkShape = RoundedCornerShape(20.dp)
+  val coachmarkShape = RoundedCornerShape(if (isDesignSystemV2Enabled) 8.dp else 20.dp)
+  val coachmarkColors = coachmarkColors()
   val arrowAlignment = when (model.arrowPosition.horizontal) {
     CoachmarkModel.ArrowPosition.Horizontal.Leading -> Alignment.Start
     CoachmarkModel.ArrowPosition.Horizontal.Centered -> Alignment.CenterHorizontally
@@ -55,7 +65,10 @@ fun Coachmark(
   ) {
     // Top arrow
     if (model.arrowPosition.vertical == CoachmarkModel.ArrowPosition.Vertical.Top) {
-      CoachmarkArrow(modifier = Modifier.align(arrowAlignment).offset(y = 1.dp))
+      CoachmarkArrow(
+        modifier = Modifier.align(arrowAlignment).offset(y = 1.dp),
+        color = coachmarkColors.background
+      )
     }
 
     // Coachmark body
@@ -68,7 +81,7 @@ fun Coachmark(
           spotColor = Color(0x0A000000),
           ambientColor = Color(0x0A000000)
         )
-        .background(color = WalletTheme.colors.coachmarkBackground, shape = coachmarkShape)
+        .background(color = coachmarkColors.background, shape = coachmarkShape)
         .padding(16.dp)
     ) {
       model.image?.let {
@@ -89,10 +102,15 @@ fun Coachmark(
         )
         IconButton(
           iconModel = IconModel(
-            icon = Icon.SmallIconXFilled,
+            iconImage =
+              if (isDesignSystemV2Enabled) {
+                IconImage.MarketIconImage(MarketIcons.XCircleFill)
+              } else {
+                IconImage.LocalImage(Icon.SmallIconXFilled)
+              },
             iconSize = IconSize.Small
           ),
-          color = WalletTheme.colors.foreground30,
+          color = coachmarkColors.closeIcon,
           onClick = model.dismiss
         )
       }
@@ -101,19 +119,33 @@ fun Coachmark(
 
       Label(
         text = model.title,
-        type = LabelType.Title2,
+        type = if (isDesignSystemV2Enabled) LabelType.Title3 else LabelType.Title2,
         treatment = LabelTreatment.Unspecified,
-        color = Color.White
+        color = coachmarkColors.title
       )
       Label(
         text = model.description,
         type = LabelType.Body3Regular,
         treatment = LabelTreatment.Unspecified,
-        color = Color.White
+        color = coachmarkColors.description
       )
       model.button?.let {
         Spacer(modifier = Modifier.height(8.dp))
-        Button(model = it)
+        if (isDesignSystemV2Enabled) {
+          CompositionLocalProvider(LocalTheme provides Theme.DARK) {
+            WalletTheme {
+              Button(
+                model = it.copy(treatment = ButtonModel.Treatment.Secondary),
+                cornerRadius = 8.dp
+              )
+            }
+          }
+        } else {
+          Button(
+            model = it,
+            cornerRadius = 16.dp
+          )
+        }
       }
     }
 
@@ -121,6 +153,7 @@ fun Coachmark(
     if (model.arrowPosition.vertical == CoachmarkModel.ArrowPosition.Vertical.Bottom) {
       CoachmarkArrow(
         modifier = Modifier.align(arrowAlignment).offset(y = (-1).dp),
+        color = coachmarkColors.background,
         rotated = true
       )
     }
@@ -130,6 +163,7 @@ fun Coachmark(
 @Composable
 private fun CoachmarkArrow(
   modifier: Modifier = Modifier,
+  color: Color,
   rotated: Boolean = false,
 ) {
   IconImage(
@@ -141,6 +175,42 @@ private fun CoachmarkArrow(
       .padding(horizontal = 16.dp)
       .height(12.dp)
       .then(if (rotated) Modifier.rotate(180f) else Modifier),
-    color = WalletTheme.colors.coachmarkBackground
+    color = color
   )
+}
+
+private data class CoachmarkColors(
+  val background: Color,
+  val title: Color,
+  val description: Color,
+  val closeIcon: Color,
+)
+
+@Composable
+private fun coachmarkColors(): CoachmarkColors {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val useDarkPaletteOnLightDsv2 =
+    isDesignSystemV2Enabled && LocalTheme.current == Theme.LIGHT
+  val contentColors = if (useDarkPaletteOnLightDsv2) darkStyleDictionaryColors else WalletTheme.colors
+
+  return if (isDesignSystemV2Enabled) {
+    CoachmarkColors(
+      background =
+        if (useDarkPaletteOnLightDsv2) {
+          darkStyleDictionaryColors.subtleBackground
+        } else {
+          WalletTheme.colors.subtleBackground
+        },
+      title = contentColors.foreground,
+      description = contentColors.foreground60,
+      closeIcon = contentColors.foreground30
+    )
+  } else {
+    CoachmarkColors(
+      background = WalletTheme.colors.coachmarkBackground,
+      title = Color.White,
+      description = Color.White,
+      closeIcon = WalletTheme.colors.foreground30
+    )
+  }
 }

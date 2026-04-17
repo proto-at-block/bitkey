@@ -15,7 +15,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define MCU_HASH_TIMEOUT_US (1000u)
+#define MCU_HASH_TIMEOUT_MS (2u)
 
 typedef struct {
   /**
@@ -294,8 +294,8 @@ static mcu_err_t _mcu_hash_start(mcu_hash_alg_t alg, uint32_t mode) {
 
 static void _mcu_hash_wait_digest(const uint32_t mask) {
 #ifdef IMAGE_TYPE_APPLICATION
-  const uint64_t start_time = rtos_thread_micros();
-  while (((HASH->SR & mask) == 0) && ((rtos_thread_micros() - start_time) < MCU_HASH_TIMEOUT_US)) {
+  const uint32_t start_time = rtos_thread_systime();
+  while (((HASH->SR & mask) == 0) && ((rtos_thread_systime() - start_time) < MCU_HASH_TIMEOUT_MS)) {
     ;
   }
 #else

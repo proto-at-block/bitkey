@@ -144,10 +144,39 @@ sealed interface LabelModel {
   /**
    * The color to be used for a styled substring.
    */
+  companion object {
+    /**
+     * Creates a [LabelModel] for a chunked address with alternating colors.
+     * The address is split into 4-character groups separated by spaces.
+     * Odd-indexed chunks are colored [Color.ON60]; even-indexed chunks use the primary color.
+     *
+     * Uses explicit index ranges so duplicate chunks are styled correctly.
+     */
+    fun chunkedAddress(address: String): LabelModel {
+      val parts = address.chunked(4)
+      val joined = parts.joinToString(" ")
+      var offset = 0
+      val styled = parts.mapIndexedNotNull { index, part ->
+        val start = offset
+        offset += part.length + if (index < parts.lastIndex) 1 else 0
+        if (index % 2 != 0) {
+          StringWithStyledSubstringModel.StyledSubstring(
+            range = start..<start + part.length,
+            style = StringWithStyledSubstringModel.SubstringStyle.ColorStyle(Color.ON60)
+          )
+        } else {
+          null
+        }
+      }
+      return StringWithStyledSubstringModel(string = joined, styledSubstrings = styled)
+    }
+  }
+
   enum class Color {
     GREEN,
     BLUE,
     ON60,
+    FOREGROUND,
     PRIMARY,
 
     /**

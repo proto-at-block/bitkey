@@ -6,6 +6,7 @@ import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.core.BodyModel
+import build.wallet.statemachine.core.Icon
 import build.wallet.ui.app.mobilepay.MobilePayStatusScreen
 import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.alert.DisableAlertModel
@@ -33,12 +34,14 @@ data class MobilePayStatusModel(
   ) : this(
     onBack = onBack,
     switchCardModel = SwitchCardModel(
+      icon = Icon.DotAppKey,
       title = "Transfer without hardware",
       subline = "When on, you can spend up to a set daily limit without your Bitkey device. \n\n" +
         "These transfers require the server key and won’t have the full privacy of transactions made with your hardware and app keys.",
       switchModel = SwitchModel(
         checked = switchIsChecked,
-        onCheckedChange = onSwitchCheckedChange
+        onCheckedChange = onSwitchCheckedChange,
+        testTag = "mobile-pay-transfer-without-hardware-toggle"
       ),
       actionRows = immutableListOfNotNull(dailyLimitRow)
     ),

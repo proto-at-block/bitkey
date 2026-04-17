@@ -13,6 +13,7 @@ import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.nfc.NfcException
 import build.wallet.f8e.partnerships.GetTransferPartnerListF8eClient
 import build.wallet.f8e.partnerships.GetTransferRedirectF8eClient
 import build.wallet.f8e.partnerships.RedirectUrlType
@@ -26,11 +27,13 @@ import build.wallet.platform.haptics.Haptics
 import build.wallet.platform.haptics.HapticsEffect
 import build.wallet.platform.links.DeepLinkHandler
 import build.wallet.platform.sharing.SharingManager
-import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.SmallIconCheckFilled
 import build.wallet.statemachine.core.Icon.SmallIconCopy
+import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
+import build.wallet.statemachine.nfc.DescriptorRepairUiProps
+import build.wallet.statemachine.nfc.DescriptorRepairUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.partnerships.PartnerEventTrackerScreenIdContext
@@ -66,9 +69,11 @@ class AddressQrCodeUiStateMachineImpl(
   private val eventTracker: EventTracker,
   private val addressQrCodeLoadingDuration: AddressQrCodeLoadingDuration,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
+  private val descriptorRepairUiStateMachine: DescriptorRepairUiStateMachine,
 ) : AddressQrCodeUiStateMachine {
+  @Suppress("CyclomaticComplexMethod")
   @Composable
-  override fun model(props: AddressQrCodeUiProps): BodyModel {
+  override fun model(props: AddressQrCodeUiProps): ScreenModel {
     var state: State by remember {
       mutableStateOf(State.LoadingAddressUiState())
     }
@@ -95,6 +100,7 @@ class AddressQrCodeUiStateMachineImpl(
     }
 
     val scope = rememberStableCoroutineScope()
+    val isW3 = props.account.config.hardwareType == HardwareType.W3
 
     when (val currentState = state) {
       is State.LoadingAddressUiState -> {
@@ -131,13 +137,15 @@ class AddressQrCodeUiStateMachineImpl(
             }
           }
         } else {
-          // Phase 2: Wait for text animation delay
+          val addressInfo = currentState.pendingQrCode.addressInfo
+
+          // Play the address reveal animation
           LaunchedEffect("animate-text") {
             val remainingDelay = (addressQrCodeLoadingDuration.value - currentState.pendingQrCode.operationDuration)
               .coerceAtLeast(Duration.ZERO)
             delay(remainingDelay)
             state = State.AddressLoadedUiState(
-              addressInfo = currentState.pendingQrCode.addressInfo,
+              addressInfo = addressInfo,
               copyStatus = currentState.copyStatus,
               chunkedAddress = currentState.chunkedAddress,
               qrCodeState = currentState.qrCodeState
@@ -224,6 +232,7 @@ class AddressQrCodeUiStateMachineImpl(
           content =
             QrCode(
               address = currentState.addressInfo?.address?.address,
+              hideAddressByDefault = isW3,
               partners = partners,
               qrCodeState = currentState.qrCodeState,
               onPartnerClick = { /* Disabled during address loading */ },
@@ -233,7 +242,7 @@ class AddressQrCodeUiStateMachineImpl(
               onShareClick = {},
               isRefreshing = true
             )
-        )
+        ).asModalFullScreen()
 
       is State.AddressLoadedUiState ->
         AddressQrCodeBodyModel(
@@ -254,6 +263,7 @@ class AddressQrCodeUiStateMachineImpl(
           content =
             QrCode(
               address = currentState.addressInfo.address.address,
+              hideAddressByDefault = isW3,
               qrCodeState = currentState.qrCodeState,
               partners = partners,
               onPartnerClick = { partner ->
@@ -267,6 +277,18 @@ class AddressQrCodeUiStateMachineImpl(
               },
               copyButtonIcon = currentState.copyStatus.icon(),
               copyButtonLabelText = currentState.copyStatus.labelText(),
+              onVerifyClick = if (isW3) {
+                {
+                  state = State.VerifyingOnDevice(
+                    addressInfo = currentState.addressInfo,
+                    qrCodeState = currentState.qrCodeState,
+                    chunkedAddress = currentState.chunkedAddress,
+                    copyStatus = currentState.copyStatus
+                  )
+                }
+              } else {
+                null
+              },
               onCopyClick = {
                 // the currentState in the lambda was getting cached somehow and giving incorrect values
                 // on execution. We grab the state on every execution to circumvent this
@@ -285,22 +307,9 @@ class AddressQrCodeUiStateMachineImpl(
                   title = "Bitcoin Address",
                   completion = null
                 )
-              },
-              showVerifyOnDeviceButton = props.account.config.hardwareType == HardwareType.W3,
-              onVerifyOnDeviceClick = if (props.account.config.hardwareType == HardwareType.W3) {
-                {
-                  state = State.VerifyingOnDevice(
-                    addressInfo = currentState.addressInfo,
-                    qrCodeState = currentState.qrCodeState,
-                    chunkedAddress = currentState.chunkedAddress,
-                    copyStatus = currentState.copyStatus
-                  )
-                }
-              } else {
-                null
               }
             )
-        )
+        ).asModalFullScreen()
 
       is State.ErrorLoadingAddressUiState ->
         AddressQrCodeBodyModel(
@@ -313,7 +322,7 @@ class AddressQrCodeUiStateMachineImpl(
               title = "We couldn’t create an address",
               subline = "We are looking into this. Please try again later."
             )
-        )
+        ).asModalFullScreen()
 
       is State.LoadingPartnerRedirect ->
         AddressQrCodeBodyModel(
@@ -322,6 +331,7 @@ class AddressQrCodeUiStateMachineImpl(
           content =
             QrCode(
               address = currentState.addressInfo.address.address,
+              hideAddressByDefault = isW3,
               qrCodeState = currentState.qrCodeState,
               partners = partners,
               onPartnerClick = { /* Disable during loading */ },
@@ -331,7 +341,7 @@ class AddressQrCodeUiStateMachineImpl(
               onShareClick = { /* Disable during loading */ },
               loadingPartnerId = currentState.partnerInfo.partnerId.value
             )
-        )
+        ).asModalFullScreen()
 
       is State.PartnerRedirectError ->
         AddressQrCodeBodyModel(
@@ -349,7 +359,7 @@ class AddressQrCodeUiStateMachineImpl(
               title = "Couldn't open ${currentState.partnerInfo.name}",
               subline = "Please try again later."
             )
-        )
+        ).asModalFullScreen()
 
       is State.VerifyingOnDevice ->
         nfcSessionUIStateMachine.model(
@@ -359,7 +369,6 @@ class AddressQrCodeUiStateMachineImpl(
               commands.getAddress(session, currentState.addressInfo.index)
             },
             onSuccess = {
-              // Return to address loaded state after NFC completes
               state = State.AddressLoadedUiState(
                 addressInfo = currentState.addressInfo,
                 qrCodeState = currentState.qrCodeState,
@@ -367,19 +376,60 @@ class AddressQrCodeUiStateMachineImpl(
                 copyStatus = currentState.copyStatus
               )
             },
+            needsAuthentication = true,
             onCancel = {
-              // Return to address loaded state on cancel
+              // On cancel, return to the QR code screen
               state = State.AddressLoadedUiState(
                 addressInfo = currentState.addressInfo,
                 qrCodeState = currentState.qrCodeState,
                 chunkedAddress = currentState.chunkedAddress,
                 copyStatus = currentState.copyStatus
               )
+            },
+            onError = { error ->
+              if (error is NfcException.DescriptorNotLoaded) {
+                // Hardware wallet descriptor is missing — trigger delivery flow
+                state = State.DeliveringDescriptor(
+                  addressInfo = currentState.addressInfo,
+                  qrCodeState = currentState.qrCodeState,
+                  chunkedAddress = currentState.chunkedAddress,
+                  copyStatus = currentState.copyStatus
+                )
+                true // handled
+              } else {
+                false // let default error UI handle it
+              }
             },
             screenPresentationStyle = ScreenPresentationStyle.Modal,
             eventTrackerContext = ADDRESS_VERIFICATION
           )
-        ).body
+        )
+
+      is State.DeliveringDescriptor ->
+        descriptorRepairUiStateMachine.model(
+          DescriptorRepairUiProps(
+            fullAccount = props.account,
+            presentationStyle = ScreenPresentationStyle.ModalFullScreen,
+            onRepairComplete = {
+              // Delivery succeeded — retry address verification
+              state = State.VerifyingOnDevice(
+                addressInfo = currentState.addressInfo,
+                qrCodeState = currentState.qrCodeState,
+                chunkedAddress = currentState.chunkedAddress,
+                copyStatus = currentState.copyStatus
+              )
+            },
+            onBack = {
+              // Delivery cancelled or failed — return to address display
+              state = State.AddressLoadedUiState(
+                addressInfo = currentState.addressInfo,
+                qrCodeState = currentState.qrCodeState,
+                chunkedAddress = currentState.chunkedAddress,
+                copyStatus = currentState.copyStatus
+              )
+            },
+          )
+        )
     }
   }
 
@@ -441,6 +491,17 @@ class AddressQrCodeUiStateMachineImpl(
      * Indicates that we are verifying the address on the hardware device via NFC.
      */
     data class VerifyingOnDevice(
+      override val addressInfo: BitcoinAddressInfo,
+      override val qrCodeState: QrCodeState,
+      override val chunkedAddress: String? = addressInfo.address.chunkedAddress(),
+      override val copyStatus: CopyStatus,
+    ) : State()
+
+    /**
+     * Hardware wallet descriptor is missing. Running delivery flow to load it
+     * before retrying address verification.
+     */
+    data class DeliveringDescriptor(
       override val addressInfo: BitcoinAddressInfo,
       override val qrCodeState: QrCodeState,
       override val chunkedAddress: String? = addressInfo.address.chunkedAddress(),

@@ -11,8 +11,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment.Secondary
 import build.wallet.ui.tokens.LabelType
@@ -21,20 +23,27 @@ import build.wallet.ui.tokens.LabelType
 internal fun DataRowTotal(
   modifier: Modifier = Modifier,
   model: FormMainContentModel.DataList.Data,
+  contentHorizontalPadding: Dp = 16.dp,
+  useContainedDesignSystemV2Typography: Boolean = false,
 ) {
   DataRowTotal(
-    modifier = modifier,
+    modifier = modifier.padding(horizontal = contentHorizontalPadding),
     leadingContent = {
       Column {
         Label(
           text = model.title,
-          type = LabelType.Body2Bold,
+          type = model.titleTextType.toTotalTitleLabelType(useContainedDesignSystemV2Typography),
           alignment = TextAlign.Start
         )
         model.secondaryTitle?.let { secondaryTitle ->
           Label(
             text = secondaryTitle,
-            type = LabelType.Body3Regular,
+            type =
+              if (useContainedDesignSystemV2Typography) {
+                LabelType.Body2Regular
+              } else {
+                LabelType.Body3Regular
+              },
             alignment = TextAlign.Start,
             treatment = Secondary
           )
@@ -48,13 +57,13 @@ internal fun DataRowTotal(
       ) {
         Label(
           text = model.sideText,
-          type = LabelType.Body2Bold,
+          type = model.sideTextType.toTotalSideLabelType(useContainedDesignSystemV2Typography),
           alignment = TextAlign.End
         )
         model.secondarySideText?.let { secondarySideText ->
           Label(
             text = secondarySideText,
-            type = LabelType.Body3Regular,
+            type = model.secondarySideTextType.toTotalSecondarySideLabelType(useContainedDesignSystemV2Typography),
             alignment = TextAlign.End,
             treatment = Secondary
           )
@@ -81,5 +90,77 @@ private fun DataRowTotal(
     leadingContent()
     Spacer(Modifier.width(16.dp))
     trailingContent()
+  }
+}
+
+private fun Data.TitleTextType.toTotalTitleLabelType(
+  useContainedDesignSystemV2Typography: Boolean,
+): LabelType {
+  if (useContainedDesignSystemV2Typography) {
+    return when (this) {
+      Data.TitleTextType.BODY1REGULAR -> LabelType.Body1Regular
+      Data.TitleTextType.BODY2REGULAR,
+      Data.TitleTextType.REGULAR,
+      Data.TitleTextType.BOLD,
+      -> LabelType.Body2Regular
+    }
+  }
+
+  return when (this) {
+    Data.TitleTextType.BODY1REGULAR -> LabelType.Body1Regular
+    Data.TitleTextType.BODY2REGULAR -> LabelType.Body2Regular
+    Data.TitleTextType.BOLD, Data.TitleTextType.REGULAR -> LabelType.Body2Bold
+  }
+}
+
+private fun Data.SideTextType.toTotalSideLabelType(
+  useContainedDesignSystemV2Typography: Boolean,
+): LabelType {
+  if (useContainedDesignSystemV2Typography) {
+    return when (this) {
+      Data.SideTextType.BODY1REGULAR -> LabelType.Body1Regular
+      Data.SideTextType.BODY2REGULAR,
+      Data.SideTextType.BODY2BOLD,
+      Data.SideTextType.REGULAR,
+      Data.SideTextType.MEDIUM,
+      Data.SideTextType.BOLD,
+      -> LabelType.Body2Regular
+    }
+  }
+
+  return when (this) {
+    Data.SideTextType.BODY1REGULAR -> LabelType.Body1Regular
+    Data.SideTextType.BODY2REGULAR -> LabelType.Body2Regular
+    Data.SideTextType.REGULAR,
+    Data.SideTextType.MEDIUM,
+    Data.SideTextType.BOLD,
+    Data.SideTextType.BODY2BOLD,
+    -> LabelType.Body2Bold
+  }
+}
+
+private fun Data.SideTextType.toTotalSecondarySideLabelType(
+  useContainedDesignSystemV2Typography: Boolean,
+): LabelType {
+  if (useContainedDesignSystemV2Typography) {
+    return when (this) {
+      Data.SideTextType.BODY1REGULAR -> LabelType.Body1Regular
+      Data.SideTextType.BODY2REGULAR,
+      Data.SideTextType.BODY2BOLD,
+      Data.SideTextType.REGULAR,
+      Data.SideTextType.MEDIUM,
+      Data.SideTextType.BOLD,
+      -> LabelType.Body2Regular
+    }
+  }
+
+  return when (this) {
+    Data.SideTextType.BODY1REGULAR -> LabelType.Body1Regular
+    Data.SideTextType.BODY2REGULAR -> LabelType.Body2Regular
+    Data.SideTextType.REGULAR,
+    Data.SideTextType.MEDIUM,
+    Data.SideTextType.BOLD,
+    Data.SideTextType.BODY2BOLD,
+    -> LabelType.Body3Regular
   }
 }

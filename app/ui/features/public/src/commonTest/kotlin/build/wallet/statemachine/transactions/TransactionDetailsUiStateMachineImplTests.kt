@@ -16,6 +16,9 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
+import build.wallet.feature.setFlagValue
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.CurrencyConverterFake
@@ -44,6 +47,7 @@ import build.wallet.time.ClockFake
 import build.wallet.time.DateTimeFormatterMock
 import build.wallet.time.DurationFormatterFake
 import build.wallet.time.TimeZoneProviderMock
+import build.wallet.time.someInstant
 import build.wallet.ui.model.icon.IconImage
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -61,6 +65,8 @@ import kotlin.time.Duration.Companion.minutes
 class TransactionDetailsUiStateMachineImplTests : FunSpec({
 
   val timeZoneProvider = TimeZoneProviderMock()
+  val featureFlagDao = FeatureFlagDaoFake()
+  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(featureFlagDao)
   val confirmedTime = BitcoinTransactionSend.confirmationTime()!!
   val broadcastTime = BitcoinTransactionSend.broadcastTime!!
   val estimatedConfirmationTime = BitcoinTransactionSend.estimatedConfirmationTime!!
@@ -97,6 +103,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
 
   val stateMachine =
     TransactionDetailsUiStateMachineImpl(
+      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
       bitcoinExplorer = BitcoinExplorerMock(),
       timeZoneProvider = timeZoneProvider,
       dateTimeFormatter = DateTimeFormatterMock(timeToFormattedTime = timeToFormattedTime),
@@ -202,6 +209,8 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
   )
 
   beforeTest {
+    clock.now = someInstant
+    designSystemUpdatesFeatureFlag.reset()
     bitcoinWalletService.reset()
     bitcoinWalletService.spendingWallet.value = spendingWallet
     bitcoinTransactionBumpabilityChecker.isBumpable = false
@@ -302,6 +311,18 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
             )
         }
       }
+    }
+  }
+
+  test("pending receive transaction uses circular processing stepper with design system v2") {
+    designSystemUpdatesFeatureFlag.setFlagValue(true)
+
+    stateMachine.test(pendingReceiveProps) {
+      awaitBody<TransactionDetailModel> {
+        content[0].shouldBe(processingTransactionStepperDesignSystemV2)
+      }
+
+      cancelAndIgnoreRemainingEvents()
     }
   }
 
@@ -522,6 +543,43 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     }
   }
 
+  test("late incoming transaction shows late notice but not speed-up explainer") {
+    val lateIncomingProps = TransactionDetailsUiProps(
+      account = FullAccountMock,
+      transaction = Transaction.BitcoinWalletTransaction(
+        BitcoinTransactionReceive.copy(
+          confirmationStatus = Pending,
+          estimatedConfirmationTime = estimatedConfirmationTime
+        )
+      ),
+      onClose = { inAppBrowserNavigator.onCloseCalls.add(Unit) }
+    )
+
+    clock.now = estimatedConfirmationTime.plus(10.minutes)
+
+    stateMachine.test(lateIncomingProps) {
+      awaitBody<TransactionDetailModel> {
+        testButtonsAndHeader(
+          transaction = lateIncomingProps.transaction,
+          isPending = true,
+          transactionType = Incoming,
+          isLate = true
+        )
+
+        with(content[2].shouldBeInstanceOf<DataList>()) {
+          items[0].title.shouldBe("Should have arrived by")
+          items[0].sideTextTreatment.shouldBe(DataList.Data.SideTextTreatment.STRIKETHROUGH)
+          items[0].secondarySideText.shouldNotBeNull()
+          items[0].secondarySideTextTreatment.shouldBe(DataList.Data.SideTextTreatment.WARNING)
+          items[0].explainer.shouldBeNull()
+        }
+      }
+
+      // after currency conversion
+      awaitBody<FormBodyModel>()
+    }
+  }
+
   context("Speed up feature flag is on") {
     beforeTest {
       bitcoinTransactionBumpabilityChecker.isBumpable = true
@@ -612,9 +670,9 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
           with(content[2].shouldBeInstanceOf<DataList>()) {
             items[0].title.shouldBe("Should have arrived by")
             items[0].sideTextTreatment.shouldBe(DataList.Data.SideTextTreatment.STRIKETHROUGH)
-            items[0].sideTextType.shouldBe(DataList.Data.SideTextType.REGULAR)
+            items[0].sideTextType.shouldBe(DataList.Data.SideTextType.BODY2REGULAR)
             items[0].secondarySideText.shouldNotBeNull()
-            items[0].secondarySideTextType.shouldBe(DataList.Data.SideTextType.BOLD)
+            items[0].secondarySideTextType.shouldBe(DataList.Data.SideTextType.BODY2REGULAR)
             items[0].secondarySideTextTreatment.shouldBe(DataList.Data.SideTextTreatment.WARNING)
             items[0].explainer.shouldNotBeNull()
             items[0].explainer?.iconButton.shouldNotBeNull()
@@ -688,6 +746,8 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     }
 
     test("tapping speed up should open the fee bump flow") {
+      clock.now =
+        pendingSentProps.transaction.onChainDetails()!!.estimatedConfirmationTime!!.plus(10.minutes)
       speedUpTransactionService.result = Ok(
         SpeedUpTransactionResult(
           psbt = PsbtMock,
@@ -731,6 +791,8 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     }
 
     test("tapping speed up with insufficient balance to bump fee should show error screen") {
+      clock.now =
+        pendingSentProps.transaction.onChainDetails()!!.estimatedConfirmationTime!!.plus(10.minutes)
       speedUpTransactionService.result = Err(SpeedUpTransactionError.InsufficientFunds)
       stateMachine.test(pendingSentProps) {
         awaitBody<TransactionDetailModel> {
@@ -766,6 +828,8 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     }
 
     test("tapping speed up when fee rates are too low should show error screen") {
+      clock.now =
+        pendingSentProps.transaction.onChainDetails()!!.estimatedConfirmationTime!!.plus(10.minutes)
       speedUpTransactionService.result = Err(SpeedUpTransactionError.FeeRateTooLow)
       stateMachine.test(pendingSentProps) {
         awaitBody<TransactionDetailModel> {

@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.logging.LogLevel.Debug
 import build.wallet.logging.LogLevel.Info
 import build.wallet.logging.LogLevel.Warn
 import build.wallet.logging.dev.LogStore
@@ -28,10 +29,18 @@ class LogsUiStateMachineImpl(
   @Composable
   override fun model(props: Props): BodyModel {
     var errorsOnly by remember { mutableStateOf(false) }
+    var showDebugLogs by remember { mutableStateOf(false) }
     var analyticsEventsOnly by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
 
-    val minimumLevel by remember(errorsOnly) {
-      derivedStateOf { if (errorsOnly) Warn else Info }
+    val minimumLevel by remember(errorsOnly, showDebugLogs) {
+      derivedStateOf {
+        when {
+          errorsOnly -> Warn
+          showDebugLogs -> Debug
+          else -> Info
+        }
+      }
     }
     val onlyTag by remember(analyticsEventsOnly) {
       derivedStateOf { if (analyticsEventsOnly) "Screen" else null }
@@ -42,19 +51,34 @@ class LogsUiStateMachineImpl(
     }.collectAsState(emptyList())
     val timezone = remember { timeZoneProvider.current() }
 
-    val logsModel by remember(logs, timezone) {
+    val allRows by remember(logs, timezone) {
       derivedStateOf {
+        logs.map {
+          LogRowModel(
+            dateTime = dateTimeFormatter.localTimestamp(it.time.toLocalDateTime(timezone)),
+            level = it.level.name.uppercase(),
+            tag = it.tag,
+            isError = it.level >= Warn,
+            message = it.message,
+            throwableDescription = it.throwable?.stackTraceToString()
+          )
+        }
+      }
+    }
+
+    val logsModel by remember(allRows, searchQuery) {
+      derivedStateOf {
+        val query = searchQuery.trim()
         LogsModel(
           logRows =
-            logs.map {
-              LogRowModel(
-                dateTime = dateTimeFormatter.localTimestamp(it.time.toLocalDateTime(timezone)),
-                level = it.level.name.uppercase(),
-                tag = it.tag,
-                isError = it.level >= Warn,
-                message = it.message,
-                throwableDescription = it.throwable?.stackTraceToString()
-              )
+            if (query.isEmpty()) {
+              allRows
+            } else {
+              allRows.filter { row ->
+                row.message.contains(query, ignoreCase = true) ||
+                  row.tag.contains(query, ignoreCase = true) ||
+                  row.level.contains(query, ignoreCase = true)
+              }
             }.toImmutableList()
         )
       }
@@ -62,12 +86,20 @@ class LogsUiStateMachineImpl(
 
     return LogsBodyModel(
       errorsOnly = errorsOnly,
+      showDebugLogs = showDebugLogs,
       analyticsEventsOnly = analyticsEventsOnly,
+      searchQuery = searchQuery,
       onErrorsOnlyValueChanged = {
         errorsOnly = it
       },
+      onShowDebugLogsValueChanged = {
+        showDebugLogs = it
+      },
       onAnalyticsEventsOnlyValueChanged = {
         analyticsEventsOnly = it
+      },
+      onSearchQueryChanged = {
+        searchQuery = it
       },
       onClear = {
         logStore.clear()

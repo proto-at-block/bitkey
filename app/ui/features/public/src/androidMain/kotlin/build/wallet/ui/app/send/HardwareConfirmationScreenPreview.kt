@@ -1,10 +1,15 @@
 package build.wallet.ui.app.send
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationCanceledScreenModel
 import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationScreenModel
 import build.wallet.ui.app.core.form.FormScreen
+import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tooling.PreviewWalletTheme
 
 @Preview
@@ -20,6 +25,25 @@ fun HardwareConfirmationScreenPreview() {
   }
 }
 
+@Preview(name = "Hardware Confirmation (Design System V2)")
+@Composable
+fun HardwareConfirmationScreenPreviewDesignSystemV2() {
+  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+    Box(
+      modifier = Modifier
+        .fillMaxSize()
+        .background(WalletTheme.colors.background)
+    ) {
+      FormScreen(
+        model = HardwareConfirmationScreenModel(
+          onBack = {},
+          onConfirm = {}
+        )
+      )
+    }
+  }
+}
+
 @Preview
 @Composable
 fun HardwareConfirmationCanceledScreenPreview() {
@@ -29,5 +53,23 @@ fun HardwareConfirmationCanceledScreenPreview() {
         onBack = {}
       )
     )
+  }
+}
+
+@Preview(name = "Hardware Confirmation Canceled (Design System V2)")
+@Composable
+fun HardwareConfirmationCanceledScreenPreviewDesignSystemV2() {
+  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+    Box(
+      modifier = Modifier
+        .fillMaxSize()
+        .background(WalletTheme.colors.background)
+    ) {
+      FormScreen(
+        model = HardwareConfirmationCanceledScreenModel(
+          onBack = {}
+        )
+      )
+    }
   }
 }

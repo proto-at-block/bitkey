@@ -10,6 +10,16 @@ extern uint32_t active_slot;
 extern char bl_base_addr[];
 extern char bl_slot_size[];
 
+NO_OPTIMIZE fwpb_firmware_slot fwup_target_slot(void) {
+  if ((uintptr_t)&active_slot == (uintptr_t)fwpb_firmware_slot_SLOT_A) {
+    return fwpb_firmware_slot_SLOT_B;
+  } else if ((uintptr_t)&active_slot == (uintptr_t)fwpb_firmware_slot_SLOT_B) {
+    return fwpb_firmware_slot_SLOT_A;
+  }
+  ASSERT(false);
+  return fwpb_firmware_slot_SLOT_UNSPECIFIED;
+}
+
 NO_OPTIMIZE void* fwup_target_slot_address(void) {
   // Slot address is the opposite of the currently running slot
   if ((uintptr_t)&active_slot == (uintptr_t)fwpb_firmware_slot_SLOT_A) {
@@ -18,6 +28,15 @@ NO_OPTIMIZE void* fwup_target_slot_address(void) {
     return (void*)app_a_slot_page;
   }
   ASSERT(false);
+  return NULL;
+}
+
+NO_OPTIMIZE void* fwup_slot_signature_address(fwpb_firmware_slot slot) {
+  if (slot == fwpb_firmware_slot_SLOT_A) {
+    return (void*)app_a_signature;
+  } else if (slot == fwpb_firmware_slot_SLOT_B) {
+    return (void*)app_b_signature;
+  }
   return NULL;
 }
 

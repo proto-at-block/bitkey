@@ -15,6 +15,8 @@ import build.wallet.cloud.backup.csek.Sek
 import build.wallet.cloud.backup.csek.SsekDao
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
+import build.wallet.feature.collectIsEnabledAsState
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.nfc.platform.signAccessToken
 import build.wallet.nfc.platform.unsealSymmetricKey
@@ -65,6 +67,7 @@ class SpendingKeysetRepairScreenPresenter(
   private val sweepService: SweepService,
   private val ssekDao: SsekDao,
   private val refreshAuthTokensUiStateMachine: RefreshAuthTokensUiStateMachine,
+  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : ScreenPresenter<KeysetRepairScreen> {
   @Composable
   override fun model(
@@ -72,6 +75,7 @@ class SpendingKeysetRepairScreenPresenter(
     screen: KeysetRepairScreen,
   ): ScreenModel {
     var uiState: State by remember { mutableStateOf(State.CheckingPrivateKeysets) }
+    val isDesignSystemV2Enabled by designSystemUpdatesFeatureFlag.collectIsEnabledAsState()
 
     return when (val currentState = uiState) {
       is State.CheckingPrivateKeysets -> {
@@ -103,6 +107,7 @@ class SpendingKeysetRepairScreenPresenter(
       is State.ShowingExplanation -> {
         ExplanationFormBodyModel(
           needsHardware = currentState.sealedSsek != null,
+          useBitkeyInteraction = currentState.useBitkeyInteraction(isDesignSystemV2Enabled),
           onContinue = {
             uiState = if (currentState.sealedSsek != null) {
               State.UnsealingSsek(
@@ -290,7 +295,7 @@ class SpendingKeysetRepairScreenPresenter(
       is State.CheckingForSweep -> {
         LaunchedEffect(currentState.keybox) {
           // Use SweepService to check if there are funds to sweep from inactive keysets
-          sweepService.prepareSweep(currentState.keybox)
+          sweepService.prepareSweep(currentState.keybox, SweepContext.InactiveWallet)
             .onSuccess { sweep ->
               uiState = if (sweep != null) {
                 // There are funds to sweep - show sweep UI
@@ -316,8 +321,8 @@ class SpendingKeysetRepairScreenPresenter(
 
       is State.PerformingSweep -> sweepUiStateMachine.model(
         SweepUiProps(
+          account = screen.account.copy(keybox = currentState.keybox),
           hasAttemptedSweep = false,
-          keybox = currentState.keybox,
           sweepContext = SweepContext.InactiveWallet,
           presentationStyle = ScreenPresentationStyle.Modal,
           onExit = null,
@@ -346,7 +351,10 @@ class SpendingKeysetRepairScreenPresenter(
     data class ShowingExplanation(
       val sealedSsek: SealedSsek?,
       val cachedData: KeysetRepairCachedData,
-    ) : State
+    ) : State {
+      fun useBitkeyInteraction(isDesignSystemV2Enabled: Boolean): Boolean =
+        sealedSsek != null && isDesignSystemV2Enabled
+    }
 
     /** Unsealing the SSEK via NFC for private keyset decryption. */
     data class UnsealingSsek(
@@ -405,6 +413,7 @@ class SpendingKeysetRepairScreenPresenter(
 
 data class ExplanationFormBodyModel(
   val needsHardware: Boolean,
+  val useBitkeyInteraction: Boolean,
   val onContinue: () -> Unit,
   val onBackClick: () -> Unit,
 ) : FormBodyModel(
@@ -423,8 +432,10 @@ data class ExplanationFormBodyModel(
     ),
     primaryButton = ButtonModel(
       text = "Continue",
+      requiresBitkeyInteraction = useBitkeyInteraction,
+      treatment = ButtonModel.Treatment.Primary,
       size = ButtonModel.Size.Footer,
-      onClick = StandardClick(onContinue)
+      onClick = onContinue
     ),
     secondaryButton = ButtonModel(
       text = "Cancel",

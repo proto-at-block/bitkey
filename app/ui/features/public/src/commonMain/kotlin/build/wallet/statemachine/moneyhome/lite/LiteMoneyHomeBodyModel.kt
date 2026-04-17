@@ -15,10 +15,13 @@ import build.wallet.statemachine.moneyhome.lite.card.InheritanceMoneyHomeCard
 import build.wallet.statemachine.moneyhome.lite.card.WalletsProtectingMoneyHomeCardModel
 import build.wallet.ui.app.moneyhome.LiteMoneyHomeScreen
 import build.wallet.ui.model.StandardClick
+import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconButtonModel
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
+import build.wallet.ui.tokens.market.MarketIcons
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 
@@ -35,11 +38,11 @@ data class LiteMoneyHomeBodyModel(
     onSettings: () -> Unit,
     buttonModel: MoneyHomeButtonsModel,
     protectedCustomers: ImmutableList<ProtectedCustomer>,
-    badgedSettingsIcon: Boolean,
     onProtectedCustomerClick: (ProtectedCustomer) -> Unit,
     onBuyOwnBitkeyClick: () -> Unit,
     onAcceptInviteClick: () -> Unit,
     onIHaveABitkeyClick: () -> Unit,
+    isDesignSystemV2Enabled: Boolean = false,
   ) : this(
     cardsModel = CardListModel(
       cards = listOfNotNull(
@@ -62,14 +65,23 @@ data class LiteMoneyHomeBodyModel(
     trailingToolbarAccessoryModel =
       ToolbarAccessoryModel.IconAccessory(
         model = IconButtonModel(
-          iconModel = IconModel(
-            icon = if (badgedSettingsIcon) {
-              Icon.SmallIconSettingsBadged
-            } else {
-              Icon.SmallIconSettings
-            },
-            iconSize = IconSize.HeaderToolbar
-          ),
+          iconModel = if (isDesignSystemV2Enabled) {
+            IconModel(
+              icon = MarketIcons.EllipsisHorizontal,
+              iconSize = IconSize.HeaderToolbar,
+              iconBackgroundType = IconBackgroundType.Circle(
+                circleSize = IconSize.Regular,
+                color = IconBackgroundType.Circle.CircleColor.SubtleBackground
+              ),
+              iconTint = IconTint.Foreground
+            )
+          } else {
+            IconModel(
+              icon = Icon.SmallIconSettings,
+              iconSize = IconSize.HeaderToolbar
+            )
+          },
+          testTag = "lite-money-home-settings",
           onClick = StandardClick(onSettings)
         )
       )

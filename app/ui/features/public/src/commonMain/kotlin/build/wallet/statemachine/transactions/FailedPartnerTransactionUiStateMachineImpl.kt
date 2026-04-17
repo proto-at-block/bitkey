@@ -60,7 +60,6 @@ class FailedPartnerTransactionUiStateMachineImpl(
           treatment = ButtonModel.Treatment.Primary,
           leadingIcon = Icon.SmallIconArrowUpRight,
           size = ButtonModel.Size.Footer,
-          testTag = null,
           onClick = StandardClick {
             inAppBrowserNavigator.open(
               url = it,

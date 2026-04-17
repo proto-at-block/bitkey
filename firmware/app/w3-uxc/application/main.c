@@ -49,6 +49,56 @@ static void app_detect_glitch(void) {
   mcu_reset_with_reason(MCU_RESET_FAULT);
 }
 
+SYSCALL NO_OPTIMIZE uint32_t _app_uc_send_callback(void* context, const uint8_t* data,
+                                                   size_t data_len) {
+  uint32_t bytes_sent = 0;
+  RTOS_THREAD_WITH_PRIVILEGE(
+    { bytes_sent = mcu_usart_write((mcu_usart_config_t*)context, data, data_len); });
+  return bytes_sent;
+}
+
+SYSCALL NO_OPTIMIZE secure_bool_t _app_secure_uart_channel_encrypt(uint8_t const* plaintext,
+                                                                   uint8_t* ciphertext,
+                                                                   uint32_t len, uint8_t const* aad,
+                                                                   uint32_t aad_len, uint8_t* nonce,
+                                                                   uint8_t* mac) {
+  secure_bool_t status = SECURE_FALSE;
+  RTOS_THREAD_WITH_PRIVILEGE({
+    status = secure_uart_channel_encrypt(plaintext, ciphertext, len, aad, aad_len, nonce, mac);
+  });
+  return status;
+}
+
+SYSCALL NO_OPTIMIZE secure_bool_t _app_secure_uart_channel_decrypt(uint8_t const* ciphertext,
+                                                                   uint8_t* plaintext, uint32_t len,
+                                                                   uint8_t const* aad,
+                                                                   uint32_t aad_len, uint8_t* nonce,
+                                                                   uint8_t* mac) {
+  secure_bool_t status = SECURE_FALSE;
+  RTOS_THREAD_WITH_PRIVILEGE({
+    status = secure_uart_channel_decrypt(ciphertext, plaintext, len, aad, aad_len, nonce, mac);
+  });
+  return status;
+}
+
+SYSCALL NO_OPTIMIZE bool _app_secure_uart_channel_check_recv_seq_number(uint32_t new_seq) {
+  bool valid = false;
+  RTOS_THREAD_WITH_PRIVILEGE({ valid = secure_uart_channel_check_recv_seq_number(new_seq); });
+  return valid;
+}
+
+SYSCALL NO_OPTIMIZE uint32_t _app_secure_uart_channel_get_send_seq_number(void) {
+  uint32_t next_seq = 0;
+  RTOS_THREAD_WITH_PRIVILEGE({ next_seq = secure_uart_channel_get_send_seq_number(); });
+  return next_seq;
+}
+
+SYSCALL NO_OPTIMIZE bool _app_secure_uart_channel_confirmed(void) {
+  bool confirmed = false;
+  RTOS_THREAD_WITH_PRIVILEGE({ confirmed = secure_uart_channel_confirmed(); });
+  return confirmed;
+}
+
 NO_OPTIMIZE int main(void) {
   assert_init(&memfault_fault_handling_assert);
   mcu_init();
@@ -65,16 +115,17 @@ NO_OPTIMIZE int main(void) {
   // Initialize UXC comms.
   // No message encryption on MFG test devices
 #ifdef MFGTEST
-  uc_init((uc_send_callback_t)mcu_usart_write, NULL, (void*)&comms_usart_config);
+  uc_init(_app_uc_send_callback, NULL, (void*)&comms_usart_config);
   sysevent_set(SYSEVENT_UXC_SECURE_COMMS_ESTABLISHED);
 #else
   uc_crypto_api_t crypto_api = {
-    .gcm_encrypt = &secure_uart_channel_encrypt,
-    .gcm_decrypt = &secure_uart_channel_decrypt,
-    .check_recv_seq = &secure_uart_channel_check_recv_seq_number,
-    .get_send_seq = &secure_uart_channel_get_send_seq_number,
+    .gcm_encrypt = &_app_secure_uart_channel_encrypt,
+    .gcm_decrypt = &_app_secure_uart_channel_decrypt,
+    .check_recv_seq = &_app_secure_uart_channel_check_recv_seq_number,
+    .get_send_seq = &_app_secure_uart_channel_get_send_seq_number,
+    .has_session = &_app_secure_uart_channel_confirmed,
   };
-  uc_init((uc_send_callback_t)mcu_usart_write, &crypto_api, (void*)&comms_usart_config);
+  uc_init(_app_uc_send_callback, &crypto_api, (void*)&comms_usart_config);
 #endif
 
 #ifndef CONFIG_PROD

@@ -21,8 +21,6 @@ static bool fwup_flash_erase(perf_counter_t* perf, void* slot_addr, size_t size)
   perf_begin(perf);
 
   const size_t pages = size / FLASH_PAGE_SIZE;
-  LOGD("Erasing %zu pages (%u bytes) starting at address: 0x%X", pages,
-       (unsigned int)(pages * FLASH_PAGE_SIZE), (unsigned int)slot_addr);
   for (size_t page = 0; page < pages; page++) {
     const uint32_t* page_address = (uint32_t*)((uintptr_t)slot_addr + (page * FLASH_PAGE_SIZE));
 
@@ -30,7 +28,7 @@ static bool fwup_flash_erase(perf_counter_t* perf, void* slot_addr, size_t size)
     const mcu_flash_status_t result = mcu_flash_erase_page((uint32_t*)page_address);
 
     if (result != MCU_FLASH_STATUS_OK) {
-      LOGE("Error %i erasing flash", result);
+      LOGE("Erase err %i", result);
       goto error;
     }
   }
@@ -64,7 +62,7 @@ bool fwup_flash_write(perf_counter_t* perf, void* address, void const* data, siz
   perf_begin(perf);
   const mcu_flash_status_t result = mcu_flash_write_word((uint32_t*)address, data, len);
   if (result != MCU_FLASH_STATUS_OK) {
-    LOGE("Error %i erasing flash", result);
+    LOGE("Write err %i", result);
   }
   perf_end(perf);
   return (result == MCU_FLASH_STATUS_OK);

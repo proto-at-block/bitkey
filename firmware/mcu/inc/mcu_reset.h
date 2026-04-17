@@ -34,6 +34,27 @@ typedef enum {
   MCU_RESET_POWER_DOWN_USB_PLUGGED,
 
   /**
+   * @brief Option byte write failed. Device resetting to try again.
+   */
+  MCU_RESET_OPT_WRITE_FAILED,
+
+  /**
+   * @brief Option byte reset succeeded. Device resetting to apply.
+   */
+  MCU_RESET_OPT_WRITE,
+
+  /**
+   * @brief Device reset after wipe to return to onboarding state.
+   */
+  MCU_RESET_WIPE,
+
+  /**
+   * @brief Device faulted but the coredump could not be saved because
+   * the filesystem was busy.  The coredump data is lost.
+   */
+  MCU_RESET_FAULT_COREDUMP_SKIPPED,
+
+  /**
    * @brief Unused (reset value is capped to `uint8_t`).
    */
   MCU_RESET_MAX = 255,

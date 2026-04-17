@@ -23,6 +23,7 @@ import build.wallet.encrypt.SymmetricKeyEncryptorFake
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.F8eEnvironment.Production
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.recovery.LegacyRemoteKeyset
 import build.wallet.f8e.recovery.ListKeysetsF8eClientMock
 import build.wallet.f8e.recovery.ListKeysetsResponse
@@ -50,6 +51,7 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import okio.ByteString.Companion.decodeHex
 import okio.ByteString.Companion.encodeUtf8
 
 @Suppress("LargeClass")
@@ -59,6 +61,7 @@ class DescriptorBackupServiceImplTests : FunSpec({
   val uuidGenerator = UuidGeneratorFake()
   val accountConfigService = AccountConfigServiceFake()
   val listKeysetsF8eClient = ListKeysetsF8eClientMock()
+  val updateDescriptorBackupsF8eClient = UpdateDescriptorBackupsF8eClientFake()
   val accountService = AccountServiceFake()
   val featureFlagDao = FeatureFlagDaoFake()
   val descriptorBackupFailsafeFeatureFlag = DescriptorBackupFailsafeFeatureFlag(featureFlagDao)
@@ -72,7 +75,7 @@ class DescriptorBackupServiceImplTests : FunSpec({
     uuidGenerator = uuidGenerator,
     bitcoinMultiSigDescriptorBuilder = BitcoinMultiSigDescriptorBuilderImpl(),
     listKeysetsF8eClient = listKeysetsF8eClient,
-    updateDescriptorBackupsF8eClient = UpdateDescriptorBackupsF8eClientFake(),
+    updateDescriptorBackupsF8eClient = updateDescriptorBackupsF8eClient,
     accountService = accountService,
     descriptorBackupFailsafeFeatureFlag = descriptorBackupFailsafeFeatureFlag,
     descriptorBackupVerificationDao = descriptorBackupVerificationDao,
@@ -87,6 +90,7 @@ class DescriptorBackupServiceImplTests : FunSpec({
     ssekDao.reset()
     accountConfigService.reset()
     listKeysetsF8eClient.reset()
+    updateDescriptorBackupsF8eClient.reset()
     accountService.reset()
     featureFlagDao.reset()
     descriptorBackupVerificationDao.reset()
@@ -493,7 +497,7 @@ class DescriptorBackupServiceImplTests : FunSpec({
       sealedSsekForDecryption = SealedSsekFake,
       sealedSsekForEncryption = SealedSsekFake,
       appAuthKey = PublicKey("app-auth-key"),
-      hwKeyProof = HwFactorProofOfPossession("hw-proof"),
+      proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("hw-proof")),
       descriptorsToDecrypt = listOf(existingDescriptor),
       keysetsToEncrypt = listOf(newKeyset)
     ).get()
@@ -597,6 +601,21 @@ class DescriptorBackupServiceImplTests : FunSpec({
     )
 
     result.shouldBeOk()
+  }
+
+  test("uploadOnboardingDescriptorBackup rejects invalid sealed SSEK before upload") {
+    val invalidSealedSsek = "0a01ff".decodeHex()
+
+    val result = service.uploadOnboardingDescriptorBackup(
+      accountId = FullAccountId("test-account"),
+      sealedSsekForEncryption = invalidSealedSsek,
+      appAuthKey = PublicKey("app-auth-key"),
+      keysetsToEncrypt = listOf(createFakeSpendingKeyset("test-keyset"))
+    )
+
+    result.shouldBeErrOfType<DescriptorBackupError.VerificationFailed>()
+      .message shouldBe "Invalid sealed SSEK for descriptor backup upload: data length must be 32 bytes"
+    updateDescriptorBackupsF8eClient.updateCalls shouldBe 0
   }
 
   test("uploadOnboardingDescriptorBackup fails verification when no backups found") {
@@ -822,12 +841,30 @@ class DescriptorBackupServiceImplTests : FunSpec({
       sealedSsekForDecryption = SealedSsekFake,
       sealedSsekForEncryption = SealedSsekFake,
       appAuthKey = PublicKey("app-auth-key"),
-      hwKeyProof = HwFactorProofOfPossession("hw-proof"),
+      proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("hw-proof")),
       descriptorsToDecrypt = listOf(existingDescriptor),
       keysetsToEncrypt = listOf(newKeyset)
     )
 
     result.shouldBeOk()
+  }
+
+  test("uploadDescriptorBackups rejects invalid sealed SSEK before upload") {
+    val invalidSealedSsek = "0a01ff".decodeHex()
+
+    val result = service.uploadDescriptorBackups(
+      accountId = FullAccountId("test-account"),
+      sealedSsekForDecryption = null,
+      sealedSsekForEncryption = invalidSealedSsek,
+      appAuthKey = PublicKey("app-auth-key"),
+      proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("hw-proof")),
+      descriptorsToDecrypt = emptyList(),
+      keysetsToEncrypt = listOf(createFakeSpendingKeyset("test-keyset"))
+    )
+
+    result.shouldBeErrOfType<DescriptorBackupError.VerificationFailed>()
+      .message shouldBe "Invalid sealed SSEK for descriptor backup upload: data length must be 32 bytes"
+    updateDescriptorBackupsF8eClient.updateCalls shouldBe 0
   }
 
   test("uploadDescriptorBackups fails verification when descriptor content doesn't match") {
@@ -1110,6 +1147,43 @@ class DescriptorBackupServiceImplTests : FunSpec({
     result.shouldBeErrOfType<DescriptorBackupError.DecryptionError>()
   }
 
+  test("getNextAccountIndex uses highest existing keyset derivation instead of backup count") {
+    val accountId = FullAccountId("test-account")
+    val validDpub =
+      "xpubDDj952KUFGTDcNV1qY5Tuevm6vnBWK8NSpTTkCz1XTApv2SeDaqcrUTBgDdCRF9KmtxV33R8E9NtSi9VSBUPj4M3fKr4uk3kRy8Vbo1LbAv"
+    listKeysetsF8eClient.result = Ok(
+      ListKeysetsResponse(
+        keysets = listOf(
+          PrivateMultisigRemoteKeyset(
+            keysetId = "private-0",
+            networkType = "SIGNET",
+            appPublicKey = "[aaaaaaaa/84'/1'/0']$validDpub/*",
+            hardwarePublicKey = "[bbbbbbbb/84'/1'/0']$validDpub/*",
+            serverPublicKey = "[34eae6a8/84'/1'/0']$validDpub/*"
+          ),
+          PrivateMultisigRemoteKeyset(
+            keysetId = "private-2",
+            networkType = "SIGNET",
+            appPublicKey = "[aaaaaaaa/84'/1'/2']$validDpub/*",
+            hardwarePublicKey = "[bbbbbbbb/84'/1'/2']$validDpub/*",
+            serverPublicKey = "[34eae6a8/84'/1'/2']$validDpub/*"
+          )
+        ),
+        wrappedSsek = null,
+        descriptorBackups = listOf(
+          DescriptorBackup(
+            keysetId = "only-one-backup",
+            sealedDescriptor = XCiphertext("ciphertext"),
+            privateWalletRootXpub = null
+          )
+        ),
+        activeKeysetId = "private-2"
+      )
+    )
+
+    service.getNextAccountIndex(accountId).shouldBeOk(3u)
+  }
+
   test("prepareDescriptorBackupsForRecovery for lost hardware filters out private keysets without descriptor backups") {
     val accountId = FullAccountId("test-account")
     val newKeyset = createFakeSpendingKeyset("new-keyset")
@@ -1252,5 +1326,92 @@ class DescriptorBackupServiceImplTests : FunSpec({
     val result = service.checkBackupForPrivateKeyset(privateKeyset.f8eSpendingKeyset.keysetId)
 
     result.shouldBeErrOfType<IllegalStateException>()
+  }
+
+  // checkSsekUnsealingNeeded tests
+
+  test("checkSsekUnsealingNeeded - hardware recovery always returns NotNeeded") {
+    val result = service.checkSsekUnsealingNeeded(
+      accountId = FullAccountId("test-account"),
+      factorToRecover = PhysicalFactor.Hardware
+    )
+    result.shouldBeOk(DescriptorBackupService.SsekUnsealCheckResult.NotNeeded)
+  }
+
+  test("checkSsekUnsealingNeeded - no existing descriptors returns NotNeeded") {
+    listKeysetsF8eClient.result = Ok(
+      ListKeysetsResponse(
+        keysets = emptyList(),
+        wrappedSsek = null,
+        descriptorBackups = emptyList(),
+        activeKeysetId = "keyset-1"
+      )
+    )
+
+    val result = service.checkSsekUnsealingNeeded(
+      accountId = FullAccountId("test-account"),
+      factorToRecover = PhysicalFactor.App
+    )
+    result.shouldBeOk(DescriptorBackupService.SsekUnsealCheckResult.NotNeeded)
+  }
+
+  test("checkSsekUnsealingNeeded - SSEK already in DAO returns NotNeeded") {
+    listKeysetsF8eClient.result = Ok(
+      ListKeysetsResponse(
+        keysets = emptyList(),
+        wrappedSsek = SealedSsekFake,
+        descriptorBackups = listOf(
+          DescriptorBackup(
+            keysetId = "keyset-1",
+            sealedDescriptor = XCiphertext("sealed"),
+            privateWalletRootXpub = null
+          )
+        ),
+        activeKeysetId = "keyset-1"
+      )
+    )
+    ssekDao.set(SealedSsekFake, SsekFake)
+
+    val result = service.checkSsekUnsealingNeeded(
+      accountId = FullAccountId("test-account"),
+      factorToRecover = PhysicalFactor.App
+    )
+    result.shouldBeOk(DescriptorBackupService.SsekUnsealCheckResult.NotNeeded)
+  }
+
+  test("checkSsekUnsealingNeeded - SSEK not in DAO returns NeedsUnsealing") {
+    listKeysetsF8eClient.result = Ok(
+      ListKeysetsResponse(
+        keysets = emptyList(),
+        wrappedSsek = SealedSsekFake,
+        descriptorBackups = listOf(
+          DescriptorBackup(
+            keysetId = "keyset-1",
+            sealedDescriptor = XCiphertext("sealed"),
+            privateWalletRootXpub = null
+          )
+        ),
+        activeKeysetId = "keyset-1"
+      )
+    )
+    // Don't put SSEK in DAO
+
+    val result = service.checkSsekUnsealingNeeded(
+      accountId = FullAccountId("test-account"),
+      factorToRecover = PhysicalFactor.App
+    )
+    val check = result.getOrThrow()
+    check.shouldBeInstanceOf<DescriptorBackupService.SsekUnsealCheckResult.NeedsUnsealing>()
+    check.sealedSsek.shouldBe(SealedSsekFake)
+  }
+
+  test("checkSsekUnsealingNeeded - network error propagates") {
+    listKeysetsF8eClient.result = Err(NetworkError(Throwable("network down")))
+
+    val result = service.checkSsekUnsealingNeeded(
+      accountId = FullAccountId("test-account"),
+      factorToRecover = PhysicalFactor.App
+    )
+    result.shouldBeErrOfType<Error>()
   }
 })

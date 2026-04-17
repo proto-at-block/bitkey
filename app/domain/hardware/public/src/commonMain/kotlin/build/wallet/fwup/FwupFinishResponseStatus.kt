@@ -9,4 +9,5 @@ enum class FwupFinishResponseStatus {
   Error,
   WillApplyPatch,
   Unauthenticated,
+  ConfirmationMismatch,
 }

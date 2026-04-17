@@ -42,6 +42,7 @@ kotlin {
         implementation(projects.domain.privilegedActionsImpl)
         implementation(projects.domain.availabilityFake)
         implementation(projects.domain.featureFlagFake)
+        implementation(projects.domain.txVerificationFake)
       }
     }
   }

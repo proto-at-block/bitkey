@@ -26,7 +26,6 @@ import build.wallet.statemachine.core.SheetTreatment
 import build.wallet.ui.compose.getScreenSize
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.render
-import build.wallet.ui.system.BackHandler
 import build.wallet.ui.theme.WalletTheme
 import kotlinx.coroutines.launch
 import androidx.compose.material3.ModalBottomSheet as MaterialBottomSheet
@@ -89,15 +88,6 @@ private fun SheetLayout(
   // Scope used to request showing and hiding the sheet.
   val coroutineScope = rememberStableCoroutineScope()
 
-  // Close the sheet and update the state on back click, if the sheet is open.
-  if (sheetState.isVisible) {
-    BackHandler {
-      coroutineScope.launch {
-        sheetState.hide()
-      }
-    }
-  }
-
   val sheetShape = RoundedCornerShape(
     topStart = sheetCornerRadius,
     topEnd = sheetCornerRadius
@@ -106,7 +96,12 @@ private fun SheetLayout(
   MaterialBottomSheet(
     containerColor = containerColor,
     onDismissRequest = {
-      onClosed()
+      coroutineScope.launch {
+        if (sheetState.isVisible) {
+          sheetState.hide()
+        }
+        onClosed()
+      }
     },
     modifier = modifier
       .fillMaxWidth()

@@ -9,7 +9,7 @@ import build.wallet.analytics.v1.Action.ACTION_APP_CLOUD_BACKUP_INITIALIZE
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.cloud.backup.CloudBackupError.RectifiableCloudBackupError
 import build.wallet.cloud.backup.CloudBackupError.UnrectifiableCloudBackupError
-import build.wallet.cloud.backup.CloudBackupRepositoryFake
+import build.wallet.cloud.backup.CloudBackupServiceFake
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreator.LiteAccountCloudBackupCreatorError.SocRecKeysRetrievalError
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreatorMock
 import build.wallet.cloud.store.CloudAccountMock
@@ -41,10 +41,10 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
 
   val eventTracker = EventTrackerMock(turbines::create)
   val liteAccountCloudBackupCreator = LiteAccountCloudBackupCreatorMock()
-  val cloudBackupRepository = CloudBackupRepositoryFake()
+  val cloudBackupService = CloudBackupServiceFake()
   val stateMachine =
     LiteAccountCloudSignInAndBackupUiStateMachineImpl(
-      cloudBackupRepository = cloudBackupRepository,
+      cloudBackupService = cloudBackupService,
       cloudSignInUiStateMachine = CloudSignInUiStateMachineMock(),
       liteAccountCloudBackupCreator = liteAccountCloudBackupCreator,
       deviceInfoProvider = DeviceInfoProviderMock(),
@@ -53,7 +53,7 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
     )
 
-  val onBackupFailedCalls = turbines.create<Unit>("onBackupFailed calls")
+  val onBackupFailedCalls = turbines.create<Unit>("onError calls")
   val onBackupSavedCalls = turbines.create<Unit>("onBackupSaved calls")
   val props =
     LiteAccountCloudSignInAndBackupProps(
@@ -89,7 +89,7 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
   test("Encounters unrectifiable error") {
     stateMachine.test(props = props) {
       liteAccountCloudBackupCreator.createResultCreator = ::Ok
-      cloudBackupRepository.returnWriteError = UnrectifiableCloudBackupError(Throwable("bar"))
+      cloudBackupService.returnWriteError = UnrectifiableCloudBackupError(Throwable("bar"))
       awaitBodyMock<CloudSignInUiProps> {
         forceSignOut.shouldBeFalse()
         onSignedIn(CloudAccountMock("foo"))
@@ -108,7 +108,7 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
   test("Handles rectifiable error") {
     stateMachine.test(props = props) {
       liteAccountCloudBackupCreator.createResultCreator = ::Ok
-      cloudBackupRepository.returnWriteError = RectifiableCloudBackupError(Throwable("bar"), "bar")
+      cloudBackupService.returnWriteError = RectifiableCloudBackupError(Throwable("bar"), "bar")
       awaitBodyMock<CloudSignInUiProps> {
         forceSignOut.shouldBeFalse()
         onSignedIn(CloudAccountMock("foo"))
@@ -122,7 +122,7 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       awaitBodyMock<RectifiableErrorHandlingProps> {
         messages.shouldBeEqual(RectifiableErrorCreateLiteMessages)
         // Unset this error, so we don't loop back.
-        cloudBackupRepository.returnWriteError = null
+        cloudBackupService.returnWriteError = null
         onReturn()
       }
       awaitBody<LoadingSuccessBodyModel>(SAVE_CLOUD_BACKUP_LOADING) {
@@ -135,7 +135,7 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
   test("Cannot handle rectifiable error") {
     stateMachine.test(props = props) {
       liteAccountCloudBackupCreator.createResultCreator = ::Ok
-      cloudBackupRepository.returnWriteError = RectifiableCloudBackupError(Throwable("bar"), "bar")
+      cloudBackupService.returnWriteError = RectifiableCloudBackupError(Throwable("bar"), "bar")
       awaitBodyMock<CloudSignInUiProps> {
         forceSignOut.shouldBeFalse()
         onSignedIn(CloudAccountMock("foo"))

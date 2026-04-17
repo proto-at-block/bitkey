@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.github.kittinunf.fuel:fuel-coroutines",
+    "components": [
+        {
+            "version": "2.3.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "fuel-coroutines-2.3.1.jar": "235f85a12624ea6772d68e39c02efa20b79667a21f3976294a2b47794b525ffd"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

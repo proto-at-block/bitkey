@@ -1,0 +1,4 @@
+-- Add skipBuildHardwareDescriptorOnboarding column to defaultAccountConfigEntity
+ALTER TABLE defaultAccountConfigEntity ADD COLUMN skipBuildHardwareDescriptorOnboarding INTEGER NOT NULL DEFAULT 0;
+
+PRAGMA foreign_key_check;

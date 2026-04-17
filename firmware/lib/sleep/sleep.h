@@ -65,7 +65,15 @@ void sleep_inhibit(uint32_t additional_ms);
 void sleep_clear_inhibit(void);
 
 /**
- * @brief Get the currently configured timeout (base + inhibit).
+ * @brief Set extra timeout added while USB charger is connected.
+ * @param extra_ms Additional time on top of base + inhibit (0 to disable).
+ * @note Separate from inhibit — does not interfere with flow-specific inhibits.
+ *       The extension is applied whenever the timer is started or refreshed.
+ */
+void sleep_set_charger_extension(uint32_t extra_ms);
+
+/**
+ * @brief Get the currently configured timeout (base + inhibit + charger extension).
  * @return Total timeout in milliseconds.
  */
 uint32_t sleep_get_configured_timeout(void);

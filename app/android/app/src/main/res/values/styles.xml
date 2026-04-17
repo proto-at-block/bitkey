@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
+  <style name="Theme.BitkeyPostSplash" parent="Theme.AppCompat.DayNight.NoActionBar">
+    <item name="android:windowBackground">@color/black</item>
+    <item name="android:colorBackground">@color/black</item>
+    <item name="android:statusBarColor">@color/black</item>
+    <item name="android:navigationBarColor">@color/black</item>
+    <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+  </style>
+
   <!-- A workaround to bug in Google Sign In activity where the status bar gets animated down over the app's UI: https://github.com/flutter/flutter/issues/48371 -->
   <style name="GoogleSignInActivity" parent="android:Theme.Translucent.NoTitleBar">
     <item name="android:statusBarColor">@android:color/transparent</item>

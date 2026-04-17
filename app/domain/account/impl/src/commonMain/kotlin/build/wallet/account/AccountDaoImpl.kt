@@ -196,7 +196,6 @@ class AccountDaoImpl(
 
       FullAccount(
         accountId = accountId,
-        config = keybox.config,
         keybox = keybox
       )
     }

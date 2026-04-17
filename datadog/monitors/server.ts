@@ -58,7 +58,8 @@ export class FromagerieMonitors extends Construct {
     new HttpAnomalousStatusCountMonitor(this, 'http_anomalous_4xx_status_count', {
       environment,
       status: "4xx",
-      tags: ["!method:get", "!path:/api/auth*", "app_id:world.bitkey.app"],
+      tags: ["!method:get", "!path:/api/auth*", "!path:/api/recovery-auth", "!path:/api/hw-auth", "app_id:world.bitkey.app"],
+      deviations: 2,
       recipients: criticalDaytimeRecipients,
     });
 
@@ -81,7 +82,7 @@ export class FromagerieMonitors extends Construct {
 
     new Monitor(this, 'fromagerie_sanctions_screener_cosign_hit', {
       query:
-        `logs("env:${environment} service:fromagerie-api \\"One or more outputs belong to sanctioned individuals\\"")
+        `logs("env:${environment} service:fromagerie-api \\"One or more inputs/outputs belong to sanctioned individuals\\"")
            .index("*")
            .rollup("count")
            .last("1h")

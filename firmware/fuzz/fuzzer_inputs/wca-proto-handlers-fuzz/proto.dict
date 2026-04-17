@@ -1,0 +1,22 @@
+# Protobuf dictionary for wca-proto-handlers-fuzz.
+# Guides libfuzzer toward valid nanopb field encodings.
+
+# Protobuf wire type 2 (length-delimited) for fields 1-8
+kw0="\x0a"   # field 1 len-delimited
+kw1="\x12"   # field 2 len-delimited
+kw2="\x1a"   # field 3 len-delimited
+kw3="\x22"   # field 4 len-delimited
+kw4="\x2a"   # field 5 len-delimited
+kw5="\x32"   # field 6 len-delimited
+
+# Protobuf varint wire type for fields 1-4
+kw6="\x08"   # field 1 varint
+kw7="\x10"   # field 2 varint
+kw8="\x18"   # field 3 varint
+kw9="\x20"   # field 4 varint
+
+# Common length values (0, 1, 32, 64)
+kw10="\x00"
+kw11="\x01"
+kw12="\x20"
+kw13="\x40"

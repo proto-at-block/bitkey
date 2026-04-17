@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.github.sceneview:sceneview",
+    "components": [
+        {
+            "version": "2.3.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "sceneview-2.3.0.aar": "ba48305e4f26630b37776f6fe1b03bf0e90b2f3036dda6ac029cbc41b981d0d3"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -3,18 +3,22 @@ package build.wallet.keybox
 import bitkey.account.FullAccountConfig
 import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.bitkey.app.AppKeyBundle
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
+import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.BitkeyDatabase
 import build.wallet.database.sqldelight.FullAccountView
+import build.wallet.database.sqldelight.saveKeybox
 import build.wallet.db.DbError
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.logging.*
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitAsListResult
+import build.wallet.sqldelight.awaitAsOneOrNullResult
 import build.wallet.sqldelight.awaitTransaction
 import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Ok
@@ -93,6 +97,7 @@ class KeyboxDaoImpl(
   override suspend fun rotateKeyboxAuthKeys(
     keyboxToRotate: Keybox,
     appAuthKeys: AppAuthPublicKeys,
+    newHwAuthPublicKey: HwAuthPublicKey?,
   ): Result<Keybox, DbError> {
     return databaseProvider.database()
       .awaitTransactionWithResult {
@@ -106,16 +111,54 @@ class KeyboxDaoImpl(
           id = keyboxToRotate.activeAppKeyBundle.localId
         )
 
+        if (newHwAuthPublicKey != null) {
+          hwKeyBundleQueries.updateAuthKeyForActiveBundle(
+            authKey = newHwAuthPublicKey,
+            keyboxId = keyboxToRotate.localId
+          )
+        }
+
         keyboxToRotate.copy(
           activeAppKeyBundle = keyboxToRotate.activeAppKeyBundle.copy(
             authKey = appAuthKeys.appGlobalAuthPublicKey,
             recoveryAuthKey = appAuthKeys.appRecoveryAuthPublicKey
           ),
-          appGlobalAuthKeyHwSignature = appAuthKeys.appGlobalAuthKeyHwSignature
+          appGlobalAuthKeyHwSignature = appAuthKeys.appGlobalAuthKeyHwSignature,
+          activeHwKeyBundle = keyboxToRotate.activeHwKeyBundle.copy(
+            authKey = newHwAuthPublicKey ?: keyboxToRotate.activeHwKeyBundle.authKey
+          )
         )
       }
-      .logFailure { "Failed to rotate app auth keys" }
+      .logFailure { "Failed to rotate auth keys" }
   }
+
+  override suspend fun updateAppGlobalAuthKeyHwSignature(
+    keybox: Keybox,
+    signature: AppGlobalAuthKeyHwSignature,
+  ): Result<Keybox, DbError> =
+    coroutineBinding {
+      val db = databaseProvider.database()
+      db.awaitTransaction {
+        keyboxQueries.rotateAppGlobalAuthKeyHwSignature(
+          id = keybox.localId,
+          appGlobalAuthKeyHwSignature = signature
+        )
+      }.bind()
+
+      // Re-read the keybox from DB to get the canonical updated state.
+      // Check both active and onboarding accounts since this may run during onboarding.
+      val account = db.fullAccountQueries
+        .getActiveFullAccount()
+        .awaitAsOneOrNullResult()
+        .bind()
+        ?: db.fullAccountQueries
+          .getOnboardingFullAccount()
+          .awaitAsOneOrNullResult()
+          .bind()
+
+      checkNotNull(account) { "No account found after signature update" }
+      account.keybox().bind()
+    }.logFailure { "Failed to update appGlobalAuthKeyHwSignature" }
 
   override suspend fun clear(): Result<Unit, DbError> {
     return databaseProvider.database()
@@ -127,72 +170,6 @@ class KeyboxDaoImpl(
         hwKeyBundleQueries.clear()
       }
       .logFailure { "Failed to clear bitcoin database" }
-  }
-
-  private fun BitkeyDatabase.saveKeybox(keybox: Keybox) {
-    // Insert the full account
-    fullAccountQueries.insertFullAccount(
-      accountId = keybox.fullAccountId
-    )
-
-    // Then, insert the keybox which points to the account.
-    keyboxQueries.insertKeybox(
-      id = keybox.localId,
-      accountId = keybox.fullAccountId,
-      appGlobalAuthKeyHwSignature = keybox.appGlobalAuthKeyHwSignature,
-      networkType = keybox.config.bitcoinNetworkType,
-      fakeHardware = keybox.config.isHardwareFake,
-      hardwareType = keybox.config.hardwareType,
-      f8eEnvironment = keybox.config.f8eEnvironment,
-      isTestAccount = keybox.config.isTestAccount,
-      isUsingSocRecFakes = keybox.config.isUsingSocRecFakes,
-      delayNotifyDuration = keybox.config.delayNotifyDuration,
-      canUseKeyboxKeysets = keybox.canUseKeyboxKeysets
-    )
-
-    // Insert the app key bundle
-    appKeyBundleQueries.insertKeyBundle(
-      id = keybox.activeAppKeyBundle.localId,
-      keyboxId = keybox.localId,
-      globalAuthKey = keybox.activeAppKeyBundle.authKey,
-      spendingKey = keybox.activeAppKeyBundle.spendingKey,
-      recoveryAuthKey = keybox.activeAppKeyBundle.recoveryAuthKey,
-      isActive = true
-    )
-
-    // Insert the hw key bundle
-    hwKeyBundleQueries.insertKeyBundle(
-      id = keybox.activeHwKeyBundle.localId,
-      keyboxId = keybox.localId,
-      authKey = keybox.activeHwKeyBundle.authKey,
-      spendingKey = keybox.activeHwKeyBundle.spendingKey,
-      isActive = true
-    )
-
-    // Insert all keysets, if they're available
-    if (keybox.keysets.isNotEmpty()) {
-      for (keyset in keybox.keysets) {
-        val isActive = keyset.localId == keybox.activeSpendingKeyset.localId
-        spendingKeysetQueries.insertKeyset(
-          id = keyset.localId,
-          keyboxId = keybox.localId,
-          appKey = keyset.appKey,
-          hardwareKey = keyset.hardwareKey,
-          serverKey = keyset.f8eSpendingKeyset,
-          isActive = isActive
-        )
-      }
-    } else {
-      // Otherwise, just insert the active keyset.
-      spendingKeysetQueries.insertKeyset(
-        id = keybox.activeSpendingKeyset.localId,
-        keyboxId = keybox.localId,
-        appKey = keybox.activeSpendingKeyset.appKey,
-        hardwareKey = keybox.activeSpendingKeyset.hardwareKey,
-        serverKey = keybox.activeSpendingKeyset.f8eSpendingKeyset,
-        isActive = true
-      )
-    }
   }
 
   private suspend fun FullAccountView.keybox(): Result<Keybox, DbError> =

@@ -1,5 +1,6 @@
 package build.wallet.integration.statemachine.recovery.socrec
 
+import bitkey.account.HardwareType
 import bitkey.ui.framework.test
 import bitkey.ui.screens.securityhub.SecurityHubBodyModel
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS
@@ -12,14 +13,15 @@ import build.wallet.bitkey.account.SoftwareAccount
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.relationships.*
+import build.wallet.cloud.backup.CloudBackupStore
 import build.wallet.cloud.backup.socRecDataAvailable
-import build.wallet.cloud.store.CloudKeyValueStore
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.f8e.relationships.endorseTrustedContacts
 import build.wallet.f8e.relationships.getRelationships
 import build.wallet.integration.statemachine.recovery.cloud.screenDecideIfShouldRotate
 import build.wallet.nfc.FakeHardwareKeyStore
+import build.wallet.statemachine.account.create.full.hardware.CompleteTwoTapBodyModel
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
 import build.wallet.statemachine.cloud.CloudSignInModelFake
 import build.wallet.statemachine.cloud.SaveBackupInstructionsBodyModel
@@ -64,6 +66,7 @@ import kotlin.time.Duration.Companion.seconds
 
 private const val PROTECTED_CUSTOMER_ALIAS = "alice"
 
+@Suppress("LargeClass")
 class SocRecE2eFunctionalTests : FunSpec({
   testWithTwoApps(
     "full e2e test",
@@ -76,11 +79,11 @@ class SocRecE2eFunctionalTests : FunSpec({
     app2Factory = { customerApp, mode ->
       when (mode) {
         AppMode.Legacy -> launchLegacyWalletApp(
-          cloudKeyValueStore = customerApp.cloudKeyValueStore,
+          cloudBackupStore = customerApp.cloudBackupStore,
           executeWorkers = false
         )
         AppMode.Private -> launchNewApp(
-          cloudKeyValueStore = customerApp.cloudKeyValueStore,
+          cloudBackupStore = customerApp.cloudBackupStore,
           executeWorkers = false
         )
       }
@@ -124,6 +127,45 @@ class SocRecE2eFunctionalTests : FunSpec({
     shouldSucceedSocialRestore(customerApp, tcApp, PROTECTED_CUSTOMER_ALIAS)
   }
 
+  test("full e2e test [W3 protected customer]") {
+    val customerApp = launchNewApp(executeWorkers = false)
+    val tcApp = launchNewApp(
+      cloudBackupStore = customerApp.cloudBackupStore,
+      executeWorkers = false
+    )
+
+    customerApp.onboardFullAccountWithFakeHardware(
+      cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake,
+      hardwareType = HardwareType.W3
+    )
+    customerApp.trustedContactManagementScreenPresenter.test(
+      screen = buildTrustedContactManagementUiStateMachineProps(customerApp)
+    ) {
+      advanceThroughTrustedContactInviteScreens("bob", HardwareCoverageMode.W3Private)
+      cancelAndIgnoreRemainingEvents()
+    }
+    val inviteCode = customerApp.getSharedInviteCode()
+
+    lateinit var relationshipId: String
+    tcApp.appUiStateMachine.test(
+      turbineTimeout = 60.seconds,
+      props = Unit
+    ) {
+      advanceThroughCreateLiteAccountScreens(inviteCode, CloudStoreAccountFake.TrustedContactFake)
+      advanceThroughTrustedContactEnrollmentScreens(PROTECTED_CUSTOMER_ALIAS)
+      relationshipId = tcApp.awaitRelationships {
+        !it.protectedCustomers.isEmpty()
+      }
+        .protectedCustomers
+        .first()
+        .relationshipId
+      cancelAndIgnoreRemainingEvents()
+    }
+
+    customerApp.awaitTcIsVerifiedAndBackedUp(relationshipId)
+    shouldSucceedSocialRestore(customerApp, tcApp, PROTECTED_CUSTOMER_ALIAS)
+  }
+
   /**
    * This test is a sanity check to ensure that the AppTester methods for fixturing socrec
    * enrollment produce the same results as walking through the flows. The shortcut methods allow
@@ -149,7 +191,7 @@ class SocRecE2eFunctionalTests : FunSpec({
 
     // TODO(W-9704): execute workers by default
     customerApp = launchNewApp(
-      cloudKeyValueStore = customerApp.cloudKeyValueStore,
+      cloudBackupStore = customerApp.cloudBackupStore,
       executeWorkers = false
     )
     customerApp.appUiStateMachine.test(
@@ -171,11 +213,11 @@ class SocRecE2eFunctionalTests : FunSpec({
     app2Factory = { customerApp, mode ->
       when (mode) {
         AppMode.Legacy -> launchLegacyWalletApp(
-          cloudKeyValueStore = customerApp.cloudKeyValueStore,
+          cloudBackupStore = customerApp.cloudBackupStore,
           executeWorkers = false
         )
         AppMode.Private -> launchNewApp(
-          cloudKeyValueStore = customerApp.cloudKeyValueStore,
+          cloudBackupStore = customerApp.cloudBackupStore,
           executeWorkers = false
         )
       }
@@ -303,7 +345,7 @@ class SocRecE2eFunctionalTests : FunSpec({
 
       // TODO(W-9704): execute workers by default
       customerApp = launchNewApp(
-        cloudKeyValueStore = customerApp.cloudKeyValueStore,
+        cloudBackupStore = customerApp.cloudBackupStore,
         hardwareSeed = customerApp.fakeHardwareKeyStore.getSeed(),
         executeWorkers = false
       )
@@ -341,7 +383,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       // TODO(W-9704): execute workers by default
       val recoveringApp = launchNewApp(
         cloudStoreAccountRepository = customerApp.cloudStoreAccountRepository,
-        cloudKeyValueStore = customerApp.cloudKeyValueStore,
+        cloudBackupStore = customerApp.cloudBackupStore,
         executeWorkers = false
       )
       recoveringApp.appUiStateMachine.test(
@@ -377,7 +419,7 @@ class SocRecE2eFunctionalTests : FunSpec({
 
     // TODO(W-9704): execute workers by default
     customerApp = launchNewApp(
-      cloudKeyValueStore = customerApp.cloudKeyValueStore,
+      cloudBackupStore = customerApp.cloudBackupStore,
       hardwareSeed = hardwareSeed,
       executeWorkers = false
     )
@@ -438,7 +480,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     val recoveringApp = launchAppMatchingMode(
       customerApp,
       cloudStoreAccountRepository = customerApp.cloudStoreAccountRepository,
-      cloudKeyValueStore = customerApp.cloudKeyValueStore,
+      cloudBackupStore = customerApp.cloudBackupStore,
       hardwareSeed = hardwareSeed
     )
     recoveringApp.appUiStateMachine.test(
@@ -508,7 +550,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     app2Factory = { customerApp, mode ->
       launchAppForModeWithoutWorkers(
         mode,
-        cloudKeyValueStore = customerApp.cloudKeyValueStore
+        cloudBackupStore = customerApp.cloudBackupStore
       )
     }
   ) { customerApp, initialTcApp ->
@@ -712,6 +754,220 @@ class SocRecE2eFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
   }
+
+  test("social recovery should succeed after PC does lost hardware D&N [W3 protected customer]") {
+    val customerApp = launchNewApp(executeWorkers = false)
+    val tcApp = launchNewApp(executeWorkers = false)
+
+    customerApp.onboardFullAccountWithFakeHardware(
+      cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake,
+      hardwareType = HardwareType.W3
+    )
+    customerApp.trustedContactManagementScreenPresenter.test(
+      screen = buildTrustedContactManagementUiStateMachineProps(customerApp)
+    ) {
+      advanceThroughTrustedContactInviteScreens("bob", HardwareCoverageMode.W3Private)
+      cancelAndIgnoreRemainingEvents()
+    }
+    val inviteCode = customerApp.getSharedInviteCode()
+    tcApp.onboardLiteAccountFromInvitation(
+      inviteCode,
+      PROTECTED_CUSTOMER_ALIAS,
+      CloudStoreAccountFake.TrustedContactFake
+    )
+    val relationshipId = customerApp.awaitRelationships {
+      it.invitations.any { inv -> inv.trustedContactAlias.alias == "bob" }
+    }.invitations.first().relationshipId
+    customerApp.awaitTcIsVerifiedAndBackedUp(relationshipId)
+
+    customerApp.fakeW3NfcCommands.wipeDevice()
+    customerApp.appUiStateMachine.test(
+      Unit,
+      testTimeout = 60.seconds,
+      turbineTimeout = 60.seconds
+    ) {
+      advanceThroughLostHardwareAndCloudRecoveryToMoneyHome(isW3 = true)
+    }
+
+    verifyKeyCertificatesAreRefreshed(customerApp)
+    shouldSucceedSocialRestore(customerApp, tcApp, PROTECTED_CUSTOMER_ALIAS)
+  }
+
+  test("Lost App Cloud Recovery should succeed after PC does Lost Hardware D&N with TC [W3 protected customer]") {
+    val customerApp = launchNewApp(executeWorkers = false)
+    val tcApp = launchNewApp(executeWorkers = false)
+
+    customerApp.onboardFullAccountWithFakeHardware(
+      cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake,
+      hardwareType = HardwareType.W3
+    )
+    customerApp.trustedContactManagementScreenPresenter.test(
+      screen = buildTrustedContactManagementUiStateMachineProps(customerApp)
+    ) {
+      advanceThroughTrustedContactInviteScreens("bob", HardwareCoverageMode.W3Private)
+      cancelAndIgnoreRemainingEvents()
+    }
+    val inviteCode = customerApp.getSharedInviteCode()
+    tcApp.onboardLiteAccountFromInvitation(
+      inviteCode,
+      PROTECTED_CUSTOMER_ALIAS,
+      CloudStoreAccountFake.TrustedContactFake
+    )
+    val relationshipId = customerApp.awaitRelationships {
+      it.invitations.any { inv -> inv.trustedContactAlias.alias == "bob" }
+    }.invitations.first().relationshipId
+    customerApp.awaitTcIsVerifiedAndBackedUp(relationshipId)
+
+    customerApp.fakeW3NfcCommands.wipeDevice()
+    customerApp.appUiStateMachine.test(
+      Unit,
+      testTimeout = 60.seconds,
+      turbineTimeout = 60.seconds
+    ) {
+      advanceThroughLostHardwareAndCloudRecoveryToMoneyHome(isW3 = true)
+    }
+
+    verifyKeyCertificatesAreRefreshed(customerApp)
+
+    val recoveringApp = launchNewApp(
+      cloudStoreAccountRepository = customerApp.cloudStoreAccountRepository,
+      cloudBackupStore = customerApp.cloudBackupStore,
+      hardwareSeed = customerApp.fakeHardwareKeyStore.getSeed(),
+      w3HardwareSeed = customerApp.w3FakeHardwareKeyStore.getSeed(),
+      executeWorkers = false
+    )
+    recoveringApp.appUiStateMachine.test(
+      props = Unit,
+      turbineTimeout = 60.seconds
+    ) {
+      advanceToCloudRecovery().onRestore()
+      screenDecideIfShouldRotate {
+        clickSecondaryButton()
+      }
+      awaitUntilBody<RotateAuthKeyScreens.Confirmation>()
+        .onSelected()
+      awaitUntilBody<MoneyHomeBodyModel>()
+      cancelAndIgnoreRemainingEvents()
+    }
+
+    verifyKeyCertificatesAreRefreshed(recoveringApp)
+  }
+
+  test("lost HW D&N should succeed after social recovery [W3 protected customer]") {
+    val customerApp = launchNewApp(executeWorkers = false)
+    val tcApp = launchNewApp(
+      cloudBackupStore = customerApp.cloudBackupStore,
+      executeWorkers = false
+    )
+
+    customerApp.onboardFullAccountWithFakeHardware(
+      cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake,
+      hardwareType = HardwareType.W3
+    )
+    customerApp.trustedContactManagementScreenPresenter.test(
+      screen = buildTrustedContactManagementUiStateMachineProps(customerApp)
+    ) {
+      advanceThroughTrustedContactInviteScreens("bob", HardwareCoverageMode.W3Private)
+      cancelAndIgnoreRemainingEvents()
+    }
+    val inviteCode = customerApp.getSharedInviteCode()
+    tcApp.onboardLiteAccountFromInvitation(
+      inviteCode,
+      PROTECTED_CUSTOMER_ALIAS,
+      CloudStoreAccountFake.TrustedContactFake
+    )
+    val relationshipId = customerApp.awaitRelationships {
+      it.invitations.any { inv -> inv.trustedContactAlias.alias == "bob" }
+    }.invitations.first().relationshipId
+    customerApp.awaitTcIsVerifiedAndBackedUp(relationshipId)
+
+    val recoveredApp = shouldSucceedSocialRestore(customerApp, tcApp, PROTECTED_CUSTOMER_ALIAS)
+
+    recoveredApp.fakeW3NfcCommands.wipeDevice()
+    recoveredApp.appUiStateMachine.test(
+      Unit,
+      testTimeout = 60.seconds,
+      turbineTimeout = 60.seconds
+    ) {
+      advanceThroughLostHardwareAndCloudRecoveryToMoneyHome(isW3 = true)
+    }
+  }
+
+  test("lost HW D&N re-verifies TC certs after app kill during cloud backup [W3 protected customer]") {
+    var customerApp = launchNewApp(executeWorkers = false)
+    val tcApp = launchNewApp(executeWorkers = false)
+
+    customerApp.onboardFullAccountWithFakeHardware(
+      cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake,
+      hardwareType = HardwareType.W3
+    )
+    customerApp.trustedContactManagementScreenPresenter.test(
+      screen = buildTrustedContactManagementUiStateMachineProps(customerApp)
+    ) {
+      advanceThroughTrustedContactInviteScreens("bob", HardwareCoverageMode.W3Private)
+      cancelAndIgnoreRemainingEvents()
+    }
+    val inviteCode = customerApp.getSharedInviteCode()
+    tcApp.onboardLiteAccountFromInvitation(
+      inviteCode,
+      PROTECTED_CUSTOMER_ALIAS,
+      CloudStoreAccountFake.TrustedContactFake
+    )
+    val relationshipId = customerApp.awaitRelationships {
+      it.invitations.any { inv -> inv.trustedContactAlias.alias == "bob" }
+    }.invitations.first().relationshipId
+    customerApp.awaitTcIsVerifiedAndBackedUp(relationshipId)
+
+    // Wipe hardware and start Lost HW recovery
+    customerApp.fakeW3NfcCommands.wipeDevice()
+    customerApp.appUiStateMachine.test(
+      Unit,
+      testTimeout = 60.seconds,
+      turbineTimeout = 60.seconds
+    ) {
+      awaitUntilBody<MoneyHomeBodyModel>().onSecurityHubTabClick()
+      awaitUntilBody<SecurityHubBodyModel>().clickBitkeyDevice()
+      awaitUntilBody<DeviceSettingsFormBodyModel>().onReplaceDevice()
+      awaitUntilBody<HardwareReplacementInstructionsModel>().onContinue()
+      awaitUntilBody<NewDeviceReadyQuestionBodyModel>().clickPrimaryButton()
+      // W3 pairing
+      awaitUntilBody<PairNewHardwareBodyModel>(matching = { !it.primaryButton.isLoading })
+        .clickPrimaryButton()
+      awaitUntilBody<CompleteTwoTapBodyModel>()
+        .clickPrimaryButton()
+
+      // Complete D&N delay
+      awaitUntilBody<DelayAndNotifyNewKeyReady>().onCompleteRecovery()
+      // W3: confirmable NFC for spending key creation
+      awaitW3ConfirmableNfcSession()
+      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
+      // W3: confirmable NFC for DDK upload
+      awaitW3ConfirmableNfcSession()
+
+      // Stop at cloud backup instructions — simulate app kill
+      awaitUntilBody<SaveBackupInstructionsBodyModel>()
+      cancelAndIgnoreRemainingEvents()
+    }
+
+    // Relaunch app — resumes from persisted state
+    customerApp = customerApp.relaunchApp()
+
+    customerApp.appUiStateMachine.test(
+      Unit,
+      testTimeout = 60.seconds,
+      turbineTimeout = 60.seconds
+    ) {
+      awaitUntilBody<SaveBackupInstructionsBodyModel>().onBackupClick()
+      awaitUntilBody<CloudSignInModelFake>()
+        .signInSuccess(CloudStoreAccountFake.ProtectedCustomerFake)
+      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
+      awaitUntilBody<ZeroBalancePromptBodyModel>().onDone()
+      awaitUntilBody<MoneyHomeBodyModel>()
+      cancelAndIgnoreRemainingEvents()
+    }
+
+    verifyKeyCertificatesAreRefreshed(customerApp)
+  }
 })
 
 suspend fun buildTrustedContactManagementUiStateMachineProps(
@@ -733,7 +989,7 @@ suspend fun TestScope.shouldSucceedSocialRestore(
   // TODO(W-9704): execute workers by default
   val recoveringApp = launchAppMatchingMode(
     customerApp,
-    cloudKeyValueStore = customerApp.cloudKeyValueStore
+    cloudBackupStore = customerApp.cloudBackupStore
   )
   lateinit var challengeCode: String
   recoveringApp.appUiStateMachine.test(
@@ -820,19 +1076,19 @@ suspend fun verifyKeyCertificatesAreRefreshed(app: AppTester) {
 private suspend fun TestScope.launchAppForModeWithoutWorkers(
   mode: AppMode,
   cloudStoreAccountRepository: CloudStoreAccountRepository? = null,
-  cloudKeyValueStore: CloudKeyValueStore? = null,
+  cloudBackupStore: CloudBackupStore? = null,
   hardwareSeed: FakeHardwareKeyStore.Seed? = null,
 ): AppTester =
   when (mode) {
     AppMode.Legacy -> launchLegacyWalletApp(
       cloudStoreAccountRepository = cloudStoreAccountRepository,
-      cloudKeyValueStore = cloudKeyValueStore,
+      cloudBackupStore = cloudBackupStore,
       hardwareSeed = hardwareSeed,
       executeWorkers = false
     )
     AppMode.Private -> launchNewApp(
       cloudStoreAccountRepository = cloudStoreAccountRepository,
-      cloudKeyValueStore = cloudKeyValueStore,
+      cloudBackupStore = cloudBackupStore,
       hardwareSeed = hardwareSeed,
       executeWorkers = false
     )
@@ -841,20 +1097,20 @@ private suspend fun TestScope.launchAppForModeWithoutWorkers(
 private suspend fun TestScope.launchAppMatchingMode(
   referenceApp: AppTester,
   cloudStoreAccountRepository: CloudStoreAccountRepository? = null,
-  cloudKeyValueStore: CloudKeyValueStore? = null,
+  cloudBackupStore: CloudBackupStore? = null,
   hardwareSeed: FakeHardwareKeyStore.Seed? = null,
 ): AppTester =
   if (referenceApp.appMode == AppMode.Private) {
     launchNewApp(
       cloudStoreAccountRepository = cloudStoreAccountRepository,
-      cloudKeyValueStore = cloudKeyValueStore,
+      cloudBackupStore = cloudBackupStore,
       hardwareSeed = hardwareSeed,
       executeWorkers = false
     )
   } else {
     launchLegacyWalletApp(
       cloudStoreAccountRepository = cloudStoreAccountRepository,
-      cloudKeyValueStore = cloudKeyValueStore,
+      cloudBackupStore = cloudBackupStore,
       hardwareSeed = hardwareSeed,
       executeWorkers = false
     )

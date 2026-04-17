@@ -19,22 +19,18 @@ static void start_button_click_handler(lv_event_t* e);
 #define PAGE_SUCCESS  2
 
 // Layout configuration
-#define TITLE_Y_OFFSET     90
-#define TEXT_Y_OFFSET      (-30)
-#define TEXT_WIDTH         320
-#define TEXT_WIDTH_INTRO   420
-#define SUCCESS_ARC_RADIUS 165
-#define SUCCESS_ARC_WIDTH  8
+#define TITLE_Y_OFFSET   90
+#define TEXT_Y_OFFSET    (-30)
+#define TEXT_WIDTH       320
+#define TEXT_WIDTH_INTRO 420
 
 // Scanning page layout (fingerprint dots above status text)
 #define SCANNING_DOTS_Y_OFFSET   (-35)  // Fingerprint dots position (above center)
 #define SCANNING_STATUS_Y_OFFSET 130    // Status text position (below dots)
 
-// Checkmark configuration
-#define CHECKMARK_PADDING 20
-
-// Angle configuration (for success arc)
-#define FULL_CIRCLE_ANGLE 360.0f
+// Failure page layout (centered title + body)
+#define FAILURE_TITLE_Y_OFFSET (-20)
+#define FAILURE_BODY_Y_OFFSET  20
 
 // Circle button configuration (matches menu item circles)
 #define CIRCLE_BUTTON_SIZE          100
@@ -52,7 +48,6 @@ static void start_button_click_handler(lv_event_t* e);
 
 // External image declarations
 extern const lv_img_dsc_t exclamation_circle;
-extern const lv_img_dsc_t check;
 extern const lv_img_dsc_t arrow_right;
 
 static lv_obj_t* screen = NULL;
@@ -61,10 +56,7 @@ static lv_obj_t* text_label = NULL;
 static lv_obj_t* status_label = NULL;
 static lv_obj_t* circle_button = NULL;
 static lv_obj_t* circle_button_icon = NULL;
-static lv_obj_t* success_container = NULL;
-static lv_obj_t* success_checkmark = NULL;
 static lv_obj_t* success_label = NULL;
-static lv_obj_t* success_arc = NULL;
 static lv_obj_t* exclamation_image = NULL;
 static top_back_t back_button = {0};
 static fingerprint_dots_t fp_dots = {0};
@@ -83,14 +75,8 @@ static void hide_all_elements(void) {
   if (circle_button) {
     lv_obj_add_flag(circle_button, LV_OBJ_FLAG_HIDDEN);
   }
-  if (success_container) {
-    lv_obj_add_flag(success_container, LV_OBJ_FLAG_HIDDEN);
-  }
   if (success_label) {
     lv_obj_add_flag(success_label, LV_OBJ_FLAG_HIDDEN);
-  }
-  if (success_arc) {
-    lv_obj_add_flag(success_arc, LV_OBJ_FLAG_HIDDEN);
   }
   if (exclamation_image) {
     lv_obj_add_flag(exclamation_image, LV_OBJ_FLAG_HIDDEN);
@@ -162,7 +148,6 @@ static void show_page(uint8_t page) {
       fingerprint_dots_set_percent(&fp_dots, 100);
       fingerprint_dots_show(&fp_dots);
       if (success_label) {
-        lv_obj_set_parent(success_label, screen);
         lv_label_set_text(success_label, langpack_get_string(LANGPACK_ID_FINGERPRINT_SUCCESS));
         lv_obj_align(success_label, LV_ALIGN_CENTER, 0, SCANNING_STATUS_Y_OFFSET);
         lv_obj_clear_flag(success_label, LV_OBJ_FLAG_HIDDEN);
@@ -178,23 +163,15 @@ static void _screen_fingerprint_set_status(lv_obj_t* label,
       lv_label_set_text(label, langpack_get_string(LANGPACK_ID_FINGERPRINT_ENROLL_FIRST));
       break;
 
-    case fwpb_display_params_fingerprint_display_params_fingerprint_status_ENROLL_REPEAT: {
-      char status_msg[64];
-      snprintf(status_msg, sizeof(status_msg),
-               langpack_get_string(LANGPACK_ID_FINGERPRINT_ENROLL_REPEAT),
-               (unsigned long)params->samples_remaining);
-      lv_label_set_text(label, status_msg);
+    case fwpb_display_params_fingerprint_display_params_fingerprint_status_ENROLL_REPEAT:
+      lv_label_set_text(label, langpack_get_string(LANGPACK_ID_FINGERPRINT_ENROLL_REPEAT));
       break;
-    }
 
     case fwpb_display_params_fingerprint_display_params_fingerprint_status_ENROLL_TRY_AGAIN:
       lv_label_set_text(label, langpack_get_string(LANGPACK_ID_FINGERPRINT_ENROLL_ERROR));
       break;
 
     case fwpb_display_params_fingerprint_display_params_fingerprint_status_ENROLL_FAILED:
-      lv_label_set_text(label, langpack_get_string(LANGPACK_ID_FINGERPRINT_ENROLL_FAIL));
-      break;
-
     case fwpb_display_params_fingerprint_display_params_fingerprint_status_NONE:
     default:
       lv_label_set_text(label, "");
@@ -250,12 +227,15 @@ lv_obj_t* screen_fingerprint_init(void* ctx) {
   lv_obj_set_style_pad_all(circle_button, 0, 0);
   lv_obj_clear_flag(circle_button, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_add_flag(circle_button, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_clear_flag(circle_button, LV_OBJ_FLAG_PRESS_LOCK);
 
   circle_button_icon = lv_img_create(circle_button);
   if (!circle_button_icon) {
     return NULL;
   }
   lv_img_set_src(circle_button_icon, &arrow_right);
+  lv_obj_set_style_img_recolor(circle_button_icon, lv_color_white(), 0);
+  lv_obj_set_style_img_recolor_opa(circle_button_icon, LV_OPA_COVER, 0);
   lv_obj_center(circle_button_icon);
 
   memset(&fp_dots, 0, sizeof(fp_dots));
@@ -276,45 +256,7 @@ lv_obj_t* screen_fingerprint_init(void* ctx) {
   lv_label_set_long_mode(status_label, LV_LABEL_LONG_WRAP);
   lv_obj_align(status_label, LV_ALIGN_CENTER, 0, 0);
 
-  success_arc = lv_arc_create(screen);
-  if (!success_arc) {
-    return NULL;
-  }
-  lv_obj_set_size(success_arc, SUCCESS_ARC_RADIUS * 2, SUCCESS_ARC_RADIUS * 2);
-  lv_obj_center(success_arc);
-  lv_arc_set_bg_angles(success_arc, 0, (int)FULL_CIRCLE_ANGLE);
-  lv_arc_set_angles(success_arc, 0, (int)FULL_CIRCLE_ANGLE);
-  lv_obj_remove_style(success_arc, NULL, LV_PART_KNOB);
-  lv_obj_set_style_arc_width(success_arc, SUCCESS_ARC_WIDTH, LV_PART_INDICATOR);
-  lv_obj_set_style_arc_color(success_arc, lv_color_white(), LV_PART_INDICATOR);
-  lv_obj_set_style_arc_width(success_arc, 0, LV_PART_MAIN);
-  lv_obj_clear_flag(success_arc, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_add_flag(success_arc, LV_OBJ_FLAG_HIDDEN);
-
-  success_container = lv_obj_create(screen);
-  if (!success_container) {
-    return NULL;
-  }
-  lv_obj_set_size(success_container, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-  lv_obj_align(success_container, LV_ALIGN_CENTER, 0, 0);
-  lv_obj_set_style_bg_opa(success_container, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_opa(success_container, LV_OPA_TRANSP, 0);
-  lv_obj_set_layout(success_container, LV_LAYOUT_FLEX);
-  lv_obj_set_flex_flow(success_container, LV_FLEX_FLOW_ROW);
-  lv_obj_set_flex_align(success_container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
-                        LV_FLEX_ALIGN_CENTER);
-  lv_obj_set_style_pad_column(success_container, CHECKMARK_PADDING, 0);
-  lv_obj_clear_flag(success_container, LV_OBJ_FLAG_SCROLLABLE);
-
-  success_checkmark = lv_img_create(success_container);
-  if (!success_checkmark) {
-    return NULL;
-  }
-  lv_img_set_src(success_checkmark, &check);
-  lv_obj_set_style_img_recolor(success_checkmark, lv_color_white(), 0);
-  lv_obj_set_style_img_recolor_opa(success_checkmark, LV_OPA_COVER, 0);
-
-  success_label = lv_label_create(success_container);
+  success_label = lv_label_create(screen);
   if (!success_label) {
     return NULL;
   }
@@ -327,12 +269,16 @@ lv_obj_t* screen_fingerprint_init(void* ctx) {
     return NULL;
   }
   lv_img_set_src(exclamation_image, &exclamation_circle);
+  lv_obj_set_style_img_recolor(exclamation_image, lv_color_white(), 0);
+  lv_obj_set_style_img_recolor_opa(exclamation_image, LV_OPA_COVER, 0);
   lv_obj_align(exclamation_image, LV_ALIGN_CENTER, 0, -60);
   lv_obj_add_flag(exclamation_image, LV_OBJ_FLAG_HIDDEN);
 
   if (params && !params->is_required) {
     top_back_create(screen, &back_button, NULL);
-    lv_obj_add_flag(back_button.container, LV_OBJ_FLAG_HIDDEN);
+    if (back_button.container) {
+      lv_obj_add_flag(back_button.container, LV_OBJ_FLAG_HIDDEN);
+    }
   }
 
   if (params && !params->is_required) {
@@ -364,10 +310,7 @@ void screen_fingerprint_destroy(void) {
   status_label = NULL;
   circle_button = NULL;
   circle_button_icon = NULL;
-  success_container = NULL;
-  success_checkmark = NULL;
   success_label = NULL;
-  success_arc = NULL;
   exclamation_image = NULL;
   current_page = PAGE_INTRO;
 }
@@ -400,20 +343,57 @@ void screen_fingerprint_update(void* ctx) {
       update_progress_display(params->progress_percent);
 
       if (params->status ==
-          fwpb_display_params_fingerprint_display_params_fingerprint_status_ENROLL_TRY_AGAIN) {
-        if (exclamation_image) {
-          lv_obj_clear_flag(exclamation_image, LV_OBJ_FLAG_HIDDEN);
-          lv_obj_align(exclamation_image, LV_ALIGN_CENTER, -80, SCANNING_STATUS_Y_OFFSET);
-        }
+          fwpb_display_params_fingerprint_display_params_fingerprint_status_ENROLL_FAILED) {
+        // Show centered title + body labels
+        fingerprint_dots_hide(&fp_dots);
         if (status_label) {
-          lv_obj_align(status_label, LV_ALIGN_CENTER, 30, SCANNING_STATUS_Y_OFFSET);
+          lv_obj_add_flag(status_label, LV_OBJ_FLAG_HIDDEN);
         }
-      } else {
         if (exclamation_image) {
           lv_obj_add_flag(exclamation_image, LV_OBJ_FLAG_HIDDEN);
         }
+        if (title_label) {
+          lv_label_set_text(title_label,
+                            langpack_get_string(LANGPACK_ID_FINGERPRINT_ENROLL_FAIL_TITLE));
+          lv_obj_align(title_label, LV_ALIGN_CENTER, 0, FAILURE_TITLE_Y_OFFSET);
+          lv_obj_clear_flag(title_label, LV_OBJ_FLAG_HIDDEN);
+        }
+        if (text_label) {
+          lv_label_set_text(text_label,
+                            langpack_get_string(LANGPACK_ID_FINGERPRINT_ENROLL_FAIL_BODY));
+          lv_obj_set_width(text_label, TEXT_WIDTH);
+          lv_obj_align(text_label, LV_ALIGN_CENTER, 0, FAILURE_BODY_Y_OFFSET);
+          lv_obj_clear_flag(text_label, LV_OBJ_FLAG_HIDDEN);
+        }
+      } else {
+        // Restore scanning UI in case we're coming back from a failure state
+        fingerprint_dots_show(&fp_dots);
+        if (title_label) {
+          lv_obj_add_flag(title_label, LV_OBJ_FLAG_HIDDEN);
+        }
+        if (text_label) {
+          lv_obj_add_flag(text_label, LV_OBJ_FLAG_HIDDEN);
+        }
         if (status_label) {
-          lv_obj_align(status_label, LV_ALIGN_CENTER, 0, SCANNING_STATUS_Y_OFFSET);
+          lv_obj_clear_flag(status_label, LV_OBJ_FLAG_HIDDEN);
+        }
+
+        if (params->status ==
+            fwpb_display_params_fingerprint_display_params_fingerprint_status_ENROLL_TRY_AGAIN) {
+          if (exclamation_image) {
+            lv_obj_clear_flag(exclamation_image, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_align(exclamation_image, LV_ALIGN_CENTER, -80, SCANNING_STATUS_Y_OFFSET);
+          }
+          if (status_label) {
+            lv_obj_align(status_label, LV_ALIGN_CENTER, 30, SCANNING_STATUS_Y_OFFSET);
+          }
+        } else {
+          if (exclamation_image) {
+            lv_obj_add_flag(exclamation_image, LV_OBJ_FLAG_HIDDEN);
+          }
+          if (status_label) {
+            lv_obj_align(status_label, LV_ALIGN_CENTER, 0, SCANNING_STATUS_Y_OFFSET);
+          }
         }
       }
     }

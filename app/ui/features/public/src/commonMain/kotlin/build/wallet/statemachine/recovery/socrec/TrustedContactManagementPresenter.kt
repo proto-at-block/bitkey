@@ -63,11 +63,11 @@ class TrustedContactManagementPresenter(
         addingTrustedContactUiStateMachine.model(
           AddingTrustedContactUiProps(
             account = screen.account,
-            onAddTc = { tcAlias, hardwareProofOfPossession ->
+            onAddTc = { tcAlias, proof ->
               relationshipsService.createInvitation(
                 account = screen.account,
                 trustedContactAlias = tcAlias,
-                hardwareProofOfPossession = hardwareProofOfPossession,
+                proof = proof,
                 roles = setOf(TrustedContactRole.SocialRecoveryContact)
               )
             },

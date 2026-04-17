@@ -18,6 +18,7 @@ IPC_CACHE_FILE = os.path.join(OUTPUT_DIR, ".ipc_cache")
 PROJECT_ROOT = os.path.join(HERE, "..", "..")
 
 AUTH_GROUP_NEVER = "protos_that_never_require_auth"
+AUTH_GROUP_DEV = "protos_that_are_only_present_in_dev"
 AUTH_GROUP_ALWAYS = "protos_that_always_require_auth"
 AUTH_GROUP_AFTER_ONBOARDING = "protos_that_require_auth_after_onboarding"
 AUTH_GROUP_BEFORE_ONBOARDING = "protos_that_require_not_onboarded"
@@ -102,6 +103,8 @@ def add_to_auth_group(proto, gen):
             f"All protos must specify an auth group, but {proto['name']} does not.")
     if group == "never":
         gen[AUTH_GROUP_NEVER].append(proto["name"])
+    elif group == "dev":
+        gen[AUTH_GROUP_DEV].append(proto["name"])
     elif group == "always":
         gen[AUTH_GROUP_ALWAYS].append(proto["name"])
     elif group == "after_onboarding":
@@ -126,6 +129,7 @@ def _generate_to_dir(output_dir, ignore_cache=False):
 
     gen = {"headers": [], "ports": [], "port_to_proto": {},
            AUTH_GROUP_NEVER: [],
+           AUTH_GROUP_DEV: [],
            AUTH_GROUP_ALWAYS: [],
            AUTH_GROUP_AFTER_ONBOARDING: [],
            AUTH_GROUP_BEFORE_ONBOARDING: [],

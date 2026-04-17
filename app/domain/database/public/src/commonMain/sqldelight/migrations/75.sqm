@@ -1,0 +1,6 @@
+-- Persist the sealed DDK (Delegated Decryption Key) from NFC tap 2 during Lost HW recovery.
+-- Without this column, if the app is killed between HwDescriptorValidated and DdkBackedUp,
+-- the sealed DDK is lost and a new NFC tap would be required on resume.
+ALTER TABLE localRecoveryAttemptEntity ADD COLUMN sealedDdk BLOB;
+
+PRAGMA foreign_key_check;

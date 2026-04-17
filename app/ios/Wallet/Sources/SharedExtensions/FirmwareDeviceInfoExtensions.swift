@@ -56,7 +56,13 @@ extension Shared.FirmwareDeviceInfo {
                         case .stm32u5: return .stm32u5
                         }
                     }(),
-                    firmwareVersion: info.firmwareVersion
+                    firmwareVersion: info.firmwareVersion,
+                    activeSlot: info.activeSlot.map { slot in
+                        switch slot {
+                        case .a: return .a
+                        case .b: return .b
+                        }
+                    }
                 )
             } ?? []
         )

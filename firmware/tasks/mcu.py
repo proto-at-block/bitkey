@@ -32,9 +32,10 @@ def chipinfo(c, chip: Optional[str] = None):
     "erase": "Erase before flashing",
     "force": "Skip flash erase warnings",
     "no-backup": "Skip backup",
+    "no-bootloader": "Skip auto-flashing bootloader",
     "jlink": "J-Link serial number to use",
 })
-def flash(c, target=None, image=None, platform=None, erase=False, force=False, no_backup=False, jlink=None):
+def flash(c, target=None, image=None, platform=None, erase=False, force=False, no_backup=False, no_bootloader=False, jlink=None):
     """Flashes the firmware"""
     if not no_backup:
         do_backup(c, None, jlink_serial=jlink)
@@ -72,7 +73,11 @@ def flash(c, target=None, image=None, platform=None, erase=False, force=False, n
             gdb.erase(elf)
 
         # Load the bootloader if it is required for platform targets to run
-        if mb.platform['bootloader_required'] == True and target != mb.platform['bootloader_image']:
+        if (
+            not no_bootloader
+            and mb.platform['bootloader_required'] == True
+            and target != mb.platform['bootloader_image']
+        ):
             loader_target = Target(target).loader(
                 mb.platform["bootloader_image"])
             if loader_target:

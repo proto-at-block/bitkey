@@ -312,7 +312,28 @@ enum Action {
     /** [App] Firmware update failed for a specific MCU. Use screen_id for MCU role. */
     ACTION_APP_FWUP_MCU_UPDATE_FAILED = 88;
 
-    // Next tag is 89
+    /** [App] Customer has seen the address verification education coachmark */
+    ACTION_APP_COACHMARK_VIEWED_ADDRESS_VERIFICATION_EDUCATION = 89;
+
+    /** [App] Customer has seen the W3 upgrade completion coachmark on money home */
+    ACTION_APP_COACHMARK_VIEWED_W3_UPGRADE_COMPLETE = 90;
+
+    /** [App] Customer started the W3 hardware upgrade flow (tapped Continue on intro) */
+    ACTION_APP_W3_UPGRADE_STARTED = 91;
+
+    /** [App] W3 hardware upgrade completed successfully */
+    ACTION_APP_W3_UPGRADE_COMPLETE = 92;
+
+    /** [App] Customer cancelled the W3 hardware upgrade mid-flow */
+    ACTION_APP_W3_UPGRADE_CANCELLED = 93;
+
+    /** [App] New hardware successfully paired during W3 upgrade */
+    ACTION_APP_W3_UPGRADE_HW_PAIRED = 94;
+
+    /** [App] Auth key rotation succeeded during W3 upgrade */
+    ACTION_APP_W3_UPGRADE_AUTH_ROTATED = 95;
+
+    // Next tag is 96
 }
 
 message PlatformInfo {

@@ -6,4 +6,5 @@ import build.wallet.ui.model.Model
 data class KeypadModel(
   val showDecimal: Boolean,
   val onButtonPress: (KeypadButton) -> Unit,
+  val isButtonPressRejected: (KeypadButton) -> Boolean = { false },
 ) : Model

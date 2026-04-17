@@ -10,6 +10,8 @@ import build.wallet.ui.typography.font.cashSansMonoFontFamily
 import build.wallet.ui.typography.font.foundersGroteskFontFamily
 import build.wallet.ui.typography.font.robotoMonoFontFamily
 
+private const val SLASHED_ZERO_FONT_FEATURE = "zero"
+
 enum class LabelType {
   Header1,
   Display1,
@@ -21,10 +23,12 @@ enum class LabelType {
   Body1Regular,
   Body1Medium,
   Body1Bold,
+  Body1Mono,
   Body2Regular,
   Body2Medium,
   Body2Bold,
   Body2Mono,
+  Body2MonoCaps,
   Body2Link,
   Body3Regular,
   Body3Medium,
@@ -33,6 +37,7 @@ enum class LabelType {
   Body3Mono,
   Body4Regular,
   Body4Medium,
+  Body4Mono,
   Label1,
   Label1Bold,
   Label2,
@@ -116,6 +121,14 @@ fun LabelType.style(baseStyle: TextStyle) =
         lineHeight = 30.sp,
         letterSpacing = (-0.33).sp
       )
+    LabelType.Body1Mono ->
+      baseStyle.copy(
+        fontFamily = robotoMonoFontFamily,
+        fontWeight = FontWeight.W400,
+        fontSize = 20.sp,
+        lineHeight = 30.sp,
+        letterSpacing = (0).sp
+      )
     LabelType.Body2Regular ->
       baseStyle.copy(
         fontWeight = FontWeight.W400,
@@ -138,6 +151,14 @@ fun LabelType.style(baseStyle: TextStyle) =
         letterSpacing = (-0.22).sp
       )
     LabelType.Body2Mono ->
+      baseStyle.copy(
+        fontFamily = robotoMonoFontFamily,
+        fontWeight = FontWeight.W400,
+        fontSize = 17.sp,
+        lineHeight = 24.sp,
+        letterSpacing = (0).sp
+      )
+    LabelType.Body2MonoCaps ->
       baseStyle.copy(
         fontFamily = robotoMonoFontFamily,
         fontWeight = FontWeight.W400,
@@ -201,6 +222,14 @@ fun LabelType.style(baseStyle: TextStyle) =
         fontSize = 13.sp,
         lineHeight = 18.sp,
         letterSpacing = (-0.13).sp
+      )
+    LabelType.Body4Mono ->
+      baseStyle.copy(
+        fontFamily = robotoMonoFontFamily,
+        fontWeight = FontWeight.W400,
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
+        letterSpacing = (0).sp
       )
     LabelType.Label1 ->
       baseStyle.copy(
@@ -279,7 +308,7 @@ fun LabelType.styleV2(baseStyle: TextStyle) =
       baseStyle.copy(
         fontFamily = cashSansFontFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 48.sp,
+        fontSize = 56.sp,
         lineHeight = 56.sp,
         letterSpacing = (-2.5).sp
       )
@@ -339,6 +368,14 @@ fun LabelType.styleV2(baseStyle: TextStyle) =
         lineHeight = 30.sp,
         letterSpacing = (-0.33).sp
       )
+    LabelType.Body1Mono ->
+      baseStyle.copy(
+        fontFamily = cashSansMonoFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 20.sp,
+        lineHeight = 30.sp,
+        letterSpacing = (0.5).sp
+      )
     LabelType.Body2Regular ->
       baseStyle.copy(
         fontFamily = cashSansFontFamily,
@@ -364,6 +401,14 @@ fun LabelType.styleV2(baseStyle: TextStyle) =
         letterSpacing = (-0.22).sp
       )
     LabelType.Body2Mono ->
+      baseStyle.copy(
+        fontFamily = cashSansMonoFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 17.sp,
+        lineHeight = 24.sp,
+        letterSpacing = (0).sp
+      )
+    LabelType.Body2MonoCaps ->
       baseStyle.copy(
         fontFamily = cashSansMonoFontFamily,
         fontWeight = FontWeight.Normal,
@@ -417,7 +462,7 @@ fun LabelType.styleV2(baseStyle: TextStyle) =
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
         lineHeight = 22.sp,
-        letterSpacing = (0).sp
+        letterSpacing = (0.5).sp
       )
     LabelType.Body4Regular ->
       baseStyle.copy(
@@ -434,6 +479,14 @@ fun LabelType.styleV2(baseStyle: TextStyle) =
         fontSize = 13.sp,
         lineHeight = 18.sp,
         letterSpacing = (-0.13).sp
+      )
+    LabelType.Body4Mono ->
+      baseStyle.copy(
+        fontFamily = cashSansMonoFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
+        letterSpacing = (0.5).sp
       )
     LabelType.Label1 ->
       baseStyle.copy(
@@ -501,8 +554,30 @@ fun LabelType.styleV2(baseStyle: TextStyle) =
 fun LabelType.currentStyle(baseStyle: TextStyle): TextStyle {
   val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
   return if (isDesignSystemV2Enabled) {
-    styleV2(baseStyle)
+    val textStyle = styleV2(baseStyle)
+    textStyle.copy(fontFeatureSettings = textStyle.fontFeatureSettings.withSlashedZero())
   } else {
     style(baseStyle)
   }
 }
+
+@Composable
+fun LabelType.isAllCapsInCurrentDesignSystem(): Boolean {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  return this == LabelType.Body2MonoCaps ||
+    (
+      isDesignSystemV2Enabled &&
+        (
+          this == LabelType.Body1Mono ||
+            this == LabelType.Body3Mono ||
+            this == LabelType.Body4Mono
+        )
+    )
+}
+
+private fun String?.withSlashedZero(): String =
+  when {
+    this.isNullOrBlank() -> SLASHED_ZERO_FONT_FEATURE
+    this.contains("zero") -> this
+    else -> "$this, $SLASHED_ZERO_FONT_FEATURE"
+  }

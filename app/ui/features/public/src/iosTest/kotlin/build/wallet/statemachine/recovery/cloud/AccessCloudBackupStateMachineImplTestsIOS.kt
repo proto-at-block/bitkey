@@ -5,7 +5,7 @@ import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_B
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.cloud.backup.AllFullAccountBackupMocks
 import build.wallet.cloud.backup.CloudBackup
-import build.wallet.cloud.backup.CloudBackupRepositoryFake
+import build.wallet.cloud.backup.CloudBackupServiceFake
 import build.wallet.cloud.store.CloudAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.platform.device.DeviceInfoProviderMock
@@ -28,13 +28,13 @@ class AccessCloudBackupStateMachineImplTestsIOS : FunSpec({
   val accountId = FullAccountIdMock
   val fakeCloudAccount = CloudAccountMock(instanceId = "1")
   val fakeBackup = AllFullAccountBackupMocks[0] as CloudBackup
-  val cloudBackupRepository = CloudBackupRepositoryFake()
+  val cloudBackupService = CloudBackupServiceFake()
   val selectCloudBackupUiStateMachine = object : SelectCloudBackupUiStateMachine,
     ScreenStateMachineMock<SelectCloudBackupUiProps>("select-cloud-backup") {}
   val stateMachine =
     AccessCloudBackupUiStateMachineImpl(
       cloudSignInUiStateMachine = CloudSignInUiStateMachineMock(),
-      cloudBackupRepository = cloudBackupRepository,
+      cloudBackupService = cloudBackupService,
       rectifiableErrorHandlingUiStateMachine = RectifiableErrorHandlingUiStateMachineMock(),
       deviceInfoProvider = DeviceInfoProviderMock(),
       inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create),
@@ -74,7 +74,7 @@ class AccessCloudBackupStateMachineImplTestsIOS : FunSpec({
     )
 
   afterTest {
-    cloudBackupRepository.reset()
+    cloudBackupService.reset()
   }
 
   test("cloud account signed in but cloud backup not found - check cloud again and fail") {
@@ -121,7 +121,7 @@ class AccessCloudBackupStateMachineImplTestsIOS : FunSpec({
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       awaitBody<FormBodyModel> {
-        cloudBackupRepository.writeBackup(accountId, fakeCloudAccount, fakeBackup, requireAuthRefresh = true)
+        cloudBackupService.writeBackup(accountId, fakeCloudAccount, fakeBackup, requireAuthRefresh = true)
         mainContentList
           .first()
           .shouldNotBeNull()

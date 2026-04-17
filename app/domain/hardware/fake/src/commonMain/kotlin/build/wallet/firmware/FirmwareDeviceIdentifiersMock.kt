@@ -5,7 +5,7 @@ import build.wallet.firmware.FirmwareMetadata.FirmwareSlot.B
 val FirmwareDeviceInfoMock =
   FirmwareDeviceInfo(
     version = "1.2.3",
-    serial = "serial",
+    serial = "fakeS203serial",
     swType = "dev",
     hwRevision = "evtd",
     activeSlot = B,

@@ -6,8 +6,10 @@ import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterExitState.Visible
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import bitkey.ui.screens.securityhub.SecurityHubBodyModel
@@ -17,20 +19,28 @@ import build.wallet.feature.FeatureFlagValue
 import build.wallet.platform.device.DeviceInfo
 import build.wallet.platform.haptics.Haptics
 import build.wallet.platform.sensor.Accelerometer
+import build.wallet.statemachine.account.create.full.hardware.CompleteTwoTapBodyModel
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.ScreenPresentationStyle.*
+import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.fwup.FwupNfcBodyModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
+import build.wallet.statemachine.nfc.HardwareConfirmationResultBodyModel
 import build.wallet.statemachine.nfc.NfcBodyModel
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationCanceledScreenModel
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationHelpBodyModel
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationScreenModel
+import build.wallet.statemachine.send.signtransaction.SignTransactionNfcBodyModel
+import build.wallet.statemachine.settings.SettingsBodyModel
+import build.wallet.statemachine.settings.full.device.DeviceSettingsFormBodyModel
+import build.wallet.ui.components.card.supportsBitkeyDevice3DMedia
 import build.wallet.ui.components.screen.*
 import build.wallet.ui.compose.LocalHaptics
 import build.wallet.ui.model.UiModelContentScreen
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
-import build.wallet.ui.theme.LocalTheme
-import build.wallet.ui.theme.ThemePreferenceService
-import build.wallet.ui.theme.WalletTheme
-import build.wallet.ui.theme.systemTheme
+import build.wallet.ui.theme.*
+import build.wallet.ui.tokens.backgroundColor
 import cafe.adriel.voyager.core.stack.StackEvent.*
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.transitions.ScreenTransitionContent
@@ -65,7 +75,7 @@ fun App(
   }
 
   // Collect the theme from the service, defaulting to the system theme
-  val theme by themePreferenceService?.theme()?.collectAsState(initial = currentSystemTheme)
+  val appTheme by themePreferenceService?.theme()?.collectAsState(initial = currentSystemTheme)
     ?: remember { mutableStateOf(currentSystemTheme) }
 
   // Collect the design system updates flag, defaulting to false
@@ -75,12 +85,27 @@ fun App(
   CompositionLocalProvider(
     LocalDeviceInfo provides deviceInfo,
     LocalAccelerometer provides accelerometer,
-    LocalTheme provides theme,
+    LocalTheme provides appTheme,
     LocalHaptics provides haptics,
     LocalDesignSystemUpdatesEnabled provides isDesignSystemV2Enabled.value
   ) {
     WalletTheme {
-      Box(modifier = Modifier.background(WalletTheme.colors.background)) {
+      val backdropTheme =
+        effectiveTheme(appTheme = appTheme, screenThemePreference = model.themePreference)
+      val rootBackgroundColor = if (usesBlackFullscreenBackground(
+          bodyModel = model.body,
+          isDesignSystemV2Enabled = isDesignSystemV2Enabled.value
+        )
+      ) {
+        Color.Black
+      } else {
+        backdropTheme.backgroundColor(designSystemUpdatesEnabled = isDesignSystemV2Enabled.value)
+      }
+      Box(
+        modifier = Modifier
+          .fillMaxSize()
+          .background(rootBackgroundColor)
+      ) {
         Navigator(
           screen = UiModelContentScreen(model = model),
           onBackPressed = { screen ->
@@ -118,6 +143,15 @@ fun App(
     }
   }
 }
+
+internal fun effectiveTheme(
+  appTheme: Theme,
+  screenThemePreference: ThemePreference?,
+): Theme =
+  when (screenThemePreference) {
+    is ThemePreference.Manual -> screenThemePreference.value
+    ThemePreference.System, null -> appTheme
+  }
 
 /**
  * This effect is responsible for translating the stream of [ScreenModel]s into a backstack for via
@@ -181,18 +215,33 @@ private fun BitkeyTransition(
   // of the screen. This is passed to the animation retrieval functions which returns the appropriate
   // animation
   val density = LocalDensity.current
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
 
   val transitionSpec: AnimatedContentTransitionScope<VoyagerScreen>.() -> ContentTransform = {
-    // Check if we're transitioning between Money Home and Security Hub
-    val fromBody = (initialState as UiModelContentScreen).model.body
-    val toBody = (targetState as UiModelContentScreen).model.body
-    val isHomeSecurityHubTransition =
-      (fromBody is MoneyHomeBodyModel && toBody is SecurityHubBodyModel) ||
-        (fromBody is SecurityHubBodyModel && toBody is MoneyHomeBodyModel)
+    val fromModel = (initialState as UiModelContentScreen).model
+    val toModel = (targetState as UiModelContentScreen).model
+    val hardwareConfirmationTransition =
+      hardwareConfirmationContentTransform(
+        lastEvent = navigator.lastEvent,
+        fromModel = fromModel,
+        toModel = toModel
+      )
+    val nfcTransition =
+      nfcContentTransform(
+        lastEvent = navigator.lastEvent,
+        fromModel = fromModel,
+        toModel = toModel
+      )
 
     when {
-      navigator.lastEvent == Replace || navigator.lastEvent == Idle -> NoAnimation
-      isHomeSecurityHubTransition -> NoAnimation
+      hardwareConfirmationTransition != null -> hardwareConfirmationTransition
+      nfcTransition != null -> nfcTransition
+      shouldSkipTransitionAnimation(
+        lastEvent = navigator.lastEvent,
+        fromModel = fromModel,
+        toModel = toModel,
+        isDesignSystemV2Enabled = isDesignSystemV2Enabled
+      ) -> NoAnimation
       navigator.lastEvent == Pop ->
         navigator.popContentTransform(
           previousPresentationStyle,
@@ -212,19 +261,161 @@ private fun BitkeyTransition(
   AnimatedContent(
     targetState = navigator.lastItem,
     transitionSpec = transitionSpec,
-    modifier = modifier,
+    modifier = modifier.fillMaxSize(),
     label = "Screen Transform"
   ) { screen ->
     content(screen)
 
-    // Clear the backstack every time a root screen is displayed
-    if (
-      transition.targetState == Visible &&
-      transition.currentState == Visible &&
-      screen.isBackstackRoot()
-    ) {
-      navigator.replaceAll(item = screen)
+    navigator.replaceAllIfRootScreen(
+      isTargetVisible = transition.targetState == Visible,
+      isCurrentVisible = transition.currentState == Visible,
+      screen = screen
+    )
+  }
+}
+
+private fun hardwareConfirmationContentTransform(
+  lastEvent: cafe.adriel.voyager.core.stack.StackEvent,
+  fromModel: ScreenModel,
+  toModel: ScreenModel,
+): ContentTransform? {
+  return when {
+    lastEvent == Push && toModel.body.usesHardwareConfirmationSlideTransition() ->
+      slideOverlayAnimation(AxisAnimationDirection.Forward)
+    lastEvent == Pop && fromModel.body.usesHardwareConfirmationSlideTransition() ->
+      slideOverlayAnimation(AxisAnimationDirection.Backward)
+    else -> null
+  }
+}
+
+private fun BodyModel.usesHardwareConfirmationSlideTransition(): Boolean {
+  return this is CompleteTwoTapBodyModel ||
+    this is HardwareConfirmationScreenModel ||
+    this is HardwareConfirmationHelpBodyModel ||
+    this is HardwareConfirmationCanceledScreenModel ||
+    this is HardwareConfirmationResultBodyModel
+}
+
+private fun nfcContentTransform(
+  lastEvent: cafe.adriel.voyager.core.stack.StackEvent,
+  fromModel: ScreenModel,
+  toModel: ScreenModel,
+): ContentTransform? {
+  return when {
+    lastEvent == Push && toModel.usesNfcSlideTransition() ->
+      slideOverlayAnimation(AxisAnimationDirection.Forward)
+    lastEvent == Pop && fromModel.usesNfcSlideTransition() ->
+      slideOverlayAnimation(AxisAnimationDirection.Backward)
+    else -> null
+  }
+}
+
+private fun ScreenModel.usesNfcSlideTransition(): Boolean {
+  return platformNfcScreen ||
+    (
+      presentationStyle.isModalPresentationStyle() &&
+        (
+          body is SignTransactionNfcBodyModel ||
+            body is FwupNfcBodyModel
+        )
+    )
+}
+
+private fun shouldSkipTransitionAnimation(
+  lastEvent: cafe.adriel.voyager.core.stack.StackEvent,
+  fromModel: ScreenModel,
+  toModel: ScreenModel,
+  isDesignSystemV2Enabled: Boolean,
+): Boolean {
+  return lastEvent == Replace ||
+    lastEvent == Idle ||
+    isHomeSecurityHubTransition(fromModel.body, toModel.body) ||
+    shouldSkipRealtimeSurfaceTransition(fromModel, toModel, isDesignSystemV2Enabled) ||
+    shouldKeepHomeBannerFixed(fromModel, toModel, isDesignSystemV2Enabled)
+}
+
+private fun isHomeSecurityHubTransition(
+  fromBody: BodyModel,
+  toBody: BodyModel,
+): Boolean {
+  return (fromBody is MoneyHomeBodyModel && toBody is SecurityHubBodyModel) ||
+    (fromBody is SecurityHubBodyModel && toBody is MoneyHomeBodyModel)
+}
+
+private fun shouldSkipRealtimeSurfaceTransition(
+  fromModel: ScreenModel,
+  toModel: ScreenModel,
+  isDesignSystemV2Enabled: Boolean,
+): Boolean {
+  if (fromModel.presentationStyle.isModalPresentationStyle() || toModel.presentationStyle.isModalPresentationStyle()) {
+    return false
+  }
+
+  val fromBody = fromModel.body
+  val toBody = toModel.body
+  return isDesignSystemV2Enabled &&
+    (
+      fromBody is DeviceSettingsFormBodyModel ||
+        toBody is DeviceSettingsFormBodyModel ||
+        fromBody.hasInteractiveBitkeyWaitingSurface(isDesignSystemV2Enabled) ||
+        toBody.hasInteractiveBitkeyWaitingSurface(isDesignSystemV2Enabled)
+    )
+}
+
+private fun BodyModel.hasInteractiveBitkeyWaitingSurface(
+  isDesignSystemV2Enabled: Boolean,
+): Boolean {
+  val formBody = this as? FormBodyModel ?: return false
+  val renderedMainContent =
+    if (isDesignSystemV2Enabled) {
+      formBody.designSystemV2Model?.mainContentList ?: formBody.mainContentList
+    } else {
+      formBody.mainContentList
     }
+
+  return formBody.renderContext == build.wallet.statemachine.core.form.RenderContext.Screen &&
+    renderedMainContent.any { mainContent ->
+      mainContent.isInteractiveBitkeyWaitingSurface()
+    }
+}
+
+private fun FormMainContentModel.isInteractiveBitkeyWaitingSurface(): Boolean {
+  if (this !is FormMainContentModel.Showcase) return false
+  val videoContent = content as? FormMainContentModel.Showcase.Content.VideoContent ?: return false
+
+  return videoContent.video == FormMainContentModel.Showcase.Content.VideoContent.Video.BITKEY_WAITING_3D &&
+    supportsBitkeyDevice3DMedia(videoContent.hardwareType)
+}
+
+private fun ScreenPresentationStyle.isModalPresentationStyle(): Boolean {
+  return this == Modal || this == ModalFullScreen
+}
+
+private fun shouldKeepHomeBannerFixed(
+  fromModel: ScreenModel,
+  toModel: ScreenModel,
+  isDesignSystemV2Enabled: Boolean,
+): Boolean {
+  return isDesignSystemV2Enabled &&
+    isMoneyHomeSettingsTransition(fromModel.body, toModel.body) &&
+    (fromModel.statusBannerModel != null || toModel.statusBannerModel != null)
+}
+
+private fun isMoneyHomeSettingsTransition(
+  fromBody: BodyModel,
+  toBody: BodyModel,
+): Boolean {
+  return (fromBody is MoneyHomeBodyModel && toBody is SettingsBodyModel) ||
+    (fromBody is SettingsBodyModel && toBody is MoneyHomeBodyModel)
+}
+
+private fun Navigator.replaceAllIfRootScreen(
+  isTargetVisible: Boolean,
+  isCurrentVisible: Boolean,
+  screen: VoyagerScreen,
+) {
+  if (isTargetVisible && isCurrentVisible && screen.isBackstackRoot()) {
+    replaceAll(item = screen)
   }
 }
 
@@ -329,7 +520,7 @@ private fun VoyagerScreen.isBackstackRoot(): Boolean {
 private fun Navigator.shouldReplaceModel(model: ScreenModel): Boolean {
   return isTransitioningFromLoadingToLoading(model) ||
     isTransitioningFromPairHwToPairHw(model) ||
-    isTransitioningFromNfcToNfc(model) ||
+    isTransitioningBetweenNfcScreens(model) ||
     isTransitioningFromFwupToFwup(model) ||
     isTransitioningBetweenSplashBiometricAndSplashLock()
 }
@@ -357,9 +548,14 @@ private fun Navigator.isTransitioningBetweenSplashBiometricAndSplashLock(): Bool
     (previousModel()?.body is SplashLockModel && currentModel().body is SplashBodyModel)
 }
 
-private fun Navigator.isTransitioningFromNfcToNfc(newModel: ScreenModel): Boolean {
-  return currentModel().body is NfcBodyModel &&
-    newModel.body is NfcBodyModel
+private fun Navigator.isTransitioningBetweenNfcScreens(newModel: ScreenModel): Boolean {
+  // NFC progress-state updates should replace the current screen model in place.
+  // Recreating the screen resets the Android video background and makes the flow feel jumpy.
+  return (currentModel().body is NfcBodyModel && newModel.body is NfcBodyModel) ||
+    (
+      currentModel().body is SignTransactionNfcBodyModel &&
+        newModel.body is SignTransactionNfcBodyModel
+    )
 }
 
 private fun Navigator.previousModel(): ScreenModel? {

@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#define MCU_AES_TIMEOUT_US (1000000u)
+#define MCU_AES_TIMEOUT_MS (1000u)
 
 /* GCM Phase definitions */
 #define GCM_PHASE_INIT    (0)
@@ -269,6 +269,8 @@ mcu_err_t mcu_aes_gcm_decrypt(const uint8_t* key, size_t key_size, const uint8_t
   rtos_mutex_lock(&state.access);
 #endif
 
+  uint8_t computed_tag[MCU_AES_256_GCM_TAG_SIZE] = {0};
+
   mcu_err_t err = _mcu_aes_prepare_gcm(key, iv, AES_MODE_DECRYPT);
   if (err != MCU_ERROR_OK) {
     goto cleanup;
@@ -336,7 +338,6 @@ mcu_err_t mcu_aes_gcm_decrypt(const uint8_t* key, size_t key_size, const uint8_t
     goto cleanup;
   }
 
-  uint8_t computed_tag[MCU_AES_256_GCM_TAG_SIZE];
   _mcu_aes_read_data((uint32_t*)computed_tag);
   AES->ICR = AES_ICR_CCF;
 
@@ -348,6 +349,7 @@ mcu_err_t mcu_aes_gcm_decrypt(const uint8_t* key, size_t key_size, const uint8_t
   err = MCU_ERROR_OK;
 
 cleanup:
+  memzero(computed_tag, MCU_AES_256_GCM_TAG_SIZE);
   AES->CR &= ~AES_CR_EN;
   AES->CR &= ~AES_CR_NPBLB;
   AES->ICR = AES_ICR_CLEAR_ALL;
@@ -371,9 +373,9 @@ static void _mcu_aes_reset(void) {
 
 static mcu_err_t _mcu_aes_wait_completion(void) {
 #ifdef IMAGE_TYPE_APPLICATION
-  const uint64_t start_time = rtos_thread_micros();
+  const uint32_t start_time = rtos_thread_systime();
   while (((AES->SR & AES_SR_CCF) == 0) &&
-         ((rtos_thread_micros() - start_time) < MCU_AES_TIMEOUT_US)) {
+         ((rtos_thread_systime() - start_time) < MCU_AES_TIMEOUT_MS)) {
 #else
 #ifdef IMAGE_TYPE_BOOTLOADER
   while ((AES->SR & AES_SR_CCF) == 0) {

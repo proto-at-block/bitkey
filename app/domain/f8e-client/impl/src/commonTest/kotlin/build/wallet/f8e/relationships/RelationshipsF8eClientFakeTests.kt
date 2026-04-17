@@ -11,6 +11,7 @@ import build.wallet.bitkey.relationships.TrustedContactAlias
 import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.ktor.result.HttpError.UnhandledException
 import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.relationships.ProtectedCustomerEnrollmentPakeKeyFake
@@ -39,33 +40,16 @@ class RelationshipsF8eClientFakeTests : FunSpec({
   val fullAccount1 =
     FullAccount(
       accountId = FullAccountId("1"),
-      config =
-        FullAccountConfig(
-          bitcoinNetworkType = BITCOIN,
-          f8eEnvironment = Development,
-          isTestAccount = false,
-          isUsingSocRecFakes = false,
-          isHardwareFake = false,
-          hardwareType = HardwareType.W1
-        ),
       keybox = KeyboxMock
     )
   val fullAccount2 =
     FullAccount(
       accountId = FullAccountId("2"),
-      config =
-        FullAccountConfig(
-          bitcoinNetworkType = BITCOIN,
-          f8eEnvironment = Development,
-          isTestAccount = false,
-          isUsingSocRecFakes = false,
-          isHardwareFake = false,
-          hardwareType = HardwareType.W1
-        ),
       keybox = KeyboxMock
     )
 
   val hwPopMock = HwFactorProofOfPossession("")
+  val proofMock = PrivilegedActionProof.HwKeyProof(hwPopMock)
 
   beforeTest {
     uuid.reset()
@@ -77,7 +61,7 @@ class RelationshipsF8eClientFakeTests : FunSpec({
     serviceFake
       .createInvitation(
         account = fullAccount2,
-        hardwareProofOfPossession = hwPopMock,
+        proof = proofMock,
         trustedContactAlias = TrustedContactAlias("Jack"),
         protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey,
         roles = setOf(TrustedContactRole.SocialRecoveryContact)
@@ -104,7 +88,7 @@ class RelationshipsF8eClientFakeTests : FunSpec({
     serviceFake
       .createInvitation(
         account = fullAccount2,
-        hardwareProofOfPossession = hwPopMock,
+        proof = proofMock,
         trustedContactAlias = TrustedContactAlias("Bob"),
         protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey,
         roles = setOf(TrustedContactRole.SocialRecoveryContact)
@@ -137,7 +121,7 @@ class RelationshipsF8eClientFakeTests : FunSpec({
     serviceFake
       .createInvitation(
         account = fullAccount1,
-        hardwareProofOfPossession = hwPopMock,
+        proof = proofMock,
         trustedContactAlias = TrustedContactAlias("Jack"),
         protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey,
         roles = setOf(TrustedContactRole.SocialRecoveryContact)
@@ -164,7 +148,7 @@ class RelationshipsF8eClientFakeTests : FunSpec({
     serviceFake.removeRelationship(
       accountId = fullAccount1.accountId,
       f8eEnvironment = fullAccount1.config.f8eEnvironment,
-      hardwareProofOfPossession = hwPopMock,
+      proof = PrivilegedActionProof.HwKeyProof(hwPopMock),
       authTokenScope = AuthTokenScope.Global,
       relationshipId = "uuid-0"
     ).shouldBeOk()
@@ -185,7 +169,7 @@ class RelationshipsF8eClientFakeTests : FunSpec({
     serviceFake
       .createInvitation(
         account = fullAccount1,
-        hardwareProofOfPossession = hwPopMock,
+        proof = proofMock,
         trustedContactAlias = TrustedContactAlias("Jack"),
         protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey,
         roles = setOf(TrustedContactRole.SocialRecoveryContact)
@@ -212,7 +196,7 @@ class RelationshipsF8eClientFakeTests : FunSpec({
     serviceFake.removeRelationship(
       accountId = fullAccount1.accountId,
       f8eEnvironment = fullAccount1.config.f8eEnvironment,
-      hardwareProofOfPossession = hwPopMock,
+      proof = PrivilegedActionProof.HwKeyProof(hwPopMock),
       authTokenScope = AuthTokenScope.Global,
       relationshipId = "uuid-1"
     ).shouldBeErrOfType<UnhandledException>().cause.message.shouldBe(
@@ -238,7 +222,7 @@ class RelationshipsF8eClientFakeTests : FunSpec({
     serviceFake
       .createInvitation(
         account = fullAccount2,
-        hardwareProofOfPossession = hwPopMock,
+        proof = proofMock,
         trustedContactAlias = TrustedContactAlias("Jack"),
         protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey,
         roles = setOf(TrustedContactRole.SocialRecoveryContact)
@@ -263,7 +247,7 @@ class RelationshipsF8eClientFakeTests : FunSpec({
     // refresh invite
     serviceFake.refreshInvitation(
       account = fullAccount2,
-      hardwareProofOfPossession = hwPopMock,
+      proof = proofMock,
       relationshipId = "uuid-0"
     ).shouldBeOk {
       it.relationshipId.shouldBe("uuid-0")
@@ -291,7 +275,7 @@ class RelationshipsF8eClientFakeTests : FunSpec({
     serviceFake
       .createInvitation(
         account = fullAccount2,
-        hardwareProofOfPossession = hwPopMock,
+        proof = proofMock,
         trustedContactAlias = TrustedContactAlias("Jack"),
         protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey,
         roles = setOf(TrustedContactRole.SocialRecoveryContact)
@@ -303,7 +287,7 @@ class RelationshipsF8eClientFakeTests : FunSpec({
 
     serviceFake.refreshInvitation(
       account = fullAccount2,
-      hardwareProofOfPossession = hwPopMock,
+      proof = proofMock,
       relationshipId = "uuid-123123123123"
     ).shouldBeErrOfType<UnhandledException>().cause.message.shouldBe(
       "Invitation uuid-123123123123 not found."

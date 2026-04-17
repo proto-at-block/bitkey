@@ -4,8 +4,8 @@ import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
-import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
+import build.wallet.statemachine.auth.HardwareAuthUiProps
+import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
@@ -33,10 +33,10 @@ class RecoveryInProgressUiStateMachineTests : FunSpec({
           ScreenStateMachineMock<CompletingRecoveryUiProps>(
             "completing-recovery"
           ) {},
-      proofOfPossessionNfcStateMachine =
-        object : ProofOfPossessionNfcStateMachine,
-          ScreenStateMachineMock<ProofOfPossessionNfcProps>(
-            "proof-of-possession-nfc"
+      hardwareAuthUiStateMachine =
+        object : HardwareAuthUiStateMachine,
+          ScreenStateMachineMock<HardwareAuthUiProps>(
+            "hardware-auth"
           ) {},
       durationFormatter = DurationFormatterFake(),
       clock = ClockFake(Instant.DISTANT_PAST),

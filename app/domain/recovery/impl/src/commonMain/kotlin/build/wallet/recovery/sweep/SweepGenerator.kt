@@ -10,6 +10,7 @@ import com.github.michaelbull.result.Result
 interface SweepGenerator {
   suspend fun generateSweep(
     keybox: Keybox,
+    sweepContext: SweepContext,
     context: SweepGenerationContext = SweepGenerationContext.Real,
   ): Result<List<SweepPsbt>, SweepGeneratorError>
 

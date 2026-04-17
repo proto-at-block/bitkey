@@ -31,6 +31,7 @@ mod scheduled_notifications_integration_tests;
 mod send_customer_notifications_integration_tests;
 mod transaction_integration_tests;
 mod transaction_verification_integration_tests;
+mod w1_to_w3_upgrade_integration_tests;
 
 #[derive(Debug, Default)]
 pub struct TestContext {

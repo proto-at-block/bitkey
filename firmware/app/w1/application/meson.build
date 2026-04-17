@@ -33,7 +33,7 @@ common_deps = [
 
   # Tasks
   nfc_task_w1a_dep,
-  auth_task_dep,
+  auth_task_deps['w1'],
   key_manager_task_deps['w1'],
   mfgtest_task_deps['w1'],
   sysinfo_task_deps['w1'],
@@ -50,21 +50,19 @@ common_deps = [
   metadata_dep,
   fs_dep,
   fs_efr32mg24_dep,
-  fwup_deps['efr32'],
   wallet_dep,
   bitlog_dep,
   feature_flags_dep,
+  secure_channel_deps['w1'],
   secutils_dep,
   canary_dep,
   mpu_regions_dep,
+  grant_dep,
 
   # OS
   freertos_deps['w1'],
   rtos_deps['efr32mg24'],
 ]
-
-base_deps = common_deps + [ui_task_led_dep]
-mfgtest_base_deps = common_deps + [ui_task_led_mfgtest_dep]
 
 dev_tools_deps = [
   shell_deps['w1'],
@@ -89,10 +87,6 @@ dev_tools_deps = [
   unlock_cmd_dep,
 ]
 
-dev_variant_deps = base_deps + dev_tools_deps
-mfgtest_variant_deps = mfgtest_base_deps + dev_tools_deps
-prod_variant_deps = base_deps + [log_noprintf_dep]
-
 foreach hardware : w1_hardware_configs.keys()
   foreach build_env : w1_build_env_configs.keys()
     foreach slot : slot_configs.keys()
@@ -110,13 +104,24 @@ foreach hardware : w1_hardware_configs.keys()
       build_env_deps = w1_build_env_configs[build_env][0]
       build_env_args = w1_build_env_configs[build_env][1]
       key_type = w1_build_env_configs[build_env][2]
+      fwup_platform_dep = fwup_deps['efr32']
+
+      if build_env == 'mfgtest-dev'
+        fwup_platform_dep = fwup_deps['efr32-mfgtest']
+      endif
+
+      base_deps = common_deps + [fwup_platform_dep, ui_task_led_dep]
+      mfgtest_base_deps = common_deps + [fwup_platform_dep, ui_task_led_mfgtest_dep]
+      dev_variant_deps = base_deps + dev_tools_deps
+      mfgtest_variant_deps = mfgtest_base_deps + dev_tools_deps
+      prod_variant_deps = base_deps + [log_noprintf_dep]
 
       if build_env == 'prod'
-        deps = prod_variant_deps
+        deps = prod_variant_deps + [opt_deps['prod']]
       elif build_env == 'mfgtest-dev'
-        deps = mfgtest_variant_deps
+        deps = mfgtest_variant_deps + [opt_deps['dev']]
       else
-        deps = dev_variant_deps
+        deps = dev_variant_deps + [opt_deps['dev']]
       endif
 
       ldscript = custom_target(ldscript_name,
@@ -186,10 +191,7 @@ foreach hardware : w1_hardware_configs.keys()
 
       # Sign it
       combined_elf_input = '@OUTDIR@'/elf_name
-      signed_elf = custom_target(signed_elf_name,
-        input : combined_elf,
-        output : signed_elf_name,
-        command : [signer, 'sign',
+      signer_cmd = [signer, 'sign',
                   '--elf', combined_elf_input,
                   '--product', 'w1a',
                   '--key-type', key_type,
@@ -197,7 +199,11 @@ foreach hardware : w1_hardware_configs.keys()
                   '--slot', slot,
                   '--app-version', fw_version,
                   '--partitions-config', partitions_config,
-                  '--keys-dir', meson.current_source_dir() + '/' + fw_root + '/config/keys'],
+                  '--keys-dir', meson.current_source_dir() + '/' + fw_root + '/config/keys']
+      signed_elf = custom_target(signed_elf_name,
+        input : combined_elf,
+        output : signed_elf_name,
+        command : signer_cmd,
         build_by_default : true,
         depends : [combined_elf]
       )

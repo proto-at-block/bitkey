@@ -47,12 +47,16 @@ void display_send_task_mpu_init(void) {
                  mpu_calc_region_size(&__shared_task_bss_start__, &__shared_task_bss_end__),
                  MPU_PARAMS_RW_NOEXEC);
 
+  /* Shared task data */
+  mpu_set_region(regions, idx++, (void*)&__shared_task_data_start__,
+                 mpu_calc_region_size(&__shared_task_data_start__, &__shared_task_data_end__),
+                 MPU_PARAMS_RW_NOEXEC);
+
   /* Shared protected data (read-only) */
   mpu_set_region(
     regions, idx++, (void*)&__shared_task_protected_start__,
     mpu_calc_region_size(&__shared_task_protected_start__, &__shared_task_protected_end__),
     MPU_PARAMS_RO_NOEXEC);
 
-  /* Display send task needs to be privileged to access UC buffers */
-  _display_send_thread_regions.privilege = rtos_thread_privileged_bit;
+  _display_send_thread_regions.privilege = rtos_thread_unprivileged_bit;
 }

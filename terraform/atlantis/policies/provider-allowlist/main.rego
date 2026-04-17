@@ -1,6 +1,8 @@
 package main
 
-provider_allowlist = {
+import rego.v1
+
+provider_allowlist := {
     "registry.terraform.io/cloudflare/cloudflare",
     "registry.terraform.io/datadog/datadog",
     "registry.terraform.io/hashicorp/archive",
@@ -12,12 +14,12 @@ provider_allowlist = {
     "registry.terraform.io/hashicorp/time",
 }
 
-denied_providers[name] {
-    provider := input.provider_schemas[name]
-    not provider_allowlist[name]
+denied_providers contains name if {
+    some name in object.keys(input.provider_schemas)
+    not name in provider_allowlist
 }
 
-deny[msg] {
-	count(denied_providers) > 0
-	msg := sprintf("found providers not in allowlist: %s", [denied_providers])
+deny contains msg if {
+    count(denied_providers) > 0
+    msg := sprintf("found providers not in allowlist: %s", [denied_providers])
 }

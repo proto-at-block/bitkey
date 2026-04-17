@@ -31,4 +31,25 @@ class WsmVerifierImpl : WsmVerifier {
       )
     )
   }
+
+  override fun verifyPublicKeys(
+    appAuthPubHex: String,
+    hardwareAuthPubHex: String,
+    appSpendingPubHex: String,
+    hardwareSpendingPubHex: String,
+    serverSpendingPubHex: String,
+    signature: String,
+    keyVariant: WsmIntegrityKeyVariant,
+  ): WsmVerifierResult {
+    return WsmVerifierResult(
+      WsmIntegrityVerifier(keyVariant.pubkey).verifyPublicKeys(
+        appAuthPubHex = appAuthPubHex,
+        hardwareAuthPubHex = hardwareAuthPubHex,
+        appSpendingPubHex = appSpendingPubHex,
+        hardwareSpendingPubHex = hardwareSpendingPubHex,
+        serverSpendingPubHex = serverSpendingPubHex,
+        signature = signature
+      )
+    )
+  }
 }

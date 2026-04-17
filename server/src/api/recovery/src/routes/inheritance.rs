@@ -205,7 +205,7 @@ pub struct CreateInheritanceClaimResponse {
 /// to claim funds from a deceased benefactor. The beneficiary must provide
 /// the recovery relationship id and the auth keys to start the claim.
 ///
-#[instrument(err, skip(account_service, inheritance_service))]
+#[instrument(err, skip(account_service, inheritance_service, request))]
 #[utoipa::path(
     post,
     path = "/api/accounts/{account_id}/recovery/inheritance/claims",
@@ -470,7 +470,7 @@ pub struct LockInheritanceClaimResponse {
 /// 5) the beneficiary must have a valid recovery relationship with the benefactor.
 /// 6) provide a valid challenge
 ///
-#[instrument(err, skip(account_service, inheritance_service))]
+#[instrument(err, skip(account_service, inheritance_service, request))]
 #[utoipa::path(
     put,
     path = "/api/accounts/{account_id}/recovery/inheritance/claims/{inheritance_claim_id}/lock",
@@ -532,7 +532,7 @@ pub struct CompleteInheritanceClaimResponse {
 /// 4) provide a valid singly signed psbt
 /// 5) In case of RBF, the PSBT must have the same receiver address.
 ///
-#[instrument(err, skip(account_service, inheritance_service, feature_flags_service))]
+#[instrument(err, skip(account_service, inheritance_service, feature_flags_service, request))]
 #[utoipa::path(
     put,
     path = "/api/accounts/{account_id}/recovery/inheritance/claims/{inheritance_claim_id}/complete",

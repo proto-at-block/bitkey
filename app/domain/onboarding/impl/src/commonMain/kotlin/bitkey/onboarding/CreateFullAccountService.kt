@@ -136,7 +136,7 @@ class CreateFullAccountServiceImpl(
         .mapError { FailedToSaveKeybox(it) }
         .bind()
 
-      FullAccount(accountId, keybox.config, keybox)
+      FullAccount(accountId, keybox)
     }
 
   /**

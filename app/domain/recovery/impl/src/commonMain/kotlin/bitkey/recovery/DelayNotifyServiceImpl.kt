@@ -1,7 +1,6 @@
 package bitkey.recovery
 
 import bitkey.account.AccountConfigService
-import bitkey.auth.AuthTokenScope
 import bitkey.auth.AuthTokenScope.Global
 import bitkey.onboarding.LiteAccountCreationError.LiteAccountCreationDatabaseError.FailedToSaveAuthTokens
 import bitkey.recovery.DelayNotifyCancellationRequest.CancelLostAppAndCloudRecovery
@@ -22,16 +21,18 @@ import build.wallet.crypto.PublicKey
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.ensure
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.onboarding.CreateAccountKeysetF8eClient
 import build.wallet.f8e.onboarding.CreateAccountKeysetV2F8eClient
 import build.wallet.f8e.onboarding.SetActiveSpendingKeysetF8eClient
 import build.wallet.f8e.recovery.CompleteDelayNotifyF8eClient
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.f8e.recovery.PrivateMultisigRemoteKeyset
+import build.wallet.f8e.recovery.SignedKeysetVerificationResponse
 import build.wallet.feature.flags.ChaincodeDelegationFeatureFlag
 import build.wallet.feature.flags.UpdateToPrivateWalletOnRecoveryFeatureFlag
 import build.wallet.feature.isEnabled
+
 import build.wallet.keybox.KeyboxDao
 import build.wallet.logging.logFailure
 import build.wallet.logging.logNetworkFailure
@@ -75,16 +76,18 @@ class DelayNotifyServiceImpl(
 ) : DelayNotifyService {
   override suspend fun cancelDelayNotify(
     request: DelayNotifyCancellationRequest,
-  ): Result<Unit, Error> =
+  ): Result<Unit, CancelDelayNotifyRecoveryError> =
     coroutineBinding {
       val recovery = recoveryStatusService.status.value
       ensure(recovery is Recovery.StillRecovering) {
-        Error("Recovery is not in progress")
+        CancelDelayNotifyRecoveryError.LocalCancelDelayNotifyError(
+          Error("Recovery is not in progress")
+        )
       }
       when (request) {
         is CancelLostAppAndCloudRecovery -> lostAppAndCloudRecoveryService.cancelRecovery(
           accountId = recovery.fullAccountId,
-          hwProofOfPossession = request.hwProofOfPossession
+          proof = request.proof
         )
         CancelLostHardwareRecovery -> lostHardwareRecoveryService.cancelRecovery()
       }.bind()
@@ -92,8 +95,8 @@ class DelayNotifyServiceImpl(
 
   override suspend fun activateSpendingKeyset(
     keyset: F8eSpendingKeyset,
-    hardwareProofOfPossession: HwFactorProofOfPossession,
-  ): Result<Unit, Error> =
+    proof: PrivilegedActionProof,
+  ): Result<SignedKeysetVerificationResponse?, Error> =
     coroutineBinding {
       val recovery = recoveryStatusService.status.value
       ensure(recovery is Recovery.StillRecovering) {
@@ -101,13 +104,13 @@ class DelayNotifyServiceImpl(
       }
 
       val config = accountConfigService.activeOrDefaultConfig().value
-      setActiveSpendingKeysetF8eClient
+      val signedKeysetVerification = setActiveSpendingKeysetF8eClient
         .set(
           f8eEnvironment = config.f8eEnvironment,
           fullAccountId = recovery.fullAccountId,
           keysetId = keyset.keysetId,
           appAuthKey = recovery.appGlobalAuthKey,
-          hwFactorProofOfPossession = hardwareProofOfPossession
+          proof = proof
         )
         .bind()
 
@@ -117,11 +120,11 @@ class DelayNotifyServiceImpl(
         )
       )
         .bind()
+
+      signedKeysetVerification
     }
 
-  override suspend fun createSpendingKeyset(
-    hardwareProofOfPossession: HwFactorProofOfPossession,
-  ): Result<F8eSpendingKeyset, Error> =
+  override suspend fun createSpendingKeyset(): Result<F8eSpendingKeyset, Error> =
     coroutineBinding {
       val recovery = recoveryStatusService.status.value
       ensure(recovery is Recovery.StillRecovering) {
@@ -130,7 +133,7 @@ class DelayNotifyServiceImpl(
 
       deviceTokenManager.addDeviceTokenIfPresentForAccount(
         fullAccountId = recovery.fullAccountId,
-        authTokenScope = AuthTokenScope.Recovery
+        authTokenScope = RecoveryScope
       ).result.logFailure {
         "Failed to add device token for account during Social Recovery"
       }
@@ -157,8 +160,7 @@ class DelayNotifyServiceImpl(
             appSpendingKey = recovery.appSpendingKey,
             hardwareSpendingKey = recovery.hardwareSpendingKey,
             network = config.bitcoinNetworkType,
-            appAuthKey = recovery.appGlobalAuthKey,
-            hardwareProofOfPossession = hardwareProofOfPossession
+            appAuthKey = recovery.appGlobalAuthKey
           )
           .bind()
       } else {
@@ -169,8 +171,7 @@ class DelayNotifyServiceImpl(
             appSpendingKey = recovery.appSpendingKey,
             hardwareSpendingKey = recovery.hardwareSpendingKey,
             network = config.bitcoinNetworkType,
-            appAuthKey = recovery.appGlobalAuthKey,
-            hardwareProofOfPossession = hardwareProofOfPossession
+            appAuthKey = recovery.appGlobalAuthKey
           )
           .bind()
       }
@@ -348,7 +349,7 @@ class DelayNotifyServiceImpl(
       relationships.protectedCustomers.forEach { protectedCustomer ->
         relationshipsService.removeRelationshipWithoutSyncing(
           accountId = recovery.fullAccountId,
-          hardwareProofOfPossession = null,
+          proof = null,
           RecoveryScope,
           protectedCustomer.relationshipId
         )

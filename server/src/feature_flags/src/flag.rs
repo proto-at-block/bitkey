@@ -25,7 +25,7 @@ where
         }
     }
 
-    pub fn resolver(&self, service: &Service) -> Resolver<T> {
+    pub fn resolver(&self, service: &Service) -> Resolver<'_, T> {
         self.with_context(service, "flag")
             .expect("context should always be valid")
     }
@@ -34,7 +34,7 @@ where
         &self,
         service: &Service,
         context_key: &ContextKey,
-    ) -> Result<Resolver<T>, Error> {
+    ) -> Result<Resolver<'_, T>, Error> {
         Ok(Resolver {
             flag: self.clone(),
             service: service.clone(),
@@ -42,7 +42,7 @@ where
         })
     }
 
-    fn with_context(&self, service: &Service, context: &str) -> Result<Resolver<T>, Error> {
+    fn with_context(&self, service: &Service, context: &str) -> Result<Resolver<'_, T>, Error> {
         let context = ContextBuilder::new(context)
             .build()
             .map_err(Error::Context)?;

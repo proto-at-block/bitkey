@@ -40,7 +40,8 @@ import build.wallet.recovery.RecoveryDao
 import build.wallet.recovery.socrec.SocRecStartedChallengeDao
 import build.wallet.relationships.RelationshipsKeysDao
 import build.wallet.relationships.RelationshipsService
-import build.wallet.wallet.migration.PrivateWalletMigrationService
+import build.wallet.wallet.migration.MigrationService
+import build.wallet.wallet.migration.MigrationType
 import com.github.michaelbull.result.coroutines.coroutineBinding
 
 @BitkeyInject(AppScope::class)
@@ -81,7 +82,7 @@ class AppDataDeleterImpl(
   private val securityRecommendationInteractionDao: SecurityRecommendationInteractionDao,
   private val coachmarkService: CoachmarkService,
   private val descriptorBackupVerificationDao: DescriptorBackupVerificationDao,
-  private val privateWalletMigrationService: PrivateWalletMigrationService,
+  private val migrationService: MigrationService,
 ) : AppDataDeleter {
   override suspend fun deleteAll() =
     coroutineBinding {
@@ -121,7 +122,8 @@ class AppDataDeleterImpl(
       securityRecommendationInteractionDao.clear()
       coachmarkService.resetCoachmarks()
       descriptorBackupVerificationDao.clear()
-      privateWalletMigrationService.clearMigration()
+      migrationService.clearMigration(MigrationType.PrivateWalletMigration)
+      migrationService.clearMigration(MigrationType.W3Upgrade)
 
       // Make sure we clear Account data last because this will transition the UI
       accountService.clear().bind()

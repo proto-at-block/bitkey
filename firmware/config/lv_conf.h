@@ -76,7 +76,7 @@
  *====================*/
 
 /** Default display refresh, input device read and animation step period. */
-#define LV_DEF_REFR_PERIOD  20      /**< [ms] */
+#define LV_DEF_REFR_PERIOD  16      /**< [ms] */
 
 /** Default Dots Per Inch. Used to initialize default sizes such as widgets sized, style paddings.
  * (Not so important, you can adjust it to modify default sizes and spaces.) */
@@ -130,14 +130,23 @@
  * "Transformed layers" (if `transform_angle/zoom` are set) use larger buffers
  * and can't be drawn in chunks. */
 
-/** The target buffer size for simple layer chunks. */
-#define LV_DRAW_LAYER_SIMPLE_BUF_SIZE    (24 * 1024)    /**< [bytes]*/
+/** The target buffer size for simple layer chunks.
+ * At 466 px wide, 64 KB fits about 35 rows for ARGB temporary layers, which reduces chunking
+ * overhead for opacity and transition effects.
+ */
+#define LV_DRAW_LAYER_SIMPLE_BUF_SIZE    (64 * 1024)    /**< [bytes]*/
 
 /* Limit the max allocated memory for simple and transformed layers.
  * It should be at least `LV_DRAW_LAYER_SIMPLE_BUF_SIZE` sized but if transformed layers are also used
  * it should be enough to store the largest widget too (width x height x 4 area).
  * Set it to 0 to have no limit. */
-#define LV_DRAW_LAYER_MAX_MEMORY 0  /**< No limit by default [bytes]*/
+#define LV_DRAW_LAYER_MAX_MEMORY (96 * 1024)  /**< 75% of LV_MEM_SIZE; prevents layer allocs from exhausting the heap [bytes] */
+
+/* Compile-time sanity checks for layer memory configuration */
+_Static_assert(LV_DRAW_LAYER_MAX_MEMORY >= LV_DRAW_LAYER_SIMPLE_BUF_SIZE,
+    "LV_DRAW_LAYER_MAX_MEMORY must be >= LV_DRAW_LAYER_SIMPLE_BUF_SIZE");
+_Static_assert(LV_DRAW_LAYER_MAX_MEMORY < LV_MEM_SIZE,
+    "LV_DRAW_LAYER_MAX_MEMORY must be < LV_MEM_SIZE to leave heap headroom");
 
 /** Stack size of drawing thread.
  * NOTE: If FreeType or ThorVG is enabled, it is recommended to set it to 32KB or more.
@@ -170,7 +179,7 @@
     #define LV_DRAW_SW_SUPPORT_ARGB8888_PREMULTIPLIED 0
     #define LV_DRAW_SW_SUPPORT_L8           0
     #define LV_DRAW_SW_SUPPORT_AL88         0
-    #define LV_DRAW_SW_SUPPORT_A8           0
+    #define LV_DRAW_SW_SUPPORT_A8           1
     #define LV_DRAW_SW_SUPPORT_I1           0
 
     /* The threshold of the luminance to consider a pixel as
@@ -326,7 +335,7 @@
 #define LV_COLOR_MIX_ROUND_OFS  0
 
 /** Add 2 x 32-bit variables to each `lv_obj_t` to speed up getting style properties */
-#define LV_OBJ_STYLE_CACHE      0
+#define LV_OBJ_STYLE_CACHE      1
 
 /** Automatically assign an ID when obj is created */
 #define LV_OBJ_ID_AUTO_ASSIGN   LV_USE_OBJ_ID
@@ -340,7 +349,7 @@
 #define LV_USE_OBJ_ID_BUILTIN   1
 
 /** Enable property name support. */
-#define LV_USE_OBJ_PROPERTY_NAME 1
+#define LV_USE_OBJ_PROPERTY_NAME 0
 
 
 /*=====================
@@ -504,7 +513,7 @@
 
 #define LV_WIDGETS_HAS_DEFAULT_VALUE  1
 
-#define LV_USE_ANIMIMG    1
+#define LV_USE_ANIMIMG    0
 
 #define LV_USE_ARC        1
 
@@ -529,9 +538,9 @@
     #define LV_USE_CALENDAR_CHINESE 0
 #endif  /*LV_USE_CALENDAR*/
 
-#define LV_USE_CANVAS     1
+#define LV_USE_CANVAS     0
 
-#define LV_USE_CHART      1
+#define LV_USE_CHART      0
 
 #define LV_USE_CHECKBOX   0
 
@@ -558,7 +567,7 @@
 
 #define LV_USE_LOTTIE     0  /**< Requires: lv_canvas, thorvg */
 
-#define LV_USE_MENU       1
+#define LV_USE_MENU       0
 
 #define LV_USE_MSGBOX     0
 
@@ -612,7 +621,7 @@
 #define LV_USE_FLEX 1
 
 /** A layout similar to Grid in CSS. */
-#define LV_USE_GRID 1
+#define LV_USE_GRID 0
 
 /*====================
  * 3RD PARTS LIBRARIES
@@ -620,7 +629,7 @@
 /* Documentation for libraries can be found here: https://docs.lvgl.io/master/details/libs/index.html . */
 
 /** QR code library */
-#define LV_USE_QRCODE 1
+#define LV_USE_QRCODE 0
 
 /*==================
  * DEVICES

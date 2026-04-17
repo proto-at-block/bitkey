@@ -85,3 +85,17 @@ data class DescriptorPublicKey(
       )
   }
 }
+
+/**
+ * Extracts the BIP84 account index from the key's origin derivation path.
+ *
+ * Expected format: /84'/coin'/account' (e.g., /84'/0'/0' or /84h/1h/2h)
+ * Accepts any hardening notation: ' (apostrophe), h, or H.
+ * Returns 0 if the path doesn't match the expected format.
+ */
+fun DescriptorPublicKey.extractAccountIndex(): UInt {
+  // Pattern matches /84<h>/coin<h>/account<h> where <h> is any hardening notation (', h, H)
+  val pathPattern = Regex("""^/84['hH]/\d+['hH]/(\d+)['hH]$""")
+  val match = pathPattern.matchEntire(origin.derivationPath)
+  return match?.groupValues?.get(1)?.toUIntOrNull() ?: 0u
+}

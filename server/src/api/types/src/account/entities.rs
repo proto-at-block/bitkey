@@ -39,6 +39,85 @@ pub enum Factor {
     Hw,
 }
 
+#[derive(
+    Deserialize, Serialize, Clone, Copy, Debug, PartialEq, Eq, ToSchema, StrumDisplay, EnumString,
+)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[derive(Default)]
+pub enum HardwareType {
+    #[default]
+    W1,
+    W3,
+}
+
+/// W1 serial number prefixes at positions 4..8 (0-based) of the hardware serial.
+const W1_SERIAL_CODES: [&str; 3] = ["S203", "S204", "S233"];
+/// W3 serial number prefixes at positions 4..8 (0-based) of the hardware serial.
+const W3_SERIAL_CODES: [&str; 2] = ["S271", "S272"];
+
+impl HardwareType {
+    /// Fake W1 serial for use in tests. Positions 4..8 = "S203".
+    pub const TEST_SERIAL_W1: &'static str = "fakeS203serial";
+    /// Fake W3 serial for use in tests. Positions 4..8 = "S271".
+    pub const TEST_SERIAL_W3: &'static str = "fakeS271serial";
+
+    /// Classify hardware type from a serial number by inspecting positions 4..8.
+    /// Returns `None` if the serial is too short or the code is unrecognized.
+    pub fn from_serial(serial: &str) -> Option<HardwareType> {
+        let Some(code) = serial.get(4..8) else {
+            tracing::warn!(
+                hw_serial = serial,
+                "Hardware serial too short to classify (need at least 8 chars)"
+            );
+            return None;
+        };
+        if W1_SERIAL_CODES.contains(&code) {
+            Some(HardwareType::W1)
+        } else if W3_SERIAL_CODES.contains(&code) {
+            Some(HardwareType::W3)
+        } else {
+            tracing::warn!(
+                hw_serial = serial,
+                "Unrecognized hardware serial code at positions 4..8"
+            );
+            None
+        }
+    }
+
+    /// Parse the hardware type from an optional serial header, returning an error
+    /// if the serial is missing or unrecognized.
+    fn require_known_serial(serial: Option<&str>) -> Result<HardwareType, &'static str> {
+        let serial = serial.ok_or("Hardware serial header is required.")?;
+        HardwareType::from_serial(serial)
+            .ok_or("Unrecognized hardware serial number.")
+    }
+
+    /// For v1 routes: require that the serial is present and maps to W1 hardware.
+    /// Returns `Err` with a message suitable for a 403 response if the check fails.
+    pub fn require_w1_serial(serial: Option<&str>) -> Result<(), &'static str> {
+        match Self::require_known_serial(serial)? {
+            HardwareType::W1 => Ok(()),
+            _ => Err("This endpoint requires W1 hardware. Upgrade your app to use the v2 endpoints."),
+        }
+    }
+
+    /// For v2 routes: block if the serial is missing, unrecognized, or if the serial
+    /// indicates W3 but the request claims W1 hardware type.
+    /// Returns `Err` with a message suitable for a 403 response if the check fails.
+    pub fn reject_w3_claiming_w1(
+        serial: Option<&str>,
+        claimed_hardware_type: HardwareType,
+    ) -> Result<(), &'static str> {
+        let hw_type = Self::require_known_serial(serial)?;
+        if hw_type == HardwareType::W3 && claimed_hardware_type == HardwareType::W1 {
+            return Err(
+                "W3 hardware must not onboard as W1. Use the correct hardware type.",
+            );
+        }
+        Ok(())
+    }
+}
+
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
 pub enum KeyDomain {
     Spend,
@@ -218,6 +297,8 @@ pub struct FullAccountAuthKeysInput {
     pub hardware: PublicKey,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recovery: Option<PublicKey>,
+    #[serde(default)]
+    pub hardware_type: HardwareType,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Debug, ToSchema, Clone)]
@@ -299,16 +380,12 @@ pub struct CommonAccountFields {
     content = "threshold",
     rename_all = "SCREAMING_SNAKE_CASE"
 )]
+#[derive(Default)]
 pub enum TransactionVerificationPolicy {
+    #[default]
     Never,
     Threshold(Money),
     Always,
-}
-
-impl Default for TransactionVerificationPolicy {
-    fn default() -> Self {
-        Self::Never
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -387,6 +464,17 @@ impl FullAccount {
         self.spending_limit
             .as_ref()
             .is_some_and(|limit| limit.active)
+    }
+
+    /// Returns the hardware type of the active auth keys.
+    ///
+    /// Used by route handlers to determine whether to use ActionProof (W3) or
+    /// KeyClaims (W1) authorization. Returns an error message suitable for
+    /// wrapping in `ApiError::GenericInternalApplicationError`.
+    pub fn active_hardware_type(&self) -> Result<HardwareType, &'static str> {
+        self.active_auth_keys()
+            .map(|k| k.hardware_type)
+            .ok_or("Full account missing active auth keys")
     }
 
     pub fn active_descriptor_keyset(&self) -> Option<DescriptorKeyset> {
@@ -759,11 +847,15 @@ pub mod v2 {
     use serde::{Deserialize, Serialize};
     use utoipa::ToSchema;
 
+    use crate::account::entities::HardwareType;
+
     #[derive(Deserialize, Serialize, Debug, ToSchema, Clone)]
     pub struct FullAccountAuthKeysInputV2 {
         pub app_pub: PublicKey,
         pub hardware_pub: PublicKey,
         pub recovery_pub: PublicKey,
+        #[serde(default)]
+        pub hardware_type: HardwareType,
     }
 
     #[derive(Deserialize, Serialize, Debug, PartialEq, ToSchema, Clone)]
@@ -777,6 +869,8 @@ pub mod v2 {
     pub struct UpgradeLiteAccountAuthKeysInputV2 {
         pub app_pub: PublicKey,
         pub hardware_pub: PublicKey,
+        #[serde(default)]
+        pub hardware_type: HardwareType,
     }
 }
 
@@ -798,7 +892,7 @@ mod tests {
     };
     use crate::account::{
         bitcoin::Network,
-        entities::{CommonAccountFields, DescriptorBackup, FullAccount},
+        entities::{CommonAccountFields, DescriptorBackup, FullAccount, HardwareType},
         identifiers::{AccountId, AuthKeysId, KeysetId},
         spend_limit::SpendingLimit,
         spending::LegacyMultiSigSpendingKeyset,
@@ -854,6 +948,7 @@ mod tests {
                 app_pubkey: public_key,
                 hardware_pubkey: public_key,
                 recovery_pubkey: Some(public_key),
+                hardware_type: HardwareType::W1,
             },
             SpendingKeyset::LegacyMultiSig(LegacyMultiSigSpendingKeyset {
                 network: Default::default(),
@@ -940,15 +1035,25 @@ mod tests {
 
     fn generate_default_test_account() -> FullAccount {
         let keyset_id = KeysetId::gen().unwrap();
+        let auth_keys_id = AuthKeysId::gen().unwrap();
         let mut pubkey = [2; 33];
         pubkey[1] = 0xff;
+        let public_key = PublicKey::from_slice(&pubkey).unwrap();
 
         let descriptor_public_key = DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap();
 
         FullAccount {
             id: AccountId::gen().unwrap(),
             active_keyset_id: keyset_id.clone(),
-            auth_keys: Default::default(),
+            auth_keys: HashMap::from([(
+                auth_keys_id.clone(),
+                FullAccountAuthKeys {
+                    app_pubkey: public_key,
+                    hardware_pubkey: public_key,
+                    recovery_pubkey: None,
+                    hardware_type: HardwareType::W1,
+                },
+            )]),
             spending_keysets: HashMap::from([(
                 keyset_id,
                 SpendingKeyset::new_legacy_multi_sig(
@@ -962,9 +1067,9 @@ mod tests {
             spending_limit: None,
             transaction_verification_policy: None,
             application_auth_pubkey: None,
-            hardware_auth_pubkey: PublicKey::from_slice(&pubkey).unwrap(),
+            hardware_auth_pubkey: public_key,
             common_fields: CommonAccountFields {
-                active_auth_keys_id: AuthKeysId::gen().unwrap(),
+                active_auth_keys_id: auth_keys_id,
                 touchpoints: vec![],
                 created_at: OffsetDateTime::now_utc(),
                 updated_at: OffsetDateTime::now_utc(),
@@ -977,6 +1082,32 @@ mod tests {
                 notifications_triggers: Default::default(),
             },
         }
+    }
+
+    #[test]
+    fn test_active_hardware_type() {
+        let account = generate_default_test_account();
+        // Default test account has default auth keys → W1
+        assert_eq!(account.active_hardware_type(), Ok(HardwareType::W1));
+
+        // Swap auth keys to W3
+        let auth_keys_id = account.common_fields.active_auth_keys_id.clone();
+        let mut w3_auth_keys = account.auth_keys.clone();
+        if let Some(keys) = w3_auth_keys.get_mut(&auth_keys_id) {
+            keys.hardware_type = HardwareType::W3;
+        }
+        let w3_account = FullAccount {
+            auth_keys: w3_auth_keys,
+            ..account.clone()
+        };
+        assert_eq!(w3_account.active_hardware_type(), Ok(HardwareType::W3));
+
+        // No auth keys → Err
+        let empty_account = FullAccount {
+            auth_keys: HashMap::new(),
+            ..account
+        };
+        assert!(empty_account.active_hardware_type().is_err());
     }
 
     #[test]
@@ -1000,5 +1131,75 @@ mod tests {
             let deserialized: DescriptorBackup = serde_json::from_str(&serialized).unwrap();
             assert_eq!(descriptor_backup, &deserialized);
         }
+    }
+
+    #[test]
+    fn test_from_serial_w1_codes() {
+        assert_eq!(HardwareType::from_serial("0000S203rest"), Some(HardwareType::W1));
+        assert_eq!(HardwareType::from_serial("0000S204rest"), Some(HardwareType::W1));
+        assert_eq!(HardwareType::from_serial("0000S233rest"), Some(HardwareType::W1));
+    }
+
+    #[test]
+    fn test_from_serial_w3_codes() {
+        assert_eq!(HardwareType::from_serial("0000S271rest"), Some(HardwareType::W3));
+        assert_eq!(HardwareType::from_serial("0000S272rest"), Some(HardwareType::W3));
+    }
+
+    #[test]
+    fn test_from_serial_unrecognized() {
+        assert_eq!(HardwareType::from_serial("0000S999rest"), None);
+        assert_eq!(HardwareType::from_serial("0000XXXXrest"), None);
+    }
+
+    #[test]
+    fn test_from_serial_too_short() {
+        assert_eq!(HardwareType::from_serial("abc"), None);
+        assert_eq!(HardwareType::from_serial(""), None);
+        assert_eq!(HardwareType::from_serial("0000S20"), None); // only 7 chars
+    }
+
+    #[test]
+    fn test_from_serial_test_constants() {
+        assert_eq!(HardwareType::from_serial(HardwareType::TEST_SERIAL_W1), Some(HardwareType::W1));
+        assert_eq!(HardwareType::from_serial(HardwareType::TEST_SERIAL_W3), Some(HardwareType::W3));
+    }
+
+    #[test]
+    fn test_require_w1_serial() {
+        assert!(HardwareType::require_w1_serial(Some(HardwareType::TEST_SERIAL_W1)).is_ok());
+        assert!(HardwareType::require_w1_serial(Some(HardwareType::TEST_SERIAL_W3)).is_err());
+        assert!(HardwareType::require_w1_serial(Some("0000XXXX")).is_err());
+        assert!(HardwareType::require_w1_serial(None).is_err());
+    }
+
+    #[test]
+    fn test_reject_w3_claiming_w1() {
+        // Missing serial → error
+        assert!(HardwareType::reject_w3_claiming_w1(None, HardwareType::W1).is_err());
+        assert!(HardwareType::reject_w3_claiming_w1(None, HardwareType::W3).is_err());
+
+        // W3 serial claiming W1 → error
+        assert!(HardwareType::reject_w3_claiming_w1(
+            Some(HardwareType::TEST_SERIAL_W3), HardwareType::W1
+        ).is_err());
+
+        // W3 serial claiming W3 → ok
+        assert!(HardwareType::reject_w3_claiming_w1(
+            Some(HardwareType::TEST_SERIAL_W3), HardwareType::W3
+        ).is_ok());
+
+        // W1 serial → ok regardless of claimed type
+        assert!(HardwareType::reject_w3_claiming_w1(
+            Some(HardwareType::TEST_SERIAL_W1), HardwareType::W1
+        ).is_ok());
+        assert!(HardwareType::reject_w3_claiming_w1(
+            Some(HardwareType::TEST_SERIAL_W1), HardwareType::W3
+        ).is_ok());
+
+        // Unrecognized serial → error
+        assert!(HardwareType::reject_w3_claiming_w1(
+            Some("0000XXXX"), HardwareType::W1
+        ).is_err());
     }
 }

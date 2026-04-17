@@ -21,14 +21,17 @@
 #define WCA_MAX_PROTO_SIZE  (WCA_MAX_BUFFER_SIZE - WCA_APDU_OVERHEAD)
 
 typedef bool (*wca_sem_take_t)(void);
+typedef bool (*wca_sem_take_nowait_t)(void);
 typedef bool (*wca_sem_give_t)(void);
 typedef struct {
   mempool_t* mempool;
   wca_sem_take_t sem_take;
+  wca_sem_take_nowait_t sem_take_nowait;
   wca_sem_give_t sem_give;
 } wca_api_t;
 
 void wca_init(wca_api_t* api);
+void wca_reset_session_state(void);
 
 bool wca_handle_command(uint8_t* cmd, uint32_t cmd_len, uint8_t* rsp, uint32_t* rsp_len);
 bool wca_is_valid(uint8_t* cmd, uint32_t cmd_len);

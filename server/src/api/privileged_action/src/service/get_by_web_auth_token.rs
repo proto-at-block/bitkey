@@ -10,7 +10,7 @@ pub struct GetPendingByWebAuthTokenInput<'a> {
 }
 
 impl Service {
-    #[instrument(skip(self))]
+    #[instrument(skip(self, web_auth_token))]
     pub async fn get_by_web_auth_token<T>(
         &self,
         web_auth_token: &str,

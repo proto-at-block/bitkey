@@ -229,8 +229,12 @@ class RelationshipsCryptoFake(
       )
     }
 
+  var generateAsymmetricKeyResult: Result<*, RelationshipsCryptoError>? = null
+
+  @Suppress("UNCHECKED_CAST")
   override fun <T> generateAsymmetricKey(): Result<AppKey<T>, RelationshipsCryptoError> where T : SocRecKey, T : CurveType.Curve25519 =
-    Ok(generateAsymmetricKeyUnwrapped())
+    (generateAsymmetricKeyResult as? Result<AppKey<T>, RelationshipsCryptoError>)
+      ?: Ok(generateAsymmetricKeyUnwrapped())
 
   private fun <T> generateAsymmetricKeyUnwrapped(): AppKey<T> where T : SocRecKey, T : CurveType.Curve25519 {
     val (privKey, pubKey) = generateKeyPair()

@@ -221,6 +221,32 @@ class Stm32U5SlotSigningTestBase(unittest.TestCase):
         bin_size = os.path.getsize(bin_path)
         self.assertGreater(bin_size, 0, "Binary should have content")
 
+    def test_chip_id_sets_product_id(self):
+        """Test chip_id handling for app_properties productId layout."""
+        chip_id = bytes.fromhex("00112233445566778899aabb")
+        asset_info = AssetInfo(
+            app_version="1.0.101",
+            slot=self.slot,
+            product=PRODUCT_W3A_UXC,
+            image_type="app",
+            chip_id=chip_id,
+        )
+        signer = Stm32U5ElfSigner(self.temp_elf, partitions_config_path=None)
+        props_before = read_symbol_data(self.temp_elf, "app_properties")
+
+        # Layout from bl_secureboot_picocert.h:
+        # magic[16] + structVersion[4] + version[4] + productId[16] (+ cert pointer)
+        if len(props_before) < 40:
+            with self.assertRaises(FirmwareSignerException) as context:
+                signer.codesign(self.key_manager, asset_info)
+            self.assertIn("too small", str(context.exception))
+            return
+
+        signer.codesign(self.key_manager, asset_info)
+        props = read_symbol_data(Path(signer.get_elf_path()), "app_properties")
+        product_id = props[24:40]
+        self.assertEqual(product_id, chip_id + b"\x00" * 4)
+
 
 class TestStm32U5SlotASigning(Stm32U5SlotSigningTestBase):
     """Test cases for signing slot A firmware."""
@@ -322,6 +348,22 @@ class TestStm32U5ErrorHandling(unittest.TestCase):
             signer.gen_presign_hash(self.key_manager, asset_info)
 
         self.assertIn("only supports 'bl' and 'app' image types", str(context.exception))
+
+    def test_invalid_chip_id_length_raises_error(self):
+        """Test that chip_id length is validated for STM32U5 app signing."""
+        asset_info = AssetInfo(
+            app_version="1.0.101",
+            slot="a",
+            product=PRODUCT_W3A_UXC,
+            image_type="app",
+            chip_id=bytes.fromhex("00112233445566778899aa"),
+        )
+        signer = Stm32U5ElfSigner(self.temp_elf, partitions_config_path=None)
+
+        with self.assertRaises(ValueError) as context:
+            signer.codesign(self.key_manager, asset_info)
+
+        self.assertIn("chip_id must be 12 bytes", str(context.exception))
 
 
 class TestStm32U5VerifyCommand(unittest.TestCase):

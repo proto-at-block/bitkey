@@ -130,7 +130,7 @@ fn feature_flags_set(flags: Vec<FirmwareFeatureFlag>, enabled: bool) -> Result<b
         match FeatureFlagsSetRspStatus::try_from(rsp_status) {
             Ok(FeatureFlagsSetRspStatus::Success) => Ok(true),
             Ok(FeatureFlagsSetRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
-            Ok(FeatureFlagsSetRspStatus::Error) => Err(CommandError::GeneralCommandError),
+            Ok(FeatureFlagsSetRspStatus::Error) => Err(CommandError::FeatureFlagsFailed),
             Err(_) => Err(CommandError::InvalidResponse),
         }
     } else {

@@ -7,6 +7,7 @@
 #include "key_management.h"
 #include "pb_decode.h"
 #include "pb_encode.h"
+#include "security_config.h"
 #include "uc.h"
 #include "uc_impl.h"
 #include "uc_route.h"
@@ -24,6 +25,11 @@
 
 DEFINE_FFF_GLOBALS;
 
+// Security Configuration
+secure_bool_t security_config_is_production(void) {
+  return SECURE_TRUE;
+}
+
 // RTOS Event Group
 FAKE_VOID_FUNC(rtos_event_group_create, rtos_event_group_t*);
 FAKE_VALUE_FUNC(uint32_t, rtos_event_group_clear_bits, rtos_event_group_t*, const uint32_t);
@@ -33,10 +39,12 @@ FAKE_VALUE_FUNC(bool, rtos_event_group_set_bits_from_isr, rtos_event_group_t*, c
                 bool*);
 FAKE_VALUE_FUNC(uint32_t, rtos_event_group_wait_bits, rtos_event_group_t*, const uint32_t, bool,
                 bool, uint32_t);
+FAKE_VALUE_FUNC(bool, rtos_in_isr);
 
 // RTOS Mutex
 FAKE_VOID_FUNC(rtos_mutex_create, rtos_mutex_t*);
 FAKE_VALUE_FUNC(bool, rtos_mutex_lock, rtos_mutex_t*);
+FAKE_VALUE_FUNC(bool, rtos_mutex_take, rtos_mutex_t*, uint32_t);
 FAKE_VALUE_FUNC(bool, rtos_mutex_unlock, rtos_mutex_t*);
 
 // RTOS Queue
@@ -103,11 +111,16 @@ bool _mock_check_recv_seq(uint32_t new_seq) {
   return false;
 }
 
+static bool _mock_has_session(void) {
+  return true;
+}
+
 static uc_crypto_api_t const _mock_crypto_api = {
   .gcm_encrypt = &_mock_encrypt,
   .gcm_decrypt = &_mock_decrypt,
   .check_recv_seq = &_mock_check_recv_seq,
   .get_send_seq = &_mock_get_send_seq,
+  .has_session = &_mock_has_session,
 };
 
 typedef struct {
@@ -625,7 +638,7 @@ Test(uc, encode_decode) {
 }
 
 Test(uc, uc_ack) {
-  rtos_mutex_lock_fake.return_val = true;
+  rtos_mutex_take_fake.return_val = true;
   rtos_mutex_unlock_fake.return_val = true;
 
   test_uc_init_mode_device();
@@ -647,12 +660,13 @@ Test(uc, uc_ack) {
   cr_assert_eq(1u, msg->hdr.send_seq_num);
   cr_assert_eq(UC_MSG_HDR_FLAGS_ACK, msg->hdr.flags);
 
-  // Ensure message buffer and write mutexes were locked and unlocked.
-  cr_assert_eq(2, rtos_mutex_lock_fake.call_count);
-  cr_assert_eq(2, rtos_mutex_unlock_fake.call_count);
+  // Ensure only the write mutex path was used.
+  cr_assert_eq(1, rtos_mutex_take_fake.call_count);
+  cr_assert_eq(0, rtos_mutex_lock_fake.call_count);
+  cr_assert_eq(1, rtos_mutex_unlock_fake.call_count);
 
   // Ensure we did not wait for an ACK.
-  cr_assert_eq(2, rtos_event_group_clear_bits_fake.call_count);
+  cr_assert_eq(1, rtos_event_group_clear_bits_fake.call_count);
   cr_assert_eq(0, rtos_event_group_wait_bits_fake.call_count);
 }
 
@@ -660,6 +674,51 @@ Test(uc, idle_no_ack) {
   uc_idle(NULL);
 
   cr_assert_eq(1, rtos_event_group_get_bits_fake.call_count);
+  cr_assert_eq(0, rtos_mutex_take_fake.call_count);
+  cr_assert_eq(0, rtos_event_group_clear_bits_fake.call_count);
+  cr_assert_eq(0, rtos_event_group_wait_bits_fake.call_count);
+}
+
+Test(uc, idle_ack_sends_ack) {
+  rtos_event_group_get_bits_fake.return_val = UC_EVENT_ACK_TIMER;
+  rtos_mutex_take_fake.return_val = true;
+  rtos_mutex_unlock_fake.return_val = true;
+
+  test_uc_init_mode_device();
+
+  uint8_t buffer[32u];
+  send_ctx = (send_context_t){
+    .enc_buffer = (uint8_t*)buffer, .enc_buffer_len = sizeof(buffer), .enc_len = 0};
+
+  uc_idle(NULL);
+
+  uint8_t dec[UC_TEST_BUF_SIZE];
+  size_t dec_len;
+  cobs_ret_t ret = cobs_decode(send_ctx.enc_buffer, send_ctx.enc_len, dec, sizeof(dec), &dec_len);
+  cr_assert_eq(COBS_RET_SUCCESS, ret);
+
+  uc_msg_t* msg = (uc_msg_t*)dec;
+  cr_assert_eq(0, msg->hdr.payload_len);
+  cr_assert_eq(1u, msg->hdr.send_seq_num);
+  cr_assert_eq(UC_MSG_HDR_FLAGS_ACK, msg->hdr.flags);
+
+  cr_assert_eq(1, rtos_event_group_get_bits_fake.call_count);
+  cr_assert_eq(1, rtos_mutex_take_fake.call_count);
+  cr_assert_eq(0, rtos_mutex_lock_fake.call_count);
+  cr_assert_eq(1, rtos_mutex_unlock_fake.call_count);
+  cr_assert_eq(1, rtos_event_group_clear_bits_fake.call_count);
+  cr_assert_eq(0, rtos_event_group_wait_bits_fake.call_count);
+}
+
+Test(uc, idle_ack_busy_does_not_block) {
+  rtos_event_group_get_bits_fake.return_val = UC_EVENT_ACK_TIMER;
+  rtos_mutex_take_fake.return_val = false;
+
+  uc_idle(NULL);
+
+  cr_assert_eq(1, rtos_event_group_get_bits_fake.call_count);
+  cr_assert_eq(1, rtos_mutex_take_fake.call_count);
+  cr_assert_eq(0, rtos_mutex_lock_fake.call_count);
   cr_assert_eq(0, rtos_event_group_clear_bits_fake.call_count);
   cr_assert_eq(0, rtos_event_group_wait_bits_fake.call_count);
 }

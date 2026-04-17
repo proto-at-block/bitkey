@@ -4,7 +4,7 @@ import bitkey.privilegedactions.AuthorizationStrategy.OutOfBand
 import bitkey.privilegedactions.AuthorizationStrategyType.OUT_OF_BAND
 import bitkey.privilegedactions.PrivilegedActionType.LOOSEN_TRANSACTION_VERIFICATION_POLICY
 import build.wallet.bitcoin.transactions.Psbt
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.exchange.ExchangeRate
 import com.github.michaelbull.result.Err
@@ -54,7 +54,7 @@ class TxVerificationServiceFake : TxVerificationService {
   override suspend fun updateThreshold(
     policy: TxVerificationPolicy.Active,
     amountBtc: BitcoinMoney?,
-    hwFactorProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof?,
   ): Result<TxVerificationPolicy, Error> {
     if (updateThresholdReturnsError) {
       return Err(Error("Test error: update failed"))

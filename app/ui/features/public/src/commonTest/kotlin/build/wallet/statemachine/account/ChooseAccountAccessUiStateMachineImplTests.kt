@@ -17,12 +17,14 @@ import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.device.DeviceInfoProviderMock
+import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.recovery.OrphanedKeyDetectionServiceMock
 import build.wallet.recovery.OrphanedKeyRecoveryServiceMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.account.create.CreateAccountOptionsModel
 import build.wallet.statemachine.account.create.CreateSoftwareWalletProps
 import build.wallet.statemachine.account.create.CreateSoftwareWalletUiStateMachine
+import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.dev.DebugMenuScreen
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceProps
@@ -62,6 +64,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
       id = "feedback"
     ) {}
   val navigatorPresenter = NavigatorPresenterFake()
+  val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
 
   fun buildStateMachine(appVariant: AppVariant) =
     ChooseAccountAccessUiStateMachineImpl(
@@ -74,6 +77,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
       orphanedKeyDetectionService = orphanedKeyDetectionService,
       orphanedKeyRecoveryService = orphanedKeyRecoveryService,
       orphanedKeyRecoveryFeatureFlag = orphanedKeyRecoveryFeatureFlag,
+      inAppBrowserNavigator = inAppBrowserNavigator,
       moneyDisplayFormatter = MoneyDisplayFormatterFake,
       feedbackUiStateMachine = feedbackUiStateMachine,
       publicCustomerSupportFeatureFlag = publicCustomerSupportFeatureFlag,
@@ -106,6 +110,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
     orphanedKeyDetectionService.reset()
     orphanedKeyRecoveryService.reset()
     keyboxDao.reset()
+    inAppBrowserNavigator.reset()
   }
 
   test("initial state") {
@@ -149,6 +154,48 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
       }
 
       startRecoveryCalls.awaitItem()
+    }
+  }
+
+  test("terms of service link opens in-app browser") {
+    stateMachine.test(props) {
+      awaitBody<ChooseAccountAccessModel> {
+        legalNotice.linkedSubstrings
+          .first { legalNotice.string.substring(it.range) == "Terms of Service" }
+          .onClick()
+      }
+
+      awaitBody<InAppBrowserModel> {
+        open()
+      }
+
+      inAppBrowserNavigator.onOpenCalls.awaitItem()
+        .shouldBe("https://bitkey.world/en-US/legal/terms-of-service")
+
+      inAppBrowserNavigator.onCloseCallback.shouldNotBeNull().invoke()
+
+      awaitBody<ChooseAccountAccessModel>()
+    }
+  }
+
+  test("privacy notice link opens in-app browser") {
+    stateMachine.test(props) {
+      awaitBody<ChooseAccountAccessModel> {
+        legalNotice.linkedSubstrings
+          .first { legalNotice.string.substring(it.range) == "Privacy Notice" }
+          .onClick()
+      }
+
+      awaitBody<InAppBrowserModel> {
+        open()
+      }
+
+      inAppBrowserNavigator.onOpenCalls.awaitItem()
+        .shouldBe("https://bitkey.world/en-US/legal/privacy-notice")
+
+      inAppBrowserNavigator.onCloseCallback.shouldNotBeNull().invoke()
+
+      awaitBody<ChooseAccountAccessModel>()
     }
   }
 

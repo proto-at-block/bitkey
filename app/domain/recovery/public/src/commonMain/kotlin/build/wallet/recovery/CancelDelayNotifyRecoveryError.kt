@@ -5,8 +5,15 @@ import bitkey.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
 
 sealed class CancelDelayNotifyRecoveryError : Error() {
   /**
+   * Canceling D&N recovery requires additional comms verification. Consumer should
+   * initiate the comms verification flow and then retry the cancellation.
+   */
+  data class CommsVerificationRequiredError(
+    override val cause: Error,
+  ) : CancelDelayNotifyRecoveryError()
+
+  /**
    * Corresponds to an error when canceling D&N recovery with f8e:
-   * - due to needing additional comms verification. In this case, we initiate the comms flow.
    * - due to regular networking error (poor connectivity, outages, etc). In this case, we can
    * retry the recovery cancellation.
    * - due to some server error. In this case, we are unlikely to be able to cancel recovery.

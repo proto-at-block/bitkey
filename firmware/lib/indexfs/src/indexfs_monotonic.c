@@ -75,7 +75,7 @@ bool indexfs_monotonic_increment(indexfs_t* fs) {
 
   const uint16_t count = indexfs_monotonic_count(fs);
   if (count + 1 > UINT16_MAX) {
-    LOGE("indexfs_monotonic_increment(): %s: count overflow", fs->name);
+    LOGE("indexfs %s: overflow", fs->name);
     return false;
   }
 
@@ -92,7 +92,7 @@ bool indexfs_monotonic_increment(indexfs_t* fs) {
   mcu_flash_status_t result = mcu_flash_write_word(fs->address + write_pointer, (uint32_t*)&entry,
                                                    sizeof(indexfs_monotonic_entry_t));
   if (result != MCU_FLASH_STATUS_OK) {
-    LOGE("Error %i writing flash", result);
+    LOGE("Flash write err %i", result);
     return false;
   }
 
@@ -104,7 +104,7 @@ bool indexfs_monotonic_clear(indexfs_t* fs) {
 
   const uint16_t count = indexfs_monotonic_count(fs);
   if (count == 0) {
-    LOGE("indexfs_monotonic_clear(): %s: no count to clear", fs->name);
+    LOGE("indexfs %s: no count", fs->name);
     return false;
   }
 
@@ -122,7 +122,7 @@ bool indexfs_monotonic_clear(indexfs_t* fs) {
   mcu_flash_status_t result = mcu_flash_write_word(
     fs->address + write_pointer, (uint32_t*)&new_entry, sizeof(indexfs_monotonic_entry_t));
   if (result != MCU_FLASH_STATUS_OK) {
-    LOGE("Error %i writing flash", result);
+    LOGE("Flash write err %i", result);
     return false;
   }
 
@@ -138,7 +138,7 @@ static bool write_magic(uint32_t* address) {
   mcu_flash_status_t result = mcu_flash_write_word(
     address, INDEXFS_MONOTONIC_MAGIC, ARRAY_SIZE(INDEXFS_MONOTONIC_MAGIC) * sizeof(uint32_t));
   if (result != MCU_FLASH_STATUS_OK) {
-    LOGE("Error %i writing flash", result);
+    LOGE("Flash write err %i", result);
     return false;
   }
 
@@ -177,13 +177,13 @@ bool indexfs_monotonic_set_flag(indexfs_t* fs, const uint8_t flag) {
   ASSERT(fs->type == INDEXFS_TYPE_MONOTONIC);
 
   if (flag > 0x0f) {
-    LOGE("indexfs_monotonic_set_flag(): %s: invalid flag: %x", fs->name, flag);
+    LOGE("indexfs %s: bad flag %x", fs->name, flag);
     return false;
   }
 
   const uint16_t count = indexfs_monotonic_count(fs);
   if (count == 0) {
-    LOGE("indexfs_monotonic_set_flag(): %s: no count to set flags on", fs->name);
+    LOGE("indexfs %s: no count for flag", fs->name);
     return false;
   }
 
@@ -203,7 +203,7 @@ bool indexfs_monotonic_set_flag(indexfs_t* fs, const uint8_t flag) {
   mcu_flash_status_t result = mcu_flash_write_word(
     fs->address + write_pointer, (uint32_t*)&new_entry, sizeof(indexfs_monotonic_entry_t));
   if (result != MCU_FLASH_STATUS_OK) {
-    LOGE("Error %i writing flash", result);
+    LOGE("Flash write err %i", result);
     return false;
   }
 

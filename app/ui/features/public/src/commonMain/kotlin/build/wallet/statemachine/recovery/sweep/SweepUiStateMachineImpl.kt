@@ -1,6 +1,7 @@
 package build.wallet.statemachine.recovery.sweep
 
 import androidx.compose.runtime.*
+import bitkey.account.HardwareType
 import bitkey.account.isW3Hardware
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
@@ -17,10 +18,6 @@ import build.wallet.logging.logDebug
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
-import build.wallet.nfc.NfcSession
-import build.wallet.nfc.platform.EmulatedPromptOption
-import build.wallet.nfc.platform.HardwareInteraction
-import build.wallet.nfc.platform.NfcCommands
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.recovery.sweep.SweepContext
 import build.wallet.recovery.sweep.SweepPsbt
@@ -34,23 +31,19 @@ import build.wallet.statemachine.data.recovery.sweep.SweepDataProps
 import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachine
 import build.wallet.statemachine.money.amount.MoneyAmountUiProps
 import build.wallet.statemachine.money.amount.MoneyAmountUiStateMachine
-import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
-import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachine
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
 import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.send.*
-import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationUiProps
-import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationUiStateMachine
+import build.wallet.statemachine.send.signtransaction.SignTransactionNfcSessionUiProps
+import build.wallet.statemachine.send.signtransaction.SignTransactionNfcSessionUiStateMachine
 import build.wallet.statemachine.walletmigration.PrivateWalletMigrationAppSegment
 
 @BitkeyInject(ActivityScope::class)
 class SweepUiStateMachineImpl(
-  private val nfcSessionUIStateMachine: NfcConfirmableSessionUiStateMachine,
+  private val signTransactionNfcSessionUiStateMachine: SignTransactionNfcSessionUiStateMachine,
   private val moneyAmountUiStateMachine: MoneyAmountUiStateMachine,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val sweepDataStateMachine: SweepDataStateMachine,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
-  private val hardwareConfirmationUiStateMachine: HardwareConfirmationUiStateMachine,
 ) : SweepUiStateMachine {
   @Composable
   override fun model(props: SweepUiProps): ScreenModel {
@@ -58,7 +51,7 @@ class SweepUiStateMachineImpl(
     val sweepData = sweepDataStateMachine.model(
       SweepDataProps(
         hasAttemptedSweep = props.hasAttemptedSweep,
-        keybox = props.keybox,
+        keybox = props.account.keybox,
         sweepContext = props.sweepContext,
         onSuccess = props.onSuccess,
         onAttemptSweep = props.onAttemptSweep
@@ -102,7 +95,7 @@ class SweepUiStateMachineImpl(
               App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_MULTIPLE_TRANSACTIONS_WARNING
               Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_MULTIPLE_TRANSACTIONS_WARNING
             }
-            is SweepContext.PrivateWalletMigration -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_MULTIPLE_TRANSACTIONS_WARNING
+            is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_MULTIPLE_TRANSACTIONS_WARNING
             else -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_MULTIPLE_TRANSACTIONS_WARNING
           },
           transactionCount = uiState.psbtsToSign.size,
@@ -142,27 +135,6 @@ class SweepUiStateMachineImpl(
         // Show a brief loading screen during the transition
         generatingPsbtsLoadingScreen(props)
       }
-      is ScreenState.AwaitingDeviceConfirmation -> {
-        hardwareConfirmationUiStateMachine.model(
-          props = HardwareConfirmationUiProps(
-            onBack = {
-              // User cancelled - go back to the sweep state which will reset
-              uiState.sweepData.cancelHwSign()
-              screenState = ScreenState.ShowingSweepState
-            },
-            onConfirm = {
-              // User confirmed - start a new NFC session to fetch the result
-              screenState = ScreenState.SigningSinglePsbt(
-                currentPsbt = uiState.currentPsbt,
-                remainingPsbts = uiState.remainingPsbts,
-                signedPsbts = uiState.signedPsbts,
-                sweepData = uiState.sweepData,
-                fetchResult = uiState.fetchResult
-              )
-            }
-          )
-        )
-      }
     }
   }
 
@@ -190,7 +162,7 @@ class SweepUiStateMachineImpl(
               App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_GENERATE_PSBTS_ERROR
               Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_GENERATE_PSBTS_ERROR
             }
-            is SweepContext.PrivateWalletMigration -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_GENERATING_PSBTS_ERROR
+            is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_GENERATING_PSBTS_ERROR
             else -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_GENERATE_PSBTS_ERROR
           },
           onPrimaryButtonClick = props.onExit ?: { sweepData.retry() },
@@ -204,11 +176,12 @@ class SweepUiStateMachineImpl(
               App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE
               Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_ZERO_BALANCE
             }
-            is SweepContext.PrivateWalletMigration -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_ZERO_BALANCE
+            is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_ZERO_BALANCE
             else -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_ZERO_BALANCE
           },
           onDone = sweepData.proceed,
-          presentationStyle = props.presentationStyle
+          presentationStyle = props.presentationStyle,
+          eyebrow = if (props.sweepContext is SweepContext.W3Upgrade) "Step 4 of 4" else null
         )
 
       /** PSBTs have been generated. Prompt to continue to sign + broadcast. */
@@ -217,8 +190,8 @@ class SweepUiStateMachineImpl(
         val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
 
         when (props.sweepContext) {
-          // For private wallet migration, use TransferConfirmationScreenModel
-          is SweepContext.PrivateWalletMigration -> {
+          // For private wallet migration and W3 upgrade, use TransferConfirmationScreenModel
+          is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> {
             val transactionDetails = transactionDetailFromSweepData(
               totalTransferAmount = sweepData.totalTransferAmount,
               totalFeeAmount = sweepData.totalFeeAmount,
@@ -229,7 +202,11 @@ class SweepUiStateMachineImpl(
                 onBack = props.onExit ?: {
                   setState(ScreenState.ShowingSweepState)
                 },
-                variant = TransferConfirmationScreenVariant.PrivateWalletMigration,
+                variant = if (props.sweepContext is SweepContext.W3Upgrade) {
+                  TransferConfirmationScreenVariant.W3Upgrade
+                } else {
+                  TransferConfirmationScreenVariant.PrivateWalletMigration
+                },
                 recipientAddress = BitcoinAddress(sweepData.destinationAddress),
                 transactionDetails = transactionDetails,
                 requiresHardware = true,
@@ -254,7 +231,7 @@ class SweepUiStateMachineImpl(
             val promptContext = when (props.sweepContext) {
               is SweepContext.Recovery -> SweepFundsPromptContext.Recovery(props.sweepContext.recoveredFactor)
               is SweepContext.InactiveWallet -> SweepFundsPromptContext.InactiveWallet
-              is SweepContext.PrivateWalletMigration -> error("PrivateWalletMigration should use TransferConfirmationScreenModel")
+              is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> error("Migration should use TransferConfirmationScreenModel")
             }
 
             sweepFundsPrompt(
@@ -263,7 +240,7 @@ class SweepUiStateMachineImpl(
                   App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
                   Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
                 }
-                is SweepContext.PrivateWalletMigration -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_SIGN_PSBTS_PROMPT
+                is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_SIGN_PSBTS_PROMPT
                 else -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_SIGN_PSBTS_PROMPT
               },
               fee = moneyAmountUiStateMachine.model(
@@ -299,7 +276,7 @@ class SweepUiStateMachineImpl(
       is AwaitingHardwareSignedSweepsData -> {
         // Start signing the first PSBT - transition to sequential signing state
         val psbtsToSign = sweepData.needsHwSign.toList()
-        val isW3 = props.keybox.config.isW3Hardware
+        val isW3 = props.account.keybox.config.isW3Hardware
         val hasMultiplePsbts = psbtsToSign.size > 1
 
         // Only initiate signing if we haven't already for this data instance
@@ -341,7 +318,7 @@ class SweepUiStateMachineImpl(
               App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING
               Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_BROADCASTING
             }
-            is SweepContext.PrivateWalletMigration -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_BROADCASTING
+            is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_BROADCASTING
             else -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_BROADCASTING
           },
           context = props.sweepContext,
@@ -354,7 +331,7 @@ class SweepUiStateMachineImpl(
       /** Terminal state: Broadcast completed */
       is SweepCompleteData ->
         when (props.sweepContext) {
-          is SweepContext.PrivateWalletMigration -> {
+          is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> {
             val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
 
             val transactionDetails = transactionDetailFromSweepData(
@@ -369,7 +346,6 @@ class SweepUiStateMachineImpl(
               transactionDetails = transactionDetails,
               primaryButtonText = "Done",
               eventTrackerScreenId = WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_SUCCESS,
-              shouldTrack = true,
               onDone = sweepData.proceed
             ).asScreen(props.presentationStyle)
           }
@@ -380,7 +356,7 @@ class SweepUiStateMachineImpl(
                   App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS
                   Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_SUCCESS
                 }
-                is SweepContext.PrivateWalletMigration -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_SUCCESS
+                is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_SUCCESS
                 else -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_SUCCESS
               },
               recoveredFactor = (props.sweepContext as? SweepContext.Recovery)?.recoveredFactor,
@@ -396,7 +372,7 @@ class SweepUiStateMachineImpl(
               App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS
               Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_SUCCESS
             }
-            is SweepContext.PrivateWalletMigration -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_SUCCESS
+            is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_SUCCESS
             else -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_SUCCESS
           },
           recoveredFactor = (props.sweepContext as? SweepContext.Recovery)?.recoveredFactor,
@@ -412,7 +388,7 @@ class SweepUiStateMachineImpl(
               App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_FAILED
               Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_FAILED
             }
-            is SweepContext.PrivateWalletMigration -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_FAILED
+            is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_FAILED
             else -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_FAILED
           },
           onRetry = sweepData.retry,
@@ -424,7 +400,7 @@ class SweepUiStateMachineImpl(
                 App -> RecoverySegment.DelayAndNotify.LostApp.Completion
                 Hardware -> RecoverySegment.DelayAndNotify.LostApp.Completion
               }
-              is SweepContext.PrivateWalletMigration -> PrivateWalletMigrationAppSegment.Sweep
+              is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> PrivateWalletMigrationAppSegment.Sweep
               else -> RecoverySegment.AdditionalSweep.Sweep
             },
             actionDescription = "Sweeping funds",
@@ -436,7 +412,8 @@ class SweepUiStateMachineImpl(
 
   /**
    * Screen model for signing a single PSBT via NFC.
-   * Handles HardwareInteraction responses to support W3 two-tap flow.
+   * Delegates to [SignTransactionNfcSessionUiStateMachine] which handles the full NFC session
+   * including W3 two-tap confirmation flow, progress tracking, and streaming signing.
    */
   @Composable
   private fun signingSinglePsbtScreen(
@@ -444,17 +421,30 @@ class SweepUiStateMachineImpl(
     state: ScreenState.SigningSinglePsbt,
     setState: (ScreenState) -> Unit,
   ): ScreenModel {
-    return nfcSessionUIStateMachine.model(
-      NfcConfirmableSessionUIStateMachineProps(
-        session = state.fetchResult ?: { session, commands ->
-          // Initial signing flow - handle RequiresTransfer by doing transfer in session
-          when (val interaction = commands.signTransaction(session, state.currentPsbt.psbt, state.currentPsbt.sourceKeyset)) {
-            is HardwareInteraction.RequiresTransfer -> {
-              // W3 path: chunked transfer required - do the transfer in this session
-              interaction.transferAndFetch(session, commands) { /* progress callback */ }
-            }
-            else -> interaction
-          }
+    return signTransactionNfcSessionUiStateMachine.model(
+      SignTransactionNfcSessionUiProps(
+        account = props.account,
+        psbt = state.currentPsbt.psbt,
+        spendingKeyset = state.currentPsbt.sourceKeyset,
+        useRecoveryHwAuthKey = props.sweepContext is SweepContext.Recovery,
+        // During W3 upgrade, the active keybox has been switched to the new W3 but the
+        // sweep needs to sign with the OLD W1 hardware — skip pairing check to avoid
+        // the W1's auth key being verified against the W3's auth key.
+        skipPairingCheck = props.sweepContext is SweepContext.W3Upgrade,
+        // During W3 upgrade, the final sweep tap intentionally uses the old W1 hardware.
+        // Skip firmware telemetry so that tap does not overwrite the paired W3 device info.
+        skipFirmwareTelemetry = props.sweepContext is SweepContext.W3Upgrade,
+        // During W3 upgrade, the keybox has already been switched to W3
+        // but the sweep needs to tap the OLD W1 hardware to sign transactions.
+        hardwareTypeOverride = if (props.sweepContext is SweepContext.W3Upgrade) {
+          HardwareType.W1
+        } else {
+          null
+        },
+        onBack = {
+          // User cancelled - go back to the sweep state
+          state.sweepData.cancelHwSign()
+          setState(ScreenState.ShowingSweepState)
         },
         onSuccess = { signedPsbt ->
           val newSignedPsbts = state.signedPsbts + signedPsbt
@@ -477,48 +467,8 @@ class SweepUiStateMachineImpl(
             )
           }
         },
-        onCancel = {
-          // User cancelled - go back to the sweep state
-          state.sweepData.cancelHwSign()
-          setState(ScreenState.ShowingSweepState)
-        },
-        onRequiresConfirmation = { confirmation ->
-          // W3 hardware requires confirmation - transition to awaiting confirmation state
-          setState(
-            ScreenState.AwaitingDeviceConfirmation(
-              currentPsbt = state.currentPsbt,
-              remainingPsbts = state.remainingPsbts,
-              signedPsbts = state.signedPsbts,
-              fetchResult = confirmation.fetchResult,
-              sweepData = state.sweepData
-            )
-          )
-          null
-        },
-        onEmulatedPromptSelected = { selectedOption ->
-          // Emulated prompt for fake hardware
-          // If "Deny" was selected, cancel the flow instead of continuing
-          if (selectedOption.name == EmulatedPromptOption.DENY) {
-            state.sweepData.cancelHwSign()
-            setState(ScreenState.ShowingSweepState)
-          } else {
-            // Transition to awaiting confirmation with the selected option's fetchResult
-            setState(
-              ScreenState.AwaitingDeviceConfirmation(
-                currentPsbt = state.currentPsbt,
-                remainingPsbts = state.remainingPsbts,
-                signedPsbts = state.signedPsbts,
-                fetchResult = selectedOption.fetchResult,
-                sweepData = state.sweepData
-              )
-            )
-          }
-          null
-        },
-        screenPresentationStyle = props.presentationStyle,
-        eventTrackerContext = NfcEventTrackerScreenIdContext.SIGN_MANY_TRANSACTIONS,
-        hardwareVerification = Required(useRecoveryPubKey = props.sweepContext is SweepContext.Recovery),
-        shouldShowLongRunningOperation = true
+        showNativeSheetOnIos = false,
+        eventTrackerContext = NfcEventTrackerScreenIdContext.SIGN_MANY_TRANSACTIONS
       )
     )
   }
@@ -534,7 +484,7 @@ class SweepUiStateMachineImpl(
           App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
           Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
         }
-        is SweepContext.PrivateWalletMigration -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_GENERATING_PSBTS
+        is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_GENERATING_PSBTS
         else -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_GENERATING_PSBTS
       },
       onBack = props.onExit,
@@ -606,18 +556,14 @@ class SweepUiStateMachineImpl(
     ) : ScreenState
 
     /**
-     * Signing a single PSBT via NFC. Used when hardware requires one-at-a-time signing
-     * with confirmation between each.
-     *
-     * @param fetchResult Optional continuation callback from RequiresConfirmation.
-     *   If set, this NFC session will call fetchResult instead of signTransaction.
+     * Signing a single PSBT via NFC. Delegates to [SignTransactionNfcSessionUiStateMachine]
+     * which handles the full NFC session including W3 two-tap confirmation and progress.
      */
     data class SigningSinglePsbt(
       val currentPsbt: SweepPsbt,
       val remainingPsbts: List<SweepPsbt>,
       val signedPsbts: Set<Psbt>,
       val sweepData: AwaitingHardwareSignedSweepsData,
-      val fetchResult: (suspend (NfcSession, NfcCommands) -> HardwareInteraction<Psbt>)? = null,
     ) : ScreenState
 
     /**
@@ -628,18 +574,6 @@ class SweepUiStateMachineImpl(
       val currentPsbt: SweepPsbt,
       val remainingPsbts: List<SweepPsbt>,
       val signedPsbts: Set<Psbt>,
-      val sweepData: AwaitingHardwareSignedSweepsData,
-    ) : ScreenState
-
-    /**
-     * Waiting for user to confirm transaction on device (W3 two-tap flow).
-     * Shows "complete interaction on device" screen with continue button.
-     */
-    data class AwaitingDeviceConfirmation(
-      val currentPsbt: SweepPsbt,
-      val remainingPsbts: List<SweepPsbt>,
-      val signedPsbts: Set<Psbt>,
-      val fetchResult: suspend (NfcSession, NfcCommands) -> HardwareInteraction<Psbt>,
       val sweepData: AwaitingHardwareSignedSweepsData,
     ) : ScreenState
   }

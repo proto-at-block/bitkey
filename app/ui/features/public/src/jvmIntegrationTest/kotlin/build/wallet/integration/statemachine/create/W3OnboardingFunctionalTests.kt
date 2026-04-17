@@ -1,115 +1,65 @@
 package build.wallet.integration.statemachine.create
 
-import app.cash.turbine.ReceiveTurbine
-import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.*
+import bitkey.account.HardwareType
+import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2
+import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_COMPLETE_TWO_TAP
 import build.wallet.feature.setFlagValue
 import build.wallet.onboarding.OnboardingKeyboxStep.CloudBackup
 import build.wallet.platform.permissions.PermissionStatus
-import build.wallet.statemachine.account.create.full.onboard.notifications.RecoveryChannelsSetupFormBodyModel
-import build.wallet.statemachine.account.create.full.onboard.notifications.RecoveryChannelsSetupFormItemModel.State.Completed
-import build.wallet.statemachine.account.create.full.onboard.notifications.RecoveryChannelsSetupFormItemModel.State.NotCompleted
-import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.input.EmailInputScreenModel
+import build.wallet.statemachine.account.ChooseAccountAccessModel
+import build.wallet.statemachine.account.create.full.hardware.CompleteTwoTapBodyModel
+import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
+import build.wallet.statemachine.account.create.full.onboard.notifications.RecoveryNotificationsSetupFormBodyModel
 import build.wallet.statemachine.core.input.PhoneNumberInputBodyModel
-import build.wallet.statemachine.core.input.VerificationCodeInputFormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.notifications.NotificationPreferenceFormBodyModel
 import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.clickSecondaryButton
+import build.wallet.statemachine.ui.robots.clickSetUpNewWalletButton
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.HardwareCoverageMode
+import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Integration tests for the W3 onboarding feature.
+ * Integration tests for the W3 onboarding notification flow.
  *
- * Tests cover:
- * - Feature flag OFF: Hub-and-spoke behavior (no regression)
- * - Feature flag ON: Sequential flow (email → SMS → push → transactions)
- * - Close/back behavior returns to hub, Skip advances to next step
- * - Hub Continue button works for manual completion
- * - Push notification handling (granted/denied)
+ * The hub ("Set up critical alerts") screen has been removed. The flow is now always sequential:
+ * Email → SMS (if shown) → Push notification setup → Transaction preferences
  *
- * Note: Settings entry point is not affected by these changes as it uses
- * a different flow path (NotificationTouchpointInputAndVerificationUiStateMachine
- * with Settings entry point, not NotificationPreferencesSetupUiStateMachine).
+ * Close buttons on intermediate screens are now back buttons that navigate to the previous step.
  */
 class W3OnboardingFunctionalTests : FunSpec({
 
-  fun AppTester.prepareApp(): AppTester {
+  suspend fun AppTester.prepareApp(): AppTester {
     return apply {
       pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
         PermissionStatus.Authorized
       )
+      accountConfigService.setHardwareType(HardwareType.W3).getOrThrow()
     }
   }
 
-  context("Feature flag OFF - Hub-and-spoke behavior (no regression)") {
-    test("email success returns to hub, then manual continue works") {
+  context("Sequential flow - email first, always") {
+    test("email success automatically advances to SMS when SMS visible") {
       val app = launchNewApp()
       app.prepareApp()
-      app.w3OnboardingFeatureFlag.setFlagValue(false)
+      app.usSmsFeatureFlag.setFlagValue(true) // Ensure SMS is shown
 
       app.appUiStateMachine.test(
         Unit,
         testTimeout = 60.seconds,
         turbineTimeout = 20.seconds
       ) {
-        advanceThroughCreateKeyboxScreens()
+        advanceThroughCreateKeyboxScreens(HardwareCoverageMode.W3Private)
         advanceThroughOnboardKeyboxScreens(listOf(CloudBackup))
 
-        // Start at hub
-        awaitUntilBody<RecoveryChannelsSetupFormBodyModel> {
-          emailItem.state.shouldBe(NotCompleted)
-          emailItem.onClick.shouldNotBeNull().invoke()
-        }
-
-        // Complete email verification
-        advanceThroughEmailScreensEnterAndVerify()
-
-        // Should return to hub with email completed (hub-and-spoke behavior)
-        awaitUntilBody<RecoveryChannelsSetupFormBodyModel>(
-          matching = { it.emailItem.state == Completed }
-        ) {
-          emailItem.state.shouldBe(Completed)
-        }
-
-        cancelAndIgnoreRemainingEvents()
-      }
-    }
-  }
-
-  context("Feature flag ON - Sequential flow with SMS shown") {
-    test("email success automatically advances to SMS flow when SMS visible") {
-      val app = launchNewApp()
-      app.prepareApp()
-      app.w3OnboardingFeatureFlag.setFlagValue(true)
-      // Enable US SMS to ensure SMS is shown regardless of country
-      app.usSmsFeatureFlag.setFlagValue(true)
-
-      app.appUiStateMachine.test(
-        Unit,
-        testTimeout = 60.seconds,
-        turbineTimeout = 20.seconds
-      ) {
-        advanceThroughCreateKeyboxScreens()
-        advanceThroughOnboardKeyboxScreens(listOf(CloudBackup))
-
-        // Start at hub - verify SMS is visible
-        awaitUntilBody<RecoveryChannelsSetupFormBodyModel>(
-          matching = { it.smsItem != null }
-        ) {
-          smsItem.shouldNotBeNull()
-          emailItem.onClick.shouldNotBeNull().invoke()
-        }
-
-        // Complete email verification
-        advanceThroughEmailScreensEnterAndVerify()
+        advanceThroughEmailScreensEnterAndVerify(hardwareType = HardwareType.W3)
 
         // Should automatically advance to SMS (not return to hub)
         awaitUntilBody<PhoneNumberInputBodyModel>()
@@ -121,7 +71,6 @@ class W3OnboardingFunctionalTests : FunSpec({
     test("full sequential flow: email -> SMS -> push -> transactions") {
       val app = launchNewApp()
       app.prepareApp()
-      app.w3OnboardingFeatureFlag.setFlagValue(true)
       app.usSmsFeatureFlag.setFlagValue(true)
 
       app.appUiStateMachine.test(
@@ -129,24 +78,38 @@ class W3OnboardingFunctionalTests : FunSpec({
         testTimeout = 60.seconds,
         turbineTimeout = 20.seconds
       ) {
-        advanceThroughCreateKeyboxScreens()
+        advanceThroughCreateKeyboxScreens(HardwareCoverageMode.W3Private)
         advanceThroughOnboardKeyboxScreens(listOf(CloudBackup))
 
-        // Start at hub - verify SMS is visible
-        awaitUntilBody<RecoveryChannelsSetupFormBodyModel>(
-          matching = { it.smsItem != null }
-        ) {
-          emailItem.onClick.shouldNotBeNull().invoke()
-        }
-
-        // Complete email verification
-        advanceThroughEmailScreensEnterAndVerify()
+        advanceThroughEmailScreensEnterAndVerify(hardwareType = HardwareType.W3)
 
         // Should automatically advance to SMS
-        advanceThroughSmsScreensEnterAndVerify()
+        advanceThroughSmsScreensEnterAndVerify(hardwareType = HardwareType.W3)
 
         // After SMS, push permission is already granted (mock returns Authorized)
-        // So we skip the hub and go directly to notification preferences
+        // So we skip the push setup page and go directly to notification preferences
+        awaitUntilBody<NotificationPreferenceFormBodyModel>()
+
+        cancelAndIgnoreRemainingEvents()
+      }
+    }
+
+    test("email success skips SMS and shows push page when SMS is hidden") {
+      val app = launchNewApp()
+      app.prepareApp()
+      app.usSmsFeatureFlag.setFlagValue(false) // SMS hidden
+
+      app.appUiStateMachine.test(
+        Unit,
+        testTimeout = 60.seconds,
+        turbineTimeout = 20.seconds
+      ) {
+        advanceThroughCreateKeyboxScreens(HardwareCoverageMode.W3Private)
+        advanceThroughOnboardKeyboxScreens(listOf(CloudBackup))
+
+        advanceThroughEmailScreensEnterAndVerify(hardwareType = HardwareType.W3)
+
+        // Push is already authorized in the mock so should skip directly to transactions
         awaitUntilBody<NotificationPreferenceFormBodyModel>()
 
         cancelAndIgnoreRemainingEvents()
@@ -154,191 +117,150 @@ class W3OnboardingFunctionalTests : FunSpec({
     }
   }
 
-  context("Feature flag ON - Sequential flow with SMS hidden") {
-    test("email success skips SMS when SMS not visible") {
+  context("Back navigation in sequential flow") {
+    test("SMS skip button advances to push setup page") {
       val app = launchNewApp()
       app.prepareApp()
-      app.w3OnboardingFeatureFlag.setFlagValue(true)
-      // Disable US SMS so SMS is hidden for US users
-      app.usSmsFeatureFlag.setFlagValue(false)
-
-      app.appUiStateMachine.test(
-        Unit,
-        testTimeout = 60.seconds,
-        turbineTimeout = 20.seconds
-      ) {
-        advanceThroughCreateKeyboxScreens()
-        advanceThroughOnboardKeyboxScreens(listOf(CloudBackup))
-
-        // Start at hub - check if SMS is hidden
-        val recoverySetupScreen = awaitUntilBody<RecoveryChannelsSetupFormBodyModel>()
-        val hasSmsItem = recoverySetupScreen.smsItem != null
-
-        // Click email to start sequential flow
-        recoverySetupScreen.emailItem.onClick.shouldNotBeNull().invoke()
-
-        // Complete email verification
-        advanceThroughEmailScreensEnterAndVerify()
-
-        if (!hasSmsItem) {
-          // SMS was hidden, push is already authorized - go directly to transactions
-          awaitUntilBody<NotificationPreferenceFormBodyModel>()
-        } else {
-          // SMS was visible - should go to SMS flow
-          awaitUntilBody<PhoneNumberInputBodyModel>()
-        }
-
-        cancelAndIgnoreRemainingEvents()
-      }
-    }
-  }
-
-  context("Close/exit at any point returns to hub, Skip advances to next step") {
-    test("closing email during sequential flow returns to hub") {
-      val app = launchNewApp()
-      app.prepareApp()
-      app.w3OnboardingFeatureFlag.setFlagValue(true)
-
-      app.appUiStateMachine.test(
-        Unit,
-        testTimeout = 60.seconds,
-        turbineTimeout = 20.seconds
-      ) {
-        advanceThroughCreateKeyboxScreens()
-        advanceThroughOnboardKeyboxScreens(listOf(CloudBackup))
-
-        // Start at hub
-        awaitUntilBody<RecoveryChannelsSetupFormBodyModel> {
-          emailItem.onClick.shouldNotBeNull().invoke()
-        }
-
-        // In email input screen - go back
-        awaitUntilBody<EmailInputScreenModel> {
-          onClose()
-        }
-
-        // Should return to hub
-        awaitUntilBody<RecoveryChannelsSetupFormBodyModel>()
-
-        cancelAndIgnoreRemainingEvents()
-      }
-    }
-
-    test("clicking SMS skip button after email success advances to notification setup page") {
-      val app = launchNewApp()
-      app.prepareApp()
-      app.w3OnboardingFeatureFlag.setFlagValue(true)
       app.usSmsFeatureFlag.setFlagValue(true) // Ensure SMS is visible
+      // Use NotDetermined push status so push setup page is shown
+      app.pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
+        PermissionStatus.NotDetermined
+      )
 
       app.appUiStateMachine.test(
         Unit,
         testTimeout = 60.seconds,
         turbineTimeout = 20.seconds
       ) {
-        advanceThroughCreateKeyboxScreens()
+        advanceThroughCreateKeyboxScreens(HardwareCoverageMode.W3Private)
         advanceThroughOnboardKeyboxScreens(listOf(CloudBackup))
 
-        // Start at hub - verify SMS is visible
-        awaitUntilBody<RecoveryChannelsSetupFormBodyModel>(
-          matching = { it.smsItem != null }
-        ) {
-          emailItem.onClick.shouldNotBeNull().invoke()
-        }
-
-        // Complete email verification
-        advanceThroughEmailScreensEnterAndVerify()
+        advanceThroughEmailScreensEnterAndVerify(hardwareType = HardwareType.W3)
 
         // Should advance to SMS - click skip secondary button
         awaitUntilBody<PhoneNumberInputBodyModel> {
-          // Verify skip button is present as secondary button
           secondaryButton.shouldNotBeNull().text.shouldBe("Skip")
-          // Click skip button
           clickSecondaryButton()
         }
 
-        // Should advance to notification setup page (push is already authorized in mock)
-        // Since push is already authorized, we should go directly to notification preferences
-        awaitUntilBody<NotificationPreferenceFormBodyModel>()
+        // Should show push notification setup page (back button, not X)
+        awaitUntilBody<RecoveryNotificationsSetupFormBodyModel>()
 
         cancelAndIgnoreRemainingEvents()
       }
     }
 
-    test("closing SMS after email success returns to hub with email completed") {
+    test("push setup back button returns to SMS when SMS shown") {
       val app = launchNewApp()
       app.prepareApp()
-      app.w3OnboardingFeatureFlag.setFlagValue(true)
-      app.usSmsFeatureFlag.setFlagValue(true) // Ensure SMS is visible
+      app.usSmsFeatureFlag.setFlagValue(true)
+      app.pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
+        PermissionStatus.NotDetermined
+      )
 
       app.appUiStateMachine.test(
         Unit,
         testTimeout = 60.seconds,
         turbineTimeout = 20.seconds
       ) {
-        advanceThroughCreateKeyboxScreens()
+        advanceThroughCreateKeyboxScreens(HardwareCoverageMode.W3Private)
         advanceThroughOnboardKeyboxScreens(listOf(CloudBackup))
 
-        // Start at hub - verify SMS is visible
-        awaitUntilBody<RecoveryChannelsSetupFormBodyModel>(
-          matching = { it.smsItem != null }
-        ) {
-          emailItem.onClick.shouldNotBeNull().invoke()
+        advanceThroughEmailScreensEnterAndVerify(hardwareType = HardwareType.W3)
+
+        advanceThroughSmsScreensEnterAndVerify(hardwareType = HardwareType.W3)
+
+        // Should show push setup page with back button
+        awaitUntilBody<RecoveryNotificationsSetupFormBodyModel> {
+          // Tap back
+          onNavigateBack()
         }
 
-        // Complete email verification
-        advanceThroughEmailScreensEnterAndVerify()
+        // Should return to SMS
+        awaitUntilBody<PhoneNumberInputBodyModel>()
 
-        // Should advance to SMS
-        awaitUntilBody<PhoneNumberInputBodyModel> {
-          // Close SMS flow
-          onClose()
+        cancelAndIgnoreRemainingEvents()
+      }
+    }
+
+    test("push setup skip button advances to transactions") {
+      val app = launchNewApp()
+      app.prepareApp()
+      app.usSmsFeatureFlag.setFlagValue(false) // Skip SMS
+      app.pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
+        PermissionStatus.NotDetermined
+      )
+
+      app.appUiStateMachine.test(
+        Unit,
+        testTimeout = 60.seconds,
+        turbineTimeout = 20.seconds
+      ) {
+        advanceThroughCreateKeyboxScreens(HardwareCoverageMode.W3Private)
+        advanceThroughOnboardKeyboxScreens(listOf(CloudBackup))
+
+        advanceThroughEmailScreensEnterAndVerify(hardwareType = HardwareType.W3)
+
+        // Push setup page shown (push not determined)
+        awaitUntilBody<RecoveryNotificationsSetupFormBodyModel> {
+          clickSecondaryButton() // "Skip"
         }
 
-        // Should return to hub with email completed
-        awaitUntilBody<RecoveryChannelsSetupFormBodyModel>(
-          matching = { it.emailItem.state == Completed }
-        ) {
-          emailItem.state.shouldBe(Completed)
-        }
+        // Should advance to transactions
+        awaitUntilBody<NotificationPreferenceFormBodyModel>()
 
         cancelAndIgnoreRemainingEvents()
       }
     }
   }
 
-  context("Hub Continue button works for manual completion") {
-    test("completing email then clicking continue works with flag off") {
+  context("Back navigation during W3 pairing") {
+    test("back from activation instructions V2 returns to choose account access") {
       val app = launchNewApp()
       app.prepareApp()
-      app.w3OnboardingFeatureFlag.setFlagValue(false)
 
       app.appUiStateMachine.test(
         Unit,
         testTimeout = 60.seconds,
         turbineTimeout = 20.seconds
       ) {
-        advanceThroughCreateKeyboxScreens()
-        advanceThroughOnboardKeyboxScreens(listOf(CloudBackup))
+        awaitUntilBody<ChooseAccountAccessModel>()
+          .clickSetUpNewWalletButton()
 
-        // Start at hub
-        awaitUntilBody<RecoveryChannelsSetupFormBodyModel> {
-          emailItem.onClick.shouldNotBeNull().invoke()
-        }
+        val activationScreen = awaitUntilBody<PairNewHardwareBodyModel>(
+          matching = { !it.primaryButton.isLoading }
+        )
+        activationScreen.eventTrackerScreenInfo.shouldNotBeNull()
+          .eventTrackerScreenId.shouldBe(HW_ACTIVATION_INSTRUCTIONS_V2)
 
-        // Complete email manually
-        advanceThroughEmailScreensEnterAndVerify()
+        activationScreen.onBack.shouldNotBeNull().invoke()
 
-        // Should return to hub (hub-and-spoke behavior)
-        awaitUntilBody<RecoveryChannelsSetupFormBodyModel>(
-          matching = { it.emailItem.state == Completed }
-        ) {
-          // Click continue button
-          continueOnClick()
-        }
+        awaitUntilBody<ChooseAccountAccessModel>()
+        cancelAndIgnoreRemainingEvents()
+      }
+    }
 
-        // Should advance (may show skip confirmation or notification preferences)
-        // depending on other channel states
+    test("back from Finished On Your Device returns to choose account access") {
+      val app = launchNewApp()
+      app.prepareApp()
 
+      app.appUiStateMachine.test(
+        Unit,
+        testTimeout = 60.seconds,
+        turbineTimeout = 20.seconds
+      ) {
+        awaitUntilBody<ChooseAccountAccessModel>()
+          .clickSetUpNewWalletButton()
+
+        val activationScreen = awaitUntilBody<PairNewHardwareBodyModel>(
+          matching = { !it.primaryButton.isLoading }
+        )
+        activationScreen.clickPrimaryButton()
+
+        val finishedScreen = awaitUntilBody<CompleteTwoTapBodyModel>(HW_COMPLETE_TWO_TAP)
+        finishedScreen.onBack.shouldNotBeNull().invoke()
+
+        awaitUntilBody<ChooseAccountAccessModel>()
         cancelAndIgnoreRemainingEvents()
       }
     }
@@ -348,29 +270,18 @@ class W3OnboardingFunctionalTests : FunSpec({
     test("push already authorized skips fullscreen page and goes to transactions") {
       val app = launchNewApp()
       app.prepareApp() // Sets push to Authorized
-      app.w3OnboardingFeatureFlag.setFlagValue(true)
-      app.usSmsFeatureFlag.setFlagValue(true) // Ensure SMS is visible
+      app.usSmsFeatureFlag.setFlagValue(true)
 
       app.appUiStateMachine.test(
         Unit,
         testTimeout = 60.seconds,
         turbineTimeout = 20.seconds
       ) {
-        advanceThroughCreateKeyboxScreens()
+        advanceThroughCreateKeyboxScreens(HardwareCoverageMode.W3Private)
         advanceThroughOnboardKeyboxScreens(listOf(CloudBackup))
 
-        // Start at hub - verify SMS is visible
-        awaitUntilBody<RecoveryChannelsSetupFormBodyModel>(
-          matching = { it.smsItem != null }
-        ) {
-          emailItem.onClick.shouldNotBeNull().invoke()
-        }
-
-        // Complete email
-        advanceThroughEmailScreensEnterAndVerify()
-
-        // Complete SMS
-        advanceThroughSmsScreensEnterAndVerify()
+        advanceThroughEmailScreensEnterAndVerify(hardwareType = HardwareType.W3)
+        advanceThroughSmsScreensEnterAndVerify(hardwareType = HardwareType.W3)
 
         // After SMS, push is already authorized so should skip to transactions
         awaitUntilBody<NotificationPreferenceFormBodyModel>()
@@ -380,36 +291,3 @@ class W3OnboardingFunctionalTests : FunSpec({
     }
   }
 })
-
-private suspend fun ReceiveTurbine<ScreenModel>.advanceThroughEmailScreensEnterAndVerify() {
-  awaitUntilBody<EmailInputScreenModel>()
-    .onValueChange("integration-test@wallet.build")
-  awaitUntilBody<EmailInputScreenModel>(
-    matching = { it.primaryButton.isEnabled }
-  ) {
-    clickPrimaryButton()
-  }
-  awaitUntilBody<VerificationCodeInputFormBodyModel>()
-    .onValueChange("123456") // This code always works for Test Accounts
-  awaitUntilBody<LoadingSuccessBodyModel>(EMAIL_INPUT_SENDING_CODE_TO_SERVER)
-  awaitUntilBody<LoadingSuccessBodyModel>(EMAIL_INPUT_SENDING_ACTIVATION_TO_SERVER)
-  awaitUntilBody<LoadingSuccessBodyModel>(NOTIFICATIONS_HW_APPROVAL_SUCCESS_EMAIL)
-}
-
-private suspend fun ReceiveTurbine<ScreenModel>.advanceThroughSmsScreensEnterAndVerify() {
-  // Use a valid US phone number format - 555-01xx range is reserved for testing
-  // and is valid according to libphonenumber, unlike 555-555-5555
-  val phoneNumber = "+12015550123"
-  awaitUntilBody<PhoneNumberInputBodyModel>()
-    .onTextFieldValueChange(phoneNumber, phoneNumber.length..phoneNumber.length)
-  awaitUntilBody<PhoneNumberInputBodyModel>(
-    matching = { it.primaryButton.isEnabled }
-  ) {
-    clickPrimaryButton()
-  }
-  awaitUntilBody<VerificationCodeInputFormBodyModel>()
-    .onValueChange("123456") // This code always works for Test Accounts
-  awaitUntilBody<LoadingSuccessBodyModel>(SMS_INPUT_SENDING_CODE_TO_SERVER)
-  awaitUntilBody<LoadingSuccessBodyModel>(SMS_INPUT_SENDING_ACTIVATION_TO_SERVER)
-  awaitUntilBody<LoadingSuccessBodyModel>(NOTIFICATIONS_HW_APPROVAL_SUCCESS_SMS)
-}

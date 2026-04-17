@@ -10,10 +10,18 @@ enum class CloudBackupHealthStatusCardType {
   EEK_BACKUP,
 }
 
+enum class CloudBackupHealthStatusTone {
+  SUCCESS,
+  WARNING,
+  DANGER,
+}
+
 data class CloudBackupHealthStatusCardModel(
   val toolbarModel: ToolbarModel?,
   val headerModel: FormHeaderModel,
   val backupStatus: ListItemModel,
+  val designSystemV2StatusText: String? = null,
+  val designSystemV2StatusTone: CloudBackupHealthStatusTone? = null,
   val backupStatusActionButton: ButtonModel?,
   val type: CloudBackupHealthStatusCardType,
 )

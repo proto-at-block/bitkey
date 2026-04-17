@@ -15,6 +15,9 @@ interface BuildHardwareDescriptorUiStateMachine :
 
 data class BuildHardwareDescriptorUiProps(
   val fullAccount: FullAccount,
+  val onBack: () -> Unit,
+  /** Called when the hardware descriptor is built, keys are verified, and the
+   *  HW signature over the app global auth key has been persisted to the keybox. */
   val onComplete: () -> Unit,
-  val onBackupFailed: (Throwable) -> Unit,
+  val onError: (Throwable) -> Unit,
 )

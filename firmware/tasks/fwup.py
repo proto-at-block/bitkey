@@ -9,12 +9,12 @@ import detools
 import semver
 import sh
 from bitkey import fw_version
-from bitkey.comms import ShellTransaction, WalletComms
+from bitkey.comms import NFCTransaction, ShellTransaction, WalletComms
 from bitkey.firmware_signer import (ECC_P256_SIG_SIZE, apply_patch,
                                     verify_firmware_signature_with_padding,
                                     verify_patch_signature)
-from bitkey.fwa.bitkey_fwa.constants import PRODUCTS
-from bitkey.fwup import Fwup, FwupParams
+from bitkey.fwa.bitkey_fwa.constants import PLATFORMS, PRODUCTS
+from bitkey.fwup import FirmwareUpdater, FwupParams
 from bitkey.fwup_bundler import (FwupBundler, FwupDeltaInfo,
                                  load_patch_signing_key)
 from bitkey.partition_info import get_application_partition_size
@@ -25,7 +25,7 @@ from bitkey_proto import wallet_pb2
 from Crypto.Hash import SHA256
 from Crypto.PublicKey import ECC
 from Crypto.Signature import DSS
-from invoke import task
+from invoke import Exit, task
 
 from .lib.paths import BUILD_FW_DIR, BUILD_FWUP_BUNDLE_DIR
 from .memfault import fetch_release, released_versions
@@ -48,6 +48,11 @@ def check_exists(path: str):
         click.echo(click.style(f"'{p}' not found", fg="red"))
         return None
     return p
+
+
+def _delta_bundle_error(delta_bundle) -> str:
+    details = "; ".join(delta_bundle.invalid_details)
+    return details or f"max patch size {delta_bundle.max_size} bytes"
 
 
 def _fwup_valid_delta_update(product: str, start_version: str, end_version: str) -> bool:
@@ -94,6 +99,7 @@ def _fwup_memfault_revision_name(product: str, revision: str, image_type: str) -
         "mode": "",
         "mcu": "",
         "product": "",
+        "deferred": "Use deferred-commit mode for atomic UXC+Core updates",
     },
 )
 def fwup(
@@ -106,6 +112,7 @@ def fwup(
     mode="FWUP_MODE_NORMAL",
     mcu="efr32",
     product="w1",
+    deferred=False,
 ):
     """Firmware update"""
     bundle = check_exists(fwup_bundle)
@@ -124,26 +131,23 @@ def fwup(
 
     if serial_port != None:
         comms = WalletComms(ShellTransaction(port=serial_port))
-        update = Fwup(bundle, bin, sig, start_sequence_id, comms=comms,
-                      fwup_params=fwup_params, mode=mode, mcu_role=mcu_role)
     else:
-        update = Fwup(bundle, bin, sig, start_sequence_id,
-                      mode=mode, fwup_params=fwup_params, mcu_role=mcu_role)
-    result = update.start()
-    if not result:
-        click.secho("Failed to start", fg="red")
-        return
+        comms = WalletComms(NFCTransaction())
 
-    click.echo("Firmware update in progress...")
-    update.transfer()
-    result = update.finish()
-    if result.fwup_finish_rsp.rsp_status == result.fwup_finish_rsp.SUCCESS:
-        click.echo("Firmware update finished successfully.")
-    elif result.fwup_finish_rsp.rsp_status == result.fwup_finish_rsp.WILL_APPLY_PATCH:
-        click.echo("Firmware update transferred, applying patch now...")
+    wallet = Wallet(comms=comms, product=product)
+    update = FirmwareUpdater(wallet=wallet)
+
+    if bundle:
+        status = update.fwup_local(
+            bundle=bundle, mcu=mcu, sequence_id=start_sequence_id, deferred=deferred)
     else:
-        click.echo("Firmware update failed.")
-        click.echo(result)
+        status = update.fwup(
+            mcu=mcu, image=bin, signature=sig, params=fwup_params, sequence_id=start_sequence_id, mode=mode)
+
+    if not status:
+        click.secho("Firmware update failed.", fg="red")
+    else:
+        click.secho("Firmware update finished successfully.", fg="green")
 
 
 @task(
@@ -171,56 +175,47 @@ def bl_upgrade(
     bin = check_exists(binary)
     sig = check_exists(signature)
     meta = check_exists(metadata)
+    product = product.lower()
+    variant = variant.lower()
 
     if not (bin and sig and meta):
         click.echo("Need --binary, --signature, and --metadata")
         return
 
-    # Determine which MCU is being updated (defaults to EFR32).
-    mcu_role = Wallet.chip_name_to_role(product, mcu)
-    role_name = wallet_pb2.mcu_role.Name(mcu_role).split("_")[-1].lower()
-    if product.startswith("w1"):
-        params = FwupParams.from_product("w1")
-    else:
-        _product_name = f"{product}{variant}-{role_name}"
-        params = FwupParams.from_product(_product_name)
+    role_name = wallet_pb2.mcu_role.Name(
+        Wallet.chip_name_to_role(product, mcu)).split("_")[-1].lower()
+    params_product = f"{product}{variant}"
+    if not product.startswith("w1"):
+        params_product = f"{params_product}-{role_name}"
+    params = FwupParams.from_product(params_product)
+    if params is None:
+        click.secho(
+            f"Failed to determine FWUP params for {params_product}.",
+            fg="red",
+        )
+        raise Exit(code=1)
 
     if serial_port != None:
         comms = WalletComms(ShellTransaction(port=serial_port))
-        update = Fwup(None, bin, sig, 0, comms=comms,
-                      mcu_role=mcu_role, fwup_params=params)
     else:
-        update = Fwup(None, bin, sig, 0, mcu_role=mcu_role, fwup_params=params)
-    result = update.start()
-    if not result:
-        click.secho("Firmware update failed to start.", fg="red")
-        return
+        comms = WalletComms(NFCTransaction())
 
-    click.echo("Firmware update in progress...")
+    wallet = Wallet(comms=comms, product=product)
+    update = FirmwareUpdater(wallet=wallet)
+    status = update.bl_upgrade(
+        mcu=mcu,
+        image=bin,
+        signature=sig,
+        metadata=meta,
+        params=params,
+        bl_size=bl_size,
+    )
 
-    SIGNATURE_SIZE = 64
-    METADATA_SIZE = 1024
+    if not status:
+        click.secho("Bootloader upgrade failed.", fg="red")
+        raise Exit(code=1)
 
-    update.params.app_props_offset = 0  # Not used for BL upgrade
-    update.params.signature_offset = bl_size - SIGNATURE_SIZE
-
-    update.transfer_bytes(bin.read_bytes(), 0, 0)
-
-    sig_offset = bl_size - SIGNATURE_SIZE
-    update.transfer_bytes(sig.read_bytes(), 0, sig_offset)
-
-    meta_offset = bl_size - SIGNATURE_SIZE - METADATA_SIZE
-    update.transfer_bytes(meta.read_bytes(), 0, meta_offset)
-
-    click.echo("About to finish")
-
-    result = update.finish(True)
-    click.echo("Finished")
-    if result.fwup_finish_rsp.rsp_status == result.fwup_finish_rsp.SUCCESS:
-        click.echo("Firmware update finished successfully.")
-    else:
-        click.echo("Firmware update failed.")
-        click.echo(result)
+    click.secho("Bootloader upgrade finished successfully.", fg="green")
 
 
 @task(
@@ -264,8 +259,12 @@ def bundle(
             if build_dir:
                 build_dir_mcu = Path(build_dir) / mcu_platform
 
-                def f(file):
-                    return build_dir_mcu.joinpath(file)
+                def f(fname: str) -> Optional[Path]:
+                    for (root, _, fnames) in os.walk(build_dir_mcu):
+                        for _fname in fnames:
+                            if _fname == fname:
+                                return Path(os.path.join(root, _fname))
+                    return None
             else:
                 build_dir_mcu = BUILD_FW_DIR.joinpath(mcu_platform)
                 meson = MesonBuild(c, build_dir=build_dir_mcu)
@@ -483,7 +482,7 @@ def delta_release_local(
                         f"Uploaded {version} -> {to_version} {memfault_hw_revision} {sw_type}")
         else:
             click.echo(
-                f"Can't release {version} -- patch too large ({delta_bundle.max_size} bytes)")
+                f"Can't release {version} -- patch invalid ({_delta_bundle_error(delta_bundle)})")
 
     if from_version and from_dir:
         click.echo(f"Using local from_version dir: {from_dir}")
@@ -761,7 +760,7 @@ def verify_delta_release(
 
     if not delta_bundle.valid:
         click.echo(click.style(
-            f"✗ Patch too large ({delta_bundle.max_size} > 128KB)", fg="red"))
+            f"✗ Patch invalid ({_delta_bundle_error(delta_bundle)})", fg="red"))
         return
 
     try:
@@ -843,7 +842,7 @@ def delta_release(
 
     os.environ["MEMFAULT_ORG_TOKEN"] = bearer_token
 
-    hw_revisions = ["evt", "dvt"]
+    hw_revisions = list(PLATFORMS)
     memfault_hw_revisions = []
     sw_types = _MEMFAULT_SW_TYPES
 
@@ -863,13 +862,14 @@ def delta_release(
             if _fwup_valid_delta_update(product, version, to_version):
                 versions.add(version)
 
+    # Dictionary of full releases. Maps memfault_hw_revision -> sw_type -> release.
     to_version_dirs = {}
 
     output_dir = tempfile.TemporaryDirectory()
 
     click.echo(f"Will write patches to {output_dir.name}")
 
-    # Download the full release for the version that we're generating delta releases for
+    # Download the full release for the version that we're generating delta releases for.
     for memfault_hw_revision in memfault_hw_revisions:
         to_version_dirs[memfault_hw_revision] = {}
         for sw_type in sw_types:
@@ -886,6 +886,13 @@ def delta_release(
         # Download each release, generate a patch, and upload it
         for hw_revision, memfault_hw_revision in zip(hw_revisions, memfault_hw_revisions):
             for sw_type in sw_types:
+                try:
+                    to_version_dir = to_version_dirs[memfault_hw_revision][sw_type]
+                except KeyError:
+                    click.echo(
+                        f"No full release for {memfault_hw_revision} {sw_type} {to_version}")
+                    continue
+
                 fwup_bundle = fetch_release(
                     c, version, memfault_hw_revision, sw_type, output_dir.name, project=_MEMFAULT_PROJECT_NAME)
                 if not fwup_bundle:
@@ -893,8 +900,6 @@ def delta_release(
                     continue
                 click.echo(
                     f"Downloaded {memfault_hw_revision} {sw_type} {version}")
-
-                to_version_dir = to_version_dirs[memfault_hw_revision][sw_type]
 
                 # This is gross. But, the split('-') here is because Memfault requires us to
                 # upload prod vs dev as different hardware revisions, e.g. dvt-prod vs dvt.
@@ -940,7 +945,8 @@ def delta_release(
                         click.echo(
                             f"Uploaded {version} -> {to_version} {memfault_hw_revision} {sw_type}")
                 else:
-                    click.echo(f"Can't release {version} -- not valid")
+                    click.echo(
+                        f"Can't release {version} -- patch invalid ({_delta_bundle_error(delta_bundle)})")
 
     click.echo("Done")
     output_dir.cleanup()

@@ -17,7 +17,6 @@ import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.matchers.shouldBeDisabled
 import build.wallet.statemachine.ui.matchers.shouldBeEnabled
 import build.wallet.statemachine.ui.matchers.shouldBeLoading
-import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.ButtonAccessory
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -50,8 +49,7 @@ class EmailInputUiStateMachineImplTests : FunSpec({
       onEmailEntered = { email, onError ->
         onEmailEnteredCalls.add(EmailEnteredParams(email.value, onError))
       },
-      previousEmail = null,
-      skipBottomSheetProvider = { SheetModelMock(it) }
+      previousEmail = null
     )
 
   afterTest {
@@ -112,31 +110,6 @@ class EmailInputUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         primaryButton.shouldNotBeNull().shouldBeEnabled()
-      }
-    }
-  }
-
-  test("skip flow - onClosed of the errorOverlay should close the sheet") {
-    stateMachine.test(props) {
-      awaitBody<FormBodyModel> {
-        toolbar?.trailingAccessory.shouldBeInstanceOf<ButtonAccessory>()
-          .model.onClick()
-      }
-
-      awaitItem().bottomSheetModel
-        .shouldNotBeNull()
-        .onClosed()
-
-      awaitItem().bottomSheetModel
-        .shouldBeNull()
-    }
-  }
-
-  test("skipBottomSheetProvider passed as null") {
-    stateMachine.test(props.copy(skipBottomSheetProvider = null)) {
-      awaitBody<FormBodyModel> {
-        toolbar.shouldNotBeNull()
-          .trailingAccessory.shouldBeNull()
       }
     }
   }

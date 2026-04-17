@@ -2,7 +2,7 @@ package build.wallet.statemachine.recovery.cloud
 
 import androidx.compose.runtime.*
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.cloud.backup.CloudBackupRepository
+import build.wallet.cloud.backup.CloudBackupService
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.di.ActivityScope
@@ -14,7 +14,7 @@ import com.github.michaelbull.result.get
 @BitkeyInject(ActivityScope::class)
 class ExistingFullAccountUiStateMachineImpl(
   private val cloudStoreAccountRepository: CloudStoreAccountRepository,
-  private val cloudBackupRepository: CloudBackupRepository,
+  private val cloudBackupService: CloudBackupService,
 ) : ExistingFullAccountUiStateMachine {
   @Composable
   override fun model(props: ExistingFullAccountUiProps): ScreenModel {
@@ -68,12 +68,12 @@ class ExistingFullAccountUiStateMachineImpl(
             return@LaunchedEffect
           }
 
-          cloudBackupRepository.archiveBackup(
+          cloudBackupService.archiveBackup(
             cloudStoreAccount = cloudStoreAccount,
             backup = props.cloudBackup
           )
 
-          cloudBackupRepository.clear(
+          cloudBackupService.clear(
             accountId = FullAccountId(props.cloudBackup.accountId),
             cloudStoreAccount,
             clearRemoteOnly = false

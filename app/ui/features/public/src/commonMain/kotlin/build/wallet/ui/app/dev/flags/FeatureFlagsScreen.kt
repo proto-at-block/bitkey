@@ -54,7 +54,10 @@ fun FeatureFlagsScreen(
     }
 
     item {
-      TextField(model = model.filterModel)
+      TextField(
+        model = model.filterModel,
+        testTag = "feature-flags-filter-field"
+      )
     }
 
     item {

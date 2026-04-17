@@ -15,6 +15,7 @@ import build.wallet.f8e.url
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.device.DevicePlatform.Android
+import build.wallet.ui.compose.normalizeTestTagValue
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
@@ -65,12 +66,15 @@ class F8eEnvironmentPickerUiStateMachineImpl(
     val scope = rememberStableCoroutineScope()
     val deviceInfo = deviceInfoProvider.getDeviceInfo()
     val isAndroidEmulator = deviceInfo.devicePlatform == Android && deviceInfo.isEmulator
+    val environmentName = environmentOption.name
+    val environmentTag = normalizeTestTagValue(environmentName, fallback = "environment")
     return ListItemModel(
-      title = environmentOption.name,
+      title = environmentName,
       secondaryText = environmentOption.url(isAndroidEmulator),
       trailingAccessory = ListItemAccessory.SwitchAccessory(
         model = SwitchModel(
           checked = currentEnvironment == environmentOption,
+          testTag = "$environmentTag-toggle",
           onCheckedChange = { isChecked ->
             if (isChecked) {
               scope.launch {

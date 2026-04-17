@@ -8,15 +8,16 @@ import build.wallet.ui.app.dev.logs.LogsScreen
 
 /**
  * Model for showing screen with logs and various debugging options.
- *
- * @property errorsOnly - if `true`, only error logs will be shown (well... warn as well).
- * @property onClear - if called, in-memory logs will be wiped.
  */
 data class LogsBodyModel(
   val errorsOnly: Boolean,
+  val showDebugLogs: Boolean,
   var analyticsEventsOnly: Boolean,
+  val searchQuery: String,
   val onErrorsOnlyValueChanged: (errorsOnly: Boolean) -> Unit,
+  val onShowDebugLogsValueChanged: (showDebugLogs: Boolean) -> Unit,
   val onAnalyticsEventsOnlyValueChanged: (analyticsEventsOnly: Boolean) -> Unit,
+  val onSearchQueryChanged: (String) -> Unit,
   val onClear: () -> Unit,
   val logsModel: LogsModel,
   override val onBack: () -> Unit,

@@ -11,7 +11,7 @@ import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.promotions.PromotionCode
 import build.wallet.bitkey.relationships.*
 import build.wallet.crypto.PublicKey
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.relationships.RelationshipsFake
 import com.github.michaelbull.result.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,7 +56,7 @@ class RelationshipsServiceMock(
 
   override suspend fun removeRelationshipWithoutSyncing(
     accountId: AccountId,
-    hardwareProofOfPossession: HwFactorProofOfPossession?,
+    proof: PrivilegedActionProof?,
     authTokenScope: AuthTokenScope,
     relationshipId: String,
   ): Result<Unit, Error> {
@@ -68,7 +68,7 @@ class RelationshipsServiceMock(
 
   override suspend fun removeRelationship(
     account: Account,
-    hardwareProofOfPossession: HwFactorProofOfPossession?,
+    proof: PrivilegedActionProof?,
     authTokenScope: AuthTokenScope,
     relationshipId: String,
   ): Result<Unit, Error> {
@@ -82,19 +82,21 @@ class RelationshipsServiceMock(
   override suspend fun createInvitation(
     account: FullAccount,
     trustedContactAlias: TrustedContactAlias,
-    hardwareProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
     roles: Set<TrustedContactRole>,
   ): Result<OutgoingInvitation, CreateInvitationError> {
     createInvitationCalls.add(Unit)
     return createInvitationResult
   }
 
+  var refreshInvitationResult: Result<OutgoingInvitation, Error> = Ok(OutgoingInvitationFake)
+
   override suspend fun refreshInvitation(
     account: FullAccount,
     relationshipId: String,
-    hardwareProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
   ): Result<OutgoingInvitation, Error> {
-    return Ok(OutgoingInvitationFake)
+    return refreshInvitationResult
   }
 
   private val defaultRetrieveInvitationResult:
@@ -154,6 +156,7 @@ class RelationshipsServiceMock(
     retrieveInvitationResult = defaultRetrieveInvitationResult
     syncAndVerifyRelationshipsResult = defaultSyncAndVerifyRelationshipsResult
     createInvitationResult = Ok(OutgoingInvitationFake)
+    refreshInvitationResult = Ok(OutgoingInvitationFake)
     relationshipsFlow.value = RelationshipsFake
     return Ok(Unit)
   }

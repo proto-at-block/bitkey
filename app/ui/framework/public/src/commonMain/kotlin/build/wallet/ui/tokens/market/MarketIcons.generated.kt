@@ -384,6 +384,14 @@ public object MarketIcons {
     MarketIcon(Res.drawable.market_bitkey, false)
 
   /**
+   * The Market icon named 'bitkey-fill'.
+   *
+   * Bitkey device filled — abstracts away fingerprint sensor location for W1/W3.
+   */
+  public val BitkeyFill: MarketIcon =
+    MarketIcon(Res.drawable.market_bitkey_fill, false)
+
+  /**
    * The Market icon named 'bitkey-arrow-down'.
    *
    * bitkey

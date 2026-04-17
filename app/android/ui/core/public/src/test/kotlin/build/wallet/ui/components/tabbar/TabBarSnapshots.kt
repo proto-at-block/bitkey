@@ -18,4 +18,16 @@ class TabBarSnapshots : FunSpec({
       TabBarWithHomeAndSecurityHubBadged()
     }
   }
+
+  test("tab bar with home and security hub design system") {
+    paparazzi.snapshot {
+      TabBarWithHomeAndSecurityHubDesignSystem()
+    }
+  }
+
+  test("tab bar with home and security hub badged design system") {
+    paparazzi.snapshot {
+      TabBarWithHomeAndSecurityHubBadgedDesignSystem()
+    }
+  }
 })

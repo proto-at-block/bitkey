@@ -300,7 +300,7 @@ impl SigningService for WsmClient {
         self.handle_wsm_response(res).await
     }
 
-    #[instrument]
+    #[instrument(skip(sealed_request, noise_session))]
     async fn initiate_distributed_keygen(
         &self,
         root_key_id: &str,
@@ -326,7 +326,7 @@ impl SigningService for WsmClient {
         self.handle_wsm_response(res).await
     }
 
-    #[instrument]
+    #[instrument(skip(sealed_request, noise_session))]
     async fn continue_distributed_keygen(
         &self,
         root_key_id: &str,
@@ -352,7 +352,7 @@ impl SigningService for WsmClient {
         self.handle_wsm_response(res).await
     }
 
-    #[instrument]
+    #[instrument(skip(sealed_request, noise_session))]
     async fn generate_partial_signatures(
         &self,
         root_key_id: &str,
@@ -377,7 +377,7 @@ impl SigningService for WsmClient {
         self.handle_wsm_response(res).await
     }
 
-    #[instrument]
+    #[instrument(skip(sealed_request, noise_session))]
     async fn create_self_sovereign_backup(
         &self,
         root_key_id: &str,
@@ -402,7 +402,7 @@ impl SigningService for WsmClient {
         self.handle_wsm_response(res).await
     }
 
-    #[instrument]
+    #[instrument(skip(sealed_request, noise_session))]
     async fn initiate_share_refresh(
         &self,
         root_key_id: &str,
@@ -428,7 +428,7 @@ impl SigningService for WsmClient {
         self.handle_wsm_response(res).await
     }
 
-    #[instrument]
+    #[instrument(skip(sealed_request, noise_session))]
     async fn continue_share_refresh(
         &self,
         root_key_id: &str,
@@ -528,7 +528,7 @@ impl SigningService for WsmClient {
         self.handle_wsm_response(res).await
     }
 
-    #[instrument]
+    #[instrument(skip(bundle, server_static_pubkey))]
     #[allow(clippy::print_stderr)]
     async fn initiate_secure_channel(
         &self,
@@ -569,7 +569,7 @@ impl SigningService for WsmClient {
         })
     }
 
-    #[instrument]
+    #[instrument(skip(sealed_request, noise_session))]
     async fn evaluate_pin(
         &self,
         sealed_request: Vec<u8>,
@@ -638,7 +638,7 @@ impl WsmClient {
 
 #[async_trait]
 impl GrantService for WsmClient {
-    #[instrument]
+    #[instrument(skip(psbt, hw_auth_public_key))]
     async fn approve_psbt(
         &self,
         psbt: &str,

@@ -23,4 +23,16 @@ class MobilePayScreenSnapshots : FunSpec({
       MobilePayStatusScreenEnabledWithDialogPreviewAndRevamp()
     }
   }
+
+  test("mobile pay screen with design system v2 - mobile pay disabled") {
+    paparazzi.snapshot {
+      MobilePayStatusScreenDisabledDesignSystemV2Preview()
+    }
+  }
+
+  test("mobile pay screen with design system v2 - mobile pay enabled") {
+    paparazzi.snapshot {
+      MobilePayStatusScreenEnabledDesignSystemV2Preview()
+    }
+  }
 })

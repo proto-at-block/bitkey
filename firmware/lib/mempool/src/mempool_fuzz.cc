@@ -12,6 +12,7 @@ FAKE_VOID_FUNC(rtos_mutex_create, rtos_mutex_t*);
 FAKE_VOID_FUNC(refresh_auth);
 FAKE_VALUE_FUNC(bool, rtos_mutex_lock, rtos_mutex_t*);
 FAKE_VALUE_FUNC(bool, rtos_mutex_unlock, rtos_mutex_t*);
+FAKE_VALUE_FUNC(bool, rtos_in_isr);
 
 #define R0_MAX_BUFS 5
 #define R0_MAX_SIZE 16

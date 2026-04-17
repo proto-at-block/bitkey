@@ -9,6 +9,9 @@ enum class HapticsEffect {
 
   Selection,
 
+  /** A distinct error/rejection pulse. */
+  Reject,
+
   /** A short, soft vibration. Used for user click feedback. */
   LightClick,
 

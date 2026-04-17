@@ -78,7 +78,8 @@ fun DebugMenuScreen(
         placeholderText = "Search debug options...",
         onValueChange = { newValue, _ -> model.onFilterChange(newValue) },
         keyboardType = TextFieldModel.KeyboardType.Default,
-        focusByDefault = false
+        focusByDefault = false,
+        testTag = "debug-menu-search-field-input"
       )
     )
 

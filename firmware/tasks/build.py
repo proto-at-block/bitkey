@@ -12,28 +12,97 @@ from .lib.paths import *
 from .lib.platforms import Platforms
 
 
+def _set_chip_id(c, chip_id: Optional[str]) -> None:
+    if chip_id:
+        c.chip_id = chip_id
+
+
+def _infer_platform(target: str) -> Optional[str]:
+    """Infer the platform from a target name using partitions prefixes in platforms.yaml."""
+    defaults = get_defaults() or {}
+    for platform_name, platform_config in defaults.items():
+        partitions = platform_config.get("partitions", "")
+        if target.startswith(partitions + "-"):
+            return platform_name
+    return None
+
+
 @task(default=True,
       help={
+          "platform": "Platform to build (e.g. w1, w3-core, w3-uxc)",
+          "target": "Specific target to build (e.g. w3a-core-pdvt-app-a-prod). Requires --platform unless platform can be inferred from the target name.",
           "verbose": "Set to true for more build output",
           "ignore_codegen_cache": "Set to true always re-generate code, ignoring the cache",
+          "chip_id": "Optional per-device chip ID (hex)",
       })
-def build(c, verbose: bool = False, ignore_codegen_cache: bool = False) -> None:
-    """Builds the configured target and platform"""
+def build(
+    c,
+    platform: Optional[str] = None,
+    target: Optional[str] = None,
+    verbose: bool = False,
+    ignore_codegen_cache: bool = False,
+    chip_id: Optional[str] = None,
+) -> None:
+    """Builds the configured target and platform.
 
-    m = MesonBuild(c, ignore_codegen_cache=ignore_codegen_cache)
-    m.setup()
-    m.build_firmware(False, verbose)
+    With --platform only: builds all targets for that platform (same as build.targets).
+    With --platform --target: builds just the specified target.
+    With --target only: infers platform from target name and builds that target.
+    With neither: uses invoke.json defaults.
+    """
+    _set_chip_id(c, chip_id)
+
+    if platform and target:
+        # Explicit platform and target: build just that target.
+        m = MesonBuild(c, platform, target=target,
+                       ignore_codegen_cache=ignore_codegen_cache)
+        m.setup()
+        m.build_firmware(False, verbose)
+    elif platform:
+        # Platform only: build all targets for that platform (same as build.targets).
+        defaults = get_defaults() or {}
+        if platform not in defaults:
+            raise RuntimeError(
+                f"Unknown platform: {platform}. Known platforms: {', '.join(defaults.keys())}")
+        target = defaults[platform].get("target")
+        m = MesonBuild(c, platform, target=target,
+                       ignore_codegen_cache=ignore_codegen_cache)
+        m.setup()
+        m.build_firmware(True, verbose)
+    elif target:
+        # Target only: infer platform from target name.
+        inferred = _infer_platform(target)
+        if not inferred:
+            raise RuntimeError(
+                f"Cannot infer platform from target '{target}'. "
+                f"Please pass --platform explicitly."
+            )
+        m = MesonBuild(c, inferred, target=target,
+                       ignore_codegen_cache=ignore_codegen_cache)
+        m.setup()
+        m.build_firmware(False, verbose)
+    else:
+        # No overrides: use invoke.json defaults.
+        m = MesonBuild(c, ignore_codegen_cache=ignore_codegen_cache)
+        m.setup()
+        m.build_firmware(False, verbose)
 
 
 @task(name='targets',
       iterable=["targets"], help={
           "platform": "Platform to build",
-          "verbose": "Set to true for more build output"
+          "verbose": "Set to true for more build output",
+          "chip_id": "Optional per-device chip ID (hex)",
       })
-def build_all_targets(c, platform: Optional[str] = None, verbose: bool = False):
+def build_all_targets(
+    c,
+    platform: Optional[str] = None,
+    verbose: bool = False,
+    chip_id: Optional[str] = None,
+):
     """Builds firmware targets for the configured or supplied platform"""
-
     platform = platform or c.platform
+    _set_chip_id(c, chip_id)
     target = (get_defaults() or {}).get(platform, {}).get("target", c.target)
     m = MesonBuild(c, platform, target=target)
     m.setup()
@@ -42,10 +111,17 @@ def build_all_targets(c, platform: Optional[str] = None, verbose: bool = False):
 
 @task(name='platforms', iterable=["platforms"], help={
     "platforms": "List of platforms to build",
-    "verbose": "Set to true for more build output"
+    "verbose": "Set to true for more build output",
+    "chip_id": "Optional per-device chip ID (hex)",
 })
-def build_platforms(c, platforms: Optional[List[str]] = None, verbose=False):
+def build_platforms(
+    c,
+    platforms: Optional[List[str]] = None,
+    verbose: bool = False,
+    chip_id: Optional[str] = None,
+):
     """Builds all firmware platforms and targets"""
+
     if not platforms:
         platforms = next(os.walk(APPS_DIR))[1]
 
@@ -53,7 +129,12 @@ def build_platforms(c, platforms: Optional[List[str]] = None, verbose=False):
     platforms = [p for p in platforms if p not in Platforms.EXCLUDED_PLATFORMS]
 
     for p in platforms:
-        build_all_targets(c, platform=p, verbose=verbose)
+        build_all_targets(
+            c,
+            platform=p,
+            verbose=verbose,
+            chip_id=chip_id,
+        )
 
 
 @task(name='commands', help={

@@ -365,8 +365,8 @@ async fn test_complete_claim_without_psbt_unlocked_fails() {
     signing_error,
     expected_msg,
     case(
-        SigningError::SpendRuleCheckFailed(vec![SpendRuleCheckError::OutputsBelongToSanctionedIndividuals].into()),
-        "One or more outputs belong to sanctioned individuals. "
+        SigningError::SpendRuleCheckFailed(vec![SpendRuleCheckError::InputsOutputsBelongToSanctionedIndividuals].into()),
+        "One or more inputs/outputs belong to sanctioned individuals. "
     ),
     case(
         SigningError::ServerSigningDisabled,

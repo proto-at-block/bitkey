@@ -43,7 +43,8 @@ impl RecoveryStateResponse for CompletableRecoveryState {
                 auth_keys: FullAccountAuthKeysInput {
                     app: action.destination.app_auth_pubkey,
                     hardware: action.destination.hardware_auth_pubkey,
-                    recovery: action.destination.recovery_auth_pubkey
+                    recovery: action.destination.recovery_auth_pubkey,
+                    hardware_type: action.destination.hardware_type,
                 }
             }),
             active_contest: self.active_contest,
@@ -109,6 +110,7 @@ impl TransitioningRecoveryState for CompletableRecoveryState {
                     app_auth_pubkey: action.destination.app_auth_pubkey,
                     hardware_auth_pubkey: action.destination.hardware_auth_pubkey,
                     recovery_auth_pubkey: action.destination.recovery_auth_pubkey,
+                    hardware_type: action.destination.hardware_type,
                 })
                 .await?;
 

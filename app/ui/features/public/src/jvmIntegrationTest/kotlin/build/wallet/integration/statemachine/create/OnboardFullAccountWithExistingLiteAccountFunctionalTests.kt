@@ -39,17 +39,18 @@ class OnboardFullAccountWithExistingLiteAccountFunctionalTests : FunSpec({
     // Step 2: Start a new app to onboard a full account, simulating a different user
     val onboardApp = launchNewApp(
       cloudStoreAccountRepository = liteApp.cloudStoreAccountRepository,
-      cloudKeyValueStore = liteApp.cloudKeyValueStore
+      cloudBackupStore = liteApp.cloudBackupStore
     )
 
     // Verify the lite account backup is present in cloud
-    onboardApp.cloudKeyValueStore.keys(CloudStoreAccountFake.CloudStoreAccount1Fake)
+    onboardApp.cloudBackupStore.keys(CloudStoreAccountFake.CloudStoreAccount1Fake)
       .getOrThrow()
       .first()
       .let { key ->
-        onboardApp.cloudKeyValueStore.getString(CloudStoreAccountFake.CloudStoreAccount1Fake, key)
+        onboardApp.cloudBackupStore.get(CloudStoreAccountFake.CloudStoreAccount1Fake, key)
           .shouldBeOk()
           .shouldNotBeNull()
+          .utf8()
           .shouldBe(
             onboardApp.jsonSerializer.encodeToStringResult<CloudBackupV3>(liteBackup as CloudBackupV3)
               .getOrThrow()
@@ -142,7 +143,7 @@ private suspend fun createLiteAccountWithBackup(
 
   // Create and write lite account backup to cloud
   val liteBackup = liteApp.liteAccountCloudBackupCreator.create(liteAccount).getOrThrow()
-  liteApp.cloudBackupRepository.writeBackup(
+  liteApp.cloudBackupService.writeBackup(
     liteAccount.accountId,
     CloudStoreAccountFake.CloudStoreAccount1Fake,
     liteBackup,

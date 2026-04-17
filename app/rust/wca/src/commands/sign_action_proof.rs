@@ -23,17 +23,13 @@ pub enum SignActionProofResult {
 fn sign_action_proof(
     version: u32,
     action: String,
-    field: String,
     value: Option<String>,
-    current: Option<String>,
     bindings: String,
 ) -> Result<SignActionProofResult, CommandError> {
     let apdu: apdu::Command = SignActionProofCmd {
         version,
         action,
-        field,
         value: value.unwrap_or_default(),
-        current: current.unwrap_or_default(),
         bindings,
     }
     .try_into()?;
@@ -61,9 +57,7 @@ fn sign_action_proof(
 command!(SignActionProof = sign_action_proof -> SignActionProofResult,
     version: u32,
     action: String,
-    field: String,
     value: Option<String>,
-    current: Option<String>,
     bindings: String
 );
 
@@ -89,15 +83,13 @@ mod tests {
     fn sign_action_proof_success() -> Result<(), CommandError> {
         let command = SignActionProof::new(
             1,
-            "Add".to_string(),
-            "RecoveryEmail".to_string(),
+            "SetRecoveryEmail".to_string(),
             Some("test@example.com".to_string()),
-            None,
             "eid=ABC,tb=59dc".to_string(),
         );
         command.next(Vec::default())?;
 
-        let signature = vec![0u8; 65];
+        let signature = vec![0u8; 64];
 
         let response = make_response(WalletRsp {
             status: Status::Success.into(),
@@ -123,10 +115,8 @@ mod tests {
     fn sign_action_proof_confirmation_pending() -> Result<(), CommandError> {
         let command = SignActionProof::new(
             1,
-            "Add".to_string(),
-            "RecoveryEmail".to_string(),
+            "SetRecoveryEmail".to_string(),
             Some("test@example.com".to_string()),
-            None,
             "eid=ABC,tb=59dc".to_string(),
         );
         command.next(Vec::default())?;

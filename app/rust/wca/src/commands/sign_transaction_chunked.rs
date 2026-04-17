@@ -49,7 +49,7 @@ fn sign_start(psbt_size: u32) -> Result<SignStartResult, CommandError> {
         match SignStartRspStatus::try_from(rsp_status) {
             Ok(SignStartRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
             Ok(SignStartRspStatus::Success) => Ok(SignStartResult::Success),
-            Ok(SignStartRspStatus::Error) => Err(CommandError::GeneralCommandError),
+            Ok(SignStartRspStatus::Error) => Err(CommandError::SignTransactionFailed),
             Ok(SignStartRspStatus::Unauthenticated) => Err(CommandError::Unauthenticated),
             Err(_) => Err(CommandError::InvalidResponse),
         }
@@ -201,7 +201,7 @@ mod tests {
         });
 
         let result = command.next(response);
-        assert!(matches!(result, Err(CommandError::GeneralCommandError)));
+        assert!(matches!(result, Err(CommandError::SignTransactionFailed)));
     }
 
     #[test]

@@ -7,7 +7,7 @@ import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupError
 import build.wallet.cloud.backup.CloudBackupError.RectifiableCloudBackupError
 import build.wallet.cloud.backup.CloudBackupError.UnrectifiableCloudBackupError
-import build.wallet.cloud.backup.CloudBackupRepository
+import build.wallet.cloud.backup.CloudBackupService
 import build.wallet.cloud.backup.isFullAccount
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.di.ActivityScope
@@ -31,7 +31,7 @@ import com.github.michaelbull.result.onSuccess
 
 @BitkeyInject(ActivityScope::class)
 class AccessCloudBackupUiStateMachineImpl(
-  private val cloudBackupRepository: CloudBackupRepository,
+  private val cloudBackupService: CloudBackupService,
   private val cloudSignInUiStateMachine: CloudSignInUiStateMachine,
   private val rectifiableErrorHandlingUiStateMachine: RectifiableErrorHandlingUiStateMachine,
   private val deviceInfoProvider: DeviceInfoProvider,
@@ -109,7 +109,7 @@ class AccessCloudBackupUiStateMachineImpl(
 
       is CheckingCloudBackupUiState -> {
         LaunchedEffect("check cloud account for backup") {
-          cloudBackupRepository.readAllBackups(currentState.account)
+          cloudBackupService.readAllBackups(currentState.account)
             .onSuccess { backups ->
               when {
                 backups.isEmpty() -> handleNewBackup(

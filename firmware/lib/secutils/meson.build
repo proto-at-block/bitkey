@@ -44,3 +44,10 @@ secutils_bl_dep = declare_dependency(
   include_directories : includes,
   dependencies : bl_deps,
 )
+
+secutils_test = executable('secutils-test',
+  'src/secutils_test.c',
+  include_directories : includes,
+  dependencies : [secutils_bl_dep, test_deps],
+)
+test('secutils test', secutils_test)

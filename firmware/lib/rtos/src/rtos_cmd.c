@@ -74,11 +74,10 @@ static void cmd_top_run(int UNUSED(argc), char** UNUSED(argv)) {
   printf("%s", header);
 
   static TaskStatus_t task_statuses[MAX_NUM_TASKS];
-  volatile uint32_t num_tasks;
   uint32_t total_run_time;
 
   /* Generate raw status information about each task. */
-  num_tasks = uxTaskGetSystemState(task_statuses, num_tasks, &total_run_time);
+  uint32_t num_tasks = uxTaskGetSystemState(task_statuses, MAX_NUM_TASKS, &total_run_time);
 
 /* For percentage calculations. */
 #if (configGENERATE_RUN_TIME_STATS == 1) && (INCLUDE_uxTaskGetRunTime == 1)

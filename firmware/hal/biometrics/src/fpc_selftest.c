@@ -420,9 +420,12 @@ static bool sensor_reg_test_fpc1323(uint8_t val, uint8_t* ret_val) {
 }
 
 bool bio_image_capture_test(uint8_t** image_out, uint32_t* image_size_out) {
+  bio_sensor_lock();
   fpc_bep_image_t* image = fpc_bep_image_new();
   if (!bio_capture_image(image, 5)) {
-    goto fail;
+    fpc_bep_image_delete(&image);
+    bio_sensor_unlock();
+    return false;
   }
 
   uint8_t* pixels = fpc_bep_image_get_pixels(image);
@@ -431,34 +434,29 @@ bool bio_image_capture_test(uint8_t** image_out, uint32_t* image_size_out) {
   memcpy(*image_out, pixels, *image_size_out);
   fpc_bep_image_delete(&image);
 
+  bio_sensor_unlock();
   return true;
-
-fail:
-  fpc_bep_image_delete(&image);
-  return false;
 }
 
 void bio_selftest(bio_selftest_result_t* result) {
+  bio_sensor_lock();
   toggle_cs(false);
 
-  LOGI("bepit_sensor_irq_test...");
   result->irq_test = bepit_sensor_irq_test();
-  LOGI("bepit_sensor_spi_rw_test...");
   result->spi_rw_test = bepit_sensor_spi_rw_test();
-  LOGI("bepit_sensor_spi_speed_test...");
   result->spi_speed_test = bepit_sensor_spi_speed_test(100);
-  LOGI("bepit_sensor_spi_image_stress_test...");
   result->image_stress_test = bepit_sensor_spi_image_stress_test(10);
-  LOGI("bepit_sensor_spi_reg_stress_test...");
   result->reg_stress_test = bepit_sensor_spi_reg_stress_test(1000);
 
-  LOGI("fpc_bep_sensor_otp_test...");
   result->otp_test = fpc_bep_sensor_otp_test() == FPC_BEP_RESULT_OK;
-  LOGI("fpc_bep_sensor_prod_test...");
   result->prod_test = fpc_bep_sensor_prod_test() == FPC_BEP_RESULT_OK;
+  bio_sensor_unlock();
 }
 
 bool bio_quick_selftest(void) {
+  bio_sensor_lock();
   toggle_cs(false);
-  return bepit_sensor_irq_test() && bepit_sensor_spi_rw_test();
+  bool ok = bepit_sensor_irq_test() && bepit_sensor_spi_rw_test();
+  bio_sensor_unlock();
+  return ok;
 }

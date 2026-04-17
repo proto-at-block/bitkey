@@ -9,14 +9,14 @@ plugins {
   id("org.jetbrains.kotlin.plugin.atomicfu") version "2.1.20"
 }
 
+val generatedUniffiSourcesDir = layout.projectDirectory.dir("src")
+
 kotlin {
   targets(android = true, ios = true, jvm = true)
 
   sourceSets {
-    val uniffiBindingsDir = layout.buildDirectory.dir("generated/uniffi")
-
     val commonMain by getting {
-      kotlin.srcDir(uniffiBindingsDir.map { it.dir("commonMain/kotlin") })
+      kotlin.srcDir(generatedUniffiSourcesDir.dir("commonMain/kotlin"))
 
       dependencies {
         implementation(libs.kmp.kotlin.coroutines)
@@ -25,7 +25,7 @@ kotlin {
     }
 
     val androidMain by getting {
-      kotlin.srcDir(uniffiBindingsDir.map { it.dir("androidMain/kotlin") })
+      kotlin.srcDir(generatedUniffiSourcesDir.dir("androidMain/kotlin"))
 
       dependencies {
         implementation("net.java.dev.jna:jna:5.16.0@aar")
@@ -34,7 +34,7 @@ kotlin {
     }
 
     val jvmMain by getting {
-      kotlin.srcDir(uniffiBindingsDir.map { it.dir("jvmMain/kotlin") })
+      kotlin.srcDir(generatedUniffiSourcesDir.dir("jvmMain/kotlin"))
 
       dependencies {
         implementation(libs.jvm.jna)
@@ -42,17 +42,14 @@ kotlin {
     }
 
     val iosMain by getting {
-      kotlin.srcDir(uniffiBindingsDir.map { it.dir("nativeMain/kotlin") })
+      kotlin.srcDir(generatedUniffiSourcesDir.dir("nativeMain/kotlin"))
     }
   }
 }
 
-val uniffiBindingsDir = layout.buildDirectory.dir("generated/uniffi")
-val nativeInteropDir = uniffiBindingsDir.map { it.dir("nativeInterop/cinterop") }
-val actionproofCinteropHeader = nativeInteropDir.map {
-  it.file("headers/actionproof/actionproof.h")
-}
-val actionproofCinteropDefFile = nativeInteropDir.map { it.file("actionproof.def") }
+val nativeInteropDir = generatedUniffiSourcesDir.dir("nativeInterop/cinterop")
+val actionproofCinteropHeader = nativeInteropDir.file("headers/actionproof/actionproof.h")
+val actionproofCinteropDefFile = nativeInteropDir.file("actionproof.def")
 
 kotlin.targets.withType<KotlinNativeTarget>().configureEach {
   compilations.getByName("main") {

@@ -1,6 +1,9 @@
 package bitkey.f8e.error
 
 import bitkey.f8e.error.code.*
+import bitkey.f8e.error.code.AcceptTrustedContactInvitationErrorCode.CONFLICT
+import bitkey.f8e.error.code.AcceptTrustedContactInvitationErrorCode.INVITATION_EXPIRED
+import bitkey.f8e.error.code.AcceptTrustedContactInvitationErrorCode.MAX_PROTECTED_CUSTOMERS_REACHED
 import bitkey.f8e.error.code.MobilePayErrorCode.NO_SPENDING_LIMIT_EXISTS
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -74,5 +77,32 @@ class F8eErrorTests : FunSpec({
       )
     clientErrorResponse.errors.first().code
       .shouldBe(NO_SPENDING_LIMIT_EXISTS)
+  }
+
+  test("AcceptTrustedContactInvitationErrorCode - CONFLICT deserializes correctly") {
+    val json =
+      """{"errors":[{"category":"INVALID_REQUEST_ERROR","code":"CONFLICT"}]}"""
+    val clientErrorResponse: F8eClientErrorResponse<AcceptTrustedContactInvitationErrorCode> =
+      jsonDecoder.decodeFromString(json)
+    clientErrorResponse.errors.first().code
+      .shouldBe(CONFLICT)
+  }
+
+  test("AcceptTrustedContactInvitationErrorCode - INVITATION_EXPIRED deserializes correctly") {
+    val json =
+      """{"errors":[{"category":"INVALID_REQUEST_ERROR","code":"INVITATION_EXPIRED"}]}"""
+    val clientErrorResponse: F8eClientErrorResponse<AcceptTrustedContactInvitationErrorCode> =
+      jsonDecoder.decodeFromString(json)
+    clientErrorResponse.errors.first().code
+      .shouldBe(INVITATION_EXPIRED)
+  }
+
+  test("AcceptTrustedContactInvitationErrorCode - MAX_PROTECTED_CUSTOMERS_REACHED deserializes correctly") {
+    val json =
+      """{"errors":[{"category":"INVALID_REQUEST_ERROR","code":"MAX_PROTECTED_CUSTOMERS_REACHED"}]}"""
+    val clientErrorResponse: F8eClientErrorResponse<AcceptTrustedContactInvitationErrorCode> =
+      jsonDecoder.decodeFromString(json)
+    clientErrorResponse.errors.first().code
+      .shouldBe(MAX_PROTECTED_CUSTOMERS_REACHED)
   }
 })

@@ -12,6 +12,7 @@
 #include "lvgl.h"
 
 #include <stdbool.h>
+#include <stdint.h>
 
 /**
  * @brief Callback invoked when cancel hold completes
@@ -26,6 +27,19 @@ typedef void (*hold_cancel_complete_cb_t)(void* user_data);
  * @param user_data User data passed to hold_cancel_show()
  */
 typedef void (*hold_cancel_dismiss_cb_t)(void* user_data);
+
+/**
+ * @brief Optional configuration for hold-to-cancel presentation.
+ */
+typedef struct {
+  const char* initial_text;
+  const char* completed_text;
+  const char* followup_title;
+  const char* followup_text;
+  uint32_t completion_delay_ms;
+  uint32_t followup_delay_ms;
+  bool hide_after_complete;
+} hold_cancel_options_t;
 
 /**
  * @brief Hold-to-cancel modal widget state
@@ -49,11 +63,20 @@ typedef struct {
 
   const char* initial_text;
   const char* completed_text;
+  const char* followup_title;
+  const char* followup_text;
 
   bool is_showing;             // True if currently visible
   bool is_initialized;         // True if widget created
   bool hold_completed;         // True if hold duration met, waiting for release
   lv_timer_t* complete_timer;  // Timer for completion delay
+  lv_timer_t* followup_timer;  // Timer for dismissing the followup state
+  lv_obj_t* followup_container;
+  lv_obj_t* followup_title_label;
+  lv_obj_t* followup_text_label;
+  uint32_t completion_delay_ms;
+  uint32_t followup_delay_ms;
+  bool hide_after_complete;
 } hold_cancel_t;
 
 /**
@@ -81,6 +104,22 @@ void hold_cancel_show(hold_cancel_t* modal, hold_cancel_complete_cb_t complete_c
                       hold_cancel_dismiss_cb_t dismiss_cb, void* user_data);
 
 /**
+ * @brief Show the hold-to-cancel modal with optional followup content.
+ *
+ * If followup content is provided, it is shown after the completion delay and
+ * the complete callback is deferred until the followup timeout expires.
+ *
+ * @param modal Modal widget structure
+ * @param complete_cb Callback when flow should complete (can be NULL)
+ * @param dismiss_cb Callback when dismissed via back button (can be NULL)
+ * @param user_data User data passed to callbacks
+ * @param options Optional presentation configuration
+ */
+void hold_cancel_show_with_options(hold_cancel_t* modal, hold_cancel_complete_cb_t complete_cb,
+                                   hold_cancel_dismiss_cb_t dismiss_cb, void* user_data,
+                                   const hold_cancel_options_t* options);
+
+/**
  * @brief Show the hold-to-cancel modal with custom text
  *
  * Displays the modal overlay with hold-to-cancel interaction using custom text labels.
@@ -95,6 +134,38 @@ void hold_cancel_show(hold_cancel_t* modal, hold_cancel_complete_cb_t complete_c
 void hold_cancel_show_with_text(hold_cancel_t* modal, hold_cancel_complete_cb_t complete_cb,
                                 hold_cancel_dismiss_cb_t dismiss_cb, void* user_data,
                                 const char* initial_text, const char* completed_text);
+
+#if LV_USE_SNAPSHOT
+/**
+ * @brief Snapshot helper that renders the followup state directly.
+ *
+ * @param modal Modal widget structure
+ * @param options Followup presentation configuration
+ */
+void hold_cancel_snapshot_show_followup(hold_cancel_t* modal, const hold_cancel_options_t* options);
+
+/**
+ * @brief Snapshot helper that starts the release rewind from partial progress.
+ *
+ * @param modal Modal widget structure
+ * @param options Modal presentation configuration
+ * @param percent Starting ring progress (0-100)
+ */
+void hold_cancel_snapshot_start_release_reverse(hold_cancel_t* modal,
+                                                const hold_cancel_options_t* options,
+                                                uint8_t percent);
+#endif
+
+/**
+ * @brief Stop all internal timers and animations without touching LVGL objects.
+ *
+ * Call this before deleting the parent screen so that timer callbacks don't fire
+ * on already-freed objects.  Unlike hold_cancel_hide/destroy, this does NOT
+ * delete any lv_obj_t children (the screen deletion will handle that).
+ *
+ * @param modal Modal widget structure
+ */
+void hold_cancel_stop_timers(hold_cancel_t* modal);
 
 /**
  * @brief Hide the hold-to-cancel modal

@@ -5,8 +5,8 @@
 #include "filesystem.h"
 #include "log.h"
 
-static uint8_t SHARED_TASK_DATA event_storage[TELEMETRY_EVENT_STORAGE_SIZE];
-static uint8_t SHARED_TASK_DATA log_storage[TELEMETRY_LOG_STORAGE_SIZE];
+static uint8_t SHARED_TASK_BSS event_storage[TELEMETRY_EVENT_STORAGE_SIZE];
+static uint8_t SHARED_TASK_BSS log_storage[TELEMETRY_LOG_STORAGE_SIZE];
 extern uint8_t SHARED_TASK_DATA active_coredump[TELEMETRY_COREDUMP_SIZE];
 
 #define COREDUMPS_PATH        "coredumps.bin"
@@ -33,7 +33,7 @@ bool telemetry_coredump_save(void) {
 
   fs_file_t* file = NULL;
   if (fs_open_global(&file, COREDUMPS_PATH, FS_O_CREAT | FS_O_RDWR) != 0) {
-    goto out;
+    return false;  // Don't call fs_close_global — we don't hold g_file_access_lock.
   }
 
   if (!wrapping_seek(file, COREDUMP_MAX_FILESIZE)) {
@@ -58,18 +58,18 @@ bool telemetry_coredump_read_fragment(uint32_t offset, fwpb_coredump_fragment* f
 
   fs_file_t* file = NULL;
   if (fs_open_global(&file, COREDUMPS_PATH, FS_O_RDWR) != 0) {
-    LOGE("Failed to open coredump file");
+    LOGE("Open coredump fail");
     goto out;
   }
 
   if (fs_file_size(file) < TELEMETRY_COREDUMP_SIZE) {
     // Don't try to seek if there is no coredump.
-    LOGE("No coredump to read.");
+    LOGE("No coredump");
     goto out;
   }
 
   if (offset > TELEMETRY_COREDUMP_SIZE) {
-    LOGE("Offset too big");
+    LOGE("Offset too large");
     goto out;
   }
 
@@ -78,26 +78,23 @@ bool telemetry_coredump_read_fragment(uint32_t offset, fwpb_coredump_fragment* f
   // we hadn't drained coredumps before we wrapped back around.
 
   if (fs_file_seek(file, -TELEMETRY_COREDUMP_SIZE + offset, FS_SEEK_END) < 0) {
-    LOGE("Failed to seek.");
+    LOGE("Seek fail");
     goto out;
   }
 
   int32_t bytes_read = fs_file_read(file, frag->data.bytes, sizeof(frag->data.bytes));
   if (bytes_read < 0) {
-    LOGE("Failed to read coredump file");
+    LOGE("Read coredump fail");
     goto out;
   }
 
   frag->data.size = bytes_read;
   frag->offset = offset + bytes_read;
 
-  LOGD("coredump offset: %ld", frag->offset);
-
   if (frag->offset >= TELEMETRY_COREDUMP_SIZE) {
-    LOGI("Coredump processed.");
     // Done processing a coredump. Truncate to remove it from flash.
     if (fs_file_truncate(file, fs_file_size(file) - TELEMETRY_COREDUMP_SIZE) < 0) {
-      LOGE("Failed to truncate.");
+      LOGE("Truncate fail");
       goto out;
     }
 
@@ -169,7 +166,7 @@ static void maybe_delete_old_coredumps(void) {
   uint8_t header[12];
   int32_t bytes_read = fs_file_read(file, header, sizeof(header));
   if (bytes_read < 0) {
-    LOGE("Failed to read coredump file");
+    LOGE("Read coredump fail");
     goto out;
   }
 

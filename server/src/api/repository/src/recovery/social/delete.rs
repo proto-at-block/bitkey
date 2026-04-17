@@ -159,7 +159,7 @@ impl SocialRecoveryRepository {
         Ok(())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, challenges))]
     async fn batch_delete_challenges(
         &self,
         challenges: Vec<SocialChallenge>,

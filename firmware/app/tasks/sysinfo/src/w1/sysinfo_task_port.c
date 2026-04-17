@@ -1,9 +1,11 @@
 #include "attributes.h"
 #include "ipc.h"
 #include "log.h"
+#include "mcu_devinfo.h"
 #include "metadata.h"
 #include "power.h"
 #include "proto_helpers.h"
+#include "sysinfo.h"
 #include "sysinfo_task_impl.h"
 #include "wallet.pb.h"
 
@@ -27,6 +29,15 @@ bool sysinfo_task_port_handle_message(ipc_ref_t* message) {
   /* No platform-specific messages on W1. */
   (void)message;
   return false;
+}
+
+bool sysinfo_task_port_handle_host_secure_channel_cert_get(fwpb_wallet_cmd* cmd,
+                                                           fwpb_wallet_rsp* rsp) {
+  /* No-op on W1. */
+  (void)cmd;
+  LOGE("unexpected request from host for secure channel certificate.");
+  rsp->msg.cert_get_rsp.rsp_status = fwpb_cert_get_rsp_cert_get_rsp_status_CERT_READ_FAIL;
+  return true;
 }
 
 void sysinfo_task_handle_coproc_metadata(ipc_ref_t* message) {
@@ -86,6 +97,12 @@ bool sysinfo_task_port_dispatch_confirmation_result(ipc_ref_t* message) {
   return false;
 }
 
+bool sysinfo_task_port_handle_wipe_state(ipc_ref_t* message) {
+  /* W1 does not require on-device confirmation for wipe. */
+  (void)message;
+  return false;
+}
+
 void sysinfo_task_port_populate_mcu_info(fwpb_device_info_rsp* rsp) {
   ASSERT(rsp != NULL);
 
@@ -104,5 +121,15 @@ void sysinfo_task_port_populate_mcu_info(fwpb_device_info_rsp* rsp) {
   rsp->device_info_mcus[index].version.major = metadata.version.major;
   rsp->device_info_mcus[index].version.minor = metadata.version.minor;
   rsp->device_info_mcus[index].version.patch = metadata.version.patch;
+  {
+    uint8_t chip_id[CHIPID_LENGTH] = {0};
+    uint32_t chip_id_length = 0;
+    sysinfo_chip_id_read(chip_id, &chip_id_length);
+    PROTO_FILL_BYTES(&rsp->device_info_mcus[index], chip_id, chip_id, chip_id_length);
+  }
   index++;
+}
+
+void sysinfo_task_port_set_uxc_pending_version(const fwpb_semver* UNUSED(version)) {
+  // W1 has no coprocessor — nothing to do.
 }

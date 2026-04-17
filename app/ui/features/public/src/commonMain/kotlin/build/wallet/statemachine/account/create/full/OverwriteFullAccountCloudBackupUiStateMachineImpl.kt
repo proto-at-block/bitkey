@@ -4,13 +4,14 @@ import OverwriteExistingBackupConfirmationAlert
 import androidx.compose.runtime.*
 import bitkey.onboarding.DeleteFullAccountService
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.onboarding.OnboardingKeyboxStepStateDao
-import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
-import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
-import build.wallet.statemachine.auth.Request
+import build.wallet.f8e.auth.PrivilegedActionProof
+import build.wallet.onboarding.OnboardFullAccountService
+import build.wallet.statemachine.auth.ActionProofType
+import build.wallet.statemachine.auth.HardwareAuthUiProps
+import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
@@ -22,8 +23,8 @@ import com.github.michaelbull.result.onSuccess
 @BitkeyInject(ActivityScope::class)
 class OverwriteFullAccountCloudBackupUiStateMachineImpl(
   private val deleteFullAccountService: DeleteFullAccountService,
-  private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
-  private val onboardingKeyboxStepStateDao: OnboardingKeyboxStepStateDao,
+  private val hardwareAuthUiStateMachine: HardwareAuthUiStateMachine,
+  private val onboardFullAccountService: OnboardFullAccountService,
 ) : OverwriteFullAccountCloudBackupUiStateMachine {
   @Composable
   override fun model(props: OverwriteFullAccountCloudBackupUiProps): ScreenModel {
@@ -46,17 +47,25 @@ class OverwriteFullAccountCloudBackupUiStateMachineImpl(
         ).asRootScreen(alertModel = alert)
       }
       State.ScanningHardwareForCancellation -> {
-        proofOfPossessionNfcStateMachine.model(
-          ProofOfPossessionNfcProps(
-            fullAccountId = props.keybox.fullAccountId,
-            request =
-              Request.HwKeyProof(
-                onSuccess = { proof ->
-                  uiState = State.DeletingAccountForCancellation(proof)
-                }
-              ),
+        val keybox = props.keybox
+        val account = FullAccount(
+          accountId = keybox.fullAccountId,
+          keybox = keybox
+        )
+        hardwareAuthUiStateMachine.model(
+          HardwareAuthUiProps(
+            account = account,
+            actionProofType = ActionProofType.DeleteAccount(
+              accountId = keybox.fullAccountId.serverId
+            ),
+            segment = OnboardingAppSegment.FullAccount,
+            actionDescription = "Canceling account creation",
+            screenPresentationStyle = ScreenPresentationStyle.Root,
+            onSuccess = { proof ->
+              uiState = State.DeletingAccountForCancellation(proof)
+            },
             onBack = { uiState = State.ShowingWarningScreen },
-            screenPresentationStyle = ScreenPresentationStyle.Root
+            shouldLock = false
           )
         )
       }
@@ -65,12 +74,9 @@ class OverwriteFullAccountCloudBackupUiStateMachineImpl(
           deleteFullAccountService
             .deleteAccount(
               props.keybox.fullAccountId,
-              state.proofOfPossession
+              state.proof
             ).andThen {
-              // TODO (W-14909): This should probably be OnboardFullAccountService#cancelAccountCreation()
-              // but it wasn't here before, so this is a targeted fix to make sure that we clear the
-              // descriptor backup step if you abandon onboarding at this point
-              onboardingKeyboxStepStateDao.clear()
+              onboardFullAccountService.cancelAccountCreation()
             }
             .onFailure {
               uiState = State.Failed
@@ -104,7 +110,7 @@ class OverwriteFullAccountCloudBackupUiStateMachineImpl(
 
     /** During cancellation, deleting the onboarding account. */
     data class DeletingAccountForCancellation(
-      val proofOfPossession: HwFactorProofOfPossession,
+      val proof: PrivilegedActionProof,
     ) : State
 
     /**

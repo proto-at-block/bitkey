@@ -1,4 +1,5 @@
 #include "assert.h"
+#include "attributes.h"
 #include "hmac_drbg_impl.h"
 #include "mcu_rng.h"
 #include "rtos_mutex.h"
@@ -11,12 +12,12 @@
 #include <stdint.h>
 #include <string.h>
 
-static hmac_drbg_state_t drbg_state = {
+static hmac_drbg_state_t drbg_state SHARED_TASK_DATA = {
   .initialized = SECURE_FALSE,
 };
 
 #ifndef IMAGE_TYPE_BOOTLOADER
-static rtos_mutex_t rng_mutex;
+static rtos_mutex_t rng_mutex SHARED_TASK_BSS;
 #endif
 
 static bool trng_random(uint8_t* data, uint32_t num_bytes) {

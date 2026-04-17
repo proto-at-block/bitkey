@@ -83,14 +83,14 @@ class SweepServiceImplTests : FunSpec({
     accountService.setActiveAccount(FullAccountMock)
     sweepGenerator.generateSweepResult = Ok(emptyList())
 
-    service().prepareSweep(KeyboxMock).shouldBeOk(null)
+    service().prepareSweep(KeyboxMock, SweepContext.InactiveWallet).shouldBeOk(null)
   }
 
   test("prepareSweep returns a sweep when there are funds to sweep") {
     accountService.setActiveAccount(FullAccountMock)
     sweepGenerator.generateSweepResult = Ok(listOf(sweep1, sweep2))
 
-    val sweep = service().prepareSweep(KeyboxMock).shouldBeOk().shouldNotBeNull()
+    val sweep = service().prepareSweep(KeyboxMock, SweepContext.InactiveWallet).shouldBeOk().shouldNotBeNull()
     sweep.unsignedPsbts.shouldContainExactly(sweep1, sweep2)
   }
 
@@ -99,7 +99,7 @@ class SweepServiceImplTests : FunSpec({
     val error = SweepGeneratorError.FailedToListKeysets
     sweepGenerator.generateSweepResult = Err(error)
 
-    service().prepareSweep(KeyboxMock).shouldBeErr(error)
+    service().prepareSweep(KeyboxMock, SweepContext.InactiveWallet).shouldBeErr(error)
   }
 
   test("sweep is false by default when sync is not running") {

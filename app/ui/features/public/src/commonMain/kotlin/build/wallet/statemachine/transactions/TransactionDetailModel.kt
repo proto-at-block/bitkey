@@ -1,5 +1,7 @@
 package build.wallet.statemachine.transactions
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import build.wallet.activity.Transaction
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
@@ -15,6 +17,7 @@ import build.wallet.statemachine.core.form.FormHeaderModel.SublineTreatment.REGU
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.StepperIndicator
 import build.wallet.statemachine.core.form.FormMainContentModel.StepperIndicator.StepStyle
+import build.wallet.ui.app.transactions.TransactionDetailScreen
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
@@ -61,7 +64,15 @@ data class TransactionDetailModel(
     ),
     mainContentList = content,
     id = MoneyHomeEventTrackerScreenId.TRANSACTION_DETAIL
-  )
+  ) {
+  @Composable
+  override fun render(modifier: Modifier) {
+    TransactionDetailScreen(
+      modifier = modifier,
+      model = this
+    )
+  }
+}
 
 /**
  * Generates the form header model for a pending transaction.
@@ -182,6 +193,26 @@ val processingTransactionStepper: StepperIndicator = StepperIndicator(
     StepperIndicator.Step(
       style = StepStyle.PENDING,
       icon = IconImage.LoadingBadge,
+      label = "Processing"
+    ),
+    StepperIndicator.Step(
+      style = StepStyle.UPCOMING,
+      icon = null,
+      label = "Complete"
+    )
+  )
+)
+
+val processingTransactionStepperDesignSystemV2: StepperIndicator = StepperIndicator(
+  steps = immutableListOf(
+    StepperIndicator.Step(
+      style = StepStyle.COMPLETED,
+      icon = LocalImage(icon = SmallIconCheck),
+      label = "Submitted"
+    ),
+    StepperIndicator.Step(
+      style = StepStyle.PENDING,
+      icon = IconImage.CircularLoadingBadge,
       label = "Processing"
     ),
     StepperIndicator.Step(

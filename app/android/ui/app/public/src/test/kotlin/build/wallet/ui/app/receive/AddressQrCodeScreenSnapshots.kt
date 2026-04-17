@@ -105,8 +105,109 @@ class AddressQrCodeScreenSnapshots : FunSpec({
     }
   }
 
+  test("qr code screen w3 with verify button") {
+    paparazzi.snapshot {
+      val address = "bc1q42lja79elem0anu8q8s3h2n687re9jax556pcc"
+      AddressQrCodeScreen(
+        model = AddressQrCodeBodyModel(
+          onBack = {},
+          onRefreshClick = {},
+          content =
+            AddressQrCodeBodyModel.Content.QrCode(
+              address = address,
+              qrCodeState = QrCodeState.Success(
+                runBlocking {
+                  QrCodeModel(data = "bitcoin:$address").data.toQrMatrix().value
+                }
+              ),
+              copyButtonIcon = Icon.SmallIconCopy,
+              copyButtonLabelText = "Copy",
+              onCopyClick = {},
+              onPartnerClick = {},
+              onShareClick = {},
+              onVerifyClick = {}
+            )
+        )
+      )
+    }
+  }
+
+  test("qr code screen w3 with verify button - design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      val address = "bc1q42lja79elem0anu8q8s3h2n687re9jax556pcc"
+      AddressQrCodeScreen(
+        model = AddressQrCodeBodyModel(
+          onBack = {},
+          onRefreshClick = {},
+          content =
+            AddressQrCodeBodyModel.Content.QrCode(
+              address = address,
+              qrCodeState = QrCodeState.Success(
+                runBlocking {
+                  QrCodeModel(data = "bitcoin:$address").data.toQrMatrix().value
+                }
+              ),
+              copyButtonIcon = Icon.SmallIconCopy,
+              copyButtonLabelText = "Copy",
+              onCopyClick = {},
+              onPartnerClick = {},
+              onShareClick = {},
+              onVerifyClick = {}
+            )
+        )
+      )
+    }
+  }
+
+  test("qr code screen - design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      val address = "bc1q42lja79elem0anu8q8s3h2n687re9jax556pcc"
+      AddressQrCodeScreen(
+        model = AddressQrCodeBodyModel(
+          onBack = {},
+          onRefreshClick = {},
+          content =
+            AddressQrCodeBodyModel.Content.QrCode(
+              address = address,
+              qrCodeState = QrCodeState.Success(
+                runBlocking {
+                  QrCodeModel(data = "bitcoin:$address").data.toQrMatrix().value
+                }
+              ),
+              copyButtonIcon = Icon.SmallIconCopy,
+              copyButtonLabelText = "Copy",
+              onCopyClick = {},
+              onPartnerClick = {},
+              onShareClick = {}
+            )
+        )
+      )
+    }
+  }
+
   test("qr code screen loading") {
     paparazzi.snapshot {
+      AddressQrCodeScreen(
+        model = AddressQrCodeBodyModel(
+          onBack = {},
+          onRefreshClick = {},
+          content =
+            AddressQrCodeBodyModel.Content.QrCode(
+              address = null,
+              qrCodeState = QrCodeState.Loading,
+              copyButtonIcon = Icon.SmallIconCopy,
+              copyButtonLabelText = "Copy",
+              onCopyClick = {},
+              onPartnerClick = {},
+              onShareClick = {}
+            )
+        )
+      )
+    }
+  }
+
+  test("qr code screen loading - design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
       AddressQrCodeScreen(
         model = AddressQrCodeBodyModel(
           onBack = {},
@@ -142,6 +243,22 @@ class AddressQrCodeScreenSnapshots : FunSpec({
     }
   }
 
+  test("qr code screen with error - design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      AddressQrCodeScreen(
+        model = AddressQrCodeBodyModel(
+          onBack = {},
+          onRefreshClick = {},
+          content =
+            AddressQrCodeBodyModel.Content.Error(
+              title = "We couldn’t create an address",
+              subline = "We are looking into this. Please try again later."
+            )
+        )
+      )
+    }
+  }
+
   test("qr code screen with qr error") {
     paparazzi.snapshot {
       val address = "bc1q42lja79elem0anu8q8s3h2n687re9jax556pcc"
@@ -158,76 +275,6 @@ class AddressQrCodeScreenSnapshots : FunSpec({
               onCopyClick = {},
               onPartnerClick = {},
               onShareClick = {}
-            )
-        )
-      )
-    }
-  }
-
-  test("qr code screen with verify on device button (W3)") {
-    paparazzi.snapshot {
-      val address = "bc1q42lja79elem0anu8q8s3h2n687re9jax556pcc"
-      AddressQrCodeScreen(
-        model = AddressQrCodeBodyModel(
-          onBack = {},
-          onRefreshClick = {},
-          content =
-            AddressQrCodeBodyModel.Content.QrCode(
-              address = address,
-              qrCodeState = QrCodeState.Success(
-                runBlocking {
-                  QrCodeModel(data = "bitcoin:$address").data.toQrMatrix().value
-                }
-              ),
-              copyButtonIcon = Icon.SmallIconCopy,
-              copyButtonLabelText = "Copy",
-              onCopyClick = {},
-              onPartnerClick = {},
-              onShareClick = {},
-              showVerifyOnDeviceButton = true,
-              onVerifyOnDeviceClick = {}
-            )
-        )
-      )
-    }
-  }
-
-  test("qr code screen with verify on device button and partners (W3)") {
-    paparazzi.snapshot {
-      val address = "bc1q42lja79elem0anu8q8s3h2n687re9jax556pcc"
-      AddressQrCodeScreen(
-        model = AddressQrCodeBodyModel(
-          onBack = {},
-          onRefreshClick = {},
-          content =
-            AddressQrCodeBodyModel.Content.QrCode(
-              address = address,
-              qrCodeState = QrCodeState.Success(
-                runBlocking {
-                  QrCodeModel(data = "bitcoin:$address").data.toQrMatrix().value
-                }
-              ),
-              copyButtonIcon = Icon.SmallIconCopy,
-              copyButtonLabelText = "Copy",
-              onCopyClick = {},
-              onShareClick = {},
-              onPartnerClick = {},
-              partners = listOf(
-                PartnerInfo(
-                  null,
-                  null,
-                  "Robinhood",
-                  PartnerId("Robinhood")
-                ),
-                PartnerInfo(
-                  null,
-                  null,
-                  "Cash App",
-                  PartnerId("Cash App")
-                )
-              ).toImmutableList(),
-              showVerifyOnDeviceButton = true,
-              onVerifyOnDeviceClick = {}
             )
         )
       )

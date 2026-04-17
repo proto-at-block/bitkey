@@ -43,16 +43,34 @@ void fwup_task_handle_coproc_fwup_finish(ipc_ref_t* UNUSED(message)) {
   ASSERT(false);
 }
 
+void fwup_task_handle_commit_sig_rsp(ipc_ref_t* UNUSED(message)) {
+  // Should never be called on W1.
+  ASSERT(false);
+}
+
+void fwup_task_handle_coproc_version(ipc_ref_t* UNUSED(message)) {
+  // Should never be called on W1.
+  ASSERT(false);
+}
+
 bool fwup_handle_confirmation_result(ipc_ref_t* UNUSED(message)) {
   // W1 doesn't support confirmation flow
   return false;
 }
 
-bool fwup_task_port_handle_start_cmd(ipc_ref_t* message) {
+bool fwup_task_port_is_deferred_session(void) {
+  return false;
+}
+
+bool fwup_task_port_try_atomic_commit(void) {
+  // W1 has no coprocessor — atomic commit is never applicable.
+  return false;
+}
+
+bool fwup_task_port_handle_start_cmd(fwpb_wallet_cmd* cmd) {
   // Show LED to indicate FWUP start
   UI_SHOW_EVENT(UI_EVENT_FWUP_START);
 
-  fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
   fwpb_wallet_rsp* rsp = proto_get_rsp();
   rsp->which_msg = fwpb_wallet_rsp_fwup_start_rsp_tag;
 

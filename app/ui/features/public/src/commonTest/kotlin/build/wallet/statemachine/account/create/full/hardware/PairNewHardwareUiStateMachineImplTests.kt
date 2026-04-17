@@ -1,6 +1,8 @@
 package build.wallet.statemachine.account.create.full.hardware
 
 import app.cash.turbine.plusAssign
+import bitkey.account.AccountConfigServiceFake
+import bitkey.account.HardwareType
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.events.screen.context.PairHardwareEventTrackerScreenIdContext
@@ -11,8 +13,9 @@ import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.FeatureFlagValue
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.feature.flags.W3OnboardingFeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.firmware.HardwareUnlockInfoServiceFake
 import build.wallet.firmware.UnlockMethod
 import build.wallet.nfc.transaction.PairingTransactionProviderFake
@@ -29,6 +32,9 @@ import build.wallet.statemachine.settings.helpcenter.HelpCenterUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
+import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.theme.Theme
+import build.wallet.ui.theme.ThemePreference
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.nulls.shouldBeNull
@@ -56,6 +62,8 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
 
   val featureFlagDao = FeatureFlagDaoFake()
   val w3OnboardingFeatureFlag = W3OnboardingFeatureFlag(featureFlagDao)
+  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(featureFlagDao)
+  val accountConfigService = AccountConfigServiceFake()
 
   fun createStateMachine() =
     PairNewHardwareUiStateMachineImpl(
@@ -64,7 +72,9 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
       nfcSessionUIStateMachine = nfcSessionUIStateMachine,
       helpCenterUiStateMachine = helpCenterUiStateMachine,
       hardwareUnlockInfoService = hardwareUnlockInfoService,
-      w3OnboardingFeatureFlag = w3OnboardingFeatureFlag
+      w3OnboardingFeatureFlag = w3OnboardingFeatureFlag,
+      accountConfigService = accountConfigService,
+      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag
     )
 
   val stateMachine = createStateMachine()
@@ -81,7 +91,8 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
     keyBundle = HwKeyBundleMock,
     sealedCsek = sealedCsekMock,
     sealedSsek = sealedSsekMock,
-    serial = "123"
+    serial = "123",
+    hardwareType = HardwareType.W1
   )
 
   val props = PairNewHardwareProps(
@@ -100,6 +111,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   beforeTest {
     hardwareUnlockInfoService.clear()
     featureFlagDao.reset()
+    pairingTransactionProvider.reset()
   }
 
   test("pairing new wallet ui -- success") {
@@ -123,7 +135,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
       awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
         id = nfcSessionUIStateMachine.id
       ) {
-        onSuccess(FingerprintEnrollmentStarted)
+        onSuccess(FingerprintEnrollmentStarted(hardwareType = HardwareType.W1))
       }
 
       awaitBody<PairNewHardwareBodyModel> {
@@ -202,7 +214,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
       awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
         id = nfcSessionUIStateMachine.id
       ) {
-        onSuccess(FingerprintEnrollmentStarted)
+        onSuccess(FingerprintEnrollmentStarted(hardwareType = HardwareType.W1))
       }
 
       with(awaitItem()) {
@@ -220,7 +232,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
       awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
         id = nfcSessionUIStateMachine.id
       ) {
-        onSuccess(FingerprintNotEnrolled)
+        onSuccess(FingerprintNotEnrolled(hardwareType = HardwareType.W1))
       }
 
       with(awaitItem()) {
@@ -265,7 +277,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
       awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
         id = nfcSessionUIStateMachine.id
       ) {
-        onSuccess(FingerprintEnrollmentStarted)
+        onSuccess(FingerprintEnrollmentStarted(hardwareType = HardwareType.W1))
       }
 
       with(awaitItem()) {
@@ -284,7 +296,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
       awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
         id = nfcSessionUIStateMachine.id
       ) {
-        onSuccess(FingerprintNotEnrolled)
+        onSuccess(FingerprintNotEnrolled(hardwareType = HardwareType.W1))
       }
 
       with(awaitItem()) {
@@ -328,7 +340,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
       awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
         id = nfcSessionUIStateMachine.id
       ) {
-        onSuccess(FingerprintEnrollmentStarted)
+        onSuccess(FingerprintEnrollmentStarted(hardwareType = HardwareType.W1))
       }
 
       with(awaitItem()) {
@@ -346,7 +358,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
       awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
         id = nfcSessionUIStateMachine.id
       ) {
-        onSuccess(FingerprintEnrollmentStarted)
+        onSuccess(FingerprintEnrollmentStarted(hardwareType = HardwareType.W1))
       }
 
       with(awaitItem()) {
@@ -391,7 +403,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
       awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
         id = nfcSessionUIStateMachine.id
       ) {
-        onSuccess(FingerprintEnrollmentStarted)
+        onSuccess(FingerprintEnrollmentStarted(hardwareType = HardwareType.W1))
       }
 
       with(awaitItem()) {
@@ -410,7 +422,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
       awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
         id = nfcSessionUIStateMachine.id
       ) {
-        onSuccess(FingerprintEnrollmentStarted)
+        onSuccess(FingerprintEnrollmentStarted(hardwareType = HardwareType.W1))
       }
 
       with(awaitItem()) {
@@ -454,7 +466,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
       awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
         id = nfcSessionUIStateMachine.id
       ) {
-        onSuccess(FingerprintEnrollmentStarted)
+        onSuccess(FingerprintEnrollmentStarted(hardwareType = HardwareType.W1))
       }
 
       awaitBody<PairNewHardwareBodyModel> {
@@ -541,24 +553,70 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
     }
   }
 
+  test("pairing W1 hardware -- second tap carries W1 hardwareTypeOverride") {
+    stateMachine.test(props) {
+      awaitBody<PairNewHardwareBodyModel> {
+        primaryButton.onClick()
+      }
+
+      awaitBody<PairNewHardwareBodyModel> {
+        primaryButton.onClick()
+      }
+
+      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))
+
+      // First NFC tap — detects W1 hardware
+      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
+        id = nfcSessionUIStateMachine.id
+      ) {
+        onSuccess(FingerprintEnrollmentStarted(hardwareType = HardwareType.W1))
+      }
+
+      awaitBody<PairNewHardwareBodyModel> {
+        primaryButton.onClick()
+      }
+
+      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_FINGERPRINT))
+
+      // Second NFC tap — should carry W1 as hardwareTypeOverride
+      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
+        id = nfcSessionUIStateMachine.id
+      ) {
+        config.hardwareTypeOverride.shouldBe(HardwareType.W1)
+        onSuccess(fingerprintEnrolled)
+      }
+
+      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_FINGERPRINT_COMPLETE))
+      onSuccessCalls.awaitItem()
+    }
+  }
+
   // W3 Onboarding Flow Tests
 
   test("W3 onboarding -- shows activation instructions V2 screen when flag is enabled") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
+    w3OnboardingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
-      awaitBody<PairNewHardwareBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2)
-        header.headline.shouldBe("Let's get set up")
+      awaitItem().apply {
+        themePreference.shouldBe(ThemePreference.Manual(Theme.DARK))
+        body.shouldBeInstanceOf<PairNewHardwareBodyModel>().apply {
+          eventTrackerScreenInfo.shouldNotBeNull()
+            .eventTrackerScreenId
+            .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2)
+          header.headline.shouldBe("Set up your Bitkey")
+          header.sublineModel.shouldNotBeNull().string.shouldBe(
+            "Tap the fingerprint sensor to wake your device.\nScan your Bitkey with your phone to get started."
+          )
+          primaryButton.treatment.shouldBe(ButtonModel.Treatment.BitkeyInteraction)
+          secondaryButton.shouldBe(null)
+        }
       }
     }
   }
 
   test("W3 onboarding -- tapping continue goes directly to NFC") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
+    w3OnboardingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -583,8 +641,8 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("W3 onboarding -- no screen button routes to legacy activation flow") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
+  test("W3 onboarding -- activation instructions V2 does not show legacy no-screen button") {
+    w3OnboardingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -592,20 +650,13 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2)
-        secondaryButton.shouldNotBeNull().onClick()
-      }
-
-      // Should now show the legacy activation instructions
-      awaitBody<PairNewHardwareBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
+        secondaryButton.shouldBe(null)
       }
     }
   }
 
   test("W3 onboarding -- back from activation instructions V2 exits") {
-    w3OnboardingFeatureFlag.setFlagValue(true)
+    w3OnboardingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
@@ -620,8 +671,39 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
     }
   }
 
+  test("W3 onboarding -- cancel start fingerprint enrollment returns to activation instructions V2") {
+    w3OnboardingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    val w3StateMachine = createStateMachine()
+
+    w3StateMachine.test(props) {
+      // Activation instructions V2
+      awaitBody<PairNewHardwareBodyModel> {
+        eventTrackerScreenInfo.shouldNotBeNull()
+          .eventTrackerScreenId
+          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2)
+        primaryButton.onClick()
+      }
+
+      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))
+
+      // NFC session - cancel
+      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
+        id = nfcSessionUIStateMachine.id
+      ) {
+        onCancel()
+      }
+
+      // Should return to activation instructions V2, not the legacy pair instructions
+      awaitBody<PairNewHardwareBodyModel> {
+        eventTrackerScreenInfo.shouldNotBeNull()
+          .eventTrackerScreenId
+          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2)
+      }
+    }
+  }
+
   test("W3 onboarding -- flag disabled shows legacy activation instructions") {
-    w3OnboardingFeatureFlag.setFlagValue(false)
+    w3OnboardingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
     val legacyStateMachine = createStateMachine()
 
     legacyStateMachine.test(props) {
@@ -630,6 +712,100 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
       }
+    }
+  }
+
+  test("lost hardware recovery -- second tap passes shouldLockHardware") {
+    val lostHwProps = props.copy(pairingContext = PairingContext.LostHardware)
+
+    stateMachine.test(lostHwProps) {
+      awaitBody<PairNewHardwareBodyModel> { primaryButton.onClick() }
+      awaitBody<PairNewHardwareBodyModel> { primaryButton.onClick() }
+
+      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))
+
+      // First NFC tap
+      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
+        id = nfcSessionUIStateMachine.id
+      ) {
+        onSuccess(FingerprintEnrollmentStarted(hardwareType = HardwareType.W1))
+      }
+
+      awaitBody<PairNewHardwareBodyModel> { primaryButton.onClick() }
+
+      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_FINGERPRINT))
+
+      // Second NFC tap — shouldLockHardware = true for LostHardware.
+      // Locking and W3 confirmation are handled inside session() on FingerprintEnrolled.
+      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
+        id = nfcSessionUIStateMachine.id
+      ) {
+        onSuccess(fingerprintEnrolled)
+      }
+
+      pairingTransactionProvider.latestInvokeParams.shouldNotBeNull()
+        .shouldLockHardware.shouldBe(true)
+
+      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_FINGERPRINT_COMPLETE))
+      onSuccessCalls.awaitItem().shouldBe(fingerprintEnrolled)
+    }
+  }
+
+  test("lost hardware recovery -- first tap fingerprint enrolled passes shouldLockHardware") {
+    val lostHwProps = props.copy(pairingContext = PairingContext.LostHardware)
+
+    stateMachine.test(lostHwProps) {
+      awaitBody<PairNewHardwareBodyModel> { primaryButton.onClick() }
+      awaitBody<PairNewHardwareBodyModel> { primaryButton.onClick() }
+
+      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))
+
+      // First NFC tap already returns FingerprintEnrolled — shouldLockHardware must
+      // still be true for LostHardware.
+      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
+        id = nfcSessionUIStateMachine.id
+      ) {
+        onSuccess(fingerprintEnrolled)
+      }
+
+      pairingTransactionProvider.latestInvokeParams.shouldNotBeNull()
+        .shouldLockHardware.shouldBe(true)
+
+      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_FINGERPRINT_COMPLETE))
+      onSuccessCalls.awaitItem().shouldBe(fingerprintEnrolled)
+    }
+  }
+
+  test("onboarding -- second tap does not lock hardware") {
+    stateMachine.test(props) {
+      awaitBody<PairNewHardwareBodyModel> { primaryButton.onClick() }
+      awaitBody<PairNewHardwareBodyModel> { primaryButton.onClick() }
+
+      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))
+
+      // First NFC tap
+      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
+        id = nfcSessionUIStateMachine.id
+      ) {
+        onSuccess(FingerprintEnrollmentStarted(hardwareType = HardwareType.W1))
+      }
+
+      awaitBody<PairNewHardwareBodyModel> { primaryButton.onClick() }
+
+      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_FINGERPRINT))
+
+      // Second NFC tap — shouldLockHardware = false for onboarding.
+      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
+        id = nfcSessionUIStateMachine.id
+      ) {
+        onSuccess(fingerprintEnrolled)
+      }
+
+      pairingTransactionProvider.latestInvokeParams.shouldNotBeNull()
+        .shouldLockHardware.shouldBe(false)
+
+      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_FINGERPRINT_COMPLETE))
+      onSuccessCalls.awaitItem().shouldBe(fingerprintEnrolled)
     }
   }
 })

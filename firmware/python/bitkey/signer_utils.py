@@ -96,11 +96,12 @@ class FirmwareSignerException(Exception):
 
 
 class AssetInfo:
-    def __init__(self, app_version: str, slot: str, product: str, image_type: str):
+    def __init__(self, app_version: str, slot: str, product: str, image_type: str, chip_id: Optional[bytes] = None):
         self.app_version = app_version
         self.slot = slot
         self.product = product
         self.image_type = image_type
+        self.chip_id = chip_id
 
     def get_app_version(self):
         return self.app_version
@@ -113,6 +114,9 @@ class AssetInfo:
 
     def get_image_type(self):
         return self.image_type
+
+    def get_chip_id(self):
+        return self.chip_id
 
 
 class ElfSymbol:

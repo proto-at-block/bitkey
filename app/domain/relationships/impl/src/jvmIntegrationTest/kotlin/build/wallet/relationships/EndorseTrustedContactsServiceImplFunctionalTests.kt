@@ -9,6 +9,7 @@ import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.relationships.*
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.signResult
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.relationships.RelationshipsF8eClientFake
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
@@ -95,7 +96,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
       .createInvitation(
         account = account,
         trustedContactAlias = alias,
-        hardwareProofOfPossession = app.getHardwareFactorProofOfPossession(),
+        proof = PrivilegedActionProof.HwKeyProof(app.getHardwareFactorProofOfPossession()),
         roles = setOf(TrustedContactRole.SocialRecoveryContact)
       )
       .getOrThrow { it.cause }

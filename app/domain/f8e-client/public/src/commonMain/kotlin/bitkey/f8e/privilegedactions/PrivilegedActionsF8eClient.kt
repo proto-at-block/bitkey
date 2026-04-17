@@ -136,7 +136,6 @@ data class PrivilegedActionInstanceResponse(
 @Serializable
 enum class AuthorizationStrategyType {
   DELAY_AND_NOTIFY,
-  HARDWARE_PROOF_OF_POSSESSION,
   OUT_OF_BAND,
 }
 
@@ -214,7 +213,6 @@ fun PrivilegedActionType.toPrimitive(): bitkey.privilegedactions.PrivilegedActio
 fun AuthorizationStrategyType.toPrimitive(): bitkey.privilegedactions.AuthorizationStrategyType {
   return when (this) {
     AuthorizationStrategyType.DELAY_AND_NOTIFY -> bitkey.privilegedactions.AuthorizationStrategyType.DELAY_AND_NOTIFY
-    AuthorizationStrategyType.HARDWARE_PROOF_OF_POSSESSION -> bitkey.privilegedactions.AuthorizationStrategyType.HARDWARE_PROOF_OF_POSSESSION
     AuthorizationStrategyType.OUT_OF_BAND -> bitkey.privilegedactions.AuthorizationStrategyType.OUT_OF_BAND
   }
 }

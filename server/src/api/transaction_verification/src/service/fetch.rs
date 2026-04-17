@@ -26,7 +26,7 @@ impl Service {
         Ok(tx_verification)
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, web_auth_token))]
     pub async fn fetch_pending_with_web_auth_token(
         &self,
         web_auth_token: String,

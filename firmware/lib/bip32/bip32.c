@@ -48,10 +48,12 @@ static bool ckd_priv_unhardened(extended_key_t* ext_priv_key, uint32_t index) {
   }
 
   if (!crypto_ecc_secp256k1_priv_tweak_add(ext_priv_key->key, digest)) {
+    memzero(digest, sizeof(digest));
     return false;
   }
 
   memcpy(ext_priv_key->chaincode, &digest[BIP32_KEY_SIZE], BIP32_CHAINCODE_SIZE);
+  memzero(digest, sizeof(digest));
 
   return true;
 }
@@ -60,7 +62,7 @@ static bool ckd_priv_hardened(extended_key_t* ext_priv_key, uint32_t index) {
   // let I = HMAC-SHA512(Key = c_par, Data = 0x00 || ser256(k_par) || ser32(i))
   ASSERT(index & BIP32_HARDENED_BIT);
 
-  uint8_t data[BIP32_SEC1_KEY_SIZE + sizeof(uint32_t)];
+  uint8_t data[BIP32_SEC1_KEY_SIZE + sizeof(uint32_t)] = {0};
   ASSERT(ext_priv_key->prefix == BIP32_PRIVKEY_PREFIX);
   memcpy(data, (uint8_t*)ext_priv_key, BIP32_SEC1_KEY_SIZE);
   uint32_t be_index = htonl(index);
@@ -75,14 +77,19 @@ static bool ckd_priv_hardened(extended_key_t* ext_priv_key, uint32_t index) {
 
   uint8_t digest[SHA512_DIGEST_SIZE];
   if (!crypto_hmac(data, sizeof(data), &hmac_key, digest, sizeof(digest), ALG_SHA512)) {
+    memzero(data, sizeof(data));
     return false;
   }
 
   if (!crypto_ecc_secp256k1_priv_tweak_add(ext_priv_key->key, digest)) {
+    memzero(data, sizeof(data));
+    memzero(digest, sizeof(digest));
     return false;
   }
 
   memcpy(ext_priv_key->chaincode, &digest[BIP32_KEY_SIZE], BIP32_CHAINCODE_SIZE);
+  memzero(data, sizeof(data));
+  memzero(digest, sizeof(digest));
 
   return true;
 }
@@ -110,10 +117,12 @@ static bool ckd_pub(extended_key_t* ext_pub_key, uint32_t index) {
   }
 
   if (!crypto_ecc_secp256k1_pub_tweak_add((uint8_t*)ext_pub_key, digest)) {
+    memzero(digest, sizeof(digest));
     return false;
   }
 
   memcpy(ext_pub_key->chaincode, &digest[BIP32_KEY_SIZE], BIP32_CHAINCODE_SIZE);
+  memzero(digest, sizeof(digest));
 
   return true;
 }
@@ -272,9 +281,12 @@ bool bip32_fingerprint_for_path(extended_key_t* priv_key, derivation_path_t* pat
   extended_key_t priv_child;
   if (!bip32_derive_path_priv(priv_key, &priv_child, fingerprint, path)) {
     memzero(fingerprint, BIP32_KEY_FINGERPRINT_SIZE);
+    memzero(&priv_child, sizeof(priv_child));
     return false;
   }
-  return bip32_compute_fingerprint(&priv_child, fingerprint);
+  bool result = bip32_compute_fingerprint(&priv_child, fingerprint);
+  memzero(&priv_child, sizeof(priv_child));
+  return result;
 }
 
 bool bip32_serialize_ext_key(extended_key_t* ext_key, extended_key_t* parent_pub_key,

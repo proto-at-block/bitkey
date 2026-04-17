@@ -9,14 +9,19 @@ import build.wallet.analytics.v1.Action
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.f8e.auth.PrivilegedActionProof
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
+import build.wallet.feature.collectIsEnabledAsState
 import build.wallet.platform.permissions.Permission
 import build.wallet.platform.permissions.PermissionChecker
 import build.wallet.platform.permissions.PermissionStatus
 import build.wallet.platform.settings.SystemSettingsLauncher
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.account.create.full.onboard.notifications.openSettingsForPushAlertModel
-import build.wallet.statemachine.core.InAppBrowserModel
-import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.auth.ActionProofType
+import build.wallet.statemachine.auth.HardwareAuthUiProps
+import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.platform.permissions.NotificationPermissionRequester
 import build.wallet.ui.model.label.CallToActionModel
 import com.github.michaelbull.result.onFailure
@@ -31,10 +36,19 @@ class NotificationPreferencesUiStateMachineImpl(
   private val notificationPermissionRequester: NotificationPermissionRequester,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val eventTracker: EventTracker,
+  private val hardwareAuthUiStateMachine: HardwareAuthUiStateMachine,
+  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : NotificationPreferencesUiStateMachine {
   @Composable
   @Suppress("CyclomaticComplexMethod")
   override fun model(props: NotificationPreferencesProps): ScreenModel {
+    val isDesignSystemV2Enabled by designSystemUpdatesFeatureFlag.collectIsEnabledAsState()
+    val shouldShowOnboardingTos = remember(props.source, isDesignSystemV2Enabled) {
+      shouldShowNotificationPreferencesOnboardingTos(
+        source = props.source,
+        isDesignSystemV2Enabled = isDesignSystemV2Enabled
+      )
+    }
     val shouldLoadSavedPreferences = props.source == NotificationPreferencesProps.Source.Settings
 
     var uiState: UiState by remember {
@@ -51,8 +65,8 @@ class NotificationPreferencesUiStateMachineImpl(
     var transactionPush by remember { mutableStateOf(false) }
     var updatesPush by remember { mutableStateOf(false) }
     var updatesEmail by remember { mutableStateOf(false) }
-    var termsAgree by remember {
-      mutableStateOf(props.source == NotificationPreferencesProps.Source.Settings)
+    var termsAgree by remember(props.source, shouldShowOnboardingTos) {
+      mutableStateOf(!shouldShowOnboardingTos)
     }
     var currentPreferences by remember {
       mutableStateOf(
@@ -73,6 +87,13 @@ class NotificationPreferencesUiStateMachineImpl(
           // data set for the UI.
           .collect {
             it?.onSuccess { prefs ->
+              // Ignore any refresh emission (e.g. the server-backed value arriving after
+              // the cache hit) while hardware action-proof signing is in progress.
+              // Letting it through would overwrite currentPreferences and the toggle
+              // states, causing either a stale payload to be submitted on success or
+              // the user's in-progress edits to be lost on cancel.
+              if (uiState is UiState.SigningActionProof) return@onSuccess
+
               currentPreferences = prefs
               transactionPush = prefs.moneyMovement.contains(NotificationChannel.Push)
               updatesPush = prefs.productMarketing.contains(NotificationChannel.Push)
@@ -98,6 +119,34 @@ class NotificationPreferencesUiStateMachineImpl(
         openBrowser(
           browserState = uiState as UiState.BrowserViewState,
           setUiState = { uiState = it }
+        )
+      }
+
+      is UiState.SigningActionProof -> {
+        val state = uiState as UiState.SigningActionProof
+        val fullAccount = requireNotNull(props.fullAccount) {
+          "fullAccount is required for action proof signing during preference updates"
+        }
+        hardwareAuthUiStateMachine.model(
+          props = HardwareAuthUiProps(
+            account = fullAccount,
+            actionProofType = ActionProofType.DisablePushNotifications,
+            segment = NotificationPreferencesAppSegment,
+            actionDescription = "Updating notification preferences",
+            screenPresentationStyle = ScreenPresentationStyle.Modal,
+            onSuccess = { proof ->
+              uiState = UiState.MainViewState.Loading
+              scope.launch {
+                sendNotificationPreferences(
+                  props = props,
+                  notificationPreferences = state.preferences,
+                  proof = proof,
+                  setUiState = { uiState = it }
+                )
+              }
+            },
+            onBack = { uiState = UiState.MainViewState.Editing }
+          )
         )
       }
 
@@ -171,7 +220,7 @@ class NotificationPreferencesUiStateMachineImpl(
             },
             tosLink = { uiState = UiState.BrowserViewState.TosView },
             privacyLink = { uiState = UiState.BrowserViewState.PrivacyView }
-          ).takeIf { props.source == NotificationPreferencesProps.Source.Onboarding },
+          ).takeIf { shouldShowOnboardingTos },
           onTransactionPushToggle = { active ->
             onPushToggle(active) { transactionPush = active }
           },
@@ -181,6 +230,7 @@ class NotificationPreferencesUiStateMachineImpl(
           onUpdatesEmailToggle = { updatesEmail = it },
           formEditingState = formEditingState,
           onBack = props.onBack,
+          isDesignSystemV2Enabled = isDesignSystemV2Enabled,
           ctaModel = when (uiState) {
             is UiState.MainViewState.DidNotSelectToS -> CallToActionModel(
               text = "Agree to our Terms and Privacy Policy to continue.",
@@ -189,24 +239,39 @@ class NotificationPreferencesUiStateMachineImpl(
             else -> null
           },
           continueOnClick = {
-            if (!termsAgree) {
+            if (shouldShowOnboardingTos && !termsAgree) {
               uiState = UiState.MainViewState.DidNotSelectToS
             } else {
-              uiState = UiState.MainViewState.Loading
-              scope.launch {
-                val np = currentPreferences.copy(
-                  moneyMovement = setOfNotNull(NotificationChannel.Push.takeIf { transactionPush }),
-                  productMarketing = setOfNotNull(
-                    NotificationChannel.Push.takeIf { updatesPush },
-                    NotificationChannel.Email.takeIf { updatesEmail }
-                  )
+              val np = currentPreferences.copy(
+                moneyMovement = setOfNotNull(NotificationChannel.Push.takeIf { transactionPush }),
+                productMarketing = setOfNotNull(
+                  NotificationChannel.Push.takeIf { updatesPush },
+                  NotificationChannel.Email.takeIf { updatesEmail }
                 )
+              )
 
-                sendNotificationPreferences(
-                  props = props,
-                  notificationPreferences = np,
-                  setUiState = { uiState = it }
+              val fullAccount = props.fullAccount
+              val pushIsBeingDisabled = currentPreferences.isPushBeingDisabledBy(np)
+              if (fullAccount != null &&
+                props.source == NotificationPreferencesProps.Source.Settings &&
+                pushIsBeingDisabled
+              ) {
+                // Settings flow: push is being disabled — require hardware action proof
+                // before updating preferences.
+                uiState = UiState.SigningActionProof(
+                  preferences = np,
+                  currentPreferences = currentPreferences
                 )
+              } else {
+                // Onboarding flow, or a change that does not require hardware auth
+                uiState = UiState.MainViewState.Loading
+                scope.launch {
+                  sendNotificationPreferences(
+                    props = props,
+                    notificationPreferences = np,
+                    setUiState = { uiState = it }
+                  )
+                }
               }
             }
           },
@@ -282,12 +347,13 @@ class NotificationPreferencesUiStateMachineImpl(
   private suspend fun sendNotificationPreferences(
     props: NotificationPreferencesProps,
     notificationPreferences: NotificationPreferences,
+    proof: PrivilegedActionProof? = null,
     setUiState: (UiState) -> Unit,
   ) {
     notificationsPreferencesCachedProvider.updateNotificationsPreferences(
       props.accountId,
       notificationPreferences,
-      null
+      proof = proof
     ).onSuccess {
       notificationPreferences.moneyMovement.forEach {
         when (it) {
@@ -315,6 +381,15 @@ class NotificationPreferencesUiStateMachineImpl(
   }
 
   private sealed interface UiState {
+    /**
+     * Hardware authorization (action proof signing) is in progress.
+     * Delegates to [HardwareAuthUiStateMachine] for the full NFC signing flow.
+     */
+    data class SigningActionProof(
+      val preferences: NotificationPreferences,
+      val currentPreferences: NotificationPreferences,
+    ) : UiState
+
     sealed interface MainViewState : UiState {
       /**
        * Loading preferences from the server. Only needed for settings. Onboarding should have these defaulted.
@@ -353,4 +428,39 @@ class NotificationPreferencesUiStateMachineImpl(
       data object MoneyMovementLearnMoreView : BrowserViewState
     }
   }
+}
+
+internal fun shouldShowNotificationPreferencesOnboardingTos(
+  source: NotificationPreferencesProps.Source,
+  isDesignSystemV2Enabled: Boolean,
+): Boolean = source == NotificationPreferencesProps.Source.Onboarding && !isDesignSystemV2Enabled
+
+/**
+ * Returns true if any push notification channel that is currently enabled in [this]
+ * is absent from [newPreferences] — i.e., the user is disabling push for at least one category.
+ *
+ * Used to determine whether hardware action proof is required before submitting a
+ * notification preference update from Settings.
+ */
+private fun NotificationPreferences.isPushBeingDisabledBy(
+  newPreferences: NotificationPreferences,
+): Boolean =
+  isPushRemovedFrom(moneyMovement, newPreferences.moneyMovement) ||
+    isPushRemovedFrom(productMarketing, newPreferences.productMarketing) ||
+    isPushRemovedFrom(accountSecurity, newPreferences.accountSecurity)
+
+/**
+ * Returns true if [NotificationChannel.Push] is present in [current] but absent in [updated].
+ */
+private fun isPushRemovedFrom(
+  current: Set<NotificationChannel>,
+  updated: Set<NotificationChannel>,
+): Boolean =
+  current.contains(NotificationChannel.Push) && !updated.contains(NotificationChannel.Push)
+
+/**
+ * App segment for notification preferences error tracking.
+ */
+private object NotificationPreferencesAppSegment : AppSegment {
+  override val id: String = "NotificationPreferences"
 }

@@ -971,8 +971,12 @@ impl From<BdkCreateTxError> for CreateTxError {
             BdkCreateTxError::OutputBelowDustLimit(index) => CreateTxError::OutputBelowDustLimit {
                 index: index as u64,
             },
-            BdkCreateTxError::CoinSelection(e) => CreateTxError::CoinSelection {
-                error_message: e.to_string(),
+            // BDK v2's CoinSelection error currently wraps InsufficientFunds only.
+            // If BDK adds variants in the future, this will fail to compile and we should
+            // update the mapping accordingly.
+            BdkCreateTxError::CoinSelection(e) => CreateTxError::InsufficientFunds {
+                needed: e.needed.to_sat(),
+                available: e.available.to_sat(),
             },
             BdkCreateTxError::NoRecipients => CreateTxError::NoRecipients,
             BdkCreateTxError::Psbt(e) => CreateTxError::Psbt {

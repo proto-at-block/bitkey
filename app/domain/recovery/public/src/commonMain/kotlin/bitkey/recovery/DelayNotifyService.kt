@@ -6,7 +6,9 @@ import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.crypto.PublicKey
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
+import build.wallet.f8e.recovery.SignedKeysetVerificationResponse
+import build.wallet.recovery.CancelDelayNotifyRecoveryError
 import com.github.michaelbull.result.Result
 
 /**
@@ -20,26 +22,29 @@ interface DelayNotifyService {
    * or a lost hardware recovery. The operation is performed against the backend and
    * updates local recovery status accordingly.
    */
-  suspend fun cancelDelayNotify(request: DelayNotifyCancellationRequest): Result<Unit, Error>
+  suspend fun cancelDelayNotify(
+    request: DelayNotifyCancellationRequest,
+  ): Result<Unit, CancelDelayNotifyRecoveryError>
 
   /**
    * Activates a previously created f8e spending keyset during recovery.
    * This is idempotent - calling it for an already active keyset will succeed.
    * Only one key can be activated per D&N.
+   *
+   * @return For W3 accounts, returns signed keyset verification data for hardware
+   *         descriptor validation. For W1 accounts, returns null.
    */
   suspend fun activateSpendingKeyset(
     keyset: F8eSpendingKeyset,
-    hardwareProofOfPossession: HwFactorProofOfPossession,
-  ): Result<Unit, Error>
+    proof: PrivilegedActionProof,
+  ): Result<SignedKeysetVerificationResponse?, Error>
 
   /**
    * Creates a new f8e spending keyset without activating it during recovery.
    *
    * Also handles device token registration and updates local recovery progress.
    */
-  suspend fun createSpendingKeyset(
-    hardwareProofOfPossession: HwFactorProofOfPossession,
-  ): Result<F8eSpendingKeyset, Error>
+  suspend fun createSpendingKeyset(): Result<F8eSpendingKeyset, Error>
 
   /**
    * Complete rotation of auth keys for recovery.

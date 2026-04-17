@@ -85,10 +85,6 @@ bool bitlog_most_recent_event(bitlog_event_t* event_out) {
 }
 
 void bitlog_print(bitlog_event_t* event) {
-  LOGD("bitlog:");
-  LOGD("  delta  : %hu", event->timestamp_delta);
-  LOGD("  event  : 0x%x", event->event);
-  LOGD("  status : 0x%x", event->status);
-  LOGD("  pc     : 0x%x", event->pc.v);
-  LOGD("  lr     : 0x%x", event->lr.v);
+  LOGD("bitlog: d=%hu ev=0x%x st=0x%x pc=0x%x lr=0x%x", event->timestamp_delta, event->event,
+       event->status, event->pc.v, event->lr.v);
 }

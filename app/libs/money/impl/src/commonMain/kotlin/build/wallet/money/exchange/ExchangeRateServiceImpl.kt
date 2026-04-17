@@ -8,6 +8,8 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.money.currency.Currency
+import build.wallet.platform.app.AppSessionManager
+import build.wallet.platform.app.AppSessionState
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.Customer
 import build.wallet.worker.RefreshOperationFilter
@@ -34,11 +36,15 @@ class ExchangeRateServiceImpl(
   private val accountService: AccountService,
   private val accountConfigService: AccountConfigService,
   private val appVariant: AppVariant,
+  appSessionManager: AppSessionManager,
   exchangeRateSyncFrequency: ExchangeRateSyncFrequency,
   appScope: CoroutineScope,
 ) : ExchangeRateService, ExchangeRateSyncWorker {
   override val runStrategy: Set<RunStrategy> = setOf(
-    RunStrategy.Startup(),
+    RunStrategy.OnEvent(
+      observer = appSessionManager.appSessionState
+        .filter { it == AppSessionState.FOREGROUND }
+    ),
     RunStrategy.Refresh(
       type = RefreshOperationFilter.Subset(TransactionActivityOperations)
     ),

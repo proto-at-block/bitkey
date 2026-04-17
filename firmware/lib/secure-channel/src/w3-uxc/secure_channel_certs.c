@@ -1,7 +1,7 @@
 #include "secure_channel_cert.h"
 
 static const secure_channel_cert_desc_t local_identity_cert = {
-  .id = "w3_uxc_id",
+  .id = SC_CERT_UXC_ID,
   .key_type = ALG_ECC_P256,
   // The STM32U5 has an AES peripheral that contains a hardware key.
   // That hardware key can be used in a wrapping mode for AES operations.

@@ -1,16 +1,20 @@
 package build.wallet.onboarding
 
 import bitkey.account.AccountConfigServiceFake
+import bitkey.account.HardwareType
 import build.wallet.account.AccountServiceFake
+import build.wallet.bitkey.keybox.FullAccountConfigMock
+import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.cloud.backup.csek.SealedSsekFake
-import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.onboarding.OnboardAccountStep.*
 import build.wallet.onboarding.OnboardingKeyboxStepState.Complete
 import build.wallet.onboarding.OnboardingKeyboxStepState.Incomplete
 import build.wallet.testing.shouldBeOk
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.coroutines.flow.first
 
 class OnboardAccountServiceImplTests : FunSpec({
@@ -20,7 +24,6 @@ class OnboardAccountServiceImplTests : FunSpec({
   val onboardingKeyboxSealedCsekDao = OnboardingKeyboxSealedCsekDaoMock()
   val onboardingKeyboxSealedSsekDao = OnboardingKeyboxSealedSsekDaoFake()
   val onboardingCompletionService = OnboardingCompletionServiceFake()
-  val featureFlagDao = FeatureFlagDaoFake()
 
   val service = OnboardAccountServiceImpl(
     accountConfigService = accountConfigService,
@@ -38,7 +41,6 @@ class OnboardAccountServiceImplTests : FunSpec({
     onboardingKeyboxSealedCsekDao.reset()
     onboardingKeyboxSealedSsekDao.reset()
     onboardingCompletionService.reset()
-    featureFlagDao.reset()
   }
 
   test("marks descriptor backup step as incomplete") {
@@ -115,5 +117,86 @@ class OnboardAccountServiceImplTests : FunSpec({
       .stateForStep(OnboardingKeyboxStep.BuildHardwareDescriptor)
       .first()
     state.shouldBe(Incomplete)
+  }
+
+  test("pendingStep returns BuildHardwareDescriptor for W3 hardware after other steps complete") {
+    // Given a W3 hardware account
+    val w3Config = FullAccountConfigMock.copy(hardwareType = HardwareType.W3)
+    val w3Account = FullAccountMock.copy(
+      keybox = KeyboxMock.copy(config = w3Config)
+    )
+    accountService.setActiveAccount(w3Account)
+
+    // And all previous steps are complete
+    onboardingKeyboxStepStateDao
+      .setStateForStep(OnboardingKeyboxStep.DescriptorBackup, Complete)
+      .shouldBeOk()
+    onboardingKeyboxStepStateDao
+      .setStateForStep(OnboardingKeyboxStep.CloudBackup, Complete)
+      .shouldBeOk()
+    onboardingKeyboxStepStateDao
+      .setStateForStep(OnboardingKeyboxStep.NotificationPreferences, Complete)
+      .shouldBeOk()
+
+    // When getting the pending step
+    val pendingStep = service.pendingStep().shouldBeOk()
+
+    // Then BuildHardwareDescriptor is returned
+    pendingStep.shouldBeTypeOf<BuildHardwareDescriptor>()
+  }
+
+  test("pendingStep skips BuildHardwareDescriptor for W1 hardware") {
+    // Given a W1 hardware account (default)
+    val w1Config = FullAccountConfigMock.copy(hardwareType = HardwareType.W1)
+    val w1Account = FullAccountMock.copy(
+      keybox = KeyboxMock.copy(config = w1Config)
+    )
+    accountService.setActiveAccount(w1Account)
+
+    // And all previous steps are complete
+    onboardingKeyboxStepStateDao
+      .setStateForStep(OnboardingKeyboxStep.DescriptorBackup, Complete)
+      .shouldBeOk()
+    onboardingKeyboxStepStateDao
+      .setStateForStep(OnboardingKeyboxStep.CloudBackup, Complete)
+      .shouldBeOk()
+    onboardingKeyboxStepStateDao
+      .setStateForStep(OnboardingKeyboxStep.NotificationPreferences, Complete)
+      .shouldBeOk()
+
+    // When getting the pending step
+    val pendingStep = service.pendingStep().shouldBeOk()
+
+    // Then null is returned (onboarding complete)
+    pendingStep.shouldBe(null)
+  }
+
+  test("pendingStep returns null after BuildHardwareDescriptor is complete for W3 hardware") {
+    // Given a W3 hardware account
+    val w3Config = FullAccountConfigMock.copy(hardwareType = HardwareType.W3)
+    val w3Account = FullAccountMock.copy(
+      keybox = KeyboxMock.copy(config = w3Config)
+    )
+    accountService.setActiveAccount(w3Account)
+
+    // And all steps including BuildHardwareDescriptor are complete
+    onboardingKeyboxStepStateDao
+      .setStateForStep(OnboardingKeyboxStep.DescriptorBackup, Complete)
+      .shouldBeOk()
+    onboardingKeyboxStepStateDao
+      .setStateForStep(OnboardingKeyboxStep.CloudBackup, Complete)
+      .shouldBeOk()
+    onboardingKeyboxStepStateDao
+      .setStateForStep(OnboardingKeyboxStep.NotificationPreferences, Complete)
+      .shouldBeOk()
+    onboardingKeyboxStepStateDao
+      .setStateForStep(OnboardingKeyboxStep.BuildHardwareDescriptor, Complete)
+      .shouldBeOk()
+
+    // When getting the pending step
+    val pendingStep = service.pendingStep().shouldBeOk()
+
+    // Then null is returned (onboarding complete)
+    pendingStep.shouldBe(null)
   }
 })

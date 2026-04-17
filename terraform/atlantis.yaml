@@ -575,6 +575,27 @@ projects:
         - ../../../../../../modules/pieces/ecs-containers/*.tf*
         - ../../../../../../modules/pieces/ecs-iam-roles/*.tf*
         - ../../../../../../modules/pieces/vpn-cidrs/*.tf*
+    dir: aws/bitkey/stage/apps/web-site-preview/service
+    name: aws_bitkey_stage_apps_web-site-preview_service
+    workflow: terragrunt
+    execution_order_group: 2
+  - autoplan:
+      enabled: true
+      when_modified:
+        - '*.hcl'
+        - '*.tf*'
+        - ../../../../terragrunt.hcl
+        - ../../common.hcl
+        - ../../../shared/square-il3-vpce/terragrunt.hcl
+        - ../../../../../../modules/models/square-il3-vpce/*.tf*
+        - ../../../../../../modules/lookup/vpc/*.tf*
+        - ../../../../../../modules/apps/web-site/service/*.tf*
+        - ../../../../../../modules/lookup/namespacer/*.tf*
+        - ../../../../../../modules/models/ecs-service/*.tf*
+        - ../../../../../../modules/pieces/cloudflare-cidrs/*.tf*
+        - ../../../../../../modules/pieces/ecs-containers/*.tf*
+        - ../../../../../../modules/pieces/ecs-iam-roles/*.tf*
+        - ../../../../../../modules/pieces/vpn-cidrs/*.tf*
     dir: aws/bitkey/stage/apps/web-site/service
     name: aws_bitkey_stage_apps_web-site_service
     workflow: terragrunt

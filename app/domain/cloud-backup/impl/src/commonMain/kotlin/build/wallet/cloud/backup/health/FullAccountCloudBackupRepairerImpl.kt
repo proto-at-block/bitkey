@@ -1,8 +1,9 @@
 package build.wallet.cloud.backup.health
 
-import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.CloudBackup
-import build.wallet.cloud.backup.CloudBackupRepository
+import build.wallet.cloud.backup.CloudBackupService
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.backup.isFullAccount
@@ -23,20 +24,21 @@ import com.github.michaelbull.result.toErrorIfNull
 
 @BitkeyInject(AppScope::class)
 class FullAccountCloudBackupRepairerImpl(
-  private val cloudBackupRepository: CloudBackupRepository,
+  private val cloudBackupService: CloudBackupService,
   private val cloudBackupDao: CloudBackupDao,
   private val emergencyExitKitPdfGenerator: EmergencyExitKitPdfGenerator,
   private val emergencyExitKitRepository: EmergencyExitKitRepository,
 ) : FullAccountCloudBackupRepairer {
   override suspend fun attemptRepair(
-    account: FullAccount,
+    accountId: FullAccountId,
+    keybox: Keybox,
     cloudStoreAccount: CloudStoreAccount,
     cloudBackupStatus: CloudBackupStatus,
   ) {
     logDebug { "Attempting to repair cloud backup issues" }
 
     val localBackup = cloudBackupDao
-      .get(account.accountId.serverId)
+      .get(accountId.serverId)
       .toErrorIfNull { Error("No local backup found") }
       .logFailure { "Error finding local backup" }
       .get()
@@ -55,7 +57,7 @@ class FullAccountCloudBackupRepairerImpl(
     // Attempt to fix App Key Backup
     when (appKeyBackupStatus) {
       AppKeyBackupStatus.ProblemWithBackup.BackupMissing, AppKeyBackupStatus.ProblemWithBackup.StaleBackup ->
-        uploadAppKeyBackup(account, cloudStoreAccount, localBackup)
+        uploadAppKeyBackup(accountId, cloudStoreAccount, localBackup)
       is AppKeyBackupStatus.ProblemWithBackup.InvalidBackup -> {
         if (localBackup.accountId != appKeyBackupStatus.cloudBackup.accountId) {
           logWarn { "Local backup account id does not match invalid backup account id" }
@@ -64,7 +66,7 @@ class FullAccountCloudBackupRepairerImpl(
           // No action taken here.
         } else {
           // The cloud backup belongs to the customer but is invalid. Attempt to re-upload backup.
-          uploadAppKeyBackup(account, cloudStoreAccount, localBackup)
+          uploadAppKeyBackup(accountId, cloudStoreAccount, localBackup)
         }
       }
       // Cannot auto repair other problems with App Key Backup.
@@ -75,7 +77,7 @@ class FullAccountCloudBackupRepairerImpl(
     // Attempt to fix Emergency Exit Kit
     when (eekBackupStatus) {
       EekBackupStatus.ProblemWithBackup.BackupMissing ->
-        uploadEekBackup(account, cloudStoreAccount, localBackup)
+        uploadEekBackup(keybox, cloudStoreAccount, localBackup)
       // Cannot auto repair other problems with Emergency Exit Kit.
       // Customer will have to resolve this manually.
       else -> Unit
@@ -83,13 +85,13 @@ class FullAccountCloudBackupRepairerImpl(
   }
 
   private suspend fun uploadAppKeyBackup(
-    account: FullAccount,
+    accountId: FullAccountId,
     cloudStoreAccount: CloudStoreAccount,
     localBackup: CloudBackup,
   ) {
     // Attempt to re-upload backup
-    cloudBackupRepository
-      .writeBackup(account.accountId, cloudStoreAccount, localBackup, true)
+    cloudBackupService
+      .writeBackup(accountId, cloudStoreAccount, localBackup, true)
       .onSuccess {
         logInfo {
           "Cloud backup uploaded via FullAccountCloudBackupRepairer"
@@ -100,7 +102,7 @@ class FullAccountCloudBackupRepairerImpl(
   }
 
   private suspend fun uploadEekBackup(
-    account: FullAccount,
+    keybox: Keybox,
     cloudStoreAccount: CloudStoreAccount,
     localBackup: CloudBackup,
   ) {
@@ -116,7 +118,7 @@ class FullAccountCloudBackupRepairerImpl(
     }
 
     emergencyExitKitPdfGenerator
-      .generate(account.keybox, sealedCsek)
+      .generate(keybox, sealedCsek)
       .flatMap { eekData ->
         emergencyExitKitRepository.write(cloudStoreAccount, eekData)
       }

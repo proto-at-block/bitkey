@@ -23,11 +23,11 @@ import build.wallet.di.BitkeyInject
 import build.wallet.di.Impl
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.applyTo
 import build.wallet.f8e.client.plugins.withAccountId
 import build.wallet.f8e.client.plugins.withEnvironment
-import build.wallet.f8e.client.plugins.withHardwareFactor
 import build.wallet.f8e.logging.withDescription
 import build.wallet.f8e.relationships.models.*
 import build.wallet.ktor.result.*
@@ -73,7 +73,7 @@ class RelationshipsF8eClientImpl(
 
   override suspend fun createInvitation(
     account: FullAccount,
-    hardwareProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
     trustedContactAlias: TrustedContactAlias,
     protectedCustomerEnrollmentPakeKey: PublicKey<ProtectedCustomerEnrollmentPakeKey>,
     roles: Set<TrustedContactRole>,
@@ -84,7 +84,7 @@ class RelationshipsF8eClientImpl(
           withDescription("Create relationship invitation")
           withEnvironment(account.config.f8eEnvironment)
           withAccountId(account.accountId)
-          withHardwareFactor(hardwareProofOfPossession)
+          proof.applyTo(this)
           setRedactedBody(
             CreateRelationshipInvitationRequestBody(
               trustedContactAlias = trustedContactAlias,
@@ -100,7 +100,7 @@ class RelationshipsF8eClientImpl(
 
   override suspend fun refreshInvitation(
     account: FullAccount,
-    hardwareProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
     relationshipId: String,
   ): Result<Invitation, NetworkingError> {
     return f8eHttpClient.authenticated()
@@ -110,7 +110,7 @@ class RelationshipsF8eClientImpl(
         ) {
           withEnvironment(account.config.f8eEnvironment)
           withAccountId(account.accountId)
-          withHardwareFactor(hardwareProofOfPossession)
+          proof.applyTo(this)
           withDescription("Refresh Invitation")
           setRedactedBody(RefreshTrustedContactRequestBody(action = "Reissue"))
         }
@@ -122,7 +122,7 @@ class RelationshipsF8eClientImpl(
   override suspend fun removeRelationship(
     accountId: AccountId,
     f8eEnvironment: F8eEnvironment,
-    hardwareProofOfPossession: HwFactorProofOfPossession?,
+    proof: PrivilegedActionProof?,
     authTokenScope: AuthTokenScope,
     relationshipId: String,
   ): Result<Unit, NetworkingError> {
@@ -134,7 +134,7 @@ class RelationshipsF8eClientImpl(
         ) {
           withEnvironment(f8eEnvironment)
           withAccountId(accountId, authTokenScope)
-          hardwareProofOfPossession?.run(::withHardwareFactor)
+          proof.applyTo(this)
           withDescription("Delete relationship")
           setRedactedBody(EmptyRequestBody)
         }

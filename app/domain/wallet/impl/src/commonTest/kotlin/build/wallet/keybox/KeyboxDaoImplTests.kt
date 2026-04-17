@@ -4,8 +4,10 @@ import app.cash.turbine.test
 import bitkey.account.FullAccountConfig
 import bitkey.account.HardwareType
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
+import build.wallet.bitkey.auth.AppAuthPublicKeysMock
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.f8e.FullAccountIdMock
+import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.keybox.AppKeyBundleMock
 import build.wallet.bitkey.keybox.AppKeyBundleMock2
 import build.wallet.bitkey.keybox.HwKeyBundleMock
@@ -13,15 +15,19 @@ import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.PrivateSpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.database.BitkeyDatabaseProviderImpl
+import build.wallet.encrypt.Secp256k1PublicKey
 import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.sqldelight.inMemorySqlDriver
 import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.get
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 
 class KeyboxDaoImplTests : FunSpec({
   val sqlDriver = inMemorySqlDriver()
 
+  lateinit var databaseProvider: BitkeyDatabaseProviderImpl
   lateinit var dao: KeyboxDaoImpl
 
   val hwKeyBundle = HwKeyBundleMock
@@ -67,7 +73,7 @@ class KeyboxDaoImplTests : FunSpec({
   )
 
   beforeTest {
-    val databaseProvider = BitkeyDatabaseProviderImpl(sqlDriver.factory)
+    databaseProvider = BitkeyDatabaseProviderImpl(sqlDriver.factory)
     dao = KeyboxDaoImpl(
       databaseProvider
     )
@@ -204,5 +210,50 @@ class KeyboxDaoImplTests : FunSpec({
     dao.getActiveOrOnboardingKeybox().shouldBe(Ok(null))
     dao.saveKeyboxAsActive(keybox)
     dao.getActiveOrOnboardingKeybox().shouldBe(Ok(keybox))
+  }
+
+  test("rotateKeyboxAuthKeys with newHwAuthPublicKey updates hw auth key in place") {
+    dao.saveKeyboxAsActive(keybox1)
+
+    val newHwAuthKey = HwAuthPublicKey(Secp256k1PublicKey("w3-hw-auth-dpub"))
+
+    val result = dao.rotateKeyboxAuthKeys(
+      keyboxToRotate = keybox1,
+      appAuthKeys = AppAuthPublicKeysMock,
+      newHwAuthPublicKey = newHwAuthKey
+    )
+
+    val rotatedKeybox = result.get().shouldNotBeNull()
+    rotatedKeybox.activeHwKeyBundle.authKey.shouldBe(newHwAuthKey)
+    rotatedKeybox.activeHwKeyBundle.localId.shouldBe(hwKeyBundle.localId)
+    rotatedKeybox.activeHwKeyBundle.spendingKey.shouldBe(hwKeyBundle.spendingKey)
+
+    // Verify persisted state: re-read from DB
+    val persisted = dao.getActiveOrOnboardingKeybox().get().shouldNotBeNull()
+    persisted.activeHwKeyBundle.authKey.shouldBe(newHwAuthKey)
+    persisted.activeHwKeyBundle.localId.shouldBe(hwKeyBundle.localId)
+
+    // In-place update: still only 1 hw bundle in table
+    val count = databaseProvider.database().hwKeyBundleQueries.countHwKeyBundles().executeAsOne()
+    count.shouldBe(1)
+  }
+
+  test("rotateKeyboxAuthKeys without newHwAuthPublicKey leaves hw auth key unchanged") {
+    dao.saveKeyboxAsActive(keybox1)
+
+    val result = dao.rotateKeyboxAuthKeys(
+      keyboxToRotate = keybox1,
+      appAuthKeys = AppAuthPublicKeysMock
+    )
+
+    val rotatedKeybox = result.get().shouldNotBeNull()
+    rotatedKeybox.activeHwKeyBundle.shouldBe(hwKeyBundle)
+
+    // Verify persisted state unchanged
+    val persisted = dao.getActiveOrOnboardingKeybox().get().shouldNotBeNull()
+    persisted.activeHwKeyBundle.shouldBe(hwKeyBundle)
+
+    val count = databaseProvider.database().hwKeyBundleQueries.countHwKeyBundles().executeAsOne()
+    count.shouldBe(1)
   }
 })

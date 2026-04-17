@@ -37,7 +37,7 @@ impl SendPushNotification {
         }
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, payload))]
     pub async fn send(
         &self,
         device_arn: &str,

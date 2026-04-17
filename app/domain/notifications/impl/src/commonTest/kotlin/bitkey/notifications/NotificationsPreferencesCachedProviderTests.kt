@@ -163,8 +163,7 @@ class NotificationsPreferencesCachedProviderTests : FunSpec({
 
     provider.updateNotificationsPreferences(
       accountId = FullAccountId("Hello"),
-      preferences = makePrefs(setOf(NotificationChannel.Email)),
-      null
+      preferences = makePrefs(setOf(NotificationChannel.Email))
     ).shouldBe(err)
 
     loadCachedPreferences().shouldBe(makePrefs())
@@ -178,8 +177,7 @@ class NotificationsPreferencesCachedProviderTests : FunSpec({
 
     provider.updateNotificationsPreferences(
       accountId = FullAccountId("Hello"),
-      preferences = makePrefs(setOf(NotificationChannel.Email)),
-      null
+      preferences = makePrefs(setOf(NotificationChannel.Email))
     ).shouldBe(Ok(Unit))
 
     loadCachedPreferences().shouldBe(makePrefs(setOf(NotificationChannel.Email)))
@@ -193,8 +191,7 @@ class NotificationsPreferencesCachedProviderTests : FunSpec({
 
     provider.updateNotificationsPreferences(
       accountId = FullAccountId("Hello"),
-      preferences = makePrefs(setOf(NotificationChannel.Email)),
-      null
+      preferences = makePrefs(setOf(NotificationChannel.Email))
     ).shouldBe(err)
 
     loadCachedPreferences().shouldBe(null)
@@ -207,8 +204,7 @@ class NotificationsPreferencesCachedProviderTests : FunSpec({
 
     provider.updateNotificationsPreferences(
       accountId = FullAccountId("Hello"),
-      preferences = makePrefs(setOf(NotificationChannel.Email)),
-      null
+      preferences = makePrefs(setOf(NotificationChannel.Email))
     ).shouldBe(Ok(Unit))
 
     loadCachedPreferences().shouldBe(makePrefs(setOf(NotificationChannel.Email)))

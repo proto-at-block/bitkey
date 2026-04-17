@@ -1,21 +1,24 @@
 package build.wallet.statemachine.recovery.losthardware
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
 import app.cash.turbine.plusAssign
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.crypto.PublicKey
+import build.wallet.recovery.Recovery
+import build.wallet.recovery.RecoveryStatusServiceMock
+import build.wallet.recovery.StillRecoveringHardwareRecoveryMock
 import build.wallet.recovery.StillRecoveringInitiatedRecoveryMock
 import build.wallet.statemachine.ScreenStateMachineMock
+import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.WaitingForRecoveryDelayPeriodData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.LostHardwareRecoveryInProgressData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataProps
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataStateMachine
+import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachine
+import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressProps
 import build.wallet.statemachine.recovery.RecoveryInProgressUiProps
 import build.wallet.statemachine.recovery.RecoveryInProgressUiStateMachine
 import build.wallet.statemachine.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryProps
@@ -37,61 +40,49 @@ class LostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   val recoveryInProgressUiStateMachine =
     object : RecoveryInProgressUiStateMachine,
       ScreenStateMachineMock<RecoveryInProgressUiProps>(
-        id = "initiating lost hardware recovery"
+        id = "recovery in progress"
       ) {}
 
-  val lostHardwareRecoveryDataState = mutableStateOf<LostHardwareRecoveryData>(
-    LostHardwareRecoveryData.LostHardwareRecoveryNotStarted
-  )
+  val recoveryInProgressDataStateMachine =
+    object : RecoveryInProgressDataStateMachine,
+      StateMachineMock<RecoveryInProgressProps, RecoveryInProgressData>(
+        initialModel = WaitingForRecoveryDelayPeriodData(
+          factorToRecover = Hardware,
+          delayPeriodStartTime = StillRecoveringInitiatedRecoveryMock.serverRecovery.delayStartTime,
+          delayPeriodEndTime = StillRecoveringInitiatedRecoveryMock.serverRecovery.delayEndTime,
+          cancel = {}
+        )
+      ) {}
 
-  val lostHardwareRecoveryDataStateMachine =
-    object : LostHardwareRecoveryDataStateMachine {
-      @Composable
-      override fun model(props: LostHardwareRecoveryDataProps): LostHardwareRecoveryData {
-        return lostHardwareRecoveryDataState.value
-      }
-    }
-
-  beforeTest {
-    lostHardwareRecoveryDataState.value = LostHardwareRecoveryData.LostHardwareRecoveryNotStarted
-  }
+  val recoveryStatusService = RecoveryStatusServiceMock(turbine = turbines::create)
 
   val stateMachine =
     LostHardwareRecoveryUiStateMachineImpl(
       initiatingLostHardwareRecoveryUiStateMachine = initiatingLostHardwareRecoveryUiStateMachine,
       recoveryInProgressUiStateMachine = recoveryInProgressUiStateMachine,
-      lostHardwareRecoveryDataStateMachine = lostHardwareRecoveryDataStateMachine
+      recoveryInProgressDataStateMachine = recoveryInProgressDataStateMachine,
+      recoveryStatusService = recoveryStatusService
     )
 
   val onExitCalls = turbines.create<Unit>("on exit calls")
 
-  val initiatingProps =
+  val props =
     LostHardwareRecoveryProps(
       account = FullAccountMock,
       screenPresentationStyle = Modal,
       instructionsStyle = InstructionsStyle.Independent,
       onFoundHardware = {},
-      onExit = {
-        onExitCalls += Unit
-      },
+      onExit = { onExitCalls += Unit },
       onComplete = {}
     )
 
-  val undergoingRecoveryData =
-    LostHardwareRecoveryInProgressData(
-      recoveryInProgressData =
-        WaitingForRecoveryDelayPeriodData(
-          factorToRecover = Hardware,
-          delayPeriodEndTime = StillRecoveringInitiatedRecoveryMock.serverRecovery.delayEndTime,
-          delayPeriodStartTime = StillRecoveringInitiatedRecoveryMock.serverRecovery.delayStartTime,
-          cancel = { }
-        )
-    )
+  beforeTest {
+    recoveryStatusService.reset()
+    recoveryInProgressDataStateMachine.reset()
+  }
 
   test("lost hardware recovery ui -- initiating") {
-    stateMachine.test(
-      props = initiatingProps
-    ) {
+    stateMachine.test(props = props) {
       awaitBodyMock<InitiatingLostHardwareRecoveryProps>(
         id = initiatingLostHardwareRecoveryUiStateMachine.id
       )
@@ -99,11 +90,9 @@ class LostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("lost hardware recovery ui -- undergoing") {
-    lostHardwareRecoveryDataState.value = undergoingRecoveryData
+    recoveryStatusService.recoveryStatus.value = StillRecoveringHardwareRecoveryMock
 
-    stateMachine.test(
-      props = initiatingProps
-    ) {
+    stateMachine.test(props = props) {
       awaitBodyMock<RecoveryInProgressUiProps>(
         id = recoveryInProgressUiStateMachine.id
       )
@@ -111,21 +100,47 @@ class LostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("lost hardware recovery ui -- leaving undergoing") {
-    lostHardwareRecoveryDataState.value = undergoingRecoveryData
+    recoveryStatusService.recoveryStatus.value = StillRecoveringHardwareRecoveryMock
 
-    stateMachine.test(
-      props = initiatingProps
-    ) {
+    stateMachine.test(props = props) {
       awaitBodyMock<RecoveryInProgressUiProps>(
         id = recoveryInProgressUiStateMachine.id
       )
 
-      lostHardwareRecoveryDataState.value = LostHardwareRecoveryData.LostHardwareRecoveryNotStarted
+      recoveryStatusService.recoveryStatus.value = Recovery.NoActiveRecovery
 
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       onExitCalls.awaitItem()
     }
+  }
+
+  test("uses originalAppGlobalAuthKey from recovery when available") {
+    val originalKey = PublicKey<AppGlobalAuthKey>("original-app-global-auth-key")
+    recoveryStatusService.recoveryStatus.value =
+      StillRecoveringHardwareRecoveryMock.copy(originalAppGlobalAuthKey = originalKey)
+
+    stateMachine.test(props = props) {
+      awaitBodyMock<RecoveryInProgressUiProps>(
+        id = recoveryInProgressUiStateMachine.id
+      )
+    }
+
+    recoveryInProgressDataStateMachine.props.oldAppGlobalAuthKey.shouldBe(originalKey)
+  }
+
+  test("falls back to keybox authKey when originalAppGlobalAuthKey is null") {
+    recoveryStatusService.recoveryStatus.value =
+      StillRecoveringHardwareRecoveryMock.copy(originalAppGlobalAuthKey = null)
+
+    stateMachine.test(props = props) {
+      awaitBodyMock<RecoveryInProgressUiProps>(
+        id = recoveryInProgressUiStateMachine.id
+      )
+    }
+
+    recoveryInProgressDataStateMachine.props.oldAppGlobalAuthKey
+      .shouldBe(FullAccountMock.keybox.activeAppKeyBundle.authKey)
   }
 })

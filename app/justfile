@@ -1,6 +1,5 @@
 gradle := "../bin/gradle"
 gradle_android := "../bin/gradle --project-dir android"
-gradle_sample_app := "../bin/gradle --project-dir sample"
 xcode_clt_path := "/Library/Developer/CommandLineTools"
 
 [private]
@@ -50,7 +49,6 @@ test-unit-database:
 # Run unit tests targeting JVM
 test-unit-jvm:
   {{gradle}} jvmTest
-  {{gradle_sample_app}} jvmTest
 
 # Run unit tests on host machine targeting Android (with platform stubs)
 test-unit-android-host:

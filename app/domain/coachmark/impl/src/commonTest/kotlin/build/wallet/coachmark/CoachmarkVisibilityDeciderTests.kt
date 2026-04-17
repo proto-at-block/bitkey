@@ -37,7 +37,7 @@ class CoachmarkVisibilityDeciderTests :
     test("return unexpired coachmarks") {
       coachmarkVisibilityDecider.shouldShow(
         Coachmark(
-          CoachmarkIdentifier.PrivateWalletHomeCoachmark,
+          CoachmarkIdentifier.SecurityHubSettingsCoachmark,
           viewed = false,
           expiration = Instant.DISTANT_FUTURE
         )
@@ -47,7 +47,7 @@ class CoachmarkVisibilityDeciderTests :
     test("return unviewed coachmarks") {
       coachmarkVisibilityDecider.shouldShow(
         Coachmark(
-          CoachmarkIdentifier.PrivateWalletHomeCoachmark,
+          CoachmarkIdentifier.SecurityHubSettingsCoachmark,
           viewed = false,
           expiration = Instant.DISTANT_FUTURE
         )
@@ -57,17 +57,27 @@ class CoachmarkVisibilityDeciderTests :
     test("return feature flag on coachmarks") {
       coachmarkVisibilityDecider.shouldShow(
         Coachmark(
-          CoachmarkIdentifier.PrivateWalletHomeCoachmark,
+          CoachmarkIdentifier.SecurityHubSettingsCoachmark,
           viewed = false,
           expiration = Instant.DISTANT_FUTURE
         )
       ).shouldBe(true)
     }
 
-    test("don't return expired coachmarks") {
+    test("PrivateWalletHomeCoachmark is hard-coded off") {
       coachmarkVisibilityDecider.shouldShow(
         Coachmark(
           CoachmarkIdentifier.PrivateWalletHomeCoachmark,
+          viewed = false,
+          expiration = Instant.DISTANT_FUTURE
+        )
+      ).shouldBe(false)
+    }
+
+    test("don't return expired coachmarks") {
+      coachmarkVisibilityDecider.shouldShow(
+        Coachmark(
+          CoachmarkIdentifier.SecurityHubSettingsCoachmark,
           viewed = false,
           expiration = Instant.DISTANT_PAST
         )
@@ -77,17 +87,17 @@ class CoachmarkVisibilityDeciderTests :
     test("don't return viewed coachmarks") {
       coachmarkVisibilityDecider.shouldShow(
         Coachmark(
-          CoachmarkIdentifier.PrivateWalletHomeCoachmark,
+          CoachmarkIdentifier.SecurityHubSettingsCoachmark,
           viewed = true,
           expiration = Instant.DISTANT_PAST
         )
       ).shouldBe(false)
     }
 
-    test("PrivateWalletHomeCoachmark should be created when feature flag is enabled") {
+    test("PrivateWalletHomeCoachmark should not be created regardless of feature flag") {
       privateWalletMigrationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       coachmarkVisibilityDecider.shouldCreate(CoachmarkIdentifier.PrivateWalletHomeCoachmark)
-        .shouldBe(true)
+        .shouldBe(false)
     }
 
     test("PrivateWalletHomeCoachmark should not be created when feature flag is disabled") {

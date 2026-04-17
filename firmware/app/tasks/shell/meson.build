@@ -3,7 +3,7 @@ srcs = [
   'src/shell_task_mpu.c',
 ]
 
-incs = ['inc', mpu_regions_includes]
+incs = ['inc', mpu_regions_includes, config_includes]
 deps = [helpers_dep, mcu_dep, rtos_dep, serial_dep, shell_dep]
 
 shell_task_lib = library('shell-task',

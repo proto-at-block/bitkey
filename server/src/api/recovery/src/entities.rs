@@ -1,10 +1,10 @@
 use std::{fmt, str::FromStr};
 
-use authn_authz::key_claims::KeyClaims;
+use authn_authz::AuthorizedContext;
 use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
 use serde::{Deserialize, Serialize};
 use time::{serde::rfc3339, Duration, OffsetDateTime};
-use types::account::entities::{Factor, FullAccount};
+use types::account::entities::{Factor, FullAccount, HardwareType};
 use types::account::identifiers::{AccountId, AuthKeysId};
 use utoipa::ToSchema;
 
@@ -68,6 +68,8 @@ pub struct RecoveryDestination {
     pub hardware_auth_pubkey: PublicKey,
     #[serde(default)]
     pub recovery_auth_pubkey: Option<PublicKey>,
+    #[serde(default)]
+    pub hardware_type: HardwareType,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -123,26 +125,27 @@ pub(crate) enum ToActorStrategy {
 }
 
 pub(crate) trait ToActor {
-    // Maps a key proof to a single acting Factor based on strategy
     fn to_actor(&self, strategy: ToActorStrategy) -> Result<Factor, RecoveryError>;
 }
 
-impl ToActor for KeyClaims {
+impl ToActor for AuthorizedContext {
     fn to_actor(&self, strategy: ToActorStrategy) -> Result<Factor, RecoveryError> {
+        let app_signed = self.app_signed();
+        let hw_signed = self.hw_signed();
         match strategy {
             ToActorStrategy::PreferNonLostFactor(lost_factor) => {
                 match lost_factor {
                     Factor::App => {
-                        if self.hw_signed {
+                        if hw_signed {
                             return Ok(Factor::Hw);
-                        } else if self.app_signed {
+                        } else if app_signed {
                             return Ok(Factor::App);
                         }
                     }
                     Factor::Hw => {
-                        if self.app_signed {
+                        if app_signed {
                             return Ok(Factor::App);
-                        } else if self.hw_signed {
+                        } else if hw_signed {
                             return Ok(Factor::Hw);
                         }
                     }
@@ -150,11 +153,11 @@ impl ToActor for KeyClaims {
                 Err(RecoveryError::KeyProofRequired)
             }
             ToActorStrategy::ExclusiveOr => {
-                if self.app_signed && self.hw_signed {
+                if app_signed && hw_signed {
                     Err(RecoveryError::UnexpectedKeyProof)
-                } else if self.app_signed {
+                } else if app_signed {
                     Ok(Factor::App)
-                } else if self.hw_signed {
+                } else if hw_signed {
                     Ok(Factor::Hw)
                 } else {
                     Err(RecoveryError::KeyProofRequired)

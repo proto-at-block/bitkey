@@ -10,6 +10,7 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.Customer
+import build.wallet.ui.compose.normalizeTestTagValue
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory.SwitchAccessory
@@ -45,11 +46,14 @@ class BitcoinNetworkPickerUiStateMachineImpl(
     bitcoinNetworkOption: BitcoinNetworkType,
   ): ListItemModel {
     val scope = rememberStableCoroutineScope()
+    val networkName = bitcoinNetworkOption.name.lowercase()
+    val networkTag = normalizeTestTagValue(networkName, fallback = "network")
     return ListItemModel(
-      title = bitcoinNetworkOption.name.lowercase(),
+      title = networkName,
       trailingAccessory = SwitchAccessory(
         model = SwitchModel(
           checked = bitcoinNetworkOption == bitcoinNetworkCurrent,
+          testTag = "$networkTag-toggle",
           onCheckedChange = { isChecked ->
             if (isChecked) {
               scope.launch {

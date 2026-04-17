@@ -8,7 +8,7 @@ srcs = [
 fs_bd_cmd_lib = library('fd-bd-cmd',
   srcs,
   include_directories : ['.'],
-  dependencies : [helpers_dep, lfs_dep, log_dep, shell_dep]
+  dependencies : [bio_flash_storage_dep, helpers_dep, lfs_dep, log_dep, shell_dep]
 )
 
 fs_bd_cmd_dep = declare_dependency(

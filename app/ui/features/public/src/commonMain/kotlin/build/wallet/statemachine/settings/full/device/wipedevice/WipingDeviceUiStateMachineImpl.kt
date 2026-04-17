@@ -24,11 +24,23 @@ class WipingDeviceUiStateMachineImpl(
 ) : WipingDeviceUiStateMachine {
   @Composable
   override fun model(props: WipingDeviceProps): ScreenModel {
-    var uiState: WipingDeviceUiState by remember {
+    var uiState: WipingDeviceUiState by remember(props.wipeContext) {
       mutableStateOf(
-        WipingDeviceIntroUiState(
-          isShowingScanToContinueSheet = false
-        )
+        when (props.wipeContext) {
+          is WipeContext.W3UpgradeOldDevice -> {
+            // Skip intro and confirmation screens — go directly to the wipe confirmation
+            // with the old device's hardware type.
+            WipingDeviceConfirmationUiState(
+              isDevicePaired = false,
+              wipeContext = props.wipeContext
+            )
+          }
+          is WipeContext.Default -> {
+            WipingDeviceIntroUiState(
+              isShowingScanToContinueSheet = false
+            )
+          }
+        }
       )
     }
 
@@ -50,12 +62,17 @@ class WipingDeviceUiStateMachineImpl(
         wipingDeviceConfirmationUiStateMachine.model(
           WipingDeviceConfirmationProps(
             onBack = {
-              uiState = WipingDeviceIntroUiState()
+              when (props.wipeContext) {
+                is WipeContext.W3UpgradeOldDevice -> props.onBack()
+                is WipeContext.Default -> uiState = WipingDeviceIntroUiState()
+              }
             },
             onWipeDevice = {
               uiState = WipingDeviceProgressUiState
             },
-            isDevicePaired = state.isDevicePaired
+            isDevicePaired = state.isDevicePaired,
+            fullAccount = props.fullAccount,
+            wipeContext = state.wipeContext
           )
         )
       }
@@ -92,6 +109,7 @@ private sealed interface WipingDeviceUiState {
    */
   data class WipingDeviceConfirmationUiState(
     val isDevicePaired: Boolean,
+    val wipeContext: WipeContext = WipeContext.Default,
   ) : WipingDeviceUiState
 
   /**

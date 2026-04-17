@@ -129,7 +129,7 @@ impl CustomerKeyShareStore {
         }
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, customer_key_share))]
     pub async fn put_customer_key_share(
         &self,
         customer_key_share: &CustomerKeyShare,

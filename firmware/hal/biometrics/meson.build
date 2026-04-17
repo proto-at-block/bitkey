@@ -26,6 +26,7 @@ bio_includes = include_directories('inc')
 bio_platform_includes = include_directories('bio_platform_config')
 
 bio_deps = [
+  bio_flash_storage_dep,
   mcu_dep,
   bitlog_dep,
   fpc_bep_dep,

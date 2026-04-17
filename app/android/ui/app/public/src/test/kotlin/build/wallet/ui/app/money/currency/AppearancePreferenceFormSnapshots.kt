@@ -8,7 +8,9 @@ import build.wallet.ui.model.render
 import io.kotest.core.spec.style.FunSpec
 
 class AppearancePreferenceFormSnapshots : FunSpec({
-  val paparazzi = paparazziExtension()
+  // DSv2 light-mode appearance snapshots have a small, repeatable Linux CI rendering drift
+  // beyond the shared default threshold.
+  val paparazzi = paparazziExtension(maxPercentDifference = 0.05)
 
   test("Appearance preference display tab") {
     paparazzi.snapshot {
@@ -29,6 +31,27 @@ class AppearancePreferenceFormSnapshots : FunSpec({
       ).render()
     }
   }
+
+  test("Appearance preference display tab with design system v2 feature flag on") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      AppearancePreferenceBodyModel(
+        onBack = {},
+        moneyHomeHero = FormMainContentModel.MoneyHomeHero("$0", "0 sats"),
+        fiatCurrencyPreferenceString = "USD",
+        onFiatCurrencyPreferenceClick = {},
+        bitcoinDisplayPreferenceString = "sats",
+        onBitcoinDisplayPreferenceClick = {},
+        onEnableHideBalanceChanged = {},
+        onThemePreferenceClick = {},
+        themePreferenceString = "System",
+        defaultTimeScalePreferenceString = "1D",
+        onDefaultTimeScalePreferenceClick = {},
+        selectedSection = AppearanceSection.DISPLAY,
+        onSectionSelected = {}
+      ).render()
+    }
+  }
+
   test("Appearance preference currency tab BIP 177") {
     paparazzi.snapshot {
       AppearancePreferenceBodyModel(
@@ -48,6 +71,7 @@ class AppearancePreferenceFormSnapshots : FunSpec({
       ).render()
     }
   }
+
   test("Appearance preference currency tab") {
     paparazzi.snapshot {
       AppearancePreferenceBodyModel(
@@ -67,8 +91,49 @@ class AppearancePreferenceFormSnapshots : FunSpec({
       ).render()
     }
   }
+
+  test("Appearance preference currency tab with design system v2 feature flag on") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      AppearancePreferenceBodyModel(
+        onBack = {},
+        moneyHomeHero = FormMainContentModel.MoneyHomeHero("$0", "0 sats"),
+        fiatCurrencyPreferenceString = "USD",
+        onFiatCurrencyPreferenceClick = {},
+        bitcoinDisplayPreferenceString = "sats",
+        onBitcoinDisplayPreferenceClick = {},
+        onEnableHideBalanceChanged = {},
+        onThemePreferenceClick = {},
+        themePreferenceString = "System",
+        defaultTimeScalePreferenceString = "1D",
+        onDefaultTimeScalePreferenceClick = {},
+        selectedSection = AppearanceSection.CURRENCY,
+        onSectionSelected = {}
+      ).render()
+    }
+  }
+
   test("Appearance preference privacy tab") {
     paparazzi.snapshot {
+      AppearancePreferenceBodyModel(
+        onBack = {},
+        moneyHomeHero = FormMainContentModel.MoneyHomeHero("$0", "0 sats"),
+        fiatCurrencyPreferenceString = "USD",
+        onFiatCurrencyPreferenceClick = {},
+        bitcoinDisplayPreferenceString = "sats",
+        onBitcoinDisplayPreferenceClick = {},
+        onEnableHideBalanceChanged = {},
+        onThemePreferenceClick = {},
+        themePreferenceString = "System",
+        defaultTimeScalePreferenceString = "1D",
+        onDefaultTimeScalePreferenceClick = {},
+        selectedSection = AppearanceSection.PRIVACY,
+        onSectionSelected = {}
+      ).render()
+    }
+  }
+
+  test("Appearance preference privacy tab with design system v2 feature flag on") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
       AppearancePreferenceBodyModel(
         onBack = {},
         moneyHomeHero = FormMainContentModel.MoneyHomeHero("$0", "0 sats"),

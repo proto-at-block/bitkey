@@ -13,6 +13,7 @@ import build.wallet.ui.tokens.LabelType
 fun ListHeader(
   modifier: Modifier = Modifier,
   title: String,
+  titleType: LabelType = LabelType.Title2,
 ) {
   Box(modifier = modifier.fillMaxWidth()) {
     Label(
@@ -22,7 +23,7 @@ fun ListHeader(
           bottom = 8.dp
         ),
       text = title,
-      type = LabelType.Title2
+      type = titleType
     )
   }
 }

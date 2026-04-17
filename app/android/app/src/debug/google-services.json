@@ -1,0 +1,38 @@
+{
+  "project_info": {
+    "project_number": "236544073680",
+    "project_id": "sq-bitkey-dev",
+    "storage_bucket": "sq-bitkey-dev.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:236544073680:android:4e192513e04937448763d5",
+        "android_client_info": {
+          "package_name": "world.bitkey.debug"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "236544073680-g3dr3pas7htmnrepm6b15idtq8as2b81.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "world.bitkey.debug",
+            "certificate_hash": "10de705f16e27003f86fd30e456ac32cefd404bb"
+          }
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAddn-afXiEtRLQSJMd5i6DjRH6mdjA5KM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

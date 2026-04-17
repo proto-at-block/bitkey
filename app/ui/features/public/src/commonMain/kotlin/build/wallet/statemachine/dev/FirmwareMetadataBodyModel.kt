@@ -10,6 +10,7 @@ data class McuInfoModel(
   val role: String,
   val name: String,
   val firmwareVersion: String,
+  val activeSlot: String?,
 )
 
 data class FirmwareMetadataModel(

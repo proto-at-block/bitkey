@@ -1,8 +1,7 @@
 package build.wallet.pricechart.ui
 
-import androidx.compose.animation.*
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -38,6 +37,7 @@ internal fun ChartScreen(
   modifier: Modifier = Modifier,
   model: BitcoinPriceDetailsBodyModel,
 ) {
+  val showHistorySelector = model.type == ChartType.BTC_PRICE || model.isLoading || model.data.isNotEmpty()
   Column(
     modifier = modifier
       .fillMaxSize()
@@ -59,33 +59,26 @@ internal fun ChartScreen(
 
     Spacer(modifier = Modifier.height(4.dp))
 
-    AnimatedContent(
-      targetState = model.type,
-      modifier = Modifier.weight(1f),
-      transitionSpec = {
-        fadeIn(tween(200, delayMillis = 90))
-          .togetherWith(fadeOut(tween(90)))
-      }
-    ) { type ->
-      Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically)
-      ) {
-        when (type) {
-          ChartType.BALANCE -> BalanceHistoryScreen(model = model)
-          ChartType.BTC_PRICE -> BitcoinPriceChartScreen(model = model)
-        }
+    Column(
+      modifier = Modifier.weight(1f).fillMaxWidth(),
+      verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically)
+    ) {
+      when (model.type) {
+        ChartType.BALANCE -> BalanceHistoryScreen(model = model)
+        ChartType.BTC_PRICE -> BitcoinPriceChartScreen(model = model)
       }
     }
 
-    Spacer(modifier = Modifier.height(36.dp))
+    if (showHistorySelector) {
+      Spacer(modifier = Modifier.height(36.dp))
 
-    ChartHistorySelector(
-      selectedHistory = model.range,
-      onChartHistorySelected = model.onChartRangeSelected
-    )
+      ChartHistorySelector(
+        selectedHistory = model.range,
+        onChartHistorySelected = model.onChartRangeSelected
+      )
 
-    Spacer(modifier = Modifier.height(18.dp))
+      Spacer(modifier = Modifier.height(18.dp))
+    }
   }
 }
 

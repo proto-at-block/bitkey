@@ -56,4 +56,9 @@ enum class ListGroupStyle {
    * The cards are larger than the ones in THREE_COLUMN_CARD_ITEM.
    */
   THREE_COLUMN_CARD_ITEM_LARGE,
+
+  /**
+   * List in the form of disjoint keypad-style buttons, with up to three items per row.
+   */
+  THREE_COLUMN_KEYPAD_ITEM,
 }

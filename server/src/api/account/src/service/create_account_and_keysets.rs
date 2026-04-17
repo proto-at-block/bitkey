@@ -41,6 +41,7 @@ impl From<CreateAccountAndKeysetsInput> for FullAccountAuthKeys {
             input.keyset.auth.app_pubkey,
             input.keyset.auth.hardware_pubkey,
             input.keyset.auth.recovery_pubkey,
+            input.keyset.auth.hardware_type,
         )
     }
 }

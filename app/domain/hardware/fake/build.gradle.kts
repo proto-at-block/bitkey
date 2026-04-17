@@ -10,6 +10,7 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
+        api(projects.domain.hardwarePublic)
         implementation(projects.domain.bitkeyPrimitivesFake)
         implementation(projects.libs.keyValueStorePublic)
         // TODO: extract reusable uuid() - https://github.com/squareup/wallet/pull/13871

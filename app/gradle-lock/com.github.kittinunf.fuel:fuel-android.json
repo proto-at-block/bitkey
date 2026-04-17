@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.github.kittinunf.fuel:fuel-android",
+    "components": [
+        {
+            "version": "2.3.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "fuel-android-2.3.1.aar": "0eea67f95bf5bb03b37fbf3c82e4a0b835fe7fa940fdeb607b4adf58e51a7625"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -101,7 +101,7 @@ impl Default for AccountValidation {
 }
 
 impl AccountValidation {
-    #[instrument(skip(self, config, account_service, recovery_repository))]
+    #[instrument(skip(self, config, account_service, recovery_repository, request))]
     pub async fn validate(
         &self,
         request: AccountValidationRequest,

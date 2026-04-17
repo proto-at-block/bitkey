@@ -44,12 +44,14 @@ $(error ANDROID_NDK_ROOT is not set)
 	endif
 
 	CC = $(ANDROID_COMPILER_PATH)/$(_TARGET)$(ANDROID_API_LEVEL)-clang
+	AR = $(ANDROID_COMPILER_PATH)/llvm-ar
 else ifeq ($(RUST_TARGET),x86_64-unknown-linux-gnu) # Linux
 	CC = gcc
 else
 $(error Unknown target $(RUST_TARGET))
 endif
 
+AR ?= ar
 CFLAGS = -fPIC -Wall -Werror -Wextra
 BUILD_DIR = build
 
@@ -90,7 +92,7 @@ $(BUILD_DIR)/%.o: %.c
 	$(CC) -c $(CFLAGS) $(INCLUDES) -o $@ $<
 
 libteltra.a: ensure_build_dir $(OBJS)
-	ar rcs $(BUILD_DIR)/libteltra.a $(OBJS)
+	$(AR) rcs $(BUILD_DIR)/libteltra.a $(OBJS)
 
 ensure_build_dir:
 	mkdir -p $(BUILD_DIR)

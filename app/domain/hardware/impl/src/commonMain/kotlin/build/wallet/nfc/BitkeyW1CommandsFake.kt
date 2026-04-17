@@ -6,11 +6,13 @@ import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.crypto.SealedData
+import build.wallet.crypto.SymmetricKey
 import build.wallet.crypto.random.SecureRandom
 import build.wallet.crypto.random.nextBytes
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.di.Fake
+import build.wallet.di.W1
 import build.wallet.encrypt.MessageSigner
 import build.wallet.encrypt.SignatureUtils
 import build.wallet.encrypt.signResult
@@ -21,11 +23,24 @@ import build.wallet.firmware.FirmwareMetadata.FirmwareSlot.A
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
 import build.wallet.grants.*
+import build.wallet.nfc.platform.ActionProofAction
 import build.wallet.nfc.platform.ChunkData
 import build.wallet.nfc.platform.ConfirmationHandles
 import build.wallet.nfc.platform.ConfirmationResult
+import build.wallet.nfc.platform.CsekUnsealResult
 import build.wallet.nfc.platform.HardwareInteraction
+import build.wallet.nfc.platform.HwDisplayPreference
+import build.wallet.nfc.platform.LostAppRecoveryCompositeResult
+import build.wallet.nfc.platform.LostAppRecoveryContinueParams
 import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.RecoveryAuthorizeLostAppResult
+import build.wallet.nfc.platform.RecoveryAuthorizeLostHwResult
+import build.wallet.nfc.platform.RotateAppAuthKeysCompositeResult
+import build.wallet.nfc.platform.RotateAppAuthKeysContinueParams
+import build.wallet.nfc.platform.SignChallengeAndSealSeksResult
+import build.wallet.nfc.platform.UpgradeAuthorizeW3Result
+import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysParams
+import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysResult
 import build.wallet.nfc.transaction.TransactionError
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOrThrow
@@ -42,8 +57,8 @@ import okio.ByteString.Companion.toByteString
 class BitkeyW1CommandsFake(
   private val messageSigner: MessageSigner,
   private val signatureUtils: SignatureUtils,
-  val fakeHardwareKeyStore: FakeHardwareKeyStore,
-  private val fakeHardwareSpendingWalletProvider: FakeHardwareSpendingWalletProvider,
+  @W1 val fakeHardwareKeyStore: FakeHardwareKeyStore,
+  @W1 private val fakeHardwareSpendingWalletProvider: FakeHardwareSpendingWalletProvider,
   private val fakeHardwareStatesDao: FakeHardwareStatesDao,
 ) : NfcCommands {
   private var telemetryCoredumpCount: Int = 0
@@ -84,6 +99,7 @@ class BitkeyW1CommandsFake(
     fwupMode: FwupMode,
     mcuRole: McuRole,
     version: String,
+    deferCommit: Boolean,
   ): HardwareInteraction<Boolean> = HardwareInteraction.Completed(true)
 
   override suspend fun fwupTransfer(
@@ -179,17 +195,19 @@ class BitkeyW1CommandsFake(
     return true
   }
 
-  override suspend fun getFirmwareMetadata(session: NfcSession) =
-    FirmwareMetadata(
-      activeSlot = A,
-      gitId = "some-fake-id",
-      gitBranch = "main",
-      version = "1.0",
-      build = "mock",
-      timestamp = Instant.DISTANT_PAST,
-      hash = ByteString.EMPTY,
-      hwRevision = "mocky-mcmockface :)"
-    )
+  override suspend fun getFirmwareMetadata(
+    session: NfcSession,
+    mcuRole: McuRole,
+  ) = FirmwareMetadata(
+    activeSlot = A,
+    gitId = "some-fake-id",
+    gitBranch = "main",
+    version = "1.0",
+    build = "mock",
+    timestamp = Instant.DISTANT_PAST,
+    hash = ByteString.EMPTY,
+    hwRevision = "mocky-mcmockface :)"
+  )
 
   override suspend fun getInitialSpendingKey(
     session: NfcSession,
@@ -211,46 +229,25 @@ class BitkeyW1CommandsFake(
 
   override suspend fun queryAuthentication(session: NfcSession) = true
 
-  /** See [BitkeyW1CommandsFake.sealKey] for implementation details. */
-  private val sealKeySeparator = "---"
+  override suspend fun showConfirmationScreen(
+    session: NfcSession,
+    lockOnDismiss: Boolean,
+  ) = true
 
   /**
-   * "Seals" some data using actual fake auth key. The sealing process is a simple concatenation of the
-   * auth private key and the unsealed key in following format: "unsealedData---authPrivateKey".
-   *
-   * Unsealing process is a simple split of the sealed key by the same separator and then checking if
-   * the auth private key is the same as the one used for sealing.
+   * "Seals" some data into a protobuf-like envelope that matches firmware's field layout:
+   * data (field 1), nonce (field 2), tag (field 3). The nonce/tag are derived from the fake auth
+   * private key so unsealing still fails when the hardware identity changes.
    */
   override suspend fun sealData(
     session: NfcSession,
     unsealedData: ByteString,
-  ): SealedData {
-    val hwAuthPrivateKey = fakeHardwareKeyStore.getAuthKeypair().privateKey.key
-    return buildString {
-      append(unsealedData.hex())
-      append(sealKeySeparator)
-      append(hwAuthPrivateKey.bytes.hex())
-    }.encodeUtf8()
-  }
+  ): SealedData = FakeSealedDataCodec.sealWithKeyStore(fakeHardwareKeyStore, unsealedData)
 
   override suspend fun unsealData(
     session: NfcSession,
     sealedData: SealedData,
-  ): ByteString {
-    val (sealedSekRaw, hwAuthPrivateKeyPart) = sealedData
-      .utf8()
-      .split(sealKeySeparator)
-    // Simulate the sealing process by checking if the private key is the same as the one.
-    // If hw auth private keys don't match, effectively means that the data was not sealed with
-    // this fake hardware's auth private key.
-    //
-    // In production, this scenario surfaces as an NFC unseal failure (e.g. wrong Bitkey), so we
-    // model it as such to ensure recovery flows handle this error path consistently.
-    if (hwAuthPrivateKeyPart != fakeHardwareKeyStore.getAuthKeypair().privateKey.key.bytes.hex()) {
-      throw NfcException.CommandErrorSealCsekResponseUnsealException()
-    }
-    return sealedSekRaw.decodeHex()
-  }
+  ): ByteString = FakeSealedDataCodec.unsealWithKeyStore(fakeHardwareKeyStore, sealedData)
 
   override suspend fun signChallenge(
     session: NfcSession,
@@ -265,6 +262,7 @@ class BitkeyW1CommandsFake(
     session: NfcSession,
     psbt: Psbt,
     spendingKeyset: SpendingKeyset,
+    displayPreference: HwDisplayPreference?,
   ): HardwareInteraction<Psbt> {
     if (fakeHardwareStatesDao.getTransactionVerificationEnabled().get() == true) {
       throw TransactionError.VerificationRequired()
@@ -313,49 +311,13 @@ class BitkeyW1CommandsFake(
   override suspend fun getGrantRequest(
     session: NfcSession,
     action: GrantAction,
-  ): GrantRequest {
-    // Generate 16-byte challenge
-    val challengeBytes = SecureRandom().nextBytes(GRANT_CHALLENGE_LEN)
-
-    // Get device ID - use first 8 bytes of device serial converted to bytes
-    val deviceIdBytes = FakeFirmwareDeviceInfo.serial.encodeUtf8().toByteArray()
-    val deviceId = if (deviceIdBytes.size >= GRANT_DEVICE_ID_LEN) {
-      deviceIdBytes.sliceArray(0 until GRANT_DEVICE_ID_LEN)
-    } else {
-      deviceIdBytes + ByteArray(GRANT_DEVICE_ID_LEN - deviceIdBytes.size)
-    }
-
-    val version = 1.toByte()
-
-    // Build the raw message for signing
-    val messageToSign = Buffer().apply {
-      write(GRANT_MESSAGE_PREFIX.encodeUtf8())
-      writeByte(version.toInt())
-      write(deviceId)
-      write(challengeBytes)
-      writeByte(action.value)
-    }.readByteString().toByteArray()
-
-    // Sign the message using the hardware auth key
-    val authKey = fakeHardwareKeyStore.getAuthKeypair().privateKey.key
-    val derSignatureHex = messageSigner.sign(messageToSign.toByteString(), authKey)
-    val derSignatureByteString = derSignatureHex.decodeHex().toByteArray().toByteString()
-    val compactSignature = signatureUtils.decodeSignatureFromDer(derSignatureByteString)
-
-    // Serialize the GrantRequest fields into a single ByteString
-    val buffer = Buffer().apply {
-      writeByte(version.toInt())
-      write(deviceId)
-      write(challengeBytes)
-      writeByte(action.value)
-      write(compactSignature)
-    }
-    val serialized = buffer.readByteString()
-
-    // Construct GrantRequest via deserialization
-    return GrantRequest.fromBytes(serialized)
-      ?: throw NfcException.CommandError("Failed to create GrantRequest from serialized data")
-  }
+  ): GrantRequest = buildFakeGrantRequest(
+    keyStore = fakeHardwareKeyStore,
+    deviceSerial = FakeFirmwareDeviceInfo.serial,
+    action = action,
+    messageSigner = messageSigner,
+    signatureUtils = signatureUtils
+  )
 
   override suspend fun provideGrant(
     session: NfcSession,
@@ -400,24 +362,139 @@ class BitkeyW1CommandsFake(
     serverSpendingKey: ByteString,
     serverSpendingKeyChaincode: ByteString,
     wsmSignature: ByteString,
-  ): Boolean {
+    accountIndex: UInt,
+  ): String {
     throw NfcException.CommandError(
       message = "verifyKeysAndBuildDescriptor is not supported on W1 hardware. This is a W3-only feature."
     )
   }
 
-  private fun EnrolledFingerprints.insertOrUpdateFingerprintHandle(
-    fingerprintHandle: FingerprintHandle,
-  ): EnrolledFingerprints {
-    val fingerprints =
-      fingerprintHandles.filterNot { it.index == fingerprintHandle.index } + fingerprintHandle
-    return EnrolledFingerprints(fingerprintHandles = fingerprints)
+  override suspend fun signActionProof(
+    session: NfcSession,
+    version: UInt,
+    action: ActionProofAction,
+    value: String?,
+    bindings: String,
+  ): HardwareInteraction<String> {
+    throw NfcException.CommandError(
+      message = "signActionProof is not supported on W1 hardware. This is a W3-only feature."
+    )
   }
+
+  override suspend fun lostAppRecovery(
+    session: NfcSession,
+    sealedSsek: ByteString,
+    onSsekUnsealed: suspend (SymmetricKey) -> LostAppRecoveryContinueParams,
+  ): HardwareInteraction<LostAppRecoveryCompositeResult> {
+    throw NfcException.CommandError(
+      message = "lostAppRecovery composite is not supported on W1 hardware. This is a W3-only feature."
+    )
+  }
+
+  override suspend fun signChallengeAndSealSeks(
+    session: NfcSession,
+    challenge: ByteString,
+    unsealedCsek: ByteString,
+    unsealedSsek: ByteString,
+  ): HardwareInteraction<SignChallengeAndSealSeksResult> {
+    throw NfcException.CommandError(
+      message = "signChallengeAndSealSeks is not supported on W1 hardware. This is a W3-only feature."
+    )
+  }
+
+  override suspend fun recoveryAuthorizeLostApp(
+    session: NfcSession,
+    sealedDdkData: SealedData?,
+    sealedSsekForDecryption: SealedData?,
+    descriptorBackupsBindings: String,
+    activateKeysetBindings: String,
+    actionProofVersion: UInt,
+  ): HardwareInteraction<RecoveryAuthorizeLostAppResult> {
+    throw NfcException.CommandError(
+      message = "recoveryAuthorizeLostApp is not supported on W1 hardware. This is a W3-only feature."
+    )
+  }
+
+  override suspend fun recoveryAuthorizeLostHw(
+    session: NfcSession,
+    ddkPrivateKeyBytes: ByteString?,
+    descriptorBackupsBindings: String,
+    activateKeysetBindings: String,
+    actionProofVersion: UInt,
+  ): HardwareInteraction<RecoveryAuthorizeLostHwResult> {
+    throw NfcException.CommandError(
+      message = "recoveryAuthorizeLostHw is not supported on W1 hardware. This is a W3-only feature."
+    )
+  }
+
+  override suspend fun upgradeAuthorizeW3(
+    session: NfcSession,
+    ddkPrivateKeyBytes: ByteString,
+    descriptorBackupsBindings: String,
+    activateKeysetBindings: String,
+    actionProofVersion: UInt,
+  ): HardwareInteraction<UpgradeAuthorizeW3Result> {
+    throw NfcException.CommandError(
+      message = "upgradeAuthorizeW3 is not supported on W1 hardware. This is a W3-only feature."
+    )
+  }
+
+  override suspend fun lostAppRecoverySignChallenge(
+    session: NfcSession,
+    challenge: ByteString,
+  ): HardwareInteraction<String> {
+    throw NfcException.CommandError(
+      message = "lostAppRecoverySignChallenge is not supported on W1 hardware. This is a W3-only feature."
+    )
+  }
+
+  override suspend fun rotateAppAuthKeys(
+    session: NfcSession,
+    params: RotateAppAuthKeysContinueParams,
+  ): HardwareInteraction<RotateAppAuthKeysCompositeResult> {
+    throw NfcException.CommandError(
+      message = "rotateAppAuthKeys composite is not supported on W1 hardware. This is a W3-only feature."
+    )
+  }
+
+  override suspend fun upgradeRotateAppAuthKeys(
+    session: NfcSession,
+    params: UpgradeRotateAppAuthKeysParams,
+  ): HardwareInteraction<UpgradeRotateAppAuthKeysResult> {
+    throw NfcException.CommandError(
+      message = "upgradeRotateAppAuthKeys is not supported on W1 hardware. This is a W3-only feature."
+    )
+  }
+
+  @OptIn(bitkey.data.PrivateData::class)
+  override suspend fun eekRestorationUnsealSymmetricKey(
+    session: NfcSession,
+    sealedKey: SealedData,
+  ): HardwareInteraction<SymmetricKey> =
+    HardwareInteraction.Completed(
+      build.wallet.crypto.SymmetricKeyImpl(unsealData(session, sealedKey))
+    )
+
+  override suspend fun <T> fullAccountCloudBackupRestoration(
+    session: NfcSession,
+    sealedCseks: List<SealedData>,
+    onCsekUnsealed: suspend (CsekUnsealResult) -> T,
+  ): HardwareInteraction<T> =
+    error("fullAccountCloudBackupRestoration is a W3-only command. Use unsealSymmetricKey for W1.")
+
+}
+
+internal fun EnrolledFingerprints.insertOrUpdateFingerprintHandle(
+  fingerprintHandle: FingerprintHandle,
+): EnrolledFingerprints {
+  val fingerprints =
+    fingerprintHandles.filterNot { it.index == fingerprintHandle.index } + fingerprintHandle
+  return EnrolledFingerprints(fingerprintHandles = fingerprints)
 }
 
 val FakeFirmwareDeviceInfo = FirmwareDeviceInfo(
   version = "1.2.3",
-  serial = "fake-serial",
+  serial = "fakeS203serial",
   swType = "dev",
   hwRevision = "evtd",
   activeSlot = FirmwareMetadata.FirmwareSlot.B,

@@ -5,7 +5,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 /**
@@ -14,18 +14,17 @@ import build.wallet.ui.model.toolbar.ToolbarModel
  *
  * @property onAllowNotifications Called when the user taps "Allow notifications" to enable push.
  * @property onSkip Called when the user taps "Skip" to skip push notification setup.
- * @property onClose Called when the user taps the close button.
+ * @property onNavigateBack Called when the user taps the back button to return to the previous step.
  */
 data class RecoveryNotificationsSetupFormBodyModel(
   val onAllowNotifications: () -> Unit,
   val onSkip: () -> Unit,
-  val onClose: () -> Unit,
+  val onNavigateBack: () -> Unit,
 ) : FormBodyModel(
     id = NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS,
-    onBack = onClose,
-    onSwipeToDismiss = onClose,
+    onBack = onNavigateBack,
     toolbar = ToolbarModel(
-      leadingAccessory = CloseAccessory(onClick = onClose)
+      leadingAccessory = BackAccessory(onClick = onNavigateBack)
     ),
     header = FormHeaderModel(
       headline = "Set up recovery notifications",

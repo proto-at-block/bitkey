@@ -170,18 +170,6 @@ static const char* PSBT_ONE_P2WSH_INPUT_ONE_EXTERNAL_OUTPUT =
   "lyRw6uUc9jkO1M4NqtFYpnIhxENkMak+uAACAAAAAgAAAAAAiBgM3KzQjTtfPnB/"
   "qXQXUQVV5J76VQrFi6wLhqyzoAiTACxDZDGpPrgAAgAEAAIAAAAAAAAA=";
 
-// PSBT generated spending 2-of-3 P2WSH outputs, with BIP67 sorted, keypaths present in each input.
-static const char* PSBT_ONE_P2WSH_INPUT_BIP67_SORTED_KEYPATHS =
-  "cHNidP8BAH0CAAAAAfh3uudRPGzzvI7Digs6Pakpk8YVtsExRepPMBTt5geXAAAAAAD/////"
-  "AlDDAAAAAAAAFgAUS7LVBJvqzVpf/3RM0Zo5ddjU0NkIew4AAAAAACIAIIGNkQEX22NAOzuk"
-  "By0YubLDiyFlGDrwzLSmDkmSZsN1AAAAAAABAStAQg8AAAAAACIAIIGNkQEX22NAOzukBy0Y"
-  "ubLDiyFlGDrwzLSmDkmSZsN1AQVpUiEC0F2DwR5vmGtLC3hjiX0veoWz5dAE5vegIgA4qZ3v"
-  "/jUhAwwLjLEs2f5oWuH5TJ5yvPztfIJHRuxmazcf/kI/+H5EIQPzelBDZcD2eC0SfhHaaR4j"
-  "EpQMN31qncErcTpHu9PRtlOuIgYC0F2DwR5vmGtLC3hjiX0veoWz5dAE5vegIgA4qZ3v/jUYy"
-  "9rQNlQAAIABAACAAAAAgAAAAAAMAAAAIgYDDAuMsSzZ/mha4flMnnK8/O18gkdG7GZrNx/+Q"
-  "j/4fkQYy9rQNlQAAIABAACAAAAAgAAAAAAOAAAAIgYD83pQQ2XA9ngtEn4R2mkeIxKUDDd9a"
-  "p3BK3E6R7vT0bYYy9rQNlQAAIABAACAAAAAgAAAAAANAAAAAAAA";
-
 // PSBT generated spending 2-of-3 P2WSH output with SIGHASH_NONE set on the input.
 // We use a non-default sighash here (instead of SIGHASH_ALL) to ensure we don't
 // silently fall back to PSBT_SIGHASH_ALL when an explicit input sighash is present.
@@ -195,17 +183,6 @@ static const char* PSBT_ONE_P2WSH_INPUT_SIGHASH_NONE =
   "gB8p0MtxGMva0DZUAACAAQAAgAAAAIAAAAAAFwAAACIGA1HKtcPuZoB83jWkQdSwEOoor70t"
   "2domJ+ykMr807U8OGMva0DZUAACAAQAAgAAAAIAAAAAAFgAAACIGA/HF1FtqCkVPZre/UV+U"
   "CMHo0w1MDmc87wttjW5OfWzJGMva0DZUAACAAQAAgAAAAIAAAAAAGAAAAAAAAA==";
-
-// PSBT generated with witness_utxo intentionally omitted.
-static const char* PSBT_ONE_P2WSH_INPUT_MISSING_UTXO =
-  "cHNidP8BAH0CAAAAAVwxtqayGsOyn/4tZoFIW46GSl4wY1bvR7Ddyuan+e5ZAAAAAAD/////"
-  "AlDDAAAAAAAAFgAUH1wOVKREwVY0dVMvCnpaHoDcdIoIew4AAAAAACIAIFsAoKxTjCqfRg7d"
-  "yAVzn7NMYs41dJIZrwpsrYKT7W8qAAAAAAABBWlSIQIuaXUVLW423Qx5SfwObugUMwRvAaOR"
-  "kb2Uu7hp7BGJ4CEDXEClfPLMDgFgANazfOXlj+Jwiw/0gYPxyZqhHd/7t88hA6+VoSD79Z1g"
-  "DgfRBJrBRmVZAWexRGzL5OsaLfCE2NveU64iBgIuaXUVLW423Qx5SfwObugUMwRvAaORkb2U"
-  "u7hp7BGJ4BjL2tA2VAAAgAEAAIAAAACAAAAAABIAAAAiBgNcQKV88swOAWAA1rN85eWP4nCL"
-  "D/SBg/HJmqEd3/u3zxjL2tA2VAAAgAEAAIAAAACAAAAAABMAAAAiBgOvlaEg+/WdYA4H0QSa"
-  "wUZlWQFnsURsy+TrGi3whNjb3hjL2tA2VAAAgAEAAIAAAACAAAAAABEAAAAAAAA=";
 
 Test(psbt_test, one_input_no_outputs, .init = psbt_setup, .fini = psbt_teardown) {
   uint8_t psbt_bytes[2048];
@@ -225,170 +202,166 @@ Test(psbt_test, one_input_no_outputs, .init = psbt_setup, .fini = psbt_teardown)
   cr_assert_eq(info.fee_amount_sats, 10000, "Fee should be 10000 sats");
 }
 
-#pragma mark - P2WSH Signing Data Tests
+static void build_raw_tx_fields_from_psbt(ew_psbt_t* psbt, psbt_tx_input_info_t* inputs_out,
+                                          size_t* input_count_out,
+                                          psbt_tx_output_info_t* outputs_out,
+                                          size_t* output_count_out) {
+  cr_assert_not_null(psbt);
+  cr_assert_not_null(inputs_out);
+  cr_assert_not_null(input_count_out);
+  cr_assert_not_null(outputs_out);
+  cr_assert_not_null(output_count_out);
 
-Test(psbt_test, p2wsh_signing_data_ok, .init = psbt_setup, .fini = psbt_teardown) {
+  size_t input_count = 0;
+  cr_assert_eq(ew_psbt_get_num_inputs(psbt, &input_count), EW_OK);
+  *input_count_out = input_count;
+
+  for (size_t i = 0; i < input_count; i++) {
+    bool has_amount = false;
+    uint64_t amount = 0;
+    cr_assert_eq(ew_psbt_input_get_amount(psbt, i, &has_amount, &amount), EW_OK);
+    cr_assert(has_amount);
+    inputs_out[i].amount_sats = amount;
+  }
+
+  const size_t output_count = ew_psbt_get_num_outputs(psbt);
+  *output_count_out = output_count;
+
+  for (size_t i = 0; i < output_count; i++) {
+    bool has_keypath = false;
+    cr_assert_eq(ew_psbt_output_has_keypath(psbt, i, &has_keypath), EW_OK);
+
+    const uint8_t* script = NULL;
+    size_t script_len = 0;
+    bool has_amount = false;
+    uint64_t amount = 0;
+    cr_assert_eq(ew_psbt_output_get_info(psbt, i, &script, &script_len, &has_amount, &amount),
+                 EW_OK);
+    cr_assert(has_amount);
+
+    outputs_out[i].amount_sats = amount;
+    outputs_out[i].script_pubkey = script;
+    outputs_out[i].script_pubkey_len = script_len;
+    outputs_out[i].has_keypath = has_keypath;
+  }
+}
+
+Test(psbt_test, raw_tx_info_matches_psbt_info_external_output, .init = psbt_setup,
+     .fini = psbt_teardown) {
   uint8_t psbt_bytes[2048];
   size_t psbt_len = 0;
-  cr_assert(ew_base64_to_bytes(PSBT_ONE_P2WSH_INPUT_BIP67_SORTED_KEYPATHS, psbt_bytes,
+  cr_assert(ew_base64_to_bytes(PSBT_ONE_P2WSH_INPUT_ONE_EXTERNAL_OUTPUT, psbt_bytes,
                                sizeof(psbt_bytes), &psbt_len) == EW_OK);
+
+  psbt_info_t from_psbt = {0};
+  cr_assert_eq(psbt_get_info(psbt_bytes, psbt_len, EW_NETWORK_MAINNET, &from_psbt), PSBT_OK);
 
   ew_psbt_t* psbt = NULL;
   cr_assert_eq(ew_psbt_from_bytes(psbt_bytes, psbt_len, &psbt), EW_OK);
 
-  psbt_p2wsh_signing_data_t signing_data = {0};
-  psbt_error_t err = psbt_p2wsh_input_signing_data_from_psbt(psbt, 0, &signing_data);
-  cr_assert_eq(err, PSBT_OK);
-  cr_assert_eq(signing_data.keypath_count, 3);
-  cr_assert(signing_data.witness_script_len > 0);
+  psbt_tx_input_info_t inputs[4] = {0};
+  psbt_tx_output_info_t outputs[4] = {0};
+  size_t input_count = 0;
+  size_t output_count = 0;
+  build_raw_tx_fields_from_psbt(psbt, inputs, &input_count, outputs, &output_count);
+
+  psbt_info_t from_raw = {0};
+  cr_assert_eq(psbt_get_info_from_tx_fields(inputs, input_count, outputs, output_count,
+                                            EW_NETWORK_MAINNET, &from_raw),
+               PSBT_OK);
+  cr_assert_eq(from_raw.has_destination, from_psbt.has_destination);
+  cr_assert_str_eq(from_raw.destination_address, from_psbt.destination_address);
+  cr_assert_eq(from_raw.send_amount_sats, from_psbt.send_amount_sats);
+  cr_assert_eq(from_raw.change_amount_sats, from_psbt.change_amount_sats);
+  cr_assert_eq(from_raw.fee_amount_sats, from_psbt.fee_amount_sats);
 
   ew_psbt_free(psbt);
 }
 
-Test(psbt_test, p2wsh_signing_data_sighash_none, .init = psbt_setup, .fini = psbt_teardown) {
-  uint8_t psbt_bytes[2048];
-  size_t psbt_len = 0;
-  cr_assert(ew_base64_to_bytes(PSBT_ONE_P2WSH_INPUT_SIGHASH_NONE, psbt_bytes, sizeof(psbt_bytes),
-                               &psbt_len) == EW_OK);
-
-  ew_psbt_t* psbt = NULL;
-  cr_assert_eq(ew_psbt_from_bytes(psbt_bytes, psbt_len, &psbt), EW_OK);
-
-  psbt_p2wsh_signing_data_t signing_data = {0};
-  psbt_error_t err = psbt_p2wsh_input_signing_data_from_psbt(psbt, 0, &signing_data);
-  cr_assert_eq(err, PSBT_OK);
-  cr_assert_eq(signing_data.sighash_type, 0x02);
-
-  ew_psbt_free(psbt);
-}
-
-Test(psbt_test, p2wsh_signing_data_uncompressed_pubkey, .init = psbt_setup, .fini = psbt_teardown) {
-  uint8_t psbt_bytes[2048];
-  size_t psbt_len = 0;
-  cr_assert(ew_base64_to_bytes(PSBT_ONE_P2WSH_INPUT_BIP67_SORTED_KEYPATHS, psbt_bytes,
-                               sizeof(psbt_bytes), &psbt_len) == EW_OK);
-
-  struct wally_psbt* wally_psbt = NULL;
-  cr_assert_eq(wally_psbt_from_bytes(psbt_bytes, psbt_len, 0, &wally_psbt), WALLY_OK);
-
-  struct wally_map* keypaths = &wally_psbt->inputs[0].keypaths;
-  size_t keypath_count = 0;
-  cr_assert_eq(wally_map_get_num_items(keypaths, &keypath_count), WALLY_OK);
-  cr_assert_eq(keypath_count, 3);
-
-  size_t key_len = 0;
-  cr_assert_eq(wally_map_get_item_key_length(keypaths, 0, &key_len), WALLY_OK);
-  cr_assert_eq(key_len, EC_PUBLIC_KEY_LEN);
-
-  uint8_t key[EC_PUBLIC_KEY_UNCOMPRESSED_LEN] = {0};
-  size_t key_written = 0;
-  cr_assert_eq(wally_map_get_item_key(keypaths, 0, key, key_len, &key_written), WALLY_OK);
-  cr_assert_eq(key_written, key_len);
-
-  uint8_t fingerprint[BIP32_KEY_FINGERPRINT_LEN] = {0};
-  cr_assert_eq(
-    wally_map_keypath_get_item_fingerprint(keypaths, 0, fingerprint, sizeof(fingerprint)),
-    WALLY_OK);
-
-  size_t path_len = 0;
-  cr_assert_eq(wally_map_keypath_get_item_path_len(keypaths, 0, &path_len), WALLY_OK);
-  cr_assert(path_len <= PSBT_BIP32_PATH_MAX_LEN);
-
-  uint32_t path[PSBT_BIP32_PATH_MAX_LEN] = {0};
-  size_t path_written = 0;
-  cr_assert_eq(wally_map_keypath_get_item_path(keypaths, 0, path, path_len, &path_written),
-               WALLY_OK);
-  cr_assert_eq(path_written, path_len);
-
-  secp256k1_context* ctx =
-    secp256k1_context_create(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
-  cr_assert(ctx != NULL);
-
-  secp256k1_pubkey pubkey = {0};
-  cr_assert(secp256k1_ec_pubkey_parse(ctx, &pubkey, key, key_len));
-
-  uint8_t uncompressed[EC_PUBLIC_KEY_UNCOMPRESSED_LEN] = {0};
-  size_t uncompressed_len = sizeof(uncompressed);
-  cr_assert(secp256k1_ec_pubkey_serialize(ctx, uncompressed, &uncompressed_len, &pubkey,
-                                          SECP256K1_EC_UNCOMPRESSED));
-
-  cr_assert_eq(wally_map_remove(keypaths, key, key_len), WALLY_OK);
-  cr_assert_eq(wally_map_keypath_add(keypaths, uncompressed, uncompressed_len, fingerprint,
-                                     sizeof(fingerprint), path, path_len),
-               WALLY_OK);
-
-  uint8_t* modified_psbt = NULL;
-  size_t modified_psbt_len = 0;
-  cr_assert(wally_psbt_serialize_alloc(wally_psbt, &modified_psbt, &modified_psbt_len));
-
-  ew_psbt_t* psbt = NULL;
-  cr_assert_eq(ew_psbt_from_bytes(modified_psbt, modified_psbt_len, &psbt), EW_OK);
-
-  psbt_p2wsh_signing_data_t signing_data = {0};
-  psbt_error_t err = psbt_p2wsh_input_signing_data_from_psbt(psbt, 0, &signing_data);
-  cr_assert_eq(err, PSBT_ERROR_INVALID_KEYPATH);
-
-  ew_psbt_free(psbt);
-  wally_psbt_free(wally_psbt);
-  secp256k1_context_destroy(ctx);
-  free(modified_psbt);
-}
-
-Test(psbt_test, p2wsh_signing_data_invalid_keypath, .init = psbt_setup, .fini = psbt_teardown) {
+Test(psbt_test, raw_tx_info_matches_psbt_info_change_only, .init = psbt_setup,
+     .fini = psbt_teardown) {
   uint8_t psbt_bytes[2048];
   size_t psbt_len = 0;
   cr_assert(ew_base64_to_bytes(PSBT_ONE_P2WSH_INPUT_ONE_CHANGE_OUTPUT, psbt_bytes,
                                sizeof(psbt_bytes), &psbt_len) == EW_OK);
 
+  psbt_info_t from_psbt = {0};
+  cr_assert_eq(psbt_get_info(psbt_bytes, psbt_len, EW_NETWORK_MAINNET, &from_psbt), PSBT_OK);
+
   ew_psbt_t* psbt = NULL;
   cr_assert_eq(ew_psbt_from_bytes(psbt_bytes, psbt_len, &psbt), EW_OK);
 
-  psbt_p2wsh_signing_data_t signing_data = {0};
-  psbt_error_t err = psbt_p2wsh_input_signing_data_from_psbt(psbt, 0, &signing_data);
-  cr_assert_eq(err, PSBT_ERROR_INVALID_KEYPATH);
+  psbt_tx_input_info_t inputs[4] = {0};
+  psbt_tx_output_info_t outputs[4] = {0};
+  size_t input_count = 0;
+  size_t output_count = 0;
+  build_raw_tx_fields_from_psbt(psbt, inputs, &input_count, outputs, &output_count);
+
+  psbt_info_t from_raw = {0};
+  cr_assert_eq(psbt_get_info_from_tx_fields(inputs, input_count, outputs, output_count,
+                                            EW_NETWORK_MAINNET, &from_raw),
+               PSBT_OK);
+  cr_assert_eq(from_raw.has_destination, from_psbt.has_destination);
+  cr_assert_eq(from_raw.send_amount_sats, from_psbt.send_amount_sats);
+  cr_assert_eq(from_raw.change_amount_sats, from_psbt.change_amount_sats);
+  cr_assert_eq(from_raw.fee_amount_sats, from_psbt.fee_amount_sats);
 
   ew_psbt_free(psbt);
 }
 
-Test(psbt_test, p2wsh_signing_data_script_mismatch, .init = psbt_setup, .fini = psbt_teardown) {
-  uint8_t psbt_bytes[2048];
-  size_t psbt_len = 0;
-  cr_assert(ew_base64_to_bytes(PSBT_ONE_P2WSH_INPUT_BIP67_SORTED_KEYPATHS, psbt_bytes,
-                               sizeof(psbt_bytes), &psbt_len) == EW_OK);
+Test(psbt_test, raw_tx_info_two_external_outputs_invalid_shape, .init = psbt_setup,
+     .fini = psbt_teardown) {
+  const uint8_t p2wpkh_script[] = {
+    0x00, 0x14, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09,
+    0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14,
+  };
 
-  ew_psbt_t* psbt = NULL;
-  cr_assert_eq(ew_psbt_from_bytes(psbt_bytes, psbt_len, &psbt), EW_OK);
+  const psbt_tx_input_info_t inputs[] = {
+    {.amount_sats = 100000},
+  };
+  const psbt_tx_output_info_t outputs[] = {
+    {
+      .amount_sats = 40000,
+      .script_pubkey = p2wpkh_script,
+      .script_pubkey_len = sizeof(p2wpkh_script),
+      .has_keypath = false,
+    },
+    {
+      .amount_sats = 50000,
+      .script_pubkey = p2wpkh_script,
+      .script_pubkey_len = sizeof(p2wpkh_script),
+      .has_keypath = false,
+    },
+  };
 
-  const uint8_t* script = NULL;
-  size_t script_len = 0;
-  cr_assert_eq(ew_psbt_input_get_witness_utxo(psbt, 0, &script, &script_len, NULL), EW_OK);
-  cr_assert(script != NULL);
-  cr_assert(script_len > 0);
-
-  uint8_t* mutable_script = (uint8_t*)script;
-  mutable_script[script_len - 1] ^= 0x01;
-
-  psbt_p2wsh_signing_data_t signing_data = {0};
-  psbt_error_t err = psbt_p2wsh_input_signing_data_from_psbt(psbt, 0, &signing_data);
-  cr_assert_eq(err, PSBT_ERROR_SCRIPT_MISMATCH);
-
-  ew_psbt_free(psbt);
+  psbt_info_t info = {0};
+  cr_assert_eq(
+    psbt_get_info_from_tx_fields(inputs, sizeof(inputs) / sizeof(inputs[0]), outputs,
+                                 sizeof(outputs) / sizeof(outputs[0]), EW_NETWORK_MAINNET, &info),
+    PSBT_ERROR_INVALID_SHAPE);
 }
 
-Test(psbt_test, p2wsh_signing_data_missing_utxo, .init = psbt_setup, .fini = psbt_teardown) {
-  uint8_t psbt_bytes[2048];
-  size_t psbt_len = 0;
-  cr_assert(ew_base64_to_bytes(PSBT_ONE_P2WSH_INPUT_MISSING_UTXO, psbt_bytes, sizeof(psbt_bytes),
-                               &psbt_len) == EW_OK);
+Test(psbt_test, raw_tx_info_external_bad_script_returns_address_failed, .init = psbt_setup,
+     .fini = psbt_teardown) {
+  const uint8_t invalid_script[] = {0x6a, 0x01, 0x01};
 
-  ew_psbt_t* psbt = NULL;
-  cr_assert_eq(ew_psbt_from_bytes(psbt_bytes, psbt_len, &psbt), EW_OK);
+  const psbt_tx_input_info_t inputs[] = {
+    {.amount_sats = 100000},
+  };
+  const psbt_tx_output_info_t outputs[] = {
+    {
+      .amount_sats = 90000,
+      .script_pubkey = invalid_script,
+      .script_pubkey_len = sizeof(invalid_script),
+      .has_keypath = false,
+    },
+  };
 
-  psbt_p2wsh_signing_data_t signing_data = {0};
-  psbt_error_t err = psbt_p2wsh_input_signing_data_from_psbt(psbt, 0, &signing_data);
-  cr_assert_eq(err, PSBT_ERROR_MISSING_UTXO);
-
-  ew_psbt_free(psbt);
+  psbt_info_t info = {0};
+  cr_assert_eq(
+    psbt_get_info_from_tx_fields(inputs, sizeof(inputs) / sizeof(inputs[0]), outputs,
+                                 sizeof(outputs) / sizeof(outputs[0]), EW_NETWORK_MAINNET, &info),
+    PSBT_ERROR_ADDRESS_FAILED);
 }
 
 #pragma mark - Invalid PSBT Tests
@@ -537,4 +510,300 @@ Test(psbt_test, psbt_add_signature_sighash_mismatch, .init = psbt_setup, .fini =
   wally_psbt_free(wally_psbt);
   secp256k1_context_destroy(ctx);
   free(modified_psbt);
+}
+
+// ---------------------------------------------------------------------------
+// Session commitment hash tests (W-16257)
+//
+// Verify that raw_tx_session_commitment_hash() produces stable, unique digests
+// that detect any mutation to the canonical signing fields.  These tests are
+// the foundation of the "bind confirmation to signing session" invariant:
+// if the live signing_session diverges from what was shown to the user, the
+// recomputed hash will differ from the one stored in the confirmation manager
+// and signing will be rejected.
+// ---------------------------------------------------------------------------
+
+static void build_test_session(raw_tx_input_t* inputs, size_t* num_inputs, raw_tx_output_t* outputs,
+                               size_t* num_outputs, uint32_t* lock_time, uint32_t* version) {
+  *num_inputs = 1;
+  *num_outputs = 1;
+  *lock_time = 0;
+  *version = 2;
+
+  memset(inputs[0].prev_txid, 0xab, 32);
+  inputs[0].prev_index = 0;
+  inputs[0].sequence = 0xffffffff;
+  inputs[0].amount = 100000;
+  // BIP84 path: m/84'/0'/0'/0/0
+  inputs[0].derivation_path[0] = 84 | 0x80000000u;
+  inputs[0].derivation_path[1] = 0 | 0x80000000u;
+  inputs[0].derivation_path[2] = 0 | 0x80000000u;
+  inputs[0].derivation_path[3] = 0;
+  inputs[0].derivation_path[4] = 0;
+  inputs[0].derivation_path_len = 5;
+
+  // External output (no derivation path = recipient)
+  outputs[0].amount = 90000;
+  // Minimal P2WPKH scriptPubKey: OP_0 <20-byte hash>
+  outputs[0].destination_spk[0] = 0x00;
+  outputs[0].destination_spk[1] = 0x14;
+  memset(&outputs[0].destination_spk[2], 0xcd, 20);
+  outputs[0].destination_spk_len = 22;
+  outputs[0].has_derivation_path = false;
+  outputs[0].derivation_path_len = 0;
+}
+
+Test(psbt_test, session_commitment_hash_null_params_returns_false, .init = psbt_setup,
+     .fini = psbt_teardown) {
+  uint8_t hash[SHA256_DIGEST_SIZE] = {0};
+  raw_tx_input_t inputs[1] = {0};
+  raw_tx_output_t outputs[1] = {0};
+
+  cr_assert_eq(raw_tx_session_commitment_hash(NULL, 1, outputs, 1, 0, 2, hash), false);
+  cr_assert_eq(raw_tx_session_commitment_hash(inputs, 1, NULL, 1, 0, 2, hash), false);
+  cr_assert_eq(raw_tx_session_commitment_hash(inputs, 1, outputs, 1, 0, 2, NULL), false);
+  cr_assert_eq(raw_tx_session_commitment_hash(inputs, 0, outputs, 1, 0, 2, hash), false);
+  cr_assert_eq(raw_tx_session_commitment_hash(inputs, 1, outputs, 0, 0, 2, hash), false);
+}
+
+Test(psbt_test, session_commitment_hash_is_deterministic, .init = psbt_setup,
+     .fini = psbt_teardown) {
+  raw_tx_input_t inputs[1] = {0};
+  raw_tx_output_t outputs[1] = {0};
+  size_t num_inputs, num_outputs;
+  uint32_t lock_time, version;
+  build_test_session(inputs, &num_inputs, outputs, &num_outputs, &lock_time, &version);
+
+  uint8_t hash1[SHA256_DIGEST_SIZE] = {0};
+  uint8_t hash2[SHA256_DIGEST_SIZE] = {0};
+  cr_assert(raw_tx_session_commitment_hash(inputs, num_inputs, outputs, num_outputs, lock_time,
+                                           version, hash1));
+  cr_assert(raw_tx_session_commitment_hash(inputs, num_inputs, outputs, num_outputs, lock_time,
+                                           version, hash2));
+  cr_assert_arr_eq(hash1, hash2, SHA256_DIGEST_SIZE);
+}
+
+Test(psbt_test, session_commitment_hash_changes_on_input_amount_mutation, .init = psbt_setup,
+     .fini = psbt_teardown) {
+  raw_tx_input_t inputs[1] = {0};
+  raw_tx_output_t outputs[1] = {0};
+  size_t num_inputs, num_outputs;
+  uint32_t lock_time, version;
+  build_test_session(inputs, &num_inputs, outputs, &num_outputs, &lock_time, &version);
+
+  uint8_t hash_orig[SHA256_DIGEST_SIZE] = {0};
+  cr_assert(raw_tx_session_commitment_hash(inputs, num_inputs, outputs, num_outputs, lock_time,
+                                           version, hash_orig));
+  inputs[0].amount += 1;
+  uint8_t hash_mutated[SHA256_DIGEST_SIZE] = {0};
+  cr_assert(raw_tx_session_commitment_hash(inputs, num_inputs, outputs, num_outputs, lock_time,
+                                           version, hash_mutated));
+  cr_assert(memcmp(hash_orig, hash_mutated, SHA256_DIGEST_SIZE) != 0,
+            "Hash must differ when input amount changes");
+}
+
+Test(psbt_test, session_commitment_hash_changes_on_output_amount_mutation, .init = psbt_setup,
+     .fini = psbt_teardown) {
+  raw_tx_input_t inputs[1] = {0};
+  raw_tx_output_t outputs[1] = {0};
+  size_t num_inputs, num_outputs;
+  uint32_t lock_time, version;
+  build_test_session(inputs, &num_inputs, outputs, &num_outputs, &lock_time, &version);
+
+  uint8_t hash_orig[SHA256_DIGEST_SIZE] = {0};
+  cr_assert(raw_tx_session_commitment_hash(inputs, num_inputs, outputs, num_outputs, lock_time,
+                                           version, hash_orig));
+  outputs[0].amount -= 1000;  // fee attack: reduce recipient amount
+  uint8_t hash_mutated[SHA256_DIGEST_SIZE] = {0};
+  cr_assert(raw_tx_session_commitment_hash(inputs, num_inputs, outputs, num_outputs, lock_time,
+                                           version, hash_mutated));
+  cr_assert(memcmp(hash_orig, hash_mutated, SHA256_DIGEST_SIZE) != 0,
+            "Hash must differ when output amount changes");
+}
+
+Test(psbt_test, session_commitment_hash_changes_on_output_scriptpubkey_mutation, .init = psbt_setup,
+     .fini = psbt_teardown) {
+  raw_tx_input_t inputs[1] = {0};
+  raw_tx_output_t outputs[1] = {0};
+  size_t num_inputs, num_outputs;
+  uint32_t lock_time, version;
+  build_test_session(inputs, &num_inputs, outputs, &num_outputs, &lock_time, &version);
+
+  uint8_t hash_orig[SHA256_DIGEST_SIZE] = {0};
+  cr_assert(raw_tx_session_commitment_hash(inputs, num_inputs, outputs, num_outputs, lock_time,
+                                           version, hash_orig));
+  // Address substitution attack: flip one byte of destination scriptPubKey
+  outputs[0].destination_spk[5] ^= 0xff;
+  uint8_t hash_mutated[SHA256_DIGEST_SIZE] = {0};
+  cr_assert(raw_tx_session_commitment_hash(inputs, num_inputs, outputs, num_outputs, lock_time,
+                                           version, hash_mutated));
+  cr_assert(memcmp(hash_orig, hash_mutated, SHA256_DIGEST_SIZE) != 0,
+            "Hash must differ when destination scriptPubKey changes");
+}
+
+Test(psbt_test, session_commitment_hash_changes_on_version_mutation, .init = psbt_setup,
+     .fini = psbt_teardown) {
+  raw_tx_input_t inputs[1] = {0};
+  raw_tx_output_t outputs[1] = {0};
+  size_t num_inputs, num_outputs;
+  uint32_t lock_time, version;
+  build_test_session(inputs, &num_inputs, outputs, &num_outputs, &lock_time, &version);
+
+  uint8_t hash_v2[SHA256_DIGEST_SIZE] = {0};
+  cr_assert(raw_tx_session_commitment_hash(inputs, num_inputs, outputs, num_outputs, lock_time,
+                                           version, hash_v2));
+  uint8_t hash_v1[SHA256_DIGEST_SIZE] = {0};
+  cr_assert(raw_tx_session_commitment_hash(inputs, num_inputs, outputs, num_outputs, lock_time, 1,
+                                           hash_v1));
+  cr_assert(memcmp(hash_v2, hash_v1, SHA256_DIGEST_SIZE) != 0,
+            "Hash must differ for different tx versions");
+}
+
+Test(psbt_test, session_commitment_hash_changes_on_lock_time_mutation, .init = psbt_setup,
+     .fini = psbt_teardown) {
+  raw_tx_input_t inputs[1] = {0};
+  raw_tx_output_t outputs[1] = {0};
+  size_t num_inputs, num_outputs;
+  uint32_t lock_time, version;
+  build_test_session(inputs, &num_inputs, outputs, &num_outputs, &lock_time, &version);
+
+  uint8_t hash_orig[SHA256_DIGEST_SIZE] = {0};
+  cr_assert(raw_tx_session_commitment_hash(inputs, num_inputs, outputs, num_outputs, lock_time,
+                                           version, hash_orig));
+  uint8_t hash_locktime[SHA256_DIGEST_SIZE] = {0};
+  cr_assert(raw_tx_session_commitment_hash(inputs, num_inputs, outputs, num_outputs, lock_time + 1,
+                                           version, hash_locktime));
+  cr_assert(memcmp(hash_orig, hash_locktime, SHA256_DIGEST_SIZE) != 0,
+            "Hash must differ when lock_time changes");
+}
+
+Test(psbt_test, session_commitment_hash_changes_on_input_txid_mutation, .init = psbt_setup,
+     .fini = psbt_teardown) {
+  raw_tx_input_t inputs[1] = {0};
+  raw_tx_output_t outputs[1] = {0};
+  size_t num_inputs, num_outputs;
+  uint32_t lock_time, version;
+  build_test_session(inputs, &num_inputs, outputs, &num_outputs, &lock_time, &version);
+
+  uint8_t hash_orig[SHA256_DIGEST_SIZE] = {0};
+  cr_assert(raw_tx_session_commitment_hash(inputs, num_inputs, outputs, num_outputs, lock_time,
+                                           version, hash_orig));
+  // UTXO substitution: flip one byte of prev_txid
+  inputs[0].prev_txid[31] ^= 0x01;
+  uint8_t hash_mutated[SHA256_DIGEST_SIZE] = {0};
+  cr_assert(raw_tx_session_commitment_hash(inputs, num_inputs, outputs, num_outputs, lock_time,
+                                           version, hash_mutated));
+  cr_assert(memcmp(hash_orig, hash_mutated, SHA256_DIGEST_SIZE) != 0,
+            "Hash must differ when input txid changes");
+}
+
+Test(psbt_test, session_commitment_hash_changes_on_derivation_path_mutation, .init = psbt_setup,
+     .fini = psbt_teardown) {
+  raw_tx_input_t inputs[1] = {0};
+  raw_tx_output_t outputs[1] = {0};
+  size_t num_inputs, num_outputs;
+  uint32_t lock_time, version;
+  build_test_session(inputs, &num_inputs, outputs, &num_outputs, &lock_time, &version);
+
+  uint8_t hash_orig[SHA256_DIGEST_SIZE] = {0};
+  cr_assert(raw_tx_session_commitment_hash(inputs, num_inputs, outputs, num_outputs, lock_time,
+                                           version, hash_orig));
+  // Change last (index) component of the input derivation path
+  inputs[0].derivation_path[4] = 99;
+  uint8_t hash_mutated[SHA256_DIGEST_SIZE] = {0};
+  cr_assert(raw_tx_session_commitment_hash(inputs, num_inputs, outputs, num_outputs, lock_time,
+                                           version, hash_mutated));
+  cr_assert(memcmp(hash_orig, hash_mutated, SHA256_DIGEST_SIZE) != 0,
+            "Hash must differ when derivation path changes");
+}
+
+Test(psbt_test, session_commitment_hash_changes_on_input_sequence_mutation, .init = psbt_setup,
+     .fini = psbt_teardown) {
+  raw_tx_input_t inputs[1] = {0};
+  raw_tx_output_t outputs[1] = {0};
+  size_t num_inputs, num_outputs;
+  uint32_t lock_time, version;
+  build_test_session(inputs, &num_inputs, outputs, &num_outputs, &lock_time, &version);
+
+  uint8_t hash_orig[SHA256_DIGEST_SIZE] = {0};
+  cr_assert(raw_tx_session_commitment_hash(inputs, num_inputs, outputs, num_outputs, lock_time,
+                                           version, hash_orig));
+  inputs[0].sequence ^= 0x01u;
+  uint8_t hash_mutated[SHA256_DIGEST_SIZE] = {0};
+  cr_assert(raw_tx_session_commitment_hash(inputs, num_inputs, outputs, num_outputs, lock_time,
+                                           version, hash_mutated));
+  cr_assert(memcmp(hash_orig, hash_mutated, SHA256_DIGEST_SIZE) != 0,
+            "Hash must differ when input sequence changes");
+}
+
+Test(psbt_test, session_commitment_hash_changes_on_input_prev_index_mutation, .init = psbt_setup,
+     .fini = psbt_teardown) {
+  raw_tx_input_t inputs[1] = {0};
+  raw_tx_output_t outputs[1] = {0};
+  size_t num_inputs, num_outputs;
+  uint32_t lock_time, version;
+  build_test_session(inputs, &num_inputs, outputs, &num_outputs, &lock_time, &version);
+
+  uint8_t hash_orig[SHA256_DIGEST_SIZE] = {0};
+  cr_assert(raw_tx_session_commitment_hash(inputs, num_inputs, outputs, num_outputs, lock_time,
+                                           version, hash_orig));
+  inputs[0].prev_index ^= 0x01u;
+  uint8_t hash_mutated[SHA256_DIGEST_SIZE] = {0};
+  cr_assert(raw_tx_session_commitment_hash(inputs, num_inputs, outputs, num_outputs, lock_time,
+                                           version, hash_mutated));
+  cr_assert(memcmp(hash_orig, hash_mutated, SHA256_DIGEST_SIZE) != 0,
+            "Hash must differ when input prev_index changes");
+}
+
+Test(psbt_test, session_commitment_hash_changes_on_output_derivation_path_mutation,
+     .init = psbt_setup, .fini = psbt_teardown) {
+  raw_tx_input_t inputs[1] = {0};
+  raw_tx_output_t outputs[1] = {0};
+  size_t num_inputs, num_outputs;
+  uint32_t lock_time, version;
+  build_test_session(inputs, &num_inputs, outputs, &num_outputs, &lock_time, &version);
+
+  // Configure output as a change output with a derivation path so that
+  // the hash includes the output's derivation_path fields.
+  outputs[0].has_derivation_path = true;
+  outputs[0].derivation_path[0] = 84 | 0x80000000u;
+  outputs[0].derivation_path[1] = 0 | 0x80000000u;
+  outputs[0].derivation_path[2] = 0 | 0x80000000u;
+  outputs[0].derivation_path[3] = 1;
+  outputs[0].derivation_path[4] = 0;
+  outputs[0].derivation_path_len = 5;
+
+  uint8_t hash_orig[SHA256_DIGEST_SIZE] = {0};
+  cr_assert(raw_tx_session_commitment_hash(inputs, num_inputs, outputs, num_outputs, lock_time,
+                                           version, hash_orig));
+  // Mutate the last component of the output derivation path
+  outputs[0].derivation_path[4] ^= 0x01u;
+  uint8_t hash_mutated[SHA256_DIGEST_SIZE] = {0};
+  cr_assert(raw_tx_session_commitment_hash(inputs, num_inputs, outputs, num_outputs, lock_time,
+                                           version, hash_mutated));
+  cr_assert(memcmp(hash_orig, hash_mutated, SHA256_DIGEST_SIZE) != 0,
+            "Hash must differ when output derivation path changes");
+}
+
+Test(psbt_test, session_commitment_hash_two_inputs_vs_one_differ, .init = psbt_setup,
+     .fini = psbt_teardown) {
+  raw_tx_input_t inputs[2] = {0};
+  raw_tx_output_t outputs[1] = {0};
+  size_t num_inputs, num_outputs;
+  uint32_t lock_time, version;
+  build_test_session(inputs, &num_inputs, outputs, &num_outputs, &lock_time, &version);
+  cr_assert_eq(num_inputs, 1u);
+
+  uint8_t hash_one[SHA256_DIGEST_SIZE] = {0};
+  cr_assert(
+    raw_tx_session_commitment_hash(inputs, 1, outputs, num_outputs, lock_time, version, hash_one));
+
+  inputs[1] = inputs[0];
+  inputs[1].prev_index = 1;
+
+  uint8_t hash_two[SHA256_DIGEST_SIZE] = {0};
+  cr_assert(
+    raw_tx_session_commitment_hash(inputs, 2, outputs, num_outputs, lock_time, version, hash_two));
+  cr_assert(memcmp(hash_one, hash_two, SHA256_DIGEST_SIZE) != 0,
+            "Hash must differ for different input counts");
 }

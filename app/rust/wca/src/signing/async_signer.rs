@@ -78,7 +78,7 @@ fn extract_sync_signing_result(message: fwpb::wallet_rsp::Msg) -> Result<Signatu
         match DeriveAndSignRspStatus::try_from(status) {
             Ok(DeriveAndSignRspStatus::Success) => Ok(Signature::from_compact(&signature)?),
             Ok(DeriveAndSignRspStatus::DerivationFailed) => Err(CommandError::KeyGenerationFailed),
-            Ok(DeriveAndSignRspStatus::Error) => Err(CommandError::GeneralCommandError),
+            Ok(DeriveAndSignRspStatus::Error) => Err(CommandError::DeriveAndSignFailed),
             Ok(DeriveAndSignRspStatus::Unauthenticated) => Err(CommandError::Unauthenticated),
             Ok(DeriveAndSignRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
             Ok(DeriveAndSignRspStatus::PolicyViolation) => Err(CommandError::PolicyViolation),

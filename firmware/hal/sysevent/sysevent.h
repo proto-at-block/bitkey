@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stdint.h>
 
 typedef enum {
   SYSEVENT_POWER_READY = (1 << 0),
@@ -14,6 +15,7 @@ typedef enum {
   SYSEVENT_UXC_SECURE_COMMS_ESTABLISHED = (1 << 8),
   SYSEVENT_TOUCH = (1 << 9),
   SYSEVENT_CAPTOUCH = (1 << 10),
+  SYSEVENT_BIO_READY = (1 << 11),
 } sysevent_t;
 
 void sysevent_init(void);
@@ -22,3 +24,5 @@ void sysevent_set_from_isr(const sysevent_t events);
 bool sysevent_get(const sysevent_t event);
 void sysevent_clear(const sysevent_t events);
 void sysevent_wait(const sysevent_t events, const bool wait_for_all);
+void sysevent_wait_with_timeout(const sysevent_t events, const bool wait_for_all,
+                                uint32_t timeout_ms);

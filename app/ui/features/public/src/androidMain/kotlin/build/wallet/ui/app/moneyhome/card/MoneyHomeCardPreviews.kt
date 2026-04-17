@@ -14,16 +14,24 @@ import build.wallet.home.GettingStartedTask.TaskId.EnableSpendingLimit
 import build.wallet.home.GettingStartedTask.TaskState.Incomplete
 import build.wallet.pricechart.DataPoint
 import build.wallet.pricechart.PriceDirection
+import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.CardModel.CardContent.BitcoinPrice
 import build.wallet.statemachine.moneyhome.card.CardModel.CardStyle.Outline
+import build.wallet.statemachine.moneyhome.card.gettingstarted.FirmwareUpdateGettingStartedTileModel
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardModel
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedTaskRowModel
+import build.wallet.statemachine.moneyhome.card.inheritance.BenefactorLockedCompleteClaimCardModel
+import build.wallet.statemachine.moneyhome.card.inheritance.BenefactorPendingClaimCardModel
+import build.wallet.statemachine.moneyhome.card.inheritance.BeneficiaryPendingClaimCardModel
 import build.wallet.statemachine.moneyhome.lite.card.BuyOwnBitkeyMoneyHomeCardModel
 import build.wallet.statemachine.moneyhome.lite.card.InheritanceMoneyHomeCard
 import build.wallet.statemachine.moneyhome.lite.card.WalletsProtectingMoneyHomeCardModel
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryCardModel
 import build.wallet.statemachine.trustedcontact.model.TrustedContactCardModel
+import build.wallet.ui.model.StandardClick
+import build.wallet.ui.model.callout.CalloutModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.datetime.Instant.Companion.DISTANT_FUTURE
 import kotlinx.datetime.Instant.Companion.DISTANT_PAST
@@ -31,6 +39,8 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.days
 
 @Preview
 @Composable
@@ -111,6 +121,31 @@ fun PreviewMoneyHomeGettingStarted() {
 
 @Preview
 @Composable
+fun PreviewMoneyHomeGettingStartedWithFirmwareUpdate() {
+  MoneyHomeCard(
+    model =
+      GettingStartedCardModel(
+        animations = null,
+        taskModels =
+          immutableListOf(
+            GettingStartedTaskRowModel(
+              task = GettingStartedTask(AddBitcoin, Incomplete),
+              isEnabled = true,
+              onClick = {}
+            ),
+            GettingStartedTaskRowModel(
+              task = GettingStartedTask(EnableSpendingLimit, Incomplete),
+              isEnabled = false,
+              onClick = {}
+            )
+          ),
+        firmwareUpdateTile = FirmwareUpdateGettingStartedTileModel(onClick = {})
+      )
+  )
+}
+
+@Preview
+@Composable
 fun PreviewMoneyHomeCardInvitationPending() {
   MoneyHomeCard(
     model =
@@ -175,6 +210,87 @@ fun PreviewMoneyHomeCardReplacementReady() {
         title = "Replacement Ready",
         delayPeriodProgress = Progress.Full,
         delayPeriodRemainingSeconds = 0,
+        onClick = {}
+      )
+  )
+}
+
+@Preview
+@Composable
+fun PreviewMoneyHomeCardInactiveWallet() {
+  MoneyHomeCard(
+    model =
+      CardModel(
+        title = null,
+        content = null,
+        style = CardModel.CardStyle.Callout(
+          CalloutModel(
+            title = "Funds in inactive wallet",
+            subtitle = LabelModel.StringModel("Transfer funds now"),
+            treatment = CalloutModel.Treatment.Warning,
+            useMonochromeStyleInDesignSystemV2 = true,
+            leadingIcon = Icon.SmallIconInformationFilled,
+            trailingIcon = Icon.SmallIconArrowRight,
+            onClick = StandardClick {}
+          )
+        )
+      )
+  )
+}
+
+@Preview
+@Composable
+fun PreviewMoneyHomeCardBenefactorPendingClaim() {
+  MoneyHomeCard(
+    model =
+      BenefactorPendingClaimCardModel(
+        title = "Inheritance claim initiated",
+        subtitle = "Decline claim by Apr 14, 2026 to retain control of your funds.",
+        onClick = StandardClick {}
+      )
+  )
+}
+
+@Preview
+@Composable
+fun PreviewMoneyHomeCardBenefactorApprovedClaim() {
+  MoneyHomeCard(
+    model =
+      BenefactorLockedCompleteClaimCardModel(
+        title = "Inheritance approved",
+        subtitle = "To retain control of your funds, transfer them to a new wallet.",
+        onClick = StandardClick {}
+      )
+  )
+}
+
+@Preview
+@Composable
+fun PreviewMoneyHomeCardBeneficiaryPendingClaim() {
+  MoneyHomeCard(
+    model =
+      BeneficiaryPendingClaimCardModel(
+        title = "Inheritance claim pending",
+        subtitle = "Funds available Apr 14, 2026.",
+        isPendingClaim = true,
+        timeRemaining = 1.days,
+        progress = Progress.Half,
+        onClick = null
+      )
+  )
+}
+
+@Preview
+@Composable
+fun PreviewMoneyHomeCardBeneficiaryApprovedClaim() {
+  MoneyHomeCard(
+    model =
+      BeneficiaryPendingClaimCardModel(
+        title = "Claim approved",
+        subtitle = "Transfer funds now.",
+        isPendingClaim = false,
+        timeRemaining = Duration.ZERO,
+        progress = Progress.Full,
         onClick = {}
       )
   )

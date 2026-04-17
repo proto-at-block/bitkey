@@ -27,7 +27,22 @@ typedef enum {
 #define PLATFORM_CFG_NFC_TYPE_A_SUPPORT 1u
 #define PLATFORM_CFG_NFC_TYPE_B_SUPPORT 1u
 
+// Task Stack Sizes
+#define PLATFORM_CFG_SHELL_TASK_STACK_SIZE   4096
+#define PLATFORM_CFG_SYSINFO_TASK_STACK_SIZE 4096
+
 // LittleFS Configuration
 #define PLATFORM_CFG_LFS_READ_SIZE  256
 #define PLATFORM_CFG_LFS_PROG_SIZE  256
 #define PLATFORM_CFG_LFS_CACHE_SIZE 2048
+
+// FWUP delta patch configuration. W3 core mfgtest images have additional
+// filesystem headroom for larger patches.
+#ifdef MFGTEST
+#define PLATFORM_CFG_FWUP_DELTA_MAX_PATCH_SIZE (168 * 1024)
+#else
+#define PLATFORM_CFG_FWUP_DELTA_MAX_PATCH_SIZE (120 * 1024)
+#endif
+
+// Auth Configuration
+#define PLATFORM_CFG_AUTH_EXPIRY_MS (150000)

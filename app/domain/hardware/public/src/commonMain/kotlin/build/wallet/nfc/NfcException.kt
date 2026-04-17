@@ -1,5 +1,8 @@
 package build.wallet.nfc
 
+import bitkey.account.HardwareType
+import build.wallet.fwup.FwupFinishResponseStatus
+
 sealed class NfcException : Error() {
   sealed class CanBeRetried : NfcException() {
     /**
@@ -44,6 +47,9 @@ sealed class NfcException : Error() {
   /** Indicates that a file was not found */
   class CommandErrorFileNotFound : NfcException()
 
+  /** Indicates that the current hardware/firmware does not support this command. */
+  class FeatureNotSupported : NfcException()
+
   class InauthenticHardware(
     override val message: String? = null,
     override val cause: Throwable? = null,
@@ -61,11 +67,79 @@ sealed class NfcException : Error() {
     override val cause: Throwable? = null,
   ) : NfcException()
 
-  /** The hardware is not paired to the current user's account. */
+  /**
+   * The hardware is not paired to the current user's account.
+   * For W3 D+N specifically, prefer [HardwareReplacementPendingError].
+   */
   class UnpairedHardwareError(
     override val message: String? = null,
     override val cause: Throwable? = null,
   ) : NfcException()
+
+  /**
+   * The tapped W3 hardware is the replacement device, but the Delay+Notify waiting period
+   * has not yet expired. The new hardware is not yet authorized to act as the paired device.
+   */
+  class HardwareReplacementPendingError : NfcException()
+
+  /**
+   * W3 two-tap flow: User has not yet approved or denied the confirmation on the device.
+   * The app should show a screen prompting the user to make a decision on the device.
+   */
+  class ConfirmationPending : NfcException()
+
+  /**
+   * W3 two-tap flow: User explicitly denied the operation on the device.
+   * The app should show a denial acknowledgment screen.
+   */
+  class UserDenied : NfcException()
+
+  /**
+   * W3 two-tap flow: The confirmation was not completed on the device.
+   * This occurs when the user cancels, the confirmation times out, or the
+   * confirmation state is otherwise no longer valid when the app taps again.
+   * The app should show an informational screen and return to the start of the flow.
+   */
+  class ConfirmationNotCompleted : NfcException()
+
+  /**
+   * The hardware device does not have a wallet descriptor (keyset). This means
+   * [verifyKeysAndBuildDescriptor] was never called — typically because the user
+   * did not complete onboarding before restoring from a cloud backup.
+   * The app should trigger the descriptor delivery flow and then retry the operation.
+   */
+  class DescriptorNotLoaded : NfcException()
+
+  /**
+   * Multi-MCU FWUP: The previous MCU's firmware update was not applied on the device.
+   * Detected when starting a subsequent MCU update and finding the previous MCU's
+   * version hasn't changed to the expected target. The user should restart the update.
+   */
+  class PreviousMcuUpdateNotApplied(
+    override val message: String? = null,
+  ) : NfcException()
+
+  /**
+   * FWUP: The firmware update finish command returned a non-success status.
+   * Carries the specific [FwupFinishResponseStatus] so the UI can show
+   * contextual error messaging (e.g. signature invalid vs version invalid).
+   */
+  class FwupFinishError(
+    val status: FwupFinishResponseStatus,
+    override val message: String? = null,
+  ) : NfcException()
+
+  /**
+   * The tapped hardware type does not match what was expected for this operation.
+   * For example, tapping a W1 device when a W3 was required, or vice versa.
+   */
+  class WrongHardwareType(
+    val expected: HardwareType,
+    val actual: HardwareType,
+  ) : NfcException() {
+    override val message: String
+      get() = "Expected $expected hardware but tapped $actual"
+  }
 
   @Suppress("unused")
   sealed class IOSOnly : NfcException() {

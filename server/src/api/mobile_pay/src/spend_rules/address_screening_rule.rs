@@ -21,7 +21,7 @@ pub(crate) struct AddressScreeningRule<'a> {
 
 impl Rule for AddressScreeningRule<'_> {
     fn check_transaction(&self, psbt: &Psbt) -> Result<(), SpendRuleCheckError> {
-        self.screener_service.screen_psbt_outputs_for_sanctions(
+        self.screener_service.screen_psbt_for_sanctions(
             psbt,
             self.network,
             self.account,
@@ -53,10 +53,11 @@ impl<'a> AddressScreeningRule<'a> {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+    use std::sync::Mutex;
 
     use super::*;
     use crate::spend_rules::test::get_funded_wallet;
-    use bdk_utils::bdk::bitcoin::{Amount, FeeRate, ScriptBuf};
+    use bdk_utils::bdk::bitcoin::{Address, Amount, FeeRate, ScriptBuf};
     use bdk_utils::bdk::KeychainKind;
     use screener::screening::{SanctionsScreenerError, SANCTION_TEST_FLAG_KEY};
     use secp256k1::rand::rngs::OsRng;
@@ -76,6 +77,22 @@ mod tests {
             _addresses: &[String],
         ) -> Result<bool, SanctionsScreenerError> {
             Ok(self.should_block_transaction)
+        }
+    }
+
+    /// A sanctions service that captures the addresses passed to should_block_transaction.
+    struct CapturingSanctionsService {
+        captured_addresses: Mutex<Vec<String>>,
+    }
+
+    impl SanctionsScreener for CapturingSanctionsService {
+        fn should_block_transaction(
+            &self,
+            _account: &Account,
+            addresses: &[String],
+        ) -> Result<bool, SanctionsScreenerError> {
+            *self.captured_addresses.lock().unwrap() = addresses.to_vec();
+            Ok(false)
         }
     }
 
@@ -258,5 +275,79 @@ mod tests {
         );
 
         assert!(rule.check_transaction(&psbt).is_err())
+    }
+
+    #[tokio::test]
+    async fn screening_includes_input_and_output_addresses() {
+        let mut source_wallet = get_funded_wallet(0);
+        let mut dest_wallet = get_funded_wallet(1);
+        let dest_address = dest_wallet.next_unused_address(KeychainKind::External);
+        let network = source_wallet.network();
+
+        let mut builder = source_wallet.build_tx();
+        builder
+            .add_recipient(
+                dest_address.address.script_pubkey(),
+                Amount::from_sat(1_000),
+            )
+            .fee_rate(FeeRate::from_sat_per_vb_unchecked(5));
+        let psbt = builder.finish().unwrap();
+
+        // Collect expected input addresses from the PSBT's witness_utxo fields
+        let expected_input_addresses: Vec<String> = psbt
+            .inputs
+            .iter()
+            .filter_map(|input| input.witness_utxo.as_ref())
+            .filter_map(|utxo| Address::from_script(&utxo.script_pubkey, network).ok())
+            .map(|addr| addr.to_string())
+            .collect();
+        assert!(
+            !expected_input_addresses.is_empty(),
+            "PSBT should have input addresses"
+        );
+
+        // Collect expected output addresses
+        let expected_output_addresses: Vec<String> = psbt
+            .unsigned_tx
+            .output
+            .iter()
+            .filter_map(|output| Address::from_script(&output.script_pubkey, network).ok())
+            .map(|addr| addr.to_string())
+            .collect();
+
+        let screener_service = Arc::new(CapturingSanctionsService {
+            captured_addresses: Mutex::new(Vec::new()),
+        });
+
+        let feature_flags_service =
+            feature_flags::config::Config::new_with_overrides(Default::default())
+                .to_service()
+                .await
+                .unwrap();
+
+        let account = test_account();
+        let rule = AddressScreeningRule::new(
+            screener_service.clone(),
+            feature_flags_service,
+            &account,
+            network,
+            None,
+        );
+
+        assert!(rule.check_transaction(&psbt).is_ok());
+
+        let captured = screener_service.captured_addresses.lock().unwrap();
+        for addr in &expected_input_addresses {
+            assert!(
+                captured.contains(addr),
+                "Input address {addr} should be screened"
+            );
+        }
+        for addr in &expected_output_addresses {
+            assert!(
+                captured.contains(addr),
+                "Output address {addr} should be screened"
+            );
+        }
     }
 }

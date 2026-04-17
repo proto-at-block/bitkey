@@ -23,7 +23,6 @@ fun NfcBlurBackground(content: @Composable () -> Unit) {
         .fillMaxSize()
         .background(WalletTheme.colors.foreground)
   ) {
-    // Only add the background blurs in versions that support [blur]
     if (isBlurSupported()) {
       Box(
         modifier =

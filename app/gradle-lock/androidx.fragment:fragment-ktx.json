@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.fragment:fragment-ktx",
+    "components": [
+        {
+            "version": "1.8.6",
+            "variants": [
+                {
+                    "artifacts": {
+                        "fragment-ktx-1.8.6.aar": "64fad5c91c5f3c59509a458e91045ae1277df29bf32c8dc19d0720b5bab405c2"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

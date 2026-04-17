@@ -94,7 +94,7 @@ fn translate_events(bundle: EventBundle) -> SegmentTrackEventBundle {
     SegmentTrackEventBundle { batch }
 }
 
-#[instrument(level = "error")]
+#[instrument(level = "error", skip(bundle, api_key))]
 async fn send_batch(
     bundle: SegmentTrackEventBundle,
     api_key: String,

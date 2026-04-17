@@ -18,6 +18,7 @@ import build.wallet.bitcoin.sync.ElectrumServerConfigSyncWorker
 import build.wallet.bitcoin.transactions.BitcoinWalletSyncWorker
 import build.wallet.cloud.backup.health.CloudBackupHealthSyncWorker
 import build.wallet.cloud.backup.migration.CloudBackupVersionMigrationWorker
+import build.wallet.cloud.backup.migration.CloudKitBackupMigrationWorker
 import build.wallet.cloud.backup.socrec.SocRecCloudBackupSyncWorker
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -80,6 +81,7 @@ class AppWorkerProviderImpl(
   private val partnershipTransactionsSyncWorker: PartnershipTransactionsSyncWorker,
   private val socRecCloudBackupSyncWorker: SocRecCloudBackupSyncWorker,
   private val cloudBackupHealthSyncWorker: CloudBackupHealthSyncWorker,
+  private val cloudKitBackupMigrationWorker: CloudKitBackupMigrationWorker,
   private val cloudBackupVersionMigrationWorker: CloudBackupVersionMigrationWorker,
   private val metricTrackerTimeoutPoller: MetricTrackerTimeoutPoller,
   private val recoverySyncWorker: RecoverySyncWorker,
@@ -121,6 +123,7 @@ class AppWorkerProviderImpl(
       partnershipTransactionsSyncWorker,
       socRecCloudBackupSyncWorker,
       cloudBackupHealthSyncWorker,
+      cloudKitBackupMigrationWorker,
       cloudBackupVersionMigrationWorker,
       metricTrackerTimeoutPoller,
       recoverySyncWorker,

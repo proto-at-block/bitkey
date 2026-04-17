@@ -49,6 +49,7 @@ data class TicketFormFieldDTO(
     SystemNameAndVersion,
     HardwareSerialNumber,
     HardwareFirmwareVersion,
+    HardwareType,
   }
 
   @Serializable

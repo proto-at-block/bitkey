@@ -26,6 +26,12 @@ kotlin {
       }
     }
 
+    iosMain {
+      dependencies {
+        implementation(projects.domain.featureFlagPublic)
+      }
+    }
+
     commonTest {
       dependencies {
         implementation(projects.domain.accountFake)

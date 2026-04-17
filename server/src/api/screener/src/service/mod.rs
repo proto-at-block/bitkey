@@ -73,9 +73,9 @@ impl SanctionsScreener for Service {
     fn should_block_transaction(
         &self,
         account: &Account,
-        destination_addresses: &[String],
+        addresses: &[String],
     ) -> Result<bool, SanctionsScreenerError> {
-        let sanctioned_addresses = self.sanctions.find_addresses(destination_addresses);
+        let sanctioned_addresses = self.sanctions.find_addresses(addresses);
 
         if sanctioned_addresses.is_empty() {
             return Ok(false);

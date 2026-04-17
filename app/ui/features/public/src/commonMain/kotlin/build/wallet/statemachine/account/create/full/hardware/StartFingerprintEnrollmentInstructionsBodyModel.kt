@@ -7,7 +7,6 @@ import build.wallet.statemachine.account.create.full.PAIRING_INSTRUCTIONS_SUFFIX
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel.BackgroundVideo.VideoContent.BitkeyPair
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.video.VideoStartingPosition.END
 import build.wallet.ui.model.video.VideoStartingPosition.START
@@ -17,6 +16,7 @@ fun StartFingerprintEnrollmentInstructionsBodyModel(
   onBack: () -> Unit,
   eventTrackerScreenIdContext: PairHardwareEventTrackerScreenIdContext,
   isNavigatingBack: Boolean,
+  isDesignSystemV2Enabled: Boolean,
 ) = PairNewHardwareBodyModel(
   onBack = onBack,
   header =
@@ -29,11 +29,11 @@ fun StartFingerprintEnrollmentInstructionsBodyModel(
   primaryButton =
     ButtonModel(
       text = "Pair Bitkey Device",
+      requiresBitkeyInteraction = isDesignSystemV2Enabled,
       size = ButtonModel.Size.Footer,
       treatment = ButtonModel.Treatment.Translucent,
       leadingIcon = Icon.SmallIconBitkey,
-      onClick = StandardClick(onButtonClick),
-      testTag = "pair-bitkey-device"
+      onClick = onButtonClick
     ),
   backgroundVideo = PairNewHardwareBodyModel.BackgroundVideo(
     content = BitkeyPair,

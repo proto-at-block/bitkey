@@ -21,4 +21,7 @@ enum class SettingsEventTrackerScreenId : EventTrackerScreenId {
 
   /** The sheet for managing or resetting fingerprints is showing */
   SETTINGS_MANAGE_FINGERPRINTS_OPTIONS_SHEET,
+
+  /** The address verification preference screen is showing */
+  SETTINGS_ADDRESS_VERIFICATION,
 }

@@ -45,10 +45,18 @@ NO_OPTIMIZE secure_bool_t crypto_ecc_verify_hash(key_handle_t* key, const uint8_
 
   mcu_pka_signature_t sig = {.r = sig_r, .s = sig_s, .size = MCU_PKA_SECP256R1_SIZE};
 
-  // Verify the signature using hardware PKA
-  mcu_err_t result = mcu_pka_ecdsa_verify(&curve_params, &public_key, hash, hash_size, &sig);
+  volatile secure_bool_t ok = SECURE_FALSE;
 
-  return (result == MCU_ERROR_OK) ? SECURE_TRUE : SECURE_FALSE;
+  // Verify the signature using hardware PKA.
+  SECURE_DO_ONCE({
+    if (mcu_pka_ecdsa_verify(&curve_params, &public_key, hash, hash_size, &sig) == MCU_ERROR_OK) {
+      ok = SECURE_TRUE;
+    }
+  });
+
+  SECURE_IF_FAILOUT(ok == SECURE_TRUE) { return SECURE_TRUE; }
+
+  return SECURE_FALSE;
 }
 
 // The bootloader doesn't need to sign or exchange keys.

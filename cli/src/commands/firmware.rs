@@ -160,6 +160,9 @@ fn upload<R: Read + Seek>(mut transactor: PCSCTransactor, mut zip: ZipArchive<R>
         wca::commands::FwupFinishRspStatus::Unauthenticated => {
             println!("Unauthenticated. Please unlock your hardware.")
         }
+        wca::commands::FwupFinishRspStatus::ConfirmationMismatch => {
+            println!("User-confirmed version does not match image")
+        }
         wca::commands::FwupFinishRspStatus::Error => println!("Upload failed due to an error. :-("),
     };
 

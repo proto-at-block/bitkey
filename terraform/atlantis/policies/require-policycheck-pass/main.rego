@@ -1,6 +1,8 @@
 package main
 
-deny[msg] {
+import rego.v1
+
+deny contains msg if {
 	passed := input.Passed
 	req_approvals := input.ReqApprovals
 	cur_approvals := input.CurApprovals

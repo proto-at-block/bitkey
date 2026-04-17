@@ -6,6 +6,11 @@ extension NSError {
     private static let kotlinExceptionKey = "KotlinException"
     private static let generalErrorMessage = "command was unsuccessful: general error"
 
+    /// Returns true if this NSError was bridged from a Kotlin exception.
+    var isKotlinException: Bool {
+        return domain == Self.kotlinExceptionDomain
+    }
+
     func isKotlinNfcCommandError(containing message: String) -> Bool {
         guard let kotlinException: NfcException.CommandError = kotlinException(),
               let errorMessage = kotlinException.message
@@ -21,6 +26,10 @@ extension NSError {
 
     func isKotlinNfcGeneralError() -> Bool {
         return isKotlinNfcCommandError(containing: Self.generalErrorMessage)
+    }
+
+    func isKotlinNfcCsekUnsealError() -> Bool {
+        return kotlinException() as NfcException.CommandErrorSealCsekResponseUnsealException? != nil
     }
 
     private func kotlinException<T>() -> T? {

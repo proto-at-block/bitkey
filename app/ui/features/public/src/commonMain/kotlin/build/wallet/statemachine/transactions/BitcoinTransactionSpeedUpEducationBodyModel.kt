@@ -3,6 +3,7 @@ package build.wallet.statemachine.transactions
 import build.wallet.analytics.events.screen.id.SendEventTrackerScreenId
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.ui.model.StandardClick
@@ -45,5 +46,27 @@ internal data class BitcoinTransactionSpeedUpEducationBodyModel(
       size = ButtonModel.Size.Footer,
       onClick = StandardClick(onSpeedUpTransaction)
     ),
-    renderContext = RenderContext.Sheet
+    renderContext = RenderContext.Sheet,
+    designSystemV2Model = FormDesignSystemV2Model(
+      header = FormHeaderModel(
+        headline = "Speed up transactions",
+        subline = """
+            If your Bitcoin transaction is taking longer than expected, you can try speeding it up.
+            
+            A common problem that can occur is when someone sends a payment with a fee that isn't high enough to get confirmed, causing it to get stuck in the mempool.
+            
+            We’ll take the guess work out by providing a fee that should get your transfer confirmed quickly.
+        """.trimIndent(),
+        iconModel = IconModel(
+          icon = Icon.DotTakes,
+          iconSize = IconSize.Large,
+          iconTint = IconTint.Background,
+          iconBackgroundType = IconBackgroundType.Circle(
+            circleSize = IconSize.Avatar,
+            color = IconBackgroundType.Circle.CircleColor.InverseBackground
+          )
+        ),
+        sublineTreatment = FormHeaderModel.SublineTreatment.REGULAR
+      )
+    )
   )

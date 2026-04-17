@@ -116,6 +116,8 @@ class NoActiveAccountUiStateMachineImpl(
             }
             else -> false // no-op
           }
+          // User is not onboarded — consume the route so the app opens normally.
+          is Route.HardwareSetup -> true
           else -> false
         }
       }

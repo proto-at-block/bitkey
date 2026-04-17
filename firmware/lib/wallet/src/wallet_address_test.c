@@ -238,3 +238,460 @@ Test(wallet_address, hardened_index, .init = setup, .fini = teardown) {
   char addr[128];
   cr_assert_eq(wallet_derive_address(&desc, 0x80000000, addr, sizeof(addr)), WALLET_RES_ERR);
 }
+
+// ---------------------------------------------------------------------------
+// wallet_derive_p2wsh_scriptpubkey / wallet_change_output_belongs_to_policy tests
+// ---------------------------------------------------------------------------
+
+// Build a complete test keyset from the three test key pairs above.
+static wallet_keyset_t make_test_keyset(void) {
+  wallet_keyset_t keyset = {
+    .version = WALLET_KEYSET_VERSION,
+    .network = NETWORK_MAINNET,
+  };
+  memcpy(keyset.app.pubkey, TEST_APP_PUBKEY, 33);
+  memcpy(keyset.app.chaincode, TEST_APP_CHAINCODE, 32);
+  memcpy(keyset.server.pubkey, TEST_SERVER_PUBKEY, 33);
+  memcpy(keyset.server.chaincode, TEST_SERVER_CHAINCODE, 32);
+  memcpy(keyset.hw.pubkey, TEST_HW_PUBKEY, 33);
+  memcpy(keyset.hw.chaincode, TEST_HW_CHAINCODE, 32);
+  return keyset;
+}
+
+// Standard BIP84 path: m/84'/0'/0'/0/5  (receive chain, index=5)
+static const uint32_t TEST_RECEIVE_PATH[] = {
+  84 | 0x80000000u,  // 84'
+  0 | 0x80000000u,   // 0' (mainnet)
+  0 | 0x80000000u,   // 0' (account)
+  0,                 // 0  (receive chain; 1 would be change)
+  5,                 // 5  (address index)
+};
+static const size_t TEST_RECEIVE_PATH_LEN = 5;
+
+Test(wallet_address, derive_p2wsh_scriptpubkey_ok, .init = setup, .fini = teardown) {
+  wallet_keyset_t keyset = make_test_keyset();
+
+  uint8_t spk[34] = {0};
+  size_t spk_len = 0;
+  wallet_res_t res = wallet_derive_p2wsh_scriptpubkey(
+    &keyset, TEST_RECEIVE_PATH, TEST_RECEIVE_PATH_LEN, spk, sizeof(spk), &spk_len);
+  cr_assert_eq(res, WALLET_RES_OK);
+  // P2WSH scriptPubKey is always 34 bytes: OP_0 <32-byte SHA256 hash>
+  cr_assert_eq(spk_len, 34u);
+  cr_assert_eq(spk[0], 0x00);  // OP_0
+  cr_assert_eq(spk[1], 0x20);  // push 32 bytes
+}
+
+Test(wallet_address, derive_p2wsh_scriptpubkey_deterministic, .init = setup, .fini = teardown) {
+  wallet_keyset_t keyset = make_test_keyset();
+
+  uint8_t spk1[34] = {0}, spk2[34] = {0};
+  size_t len1 = 0, len2 = 0;
+  cr_assert_eq(wallet_derive_p2wsh_scriptpubkey(&keyset, TEST_RECEIVE_PATH, TEST_RECEIVE_PATH_LEN,
+                                                spk1, sizeof(spk1), &len1),
+               WALLET_RES_OK);
+  cr_assert_eq(wallet_derive_p2wsh_scriptpubkey(&keyset, TEST_RECEIVE_PATH, TEST_RECEIVE_PATH_LEN,
+                                                spk2, sizeof(spk2), &len2),
+               WALLET_RES_OK);
+  cr_assert_eq(len1, len2);
+  cr_assert_arr_eq(spk1, spk2, len1);
+}
+
+Test(wallet_address, derive_p2wsh_scriptpubkey_differs_per_index, .init = setup, .fini = teardown) {
+  wallet_keyset_t keyset = make_test_keyset();
+
+  const uint32_t path_idx1[] = {84 | 0x80000000u, 0 | 0x80000000u, 0 | 0x80000000u, 0, 1};
+  const uint32_t path_idx2[] = {84 | 0x80000000u, 0 | 0x80000000u, 0 | 0x80000000u, 0, 2};
+
+  uint8_t spk1[34] = {0}, spk2[34] = {0};
+  size_t len1 = 0, len2 = 0;
+  cr_assert_eq(wallet_derive_p2wsh_scriptpubkey(&keyset, path_idx1, 5, spk1, sizeof(spk1), &len1),
+               WALLET_RES_OK);
+  cr_assert_eq(wallet_derive_p2wsh_scriptpubkey(&keyset, path_idx2, 5, spk2, sizeof(spk2), &len2),
+               WALLET_RES_OK);
+  cr_assert_eq(len1, len2);
+  // Different indices must produce different scriptPubKeys
+  cr_assert(memcmp(spk1, spk2, len1) != 0, "Different indices should produce different SPKs");
+}
+
+Test(wallet_address, derive_p2wsh_scriptpubkey_null_keyset, .init = setup, .fini = teardown) {
+  uint8_t spk[34] = {0};
+  size_t spk_len = 0;
+  cr_assert_eq(wallet_derive_p2wsh_scriptpubkey(NULL, TEST_RECEIVE_PATH, TEST_RECEIVE_PATH_LEN, spk,
+                                                sizeof(spk), &spk_len),
+               WALLET_RES_ERR);
+}
+
+Test(wallet_address, derive_p2wsh_scriptpubkey_bad_version, .init = setup, .fini = teardown) {
+  wallet_keyset_t keyset = make_test_keyset();
+  keyset.version = 99;
+  uint8_t spk[34] = {0};
+  size_t spk_len = 0;
+  cr_assert_eq(wallet_derive_p2wsh_scriptpubkey(&keyset, TEST_RECEIVE_PATH, TEST_RECEIVE_PATH_LEN,
+                                                spk, sizeof(spk), &spk_len),
+               WALLET_RES_ERR);
+}
+
+Test(wallet_address, derive_p2wsh_scriptpubkey_zero_path_len, .init = setup, .fini = teardown) {
+  wallet_keyset_t keyset = make_test_keyset();
+  uint8_t spk[34] = {0};
+  size_t spk_len = 0;
+  cr_assert_eq(
+    wallet_derive_p2wsh_scriptpubkey(&keyset, TEST_RECEIVE_PATH, 0, spk, sizeof(spk), &spk_len),
+    WALLET_RES_ERR);
+}
+
+// Path too short: only 3 components (account depth, no change/index levels).
+Test(wallet_address, derive_p2wsh_scriptpubkey_path_too_short, .init = setup, .fini = teardown) {
+  wallet_keyset_t keyset = make_test_keyset();
+  const uint32_t short_path[] = {84 | 0x80000000u, 0 | 0x80000000u, 0 | 0x80000000u};
+  uint8_t spk[34] = {0};
+  size_t spk_len = 0;
+  cr_assert_eq(wallet_derive_p2wsh_scriptpubkey(&keyset, short_path, 3, spk, sizeof(spk), &spk_len),
+               WALLET_RES_ERR);
+}
+
+// Path with 4 components (missing address index) must be rejected.
+// A malicious app could use a 4-level path to create a UTXO that can't be spent
+// through the normal 5-level signing flow, effectively trapping funds.
+Test(wallet_address, derive_p2wsh_scriptpubkey_path_4_components, .init = setup, .fini = teardown) {
+  wallet_keyset_t keyset = make_test_keyset();
+  const uint32_t path_4[] = {84 | 0x80000000u, 0 | 0x80000000u, 0 | 0x80000000u, 1};
+  uint8_t spk[34] = {0};
+  size_t spk_len = 0;
+  cr_assert_eq(wallet_derive_p2wsh_scriptpubkey(&keyset, path_4, 4, spk, sizeof(spk), &spk_len),
+               WALLET_RES_ERR);
+}
+
+// Wrong BIP84 purpose (48' instead of 84') must be rejected.
+Test(wallet_address, derive_p2wsh_scriptpubkey_wrong_purpose, .init = setup, .fini = teardown) {
+  wallet_keyset_t keyset = make_test_keyset();
+  const uint32_t path[] = {48 | 0x80000000u, 0 | 0x80000000u, 0 | 0x80000000u, 1, 0};
+  uint8_t spk[34] = {0};
+  size_t spk_len = 0;
+  cr_assert_eq(wallet_derive_p2wsh_scriptpubkey(&keyset, path, 5, spk, sizeof(spk), &spk_len),
+               WALLET_RES_ERR);
+}
+
+// Wrong coin type (testnet coin on mainnet keyset) must be rejected.
+Test(wallet_address, derive_p2wsh_scriptpubkey_wrong_coin_type, .init = setup, .fini = teardown) {
+  wallet_keyset_t keyset = make_test_keyset();  // mainnet
+  const uint32_t path[] = {84 | 0x80000000u, 1 | 0x80000000u, 0 | 0x80000000u, 1, 0};
+  uint8_t spk[34] = {0};
+  size_t spk_len = 0;
+  cr_assert_eq(wallet_derive_p2wsh_scriptpubkey(&keyset, path, 5, spk, sizeof(spk), &spk_len),
+               WALLET_RES_ERR);
+}
+
+// Unhardened account index must be rejected.
+Test(wallet_address, derive_p2wsh_scriptpubkey_unhardened_account, .init = setup,
+     .fini = teardown) {
+  wallet_keyset_t keyset = make_test_keyset();
+  const uint32_t path[] = {84 | 0x80000000u, 0 | 0x80000000u, 0 /* not hardened */, 1, 0};
+  uint8_t spk[34] = {0};
+  size_t spk_len = 0;
+  cr_assert_eq(wallet_derive_p2wsh_scriptpubkey(&keyset, path, 5, spk, sizeof(spk), &spk_len),
+               WALLET_RES_ERR);
+}
+
+// Change level > 1 must be rejected.
+Test(wallet_address, derive_p2wsh_scriptpubkey_bad_change_level, .init = setup, .fini = teardown) {
+  wallet_keyset_t keyset = make_test_keyset();
+  const uint32_t path[] = {84 | 0x80000000u, 0 | 0x80000000u, 0 | 0x80000000u, 2, 0};
+  uint8_t spk[34] = {0};
+  size_t spk_len = 0;
+  cr_assert_eq(wallet_derive_p2wsh_scriptpubkey(&keyset, path, 5, spk, sizeof(spk), &spk_len),
+               WALLET_RES_ERR);
+}
+
+Test(wallet_address, change_output_belongs_to_policy_valid, .init = setup, .fini = teardown) {
+  wallet_keyset_t keyset = make_test_keyset();
+
+  // Derive the expected scriptPubKey, then validate it passes the policy check.
+  uint8_t expected_spk[34] = {0};
+  size_t expected_spk_len = 0;
+  cr_assert_eq(
+    wallet_derive_p2wsh_scriptpubkey(&keyset, TEST_RECEIVE_PATH, TEST_RECEIVE_PATH_LEN,
+                                     expected_spk, sizeof(expected_spk), &expected_spk_len),
+    WALLET_RES_OK);
+
+  cr_assert(wallet_change_output_belongs_to_policy(
+              &keyset, TEST_RECEIVE_PATH, TEST_RECEIVE_PATH_LEN, expected_spk, expected_spk_len),
+            "Correctly derived SPK should pass policy check");
+}
+
+Test(wallet_address, change_output_belongs_to_policy_wrong_spk, .init = setup, .fini = teardown) {
+  wallet_keyset_t keyset = make_test_keyset();
+
+  uint8_t expected_spk[34] = {0};
+  size_t expected_spk_len = 0;
+  cr_assert_eq(
+    wallet_derive_p2wsh_scriptpubkey(&keyset, TEST_RECEIVE_PATH, TEST_RECEIVE_PATH_LEN,
+                                     expected_spk, sizeof(expected_spk), &expected_spk_len),
+    WALLET_RES_OK);
+
+  // Flip one byte to simulate an attacker-controlled scriptPubKey.
+  expected_spk[expected_spk_len - 1] ^= 0x01;
+
+  cr_assert_not(
+    wallet_change_output_belongs_to_policy(&keyset, TEST_RECEIVE_PATH, TEST_RECEIVE_PATH_LEN,
+                                           expected_spk, expected_spk_len),
+    "Tampered SPK should fail policy check");
+}
+
+Test(wallet_address, change_output_belongs_to_policy_wrong_path, .init = setup, .fini = teardown) {
+  wallet_keyset_t keyset = make_test_keyset();
+
+  // Derive SPK for path A.
+  const uint32_t path_a[] = {84 | 0x80000000u, 0 | 0x80000000u, 0 | 0x80000000u, 0, 3};
+  uint8_t spk_a[34] = {0};
+  size_t spk_a_len = 0;
+  cr_assert_eq(
+    wallet_derive_p2wsh_scriptpubkey(&keyset, path_a, 5, spk_a, sizeof(spk_a), &spk_a_len),
+    WALLET_RES_OK);
+
+  // Validate with path B (different index) - must fail.
+  const uint32_t path_b[] = {84 | 0x80000000u, 0 | 0x80000000u, 0 | 0x80000000u, 0, 7};
+  cr_assert_not(wallet_change_output_belongs_to_policy(&keyset, path_b, 5, spk_a, spk_a_len),
+                "SPK from path A must not validate against path B");
+}
+
+Test(wallet_address, change_output_belongs_to_policy_null_inputs, .init = setup, .fini = teardown) {
+  wallet_keyset_t keyset = make_test_keyset();
+  uint8_t dummy_spk[34] = {0x00, 0x20};
+
+  cr_assert_not(wallet_change_output_belongs_to_policy(
+    NULL, TEST_RECEIVE_PATH, TEST_RECEIVE_PATH_LEN, dummy_spk, sizeof(dummy_spk)));
+  cr_assert_not(wallet_change_output_belongs_to_policy(&keyset, NULL, TEST_RECEIVE_PATH_LEN,
+                                                       dummy_spk, sizeof(dummy_spk)));
+  cr_assert_not(wallet_change_output_belongs_to_policy(
+    &keyset, TEST_RECEIVE_PATH, TEST_RECEIVE_PATH_LEN, NULL, sizeof(dummy_spk)));
+  cr_assert_not(wallet_change_output_belongs_to_policy(&keyset, TEST_RECEIVE_PATH,
+                                                       TEST_RECEIVE_PATH_LEN, dummy_spk, 0));
+}
+
+// wallet_derive_address must produce the same result as building the full BIP84 receive path
+// and calling wallet_derive_p2wsh_scriptpubkey + ew_script_to_address. This catches the bug
+// where wallet_derive_address derived parent/index instead of parent/0/index (missing the
+// external chain derivation step).
+//
+// Additionally, index 0 is checked against a hardcoded expected address that was independently
+// derived using the BIP32 test vector keys and the same 2-of-3 P2WSH construction
+// (embit library, Python). This cross-platform canary ensures firmware and app agree on the
+// derivation — if both firmware code paths were wrong in the same way, this assertion would
+// catch it.
+Test(wallet_address, derive_address_matches_p2wsh_scriptpubkey, .init = setup, .fini = teardown) {
+  wallet_keyset_t keyset = make_test_keyset();
+
+  // Cross-platform canary: expected address at index 0, independently derived from the same
+  // test keys using BIP32 public derivation + 2-of-3 sorted multisig P2WSH + bech32 encoding.
+  // Derivation details (mainnet, account depth 3 for app/hw, depth 0 for server):
+  //   App:    <TEST_APP_KEY>/0/0      → 02756de1...
+  //   HW:     <TEST_HW_KEY>/0/0       → 035db1de...
+  //   Server: <TEST_SERVER_KEY>/84/0/0/0/0 → 03848fe3...
+  //   Sorted multisig witness script → SHA256 → P2WSH bech32
+  static const char* EXPECTED_ADDR_INDEX_0 =
+    "bc1qqadmw5ptldpflkwtz3n8lzqgr3za50hkxxjtvplahe68txzw55vs0jw4kk";
+
+  for (uint32_t idx = 0; idx < 5; idx++) {
+    // 1. Get address from wallet_derive_address
+    char addr_from_fn[128] = {0};
+    cr_assert_eq(wallet_derive_address(&keyset, idx, addr_from_fn, sizeof(addr_from_fn)),
+                 WALLET_RES_OK);
+
+    // 2. Derive scriptpubkey from the full BIP84 receive path
+    const uint32_t path[] = {84 | 0x80000000u, 0 | 0x80000000u, 0 | 0x80000000u, 0, idx};
+    uint8_t spk[34] = {0};
+    size_t spk_len = 0;
+    cr_assert_eq(wallet_derive_p2wsh_scriptpubkey(&keyset, path, 5, spk, sizeof(spk), &spk_len),
+                 WALLET_RES_OK);
+
+    // 3. Convert scriptpubkey to bech32 address
+    char addr_from_spk[128] = {0};
+    cr_assert_eq(
+      ew_script_to_address(spk, spk_len, EW_NETWORK_MAINNET, addr_from_spk, sizeof(addr_from_spk)),
+      EW_OK);
+
+    // 4. Both paths must produce the same address
+    cr_assert_str_eq(addr_from_fn, addr_from_spk,
+                     "wallet_derive_address(idx=%u) must match BIP84 receive path derivation", idx);
+
+    // 5. Cross-platform canary: index 0 must match the independently derived expected address
+    if (idx == 0) {
+      cr_assert_str_eq(addr_from_fn, EXPECTED_ADDR_INDEX_0,
+                       "Index 0 address must match independently derived BDK canary value");
+    }
+  }
+}
+
+// Account mismatch (keyset has account 0, path has account 1) must be rejected.
+// This prevents "chimeric" scriptPubKeys where app/hw keys are derived from one account
+// but server key from another, which could hide an unspendable output.
+Test(wallet_address, derive_p2wsh_scriptpubkey_account_mismatch, .init = setup, .fini = teardown) {
+  wallet_keyset_t keyset = make_test_keyset();  // account_index defaults to 0
+  const uint32_t path_acct1[] = {84 | 0x80000000u, 0 | 0x80000000u, 1 | 0x80000000u, 0, 0};
+  uint8_t spk[34] = {0};
+  size_t spk_len = 0;
+  cr_assert_eq(wallet_derive_p2wsh_scriptpubkey(&keyset, path_acct1, 5, spk, sizeof(spk), &spk_len),
+               WALLET_RES_ERR, "Path account 1 must be rejected when keyset has account 0");
+}
+
+// Hardened address index (path[4] with HARDENED_BIT set) must be rejected early.
+// bip32_derive_path_pub rejects hardened child derivation, but we validate explicitly
+// to give a clear error rather than a silent downstream failure.
+Test(wallet_address, derive_p2wsh_scriptpubkey_hardened_address_index, .init = setup,
+     .fini = teardown) {
+  wallet_keyset_t keyset = make_test_keyset();
+  const uint32_t path[] = {84 | 0x80000000u, 0 | 0x80000000u, 0 | 0x80000000u, 0,
+                           5 | 0x80000000u /* hardened index */};
+  uint8_t spk[34] = {0};
+  size_t spk_len = 0;
+  cr_assert_eq(wallet_derive_p2wsh_scriptpubkey(&keyset, path, 5, spk, sizeof(spk), &spk_len),
+               WALLET_RES_ERR, "Hardened address index must be rejected");
+}
+
+// Account mismatch with account=2 in path (keyset has account 0).
+Test(wallet_address, derive_p2wsh_scriptpubkey_account_2_mismatch, .init = setup,
+     .fini = teardown) {
+  wallet_keyset_t keyset = make_test_keyset();  // account_index defaults to 0
+  const uint32_t path_acct2[] = {84 | 0x80000000u, 0 | 0x80000000u, 2 | 0x80000000u, 1, 0};
+  uint8_t spk[34] = {0};
+  size_t spk_len = 0;
+  cr_assert_eq(wallet_derive_p2wsh_scriptpubkey(&keyset, path_acct2, 5, spk, sizeof(spk), &spk_len),
+               WALLET_RES_ERR, "Path account 2 must be rejected when keyset has account 0");
+}
+
+// Non-zero account succeeds when keyset account_index matches the path.
+// This is the Lost App Recovery scenario where account is incremented.
+Test(wallet_address, derive_p2wsh_scriptpubkey_nonzero_account_matching, .init = setup,
+     .fini = teardown) {
+  wallet_keyset_t keyset = make_test_keyset();
+  keyset.account_index = 1;  // Set keyset to account 1
+  const uint32_t path_acct1[] = {84 | 0x80000000u, 0 | 0x80000000u, 1 | 0x80000000u, 0, 0};
+  uint8_t spk[34] = {0};
+  size_t spk_len = 0;
+  cr_assert_eq(wallet_derive_p2wsh_scriptpubkey(&keyset, path_acct1, 5, spk, sizeof(spk), &spk_len),
+               WALLET_RES_OK, "Path account 1 must succeed when keyset has account 1");
+  cr_assert_eq(spk_len, 34u);
+}
+
+// Server key always derives through account 0, independent of the HW account_index.
+// This is the Lost App & Cloud recovery scenario: HW account increments to 1 but server
+// stays at account 0. Before the fix, firmware inherited the HW account for the server
+// path, causing "policy mismatch" errors.
+//
+// Note: in a real recovery the server issues an entirely new key & chaincode (not just a
+// different account index). This test uses the same key material for both keysets to
+// isolate the derivation-path logic from the key-material difference.
+Test(wallet_address, derive_p2wsh_server_always_account_zero, .init = setup, .fini = teardown) {
+  // Keyset with HW at account 1 (post-recovery). Path must match account_index.
+  wallet_keyset_t keyset1 = make_test_keyset();
+  keyset1.account_index = 1;
+  const uint32_t path1[] = {84 | 0x80000000u, 0 | 0x80000000u, 1 | 0x80000000u, 0, 0};
+  uint8_t spk1[34] = {0};
+  size_t spk1_len = 0;
+  cr_assert_eq(wallet_derive_p2wsh_scriptpubkey(&keyset1, path1, 5, spk1, sizeof(spk1), &spk1_len),
+               WALLET_RES_OK);
+  cr_assert_eq(spk1_len, 34u);
+
+  // Keyset with HW at account 0 (normal onboarding). Same key material.
+  wallet_keyset_t keyset0 = make_test_keyset();
+  const uint32_t path0[] = {84 | 0x80000000u, 0 | 0x80000000u, 0 | 0x80000000u, 0, 0};
+  uint8_t spk0[34] = {0};
+  size_t spk0_len = 0;
+  cr_assert_eq(wallet_derive_p2wsh_scriptpubkey(&keyset0, path0, 5, spk0, sizeof(spk0), &spk0_len),
+               WALLET_RES_OK);
+
+  // With the same key material, both must produce identical scriptPubKeys because:
+  // - App/HW xpubs are at depth 3: derivation starts at change/index, skipping account
+  // - Server path always uses account 0, regardless of keyset.account_index
+  // Before the fix, the account=1 keyset would derive the server through account 1,
+  // producing a different (wrong) scriptPubKey.
+  cr_assert_eq(spk1_len, spk0_len);
+  cr_assert_arr_eq(spk1, spk0, spk1_len,
+                   "Same key material with different account_index must produce identical SPKs");
+}
+
+// wallet_derive_address with nonzero account must be consistent with
+// wallet_derive_p2wsh_scriptpubkey — proving signing paths agree with address derivation.
+Test(wallet_address, derive_address_nonzero_account_consistency, .init = setup, .fini = teardown) {
+  wallet_keyset_t keyset = make_test_keyset();
+  keyset.account_index = 1;  // Recovery scenario
+
+  for (uint32_t idx = 0; idx < 3; idx++) {
+    char addr[128] = {0};
+    cr_assert_eq(wallet_derive_address(&keyset, idx, addr, sizeof(addr)), WALLET_RES_OK);
+
+    const uint32_t path[] = {84 | 0x80000000u, 0 | 0x80000000u, 1 | 0x80000000u, 0, idx};
+    uint8_t spk[34] = {0};
+    size_t spk_len = 0;
+    cr_assert_eq(wallet_derive_p2wsh_scriptpubkey(&keyset, path, 5, spk, sizeof(spk), &spk_len),
+                 WALLET_RES_OK);
+
+    char addr_from_spk[128] = {0};
+    cr_assert_eq(
+      ew_script_to_address(spk, spk_len, EW_NETWORK_MAINNET, addr_from_spk, sizeof(addr_from_spk)),
+      EW_OK);
+
+    cr_assert_str_eq(addr, addr_from_spk,
+                     "wallet_derive_address(idx=%u) must match p2wsh derivation at account 1", idx);
+  }
+}
+
+// wallet_derive_address must use keyset->account_index when building the BIP84 path.
+Test(wallet_address, derive_address_nonzero_account, .init = setup, .fini = teardown) {
+  wallet_keyset_t keyset = make_test_keyset();
+  keyset.account_index = 1;  // Non-zero account
+
+  // Get address from wallet_derive_address
+  char addr[128] = {0};
+  cr_assert_eq(wallet_derive_address(&keyset, 0, addr, sizeof(addr)), WALLET_RES_OK);
+
+  // Derive the same address via the full BIP84 path with account=1
+  const uint32_t path[] = {84 | 0x80000000u, 0 | 0x80000000u, 1 | 0x80000000u, 0, 0};
+  uint8_t spk[34] = {0};
+  size_t spk_len = 0;
+  cr_assert_eq(wallet_derive_p2wsh_scriptpubkey(&keyset, path, 5, spk, sizeof(spk), &spk_len),
+               WALLET_RES_OK);
+
+  // Convert scriptpubkey to address
+  char addr_from_spk[128] = {0};
+  cr_assert_eq(
+    ew_script_to_address(spk, spk_len, EW_NETWORK_MAINNET, addr_from_spk, sizeof(addr_from_spk)),
+    EW_OK);
+
+  // Both methods must produce the same address
+  cr_assert_str_eq(addr, addr_from_spk, "wallet_derive_address must use keyset account_index");
+}
+
+Test(wallet_address, change_output_belongs_to_policy_change_index_1, .init = setup,
+     .fini = teardown) {
+  wallet_keyset_t keyset = make_test_keyset();
+
+  // Change output (change=1) - verify it produces a distinct scriptPubKey from receive (change=0).
+  const uint32_t path_change[] = {84 | 0x80000000u, 0 | 0x80000000u, 0 | 0x80000000u, 1, 0};
+  const uint32_t path_receive[] = {84 | 0x80000000u, 0 | 0x80000000u, 0 | 0x80000000u, 0, 0};
+
+  uint8_t spk_change[34] = {0}, spk_receive[34] = {0};
+  size_t len_change = 0, len_receive = 0;
+
+  cr_assert_eq(wallet_derive_p2wsh_scriptpubkey(&keyset, path_change, 5, spk_change,
+                                                sizeof(spk_change), &len_change),
+               WALLET_RES_OK);
+  cr_assert_eq(wallet_derive_p2wsh_scriptpubkey(&keyset, path_receive, 5, spk_receive,
+                                                sizeof(spk_receive), &len_receive),
+               WALLET_RES_OK);
+
+  cr_assert(memcmp(spk_change, spk_receive, len_change) != 0,
+            "Change and receive SPKs at index 0 must differ");
+
+  // Each must validate against its own path but not the other's.
+  cr_assert(
+    wallet_change_output_belongs_to_policy(&keyset, path_change, 5, spk_change, len_change));
+  cr_assert(
+    wallet_change_output_belongs_to_policy(&keyset, path_receive, 5, spk_receive, len_receive));
+  cr_assert_not(
+    wallet_change_output_belongs_to_policy(&keyset, path_change, 5, spk_receive, len_receive));
+  cr_assert_not(
+    wallet_change_output_belongs_to_policy(&keyset, path_receive, 5, spk_change, len_change));
+}

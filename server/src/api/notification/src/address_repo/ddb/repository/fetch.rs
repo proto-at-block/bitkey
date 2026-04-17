@@ -16,7 +16,7 @@ use tracing::{event, instrument, Level};
 const DDB_BATCH_READ_SIZE_MAX: usize = 100;
 
 impl AddressRepository {
-    #[instrument(skip(self))]
+    #[instrument(skip(self, addresses))]
     pub(crate) async fn fetch_batch(
         &self,
         addresses: &[Address<NetworkUnchecked>],

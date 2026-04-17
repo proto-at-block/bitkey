@@ -15,4 +15,10 @@ sealed interface UtxoConsolidationContext {
    * until no more are required.
    */
   data object PrivateWalletMigration : UtxoConsolidationContext
+
+  /**
+   * UTXO consolidation required before W3 hardware upgrade. Will loop through consolidations
+   * until no more are required.
+   */
+  data object W3Upgrade : UtxoConsolidationContext
 }

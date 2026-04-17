@@ -17,6 +17,7 @@
 -keep interface build.wallet.nfc.transaction.NfcTransaction { *; }
 -keep class org.bitcoindevkit.** { *; }
 -keep class uniffi.bdk.** { *; }
+-keep class uniffi.actionproof.** { *; }
 
 # These should hypothetically be kept already by rules added by the serialization lib, but some models were still failing
 -keep @kotlinx.serialization.Serializable class *

@@ -170,6 +170,16 @@ static struct {
   .use_separate_verification = false,
 };
 
+static void test_detect_glitch(void) {}
+
+static uint16_t test_secure_random(void) {
+  return 0U;
+}
+
+static uint32_t test_cpu_freq(void) {
+  return 78000000U;
+}
+
 void sysinfo_chip_id_read(uint8_t* chip_id_out, uint32_t* length_out) {
   memcpy(chip_id_out, FAKE_DEVICE_ID, GRANT_DEVICE_ID_LEN);
   *length_out = GRANT_DEVICE_ID_LEN;
@@ -235,6 +245,11 @@ bool crypto_ecc_secp256k1_verify_signature(const uint8_t pubkey[SECP256K1_KEY_SI
 }
 
 void setup(void) {
+  secutils_init((secutils_api_t){
+    .detect_glitch = test_detect_glitch,
+    .secure_random = test_secure_random,
+    .cpu_freq = test_cpu_freq,
+  });
   grant_ctx.wik_pubkey = NULL;
   test_ctx.pass_signature_verification = true;
   test_ctx.pass_app_signature_verification = true;
@@ -474,6 +489,16 @@ Test(grant_protocol_tests, no_app_auth_pubkey, .init = setup, .fini = fini) {
   cr_assert_eq(res, GRANT_RESULT_ERROR_NO_APP_PUBKEY);
 }
 
+Test(grant_protocol_tests, create_request_rejects_unsupported_action, .init = setup, .fini = fini) {
+  const bool production = true;
+  grant_protocol_init(production);
+
+  grant_request_t req = {0};
+  grant_protocol_result_t res = grant_protocol_create_request(ACTION_INVALID, &req);
+
+  cr_assert_eq(res, GRANT_RESULT_ERROR_INVALID_ARGUMENT);
+}
+
 Test(grant_protocol_tests, both_signatures_valid, .init = setup, .fini = fini) {
   const bool production = true;
   grant_protocol_init(production);
@@ -519,6 +544,50 @@ Test(grant_protocol_tests, invalid_app_signature, .init = setup, .fini = fini) {
 
   grant_protocol_result_t res = grant_protocol_verify_grant(&grant);
   cr_assert_eq(res, GRANT_RESULT_ERROR_APP_VERIFICATION);
+}
+
+Test(grant_protocol_tests, tampered_action_returns_request_mismatch, .init = setup, .fini = fini) {
+  const bool production = true;
+  grant_protocol_init(production);
+
+  cr_assert(grant_storage_write_app_auth_pubkey(FAKE_APP_PUBKEY));
+
+  grant_request_t req;
+  asserted_grant_request(&req, ACTION_FINGERPRINT_RESET);
+
+  grant_t grant;
+  mock_server_sign_grant(&req, &grant, production);
+
+  grant_request_t tampered_req = req;
+  tampered_req.action = ACTION_INVALID;
+  memcpy(grant.serialized_request, &tampered_req, sizeof(tampered_req));
+
+  grant_protocol_result_t res = grant_protocol_verify_grant(&grant);
+  cr_assert_eq(res, GRANT_RESULT_ERROR_REQUEST_MISMATCH);
+}
+
+Test(grant_protocol_tests, unsupported_stored_action_returns_invalid_argument, .init = setup,
+     .fini = fini) {
+  const bool production = true;
+  grant_protocol_init(production);
+
+  cr_assert(grant_storage_write_app_auth_pubkey(FAKE_APP_PUBKEY));
+
+  grant_request_t req;
+  asserted_grant_request(&req, ACTION_FINGERPRINT_RESET);
+
+  grant_request_t unsupported_req = req;
+  unsupported_req.action = ACTION_INVALID;
+  cr_assert_eq(grant_storage_write_request(&unsupported_req), GRANT_RESULT_OK);
+
+  grant_t grant;
+  mock_server_sign_grant(&unsupported_req, &grant, production);
+  test_ctx.use_separate_verification = true;
+  test_ctx.pass_app_signature_verification = true;
+  test_ctx.pass_wik_signature_verification = true;
+
+  grant_protocol_result_t res = grant_protocol_verify_grant(&grant);
+  cr_assert_eq(res, GRANT_RESULT_ERROR_INVALID_ARGUMENT);
 }
 
 Test(grant_protocol_tests, app_auth_pubkey_provisioning, .init = setup, .fini = fini) {

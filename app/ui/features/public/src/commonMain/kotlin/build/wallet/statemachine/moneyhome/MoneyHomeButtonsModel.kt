@@ -72,6 +72,7 @@ fun MoneyMovementIconModel(
   button: MoneyHomeButtonsModel.MoneyMovementButtonsModel.Button,
 ) = IconButtonModel(
   enabled = button.enabled,
+  testTag = "money-home-action-$text",
   iconModel =
     IconModel(
       IconImage.LocalImage(icon),

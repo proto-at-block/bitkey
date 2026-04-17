@@ -14,7 +14,7 @@
 static struct {
   perf_counter_t* transfers;
   perf_counter_t* errors;
-} perf SHARED_TASK_DATA;
+} perf SHARED_TASK_BSS;
 
 static const uint32_t fifo_clear_timeout_ms = 10;
 

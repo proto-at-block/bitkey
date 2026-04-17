@@ -1,6 +1,8 @@
 package build.wallet.keybox
 
 import build.wallet.bitkey.app.AppAuthPublicKeys
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
+import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.keybox.Keybox
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
@@ -41,10 +43,23 @@ interface KeyboxDao {
 
   /**
    * Rotates the app auth keys to a new set.
+   * When [newHwAuthPublicKey] is provided (W3 upgrade), the active hardware auth key is also
+   * updated atomically in the same transaction.
    */
   suspend fun rotateKeyboxAuthKeys(
     keyboxToRotate: Keybox,
     appAuthKeys: AppAuthPublicKeys,
+    newHwAuthPublicKey: HwAuthPublicKey? = null,
+  ): Result<Keybox, Error>
+
+  /**
+   * Updates the app global auth key HW signature for the given keybox.
+   * Used by W3 hardware where the signature is obtained after initial account creation
+   * via [NfcCommands.verifyKeysAndBuildDescriptor].
+   */
+  suspend fun updateAppGlobalAuthKeyHwSignature(
+    keybox: Keybox,
+    signature: AppGlobalAuthKeyHwSignature,
   ): Result<Keybox, Error>
 
   /**

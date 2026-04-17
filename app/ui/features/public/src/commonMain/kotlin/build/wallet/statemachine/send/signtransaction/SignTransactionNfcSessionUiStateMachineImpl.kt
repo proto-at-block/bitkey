@@ -6,14 +6,15 @@ import bitkey.account.AccountConfigService
 import bitkey.account.DefaultAccountConfig
 import bitkey.account.FullAccountConfig
 import bitkey.account.HardwareType
+import bitkey.recovery.RecoveryStatusService
 import bitkey.ui.verification.TxVerificationAppSegment
 import build.wallet.Progress
-import build.wallet.account.AccountService
-import build.wallet.account.getAccount
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.*
+import build.wallet.asProgress
+import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.crypto.random.SecureRandom
@@ -22,28 +23,44 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.SignatureVerifier
 import build.wallet.encrypt.verifyEcdsaResult
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.feature.flags.NfcSessionRetryAttemptsFeatureFlag
 import build.wallet.feature.intValue
+import build.wallet.feature.collectIsEnabledAsState
 import build.wallet.keybox.KeyboxDao
 import build.wallet.logging.logDebug
+import build.wallet.logging.logWarn
+import build.wallet.money.display.BitcoinDisplayPreferenceRepository
 import build.wallet.nfc.*
 import build.wallet.nfc.NfcAvailability.Available.Disabled
 import build.wallet.nfc.NfcAvailability.Available.Enabled
 import build.wallet.nfc.NfcAvailability.NotAvailable
 import build.wallet.nfc.NfcSession.RequirePairedHardware
-import build.wallet.nfc.platform.EmulatedPromptOption
 import build.wallet.nfc.platform.HardwareInteraction
+import build.wallet.nfc.platform.HwDisplayPreference
 import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.NfcProgressCallback
+import build.wallet.nfc.platform.toSessionFn
+import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.platform.device.DevicePlatform
 import build.wallet.platform.web.InAppBrowserNavigator
+import build.wallet.recovery.Recovery
+import build.wallet.statemachine.nfc.DescriptorRepairUiProps
+import build.wallet.statemachine.nfc.DescriptorRepairUiStateMachine
 import build.wallet.statemachine.core.NfcErrorFormBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
+import build.wallet.statemachine.core.SheetModel
+import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.nfc.AndroidNfcAvailabilityUiState
 import build.wallet.statemachine.nfc.AndroidNfcAvailabilityUiState.*
+import build.wallet.statemachine.nfc.delayForIosNativeNfcTransition
 import build.wallet.statemachine.nfc.EnableNfcInstructionsModel
+import build.wallet.statemachine.nfc.HardwareConfirmationResultBodyModel
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NoNfcMessageModel
 import build.wallet.statemachine.nfc.PromptSelectionFormBodyModel
+import build.wallet.statemachine.nfc.nfcThemePreference
 import build.wallet.statemachine.platform.nfc.EnableNfcNavigator
 import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationUiProps
 import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationUiStateMachine
@@ -52,7 +69,7 @@ import build.wallet.statemachine.send.signtransaction.SignTransactionNfcSessionU
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.ThemePreference
 import com.github.michaelbull.result.get
-import com.github.michaelbull.result.getOrThrow
+import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.flow.first
@@ -60,6 +77,7 @@ import kotlinx.coroutines.launch
 import okio.ByteString.Companion.toByteString
 import kotlin.coroutines.cancellation.CancellationException
 
+@Suppress("LargeClass")
 @BitkeyInject(ActivityScope::class)
 class SignTransactionNfcSessionUiStateMachineImpl(
   private val enableNfcNavigator: EnableNfcNavigator,
@@ -67,23 +85,30 @@ class SignTransactionNfcSessionUiStateMachineImpl(
   private val nfcReaderCapability: NfcReaderCapability,
   private val nfcTransactor: NfcTransactor,
   private val accountConfigService: AccountConfigService,
-  private val accountService: AccountService,
+  private val deviceInfoProvider: DeviceInfoProvider,
   private val keyboxDao: KeyboxDao,
   private val signatureVerifier: SignatureVerifier,
   private val nfcSessionRetryAttemptsFeatureFlag: NfcSessionRetryAttemptsFeatureFlag,
   private val hardwareConfirmationUiStateMachine: HardwareConfirmationUiStateMachine,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
+  private val descriptorRepairUiStateMachine: DescriptorRepairUiStateMachine,
+  private val recoveryStatusService: RecoveryStatusService,
+  private val bitcoinDisplayPreferenceRepository: BitcoinDisplayPreferenceRepository,
+  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : SignTransactionNfcSessionUiStateMachine {
   private val secureRandom = SecureRandom()
 
   @Composable
   override fun model(props: SignTransactionNfcSessionUiProps): ScreenModel {
     val accountConfig = remember { accountConfigService.activeOrDefaultConfig().value }
+    val devicePlatform = remember { deviceInfoProvider.getDeviceInfo().devicePlatform }
     val isHardwareFake = remember { determineIsHardwareFake(accountConfig) }
-    val hardwareType = remember { determineHardwareType(accountConfig) }
+    val hardwareType = remember {
+      props.hardwareTypeOverride ?: determineHardwareType(accountConfig)
+    }
 
     var uiState by remember {
-      mutableStateOf<Any>(
+      mutableStateOf(
         determineInitialUiState(nfcReaderCapability.availability(isHardwareFake))
       )
     }
@@ -94,6 +119,7 @@ class SignTransactionNfcSessionUiStateMachineImpl(
         state = state,
         isHardwareFake = isHardwareFake,
         hardwareType = hardwareType,
+        devicePlatform = devicePlatform,
         setState = { uiState = it }
       )
 
@@ -102,6 +128,13 @@ class SignTransactionNfcSessionUiStateMachineImpl(
         state = state,
         setState = { uiState = it }
       )
+
+      is DeliveringDescriptorUiState -> {
+        deliveringDescriptorScreenModel(
+          props = props,
+          setState = { uiState = it }
+        )
+      }
 
       else -> error("Unexpected state: $state")
     }
@@ -112,13 +145,16 @@ class SignTransactionNfcSessionUiStateMachineImpl(
    * Manages NFC transaction effects and progress tracking during transaction signing.
    */
   @Composable
+  @Suppress("CyclomaticComplexMethod")
   private fun inSessionScreenModel(
     props: SignTransactionNfcSessionUiProps,
     state: InSessionUiState,
     isHardwareFake: Boolean,
     hardwareType: HardwareType,
+    devicePlatform: DevicePlatform,
     setState: (Any) -> Unit,
   ): ScreenModel {
+    val designSystemV2Enabled by designSystemUpdatesFeatureFlag.collectIsEnabledAsState()
     return when (state) {
       is InNfcSessionUiState -> {
         // Track progress separately from state to avoid closure capture issues in LaunchedEffect
@@ -130,32 +166,90 @@ class SignTransactionNfcSessionUiStateMachineImpl(
           state = state,
           isHardwareFake = isHardwareFake,
           hardwareType = hardwareType,
+          designSystemV2Enabled = designSystemV2Enabled,
           setState = setState,
           onProgressUpdate = { progress -> transferProgress = progress }
         )
 
-        when (state.displayMode) {
+        val nfcModel = when (state.displayMode) {
           InNfcSessionUiState.DisplayMode.Searching -> {
             SignTransactionNfcBodyModel(
               onCancel = props.onBack,
               status = SignTransactionNfcBodyModel.Status.Searching,
-              eventTrackerScreenInfo = EventTrackerScreenInfo(NFC_INITIATE, props.eventTrackerContext)
-            ).asFullScreen()
+              hardwareType = hardwareType,
+              showNativeSheetOnIos = props.showNativeSheetOnIos,
+              eventTrackerScreenInfo = EventTrackerScreenInfo(NFC_INITIATE, props.eventTrackerContext, eventTrackerShouldTrack = false)
+            ).asFullScreen(
+              designSystemV2Enabled = designSystemV2Enabled,
+              devicePlatform = devicePlatform
+            )
+          }
+          InNfcSessionUiState.DisplayMode.Signing -> {
+            SignTransactionNfcBodyModel(
+              onCancel = props.onBack,
+              status = SignTransactionNfcBodyModel.Status.Signing,
+              hardwareType = hardwareType,
+              showNativeSheetOnIos = props.showNativeSheetOnIos,
+              // NFC_DETECTED is already tracked imperatively in onTagConnected
+              eventTrackerScreenInfo = null
+            ).asFullScreen(
+              designSystemV2Enabled = designSystemV2Enabled,
+              devicePlatform = devicePlatform
+            )
           }
           InNfcSessionUiState.DisplayMode.Transferring -> {
             SignTransactionNfcBodyModel(
               onCancel = props.onBack,
               status = SignTransactionNfcBodyModel.Status.Transferring(transferProgress),
-              eventTrackerScreenInfo = EventTrackerScreenInfo(NFC_INITIATE, props.eventTrackerContext)
-            ).asFullScreen()
+              hardwareType = hardwareType,
+              showNativeSheetOnIos = props.showNativeSheetOnIos,
+              eventTrackerScreenInfo = EventTrackerScreenInfo(NFC_INITIATE, props.eventTrackerContext, eventTrackerShouldTrack = false)
+            ).asFullScreen(
+              designSystemV2Enabled = designSystemV2Enabled,
+              devicePlatform = devicePlatform
+            )
           }
           InNfcSessionUiState.DisplayMode.LostConnection -> {
             SignTransactionNfcBodyModel(
               onCancel = props.onBack,
               status = SignTransactionNfcBodyModel.Status.LostConnection(transferProgress),
-              eventTrackerScreenInfo = EventTrackerScreenInfo(NFC_INITIATE, props.eventTrackerContext)
-            ).asPlatformNfcScreen()
+              hardwareType = hardwareType,
+              showNativeSheetOnIos = props.showNativeSheetOnIos,
+              eventTrackerScreenInfo = EventTrackerScreenInfo(NFC_INITIATE, props.eventTrackerContext, eventTrackerShouldTrack = false)
+            ).asFullScreen(
+              designSystemV2Enabled = designSystemV2Enabled,
+              devicePlatform = devicePlatform
+            )
           }
+        }
+
+        val scope = rememberStableCoroutineScope()
+        val emulatedPrompt = state.emulatedPrompt
+        if (emulatedPrompt != null) {
+          nfcModel.copy(
+            bottomSheetModel = SheetModel(
+              onClosed = { props.onBack() },
+              body = PromptSelectionFormBodyModel(
+                details = emulatedPrompt.details,
+                onApprove = {
+                  scope.launch {
+                    emulatedPrompt.approve.onSelect?.invoke()
+                    setState(AwaitingConfirmationUiState(fetchResult = emulatedPrompt.approve.fetchResult))
+                  }
+                },
+                onDeny = {
+                  scope.launch {
+                    emulatedPrompt.deny.onSelect?.invoke()
+                    props.onBack()
+                  }
+                },
+                onBack = { props.onBack() },
+                eventTrackerContext = props.eventTrackerContext
+              )
+            )
+          )
+        } else {
+          nfcModel
         }
       }
 
@@ -168,8 +262,13 @@ class SignTransactionNfcSessionUiStateMachineImpl(
         SignTransactionNfcBodyModel(
           onCancel = null,
           status = SignTransactionNfcBodyModel.Status.Success,
-          eventTrackerScreenInfo = EventTrackerScreenInfo(NFC_SUCCESS, props.eventTrackerContext)
-        ).asFullScreen()
+          hardwareType = hardwareType,
+          showNativeSheetOnIos = props.showNativeSheetOnIos,
+          eventTrackerScreenInfo = EventTrackerScreenInfo(NFC_SUCCESS, props.eventTrackerContext, eventTrackerShouldTrack = false)
+        ).asFullScreen(
+          designSystemV2Enabled = designSystemV2Enabled,
+          devicePlatform = devicePlatform
+        )
       }
 
       is AwaitingConfirmationUiState -> {
@@ -185,36 +284,11 @@ class SignTransactionNfcSessionUiStateMachineImpl(
                   fetchResult = state.fetchResult
                 )
               )
-            }
+            },
+            content = props.confirmationContent,
+            isHardwareFake = isHardwareFake
           )
         )
-      }
-
-      is EmulatingPromptUiState -> {
-        val scope = rememberStableCoroutineScope()
-        PromptSelectionFormBodyModel(
-          options = state.options.map { it.name },
-          onOptionSelected = { selectedIndex ->
-            val selectedOption = state.options[selectedIndex]
-            scope.launch {
-              selectedOption.onSelect?.invoke()
-              // If "Deny" was selected, cancel the flow instead of continuing
-              if (selectedOption.name == EmulatedPromptOption.DENY) {
-                props.onBack()
-              } else {
-                // Transition to InNfcSessionUiState with fetchResult to start
-                // a new NFC session for the continuation
-                setState(
-                  InNfcSessionUiState(
-                    fetchResult = selectedOption.fetchResult
-                  )
-                )
-              }
-            }
-          },
-          onBack = props.onBack,
-          eventTrackerContext = props.eventTrackerContext
-        ).asModalScreen()
       }
 
       is ErrorUiState -> {
@@ -240,7 +314,53 @@ class SignTransactionNfcSessionUiStateMachineImpl(
           eventTrackerScreenIdContext = props.eventTrackerContext
         ).asModalScreen()
       }
+
+      is ConfirmationPendingUiState -> {
+        // W3 two-tap flow: User tapped before approving/denying on device
+        val bodyModel = props.pendingBodyModel?.invoke {
+          // On acknowledge, return to awaiting confirmation to retry
+          setState(AwaitingConfirmationUiState(fetchResult = state.fetchResult))
+        } ?: defaultPendingBodyModel {
+          setState(AwaitingConfirmationUiState(fetchResult = state.fetchResult))
+        }
+        ScreenModel(body = bodyModel, presentationStyle = ScreenPresentationStyle.Modal)
+      }
+
+      is ConfirmationDeniedUiState -> {
+        // W3 two-tap flow: Confirmation was not completed on device
+        val bodyModel = props.deniedBodyModel?.invoke {
+          // On acknowledge, return to beginning of flow (before first tap)
+          setState(InNfcSessionUiState())
+        } ?: defaultDeniedBodyModel {
+          setState(InNfcSessionUiState())
+        }
+        ScreenModel(body = bodyModel, presentationStyle = ScreenPresentationStyle.Modal)
+      }
     }
+  }
+
+  /**
+   * Generates the screen model for the descriptor repair flow.
+   * Triggered when DescriptorNotLoaded is detected — fetches the WSM signature from the
+   * server, delivers the hardware descriptor via NFC, then restarts the signing flow.
+   */
+  @Composable
+  private fun deliveringDescriptorScreenModel(
+    props: SignTransactionNfcSessionUiProps,
+    setState: (Any) -> Unit,
+  ): ScreenModel {
+    return descriptorRepairUiStateMachine.model(
+        DescriptorRepairUiProps(
+          fullAccount = props.account,
+          presentationStyle = ScreenPresentationStyle.FullScreen,
+          onRepairComplete = {
+            setState(InNfcSessionUiState())
+          },
+          onBack = {
+            props.onBack()
+          },
+        )
+      )
   }
 
   /**
@@ -309,6 +429,76 @@ class SignTransactionNfcSessionUiStateMachineImpl(
   }
 
   /**
+   * Handles NFC transaction failures and updates the UI state accordingly.
+   */
+  private fun handleNfcTransactionFailure(
+    error: NfcException,
+    continuation: (suspend (NfcSession, NfcCommands) -> HardwareInteraction<Psbt>)?,
+    props: SignTransactionNfcSessionUiProps,
+    setState: (Any) -> Unit,
+  ) {
+    when (error) {
+      is NfcException.IOSOnly.UserCancellation -> props.onBack()
+      is NfcException.DescriptorNotLoaded -> {
+        // Hardware wallet descriptor is missing — trigger delivery flow before retrying
+        setState(DeliveringDescriptorUiState)
+      }
+      is NfcException.UserDenied,
+      is NfcException.ConfirmationNotCompleted -> handleUserDeniedOrConfirmationPending(error, continuation, props, setState, isDenied = true)
+      is NfcException.ConfirmationPending -> handleUserDeniedOrConfirmationPending(error, continuation, props, setState, isDenied = false)
+      else -> handleGenericError(error, props, setState)
+    }
+  }
+
+  private fun handleUserDeniedOrConfirmationPending(
+    error: NfcException,
+    continuation: (suspend (NfcSession, NfcCommands) -> HardwareInteraction<Psbt>)?,
+    props: SignTransactionNfcSessionUiProps,
+    setState: (Any) -> Unit,
+    isDenied: Boolean,
+  ) {
+    if (continuation != null) {
+      val state = if (isDenied) {
+        ConfirmationDeniedUiState(fetchResult = continuation)
+      } else {
+        ConfirmationPendingUiState(fetchResult = continuation)
+      }
+      setState(state)
+    } else {
+      handleGenericError(error, props, setState)
+    }
+  }
+
+  private fun handleGenericError(
+    error: NfcException,
+    props: SignTransactionNfcSessionUiProps,
+    setState: (Any) -> Unit,
+  ) {
+    val handled = props.onError(error)
+    if (!handled) {
+      setState(ErrorUiState(error))
+    }
+  }
+
+  /**
+   * Handles successful NFC transaction results and updates the UI state accordingly.
+   */
+  private fun handleNfcTransactionSuccess(
+    result: SignTransactionResult,
+    setState: (Any) -> Unit,
+  ) {
+    when (result) {
+      is SignTransactionResult.Completed -> setState(SuccessUiState(result.signedPsbt))
+      is SignTransactionResult.RequiresConfirmation -> {
+        setState(AwaitingConfirmationUiState(fetchResult = result.fetchResult))
+      }
+      is SignTransactionResult.RequiresEmulatedPrompt -> {
+        setState(InNfcSessionUiState(emulatedPrompt = result.emulatedPrompt))
+      }
+    }
+  }
+
+  /**
    * Single NFC transaction effect that handles both initial transactions and continuations.
    *
    * @param state The active NFC session state. If [InNfcSessionUiState.fetchResult] is set,
@@ -321,6 +511,7 @@ class SignTransactionNfcSessionUiStateMachineImpl(
     state: InNfcSessionUiState,
     isHardwareFake: Boolean,
     hardwareType: HardwareType,
+    designSystemV2Enabled: Boolean,
     setState: (Any) -> Unit,
     onProgressUpdate: (Progress) -> Unit,
   ) {
@@ -329,7 +520,26 @@ class SignTransactionNfcSessionUiStateMachineImpl(
     val effectKey = "sign-transaction-${continuation != null}"
 
     LaunchedEffect(effectKey) {
-      val hwPubKey = keyboxDao.activeKeybox().first().value?.activeHwKeyBundle?.authKey?.pubKey
+      delayForIosNativeNfcTransition(
+        designSystemV2Enabled = designSystemV2Enabled,
+        devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform
+      )
+      // Resolve the hardware auth public key for pairing verification.
+      // When useRecoveryHwAuthKey is set (recovery sweep flows), use the key from
+      // the in-progress recovery if available, matching NfcSessionUIStateMachine behavior.
+      val hwPubKey = if (props.useRecoveryHwAuthKey) {
+        when (val recoveryStatus = recoveryStatusService.status.first()) {
+          is Recovery.StillRecovering -> recoveryStatus.hardwareAuthKey.pubKey
+          else -> {
+            logWarn {
+              "useRecoveryHwAuthKey=true but recovery is not StillRecovering, falling back to active keybox"
+            }
+            keyboxDao.activeKeybox().first().value?.activeHwKeyBundle?.authKey?.pubKey
+          }
+        }
+      } else {
+        keyboxDao.activeKeybox().first().value?.activeHwKeyBundle?.authKey?.pubKey
+      }
       nfcTransactor
         .transact(
           parameters =
@@ -338,45 +548,64 @@ class SignTransactionNfcSessionUiStateMachineImpl(
               hardwareType = hardwareType,
               needsAuthentication = true,
               shouldLock = true,
-              skipFirmwareTelemetry = false,
+              skipFirmwareTelemetry = props.skipFirmwareTelemetry,
               nfcFlowName = if (continuation != null) "sign-transaction-confirmation" else "sign-transaction",
-              onTagConnected = {
+              onTagConnected = { session ->
                 eventTracker.track(EventTrackerScreenInfo(NFC_DETECTED, props.eventTrackerContext))
-                val newMode = if (continuation != null) {
-                  // Continuation - we're fetching the signed PSBT
-                  InNfcSessionUiState.DisplayMode.Searching
-                } else {
-                  // Fresh transaction - might show transferring if W3
-                  InNfcSessionUiState.DisplayMode.Transferring
-                }
-                setState(state.copy(displayMode = newMode))
+                // Start in Signing (indeterminate progress) — for W1 this is the
+                // final visual state before success. For W3, the first progress
+                // callback will transition to Transferring (determinate progress).
+                session?.message = "This can take up to 1 minute…"
+                setState(state.copy(displayMode = InNfcSessionUiState.DisplayMode.Signing))
               },
               onTagDisconnected = {
                 setState(state.copy(displayMode = InNfcSessionUiState.DisplayMode.LostConnection))
               },
-              requirePairedHardware = hwPubKey?.let {
-                RequirePairedHardware.Required(
-                  challenge = secureRandom.nextBytes(32).toByteString(),
-                  checkHardwareIsPaired = { signature, challengeString ->
-                    val verification = signatureVerifier.verifyEcdsaResult(
-                      message = challengeString,
-                      signature = signature,
-                      publicKey = hwPubKey
-                    )
-                    verification.get() == true
-                  }
-                )
-              } ?: RequirePairedHardware.NotRequired,
+              requirePairedHardware = if (props.skipPairingCheck) {
+                logWarn { "skipPairingCheck=true, using NotRequired for pairing" }
+                RequirePairedHardware.NotRequired
+              } else {
+                hwPubKey?.let {
+                  RequirePairedHardware.Required(
+                    challenge = secureRandom.nextBytes(32).toByteString(),
+                    checkHardwareIsPaired = { signature, challengeString ->
+                      val verification = signatureVerifier.verifyEcdsaResult(
+                        message = challengeString,
+                        signature = signature,
+                        publicKey = hwPubKey
+                      )
+                      verification.get() == true
+                    }
+                  )
+                } ?: RequirePairedHardware.NotRequired
+              },
               asyncNfcSigning = false,
               maxNfcRetryAttempts = nfcSessionRetryAttemptsFeatureFlag.intValue()
             ),
           transaction = { session, commands ->
+            val onProgress: (Float) -> Unit = { progressFloat ->
+              // First progress callback transitions from Signing (indeterminate)
+              // to Transferring (determinate progress bar). Only W3 fires this.
+              // Guard to avoid redundant setState on subsequent callbacks.
+              if (state.displayMode != InNfcSessionUiState.DisplayMode.Transferring) {
+                setState(state.copy(displayMode = InNfcSessionUiState.DisplayMode.Transferring))
+              }
+              session.message = "${(progressFloat * 100).toInt()}%"
+              onProgressUpdate(
+                progressFloat.asProgress().getOrElse {
+                  if (progressFloat <= 0f) Progress.Zero else Progress.Full
+                }
+              )
+            }
             if (continuation != null) {
               // Continuation from two-tap flow: fetch the signed PSBT
+              // (for streaming signing, this may also show progress during
+              // per-input signature retrieval)
               signTransactionContinuation(
                 session = session,
                 commands = commands,
-                fetchResult = continuation
+                fetchResult = continuation,
+                onProgress = onProgress
               )
             } else {
               // Fresh start: run full signTransaction
@@ -384,47 +613,14 @@ class SignTransactionNfcSessionUiStateMachineImpl(
                 session = session,
                 commands = commands,
                 props = props,
-                onProgress = { progress ->
-                  session.message = "${(progress.value * 100).toInt()}%"
-                  onProgressUpdate(progress)
-                }
+                onProgress = onProgress
               )
             }
           }
         ).onFailure { error ->
-          when (error) {
-            is NfcException.IOSOnly.UserCancellation -> {
-              props.onBack()
-            }
-            else -> {
-              val handled = props.onError(error)
-              if (!handled) {
-                setState(ErrorUiState(error))
-              }
-            }
-          }
+          handleNfcTransactionFailure(error, continuation, props, setState)
         }.onSuccess { result ->
-          when (result) {
-            is SignTransactionResult.Completed -> {
-              setState(SuccessUiState(result.signedPsbt))
-            }
-            is SignTransactionResult.RequiresConfirmation -> {
-              // W3 two-tap flow: transition to awaiting confirmation state
-              setState(
-                AwaitingConfirmationUiState(
-                  fetchResult = result.fetchResult
-                )
-              )
-            }
-            is SignTransactionResult.RequiresEmulatedPrompt -> {
-              // Fake hardware: transition to emulated prompt selection state
-              setState(
-                EmulatingPromptUiState(
-                  options = result.options
-                )
-              )
-            }
-          }
+          handleNfcTransactionSuccess(result, setState)
         }
     }
   }
@@ -438,16 +634,21 @@ class SignTransactionNfcSessionUiStateMachineImpl(
     session: NfcSession,
     commands: NfcCommands,
     props: SignTransactionNfcSessionUiProps,
-    onProgress: (Progress) -> Unit,
+    onProgress: (Float) -> Unit,
   ): SignTransactionResult {
-    // Fetch the spending keyset right when we need it
-    val account: FullAccount = accountService.getAccount<FullAccount>().getOrThrow()
-    val spendingKeyset = account.keybox.activeSpendingKeyset
+    // Use the provided spending keyset, or fetch the active one from the account
+    val spendingKeyset = props.spendingKeyset ?: props.account.keybox.activeSpendingKeyset
+
+    // Read display preferences to send to hardware for on-device amount formatting.
+    val displayPreference = HwDisplayPreference(
+      bitcoinDisplayUnit = bitcoinDisplayPreferenceRepository.bitcoinDisplayUnit.value
+    )
 
     val interaction = commands.signTransaction(
       session = session,
       psbt = props.psbt,
-      spendingKeyset = spendingKeyset
+      spendingKeyset = spendingKeyset,
+      displayPreference = displayPreference
     )
 
     return when (interaction) {
@@ -461,15 +662,15 @@ class SignTransactionNfcSessionUiStateMachineImpl(
         val nextInteraction = interaction.transferAndFetch(
           session,
           commands,
-          onProgress
+          NfcProgressCallback { onProgress(it) }
         )
         // After transfer, should be RequiresConfirmation or ConfirmWithEmulatedPrompt
         when (nextInteraction) {
           is HardwareInteraction.RequiresConfirmation -> {
-            SignTransactionResult.RequiresConfirmation(nextInteraction.fetchResult)
+            SignTransactionResult.RequiresConfirmation(nextInteraction.toSessionFn())
           }
           is HardwareInteraction.ConfirmWithEmulatedPrompt -> {
-            SignTransactionResult.RequiresEmulatedPrompt(nextInteraction.options)
+            SignTransactionResult.RequiresEmulatedPrompt(nextInteraction)
           }
           is HardwareInteraction.Completed -> {
             // Unexpected but handle it
@@ -483,18 +684,22 @@ class SignTransactionNfcSessionUiStateMachineImpl(
 
       is HardwareInteraction.RequiresConfirmation -> {
         // Direct confirmation (shouldn't happen for signTransaction but handle it)
-        SignTransactionResult.RequiresConfirmation(interaction.fetchResult)
+        SignTransactionResult.RequiresConfirmation(interaction.toSessionFn())
       }
 
       is HardwareInteraction.ConfirmWithEmulatedPrompt -> {
         // Fake hardware emulated prompt
-        SignTransactionResult.RequiresEmulatedPrompt(interaction.options)
+        SignTransactionResult.RequiresEmulatedPrompt(interaction)
       }
     }
   }
 
   /**
    * Continuation transaction for two-tap flow: calls fetchResult to fetch the signed PSBT.
+   *
+   * For streaming signing, the second tap may return [HardwareInteraction.RequiresTransfer]
+   * which triggers per-input signature retrieval in the same NFC session, with progress
+   * reported through [onProgress] to drive the progress bar UI.
    */
   @Throws(NfcException::class, CancellationException::class)
   private suspend fun signTransactionContinuation(
@@ -503,7 +708,8 @@ class SignTransactionNfcSessionUiStateMachineImpl(
     fetchResult: suspend (
       NfcSession,
       NfcCommands,
-    ) -> HardwareInteraction<build.wallet.bitcoin.transactions.Psbt>,
+    ) -> HardwareInteraction<Psbt>,
+    onProgress: (Float) -> Unit,
   ): SignTransactionResult {
     val interaction = fetchResult(session, commands)
 
@@ -511,31 +717,49 @@ class SignTransactionNfcSessionUiStateMachineImpl(
       is HardwareInteraction.Completed -> {
         SignTransactionResult.Completed(interaction.result)
       }
+      is HardwareInteraction.RequiresTransfer -> {
+        // Streaming signing: the second tap returned RequiresTransfer to retrieve
+        // per-input signatures. Execute in the same NFC session with progress.
+        val nextInteraction = interaction.transferAndFetch(
+          session,
+          commands,
+          NfcProgressCallback { progress -> onProgress(progress) }
+        )
+        when (nextInteraction) {
+          is HardwareInteraction.Completed -> {
+            SignTransactionResult.Completed(nextInteraction.result)
+          }
+          else -> {
+            throw NfcException.CommandError(
+              "Unexpected interaction after streaming signature retrieval: ${nextInteraction::class.simpleName}"
+            )
+          }
+        }
+      }
       else -> {
         throw NfcException.CommandError("Unexpected interaction type in continuation: ${interaction::class.simpleName}")
       }
     }
   }
 
-  private fun SignTransactionNfcBodyModel.asFullScreen() =
+  private fun SignTransactionNfcBodyModel.asFullScreen(
+    designSystemV2Enabled: Boolean,
+    devicePlatform: DevicePlatform,
+  ) =
     ScreenModel(
       body = this,
       presentationStyle = ScreenPresentationStyle.FullScreen,
-      themePreference = ThemePreference.Manual(Theme.DARK)
+      themePreference = signTransactionNfcThemePreference(designSystemV2Enabled, devicePlatform)
     )
 
-  private fun SignTransactionNfcBodyModel.asPlatformNfcScreen() =
-    ScreenModel(
-      body = this,
-      presentationStyle = ScreenPresentationStyle.FullScreen,
-      themePreference = ThemePreference.Manual(Theme.DARK),
-      platformNfcScreen = true
-    )
-
-  private fun PromptSelectionFormBodyModel.asModalScreen() =
-    ScreenModel(
-      body = this,
-      presentationStyle = ScreenPresentationStyle.Modal
+  private fun SignTransactionNfcBodyModel.signTransactionNfcThemePreference(
+    designSystemV2Enabled: Boolean,
+    devicePlatform: DevicePlatform,
+  ): ThemePreference =
+    nfcThemePreference(
+      designSystemV2Enabled = designSystemV2Enabled,
+      devicePlatform = devicePlatform,
+      followSystemOnIos = showNativeSheetOnIos
     )
 
   private fun EnableNfcInstructionsModel.asModalScreen() =
@@ -544,10 +768,28 @@ class SignTransactionNfcSessionUiStateMachineImpl(
       presentationStyle = ScreenPresentationStyle.Modal
     )
 
-  private fun build.wallet.statemachine.core.form.FormBodyModel.asModalScreen() =
+  private fun FormBodyModel.asModalScreen() =
     ScreenModel(
       body = this,
       presentationStyle = ScreenPresentationStyle.Modal
+    )
+
+  private fun defaultPendingBodyModel(onAcknowledge: () -> Unit) =
+    HardwareConfirmationResultBodyModel(
+      headline = "Review transaction on Bitkey",
+      subline = "Before sending, use your Bitkey device to review the transaction details.",
+      buttonText = "Got it",
+      onAcknowledge = onAcknowledge,
+      eventTrackerScreenId = NfcEventTrackerScreenId.NFC_CONFIRMATION_PENDING
+    )
+
+  private fun defaultDeniedBodyModel(onAcknowledge: () -> Unit) =
+    HardwareConfirmationResultBodyModel(
+      headline = "The transaction was not confirmed on your Bitkey",
+      subline = "",
+      buttonText = "OK",
+      onAcknowledge = onAcknowledge,
+      eventTrackerScreenId = NfcEventTrackerScreenId.NFC_CONFIRMATION_DENIED
     )
 }
 
@@ -569,14 +811,18 @@ private sealed interface SignTransactionNfcSessionUiState {
         suspend (
           NfcSession,
           NfcCommands,
-        ) -> HardwareInteraction<build.wallet.bitcoin.transactions.Psbt>
+        ) -> HardwareInteraction<Psbt>
       )? = null,
+      val emulatedPrompt: HardwareInteraction.ConfirmWithEmulatedPrompt<Psbt>? = null,
     ) : InSessionUiState {
       enum class DisplayMode {
         /** Searching for NFC device */
         Searching,
 
-        /** Transferring PSBT data (W3 chunked transfer) */
+        /** Connected and signing (shown with indeterminate progress for W1) */
+        Signing,
+
+        /** Transferring PSBT data with determinate progress (W3 chunked transfer) */
         Transferring,
 
         /** Lost connection during transfer */
@@ -591,21 +837,14 @@ private sealed interface SignTransactionNfcSessionUiState {
       val fetchResult: suspend (
         NfcSession,
         NfcCommands,
-      ) -> HardwareInteraction<build.wallet.bitcoin.transactions.Psbt>,
-    ) : InSessionUiState
-
-    /**
-     * Showing emulated prompt for fake hardware (approve/deny selection).
-     */
-    data class EmulatingPromptUiState(
-      val options: List<EmulatedPromptOption<build.wallet.bitcoin.transactions.Psbt>>,
+      ) -> HardwareInteraction<Psbt>,
     ) : InSessionUiState
 
     /**
      * Transaction signed successfully.
      */
     data class SuccessUiState(
-      val signedPsbt: build.wallet.bitcoin.transactions.Psbt,
+      val signedPsbt: Psbt,
     ) : InSessionUiState
 
     /**
@@ -614,8 +853,36 @@ private sealed interface SignTransactionNfcSessionUiState {
     data class ErrorUiState(
       val exception: NfcException,
     ) : InSessionUiState
+
+    /**
+     * W3 two-tap flow: User tapped before approving/denying on device.
+     * Shows prompt to make decision on device.
+     */
+    data class ConfirmationPendingUiState(
+      val fetchResult: suspend (
+        NfcSession,
+        NfcCommands,
+      ) -> HardwareInteraction<Psbt>,
+    ) : InSessionUiState
+
+    /**
+     * W3 two-tap flow: User explicitly denied on device.
+     * Shows acknowledgment screen before returning to confirmation flow.
+     */
+    data class ConfirmationDeniedUiState(
+      val fetchResult: suspend (
+        NfcSession,
+        NfcCommands,
+      ) -> HardwareInteraction<Psbt>,
+    ) : InSessionUiState
   }
 }
+
+/**
+ * Hardware wallet descriptor is missing. Running delivery flow to load it
+ * before retrying the transaction signing.
+ */
+private data object DeliveringDescriptorUiState
 
 /**
  * Result of a transaction signing NFC transaction.
@@ -625,7 +892,7 @@ private sealed interface SignTransactionResult {
    * Signing completed successfully with the signed PSBT.
    */
   data class Completed(
-    val signedPsbt: build.wallet.bitcoin.transactions.Psbt,
+    val signedPsbt: Psbt,
   ) : SignTransactionResult
 
   /**
@@ -635,13 +902,13 @@ private sealed interface SignTransactionResult {
     val fetchResult: suspend (
       NfcSession,
       NfcCommands,
-    ) -> HardwareInteraction<build.wallet.bitcoin.transactions.Psbt>,
+    ) -> HardwareInteraction<Psbt>,
   ) : SignTransactionResult
 
   /**
    * Fake hardware requires emulated prompt selection (approve/deny).
    */
   data class RequiresEmulatedPrompt(
-    val options: List<EmulatedPromptOption<build.wallet.bitcoin.transactions.Psbt>>,
+    val emulatedPrompt: HardwareInteraction.ConfirmWithEmulatedPrompt<Psbt>,
   ) : SignTransactionResult
 }

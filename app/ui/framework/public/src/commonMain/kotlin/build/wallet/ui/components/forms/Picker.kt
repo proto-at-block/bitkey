@@ -17,6 +17,10 @@ import androidx.compose.ui.window.Dialog
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.radio.RadioButton
+import build.wallet.ui.compose.itemPickerOptionTestTag
+import build.wallet.ui.compose.itemPickerTestTag
+import build.wallet.ui.compose.resId
+import build.wallet.ui.compose.resolveTestTag
 import build.wallet.ui.model.picker.ItemPickerModel
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
@@ -26,6 +30,7 @@ import kotlinx.collections.immutable.ImmutableList
 fun <Option : Any> ItemPickerField(
   modifier: Modifier = Modifier,
   model: ItemPickerModel<Option>,
+  testTag: String? = null,
 ) {
   var isShowingItemPicker by remember {
     mutableStateOf(false)
@@ -34,6 +39,12 @@ fun <Option : Any> ItemPickerField(
   Row(
     modifier =
       modifier
+        .resId(
+          resolveTestTag(
+            testTag ?: model.testTag,
+            itemPickerTestTag(model.titleSelector(model.selectedOption))
+          )
+        )
         .clip(RoundedCornerShape(size = 32.dp))
         .defaultMinSize(
           minWidth = 280.dp, // Material3 default TextField minimum width
@@ -96,8 +107,10 @@ private fun <Option : Any> ItemPickerDialog(
       horizontalAlignment = Alignment.CenterHorizontally
     ) {
       options.forEach { option ->
+        val optionTitle = titleSelector(option)
         Row(
           Modifier
+            .resId(itemPickerOptionTestTag(optionTitle))
             .fillMaxWidth()
             .selectable(
               selected = selectedOption == option,
@@ -109,10 +122,11 @@ private fun <Option : Any> ItemPickerDialog(
           RadioButton(
             selected = selectedOption == option,
             onClick = { onOptionSelected(option) },
-            selectedColor = WalletTheme.colors.bitkeyPrimary
+            selectedColor = WalletTheme.colors.bitkeyPrimary,
+            testTag = itemPickerOptionTestTag("$optionTitle radio")
           )
           Label(
-            text = titleSelector(option),
+            text = optionTitle,
             type = LabelType.Body3Regular
           )
         }

@@ -121,12 +121,13 @@ fun DataGroupWithLateTransaction() =
                 Data.Explainer(
                   title = "Speed up transaction?",
                   subtitle = "You can speed up this transaction by increasing the network fee.",
+                  showTopDivider = true,
                   iconButton = IconButtonModel(
                     iconModel = IconModel(
                       icon = Icon.SmallIconInformationFilled,
-                      iconSize = IconSize.XSmall,
+                      iconSize = IconSize.Accessory,
                       iconBackgroundType = IconBackgroundType.Circle(
-                        circleSize = IconSize.XSmall
+                        circleSize = IconSize.Accessory
                       ),
                       iconTint = IconTint.Foreground,
                       iconOpacity = 0.20f

@@ -1,9 +1,9 @@
 # Invoke tasks/ deps
-invoke==2.2.0
+invoke==2.2.1
 distro==1.9.0
 click==8.1.7
 msgpack==1.0.8
-requests==2.31.0
+requests==2.33.0
 tqdm==4.66.2
 PyYAML==6.0.1
 semver==3.0.2

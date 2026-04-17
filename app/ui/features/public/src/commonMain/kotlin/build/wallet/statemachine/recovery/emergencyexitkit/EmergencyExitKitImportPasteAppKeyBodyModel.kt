@@ -42,6 +42,7 @@ data class EmergencyExitKitImportPasteAppKeyBodyModel(
         fieldModel = TextFieldModel(
           value = enteredText,
           placeholderText = "App Key code",
+          testTag = "emergency-exit-kit-app-key-input",
           onValueChange = { newText, _ -> onEnterTextChanged(newText) },
           keyboardType = TextFieldModel.KeyboardType.Default
         ),

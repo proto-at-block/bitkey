@@ -5,5 +5,7 @@ import build.wallet.ui.model.Model
 data class MoneyAmountModel(
   val primaryAmount: String,
   val secondaryAmount: String,
+  val primaryAmountValue: Long? = null,
+  val primaryAmountAnimationKey: Long = 0L,
   val isLoading: Boolean = false,
 ) : Model

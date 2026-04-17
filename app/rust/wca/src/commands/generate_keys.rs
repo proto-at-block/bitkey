@@ -35,7 +35,7 @@ pub(crate) fn derive(
                 None => Err(CommandError::InvalidResponse),
             },
             Ok(DeriveRspStatus::DerivationFailed) => Err(CommandError::KeyGenerationFailed),
-            Ok(DeriveRspStatus::Error) => Err(CommandError::GeneralCommandError),
+            Ok(DeriveRspStatus::Error) => Err(CommandError::DeriveKeyDescriptorFailed),
             Ok(DeriveRspStatus::Unauthenticated) => Err(CommandError::Unauthenticated),
             Ok(DeriveRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
             Err(_) => Err(CommandError::InvalidResponse),

@@ -67,6 +67,7 @@ queue = { workspace = true }
 recovery = { workspace = true }
 repository = { workspace = true, features = [
   "account",
+  "anti_replay",
   "recovery",
   "screener",
 ] }

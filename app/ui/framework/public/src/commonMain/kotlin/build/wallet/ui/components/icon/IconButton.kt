@@ -14,7 +14,11 @@ import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.sheet.LocalSheetCloser
+import build.wallet.ui.compose.iconButtonTestTag
+import build.wallet.ui.compose.resId
+import build.wallet.ui.compose.resolveTestTag
 import build.wallet.ui.compose.scalingClickable
+import build.wallet.ui.compose.testTagDescriptor
 import build.wallet.ui.model.SheetClosingClick
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.icon.IconBackgroundType
@@ -31,6 +35,7 @@ import kotlinx.coroutines.launch
 fun IconButton(
   model: IconButtonModel,
   modifier: Modifier = Modifier,
+  testTag: String? = null,
 ) {
   when (model.iconModel.iconImage) {
     is LocalImage,
@@ -59,6 +64,10 @@ fun IconButton(
         iconModel = iconModel,
         enabled = model.enabled,
         text = iconModel.text,
+        testTag = resolveTestTag(
+          testTag = testTag ?: model.testTag,
+          fallbackTag = iconButtonTestTag(text = iconModel.text, iconDescriptor = iconModel.testTagDescriptor())
+        ),
         onClick = click
       )
     }
@@ -79,6 +88,7 @@ fun IconButton(
   iconColor: Color = Color.Unspecified,
   enabled: Boolean = true,
   text: String? = null,
+  testTag: String? = null,
   isClosingSheet: Boolean = false,
   onClick: () -> Unit,
 ) {
@@ -106,6 +116,7 @@ fun IconButton(
     iconModel = iconModel,
     text = text,
     enabled = enabled,
+    testTag = testTag,
     color = iconStyle.color,
     onClick = clickHandler
   )
@@ -117,18 +128,30 @@ fun IconButton(
   modifier: Modifier = Modifier,
   text: String? = null,
   enabled: Boolean = true,
+  testTag: String? = null,
   color: Color = Color.Unspecified,
   onClick: () -> Unit,
 ) {
+  val resolvedTestTag = resolveTestTag(
+    testTag = testTag,
+    fallbackTag =
+      iconButtonTestTag(
+        text = text,
+        iconDescriptor = iconModel.testTagDescriptor()
+      )
+  )
+
   Column(
     horizontalAlignment = Alignment.CenterHorizontally
   ) {
     when (iconModel.iconBackgroundType) {
       is IconBackgroundType.Square -> {
-        val shape = RoundedCornerShape((iconModel.iconBackgroundType as IconBackgroundType.Square).cornerRadius.dp)
+        val backgroundType = iconModel.iconBackgroundType as IconBackgroundType.Square
+        val shape = RoundedCornerShape(backgroundType.cornerRadius.dp)
         Box(
           modifier =
             modifier
+              .resId(resolvedTestTag)
               .size(iconModel.totalSize.dp)
               .alpha(if (enabled) 1f else 0.5f)
               .clip(shape)
@@ -137,7 +160,12 @@ fun IconButton(
                 onClick = onClick
               )
               .background(
-                color = WalletTheme.colors.foreground10,
+                color =
+                  if (backgroundType.color == IconBackgroundType.Square.Color.InverseBackground) {
+                    WalletTheme.colors.inverseBackground
+                  } else {
+                    WalletTheme.colors.foreground10
+                  },
                 shape = shape
               ),
           contentAlignment = Alignment.Center
@@ -156,6 +184,7 @@ fun IconButton(
         Box(
           modifier =
             modifier
+              .resId(resolvedTestTag)
               .size(iconModel.totalSize.dp)
               .alpha(if (enabled) 1f else 0.5f)
               .scalingClickable(
@@ -178,7 +207,7 @@ fun IconButton(
 
     text?.let {
       val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
-      val labelType = if (isDesignSystemV2Enabled) LabelType.Body2Medium else LabelType.Title3
+      val labelType = if (isDesignSystemV2Enabled) LabelType.Body3Mono else LabelType.Title3
 
       Spacer(Modifier.height(8.dp))
       Label(

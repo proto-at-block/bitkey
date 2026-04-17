@@ -30,6 +30,7 @@ data class EnteringProtectedCustomerNameBodyModel(
         fieldModel = TextFieldModel(
           value = value,
           placeholderText = "Name",
+          testTag = "trusted-contact-protected-customer-name-input",
           onValueChange = { newValue, _ -> onValueChange(newValue) },
           keyboardType = TextFieldModel.KeyboardType.Default,
           capitalization = Capitalization.Words,

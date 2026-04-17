@@ -56,11 +56,14 @@ data class McuInfo(
   val mcuRole: McuRole,
   val mcuName: McuName,
   val firmwareVersion: String,
+  /** Per-MCU active slot for delta FWUP patch selection. Null for older firmware. */
+  val activeSlot: FirmwareMetadata.FirmwareSlot? = null,
 ) {
   override fun toString(): String {
     val role = mcuRole.name
     val name = mcuName.name
-    return "role: $role, name: $name, firmwareVersion: $firmwareVersion"
+    val slot = activeSlot?.name ?: "?"
+    return "role: $role, name: $name, firmwareVersion: $firmwareVersion, activeSlot: $slot"
   }
 }
 
@@ -124,24 +127,52 @@ data class FirmwareDeviceInfo(
     }
   }
 
+  /**
+   * Determine the hardware key config (DEV/PROD) from the W3 serial number's
+   * EIF (Engineering Information Field) at index 10.
+   *
+   * EIF-Based Firmware Update Selection (4-way split: DEV/PROD x FWUP/NO_FWUP):
+   *   DEV fused, no firmware update:           1, 3, 4, 8, 9
+   *   DEV fused, get customer FWUP:            (none)
+   *   PROD fused, no firmware update (mfgtest): 5, A
+   *   PROD fused, get customer FWUP:           2, 6, 7
+   */
+  private fun w3HwConfigFromSerial(): HwKeyConfig {
+    if (serial.length <= 10) return UNKNOWN
+    return when (serial[10].uppercaseChar()) {
+      // PROD fused (customer FWUP: 2, 6, 7; mfgtest/no FWUP: 5, A)
+      '2', '5', '6', '7', 'A' -> PROD
+      // DEV fused: 1, 3, 4, 8, 9
+      else -> DEV
+    }
+  }
+
+  /**
+   * Determine the hardware key config (DEV/PROD) from the W1 serial number's
+   * engineering flag at index 10.
+   *
+   * For DVT: 8 || 9 == prod
+   * For MP: 0 == prod
+   * But, MP units may have FW with dvt in the name.
+   */
+  private fun w1HwConfigFromSerial(): HwKeyConfig {
+    if (serial.length <= 10) return UNKNOWN
+    return when (serial[10]) {
+      '8', '9', '0' -> PROD
+      else -> DEV
+    }
+  }
+
   private fun hwConfig(): HwKeyConfig =
     when (secureBootConfig) {
       SecureBootConfig.DEV -> DEV
       SecureBootConfig.PROD -> PROD
       else -> {
-        // Fall back to checking the serial number for older firmware versions.
-        // This case should only be hit for external beta customers and internal team members.
+        // Fall back to checking the serial number for firmware versions
+        // that don't report secureBootConfig.
         when {
-          hwRevision.contains("dvt") ->
-            when {
-              // Read engineering flag from serial.
-              // For DVT: 8 || 9 == prod
-              // For MP: 0 == prod
-              // But, MP units may have FW with dvt in the name.
-              serial[10] == '8' || serial[10] == '9' || serial[10] == '0' -> PROD
-              else -> DEV
-            }
-
+          hardwareType() == HardwareType.W3 -> w3HwConfigFromSerial()
+          hwRevision.contains("dvt") -> w1HwConfigFromSerial()
           swType.endsWith("-dev") -> DEV
           swType.endsWith("-prod") -> PROD
           else -> UNKNOWN
@@ -170,12 +201,19 @@ data class FirmwareDeviceInfo(
   }
 
   fun batteryChargeForUninitializedModelGauge(): Int {
-    // The reported battery percent from firmware 1.0.65 and below is wrong.
+    // The reported battery percent from firmware 1.0.65 and below is wrong for W1 hardware.
     //
     // This roughly corrects the reported battery charge to represent something closer to the actual
     // charge. Most importantly, this helps make it more clear in the UI that the battery is
     // actually full.
-    return (batteryCharge * (100.0 / 85)).coerceAtMost(100.0).toInt()
+    //
+    // W3 has a properly initialized model gauge, so no correction is needed.
+    val charge = if (hardwareType() == HardwareType.W3) {
+      batteryCharge
+    } else {
+      (batteryCharge * (100.0 / 85))
+    }
+    return charge.coerceAtMost(100.0).toInt()
   }
 
   fun mcuInfo(): String = mcuInfo.joinToString("/") { "${it.mcuRole}:${it.firmwareVersion}" }

@@ -13,8 +13,8 @@ import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.*
 import build.wallet.statemachine.ui.awaitUntilBodyModel
-import build.wallet.wallet.migration.PrivateWalletMigrationServiceFake
-import build.wallet.wallet.migration.PrivateWalletMigrationState
+import build.wallet.wallet.migration.MigrationError
+import build.wallet.wallet.migration.MigrationServiceFake
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -27,12 +27,12 @@ class SettingsListUiStateMachineImplTests : FunSpec({
   val appFunctionalityService = AppFunctionalityServiceFake()
   val featureFlagDao = FeatureFlagDaoFake()
 
-  val privateWalletMigrationService = PrivateWalletMigrationServiceFake()
+  val migrationService = MigrationServiceFake()
 
   val stateMachine = SettingsListUiStateMachineImpl(
     appFunctionalityService = appFunctionalityService,
     coachmarkService = CoachmarkServiceMock(turbineFactory = turbines::create),
-    privateWalletMigrationService = privateWalletMigrationService
+    migrationService = migrationService
   )
 
   val propsOnBackCalls = turbines.create<Unit>("props onBack calls")
@@ -76,7 +76,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
   afterEach {
     appFunctionalityService.reset()
     featureFlagDao.reset()
-    privateWalletMigrationService.reset()
+    migrationService.reset()
   }
 
   test("onBack calls props onBack") {
@@ -256,7 +256,9 @@ class SettingsListUiStateMachineImplTests : FunSpec({
   }
 
   test("private wallet migration row hidden when feature flag disabled") {
-    privateWalletMigrationService.migrationState.value = PrivateWalletMigrationState.NotAvailable
+    migrationService.resumeResult = com.github.michaelbull.result.Err(
+      MigrationError.KeyboxNotFound()
+    )
 
     stateMachine.test(props) {
       awaitItem().shouldBeTypeOf<SettingsBodyModel>().apply {

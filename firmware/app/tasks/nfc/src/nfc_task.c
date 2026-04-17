@@ -52,6 +52,10 @@ static bool proto_sem_take(void) {
   return rtos_semaphore_take(&nfc_priv.proto_response_sem, PROTO_RESPONSE_SEMAPHORE_TIMEOUT_MS);
 }
 
+static bool proto_sem_take_nowait(void) {
+  return rtos_semaphore_take_ticks(&nfc_priv.proto_response_sem, 0);
+}
+
 static bool proto_sem_give(void) {
   return rtos_semaphore_give(&nfc_priv.proto_response_sem);
 }
@@ -103,6 +107,7 @@ void nfc_task_create(void) {
   wca_api_t api = {
     .mempool = nfc_priv.mempool,
     .sem_take = &proto_sem_take,
+    .sem_take_nowait = &proto_sem_take_nowait,
     .sem_give = &proto_sem_give,
   };
   wca_init(&api);

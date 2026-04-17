@@ -69,3 +69,46 @@ Fuzzing functions like `void do_complicated_parsing(uint8_t *buf, size_t len)` i
 Dealing with this problem requires some work, but is doable -- [the problem and solution is described here](https://youtu.be/xzG0pLM4Q64?t=472).
 
 Full talk: [Modern Source Fuzzing](https://www.youtube.com/watch?v=xzG0pLM4Q64)
+
+## Security fuzz targets
+
+The following targets were added to cover findings from the third-party security engagement.
+See [`FUZZING_TARGETS_PLAN.md`](FUZZING_TARGETS_PLAN.md) for per-target details, input formats, and run instructions.
+
+| Binary | Findings | Source |
+|--------|----------|--------|
+| `wca-session-fuzz` | BCW-01, BCW-04, BCW-06, BCW-09, BCW-10 | `lib/wca/src/wca_session_fuzz.cc` |
+| `wca-proto-handlers-fuzz` | BCW-07, BCW-19, BCW-31 | `lib/wca/src/wca_proto_handlers_fuzz.cc` |
+| `secure-channel-fuzz` | BCW-08, BCW-15, BCW-16 | `lib/secure-channel/src/secure_channel_fuzz.cc` |
+| `fwup-delta-fuzz` | BCW-25, BCW-26, BCW-36 | `lib/fwup/fwup_delta_fuzz.cc` |
+| `nfc-timer-fuzz` | BCW-05 | `hal/nfc/src/embedded/nfc_timer_fuzz.cc` |
+| `touch-decode-fuzz` | BCW-40 | `hal/touch/src/touch_decode_fuzz.cc` |
+| `indexfs-addr-fuzz` | BCW-29 | `lib/indexfs/indexfs_addr_fuzz.cc` |
+| `nanocobs-fuzz` | BCW-02 | `third-party/packagefiles/nanocobs/nanocobs_fuzz.cc` |
+| `msgpack-fuzz` | BCW-03 | `lib/msgpack/msgpack_fuzz.cc` |
+| `tlv-fuzz` | BCW-11 | `lib/tlv/tlv_fuzz.cc` |
+| `iso7816-fuzz` | BCW-12 | `lib/iso7816/iso7816_fuzz.cc` |
+| `psbt-fuzz` | BCW-22 | `lib/psbt/psbt_fuzz.cc` |
+| `grant-protocol-fuzz` | BCW-23 | `lib/grant_protocol/grant_protocol_fuzz.cc` |
+| `sap-fuzz` | BCW-27 | `lib/sap/sap_fuzz.cc` |
+| `unlock-fuzz` | BCW-30 | `lib/unlock/unlock_fuzz.cc` |
+| `picocert-fuzz` | BCW-35 | `third-party/packagefiles/picocert/picocert_fuzz.cc` |
+
+Seed corpora and dictionaries live in `fuzzer_inputs/<target-name>/`.
+Run `python3 fuzzer_inputs/generate_seeds.py` to (re-)generate binary seed files.
+
+### `fuzz_assert.h`
+
+Firmware's `ASSERT` macro calls `exit(9876)` on host builds, which terminates
+the libFuzzer process instead of being caught as a crash. `fuzz/fuzz_assert.h`
+overrides `ASSERT` with `__builtin_trap()` (SIGILL) so libFuzzer records
+the crashing input. Include it **last**, after all other firmware headers.
+
+### ClusterFuzz
+
+`fuzz/build.sh` packages every `*-fuzz` binary, seed-corpus zip, and dictionary
+into `$OUT/` for ClusterFuzz upload. Run locally with:
+
+```bash
+OUT=/tmp/fuzz-out bash firmware/fuzz/build.sh
+```

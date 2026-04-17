@@ -59,7 +59,6 @@ bool export_pubkey(key_handle_t* key_in, key_handle_t* key_out) {
   return false;
 }
 
-// TODO SECENG-8952: Implement device identity cert on stm32
 bool crypto_sign_with_device_identity(uint8_t* data, uint32_t data_size, uint8_t* signature,
                                       uint32_t signature_size) {
   (void)data_size;

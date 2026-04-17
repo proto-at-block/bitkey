@@ -10,7 +10,6 @@ import build.wallet.database.sqldelight.DefaultAccountConfigEntity
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
 import build.wallet.mapResult
@@ -32,7 +31,6 @@ class AccountConfigServiceImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
   private val appVariant: AppVariant,
   accountService: AccountService,
-  private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
 ) : AccountConfigService {
   private val fallbackAppConfig by lazy {
     fallbackAppConfig(appVariant)
@@ -115,6 +113,12 @@ class AccountConfigServiceImpl(
     return updateDefaultAppConfig { it.copy(skipNotificationsOnboarding = value) }
   }
 
+  override suspend fun setSkipBuildHardwareDescriptorOnboarding(
+    value: Boolean,
+  ): Result<Unit, Error> {
+    return updateDefaultAppConfig { it.copy(skipBuildHardwareDescriptorOnboarding = value) }
+  }
+
   override suspend fun setDelayNotifyDuration(value: Duration?): Result<Unit, Error> {
     return updateDefaultAppConfig { it.copy(delayNotifyDuration = value) }
   }
@@ -135,15 +139,6 @@ class AccountConfigServiceImpl(
         isTestAccount = false
       )
     }
-  }
-
-  override suspend fun resolveHardwareTypeAndCreateFullAccountConfig(): FullAccountConfig {
-    val defaultConfig = defaultConfig().value
-    val resolvedHardwareType = defaultConfig.hardwareType
-      ?: firmwareDeviceInfoDao.getDeviceInfo().get()?.hardwareType()
-      ?: HardwareType.W1
-
-    return defaultConfig.toFullAccountConfig(hardwareTypeOverride = resolvedHardwareType)
   }
 
   private suspend fun updateDefaultAppConfig(
@@ -168,7 +163,8 @@ class AccountConfigServiceImpl(
         isUsingSocRecFakes = updatedConfig.isUsingSocRecFakes,
         delayNotifyDuration = updatedConfig.delayNotifyDuration,
         skipNotificationsOnboarding = updatedConfig.skipNotificationsOnboarding,
-        skipCloudBackupOnboarding = updatedConfig.skipCloudBackupOnboarding
+        skipCloudBackupOnboarding = updatedConfig.skipCloudBackupOnboarding,
+        skipBuildHardwareDescriptorOnboarding = updatedConfig.skipBuildHardwareDescriptorOnboarding
       )
     }.logFailure { "Error updating app config in db." }
   }
@@ -184,7 +180,8 @@ private fun DefaultAccountConfigEntity.toConfig(): DefaultAccountConfig {
     isUsingSocRecFakes = isUsingSocRecFakes,
     delayNotifyDuration = delayNotifyDuration,
     skipNotificationsOnboarding = skipNotificationsOnboarding,
-    skipCloudBackupOnboarding = skipCloudBackupOnboarding
+    skipCloudBackupOnboarding = skipCloudBackupOnboarding,
+    skipBuildHardwareDescriptorOnboarding = skipBuildHardwareDescriptorOnboarding
   )
 }
 

@@ -1,6 +1,7 @@
 package build.wallet.statemachine.recovery.emergencyexitkit
 
 import androidx.compose.runtime.*
+import bitkey.account.HardwareType
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId
@@ -12,7 +13,6 @@ import build.wallet.emergencyexitkit.EmergencyExitKitPayload
 import build.wallet.emergencyexitkit.EmergencyExitKitPayloadDecoder
 import build.wallet.emergencyexitkit.EmergencyExitPayloadRestorer
 import build.wallet.keybox.KeyboxDao
-import build.wallet.nfc.platform.unsealSymmetricKey
 import build.wallet.platform.clipboard.Clipboard
 import build.wallet.platform.permissions.Permission
 import build.wallet.platform.random.UuidGenerator
@@ -20,6 +20,9 @@ import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
+import build.wallet.statemachine.nfc.ConfirmationResultContent
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
@@ -29,6 +32,7 @@ import build.wallet.statemachine.recovery.emergencyexitkit.EmergencyExitKitRecov
 import build.wallet.statemachine.recovery.emergencyexitkit.EmergencyExitKitRecoveryUiStateMachineImpl.State.EntrySource.ManualEntry
 import build.wallet.statemachine.recovery.emergencyexitkit.EmergencyExitKitRecoveryUiStateMachineImpl.State.EntrySource.QrEntry
 import build.wallet.statemachine.send.QrCodeScanBodyModel
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationContent
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -41,6 +45,7 @@ class EmergencyExitKitRecoveryUiStateMachineImpl(
   private val emergencyExitPayloadRestorer: EmergencyExitPayloadRestorer,
   private val csekDao: CsekDao,
   private val keyboxDao: KeyboxDao,
+  private val nfcConfirmableSessionUiStateMachine: NfcConfirmableSessionUiStateMachine,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val uuidGenerator: UuidGenerator,
 ) : EmergencyExitKitRecoveryUiStateMachine {
@@ -162,21 +167,42 @@ class EmergencyExitKitRecoveryUiStateMachineImpl(
         ).asRootScreen()
       }
 
+      is DetectingHardwareType -> {
+        nfcSessionUIStateMachine.model(
+          NfcSessionUIStateMachineProps(
+            session = { session, commands ->
+              commands.getDeviceInfo(session).hardwareType()
+            },
+            onSuccess = { hardwareType ->
+              state = StartNFCRestore(
+                payload = currentState.payload,
+                entrySource = currentState.entrySource,
+                hardwareType = hardwareType
+              )
+            },
+            onCancel = { state = currentState.onBack(props) },
+            screenPresentationStyle = ScreenPresentationStyle.Root,
+            eventTrackerContext = NfcEventTrackerScreenIdContext.UNSEAL_EMERGENCY_ACCESS_KIT_BACKUP,
+            hardwareVerification = NotRequired
+          )
+        )
+      }
+
       is StartNFCRestore -> {
         val sealedCsek =
           when (currentState.payload) {
             is EmergencyExitKitPayload.EmergencyExitKitPayloadV1 ->
               currentState.payload.sealedHwEncryptionKey
           }
-        nfcSessionUIStateMachine.model(
-          NfcSessionUIStateMachineProps(
+        nfcConfirmableSessionUiStateMachine.model(
+          NfcConfirmableSessionUIStateMachineProps(
             session = { session, commands ->
-              Csek(commands.unsealSymmetricKey(session, sealedCsek))
+              commands.eekRestorationUnsealSymmetricKey(session, sealedCsek)
             },
-            onSuccess = { unsealedCsek ->
+            onSuccess = { unsealedKey ->
               csekDao.set(
                 key = sealedCsek,
-                value = unsealedCsek
+                value = Csek(unsealedKey)
               )
 
               state = currentState.onSuccess()
@@ -184,14 +210,23 @@ class EmergencyExitKitRecoveryUiStateMachineImpl(
             onCancel = { state = currentState.onBack(props) },
             screenPresentationStyle = ScreenPresentationStyle.Root,
             eventTrackerContext = NfcEventTrackerScreenIdContext.UNSEAL_EMERGENCY_ACCESS_KIT_BACKUP,
-            hardwareVerification = NotRequired // EEK recovery happens without an active account
+            hardwareVerification = NotRequired, // EEK recovery happens without an active account
+            confirmationContent = HardwareConfirmationContent.EekRestorationUnseal,
+            confirmationResultContent = ConfirmationResultContent(
+              pendingHeadline = "Approve on Bitkey",
+              pendingSubline = "You'll need to approve on your Bitkey device before tapping again."
+            ),
+            hardwareTypeOverride = currentState.hardwareType
           )
         )
       }
 
       is RestoreCompleting -> {
         LaunchedEffect("restoring-from-backup") {
-          emergencyExitPayloadRestorer.restoreFromPayload(currentState.payload)
+          emergencyExitPayloadRestorer.restoreFromPayload(
+            payload = currentState.payload,
+            hardwareType = currentState.hardwareType
+          )
             .onSuccess {
               state = RestoreCompleted(it)
             }
@@ -289,11 +324,19 @@ class EmergencyExitKitRecoveryUiStateMachineImpl(
       val entrySource: EntrySource,
     ) : State {
       fun onStartRestore(): State =
-        StartNFCRestore(
+        DetectingHardwareType(
           payload = this.payload,
           entrySource = this.entrySource
         )
     }
+
+    /**
+     * Quick NFC tap to detect the hardware type (W1 vs W3) before the actual unseal.
+     */
+    data class DetectingHardwareType(
+      val payload: EmergencyExitKitPayload,
+      val entrySource: EntrySource,
+    ) : State
 
     /**
      * The sub flow for communicating with the bitkey via NFC to decrypt the emergency
@@ -302,12 +345,18 @@ class EmergencyExitKitRecoveryUiStateMachineImpl(
     data class StartNFCRestore(
       val payload: EmergencyExitKitPayload,
       val entrySource: EntrySource,
+      val hardwareType: HardwareType,
     ) : State {
-      fun onSuccess(): State = RestoreCompleting(payload = payload)
+      fun onSuccess(): State =
+        RestoreCompleting(
+          payload = payload,
+          hardwareType = hardwareType
+        )
     }
 
     data class RestoreCompleting(
       val payload: EmergencyExitKitPayload,
+      val hardwareType: HardwareType,
     ) : State
 
     data object RestoreFailed : State {
@@ -358,6 +407,8 @@ class EmergencyExitKitRecoveryUiStateMachineImpl(
             is EntrySource.ManualEntry -> ManualEntry(enteredText = this.entrySource.enteredText)
           }
         }
+        is DetectingHardwareType ->
+          RestoreWallet(payload = this.payload, entrySource = this.entrySource)
         is StartNFCRestore ->
           RestoreWallet(payload = this.payload, entrySource = this.entrySource)
         is RestoreCompleting -> SelectInputMethod

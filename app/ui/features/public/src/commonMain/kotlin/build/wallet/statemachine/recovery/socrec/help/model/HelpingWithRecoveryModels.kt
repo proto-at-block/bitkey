@@ -167,6 +167,7 @@ data class EnterRecoveryCodeFormBodyModel(
             onInputChange(newValue.replace("-", "").chunked(4).joinToString("-"))
           },
           keyboardType = TextFieldModel.KeyboardType.Number,
+          testTag = "help-recovery-enter-code-input",
           onDone = if (primaryButton.isEnabled) {
             primaryButton.onClick::invoke
           } else {

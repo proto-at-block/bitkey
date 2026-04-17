@@ -12,6 +12,8 @@ import kotlin.time.Duration.Companion.milliseconds
 
 private val SELECTION_TIMINGS = longArrayOf(1, 2)
 private val SELECTION_AMPLITUDE = intArrayOf(100, 0)
+private val REJECT_TIMINGS = longArrayOf(0, 32, 36, 44)
+private val REJECT_AMPLITUDE = intArrayOf(0, 255, 0, 192)
 
 /**
  * If vibrator is the phone supports vibration, vibrate with the given vibration [Effect].
@@ -32,6 +34,8 @@ internal fun Vibrator.maybeVibrate(
           vibrate(VibrationEffect.createPredefined(EFFECT_DOUBLE_CLICK))
         DullOneShot ->
           vibrate(VibrationEffect.createOneShot(800, 125))
+        Reject ->
+          vibrate(VibrationEffect.createWaveform(REJECT_TIMINGS, REJECT_AMPLITUDE, -1))
         MediumClick ->
           vibrate(VibrationEffect.createPredefined(EFFECT_CLICK))
         HeavyClick ->

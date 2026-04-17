@@ -12,14 +12,16 @@ interface FwupManifestParser {
    *
    * @param manifestJson The manifest JSON string
    * @param currentVersion The current firmware version (used as fallback for v1 manifests, when currentMcuVersions is null, or when a specific MCU is not present in the currentMcuVersions map)
-   * @param activeSlot The currently active firmware slot
+   * @param activeSlot The currently active firmware slot (used for v1 bundles and as fallback for v2)
    * @param currentMcuVersions Optional map of MCU role to current version for per-MCU version checking (v2 bundles)
+   * @param mcuActiveSlots Optional map of MCU role to active slot for per-MCU slot selection (v2 bundles). If not provided or if an MCU is missing from the map, falls back to activeSlot.
    */
   fun parseFwupManifest(
     manifestJson: String,
     currentVersion: String,
     activeSlot: FwupSlot,
     currentMcuVersions: Map<McuRole, String>? = null,
+    mcuActiveSlots: Map<McuRole, FwupSlot>? = null,
   ): Result<ParseFwupManifestSuccess, ParseFwupManifestError>
 
   sealed interface ParseFwupManifestSuccess {

@@ -54,6 +54,8 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachineMock
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.cloud.*
@@ -64,6 +66,7 @@ import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.testing.shouldBeOk
 import build.wallet.time.ClockFake
+import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.get
 import io.kotest.core.spec.style.FunSpec
@@ -98,6 +101,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
           AccountAuthenticatorMock { name -> turbines.create("$backupVersion-$name") }
         val authTokensService = AuthTokensServiceFake()
         val appPrivateKeyDao = AppPrivateKeyDaoFake()
+        val nfcConfirmableSessionUiStateMachine =
+          NfcConfirmableSessionUiStateMachineMock(id = "nfc-confirmable-session-fake")
         val nfcSessionUIStateMachine =
           object : NfcSessionUIStateMachine,
             ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(
@@ -158,6 +163,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
             accountAuthenticator = accountAuthorizer,
             authTokensService = authTokensService,
             appPrivateKeyDao = appPrivateKeyDao,
+            nfcConfirmableSessionUiStateMachine = nfcConfirmableSessionUiStateMachine,
             nfcSessionUIStateMachine = nfcSessionUIStateMachine,
             keyboxDao = keyboxDao,
             recoveryStatusService = recoveryStatusService,
@@ -205,7 +211,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
           firmwareDeviceInfoDao.setDeviceInfo(
             FirmwareDeviceInfo(
               version = "2.0.0", // Version that meets minimum requirement
-              serial = "fake-serial",
+              serial = "fakeS203serial",
               swType = "dev",
               hwRevision = "evt",
               activeSlot = FirmwareSlot.A,
@@ -233,9 +239,9 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
             awaitBody<FormBodyModel> {
               clickPrimaryButton()
             }
-            // Unsealing CSEK
-            awaitBodyMock<NfcSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
-              id = nfcSessionUIStateMachine.id
+            // Unsealing CSEK (combined with hardware type detection in single NFC session)
+            awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
+              id = nfcConfirmableSessionUiStateMachine.id
             ) {
               onSuccess(Pair(CsekFake, backup as CloudBackup))
             }
@@ -301,7 +307,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
           firmwareDeviceInfoDao.setDeviceInfo(
             FirmwareDeviceInfo(
               version = "0.5.0", // Version below minimum requirement
-              serial = "fake-serial",
+              serial = "fakeS203serial",
               swType = "dev",
               hwRevision = "evt",
               activeSlot = FirmwareSlot.A,
@@ -327,9 +333,9 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
             awaitBody<FormBodyModel> {
               clickPrimaryButton()
             }
-            // Unsealing CSEK
-            awaitBodyMock<NfcSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
-              id = nfcSessionUIStateMachine.id
+            // Unsealing CSEK (combined with hardware type detection in single NFC session)
+            awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
+              id = nfcConfirmableSessionUiStateMachine.id
             ) {
               onSuccess(Pair(CsekFake, backup as CloudBackup))
             }
@@ -392,9 +398,9 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
             awaitBody<FormBodyModel> {
               clickPrimaryButton()
             }
-            // Unsealing CSEK
-            awaitBodyMock<NfcSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
-              id = nfcSessionUIStateMachine.id
+            // Unsealing CSEK (combined with hardware type detection in single NFC session)
+            awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
+              id = nfcConfirmableSessionUiStateMachine.id
             ) {
               onSuccess(Pair(CsekFake, backup as CloudBackup))
             }
@@ -420,7 +426,9 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
               clickPrimaryButton()
             }
 
-            awaitBodyMock<NfcSessionUIStateMachineProps<Csek>>(id = nfcSessionUIStateMachine.id) {
+            awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
+              id = nfcConfirmableSessionUiStateMachine.id
+            ) {
               onError(NfcException.CommandErrorSealCsekResponseUnsealException())
             }
 
@@ -469,9 +477,9 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
               clickPrimaryButton()
             }
 
-            // Unsealing CSEK - should try each backup
-            awaitBodyMock<NfcSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
-              id = nfcSessionUIStateMachine.id
+            // Unsealing CSEK - tries each backup (combined with hardware type detection)
+            awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
+              id = nfcConfirmableSessionUiStateMachine.id
             ) {
               // Simulate successful unsealing with backup2
               onSuccess(Pair(CsekFake, backup2))
@@ -519,6 +527,68 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
           }
         }
 
+        test("does not recommend key rotation when saving keybox fails") {
+          keyboxDao.saveKeyboxAsActiveResult = Err(Error("db write failed"))
+
+          stateMachineActiveDeviceFlagOn.testWithVirtualTime(props) {
+            accountAuthorizer.authResults =
+              mutableListOf(
+                Ok(accountAuthorizer.defaultAuthResult.get()!!.copy(accountId = "account-id")),
+                Ok(accountAuthorizer.defaultAuthResult.get()!!.copy(accountId = "account-id"))
+              )
+
+            // Cloud back up found model
+            awaitBody<FormBodyModel> {
+              clickPrimaryButton()
+            }
+            // Unsealing CSEK (combined with hardware type detection in single NFC session)
+            awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
+              id = nfcConfirmableSessionUiStateMachine.id
+            ) {
+              onSuccess(Pair(CsekFake, backup as CloudBackup))
+            }
+
+            // activating restored keybox
+            awaitBody<LoadingSuccessBodyModel> {
+              state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+            }
+
+            cloudBackupDao.get("account-id").shouldBeOk(backup as CloudBackup)
+            eventTracker.eventCalls.awaitItem().shouldBe(
+              TrackedAction(ACTION_APP_CLOUD_RECOVERY_KEY_RECOVERED)
+            )
+
+            // Set the global token
+            accountAuthorizer.authCalls.awaitItem()
+            // Set the recovery token
+            accountAuthorizer.authCalls.awaitItem()
+            deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
+            recoveryStatusService.clearCalls.awaitItem()
+            relationshipsService.syncCalls.awaitItem()
+            spendingWallet.syncCalls.awaitItem()
+
+            // Provisioning app auth key to hardware
+            awaitBodyMock<NfcSessionUIStateMachineProps<Unit>>(
+              id = nfcSessionUIStateMachine.id
+            ) {
+              onSuccess(Unit)
+            }
+
+            // Saving keybox as active (final loading state)
+            awaitBody<LoadingSuccessBodyModel> {
+              state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+            }
+
+            // Should show failure screen — NOT recommend key rotation
+            awaitBody<ProblemWithCloudBackupModel> {
+              failure.shouldBe(CloudBackupFailure.AppCantPerformPostRestorationSteps)
+            }
+
+            // Verify recommendKeyRotation was never called
+            fullAccountAuthKeyRotationService.recommendKeyRotationCalls.expectNoEvents()
+          }
+        }
+
         test("shows error when no backup can be unsealed with hardware key") {
           val backup1 = when (backup) {
             is CloudBackupV2 -> (backup as CloudBackupV2).copy(accountId = "account-1") as CloudBackup
@@ -543,8 +613,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
               clickPrimaryButton()
             }
 
-            awaitBodyMock<NfcSessionUIStateMachineProps<*>>(
-              id = nfcSessionUIStateMachine.id
+            awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
+              id = nfcConfirmableSessionUiStateMachine.id
             ) {
               // Simulate unsealing failure
               onError(NfcException.CommandErrorSealCsekResponseUnsealException())

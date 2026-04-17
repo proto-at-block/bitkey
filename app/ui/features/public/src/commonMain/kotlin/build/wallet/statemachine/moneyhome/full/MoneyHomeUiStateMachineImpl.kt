@@ -16,9 +16,10 @@ import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.fwup.FirmwareData
 import build.wallet.money.FiatMoney
-import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.onboarding.OnboardingCompletionService
 import build.wallet.partnerships.*
 import build.wallet.platform.clipboard.Clipboard
@@ -73,12 +74,16 @@ import build.wallet.statemachine.utxo.UtxoConsolidationProps
 import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachine
 import build.wallet.statemachine.walletmigration.PrivateWalletMigrationUiProps
 import build.wallet.statemachine.walletmigration.PrivateWalletMigrationUiStateMachine
+import build.wallet.statemachine.walletmigration.W3UpgradeUiProps
+import build.wallet.statemachine.walletmigration.W3UpgradeUiStateMachine
 import build.wallet.time.nonNegativeDurationBetween
 import build.wallet.ui.model.alert.ButtonAlertModel
-import build.wallet.wallet.migration.PrivateWalletMigrationService
-import build.wallet.wallet.migration.PrivateWalletMigrationState
-import build.wallet.wallet.migration.PrivateWalletMigrationState.NotAvailable
+import build.wallet.wallet.migration.MigrationProgress
+import build.wallet.wallet.migration.MigrationService
+import build.wallet.wallet.migration.MigrationType
 import com.github.michaelbull.result.get
+import com.github.michaelbull.result.onSuccess
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlin.time.Duration
@@ -97,7 +102,6 @@ class MoneyHomeUiStateMachineImpl(
   private val recoveryIncompleteRepository: PostSocRecTaskRepository,
   private val moneyHomeViewingBalanceUiStateMachine: MoneyHomeViewingBalanceUiStateMachine,
   private val customAmountEntryUiStateMachine: CustomAmountEntryUiStateMachine,
-  private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val sweepUiStateMachine: SweepUiStateMachine,
   private val bitcoinPriceChartUiStateMachine: BitcoinPriceChartUiStateMachine,
   private val socRecService: SocRecService,
@@ -108,20 +112,41 @@ class MoneyHomeUiStateMachineImpl(
   private val declineInheritanceClaimUiStateMachine: DeclineInheritanceClaimUiStateMachine,
   private val onboardingCompletionService: OnboardingCompletionService,
   private val navigatorPresenter: NavigatorPresenter,
-  private val privateWalletMigrationService: PrivateWalletMigrationService,
+  private val migrationService: MigrationService,
   private val privateWalletMigrationUiStateMachine: PrivateWalletMigrationUiStateMachine,
+  private val w3UpgradeUiStateMachine: W3UpgradeUiStateMachine,
   private val recoveryStatusService: RecoveryStatusService,
   private val clock: Clock,
   private val partnershipsPurchaseQuotesUiStateMachine: PartnershipsPurchaseQuotesUiStateMachine,
   private val deepLinkHandler: DeepLinkHandler,
+  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : MoneyHomeUiStateMachine {
+  @Suppress("CyclomaticComplexMethod")
   @Composable
   override fun model(props: MoneyHomeUiProps): ScreenModel {
     val justCompletingSocialRecovery by remember {
       socRecService.justCompletedRecovery()
     }.collectAsState(initial = false)
 
-    val migrationState by privateWalletMigrationService.migrationState.collectAsState(NotAvailable)
+    // Check if migration is in progress by calling resume()
+    var isMigrationInProgress by remember { mutableStateOf(false) }
+    LaunchedEffect("check-migration-status") {
+      migrationService.resume(MigrationType.PrivateWalletMigration)
+        .onSuccess { progress ->
+          isMigrationInProgress = progress !is MigrationProgress.NotStarted &&
+            progress !is MigrationProgress.Completed
+        }
+    }
+
+    // Check if W3 upgrade is in progress by calling resume()
+    var isW3UpgradeInProgress by remember { mutableStateOf(false) }
+    LaunchedEffect("check-w3-upgrade-status") {
+      migrationService.resume(MigrationType.W3Upgrade)
+        .onSuccess { progress ->
+          isW3UpgradeInProgress = progress !is MigrationProgress.NotStarted &&
+            progress !is MigrationProgress.Completed
+        }
+    }
 
     var hasAutoShownSocialRecoveryScreen by remember { mutableStateOf(false) }
 
@@ -141,6 +166,10 @@ class MoneyHomeUiStateMachineImpl(
       }
     }
 
+    val isDesignSystemV2Enabled by remember {
+      designSystemUpdatesFeatureFlag.flagValue().map { it.isEnabled() }
+    }.collectAsState(initial = designSystemUpdatesFeatureFlag.isEnabled())
+
     LaunchedEffect("mark-onboarding-completed") {
       // Ensure onboarding is recorded for users who completed it before
       // this feature was introduced
@@ -150,16 +179,18 @@ class MoneyHomeUiStateMachineImpl(
     var uiState: MoneyHomeUiState by remember(
       props.origin,
       justCompletingSocialRecovery,
-      migrationState,
+      isMigrationInProgress,
+      isW3UpgradeInProgress,
       isCompletingRecovery
     ) {
       val initialState = when (val origin = props.origin) {
         MoneyHomeUiProps.Origin.Launch -> {
           // Navigate directly to hardware recovery when completing hardware recovery
           when {
-            migrationState is PrivateWalletMigrationState.InProgress -> PrivateWalletMigrationUiState(
+            isMigrationInProgress -> PrivateWalletMigrationUiState(
               inProgress = true
             )
+            isW3UpgradeInProgress -> W3UpgradeInProgressUiState
             justCompletingSocialRecovery && !hasAutoShownSocialRecoveryScreen -> {
               hasAutoShownSocialRecoveryScreen = true
               ViewHardwareRecoveryStatusUiState(InstructionsStyle.ContinuingRecovery)
@@ -188,6 +219,10 @@ class MoneyHomeUiStateMachineImpl(
             partnerTransferLinkRequest = origin.request
           )
         }
+        is MoneyHomeUiProps.Origin.W3Upgrade -> W3UpgradeInProgressUiState
+        is MoneyHomeUiProps.Origin.W3UpgradeComplete -> {
+          ViewingBalanceUiState(showW3UpgradeCompleteCoachmark = true)
+        }
         else -> ViewingBalanceUiState()
       }
       mutableStateOf(initialState)
@@ -210,8 +245,9 @@ class MoneyHomeUiStateMachineImpl(
             uiState = PrivateWalletMigrationUiState()
           },
           onPurchaseAmountConfirmed = { amount ->
-            uiState = ViewingPartnerPurchaseQuotesUiState(purchaseAmount = amount)
-          }
+            uiState = ViewingPartnerPurchaseQuotesUiState(amount)
+          },
+          isDesignSystemV2Enabled = isDesignSystemV2Enabled
         )
       )
 
@@ -223,6 +259,7 @@ class MoneyHomeUiStateMachineImpl(
 
       SellFlowUiState -> partnershipsSellUiStateMachine.model(
         props = PartnershipsSellUiProps(
+          account = props.account as FullAccount,
           onBack = { uiState = ViewingBalanceUiState() }
         )
       )
@@ -243,6 +280,7 @@ class MoneyHomeUiStateMachineImpl(
       )
 
       is SendFlowUiState -> SendBitcoinModel(
+        account = props.account as FullAccount,
         validPaymentDataInClipboard =
           clipboard.getPlainTextItem()?.let {
             paymentDataParser.decode(
@@ -276,8 +314,7 @@ class MoneyHomeUiStateMachineImpl(
 
       is FwupFlowUiState -> navigatorPresenter.model(
         initialScreen = FwupScreen(
-          firmwareUpdateData = state.firmwareData,
-          onExit = { uiState = ViewingBalanceUiState() }
+          firmwareUpdateData = state.firmwareData
         ),
         onExit = { uiState = ViewingBalanceUiState() }
       )
@@ -327,19 +364,12 @@ class MoneyHomeUiStateMachineImpl(
       ).asModalScreen()
 
       is SelectCustomPartnerPurchaseAmountState -> {
-        val fiatCurrency = fiatCurrencyPreferenceRepository.fiatCurrencyPreference.value
         customAmountEntryUiStateMachine.model(
           props = CustomAmountEntryUiProps(
             minimumAmount = state.minimumAmount,
             maximumAmount = state.maximumAmount,
             onBack = {
-              uiState = ViewingBalanceUiState(
-                bottomSheetDisplayState = Partners(
-                  initialState = AddBitcoinBottomSheetDisplayState.PurchasingUiState(
-                    selectedAmount = FiatMoney.zero(fiatCurrency)
-                  )
-                )
-              )
+              uiState = ViewingBalanceUiState()
             },
             onNext = { selectedAmount ->
               // Go directly to quotes flow with the custom amount
@@ -366,6 +396,7 @@ class MoneyHomeUiStateMachineImpl(
 
       ConsolidatingUtxosUiState -> utxoConsolidationUiStateMachine.model(
         props = UtxoConsolidationProps(
+          account = props.account as FullAccount,
           onConsolidationSuccess = {
             uiState = ViewingBalanceUiState()
           },
@@ -374,6 +405,7 @@ class MoneyHomeUiStateMachineImpl(
       )
       is ConfirmingPartnerSale -> partnershipsSellUiStateMachine.model(
         props = PartnershipsSellUiProps(
+          account = props.account as FullAccount,
           confirmedSale = ConfirmedPartnerSale(
             partner = state.partner,
             event = state.event,
@@ -412,6 +444,16 @@ class MoneyHomeUiStateMachineImpl(
         )
       )
 
+      is W3UpgradeInProgressUiState -> w3UpgradeUiStateMachine.model(
+        W3UpgradeUiProps(
+          account = props.account as FullAccount,
+          onUpgradeComplete = {
+            uiState = ViewingBalanceUiState(showW3UpgradeCompleteCoachmark = true)
+          },
+          onExit = { uiState = ViewingBalanceUiState() }
+        )
+      )
+
       is ViewingPartnerPurchaseQuotesUiState -> ViewingPartnerPurchaseQuotesModel(
         props = props,
         state = state,
@@ -432,16 +474,18 @@ class MoneyHomeUiStateMachineImpl(
         onWebLinkOpened = onWebLinkOpened,
         onBack = onExit
       )
-    ).asModalFullScreen()
+    )
   }
 
   @Composable
   private fun SendBitcoinModel(
+    account: FullAccount,
     validPaymentDataInClipboard: ParsedPaymentData?,
     onExit: () -> Unit,
     onGoToUtxoConsolidation: () -> Unit,
   ) = sendUiStateMachine.model(
     props = SendUiProps(
+      account = account,
       validInvoiceInClipboard = validPaymentDataInClipboard,
       onExit = onExit,
       // Since hitting "Done" is the same as exiting out of the send flow.
@@ -504,11 +548,11 @@ class MoneyHomeUiStateMachineImpl(
   ): ScreenModel {
     return sweepUiStateMachine.model(
       SweepUiProps(
+        account = account,
         hasAttemptedSweep = false,
         presentationStyle = ScreenPresentationStyle.ModalFullScreen,
         onExit = onExit,
         onSuccess = onSuccess,
-        keybox = account.keybox,
         // This callback is used to update the RecoveryStatusService in the
         // recovery flow, and is not necessary in this context.
         onAttemptSweep = {}
@@ -651,6 +695,7 @@ sealed interface MoneyHomeUiState {
     val bottomSheetDisplayState: BottomSheetDisplayState? = null,
     val selectedContact: TrustedContact? = null,
     val partnerTransferLinkRequest: PartnerTransferLinkRequest? = null,
+    val showW3UpgradeCompleteCoachmark: Boolean = false,
   ) : MoneyHomeUiState {
     sealed interface BottomSheetDisplayState {
       /**
@@ -796,6 +841,12 @@ sealed interface MoneyHomeUiState {
   data class PrivateWalletMigrationUiState(
     val inProgress: Boolean = false,
   ) : MoneyHomeUiState
+
+  /**
+   * W3 upgrade flow, resumed from an in-progress migration at app start.
+   * Once the W3 setup is completed, the user must finish the upgrade.
+   */
+  data object W3UpgradeInProgressUiState : MoneyHomeUiState
 
   /**
    * Indicates that we are viewing partner purchase quotes for a confirmed amount.

@@ -91,6 +91,13 @@ log_level_t log_get_level(void);
       _assert_handler();      \
     }                         \
   } while (false)
+#elif defined(FUZZ_BUILD)
+// Fuzz builds: evaluate expr for side-effects but don't abort.
+// Production code after ASSERT_LOG typically returns an error code.
+#define ASSERT_LOG(expr, ...) \
+  do {                        \
+    (void)(expr);             \
+  } while (false)
 #else
 #define ASSERT_LOG(expr, ...) \
   do {                        \

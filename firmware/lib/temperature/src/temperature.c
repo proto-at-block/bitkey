@@ -48,7 +48,7 @@ bool temperature_init(void) {
   // Initialize MCU temperature sensor with callback
   if (!mcu_temperature_init_monitoring(TEMP_HIGH_THRESHOLD, TEMP_LOW_THRESHOLD,
                                        temperature_callback)) {
-    LOGE("Failed to initialize MCU temperature sensor");
+    LOGE("MCU temp sensor init fail");
     rtos_event_group_destroy(&temp_state.events);
     return false;
   }
@@ -70,10 +70,10 @@ float temperature_get_averaged(void) {
 
   // Wait for averaging to complete
   uint32_t events = rtos_event_group_wait_bits(&temp_state.events, TEMP_EVENT_AVG, true, false,
-                                               pdMS_TO_TICKS(TEMP_AVERAGING_TIMEOUT_MS));
+                                               TEMP_AVERAGING_TIMEOUT_MS);
 
   if (!(events & TEMP_EVENT_AVG)) {
-    LOGE("Temperature averaging timeout");
+    LOGE("Temp avg timeout");
     return 0.0f;
   }
 

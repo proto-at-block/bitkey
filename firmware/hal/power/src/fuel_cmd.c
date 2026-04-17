@@ -17,7 +17,7 @@ static void fuel_cmd_handler(int argc, char** argv);
 static void fuel_cmd_register(void) {
   fuel_cmd_args.validate = ARG_LIT_OPT('v', "validate", "validate communications");
   fuel_cmd_args.status = ARG_LIT_OPT('s', "status", "prints status");
-  fuel_cmd_args.reset = ARG_LIT_OPT('r', "reset", "performs POR initialisation");
+  fuel_cmd_args.reset = ARG_LIT_OPT('r', "reset", "re-inits the fuel gauge using POR init");
   fuel_cmd_args.clear = ARG_LIT_OPT('c', "clear", "clears modelgauge config");
   fuel_cmd_args.end = ARG_END();
 

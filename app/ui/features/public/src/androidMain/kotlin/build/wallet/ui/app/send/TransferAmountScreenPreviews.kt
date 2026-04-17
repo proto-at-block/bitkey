@@ -10,6 +10,7 @@ import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.CardModel.CardStyle.Outline
 import build.wallet.statemachine.send.TransferAmountBodyModel
+import build.wallet.ui.tokens.lightStyleDictionaryColors
 import build.wallet.ui.tooling.PreviewWalletTheme
 
 @Preview
@@ -184,6 +185,80 @@ fun TransferAmountScreenWithEqualOrMoreBannerPreview() {
           ),
         continueButtonEnabled = false,
         amountDisabled = true,
+        onContinueClick = {},
+        onSwapCurrencyClick = {}
+      )
+    )
+  }
+}
+
+@Preview
+@Composable
+fun TransferAmountScreenNoEntryDesignSystemV2Preview() {
+  PreviewWalletTheme(
+    designSystemUpdatesEnabled = true,
+    backgroundColor = lightStyleDictionaryColors.subtleBackground
+  ) {
+    TransferAmountScreen(
+      model = TransferAmountBodyModel(
+        onBack = {},
+        balanceTitle = "$961.24 available",
+        amountModel =
+          MoneyAmountEntryModel(
+            primaryAmount = "$0.00",
+            primaryAmountGhostedSubstringRange = null,
+            secondaryAmount = "0 sats"
+          ),
+        keypadModel =
+          KeypadModel(
+            showDecimal = true,
+            onButtonPress = {}
+          ),
+        cardModel = null,
+        continueButtonEnabled = true,
+        amountDisabled = false,
+        onContinueClick = {},
+        onSwapCurrencyClick = {}
+      )
+    )
+  }
+}
+
+@Preview
+@Composable
+fun TransferAmountScreenDesignSystemV2Preview() {
+  PreviewWalletTheme(
+    designSystemUpdatesEnabled = true,
+    backgroundColor = lightStyleDictionaryColors.subtleBackground
+  ) {
+    TransferAmountScreen(
+      model = TransferAmountBodyModel(
+        onBack = {},
+        balanceTitle = "$961.24 available",
+        amountModel =
+          MoneyAmountEntryModel(
+            primaryAmount = "$4.00",
+            primaryAmountGhostedSubstringRange = null,
+            secondaryAmount = "70,000 sats"
+          ),
+        cardModel = CardModel(
+          title =
+            LabelModel.StringWithStyledSubstringModel.from(
+              string = "Bitkey approval required",
+              substringToColor = emptyMap()
+            ),
+          subtitle = null,
+          leadingImage = CardModel.CardImage.StaticImage(SmallIconBitkey),
+          content = null,
+          style = Outline
+        ),
+        keypadModel =
+          KeypadModel(
+            showDecimal = true,
+            onButtonPress = {}
+          ),
+        continueButtonEnabled = true,
+        amountDisabled = false,
         onContinueClick = {},
         onSwapCurrencyClick = {}
       )

@@ -26,14 +26,30 @@ fun Statement(
   title: String?,
   body: String? = null,
   icon: Icon?,
+  leadingIconSize: IconSize = IconSize.Small,
+  leadingText: String? = null,
+  leadingTextType: LabelType = LabelType.Body2MonoCaps,
+  leadingTextTreatment: LabelTreatment? = null,
   tint: Color = WalletTheme.colors.foreground,
+  titleType: LabelType = LabelType.Body2Bold,
+  titleTreatment: LabelTreatment? = null,
+  bodyType: LabelType = LabelType.Body2Regular,
+  bodyTreatment: LabelTreatment? = null,
 ) {
   return Statement(
     modifier = modifier,
     title = title,
     body = body?.let { AnnotatedString(it) },
     icon = icon,
-    tint = tint
+    leadingIconSize = leadingIconSize,
+    leadingText = leadingText,
+    leadingTextType = leadingTextType,
+    leadingTextTreatment = leadingTextTreatment,
+    tint = tint,
+    titleType = titleType,
+    titleTreatment = titleTreatment,
+    bodyType = bodyType,
+    bodyTreatment = bodyTreatment
   )
 }
 
@@ -43,30 +59,46 @@ fun Statement(
   title: String?,
   body: AnnotatedString?,
   icon: Icon?,
+  leadingIconSize: IconSize = IconSize.Small,
+  leadingText: String? = null,
+  leadingTextType: LabelType = LabelType.Body2MonoCaps,
+  leadingTextTreatment: LabelTreatment? = null,
   tint: Color = WalletTheme.colors.foreground,
+  titleType: LabelType = LabelType.Body2Bold,
+  titleTreatment: LabelTreatment? = null,
+  bodyType: LabelType = LabelType.Body2Regular,
+  bodyTreatment: LabelTreatment? = null,
   onClick: ((Int) -> Unit)? = null,
 ) {
   Statement(
     modifier = modifier,
-    leadingIconContent = {
-      icon?.let {
-        Icon(
-          icon = icon,
-          size = IconSize.Small,
-          color = tint
-        )
+    leadingContent = {
+      when {
+        leadingText != null ->
+          Label(
+            text = leadingText,
+            type = leadingTextType,
+            treatment = leadingTextTreatment ?: LabelTreatment.Unspecified,
+            color = if (leadingTextTreatment == null) tint else Color.Unspecified
+          )
+        icon != null ->
+          Icon(
+            icon = icon,
+            size = leadingIconSize,
+            color = tint
+          )
       }
     },
     hasTitle = title != null,
     hasBody = body != null,
-    hasLeadingIcon = icon != null,
+    hasLeadingContent = icon != null || leadingText != null,
     titleContent = {
       title?.let {
         Label(
           text = it,
-          type = LabelType.Body2Bold,
-          treatment = LabelTreatment.Unspecified,
-          color = tint
+          type = titleType,
+          treatment = titleTreatment ?: LabelTreatment.Unspecified,
+          color = if (titleTreatment == null) tint else Color.Unspecified
         )
       }
     },
@@ -74,9 +106,9 @@ fun Statement(
       body?.let {
         Label(
           text = it,
-          type = LabelType.Body2Regular,
-          treatment = LabelTreatment.Unspecified,
-          color = tint,
+          type = bodyType,
+          treatment = bodyTreatment ?: LabelTreatment.Unspecified,
+          color = if (bodyTreatment == null) tint else Color.Unspecified,
           onClick = onClick
         )
       }
@@ -90,10 +122,10 @@ fun Statement(
 @Composable
 private fun Statement(
   modifier: Modifier = Modifier,
-  leadingIconContent: @Composable () -> Unit,
+  leadingContent: @Composable () -> Unit,
   titleContent: @Composable () -> Unit,
   bodyContent: @Composable () -> Unit,
-  hasLeadingIcon: Boolean,
+  hasLeadingContent: Boolean,
   hasTitle: Boolean,
   hasBody: Boolean,
 ) {
@@ -103,8 +135,8 @@ private fun Statement(
         .padding(top = 8.dp)
         .fillMaxWidth()
   ) {
-    leadingIconContent()
-    if (hasLeadingIcon) {
+    leadingContent()
+    if (hasLeadingContent) {
       Spacer(Modifier.width(16.dp))
     }
     Column {

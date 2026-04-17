@@ -10,13 +10,14 @@ class StartFingerprintEnrollmentInstructionsSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
   test("pairing instructions screen") {
-    paparazzi.snapshot {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
       PairNewHardwareScreen(
         model =
           StartFingerprintEnrollmentInstructionsBodyModel(
             onBack = {},
             onButtonClick = {},
             isNavigatingBack = false,
+            isDesignSystemV2Enabled = true,
             eventTrackerScreenIdContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
           )
       )

@@ -25,4 +25,21 @@ class SplashLockSnapshots : FunSpec({
       )
     }
   }
+
+  test("Splash Lock Screen dsv2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      SplashLockScreen(
+        model = SplashLockModel(
+          unlockButtonModel = ButtonModel(
+            text = "Unlock",
+            treatment = ButtonModel.Treatment.Translucent,
+            size = ButtonModel.Size.Footer,
+            onClick = StandardClick {}
+          ),
+          eventTrackerScreenInfo = null,
+          key = ""
+        )
+      )
+    }
+  }
 })

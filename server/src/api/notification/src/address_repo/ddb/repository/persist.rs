@@ -20,7 +20,7 @@ use super::AddressRepository;
 const DDB_CHUNK_SIZE_MAX: usize = 25;
 
 impl AddressRepository {
-    #[instrument(skip(self))]
+    #[instrument(skip(self, watched_addresses))]
     pub(crate) async fn persist_batch(
         &self,
         watched_addresses: Vec<WatchedAddress>,

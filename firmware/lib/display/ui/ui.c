@@ -1,6 +1,5 @@
 #include "ui.h"
 
-#include "gesture_tx.h"
 #include "log.h"
 #include "lvgl/lvgl.h"
 #include "screens.h"
@@ -50,15 +49,19 @@ static void lvgl_log_cb(lv_log_level_t level, const char* buf) {
       LOGE("LVGL: %s", buf);
       break;
     default:
-      LOGD("LVGL: %s", buf);
       break;
   }
 }
 
-static void update_brightness(void) {
+static void update_brightness(bool verify) {
   if (state.brightness_callback) {
+    // Never let the screen brightness go below the BRIGHTNESS_MIN to avoid completely black screens
     uint8_t level = (state.brightness_percent * state.local_brightness_percent * 255) / 10000;
-    state.brightness_callback(level);
+    uint8_t min_level = (BRIGHTNESS_MIN * 255) / 100;
+    if (level < min_level) {
+      level = min_level;
+    }
+    state.brightness_callback(level, verify);
   }
 }
 
@@ -82,17 +85,20 @@ void ui_init(ui_brightness_callback_t brightness_callback, ui_fps_callback_t fps
   state.brightness_callback = brightness_callback;
   state.fps_callback = fps_callback;
   state.effective_fps_callback = effective_fps_callback;
-  state.brightness_percent = 0;
+  state.brightness_percent = 80;
   state.local_brightness_percent = 100;
-  update_brightness();
+  update_brightness(true);
 }
 
-void ui_set_brightness(uint8_t brightness_percent) {
-  if (brightness_percent > 100) {
-    brightness_percent = 100;
+void ui_set_brightness(uint8_t brightness_percent, bool verify) {
+  if (brightness_percent < BRIGHTNESS_MIN) {
+    brightness_percent = BRIGHTNESS_MIN;
+  }
+  if (brightness_percent > BRIGHTNESS_MAX) {
+    brightness_percent = BRIGHTNESS_MAX;
   }
   state.brightness_percent = brightness_percent;
-  update_brightness();
+  update_brightness(verify);
 }
 
 void ui_set_local_brightness(uint8_t percent) {
@@ -100,7 +106,7 @@ void ui_set_local_brightness(uint8_t percent) {
     percent = 100;
   }
   state.local_brightness_percent = percent;
-  update_brightness();
+  update_brightness(false);
 }
 
 void ui_set_rotation_callback(ui_rotation_callback_t rotation_callback) {
@@ -140,6 +146,7 @@ static void cleanup_previous_screen(void) {
 static void navigate_to_screen(const fwpb_display_show_screen* show_screen) {
   const screen_t* new_screen = screen_get_by_params_tag(show_screen->which_params);
   if (!new_screen) {
+    LOGE("Unknown screen params tag: %u", (unsigned)show_screen->which_params);
     return;  // Unknown screen type
   }
 
@@ -156,7 +163,7 @@ static void navigate_to_screen(const fwpb_display_show_screen* show_screen) {
 
   // Apply brightness if it changed
   if (show_screen->brightness_percent != state.brightness_percent) {
-    ui_set_brightness(show_screen->brightness_percent);
+    ui_set_brightness(show_screen->brightness_percent, true);
   }
 
   const bool is_same_screen =
@@ -173,7 +180,6 @@ static void navigate_to_screen(const fwpb_display_show_screen* show_screen) {
   // This prevents stale event handlers from previous instantiation
   if (show_screen->which_params == state.current_params_tag && state.previous_screen) {
     // Same screen type but new instance - clean up immediately
-    LOGD("Forcing cleanup of previous screen (same type re-entry)");
     cleanup_previous_screen();
   }
 
@@ -186,10 +192,7 @@ static void navigate_to_screen(const fwpb_display_show_screen* show_screen) {
     }
   }
 
-  // Store current as previous for next transition
-  state.previous_screen = state.current_screen;
-  state.previous_screen_obj = lv_scr_act();
-  state.current_params_tag = show_screen->which_params;
+  lv_obj_t* current_screen_obj = lv_scr_act();
 
   lv_obj_t* new_screen_obj = NULL;
   if (new_screen->init) {
@@ -197,10 +200,19 @@ static void navigate_to_screen(const fwpb_display_show_screen* show_screen) {
   }
 
   if (new_screen_obj) {
+    // Store current as previous for next transition only after init succeeds.
+    state.previous_screen = state.current_screen;
+    state.previous_screen_obj = current_screen_obj;
+    state.current_params_tag = show_screen->which_params;
+
     // Only update current_screen if init succeeded
     state.current_screen = new_screen;
 
-    lv_scr_load_anim_t anim_type = transition_map[show_screen->transition];
+    lv_scr_load_anim_t anim_type = LV_SCR_LOAD_ANIM_NONE;
+    if (show_screen->transition >= 0 &&
+        show_screen->transition < (int)(sizeof(transition_map) / sizeof(transition_map[0]))) {
+      anim_type = transition_map[show_screen->transition];
+    }
     if (anim_type == LV_SCR_LOAD_ANIM_NONE || show_screen->duration_ms == 0) {
       lv_scr_load(new_screen_obj);
       // For immediate transitions, we can destroy the previous screen right away
@@ -210,6 +222,11 @@ static void navigate_to_screen(const fwpb_display_show_screen* show_screen) {
       // We'll clean it up on the next screen transition
       lv_scr_load_anim(new_screen_obj, anim_type, show_screen->duration_ms, 0, false);
     }
+  } else {
+    if (new_screen->destroy) {
+      new_screen->destroy();
+    }
+    LOGE("Failed to initialize screen params tag: %u", (unsigned)show_screen->which_params);
   }
 }
 

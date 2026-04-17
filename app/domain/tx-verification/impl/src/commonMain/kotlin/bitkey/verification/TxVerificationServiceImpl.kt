@@ -18,7 +18,7 @@ import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.PendingPrivilegedActionsEntity
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.feature.flags.Bip177FeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.logging.logFailure
@@ -88,7 +88,7 @@ class TxVerificationServiceImpl(
   override suspend fun updateThreshold(
     policy: TxVerificationPolicy.Active,
     amountBtc: BitcoinMoney?,
-    hwFactorProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof?,
   ): Result<TxVerificationPolicy, Error> {
     val fullAccount = accountService.getAccount<FullAccount>()
       .logFailure { "Update Threshold cannot be called without full account." }
@@ -101,7 +101,7 @@ class TxVerificationServiceImpl(
       request = TxVerificationUpdateRequest(
         threshold = policy.threshold,
         amountBtc = amountBtc,
-        hwFactorProofOfPossession = hwFactorProofOfPossession,
+        proof = proof,
         useBip177 = useBip177
       )
     ).mapError {

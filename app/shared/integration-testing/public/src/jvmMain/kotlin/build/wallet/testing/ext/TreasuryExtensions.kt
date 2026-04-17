@@ -2,13 +2,10 @@ package build.wallet.testing.ext
 
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
-import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.treasury.FundingResult
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.money.BitcoinMoney
-import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.testing.AppTester
-import build.wallet.testing.fakeTransact
 import com.github.michaelbull.result.getOrThrow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -17,7 +14,6 @@ import kotlinx.coroutines.flow.first
  * Returns funds to the treasury wallet.
  */
 suspend fun AppTester.returnFundsToTreasury() {
-  val account = getActiveFullAccount()
   val spendingWallet = getActiveWallet()
   spendingWallet.sync().getOrThrow()
 
@@ -32,16 +28,7 @@ suspend fun AppTester.returnFundsToTreasury() {
       )
       .getOrThrow()
 
-  val appAndHwSignedPsbt =
-    nfcTransactor.fakeTransact(
-      transaction = { session, commands ->
-        val result = commands.signTransaction(session, appSignedPsbt, account.keybox.activeSpendingKeyset)
-        when (result) {
-          is HardwareInteraction.Completed<Psbt> -> result.result
-          else -> error("Error signing transaction.")
-        }
-      }
-    ).getOrThrow()
+  val appAndHwSignedPsbt = signPsbtWithHardware(appSignedPsbt)
   bitcoinBlockchain.broadcast(appAndHwSignedPsbt).getOrThrow()
   mineBlock(appAndHwSignedPsbt.id)
 }

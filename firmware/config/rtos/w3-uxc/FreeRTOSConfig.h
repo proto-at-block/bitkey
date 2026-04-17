@@ -62,7 +62,7 @@ extern uint32_t SystemCoreClock;
 /*-------------------- STM32U5 specific defines -------------------*/
 #define configENABLE_TRUSTZONE                    0
 #define configRUN_FREERTOS_SECURE_ONLY            0
-#define configENABLE_FPU                          0
+#define configENABLE_FPU                          1
 #define configENABLE_MPU                          1
 #define configUSE_PREEMPTION                      1
 #define configSUPPORT_STATIC_ALLOCATION           1

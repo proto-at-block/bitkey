@@ -1,7 +1,6 @@
-//! Canonical payload: `ACTIONPROOF␟1␟Action␟Field␟Value␟Current␟key1=val1,key2=val2`
+//! Canonical payload: `ACTIONPROOF␟1␟Action␟Value␟key1=val1,key2=val2`
 
-use crate::actions::Action;
-use crate::fields::Field;
+use crate::action::Action;
 use crate::validation::{validate_if_present, ValidationError};
 use thiserror::Error;
 
@@ -67,15 +66,13 @@ pub enum BuildError {
     EmptyBindingKey,
     #[error("duplicate binding key: '{0}'")]
     DuplicateBindingKey(String),
-    #[error("action {action} is not valid for field {field}")]
-    InvalidActionForField { action: Action, field: Field },
     #[error("invalid value: {0}")]
     InvalidValue(#[from] ValidationError),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ParseError {
-    #[error("expected 7 parts separated by 0x1F, got {0}")]
+    #[error("expected 5 parts separated by 0x1F, got {0}")]
     InvalidPartCount(usize),
     #[error("invalid magic: expected '{CANONICAL_MAGIC}', got '{0}'")]
     InvalidMagic(String),
@@ -83,10 +80,6 @@ pub enum ParseError {
     UnsupportedVersion(u8),
     #[error("invalid action: '{0}'")]
     InvalidAction(String),
-    #[error("invalid field: '{0}'")]
-    InvalidField(String),
-    #[error("action '{action}' is not valid for field '{field}'")]
-    InvalidActionForField { action: String, field: String },
     #[error("invalid UTF-8 in {0}")]
     InvalidUtf8(&'static str),
     #[error("invalid version format")]
@@ -101,24 +94,15 @@ pub enum ParseError {
     NonCanonicalVersion(String),
     #[error("invalid value: {0}")]
     InvalidValue(String),
-    #[error("invalid current: {0}")]
-    InvalidCurrent(String),
 }
 
 /// Bindings must be sorted alphabetically by key.
 pub fn build_payload(
     action: Action,
-    field: Field,
     value: Option<&str>,
-    current: Option<&str>,
     bindings: &[(&str, &str)],
 ) -> Result<Vec<u8>, BuildError> {
-    if !field.is_valid_action(action) {
-        return Err(BuildError::InvalidActionForField { action, field });
-    }
-
     validate_if_present(value)?;
-    validate_if_present(current)?;
 
     validate_bindings(bindings)?;
 
@@ -131,16 +115,9 @@ pub fn build_payload(
 
     payload.extend_from_slice(action.as_str().as_bytes());
     payload.push(UNIT_SEPARATOR);
-    payload.extend_from_slice(field.as_str().as_bytes());
-    payload.push(UNIT_SEPARATOR);
 
     if let Some(v) = value {
         payload.extend_from_slice(v.as_bytes());
-    }
-    payload.push(UNIT_SEPARATOR);
-
-    if let Some(c) = current {
-        payload.extend_from_slice(c.as_bytes());
     }
     payload.push(UNIT_SEPARATOR);
 
@@ -159,7 +136,7 @@ pub fn build_payload(
 pub fn parse_payload(payload: &[u8]) -> Result<ParsedPayload<'_>, ParseError> {
     let parts: Vec<&[u8]> = payload.split(|&b| b == UNIT_SEPARATOR).collect();
 
-    if parts.len() != 7 {
+    if parts.len() != 5 {
         return Err(ParseError::InvalidPartCount(parts.len()));
     }
 
@@ -183,46 +160,25 @@ pub fn parse_payload(payload: &[u8]) -> Result<ParsedPayload<'_>, ParseError> {
 
     let action_str =
         std::str::from_utf8(parts[2]).map_err(|_| ParseError::InvalidUtf8("action"))?;
-    let action = action_str
+    let action: Action = action_str
         .parse()
         .map_err(|_| ParseError::InvalidAction(action_str.to_string()))?;
 
-    let field_str = std::str::from_utf8(parts[3]).map_err(|_| ParseError::InvalidUtf8("field"))?;
-    let field: Field = field_str
-        .parse()
-        .map_err(|_| ParseError::InvalidField(field_str.to_string()))?;
-
-    if !field.is_valid_action(action) {
-        return Err(ParseError::InvalidActionForField {
-            action: action_str.to_string(),
-            field: field_str.to_string(),
-        });
-    }
-
-    let value = std::str::from_utf8(parts[4]).map_err(|_| ParseError::InvalidUtf8("value"))?;
+    let value = std::str::from_utf8(parts[3]).map_err(|_| ParseError::InvalidUtf8("value"))?;
     let value = (!value.is_empty()).then_some(value);
-
-    let current = std::str::from_utf8(parts[5]).map_err(|_| ParseError::InvalidUtf8("current"))?;
-    let current = (!current.is_empty()).then_some(current);
 
     if let Some(v) = value {
         crate::validation::validate_value(v)
             .map_err(|e| ParseError::InvalidValue(e.to_string()))?;
     }
-    if let Some(c) = current {
-        crate::validation::validate_value(c)
-            .map_err(|e| ParseError::InvalidCurrent(e.to_string()))?;
-    }
 
     let bindings_str =
-        std::str::from_utf8(parts[6]).map_err(|_| ParseError::InvalidUtf8("bindings"))?;
+        std::str::from_utf8(parts[4]).map_err(|_| ParseError::InvalidUtf8("bindings"))?;
     let bindings = parse_bindings(bindings_str)?;
 
     Ok(ParsedPayload {
         action,
-        field,
         value,
-        current,
         bindings,
     })
 }
@@ -230,9 +186,7 @@ pub fn parse_payload(payload: &[u8]) -> Result<ParsedPayload<'_>, ParseError> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParsedPayload<'a> {
     pub action: Action,
-    pub field: Field,
     pub value: Option<&'a str>,
-    pub current: Option<&'a str>,
     pub bindings: Vec<(&'a str, &'a str)>,
 }
 
@@ -277,70 +231,38 @@ mod tests {
 
     #[test]
     fn build_payload_formats() {
-        // With value only
-        let p = build_payload(
-            Action::Add,
-            Field::RecoveryContacts,
-            Some("Alice"),
-            None,
-            &[("tb", "XYZ")],
-        )
-        .unwrap();
+        // With value
+        let p = build_payload(Action::AddRecoveryContact, Some("Alice"), &[("tb", "XYZ")]).unwrap();
         assert_eq!(
             p,
-            b"ACTIONPROOF\x1f1\x1fAdd\x1fRecoveryContacts\x1fAlice\x1f\x1ftb=XYZ"
-        );
-
-        // With value and current
-        let p = build_payload(
-            Action::Set,
-            Field::SpendWithoutHardware,
-            Some("500 USD"),
-            Some("250 USD"),
-            &[("tb", "ABC")],
-        )
-        .unwrap();
-        assert_eq!(
-            p,
-            b"ACTIONPROOF\x1f1\x1fSet\x1fSpendWithoutHardware\x1f500 USD\x1f250 USD\x1ftb=ABC"
+            b"ACTIONPROOF\x1f1\x1fAddRecoveryContact\x1fAlice\x1ftb=XYZ"
         );
 
         // No value (disable)
-        let p = build_payload(
-            Action::Disable,
-            Field::SpendWithoutHardware,
-            None,
-            None,
-            &[("tb", "ABC")],
-        )
-        .unwrap();
+        let p = build_payload(Action::DisableSpendWithoutHardware, None, &[("tb", "ABC")]).unwrap();
         assert_eq!(
             p,
-            b"ACTIONPROOF\x1f1\x1fDisable\x1fSpendWithoutHardware\x1f\x1f\x1ftb=ABC"
+            b"ACTIONPROOF\x1f1\x1fDisableSpendWithoutHardware\x1f\x1ftb=ABC"
         );
 
         // Multiple bindings (alphabetically sorted)
         let p = build_payload(
-            Action::Add,
-            Field::RecoveryContacts,
+            Action::AddRecoveryContact,
             Some("Alice"),
-            None,
             &[("eid", "ABC"), ("tb", "XYZ")],
         )
         .unwrap();
         assert_eq!(
             p,
-            b"ACTIONPROOF\x1f1\x1fAdd\x1fRecoveryContacts\x1fAlice\x1f\x1feid=ABC,tb=XYZ"
+            b"ACTIONPROOF\x1f1\x1fAddRecoveryContact\x1fAlice\x1feid=ABC,tb=XYZ"
         );
     }
 
     #[test]
     fn build_rejects_unsorted_bindings() {
         let result = build_payload(
-            Action::Add,
-            Field::RecoveryContacts,
+            Action::AddRecoveryContact,
             Some("Alice"),
-            None,
             &[("tb", "XYZ"), ("eid", "ABC")],
         );
         assert!(
@@ -353,13 +275,7 @@ mod tests {
         // Validation is tested thoroughly in validation.rs; just verify it's wired up
         for invalid in ["Hello\x00World", "p\u{0430}ypal", &"a".repeat(129)] {
             assert!(matches!(
-                build_payload(
-                    Action::Add,
-                    Field::RecoveryContacts,
-                    Some(invalid),
-                    None,
-                    &[("tb", "X")]
-                ),
+                build_payload(Action::AddRecoveryContact, Some(invalid), &[("tb", "X")]),
                 Err(BuildError::InvalidValue(_))
             ));
         }
@@ -368,22 +284,14 @@ mod tests {
     #[test]
     fn parse_roundtrip() {
         let original = build_payload(
-            Action::Set,
-            Field::SpendWithoutHardware,
+            Action::SetSpendWithoutHardware,
             Some("500 USD"),
-            Some("250 USD"),
             &[("eid", "ABC"), ("tb", "XYZ")],
         )
         .unwrap();
         let parsed = parse_payload(&original).expect("should parse");
-        assert_eq!(
-            (parsed.action, parsed.field),
-            (Action::Set, Field::SpendWithoutHardware)
-        );
-        assert_eq!(
-            (parsed.value, parsed.current),
-            (Some("500 USD"), Some("250 USD"))
-        );
+        assert_eq!(parsed.action, Action::SetSpendWithoutHardware);
+        assert_eq!(parsed.value, Some("500 USD"));
         assert_eq!(parsed.bindings, vec![("eid", "ABC"), ("tb", "XYZ")]);
     }
 
@@ -391,28 +299,27 @@ mod tests {
     fn parse_errors() {
         let cases: &[(&[u8], &str)] = &[
             (
-                b"INVALID\x1f1\x1fAdd\x1fRecoveryContacts\x1fAlice\x1f\x1ftb=X",
+                b"INVALID\x1f1\x1fAddRecoveryContact\x1fAlice\x1ftb=X",
                 "InvalidMagic",
             ),
             (
-                b"ACTIONPROOF\x1f99\x1fAdd\x1fRecoveryContacts\x1fAlice\x1f\x1ftb=X",
+                b"ACTIONPROOF\x1f99\x1fAddRecoveryContact\x1fAlice\x1ftb=X",
                 "UnsupportedVersion",
             ),
-            (b"ACTIONPROOF\x1f1\x1fAdd", "InvalidPartCount"),
             (
-                b"ACTIONPROOF\x1f1\x1fBadAction\x1fRecoveryContacts\x1fAlice\x1f\x1ftb=X",
+                b"ACTIONPROOF\x1f1\x1fAddRecoveryContact",
+                "InvalidPartCount",
+            ),
+            (
+                b"ACTIONPROOF\x1f1\x1fBadAction\x1fAlice\x1ftb=X",
                 "InvalidAction",
             ),
             (
-                b"ACTIONPROOF\x1f1\x1fAdd\x1fBadField\x1fAlice\x1f\x1ftb=X",
-                "InvalidField",
-            ),
-            (
-                b"ACTIONPROOF\x1f1\x1fAdd\x1fRecoveryContacts\x1fAlice\x1f\x1ftb=X,invalid",
+                b"ACTIONPROOF\x1f1\x1fAddRecoveryContact\x1fAlice\x1ftb=X,invalid",
                 "InvalidBindingFormat",
             ),
             (
-                b"ACTIONPROOF\x1f1\x1fAdd\x1fRecoveryContacts\x1fAlice\x1f\x1ftb=X,eid=Y",
+                b"ACTIONPROOF\x1f1\x1fAddRecoveryContact\x1fAlice\x1ftb=X,eid=Y",
                 "BindingsNotSorted",
             ),
         ];
@@ -430,19 +337,19 @@ mod tests {
         // Non-canonical forms that parse to v1 are rejected
         for (payload, err_type) in [
             (
-                &b"ACTIONPROOF\x1f01\x1fAdd\x1fRecoveryContacts\x1fAlice\x1f\x1ftb=X"[..],
+                &b"ACTIONPROOF\x1f01\x1fAddRecoveryContact\x1fAlice\x1ftb=X"[..],
                 "NonCanonicalVersion",
             ),
             (
-                b"ACTIONPROOF\x1f+1\x1fAdd\x1fRecoveryContacts\x1fAlice\x1f\x1ftb=X",
+                b"ACTIONPROOF\x1f+1\x1fAddRecoveryContact\x1fAlice\x1ftb=X",
                 "NonCanonicalVersion",
             ),
             (
-                b"ACTIONPROOF\x1f 1\x1fAdd\x1fRecoveryContacts\x1fAlice\x1f\x1ftb=X",
+                b"ACTIONPROOF\x1f 1\x1fAddRecoveryContact\x1fAlice\x1ftb=X",
                 "InvalidVersionFormat",
             ),
             (
-                b"ACTIONPROOF\x1fone\x1fAdd\x1fRecoveryContacts\x1fAlice\x1f\x1ftb=X",
+                b"ACTIONPROOF\x1fone\x1fAddRecoveryContact\x1fAlice\x1ftb=X",
                 "InvalidVersionFormat",
             ),
         ] {
@@ -455,18 +362,11 @@ mod tests {
     }
 
     #[test]
-    fn all_action_field_combinations_roundtrip() {
+    fn all_action_variants_roundtrip() {
         for action in Action::all() {
-            for field in Field::all() {
-                if !field.is_valid_action(*action) {
-                    continue;
-                }
-                let payload =
-                    build_payload(*action, *field, Some("test"), None, &[("tb", "TEST")]).unwrap();
-                let parsed = parse_payload(&payload)
-                    .unwrap_or_else(|e| panic!("{action:?}/{field:?}: {e:?}"));
-                assert_eq!((parsed.action, parsed.field), (*action, *field));
-            }
+            let payload = build_payload(*action, Some("test"), &[("tb", "TEST")]).unwrap();
+            let parsed = parse_payload(&payload).unwrap_or_else(|e| panic!("{action:?}: {e:?}"));
+            assert_eq!(parsed.action, *action);
         }
     }
 }

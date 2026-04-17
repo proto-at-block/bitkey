@@ -7,7 +7,15 @@ import unittest
 from pathlib import Path
 
 import yaml
-from bitkey.partition_info import PartitionInfo, get_application_partition_size, get_application_partition_size_from_config
+from bitkey.partition_info import (
+    PartitionInfo,
+    get_application_partition_size,
+    get_application_partition_size_from_config,
+    get_bootloader_metadata_offset_and_size,
+    get_bootloader_metadata_offset_and_size_from_config,
+    get_bootloader_partition_size,
+    get_bootloader_partition_size_from_config,
+)
 
 
 class TestPartitionInfo(unittest.TestCase):
@@ -115,7 +123,16 @@ class TestPartitionInfo(unittest.TestCase):
 
             config_file = partition_dir / "partitions.yml"
             with open(config_file, "w") as f:
-                yaml.dump({"flash": {"origin": 0x08000000, "size": "1536K", "partitions": "not-a-list"}}, f)
+                yaml.dump(
+                    {
+                        "flash": {
+                            "origin": 0x08000000,
+                            "size": "1536K",
+                            "partitions": "not-a-list",
+                        }
+                    },
+                    f,
+                )
 
             with self.assertRaises(ValueError) as cm:
                 PartitionInfo("test", config_dir=config_dir)
@@ -135,7 +152,10 @@ class TestPartitionInfo(unittest.TestCase):
                     {
                         "flash": {
                             "origin": 0x08000000,
-                            "partitions": [{"name": "bootloader"}, {"name": "filesystem", "size": "192K"}],  # Missing size!
+                            "partitions": [
+                                {"name": "bootloader"},
+                                {"name": "filesystem", "size": "192K"},
+                            ],  # Missing size!
                         }
                     },
                     f,
@@ -342,6 +362,117 @@ class TestGetApplicationPartitionSize(unittest.TestCase):
             with self.assertRaises(ValueError) as ctx:
                 get_application_partition_size_from_config(config_path)
             self.assertIn("No application partition found", str(ctx.exception))
+        finally:
+            config_path.unlink()
+
+
+class TestGetBootloaderPartitionSize(unittest.TestCase):
+    """Test cases for get_bootloader_partition_size functions."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.config_dir = Path(__file__).parent.parent.parent / "config" / "partitions"
+
+    def test_get_size_from_config_w1a(self):
+        config_path = self.config_dir / "w1a" / "partitions.yml"
+        self.assertEqual(
+            get_bootloader_partition_size_from_config(config_path), 48 * 1024
+        )
+
+    def test_get_size_from_config_w3a_core(self):
+        config_path = self.config_dir / "w3a-core" / "partitions.yml"
+        self.assertEqual(
+            get_bootloader_partition_size_from_config(config_path), 48 * 1024
+        )
+
+    def test_get_size_from_config_w3a_uxc(self):
+        config_path = self.config_dir / "w3a-uxc" / "partitions.yml"
+        self.assertEqual(
+            get_bootloader_partition_size_from_config(config_path), 128 * 1024
+        )
+
+    def test_get_size_by_product_name(self):
+        self.assertEqual(
+            get_bootloader_partition_size("w1a", self.config_dir), 48 * 1024
+        )
+        self.assertEqual(
+            get_bootloader_partition_size("w3a-core", self.config_dir), 48 * 1024
+        )
+        self.assertEqual(
+            get_bootloader_partition_size("w3a-uxc", self.config_dir), 128 * 1024
+        )
+
+    def test_missing_bootloader_partition(self):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+            yaml.dump(
+                {
+                    "flash": {
+                        "partitions": [
+                            {"name": "application_a", "size": "632K"},
+                            {"name": "filesystem", "size": "192K"},
+                        ]
+                    }
+                },
+                f,
+            )
+            config_path = Path(f.name)
+
+        try:
+            with self.assertRaises(ValueError) as ctx:
+                get_bootloader_partition_size_from_config(config_path)
+            self.assertIn("No bootloader partition found", str(ctx.exception))
+        finally:
+            config_path.unlink()
+
+
+class TestGetBootloaderMetadataOffsetAndSize(unittest.TestCase):
+    """Test cases for bootloader metadata offset/size helpers."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.config_dir = Path(__file__).parent.parent.parent / "config" / "partitions"
+
+    def test_w3a_core_metadata_offset_and_size(self):
+        # bootloader 48K, metadata 1K, signature 64
+        offset, size = get_bootloader_metadata_offset_and_size(
+            "w3a-core", self.config_dir
+        )
+        self.assertEqual(offset, (48 * 1024) - 1024 - 64)
+        self.assertEqual(size, 1024)
+
+    def test_w3a_uxc_metadata_offset_and_size(self):
+        # bootloader 128K, metadata 1K, signature 64
+        offset, size = get_bootloader_metadata_offset_and_size(
+            "w3a-uxc", self.config_dir
+        )
+        self.assertEqual(offset, (128 * 1024) - 1024 - 64)
+        self.assertEqual(size, 1024)
+
+    def test_missing_metadata_section(self):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+            yaml.dump(
+                {
+                    "flash": {
+                        "partitions": [
+                            {
+                                "name": "bootloader",
+                                "size": "48K",
+                                "sections": [
+                                    {"name": "program"},
+                                    {"name": "codesign_signature", "size": 64},
+                                ],
+                            }
+                        ]
+                    }
+                },
+                f,
+            )
+            config_path = Path(f.name)
+
+        try:
+            with self.assertRaises(ValueError) as ctx:
+                get_bootloader_metadata_offset_and_size_from_config(config_path)
+            self.assertIn("No bootloader metadata section found", str(ctx.exception))
         finally:
             config_path.unlink()
 

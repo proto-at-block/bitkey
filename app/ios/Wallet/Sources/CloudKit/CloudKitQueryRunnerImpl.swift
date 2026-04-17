@@ -2,6 +2,10 @@ import CloudKit
 import Foundation
 import Shared
 
+private func cloudKitQueryLog(_ message: String) {
+    NSLog("[CloudKitQueryRunner] %@", message)
+}
+
 /// Swift shim that uses `queryResultBlock`, which is not exposed to Kotlin/Native.
 ///
 /// This bridges the Swift-only API into KMP and keeps error transport in a
@@ -22,6 +26,10 @@ public final class CloudKitQueryRunnerImpl: Shared.CloudKitQueryRunner {
         desiredKeys: [String]?
     ) async throws -> Shared.CloudKitQueryPageResult {
         let state = QueryState()
+        cloudKitQueryLog(
+            "queryPage start recordType=\(recordType) hasCursor=\(cursor != nil) " +
+                "desiredKeysCount=\(desiredKeys?.count ?? -1)"
+        )
 
         return await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
@@ -79,7 +87,9 @@ private actor QueryState {
             records.append(record)
         case let .failure(error):
             if firstRecordError == nil {
-                firstRecordError = error as NSError
+                let nsError = error as NSError
+                firstRecordError = nsError
+                cloudKitQueryLog("recordMatchedBlock failed (\(nsError.summary))")
             }
         }
     }
@@ -91,13 +101,19 @@ private actor QueryState {
         switch result {
         case let .success(queryCursor):
             if let recordError = firstRecordError {
+                cloudKitQueryLog("queryPage completed with record error (\(recordError.summary))")
                 cont.resume(returning: Shared.CloudKitQueryPageResult.Err(error: recordError))
             } else {
+                cloudKitQueryLog(
+                    "queryPage success records=\(records.count) hasMore=\(queryCursor != nil)"
+                )
                 let page = Shared.CloudKitQueryPage(records: records, cursor: queryCursor)
                 cont.resume(returning: Shared.CloudKitQueryPageResult.Ok(value: page))
             }
         case let .failure(error):
-            cont.resume(returning: Shared.CloudKitQueryPageResult.Err(error: error as NSError))
+            let nsError = error as NSError
+            cloudKitQueryLog("queryResultBlock failed (\(nsError.summary))")
+            cont.resume(returning: Shared.CloudKitQueryPageResult.Err(error: nsError))
         }
     }
 
@@ -105,11 +121,18 @@ private actor QueryState {
         operation?.cancel()
         guard !didResume, let cont = continuation else { return }
         didResume = true
+        cloudKitQueryLog("queryPage cancelled")
         let cancelError = NSError(
             domain: CKErrorDomain,
             code: CKError.Code.operationCancelled.rawValue,
             userInfo: nil
         )
         cont.resume(returning: Shared.CloudKitQueryPageResult.Err(error: cancelError))
+    }
+}
+
+private extension NSError {
+    var summary: String {
+        "domain=\(domain) code=\(code) message=\(localizedDescription)"
     }
 }

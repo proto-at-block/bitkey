@@ -10,6 +10,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.LabelModel
+import build.wallet.statemachine.core.form.resolveLegacyHeaderWarningIconModelForDesignSystemV2
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.CENTER
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.LEADING
@@ -21,6 +22,7 @@ import build.wallet.ui.components.label.LabelTreatment.*
 import build.wallet.ui.components.label.buildAnnotatedString
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.icon.IconModel
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.tokens.LabelType
@@ -33,9 +35,15 @@ fun Header(
   sublineLabelTreatment: LabelTreatment = Secondary,
   theme: Theme = LocalTheme.current,
 ) {
+  val resolvedIconModel =
+    resolveLegacyHeaderWarningIconModelForDesignSystemV2(
+      iconModel = model.iconModel,
+      designSystemUpdatesEnabled = LocalDesignSystemUpdatesEnabled.current
+    )
+
   Header(
     modifier = modifier,
-    iconModel = model.iconModel,
+    iconModel = resolvedIconModel,
     customContent = model.customContent,
     headline = model.headline,
     subline = model.sublineModel?.buildAnnotatedString(),
@@ -88,7 +96,8 @@ fun Header(
       when (theme) {
         Theme.DARK -> Unspecified
         else -> sublineLabelTreatment
-      }
+      },
+    bottomContent = model.bottomContent
   )
 }
 
@@ -112,6 +121,7 @@ fun Header(
   headlineTopSpacing: Dp = 16.dp,
   sublineTopSpacing: Dp = 8.dp,
   fillsMaxWidth: Boolean = true,
+  bottomContent: FormHeaderModel.CustomContent? = null,
 ) {
   Header(
     modifier = modifier.thenIf(fillsMaxWidth) { Modifier.fillMaxWidth() },
@@ -135,7 +145,8 @@ fun Header(
     sublineLabelTreatment = sublineLabelTreatment,
     headlineTopSpacing = headlineTopSpacing,
     sublineTopSpacing = sublineTopSpacing,
-    fillsMaxWidth = fillsMaxWidth
+    fillsMaxWidth = fillsMaxWidth,
+    bottomContent = bottomContent
   )
 }
 
@@ -158,6 +169,7 @@ fun Header(
   headlineTopSpacing: Dp = 16.dp,
   sublineTopSpacing: Dp = 8.dp,
   fillsMaxWidth: Boolean = true,
+  bottomContent: FormHeaderModel.CustomContent? = null,
 ) {
   Header(
     modifier = modifier,
@@ -193,7 +205,12 @@ fun Header(
         )
       }
     },
-    fillsMaxWidth = fillsMaxWidth
+    fillsMaxWidth = fillsMaxWidth,
+    bottomContent = {
+      bottomContent?.let {
+        CustomHeaderContent(model = it)
+      }
+    }
   )
 }
 
@@ -209,6 +226,7 @@ fun Header(
   headlineContent: @Composable () -> Unit,
   sublineContent: @Composable () -> Unit,
   fillsMaxWidth: Boolean = true,
+  bottomContent: @Composable () -> Unit = {},
 ) {
   Column(
     modifier = modifier.thenIf(fillsMaxWidth) { Modifier.fillMaxWidth() },
@@ -218,5 +236,6 @@ fun Header(
     customContent()
     headlineContent()
     sublineContent()
+    bottomContent()
   }
 }

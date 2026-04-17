@@ -254,11 +254,3 @@ void screen_mfg_touch_test_destroy(void) {
   lv_obj_del(screen);
   screen = NULL;
 }
-
-uint16_t screen_mfg_touch_test_get_boxes_remaining(void) {
-  if (touch_boxes_total == 0) {
-    return 0;
-  }
-
-  return touch_boxes_total - touch_boxes_cleared_count;
-}

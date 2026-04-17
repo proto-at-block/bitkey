@@ -10,13 +10,12 @@ class ActivationInstructionsV2ScreenSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
   test("activation instructions v2 screen") {
-    paparazzi.snapshot {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
       PairNewHardwareScreen(
         model =
           ActivationInstructionsV2BodyModel(
             onBack = {},
             onContinue = {},
-            onNoScreenClick = {},
             isNavigatingBack = false,
             eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
           )
@@ -25,13 +24,12 @@ class ActivationInstructionsV2ScreenSnapshots : FunSpec({
   }
 
   test("activation instructions v2 screen - loading") {
-    paparazzi.snapshot {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
       PairNewHardwareScreen(
         model =
           ActivationInstructionsV2BodyModel(
             onBack = {},
             onContinue = null, // Loading state
-            onNoScreenClick = {},
             isNavigatingBack = false,
             eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
           )

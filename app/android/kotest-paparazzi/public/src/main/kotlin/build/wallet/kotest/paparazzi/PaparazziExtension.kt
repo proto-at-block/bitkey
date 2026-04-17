@@ -39,6 +39,7 @@ class PaparazziExtension(
   fun snapshot(
     onlyTheme: Theme? = null,
     deviceConfig: DeviceConfig? = null,
+    designSystemUpdatesEnabled: Boolean = false,
     content: @Composable () -> Unit,
   ) {
     deviceConfig?.let { paparazzi.unsafeUpdateConfig(it) }
@@ -50,7 +51,10 @@ class PaparazziExtension(
         theme.name
       }
       paparazzi.snapshot(name = name) {
-        PreviewWalletTheme(theme = theme) {
+        PreviewWalletTheme(
+          theme = theme,
+          designSystemUpdatesEnabled = designSystemUpdatesEnabled
+        ) {
           content()
         }
       }
@@ -64,6 +68,7 @@ class PaparazziExtension(
     length: Long = 1000,
     onlyTheme: Theme? = null,
     deviceConfig: DeviceConfig? = null,
+    designSystemUpdatesEnabled: Boolean = false,
     content: @Composable () -> Unit,
   ) {
     deviceConfig?.let { paparazzi.unsafeUpdateConfig(it) }
@@ -72,7 +77,10 @@ class PaparazziExtension(
     themes.forEach { theme ->
       val hostView = ComposeView(paparazzi.context).apply {
         setContent {
-          PreviewWalletTheme(theme = theme) {
+          PreviewWalletTheme(
+            theme = theme,
+            designSystemUpdatesEnabled = designSystemUpdatesEnabled
+          ) {
             content()
           }
         }

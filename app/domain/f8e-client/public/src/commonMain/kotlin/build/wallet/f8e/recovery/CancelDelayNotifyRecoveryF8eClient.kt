@@ -4,7 +4,7 @@ import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import com.github.michaelbull.result.Result
 
 /**
@@ -17,6 +17,6 @@ interface CancelDelayNotifyRecoveryF8eClient {
   suspend fun cancel(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
-    hwFactorProofOfPossession: HwFactorProofOfPossession?,
+    proof: PrivilegedActionProof?,
   ): Result<Unit, F8eError<CancelDelayNotifyRecoveryErrorCode>>
 }

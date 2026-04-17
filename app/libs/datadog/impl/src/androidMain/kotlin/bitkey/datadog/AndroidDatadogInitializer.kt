@@ -47,6 +47,9 @@ class AndroidDatadogInitializer(
       RumConfiguration.Builder(applicationId = DATADOG_RUM_APP_ID)
         .trackUserInteractions()
         .trackLongTasks(longTaskThresholdMs = 200)
+        // Android requires explicit opt-in for non-fatal ANR reporting.
+        // iOS parity lives in AppDelegate via appHangThreshold + trackWatchdogTerminations.
+        .trackNonFatalAnrs(true)
         .trackBackgroundEvents(enabled = true)
         .setTelemetrySampleRate(sampleRate = 100f)
         .setSessionSampleRate(sampleRate = 100f)

@@ -1,5 +1,6 @@
 package build.wallet.f8e.recovery
 
+import bitkey.account.HardwareType
 import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.code.InitiateAccountDelayNotifyErrorCode
 import build.wallet.bitkey.app.AppGlobalAuthKey
@@ -9,7 +10,7 @@ import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.recovery.InitiateAccountDelayNotifyF8eClient.SuccessfullyInitiated
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -22,9 +23,10 @@ class InitiateAccountDelayNotifyF8eClientFake : InitiateAccountDelayNotifyF8eCli
     lostFactor: PhysicalFactor,
     appGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     appRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
-    hwFactorProofOfPossession: HwFactorProofOfPossession?,
+    proof: PrivilegedActionProof?,
     delayPeriod: Duration?,
     hardwareAuthKey: HwAuthPublicKey,
+    hardwareType: HardwareType,
   ): Result<SuccessfullyInitiated, F8eError<InitiateAccountDelayNotifyErrorCode>> {
     return Ok(
       SuccessfullyInitiated(LostHardwareServerRecoveryMock)

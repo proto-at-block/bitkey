@@ -2,7 +2,6 @@ package build.wallet.statemachine.recovery.verification
 
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor
-import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.recovery.Recovery
 import build.wallet.statemachine.core.AppSegment
 import build.wallet.statemachine.core.ScreenModel
@@ -26,7 +25,6 @@ data class RecoveryNotificationVerificationUiProps(
   // TODO: BKR-1117: make non-nullable
   val segment: AppSegment? = null,
   val actionDescription: String? = null,
-  val hwFactorProofOfPossession: HwFactorProofOfPossession?,
   val onRollback: () -> Unit,
   val onComplete: () -> Unit,
 )

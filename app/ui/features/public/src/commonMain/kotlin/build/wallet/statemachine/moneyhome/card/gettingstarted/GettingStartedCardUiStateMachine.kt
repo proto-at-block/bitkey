@@ -17,6 +17,8 @@ interface GettingStartedCardUiStateMachine : StateMachine<GettingStartedCardUiPr
 data class GettingStartedCardUiProps(
   val onAddBitcoin: () -> Unit,
   val onEnableSpendingLimit: () -> Unit,
+  val onUpdateFirmware: () -> Unit,
+  val showUpdateFirmwareTile: Boolean,
   val onShowAlert: (ButtonAlertModel) -> Unit,
   val onDismissAlert: () -> Unit,
 )

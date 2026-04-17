@@ -88,7 +88,7 @@ sl_status_t se_aes_gcm(sl_se_command_context_t* cmd_ctx, const sl_se_key_descrip
     SE_DataTransfer_t mac_out = SE_DATATRANSFER_DEFAULT(tag, SE_AES_GCM_TAG_LENGTH);
     SE_addDataOutput(se_cmd, &mac_out);
   } else {
-    return false;
+    return SL_STATUS_INVALID_PARAMETER;
   }
 
   status = sli_se_execute_and_wait(cmd_ctx);

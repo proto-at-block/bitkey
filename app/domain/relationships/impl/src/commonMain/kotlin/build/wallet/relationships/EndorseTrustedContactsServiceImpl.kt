@@ -56,6 +56,7 @@ class EndorseTrustedContactsServiceImpl(
     oldHwAuthKey: HwAuthPublicKey,
     newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     newAppGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+    newHwAuthKey: HwAuthPublicKey,
   ): Result<Unit, Error> =
     coroutineBinding {
       val endorsements = contacts.map { contact ->
@@ -64,7 +65,8 @@ class EndorseTrustedContactsServiceImpl(
           oldAppGlobalAuthKey = oldAppGlobalAuthKey,
           oldHwAuthKey = oldHwAuthKey,
           newAppGlobalAuthKey = newAppGlobalAuthKey,
-          newAppGlobalAuthKeyHwSignature = newAppGlobalAuthKeyHwSignature
+          newAppGlobalAuthKeyHwSignature = newAppGlobalAuthKeyHwSignature,
+          newHwAuthKey = newHwAuthKey
         ).logFailure {
           "Failed to verify contact ${contact.relationshipId} key certificate for certificate regeneration."
         }.onFailure {

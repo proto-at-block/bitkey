@@ -30,7 +30,6 @@ data class TransferInitiatedBodyModel(
   val transactionDetails: TransactionDetailsModel,
   val primaryButtonText: String = "Done",
   val eventTrackerScreenId: EventTrackerScreenId = SendEventTrackerScreenId.SEND_INITIATED_SUCCESS,
-  val shouldTrack: Boolean = false,
   val onDone: () -> Unit,
 ) : FormBodyModel(
     onBack = onBack,
@@ -49,7 +48,7 @@ data class TransferInitiatedBodyModel(
       size = Footer
     ),
     id = eventTrackerScreenId,
-    eventTrackerShouldTrack = shouldTrack
+    eventTrackerShouldTrack = false
   )
 
 private fun TransactionDetailsModel.toFormContent(): ImmutableList<FormMainContentModel> {

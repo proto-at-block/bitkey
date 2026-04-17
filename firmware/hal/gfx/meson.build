@@ -9,6 +9,7 @@ deps = [
   rtos_dep,
   exti_dep,
   perf_dep,
+  bitlog_dep,
 ]
 
 gfx_lib = library('gfx',

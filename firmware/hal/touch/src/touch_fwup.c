@@ -75,8 +75,8 @@ typedef enum {
   FWUP_REQUEST_FORCE,
 } fwup_request_t;
 
-static bool priv_fw_valid = false;
-static volatile fwup_request_t priv_pending_request = FWUP_REQUEST_NONE;
+static bool priv_fw_valid SHARED_TASK_BSS = false;
+static volatile fwup_request_t priv_pending_request SHARED_TASK_DATA = FWUP_REQUEST_NONE;
 
 // Embedded firmware image
 static const uint8_t priv_fw_image[] = {
@@ -90,7 +90,8 @@ static bool _touch_fwup_erase_flash(uint32_t fw_size);
 static bool _touch_fwup_write_flash(uint32_t addr, const uint8_t* data, uint32_t len);
 static int _touch_fwup_calc_ecc_host(const uint8_t* data, uint32_t len);
 static int _touch_fwup_calc_ecc_device(uint32_t addr, uint32_t len);
-static bool _touch_fwup_execute(const uint8_t* fw_data, uint32_t fw_size);
+static bool _touch_fwup_execute(const uint8_t* fw_data, uint32_t fw_size, uint16_t* ecc_host_out,
+                                uint16_t* ecc_device_out);
 static bool _touch_fwup_check_fw_valid(void);
 static bool _touch_fwup_version_differs(const uint8_t* fw_data, uint32_t fw_size);
 
@@ -135,7 +136,7 @@ static bool _touch_fwup_verify_boot_id(void) {
 
     if (touch_i2c_read(FT3169_CMD_READ_ID, buf, sizeof(buf))) {
       if (buf[0] == FT3169_CHIP_IDH && buf[1] == FT3169_CHIP_IDL) {
-        LOGI("Boot mode verified, chip ID: 0x%02x%02x", buf[0], buf[1]);
+        LOGI("Boot ID: %02x%02x", buf[0], buf[1]);
         return true;
       }
     }
@@ -145,7 +146,7 @@ static bool _touch_fwup_verify_boot_id(void) {
     rtos_thread_sleep(FWUP_DELAY_READ_ID);
   }
 
-  LOGE("Failed to verify boot mode chip ID");
+  LOGE("Boot ID fail");
   return false;
 }
 
@@ -156,13 +157,13 @@ static bool _touch_fwup_enter_boot_mode(void) {
   if (priv_fw_valid) {
     // Software reset to boot mode
     if (!touch_write_reg(FWUP_REG_UPGRADE, FWUP_BYTE_AA)) {
-      LOGE("Failed to write 0xAA to upgrade register");
+      LOGE("Reg AA fail");
       return false;
     }
     rtos_thread_sleep(FWUP_DELAY_AA_WRITE);
 
     if (!touch_write_reg(FWUP_REG_UPGRADE, FWUP_BYTE_55)) {
-      LOGE("Failed to write 0x55 to upgrade register");
+      LOGE("Reg 55 fail");
       return false;
     }
     rtos_thread_sleep(FWUP_DELAY_BOOT_MODE);
@@ -175,8 +176,6 @@ static bool _touch_fwup_enter_boot_mode(void) {
  * @brief Erase flash area.
  */
 static bool _touch_fwup_erase_flash(uint32_t fw_size) {
-  LOGI("Erasing flash");
-
   if (!touch_i2c_write_cmd(FWUP_CMD_ERASE_APP)) {
     LOGE("Erase command failed");
     return false;
@@ -188,11 +187,10 @@ static bool _touch_fwup_erase_flash(uint32_t fw_size) {
 
   if (!_touch_fwup_check_flash_status(FWUP_STATUS_ERASE_OK, FWUP_RETRIES_ERASE,
                                       FWUP_DELAY_ERASE_POLL)) {
-    LOGE("Erase status check failed");
+    LOGE("Erase sts fail");
     return false;
   }
 
-  LOGI("Flash erased");
   return true;
 }
 
@@ -201,14 +199,12 @@ static bool _touch_fwup_erase_flash(uint32_t fw_size) {
  */
 static bool _touch_fwup_write_flash(uint32_t start_addr, const uint8_t* data, uint32_t len) {
   if (data == NULL || len == 0) {
-    LOGE("Invalid write parameters");
+    LOGE("Wr: bad params");
     return false;
   }
 
   uint32_t num_packets = (len + FWUP_FLASH_PACKET_SIZE - 1) / FWUP_FLASH_PACKET_SIZE;
   uint8_t packet[FWUP_FLASH_PACKET_SIZE + 6] = {0};
-
-  LOGI("Writing %u bytes in %u packets", (unsigned)len, (unsigned)num_packets);
 
   for (uint32_t i = 0; i < num_packets; i++) {
     uint32_t offset = i * FWUP_FLASH_PACKET_SIZE;
@@ -283,7 +279,7 @@ static int _touch_fwup_calc_ecc_device(uint32_t addr, uint32_t len) {
 
   // Initialize ECC calculation
   if (!touch_i2c_write_cmd(FWUP_CMD_ECC_INIT)) {
-    LOGE("ECC init failed");
+    LOGE("ECC init fail");
     return -1;
   }
 
@@ -297,7 +293,7 @@ static int _touch_fwup_calc_ecc_device(uint32_t addr, uint32_t len) {
   cmd[6] = len & 0xFF;
 
   if (!touch_i2c_write(cmd[0], &cmd[1], FWUP_ECC_CMD_LEN)) {
-    LOGE("ECC calc command failed");
+    LOGE("ECC calc fail");
     return -1;
   }
 
@@ -305,13 +301,13 @@ static int _touch_fwup_calc_ecc_device(uint32_t addr, uint32_t len) {
   rtos_thread_sleep(len / 256);
 
   if (!_touch_fwup_check_flash_status(FWUP_STATUS_ECC_OK, FWUP_RETRIES_ECC, FWUP_DELAY_ECC_POLL)) {
-    LOGE("ECC status check failed");
+    LOGE("ECC sts fail");
     return -1;
   }
 
   // Read ECC result
   if (!touch_i2c_read(FWUP_CMD_ECC_READ, result, sizeof(result))) {
-    LOGE("ECC read failed");
+    LOGE("ECC rd fail");
     return -1;
   }
 
@@ -320,18 +316,29 @@ static int _touch_fwup_calc_ecc_device(uint32_t addr, uint32_t len) {
 
 /**
  * @brief Execute the firmware upgrade sequence.
+ *
+ * @param[in]  fw_data        Pointer to firmware data.
+ * @param[in]  fw_size        Size of firmware data.
+ * @param[out] ecc_host_out   Optional: store host ECC (NULL to ignore).
+ * @param[out] ecc_device_out Optional: store device ECC (NULL to ignore).
  */
-static bool _touch_fwup_execute(const uint8_t* fw_data, uint32_t fw_size) {
+static bool _touch_fwup_execute(const uint8_t* fw_data, uint32_t fw_size, uint16_t* ecc_host_out,
+                                uint16_t* ecc_device_out) {
   uint8_t cmd[5] = {0};
 
+  if (ecc_host_out)
+    *ecc_host_out = 0;
+  if (ecc_device_out)
+    *ecc_device_out = 0;
+
   if (fw_data == NULL || fw_size < FWUP_FW_MIN_SIZE || fw_size > FWUP_FW_MAX_SIZE) {
-    LOGE("Invalid firmware: size=%u", (unsigned)fw_size);
+    LOGE("Bad FW sz: %u", (unsigned)fw_size);
     return false;
   }
 
   // Enter boot mode
   if (!_touch_fwup_enter_boot_mode()) {
-    LOGE("Failed to enter boot mode");
+    LOGE("Boot mode fail");
     goto err;
   }
 
@@ -342,7 +349,7 @@ static bool _touch_fwup_execute(const uint8_t* fw_data, uint32_t fw_size) {
   cmd[3] = 0x5A;
   cmd[4] = 0xA5;
   if (!touch_i2c_write(cmd[0], &cmd[1], 4)) {
-    LOGE("Unlock sequence failed");
+    LOGE("Unlock fail");
     goto err;
   }
 
@@ -352,25 +359,23 @@ static bool _touch_fwup_execute(const uint8_t* fw_data, uint32_t fw_size) {
   cmd[2] = (fw_size >> 8) & 0xFF;
   cmd[3] = fw_size & 0xFF;
   if (!touch_i2c_write(cmd[0], &cmd[1], 3)) {
-    LOGE("Failed to send firmware size");
+    LOGE("FW size fail");
     goto err;
   }
 
   // Set flash mode
   if (!touch_write_reg(FWUP_CMD_FLASH_MODE, FWUP_FLASH_MODE_UPGRADE)) {
-    LOGE("Failed to set flash mode");
+    LOGE("Flash mode fail");
     goto err;
   }
 
   // Erase flash
   if (!_touch_fwup_erase_flash(fw_size)) {
-    LOGE("Flash erase failed");
     goto err;
   }
 
   // Write firmware
   if (!_touch_fwup_write_flash(0, fw_data, fw_size)) {
-    LOGE("Flash write failed");
     goto err;
   }
 
@@ -378,14 +383,19 @@ static bool _touch_fwup_execute(const uint8_t* fw_data, uint32_t fw_size) {
   int ecc_host = _touch_fwup_calc_ecc_host(fw_data, fw_size);
   int ecc_device = _touch_fwup_calc_ecc_device(0, fw_size);
 
-  LOGI("ECC host=0x%04x device=0x%04x", ecc_host, ecc_device);
+  if (ecc_host_out)
+    *ecc_host_out = (uint16_t)ecc_host;
+  if (ecc_device_out)
+    *ecc_device_out = (uint16_t)ecc_device;
+
+  LOGI("ECC h:%04x d:%04x", ecc_host, ecc_device);
   if (ecc_host != ecc_device) {
     LOGE("ECC mismatch");
     goto err;
   }
 
   // Reset to normal operation
-  LOGI("Upgrade complete, resetting");
+  LOGI("Fwup done, rst");
   touch_i2c_write_cmd(FWUP_CMD_RESET);
   rtos_thread_sleep(FWUP_DELAY_AFTER_RESET);
 
@@ -422,7 +432,7 @@ static bool _touch_fwup_version_differs(const uint8_t* fw_data, uint32_t fw_size
   uint8_t image_ver = 0;
 
   if (!touch_read_reg(FT3169_REG_FW_VER, &device_ver)) {
-    LOGE("Failed to read device firmware version, assuming upgrade needed");
+    LOGE("FW ver rd fail");
     return true;
   }
 
@@ -430,7 +440,7 @@ static bool _touch_fwup_version_differs(const uint8_t* fw_data, uint32_t fw_size
     image_ver = fw_data[FWUP_FW_VERSION_OFFSET];
   }
 
-  LOGI("Firmware version: device=0x%02x image=0x%02x", device_ver, image_ver);
+  LOGI("FW ver: dev=0x%02x img=0x%02x", device_ver, image_ver);
   return device_ver != image_ver;
 }
 
@@ -445,21 +455,19 @@ bool touch_fwup_upgrade(void) {
   }
 
   if (!_touch_fwup_version_differs(fw_data, fw_size)) {
-    LOGI("Firmware up to date");
     return true;
   }
 
   for (int attempt = 0; attempt < FWUP_RETRIES_UPGRADE; attempt++) {
-    LOGI("Upgrade attempt %d", attempt + 1);
-    if (_touch_fwup_execute(fw_data, fw_size)) {
+    if (_touch_fwup_execute(fw_data, fw_size, NULL, NULL)) {
       uint8_t ver = 0;
       touch_read_reg(FT3169_REG_FW_VER, &ver);
-      LOGI("Upgrade successful, version=0x%02x", ver);
+      LOGI("Fwup ok v:%02x", ver);
       return true;
     }
   }
 
-  LOGE("Upgrade failed after %d attempts", FWUP_RETRIES_UPGRADE);
+  LOGE("Fwup fail");
   return false;
 }
 
@@ -467,7 +475,38 @@ bool touch_fwup_force_upgrade(void) {
   const uint8_t* fw_data = priv_fw_image;
   uint32_t fw_size = sizeof(priv_fw_image);
 
-  LOGI("Touch firmware force upgrade");
+  if (fw_size < FWUP_FW_MIN_SIZE) {
+    return false;
+  }
+
+  priv_fw_valid = _touch_fwup_check_fw_valid();
+
+  for (int attempt = 0; attempt < FWUP_RETRIES_UPGRADE; attempt++) {
+    if (_touch_fwup_execute(fw_data, fw_size, NULL, NULL)) {
+      uint8_t ver = 0;
+      touch_read_reg(FT3169_REG_FW_VER, &ver);
+      LOGI("Fwup ok v:%02x", ver);
+      return true;
+    }
+  }
+
+  LOGE("Fwup fail");
+  return false;
+}
+
+#ifdef MFGTEST
+bool touch_fwup_force_upgrade_with_ecc(touch_fwup_result_t* result) {
+  const uint8_t* fw_data = priv_fw_image;
+  uint32_t fw_size = sizeof(priv_fw_image);
+
+  if (result) {
+    result->success = false;
+    result->ecc_host = 0;
+    result->ecc_device = 0;
+    result->fw_version = 0;
+  }
+
+  LOGI("Touch firmware force upgrade (with ECC reporting)");
 
   if (fw_size < FWUP_FW_MIN_SIZE) {
     return false;
@@ -477,17 +516,36 @@ bool touch_fwup_force_upgrade(void) {
 
   for (int attempt = 0; attempt < FWUP_RETRIES_UPGRADE; attempt++) {
     LOGI("Force upgrade attempt %d", attempt + 1);
-    if (_touch_fwup_execute(fw_data, fw_size)) {
+
+    uint16_t ecc_host = 0;
+    uint16_t ecc_device = 0;
+
+    if (_touch_fwup_execute(fw_data, fw_size, &ecc_host, &ecc_device)) {
+      rtos_thread_sleep(200);
+
       uint8_t ver = 0;
       touch_read_reg(FT3169_REG_FW_VER, &ver);
-      LOGI("Force upgrade successful, version=0x%02x", ver);
+      LOGI("Force upgrade OK, ver=0x%02x, ECC h:0x%04x d:0x%04x", ver, ecc_host, ecc_device);
+
+      if (result) {
+        result->success = true;
+        result->ecc_host = ecc_host;
+        result->ecc_device = ecc_device;
+        result->fw_version = ver;
+      }
       return true;
+    }
+
+    if (result) {
+      result->ecc_host = ecc_host;
+      result->ecc_device = ecc_device;
     }
   }
 
   LOGE("Force upgrade failed after %d attempts", FWUP_RETRIES_UPGRADE);
   return false;
 }
+#endif /* MFGTEST */
 
 uint8_t touch_fwup_get_version(void) {
   uint8_t ver = 0;
@@ -504,7 +562,7 @@ uint8_t touch_fwup_get_embedded_version(void) {
 
 void touch_fwup_request_upgrade(bool force) {
   priv_pending_request = force ? FWUP_REQUEST_FORCE : FWUP_REQUEST_NORMAL;
-  LOGI("Upgrade requested (force=%d)", force);
+  // upgrade requested
 }
 
 bool touch_fwup_process_pending(void) {
@@ -516,7 +574,6 @@ bool touch_fwup_process_pending(void) {
   priv_pending_request = FWUP_REQUEST_NONE;
   touch_set_fwup_in_progress(true);
 
-  LOGI("Processing pending upgrade request");
   bool result = (request == FWUP_REQUEST_FORCE) ? touch_fwup_force_upgrade() : touch_fwup_upgrade();
 
   touch_set_fwup_in_progress(false);

@@ -1,0 +1,134 @@
+import build.wallet.bitkey.app.AppGlobalAuthKey;
+import build.wallet.bitkey.app.AppRecoveryAuthKey;
+import build.wallet.bitkey.app.AppSpendingPublicKey;
+import build.wallet.bitkey.f8e.F8eSpendingKeyset;
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature;
+import build.wallet.bitkey.hardware.HwAuthPublicKey;
+import build.wallet.bitkey.hardware.HwSpendingPublicKey;
+import build.wallet.crypto.PublicKey;
+import kotlin.Boolean;
+
+CREATE TABLE w3UpgradeMigrationEntity(
+  rowId INTEGER NOT NULL PRIMARY KEY,
+  newHardwareKey TEXT AS HwSpendingPublicKey,
+  newAppKey TEXT AS AppSpendingPublicKey,
+  newServerKey TEXT AS F8eSpendingKeyset,
+  keysetLocalId TEXT,
+  descriptorBackupCompleted INTEGER AS Boolean NOT NULL DEFAULT 0,
+  cloudBackupCompleted INTEGER AS Boolean NOT NULL DEFAULT 0,
+  serverKeysetActivated INTEGER AS Boolean NOT NULL DEFAULT 0,
+  authKeyRotationCompleted INTEGER AS Boolean NOT NULL DEFAULT 0,
+  sweepCompleted INTEGER AS Boolean NOT NULL DEFAULT 0,
+  oldDeviceSerial TEXT,
+  ddkBackedUp INTEGER AS Boolean NOT NULL DEFAULT 0,
+  oldHardwareFingerprint TEXT,
+  pendingAppGlobalAuthKey TEXT AS PublicKey<AppGlobalAuthKey>,
+  pendingAppRecoveryAuthKey TEXT AS PublicKey<AppRecoveryAuthKey>,
+  pendingAppGlobalAuthKeyHwSignature TEXT AS AppGlobalAuthKeyHwSignature,
+  pendingHwAuthPublicKey TEXT AS HwAuthPublicKey,
+  pendingHwSignedAccountId TEXT,
+  serverAuthRotationCompleted INTEGER AS Boolean NOT NULL DEFAULT 0,
+  preRotationAppGlobalAuthKey TEXT AS PublicKey<AppGlobalAuthKey>,
+  preRotationHwAuthPublicKey TEXT AS HwAuthPublicKey,
+  tcEndorsementsRegenerated INTEGER AS Boolean NOT NULL DEFAULT 0
+);
+
+getState:
+SELECT * FROM w3UpgradeMigrationEntity WHERE rowId = 0;
+
+saveHardwareKey:
+INSERT INTO w3UpgradeMigrationEntity(rowId, newHardwareKey)
+VALUES (0, ?)
+ON CONFLICT(rowId) DO UPDATE SET newHardwareKey = excluded.newHardwareKey;
+
+saveOldDeviceSerial:
+INSERT INTO w3UpgradeMigrationEntity(rowId, oldDeviceSerial)
+VALUES (0, ?)
+ON CONFLICT(rowId) DO UPDATE SET oldDeviceSerial = excluded.oldDeviceSerial;
+
+saveOldHardwareFingerprint:
+INSERT INTO w3UpgradeMigrationEntity(rowId, oldHardwareFingerprint)
+VALUES (0, ?)
+ON CONFLICT(rowId) DO UPDATE SET oldHardwareFingerprint = excluded.oldHardwareFingerprint;
+
+saveAppKey:
+UPDATE w3UpgradeMigrationEntity
+SET newAppKey = ?
+WHERE rowId = 0;
+
+saveServerKey:
+UPDATE w3UpgradeMigrationEntity
+SET newServerKey = ?
+WHERE rowId = 0;
+
+setKeysetLocalId:
+UPDATE w3UpgradeMigrationEntity
+SET keysetLocalId = ?
+WHERE rowId = 0;
+
+setCloudBackupCompleted:
+UPDATE w3UpgradeMigrationEntity
+SET cloudBackupCompleted = 1
+WHERE rowId = 0;
+
+setDescriptorBackupCompleted:
+UPDATE w3UpgradeMigrationEntity
+SET descriptorBackupCompleted = 1
+WHERE rowId = 0;
+
+setServerKeysetActivated:
+UPDATE w3UpgradeMigrationEntity
+SET serverKeysetActivated = 1
+WHERE rowId = 0;
+
+setAuthKeyRotationCompleted:
+UPDATE w3UpgradeMigrationEntity
+SET authKeyRotationCompleted = 1
+WHERE rowId = 0;
+
+setSweepCompleted:
+UPDATE w3UpgradeMigrationEntity
+SET sweepCompleted = 1
+WHERE rowId = 0;
+
+setDdkBackedUp:
+UPDATE w3UpgradeMigrationEntity
+SET ddkBackedUp = 1
+WHERE rowId = 0;
+
+savePendingAuthRotationData:
+UPDATE w3UpgradeMigrationEntity
+SET pendingAppGlobalAuthKey = ?,
+    pendingAppRecoveryAuthKey = ?,
+    pendingAppGlobalAuthKeyHwSignature = ?,
+    pendingHwAuthPublicKey = ?,
+    pendingHwSignedAccountId = ?,
+    preRotationAppGlobalAuthKey = ?,
+    preRotationHwAuthPublicKey = ?
+WHERE rowId = 0;
+
+setServerAuthRotationCompleted:
+UPDATE w3UpgradeMigrationEntity
+SET serverAuthRotationCompleted = 1
+WHERE rowId = 0;
+
+setTcEndorsementsRegenerated:
+UPDATE w3UpgradeMigrationEntity
+SET tcEndorsementsRegenerated = 1
+WHERE rowId = 0;
+
+clearPendingAuthRotationData:
+UPDATE w3UpgradeMigrationEntity
+SET pendingAppGlobalAuthKey = NULL,
+    pendingAppRecoveryAuthKey = NULL,
+    pendingAppGlobalAuthKeyHwSignature = NULL,
+    pendingHwAuthPublicKey = NULL,
+    pendingHwSignedAccountId = NULL,
+    serverAuthRotationCompleted = 0,
+    preRotationAppGlobalAuthKey = NULL,
+    preRotationHwAuthPublicKey = NULL,
+    tcEndorsementsRegenerated = 0
+WHERE rowId = 0;
+
+clear:
+DELETE FROM w3UpgradeMigrationEntity;

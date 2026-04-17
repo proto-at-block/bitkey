@@ -3,7 +3,12 @@ package build.wallet.ui.app.nfc
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -16,17 +21,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
-import androidx.compose.ui.draw.BlurredEdgeTreatment
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -40,7 +44,6 @@ import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment.Primary
 import build.wallet.ui.components.label.labelStyle
 import build.wallet.ui.components.progress.CircularProgressIndicator
-import build.wallet.ui.system.isBlurSupported
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import io.github.alexzhirkevich.compottie.LottieCompositionSpec
@@ -57,6 +60,7 @@ import org.jetbrains.compose.resources.painterResource
  * @param statusState Interface providing status information for animations
  * @param content Composable content to display inside the circle
  */
+@Suppress("CyclomaticComplexMethod")
 @Composable
 fun <T> NfcProgressStatusIndicator(
   statusState: NfcProgressStatusState<T>,
@@ -64,11 +68,12 @@ fun <T> NfcProgressStatusIndicator(
 ) {
   val density = LocalDensity.current.density
 
+  val foreground = WalletTheme.colors.foreground
   val circleBackgroundColor: Color by animateColorAsState(
     targetValue =
       when {
-        statusState.isIdle || statusState.isSuccess -> Color.White
-        else -> Color.White.copy(alpha = 0.1f)
+        statusState.isIdle || statusState.isSuccess -> foreground
+        else -> foreground.copy(alpha = 0.1f)
       },
     label = "circleBackgroundColorAnimation"
   )
@@ -91,16 +96,6 @@ fun <T> NfcProgressStatusIndicator(
     label = "circleSizeAnimation"
   )
 
-  val backgroundBlurColor: Color by animateColorAsState(
-    targetValue =
-      when {
-        statusState.isInProgress -> Color(0xff1f60B8)
-        statusState.isError -> Color(0xff341509)
-        else -> Color.Transparent
-      },
-    label = "backgroundBlurColorAnimation"
-  )
-
   Box(
     contentAlignment = Alignment.Center,
     modifier =
@@ -109,35 +104,48 @@ fun <T> NfcProgressStatusIndicator(
         .size(140.dp)
         .wrapContentSize(unbounded = true)
   ) {
-    if (isBlurSupported()) {
-      Box(
-        modifier =
-          Modifier
-            .size(50.dp * density)
-            .blur(radius = 45.dp * density, edgeTreatment = BlurredEdgeTreatment.Unbounded)
-            .background(
-              color = backgroundBlurColor,
-              shape = RoundedCornerShape(size = 50.dp * density)
-            )
-      )
-    }
+
+    // Indeterminate spinning animation for states like W1 signing.
+    // Always create the transition unconditionally to satisfy Compose's rules
+    // for remember* calls, then gate the value on isIndeterminate.
+    val infiniteTransition = rememberInfiniteTransition(label = "indeterminateRotation")
+    val rotation by infiniteTransition.animateFloat(
+      initialValue = 0f,
+      targetValue = 360f,
+      animationSpec = infiniteRepeatable(
+        animation = tween(durationMillis = 1200, easing = LinearEasing),
+        repeatMode = RepeatMode.Restart
+      ),
+      label = "indeterminateRotationAngle"
+    )
+    val indeterminateRotation = if (statusState.isIndeterminate) rotation else 0f
+
+    // When indeterminate, show a fixed arc segment that rotates
+    val effectiveProgress = if (statusState.isIndeterminate) 0.25f else statusState.progress
 
     NfcCircularProgress(
       strokeWidth = circleStrokeWidth,
       size = circleSize,
       backgroundColor = circleBackgroundColor,
-      progressPercentage = statusState.progress,
+      progressPercentage = effectiveProgress,
       indicatorColor =
         when {
-          statusState.isIdle || statusState.isSuccess -> Color.White
+          statusState.isIdle || statusState.isSuccess -> foreground
           statusState.isInProgress -> WalletTheme.colors.nfcBlue
           statusState.isError -> WalletTheme.colors.warningForeground
-          else -> Color.White
+          else -> foreground
         },
       indicatorModifier =
         when {
           statusState.isIdle || statusState.isSuccess -> Modifier
-          statusState.isInProgress -> Modifier.nfcIndicatorInProgressBackground()
+          statusState.isInProgress -> {
+            val base = Modifier.nfcIndicatorInProgressBackground()
+            if (statusState.isIndeterminate) {
+              base.graphicsLayer { rotationZ = indeterminateRotation }
+            } else {
+              base
+            }
+          }
           statusState.isError -> Modifier.nfcIndicatorWarningBackground()
           else -> Modifier
         }
@@ -180,6 +188,9 @@ interface NfcProgressStatusState<T> {
   /** True if actively processing/transferring */
   val isInProgress: Boolean
 
+  /** True if progress is indeterminate (e.g., W1 signing with no streaming progress) */
+  val isIndeterminate: Boolean get() = false
+
   /** True if operation succeeded */
   val isSuccess: Boolean
 
@@ -201,7 +212,8 @@ interface NfcProgressStatusState<T> {
 fun NfcStatusLabel(
   text: String,
   modifier: Modifier = Modifier,
-  labelType: LabelType = LabelType.Title2,
+  labelType: LabelType = LabelType.Title3,
+  textColor: Color = WalletTheme.colors.foreground,
   animationLabel: String = "NfcStatusLabelAnimation",
 ) {
   AnimatedContent(
@@ -222,7 +234,7 @@ fun NfcStatusLabel(
           type = labelType,
           treatment = Primary,
           alignment = TextAlign.Center
-        ).copy(color = WalletTheme.colors.translucentForeground)
+        ).copy(color = textColor)
     )
   }
 }
@@ -236,7 +248,8 @@ fun NfcIcon() {
     alignment = Alignment.Center,
     modifier = Modifier.size(38.dp),
     painter = painterResource(Res.drawable.android_nfc_tap),
-    contentDescription = ""
+    contentDescription = "",
+    colorFilter = ColorFilter.tint(WalletTheme.colors.foreground)
   )
 }
 
@@ -261,7 +274,7 @@ fun NfcProgressPercentageLabel(
         type = progressLabelType,
         treatment = Primary,
         alignment = TextAlign.Center
-      ).copy(color = WalletTheme.colors.translucentForeground)
+      ).copy(color = WalletTheme.colors.foreground)
   )
 }
 
@@ -321,8 +334,7 @@ fun NfcCircularProgress(
 /**
  * Modifier for in-progress indicator background.
  */
-fun Modifier.nfcIndicatorInProgressBackground() =
-  clip(CircleShape).background(Color.White.copy(alpha = 0.1F))
+fun Modifier.nfcIndicatorInProgressBackground() = this
 
 /**
  * Modifier for warning/error indicator background.
@@ -335,7 +347,7 @@ fun Modifier.nfcIndicatorWarningBackground() =
           colorStops =
             arrayOf(
               0f to WalletTheme.colors.warningForeground.copy(alpha = 0.2F),
-              1f to Color.Black.copy(alpha = 0.2F)
+              1f to WalletTheme.colors.background.copy(alpha = 0.2F)
             )
         )
       )

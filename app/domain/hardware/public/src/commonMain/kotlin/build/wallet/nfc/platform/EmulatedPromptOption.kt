@@ -3,7 +3,7 @@ package build.wallet.nfc.platform
 import build.wallet.nfc.NfcSession
 
 /**
- * Represents a selectable option for [HardwareInteraction.ConfirmWithEmulatedPrompt].
+ * Represents one selectable action for [HardwareInteraction.ConfirmWithEmulatedPrompt].
  *
  * Used by fake NfcCommands implementations to simulate device confirmation prompts.
  * After user selects an option, the confirmation flow continues and [fetchResult]
@@ -12,10 +12,6 @@ import build.wallet.nfc.NfcSession
  * @param T The type of result that will be returned when this option's flow completes
  */
 data class EmulatedPromptOption<T>(
-  /**
-   * Text to display for this option (e.g., "Approve", "Deny").
-   */
-  val name: String,
   /**
    * Callback invoked during the second NFC tap to retrieve the result.
    */
@@ -26,8 +22,9 @@ data class EmulatedPromptOption<T>(
    */
   val onSelect: (suspend () -> Unit)? = null,
 ) {
-  companion object {
-    const val APPROVE = "Approve"
-    const val DENY = "Deny"
-  }
+  /**
+   * A label-value pair shown in the emulated prompt sheet to provide context
+   * about the operation being confirmed (e.g., "Action" to "Sign Transaction").
+   */
+  data class Detail(val label: String, val value: String)
 }

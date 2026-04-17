@@ -8,7 +8,8 @@
 #include "secure_rng.h"
 #include "wstring.h"
 
-secure_channel_ctx_t secure_channel_ctx SHARED_TASK_DATA = {
+// Keep NFC session state in privileged SRAM
+static secure_channel_ctx_t secure_channel_ctx SECTION("privileged_data") = {
   .send_key_buf = {0},
   .recv_key_buf = {0},
   .conf_key_buf = {0},
@@ -51,6 +52,17 @@ secure_channel_err_t secure_nfc_channel_establish(
   ASSERT(pk_device_len != NULL);
   ASSERT(exchange_sig != NULL);
   ASSERT(key_confirmation_tag != NULL);
+
+  if (pk_host_len != EC_PUBKEY_SIZE_X25519) {
+    return SECURE_CHANNEL_ERROR_PARAMS;
+  }
+  if (exchange_sig_len != ECC_SIG_SIZE) {
+    return SECURE_CHANNEL_ERROR_PARAMS;
+  }
+  if (*pk_device_len < EC_PUBKEY_SIZE_X25519) {
+    return SECURE_CHANNEL_ERROR_PARAMS;
+  }
+
   secure_channel_err_t ret = SECURE_CHANNEL_FAILED_TO_DERIVE_KEY;
 
   uint8_t our_privkey_buf[EC_PRIVKEY_SIZE_X25519] = {0};
@@ -66,7 +78,6 @@ secure_channel_err_t secure_nfc_channel_establish(
     goto out;
   }
 
-  ASSERT(*pk_device_len >= EC_PUBKEY_SIZE_X25519);
   *pk_device_len = EC_PUBKEY_SIZE_X25519;
   key_handle_t our_pubkey = {
     .alg = ALG_ECC_X25519,
@@ -85,15 +96,16 @@ secure_channel_err_t secure_nfc_channel_establish(
   ret = secure_channel_establish_impl(&secure_channel_ctx, pk_host, pk_host_len, &our_privkey,
                                       &our_pubkey, exchange_sig, exchange_sig_len);
   if (ret != SECURE_CHANNEL_OK) {
-    goto out;
+    goto out_unlock;
   }
 
   ret = secure_channel_compute_confirmation(
     SECURE_NFC_CHANNEL_CORE, &secure_channel_ctx.session_conf_key, key_confirmation_tag);
 
-out:
+out_unlock:
   rtos_mutex_unlock(&secure_channel_ctx.lock);
 
+out:
   memzero(our_privkey_buf, sizeof(our_privkey_buf));
   return ret;
 }

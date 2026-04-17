@@ -12,7 +12,6 @@ import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
 import build.wallet.f8e.recovery.RecoveryNotificationVerificationF8eClient
 import build.wallet.logging.logFailure
@@ -70,12 +69,14 @@ class NotificationTouchpointServiceImpl(
 
   override fun notificationTouchpointData(): Flow<NotificationTouchpointData> {
     return combine(
-      notificationTouchpointDao.email(),
-      notificationTouchpointDao.phoneNumber()
-    ) { email, phoneNumber ->
+      notificationTouchpointDao.emailTouchpoint(),
+      notificationTouchpointDao.phoneTouchpoint()
+    ) { emailTouchpoint, phoneTouchpoint ->
       NotificationTouchpointData(
-        email = email,
-        phoneNumber = phoneNumber
+        email = emailTouchpoint?.value,
+        emailTouchpointId = emailTouchpoint?.touchpointId,
+        phoneNumber = phoneTouchpoint?.value,
+        phoneNumberTouchpointId = phoneTouchpoint?.touchpointId
       )
     }
   }
@@ -83,28 +84,24 @@ class NotificationTouchpointServiceImpl(
   override suspend fun sendVerificationCodeToTouchpoint(
     fullAccountId: FullAccountId,
     touchpoint: NotificationTouchpoint,
-    hwProofOfPossession: HwFactorProofOfPossession?,
   ): Result<Unit, Error> {
     val f8eEnvironment = accountConfigService.activeOrDefaultConfig().value.f8eEnvironment
     return recoveryNotificationVerificationF8eClient.sendVerificationCodeToTouchpoint(
       f8eEnvironment = f8eEnvironment,
       fullAccountId = fullAccountId,
-      touchpoint = touchpoint,
-      hardwareProofOfPossession = hwProofOfPossession
+      touchpoint = touchpoint
     )
   }
 
   override suspend fun verifyCode(
     fullAccountId: FullAccountId,
     verificationCode: String,
-    hwProofOfPossession: HwFactorProofOfPossession?,
   ): Result<Unit, F8eError<VerifyTouchpointClientErrorCode>> {
     val f8eEnvironment = accountConfigService.activeOrDefaultConfig().value.f8eEnvironment
     return recoveryNotificationVerificationF8eClient.verifyCode(
       f8eEnvironment = f8eEnvironment,
       fullAccountId = fullAccountId,
-      verificationCode = verificationCode,
-      hardwareProofOfPossession = hwProofOfPossession
+      verificationCode = verificationCode
     )
   }
 }

@@ -29,7 +29,7 @@ typedef struct {
  * @brief Configuration for auth library.
  */
 typedef struct {
-  uint32_t expiry_ms; /**< Auth timeout in milliseconds (e.g., 60000 for 1 minute). */
+  uint32_t expiry_ms; /**< Auth timeout in milliseconds (e.g., 150000 for 2.5 minutes). */
 } auth_config_t;
 
 /**

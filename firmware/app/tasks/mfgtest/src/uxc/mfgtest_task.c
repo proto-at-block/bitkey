@@ -1,9 +1,12 @@
 #include "mfgtest_task.h"
 
 #include "assert.h"
+#include "attributes.h"
+#include "log.h"
 #include "mcu_gpio.h"
 #include "mfgtest.pb.h"
 #include "mpu_auto.h"
+#include "opt.h"
 #include "rtos.h"
 #include "uc.h"
 #include "uc_route.h"
@@ -91,11 +94,50 @@ static void _mfgtest_task_handle_gpio_cmd(fwpb_uxc_msg_host* proto) {
   (void)uc_send(msg);
 }
 
+static void _mfgtest_task_handle_device_set_production_lock_cmd(fwpb_uxc_msg_host* proto) {
+  fwpb_uxc_msg_device* msg = uc_alloc_send_proto();
+  ASSERT(msg != NULL);
+
+  msg->which_msg = fwpb_uxc_msg_device_mfgtest_device_set_production_lock_rsp_tag;
+  fwpb_mfgtest_device_set_production_lock_rsp* rsp =
+    &msg->msg.mfgtest_device_set_production_lock_rsp;
+
+  if (opt_device_set_production()) {
+    rsp->rsp_status =
+      fwpb_mfgtest_device_set_production_lock_rsp_mfgtest_device_set_production_lock_rsp_status_SUCCESS;
+  } else {
+    LOGE("opt_device_set_production failed");
+    rsp->rsp_status =
+      fwpb_mfgtest_device_set_production_lock_rsp_mfgtest_device_set_production_lock_rsp_status_ERROR;
+  }
+
+  uc_free_recv_proto(proto);
+  (void)uc_send(msg);
+}
+
+static void _mfgtest_task_handle_device_get_production_lock_cmd(fwpb_uxc_msg_host* proto) {
+  fwpb_uxc_msg_device* msg = uc_alloc_send_proto();
+  ASSERT(msg != NULL);
+
+  msg->which_msg = fwpb_uxc_msg_device_mfgtest_device_get_production_lock_rsp_tag;
+  fwpb_mfgtest_device_get_production_lock_rsp* rsp =
+    &msg->msg.mfgtest_device_get_production_lock_rsp;
+
+  rsp->rsp_status =
+    fwpb_mfgtest_device_get_production_lock_rsp_mfgtest_device_get_production_lock_rsp_status_SUCCESS;
+  rsp->is_production = opt_device_is_production();
+
+  uc_free_recv_proto(proto);
+  (void)uc_send(msg);
+}
+
 static void mfgtest_thread(void* args) {
   rtos_queue_t* queue = args;
   ASSERT(queue != NULL);
 
   uc_route_register_queue(fwpb_uxc_msg_host_mfgtest_gpio_cmd_tag, queue);
+  uc_route_register_queue(fwpb_uxc_msg_host_mfgtest_device_set_production_lock_cmd_tag, queue);
+  uc_route_register_queue(fwpb_uxc_msg_host_mfgtest_device_get_production_lock_cmd_tag, queue);
 
   while (true) {
     fwpb_uxc_msg_host* proto = uc_route_pend_queue(queue);
@@ -104,6 +146,12 @@ static void mfgtest_thread(void* args) {
     switch (proto->which_msg) {
       case fwpb_uxc_msg_host_mfgtest_gpio_cmd_tag:
         _mfgtest_task_handle_gpio_cmd(proto);
+        break;
+      case fwpb_uxc_msg_host_mfgtest_device_set_production_lock_cmd_tag:
+        _mfgtest_task_handle_device_set_production_lock_cmd(proto);
+        break;
+      case fwpb_uxc_msg_host_mfgtest_device_get_production_lock_cmd_tag:
+        _mfgtest_task_handle_device_get_production_lock_cmd(proto);
         break;
 
       default:

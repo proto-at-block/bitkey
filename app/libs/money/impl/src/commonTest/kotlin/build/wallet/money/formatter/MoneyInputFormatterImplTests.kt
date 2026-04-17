@@ -131,16 +131,37 @@ class MoneyInputFormatterImplTests : FunSpec({
     displayText.displayTextGhostedSubstring?.range.shouldBe(4..5)
   }
 
-  test("Non-zero decimal number amount formatting with decimal, ghosted substring, BTC") {
+  test("Non-zero decimal number amount formatting with decimal, BTC") {
     val displayText =
       inputFormatter.displayText(
         inputAmount = decimal("1.0", maximumFractionDigits = 8),
         inputAmountCurrency = BTC
       )
 
-    displayText.displayText.shouldBe("1.00000000 BTC")
-    displayText.displayTextGhostedSubstring?.string.shouldBe("0000000")
-    displayText.displayTextGhostedSubstring?.range.shouldBe(3..9)
+    displayText.displayText.shouldBe("1.0 BTC")
+    displayText.displayTextGhostedSubstring.shouldBeNull()
+  }
+
+  test("Bitcoin decimal input preserves typed decimal separator without placeholder zeros") {
+    val displayText =
+      inputFormatter.displayText(
+        inputAmount = decimal("0.", maximumFractionDigits = 8),
+        inputAmountCurrency = BTC
+      )
+
+    displayText.displayText.shouldBe("0. BTC")
+    displayText.displayTextGhostedSubstring.shouldBeNull()
+  }
+
+  test("Bitcoin decimal input keeps typed digits and grouping") {
+    val displayText =
+      inputFormatter.displayText(
+        inputAmount = decimal("1000.0000702", maximumFractionDigits = 8),
+        inputAmountCurrency = BTC
+      )
+
+    displayText.displayText.shouldBe("1,000.0000702 BTC")
+    displayText.displayTextGhostedSubstring.shouldBeNull()
   }
 
   test("Non-zero decimal number amount formatting with decimal and zero, ghosted substring") {

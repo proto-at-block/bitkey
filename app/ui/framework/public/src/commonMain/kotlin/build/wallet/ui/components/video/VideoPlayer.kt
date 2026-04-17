@@ -18,8 +18,15 @@ expect fun VideoPlayer(
   backgroundColor: Color = Color.Black,
   autoStart: Boolean = true,
   startingPosition: VideoStartingPosition = START,
+  scalingMode: VideoScalingMode = VideoScalingMode.FIT,
+  allowSurfaceOnTopWorkaround: Boolean = true,
   videoPlayerCallback: (VideoPlayerHandler) -> Unit = {},
 )
+
+enum class VideoScalingMode {
+  FIT,
+  CROP,
+}
 
 abstract class VideoPlayerHandler {
   abstract fun play()

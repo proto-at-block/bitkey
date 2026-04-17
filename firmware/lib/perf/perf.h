@@ -46,16 +46,16 @@ typedef struct {
 #define _PERF_INTERVAL_TYPE perf_interval_t
 
 void perf_create_static(perf_counter_t* counter);
-#define perf_create(_type, _name)                                       \
-  ({                                                                    \
-    static SHARED_TASK_DATA perf_counter_t _##_name##_perf = {0};       \
-    static SHARED_TASK_DATA _##_type##_TYPE _##_name##_perf_data = {0}; \
-    _##_name##_perf.data = &_##_name##_perf_data;                       \
-    _##_name##_perf.type = _type;                                       \
-    _##_name##_perf.name = #_name;                                      \
-    perf_create_static(&_##_name##_perf);                               \
-    /* returns perf_counter_t* type */                                  \
-    &_##_name##_perf;                                                   \
+#define perf_create(_type, _name)                                      \
+  ({                                                                   \
+    static SHARED_TASK_BSS perf_counter_t _##_name##_perf = {0};       \
+    static SHARED_TASK_BSS _##_type##_TYPE _##_name##_perf_data = {0}; \
+    _##_name##_perf.data = &_##_name##_perf_data;                      \
+    _##_name##_perf.type = _type;                                      \
+    _##_name##_perf.name = #_name;                                     \
+    perf_create_static(&_##_name##_perf);                              \
+    /* returns perf_counter_t* type */                                 \
+    &_##_name##_perf;                                                  \
   })
 
 void perf_count(perf_counter_t* counter);

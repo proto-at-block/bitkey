@@ -1,8 +1,9 @@
 package build.wallet.bitkey.recovery
 
+import bitkey.account.HardwareType
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 
 data class HardwareKeysForRecovery(
   /**
@@ -11,5 +12,6 @@ data class HardwareKeysForRecovery(
    */
   val newKeyBundle: HwKeyBundle,
   val newAppGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
-  val hwProofOfPossession: HwFactorProofOfPossession,
+  val proof: PrivilegedActionProof,
+  val hardwareType: HardwareType,
 )

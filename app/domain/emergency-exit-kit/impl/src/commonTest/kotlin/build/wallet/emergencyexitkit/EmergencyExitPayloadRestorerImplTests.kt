@@ -69,7 +69,45 @@ class EmergencyExitPayloadRestorerImplTests : FunSpec({
 
     appPrivateKeyDao.reset()
 
-    restorer.restoreFromPayload(payload = payload)
+    restorer.restoreFromPayload(
+      payload = payload,
+      hardwareType = HardwareType.W1
+    )
+      .get()
+      .shouldNotBeNull()
+
+    val restoredPrivateKey =
+      appPrivateKeyDao.getAppSpendingPrivateKey(AppSpendingPublicKeyMock)
+        .get()
+        .shouldNotBeNull()
+
+    restoredPrivateKey.key.xprv
+      .shouldBeEqual(AppSpendingPrivateKeyMock.key.xprv)
+  }
+
+  test("Full create and restore loop for W3") {
+    csekDao.set(SealedCsekFake, CsekFake)
+    appPrivateKeyDao.storeAppSpendingKeyPair(
+      AppSpendingKeypair(
+        publicKey = AppSpendingPublicKeyMock,
+        privateKey = AppSpendingPrivateKeyMock
+      )
+    )
+
+    val payload =
+      creator.create(
+        keybox = KeyboxMock,
+        sealedCsek = SealedCsekFake
+      )
+        .get()
+        .shouldNotBeNull()
+
+    appPrivateKeyDao.reset()
+
+    restorer.restoreFromPayload(
+      payload = payload,
+      hardwareType = HardwareType.W3
+    )
       .get()
       .shouldNotBeNull()
 
@@ -95,7 +133,8 @@ class EmergencyExitPayloadRestorerImplTests : FunSpec({
               tag = ByteString.EMPTY
             ),
           sealedHwEncryptionKey = SealedCsekFake
-        )
+        ),
+      hardwareType = HardwareType.W1
     )
       .shouldBeErr(
         InvalidBackup(cause = EmergencyExitKitPayloadDecoder.DecodeError.InvalidProtoData())
@@ -121,7 +160,10 @@ class EmergencyExitPayloadRestorerImplTests : FunSpec({
 
     csekDao.reset()
 
-    restorer.restoreFromPayload(payload)
+    restorer.restoreFromPayload(
+      payload = payload,
+      hardwareType = HardwareType.W1
+    )
       .shouldBeErr(CsekMissing())
   }
 
@@ -142,7 +184,11 @@ class EmergencyExitPayloadRestorerImplTests : FunSpec({
         .get()
         .shouldNotBeNull()
 
-    val extracted = restorer.restoreFromPayload(payload)
+    val extracted =
+      restorer.restoreFromPayload(
+        payload = payload,
+        hardwareType = HardwareType.W1
+      )
       .get()
       .shouldNotBeNull()
 
@@ -173,7 +219,11 @@ class EmergencyExitPayloadRestorerImplTests : FunSpec({
         .get()
         .shouldNotBeNull()
 
-    val config = restorer.restoreFromPayload(payload)
+    val config =
+      restorer.restoreFromPayload(
+        payload = payload,
+        hardwareType = HardwareType.W1
+      )
       .get()
       .shouldNotBeNull()
       .fullAccountConfig
@@ -184,5 +234,34 @@ class EmergencyExitPayloadRestorerImplTests : FunSpec({
     config.isUsingSocRecFakes.shouldBe(false)
     config.isTestAccount.shouldBe(false)
     config.hardwareType.shouldBe(HardwareType.W1)
+  }
+
+  test("Restored account config retains detected W3 hardware type") {
+    csekDao.set(SealedCsekFake, CsekFake)
+    appPrivateKeyDao.storeAppSpendingKeyPair(
+      AppSpendingKeypair(
+        publicKey = AppSpendingPublicKeyMock,
+        privateKey = AppSpendingPrivateKeyMock
+      )
+    )
+
+    val payload =
+      creator.create(
+        keybox = KeyboxMock,
+        sealedCsek = SealedCsekFake
+      )
+        .get()
+        .shouldNotBeNull()
+
+    val config =
+      restorer.restoreFromPayload(
+        payload = payload,
+        hardwareType = HardwareType.W3
+      )
+        .get()
+        .shouldNotBeNull()
+        .fullAccountConfig
+
+    config.hardwareType.shouldBe(HardwareType.W3)
   }
 })

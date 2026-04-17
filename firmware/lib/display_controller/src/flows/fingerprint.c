@@ -3,6 +3,10 @@
 #include "display_controller_internal.h"
 #include "ui_events.h"  // For enrollment_progress_data_t
 
+#ifdef EMBEDDED_BUILD
+#include "ipc.h"
+#endif
+
 #include <stdio.h>
 
 // Page definitions
@@ -10,7 +14,7 @@
 #define PAGE_SCANNING 1
 #define PAGE_SUCCESS  2
 
-#define AUTO_ADVANCE_DELAY_TICKS 50  // 1 second at 20ms/tick
+#define AUTO_ADVANCE_DELAY_TICKS MS_TO_DISPLAY_TICKS(1000)
 
 static UI_TASK_DATA uint32_t auto_advance_timer = 0;
 
@@ -33,16 +37,22 @@ void display_controller_fingerprint_on_enter(display_controller_t* controller,
     controller->nav.fingerprint.total_samples;
   controller->show_screen.params.fingerprint.status =
     fwpb_display_params_fingerprint_display_params_fingerprint_status_NONE;
-
-  // Enrollment is required (no back button) if nav_stack is empty (entered from ONBOARDING)
-  controller->show_screen.params.fingerprint.is_required = (controller->nav_stack_depth == 0);
+  controller->show_screen.params.fingerprint.is_required =
+    controller->fingerprint_enrollment_is_required;
 
   controller->show_screen.which_params = fwpb_display_show_screen_fingerprint_tag;
 }
 
 void display_controller_fingerprint_on_exit(display_controller_t* controller) {
-  (void)controller;
+  controller->fingerprint_enrollment_is_required = false;
   auto_advance_timer = 0;
+
+#ifdef EMBEDDED_BUILD
+  // Cancel any in-progress enrollment when leaving the fingerprint flow.
+  // Without this, enrollment state stays armed in the auth task and the next
+  // sensor tap would resume enrollment instead of matching.
+  ipc_send_empty(auth_port, IPC_AUTH_CANCEL_FINGERPRINT_ENROLLMENT_INTERNAL);
+#endif
 }
 
 flow_action_result_t display_controller_fingerprint_on_tick(display_controller_t* controller) {
@@ -52,7 +62,8 @@ flow_action_result_t display_controller_fingerprint_on_tick(display_controller_t
 
     if (auto_advance_timer >= AUTO_ADVANCE_DELAY_TICKS) {
       auto_advance_timer = 0;
-      // Exit returns to caller automatically (FINGERPRINTS_MENU, ONBOARDING, or SCAN)
+      // Exit returns to the caller automatically (for example FINGERPRINTS_MENU),
+      // or falls back to scan when required enrollment has no caller.
       return flow_result_exit_with_transition(fwpb_display_transition_DISPLAY_TRANSITION_FADE,
                                               TRANSITION_DURATION_STANDARD);
     }
@@ -193,9 +204,8 @@ flow_action_result_t display_controller_fingerprint_on_action(
   if (action == fwpb_display_action_display_action_type_DISPLAY_ACTION_BACK ||
       action == fwpb_display_action_display_action_type_DISPLAY_ACTION_CANCEL ||
       action == fwpb_display_action_display_action_type_DISPLAY_ACTION_EXIT) {
-    // Block BACK/CANCEL during required enrollment (when nav_stack_depth == 0, entered from
-    // ONBOARDING) User must complete enrollment to proceed
-    if (controller->nav_stack_depth == 0) {
+    // Required enrollment cannot be cancelled or exited mid-flow.
+    if (controller->fingerprint_enrollment_is_required) {
       return flow_result_handled();  // Ignore the action
     }
 

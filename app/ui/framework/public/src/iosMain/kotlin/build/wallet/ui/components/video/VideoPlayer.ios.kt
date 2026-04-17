@@ -26,6 +26,8 @@ actual fun VideoPlayer(
   backgroundColor: Color,
   autoStart: Boolean,
   startingPosition: VideoStartingPosition,
+  scalingMode: VideoScalingMode,
+  allowSurfaceOnTopWorkaround: Boolean,
   videoPlayerCallback: (VideoPlayerHandler) -> Unit,
 ) {
   val player = remember {
@@ -52,18 +54,24 @@ actual fun VideoPlayer(
       playerHandler.dispose()
     }
   }
-  val factory = remember(player) {
+  val factory = remember(player, backgroundColor, scalingMode) {
     {
       object : UIView(cValue { CGRectZero }) {
         private val playerLayer = AVPlayerLayer.playerLayerWithPlayer(player)
 
         init {
+          clipsToBounds = true
           this.backgroundColor = UIColor.colorWithRed(
             red = backgroundColor.red.toDouble(),
             green = backgroundColor.green.toDouble(),
             blue = backgroundColor.blue.toDouble(),
             alpha = backgroundColor.alpha.toDouble()
           )
+          playerLayer.backgroundColor = this.backgroundColor?.CGColor
+          playerLayer.videoGravity = when (scalingMode) {
+            VideoScalingMode.FIT -> AVLayerVideoGravityResizeAspect
+            VideoScalingMode.CROP -> AVLayerVideoGravityResizeAspectFill
+          }
           layer.addSublayer(playerLayer)
         }
 

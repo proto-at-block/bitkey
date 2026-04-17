@@ -42,6 +42,42 @@ class EditingFingerprintScreenSnapshots : FunSpec({
     )
   }
 
+  test("editing existing fingerprint - design system v2") {
+    paparazzi.snapshotSheet(
+      model =
+        EditingFingerprintBodyModel(
+          index = 0,
+          label = "Left thumb",
+          textFieldValue = "Right thumb",
+          onDelete = {},
+          onSave = {},
+          onValueChange = {},
+          onBackPressed = {},
+          isExistingFingerprint = true,
+          attemptToDeleteLastFingerprint = false
+        ),
+      designSystemUpdatesEnabled = true
+    )
+  }
+
+  test("adding new fingerprint design system v2") {
+    paparazzi.snapshotSheet(
+      model =
+        EditingFingerprintBodyModel(
+          index = 1,
+          label = "",
+          textFieldValue = "",
+          onDelete = {},
+          onSave = {},
+          onValueChange = {},
+          onBackPressed = {},
+          isExistingFingerprint = false,
+          attemptToDeleteLastFingerprint = false
+        ),
+      designSystemUpdatesEnabled = true
+    )
+  }
+
   test("editing existing fingerprint save disabled") {
     paparazzi.snapshotSheet(
       EditingFingerprintBodyModel(
@@ -92,4 +128,5 @@ class EditingFingerprintScreenSnapshots : FunSpec({
       )
     )
   }
+
 })

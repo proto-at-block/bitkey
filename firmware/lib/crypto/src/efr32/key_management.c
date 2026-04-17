@@ -152,7 +152,7 @@ static bool manage_key_op(key_management_op_t op, key_handle_t* key_in, key_hand
   }
 
   if (status != SL_STATUS_OK) {
-    LOGE("Key management operation failed: %ld", status);
+    LOGE("Key mgmt fail: %ld", status);
     return false;
   }
 

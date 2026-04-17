@@ -13,35 +13,41 @@ import build.wallet.integration.statemachine.recovery.cloud.screenDecideIfShould
 import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.account.ChooseAccountAccessModel
 import build.wallet.statemachine.cloud.CloudSignInModelFake
+import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
+import build.wallet.statemachine.nfc.PromptSelectionFormBodyModel
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationScreenModel
 import build.wallet.statemachine.ui.awaitUntilBody
+import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
+import build.wallet.testing.AppTester
+import build.wallet.testing.AppTester.Companion.launchLegacyWalletApp
 import build.wallet.testing.AppTester.Companion.launchNewApp
-import build.wallet.testing.ext.PostActivationExpectations
-import build.wallet.testing.ext.getActiveWallet
-import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
-import build.wallet.testing.ext.returnFundsToTreasury
-import build.wallet.testing.ext.testForLegacyAndPrivateWallet
-import build.wallet.testing.ext.verifyPostActivationState
+import build.wallet.testing.ext.*
+import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.unwrap
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.core.test.TestScope
 import io.kotest.matchers.nulls.shouldNotBeNull
 import kotlin.time.Duration.Companion.seconds
 
 class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
-  testForLegacyAndPrivateWallet("recover keybox with no funds from cloud backup") { app ->
+  testForHardwareHappyPaths("recover keybox with no funds from cloud backup") { app, coverageMode ->
     app.onboardFullAccountWithFakeHardware(
-      cloudStoreAccountForBackup = CloudStoreAccount1Fake
+      cloudStoreAccountForBackup = CloudStoreAccount1Fake,
+      hardwareType = coverageMode.hardwareType
     )
 
     // copy cloud stores to new app, keep hardware
-    val newApp = launchNewApp(
+    val newApp = launchAppMatchingMode(
+      referenceApp = app,
       cloudStoreAccountRepository = app.cloudStoreAccountRepository,
-      cloudKeyValueStore = app.cloudKeyValueStore,
-      hardwareSeed = app.fakeHardwareKeyStore.getSeed()
+      cloudBackupStore = app.cloudBackupStore,
+      hardwareSeed = app.fakeHardwareKeyStore.getSeed(),
+      w3HardwareSeed = app.w3FakeHardwareKeyStore.getSeed()
     )
 
     newApp.appUiStateMachine.test(
@@ -56,6 +62,12 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
         .signInSuccess(CloudStoreAccount1Fake)
       awaitUntilBody<FormBodyModel>(CLOUD_BACKUP_FOUND)
         .clickPrimaryButton()
+      if (coverageMode == HardwareCoverageMode.W3Private) {
+        awaitUntilScreenWithBody<BodyModel>(
+          matchingScreen = { it.bottomSheetModel?.body is PromptSelectionFormBodyModel }
+        ).let { (checkNotNull(it.bottomSheetModel).body as PromptSelectionFormBodyModel).onApprove() }
+        awaitUntilBody<HardwareConfirmationScreenModel> { onConfirm() }
+      }
       screenDecideIfShouldRotate {
         clickPrimaryButton()
       }
@@ -73,19 +85,30 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
-    newApp.verifyPostActivationState(PostActivationExpectations(expectedCanUseKeyboxKeysets = true, checkOnboardingArtifactsCleared = false))
+    newApp.assertActiveHardwareType(coverageMode.hardwareType)
+    newApp.verifyPostActivationState(
+      PostActivationExpectations(
+        expectedCanUseKeyboxKeysets = true,
+        checkOnboardingArtifactsCleared = false
+      )
+    )
   }
 
-  testForLegacyAndPrivateWallet("recover keybox with some funds from cloud backup") { app ->
-    app.onboardFullAccountWithFakeHardware(cloudStoreAccountForBackup = CloudStoreAccount1Fake)
+  testForHardwareHappyPaths("recover keybox with some funds from cloud backup") { app, coverageMode ->
+    app.onboardFullAccountWithFakeHardware(
+      cloudStoreAccountForBackup = CloudStoreAccount1Fake,
+      hardwareType = coverageMode.hardwareType
+    )
     val treasury = app.treasuryWallet
     treasury.fund(app.getActiveWallet(), BitcoinMoney.sats(10_000))
 
     // copy cloud stores to new app, keep hardware
-    val newApp = launchNewApp(
+    val newApp = launchAppMatchingMode(
+      referenceApp = app,
       cloudStoreAccountRepository = app.cloudStoreAccountRepository,
-      cloudKeyValueStore = app.cloudKeyValueStore,
-      hardwareSeed = app.fakeHardwareKeyStore.getSeed()
+      cloudBackupStore = app.cloudBackupStore,
+      hardwareSeed = app.fakeHardwareKeyStore.getSeed(),
+      w3HardwareSeed = app.w3FakeHardwareKeyStore.getSeed()
     )
 
     newApp.appUiStateMachine.test(
@@ -101,6 +124,12 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
         .signInSuccess(CloudStoreAccount1Fake)
       awaitUntilBody<FormBodyModel>(CLOUD_BACKUP_FOUND)
         .clickPrimaryButton()
+      if (coverageMode == HardwareCoverageMode.W3Private) {
+        awaitUntilScreenWithBody<BodyModel>(
+          matchingScreen = { it.bottomSheetModel?.body is PromptSelectionFormBodyModel }
+        ).let { (checkNotNull(it.bottomSheetModel).body as PromptSelectionFormBodyModel).onApprove() }
+        awaitUntilBody<HardwareConfirmationScreenModel> { onConfirm() }
+      }
       screenDecideIfShouldRotate {
         clickPrimaryButton()
       }
@@ -124,18 +153,26 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
-    newApp.verifyPostActivationState(PostActivationExpectations(expectedCanUseKeyboxKeysets = true, checkOnboardingArtifactsCleared = false))
+    newApp.assertActiveHardwareType(coverageMode.hardwareType)
+    newApp.verifyPostActivationState(
+      PostActivationExpectations(
+        expectedCanUseKeyboxKeysets = true,
+        checkOnboardingArtifactsCleared = false
+      )
+    )
   }
 
-  testForLegacyAndPrivateWallet("Cloud recovery, force exit app in middle of initiating") { app ->
+  testForHardwareHappyPaths("Cloud recovery, force exit app in middle of initiating") { app, coverageMode ->
     app.onboardFullAccountWithFakeHardware(
-      cloudStoreAccountForBackup = CloudStoreAccount1Fake
+      cloudStoreAccountForBackup = CloudStoreAccount1Fake,
+      hardwareType = coverageMode.hardwareType
     )
 
     // copy cloud stores to new app
-    var newApp = launchNewApp(
+    var newApp = launchAppMatchingMode(
+      referenceApp = app,
       cloudStoreAccountRepository = app.cloudStoreAccountRepository,
-      cloudKeyValueStore = app.cloudKeyValueStore
+      cloudBackupStore = app.cloudBackupStore
     )
 
     newApp.appUiStateMachine.test(
@@ -165,7 +202,7 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
     }
   }
 
-  testForLegacyAndPrivateWallet("no cloud backup") { app ->
+  testForHardwareHappyPaths("no cloud backup") { app, _ ->
     app.appUiStateMachine.test(Unit) {
       awaitUntilBody<ChooseAccountAccessModel>()
         .clickMoreOptionsButton()
@@ -184,3 +221,33 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
     }
   }
 })
+
+private suspend fun TestScope.launchAppMatchingMode(
+  referenceApp: AppTester,
+  cloudStoreAccountRepository: build.wallet.cloud.store.CloudStoreAccountRepository? = null,
+  cloudBackupStore: build.wallet.cloud.backup.CloudBackupStore? = null,
+  hardwareSeed: build.wallet.nfc.FakeHardwareKeyStore.Seed? = null,
+  w3HardwareSeed: build.wallet.nfc.FakeHardwareKeyStore.Seed? = null,
+): AppTester {
+  val app = if (referenceApp.appMode == AppMode.Private) {
+    launchNewApp(
+      cloudStoreAccountRepository = cloudStoreAccountRepository,
+      cloudBackupStore = cloudBackupStore,
+      hardwareSeed = hardwareSeed,
+      w3HardwareSeed = w3HardwareSeed
+    )
+  } else {
+    launchLegacyWalletApp(
+      cloudStoreAccountRepository = cloudStoreAccountRepository,
+      cloudBackupStore = cloudBackupStore,
+      hardwareSeed = hardwareSeed,
+      w3HardwareSeed = w3HardwareSeed
+    )
+  }
+
+  referenceApp.accountConfigService.defaultConfig().value.hardwareType?.let {
+    app.accountConfigService.setHardwareType(it).getOrThrow()
+  }
+
+  return app
+}

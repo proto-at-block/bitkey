@@ -181,6 +181,13 @@ typedef uint32_t (*uc_get_send_seq_cb)(void);
 typedef bool (*uc_check_recv_seq_cb)(uint32_t new_seq);
 
 /**
+ * @brief Callback to check for session establishment
+ *
+ * @return True if a session is established. False otherwise.
+ */
+typedef bool (*uc_has_session_cb)(void);
+
+/**
  * @brief Cryptographic API callbacks for UC message encryption and replay protection.
  */
 typedef struct {
@@ -192,6 +199,7 @@ typedef struct {
   uc_get_send_seq_cb get_send_seq;
   /** @brief Callback to validate received sequence numbers for replay protection. */
   uc_check_recv_seq_cb check_recv_seq;
+  uc_has_session_cb has_session;
 } uc_crypto_api_t;
 
 /**
@@ -290,3 +298,13 @@ void uc_free_send_proto(void* proto_buffer);
  * route callback.
  */
 void uc_free_recv_proto(void* proto_buffer);
+
+/**
+ * @brief Forwards a received UC proto via IPC, freeing it if the send fails.
+ */
+#define UC_IPC_FORWARD(port, proto, size, msg)       \
+  do {                                               \
+    if (!ipc_send((port), (proto), (size), (msg))) { \
+      uc_free_recv_proto((proto));                   \
+    }                                                \
+  } while (0)

@@ -92,7 +92,7 @@ fun LoadingBadge(
       colorFilter = if (color != Color.Unspecified) ColorFilter.tint(color) else null
     )
   } else {
-    val painter = LoadingBadgePainter()
+    val painter = LoadingBadgePainter(color = color)
     Image(
       painter = painter,
       modifier = modifier,
@@ -101,6 +101,21 @@ fun LoadingBadge(
     )
   }
 }
+
+@Composable
+fun CircularLoadingBadge(
+  modifier: Modifier = Modifier,
+  color: Color = WalletTheme.colors.foreground,
+) {
+  LoadingBadge(
+    modifier = modifier,
+    color = color
+  )
+}
+
+@Composable
+fun CircularLoadingBadgePainter(color: Color? = null): Painter =
+  LoadingBadgePainter(color = color)
 
 @OptIn(ExperimentalResourceApi::class, ExperimentalCompottieApi::class)
 @Composable

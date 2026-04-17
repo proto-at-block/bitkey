@@ -91,8 +91,9 @@ bool crypto_key_exchange(crypto_key_exchange_ctx_t* ctx,
          ctx->pk_us->key.size == EC_PUBKEY_SIZE_X25519);
   ASSERT(ctx->sk_us && ctx->sk_us->storage_type == KEY_STORAGE_EXTERNAL_PLAINTEXT &&
          ctx->sk_us->key.size == EC_PRIVKEY_SIZE_X25519);
-  ASSERT(ctx->exchange_sig && ctx->exchange_sig_len == ECC_SIG_SIZE);
-  ASSERT(keys->send_key && keys->recv_key);
+  ASSERT(keys->send_key && keys->recv_key && keys->conf_key);
+  ASSERT((ctx->exchange_sig == NULL && ctx->exchange_sig_len == 0) ||
+         (ctx->exchange_sig != NULL && ctx->exchange_sig_len == ECC_SIG_SIZE));
 
   bool ret = false;
 
@@ -139,31 +140,33 @@ bool crypto_key_exchange(crypto_key_exchange_ctx_t* ctx,
     goto out;
   }
 
-  // Step 3) Sign with the unique device identity the following:
+  // Step 3) Optionally sign with the unique device identity the following:
   //  A context label
   //  Our public key
   //  Peer's public key
+  if (ctx->exchange_sig != NULL) {
+    uint8_t signing_input[KEY_EXCHANGE_SIGNATURE_LABEL_SIZE + EC_PUBKEY_SIZE_X25519 * 2] = {0};
+    memcpy(signing_input, KEY_EXCHANGE_SIGNATURE_LABEL, KEY_EXCHANGE_SIGNATURE_LABEL_SIZE);
+    memcpy(&signing_input[KEY_EXCHANGE_SIGNATURE_LABEL_SIZE], ctx->pk_us->key.bytes,
+           EC_PUBKEY_SIZE_X25519);
+    memcpy(&signing_input[KEY_EXCHANGE_SIGNATURE_LABEL_SIZE + EC_PUBKEY_SIZE_X25519], ctx->pk_peer,
+           EC_PUBKEY_SIZE_X25519);
 
-  uint8_t signing_input[KEY_EXCHANGE_SIGNATURE_LABEL_SIZE + EC_PUBKEY_SIZE_X25519 * 2] = {0};
-  memcpy(signing_input, KEY_EXCHANGE_SIGNATURE_LABEL, KEY_EXCHANGE_SIGNATURE_LABEL_SIZE);
-  memcpy(&signing_input[KEY_EXCHANGE_SIGNATURE_LABEL_SIZE], ctx->pk_us->key.bytes,
-         EC_PUBKEY_SIZE_X25519);
-  memcpy(&signing_input[KEY_EXCHANGE_SIGNATURE_LABEL_SIZE + EC_PUBKEY_SIZE_X25519], ctx->pk_peer,
-         EC_PUBKEY_SIZE_X25519);
-
-  ret = crypto_sign_with_device_identity(signing_input, sizeof(signing_input), ctx->exchange_sig,
-                                         ctx->exchange_sig_len);
-  if (!ret) {
-    goto out;
+    ret = crypto_sign_with_device_identity(signing_input, sizeof(signing_input), ctx->exchange_sig,
+                                           ctx->exchange_sig_len);
+    if (!ret) {
+      goto out;
+    }
   }
 
   ret = true;
 
 out:
+  memzero(intermediate_curve_point_buf, sizeof(intermediate_curve_point_buf));
   if (!ret) {
-    memzero(intermediate_curve_point_buf, sizeof(intermediate_curve_point_buf));
     memzero(keys->recv_key, AES_256_LENGTH_BYTES);
     memzero(keys->send_key, AES_256_LENGTH_BYTES);
+    memzero(keys->conf_key, AES_256_LENGTH_BYTES);
   }
   return ret;
 }

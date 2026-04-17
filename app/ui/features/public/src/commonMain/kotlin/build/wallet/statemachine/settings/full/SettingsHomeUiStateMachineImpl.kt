@@ -153,7 +153,8 @@ class SettingsHomeUiStateMachineImpl(
             accountId = props.account.accountId,
             onBack = { state = ShowingAllSettingsUiState },
             source = Settings,
-            onComplete = { state = ShowingAllSettingsUiState }
+            onComplete = { state = ShowingAllSettingsUiState },
+            fullAccount = props.account as? FullAccount
           )
         )
 
@@ -246,6 +247,7 @@ class SettingsHomeUiStateMachineImpl(
       )
       is ShowingUtxoConsolidationUiState -> utxoConsolidationUiStateMachine.model(
         UtxoConsolidationProps(
+          account = props.account as FullAccount,
           onConsolidationSuccess = props.onBack,
           onBack = {
             state = ShowingAllSettingsUiState

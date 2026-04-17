@@ -1,4 +1,4 @@
 awscli-local==0.22.2
 localstack-client==2.7
-terraform-local==0.24.1
+terraform-local==0.25.0
 localstack==4.9.0

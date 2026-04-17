@@ -1,0 +1,7 @@
+-- Add address verification preference table
+CREATE TABLE IF NOT EXISTS addressVerificationPreferenceEntity(
+    rowId   INTEGER NOT NULL PRIMARY KEY,
+    value   TEXT NOT NULL
+);
+
+PRAGMA foreign_key_check;

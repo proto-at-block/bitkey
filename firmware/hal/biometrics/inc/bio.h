@@ -23,6 +23,15 @@ typedef enum {
   BIO_ERR_LABEL_DOESNT_EXIST = 4,
 } bio_err_t;
 
+typedef enum {
+  BIO_FP_ERR_OOM = 1,
+  BIO_FP_ERR_FILE_OPEN = 2,
+  BIO_FP_ERR_FILE_WRITE = 3,
+  BIO_FP_ERR_FILE_READ = 4,
+  BIO_FP_ERR_SERIALIZE = 5,
+  BIO_FP_ERR_DESERIALIZE = 6,
+} bio_fp_err_t;
+
 typedef uint16_t bio_template_id_t;
 
 // This is like fpc_bep_diagnostics_parameters_t, but with the top 'valid' bit removed.
@@ -96,7 +105,8 @@ void bio_lib_reset(void);
 void bio_hal_init(void);
 
 bool bio_wait_for_finger_non_blocking(bio_gesture_t gesture);
-void bio_wait_for_finger_blocking(bio_gesture_t gesture);
+// Returns true if finger detected, false if cancelled.
+bool bio_wait_for_finger_blocking(bio_gesture_t gesture);
 
 // Retrieve how many fingers have already been enrolled in `count`
 void bio_storage_get_template_count(uint32_t* count);

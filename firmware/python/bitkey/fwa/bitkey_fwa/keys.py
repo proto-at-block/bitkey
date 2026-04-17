@@ -1,10 +1,13 @@
 import re
 from binascii import hexlify
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional
 
 from Crypto.PublicKey import ECC
 
 from .constants import (
+    PRODUCT_W3A_UXC,
     SECURITY_PROD,
     SIGNER_DEVELOPMENT,
     SIGNER_PERSONAL,
@@ -19,6 +22,13 @@ def _get_key_data(key_path: Path) -> ECC.EccKey:
     with open(key_path, "rt") as f:
         key = ECC.import_key(f.read())
         return key
+
+
+@dataclass
+class ResolvedVerificationKeyPaths:
+    public_key_path: str
+    cert_path: Optional[str] = None
+    private_key_path: Optional[str] = None
 
 
 def _collect_possible_keys(key_fmt: str, product: str, security: str) -> list[Path]:
@@ -37,7 +47,9 @@ def _collect_possible_keys(key_fmt: str, product: str, security: str) -> list[Pa
             pattern = f"{product}-app-signing-key-{stack_name}-development.*.pub.pem"
         elif signer_env == SIGNER_PERSONAL:
             suffix = ""
-            if security == SECURITY_PROD:
+            # Match bitkey.key_manager.SigningKeys naming:
+            # prod app keys for UXC do not use the "-production" suffix.
+            if security == SECURITY_PROD and product != PRODUCT_W3A_UXC:
                 suffix = f"-{SIGNER_PRODUCTION}"
             pattern = key_fmt.format(product, security, suffix)
         else:
@@ -107,6 +119,53 @@ def get_all_keys(key_fmt: str, security: str) -> list[ECC.EccKey]:
         keys.append(key)
 
     return keys
+
+
+def _key_path_to_cert_path(key_path: Path) -> Path:
+    """Infer the corresponding signing certificate path from a signing key path."""
+
+    cert_suffix = ".pct" if FirmwareUnderTest.product == PRODUCT_W3A_UXC else ".bin"
+
+    cert_name = key_path.name.replace("-signing-key-", "-signing-cert-")
+    if cert_name == key_path.name:
+        raise ValueError(f"Cannot infer certificate path from key path: {key_path}")
+
+    cert_name = cert_name.replace(".pub.pem", cert_suffix)
+    cert_path = key_path.with_name(cert_name)
+    if not cert_path.is_file():
+        raise FileNotFoundError(f"Certificate not found: {cert_path}")
+
+    return cert_path
+
+
+def _get_verification_key_manager_from_path(key_path: Path):
+    """Build the appropriate verification key manager for the current product."""
+    from bitkey.key_manager import LocalKeyManager, PicocertKeyManager
+
+    resolved_paths = ResolvedVerificationKeyPaths(public_key_path=str(key_path))
+
+    if FirmwareUnderTest.product == PRODUCT_W3A_UXC:
+        resolved_paths.cert_path = str(_key_path_to_cert_path(key_path))
+        return PicocertKeyManager(resolved_paths)
+
+    return LocalKeyManager(resolved_paths)
+
+
+def get_verification_key_manager(key_fmt: str):
+    """Resolve the current signing material and return the product-specific verifier."""
+
+    product = FirmwareUnderTest.product
+    security = FirmwareUnderTest.security
+    key_path = get_key_latest_version(key_fmt, product, security)
+    return _get_verification_key_manager_from_path(key_path)
+
+
+def get_all_verification_key_managers(key_fmt: str, security: str) -> list:
+    """Return all matching verification key managers in newest-first order."""
+
+    product = FirmwareUnderTest.product
+    key_paths = get_sorted_key_names(key_fmt, product, security)
+    return [_get_verification_key_manager_from_path(key_path) for key_path in key_paths]
 
 
 def get_patch_signing_key_bytes(key_fmt: str) -> bytes:

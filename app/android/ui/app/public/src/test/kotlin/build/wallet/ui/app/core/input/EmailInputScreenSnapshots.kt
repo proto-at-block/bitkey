@@ -12,45 +12,6 @@ import io.kotest.core.spec.style.FunSpec
 class EmailInputScreenSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
-  test("email input without test") {
-    paparazzi.snapshot {
-      FormScreen(
-        model = EmailInputScreenModel(
-          title = "Enter your email address",
-          primaryButton = ButtonModel(
-            text = "Continue",
-            treatment = Primary,
-            size = Footer,
-            onClick = StandardClick {}
-          ),
-          onValueChange = {},
-          onClose = {},
-          onSkip = {}
-        )
-      )
-    }
-  }
-
-  test("email input with email") {
-    paparazzi.snapshot {
-      FormScreen(
-        model = EmailInputScreenModel(
-          title = "Enter your email address",
-          value = "llcoolj@defjam.com",
-          primaryButton = ButtonModel(
-            text = "Continue",
-            treatment = Primary,
-            size = Footer,
-            onClick = StandardClick {}
-          ),
-          onValueChange = {},
-          onClose = {},
-          onSkip = {}
-        )
-      )
-    }
-  }
-
   test("email input without test v2") {
     paparazzi.snapshot {
       FormScreen(
@@ -64,8 +25,7 @@ class EmailInputScreenSnapshots : FunSpec({
             onClick = StandardClick {}
           ),
           onValueChange = {},
-          onClose = {},
-          onSkip = null
+          onClose = {}
         )
       )
     }
@@ -87,8 +47,7 @@ class EmailInputScreenSnapshots : FunSpec({
                 onClick = StandardClick {}
               ),
             onValueChange = {},
-            onClose = {},
-            onSkip = null
+            onClose = {}
           )
       )
     }

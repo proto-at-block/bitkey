@@ -24,10 +24,11 @@ import build.wallet.encrypt.Secp256k1PublicKey
 import build.wallet.encrypt.SignatureVerifier
 import build.wallet.encrypt.verifyEcdsaResult
 import build.wallet.feature.flags.AsyncNfcSigningFeatureFlag
-import build.wallet.feature.flags.CheckHardwareIsPairedFeatureFlag
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.feature.flags.NfcSessionRetryAttemptsFeatureFlag
 import build.wallet.feature.intValue
 import build.wallet.feature.isEnabled
+import build.wallet.feature.collectIsEnabledAsState
 import build.wallet.logging.logInfo
 import build.wallet.logging.logWarn
 import build.wallet.nfc.NfcAvailability.Available.Disabled
@@ -52,6 +53,8 @@ import build.wallet.statemachine.nfc.NfcSessionUIState.InSession.*
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
 import build.wallet.statemachine.platform.nfc.EnableNfcNavigator
 import build.wallet.statemachine.settings.showDebugMenu
+import build.wallet.ui.theme.Theme
+import build.wallet.ui.theme.ThemePreference
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -71,6 +74,16 @@ import build.wallet.statemachine.nfc.NfcBodyModel.Status.Success as SuccessState
 data class NfcSessionConfig(
   val onConnected: () -> Unit = {},
   val onCancel: () -> Unit,
+  /**
+   * Optional back action for NFC flows that explicitly support a distinct "back"
+   * behavior separate from [onCancel].
+   *
+   * Defaults to [onCancel] for backward compatibility. The standard NFC session
+   * screens continue to use [onCancel] for system back and toolbar back actions
+   * unless a specific flow wires [onBack] separately (for example, the hardware
+   * confirmation waiting UI in the confirmable NFC session state machine).
+   */
+  val onBack: () -> Unit = onCancel,
   val onInauthenticHardware: (Throwable) -> Unit = {},
   /**
    * Optional callback invoked when an [NfcException] occurs during the session.
@@ -87,11 +100,36 @@ data class NfcSessionConfig(
   val actionDescription: String? = null,
   val screenPresentationStyle: ScreenPresentationStyle,
   val eventTrackerContext: NfcEventTrackerScreenIdContext,
+  /** Whether to skip collecting and uploading firmware telemetry after the transaction. */
+  val skipFirmwareTelemetry: Boolean = false,
   /**
    *  Used to indicate that an operation may take awhile, by using an indeterminate spinner on Android and
    *  add some flavor text on iOS.
    */
   val shouldShowLongRunningOperation: Boolean = false,
+  /**
+   * When true on iOS, the app keeps the prior screen visible underneath the native CoreNFC sheet.
+   * Disable this for longer-running flows that need the custom Bitkey NFC background to remain visible.
+   */
+  val showNativeSheetOnIos: Boolean = true,
+  /**
+   * When set, overrides the hardware type derived from [AccountConfig].
+   * Use during recovery flows where the account config isn't available but the
+   * hardware type was detected from the device in an earlier NFC tap.
+   */
+  val hardwareTypeOverride: HardwareType? = null,
+  /**
+   * Whether to show a device confirmation screen on W3 after a successful transaction.
+   * When true, a "showConfirmation" interceptor will display an "APPROVED" screen on
+   * the W3 device before locking. Only applies to W3 hardware.
+   */
+  val showDeviceConfirmation: Boolean = false,
+  /**
+   * When true, skips the hardware Delay+Notify guard.
+   * Set only by the lost-hardware cancellation PoP flow so the replacement hardware
+   * can cancel an in-progress recovery rather than being blocked by the guard.
+   */
+  val skipLostHardwareCheck: Boolean = false,
 )
 
 class NfcSessionUIStateMachineProps<T>(
@@ -105,6 +143,7 @@ class NfcSessionUIStateMachineProps<T>(
 ) {
   val onConnected: () -> Unit get() = config.onConnected
   val onCancel: () -> Unit get() = config.onCancel
+  val onBack: () -> Unit get() = config.onBack
   val onInauthenticHardware: (Throwable) -> Unit get() = config.onInauthenticHardware
   val onError: (NfcException) -> Boolean get() = config.onError
   val needsAuthentication: Boolean get() = config.needsAuthentication
@@ -114,7 +153,11 @@ class NfcSessionUIStateMachineProps<T>(
   val actionDescription: String? get() = config.actionDescription
   val screenPresentationStyle: ScreenPresentationStyle get() = config.screenPresentationStyle
   val eventTrackerContext: NfcEventTrackerScreenIdContext get() = config.eventTrackerContext
+  val skipFirmwareTelemetry: Boolean get() = config.skipFirmwareTelemetry
   val shouldShowLongRunningOperation: Boolean get() = config.shouldShowLongRunningOperation
+  val showNativeSheetOnIos: Boolean get() = config.showNativeSheetOnIos
+  val showDeviceConfirmation: Boolean get() = config.showDeviceConfirmation
+  val skipLostHardwareCheck: Boolean get() = config.skipLostHardwareCheck
 
   /**
    * Backward-compatible constructor that maintains existing callsite signatures.
@@ -124,6 +167,7 @@ class NfcSessionUIStateMachineProps<T>(
     onConnected: () -> Unit = {},
     onSuccess: suspend (@UnsafeVariance T) -> Unit,
     onCancel: () -> Unit,
+    onBack: () -> Unit = onCancel,
     onInauthenticHardware: (Throwable) -> Unit = {},
     onError: (NfcException) -> Boolean = { false },
     needsAuthentication: Boolean = true,
@@ -133,13 +177,19 @@ class NfcSessionUIStateMachineProps<T>(
     actionDescription: String? = null,
     screenPresentationStyle: ScreenPresentationStyle,
     eventTrackerContext: NfcEventTrackerScreenIdContext,
+    skipFirmwareTelemetry: Boolean = false,
     shouldShowLongRunningOperation: Boolean = false,
+    showNativeSheetOnIos: Boolean = true,
+    hardwareTypeOverride: HardwareType? = null,
+    showDeviceConfirmation: Boolean = false,
+    skipLostHardwareCheck: Boolean = false,
   ) : this(
     session = session,
     onSuccess = onSuccess,
     config = NfcSessionConfig(
       onConnected = onConnected,
       onCancel = onCancel,
+      onBack = onBack,
       onInauthenticHardware = onInauthenticHardware,
       onError = onError,
       needsAuthentication = needsAuthentication,
@@ -149,7 +199,12 @@ class NfcSessionUIStateMachineProps<T>(
       actionDescription = actionDescription,
       screenPresentationStyle = screenPresentationStyle,
       eventTrackerContext = eventTrackerContext,
-      shouldShowLongRunningOperation = shouldShowLongRunningOperation
+      skipFirmwareTelemetry = skipFirmwareTelemetry,
+      shouldShowLongRunningOperation = shouldShowLongRunningOperation,
+      showNativeSheetOnIos = showNativeSheetOnIos,
+      hardwareTypeOverride = hardwareTypeOverride,
+      showDeviceConfirmation = showDeviceConfirmation,
+      skipLostHardwareCheck = skipLostHardwareCheck
     )
   )
 
@@ -159,9 +214,11 @@ class NfcSessionUIStateMachineProps<T>(
     eventTrackerContext: NfcEventTrackerScreenIdContext,
     segment: AppSegment? = null,
     actionDescription: String? = null,
-    hardwareVerification: HardwareVerification,
+    hardwareVerification: HardwareVerification = Required(),
     onInauthenticHardware: (Throwable) -> Unit = {},
     onError: (NfcException) -> Boolean = { false },
+    hardwareTypeOverride: HardwareType? = null,
+    skipFirmwareTelemetry: Boolean = false,
   ) : this(
     session = transaction::session,
     onSuccess = transaction::onSuccess,
@@ -175,7 +232,10 @@ class NfcSessionUIStateMachineProps<T>(
       screenPresentationStyle = screenPresentationStyle,
       eventTrackerContext = eventTrackerContext,
       onInauthenticHardware = onInauthenticHardware,
-      onError = onError
+      onError = onError,
+      hardwareTypeOverride = hardwareTypeOverride,
+      showDeviceConfirmation = transaction.showDeviceConfirmation,
+      skipFirmwareTelemetry = skipFirmwareTelemetry
     )
   )
 
@@ -216,9 +276,9 @@ class NfcSessionUIStateMachineImpl(
   private val signatureVerifier: SignatureVerifier,
   private val accountService: AccountService,
   private val recoveryStatusService: RecoveryStatusService,
-  private val checkHardwareIsPairedFeatureFlag: CheckHardwareIsPairedFeatureFlag,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val nfcSessionRetryAttemptsFeatureFlag: NfcSessionRetryAttemptsFeatureFlag,
+  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : NfcSessionUIStateMachine {
   /**
    * Text shown under the progress spinner (on Android) or on the iOS NFC Sheet when performing
@@ -230,6 +290,8 @@ class NfcSessionUIStateMachineImpl(
   @Composable
   @Suppress("CyclomaticComplexMethod")
   override fun model(props: NfcSessionUIStateMachineProps<*>): ScreenModel {
+    val designSystemV2Enabled by designSystemUpdatesFeatureFlag.collectIsEnabledAsState()
+    val devicePlatform = remember { deviceInfoProvider.getDeviceInfo().devicePlatform }
     val accountConfig = remember { accountConfigService.activeOrDefaultConfig().value }
     val isHardwareFake = remember {
       when (accountConfig) {
@@ -244,10 +306,19 @@ class NfcSessionUIStateMachineImpl(
         else -> false
       }
     }
-    val hardwareType = remember {
-      when (accountConfig) {
+    val hardwareType = remember(props.config.hardwareTypeOverride) {
+      // Use caller-provided override (e.g. W1 during upgrade flow),
+      // otherwise resolve from account config.
+      // For DefaultAccountConfig (pre-login onboarding), leave null so NfcCommandsProvider
+      // falls back to W1 commands, which work on both W1 and W3 for basic operations.
+      // Callers should pass hardwareTypeOverride once the hardware type is detected.
+      props.config.hardwareTypeOverride ?: when (accountConfig) {
         is FullAccountConfig -> accountConfig.hardwareType
-        is DefaultAccountConfig -> accountConfig.hardwareType ?: HardwareType.W1
+        // For accounts without a known hardware type (pre-login onboarding, lite/software
+        // upgrading to full), leave null so NfcCommandsProvider falls back to W1 commands.
+        // W1 commands work on both W1 and W3 for basic operations (all delegated).
+        // Callers should pass hardwareTypeOverride once the hardware type is detected.
+        is DefaultAccountConfig -> accountConfig.hardwareType
         is LiteAccountConfig, is SoftwareAccountConfig -> null
       }
     }
@@ -261,9 +332,15 @@ class NfcSessionUIStateMachineImpl(
         }
       )
     }
+    var sessionCanceledByPlatform by remember { mutableStateOf(false) }
 
     if (newState is InSession) {
       LaunchedEffect("nfc-transaction") {
+        sessionCanceledByPlatform = false
+        delayForIosNativeNfcTransition(
+          designSystemV2Enabled = designSystemV2Enabled,
+          devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform
+        )
         nfcTransactor.transact(
           parameters = NfcSession.Parameters(
             isHardwareFake = isHardwareFake,
@@ -271,24 +348,37 @@ class NfcSessionUIStateMachineImpl(
             needsAuthentication = props.needsAuthentication,
             shouldLock = props.shouldLock,
             requirePairedHardware = determineNfcHardwarePairingRequired(props.hardwareVerification),
-            skipFirmwareTelemetry = false, // Only true for FWUP.
+            skipFirmwareTelemetry = props.skipFirmwareTelemetry,
             onTagConnected = { session ->
-              props.onConnected()
-              if (props.shouldShowLongRunningOperation) {
-                session?.message = longRunningOperationText
+              if (newState is InSession) {
+                props.onConnected()
+                if (props.shouldShowLongRunningOperation) {
+                  session?.message = longRunningOperationText
+                }
+                newState = Communicating
               }
-              newState = Communicating
             },
             onTagDisconnected = {
               // NB: This is only called on Android.
-              if (newState !is Success) newState = Searching
+              if (newState is InSession && newState !is Success) {
+                newState = Searching
+              }
+            },
+            onSessionCanceled = {
+              if (newState is InSession) {
+                sessionCanceledByPlatform = true
+                props.onCancel()
+              }
             },
             asyncNfcSigning = asyncNfcSigningFeatureFlag.isEnabled(),
             nfcFlowName = props.eventTrackerContext.name,
-            maxNfcRetryAttempts = nfcSessionRetryAttemptsFeatureFlag.intValue()
+            maxNfcRetryAttempts = nfcSessionRetryAttemptsFeatureFlag.intValue(),
+            showDeviceConfirmation = props.showDeviceConfirmation,
+            skipLostHardwareCheck = props.skipLostHardwareCheck
           ),
           transaction = props.session
         ).onSuccess { result ->
+          if (newState !is InSession) return@onSuccess
           newState = Success
           delay(
             NfcSuccessScreenDuration(
@@ -300,9 +390,12 @@ class NfcSessionUIStateMachineImpl(
           @Suppress("USELESS_CAST")
           (props.onSuccess as suspend (Any?) -> Unit).invoke(result)
         }.onFailure { error ->
+          if (newState !is InSession) return@onFailure
           when (error) {
             is NfcException.IOSOnly.UserCancellation ->
-              props.onCancel()
+              if (!sessionCanceledByPlatform) {
+                props.onCancel()
+              }
             else -> {
               val handled = props.onError(error)
               if (!handled) {
@@ -319,14 +412,25 @@ class NfcSessionUIStateMachineImpl(
         when (currentState) {
           is Searching -> {
             NfcBodyModel(
-              text = "Hold device here behind phone",
-              status = SearchingState(props.onCancel),
+              text = "Hold your Bitkey to the back of your phone",
+              status = SearchingState(onCancel = props.onCancel),
+              hardwareType = hardwareType ?: HardwareType.W3,
+              showNativeSheetOnIos = props.showNativeSheetOnIos,
+              onHelpClick =
+                if (designSystemV2Enabled) {
+                  { newState = Help(Searching) }
+                } else {
+                  null
+                },
               eventTrackerScreenInfo =
                 EventTrackerScreenInfo(
                   eventTrackerScreenId = NFC_INITIATE,
                   eventTrackerContext = props.eventTrackerContext
                 )
-            ).asPlatformNfcScreen()
+            ).asPlatformNfcScreen(
+              designSystemV2Enabled = designSystemV2Enabled,
+              devicePlatform = devicePlatform
+            )
           }
 
           is Communicating -> {
@@ -341,26 +445,58 @@ class NfcSessionUIStateMachineImpl(
                 onCancel = props.onCancel,
                 showProgressSpinner = props.shouldShowLongRunningOperation
               ),
+              hardwareType = hardwareType ?: HardwareType.W3,
+              showNativeSheetOnIos = props.showNativeSheetOnIos,
+              onHelpClick =
+                if (designSystemV2Enabled) {
+                  { newState = Help(Searching) }
+                } else {
+                  null
+                },
               eventTrackerScreenInfo =
                 EventTrackerScreenInfo(
                   eventTrackerScreenId = NfcEventTrackerScreenId.NFC_DETECTED,
                   eventTrackerContext = props.eventTrackerContext
                 )
-            ).asPlatformNfcScreen()
+            ).asPlatformNfcScreen(
+              designSystemV2Enabled = designSystemV2Enabled,
+              devicePlatform = devicePlatform
+            )
           }
 
           is Success -> {
             NfcBodyModel(
               text = "Success",
               status = SuccessState,
+              hardwareType = hardwareType ?: HardwareType.W3,
+              showNativeSheetOnIos = props.showNativeSheetOnIos,
               eventTrackerScreenInfo =
                 EventTrackerScreenInfo(
                   eventTrackerScreenId = NfcEventTrackerScreenId.NFC_SUCCESS,
                   eventTrackerContext = props.eventTrackerContext
                 )
-            ).asPlatformNfcScreen()
+            ).asPlatformNfcScreen(
+              designSystemV2Enabled = designSystemV2Enabled,
+              devicePlatform = devicePlatform
+            )
           }
         }
+
+      is Help ->
+        ScreenModel(
+          body = NfcHelpBodyModel(
+            onBack = {
+              newState = currentState.previousState
+            }
+          ),
+          presentationStyle =
+            if (designSystemV2Enabled) {
+              ScreenPresentationStyle.ModalFullScreen
+            } else {
+              ScreenPresentationStyle.FullScreen
+            },
+          themePreference = nfcThemePreference(designSystemV2Enabled, devicePlatform)
+        )
 
       is AndroidOnly -> {
         when (currentState) {
@@ -411,15 +547,11 @@ class NfcSessionUIStateMachineImpl(
 
   /**
    * Determines [RequirePairedHardware] to pass to the nfc session, taking into account
-   * feature flags, recovery state, and null pubKeys.
+   * recovery state, missing pubkeys, and EEK mode bypass.
    */
   private suspend fun determineNfcHardwarePairingRequired(
     hardwareVerification: NfcSessionUIStateMachineProps.HardwareVerification,
   ): RequirePairedHardware {
-    if (!checkHardwareIsPairedFeatureFlag.isEnabled()) {
-      return NotRequired
-    }
-
     if (hardwareVerification !is Required) {
       return NotRequired
     }
@@ -481,6 +613,10 @@ private sealed class NfcSessionUIState {
 
     data object Success : InSession()
   }
+
+  data class Help(
+    val previousState: InSession,
+  ) : NfcSessionUIState()
 
   sealed class AndroidOnly : NfcSessionUIState() {
     /** Showing a message for mobile devices that don't have NFC -- Android-only. */

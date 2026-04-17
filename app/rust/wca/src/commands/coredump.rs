@@ -51,7 +51,7 @@ fn get_coredump_fragment(offset: u32, mcu_role: McuRole) -> Result<CoredumpFragm
                 return Err(CommandError::UnspecifiedCommandError)
             }
             Ok(CoredumpGetRspStatus::Success) => {}
-            Ok(CoredumpGetRspStatus::Error) => return Err(CommandError::GeneralCommandError),
+            Ok(CoredumpGetRspStatus::Error) => return Err(CommandError::CoredumpFailed),
             Err(_) => return Err(CommandError::InvalidResponse),
         };
 
@@ -111,7 +111,7 @@ fn get_coredump_count() -> Result<u16, CommandError> {
                 return Err(CommandError::UnspecifiedCommandError)
             }
             Ok(CoredumpGetRspStatus::Success) => {}
-            Ok(CoredumpGetRspStatus::Error) => return Err(CommandError::GeneralCommandError),
+            Ok(CoredumpGetRspStatus::Error) => return Err(CommandError::CoredumpFailed),
             Err(_) => return Err(CommandError::InvalidResponse),
         };
 

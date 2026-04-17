@@ -1,7 +1,6 @@
 #include "assert.h"
 #include "attributes.h"
 #include "auth.h"
-#include "board_id.h"
 #include "button.h"
 #include "coproc_power.h"
 #include "display_controller.h"
@@ -39,8 +38,6 @@ static struct {
   uint32_t last_wake_time_ms;
 } display_state UI_TASK_DATA = {0};
 
-#define DISPLAY_BACKEND_POLL_INTERVAL_MS 20
-
 static void handle_touch_event(void* proto, void* UNUSED(context)) {
   fwpb_uxc_msg_device* msg = (fwpb_uxc_msg_device*)proto;
   if (!msg || msg->which_msg != fwpb_uxc_msg_device_display_touch_tag) {
@@ -60,7 +57,7 @@ static void handle_touch_event(void* proto, void* UNUSED(context)) {
     UI_SHOW_EVENT_WITH_DATA(UI_EVENT_MFGTEST_TOUCH, (uint8_t*)&touch_event, sizeof(touch_event));
 
     // Send touch point to mfgtest task for buffering
-    static SHARED_TASK_DATA mfgtest_touch_point_t touch_point_msg;
+    static SHARED_TASK_BSS mfgtest_touch_point_t touch_point_msg;
     touch_point_msg.x = touch->coord.x;
     touch_point_msg.y = touch->coord.y;
     touch_point_msg.timestamp_ms = rtos_thread_systime();
@@ -95,7 +92,7 @@ static void handle_display_action(void* proto, void* UNUSED(context)) {
   fwpb_display_action* action = &msg->msg.display_action;
 
   // Send IPC message to UI task
-  static SHARED_TASK_DATA ui_display_action_t action_msg;
+  static SHARED_TASK_BSS ui_display_action_t action_msg;
   action_msg.action = (uint32_t)action->action;
   action_msg.data = (uint32_t)action->data;
   ipc_send(ui_port, &action_msg, sizeof(action_msg), IPC_UI_DISPLAY_ACTION);
@@ -123,20 +120,7 @@ static void display_backend_init(void) {
   // Initialize display controller immediately - process events while coproc boots
   display_controller_init();
 
-  // Set display rotation based on board ID at boot
-  // Touch boards need 180 degree rotation (both wake and nowake variants)
-#if DISPLAY_ROTATE_180
   display_controller_set_rotation(true);
-#else
-  uint8_t board_id = 0;
-  if (board_id_read(&board_id)) {
-    bool needs_rotation =
-      (board_id == W3_BOARD_ID_TOUCH_WAKE) || (board_id == W3_BOARD_ID_TOUCH_NOWAKE);
-    display_controller_set_rotation(needs_rotation);
-  } else {
-    LOGW("board_id_read failed; using default rotation");
-  }
-#endif
 }
 
 static void display_backend_show_event(ui_event_type_t event) {
@@ -150,14 +134,15 @@ static void display_backend_show_event(ui_event_type_t event) {
 static void display_backend_show_event_with_data(ui_event_type_t event, const uint8_t* data,
                                                  uint32_t len) {
   // Handle button bypass event - disables button event processing
+#ifdef MFGTEST
   if (event == UI_EVENT_MFGTEST_BUTTON_BYPASS) {
     if (data && len == sizeof(mfgtest_button_bypass_payload_t)) {
       const mfgtest_button_bypass_payload_t* payload = (const mfgtest_button_bypass_payload_t*)data;
       display_state.button_bypass_enabled = payload->bypass_enabled;
-      LOGI("UI button bypass %s", payload->bypass_enabled ? "enabled" : "disabled");
     }
     return;
   }
+#endif
 
   display_state.current_event = event;
 
@@ -179,8 +164,6 @@ static void display_backend_set_idle_state(ui_event_type_t idle_state) {
   display_state.idle_state = idle_state;
 
   // TODO: Update display idle screen based on state
-
-  LOGI("Display idle state set to: %d", idle_state);
 }
 
 static void display_backend_clear(void) {
@@ -190,8 +173,6 @@ static void display_backend_clear(void) {
 
   // TODO: Clear display
   // display_clear_screen();
-
-  LOGI("Display cleared");
 }
 
 static void display_backend_handle_display_action(uint32_t action, uint32_t data) {
@@ -227,16 +208,11 @@ static void display_backend_handle_display_action(uint32_t action, uint32_t data
     case fwpb_display_action_display_action_type_DISPLAY_ACTION_DELETE_FINGERPRINT:
       display_controller_handle_action_delete_fingerprint((uint8_t)data);
       break;
-    case fwpb_display_action_display_action_type_DISPLAY_ACTION_SLEEP_READY: {
-      bool ready = (data != 0);
-      LOGD("UXC sleep ready action received: %d", ready);
-      if (ready) {
-        ipc_send_empty(sysinfo_port, IPC_SYSINFO_POWER_OFF);
-      }
+    case fwpb_display_action_display_action_type_DISPLAY_ACTION_PAGE_CONFIRMED:
+      display_controller_handle_action_page_confirmed();
       break;
-    }
     default:
-      LOGW("Unknown display action: %lu", action);
+      LOGW("unknown action: %lu", action);
       break;
   }
 }
@@ -250,8 +226,6 @@ static void display_backend_run(void) {
     while (button_get_event(&event)) {
       button_event_payload_t payload = {0};
 
-      LOGI("Got button event: button=%d type=%d", event.button, event.type);
-
       // Map button IDs from HAL to UI layer
       if (event.button == HAL_BUTTON_LEFT) {
         payload.button = BUTTON_LEFT;
@@ -260,7 +234,7 @@ static void display_backend_run(void) {
       } else if (event.button == HAL_BUTTON_BOTH) {
         payload.button = BUTTON_BOTH;
       } else {
-        LOGW("Unknown button ID: %d", event.button);
+        LOGW("unknown btn: %d", event.button);
         continue;
       }
       payload.duration_ms = event.duration_ms;
@@ -289,7 +263,7 @@ static void display_backend_run(void) {
 
   display_controller_tick();
 
-  rtos_thread_sleep_until(&display_state.last_wake_time_ms, DISPLAY_BACKEND_POLL_INTERVAL_MS);
+  rtos_thread_sleep_until(&display_state.last_wake_time_ms, DISPLAY_TICK_MS);
 }
 
 // Backend operations table

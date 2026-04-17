@@ -1,14 +1,22 @@
 #include "printf.h"
 #include "secure_engine.h"
 #include "secure_engine_priv.h"
+#include "wstring.h"
 
 #include <stdalign.h>
 #include <string.h>
 
+// W1
 // A95750D30EDDFB969DE69642753853CCD7D5758ECC6EA2BD6FB0DAF06E5139F168F777B047948591D77079611884F62553D76B769F5257F1D8B01E0F8FE49B13
-static const uint8_t dev_secure_boot_pubkey_first_byte = 0xa9;
+static const uint8_t w1_dev_secure_boot_pubkey_first_byte = 0xa9;
 // 9817BF12E0C01FE5D18AC39AC40A0093FCA389F9DF37C232E21F09CBD35EC14139940E1CFCE2CF13D80E0DF8EA39E8BA5504D4D45DB5D8E3861D8DF79ABCF4D2
-static const uint8_t prod_secure_boot_pubkey_first_byte = 0x98;
+static const uint8_t w1_prod_secure_boot_pubkey_first_byte = 0x98;
+
+// W3
+// 011D2047F39BE803D214E8F01FF8752CBB4ED75953EDD7110C3088F277B072E89BDA94FC3B7D090CB467DEC0EDDB7BE5974838796350410FA259DC39E0D2613D
+static const uint8_t w3_dev_secure_boot_pubkey_first_byte = 0x01;
+// C1B9C311491D7E5DE54526689CFF54A727882564E64A36CBF4C9CCE9AA64D1E2A5C58874FB93A3239EC6B09C3D4DD802D1EBCAFCA3DA567E3CE0F3E339094F32
+static const uint8_t w3_prod_secure_boot_pubkey_first_byte = 0xc1;
 
 // pubkey is optional. If it's NULL, the pubkey will not be copied.
 //
@@ -35,16 +43,18 @@ static sl_status_t do_se_read_pubkey(sl_se_device_key_type_t kind, uint8_t* pubk
     goto out;
   }
 
-  // We check only the first byte of the dev or prod public key, since they differ.
+  // We check only the first byte of the known dev or prod public keys, since they differ.
   // We could compare the full keys, but that requires 126 extra bytes.
   // Security-critical decisions are not made using the the secure_boot_config_t; it's
   // purely informational.
   if (config && kind == SL_SE_KEY_TYPE_IMMUTABLE_BOOT) {
     switch (buf[0]) {
-      case dev_secure_boot_pubkey_first_byte:
+      case w1_dev_secure_boot_pubkey_first_byte:
+      case w3_dev_secure_boot_pubkey_first_byte:
         *config = SECURE_BOOT_CONFIG_DEV;
         break;
-      case prod_secure_boot_pubkey_first_byte:
+      case w1_prod_secure_boot_pubkey_first_byte:
+      case w3_prod_secure_boot_pubkey_first_byte:
         *config = SECURE_BOOT_CONFIG_PROD;
         break;
       default:
@@ -58,7 +68,7 @@ static sl_status_t do_se_read_pubkey(sl_se_device_key_type_t kind, uint8_t* pubk
   }
 
 out:
-  memset(buf, 0, SE_PUBKEY_SIZE);
+  memzero(buf, SE_PUBKEY_SIZE);
   return status;
 }
 

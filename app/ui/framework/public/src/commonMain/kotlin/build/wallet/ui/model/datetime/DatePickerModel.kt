@@ -8,4 +8,5 @@ data class DatePickerModel(
   val onValueChange: (LocalDate) -> Unit,
   val minDate: LocalDate? = null,
   val maxDate: LocalDate? = null,
+  val testTag: String? = null,
 )

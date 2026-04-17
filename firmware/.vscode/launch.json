@@ -85,7 +85,8 @@
       "device": "EFR32MG24BXXXF1536",
       "interface": "swd",
       "serialNumber": "",
-      "svdFile": "${workspaceFolder}/config/EFR32MG24B010F1536IM48.svd"
+      "svdFile": "${workspaceFolder}/config/EFR32MG24B010F1536IM48.svd",
+      "armToolchainPath": "${workspaceFolder}/bin"
     },
     {
       "type": "cortex-debug",

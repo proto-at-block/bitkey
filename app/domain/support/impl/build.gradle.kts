@@ -25,6 +25,8 @@ kotlin {
         implementation(projects.libs.contactMethodFake)
         implementation(projects.domain.f8eClientFake)
         implementation(projects.domain.accountFake)
+        implementation(projects.domain.hardwareFake)
+        implementation(projects.domain.analyticsFake)
         implementation(libs.kmp.test.kotest.framework.engine)
       }
     }

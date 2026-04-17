@@ -68,12 +68,9 @@ suspend inline fun <reified PropsT : Any> ReceiveTurbine<ScreenModel>.awaitUntil
   validate: PropsT.() -> Unit,
 ): PropsT {
   val body = awaitUntilScreenWithBody<BodyModelMock<PropsT>>(matchingBody = { body ->
-    body.shouldBeInstanceOf<BodyModelMock<PropsT>>()
-    body.latestProps.shouldBeInstanceOf<PropsT>()
-    id?.let {
-      body.id.shouldBe(it)
-    }
-    true
+    body is BodyModelMock<*> &&
+      body.latestProps is PropsT &&
+      (id == null || body.id == id)
   }).body as BodyModelMock<PropsT>
   validate(body.latestProps)
   return body.latestProps

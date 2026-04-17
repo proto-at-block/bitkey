@@ -57,6 +57,8 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
         GettingStartedCardUiProps(
           onAddBitcoin = {},
           onEnableSpendingLimit = {},
+          onUpdateFirmware = {},
+          showUpdateFirmwareTile = false,
           onShowAlert = {},
           onDismissAlert = {}
         ),

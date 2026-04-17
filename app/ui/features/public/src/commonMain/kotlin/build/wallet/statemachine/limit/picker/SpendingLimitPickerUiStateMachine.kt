@@ -2,9 +2,10 @@ package build.wallet.statemachine.limit.picker
 
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
+import build.wallet.platform.settings.Locale
 import build.wallet.statemachine.core.Retreat
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
@@ -31,6 +32,7 @@ data class SpendingLimitPickerUiProps(
   val onSaveLimit: (
     fiatLimit: FiatMoney,
     btcLimit: BitcoinMoney,
-    hwFactorProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
+    locale: Locale,
   ) -> Unit,
 )

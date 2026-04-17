@@ -40,12 +40,6 @@ pub enum ServiceError {
         "No authorization strategy defined for privileged action type {0} and account type {1}"
     )]
     NoAuthorizationStrategyDefinedForbidden(PrivilegedActionType, AccountType),
-    #[error("Cannot continue defined authorization strategy type")]
-    CannotContinueDefinedAuthorizationStrategyType,
-    #[error("Failed hardware proof of possession check")]
-    FailedHardwareProofOfPossessionCheck,
-    #[error("Missing validation context for hardware proof of possession")]
-    MissingValidationContext,
     #[error("Privileged action instance record privileged action type conflict")]
     RecordPrivilegedActionTypeConflict,
     #[error("Privileged action instance record authorization strategy type unexpected")]
@@ -78,8 +72,9 @@ impl From<ServiceError> for ApiError {
             ServiceError::Database(e) => e.into(),
             ServiceError::Notification(e) => e.into(),
             ServiceError::RecordAccountIdForbidden
-            | ServiceError::NoAuthorizationStrategyDefinedForbidden(_, _)
-            | ServiceError::FailedHardwareProofOfPossessionCheck => ApiError::GenericForbidden(msg),
+            | ServiceError::NoAuthorizationStrategyDefinedForbidden(_, _) => {
+                ApiError::GenericForbidden(msg)
+            }
             ServiceError::RecordAuthorizationStrategyTypeConflict
             | ServiceError::RecordDelayAndNotifyStatusConflict
             | ServiceError::DelayAndNotifyEndTimeInFuture
@@ -91,15 +86,11 @@ impl From<ServiceError> for ApiError {
             ServiceError::BadInputAuthorizationStrategyType
             | ServiceError::BadInputCompletionToken
             | ServiceError::BadInputWebAuthToken
-            | ServiceError::CannotConfigureDelay(_, _)
-            | ServiceError::CannotContinueDefinedAuthorizationStrategyType => {
-                ApiError::GenericBadRequest(msg)
-            }
+            | ServiceError::CannotConfigureDelay(_, _) => ApiError::GenericBadRequest(msg),
             ServiceError::RecordAuthorizationStrategyTypeUnexpected
             | ServiceError::TryFromInt(_)
             | ServiceError::ExternalIdentifier(_)
-            | ServiceError::NotificationPayloadBuilder(_)
-            | ServiceError::MissingValidationContext => {
+            | ServiceError::NotificationPayloadBuilder(_) => {
                 ApiError::GenericInternalApplicationError(msg)
             }
             ServiceError::CannotUpdateDelayForNonTestAccount => ApiError::GenericForbidden(msg),

@@ -6,6 +6,7 @@ import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.statemachine.core.BodyModel
+import build.wallet.statemachine.core.LabelModel
 import build.wallet.ui.app.account.ChooseAccountAccessScreen
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
@@ -16,6 +17,7 @@ data class ChooseAccountAccessModel(
   val subtitle: String,
   val buttons: List<ButtonModel>,
   val onLogoClick: () -> Unit,
+  val legalNotice: LabelModel.LinkSubstringModel,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? =
     EventTrackerScreenInfo(
       eventTrackerScreenId = GeneralEventTrackerScreenId.CHOOSE_ACCOUNT_ACCESS
@@ -25,6 +27,8 @@ data class ChooseAccountAccessModel(
     onLogoClick: () -> Unit,
     onSetUpNewWalletClick: () -> Unit,
     onMoreOptionsClick: () -> Unit,
+    onTermsOfServiceClick: () -> Unit = {},
+    onPrivacyNoticeClick: () -> Unit = {},
   ) : this(
     onLogoClick = onLogoClick,
     title = "Own your bitcoin",
@@ -36,8 +40,7 @@ data class ChooseAccountAccessModel(
             text = "Set up a new wallet",
             size = Footer,
             treatment = ButtonModel.Treatment.White,
-            onClick = StandardClick(onSetUpNewWalletClick),
-            testTag = "setup-new-wallet"
+            onClick = StandardClick(onSetUpNewWalletClick)
           )
         )
 
@@ -46,11 +49,14 @@ data class ChooseAccountAccessModel(
             text = "More options",
             size = Footer,
             treatment = ButtonModel.Treatment.Translucent10,
-            onClick = StandardClick(onMoreOptionsClick),
-            testTag = "more-options"
+            onClick = StandardClick(onMoreOptionsClick)
           )
         )
-      }
+      },
+    legalNotice = buildChooseAccountAccessLegalNotice(
+      onTermsOfServiceClick = onTermsOfServiceClick,
+      onPrivacyNoticeClick = onPrivacyNoticeClick
+    )
   )
 
   @Composable
@@ -58,3 +64,17 @@ data class ChooseAccountAccessModel(
     ChooseAccountAccessScreen(modifier, model = this)
   }
 }
+
+private fun buildChooseAccountAccessLegalNotice(
+  onTermsOfServiceClick: () -> Unit,
+  onPrivacyNoticeClick: () -> Unit,
+) = LabelModel.LinkSubstringModel.from(
+  string = "By setting up a new wallet you agree to Bitkey's Terms of Service and Privacy Notice.",
+  substringToOnClick = linkedMapOf(
+    "Terms of Service" to onTermsOfServiceClick,
+    "Privacy Notice" to onPrivacyNoticeClick
+  ),
+  underline = true,
+  bold = false,
+  color = LabelModel.Color.UNSPECIFIED
+)

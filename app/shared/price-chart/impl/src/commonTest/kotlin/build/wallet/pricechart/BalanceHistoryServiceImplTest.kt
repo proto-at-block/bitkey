@@ -73,7 +73,7 @@ class BalanceHistoryServiceImplTest : FunSpec({
       exchangeRate = 300.0,
       expectedBalance = 0.0005,
       expectedFiatBalance = 0.15,
-      description = "Transaction at 14:30:15, but truncated boundary for 1-day intervals is 00:00:00"
+      description = "Transaction at 20:30:15, but truncated boundary for 6-hour intervals is 18:00:00"
     ),
     ChartRangeTestCase(
       range = ChartRange.ALL,

@@ -124,7 +124,8 @@ class AccountConfigUiStateMachineImpl(
                 scope.launch {
                   accountConfigService.setIsTestAccount(isTestAccount)
                 }
-              }
+              },
+              testTag = "account-config-test-account-toggle"
             )
           )
         ),
@@ -181,6 +182,10 @@ class AccountConfigUiStateMachineImpl(
           onCheckedChange = { fakeHardware ->
             scope.launch {
               accountConfigService.setIsHardwareFake(fakeHardware)
+              // Default to W1 when enabling fake hardware; reset to auto-detect for real hardware
+              accountConfigService.setHardwareType(
+                if (fakeHardware) HardwareType.W1 else null
+              )
             }
           },
           testTag = "mock-bitkey"
@@ -192,36 +197,46 @@ class AccountConfigUiStateMachineImpl(
   @Composable
   private fun HardwareTypeItem(defaultConfig: DefaultAccountConfig): ListItemModel {
     val scope = rememberStableCoroutineScope()
-    val hardwareTypeText = when (defaultConfig.hardwareType) {
-      null -> "Auto-detect"
-      HardwareType.W1 -> "W1"
-      HardwareType.W3 -> "W3"
+    val isFake = defaultConfig.isHardwareFake
+    // For real hardware, always show "Auto-detect" regardless of stored value
+    val hardwareTypeText = if (!isFake) {
+      "Auto-detect"
+    } else {
+      when (defaultConfig.hardwareType) {
+        HardwareType.W1, null -> "W1"
+        HardwareType.W3 -> "W3"
+      }
     }
     return ListItemModel(
       title = "Hardware Type",
-      secondaryText = if (defaultConfig.isHardwareFake) {
+      secondaryText = if (isFake) {
         "Choose W1 or W3 for fake hardware"
       } else {
-        "Auto-detect or force W1/W3"
+        "Auto-detected from firmware"
       },
       sideText = hardwareTypeText,
-      trailingAccessory = ListItemAccessory.ButtonAccessory(
-        model = ButtonModel(
-          text = "Toggle",
-          size = ButtonModel.Size.Compact,
-          treatment = ButtonModel.Treatment.Secondary,
-          onClick = StandardClick {
-            scope.launch {
-              val nextType = when (defaultConfig.hardwareType) {
-                null -> HardwareType.W1
-                HardwareType.W1 -> HardwareType.W3
-                HardwareType.W3 -> null
+      // Only show toggle button for fake hardware - real hardware auto-detects from device
+      trailingAccessory = if (isFake) {
+        ListItemAccessory.ButtonAccessory(
+          model = ButtonModel(
+            text = "Toggle",
+            size = ButtonModel.Size.Compact,
+            treatment = ButtonModel.Treatment.Secondary,
+            onClick = StandardClick {
+              scope.launch {
+                // Fake hardware: cycle between W1 and W3 only (no auto-detect)
+                val nextType = when (defaultConfig.hardwareType) {
+                  HardwareType.W1, null -> HardwareType.W3
+                  HardwareType.W3 -> HardwareType.W1
+                }
+                accountConfigService.setHardwareType(nextType)
               }
-              accountConfigService.setHardwareType(nextType)
             }
-          }
+          )
         )
-      )
+      } else {
+        null
+      }
     )
   }
 }

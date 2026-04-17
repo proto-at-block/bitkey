@@ -1,5 +1,6 @@
 package build.wallet.statemachine.auth
 
+import bitkey.account.HardwareType
 import bitkey.auth.AccountAuthTokens
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
@@ -99,4 +100,16 @@ data class ProofOfPossessionNfcProps(
       onRetry: () -> Unit,
     ) -> ScreenModel
   )? = null,
+  /**
+   * When set, the NFC session will verify that the tapped hardware type matches
+   * the expected type. Throws [build.wallet.nfc.NfcException.WrongHardwareType] on mismatch.
+   * Used during W3 upgrade to enforce that the correct device (W1 vs W3) is tapped.
+   */
+  val requiredHardwareType: HardwareType? = null,
+  /**
+   * Optional callback invoked when an [build.wallet.nfc.NfcException] occurs during the session.
+   * Returning `true` indicates the error was handled and the default error
+   * screen should not be shown.
+   */
+  val onError: (build.wallet.nfc.NfcException) -> Boolean = { false },
 )

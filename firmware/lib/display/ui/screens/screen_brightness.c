@@ -11,14 +11,12 @@
 #include <string.h>
 
 // Forward declarations
-static void slider_drag_handler(lv_event_t* e);
 static void update_brightness_display(uint8_t brightness);
 static void back_button_click_handler(lv_event_t* e);
 
 #define SCREEN_BRIGHTNESS  100
 #define DEFAULT_BRIGHTNESS 50
-#define BRIGHTNESS_MIN     15   // Minimum brightness
-#define BRIGHTNESS_MAX     100  // Maximum brightness
+// BRIGHTNESS_MIN and BRIGHTNESS_MAX are defined in ui.h
 
 // Slider layout configuration
 #define SLIDER_WIDTH  400
@@ -34,8 +32,6 @@ static void back_button_click_handler(lv_event_t* e);
 // Colors
 #define COLOR_SLIDER_BG     0x333333
 #define COLOR_SLIDER_ACTIVE 0xFFFFFF
-
-#define FONT_PERCENTAGE (&cash_sans_mono_regular_48)
 
 // External image declarations
 extern const lv_img_dsc_t brightness_min;
@@ -60,28 +56,11 @@ static uint8_t current_brightness = DEFAULT_BRIGHTNESS;
 static void back_button_click_handler(lv_event_t* e) {
   lv_event_code_t code = lv_event_get_code(e);
   if (code == LV_EVENT_CLICKED) {
+    // Do a verified write of the final brightness value before exiting
+    ui_set_brightness(current_brightness, true);
     display_send_action(fwpb_display_action_display_action_type_DISPLAY_ACTION_EXIT,
                         current_brightness);
   }
-}
-
-// Convert touch X position to brightness percentage
-static uint8_t touch_x_to_brightness(lv_coord_t touch_x) {
-  // Clamp to slider bounds
-  if (touch_x < 0)
-    touch_x = 0;
-  if (touch_x > SLIDER_WIDTH)
-    touch_x = SLIDER_WIDTH;
-
-  // Map position to brightness (BRIGHTNESS_MIN to BRIGHTNESS_MAX)
-  int brightness = BRIGHTNESS_MIN + ((touch_x * (BRIGHTNESS_MAX - BRIGHTNESS_MIN)) / SLIDER_WIDTH);
-
-  if (brightness < BRIGHTNESS_MIN)
-    brightness = BRIGHTNESS_MIN;
-  if (brightness > BRIGHTNESS_MAX)
-    brightness = BRIGHTNESS_MAX;
-
-  return (uint8_t)brightness;
 }
 
 // Convert brightness to slider width
@@ -157,13 +136,11 @@ static void knob_drag_handler(lv_event_t* e) {
     if ((uint8_t)new_brightness != current_brightness) {
       current_brightness = (uint8_t)new_brightness;
       update_brightness_display(current_brightness);
-      ui_set_brightness(current_brightness);
+      // On widget exit, screen brightness is written  with verification.
+      ui_set_brightness(current_brightness, false);
     }
   }
 }
-
-// Icon fade animation duration in milliseconds
-#define ICON_FADE_DURATION_MS 150
 
 // Track which icon level is currently shown (0=min, 1=mid, 2=max)
 static int current_icon_level = -1;
@@ -177,25 +154,6 @@ static int get_icon_level(uint8_t brightness) {
   } else {
     return 0;  // min
   }
-}
-
-// Animation callback wrapper for setting image opacity
-static void anim_img_opa_cb(void* var, int32_t value) {
-  lv_obj_set_style_img_opa((lv_obj_t*)var, (lv_opa_t)value, 0);
-}
-
-// Animate opacity of an icon
-static void animate_icon_opacity(lv_obj_t* icon, lv_opa_t target_opa) {
-  if (!icon)
-    return;
-
-  lv_anim_t anim;
-  lv_anim_init(&anim);
-  lv_anim_set_var(&anim, icon);
-  lv_anim_set_values(&anim, lv_obj_get_style_img_opa(icon, 0), target_opa);
-  lv_anim_set_duration(&anim, ICON_FADE_DURATION_MS);
-  lv_anim_set_exec_cb(&anim, anim_img_opa_cb);
-  lv_anim_start(&anim);
 }
 
 // Update icon opacities based on brightness level
@@ -252,6 +210,13 @@ lv_obj_t* screen_brightness_init(void* ctx) {
   top_back_create(screen, &back_button, back_button_click_handler);
 
   uint8_t init_brightness = show_screen ? show_screen->brightness_percent : DEFAULT_BRIGHTNESS;
+  // Clamp to valid range to prevent saving zero if user exits without adjusting
+  if (init_brightness < BRIGHTNESS_MIN) {
+    init_brightness = BRIGHTNESS_MIN;
+  }
+  if (init_brightness > BRIGHTNESS_MAX) {
+    init_brightness = BRIGHTNESS_MAX;
+  }
   current_brightness = init_brightness;
 
   // Create slider container (centered on screen)
@@ -321,6 +286,8 @@ lv_obj_t* screen_brightness_init(void* ctx) {
   icon_min = lv_img_create(sun_knob);
   if (icon_min) {
     lv_img_set_src(icon_min, &brightness_min);
+    lv_obj_set_style_img_recolor(icon_min, lv_color_black(), 0);
+    lv_obj_set_style_img_recolor_opa(icon_min, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_opa(icon_min, LV_OPA_TRANSP, 0);
     lv_obj_center(icon_min);
   }
@@ -329,6 +296,8 @@ lv_obj_t* screen_brightness_init(void* ctx) {
   icon_mid = lv_img_create(sun_knob);
   if (icon_mid) {
     lv_img_set_src(icon_mid, &brightness_mid);
+    lv_obj_set_style_img_recolor(icon_mid, lv_color_black(), 0);
+    lv_obj_set_style_img_recolor_opa(icon_mid, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_opa(icon_mid, LV_OPA_TRANSP, 0);
     lv_obj_center(icon_mid);
   }
@@ -337,6 +306,8 @@ lv_obj_t* screen_brightness_init(void* ctx) {
   icon_max = lv_img_create(sun_knob);
   if (icon_max) {
     lv_img_set_src(icon_max, &brightness_max);
+    lv_obj_set_style_img_recolor(icon_max, lv_color_black(), 0);
+    lv_obj_set_style_img_recolor_opa(icon_max, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_opa(icon_max, LV_OPA_TRANSP, 0);
     lv_obj_center(icon_max);
   }
@@ -380,7 +351,14 @@ void screen_brightness_update(void* ctx) {
 
   const fwpb_display_show_screen* show_screen = (const fwpb_display_show_screen*)ctx;
   if (show_screen) {
-    current_brightness = show_screen->brightness_percent;
+    uint8_t brightness = show_screen->brightness_percent;
+    if (brightness < BRIGHTNESS_MIN) {
+      brightness = BRIGHTNESS_MIN;
+    }
+    if (brightness > BRIGHTNESS_MAX) {
+      brightness = BRIGHTNESS_MAX;
+    }
+    current_brightness = brightness;
     update_brightness_display(current_brightness);
   }
 }

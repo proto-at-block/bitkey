@@ -13,6 +13,7 @@ import build.wallet.money.FiatMoney
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.ui.app.core.form.FormScreen
+import build.wallet.ui.app.core.form.FormScreenContentVerticalAlignment
 import build.wallet.ui.components.switch.SwitchCard
 import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.model.switch.SwitchCardModel
@@ -41,7 +42,8 @@ internal data class TxVerificationPolicyStateModel(
     switchModel = SwitchModel(
       checked = checked,
       enabled = enabled,
-      onCheckedChange = updatePolicy
+      onCheckedChange = updatePolicy,
+      testTag = "tx-verification-policy-toggle"
     ),
     actionRows = when (threshold) {
       is VerificationThreshold.Disabled, null -> emptyImmutableList()
@@ -70,8 +72,11 @@ internal data class TxVerificationPolicyStateModel(
   @Composable
   override fun render(modifier: Modifier) {
     FormScreen(
-      modifier = Modifier.Companion,
+      modifier = modifier,
       onBack = onBack,
+      toolbarModel = ToolbarModel(
+        leadingAccessory = ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory(onClick = onBack)
+      ),
       toolbarContent = {
         Toolbar(
           model = ToolbarModel(
@@ -82,6 +87,9 @@ internal data class TxVerificationPolicyStateModel(
           )
         )
       },
+      designSystemV2Title = "Transaction verification",
+      designSystemV2Scrollable = false,
+      designSystemV2MainContentAlignment = FormScreenContentVerticalAlignment.Bottom,
       mainContent = {
         SwitchCard(model = switchCardModel)
       }

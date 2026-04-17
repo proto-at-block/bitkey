@@ -39,6 +39,8 @@ class MoneyAmountUiStateMachineImpl(
 
     return MoneyAmountModel(
       primaryAmount = primaryAmountFormatted,
+      primaryAmountValue = props.primaryMoney.toAnimatedAmountValue(),
+      primaryAmountAnimationKey = props.primaryMoney.toAnimatedAmountAnimationKey(),
       // TODO(W-165): display currency symbol.
       secondaryAmount = secondaryAmountFormatted
     )

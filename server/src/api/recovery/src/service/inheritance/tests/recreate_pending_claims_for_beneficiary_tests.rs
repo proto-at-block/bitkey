@@ -16,7 +16,7 @@ use notification::service::{FetchForAccountInput, Service as NotificationService
 use notification::NotificationPayloadType;
 use time::{Duration, OffsetDateTime};
 use types::account::bitcoin::Network;
-use types::account::entities::{Account, FullAccount};
+use types::account::entities::{Account, FullAccount, HardwareType};
 use types::account::identifiers::AccountId;
 use types::recovery::inheritance::claim::{
     InheritanceClaim, InheritanceClaimAuthKeys, InheritanceRole,
@@ -34,6 +34,7 @@ async fn rotate_auth_keys(
             app_auth_pubkey: new_auth_keys.app.public_key,
             hardware_auth_pubkey: new_auth_keys.hw.public_key,
             recovery_auth_pubkey: Some(new_auth_keys.recovery.public_key),
+            hardware_type: HardwareType::default(),
         })
         .await
         .expect("Failed to update auth keys");

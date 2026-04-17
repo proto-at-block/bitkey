@@ -1,5 +1,6 @@
 package build.wallet.statemachine.partnerships.sell
 
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.partnerships.PartnerId
 import build.wallet.partnerships.PartnershipEvent
 import build.wallet.partnerships.PartnershipTransactionId
@@ -10,6 +11,7 @@ interface PartnershipsSellUiStateMachine :
   StateMachine<PartnershipsSellUiProps, ScreenModel>
 
 data class PartnershipsSellUiProps(
+  val account: FullAccount,
   val confirmedSale: ConfirmedPartnerSale? = null,
   val onBack: () -> Unit,
 )

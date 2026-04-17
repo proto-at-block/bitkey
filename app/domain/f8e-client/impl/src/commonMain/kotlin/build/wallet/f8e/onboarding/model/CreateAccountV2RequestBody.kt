@@ -1,7 +1,9 @@
 package build.wallet.f8e.onboarding.model
 
+import bitkey.account.HardwareType
 import build.wallet.ktor.result.RedactedRequestBody
-import kotlinx.serialization.*
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 @Serializable
 data class CreateAccountV2RequestBody(
@@ -25,6 +27,8 @@ data class FullCreateAccountV2AuthKeys(
    */
   @SerialName("recovery_pub")
   val recoveryAuthPublicKey: String?,
+  @SerialName("hardware_type")
+  val hardwareType: HardwareType,
 )
 
 @Serializable

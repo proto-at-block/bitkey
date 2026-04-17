@@ -1,6 +1,6 @@
 package bitkey.recovery
 
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 
 /**
  * Represents a request for cancelling a recovery.
@@ -17,6 +17,6 @@ sealed interface DelayNotifyCancellationRequest {
    * hardware proof of possession.
    */
   data class CancelLostAppAndCloudRecovery(
-    val hwProofOfPossession: HwFactorProofOfPossession,
+    val proof: PrivilegedActionProof,
   ) : DelayNotifyCancellationRequest
 }

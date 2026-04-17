@@ -1,9 +1,5 @@
 use std::{future::Future, pin::Pin};
 
-use action_proof::{Action, Field};
-use authn_authz::authorization::{Authorization, AuthorizationRequirements};
-use authn_authz::key_claims::KeyClaims;
-use authn_authz::Signers;
 use derive_builder::Builder;
 use errors::ApiError;
 use notification::{
@@ -20,13 +16,13 @@ use notification::{
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use time::Duration;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use types::{
-    account::{entities::Touchpoint, identifiers::AccountId, AccountType},
+    account::{identifiers::AccountId, AccountType},
     privileged_action::{
         definition::{
-            AuthorizationStrategyDefinition, DelayAndNotifyDefinition,
-            HardwareProofOfPossessionDefinition, OutOfBandDefinition, PrivilegedActionDefinition,
+            AuthorizationStrategyDefinition, DelayAndNotifyDefinition, OutOfBandDefinition,
+            PrivilegedActionDefinition,
         },
         repository::{
             AuthorizationStrategyRecord, DelayAndNotifyRecord, OutOfBandRecord,
@@ -41,56 +37,10 @@ use types::{
     },
 };
 
-/// Context for ActionProof validation in `HardwareProofOfPossession` flows.
-///
-/// All routes using `HardwareProofOfPossession` strategy MUST provide this context.
-/// Routes using other strategies (DelayAndNotify, OutOfBand) pass `None` - the
-/// context is never used by those code paths.
-///
-/// Routes derive the validation context from their inputs (e.g., touchpoint data)
-/// and pass it to the privileged action service for authorization.
-#[derive(Debug, Clone)]
-pub struct ValidationContext {
-    pub action: Action,
-    pub field: Field,
-    pub value: Option<String>,
-    /// The current value being replaced (for update operations)
-    pub current: Option<String>,
-}
-
-impl ValidationContext {
-    /// Creates a ValidationContext from an action and touchpoint.
-    /// All touchpoint types require hardware auth.
-    pub fn from_touchpoint(action: Action, touchpoint: &Touchpoint) -> Self {
-        let (field, value) = match touchpoint {
-            Touchpoint::Email { email_address, .. } => {
-                (Field::RecoveryEmail, Some(email_address.clone()))
-            }
-            Touchpoint::Phone { phone_number, .. } => {
-                (Field::RecoveryPhone, Some(phone_number.clone()))
-            }
-            Touchpoint::Push { .. } => {
-                // Push touchpoints require hardware auth (no value to bind)
-                (Field::RecoveryPushNotifications, None)
-            }
-        };
-        ValidationContext {
-            action,
-            field,
-            value,
-            current: None,
-        }
-    }
-}
-
 use super::{error::ServiceError, gen_token, Service};
 
 /// Validator for privileged action requests that allows registering callbacks to validate
 /// requests based on their authorization strategy.
-///
-/// The validator can have callbacks registered for:
-/// - Delay and notify strategy: Validates requests that require a delay period and notifications
-/// - Hardware proof of possession: Validates requests that require hardware authentication
 ///
 /// The callbacks are executed when a privileged action request is initiated with the corresponding
 /// authorization strategy. They can perform any necessary validation logic and return an error
@@ -106,9 +56,6 @@ where
     ErrT: Into<ApiError>,
 {
     pub on_initiate_delay_and_notify: Option<
-        Box<dyn FnOnce(ReqT) -> Pin<Box<dyn Future<Output = Result<(), ErrT>> + Send>> + Send>,
-    >,
-    pub on_initiate_hardware_proof_of_possession: Option<
         Box<dyn FnOnce(ReqT) -> Pin<Box<dyn Future<Output = Result<(), ErrT>> + Send>> + Send>,
     >,
     pub on_initiate_out_of_band: Option<
@@ -129,28 +76,8 @@ where
     fn default() -> Self {
         Self {
             on_initiate_delay_and_notify: None,
-            on_initiate_hardware_proof_of_possession: None,
             on_initiate_out_of_band: None,
         }
-    }
-}
-
-/// Authorization context for privileged action authorization.
-/// This enum makes authorization explicit when required vs when it's not needed.
-#[derive(Debug)]
-pub enum AuthorizationContext<'a> {
-    /// Direct KeyClaims authorization
-    KeyClaims(&'a KeyClaims),
-    /// Authorization (ActionProof or legacy KeyClaims).
-    /// ActionProof validation is done using the validation_context provided by the route.
-    Authorization(&'a Authorization),
-    /// Standard flow (for DelayAndNotify, OutOfBand, or Continue operations)
-    Standard,
-}
-
-impl<'a> From<&'a Authorization> for AuthorizationContext<'a> {
-    fn from(auth: &'a Authorization) -> Self {
-        AuthorizationContext::Authorization(auth)
     }
 }
 
@@ -166,30 +93,22 @@ impl<'a> From<&'a Authorization> for AuthorizationContext<'a> {
 /// # Fields
 /// * `account_id` - The account identifier for which the privileged action is being requested
 /// * `privileged_action_definition` - Definition of the privileged action with its requirements
-/// * `authorization` - Authorization context indicating if/what authorization is provided
 /// * `privileged_action_request` - The actual request containing action-specific parameters
-/// * `request_validator` - Validator that contains handlers for different authorization paths, checked before the authorization is checked
-/// * `validation_context` - Context for ActionProof validation (e.g., touchpoint data).
-///   Required for `HardwareProofOfPossession` strategy - the service uses
-///   `AuthorizationRequirements::new().check(&auth)` for signature verification.
-///   Routes using other strategies (DelayAndNotify, OutOfBand) pass `None` since those
-///   code paths never access the context.
+/// * `request_validator` - Validator that contains handlers for different authorization paths
 pub struct AuthorizePrivilegedActionInput<'a, ReqT, ErrT>
 where
     ErrT: Into<ApiError>,
 {
     pub account_id: &'a AccountId,
     pub privileged_action_definition: &'a PrivilegedActionDefinition,
-    pub authorization: AuthorizationContext<'a>,
     pub privileged_action_request: &'a PrivilegedActionRequest<ReqT>,
     pub request_validator: PrivilegedActionRequestValidator<ReqT, ErrT>,
-    pub validation_context: Option<ValidationContext>,
 }
 
 // A call to `authorize_privileged_action` can return one of the following:
-// - `Authorized(ReqT)`: The request is authorized and the request payload is returned
+// - `Authorized(ReqT)`: The request is authorized. The caller receives the original
+//   request payload to perform the state change.
 // - `Pending(PrivilegedActionResponse<RespT>)`: The request is pending and the response is returned
-#[derive(Debug)]
 pub enum AuthorizePrivilegedActionOutput<ReqT, RespT> {
     Authorized(ReqT),
     Pending(PrivilegedActionResponse<RespT>),
@@ -204,8 +123,8 @@ impl Service {
     ///
     /// # Authorization Flow
     /// - For initial requests:
-    ///   - With HardwareProofOfPossession strategy: Verifies key signatures and may bypass checks during onboarding
     ///   - With DelayAndNotify strategy: May start a time-delay period with notifications
+    ///   - With OutOfBand strategy: May start an out-of-band verification flow
     ///
     /// - For continuation requests:
     ///   - Validates the instance ID, completion token, and ensures the delay period has elapsed
@@ -216,7 +135,7 @@ impl Service {
     /// * `ErrT` - Error type that can be converted to ApiError
     ///
     /// # Returns
-    /// * `AuthorizePrivilegedActionOutput::Authorized(ReqT)` - If the action is authorized immediately
+    /// * `AuthorizePrivilegedActionOutput::Authorized(AuthorizedAction<ReqT>)` - If the action is authorized
     /// * `AuthorizePrivilegedActionOutput::Pending(PrivilegedActionResponse<RespT>)` - If additional steps are needed
     ///
     /// # Errors
@@ -225,10 +144,11 @@ impl Service {
     #[instrument(skip(self, input))]
     pub async fn authorize_privileged_action<ReqT, RespT, ErrT>(
         &self,
-        input: AuthorizePrivilegedActionInput<ReqT, ErrT, '_>,
+        input: AuthorizePrivilegedActionInput<'_, ReqT, ErrT>,
     ) -> Result<AuthorizePrivilegedActionOutput<ReqT, RespT>, ServiceError>
     where
         ReqT: Serialize + DeserializeOwned + Clone,
+        RespT: DeserializeOwned,
         ErrT: Into<ApiError>,
     {
         let account = &self.account_repository.fetch(input.account_id).await?;
@@ -254,22 +174,6 @@ impl Service {
         match input.privileged_action_request.clone() {
             PrivilegedActionRequest::Initiate(initial_request) => {
                 match privileged_action_definition.authorization_strategy {
-                    AuthorizationStrategyDefinition::HardwareProofOfPossession(
-                        hardware_proof_of_possession_definition,
-                    ) => {
-                        self.initiate_hardware_proof_of_possession(
-                            &hardware_proof_of_possession_definition,
-                            &input.authorization,
-                            input.validation_context.as_ref(),
-                            initial_request.clone(),
-                            input
-                                .request_validator
-                                .on_initiate_hardware_proof_of_possession,
-                            account.get_common_fields().onboarding_complete,
-                        )
-                        .await?;
-                        Ok(AuthorizePrivilegedActionOutput::Authorized(initial_request))
-                    }
                     AuthorizationStrategyDefinition::DelayAndNotify(
                         delay_and_notify_definition,
                     ) => Ok(self
@@ -305,9 +209,6 @@ impl Service {
             }
             PrivilegedActionRequest::Continue(continue_request) => {
                 match privileged_action_definition.authorization_strategy {
-                    AuthorizationStrategyDefinition::HardwareProofOfPossession(_) => {
-                        Err(ServiceError::CannotContinueDefinedAuthorizationStrategyType)
-                    }
                     AuthorizationStrategyDefinition::DelayAndNotify(_) => {
                         let initial_request: ReqT = self
                             .continue_delay_and_notify(
@@ -334,91 +235,6 @@ impl Service {
         }
     }
 
-    /// Validates hardware proof-of-possession for a privileged action.
-    ///
-    /// This method ensures that sensitive operations have proper authorization by verifying
-    /// that the request has signatures from both hardware and app authentication factors.
-    /// This requirement can be bypassed during the onboarding process if configured.
-    ///
-    /// # Parameters
-    /// * `hardware_proof_of_possession_definition` - Configuration for hardware proof verification
-    /// * `authorization` - The authorization context (KeyClaims or Authorization)
-    /// * `validation_context` - Context for ActionProof validation (e.g., touchpoint data).
-    ///   Required when using `Authorization` - passing `None` returns `MissingValidationContext` error.
-    /// * `initial_request` - The original request payload
-    /// * `on_initiate_hardware_proof_of_possession` - Optional callback function to execute during validation
-    /// * `onboarding_complete` - Whether the account has completed onboarding
-    ///
-    /// # Returns
-    /// * `Result<(), ServiceError>` - Success if validation passes
-    #[instrument(skip(
-        self,
-        validation_context,
-        initial_request,
-        on_initiate_hardware_proof_of_possession
-    ))]
-    async fn initiate_hardware_proof_of_possession<ReqT, ErrT>(
-        &self,
-        hardware_proof_of_possession_definition: &HardwareProofOfPossessionDefinition,
-        authorization: &AuthorizationContext<'_>,
-        validation_context: Option<&ValidationContext>,
-        initial_request: ReqT,
-        on_initiate_hardware_proof_of_possession: Option<
-            Box<dyn FnOnce(ReqT) -> Pin<Box<dyn Future<Output = Result<(), ErrT>> + Send>> + Send>,
-        >,
-        onboarding_complete: bool,
-    ) -> Result<(), ServiceError>
-    where
-        ReqT: Clone,
-        ErrT: Into<ApiError>,
-    {
-        // Compute is_signed_by_both_factors based on auth type
-        let is_signed_by_both_factors = match authorization {
-            AuthorizationContext::KeyClaims(key_proof) => {
-                key_proof.app_signed && key_proof.hw_signed
-            }
-            AuthorizationContext::Authorization(auth) => {
-                // Require validation context - None is a programming error for HW routes
-                let ctx = validation_context.ok_or(ServiceError::MissingValidationContext)?;
-
-                // Use the centralized AuthorizationRequirements.check(&auth) entry point.
-                match AuthorizationRequirements::new(ctx.action, ctx.field)
-                    .value_opt(ctx.value.as_ref())
-                    .current_opt(ctx.current.as_ref())
-                    .signers(Signers::All)
-                    .check(auth)
-                {
-                    Ok(authorized) => authorized.hw_signed() && authorized.app_signed(),
-                    Err(e) => {
-                        event!(Level::WARN, error = %e, "Action proof verification failed");
-                        false
-                    }
-                }
-            }
-            AuthorizationContext::Standard => false,
-        };
-
-        let skip_during_onboarding = hardware_proof_of_possession_definition.skip_during_onboarding;
-
-        // Authorization is successful if:
-        //  1. Signed by both factors, OR
-        //  2. Account is in onboarding, and the definition allows skipping this requirement during onboarding
-        // Otherwise, error
-        if !is_signed_by_both_factors && (onboarding_complete || !skip_during_onboarding) {
-            return Err(ServiceError::FailedHardwareProofOfPossessionCheck);
-        }
-
-        if let Some(on_initiate_hardware_proof_of_possession) =
-            on_initiate_hardware_proof_of_possession
-        {
-            on_initiate_hardware_proof_of_possession(initial_request.clone())
-                .await
-                .map_err(Into::into)?;
-        }
-
-        Ok(())
-    }
-
     /// Initiates a delay-and-notify privileged action flow.
     ///
     /// This method implements a time-delay security mechanism for sensitive operations. It creates
@@ -429,19 +245,6 @@ impl Service {
     /// The delay is bypassed if:
     /// - The delay duration is set to 0 seconds
     /// - The account is in onboarding and the action is configured to skip delays during onboarding
-    ///
-    /// # Parameters
-    /// * `account_id` - The ID of the account initiating the privileged action
-    /// * `account_type` - The type of the account (Full, Lite, etc.)
-    /// * `privileged_action_type` - The type of privileged action being initiated
-    /// * `delay_and_notify_definition` - Configuration for the delay period and notification behavior
-    /// * `initial_request` - The original request payload that will be stored and executed after the delay
-    /// * `on_initiate_delay_and_notify` - Optional callback function to execute when initiating the delay
-    /// * `onboarding_complete` - Whether the account has completed onboarding
-    ///
-    /// # Returns
-    /// * `Result<Option<PrivilegedActionResponse<RespT>>, ServiceError>` - None if the action can proceed
-    ///   immediately, or a PrivilegedActionResponse if a delay period was initiated
     #[instrument(skip(self, initial_request, on_initiate_delay_and_notify))]
     async fn initiate_delay_and_notify<ReqT, RespT, ErrT>(
         &self,
@@ -548,31 +351,11 @@ impl Service {
     }
 
     /// Continues a delay-and-notify privileged action flow that was previously initiated.
-    ///
-    /// This method is called when the delay period for a privileged action is complete and
-    /// the user wants to finalize the action. It validates:
-    /// - The instance belongs to the specified account
-    /// - The action type matches what was initiated
-    /// - The authorization strategy is DelayAndNotify
-    /// - The action is still in Pending status
-    /// - The delay period has elapsed
-    /// - The completion token provided matches the stored token
-    ///
-    /// If all validations pass, it updates the status to Completed and returns the original request.
-    ///
-    /// # Parameters
-    /// * `account_id` - The ID of the account performing the privileged action
-    /// * `account_type` - The type of the account (Full, Lite, etc.)
-    /// * `privileged_action_type` - The type of privileged action being continued
-    /// * `continue_request` - The request containing the privileged action instance and completion token
-    ///
-    /// # Returns
-    /// * `Result<ReqT, ServiceError>` - The original request payload on success, or an error if validation fails
     #[instrument(skip(self, continue_request))]
     async fn continue_delay_and_notify<ReqT>(
         &self,
         account_id: &AccountId,
-        account_type: AccountType,
+        _account_type: AccountType,
         privileged_action_type: PrivilegedActionType,
         continue_request: ContinuePrivilegedActionRequest,
     ) -> Result<ReqT, ServiceError>
@@ -639,25 +422,11 @@ impl Service {
     }
 
     /// Initiates an out-of-band privileged action flow.
-    ///
-    /// This method implements an out-of-band security mechanism for sensitive operations. It creates
-    /// a pending privileged action instance, during which the user can cancel the action if it was
-    /// initiated fraudulently. Notifications are sent to the user as soon as the action is initiated.
-    ///
-    /// # Parameters
-    /// * `account_id` - The ID of the account initiating the privileged action
-    /// * `out_of_band_definition` - Configuration for the out-of-band flow
-    /// * `privileged_action_type` - The type of privileged action being initiated
-    /// * `initial_request` - The original request payload
-    /// * `on_initiate_out_of_band` - Optional callback function to execute during validation
-    ///
-    /// # Returns
-    /// * `Result<(), ServiceError>` - Success if validation passes
     #[instrument(skip(self, initial_request, on_initiate_out_of_band))]
     async fn initiate_out_of_band<ReqT, RespT, ErrT>(
         &self,
         account_id: &AccountId,
-        out_of_band_definition: &OutOfBandDefinition,
+        _out_of_band_definition: &OutOfBandDefinition,
         privileged_action_type: PrivilegedActionType,
         initial_request: ReqT,
         on_initiate_out_of_band: Option<
@@ -713,24 +482,6 @@ impl Service {
     }
 
     /// Continues an out-of-band privileged action flow that was previously initiated.
-    ///
-    /// This method is called when the out-of-band flow for a privileged action is complete and
-    /// the user wants to finalize the action. It validates:
-    /// - The instance belongs to the specified account
-    /// - The action type matches what was initiated
-    /// - The authorization strategy is OutOfBand
-    /// - The action is still in Pending status
-    /// - The completion token provided matches the stored token
-    ///
-    /// If all validations pass, it updates the status to Completed and returns the original request.
-    ///
-    /// # Parameters
-    /// * `account_id` - The ID of the account performing the privileged action
-    /// * `privileged_action_type` - The type of privileged action being continued
-    /// * `continue_request` - The request containing the privileged action instance and completion token
-    ///
-    /// # Returns
-    /// * `Result<ReqT, ServiceError>` - The original request payload on success, or an error if validation fails
     #[instrument(skip(self, continue_request))]
     async fn continue_out_of_band<ReqT>(
         &self,

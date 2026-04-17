@@ -2,11 +2,13 @@
 #include "arithmetic.h"
 #include "attributes.h"
 #include "bio.h"
+#include "bio_flash_storage.h"
 #include "bio_impl.h"
 #include "filesystem.h"
 #include "log.h"
 #include "mcu.h"
 #include "mcu_dma.h"
+#include "rtos.h"
 #include "secure_rng.h"
 #include "security_config.h"
 #include "sysevent.h"
@@ -46,6 +48,7 @@ static struct {
   uint8_t mac_key_buf[AES_128_LENGTH_BYTES];
   uint8_t* calibration_data;
   uint32_t calibration_data_size;
+  rtos_mutex_t bio_sensor_mutex;
 } fpc_priv = {
   .bep_sensor = &SENSOR,    // SENSOR is defined at compile time
   .algorithm = &ALGORITHM,  // ditto
@@ -73,6 +76,8 @@ void toggle_cs(const bool on) {
 }
 
 void bio_hal_init(void) {
+  rtos_mutex_create(&fpc_priv.bio_sensor_mutex);
+
   mcu_err_t result = mcu_spi_init(&fpc_priv.spi_state, &fpc_config.spi_config);
   ASSERT_LOG(result == MCU_ERROR_OK, "%d", result);
 
@@ -85,6 +90,14 @@ void bio_hal_init(void) {
   sysevent_wait(SYSEVENT_FILESYSTEM_READY, true);
 }
 
+void bio_sensor_lock(void) {
+  rtos_mutex_lock(&fpc_priv.bio_sensor_mutex);
+}
+
+void bio_sensor_unlock(void) {
+  rtos_mutex_unlock(&fpc_priv.bio_sensor_mutex);
+}
+
 bool bio_lib_init(void) {
 #if 0
   if (!bio_quick_selftest()) {
@@ -92,19 +105,33 @@ bool bio_lib_init(void) {
   }
 #endif
 
-  // Get max template size based on algorithm.
+  // Ensure filesystem is mounted before accessing stored keys/calibration.
+  // bio_hal_init() also waits on this, but it runs before the scheduler starts
+  // so the wait is a no-op there. This is the effective wait.
+  sysevent_wait(SYSEVENT_FILESYSTEM_READY, true);
+
+  // Migrate any existing 3rd fingerprint from filesystem to raw flash.
+  bio_storage_migrate_to_flash();
+
+  bio_sensor_lock();
+
+  // Get max template size based on algorithm and verify it matches compiled-in constant.
   size_t template_max_size;
   fpc_bep_result_t result =
     fpc_bep_algorithm_get_max_template_size(fpc_priv.algorithm, &template_max_size);
   if (result != FPC_BEP_RESULT_OK) {
-    LOGE("failed to get fpc template size. error %i", result);
+    LOGE("Tmpl size get fail: %i", result);
+    bio_sensor_unlock();
     return false;
   }
+  ASSERT_LOG(bio_flash_storage_check_capacity((uint32_t)template_max_size),
+             "FPC max template size %lu != BIO_FLASH_MAX_TEMPLATE_SIZE",
+             (uint32_t)template_max_size);
 
   if (bio_storage_calibration_data_exists()) {
     uint16_t size_out;
     if (!bio_storage_calibration_data_retrieve(&fpc_priv.calibration_data, &size_out)) {
-      LOGE("Couldn't retrieve calibration data");
+      LOGE("Cal data retrieve fail");
     } else {
       // Must not be null in this case.
       ASSERT(fpc_priv.calibration_data != NULL);
@@ -118,15 +145,16 @@ bool bio_lib_init(void) {
   toggle_cs(false);
   result = fpc_bep_sensor_init(fpc_priv.bep_sensor, fpc_priv.calibration_data, NULL);
   if (result != FPC_BEP_RESULT_OK) {
-    LOGE("failed to init fpc sensor. error %i", result);
+    LOGE("Sensor init fail: %i", result);
+    bio_sensor_unlock();
     return false;
   }
 
   if (fpc_priv.calibration_data == NULL) {
-    LOGI("First time initialization, storing sensor calibration data");
     result = fpc_bep_cal_get(&fpc_priv.calibration_data, (size_t*)&fpc_priv.calibration_data_size);
     if (result != FPC_BEP_RESULT_OK) {
-      LOGE("failed to calibrate fpc. error %i", result);
+      LOGE("Cal fail: %i", result);
+      bio_sensor_unlock();
       return false;
     }
     ASSERT(
@@ -135,6 +163,7 @@ bool bio_lib_init(void) {
 
   fpc_biometrics_init();
 
+  bio_sensor_unlock();
   return true;
 }
 
@@ -182,7 +211,7 @@ fpc_bep_result_t fpc_sensor_spi_write_read(uint8_t* data, size_t write_size, siz
     mcu_err_t result =
       mcu_spi_master_transfer_b(&fpc_priv.spi_state, tx_buf + off, rx_buf + off, count);
     if (result != MCU_ERROR_OK) {
-      LOGE("SPI transfer failed (%zu) size: %d", result, write_size + read_size);
+      LOGE("SPI xfer fail (%zu) sz: %d", result, write_size + read_size);
       ASSERT(false);
     }
 
@@ -259,17 +288,21 @@ void fpc_sensor_wfi_cancel(void) {
 }
 
 bool bio_security_test(fpc_bep_security_test_result_t* test_result) {
+  bio_sensor_lock();
+
   bool locked;
   fpc_bep_result_t result = fpc_bep_sensor_security_get_otp_locked_status(&locked);
   if (result != FPC_BEP_RESULT_OK || locked != true) {
-    LOGE("Unexpected OTP lock status: %d (%d)", locked, result);
+    LOGE("Bad OTP lock: %d (%d)", locked, result);
+    bio_sensor_unlock();
     return false;
   }
 
   fpc_bep_sensor_security_mode_t mode;
   result = fpc_bep_sensor_security_get_mode(&mode);
   if (result != FPC_BEP_RESULT_OK || mode != FPC_BEP_SENSOR_SECURITY_MODE_MAC) {
-    LOGE("Unexpected security mode: %d (%d)", mode, result);
+    LOGE("Bad sec mode: %d (%d)", mode, result);
+    bio_sensor_unlock();
     return false;
   }
 
@@ -278,22 +311,23 @@ bool bio_security_test(fpc_bep_security_test_result_t* test_result) {
   result = fpc_bep_sensor_security_run_test(FPC_BEP_SENSOR_SECURITY_MODE_MAC,
                                             (fpc_bep_security_test_result_t*)test_result);
   if (result != FPC_BEP_RESULT_OK || test_result->total_errors > 0) {
-    LOGE("Sensor security test error: %d", result);
-    LOGE("Test result: %ld, %ld, %ld, %ld, %ld", test_result->total_errors,
-         test_result->cmac_errors, test_result->data_errors, test_result->other_errors,
-         test_result->iterations);
+    LOGE("Sec test err: %d", result);
+    LOGE("Result: %ld, %ld, %ld, %ld, %ld", test_result->total_errors, test_result->cmac_errors,
+         test_result->data_errors, test_result->other_errors, test_result->iterations);
     fpc_priv.mac_key.key.bytes = fpc_priv.mac_key_buf;
+    bio_sensor_unlock();
     return false;
   }
 
   fpc_priv.mac_key.key.bytes = fpc_priv.mac_key_buf;
+  bio_sensor_unlock();
   return true;
 }
 
 static NO_OPTIMIZE bool bio_generate_key(key_handle_t* wrapped_key, key_handle_t* plaintext_key) {
 #if BIO_DEV_MODE
   SECURE_IF_FAILIN(security_config.is_production == SECURE_TRUE) {
-    LOGE("BIO_DEV_MODE set in a production build");
+    LOGE("BIO_DEV_MODE in prod build");
     return false;
   }
 
@@ -301,18 +335,18 @@ static NO_OPTIMIZE bool bio_generate_key(key_handle_t* wrapped_key, key_handle_t
   memcpy(plaintext_key->key.bytes, security_config.biometrics_mac_key, AES_128_LENGTH_BYTES);
 
   if (!import_key(plaintext_key, wrapped_key)) {
-    LOGE("Failed to import key");
+    LOGE("Key import fail");
     return false;
   }
 #else
   // In prod, generate a random key in the SE and export it so that we can
   // write it to the FP sensor.
   if (!generate_key(wrapped_key)) {
-    LOGE("Failed to generate key");
+    LOGE("Key gen fail");
     return false;
   }
   if (!export_key(wrapped_key, plaintext_key)) {
-    LOGE("Failed to export key");
+    LOGE("Key export fail");
     return false;
   }
 #endif
@@ -322,18 +356,22 @@ static NO_OPTIMIZE bool bio_generate_key(key_handle_t* wrapped_key, key_handle_t
 bool bio_provision_cryptographic_keys(bool dry_run, bool i_realize_this_is_irreversible) {
   ASSERT(i_realize_this_is_irreversible);
 
+  bio_sensor_lock();
+
   // Check that this device hasn't been provisioned yet
   fpc_bep_sensor_security_mode_t mode;
   fpc_bep_result_t result = fpc_bep_sensor_security_get_mode(&mode);
   if (result != FPC_BEP_RESULT_OK || mode != FPC_BEP_SENSOR_SECURITY_MODE_NONE) {
-    LOGE("Unexpected security mode: %d (%d)", mode, result);
+    LOGE("Bad sec mode: %d (%d)", mode, result);
+    bio_sensor_unlock();
     return false;
   }
 
   bool locked;
   result = fpc_bep_sensor_security_get_otp_locked_status(&locked);
   if (result != FPC_BEP_RESULT_OK || locked != false) {
-    LOGE("Unexpected OTP lock status: %d (%d)", locked, result);
+    LOGE("Bad OTP lock: %d (%d)", locked, result);
+    bio_sensor_unlock();
     return false;
   }
 
@@ -356,30 +394,33 @@ bool bio_provision_cryptographic_keys(bool dry_run, bool i_realize_this_is_irrev
   };
 
   if (!bio_generate_key(&key, &key_plaintext)) {
-    LOGE("Failed to generate key");
+    LOGE("Key gen fail");
+    bio_sensor_unlock();
     return false;
   }
 
 #if BIO_DEV_MODE
-  LOGW("FPC provisioning info:");
+  LOGW("FPC provision info:");
   LOGW("  key bytes: ");
   for (uint32_t i = 0; i < sizeof(key_bytes); i++) {
     printf("%02x", key_plaintext.key.bytes[i]);
   }
   printf("\n");
   LOGW("  mode: %d\n", FPC_BEP_SENSOR_SECURITY_MODE_MAC);
-  LOGW("!! Be sure to save this key for development units! If it's lost, the sensor is bricked.");
-  LOGW("!! The key has been written to flash.");
+  LOGW("Save key for dev units! Lost key = bricked sensor");
+  LOGW("Key written to flash");
   bio_storage_key_plaintext_save(key_plaintext.key.bytes, key_plaintext.key.size);
 #endif
 
   if (dry_run) {
+    bio_sensor_unlock();
     return true;
   }
 
   // Save key
   if (!bio_storage_key_save(key.key.bytes, key.key.size)) {
-    LOGE("Failed to save key");
+    LOGE("Key save fail");
+    bio_sensor_unlock();
     return false;
   }
 
@@ -387,10 +428,12 @@ bool bio_provision_cryptographic_keys(bool dry_run, bool i_realize_this_is_irrev
   result = fpc_bep_sensor_security_set_mode(FPC_BEP_SENSOR_SECURITY_MODE_MAC,
                                             key_plaintext.key.bytes, NULL, 0);
   if (result != FPC_BEP_RESULT_OK) {
-    LOGE("Failed to set security mode: %d", result);
+    LOGE("Set sec: %d", result);
+    bio_sensor_unlock();
     return false;
   }
 
+  bio_sensor_unlock();
   return true;
 }
 
@@ -401,7 +444,7 @@ bool bio_write_plaintext_key(const char* hex_encoded_key) {
 
   const size_t length = strnlen(hex_encoded_key, AES_128_LENGTH_BYTES * 2);
   if (length != (AES_128_LENGTH_BYTES * 2)) {
-    LOGE("Key must be 16 bytes, but is %zu", length);
+    LOGE("Key must be 16B, got %zu", length);
     return false;
   }
 
@@ -433,7 +476,7 @@ bool bio_write_plaintext_key(const char* hex_encoded_key) {
   };
 
   if (!import_key(&key_plaintext, &key)) {
-    LOGE("Failed to import key");
+    LOGE("Key import fail");
     return false;
   }
 
@@ -447,16 +490,18 @@ bool bio_image_analysis_test(fpc_bep_capture_test_mode_t mode,
                              fpc_bep_analyze_result_t* test_result) {
   bool ret = false;
 
+  bio_sensor_lock();
+
   fpc_bep_image_t* image = fpc_bep_image_new();
   fpc_bep_result_t result = fpc_bep_sensor_prod_test_mode_capture(image, mode);
   if (result != FPC_BEP_RESULT_OK) {
-    LOGE("Failed to do prod test image capture: %d", result);
+    LOGE("Prod cap: %d", result);
     goto out;
   }
 
   result = fpc_bep_sensor_prod_test_mode_analyze(image, mode, test_result);
   if (result != FPC_BEP_RESULT_OK) {
-    LOGE("Failed to do analyze prod test results");
+    LOGE("Prod analyze fail");
     goto out;
   }
 
@@ -464,28 +509,37 @@ bool bio_image_analysis_test(fpc_bep_capture_test_mode_t mode,
 
 out:
   fpc_bep_image_delete(&image);
+  bio_sensor_unlock();
   return ret;
 }
 
 bool bio_sensor_is_secured(bool* secured) {
+  bio_sensor_lock();
   fpc_bep_sensor_security_mode_t mode;
   fpc_bep_result_t result = fpc_bep_sensor_security_get_mode(&mode);
   if (result != FPC_BEP_RESULT_OK) {
+    bio_sensor_unlock();
     return false;
   }
   *secured = (mode == FPC_BEP_SENSOR_SECURITY_MODE_MAC);
+  bio_sensor_unlock();
   return true;
 }
 
 bool bio_sensor_is_otp_locked(bool* locked) {
-  return fpc_bep_sensor_security_get_otp_locked_status(locked) == FPC_BEP_RESULT_OK;
+  bio_sensor_lock();
+  bool ok = fpc_bep_sensor_security_get_otp_locked_status(locked) == FPC_BEP_RESULT_OK;
+  bio_sensor_unlock();
+  return ok;
 }
 
 bool bio_sensor_write_read(uint8_t* data, size_t data_size) {
   if ((data == NULL) || (data_size == 0)) {
     return false;
   }
+  bio_sensor_lock();
   const fpc_bep_result_t result = fpc_sensor_spi_write_read(data, data_size, data_size, false);
+  bio_sensor_unlock();
   return (result == FPC_BEP_RESULT_OK);
 }
 

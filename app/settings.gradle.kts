@@ -17,10 +17,7 @@ pluginManagement {
 
   includeBuild("gradle/build-logic")
   includeBuild("gradle/dependency-locking")
-  includeBuild("gradle/detekt-rules")
 }
-
-includeBuild("gradle/detekt-rules")
 
 buildscript {
   repositories {
@@ -199,6 +196,7 @@ module(":domain:wallet:testing")
 module(":domain:walletmigration:fake")
 module(":domain:walletmigration:impl")
 module(":domain:walletmigration:public")
+module(":gradle:detekt-rules")
 module(":gradle:di-codegen")
 module(":gradle:ksp-util")
 module(":gradle:snapshot-generator")
@@ -282,8 +280,6 @@ module(":rust:bdk-android-ffi")
 module(":rust:bdk-ffi")
 module(":rust:firmware-ffi")
 module(":rust:action-proof-ffi")
-module(":sample:android-app")
-module(":sample:shared")
 module(":shared:app-component:impl")
 module(":shared:app-component:public")
 module(":shared:balance-utils:impl")

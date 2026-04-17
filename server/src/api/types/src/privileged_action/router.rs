@@ -33,7 +33,6 @@ pub struct DelayAndNotify {
     tag = "authorization_strategy_type"
 )]
 pub enum AuthorizationStrategy {
-    HardwareProofOfPossession {},
     DelayAndNotify(DelayAndNotify),
     OutOfBand {},
 }
@@ -54,9 +53,6 @@ impl<T> From<PrivilegedActionInstanceRecord<T>> for PrivilegedActionInstance {
             id: value.id,
             privileged_action_type: value.privileged_action_type,
             authorization_strategy: match value.authorization_strategy {
-                AuthorizationStrategyRecord::HardwareProofOfPossession => {
-                    AuthorizationStrategy::HardwareProofOfPossession {}
-                }
                 AuthorizationStrategyRecord::DelayAndNotify(d) => {
                     AuthorizationStrategy::DelayAndNotify(DelayAndNotify {
                         delay_start_time: value.created_at,
@@ -105,7 +101,6 @@ pub mod generic {
     #[serde(tag = "authorization_strategy_type")]
     #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
     pub enum AuthorizationStrategyInput {
-        HardwareProofOfPossession,
         DelayAndNotify(DelayAndNotifyInput),
         OutOfBand(OutOfBandInput),
     }
@@ -147,7 +142,6 @@ pub mod generic {
         rename_all = "SCREAMING_SNAKE_CASE"
     )]
     pub enum AuthorizationStrategyOutput {
-        HardwareProofOfPossession,
         DelayAndNotify(DelayAndNotifyOutput),
         OutOfBand,
     }
@@ -165,9 +159,6 @@ pub mod generic {
                 id: value.id,
                 privileged_action_type: value.privileged_action_type,
                 authorization_strategy: match value.authorization_strategy {
-                    AuthorizationStrategyRecord::HardwareProofOfPossession => {
-                        AuthorizationStrategyOutput::HardwareProofOfPossession
-                    }
                     AuthorizationStrategyRecord::DelayAndNotify(d) => {
                         AuthorizationStrategyOutput::DelayAndNotify(DelayAndNotifyOutput {
                             delay_start_time: value.created_at,

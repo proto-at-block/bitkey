@@ -73,7 +73,7 @@ const val CLOUD_BACKUP_V2_WITH_FULL_ACCOUNT_FIELDS_JSON = """
     "isUsingSocRecFakes":false,
     "bitcoinNetworkType":"SIGNET",
     "fullAccountFields": {
-      "sealedHwEncryptionKey":"b8ef0c208d341bf262638a7ecf142bea1234567890abcdef1234567890abcdef",
+      "sealedHwEncryptionKey":"0a20b8ef0c208d341bf262638a7ecf142bea1234567890abcdef1234567890abcdef120c0102030405060708090a0b0c1a1000112233445566778899aabbccddeeff",
       "socRecSealedDekMap": {
         "someRelationshipId": "cipherText-1.nonce-1",
         "someOtherRelationshipId": "cipherText-2.nonce-2"
@@ -107,7 +107,7 @@ const val CLOUD_BACKUP_V3_WITH_FULL_ACCOUNT_FIELDS_JSON = """
     "isUsingSocRecFakes":false,
     "bitcoinNetworkType":"SIGNET",
     "fullAccountFields": {
-      "sealedHwEncryptionKey":"b8ef0c208d341bf262638a7ecf142bea1234567890abcdef1234567890abcdef",
+      "sealedHwEncryptionKey":"0a20b8ef0c208d341bf262638a7ecf142bea1234567890abcdef1234567890abcdef120c0102030405060708090a0b0c1a1000112233445566778899aabbccddeeff",
       "socRecSealedDekMap": {
         "someRelationshipId": "cipherText-1.nonce-1",
         "someOtherRelationshipId": "cipherText-2.nonce-2"

@@ -314,3 +314,29 @@ internal fun ListItemRecoveryCode() {
     )
   }
 }
+
+@Preview
+@Composable
+internal fun ListItemWithCheckboxChecked() {
+  PreviewWalletTheme {
+    ListItem(
+      title = "Selected Item",
+      secondaryText = "Checkbox is checked",
+      trailingAccessory = build.wallet.ui.model.list.ListItemAccessory.CheckAccessory(isChecked = true),
+      onClick = {}
+    )
+  }
+}
+
+@Preview
+@Composable
+internal fun ListItemWithCheckboxUnchecked() {
+  PreviewWalletTheme {
+    ListItem(
+      title = "Unselected Item",
+      secondaryText = "Checkbox is unchecked",
+      trailingAccessory = build.wallet.ui.model.list.ListItemAccessory.CheckAccessory(isChecked = false),
+      onClick = {}
+    )
+  }
+}

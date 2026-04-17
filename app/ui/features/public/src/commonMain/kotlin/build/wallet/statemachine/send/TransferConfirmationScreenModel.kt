@@ -52,6 +52,7 @@ data class TransferConfirmationScreenModel(
   val requiresHardware: Boolean,
   val confirmButtonEnabled: Boolean,
   val requiresHardwareReview: Boolean,
+  val useDesignSystemV2Layout: Boolean = false,
   val onConfirmClick: () -> Unit,
   val onNetworkFeesClick: () -> Unit,
   val onArrivalTimeClick: (() -> Unit)?,
@@ -91,7 +92,7 @@ data class TransferConfirmationScreenModel(
             subline = "Arrival times and fees are estimates.",
             alignment = LEADING
           )
-        PrivateWalletMigration ->
+        PrivateWalletMigration, W3Upgrade ->
           FormHeaderModel(
             icon = Bitcoin,
             headline = "Transaction summary",
@@ -101,11 +102,12 @@ data class TransferConfirmationScreenModel(
           )
       },
     toolbar = when (variant) {
-      PrivateWalletMigration -> null
+      PrivateWalletMigration, W3Upgrade -> null
       else -> ToolbarModel(leadingAccessory = BackAccessory(onBack))
     },
     mainContentList = transactionDetails.toFormContent(
       variant = variant,
+      useDesignSystemV2Layout = useDesignSystemV2Layout,
       onNetworkFeesClick = onNetworkFeesClick,
       onArrivalTimeClick = onArrivalTimeClick
     ),
@@ -114,7 +116,7 @@ data class TransferConfirmationScreenModel(
       ButtonModel(
         text = when (variant) {
           is Sell -> "Confirm"
-          PrivateWalletMigration -> if (requiresHardwareReview) "Review on Bitkey" else "Send"
+          PrivateWalletMigration, W3Upgrade -> if (requiresHardwareReview) "Review on Bitkey" else "Send"
           else -> if (requiresHardwareReview) "Review on Bitkey" else "Send"
         },
         requiresBitkeyInteraction = requiresHardware,
@@ -146,20 +148,40 @@ data class FeeSelectionSheetModel(
 
 private fun TransactionDetailsModel.toFormContent(
   variant: TransferConfirmationScreenVariant,
+  useDesignSystemV2Layout: Boolean,
   onNetworkFeesClick: (() -> Unit)? = null,
   onArrivalTimeClick: (() -> Unit)?,
 ): ImmutableList<FormMainContentModel> {
+  val dataListContainerStyle = if (useDesignSystemV2Layout) {
+    DataList.ContainerStyle.BORDERLESS
+  } else {
+    DataList.ContainerStyle.DEFAULT
+  }
+  val leftTitleTextType = if (useDesignSystemV2Layout) {
+    DataList.Data.TitleTextType.BODY2REGULAR
+  } else {
+    DataList.Data.TitleTextType.REGULAR
+  }
+  val rowSideTextType = if (useDesignSystemV2Layout) {
+    DataList.Data.SideTextType.BODY2REGULAR
+  } else {
+    DataList.Data.SideTextType.MEDIUM
+  }
+
   val mainItems: ImmutableList<DataList.Data> =
     when (transactionDetailModelType) {
       is TransactionDetailModelType.Regular ->
         immutableListOf(
           DataList.Data(
             title = "Amount",
+            titleTextType = leftTitleTextType,
             sideText = transactionDetailModelType.transferAmountText,
+            sideTextType = rowSideTextType,
             secondarySideText = transactionDetailModelType.transferAmountSecondaryText
           ),
           DataList.Data(
             title = "Network fees",
+            titleTextType = leftTitleTextType,
             onTitle = onNetworkFeesClick,
             titleIcon =
               IconModel(
@@ -168,6 +190,7 @@ private fun TransactionDetailsModel.toFormContent(
                 iconTint = IconTint.On30
               ),
             sideText = transactionDetailModelType.feeAmountText,
+            sideTextType = rowSideTextType,
             secondarySideText = transactionDetailModelType.feeAmountSecondaryText
           )
         )
@@ -175,26 +198,36 @@ private fun TransactionDetailsModel.toFormContent(
         immutableListOf(
           DataList.Data(
             title = "Amount",
+            titleTextType = leftTitleTextType,
             sideText = transactionDetailModelType.transferAmountText,
+            sideTextType = rowSideTextType,
             secondarySideText = transactionDetailModelType.transferAmountSecondaryText
           ),
           DataList.Data(
             title = "Original network fee",
+            titleTextType = leftTitleTextType,
             onTitle = onNetworkFeesClick,
             sideText = transactionDetailModelType.oldFeeAmountText,
+            sideTextType = rowSideTextType,
             secondarySideText = transactionDetailModelType.oldFeeAmountSecondaryText
           ),
           DataList.Data(
             title = "Speed up network fee",
+            titleTextType = leftTitleTextType,
             onTitle = onNetworkFeesClick,
             sideText = transactionDetailModelType.feeDifferenceText,
+            sideTextType = rowSideTextType,
             secondarySideText = transactionDetailModelType.feeDifferenceSecondaryText
           )
         )
     }
 
   return buildImmutableList {
-    add(Divider)
+    if (useDesignSystemV2Layout) {
+      add(Spacer())
+    } else {
+      add(Divider)
+    }
     add(
       DataList(
         items = immutableListOf(
@@ -202,12 +235,15 @@ private fun TransactionDetailsModel.toFormContent(
             title = when (variant) {
               Regular, is Sell -> "Arrival time"
               SpeedUp -> "New arrival time"
-              PrivateWalletMigration -> "Arrival time"
+              PrivateWalletMigration, W3Upgrade -> "Arrival time"
             },
+            titleTextType = leftTitleTextType,
             sideText = transactionSpeedText,
+            sideTextType = rowSideTextType,
             onClick = onArrivalTimeClick
           )
-        )
+        ),
+        containerStyle = dataListContainerStyle
       )
     )
     add(
@@ -215,10 +251,25 @@ private fun TransactionDetailsModel.toFormContent(
         items = mainItems,
         total = DataList.Data(
           title = "Total",
+          titleTextType = if (useDesignSystemV2Layout) {
+            DataList.Data.TitleTextType.BODY1REGULAR
+          } else {
+            DataList.Data.TitleTextType.REGULAR
+          },
           sideText = transactionDetailModelType.totalAmountPrimaryText,
-          sideTextType = DataList.Data.SideTextType.BODY2BOLD,
-          secondarySideText = transactionDetailModelType.totalAmountSecondaryText
-        )
+          sideTextType = if (useDesignSystemV2Layout) {
+            DataList.Data.SideTextType.BODY1REGULAR
+          } else {
+            DataList.Data.SideTextType.BODY2BOLD
+          },
+          secondarySideText = transactionDetailModelType.totalAmountSecondaryText,
+          secondarySideTextType = if (useDesignSystemV2Layout) {
+            DataList.Data.SideTextType.BODY2REGULAR
+          } else {
+            DataList.Data.SideTextType.REGULAR
+          }
+        ),
+        containerStyle = dataListContainerStyle
       )
     )
   }
@@ -246,4 +297,9 @@ sealed interface TransferConfirmationScreenVariant {
    * Transaction confirmation for private wallet migration sweep.
    */
   data object PrivateWalletMigration : TransferConfirmationScreenVariant
+
+  /**
+   * Transaction confirmation for W3 hardware upgrade sweep.
+   */
+  data object W3Upgrade : TransferConfirmationScreenVariant
 }

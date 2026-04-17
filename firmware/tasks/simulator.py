@@ -15,7 +15,9 @@ def ui_sim(c, run=True):
 
     # Use MesonBuild to handle setup
     # Use "posix" platform for native builds (same as test builds)
-    m = MesonBuild(c, "posix", build_dir)
+    # Disable ASAN — it deadlocks during dyld init on recent macOS versions,
+    # preventing the SDL window from ever launching.
+    m = MesonBuild(c, "posix", build_dir, sanitize=False)
     m.setup()
 
     # Build the ui-sim target

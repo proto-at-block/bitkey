@@ -61,9 +61,9 @@ class CloudBackupHealthSyncWorkerImplTests : FunSpec({
       worker.executeWork()
     }
 
-    // Verify performSync was called with the correct account
-    val account = cloudBackupHealthRepository.performSyncCalls.awaitItem()
-    account shouldBe fullAccount
+    // Verify performSync was called with the correct keybox
+    val keybox = cloudBackupHealthRepository.performSyncCalls.awaitItem()
+    keybox shouldBe fullAccount.keybox
   }
 
   test("performs new sync when account changes") {
@@ -75,7 +75,7 @@ class CloudBackupHealthSyncWorkerImplTests : FunSpec({
     }
 
     // Verify first sync
-    cloudBackupHealthRepository.performSyncCalls.awaitItem() shouldBe fullAccount
+    cloudBackupHealthRepository.performSyncCalls.awaitItem() shouldBe fullAccount.keybox
 
     // Change to a different account
     val differentAccount = FullAccountMock.copy(
@@ -89,6 +89,6 @@ class CloudBackupHealthSyncWorkerImplTests : FunSpec({
     }
 
     // Should trigger new sync for the different account
-    cloudBackupHealthRepository.performSyncCalls.awaitItem() shouldBe differentAccount
+    cloudBackupHealthRepository.performSyncCalls.awaitItem() shouldBe differentAccount.keybox
   }
 })

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt;
 
 use account::service::Service as AccountService;
 use authn_authz::authorizer::AccountIdFromAccessToken;
@@ -149,6 +150,30 @@ pub enum SupportTicketAttachmentUpload {
     },
 }
 
+/// W1 (first-gen) or W3 (third-gen) hardware variant.
+///
+/// Defaults to `W1` when the field is absent (old clients that predate this field).
+/// `Unpaired` is sent as an empty string by clients that have no hardware paired yet.
+#[derive(Debug, Default, Serialize, Deserialize, ToSchema, PartialEq)]
+pub enum HardwareType {
+    #[default]
+    W1,
+    W3,
+    /// Client has no hardware device paired yet.
+    #[serde(rename = "")]
+    Unpaired,
+}
+
+impl fmt::Display for HardwareType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            HardwareType::W1 => write!(f, "W1"),
+            HardwareType::W3 => write!(f, "W3"),
+            HardwareType::Unpaired => write!(f, "Unpaired"),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct SupportTicketDebugData {
     pub app_version: String,
@@ -157,6 +182,8 @@ pub struct SupportTicketDebugData {
     pub system_name_and_version: String,
     pub hardware_firmware_version: String,
     pub hardware_serial_number: String,
+    #[serde(default)]
+    pub hardware_type: HardwareType,
     pub feature_flags: HashMap<String, String>,
     #[serde(default)]
     pub descriptor_encrypted_attachment_id: Option<String>,
@@ -207,6 +234,7 @@ impl CreateTaskRequest {
                 system_name_and_version,
                 hardware_firmware_version,
                 hardware_serial_number,
+                hardware_type,
                 feature_flags,
                 descriptor_encrypted_attachment_id,
             } = debug_data;
@@ -218,6 +246,7 @@ impl CreateTaskRequest {
                 - OS version: {system_name_and_version}\n\
                 - Firmware version: {hardware_firmware_version}\n\
                 - Serial number: {hardware_serial_number}\n\
+                - Hardware type: {hardware_type}\n\
                 - Feature flags: {feature_flags:?}\n\
                 - Descriptor Encrypted Attachment ID: {descriptor_encrypted_attachment_id:?}\n",
             );
@@ -281,7 +310,7 @@ pub struct CreateTaskResponse {
 
     ),
 )]
-#[instrument(err, skip(zendesk_client,))]
+#[instrument(err, skip(zendesk_client, request))]
 pub async fn create_task(
     State(zendesk_client): State<ZendeskClient>,
     Json(request): Json<CreateTaskRequest>,
@@ -329,6 +358,7 @@ pub enum TicketFieldKnownType {
     SystemNameAndVersion,
     HardwareSerialNumber,
     HardwareFirmwareVersion,
+    HardwareType,
 }
 
 #[derive(Debug, Serialize, Deserialize, Copy, Clone, PartialEq, Eq)]
@@ -550,7 +580,7 @@ struct TicketAttachmentQuery {
         (status = 500, description = "Ticket attachment upload failed")
     )
 )]
-#[instrument(err, skip(zendesk_client,))]
+#[instrument(err, skip(zendesk_client, headers, body))]
 pub async fn upload_attachment(
     State(zendesk_client): State<ZendeskClient>,
     headers: HeaderMap,
@@ -634,7 +664,7 @@ pub struct UploadSealedAttachmentResponse {}
         ("encrypted_attachment_id" = String, Path, description = "Encrypted attachment ID")
     )
 )]
-#[instrument(err, skip(service))]
+#[instrument(err, skip(service, request))]
 pub async fn upload_sealed_attachment(
     State(service): State<CustomerFeedbackService>,
     Path(encrypted_attachment_id): Path<EncryptedAttachmentId>,
@@ -650,4 +680,82 @@ pub async fn upload_sealed_attachment(
         .await?;
 
     Ok(Json(UploadSealedAttachmentResponse {}))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use super::*;
+
+    fn make_debug_data(hardware_type: HardwareType) -> SupportTicketDebugData {
+        SupportTicketDebugData {
+            app_version: "1.0.0".to_owned(),
+            app_installation_id: "install-123".to_owned(),
+            phone_make_and_model: "iPhone 15".to_owned(),
+            system_name_and_version: "iOS 17.0".to_owned(),
+            hardware_firmware_version: "1.2.3".to_owned(),
+            hardware_serial_number: "SN-ABC".to_owned(),
+            hardware_type,
+            feature_flags: HashMap::new(),
+            descriptor_encrypted_attachment_id: None,
+        }
+    }
+
+    fn make_request(debug_data: Option<SupportTicketDebugData>) -> CreateTaskRequest {
+        CreateTaskRequest {
+            email: "user@example.com".to_owned(),
+            form_id: 1,
+            subject: "Help".to_owned(),
+            description: "Issue description".to_owned(),
+            custom_field_values: HashMap::new(),
+            attachments: vec![],
+            debug_data,
+        }
+    }
+
+    #[test]
+    fn body_includes_hardware_type_w1() {
+        let request = make_request(Some(make_debug_data(HardwareType::W1)));
+        assert!(request.body().contains("- Hardware type: W1"));
+    }
+
+    #[test]
+    fn body_includes_hardware_type_w3() {
+        let request = make_request(Some(make_debug_data(HardwareType::W3)));
+        assert!(request.body().contains("- Hardware type: W3"));
+    }
+
+    #[test]
+    fn body_includes_hardware_type_unpaired() {
+        let request = make_request(Some(make_debug_data(HardwareType::Unpaired)));
+        assert!(request.body().contains("- Hardware type: Unpaired"));
+    }
+
+    #[test]
+    fn body_without_debug_data_has_no_debug_section() {
+        let request = make_request(None);
+        assert!(!request.body().contains("Debug Data"));
+    }
+
+    #[test]
+    fn hardware_type_missing_field_defaults_to_w1() {
+        let json = r#"{"app_version":"1","app_installation_id":"x","phone_make_and_model":"x","system_name_and_version":"x","hardware_firmware_version":"x","hardware_serial_number":"x","feature_flags":{}}"#;
+        let data: SupportTicketDebugData = serde_json::from_str(json).unwrap();
+        assert_eq!(data.hardware_type, HardwareType::W1);
+    }
+
+    #[test]
+    fn hardware_type_empty_string_deserializes_as_unpaired() {
+        let json = r#"{"app_version":"1","app_installation_id":"x","phone_make_and_model":"x","system_name_and_version":"x","hardware_firmware_version":"x","hardware_serial_number":"x","hardware_type":"","feature_flags":{}}"#;
+        let data: SupportTicketDebugData = serde_json::from_str(json).unwrap();
+        assert_eq!(data.hardware_type, HardwareType::Unpaired);
+    }
+
+    #[test]
+    fn hardware_type_w3_deserializes_correctly() {
+        let json = r#"{"app_version":"1","app_installation_id":"x","phone_make_and_model":"x","system_name_and_version":"x","hardware_firmware_version":"x","hardware_serial_number":"x","hardware_type":"W3","feature_flags":{}}"#;
+        let data: SupportTicketDebugData = serde_json::from_str(json).unwrap();
+        assert_eq!(data.hardware_type, HardwareType::W3);
+    }
 }

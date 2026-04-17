@@ -14,20 +14,6 @@ import io.kotest.core.spec.style.FunSpec
 class PhoneNumberInputScreenSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
-  test("phone number input screen empty") {
-    paparazzi.snapshot {
-      PhoneNumberInputPreview(onSkip = {})
-    }
-  }
-  test("phone number input screen with text") {
-    paparazzi.snapshot {
-      PhoneNumberInputPreview(
-        value = "+1 (555) 555-5555",
-        onSkip = {}
-      )
-    }
-  }
-
   test("phone number input screen empty v2") {
     paparazzi.snapshot {
       PhoneNumberInputPreview(
@@ -50,7 +36,6 @@ class PhoneNumberInputScreenSnapshots : FunSpec({
 private fun PhoneNumberInputPreview(
   value: String = "",
   subline: String? = null,
-  onSkip: (() -> Unit)? = null,
 ) = FormScreen(
   model =
     PhoneNumberInputScreenModel(
@@ -67,7 +52,6 @@ private fun PhoneNumberInputPreview(
           size = Footer,
           onClick = StandardClick {}
         ),
-      onClose = {},
-      onSkip = onSkip
+      onClose = {}
     ).body as FormBodyModel
 )

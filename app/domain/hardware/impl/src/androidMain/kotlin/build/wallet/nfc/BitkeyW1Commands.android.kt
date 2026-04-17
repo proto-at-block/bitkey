@@ -1,11 +1,14 @@
 package build.wallet.nfc
 
+import bitkey.data.PrivateData
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.crypto.SealedData
+import build.wallet.crypto.SymmetricKey
+import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.di.Impl
@@ -36,12 +39,27 @@ import build.wallet.grants.GrantRequest
 import build.wallet.logging.NFC_TAG
 import build.wallet.logging.logDebug
 import build.wallet.logging.logWarn
+import build.wallet.nfc.platform.ActionProofAction
 import build.wallet.nfc.platform.ChunkData
 import build.wallet.nfc.platform.ConfirmationHandles
 import build.wallet.nfc.platform.ConfirmationResult
+import build.wallet.nfc.platform.CsekUnsealResult
 import build.wallet.nfc.platform.HardwareInteraction
+import build.wallet.nfc.platform.HwDisplayPreference
+import build.wallet.nfc.platform.LostAppRecoveryCompositeResult
+import build.wallet.nfc.platform.LostAppRecoveryContinueParams
 import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.RecoveryAuthorizeLostAppResult
+import build.wallet.nfc.platform.RecoveryAuthorizeLostHwResult
+import build.wallet.nfc.platform.RotateAppAuthKeysCompositeResult
+import build.wallet.nfc.platform.RotateAppAuthKeysContinueParams
+import build.wallet.nfc.platform.SignChallengeAndSealSeksResult
+import build.wallet.nfc.platform.UpgradeAuthorizeW3Result
+import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysParams
+import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysResult
+import build.wallet.nfc.platform.confirmationResultMapper
 import build.wallet.rust.firmware.*
+import kotlin.reflect.KClass
 import build.wallet.rust.firmware.FirmwareSlot.A
 import build.wallet.rust.firmware.FirmwareSlot.B
 import build.wallet.rust.firmware.SecureBootConfig
@@ -65,6 +83,7 @@ import build.wallet.rust.firmware.McuRole as CoreMcuRole
 import build.wallet.rust.firmware.UnlockInfo as CoreUnlockInfo
 import build.wallet.rust.firmware.UnlockMethod as CoreUnlockMethod
 
+@Suppress("LargeClass")
 @Impl
 @BitkeyInject(AppScope::class)
 class BitkeyW1Commands(
@@ -76,6 +95,7 @@ class BitkeyW1Commands(
     fwupMode: FwupMode,
     mcuRole: McuRole,
     version: String,
+    deferCommit: Boolean,
   ): HardwareInteraction<Boolean> {
     val result = executeCommand(
       session = session,
@@ -84,7 +104,8 @@ class BitkeyW1Commands(
           patchSize,
           fwupMode.toCoreFwupMode(),
           mcuRole.toCoreMcuRole(),
-          version
+          version,
+          deferCommit
         )
       },
       getNext = { command, data -> command.next(data) },
@@ -98,16 +119,22 @@ class BitkeyW1Commands(
           responseHandle = result.responseHandle,
           confirmationHandle = result.confirmationHandle
         )
-        HardwareInteraction.RequiresConfirmation { newSession, commands ->
-          val confirmResult = commands.getConfirmationResult(newSession, handles)
-          when (confirmResult) {
-            is ConfirmationResult.FwupStart ->
-              HardwareInteraction.Completed(confirmResult.success)
-            else -> throw NfcException.CommandError(
-              message = "fwupStart expected FwupStart result but got: ${confirmResult::class.simpleName}"
-            )
+        HardwareInteraction.RequiresConfirmation(
+          handles = handles,
+          mapResult = confirmationResultMapper<Boolean> { confirmResult ->
+            when (confirmResult) {
+              is ConfirmationResult.FwupStart ->
+                HardwareInteraction.Completed(confirmResult.success)
+              is ConfirmationResult.Pending ->
+                throw NfcException.ConfirmationPending()
+              is ConfirmationResult.Denied ->
+                throw NfcException.UserDenied()
+              else -> throw NfcException.CommandError(
+                message = "fwupStart expected FwupStart result but got: ${confirmResult::class.simpleName}"
+              )
+            }
           }
-        }
+        )
       }
     }
   }
@@ -298,16 +325,18 @@ class BitkeyW1Commands(
       generateResult = { state: BooleanState.Result -> state.value }
     )
 
-  override suspend fun getFirmwareMetadata(session: NfcSession) =
-    executeCommand(
-      session = session,
-      generateCommand = ::GetFirmwareMetadata,
-      getNext = { command, data -> command.next(data) },
-      getResponse = { state: FirmwareMetadataState.Data -> state.response },
-      generateResult = { state: FirmwareMetadataState.Result ->
-        state.value.toFirmwareMetadata()
-      }
-    )
+  override suspend fun getFirmwareMetadata(
+    session: NfcSession,
+    mcuRole: McuRole,
+  ) = executeCommand(
+    session = session,
+    generateCommand = { GetFirmwareMetadata(mcuRole.toCoreMcuRole()) },
+    getNext = { command, data -> command.next(data) },
+    getResponse = { state: FirmwareMetadataState.Data -> state.response },
+    generateResult = { state: FirmwareMetadataState.Result ->
+      state.value.toFirmwareMetadata()
+    }
+  )
 
   override suspend fun getInitialSpendingKey(
     session: NfcSession,
@@ -359,6 +388,17 @@ class BitkeyW1Commands(
       generateResult = { state: BooleanState.Result -> state.value }
     )
 
+  override suspend fun showConfirmationScreen(
+    session: NfcSession,
+    lockOnDismiss: Boolean,
+  ) = executeCommand(
+    session = session,
+    generateCommand = { ShowConfirmationScreen(lockOnDismiss) },
+    getNext = { command, data -> command.next(data) },
+    getResponse = { state: BooleanState.Data -> state.response },
+    generateResult = { state: BooleanState.Result -> state.value }
+  )
+
   /**
    * Seal any string. This command intentionally calls `SealKey` with the string as a UByte List.
    */
@@ -404,6 +444,7 @@ class BitkeyW1Commands(
     session: NfcSession,
     psbt: Psbt,
     spendingKeyset: SpendingKeyset,
+    displayPreference: HwDisplayPreference?,
   ) = HardwareInteraction.Completed(
     result = executeCommand(
       session = session,
@@ -462,19 +503,120 @@ class BitkeyW1Commands(
           responseHandle = result.responseHandle,
           confirmationHandle = result.confirmationHandle
         )
-        HardwareInteraction.RequiresConfirmation { newSession, commands ->
-          val confirmResult = commands.getConfirmationResult(newSession, handles)
-          when (confirmResult) {
-            is ConfirmationResult.WipeDevice ->
-              HardwareInteraction.Completed(confirmResult.success)
-            else -> throw NfcException.CommandError(
-              message = "wipeDevice expected WipeDevice result but got: ${confirmResult::class.simpleName}"
-            )
+        HardwareInteraction.RequiresConfirmation(
+          handles = handles,
+          mapResult = confirmationResultMapper<Boolean> { confirmResult ->
+            when (confirmResult) {
+              is ConfirmationResult.WipeDevice ->
+                HardwareInteraction.Completed(confirmResult.success)
+              is ConfirmationResult.Pending ->
+                throw NfcException.ConfirmationPending()
+              is ConfirmationResult.Denied ->
+                throw NfcException.UserDenied()
+              else -> throw NfcException.CommandError(
+                message = "wipeDevice expected WipeDevice result but got: ${confirmResult::class.simpleName}"
+              )
+            }
           }
-        }
+        )
       }
     }
   }
+
+  override suspend fun signActionProof(
+    session: NfcSession,
+    version: UInt,
+    action: ActionProofAction,
+    value: String?,
+    bindings: String,
+  ): HardwareInteraction<String> {
+    throw NfcException.CommandError(
+      message = "signActionProof is not supported on W1 hardware. This is a W3-only feature."
+    )
+  }
+
+  override suspend fun lostAppRecovery(
+    session: NfcSession,
+    sealedSsek: ByteString,
+    onSsekUnsealed: suspend (SymmetricKey) -> LostAppRecoveryContinueParams,
+  ): HardwareInteraction<LostAppRecoveryCompositeResult> {
+    throw NfcException.CommandError(
+      message = "lostAppRecovery composite is not supported on W1 hardware. This is a W3-only feature."
+    )
+  }
+
+  override suspend fun signChallengeAndSealSeks(
+    session: NfcSession,
+    challenge: ByteString,
+    unsealedCsek: ByteString,
+    unsealedSsek: ByteString,
+  ): HardwareInteraction<SignChallengeAndSealSeksResult> {
+    throw NfcException.CommandError(
+      message = "signChallengeAndSealSeks is not supported on W1 hardware. This is a W3-only feature."
+    )
+  }
+
+  override suspend fun recoveryAuthorizeLostApp(
+    session: NfcSession,
+    sealedDdkData: SealedData?,
+    sealedSsekForDecryption: SealedData?,
+    descriptorBackupsBindings: String,
+    activateKeysetBindings: String,
+    actionProofVersion: UInt,
+  ): HardwareInteraction<RecoveryAuthorizeLostAppResult> {
+    throw NfcException.CommandError(
+      message = "recoveryAuthorizeLostApp is not supported on W1 hardware. This is a W3-only feature."
+    )
+  }
+
+  override suspend fun recoveryAuthorizeLostHw(
+    session: NfcSession,
+    ddkPrivateKeyBytes: ByteString?,
+    descriptorBackupsBindings: String,
+    activateKeysetBindings: String,
+    actionProofVersion: UInt,
+  ): HardwareInteraction<RecoveryAuthorizeLostHwResult> {
+    throw NfcException.CommandError(
+      message = "recoveryAuthorizeLostHw is not supported on W1 hardware. This is a W3-only feature."
+    )
+  }
+
+  override suspend fun upgradeAuthorizeW3(
+    session: NfcSession,
+    ddkPrivateKeyBytes: ByteString,
+    descriptorBackupsBindings: String,
+    activateKeysetBindings: String,
+    actionProofVersion: UInt,
+  ): HardwareInteraction<UpgradeAuthorizeW3Result> {
+    throw NfcException.CommandError(
+      message = "upgradeAuthorizeW3 is not supported on W1 hardware. This is a W3-only feature."
+    )
+  }
+
+  override suspend fun lostAppRecoverySignChallenge(
+    session: NfcSession,
+    challenge: ByteString,
+  ): HardwareInteraction<String> {
+    throw NfcException.CommandError(
+      message = "lostAppRecoverySignChallenge is not supported on W1 hardware."
+    )
+  }
+
+  @OptIn(PrivateData::class)
+  override suspend fun eekRestorationUnsealSymmetricKey(
+    session: NfcSession,
+    sealedKey: SealedData,
+  ): HardwareInteraction<SymmetricKey> =
+    HardwareInteraction.Completed(
+      SymmetricKeyImpl(unsealData(session, sealedKey))
+    )
+
+  override suspend fun <T> fullAccountCloudBackupRestoration(
+    session: NfcSession,
+    sealedCseks: List<SealedData>,
+    onCsekUnsealed: suspend (CsekUnsealResult) -> T,
+  ): HardwareInteraction<T> =
+    error("fullAccountCloudBackupRestoration is a W3-only command. Use unsealSymmetricKey for W1.")
 
   override suspend fun getCert(
     session: NfcSession,
@@ -593,7 +735,65 @@ class BitkeyW1Commands(
           is ConfirmedCommandResult.ChunkedDataAvailable ->
             ConfirmationResult.ChunkedDataAvailable(result.totalSize)
           is ConfirmedCommandResult.SignActionProof ->
-            throw NfcException.CommandError(message = "W1 hardware does not support SignActionProof")
+            ConfirmationResult.SignActionProof(result.signature.toByteString().hex())
+          is ConfirmedCommandResult.SignTx ->
+            ConfirmationResult.SignTx(
+              result.signatures.map { sig ->
+                ConfirmationResult.InputSignature(
+                  inputIndex = sig.inputIndex,
+                  publicKey = sig.publicKey,
+                  signature = sig.signature
+                )
+              }
+            )
+          is ConfirmedCommandResult.SignStreamReady ->
+            ConfirmationResult.SignStreamReady(result.numInputs)
+          is ConfirmedCommandResult.LostAppRecoverySsek ->
+            ConfirmationResult.LostAppRecoverySsek(result.ssek)
+          is ConfirmedCommandResult.LostAppRecoverySignChallenge ->
+            ConfirmationResult.LostAppRecoverySignChallenge(result.signature)
+          is ConfirmedCommandResult.RotateAppAuthKeys ->
+            ConfirmationResult.RotateAppAuthKeys(
+              actionProofSignature = result.actionProofSignature,
+              hwSignedAccountId = result.hwSignedAccountId,
+              appAuthKeySignature = result.appAuthKeySignature,
+              hwAuthPublicKey = result.hwAuthPublicKey
+            )
+          is ConfirmedCommandResult.SignChallengeAndSealSeks ->
+            ConfirmationResult.SignChallengeAndSealSeks(
+              signature = result.signature,
+              sealedCsek = result.sealedCsek,
+              sealedSsek = result.sealedSsek
+            )
+          is ConfirmedCommandResult.RecoveryAuthorizeLostApp ->
+            ConfirmationResult.RecoveryAuthorizeLostApp(
+              descriptorBackupsSignature = result.descriptorBackupsSignature,
+              activateKeysetSignature = result.activateKeysetSignature,
+              unsealedDdkData = result.unsealedDdkData,
+              unsealedSsek = result.unsealedSsek
+            )
+          is ConfirmedCommandResult.RecoveryAuthorizeLostHw ->
+            ConfirmationResult.RecoveryAuthorizeLostHw(
+              descriptorBackupsSignature = result.descriptorBackupsSignature,
+              activateKeysetSignature = result.activateKeysetSignature,
+              sealedDdkData = result.sealedDdkData
+            )
+          is ConfirmedCommandResult.UpgradeAuthorizeW3 ->
+            ConfirmationResult.UpgradeAuthorizeW3(
+              descriptorBackupsSignature = result.descriptorBackupsSignature,
+              activateKeysetSignature = result.activateKeysetSignature,
+              sealedDdkData = result.sealedDdkData
+            )
+          is ConfirmedCommandResult.UpgradeRotateAppAuthKeys ->
+            ConfirmationResult.UpgradeRotateAppAuthKeys(
+              hwSignedAccountId = result.hwSignedAccountId,
+              appAuthKeySignature = result.appAuthKeySignature,
+              hwAuthPublicKey = result.hwAuthPublicKey
+            )
+          is ConfirmedCommandResult.EekRestorationUnsealSymmetricKey ->
+            ConfirmationResult.EekRestorationUnsealSymmetricKey(result.unsealedKey)
+          is ConfirmedCommandResult.FullAccountCloudBackupRestoration ->
+            ConfirmationResult.FullAccountCloudBackupRestoration
         }
       }
     )
@@ -641,12 +841,42 @@ class BitkeyW1Commands(
     serverSpendingKey: ByteString,
     serverSpendingKeyChaincode: ByteString,
     wsmSignature: ByteString,
-  ): Boolean {
+    accountIndex: UInt,
+  ): String {
     throw NfcException.CommandError(
       message = "verifyKeysAndBuildDescriptor is not supported on W1 hardware. This is a W3-only feature."
     )
   }
+
+  override suspend fun rotateAppAuthKeys(
+    session: NfcSession,
+    params: RotateAppAuthKeysContinueParams,
+  ): HardwareInteraction<RotateAppAuthKeysCompositeResult> {
+    throw NfcException.CommandError(
+      message = "rotateAppAuthKeys is not supported on W1 hardware. This is a W3-only feature."
+    )
+  }
+
+  override suspend fun upgradeRotateAppAuthKeys(
+    session: NfcSession,
+    params: UpgradeRotateAppAuthKeysParams,
+  ): HardwareInteraction<UpgradeRotateAppAuthKeysResult> {
+    throw NfcException.CommandError(
+      message = "upgradeRotateAppAuthKeys is not supported on W1 hardware. This is a W3-only feature."
+    )
+  }
 }
+
+/**
+ * Commands that are executed frequently and should not produce start/success/failure logs.
+ */
+private val QUIET_NFC_COMMANDS: Set<KClass<*>> = setOf(
+  SignTxRequest::class,
+  SignStreamStart::class,
+  SignStreamTransfer::class,
+  SignStreamFinalize::class,
+  SignTransaction::class,
+)
 
 @Suppress(
   "TooGenericExceptionCaught",
@@ -667,17 +897,18 @@ internal suspend inline fun <
 ): ReturnT {
   val command = generateCommand()
   val commandName = command::class.simpleName
+  val isQuiet = command::class in QUIET_NFC_COMMANDS
   var data = emptyList<UByte>()
 
-  logDebug(tag = NFC_TAG) { "NFC Command $commandName started" }
+  logNfcCommand(isQuiet) { "NFC Command $commandName started" }
 
   while (true) {
     try {
       when (val state = getNext(command, data)) {
-        is DataStateT -> data = session.transceive(getResponse(state))
+        is DataStateT -> data = session.transceiveWithChaining(getResponse(state))
 
         is ResultStateT -> {
-          logDebug(tag = NFC_TAG) { "NFC Command $commandName succeeded" }
+          logNfcCommand(isQuiet) { "NFC Command $commandName succeeded" }
           return generateResult(state)
         }
       }
@@ -685,14 +916,38 @@ internal suspend inline fun <
       // Cancellations are expected, rethrow to ensure structured cancellation.
       throw e
     } catch (e: Throwable) {
-      logWarn(tag = NFC_TAG, throwable = e) { "NFC Command $commandName failed" }
+      logNfcCommandWarn(isQuiet, e) { "NFC Command $commandName failed" }
       when (e) {
+        is CommandException.InProgress -> throw NfcException.ConfirmationPending()
+        is CommandException.UserDenied -> throw NfcException.UserDenied()
         is CommandException.Unauthenticated -> throw NfcException.CommandErrorUnauthenticated()
+        is CommandException.FeatureNotSupported -> throw NfcException.FeatureNotSupported()
         is CommandException.SealCsekResponseUnsealException -> throw NfcException.CommandErrorSealCsekResponseUnsealException()
+        is CommandException.DescriptorNotLoaded -> throw NfcException.DescriptorNotLoaded()
+        is CommandException.ConfirmationNotCompleted -> throw NfcException.ConfirmationNotCompleted()
         is CommandException -> throw NfcException.CommandError(cause = e)
         else -> throw e
       }
     }
+  }
+}
+
+private inline fun logNfcCommand(
+  isQuiet: Boolean,
+  message: () -> String,
+) {
+  if (!isQuiet) {
+    logDebug(tag = NFC_TAG, message = message)
+  }
+}
+
+private inline fun logNfcCommandWarn(
+  isQuiet: Boolean,
+  throwable: Throwable,
+  message: () -> String,
+) {
+  if (!isQuiet) {
+    logWarn(tag = NFC_TAG, throwable = throwable, message = message)
   }
 }
 
@@ -788,7 +1043,13 @@ private fun DeviceInfo.toFirmwareDeviceInfo(now: Instant) =
             CoreMcuName.EFR32 -> McuName.EFR32
             CoreMcuName.STM32U5 -> McuName.STM32U5
           },
-        firmwareVersion = info.firmwareVersion
+        firmwareVersion = info.firmwareVersion,
+        activeSlot = info.activeSlot?.let { slot ->
+          when (slot) {
+            build.wallet.rust.firmware.FirmwareSlot.A -> FirmwareSlot.A
+            build.wallet.rust.firmware.FirmwareSlot.B -> FirmwareSlot.B
+          }
+        }
       )
     }.orEmpty()
   )
@@ -846,6 +1107,7 @@ private fun FwupFinishRspStatus.toFwupFinishResponseStatus() =
     FwupFinishRspStatus.UNSPECIFIED -> FwupFinishResponseStatus.Unspecified
     FwupFinishRspStatus.VERSION_INVALID -> FwupFinishResponseStatus.VersionInvalid
     FwupFinishRspStatus.WILL_APPLY_PATCH -> FwupFinishResponseStatus.WillApplyPatch
+    FwupFinishRspStatus.CONFIRMATION_MISMATCH -> FwupFinishResponseStatus.ConfirmationMismatch
   }
 
 private fun CoreFirmwareFeatureFlag.toFeatureFlag() =

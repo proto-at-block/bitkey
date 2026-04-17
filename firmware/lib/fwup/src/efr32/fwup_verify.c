@@ -77,11 +77,15 @@ static NO_OPTIMIZE fwup_verify_status_t verify_new_bootloader(ApplicationCertifi
 }
 
 NO_OPTIMIZE fwup_verify_status_t fwup_verify_new_app(uintptr_t app_properties_offset,
-                                                     uintptr_t signature_offset) {
-  if (app_properties_offset > (fwup_priv.app_slot_size - sizeof(ApplicationProperties_t)) ||
-      signature_offset > (fwup_priv.app_slot_size - ECC_SIG_SIZE)) {
-    LOGE("Bad offset (%zu, %zu)", app_properties_offset, signature_offset);
+                                                     const uint8_t* signature) {
+  if (app_properties_offset > (fwup_priv.app_slot_size - sizeof(ApplicationProperties_t))) {
+    LOGE("Bad offset (%zu)", app_properties_offset);
     return FWUP_VERIFY_BAD_OFFSET;
+  }
+
+  if (signature == NULL) {
+    LOGE("No sig");
+    return FWUP_VERIFY_SIGNATURE_INVALID;
   }
 
 #ifndef EMBEDDED_BUILD
@@ -93,8 +97,7 @@ NO_OPTIMIZE fwup_verify_status_t fwup_verify_new_app(uintptr_t app_properties_of
   const ApplicationProperties_t* new_app_props =
     (ApplicationProperties_t*)((uint8_t*)fwup_priv.target_slot_addr + app_properties_offset);
 
-  LOGI("Verifying firmware update from version %ld to %ld", current_slot_app_props->app.version,
-       new_app_props->app.version);
+  LOGI("Vfy %ld->%ld", current_slot_app_props->app.version, new_app_props->app.version);
 
   // First, check the version to ensure no downgrades.
   SECURE_DO_FAILIN((new_app_props->app.version <= current_slot_app_props->app.version), {
@@ -105,7 +108,7 @@ NO_OPTIMIZE fwup_verify_status_t fwup_verify_new_app(uintptr_t app_properties_of
   uintptr_t bl_sl_app_properties_addr = 0;
   if (!locate_bl_sl_app_properties((uintptr_t)bl_base_addr, (size_t)bl_slot_size,
                                    &bl_sl_app_properties_addr)) {
-    LOGE("Failed to locate sl_app_properties in current bootloader");
+    LOGE("No BL props");
     return FWUP_VERIFY_CANT_FIND_PROPERTIES;
   }
 
@@ -115,12 +118,17 @@ NO_OPTIMIZE fwup_verify_status_t fwup_verify_new_app(uintptr_t app_properties_of
   // NOTE: This function is called `bl_verify_app_slot` because it's the same code we use
   // in the bootloader (hence the prefix). This function checks the application certificate
   // and verifies the image itself.
+  //
+  // The signature is provided from a RAM buffer, allowing verification
+  // before the signature is committed to flash.
   ApplicationProperties_t* bl_props = (ApplicationProperties_t*)bl_sl_app_properties_addr;
-  SECURE_DO_FAILOUT(
-    bl_verify_app_slot(bl_props->cert, (ApplicationProperties_t*)new_app_props,
-                       fwup_priv.target_slot_addr, fwup_priv.app_slot_size - ECC_SIG_SIZE,
-                       (uint8_t*)fwup_priv.target_slot_addr + signature_offset) == SECURE_TRUE,
-    { return FWUP_VERIFY_SUCCESS; });
+  volatile secure_bool_t verified = SECURE_FALSE;
+  SECURE_DO_ONCE({
+    verified = bl_verify_app_slot(bl_props->cert, (ApplicationProperties_t*)new_app_props,
+                                  fwup_priv.target_slot_addr,
+                                  fwup_priv.app_slot_size - ECC_SIG_SIZE, (uint8_t*)signature);
+  });
+  SECURE_DO_FAILOUT(verified == SECURE_TRUE, { return FWUP_VERIFY_SUCCESS; });
 
   LOGE("Signature invalid");
   return FWUP_VERIFY_SIGNATURE_INVALID;
@@ -139,7 +147,7 @@ static bool locate_bl_sl_app_properties(uintptr_t bl_base_addr, size_t bl_size,
     }
   }
 
-  LOGE("Failed to locate sl_app_properties in bootloader");
+  LOGE("No BL props");
   return false;
 }
 
@@ -147,16 +155,21 @@ NO_OPTIMIZE fwup_verify_status_t fwup_verify_new_bootloader(void) {
   const uintptr_t base_addr = (uintptr_t)bl_base_addr;
   const size_t slot_size = (size_t)bl_slot_size;
 
+  // The BL image must fit entirely below the app-slot signature interception
+  // boundary, otherwise fwup_handle_write() would divert the tail of the BL
+  // image into the RAM signature buffer instead of writing it to flash.
+  if (slot_size > fwup_priv.app_slot_size - FWUP_SIGNATURE_SIZE) {
+    LOGE("BL slot overflow");
+    return FWUP_VERIFY_ERROR;
+  }
+
   // This is the address of the signature in the *inactive* slot.
   const uintptr_t sig_addr = (uintptr_t)fwup_priv.target_slot_addr + slot_size - ECC_SIG_SIZE;
-
-  LOGD("Parameters: base_addr=%p, slot_size=%zu, sig_addr=%p", (void*)base_addr, slot_size,
-       (void*)sig_addr);
 
   // Get current and new bootloader sl_app_properties, which is not at a fixed location.
   uintptr_t current_sl_app_properties_addr = 0;
   if (!locate_bl_sl_app_properties(base_addr, slot_size, &current_sl_app_properties_addr)) {
-    LOGE("Failed to locate sl_app_properties in current bootloader");
+    LOGE("No BL props");
     return FWUP_VERIFY_CANT_FIND_PROPERTIES;
   }
 
@@ -166,18 +179,15 @@ NO_OPTIMIZE fwup_verify_status_t fwup_verify_new_bootloader(void) {
   uintptr_t new_sl_app_properties_addr = 0;
   if (!locate_bl_sl_app_properties((uintptr_t)fwup_priv.target_slot_addr, slot_size,
                                    &new_sl_app_properties_addr)) {
-    LOGE("Failed to locate sl_app_properties in new bootloader");
+    LOGE("No new BL props");
     return FWUP_VERIFY_CANT_FIND_PROPERTIES;
   }
   const ApplicationProperties_t* new_bl_app_props =
     (ApplicationProperties_t*)new_sl_app_properties_addr;
 
   // Check new bootloader version against the old one
-  LOGD("Upgrade from version %ld to %ld", current_bl_app_props->app.version,
-       new_bl_app_props->app.version);
   SECURE_DO_FAILIN((new_bl_app_props->app.version <= current_bl_app_props->app.version), {
-    LOGE("New bootloader version is not newer than the current bootloader version (%ld <= %ld)",
-         new_bl_app_props->app.version, current_bl_app_props->app.version);
+    LOGE("BL ver %ld<=%ld", new_bl_app_props->app.version, current_bl_app_props->app.version);
     return FWUP_VERIFY_VERSION_INVALID;
   });
 
@@ -189,20 +199,16 @@ NO_OPTIMIZE fwup_verify_status_t fwup_verify_new_bootloader(void) {
 
   // Erase the BL slot
   if (!fwup_flash_erase_bl(fwup_priv.perf.erase, (void*)bl_base_addr, slot_size)) {
-    LOGE("Flash erase of bootloader failed");
+    LOGE("BL flash erase fail");
     return FWUP_VERIFY_FLASH_ERROR;
   }
-
-  LOGD("Done with erase...");
 
   // Copy the BL from the inactive slot to the BL slot.
   if (!fwup_flash_write(fwup_priv.perf.write, (void*)bl_base_addr, fwup_priv.target_slot_addr,
                         slot_size)) {
-    LOGE("Flash write of bootloader update failed");
+    LOGE("BL flash write fail");
     return FWUP_VERIFY_FLASH_ERROR;
   }
-
-  LOGD("Done with write...");
 
   // Re-verify the BL in the BL slot; note the difference in the parameters.
   SECURE_DO_FAILIN(

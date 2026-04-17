@@ -39,10 +39,17 @@ static void bitlog_cmd_handler(int argc, char** argv) {
 
   if (bitlog_cmd_args.drain->header.found) {
     uint8_t drain_buf[DRAIN_SIZE * sizeof(bitlog_event_t)] = {0};
-    uint32_t len = bitlog_cmd_args.drain->value * sizeof(bitlog_event_t);
+    int drain_count = bitlog_cmd_args.drain->value;
+    if (drain_count <= 0) {
+      return;
+    }
+    if (drain_count > DRAIN_SIZE) {
+      drain_count = DRAIN_SIZE;
+    }
+    uint32_t len = (uint32_t)drain_count * sizeof(bitlog_event_t);
     uint32_t written = 0;
     bitlog_drain(drain_buf, len, &written);
-    for (uint32_t i = 0; i < len; i += sizeof(bitlog_event_t)) {
+    for (uint32_t i = 0; i < written; i += sizeof(bitlog_event_t)) {
       bitlog_print((bitlog_event_t*)&drain_buf[i]);
     }
   } else if (bitlog_cmd_args.create->header.found) {

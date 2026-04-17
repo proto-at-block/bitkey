@@ -1,8 +1,10 @@
 package build.wallet.statemachine.settings.full.device
 
+import bitkey.account.HardwareType
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.*
@@ -34,15 +36,19 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 data class DeviceSettingsFormBodyModel(
   val trackerScreenId: EventTrackerScreenId,
   val emptyState: Boolean,
+  val showRealtimeMedia: Boolean = true,
   val modelName: String,
   val currentVersion: String,
   val updateVersion: String?,
   val modelNumber: String,
   val serialNumber: String,
   val deviceCharge: String,
+  val deviceBatteryPercentage: Int? = null,
   val lastSyncDate: String,
+  val hardwareType: HardwareType = HardwareType.W1,
   val replacementPending: String?,
   val replaceDeviceEnabled: Boolean,
+  val showFingerprintsRow: Boolean = hardwareType != HardwareType.W3,
   val onUpdateVersion: (() -> Unit)?,
   val onSyncDeviceInfo: () -> Unit,
   val onReplaceDevice: () -> Unit,
@@ -50,6 +56,7 @@ data class DeviceSettingsFormBodyModel(
   val onManageReplacement: (() -> Unit)?,
   val onPairDevice: (() -> Unit)?,
   val onWipeDevice: (() -> Unit)?,
+  val onUpgradeDevice: (() -> Unit)? = null,
   override val onBack: () -> Unit,
   val onManageFingerprints: () -> Unit,
 ) : FormBodyModel(
@@ -59,15 +66,30 @@ data class DeviceSettingsFormBodyModel(
       leadingAccessory = BackAccessory(onClick = onBack),
       middleAccessory = ToolbarMiddleAccessoryModel(title = "Bitkey Device")
     ),
+    designSystemV2Model = FormDesignSystemV2Model(
+      title = "Bitkey Device",
+      toolbar = ToolbarModel(
+        leadingAccessory = BackAccessory(onClick = onBack)
+      )
+    ),
     header = null,
     mainContentList = immutableListOfNotNull(
       DeviceStatusCard(
-        deviceVideo = if (!emptyState) DeviceStatusCard.VideoContent.BITKEY_ROTATE else null,
-        deviceImage = if (emptyState) {
+        deviceVideo = if (!emptyState && showRealtimeMedia) DeviceStatusCard.VideoContent.BITKEY_ROTATE else null,
+        deviceSerialNumber =
+          serialNumber.takeIf {
+            !emptyState && hardwareType == HardwareType.W3
+          },
+        deviceBatteryPercentage =
+          deviceBatteryPercentage?.takeIf {
+            !emptyState && hardwareType == HardwareType.W3
+          },
+        hardwareType = hardwareType,
+        deviceImage = if (emptyState || !showRealtimeMedia) {
           IconModel(
             iconImage = LocalImage(icon = Icon.BitkeyFrontLit),
             iconSize = IconSize.XXXLarge,
-            iconOpacity = 0.3f
+            iconOpacity = if (emptyState) 0.3f else 0.0f
           )
         } else {
           null
@@ -124,18 +146,32 @@ data class DeviceSettingsFormBodyModel(
               onShowAboutSheet()
             }
           ),
-          SettingsList.SettingsListItem(
-            title = "Fingerprints",
-            icon = Icon.SmallIconFingerprint,
-            isEnabled = !emptyState,
-            onClick = onManageFingerprints
-          ),
+          if (showFingerprintsRow) {
+            SettingsList.SettingsListItem(
+              title = "Fingerprints",
+              icon = Icon.SmallIconFingerprint,
+              isEnabled = !emptyState,
+              onClick = onManageFingerprints
+            )
+          } else {
+            null
+          },
           SettingsList.SettingsListItem(
             title = "Wipe device",
             icon = Icon.SmallIconBitkeyReset,
             isEnabled = !emptyState,
             onClick = onWipeDevice
           ),
+          if (onUpgradeDevice != null && replacementPending == null) {
+            SettingsList.SettingsListItem(
+              title = "Upgrade device",
+              icon = Icon.SmallIconBitkey,
+              isEnabled = !emptyState,
+              onClick = onUpgradeDevice
+            )
+          } else {
+            null
+          },
           if (replacementPending == null) {
             SettingsList.SettingsListItem(
               title = "Replace device",

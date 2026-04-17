@@ -2,13 +2,14 @@ package build.wallet.cloud.backup.health
 
 import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Unavailable
-import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.*
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupError
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.cloud.backup.CloudBackupOperationLock
-import build.wallet.cloud.backup.CloudBackupRepository
+import build.wallet.cloud.backup.CloudBackupService
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.backup.JsonSerializer
@@ -42,7 +43,7 @@ import kotlinx.datetime.Instant
 @BitkeyInject(AppScope::class)
 class CloudBackupHealthRepositoryImpl(
   private val cloudStoreAccountRepository: CloudStoreAccountRepository,
-  private val cloudBackupRepository: CloudBackupRepository,
+  private val cloudBackupService: CloudBackupService,
   private val cloudBackupDao: CloudBackupDao,
   private val emergencyExitKitRepository: EmergencyExitKitRepository,
   private val fullAccountCloudBackupRepairer: FullAccountCloudBackupRepairer,
@@ -78,7 +79,10 @@ class CloudBackupHealthRepositoryImpl(
    */
   private val backupSizeCache = mutableMapOf<Int, Int>()
 
-  override suspend fun performSync(account: FullAccount): CloudBackupStatus {
+  override suspend fun performSync(
+    accountId: FullAccountId,
+    keybox: Keybox,
+  ): CloudBackupStatus {
     // CRITICAL: Do NOT call CloudBackupVersionMigrationWorker.executeWork() or
     // SocRecCloudBackupSyncWorker.refreshCloudBackup() within this block - it would cause a deadlock.
     logDebug { "Starting cloud backup health check" }
@@ -86,7 +90,7 @@ class CloudBackupHealthRepositoryImpl(
       getCurrentCloudAccount()
         .fold(
           success = { cloudAccount ->
-            val cloudBackupStatus = syncBackupStatus(cloudAccount, account)
+            val cloudBackupStatus = syncBackupStatus(cloudAccount, accountId, keybox)
 
             if (cloudBackupStatus.isHealthy()) {
               logInfo { "Cloud backup health check completed - backup is healthy" }
@@ -98,9 +102,9 @@ class CloudBackupHealthRepositoryImpl(
                   "eekStatus=${cloudBackupStatus.eekBackupStatus::class.simpleName}"
               }
               // Attempt to repair the backup silently first
-              fullAccountCloudBackupRepairer.attemptRepair(account, cloudAccount, cloudBackupStatus)
+              fullAccountCloudBackupRepairer.attemptRepair(accountId, keybox, cloudAccount, cloudBackupStatus)
               // Re-sync and return whatever the status is after repair attempt.
-              val postRepairStatus = syncBackupStatus(cloudAccount, account)
+              val postRepairStatus = syncBackupStatus(cloudAccount, accountId, keybox)
               logInfo {
                 "Cloud backup health check completed after repair attempt - " +
                   "appKeyStatus=${postRepairStatus.appKeyBackupStatus::class.simpleName}, " +
@@ -134,15 +138,17 @@ class CloudBackupHealthRepositoryImpl(
 
   private suspend fun syncBackupStatus(
     cloudAccount: CloudStoreAccount,
-    account: FullAccount,
+    accountId: FullAccountId,
+    keybox: Keybox,
   ) = CloudBackupStatus(
-    appKeyBackupStatus = syncAppKeyBackupStatus(cloudAccount, account),
+    appKeyBackupStatus = syncAppKeyBackupStatus(cloudAccount, accountId, keybox),
     eekBackupStatus = syncEekBackupStatus(cloudAccount)
   )
 
   private suspend fun syncAppKeyBackupStatus(
     cloudAccount: CloudStoreAccount,
-    account: FullAccount,
+    accountId: FullAccountId,
+    keybox: Keybox,
   ): AppKeyBackupStatus {
     if (appFunctionalityService.status.value.featureStates.cloudBackupHealth == Unavailable) {
       logDebug { "App key backup status check: connectivity unavailable" }
@@ -150,7 +156,7 @@ class CloudBackupHealthRepositoryImpl(
     }
 
     val localCloudBackup = cloudBackupDao
-      .get(account.accountId.serverId)
+      .get(accountId.serverId)
       .toErrorIfNull { Error("No local backup found") }
       .logFailure { "Error finding local backup" }
       .get()
@@ -163,7 +169,7 @@ class CloudBackupHealthRepositoryImpl(
     }
 
     // Check for backup size issues
-    checkAndFixBackupSize(localCloudBackup, account)?.let { return it }
+    checkAndFixBackupSize(localCloudBackup, accountId, keybox)?.let { return it }
 
     // Compare local and cloud backups
     return compareLocalAndCloudBackups(cloudAccount, localCloudBackup)
@@ -171,7 +177,8 @@ class CloudBackupHealthRepositoryImpl(
 
   private suspend fun checkAndFixBackupSize(
     localCloudBackup: CloudBackup,
-    account: FullAccount,
+    accountId: FullAccountId,
+    keybox: Keybox,
   ): AppKeyBackupStatus? {
     val localBackupSize = getBackupSizeBytes(localCloudBackup)
 
@@ -185,12 +192,12 @@ class CloudBackupHealthRepositoryImpl(
           is CloudBackupV3 -> localCloudBackup.fullAccountFields!!.sealedHwEncryptionKey
         }
         val fixedBackup = fullAccountCloudBackupCreator.create(
-          keybox = account.keybox,
+          keybox = keybox,
           sealedCsek = sealedCsek
         ).logFailure { "Failed to create fixed cloud backup" }
           .get()
         if (fixedBackup != null) {
-          cloudBackupDao.set(account.accountId.serverId, fixedBackup)
+          cloudBackupDao.set(accountId.serverId, fixedBackup)
           logInfo { "App key backup status check: backup exceeded size limit - fixed and marked as stale" }
           return AppKeyBackupStatus.ProblemWithBackup.StaleBackup
         }
@@ -205,7 +212,7 @@ class CloudBackupHealthRepositoryImpl(
   ): AppKeyBackupStatus {
     val localBackupSize = getBackupSizeBytes(localCloudBackup)
 
-    return cloudBackupRepository
+    return cloudBackupService
       .readActiveBackup(cloudAccount)
       .fold(
         success = { cloudBackup ->

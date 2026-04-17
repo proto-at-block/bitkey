@@ -6,7 +6,10 @@ import yaml
 from . import util
 
 
-def get_application_partition_size_from_config(config_path: Union[str, Path]) -> int:
+def _get_partition_size_from_config(
+    config_path: Union[str, Path],
+    partition_name: str,
+) -> int:
     config_path = Path(config_path)
 
     if not config_path.exists():
@@ -19,16 +22,24 @@ def get_application_partition_size_from_config(config_path: Union[str, Path]) ->
 
     for partition in partitions:
         name = partition.get("name", "")
-        if name.startswith("application"):
+        if name.startswith(partition_name):
             size_value = partition.get("size")
             if size_value is None:
-                raise ValueError(f"Application partition missing 'size' field in {config_path}")
+                raise ValueError(
+                    f"{partition_name} partition missing 'size' field in {config_path}"
+                )
             return util.size_to_bytes(size_value)
 
-    raise ValueError(f"No application partition found in {config_path}")
+    raise ValueError(f"No {partition_name} partition found in {config_path}")
 
 
-def get_application_partition_size(product: str, config_dir: Optional[Path] = None) -> int:
+def get_application_partition_size_from_config(config_path: Union[str, Path]) -> int:
+    return _get_partition_size_from_config(config_path, "application")
+
+
+def get_application_partition_size(
+    product: str, config_dir: Optional[Path] = None
+) -> int:
     if config_dir is None:
         # Get the directory of this file (firmware/python/bitkey/)
         bitkey_dir = Path(__file__).parent
@@ -37,6 +48,103 @@ def get_application_partition_size(product: str, config_dir: Optional[Path] = No
 
     partition_file = config_dir / product / "partitions.yml"
     return get_application_partition_size_from_config(partition_file)
+
+
+def get_bootloader_partition_size_from_config(config_path: Union[str, Path]) -> int:
+    return _get_partition_size_from_config(config_path, "bootloader")
+
+
+def get_bootloader_partition_size(
+    product: str, config_dir: Optional[Path] = None
+) -> int:
+    if config_dir is None:
+        # Get the directory of this file (firmware/python/bitkey/)
+        bitkey_dir = Path(__file__).parent
+        # Navigate to firmware/config/partitions
+        config_dir = bitkey_dir.parent.parent / "config" / "partitions"
+
+    partition_file = config_dir / product / "partitions.yml"
+    return get_bootloader_partition_size_from_config(partition_file)
+
+
+def get_bootloader_metadata_offset_and_size_from_config(
+    config_path: Union[str, Path],
+) -> tuple[int, int]:
+    config_path = Path(config_path)
+
+    if not config_path.exists():
+        raise FileNotFoundError(f"Partition config file not found: {config_path}")
+
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)
+
+    partitions = config.get("flash", {}).get("partitions", [])
+
+    for partition in partitions:
+        name = partition.get("name", "")
+        if not name.startswith("bootloader"):
+            continue
+
+        size_value = partition.get("size")
+        if size_value is None:
+            raise ValueError(
+                f"Bootloader partition missing 'size' field in {config_path}"
+            )
+        bootloader_size = util.size_to_bytes(size_value)
+
+        sections = partition.get("sections", [])
+        if not isinstance(sections, list):
+            raise ValueError(
+                f"Bootloader partition missing 'sections' list in {config_path}"
+            )
+
+        metadata_size = None
+        signature_size = None
+        for section in sections:
+            section_name = section.get("name", "")
+            section_size = section.get("size")
+            if section_name == "metadata":
+                if section_size is None:
+                    raise ValueError(
+                        f"Bootloader metadata section missing 'size' field in {config_path}"
+                    )
+                metadata_size = util.size_to_bytes(section_size)
+            elif section_name == "codesign_signature":
+                if section_size is None:
+                    raise ValueError(
+                        f"Bootloader signature section missing 'size' field in {config_path}"
+                    )
+                signature_size = util.size_to_bytes(section_size)
+
+        if metadata_size is None:
+            raise ValueError(f"No bootloader metadata section found in {config_path}")
+        if signature_size is None:
+            raise ValueError(
+                f"No bootloader codesign signature section found in {config_path}"
+            )
+
+        metadata_offset = bootloader_size - signature_size - metadata_size
+        if metadata_offset < 0:
+            raise ValueError(
+                f"Invalid bootloader section layout in {config_path}: "
+                f"bootloader_size={bootloader_size}, metadata_size={metadata_size}, signature_size={signature_size}"
+            )
+        return metadata_offset, metadata_size
+
+    raise ValueError(f"No bootloader partition found in {config_path}")
+
+
+def get_bootloader_metadata_offset_and_size(
+    product: str, config_dir: Optional[Path] = None
+) -> tuple[int, int]:
+    if config_dir is None:
+        # Get the directory of this file (firmware/python/bitkey/)
+        bitkey_dir = Path(__file__).parent
+        # Navigate to firmware/config/partitions
+        config_dir = bitkey_dir.parent.parent / "config" / "partitions"
+
+    partition_file = config_dir / product / "partitions.yml"
+    return get_bootloader_metadata_offset_and_size_from_config(partition_file)
 
 
 class PartitionInfo:

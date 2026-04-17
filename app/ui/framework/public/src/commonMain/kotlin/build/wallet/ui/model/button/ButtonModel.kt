@@ -19,7 +19,6 @@ data class ButtonModel(
   val leadingIcon: Icon? = null,
   val treatment: Treatment = Primary,
   val size: Size,
-  val testTag: String? = null,
   val onClick: Click,
 ) {
   enum class Treatment {
@@ -87,6 +86,8 @@ data class ButtonModel(
           TertiaryDestructive,
           ->
             IconSize.XSmall
+          BitkeyInteraction ->
+            IconSize.Custom(16)
           else ->
             IconSize.Accessory
         }
@@ -113,7 +114,6 @@ data class ButtonModel(
     isEnabled: Boolean = true,
     isLoading: Boolean = false,
     size: Size,
-    testTag: String? = null,
     onClick: () -> Unit,
   ) : this(
     text = text,
@@ -122,7 +122,6 @@ data class ButtonModel(
     leadingIcon = if (requiresBitkeyInteraction) Icon.SmallIconBitkey else leadingIcon,
     isEnabled = isEnabled,
     isLoading = isLoading,
-    testTag = testTag,
     onClick = StandardClick { onClick() }
   )
 
@@ -136,7 +135,6 @@ data class ButtonModel(
       isEnabled: Boolean = true,
       isLoading: Boolean = false,
       size: Size,
-      testTag: String? = null,
       onClick: Click,
       treatment: Treatment = BitkeyInteraction,
     ) = ButtonModel(
@@ -146,7 +144,6 @@ data class ButtonModel(
       leadingIcon = Icon.SmallIconBitkey,
       isEnabled = isEnabled,
       isLoading = isLoading,
-      testTag = testTag,
       onClick = onClick
     )
   }

@@ -1,7 +1,7 @@
 package bitkey.onboarding
 
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import com.github.michaelbull.result.Result
 
 interface DeleteFullAccountService {
@@ -10,6 +10,6 @@ interface DeleteFullAccountService {
    */
   suspend fun deleteAccount(
     fullAccountId: FullAccountId,
-    hardwareProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
   ): Result<Unit, Error>
 }

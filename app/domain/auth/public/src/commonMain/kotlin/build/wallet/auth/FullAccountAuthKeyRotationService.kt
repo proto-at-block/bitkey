@@ -3,7 +3,7 @@ package build.wallet.auth
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.bitkey.hardware.HwAuthPublicKey
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
 
@@ -24,7 +24,7 @@ sealed interface AuthKeyRotationRequest {
 
   data class Start(
     override val newKeys: AppAuthPublicKeys,
-    val hwFactorProofOfPossession: HwFactorProofOfPossession,
+    val proof: PrivilegedActionProof,
     val hwAuthPublicKey: HwAuthPublicKey,
     val hwSignedAccountId: String,
   ) : AuthKeyRotationRequest

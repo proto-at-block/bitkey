@@ -21,8 +21,9 @@ import build.wallet.ui.model.list.CoachmarkLabelModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
-import build.wallet.wallet.migration.PrivateWalletMigrationService
-import build.wallet.wallet.migration.PrivateWalletMigrationState
+import build.wallet.wallet.migration.MigrationProgress
+import build.wallet.wallet.migration.MigrationService
+import build.wallet.wallet.migration.MigrationType
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.launch
@@ -32,14 +33,21 @@ import kotlin.reflect.KClass
 class SettingsListUiStateMachineImpl(
   private val appFunctionalityService: AppFunctionalityService,
   private val coachmarkService: CoachmarkService,
-  private val privateWalletMigrationService: PrivateWalletMigrationService,
+  private val migrationService: MigrationService,
 ) : SettingsListUiStateMachine {
   @Composable
   override fun model(props: SettingsListUiProps): SettingsBodyModel {
     val appFunctionalityStatus by remember { appFunctionalityService.status }.collectAsState()
     val scope = rememberStableCoroutineScope()
-    val privateMigrationState by privateWalletMigrationService.migrationState
-      .collectAsState(PrivateWalletMigrationState.NotAvailable)
+
+    // Check if migration is available by calling resume()
+    var isMigrationAvailable by remember { mutableStateOf(false) }
+    LaunchedEffect("check-migration-status") {
+      migrationService.resume(MigrationType.PrivateWalletMigration)
+        .onSuccess { progress ->
+          isMigrationAvailable = progress is MigrationProgress.NotStarted
+        }
+    }
 
     var coachmarksToDisplay by remember { mutableStateOf(immutableListOf<CoachmarkIdentifier>()) }
     LaunchedEffect("coachmarks") {
@@ -89,7 +97,7 @@ class SettingsListUiStateMachineImpl(
             UtxoConsolidation::class,
             ExportTools::class,
             PrivateWalletMigration::class.takeIf {
-              privateMigrationState == PrivateWalletMigrationState.Available
+              isMigrationAvailable
             }
           )
         ),

@@ -103,8 +103,7 @@ class RecoveryNotificationVerificationUiStateMachineImpl(
         LaunchedEffect("send-touchpoint-to-server") {
           notificationTouchpointService.sendVerificationCodeToTouchpoint(
             fullAccountId = props.fullAccountId,
-            touchpoint = state.touchpoint,
-            hwProofOfPossession = props.hwFactorProofOfPossession
+            touchpoint = state.touchpoint
           )
             .onFailure { error ->
               uiState =
@@ -154,8 +153,7 @@ class RecoveryNotificationVerificationUiStateMachineImpl(
           LaunchedEffect("send-touchpoint-to-server") {
             notificationTouchpointService.sendVerificationCodeToTouchpoint(
               fullAccountId = props.fullAccountId,
-              touchpoint = state.touchpoint,
-              hwProofOfPossession = props.hwFactorProofOfPossession
+              touchpoint = state.touchpoint
             )
               .onFailure {
                 isResendingCode = false
@@ -194,8 +192,7 @@ class RecoveryNotificationVerificationUiStateMachineImpl(
         LaunchedEffect("send-verification-code-to-server") {
           notificationTouchpointService.verifyCode(
             fullAccountId = props.fullAccountId,
-            verificationCode = state.verificationCode,
-            hwProofOfPossession = props.hwFactorProofOfPossession
+            verificationCode = state.verificationCode
           )
             .onFailure { error ->
               uiState =
@@ -348,7 +345,6 @@ class RecoveryNotificationVerificationUiStateMachineImpl(
           onResendCode = {
             resendCodeCallbacks = it
           },
-          skipBottomSheetProvider = null,
           screenId = lostFactor.toScreenId()
         )
     )

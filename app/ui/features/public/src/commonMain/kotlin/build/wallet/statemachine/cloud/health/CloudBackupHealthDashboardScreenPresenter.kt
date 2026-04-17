@@ -76,7 +76,7 @@ class CloudBackupHealthDashboardScreenPresenter(
       is LoadingState -> {
         LaunchedEffect("load-status") {
           // perform sync first
-          cloudBackupHealthRepository.performSync(screen.account)
+          cloudBackupHealthRepository.performSync(screen.account.accountId, screen.account.keybox)
           state = determineState()
         }
         LoadingBodyModel(id = null).asRootScreen()
@@ -259,6 +259,17 @@ class CloudBackupHealthDashboardScreenPresenter(
           )
       )
     ),
+    designSystemV2StatusText = when (status) {
+      is AppKeyBackupStatus.Healthy -> "Successfully backed up"
+      AppKeyBackupStatus.ProblemWithBackup.NoCloudAccess -> "Problem with $cloudStoreName account access"
+      is AppKeyBackupStatus.ProblemWithBackup.BackupMissing -> "No backup found"
+      else -> "Problem with backup"
+    },
+    designSystemV2StatusTone = when (status) {
+      is AppKeyBackupStatus.Healthy -> CloudBackupHealthStatusTone.SUCCESS
+      is AppKeyBackupStatus.ProblemWithBackup.BackupMissing -> CloudBackupHealthStatusTone.DANGER
+      else -> CloudBackupHealthStatusTone.WARNING
+    },
     backupStatusActionButton = onBackUpNowClick?.let {
       ButtonModel(
         text = "Back up now",
@@ -286,6 +297,7 @@ class CloudBackupHealthDashboardScreenPresenter(
             iconSize = IconSize.Small,
             iconBackgroundType = IconBackgroundType.Transient
           ),
+          testTag = "cloud-backup-health-eek-share",
           onClick = onShareEekClick
         )
       )
@@ -329,6 +341,16 @@ class CloudBackupHealthDashboardScreenPresenter(
           )
       )
     ),
+    designSystemV2StatusText = when (status) {
+      is EekBackupStatus.Healthy -> "Successfully backed up"
+      is EekBackupStatus.ProblemWithBackup.BackupMissing -> "No backup found"
+      else -> "Problem with backup"
+    },
+    designSystemV2StatusTone = when (status) {
+      is EekBackupStatus.Healthy -> CloudBackupHealthStatusTone.SUCCESS
+      is EekBackupStatus.ProblemWithBackup.BackupMissing -> CloudBackupHealthStatusTone.DANGER
+      else -> CloudBackupHealthStatusTone.WARNING
+    },
     backupStatusActionButton = onBackUpNowClick?.let {
       ButtonModel(
         text = "Back up now",

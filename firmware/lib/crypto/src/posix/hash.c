@@ -10,6 +10,11 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
+// Verify that our opaque streaming context is large enough for OpenSSL's SHA256_CTX.
+// If this fires, increase the buffer[] size in hash_stream_ctx_t (hash.h).
+_Static_assert(sizeof(hash_stream_ctx_t) >= sizeof(SHA256_CTX),
+               "hash_stream_ctx_t too small for SHA256_CTX");
+
 bool crypto_hash(const uint8_t* message, uint32_t message_size, uint8_t* digest,
                  uint32_t digest_size, hash_alg_t alg) {
   ASSERT(message && digest);

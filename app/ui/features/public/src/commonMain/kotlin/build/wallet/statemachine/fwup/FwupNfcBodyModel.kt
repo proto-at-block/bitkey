@@ -3,9 +3,11 @@ package build.wallet.statemachine.fwup
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
+import build.wallet.platform.device.DevicePlatform
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.FullScreen
+import build.wallet.statemachine.core.ScreenPresentationStyle.ModalFullScreen
 import build.wallet.ui.app.nfc.FwupNfcScreen
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.ThemePreference
@@ -14,6 +16,7 @@ import kotlin.math.roundToInt
 data class FwupNfcBodyModel(
   val onCancel: (() -> Unit)?,
   val status: Status,
+  val showNativeSheetOnIos: Boolean = false,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo?,
 ) : BodyModel() {
   /**
@@ -26,12 +29,23 @@ data class FwupNfcBodyModel(
       themePreference = ThemePreference.Manual(Theme.DARK)
     )
 
-  fun asPlatformNfcScreen() =
+  fun asPlatformNfcScreen(
+    designSystemV2Enabled: Boolean,
+    devicePlatform: DevicePlatform,
+  ) =
     ScreenModel(
       body = this,
-      presentationStyle = FullScreen,
-      themePreference = ThemePreference.Manual(Theme.DARK),
-      platformNfcScreen = true
+      presentationStyle = if (designSystemV2Enabled) ModalFullScreen else FullScreen,
+      themePreference =
+        if (designSystemV2Enabled) {
+          fwupThemePreference(
+            devicePlatform = devicePlatform,
+            followSystemOnIos = showNativeSheetOnIos
+          )
+        } else {
+          ThemePreference.Manual(Theme.DARK)
+        },
+      platformNfcScreen = designSystemV2Enabled || showNativeSheetOnIos
     )
 
   @Composable
@@ -43,7 +57,7 @@ data class FwupNfcBodyModel(
     val text: String
 
     data class Searching(
-      override val text: String = "Hold device here behind phone",
+      override val text: String = "Hold your Bitkey to the back of your phone",
     ) : Status
 
     data class InProgress(

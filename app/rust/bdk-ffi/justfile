@@ -1,7 +1,7 @@
 default:
   just --list
 
-bindings_dir := "_build/generated/uniffi"
+bindings_dir := "src"
 cargo_target_dir := "../_build/rust/target"
 cargo_profile := "release-smaller"
 gobley_bindgen_root := "_build/gobley-tools-install/uniffi-bindgen"
@@ -129,14 +129,14 @@ vendor-libs:
       -e CARGO_HOME=/work/app/rust/_build/rust/docker-cargo-home \
       -v "$repo_root":/work \
       -w /work/app/rust \
-      rust:1.86.0 \
+      rust:1.91.1 \
       cargo build -p bdk-ffi --locked --profile {{cargo_profile}} --target x86_64-unknown-linux-gnu --config 'build.rustc-wrapper=""'
   fi
 
   mkdir -p libs/linux/x86_64
   cp "{{cargo_target_dir}}/x86_64-unknown-linux-gnu/{{cargo_profile}}/libbdk.so" libs/linux/x86_64/libbdk.so
 
-# Generate Kotlin Multiplatform UniFFI bindings into `_build/generated/uniffi`.
+# Generate Kotlin Multiplatform UniFFI bindings into `src/`.
 generate-bindings:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -147,7 +147,12 @@ generate-bindings:
     cargo install --quiet --root "{{gobley_bindgen_root}}" gobley-uniffi-bindgen@0.3.7
   fi
 
-  rm -rf "{{bindings_dir}}"
+  rm -rf \
+    "{{bindings_dir}}/commonMain/kotlin/uniffi" \
+    "{{bindings_dir}}/androidMain/kotlin/uniffi" \
+    "{{bindings_dir}}/jvmMain/kotlin/uniffi" \
+    "{{bindings_dir}}/nativeMain/kotlin/uniffi" \
+    "{{bindings_dir}}/nativeInterop/cinterop"
 
   uniffi_library=""
   if [ -f libs/macos/arm64/libbdk.dylib ]; then

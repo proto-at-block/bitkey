@@ -19,6 +19,7 @@ fwup_task_libs += {
       perf_dep,
       proto_helpers_dep,
       rtos_dep,
+      sysevent_dep,
       sysinfo_dep,
       ui_messaging_dep,
     ],
@@ -43,6 +44,7 @@ fwup_task_libs += {
       auth_dep,
       bio_dep,
       confirmation_dep,
+      coproc_dep,
       fwup_dep,
       ipc_dep,
       mcu_dep,
@@ -51,7 +53,9 @@ fwup_task_libs += {
       perf_dep,
       proto_helpers_dep,
       rtos_dep,
+      sysevent_dep,
       sysinfo_dep,
+      sysinfo_task_dep,
       uc_dep,
       ui_messaging_dep,
     ]
@@ -70,7 +74,7 @@ fwup_task_libs += {
       'src/uxc/fwup_task_mpu.c'
     ],
     include_directories : ['inc', mpu_regions_includes],
-    dependencies : [assert_dep, helpers_dep, fwup_dep, mcu_dep, rtos_dep, uc_dep],
+    dependencies : [assert_dep, helpers_dep, fwup_dep, mcu_dep, rtos_dep, sysevent_dep, uc_dep],
   )
 }
 fwup_task_deps += {

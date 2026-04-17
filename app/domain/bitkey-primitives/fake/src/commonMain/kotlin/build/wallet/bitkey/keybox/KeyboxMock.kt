@@ -97,7 +97,6 @@ val KeyboxMock2 = Keybox(
 
 val FullAccountMock = FullAccount(
   accountId = FullAccountIdMock,
-  config = KeyboxMock.config,
   keybox = KeyboxMock
 )
 
@@ -107,7 +106,6 @@ val KeyboxW3Mock = KeyboxMock.copy(
 
 val FullAccountW3Mock = FullAccount(
   accountId = FullAccountIdMock,
-  config = KeyboxW3Mock.config,
   keybox = KeyboxW3Mock
 )
 

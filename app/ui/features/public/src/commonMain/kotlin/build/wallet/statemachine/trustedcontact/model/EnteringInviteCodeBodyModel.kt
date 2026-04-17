@@ -42,6 +42,7 @@ data class EnteringInviteCodeBodyModel(
         fieldModel = TextFieldModel(
           value = value,
           placeholderText = "Invite code",
+          testTag = "trusted-contact-invite-code-input",
           transformation = INVITE_CODE,
           onValueChange = { newValue, _ ->
             onValueChange(newValue.replace("-", "").chunked(4).joinToString("-"))

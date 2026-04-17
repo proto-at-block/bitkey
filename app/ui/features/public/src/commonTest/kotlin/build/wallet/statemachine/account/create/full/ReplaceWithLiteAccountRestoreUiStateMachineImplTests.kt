@@ -12,12 +12,13 @@ import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.onboarding.LiteAccountBackupToFullAccountUpgrader
 import build.wallet.onboarding.LiteAccountBackupToFullAccountUpgraderMock
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
-import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
-import build.wallet.statemachine.auth.Request
+import build.wallet.statemachine.auth.ActionProofType
+import build.wallet.statemachine.auth.HardwareAuthUiProps
+import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
@@ -26,7 +27,6 @@ import build.wallet.statemachine.ui.awaitBodyMock
 import com.github.michaelbull.result.Err
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeTypeOf
 
 class ReplaceWithLiteAccountRestoreUiStateMachineImplTests : FunSpec({
 
@@ -48,10 +48,10 @@ class ReplaceWithLiteAccountRestoreUiStateMachineImplTests : FunSpec({
           }
         val stateMachine =
           ReplaceWithLiteAccountRestoreUiStateMachineImpl(
-            proofOfPossessionNfcStateMachine =
-              object : ProofOfPossessionNfcStateMachine,
-                ScreenStateMachineMock<ProofOfPossessionNfcProps>(
-                  id = "pop-nfc"
+            hardwareAuthUiStateMachine =
+              object : HardwareAuthUiStateMachine,
+                ScreenStateMachineMock<HardwareAuthUiProps>(
+                  id = "hw-auth"
                 ) {},
             deleteFullAccountService = deleteFullAccountService,
             liteAccountBackupToFullAccountUpgrader = liteAccountBackupToFullAccountUpgrader
@@ -72,9 +72,9 @@ class ReplaceWithLiteAccountRestoreUiStateMachineImplTests : FunSpec({
 
         test("happy path") {
           stateMachine.test(props) {
-            awaitBodyMock<ProofOfPossessionNfcProps> {
-              request.shouldBeTypeOf<Request.HwKeyProof>()
-                .onSuccess(HwFactorProofOfPossession("fake"))
+            awaitBodyMock<HardwareAuthUiProps> {
+              actionProofType.shouldBe(ActionProofType.DeleteAccount(accountId = fullAccountIdToReplace.serverId))
+              onSuccess(PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("fake")))
             }
             awaitBody<LoadingSuccessBodyModel>(
               CloudEventTrackerScreenId.LOADING_RESTORING_FROM_LITE_ACCOUNT_CLOUD_BACKUP_DURING_FULL_ACCOUNT_ONBOARDING
@@ -94,9 +94,9 @@ class ReplaceWithLiteAccountRestoreUiStateMachineImplTests : FunSpec({
           stateMachine.test(props) {
             liteAccountBackupToFullAccountUpgrader.result =
               Err(LiteAccountBackupToFullAccountUpgrader.UpgradeError("boom"))
-            awaitBodyMock<ProofOfPossessionNfcProps> {
-              request.shouldBeTypeOf<Request.HwKeyProof>()
-                .onSuccess(HwFactorProofOfPossession("fake"))
+            awaitBodyMock<HardwareAuthUiProps> {
+              actionProofType.shouldBe(ActionProofType.DeleteAccount(accountId = fullAccountIdToReplace.serverId))
+              onSuccess(PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("fake")))
             }
             awaitBody<LoadingSuccessBodyModel>(
               CloudEventTrackerScreenId.LOADING_RESTORING_FROM_LITE_ACCOUNT_CLOUD_BACKUP_DURING_FULL_ACCOUNT_ONBOARDING
@@ -119,9 +119,9 @@ class ReplaceWithLiteAccountRestoreUiStateMachineImplTests : FunSpec({
               primaryButton!!.onClick()
             }
 
-            awaitBodyMock<ProofOfPossessionNfcProps> {
-              request.shouldBeTypeOf<Request.HwKeyProof>()
-                .onSuccess(HwFactorProofOfPossession("fake"))
+            awaitBodyMock<HardwareAuthUiProps> {
+              actionProofType.shouldBe(ActionProofType.DeleteAccount(accountId = fullAccountIdToReplace.serverId))
+              onSuccess(PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("fake")))
             }
             awaitBody<LoadingSuccessBodyModel>(
               CloudEventTrackerScreenId.LOADING_RESTORING_FROM_LITE_ACCOUNT_CLOUD_BACKUP_DURING_FULL_ACCOUNT_ONBOARDING

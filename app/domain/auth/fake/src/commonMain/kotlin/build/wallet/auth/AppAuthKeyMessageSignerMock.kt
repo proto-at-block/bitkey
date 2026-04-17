@@ -8,7 +8,7 @@ import com.github.michaelbull.result.Result
 import okio.ByteString
 
 class AppAuthKeyMessageSignerMock : AppAuthKeyMessageSigner {
-  var result: Result<String, Throwable> = Ok("mock-signature-hex")
+  var result: Result<String, Throwable> = Ok("3045022100" + "ab".repeat(32) + "0220" + "cd".repeat(32))
 
   override suspend fun <T> signMessage(
     publicKey: PublicKey<T>,
@@ -16,6 +16,6 @@ class AppAuthKeyMessageSignerMock : AppAuthKeyMessageSigner {
   ): Result<String, Throwable> where T : AppAuthKey, T : CurveType.Secp256K1 = result
 
   fun reset() {
-    result = Ok("mock-signature-hex")
+    result = Ok("3045022100" + "ab".repeat(32) + "0220" + "cd".repeat(32))
   }
 }

@@ -39,6 +39,18 @@ NO_RETURN void _assert_handler(void);
 // that would mess up libfuzzer, but should still crash on target.
 #define ASSERT_EMBEDDED_ONLY ASSERT
 
+#elif defined(FUZZ_BUILD)  // Fuzz builds: trap instead of exit so libFuzzer can continue
+
+#define ASSERT_E(expr, exitcode) \
+  do {                           \
+    if (!(expr)) {               \
+      __builtin_trap();          \
+    }                            \
+  } while (false)
+
+#define ASSERT(expr)         ASSERT_E(expr, 0)
+#define ASSERT_EMBEDDED_ONLY (void)
+
 #else  // Host builds, e.g. for unit tests
 
 #include <stdio.h>

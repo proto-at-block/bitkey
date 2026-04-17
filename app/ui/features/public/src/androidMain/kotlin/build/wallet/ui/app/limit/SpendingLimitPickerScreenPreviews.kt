@@ -8,6 +8,7 @@ import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
+import build.wallet.ui.tokens.lightStyleDictionaryColors
 import build.wallet.ui.tooling.PreviewWalletTheme
 
 @Preview
@@ -42,6 +43,37 @@ fun PreviewSpendingLimitPickerScreenNoValueKeypad() {
 @Composable
 fun PreviewSpendingLimitPickerScreenWithValueKeypad() {
   PreviewWalletTheme {
+    SpendingLimitPickerScreen(
+      model = SpendingLimitPickerModel(
+        onBack = {},
+        toolbarModel = ToolbarModel(
+          leadingAccessory = BackAccessory {},
+          middleAccessory = ToolbarMiddleAccessoryModel(title = "Set daily limit")
+        ),
+        amountModel = MoneyAmountEntryModel(
+          primaryAmount = "$100",
+          primaryAmountGhostedSubstringRange = null,
+          secondaryAmount = "484,191 sats"
+        ),
+        keypadModel = KeypadModel(
+          showDecimal = false,
+          onButtonPress = {}
+        ),
+        setLimitButtonEnabled = true,
+        setLimitButtonLoading = false,
+        onSetLimitClick = {}
+      )
+    )
+  }
+}
+
+@Preview
+@Composable
+fun PreviewSpendingLimitPickerScreenWithValueKeypadDesignSystemV2() {
+  PreviewWalletTheme(
+    designSystemUpdatesEnabled = true,
+    backgroundColor = lightStyleDictionaryColors.subtleBackground
+  ) {
     SpendingLimitPickerScreen(
       model = SpendingLimitPickerModel(
         onBack = {},

@@ -116,15 +116,13 @@ impl ChaincodeDelegateSigner {
                 &tweaked_custodian_public_key,
             )?;
 
+            let sighash_type = self.validate_ecdsa_sighash_type(psbt_input)?;
+
             // Add custodian signature to PSBT
             let signature = secp.sign_ecdsa(
-                &self.compute_sighash(&mut sighash_cache, input_index, psbt_input)?,
+                &self.compute_sighash(&mut sighash_cache, input_index, psbt_input, sighash_type)?,
                 &tweaked_custodian_key,
             );
-            let sighash_type = psbt_input
-                .sighash_type
-                .and_then(|sht| sht.ecdsa_hash_ty().ok())
-                .unwrap_or(EcdsaSighashType::All);
 
             psbt_input.partial_sigs.insert(
                 bdk_wallet::bitcoin::PublicKey::new(tweaked_custodian_public_key),
@@ -147,6 +145,24 @@ impl ChaincodeDelegateSigner {
         })?;
 
         Ok(())
+    }
+
+    fn validate_ecdsa_sighash_type(
+        &self,
+        psbt_input: &PsbtInput,
+    ) -> Result<EcdsaSighashType, ChaincodeDelegateSignerError> {
+        match psbt_input.sighash_type {
+            None => Ok(EcdsaSighashType::All),
+            Some(sighash_type) => match sighash_type.ecdsa_hash_ty() {
+                Ok(EcdsaSighashType::All) => Ok(EcdsaSighashType::All),
+                Ok(_) => Err(ChaincodeDelegateSignerError::InvalidPsbt(
+                    "Only SIGHASH_ALL is permitted for custodian signing".to_string(),
+                )),
+                Err(_) => Err(ChaincodeDelegateSignerError::InvalidPsbt(
+                    "Invalid sighash type for custodian signing".to_string(),
+                )),
+            },
+        }
     }
 
     fn proprietary_keys(&self, secp: &Secp256k1<All>) -> WalletProprietaryKeys {
@@ -269,12 +285,8 @@ impl ChaincodeDelegateSigner {
         sighash_cache: &mut SighashCache<&Transaction>,
         input_index: usize,
         psbt_input: &PsbtInput,
+        sighash_type: EcdsaSighashType,
     ) -> Result<Message, ChaincodeDelegateSignerError> {
-        let sighash_type = psbt_input
-            .sighash_type
-            .and_then(|sht| sht.ecdsa_hash_ty().ok())
-            .unwrap_or(EcdsaSighashType::All);
-
         let witness_script = psbt_input.witness_script.as_ref().ok_or_else(|| {
             ChaincodeDelegateSignerError::InvalidPsbt(
                 "Witness script missing for sighash".to_string(),
@@ -315,7 +327,7 @@ mod tests {
     use bdk_wallet::bitcoin::{
         absolute::LockTime,
         bip32::{DerivationPath, Fingerprint},
-        psbt::{Input as PsbtInput, Psbt},
+        psbt::{Input as PsbtInput, Psbt, PsbtSighashType},
         secp256k1::{rand, All, Message, PublicKey, Scalar, Secp256k1, SecretKey},
         sighash::{EcdsaSighashType, SighashCache},
         transaction::Version,
@@ -822,6 +834,32 @@ mod tests {
                 matches!(result, Err(ChaincodeDelegateSignerError::InvalidPsbt(msg)) if msg.contains("Missing BIP32 derivation for app key"))
             );
         }
+
+        #[test]
+        fn test_explicit_non_all_sighash_is_rejected() {
+            let setup = TestSetup::new();
+            let (mut psbt, _, _, _, _) = setup.create_valid_psbt();
+
+            psbt.inputs[0].sighash_type = Some(EcdsaSighashType::None.into());
+
+            let result = setup.signer.sign_psbt(&mut psbt, &setup.secp);
+            assert!(
+                matches!(result, Err(ChaincodeDelegateSignerError::InvalidPsbt(msg)) if msg.contains("Only SIGHASH_ALL is permitted"))
+            );
+        }
+
+        #[test]
+        fn test_invalid_sighash_type_is_rejected() {
+            let setup = TestSetup::new();
+            let (mut psbt, _, _, _, _) = setup.create_valid_psbt();
+
+            psbt.inputs[0].sighash_type = Some(PsbtSighashType::from_u32(0x04));
+
+            let result = setup.signer.sign_psbt(&mut psbt, &setup.secp);
+            assert!(
+                matches!(result, Err(ChaincodeDelegateSignerError::InvalidPsbt(msg)) if msg.contains("Invalid sighash type"))
+            );
+        }
     }
 
     mod signing_tests {
@@ -830,12 +868,27 @@ mod tests {
         #[test]
         fn test_valid_psbt_signing() {
             let setup = TestSetup::new();
-            let (mut psbt, _, _, custodian_tweak, _) = setup.create_valid_psbt();
+            let (mut psbt, _, _, _custodian_tweak, _) = setup.create_valid_psbt();
 
             let result = setup.signer.sign_psbt(&mut psbt, &setup.secp);
             assert!(
                 result.is_ok(),
                 "PSBT signing should succeed but got: {:?}",
+                result
+            );
+        }
+
+        #[test]
+        fn test_explicit_all_sighash_signing() {
+            let setup = TestSetup::new();
+            let (mut psbt, _, _, _, _) = setup.create_valid_psbt();
+
+            psbt.inputs[0].sighash_type = Some(EcdsaSighashType::All.into());
+
+            let result = setup.signer.sign_psbt(&mut psbt, &setup.secp);
+            assert!(
+                result.is_ok(),
+                "PSBT signing with explicit SIGHASH_ALL should succeed but got: {:?}",
                 result
             );
         }

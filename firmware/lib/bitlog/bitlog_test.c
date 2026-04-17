@@ -12,6 +12,7 @@ DEFINE_FFF_GLOBALS;
 FAKE_VOID_FUNC(rtos_mutex_create, rtos_mutex_t*);
 FAKE_VALUE_FUNC(bool, rtos_mutex_lock, rtos_mutex_t*);
 FAKE_VALUE_FUNC(bool, rtos_mutex_unlock, rtos_mutex_t*);
+FAKE_VALUE_FUNC(bool, rtos_in_isr);
 
 extern uint8_t bitlog_storage[];
 extern bitlog_priv_t bitlog_priv;

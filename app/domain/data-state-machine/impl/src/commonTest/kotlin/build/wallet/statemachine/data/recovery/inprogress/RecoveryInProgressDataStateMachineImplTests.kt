@@ -2,8 +2,14 @@
 
 package build.wallet.statemachine.data.recovery.inprogress
 
-import app.cash.turbine.plusAssign
+import app.cash.turbine.ReceiveTurbine
 import bitkey.account.AccountConfigServiceFake
+import bitkey.account.FullAccountConfig
+import bitkey.account.HardwareType
+import bitkey.auth.AccessToken
+import bitkey.auth.AccountAuthTokens
+import bitkey.auth.AuthTokenScope
+import bitkey.auth.RefreshToken
 import bitkey.backup.DescriptorBackup
 import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.SpecificClientErrorMock
@@ -11,18 +17,25 @@ import bitkey.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
 import bitkey.recovery.DelayNotifyServiceFake
 import bitkey.recovery.DescriptorBackupError
 import bitkey.recovery.DescriptorBackupPreparedData
+import build.wallet.auth.AuthTokensServiceFake
+import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock2
 import build.wallet.bitkey.challange.DelayNotifyRecoveryChallengeFake
 import build.wallet.bitkey.challange.SignedChallenge
 import build.wallet.bitkey.f8e.F8eSpendingKeysetMock
+import build.wallet.bitkey.f8e.F8eSpendingKeysetPrivateWalletMock
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.cloud.backup.csek.*
 import build.wallet.coroutines.turbine.awaitNoEvents
+import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
+import build.wallet.f8e.recovery.SignedKeysetVerificationResponseMock
 import build.wallet.f8e.relationships.RelationshipsFake
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.FeatureFlagValue
@@ -33,23 +46,27 @@ import build.wallet.firmware.SecureBootConfig
 import build.wallet.fwup.FirmwareData
 import build.wallet.fwup.FirmwareDataServiceFake
 import build.wallet.ktor.result.HttpError
+import build.wallet.nfc.NfcCommandsMock
+import build.wallet.nfc.NfcSessionFake
+import build.wallet.nfc.platform.HardwareInteraction
+import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.RecoveryAuthorizeLostHwResult
+import build.wallet.nfc.transaction.NfcTransaction
 import build.wallet.nfc.transaction.ProvisionAppAuthKeyTransactionProviderFake
-import build.wallet.nfc.transaction.SealDelegatedDecryptionKey
+import build.wallet.nfc.transaction.RecoveryNfcSession
+import build.wallet.nfc.transaction.RecoveryProofAndKeyTransferLostApp.ProofAndKeyTransferLostAppResult
+import build.wallet.nfc.transaction.RecoveryProofAndKeyTransferLostHw.ProofAndKeyTransferLostHwResult
 import build.wallet.nfc.transaction.SignChallengeAndSealSeks.SignedChallengeAndSeks
-import build.wallet.nfc.transaction.UnsealData
 import build.wallet.platform.random.UuidGeneratorFake
+import build.wallet.recovery.*
 import build.wallet.recovery.CancelDelayNotifyRecoveryError.F8eCancelDelayNotifyError
-import build.wallet.recovery.DescriptorBackupServiceFake
-import build.wallet.recovery.LocalRecoveryAttemptProgress
+import build.wallet.recovery.Recovery
 import build.wallet.recovery.Recovery.StillRecovering
 import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.*
-import build.wallet.recovery.RecoveryStatusServiceMock
-import build.wallet.recovery.StillRecoveringInitiatedRecoveryMock
 import build.wallet.relationships.*
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.*
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.*
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.AwaitingHardwareProofOfPossessionData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.CreatingSpendingKeysWithF8EData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.ProcessingDescriptorBackupsData.*
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.*
@@ -66,6 +83,7 @@ import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import okio.ByteString.Companion.decodeBase64
+import okio.ByteString.Companion.decodeHex
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -85,6 +103,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
   val fingerprintResetMinFirmwareVersionFeatureFlag = FingerprintResetMinFirmwareVersionFeatureFlag(
     featureFlagDao = FeatureFlagDaoFake()
   )
+  val nfcCommandsMock = NfcCommandsMock(turbines::create)
   val firmwareDataService = FirmwareDataServiceFake()
   val fakeChallenge = SignedChallenge.HardwareSignedChallenge(
     challenge = DelayNotifyRecoveryChallengeFake,
@@ -93,6 +112,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
   val delegatedDecryptionKeyService = DelegatedDecryptionKeyServiceMock(
     uploadCalls = turbines.create("upload calls")
   )
+  val authTokensService = AuthTokensServiceFake()
+  val actionProofService = bitkey.privilegedactions.ActionProofServiceFake()
 
   // Restore relationshipsKeysRepository so it is still passed and used
   val relationshipsKeysRepository = RelationshipsKeysRepository(
@@ -101,6 +122,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
   )
 
   val stateMachine = RecoveryInProgressDataStateMachineImpl(
+    actionProofService = actionProofService,
     delayNotifyService = delayNotifyService,
     clock = Clock.System,
     sekGenerator = sekGenerator,
@@ -116,12 +138,14 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     descriptorBackupService = descriptorBackupService,
     provisionAppAuthKeyTransactionProvider = ProvisionAppAuthKeyTransactionProviderFake(),
     firmwareDataService = firmwareDataService,
-    minFirmwareVersionFeatureFlag = fingerprintResetMinFirmwareVersionFeatureFlag
+    minFirmwareVersionFeatureFlag = fingerprintResetMinFirmwareVersionFeatureFlag,
+    authTokensService = authTokensService
   )
 
   beforeTest {
     csekDao.reset()
     ssekDao.reset()
+    nfcCommandsMock.reset()
     relationshipsService.relationshipsFlow.emit(RelationshipsFake)
     accountConfigService.reset()
     delayNotifyService.reset()
@@ -129,6 +153,19 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     featureFlagDao.reset()
     fingerprintResetMinFirmwareVersionFeatureFlag.reset()
     firmwareDataService.reset()
+    authTokensService.reset()
+    actionProofService.reset()
+    // Set up tokens so PreparingProofAndKeyTransferState can refresh
+    authTokensService.setTokens(
+      accountId = StillRecoveringInitiatedRecoveryMock.fullAccountId,
+      tokens = AccountAuthTokens(
+        accessToken = AccessToken("fake-access-token"),
+        refreshToken = RefreshToken("fake-refresh-token"),
+        accessTokenExpiresAt = null,
+        refreshTokenExpiresAt = null
+      ),
+      scope = AuthTokenScope.Global
+    )
   }
 
   val delayDuration = 100.milliseconds
@@ -214,9 +251,9 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.cancel()
       }
 
-      awaitItem().let {
+      awaitUntil { it is AwaitingProofOfPossessionForCancellationData }.let {
         it.shouldBeTypeOf<AwaitingProofOfPossessionForCancellationData>()
-        it.addHardwareProofOfPossession(HwFactorProofOfPossession(""))
+        it.addProof(PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("")))
       }
 
       awaitItem().shouldBeTypeOf<CancellingData>()
@@ -270,9 +307,9 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.cancel()
       }
 
-      awaitItem().let {
+      awaitUntil { it is AwaitingProofOfPossessionForCancellationData }.let {
         it.shouldBeTypeOf<AwaitingProofOfPossessionForCancellationData>()
-        it.addHardwareProofOfPossession(HwFactorProofOfPossession(""))
+        it.addProof(PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("")))
       }
 
       awaitItem().shouldBeTypeOf<CancellingData>()
@@ -302,9 +339,9 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.cancel()
       }
 
-      awaitItem().let {
+      awaitUntil { it is AwaitingProofOfPossessionForCancellationData }.let {
         it.shouldBeTypeOf<AwaitingProofOfPossessionForCancellationData>()
-        it.addHardwareProofOfPossession(HwFactorProofOfPossession(""))
+        it.addProof(PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("")))
       }
 
       awaitItem().shouldBeTypeOf<CancellingData>()
@@ -315,9 +352,45 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         onComplete()
       }
 
-      awaitItem().let {
+      awaitUntil { it is AwaitingProofOfPossessionForCancellationData }.let {
         it.shouldBeTypeOf<AwaitingProofOfPossessionForCancellationData>()
-        it.addHardwareProofOfPossession(HwFactorProofOfPossession(""))
+        it.addProof(PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("")))
+      }
+
+      awaitItem().shouldBeTypeOf<CancellingData>()
+    }
+  }
+
+  test("cancel lost app recovery with CommsVerificationRequiredError routes to comms verification") {
+    val recovery = recovery()
+    // Move clock ahead of delay period end time
+    delay(delayDuration)
+    delayNotifyService.cancelResult =
+      Err(
+        CancelDelayNotifyRecoveryError.CommsVerificationRequiredError(Error("comms required"))
+      )
+    stateMachine.test(props(recovery)) {
+      awaitItem().let {
+        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
+        it.cancel()
+      }
+
+      awaitUntil { it is AwaitingProofOfPossessionForCancellationData }.let {
+        it.shouldBeTypeOf<AwaitingProofOfPossessionForCancellationData>()
+        it.addProof(PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("")))
+      }
+
+      awaitItem().shouldBeTypeOf<CancellingData>()
+
+      with(awaitItem()) {
+        shouldBeTypeOf<VerifyingNotificationCommsForCancellationData>()
+        delayNotifyService.reset()
+        onComplete()
+      }
+
+      awaitUntil { it is AwaitingProofOfPossessionForCancellationData }.let {
+        it.shouldBeTypeOf<AwaitingProofOfPossessionForCancellationData>()
+        it.addProof(PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("")))
       }
 
       awaitItem().shouldBeTypeOf<CancellingData>()
@@ -403,6 +476,35 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     }
   }
 
+  test("invalid sealed SSEK from hardware tap 1 fails before persisting") {
+    val recovery = recovery()
+    val invalidSealedSsek = "0a01ff".decodeHex()
+    delay(delayDuration)
+
+    stateMachine.test(props(recovery)) {
+      awaitItem().let {
+        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
+        it.startComplete()
+      }
+
+      awaitItem().let {
+        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+        it.nfcTransaction.onSuccess(
+          SignedChallengeAndSeks(
+            signedChallenge = fakeChallenge,
+            csek = CsekFake,
+            ssek = SsekFake,
+            sealedCsek = SealedCsekFake,
+            sealedSsek = invalidSealedSsek
+          )
+        )
+      }
+
+      awaitItem().shouldBeTypeOf<FailedToRotateAuthData>().cause.message shouldBe
+        "Invalid sealed SSEK from hardware tap 1: data length must be 32 bytes"
+    }
+  }
+
   test("complete recovery with socrec - descriptor backups enabled") {
     val recovery = recovery()
 
@@ -433,27 +535,20 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
       }
 
-      awaitItem().let {
-        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
-        it.nfcTransaction.onSuccess(Unit)
-      }
-
-      awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
+      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
+      awaitItem().shouldBeTypeOf<PreparingProofAndKeyTransferData>()
 
       awaitItem().let {
-        it.shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyStringData>()
+        it.shouldBeTypeOf<AwaitingProofAndKeyTransferLostAppData>()
         it.nfcTransaction.onSuccess(
-          UnsealData.UnsealedDataResult("unsealed-data".encodeBase64().decodeBase64()!!)
+          ProofAndKeyTransferLostAppResult(
+            hwProofOfPossession = HwFactorProofOfPossession("signed-token"),
+            unsealedDdkData = "unsealed-data".encodeBase64().decodeBase64(),
+            unsealedOldSsek = null,
+            ddkUnsealFailed = false
+          )
         )
       }
-
-      // Rotate spending keys
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
-        it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
-      }
-
-      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
 
       awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
 
@@ -462,7 +557,17 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
         .spendingKeysets.shouldBe(listOf(SpendingKeysetMock))
 
+      // Activation → provisioning tap → DDK backup
       awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      awaitItem().let {
+        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
+        it.nfcTransaction.onSuccess(Unit)
+      }
+
+      // Persisting hw descriptor validation progress
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.HwDescriptorValidated>()
 
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
@@ -482,6 +587,55 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       // Sweeping funds
       awaitItem().shouldBeTypeOf<PerformingSweepData>()
+    }
+  }
+
+  test("DDK unseal failure during tap 2 shows DDK error screen") {
+    val recovery = recovery()
+    delay(delayDuration)
+
+    stateMachine.test(props(recovery)) {
+      awaitItem().let {
+        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
+        it.startComplete()
+      }
+
+      awaitItem().let {
+        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+        it.nfcTransaction.onSuccess(
+          SignedChallengeAndSeks(
+            signedChallenge = fakeChallenge,
+            csek = CsekFake,
+            ssek = SsekFake,
+            sealedCsek = SealedCsekFake,
+            sealedSsek = SealedSsekFake
+          )
+        )
+      }
+
+      awaitItem().shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+
+      // After token rotation, creates spending keys then prepares for tap 2
+      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
+      awaitItem().shouldBeTypeOf<PreparingProofAndKeyTransferData>()
+
+      // Tap 2 succeeds but DDK unseal failed inside the session
+      awaitItem().let {
+        it.shouldBeTypeOf<AwaitingProofAndKeyTransferLostAppData>()
+        it.nfcTransaction.onSuccess(
+          ProofAndKeyTransferLostAppResult(
+            hwProofOfPossession = HwFactorProofOfPossession("signed-token"),
+            unsealedDdkData = null,
+            unsealedOldSsek = null,
+            ddkUnsealFailed = true
+          )
+        )
+      }
+
+      // Should show DDK error screen with retry/remove options
+      awaitItem().shouldBeTypeOf<DelegatedDecryptionKeyErrorStateData>()
+
+      cancelAndIgnoreRemainingEvents()
     }
   }
 
@@ -513,27 +667,20 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
       }
 
-      awaitItem().let {
-        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
-        it.nfcTransaction.onSuccess(Unit)
-      }
-
-      awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
+      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
+      awaitItem().shouldBeTypeOf<PreparingProofAndKeyTransferData>()
 
       awaitItem().let {
-        it.shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyStringData>()
+        it.shouldBeTypeOf<AwaitingProofAndKeyTransferLostAppData>()
         it.nfcTransaction.onSuccess(
-          UnsealData.UnsealedDataResult("unsealed-data".encodeBase64().decodeBase64()!!)
+          ProofAndKeyTransferLostAppResult(
+            hwProofOfPossession = HwFactorProofOfPossession("signed-token"),
+            unsealedDdkData = "unsealed-data".encodeBase64().decodeBase64(),
+            unsealedOldSsek = null,
+            ddkUnsealFailed = false
+          )
         )
       }
-
-      // Rotate spending keys
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
-        it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
-      }
-
-      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
 
       awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
 
@@ -542,7 +689,17 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
         .spendingKeysets.shouldBe(listOf(SpendingKeysetMock))
 
+      // Activation → provisioning tap → DDK backup
       awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      awaitItem().let {
+        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
+        it.nfcTransaction.onSuccess(Unit)
+      }
+
+      // Persisting hw descriptor validation progress
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.HwDescriptorValidated>()
 
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
@@ -594,19 +751,18 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
       }
 
-      awaitItem().let {
-        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
-        it.nfcTransaction.onSuccess(Unit)
-      }
-
-      awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
-
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
-        it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
-      }
-
       awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
+      awaitItem().shouldBeTypeOf<PreparingProofAndKeyTransferData>()
+
+      awaitItem().let {
+        it.shouldBeTypeOf<AwaitingProofAndKeyTransferLostHwData>()
+        it.nfcTransaction.onSuccess(
+          ProofAndKeyTransferLostHwResult(
+            hwProofOfPossession = HwFactorProofOfPossession("signed-token"),
+            sealedDdkData = "FakeSealedData".encodeBase64().decodeBase64()
+          )
+        )
+      }
 
       awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
 
@@ -618,16 +774,19 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
 
-      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
-      awaitItem().let {
-        it.shouldBeTypeOf<SealingDelegatedDecryptionKeyData>()
-        it.nfcTransaction.onSuccess(
-          SealDelegatedDecryptionKey.SealedDataResult(
-            "FakeSealedData".encodeBase64().decodeBase64()!!
-          )
-        )
-        delegatedDecryptionKeyService.uploadCalls!!.awaitItem()
+      // CheckingProvisioningAfterActivation → provisioning tap → persist HwDescriptorValidated → DDK backup
+      awaitUntil { it is ProvisioningAppAuthKeyToHardwareData }.let {
+        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
+        it.nfcTransaction.onSuccess(Unit)
       }
+
+      // Persisting hw descriptor validation progress
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.HwDescriptorValidated>()
+
+      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
+      delegatedDecryptionKeyService.uploadCalls!!.awaitItem()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
 
@@ -674,27 +833,20 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
       }
 
-      awaitItem().let {
-        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
-        it.nfcTransaction.onSuccess(Unit)
-      }
-
-      awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
+      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
+      awaitItem().shouldBeTypeOf<PreparingProofAndKeyTransferData>()
 
       awaitItem().let {
-        it.shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyStringData>()
+        it.shouldBeTypeOf<AwaitingProofAndKeyTransferLostAppData>()
         it.nfcTransaction.onSuccess(
-          UnsealData.UnsealedDataResult("unsealed-data".encodeBase64().decodeBase64()!!)
+          ProofAndKeyTransferLostAppResult(
+            hwProofOfPossession = HwFactorProofOfPossession("signed-token"),
+            unsealedDdkData = "unsealed-data".encodeBase64().decodeBase64(),
+            unsealedOldSsek = null,
+            ddkUnsealFailed = false
+          )
         )
       }
-
-      // Rotate spending keys
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
-        it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
-      }
-
-      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
 
       awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
 
@@ -702,7 +854,17 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
 
+      // Activation → provisioning tap → DDK backup
       awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      awaitItem().let {
+        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
+        it.nfcTransaction.onSuccess(Unit)
+      }
+
+      // Persisting hw descriptor validation progress
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.HwDescriptorValidated>()
 
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
@@ -761,27 +923,20 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
       }
 
-      awaitItem().let {
-        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
-        it.nfcTransaction.onSuccess(Unit)
-      }
-
-      awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
+      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
+      awaitItem().shouldBeTypeOf<PreparingProofAndKeyTransferData>()
 
       awaitItem().let {
-        it.shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyStringData>()
+        it.shouldBeTypeOf<AwaitingProofAndKeyTransferLostAppData>()
         it.nfcTransaction.onSuccess(
-          UnsealData.UnsealedDataResult("unsealed-data".encodeBase64().decodeBase64()!!)
+          ProofAndKeyTransferLostAppResult(
+            hwProofOfPossession = HwFactorProofOfPossession("signed-token"),
+            unsealedDdkData = "unsealed-data".encodeBase64().decodeBase64(),
+            unsealedOldSsek = null,
+            ddkUnsealFailed = false
+          )
         )
       }
-
-      // Rotate spending keys
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
-        it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
-      }
-
-      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
 
       awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
 
@@ -789,7 +944,17 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
 
+      // Activation → provisioning tap → DDK backup
       awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      awaitItem().let {
+        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
+        it.nfcTransaction.onSuccess(Unit)
+      }
+
+      // Persisting hw descriptor validation progress
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.HwDescriptorValidated>()
 
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
@@ -845,9 +1010,19 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     )
 
     stateMachine.test(props(recovery)) {
+      awaitItem().shouldBeTypeOf<PreparingProofAndKeyTransferData>()
+
+      // Drive through tap 2 to reach descriptor backup processing
       awaitItem().let {
-        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
-        it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
+        it.shouldBeTypeOf<AwaitingProofAndKeyTransferLostAppData>()
+        it.nfcTransaction.onSuccess(
+          ProofAndKeyTransferLostAppResult(
+            hwProofOfPossession = HwFactorProofOfPossession("signed-token"),
+            unsealedDdkData = null,
+            unsealedOldSsek = null,
+            ddkUnsealFailed = false
+          )
+        )
       }
 
       awaitItem().let {
@@ -861,7 +1036,17 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
         .spendingKeysets.shouldBe(listOf(SpendingKeysetMock))
 
+      // Activation → provisioning tap → DDK backup
       awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      awaitItem().let {
+        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
+        it.nfcTransaction.onSuccess(Unit)
+      }
+
+      // Persisting hw descriptor validation progress
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.HwDescriptorValidated>()
 
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
 
@@ -871,117 +1056,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
 
       cancelAndIgnoreRemainingEvents()
-    }
-  }
-
-  test("descriptor backup processing - ssek unsealing success") {
-    val recovery = CreatedSpendingKeys(
-      fullAccountId = StillRecoveringInitiatedRecoveryMock.fullAccountId,
-      appSpendingKey = StillRecoveringInitiatedRecoveryMock.appSpendingKey,
-      appGlobalAuthKey = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKey,
-      appRecoveryAuthKey = StillRecoveringInitiatedRecoveryMock.appRecoveryAuthKey,
-      hardwareSpendingKey = StillRecoveringInitiatedRecoveryMock.hardwareSpendingKey,
-      hardwareAuthKey = StillRecoveringInitiatedRecoveryMock.hardwareAuthKey,
-      factorToRecover = App,
-      appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
-      f8eSpendingKeyset = F8eSpendingKeysetMock,
-      sealedCsek = SealedCsekFake,
-      sealedSsek = SealedSsekFake,
-      originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
-    )
-
-    descriptorBackupService.prepareDescriptorBackupsForRecoveryResult = Ok(
-      DescriptorBackupPreparedData.NeedsUnsealed(
-        sealedSsek = SealedSsekFake,
-        descriptorsToDecrypt = listOf(
-          DescriptorBackup(
-            keysetId = "test-keyset",
-            sealedDescriptor = XCiphertext("test-descriptor"),
-            privateWalletRootXpub = XCiphertext("test-private-wallet-root-xpub")
-          )
-        ),
-        keysetsToEncrypt = listOf(SpendingKeysetMock)
-      )
-    )
-
-    stateMachine.test(props(recovery)) {
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
-        it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
-      }
-
-      awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
-
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingSsekUnsealingData>()
-        it.nfcTransaction.onSuccess(SsekFake)
-      }
-
-      awaitItem().shouldBeTypeOf<UploadingDescriptorBackupsData>()
-
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
-        .spendingKeysets.shouldBe(listOf(SpendingKeysetMock))
-
-      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
-
-      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
-
-      awaitItem().shouldBe(RegeneratingTcCertificatesData)
-
-      cancelAndIgnoreRemainingEvents()
-    }
-  }
-
-  test("descriptor backup processing - ssek unsealing failure") {
-    val recovery = CreatedSpendingKeys(
-      fullAccountId = StillRecoveringInitiatedRecoveryMock.fullAccountId,
-      appSpendingKey = StillRecoveringInitiatedRecoveryMock.appSpendingKey,
-      appGlobalAuthKey = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKey,
-      appRecoveryAuthKey = StillRecoveringInitiatedRecoveryMock.appRecoveryAuthKey,
-      hardwareSpendingKey = StillRecoveringInitiatedRecoveryMock.hardwareSpendingKey,
-      hardwareAuthKey = StillRecoveringInitiatedRecoveryMock.hardwareAuthKey,
-      factorToRecover = App,
-      appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
-      f8eSpendingKeyset = F8eSpendingKeysetMock,
-      sealedCsek = SealedCsekFake,
-      sealedSsek = SealedSsekFake,
-      originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
-    )
-
-    descriptorBackupService.prepareDescriptorBackupsForRecoveryResult = Ok(
-      DescriptorBackupPreparedData.NeedsUnsealed(
-        sealedSsek = SealedSsekFake,
-        descriptorsToDecrypt = listOf(
-          DescriptorBackup(
-            keysetId = "test-keyset",
-            sealedDescriptor = XCiphertext("test-descriptor"),
-            privateWalletRootXpub = XCiphertext("test-private-wallet-root-xpub")
-          )
-        ),
-        keysetsToEncrypt = listOf(SpendingKeysetMock)
-      )
-    )
-
-    stateMachine.test(props(recovery)) {
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
-        it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
-      }
-
-      awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
-
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingSsekUnsealingData>()
-        it.nfcTransaction.onCancel()
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<FailedToProcessDescriptorBackupsData>()
-        it.physicalFactor.shouldBe(App)
-      }
     }
   }
 
@@ -1005,9 +1079,19 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       Err(Error("Preparation failed"))
 
     stateMachine.test(props(recovery)) {
+      awaitItem().shouldBeTypeOf<PreparingProofAndKeyTransferData>()
+
+      // Drive through tap 2 to reach descriptor backup processing
       awaitItem().let {
-        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
-        it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
+        it.shouldBeTypeOf<AwaitingProofAndKeyTransferLostAppData>()
+        it.nfcTransaction.onSuccess(
+          ProofAndKeyTransferLostAppResult(
+            hwProofOfPossession = HwFactorProofOfPossession("signed-token"),
+            unsealedDdkData = null,
+            unsealedOldSsek = null,
+            ddkUnsealFailed = false
+          )
+        )
       }
 
       awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
@@ -1057,9 +1141,19 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       Err(DescriptorBackupError.NetworkError(RuntimeException("Network error")))
 
     stateMachine.test(props(recovery)) {
+      awaitItem().shouldBeTypeOf<PreparingProofAndKeyTransferData>()
+
+      // Drive through tap 2 to reach descriptor backup processing
       awaitItem().let {
-        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
-        it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
+        it.shouldBeTypeOf<AwaitingProofAndKeyTransferLostAppData>()
+        it.nfcTransaction.onSuccess(
+          ProofAndKeyTransferLostAppResult(
+            hwProofOfPossession = HwFactorProofOfPossession("signed-token"),
+            unsealedDdkData = null,
+            unsealedOldSsek = null,
+            ddkUnsealFailed = false
+          )
+        )
       }
 
       awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
@@ -1090,9 +1184,19 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     )
 
     stateMachine.test(props(recovery)) {
+      awaitItem().shouldBeTypeOf<PreparingProofAndKeyTransferData>()
+
+      // Drive through tap 2 to reach descriptor backup processing
       awaitItem().let {
-        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
-        it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
+        it.shouldBeTypeOf<AwaitingProofAndKeyTransferLostAppData>()
+        it.nfcTransaction.onSuccess(
+          ProofAndKeyTransferLostAppResult(
+            hwProofOfPossession = HwFactorProofOfPossession("signed-token"),
+            unsealedDdkData = null,
+            unsealedOldSsek = null,
+            ddkUnsealFailed = false
+          )
+        )
       }
 
       awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
@@ -1101,7 +1205,17 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
 
+      // Activation → provisioning tap → DDK backup
       awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      awaitItem().let {
+        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
+        it.nfcTransaction.onSuccess(Unit)
+      }
+
+      // Persisting hw descriptor validation progress
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.HwDescriptorValidated>()
 
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
@@ -1137,28 +1251,13 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     )
 
     stateMachine.test(props(recovery)) {
+      // CreatedSpendingKeys now goes to PreparingProofAndKeyTransferData (two-tap flow)
       awaitItem().let {
-        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionForActivationData>()
+        it.shouldBeTypeOf<PreparingProofAndKeyTransferData>()
         it.physicalFactor.shouldBe(App)
-        it.addHardwareProofOfPossession(HwFactorProofOfPossession("signed-token"))
       }
 
-      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
-
-      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
-
-      awaitItem().shouldBe(RegeneratingTcCertificatesData)
-
-      awaitItem().let {
-        it.shouldBeTypeOf<PerformingCloudBackupData>()
-        it.onBackupFinished()
-      }
-
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-
-      awaitItem().shouldBeTypeOf<PerformingSweepData>()
+      cancelAndIgnoreRemainingEvents()
     }
   }
 
@@ -1180,10 +1279,139 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     )
 
     stateMachine.test(props(recovery)) {
+      // ActivatedSpendingKeys → provisioning tap → persist HwDescriptorValidated → DDK backup
+      awaitItem().let {
+        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
+        it.nfcTransaction.onSuccess(Unit)
+      }
+
+      // Persisting hw descriptor validation progress (shows as ActivatingSpendingKeysetData)
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.HwDescriptorValidated>()
+
       awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
 
       recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
         .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
+
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("ActivatedSpendingKeys skips provisioning when firmware below threshold") {
+    val recovery = ActivatedSpendingKeys(
+      fullAccountId = StillRecoveringInitiatedRecoveryMock.fullAccountId,
+      appSpendingKey = StillRecoveringInitiatedRecoveryMock.appSpendingKey,
+      appGlobalAuthKey = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKey,
+      appRecoveryAuthKey = StillRecoveringInitiatedRecoveryMock.appRecoveryAuthKey,
+      hardwareSpendingKey = StillRecoveringInitiatedRecoveryMock.hardwareSpendingKey,
+      hardwareAuthKey = StillRecoveringInitiatedRecoveryMock.hardwareAuthKey,
+      factorToRecover = App,
+      appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
+      f8eSpendingKeyset = F8eSpendingKeysetMock,
+      sealedCsek = SealedCsekFake,
+      sealedSsek = SealedSsekFake,
+      keysets = listOf(SpendingKeysetMock),
+      originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
+    )
+
+    fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
+    firmwareDataService.firmwareData.value = FirmwareData(
+      firmwareDeviceInfo = createFirmwareDeviceInfo("0.0.1"),
+      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
+    )
+
+    stateMachine.test(props(recovery)) {
+      // Firmware below threshold → skips provisioning, straight to DDK backup
+      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
+
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("ActivatedSpendingKeys with supported firmware enters provisioning") {
+    val recovery = ActivatedSpendingKeys(
+      fullAccountId = StillRecoveringInitiatedRecoveryMock.fullAccountId,
+      appSpendingKey = StillRecoveringInitiatedRecoveryMock.appSpendingKey,
+      appGlobalAuthKey = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKey,
+      appRecoveryAuthKey = StillRecoveringInitiatedRecoveryMock.appRecoveryAuthKey,
+      hardwareSpendingKey = StillRecoveringInitiatedRecoveryMock.hardwareSpendingKey,
+      hardwareAuthKey = StillRecoveringInitiatedRecoveryMock.hardwareAuthKey,
+      factorToRecover = App,
+      appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
+      f8eSpendingKeyset = F8eSpendingKeysetMock,
+      sealedCsek = SealedCsekFake,
+      sealedSsek = SealedSsekFake,
+      keysets = listOf(SpendingKeysetMock),
+      originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
+    )
+
+    // Firmware meets threshold
+    fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
+    firmwareDataService.firmwareData.value = FirmwareData(
+      firmwareDeviceInfo = createFirmwareDeviceInfo("1.0.99"),
+      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
+    )
+
+    stateMachine.test(props(recovery)) {
+      // Firmware meets threshold → provisioning tap → persist HwDescriptorValidated → DDK
+      awaitItem().let {
+        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
+        it.nfcTransaction.onSuccess(Unit)
+      }
+
+      // Persisting hw descriptor validation progress
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.HwDescriptorValidated>()
+
+      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
+
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("post-activation provisioning cancel goes to failed state then retries") {
+    val recovery = ActivatedSpendingKeys(
+      fullAccountId = StillRecoveringInitiatedRecoveryMock.fullAccountId,
+      appSpendingKey = StillRecoveringInitiatedRecoveryMock.appSpendingKey,
+      appGlobalAuthKey = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKey,
+      appRecoveryAuthKey = StillRecoveringInitiatedRecoveryMock.appRecoveryAuthKey,
+      hardwareSpendingKey = StillRecoveringInitiatedRecoveryMock.hardwareSpendingKey,
+      hardwareAuthKey = StillRecoveringInitiatedRecoveryMock.hardwareAuthKey,
+      factorToRecover = App,
+      appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
+      f8eSpendingKeyset = F8eSpendingKeysetMock,
+      sealedCsek = SealedCsekFake,
+      sealedSsek = SealedSsekFake,
+      keysets = listOf(SpendingKeysetMock),
+      originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
+    )
+
+    stateMachine.test(props(recovery)) {
+      awaitItem().let {
+        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
+        // Cancel — goes to FailedToBuildHardwareDescriptorState
+        it.nfcTransaction.onCancel()
+      }
+
+      // Cancel goes to FailedToBuildHardwareDescriptorData, retry goes back to PoP
+      awaitItem().let {
+        it.shouldBeTypeOf<FailedToBuildHardwareDescriptorData>()
+        it.onRetry()
+      }
+
+      // Retry goes back to PreparingProofAndKeyTransferData (two-tap flow)
+      awaitItem().let {
+        it.shouldBeTypeOf<PreparingProofAndKeyTransferData>()
+      }
 
       cancelAndIgnoreRemainingEvents()
     }
@@ -1207,18 +1435,11 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     )
 
     stateMachine.test(props(recovery)) {
+      // UploadedDescriptorBackups now goes through PreparingProofAndKeyTransferData (two-tap flow)
       awaitItem().let {
-        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionForActivationData>()
+        it.shouldBeTypeOf<PreparingProofAndKeyTransferData>()
         it.physicalFactor.shouldBe(App)
-        it.addHardwareProofOfPossession(HwFactorProofOfPossession("signed-token"))
       }
-
-      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
-
-      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
-
-      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
-        .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
 
       cancelAndIgnoreRemainingEvents()
     }
@@ -1248,11 +1469,49 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     }
   }
 
-  test("firmware version check - provisions app auth key when firmware version meets minimum requirement") {
+  test("initial state calculation - hardware recovery sweep uses recovered hardware type from firmware") {
+    accountConfigService.setActiveConfig(
+      FullAccountConfig(
+        bitcoinNetworkType = BitcoinNetworkType.SIGNET,
+        f8eEnvironment = build.wallet.f8e.F8eEnvironment.Development,
+        isTestAccount = true,
+        isUsingSocRecFakes = true,
+        isHardwareFake = true,
+        hardwareType = HardwareType.W3
+      )
+    )
+    firmwareDataService.firmwareData.value = firmwareDataService.firmwareData.value.copy(
+      firmwareDeviceInfo = createFirmwareDeviceInfo("1.0.0")
+    )
+
+    val recovery = SweepAttempted(
+      fullAccountId = StillRecoveringInitiatedRecoveryMock.fullAccountId,
+      appSpendingKey = StillRecoveringInitiatedRecoveryMock.appSpendingKey,
+      appGlobalAuthKey = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKey,
+      appRecoveryAuthKey = StillRecoveringInitiatedRecoveryMock.appRecoveryAuthKey,
+      hardwareSpendingKey = StillRecoveringInitiatedRecoveryMock.hardwareSpendingKey,
+      hardwareAuthKey = StillRecoveringInitiatedRecoveryMock.hardwareAuthKey,
+      factorToRecover = Hardware,
+      appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
+      f8eSpendingKeyset = F8eSpendingKeysetMock,
+      keysets = listOf(SpendingKeysetMock),
+      originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
+    )
+
+    stateMachine.test(props(recovery)) {
+      awaitItem().let {
+        it.shouldBeTypeOf<PerformingSweepData>()
+        it.keybox.config.hardwareType.shouldBe(HardwareType.W1)
+      }
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("firmware version check - all token rotation paths go through preparing proof and key transfer") {
     val recovery = recovery()
     delay(delayDuration)
 
-    // Set firmware version equal to the minimum
+    // Regardless of firmware version, after token rotation we now go to PreparingProofAndKeyTransfer
     fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
     firmwareDataService.firmwareData.value = FirmwareData(
       firmwareDeviceInfo = createFirmwareDeviceInfo("1.0.98"),
@@ -1280,141 +1539,15 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
 
-      // Should proceed with provisioning
-      awaitItem().let {
-        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
-        it.nfcTransaction.onSuccess(Unit)
-      }
-
-      awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
+      // After token rotation, creates spending keys then prepares for tap 2
+      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
+      awaitItem().shouldBeTypeOf<PreparingProofAndKeyTransferData>()
 
       cancelAndIgnoreRemainingEvents()
     }
   }
 
-  test("firmware version check - skips app auth key provisioning when firmware version is unavailable") {
-    val recovery = recovery()
-    delay(delayDuration)
-
-    // Set firmware device info to null
-    fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
-    firmwareDataService.firmwareData.value = FirmwareData(
-      firmwareDeviceInfo = null,
-      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
-    )
-
-    stateMachine.test(props(recovery)) {
-      awaitItem().let {
-        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
-        it.startComplete()
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
-        it.nfcTransaction.onSuccess(
-          SignedChallengeAndSeks(
-            signedChallenge = fakeChallenge,
-            csek = CsekFake,
-            ssek = SsekFake,
-            sealedCsek = SealedCsekFake,
-            sealedSsek = SealedSsekFake
-          )
-        )
-      }
-
-      awaitItem().shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
-
-      // Should skip provisioning when firmware version is unavailable
-      awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
-
-      cancelAndIgnoreRemainingEvents()
-    }
-  }
-
-  test("firmware version check - skips app auth key provisioning when minimum version flag is empty") {
-    val recovery = recovery()
-    delay(delayDuration)
-
-    // Set minimum firmware version to empty string
-    fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag(""))
-    firmwareDataService.firmwareData.value = FirmwareData(
-      firmwareDeviceInfo = createFirmwareDeviceInfo("1.0.98"),
-      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
-    )
-
-    stateMachine.test(props(recovery)) {
-      awaitItem().let {
-        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
-        it.startComplete()
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
-        it.nfcTransaction.onSuccess(
-          SignedChallengeAndSeks(
-            signedChallenge = fakeChallenge,
-            csek = CsekFake,
-            ssek = SsekFake,
-            sealedCsek = SealedCsekFake,
-            sealedSsek = SealedSsekFake
-          )
-        )
-      }
-
-      awaitItem().shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
-
-      // Should skip provisioning when minimum version flag is empty
-      awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
-
-      cancelAndIgnoreRemainingEvents()
-    }
-  }
-
-  test("firmware version check - provisions app auth key when firmware version is higher than minimum") {
-    val recovery = recovery()
-    delay(delayDuration)
-
-    // Set firmware version higher than the minimum
-    fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
-    firmwareDataService.firmwareData.value = FirmwareData(
-      firmwareDeviceInfo = createFirmwareDeviceInfo("2.0.0"),
-      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
-    )
-
-    stateMachine.test(props(recovery)) {
-      awaitItem().let {
-        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
-        it.startComplete()
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
-        it.nfcTransaction.onSuccess(
-          SignedChallengeAndSeks(
-            signedChallenge = fakeChallenge,
-            csek = CsekFake,
-            ssek = SsekFake,
-            sealedCsek = SealedCsekFake,
-            sealedSsek = SealedSsekFake
-          )
-        )
-      }
-
-      awaitItem().shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
-
-      // Should proceed with provisioning
-      awaitItem().let {
-        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
-        it.nfcTransaction.onSuccess(Unit)
-      }
-
-      awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
-
-      cancelAndIgnoreRemainingEvents()
-    }
-  }
-
-  test("firmware version check - resumes from RotatedAuthKeys and skips provisioning when version is below minimum") {
+  test("RotatedAuthKeys resume always goes to PreparingProofAndKeyTransferData") {
     val recovery = RotatedAuthKeys(
       fullAccountId = StillRecoveringInitiatedRecoveryMock.fullAccountId,
       appSpendingKey = StillRecoveringInitiatedRecoveryMock.appSpendingKey,
@@ -1429,70 +1562,577 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
     )
 
-    // Set firmware version below the minimum
-    fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
-    firmwareDataService.firmwareData.value = FirmwareData(
-      firmwareDeviceInfo = createFirmwareDeviceInfo("1.0.97"),
-      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
-    )
-
     stateMachine.test(props(recovery)) {
-      // Should skip provisioning and go directly to fetching DDK
-      awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
+      // RotatedAuthKeys now starts with creating spending keys, then preparing for tap 2
+      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
+      awaitItem().shouldBeTypeOf<PreparingProofAndKeyTransferData>()
 
       cancelAndIgnoreRemainingEvents()
     }
   }
 
-  test("firmware version check - resumes from RotatedAuthKeys and provisions when version meets minimum") {
-    val recovery = RotatedAuthKeys(
+  test("W3 hardware path exercises hardware descriptor validation") {
+    val recovery = hardwareRecovery()
+    val recoveredSpendingKeyDpub =
+      "[34eae6a8/84'/0'/9']xpubDDj952KUFGTDcNV1qY5Tuevm6vnBWK8NSpTTkCz1XTApv2SeDaqcrUTBgDdCRF9KmtxV33R8E9NtSi9VSBUPj4M3fKr4uk3kRy8Vbo1LbAv/*"
+    val w3DeviceInfo = createFirmwareDeviceInfo("2.0.0", hwRevision = "w3a-core-evt")
+    delay(delayDuration)
+
+    // Set up W3 hardware: firmware reports W3 hwRevision + private wallet keyset
+    firmwareDataService.firmwareData.value = FirmwareData(
+      firmwareDeviceInfo = w3DeviceInfo,
+      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
+    )
+    descriptorBackupService.getNextAccountIndexResult = Ok(1u)
+    delayNotifyService.createSpendingKeysetResult = com.github.michaelbull.result.Ok(F8eSpendingKeysetPrivateWalletMock)
+    // activateSpendingKeyset returns signed keys for W3
+    delayNotifyService.activateSpendingKeysetResult = com.github.michaelbull.result.Ok(SignedKeysetVerificationResponseMock)
+
+    stateMachine.test(
+      props = props(recovery),
+      turbineTimeout = 10.seconds
+    ) {
+      awaitItem().let {
+        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
+        it.startComplete()
+      }
+
+      // Rotate auth keys (W3 confirmable)
+      awaitW3Tap1Data().let {
+        it.nfcSession.confirmableRunSessionAndOnSuccess(nfcCommandsMock)
+        nfcCommandsMock.signChallengeAndSealSeksCalls.awaitItem()
+      }
+
+      awaitItem().shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+
+      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
+      awaitItem().shouldBeTypeOf<PreparingProofAndKeyTransferData>()
+
+      awaitItem().let {
+        it.shouldBeTypeOf<AwaitingProofAndKeyTransferLostHwData>()
+        it.nfcSession.confirmableOnSuccess(
+          RecoveryAuthorizeLostHwResult(
+            descriptorBackupsSignature = "fake-descriptor-backups-sig",
+            activateKeysetSignature = "fake-activate-keyset-sig",
+            sealedDdkData = "FakeSealedData".encodeBase64().decodeBase64()
+          )
+        )
+      }
+
+      awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
+
+      awaitItem().shouldBeTypeOf<UploadingDescriptorBackupsData>()
+
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
+
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+
+      // W3 hardware goes directly to hardware descriptor validation (signed keys from activation)
+      awaitItem().let {
+        it.shouldBeTypeOf<BuildingHardwareDescriptorData>()
+        it.accountIndex shouldBe 0u
+        it.onSuccess(AppGlobalAuthKeyHwSignature(""))
+      }
+
+      // Persisting hw descriptor validation progress
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.HwDescriptorValidated>()
+
+      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
+      delegatedDecryptionKeyService.uploadCalls!!.awaitItem()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
+
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("W1 hardware path skips descriptor validation") {
+    val recovery = hardwareRecovery()
+    delay(delayDuration)
+
+    // Set up account config to use W1 hardware
+    accountConfigService.setHardwareType(HardwareType.W1)
+
+    stateMachine.test(
+      props = props(recovery),
+      turbineTimeout = 10.seconds
+    ) {
+      awaitItem().let {
+        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
+        it.startComplete()
+      }
+
+      // Rotate auth keys
+      awaitItem().let {
+        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+        it.nfcTransaction.onSuccess(
+          SignedChallengeAndSeks(
+            signedChallenge = fakeChallenge,
+            csek = CsekFake,
+            ssek = SsekFake,
+            sealedCsek = SealedCsekFake,
+            sealedSsek = SealedSsekFake
+          )
+        )
+      }
+
+      awaitItem().let {
+        it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+      }
+
+      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
+      awaitItem().shouldBeTypeOf<PreparingProofAndKeyTransferData>()
+
+      awaitItem().let {
+        it.shouldBeTypeOf<AwaitingProofAndKeyTransferLostHwData>()
+        it.nfcTransaction.onSuccess(
+          ProofAndKeyTransferLostHwResult(
+            hwProofOfPossession = HwFactorProofOfPossession("signed-token"),
+            sealedDdkData = "FakeSealedData".encodeBase64().decodeBase64()
+          )
+        )
+      }
+
+      awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
+
+      awaitItem().shouldBeTypeOf<UploadingDescriptorBackupsData>()
+
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
+        .spendingKeysets.shouldBe(listOf(SpendingKeysetMock))
+
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+
+      // W1 hardware with default firmware (1.2.3 >= 1.0.101) enters provisioning via unified state
+      awaitItem().let {
+        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
+        it.nfcTransaction.onSuccess(Unit)
+      }
+
+      // Persisting hw descriptor validation progress
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.HwDescriptorValidated>()
+
+      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
+      delegatedDecryptionKeyService.uploadCalls!!.awaitItem()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
+
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("hardware descriptor validation fails and retries") {
+    val recovery = hardwareRecovery()
+    val w3DeviceInfo = createFirmwareDeviceInfo("2.0.0", hwRevision = "w3a-core-evt")
+    delay(delayDuration)
+
+    // Set up W3 hardware: firmware reports W3 hwRevision + private wallet keyset
+    firmwareDataService.firmwareData.value = FirmwareData(
+      firmwareDeviceInfo = w3DeviceInfo,
+      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
+    )
+    descriptorBackupService.getNextAccountIndexResult = Ok(1u)
+    delayNotifyService.createSpendingKeysetResult = com.github.michaelbull.result.Ok(F8eSpendingKeysetPrivateWalletMock)
+    // activateSpendingKeyset returns signed keys for W3
+    delayNotifyService.activateSpendingKeysetResult = com.github.michaelbull.result.Ok(SignedKeysetVerificationResponseMock)
+
+    stateMachine.test(
+      props = props(recovery),
+      turbineTimeout = 10.seconds
+    ) {
+      awaitItem().let {
+        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
+        it.startComplete()
+      }
+
+      // Rotate auth keys (W3 confirmable)
+      awaitW3Tap1Data().let {
+        it.nfcSession.confirmableRunSessionAndOnSuccess(nfcCommandsMock)
+        nfcCommandsMock.signChallengeAndSealSeksCalls.awaitItem()
+      }
+
+      awaitItem().shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+
+      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
+      awaitItem().shouldBeTypeOf<PreparingProofAndKeyTransferData>()
+
+      awaitItem().let {
+        it.shouldBeTypeOf<AwaitingProofAndKeyTransferLostHwData>()
+        it.nfcSession.confirmableOnSuccess(
+          RecoveryAuthorizeLostHwResult(
+            descriptorBackupsSignature = "fake-descriptor-backups-sig",
+            activateKeysetSignature = "fake-activate-keyset-sig",
+            sealedDdkData = "FakeSealedData".encodeBase64().decodeBase64()
+          )
+        )
+      }
+
+      awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
+
+      awaitItem().shouldBeTypeOf<UploadingDescriptorBackupsData>()
+
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
+
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+
+      // W3 hardware goes to descriptor validation, then fails
+      awaitItem().let {
+        it.shouldBeTypeOf<BuildingHardwareDescriptorData>()
+        it.onFailure(Error("Simulated descriptor validation failure"))
+      }
+
+      // Should fail and enter failed state, then retry
+      awaitItem().let {
+        it.shouldBeTypeOf<FailedToBuildHardwareDescriptorData>()
+        it.onRetry()
+      }
+
+      // Retry goes back to PreparingProofAndKeyTransferData (two-tap flow)
+      awaitItem().let {
+        it.shouldBeTypeOf<PreparingProofAndKeyTransferData>()
+      }
+
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("W3 hardware fails when signed keys are missing from activation response") {
+    val recovery = hardwareRecovery()
+    val w3DeviceInfo = createFirmwareDeviceInfo("2.0.0", hwRevision = "w3a-core-evt")
+    delay(delayDuration)
+
+    // Set up W3 hardware: firmware reports W3 hwRevision + private wallet keyset
+    firmwareDataService.firmwareData.value = FirmwareData(
+      firmwareDeviceInfo = w3DeviceInfo,
+      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
+    )
+    descriptorBackupService.getNextAccountIndexResult = Ok(1u)
+    delayNotifyService.createSpendingKeysetResult = com.github.michaelbull.result.Ok(F8eSpendingKeysetPrivateWalletMock)
+    // activateSpendingKeyset returns null (no signed keys) - should fail for W3
+    delayNotifyService.activateSpendingKeysetResult = com.github.michaelbull.result.Ok(null)
+
+    stateMachine.test(
+      props = props(recovery),
+      turbineTimeout = 10.seconds
+    ) {
+      awaitItem().let {
+        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
+        it.startComplete()
+      }
+
+      // Rotate auth keys (W3 confirmable)
+      awaitW3Tap1Data().let {
+        it.nfcSession.confirmableRunSessionAndOnSuccess(nfcCommandsMock)
+        nfcCommandsMock.signChallengeAndSealSeksCalls.awaitItem()
+      }
+
+      awaitItem().shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+
+      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
+      awaitItem().shouldBeTypeOf<PreparingProofAndKeyTransferData>()
+
+      awaitItem().let {
+        it.shouldBeTypeOf<AwaitingProofAndKeyTransferLostHwData>()
+        it.nfcSession.confirmableOnSuccess(
+          RecoveryAuthorizeLostHwResult(
+            descriptorBackupsSignature = "fake-descriptor-backups-sig",
+            activateKeysetSignature = "fake-activate-keyset-sig",
+            sealedDdkData = "FakeSealedData".encodeBase64().decodeBase64()
+          )
+        )
+      }
+
+      awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
+
+      awaitItem().shouldBeTypeOf<UploadingDescriptorBackupsData>()
+
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
+
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+
+      // W3 with null signed keys should fail, not skip to DDK backup
+      awaitItem().let {
+        it.shouldBeTypeOf<FailedToActivateSpendingKeysetData>()
+        it.cause.message shouldBe "W3 keyset activation did not return signed keys for descriptor validation"
+      }
+
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("W3 tap 1 cancel returns to ReadyToCompleteRecoveryData") {
+    val recovery = hardwareRecovery()
+    val w3DeviceInfo = createFirmwareDeviceInfo("2.0.0", hwRevision = "w3a-core-evt")
+    delay(delayDuration)
+
+    firmwareDataService.firmwareData.value = FirmwareData(
+      firmwareDeviceInfo = w3DeviceInfo,
+      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
+    )
+    descriptorBackupService.getNextAccountIndexResult = Ok(1u)
+    stateMachine.test(
+      props = props(recovery),
+      turbineTimeout = 10.seconds
+    ) {
+      awaitItem().let {
+        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
+        it.startComplete()
+      }
+
+      awaitW3Tap1Data().let {
+        it.nfcSession.confirmableOnCancel()
+      }
+
+      awaitItem().shouldBeTypeOf<ReadyToCompleteRecoveryData>()
+
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("W3 tap 2 cancel returns to PreparingProofAndKeyTransferData") {
+    val recovery = hardwareRecovery()
+    val w3DeviceInfo = createFirmwareDeviceInfo("2.0.0", hwRevision = "w3a-core-evt")
+    delay(delayDuration)
+
+    firmwareDataService.firmwareData.value = FirmwareData(
+      firmwareDeviceInfo = w3DeviceInfo,
+      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
+    )
+    descriptorBackupService.getNextAccountIndexResult = Ok(1u)
+    delayNotifyService.createSpendingKeysetResult = com.github.michaelbull.result.Ok(F8eSpendingKeysetPrivateWalletMock)
+
+    stateMachine.test(
+      props = props(recovery),
+      turbineTimeout = 10.seconds
+    ) {
+      awaitItem().let {
+        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
+        it.startComplete()
+      }
+
+      // Tap 1
+      awaitW3Tap1Data().let {
+        it.nfcSession.confirmableRunSessionAndOnSuccess(nfcCommandsMock)
+        nfcCommandsMock.signChallengeAndSealSeksCalls.awaitItem()
+      }
+
+      awaitItem().shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
+      awaitItem().shouldBeTypeOf<PreparingProofAndKeyTransferData>()
+
+      // Tap 2 — cancel
+      awaitItem().let {
+        it.shouldBeTypeOf<AwaitingProofAndKeyTransferLostHwData>()
+        it.nfcSession.confirmableOnCancel()
+      }
+
+      // Should return to preparing state for retry
+      awaitItem().shouldBeTypeOf<PreparingProofAndKeyTransferData>()
+
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("W3 lost app recovery path exercises descriptor backups") {
+    val recovery = recovery()
+    val w3DeviceInfo = createFirmwareDeviceInfo("2.0.0", hwRevision = "w3a-core-evt")
+    delay(delayDuration)
+
+    firmwareDataService.firmwareData.value = FirmwareData(
+      firmwareDeviceInfo = w3DeviceInfo,
+      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
+    )
+    descriptorBackupService.getNextAccountIndexResult = Ok(1u)
+    delayNotifyService.createSpendingKeysetResult = com.github.michaelbull.result.Ok(F8eSpendingKeysetPrivateWalletMock)
+    delayNotifyService.activateSpendingKeysetResult = com.github.michaelbull.result.Ok(SignedKeysetVerificationResponseMock)
+
+    stateMachine.test(
+      props = props(recovery),
+      turbineTimeout = 10.seconds
+    ) {
+      awaitItem().let {
+        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
+        it.startComplete()
+      }
+
+      // Tap 1
+      awaitW3Tap1Data().let {
+        it.nfcSession.confirmableRunSessionAndOnSuccess(nfcCommandsMock)
+        nfcCommandsMock.signChallengeAndSealSeksCalls.awaitItem()
+      }
+
+      awaitItem().shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
+      awaitItem().shouldBeTypeOf<PreparingProofAndKeyTransferData>()
+
+      // Tap 2 — Lost App
+      awaitItem().let {
+        it.shouldBeTypeOf<AwaitingProofAndKeyTransferLostAppData>()
+        it.nfcSession.confirmableOnSuccess(
+          build.wallet.nfc.platform.RecoveryAuthorizeLostAppResult(
+            descriptorBackupsSignature = "fake-descriptor-backups-sig",
+            activateKeysetSignature = "fake-activate-keyset-sig",
+            unsealedDdkData = null,
+            unsealedSsek = null
+          )
+        )
+      }
+
+      awaitItem().shouldBeTypeOf<HandlingDescriptorEncryption>()
+      awaitItem().shouldBeTypeOf<UploadingDescriptorBackupsData>()
+
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.UploadedDescriptorBackups>()
+
+      awaitItem().shouldBeTypeOf<ActivatingSpendingKeysetData>()
+
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("HwDescriptorValidated with sealedDdkData resumes DDK upload without NFC tap") {
+    // Verifies the bug fix: when sealedDdkData is present in the restored checkpoint,
+    // the state machine skips the NFC re-seal tap and goes straight to upload.
+    val sealedDdk = "FakeSealedDdkBytes".encodeBase64().decodeBase64()!!
+    val recovery = Recovery.StillRecovering.ServerIndependentRecovery.HwDescriptorValidated(
+      f8eSpendingKeyset = F8eSpendingKeysetMock,
       fullAccountId = StillRecoveringInitiatedRecoveryMock.fullAccountId,
       appSpendingKey = StillRecoveringInitiatedRecoveryMock.appSpendingKey,
       appGlobalAuthKey = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKey,
       appRecoveryAuthKey = StillRecoveringInitiatedRecoveryMock.appRecoveryAuthKey,
       hardwareSpendingKey = StillRecoveringInitiatedRecoveryMock.hardwareSpendingKey,
       hardwareAuthKey = StillRecoveringInitiatedRecoveryMock.hardwareAuthKey,
-      factorToRecover = App,
+      factorToRecover = Hardware,
       appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
       sealedCsek = SealedCsekFake,
       sealedSsek = SealedSsekFake,
-      originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2
-    )
-
-    // Set firmware version equal to the minimum
-    fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
-    firmwareDataService.firmwareData.value = FirmwareData(
-      firmwareDeviceInfo = createFirmwareDeviceInfo("1.0.98"),
-      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
+      keysets = listOf(SpendingKeysetMock),
+      originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2,
+      sealedDdkData = sealedDdk
     )
 
     stateMachine.test(props(recovery)) {
-      // Should proceed with provisioning
-      awaitItem().let {
-        it.shouldBeTypeOf<ProvisioningAppAuthKeyToHardwareData>()
-        it.nfcTransaction.onSuccess(Unit)
-      }
+      // Should immediately upload using the restored sealed DDK — no NFC tap needed
+      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
+      delegatedDecryptionKeyService.uploadCalls!!.awaitItem()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
+        .shouldBeTypeOf<LocalRecoveryAttemptProgress.DdkBackedUp>()
 
-      awaitItem().shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyFromF8eData>()
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("HwDescriptorValidated with null sealedDdkData falls back to NFC re-seal tap") {
+    // Verifies backward compat: when sealedDdkData is null (old DB row, or W1 standalone-seal
+    // path), the state machine falls back to requesting a new NFC tap to seal the DDK.
+    val recovery = Recovery.StillRecovering.ServerIndependentRecovery.HwDescriptorValidated(
+      f8eSpendingKeyset = F8eSpendingKeysetMock,
+      fullAccountId = StillRecoveringInitiatedRecoveryMock.fullAccountId,
+      appSpendingKey = StillRecoveringInitiatedRecoveryMock.appSpendingKey,
+      appGlobalAuthKey = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKey,
+      appRecoveryAuthKey = StillRecoveringInitiatedRecoveryMock.appRecoveryAuthKey,
+      hardwareSpendingKey = StillRecoveringInitiatedRecoveryMock.hardwareSpendingKey,
+      hardwareAuthKey = StillRecoveringInitiatedRecoveryMock.hardwareAuthKey,
+      factorToRecover = Hardware,
+      appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
+      sealedCsek = SealedCsekFake,
+      sealedSsek = SealedSsekFake,
+      keysets = listOf(SpendingKeysetMock),
+      originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock2,
+      sealedDdkData = null
+    )
+
+    stateMachine.test(props(recovery)) {
+      // Shows DDK backup loading while fetching keypair
+      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
+
+      // Then prompts for NFC tap to seal the DDK
+      awaitItem().shouldBeTypeOf<SealingDelegatedDecryptionKeyData>()
 
       cancelAndIgnoreRemainingEvents()
     }
   }
 })
 
-private fun createFirmwareDeviceInfo(version: String) =
-  FirmwareDeviceInfo(
-    version = version,
-    serial = "test-serial",
-    swType = "test",
-    hwRevision = "test",
-    activeSlot = FirmwareMetadata.FirmwareSlot.A,
-    batteryCharge = 50.0,
-    vCell = 1000,
-    avgCurrentMa = 100,
-    batteryCycles = 10,
-    secureBootConfig = SecureBootConfig.DEV,
-    timeRetrieved = Instant.fromEpochSeconds(1234567890).epochSeconds,
-    bioMatchStats = null,
-    mcuInfo = emptyList()
-  )
+/**
+ * Convenience accessor for W1 (Standard) NFC tests.
+ * Casts the nfcSession to Standard and returns the inner NfcTransaction.
+ */
+@Suppress("UNCHECKED_CAST")
+private val AwaitingChallengeAndCsekSignedWithHardwareData.nfcTransaction: NfcTransaction<Any?>
+  get() = (nfcSession as RecoveryNfcSession.Standard<Any?>).transaction
+
+@Suppress("UNCHECKED_CAST")
+private val AwaitingProofAndKeyTransferLostAppData.nfcTransaction: NfcTransaction<Any?>
+  get() = (nfcSession as RecoveryNfcSession.Standard<Any?>).transaction
+
+@Suppress("UNCHECKED_CAST")
+private val AwaitingProofAndKeyTransferLostHwData.nfcTransaction: NfcTransaction<Any?>
+  get() = (nfcSession as RecoveryNfcSession.Standard<Any?>).transaction
+
+/**
+ * Convenience accessor for W3 (Confirmable) NFC tests.
+ * Runs the session lambda first (to initialize any captured state like lateinit vars),
+ * then invokes onSuccess with the Completed result from the session.
+ * Falls back to directly calling onSuccess with [fallbackResult] if provided.
+ */
+@Suppress("UNCHECKED_CAST")
+private suspend fun <T> RecoveryNfcSession.confirmableOnSuccess(result: T) {
+  val confirmable = this as RecoveryNfcSession.Confirmable<T>
+  confirmable.onSuccess(result)
+}
+
+/**
+ * Runs the session lambda with fakes (initializing any captured state), then calls
+ * onSuccess with the Completed result. Use this for Confirmable sessions that share
+ * state between session and onSuccess (e.g. W3SignChallengeAndSealSeks).
+ */
+@Suppress("UNCHECKED_CAST")
+private suspend fun RecoveryNfcSession.confirmableRunSessionAndOnSuccess(nfcCommands: NfcCommands) {
+  val confirmable = this as RecoveryNfcSession.Confirmable<Any?>
+  val interaction = confirmable.session(NfcSessionFake(), nfcCommands)
+  val completed = interaction as HardwareInteraction.Completed<Any?>
+  confirmable.onSuccess(completed.result)
+}
+
+private fun RecoveryNfcSession.confirmableOnCancel() {
+  val confirmable = this as RecoveryNfcSession.Confirmable<*>
+  confirmable.onCancel()
+}
+
+private suspend fun ReceiveTurbine<RecoveryInProgressData>.awaitW3Tap1Data():
+  AwaitingChallengeAndCsekSignedWithHardwareData {
+  val item = awaitItem()
+  return when (item) {
+    is AwaitingChallengeAndCsekSignedWithHardwareData -> item
+    is ReadyToCompleteRecoveryData -> awaitItem().shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+    else -> error("Expected W3 tap 1 prompt, got $item")
+  }
+}
+
+private fun createFirmwareDeviceInfo(
+  version: String,
+  hwRevision: String = "w1a-dvt",
+) = FirmwareDeviceInfo(
+  version = version,
+  serial = "test-serial",
+  swType = "test",
+  hwRevision = hwRevision,
+  activeSlot = FirmwareMetadata.FirmwareSlot.A,
+  batteryCharge = 50.0,
+  vCell = 1000,
+  avgCurrentMa = 100,
+  batteryCycles = 10,
+  secureBootConfig = SecureBootConfig.DEV,
+  timeRetrieved = Instant.fromEpochSeconds(1234567890).epochSeconds,
+  bioMatchStats = null,
+  mcuInfo = emptyList()
+)

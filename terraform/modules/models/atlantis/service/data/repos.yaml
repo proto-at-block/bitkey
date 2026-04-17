@@ -112,6 +112,7 @@ policies:
   owners:
     teams:
       - w1-team
+      - hwsec
   approve_count: 2
   policy_sets:
     - name: deny_local_exec

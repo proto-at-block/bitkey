@@ -26,7 +26,7 @@ bool battery_set_variant(const uint32_t variant) {
   }
 
   // LOGI is noisy, but this should only be called during manufacturing
-  LOGI("Setting battery variant to: %ld", variant);
+  LOGI("Batt variant set: %ld", variant);
 
   result = true;
 
@@ -66,10 +66,9 @@ out:
 
 void battery_print_variant(void) {
   uint32_t variant = 0;
-
   if (battery_get_variant(&variant)) {
-    LOGI("Battery variant: %ld", variant);
+    LOGI("Batt variant: %ld", variant);
   } else {
-    LOGE("Failed to read battery variant");
+    LOGE("Batt variant rd fail");
   }
 }

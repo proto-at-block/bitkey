@@ -8,6 +8,8 @@ import build.wallet.bitkey.relationships.*
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.inheritance.*
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.core.*
@@ -37,6 +39,7 @@ import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 @BitkeyInject(ActivityScope::class)
 class InheritanceManagementUiStateMachineImpl(
@@ -52,12 +55,16 @@ class InheritanceManagementUiStateMachineImpl(
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val inheritanceCardUiStateMachine: InheritanceCardUiStateMachine,
   private val sendUiStateMachine: SendUiStateMachine,
+  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : InheritanceManagementUiStateMachine {
   @Suppress("CyclomaticComplexMethod")
   @Composable
   override fun model(props: InheritanceManagementUiProps): ScreenModel {
     var uiState: UiState by remember { mutableStateOf(UiState.ManagingInheritance()) }
     var selectedTab by remember { mutableStateOf(props.selectedTab) }
+    val isDesignSystemV2Enabled by remember {
+      designSystemUpdatesFeatureFlag.flagValue().map { it.isEnabled() }
+    }.collectAsState(initial = designSystemUpdatesFeatureFlag.isEnabled())
 
     val benefactorStates =
       inheritanceService.benefactorClaimState.collectAsState(emptyImmutableList())
@@ -131,6 +138,7 @@ class InheritanceManagementUiStateMachineImpl(
       UiState.BenefactorApprovedClaimWarning,
       -> {
         ManagingInheritanceBodyModel(
+          isDesignSystemV2Enabled = isDesignSystemV2Enabled,
           selectedTab = selectedTab,
           onBack = props.onBack,
           onLearnMore = {
@@ -213,7 +221,6 @@ class InheritanceManagementUiStateMachineImpl(
             is UiState.CancelingClaim ->
               cancelingClaimUiStateMachine.model(
                 CancelingClaimUiProps(
-                  account = props.account,
                   relationshipId = currentState.relationshipId,
                   body = it,
                   onSuccess = { uiState = UiState.ManagingInheritance(toastState = ClaimCanceled) },
@@ -300,9 +307,10 @@ class InheritanceManagementUiStateMachineImpl(
       is UiState.DecliningClaim -> {
         LaunchedEffect("decline claim") {
           if (currentState.claimId == null) {
-            val claimId = inheritanceService.claims.first()
-              .firstOrNull { it.relationshipId == currentState.recoveryEntity.id }
-              ?.claimId?.value
+            val claimId = inheritanceService
+              .pendingBenefactorClaim(currentState.recoveryEntity.id)
+              ?.claimId
+              ?.value
 
             uiState = if (claimId != null) {
               UiState.DecliningClaim(
@@ -366,6 +374,7 @@ class InheritanceManagementUiStateMachineImpl(
       )
       UiState.SendingFundsOutOfWallet -> sendUiStateMachine.model(
         SendUiProps(
+          account = props.account,
           validInvoiceInClipboard = null,
           onExit = {
             uiState = UiState.ManagingInheritance()

@@ -39,10 +39,6 @@ impl Service {
             AuthorizationStrategyRecord::OutOfBand(record) => {
                 record.status == RecordStatus::Pending
             }
-            AuthorizationStrategyRecord::HardwareProofOfPossession => {
-                // HardwareProofOfPossession records are always considered completed, never pending
-                false
-            }
         };
 
         if !is_pending {

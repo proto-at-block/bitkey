@@ -30,6 +30,7 @@ data class EnteringBenefactorNameBodyModel(
         fieldModel = TextFieldModel(
           value = value,
           placeholderText = "Name",
+          testTag = "trusted-contact-benefactor-name-input",
           onValueChange = { newValue, _ -> onValueChange(newValue) },
           keyboardType = TextFieldModel.KeyboardType.Default,
           capitalization = Capitalization.Words,

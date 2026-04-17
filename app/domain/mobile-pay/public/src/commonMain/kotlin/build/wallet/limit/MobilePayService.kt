@@ -3,8 +3,9 @@ package build.wallet.limit
 import bitkey.verification.TxVerificationApproval
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.Psbt
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.money.BitcoinMoney
+import build.wallet.platform.settings.Locale
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.StateFlow
 
@@ -24,7 +25,8 @@ interface MobilePayService {
    */
   suspend fun setLimit(
     spendingLimit: SpendingLimit,
-    hwFactorProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
+    locale: Locale,
   ): Result<Unit, Error>
 
   /**

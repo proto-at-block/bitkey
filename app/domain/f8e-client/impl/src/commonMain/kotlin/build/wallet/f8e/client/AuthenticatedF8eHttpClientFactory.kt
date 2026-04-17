@@ -10,6 +10,7 @@ import build.wallet.auth.SignedAccessTokenCache
 import build.wallet.availability.NetworkReachabilityProvider
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.f8e.client.plugins.ActionProofPlugin
 import build.wallet.f8e.client.plugins.BitkeyAuthProvider
 import build.wallet.f8e.client.plugins.ProofOfPossessionPlugin
 import build.wallet.f8e.debug.NetworkingDebugService
@@ -66,6 +67,8 @@ class AuthenticatedF8eHttpClientFactory(
         appAuthKeyMessageSigner = factory.appAuthKeyMessageSigner
         signedAccessTokenCache = factory.signedAccessTokenCache
       }
+
+      install(ActionProofPlugin)
 
       install(Auth) {
         providers.add(

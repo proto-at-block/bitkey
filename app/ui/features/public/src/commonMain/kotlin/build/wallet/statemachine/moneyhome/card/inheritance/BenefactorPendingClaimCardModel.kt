@@ -19,6 +19,8 @@ internal fun BenefactorPendingClaimCardModel(
       title = title,
       subtitle = LabelModel.StringModel(subtitle),
       treatment = Treatment.Danger,
+      useMonochromeStyleInDesignSystemV2 = true,
+      leadingIconOverrideInDesignSystemV2 = Icon.SmallIconShieldPerson,
       leadingIcon = Icon.SmallIconInformationFilled,
       trailingIcon = Icon.SmallIconArrowRight,
       onClick = onClick

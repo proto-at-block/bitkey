@@ -111,7 +111,7 @@ impl SocialRecoveryRepository {
         }
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, code))]
     pub async fn fetch_recovery_relationship_for_code(
         &self,
         code: &str,

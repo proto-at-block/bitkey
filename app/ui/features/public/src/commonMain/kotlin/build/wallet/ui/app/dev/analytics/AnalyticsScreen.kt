@@ -52,7 +52,8 @@ fun AnalyticsScreen(
         trailingAccessory = ListItemAccessory.SwitchAccessory(
           model = SwitchModel(
             checked = model.isEnabled,
-            onCheckedChange = model.onEnableChanged
+            onCheckedChange = model.onEnableChanged,
+            testTag = "debug-analytics-enable-toggle"
           )
         )
       )

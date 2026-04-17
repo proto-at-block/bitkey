@@ -1,29 +1,48 @@
 #include "arithmetic.h"
 #include "assert.h"
 #include "attributes.h"
+#include "auth.h"
 #include "bitlog.h"
 #include "confirmation_manager.h"
 #include "coproc_power.h"
+#include "display.pb.h"
 #include "exti.h"
 #include "ipc.h"
 #include "kv.h"
 #include "log.h"
+#include "mcu_devinfo.h"
 #include "mcu_reset.h"
 #include "metadata.h"
+#include "onboarding.h"
 #include "power.h"
 #include "proto_helpers.h"
 #include "rtos.h"
+#include "secure_channel_cert.h"
+#include "secutils.h"
+#include "sleep.h"
 #include "sysevent.h"
 #include "sysinfo.h"
 #include "sysinfo_task_impl.h"
 #include "uc.h"
 #include "uc_route.h"
+#include "ui_events.h"
 #include "ui_messaging.h"
 #include "uxc.pb.h"
+#include "wallet.pb.h"
 
 #include <string.h>
 
-#define SYSINFO_SLEEP_PREP_TIMEOUT_MS (500)
+// Must match BRIGHTNESS_MIN/MAX in ui.h (UXC-side header, not available here)
+#define BRIGHTNESS_SAVE_MIN 15
+#define BRIGHTNESS_SAVE_MAX 100
+#define BRIGHTNESS_DEFAULT  80
+
+// Forward declarations
+static NO_OPTIMIZE bool wipe_state_confirmation_result_handler(ipc_ref_t* message);
+
+/** Pending host request for peer cert */
+static SHARED_TASK_BSS bool peer_cert_request_pending = false;
+static SHARED_TASK_BSS bool host_peer_cert_requests_allowed = false;
 
 /**
  * @brief Delay, after power off, to check for a touch event if USB is plugged
@@ -37,10 +56,18 @@
  */
 #define SYSINFO_POWER_OFF_POLL_MS (10)
 
+/**
+ * @brief Delay after wipe success before rebooting.
+ *
+ * This gives the host time to receive the success response before the core
+ * resets back into onboarding.
+ */
+#define WIPE_RESET_DELAY_MS (500u)
+
 extern power_config_t power_config;
 
-static SHARED_TASK_DATA device_info_t device_info_for_ui;
-static SHARED_TASK_DATA fwpb_device_info_rsp_device_info_mcu uxc_mcu_info = {0};
+static SHARED_TASK_BSS device_info_t device_info_for_ui;
+static SHARED_TASK_BSS fwpb_device_info_rsp_device_info_mcu uxc_mcu_info = {0};
 
 static void _sysinfo_task_handle_coproc_boot_message(void* proto, void* UNUSED(context));
 static void _sysinfo_task_handle_coproc_metadata(void* proto, void* UNUSED(context));
@@ -74,12 +101,17 @@ static void send_initial_device_info(void) {
   }
 
   // Load brightness from KV
-  device_info_for_ui.brightness_percent = 80;  // Default
+  device_info_for_ui.brightness_percent = BRIGHTNESS_DEFAULT;
   uint8_t brightness_len = sizeof(device_info_for_ui.brightness_percent);
   kv_result_t result = kv_get("disp_bri", &device_info_for_ui.brightness_percent, &brightness_len);
   if (result != KV_ERR_NONE && result != KV_ERR_NOT_FOUND) {
-    LOGE("Failed to load brightness from KV (err=%d), using default", result);
-    device_info_for_ui.brightness_percent = 80;  // Explicitly reset to default
+    LOGE("KV brightness load err=%d", result);
+    device_info_for_ui.brightness_percent = BRIGHTNESS_DEFAULT;
+  }
+  // Clamp in case flash contains a corrupted value
+  if (device_info_for_ui.brightness_percent < BRIGHTNESS_SAVE_MIN ||
+      device_info_for_ui.brightness_percent > BRIGHTNESS_SAVE_MAX) {
+    device_info_for_ui.brightness_percent = BRIGHTNESS_DEFAULT;
   }
 
   // Send device info with brightness to UI task
@@ -90,15 +122,29 @@ static void send_initial_device_info(void) {
 NO_OPTIMIZE static void handle_set_brightness_internal(ipc_ref_t* message) {
   sysinfo_set_brightness_internal_t* req = (sysinfo_set_brightness_internal_t*)message->object;
 
+  // Clamp to valid range to prevent persisting out-of-bounds brightness
+  if (req->brightness_percent < BRIGHTNESS_SAVE_MIN) {
+    req->brightness_percent = BRIGHTNESS_SAVE_MIN;
+  } else if (req->brightness_percent > BRIGHTNESS_SAVE_MAX) {
+    req->brightness_percent = BRIGHTNESS_SAVE_MAX;
+  }
+
   kv_result_t result =
     kv_set("disp_bri", &req->brightness_percent, sizeof(req->brightness_percent));
   if (result != KV_ERR_NONE) {
-    LOGE("Failed to save brightness to KV (err=%d)", result);
+    LOGE("KV brightness save err=%d", result);
   }
 }
 
 void sysinfo_task_port_send_device_info(void) {
   send_initial_device_info();
+}
+
+static void _sysinfo_task_handle_device_get_cert_cmd(void* proto, void* UNUSED(context)) {
+  UC_IPC_FORWARD(sysinfo_port, proto, sizeof(proto), IPC_SYSINFO_UXC_GET_CERT_CMD);
+}
+static void _sysinfo_task_handle_device_get_cert_rsp(void* proto, void* UNUSED(context)) {
+  UC_IPC_FORWARD(sysinfo_port, proto, sizeof(proto), IPC_SYSINFO_UXC_GET_CERT_RSP);
 }
 
 void sysinfo_task_register_listeners(void) {
@@ -109,6 +155,127 @@ void sysinfo_task_register_listeners(void) {
                     NULL);
   uc_route_register(fwpb_uxc_msg_device_events_get_rsp_tag, _sysinfo_task_handle_coproc_events,
                     NULL);
+  uc_route_register(fwpb_uxc_msg_device_cert_get_cmd_tag, _sysinfo_task_handle_device_get_cert_cmd,
+                    NULL);
+  uc_route_register(fwpb_uxc_msg_device_cert_get_rsp_tag, _sysinfo_task_handle_device_get_cert_rsp,
+                    NULL);
+
+  // Register wipe state confirmation result handler for two-tap wipe flow
+  confirmation_manager_register_result_handler(CONFIRMATION_TYPE_WIPE_STATE,
+                                               wipe_state_confirmation_result_handler);
+}
+
+static void handle_device_get_cert_rsp(ipc_ref_t* message) {
+  fwpb_uxc_msg_device* msg_device = message->object;
+  ASSERT(msg_device->which_msg == fwpb_uxc_msg_device_cert_get_rsp_tag);
+  fwpb_cert_get_rsp* get_cert_rsp = &msg_device->msg.cert_get_rsp;
+
+  if (peer_cert_request_pending) {
+    peer_cert_request_pending = false;
+
+    fwpb_wallet_rsp* rsp = proto_get_rsp();
+    rsp->which_msg = fwpb_wallet_rsp_cert_get_rsp_tag;
+    memcpy(&rsp->msg.cert_get_rsp, get_cert_rsp, sizeof(*get_cert_rsp));
+
+    uc_free_recv_proto(msg_device);
+    proto_send_rsp(NULL, rsp);
+    return;
+  }
+
+  host_peer_cert_requests_allowed = true;
+
+  if (get_cert_rsp->rsp_status != fwpb_cert_get_rsp_cert_get_rsp_status_SUCCESS) {
+    LOGE("Cert rsp err: %d", get_cert_rsp->rsp_status);
+    uc_free_recv_proto(msg_device);
+    return;
+  }
+
+  secure_channel_cert_data_t* cert_data = (secure_channel_cert_data_t*)&get_cert_rsp->cert.bytes;
+  if (cert_data->type != CERT_TYPE_PICOCERT) {
+    LOGE("Bad cert type");
+    uc_free_recv_proto(msg_device);
+    return;
+  }
+  if (strncmp(cert_data->data.picocert.subject, SC_CERT_UXC_ID,
+              sizeof(cert_data->data.picocert.subject)) != 0) {
+    LOGE("Bad cert subj");
+    uc_free_recv_proto(msg_device);
+    return;
+  }
+
+  secure_channel_cert_err_t err = secure_channel_pin_cert(cert_data);
+  if (err != SECURE_CHANNEL_CERT_OK) {
+    LOGE("Cert pin err: %d", err);
+    uc_free_recv_proto(msg_device);
+    return;
+  } else {
+    LOGI("Pinned %s", cert_data->data.picocert.subject);
+    // Try starting up secure channel now that we have a cert
+    ipc_send(key_manager_port, NULL, 0, IPC_KEY_MANAGER_UXC_SESSION_INIT);
+  }
+  uc_free_recv_proto(msg_device);
+}
+
+static void handle_device_get_cert_cmd(ipc_ref_t* message) {
+  fwpb_uxc_msg_device* msg_device = message->object;
+  fwpb_cert_get_cmd* cmd = &msg_device->msg.cert_get_cmd;
+
+  fwpb_uxc_msg_host* msg = uc_alloc_send_proto();
+  ASSERT(msg != NULL);
+  msg->which_msg = fwpb_uxc_msg_host_cert_get_rsp_tag;
+  fwpb_cert_get_rsp* rsp = &msg->msg.cert_get_rsp;
+
+  secure_channel_cert_handle_cmd_get(cmd, rsp);
+
+  uc_free_recv_proto(msg_device);
+  (void)uc_send(msg);
+}
+
+bool sysinfo_task_port_handle_host_secure_channel_cert_get(fwpb_wallet_cmd* cmd,
+                                                           fwpb_wallet_rsp* rsp) {
+  ASSERT(cmd != NULL && rsp != NULL);
+
+  const fwpb_cert_get_cmd* cert_cmd = &cmd->msg.cert_get_cmd;
+  const char* cert_id = cert_cmd->cert_id;
+
+  if (strcmp(cert_id, SC_CERT_CORE_ID) != 0 && strcmp(cert_id, SC_CERT_UXC_ID) != 0) {
+    rsp->msg.cert_get_rsp.rsp_status = fwpb_cert_get_rsp_cert_get_rsp_status_CERT_READ_FAIL;
+    return true;
+  }
+
+  if (cert_cmd->cert_source != fwpb_cert_get_cmd_cert_origin_CERT_ORIGIN_PEER) {
+    // Return local cert
+    if (!secure_channel_cert_handle_cmd_get(&cmd->msg.cert_get_cmd, &rsp->msg.cert_get_rsp)) {
+      rsp->msg.cert_get_rsp.rsp_status = fwpb_cert_get_rsp_cert_get_rsp_status_CERT_READ_FAIL;
+    }
+    return true;
+  }
+
+  // Request cert from UXC
+
+  // Reject request if we are already waiting on a response or if the device is not ready yet
+  if (peer_cert_request_pending || !host_peer_cert_requests_allowed) {
+    rsp->msg.cert_get_rsp.rsp_status = fwpb_cert_get_rsp_cert_get_rsp_status_CERT_READ_FAIL;
+    return true;
+  }
+
+  fwpb_uxc_msg_host* msg = uc_alloc_send_proto();
+  ASSERT(msg != NULL);
+
+  msg->which_msg = fwpb_uxc_msg_host_cert_get_cmd_tag;
+  msg->msg.cert_get_cmd.kind = fwpb_cert_get_cmd_cert_type_DEVICE_SECURE_CHANNEL_CERT;
+  strncpy(msg->msg.cert_get_cmd.cert_id, cert_id, sizeof(msg->msg.cert_get_cmd.cert_id) - 1);
+  msg->msg.cert_get_cmd.cert_id[sizeof(msg->msg.cert_get_cmd.cert_id) - 1] = '\0';
+
+  peer_cert_request_pending = true;
+
+  if (!uc_send(msg)) {
+    peer_cert_request_pending = false;
+    rsp->msg.cert_get_rsp.rsp_status = fwpb_cert_get_rsp_cert_get_rsp_status_CERT_READ_FAIL;
+    return true;
+  }
+
+  return false;
 }
 
 bool sysinfo_task_port_handle_message(ipc_ref_t* message) {
@@ -116,23 +283,59 @@ bool sysinfo_task_port_handle_message(ipc_ref_t* message) {
     case IPC_SYSINFO_SET_BRIGHTNESS_INTERNAL:
       handle_set_brightness_internal(message);
       return true;
+    case IPC_SYSINFO_UXC_GET_CERT_CMD:
+      handle_device_get_cert_cmd(message);
+      return true;
+    case IPC_SYSINFO_UXC_GET_CERT_RSP:
+      handle_device_get_cert_rsp(message);
+      return true;
     default:
       return false;
   }
 }
 
 void sysinfo_task_handle_coproc_boot(ipc_ref_t* message) {
-  (void)message;
-
   fwpb_uxc_msg_host* msg = uc_alloc_send_proto();
   ASSERT(msg != NULL);
+
+  peer_cert_request_pending = false;
+  host_peer_cert_requests_allowed = false;
+
+  secure_channel_cert_data_t cert_data;
+  bool has_uxc_cert = secure_channel_read_cert(SC_CERT_UXC_ID, &cert_data);
 
   msg->which_msg = fwpb_uxc_msg_host_boot_status_msg_tag;
   fwpb_uxc_boot_status_msg* rsp = &msg->msg.boot_status_msg;
   rsp->mcu_id = fwpb_uxc_boot_status_msg_uxc_mcu_id_CORE;
-  rsp->auth_status = fwpb_uxc_auth_status_UXC_AUTH_STATUS_UNAUTHENTICATED;
 
-  (void)uc_send(msg);
+  if (has_uxc_cert) {
+    rsp->auth_status = fwpb_uxc_auth_status_UXC_AUTH_STATUS_UNLOCKED;
+  } else {
+    rsp->auth_status = fwpb_uxc_auth_status_UXC_AUTH_STATUS_UNAUTHENTICATED;
+  }
+
+  // ACK immediately since we may want to send a followup cert request.
+  (void)uc_send_immediate(msg);
+
+  sysinfo_boot_status_t* boot_status = (sysinfo_boot_status_t*)message->object;
+
+  if (has_uxc_cert) {
+    host_peer_cert_requests_allowed = true;
+    if (boot_status->auth_status != fwpb_uxc_auth_status_UXC_AUTH_STATUS_UNAUTHENTICATED) {
+      // We have a cert so we can start up key agreement
+      ipc_send(key_manager_port, NULL, 0, IPC_KEY_MANAGER_UXC_SESSION_INIT);
+    } else {
+      LOGW("%s cert unauth", SC_CERT_UXC_ID);
+    }
+  } else if (!has_uxc_cert) {
+    LOGW("No %s cert", SC_CERT_UXC_ID);
+    msg = uc_alloc_send_proto();
+    ASSERT(msg != NULL);
+    msg->which_msg = fwpb_uxc_msg_host_cert_get_cmd_tag;
+    msg->msg.cert_get_cmd.kind = fwpb_cert_get_cmd_cert_type_DEVICE_SECURE_CHANNEL_CERT;
+    strncpy(msg->msg.cert_get_cmd.cert_id, SC_CERT_UXC_ID, sizeof(msg->msg.cert_get_cmd.cert_id));
+    (void)uc_send(msg);
+  }
 }
 
 void sysinfo_task_handle_coproc_metadata(ipc_ref_t* message) {
@@ -274,7 +477,7 @@ void sysinfo_task_request_coproc_events(fwpb_wallet_cmd* cmd) {
 }
 
 static void _sysinfo_task_handle_coproc_boot_message(void* proto, void* UNUSED(context)) {
-  static sysinfo_boot_status_t sysinfo_boot_status SHARED_TASK_DATA;
+  static sysinfo_boot_status_t sysinfo_boot_status SHARED_TASK_BSS;
 
   fwpb_uxc_boot_status_msg* msg = &((fwpb_uxc_msg_device*)proto)->msg.boot_status_msg;
   uxc_mcu_info.mcu_role = fwpb_mcu_role_MCU_ROLE_UXC;
@@ -283,22 +486,34 @@ static void _sysinfo_task_handle_coproc_boot_message(void* proto, void* UNUSED(c
   uxc_mcu_info.version.minor = msg->version.minor;
   uxc_mcu_info.version.patch = msg->version.patch;
   uxc_mcu_info.has_version = true;
+  uxc_mcu_info.active_slot = msg->active_slot;
+  if (msg->chip_id.size > 0) {
+    PROTO_FILL_BYTES(&uxc_mcu_info, chip_id, msg->chip_id.bytes, msg->chip_id.size);
+  } else {
+    uxc_mcu_info.chip_id.size = 0;
+  }
 
-  uc_free_recv_proto(proto);
+  sysinfo_boot_status.auth_status = msg->auth_status;
 
   ipc_send(sysinfo_port, &sysinfo_boot_status, sizeof(sysinfo_boot_status),
            IPC_SYSINFO_BOOT_STATUS);
-  // Tell key_manager that the UXC is active so it can handle key agreement
-  ipc_send(key_manager_port, NULL, 0, IPC_KEY_MANAGER_UXC_BOOT);
+  // Notify fwup task of UXC version.
+  static fwup_coproc_version_t SHARED_TASK_BSS fwup_version;
+  fwup_version.version = msg->version;
+  ipc_send(fwup_port, &fwup_version, sizeof(fwup_version), IPC_FWUP_COPROC_VERSION);
+
+  uc_free_recv_proto(proto);
 }
 
 static void _sysinfo_task_handle_coproc_metadata(void* proto, void* UNUSED(context)) {
-  // Pass through the pointer. Sysinfo task will handle free'ing the data.
-  ipc_send(sysinfo_port, proto, sizeof(proto), IPC_SYSINFO_COPROC_METADATA);
+  UC_IPC_FORWARD(sysinfo_port, proto, sizeof(proto), IPC_SYSINFO_COPROC_METADATA);
 }
 
 void sysinfo_task_port_prepare_power_down(void) {
-  LOGD("Preparing for coordinated power down");
+  // Stop the power timer so it doesn't queue another power-off event while
+  // we're already in the screen-off state.
+  sleep_stop_power_timer();
+
   UI_SHOW_EVENT(UI_EVENT_POWER_OFF);
 
   // If USB is plugged in, we cannot power off, so instead we turn off the
@@ -317,23 +532,7 @@ void sysinfo_task_port_prepare_power_down(void) {
     }
   }
 
-  // Send prepare sleep command to UXC
-  fwpb_uxc_msg_host* cmd = uc_alloc_send_proto();
-  if (cmd) {
-    cmd->which_msg = fwpb_uxc_msg_host_display_cmd_tag;
-    cmd->msg.display_cmd.which_command = fwpb_display_command_prepare_sleep_tag;
-
-    if (!uc_send(cmd)) {
-      LOGE("Failed to send prepare sleep command to UXC");
-    }
-  } else {
-    LOGE("Failed to allocate proto for prepare sleep command");
-  }
-
-  // If we successfully send the message to the UXC, we expect to get a
-  // response to continue the shutdown flow, so start a shutdown timer to
-  // handle the case in which we do not get the response.
-  sysinfo_task_start_shutdown_timer(SYSINFO_SLEEP_PREP_TIMEOUT_MS);
+  ipc_send_empty(sysinfo_port, IPC_SYSINFO_POWER_OFF);
 }
 
 void sysinfo_task_port_power_down(void) {
@@ -371,6 +570,13 @@ void sysinfo_task_port_populate_mcu_info(fwpb_device_info_rsp* rsp) {
   rsp->device_info_mcus[index].version.major = metadata.version.major;
   rsp->device_info_mcus[index].version.minor = metadata.version.minor;
   rsp->device_info_mcus[index].version.patch = metadata.version.patch;
+  rsp->device_info_mcus[index].active_slot = active_slot;
+  {
+    uint8_t chip_id[CHIPID_LENGTH] = {0};
+    uint32_t chip_id_length = 0;
+    sysinfo_chip_id_read(chip_id, &chip_id_length);
+    PROTO_FILL_BYTES(&rsp->device_info_mcus[index], chip_id, chip_id, chip_id_length);
+  }
   index++;
 
   if (uxc_mcu_info.has_version) {
@@ -381,20 +587,144 @@ void sysinfo_task_port_populate_mcu_info(fwpb_device_info_rsp* rsp) {
     rsp->device_info_mcus[index].version.major = uxc_mcu_info.version.major;
     rsp->device_info_mcus[index].version.minor = uxc_mcu_info.version.minor;
     rsp->device_info_mcus[index].version.patch = uxc_mcu_info.version.patch;
+    rsp->device_info_mcus[index].active_slot = uxc_mcu_info.active_slot;
+    if (uxc_mcu_info.chip_id.size > 0) {
+      PROTO_FILL_BYTES(&rsp->device_info_mcus[index], chip_id, uxc_mcu_info.chip_id.bytes,
+                       uxc_mcu_info.chip_id.size);
+    }
     index++;
   }
 }
 
+void sysinfo_task_port_set_uxc_pending_version(const fwpb_semver* version) {
+  // Update the cached version so that getDeviceInfo() reports the target
+  // version to the app.  UXC has not committed or reset yet — this is the
+  // version it will run once the atomic commit completes.  On any reset,
+  // UXC sends a fresh uxc_boot_status_msg that overwrites this value with
+  // its actual running version.
+  uxc_mcu_info.version = *version;
+}
+
 static void _sysinfo_task_handle_coproc_coredump(void* proto, void* UNUSED(context)) {
-  // Pass through the pointer. Sysinfo task will handle free'ing the data.
-  ipc_send(sysinfo_port, proto, sizeof(proto), IPC_SYSINFO_COPROC_COREDUMP);
+  UC_IPC_FORWARD(sysinfo_port, proto, sizeof(proto), IPC_SYSINFO_COPROC_COREDUMP);
 }
 
 static void _sysinfo_task_handle_coproc_events(void* proto, void* UNUSED(context)) {
-  // Pass through the pointer. Sysinfo task will handle free'ing the data.
-  ipc_send(sysinfo_port, proto, sizeof(proto), IPC_SYSINFO_COPROC_EVENTS);
+  UC_IPC_FORWARD(sysinfo_port, proto, sizeof(proto), IPC_SYSINFO_COPROC_EVENTS);
 }
 
 bool sysinfo_task_port_dispatch_confirmation_result(ipc_ref_t* message) {
   return confirmation_manager_dispatch_result(message);
+}
+
+/**
+ * @brief Confirmation result handler for wipe state.
+ *
+ * Called on the second NFC tap after user confirms the wipe on the device screen.
+ * Validates the confirmation handles, performs the actual wipe, and returns the
+ * wipe_state_result in the get_confirmation_result_rsp.
+ */
+static NO_OPTIMIZE bool wipe_state_confirmation_result_handler(ipc_ref_t* message) {
+  bool ok = false;
+  bool wipe_complete = false;
+  confirmation_result_t result = CONFIRMATION_RESULT_ERROR;
+  fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
+  fwpb_wallet_rsp* rsp = proto_get_rsp();
+
+  rsp->which_msg = fwpb_wallet_rsp_get_confirmation_result_rsp_tag;
+
+  // Validate handles
+  result =
+    confirmation_manager_validate(cmd->msg.get_confirmation_result_cmd.response_handle.bytes,
+                                  cmd->msg.get_confirmation_result_cmd.response_handle.size,
+                                  cmd->msg.get_confirmation_result_cmd.confirmation_handle.bytes,
+                                  cmd->msg.get_confirmation_result_cmd.confirmation_handle.size);
+
+  if (result != CONFIRMATION_RESULT_SUCCESS) {
+    if (result == CONFIRMATION_RESULT_NOT_APPROVED && confirmation_manager_is_pending()) {
+      // User hasn't approved/denied yet on the device screen.
+      rsp->status = fwpb_status_CONFIRMATION_PENDING;
+      ok = true;
+      goto out;
+    }
+
+    rsp->status = fwpb_status_CONFIRMATION_NOT_COMPLETED;
+    goto out;
+  }
+
+  // Confirmation validated and approved — perform the actual wipe synchronously
+  // before replying so the app cannot move forward while the device is still
+  // clearing flash-backed state.
+  onboarding_wipe_state();
+  SECURE_DO({ deauthenticate(); });
+  UI_SET_IDLE_STATE(UI_EVENT_IDLE);
+  confirmation_manager_clear();
+
+  rsp->status = fwpb_status_SUCCESS;
+  rsp->msg.get_confirmation_result_rsp.which_result =
+    fwpb_get_confirmation_result_rsp_wipe_state_result_tag;
+  rsp->msg.get_confirmation_result_rsp.result.wipe_state_result.rsp_status =
+    fwpb_wipe_state_rsp_wipe_state_rsp_status_SUCCESS;
+  wipe_complete = true;
+  ok = true;
+
+out:
+  if (!ok) {
+    LOGE("Wipe confirm result fail: %d", result);
+  }
+  proto_send_rsp(cmd, rsp);
+  if (wipe_complete) {
+    rtos_thread_sleep(WIPE_RESET_DELAY_MS);
+    mcu_reset_with_reason(MCU_RESET_WIPE);
+  }
+  return ok;
+}
+
+NO_OPTIMIZE bool sysinfo_task_port_handle_wipe_state(ipc_ref_t* message) {
+  // Only require on-device confirmation if the device is onboarded.
+  if (onboarding_complete() != SECURE_TRUE) {
+    return false;
+  }
+
+  fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
+  fwpb_wallet_rsp* rsp = proto_get_rsp();
+
+  uint8_t response_handle[CONFIRMATION_HANDLE_SIZE];
+  uint8_t confirmation_handle[CONFIRMATION_HANDLE_SIZE];
+  uint8_t wipe_confirmation_context = 0;
+
+  confirmation_result_t result = confirmation_manager_create(
+    CONFIRMATION_TYPE_WIPE_STATE, &wipe_confirmation_context, sizeof(wipe_confirmation_context),
+    response_handle, sizeof(response_handle), confirmation_handle, sizeof(confirmation_handle));
+
+  if (result != CONFIRMATION_RESULT_SUCCESS) {
+    LOGE("Wipe confirm create fail: %d", result);
+    rsp->status = fwpb_status_ERROR;
+    rsp->which_msg = fwpb_wallet_rsp_wipe_state_rsp_tag;
+    rsp->msg.wipe_state_rsp.rsp_status = fwpb_wipe_state_rsp_wipe_state_rsp_status_ERROR;
+    goto out;
+  }
+
+  // Show the privileged action confirmation screen.
+  {
+    fwpb_display_params_privileged_action action_params = {0};
+    strncpy(action_params.title, "WIPE DEVICE", sizeof(action_params.title) - 1);
+    action_params.which_action = fwpb_display_params_privileged_action_confirm_action_tag;
+    action_params.action.confirm_action.action_type =
+      fwpb_display_privileged_action_type_DISPLAY_PRIVILEGED_ACTION_WIPE_DEVICE;
+
+    UI_SHOW_EVENT_WITH_DATA(UI_EVENT_START_PRIVILEGED_ACTION, &action_params,
+                            sizeof(action_params));
+  }
+
+  // Return CONFIRMATION_PENDING with handles for the two-tap flow.
+  rsp->status = fwpb_status_CONFIRMATION_PENDING;
+  memcpy(rsp->response_handle.bytes, response_handle, sizeof(response_handle));
+  rsp->response_handle.size = sizeof(response_handle);
+  memcpy(rsp->confirmation_handle.bytes, confirmation_handle, sizeof(confirmation_handle));
+  rsp->confirmation_handle.size = sizeof(confirmation_handle);
+
+out:
+  proto_send_rsp(cmd, rsp);
+  return true;
 }

@@ -1,0 +1,16 @@
+-- Persist in-flight W3 auth-rotation attempt data for crash-safety.
+-- These columns store the auth rotation material so that if the app crashes
+-- between server rotation and local completion, the flow can resume.
+-- Also stores pre-rotation keys for post-rotation steps (token refresh,
+-- TC endorsement regeneration) and a checkpoint flag for TC endorsements.
+ALTER TABLE w3UpgradeMigrationEntity ADD COLUMN pendingAppGlobalAuthKey TEXT;
+ALTER TABLE w3UpgradeMigrationEntity ADD COLUMN pendingAppRecoveryAuthKey TEXT;
+ALTER TABLE w3UpgradeMigrationEntity ADD COLUMN pendingAppGlobalAuthKeyHwSignature TEXT;
+ALTER TABLE w3UpgradeMigrationEntity ADD COLUMN pendingHwAuthPublicKey TEXT;
+ALTER TABLE w3UpgradeMigrationEntity ADD COLUMN pendingHwSignedAccountId TEXT;
+ALTER TABLE w3UpgradeMigrationEntity ADD COLUMN serverAuthRotationCompleted INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE w3UpgradeMigrationEntity ADD COLUMN preRotationAppGlobalAuthKey TEXT;
+ALTER TABLE w3UpgradeMigrationEntity ADD COLUMN preRotationHwAuthPublicKey TEXT;
+ALTER TABLE w3UpgradeMigrationEntity ADD COLUMN tcEndorsementsRegenerated INTEGER NOT NULL DEFAULT 0;
+
+PRAGMA foreign_key_check;

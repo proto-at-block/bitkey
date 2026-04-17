@@ -5,8 +5,11 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormDesignSystemV2Model
+import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.tokens.LabelType
 
 /**
  * Screen shown between MCU updates in a sequence, prompting the user to start the next component.
@@ -36,6 +39,23 @@ data class FwupNextComponentReadyModel(
           "Press the button below and hold your unlocked device to the back of your phone to continue the update."
         )
       )
+    ),
+    designSystemV2Model = FormDesignSystemV2Model(
+      header = null,
+      useLegacyHeaderFallback = false,
+      mainContentList = immutableListOf(
+        FormMainContentModel.HeaderBlock(
+          header = FormHeaderModel(
+            headline = "Update $completedIndex of $totalMcus complete",
+            subline = "Press the button below and hold your unlocked device to the back of your phone to continue the update.",
+            alignment = FormHeaderModel.Alignment.CENTER,
+            headlineLabelType = LabelType.Body2Mono
+          )
+        )
+      ),
+      useDesignSystemV2ScreenLayout = true,
+      scrollable = false,
+      mainContentVerticalAlignment = FormDesignSystemV2Model.MainContentVerticalAlignment.CENTER
     ),
     primaryButton = ButtonModel(
       text = "Continue update",

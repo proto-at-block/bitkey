@@ -43,7 +43,7 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
   val relationshipsService = RelationshipsServiceMock(turbines::create, clock)
   val cloudBackupDao = CloudBackupDaoFake()
   val cloudStoreAccountRepository = CloudStoreAccountRepositoryMock()
-  val cloudBackupRepository = CloudBackupRepositoryFake()
+  val cloudBackupService = CloudBackupServiceFake()
   val fullAccountCloudBackupCreator = FullAccountCloudBackupCreatorMock(turbines::create)
   val eventTracker = EventTrackerMock(turbines::create)
 
@@ -55,7 +55,7 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
     relationshipsService = relationshipsService,
     cloudBackupDao = cloudBackupDao,
     cloudStoreAccountRepository = cloudStoreAccountRepository,
-    cloudBackupRepository = cloudBackupRepository,
+    cloudBackupService = cloudBackupService,
     fullAccountCloudBackupCreator = fullAccountCloudBackupCreator,
     eventTracker = eventTracker,
     clock = ClockFake(),
@@ -98,7 +98,7 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
           cloudBackupDao.set(fullAccount.accountId.serverId, otherBackup as CloudBackup)
           cloudStoreAccountRepository.currentAccountResult = Ok(cloudAccount)
           fullAccountCloudBackupCreator.backupResult = Ok(cloudBackup as CloudBackup)
-          cloudBackupRepository.reset()
+          cloudBackupService.reset()
           accountService.reset()
           accountService.setActiveAccount(fullAccount)
           recoveryStatusService.reset()
@@ -123,7 +123,7 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
             )
           )
           fullAccountCloudBackupCreator.createCalls.awaitItem()
-          cloudBackupRepository.awaitBackup(cloudAccount)
+          cloudBackupService.awaitBackup(cloudAccount)
             .shouldBe(cloudBackup)
         }
 
@@ -138,7 +138,7 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
 
           // Verify that no cloud backup was created or uploaded
           fullAccountCloudBackupCreator.createCalls.expectNoEvents()
-          cloudBackupRepository.awaitNoBackups()
+          cloudBackupService.awaitNoBackups()
         }
 
         test("success - multiple") {
@@ -162,7 +162,7 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
           )
 
           fullAccountCloudBackupCreator.createCalls.awaitItem()
-          cloudBackupRepository.awaitBackup(cloudAccount).shouldBe(cloudBackup)
+          cloudBackupService.awaitBackup(cloudAccount).shouldBe(cloudBackup)
           relationshipsService.relationships
             .emit(
               RelationshipsFake.copy(
@@ -242,7 +242,7 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
           )
 
           fullAccountCloudBackupCreator.createCalls.awaitItem()
-          cloudBackupRepository
+          cloudBackupService
             .awaitBackup(cloudAccount)
             .shouldBe(cloudBackup)
           relationshipsService.relationships.emit(RelationshipsFake)
@@ -271,12 +271,12 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
             )
           )
           fullAccountCloudBackupCreator.createCalls.awaitItem()
-          cloudBackupRepository.awaitBackup(cloudAccount)
+          cloudBackupService.awaitBackup(cloudAccount)
             .shouldBe(cloudBackup)
         }
 
         test("failure - error writing cloud backup") {
-          cloudBackupRepository.returnWriteError =
+          cloudBackupService.returnWriteError =
             CloudBackupError.UnrectifiableCloudBackupError(Throwable())
           createBackgroundScope().launch {
             socRecCloudBackupSyncWorker.executeWork()
@@ -296,7 +296,7 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
             )
           )
           fullAccountCloudBackupCreator.createCalls.awaitItem()
-          cloudBackupRepository.awaitNoBackups()
+          cloudBackupService.awaitNoBackups()
         }
 
         test("failure - error creating backup") {
@@ -320,7 +320,7 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
             )
           )
           fullAccountCloudBackupCreator.createCalls.awaitItem()
-          cloudBackupRepository.awaitNoBackups()
+          cloudBackupService.awaitNoBackups()
         }
       }
     }
@@ -339,7 +339,7 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
       cloudBackupDao.set(fullAccount.accountId.serverId, otherBackup)
       cloudStoreAccountRepository.currentAccountResult = Ok(cloudAccount)
       fullAccountCloudBackupCreator.backupResult = Ok(CloudBackupV2WithFullAccountMock)
-      cloudBackupRepository.reset()
+      cloudBackupService.reset()
       accountService.reset()
       accountService.setActiveAccount(fullAccount)
       recoveryStatusService.reset()

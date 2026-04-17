@@ -107,7 +107,7 @@ impl Service {
         Ok(())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, web_auth_token))]
     pub async fn cancel_pending_instance_by_web_auth_token(
         &self,
         web_auth_token: &str,

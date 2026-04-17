@@ -8,6 +8,7 @@ use rstest::rstest;
 use serde_json::Value;
 use std::str::FromStr;
 use time::{Duration, OffsetDateTime};
+use types::account::entities::HardwareType;
 use types::account::keys::FullAccountAuthKeys;
 use types::account::AccountType;
 use types::privileged_action::{
@@ -67,6 +68,7 @@ async fn test_initiate_reset_fingerprint(
             app_pubkey,
             hardware_pubkey,
             recovery_pubkey: Some(recovery_pubkey),
+            hardware_type: HardwareType::default(),
         }),
     )
     .await;
@@ -151,6 +153,7 @@ async fn test_complete_reset_fingerprint(
             app_pubkey,
             hardware_pubkey,
             recovery_pubkey: Some(recovery_pubkey),
+            hardware_type: HardwareType::default(),
         }),
     )
     .await;

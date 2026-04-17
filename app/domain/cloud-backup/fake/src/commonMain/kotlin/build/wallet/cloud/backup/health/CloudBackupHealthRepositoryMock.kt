@@ -2,7 +2,8 @@ package build.wallet.cloud.backup.health
 
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
-import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,8 +25,11 @@ class CloudBackupHealthRepositoryMock(
 
   val performSyncCalls = turbine("performSync calls")
 
-  override suspend fun performSync(account: FullAccount): CloudBackupStatus {
-    performSyncCalls += account
+  override suspend fun performSync(
+    accountId: FullAccountId,
+    keybox: Keybox,
+  ): CloudBackupStatus {
+    performSyncCalls += keybox
     return CloudBackupStatus(
       appKeyBackupStatus = AppKeyBackupStatus.ProblemWithBackup.NoCloudAccess,
       eekBackupStatus = EekBackupStatus.ProblemWithBackup.NoCloudAccess

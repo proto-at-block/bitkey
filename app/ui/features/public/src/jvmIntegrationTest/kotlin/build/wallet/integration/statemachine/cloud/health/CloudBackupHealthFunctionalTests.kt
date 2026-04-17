@@ -108,7 +108,7 @@ class CloudBackupHealthFunctionalTests : FunSpec({
   test("Cloud backup health dashboard repair App Key backup") {
     val app = launchAppAndOnboard()
     app.appUiStateMachine.test(props = Unit) {
-      app.cloudBackupRepository.clear(fullAccountId, CloudStoreAccount1Fake, false)
+      app.cloudBackupService.clear(fullAccountId, CloudStoreAccount1Fake, false)
       shouldNavigateToCloudBackupHealthDashboard {
         appKeyBackupStatusCard.backupStatus.title
           .shouldBe("Problem with App Key\nBackup")

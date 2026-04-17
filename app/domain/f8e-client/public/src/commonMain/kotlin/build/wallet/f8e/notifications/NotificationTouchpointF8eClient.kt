@@ -7,7 +7,7 @@ import bitkey.notifications.NotificationPreferences
 import bitkey.notifications.NotificationTouchpoint
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.ktor.result.NetworkingError
 import com.github.michaelbull.result.Result
 
@@ -36,13 +36,13 @@ interface NotificationTouchpointF8eClient {
 
   /**
    * Activates the touchpoint with the given touchpoint ID.
-   * Requires [HwFactorProofOfPossession] after onboarding.
+   * @param proof optional authorization proof — either HW proof-of-possession or a signed action proof
    */
   suspend fun activateTouchpoint(
     f8eEnvironment: F8eEnvironment,
     accountId: AccountId,
     touchpointId: String,
-    hwFactorProofOfPossession: HwFactorProofOfPossession?,
+    proof: PrivilegedActionProof? = null,
   ): Result<Unit, NetworkingError>
 
   /**
@@ -63,11 +63,12 @@ interface NotificationTouchpointF8eClient {
 
   /**
    * Updates the notification preferences for the given account.
+   * @param proof optional authorization proof — either HW proof-of-possession or a signed action proof
    */
   suspend fun updateNotificationsPreferences(
     f8eEnvironment: F8eEnvironment,
     accountId: AccountId,
     preferences: NotificationPreferences,
-    hwFactorProofOfPossession: HwFactorProofOfPossession?,
+    proof: PrivilegedActionProof? = null,
   ): Result<Unit, NetworkingError>
 }

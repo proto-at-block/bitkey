@@ -9,6 +9,7 @@ import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.transactions.TransactionsDataMock
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
@@ -28,19 +29,21 @@ import build.wallet.statemachine.send.fee.FeeSelectionUiStateMachine
 import build.wallet.statemachine.transactions.TransactionDetails
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.time.ClockFake
+import com.github.michaelbull.result.Ok
 import com.ionspin.kotlin.bignum.integer.toBigInteger
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.collections.immutable.persistentMapOf
+import kotlinx.collections.immutable.toImmutableList
 import kotlin.time.Duration.Companion.minutes
 
 class SendUiStateMachineImplTests : FunSpec({
 
   val permissionUiStateMachine = PermissionUiStateMachineMock()
   val clock = ClockFake()
-  val rateSyncer = ExchangeRateServiceFake()
+  val rateSyncer = ExchangeRateServiceFake(clock = clock)
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
   val stateMachine =
     SendUiStateMachineImpl(
@@ -79,6 +82,7 @@ class SendUiStateMachineImplTests : FunSpec({
   val bitcoinWalletService = BitcoinWalletServiceFake()
 
   val props = SendUiProps(
+    account = FullAccountMock,
     validInvoiceInClipboard = null,
     onExit = {},
     onDone = {},
@@ -90,6 +94,8 @@ class SendUiStateMachineImplTests : FunSpec({
     fiatCurrencyPreferenceRepository.reset()
     clock.reset()
     rateSyncer.reset()
+    // Default the fallback sync to no-op so it doesn't interfere with test setups
+    rateSyncer.syncRatesResult = Ok(emptyList())
     bitcoinWalletService.reset()
 
     bitcoinWalletService.transactionsData.value = TransactionsDataMock.copy(
@@ -283,23 +289,25 @@ class SendUiStateMachineImplTests : FunSpec({
       }
     }
 
-    test("when exchange rates are 5 minutes out of date, exchange rates are null") {
-      rateSyncer.exchangeRates.value =
-        listOf(
-          ExchangeRate(
-            IsoCurrencyTextCode("BTC"),
-            IsoCurrencyTextCode("USD"),
-            33333.0,
-            clock.now - 5.minutes
-          )
+    test("when exchange rates are stale, initial amount defaults to BTC and stale rates are filtered out") {
+      val staleRates = listOf(
+        ExchangeRate(
+          IsoCurrencyTextCode("BTC"),
+          IsoCurrencyTextCode("USD"),
+          33333.0,
+          clock.now - 7.minutes
         )
+      )
+      rateSyncer.exchangeRates.value = staleRates
       stateMachine.test(props) {
         awaitBodyMock<BitcoinAddressRecipientUiProps> {
           onRecipientEntered(someBitcoinAddress)
         }
 
+        // Stale rates fail the 6-minute freshness check and are filtered out
         awaitBodyMock<SendAmountEntryUiProps> {
           exchangeRates.shouldBeNull()
+          initialAmount.currency.shouldBe(BTC)
         }
       }
     }
@@ -321,6 +329,111 @@ class SendUiStateMachineImplTests : FunSpec({
 
         awaitBodyMock<SendAmountEntryUiProps> {
           initialAmount.currency.shouldBe(BTC)
+        }
+      }
+    }
+
+    test("fallback sync populates rates when initially empty") {
+      val freshRates = listOf(
+        ExchangeRate(
+          IsoCurrencyTextCode("BTC"),
+          IsoCurrencyTextCode("USD"),
+          50000.0,
+          clock.now
+        )
+      )
+      rateSyncer.exchangeRates.value = emptyList()
+      // The fallback LaunchedEffect calls syncRates() when initialRates is null,
+      // which populates the StateFlow and passes the freshness check
+      rateSyncer.syncRatesResult = Ok(freshRates)
+      stateMachine.test(props) {
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
+          onRecipientEntered(someBitcoinAddress)
+        }
+
+        // Rates should appear via the fallback sync
+        awaitBodyMock<SendAmountEntryUiProps> {
+          exchangeRates.shouldBe(freshRates.toImmutableList())
+          initialAmount.currency.shouldBe(BTC)
+        }
+      }
+    }
+
+    test("rates are locked after advancing past amount entry") {
+      val originalRates = listOf(
+        ExchangeRate(
+          IsoCurrencyTextCode("BTC"),
+          IsoCurrencyTextCode("USD"),
+          50000.0,
+          clock.now
+        )
+      )
+      rateSyncer.exchangeRates.value = originalRates
+      stateMachine.test(props) {
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
+          onRecipientEntered(someBitcoinAddress)
+        }
+
+        awaitBodyMock<SendAmountEntryUiProps> {
+          exchangeRates.shouldBe(originalRates.toImmutableList())
+          onContinueClick(ExactAmount(BitcoinMoney.sats(1000.toBigInteger())))
+        }
+
+        // Change rates while on fee selection
+        val updatedRates = listOf(
+          ExchangeRate(
+            IsoCurrencyTextCode("BTC"),
+            IsoCurrencyTextCode("USD"),
+            99999.0,
+            clock.now
+          )
+        )
+        rateSyncer.exchangeRates.value = updatedRates
+
+        // Fee selection should still see the original locked rates
+        awaitBodyMock<FeeSelectionUiProps> {
+          exchangeRates.shouldBe(originalRates.toImmutableList())
+        }
+      }
+    }
+
+    test("back from fee selection unlocks rates for dynamic population") {
+      rateSyncer.exchangeRates.value = emptyList()
+      stateMachine.test(props) {
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
+          onRecipientEntered(someBitcoinAddress)
+        }
+
+        // No rates yet — continue anyway
+        awaitBodyMock<SendAmountEntryUiProps> {
+          exchangeRates.shouldBeNull()
+          onContinueClick(ExactAmount(BitcoinMoney.sats(1000.toBigInteger())))
+        }
+
+        // Back from fee selection unlocks rates
+        awaitBodyMock<FeeSelectionUiProps> {
+          onBack()
+        }
+
+        // Still no rates
+        awaitBodyMock<SendAmountEntryUiProps> {
+          exchangeRates.shouldBeNull()
+        }
+
+        // Fresh rates arrive (e.g., from foreground sync)
+        val freshRates = listOf(
+          ExchangeRate(
+            IsoCurrencyTextCode("BTC"),
+            IsoCurrencyTextCode("USD"),
+            50000.0,
+            clock.now
+          )
+        )
+        rateSyncer.exchangeRates.value = freshRates
+
+        // Rates should now appear because the lock was released on back
+        awaitBodyMock<SendAmountEntryUiProps> {
+          exchangeRates.shouldBe(freshRates.toImmutableList())
         }
       }
     }

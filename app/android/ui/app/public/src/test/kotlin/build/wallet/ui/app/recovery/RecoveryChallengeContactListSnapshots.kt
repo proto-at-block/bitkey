@@ -6,6 +6,7 @@ import build.wallet.bitkey.relationships.TrustedContactKeyCertificateFake
 import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.kotest.paparazzi.paparazziExtension
+import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeCodeBodyModel
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeContactListBodyModel
 import build.wallet.ui.app.core.form.FormScreen
 import io.kotest.core.spec.style.FunSpec
@@ -80,6 +81,18 @@ class RecoveryChallengeContactListSnapshots : FunSpec({
           verifiedBy = immutableListOf("2"),
           onContinue = {},
           onCancelRecovery = {}
+        )
+      )
+    }
+  }
+
+  test("Recovery Challenge Code") {
+    paparazzi.snapshot {
+      FormScreen(
+        RecoveryChallengeCodeBodyModel(
+          recoveryChallengeCode = "ABCD-EFGH-IJKL",
+          onBack = {},
+          onDone = {}
         )
       )
     }

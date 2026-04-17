@@ -81,7 +81,7 @@ base64 = "0.22.0"
 bdk_bitcoind_rpc = { version = "=0.22.0" }
 bdk_electrum = { version = "=0.23.2" }
 bdk_wallet = { version = "=2.2.0" }
-config = { version = "=0.15.0", features = ["toml"] }
+config = { version = "=0.15.18", features = ["toml"] }
 crypto = { path = "../core/crypto" }
 ctrlc = "3.4.4"
 derive_builder = "=0.20.2"

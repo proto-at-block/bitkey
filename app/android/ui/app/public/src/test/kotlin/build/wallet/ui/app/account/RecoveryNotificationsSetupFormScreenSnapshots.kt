@@ -14,7 +14,7 @@ class RecoveryNotificationsSetupFormScreenSnapshots : FunSpec({
         model = RecoveryNotificationsSetupFormBodyModel(
           onAllowNotifications = {},
           onSkip = {},
-          onClose = {}
+          onNavigateBack = {}
         )
       )
     }

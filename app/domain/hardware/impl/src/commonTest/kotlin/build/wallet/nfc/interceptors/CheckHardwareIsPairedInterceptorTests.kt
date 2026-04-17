@@ -9,20 +9,19 @@ import build.wallet.encrypt.MessageSignerFake
 import build.wallet.encrypt.SignatureUtilsMock
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.Bdk2FeatureFlag
-import build.wallet.nfc.BitkeyW1CommandsFake
-import build.wallet.nfc.FakeHardwareKeyStoreFake
-import build.wallet.nfc.FakeHardwareSpendingWalletProvider
-import build.wallet.nfc.FakeHardwareStatesDaoImpl
+import build.wallet.firmware.FirmwareDeviceInfoDaoFake
+import build.wallet.nfc.*
+import build.wallet.nfc.FakeFirmwareDeviceInfo
 import build.wallet.nfc.NfcException.UnpairedHardwareError
-import build.wallet.nfc.NfcSession
 import build.wallet.nfc.NfcSession.RequirePairedHardware.NotRequired
 import build.wallet.nfc.NfcSession.RequirePairedHardware.Required
-import build.wallet.nfc.NfcSessionFake
+import build.wallet.nfc.platform.NfcCommands
 import build.wallet.sqldelight.inMemorySqlDriver
 import com.github.michaelbull.result.Ok
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import okio.ByteString
 import okio.ByteString.Companion.encodeUtf8
 
 class CheckHardwareIsPairedInterceptorTests : FunSpec({
@@ -48,7 +47,15 @@ class CheckHardwareIsPairedInterceptorTests : FunSpec({
     fakeHardwareStatesDao
   )
 
-  test("does nothing when hardware validation not required") {
+  val firmwareDeviceInfoDao = FirmwareDeviceInfoDaoFake()
+
+  beforeEach {
+    firmwareDeviceInfoDao.reset()
+  }
+
+  // --- W1 tests (challenge-signing path) ---
+
+  test("W1 - does nothing when hardware validation not required") {
     var nextCalled = false
     val session = NfcSessionFake(
       NfcSession.Parameters(
@@ -66,14 +73,14 @@ class CheckHardwareIsPairedInterceptorTests : FunSpec({
       )
     )
 
-    val interceptor = validateHardwareIsPaired()
+    val interceptor = validateHardwareIsPaired(firmwareDeviceInfoDao)
     val effect: NfcEffect = { _, _ -> nextCalled = true }
     interceptor.invoke(effect)(session, nfcCommands)
 
     nextCalled shouldBe true
   }
 
-  test("validates hardware when required and succeeds") {
+  test("W1 - validates hardware via challenge signing and succeeds") {
     var nextCalled = false
     val session = NfcSessionFake(
       NfcSession.Parameters(
@@ -91,14 +98,14 @@ class CheckHardwareIsPairedInterceptorTests : FunSpec({
       )
     )
 
-    val interceptor = validateHardwareIsPaired()
+    val interceptor = validateHardwareIsPaired(firmwareDeviceInfoDao)
     val effect: NfcEffect = { _, _ -> nextCalled = true }
     interceptor.invoke(effect)(session, nfcCommands)
 
     nextCalled shouldBe true
   }
 
-  test("throws UnpairedHardwareError when validation fails") {
+  test("W1 - throws UnpairedHardwareError when challenge verification fails") {
     val session = NfcSessionFake(
       NfcSession.Parameters(
         isHardwareFake = false,
@@ -115,11 +122,155 @@ class CheckHardwareIsPairedInterceptorTests : FunSpec({
       )
     )
 
-    val interceptor = validateHardwareIsPaired()
-    val effect: NfcEffect = { session, nfcCommands -> }
+    val interceptor = validateHardwareIsPaired(firmwareDeviceInfoDao)
+    val effect: NfcEffect = { _, _ -> }
 
     shouldThrow<UnpairedHardwareError> {
       interceptor.invoke(effect)(session, nfcCommands)
     }
+  }
+
+  test("W1 - throws UnpairedHardwareError when signChallenge is not supported") {
+    val session = NfcSessionFake(
+      NfcSession.Parameters(
+        isHardwareFake = false,
+        hardwareType = HardwareType.W1,
+        needsAuthentication = false,
+        shouldLock = false,
+        skipFirmwareTelemetry = false,
+        nfcFlowName = "test",
+        requirePairedHardware = Required("challenge".encodeUtf8()) { _, _ -> true },
+        maxNfcRetryAttempts = 3,
+        onTagConnected = {},
+        onTagDisconnected = {},
+        asyncNfcSigning = false
+      )
+    )
+
+    val unsupportedSignChallengeCommands = object : NfcCommands by nfcCommands {
+      override suspend fun signChallenge(
+        session: NfcSession,
+        challenge: ByteString,
+      ): String {
+        throw NfcException.FeatureNotSupported()
+      }
+    }
+
+    val interceptor = validateHardwareIsPaired(firmwareDeviceInfoDao)
+    val effect: NfcEffect = { _, _ -> }
+
+    shouldThrow<UnpairedHardwareError> {
+      interceptor.invoke(effect)(session, unsupportedSignChallengeCommands)
+    }
+  }
+
+  // --- W3 tests (serial-comparison path) ---
+
+  test("W3 - validates hardware via serial match and succeeds") {
+    // Store the same serial that BitkeyW1CommandsFake.getDeviceInfo() returns
+    firmwareDeviceInfoDao.storedDeviceInfo = FakeFirmwareDeviceInfo
+
+    var nextCalled = false
+    val session = NfcSessionFake(
+      NfcSession.Parameters(
+        isHardwareFake = false,
+        hardwareType = HardwareType.W3,
+        needsAuthentication = false,
+        shouldLock = false,
+        skipFirmwareTelemetry = false,
+        nfcFlowName = "test",
+        requirePairedHardware = Required("challenge".encodeUtf8()) { _, _ -> true },
+        maxNfcRetryAttempts = 3,
+        onTagConnected = {},
+        onTagDisconnected = {},
+        asyncNfcSigning = false
+      )
+    )
+
+    val interceptor = validateHardwareIsPaired(firmwareDeviceInfoDao)
+    val effect: NfcEffect = { _, _ -> nextCalled = true }
+    interceptor.invoke(effect)(session, nfcCommands)
+
+    nextCalled shouldBe true
+  }
+
+  test("W3 - throws UnpairedHardwareError when serial does not match") {
+    // Store a different serial than what the hardware returns
+    firmwareDeviceInfoDao.storedDeviceInfo =
+      FakeFirmwareDeviceInfo.copy(serial = "different-serial")
+
+    val session = NfcSessionFake(
+      NfcSession.Parameters(
+        isHardwareFake = false,
+        hardwareType = HardwareType.W3,
+        needsAuthentication = false,
+        shouldLock = false,
+        skipFirmwareTelemetry = false,
+        nfcFlowName = "test",
+        requirePairedHardware = Required("challenge".encodeUtf8()) { _, _ -> true },
+        maxNfcRetryAttempts = 3,
+        onTagConnected = {},
+        onTagDisconnected = {},
+        asyncNfcSigning = false
+      )
+    )
+
+    val interceptor = validateHardwareIsPaired(firmwareDeviceInfoDao)
+    val effect: NfcEffect = { _, _ -> }
+
+    shouldThrow<UnpairedHardwareError> {
+      interceptor.invoke(effect)(session, nfcCommands)
+    }
+  }
+
+  test("W3 - throws UnpairedHardwareError when no stored device info") {
+    // Don't set any stored device info
+    val session = NfcSessionFake(
+      NfcSession.Parameters(
+        isHardwareFake = false,
+        hardwareType = HardwareType.W3,
+        needsAuthentication = false,
+        shouldLock = false,
+        skipFirmwareTelemetry = false,
+        nfcFlowName = "test",
+        requirePairedHardware = Required("challenge".encodeUtf8()) { _, _ -> true },
+        maxNfcRetryAttempts = 3,
+        onTagConnected = {},
+        onTagDisconnected = {},
+        asyncNfcSigning = false
+      )
+    )
+
+    val interceptor = validateHardwareIsPaired(firmwareDeviceInfoDao)
+    val effect: NfcEffect = { _, _ -> }
+
+    shouldThrow<UnpairedHardwareError> {
+      interceptor.invoke(effect)(session, nfcCommands)
+    }
+  }
+
+  test("W3 - does nothing when hardware validation not required") {
+    var nextCalled = false
+    val session = NfcSessionFake(
+      NfcSession.Parameters(
+        isHardwareFake = false,
+        hardwareType = HardwareType.W3,
+        needsAuthentication = false,
+        shouldLock = false,
+        skipFirmwareTelemetry = false,
+        nfcFlowName = "test",
+        requirePairedHardware = NotRequired,
+        maxNfcRetryAttempts = 3,
+        onTagConnected = {},
+        onTagDisconnected = {},
+        asyncNfcSigning = false
+      )
+    )
+
+    val interceptor = validateHardwareIsPaired(firmwareDeviceInfoDao)
+    val effect: NfcEffect = { _, _ -> nextCalled = true }
+    interceptor.invoke(effect)(session, nfcCommands)
+
+    nextCalled shouldBe true
   }
 })

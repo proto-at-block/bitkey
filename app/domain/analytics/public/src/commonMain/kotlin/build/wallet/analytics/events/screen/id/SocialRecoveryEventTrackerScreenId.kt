@@ -133,6 +133,9 @@ enum class SocialRecoveryEventTrackerScreenId : EventTrackerScreenId {
   /** The bottom sheet showing the details of a protected customer that a TC is protected is showing */
   TC_PROTECTED_CUSTOMER_SHEET,
 
+  /** Full-screen confirmation for a W3 TC removing themselves as RC */
+  TC_PROTECTED_CUSTOMER_REMOVAL_CONFIRMATION,
+
   /** The bottom sheet showing an error message after trying to remove the PC */
   TC_PROTECTED_CUSTOMER_SHEET_REMOVAL_FAILURE,
 

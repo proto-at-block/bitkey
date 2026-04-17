@@ -278,8 +278,7 @@ private suspend fun TestContext.navigateToUtxoConsolidation() {
  */
 private suspend fun TestContext.approveW3DeviceConfirmation() {
   awaitUntilBody<PromptSelectionFormBodyModel> {
-    options.shouldBe(listOf("Approve", "Deny"))
-    onOptionSelected(0)
+    onApprove()
   }
 }
 
@@ -288,8 +287,7 @@ private suspend fun TestContext.approveW3DeviceConfirmation() {
  */
 private suspend fun TestContext.denyW3DeviceConfirmation() {
   awaitUntilBody<PromptSelectionFormBodyModel> {
-    options.shouldBe(listOf("Approve", "Deny"))
-    onOptionSelected(1)
+    onDeny()
   }
 }
 

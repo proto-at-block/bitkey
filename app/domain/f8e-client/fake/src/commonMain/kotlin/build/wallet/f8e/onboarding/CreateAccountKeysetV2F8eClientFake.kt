@@ -9,7 +9,6 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.ktor.result.NetworkingError
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -17,6 +16,7 @@ import com.github.michaelbull.result.Result
 class CreateAccountKeysetV2F8eClientFake : CreateAccountKeysetV2F8eClient {
   var createKeysetResult: Result<F8eSpendingKeyset, NetworkingError> =
     Ok(F8eSpendingKeysetPrivateWalletMock)
+  var lastHardwareSpendingKey: HwSpendingPublicKey? = null
 
   override suspend fun createKeyset(
     f8eEnvironment: F8eEnvironment,
@@ -25,12 +25,13 @@ class CreateAccountKeysetV2F8eClientFake : CreateAccountKeysetV2F8eClient {
     appSpendingKey: AppSpendingPublicKey,
     network: BitcoinNetworkType,
     appAuthKey: PublicKey<AppGlobalAuthKey>,
-    hardwareProofOfPossession: HwFactorProofOfPossession,
   ): Result<F8eSpendingKeyset, NetworkingError> {
+    lastHardwareSpendingKey = hardwareSpendingKey
     return createKeysetResult
   }
 
   fun reset() {
     createKeysetResult = Ok(F8eSpendingKeysetPrivateWalletMock)
+    lastHardwareSpendingKey = null
   }
 }

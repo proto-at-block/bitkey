@@ -45,7 +45,6 @@ class FailedPartnerTransactionSnapshots : FunSpec({
             treatment = ButtonModel.Treatment.Primary,
             leadingIcon = Icon.SmallIconArrowUpRight,
             size = ButtonModel.Size.Footer,
-            testTag = null,
             onClick = StandardClick {}
           ),
           onClose = {}

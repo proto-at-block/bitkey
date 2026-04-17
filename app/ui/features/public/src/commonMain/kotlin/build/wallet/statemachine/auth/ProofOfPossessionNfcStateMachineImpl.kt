@@ -7,12 +7,14 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.nfc.platform.signAccessToken
+import build.wallet.nfc.platform.verifyHardwareType
 import build.wallet.nfc.transaction.SignAccountIdAndAuthData
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachineImpl.State.RefreshingAuthTokensState
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachineImpl.State.ShowingNfcState
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification
 
 @BitkeyInject(ActivityScope::class)
 class ProofOfPossessionNfcStateMachineImpl(
@@ -63,15 +65,25 @@ class ProofOfPossessionNfcStateMachineImpl(
       when (val request = props.request) {
         is Request.HwKeyProof ->
           NfcSessionUIStateMachineProps(
-            session = { session, commands -> commands.signAccessToken(session, accessToken) },
+            session = { session, commands ->
+              props.requiredHardwareType?.let { commands.verifyHardwareType(session, it) }
+              commands.signAccessToken(session, accessToken)
+            },
             onSuccess = { request.onSuccess(HwFactorProofOfPossession(it)) },
             onCancel = props.onBack,
+            onError = props.onError,
             segment = props.segment,
             actionDescription = props.actionDescription,
             screenPresentationStyle = props.screenPresentationStyle,
             hardwareVerification = props.hardwareVerification,
             shouldLock = props.shouldLock,
-            eventTrackerContext = NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION
+            eventTrackerContext = NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION,
+            hardwareTypeOverride = props.requiredHardwareType,
+            // The lost-hardware cancellation flow taps the replacement hardware to cancel
+            // an in-progress D+N — skip the guard that would otherwise block it.
+            skipLostHardwareCheck =
+              (props.hardwareVerification as? NfcSessionUIStateMachineProps.HardwareVerification.Required)
+                ?.useRecoveryPubKey == true
           )
 
         is Request.HwKeyProofAndAccountSignature -> {
@@ -94,12 +106,17 @@ class ProofOfPossessionNfcStateMachineImpl(
             )
 
           NfcSessionUIStateMachineProps(
-            session = nfcTransaction::session,
+            session = { session, commands ->
+              props.requiredHardwareType?.let { commands.verifyHardwareType(session, it) }
+              nfcTransaction.session(session, commands)
+            },
             onSuccess = nfcTransaction::onSuccess,
             onCancel = nfcTransaction::onCancel,
+            onError = props.onError,
             screenPresentationStyle = props.screenPresentationStyle,
             hardwareVerification = props.hardwareVerification,
-            eventTrackerContext = NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION
+            eventTrackerContext = NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION,
+            hardwareTypeOverride = props.requiredHardwareType
           )
         }
       }

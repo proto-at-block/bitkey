@@ -12,7 +12,7 @@ import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.keybox.KeyCrossDraft
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeyset
-import build.wallet.cloud.backup.CloudBackupRepository
+import build.wallet.cloud.backup.CloudBackupService
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.di.AppScope
@@ -56,7 +56,7 @@ class UpgradeLiteToFullAccountServiceImpl(
   private val uuidGenerator: UuidGenerator,
   private val chaincodeDelegationFeatureFlag: ChaincodeDelegationFeatureFlag,
   private val sharedCloudBackupsFeatureFlag: SharedCloudBackupsFeatureFlag,
-  private val cloudBackupRepository: CloudBackupRepository,
+  private val cloudBackupService: CloudBackupService,
   private val cloudStoreAccountRepository: CloudStoreAccountRepository,
 ) : UpgradeLiteAccountToFullService {
   override suspend fun upgradeAccount(
@@ -143,7 +143,7 @@ class UpgradeLiteToFullAccountServiceImpl(
         .mapError { FullAccountCreationError.AccountCreationDatabaseError.FailedToSaveKeybox(it) }
         .bind()
 
-      FullAccount(accountId, keybox.config, keybox)
+      FullAccount(accountId, keybox)
     }
 
   suspend fun archiveLiteAccountBackup(
@@ -163,17 +163,17 @@ class UpgradeLiteToFullAccountServiceImpl(
         }
         .bind()
 
-      val cloudBackup = cloudBackupRepository.readAllBackups(cloudStoreAccount)
+      val cloudBackup = cloudBackupService.readAllBackups(cloudStoreAccount)
         .mapError(::ReadingBackupError)
         .bind()
         .firstOrNull { backup -> backup.accountId == liteAccount.accountId.serverId }
         ?: return@coroutineBinding
 
-      cloudBackupRepository.archiveBackup(cloudStoreAccount, cloudBackup)
+      cloudBackupService.archiveBackup(cloudStoreAccount, cloudBackup)
         .mapError(::ArchiveBackupError)
         .bind()
 
-      cloudBackupRepository
+      cloudBackupService
         .clear(liteAccount.accountId, cloudStoreAccount, clearRemoteOnly = true)
         .mapError(::ClearBackupError)
         .bind()

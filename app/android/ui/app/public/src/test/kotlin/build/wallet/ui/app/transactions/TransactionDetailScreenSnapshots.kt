@@ -15,6 +15,7 @@ import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
 import build.wallet.statemachine.transactions.TransactionDetailModel
 import build.wallet.statemachine.transactions.completeTransactionStepper
 import build.wallet.statemachine.transactions.processingTransactionStepper
+import build.wallet.statemachine.transactions.processingTransactionStepperDesignSystemV2
 import build.wallet.statemachine.transactions.submittedTransactionStepper
 import build.wallet.ui.app.core.form.FormScreen
 import build.wallet.ui.model.StandardClick
@@ -50,6 +51,57 @@ class TransactionDetailScreenSnapshots :
               content =
                 immutableListOf(
                   processingTransactionStepper,
+                  FormMainContentModel.Divider,
+                  DataList(
+                    items = immutableListOf(
+                      Data(
+                        title = "Transaction ID",
+                        sideText = "c4f5...67be",
+                        onClick = {},
+                        endIcon = SmallIconCopy
+                      )
+                    )
+                  ),
+                  DataList(
+                    items = immutableListOf(
+                      Data(
+                        title = "Amount",
+                        sideText = "$5.08",
+                        sideTextType = Data.SideTextType.BODY2BOLD,
+                        secondarySideText = "12,759 sats"
+                      )
+                    )
+                  )
+                )
+            )
+        )
+      }
+    }
+
+    test("pending receive transaction detail with design system v2 feature flag on") {
+      paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+        FormScreen(
+          model =
+            TransactionDetailModel(
+              feeBumpEnabled = false,
+              formHeaderModel = FormHeaderModel(
+                iconModel = IconModel(
+                  icon = Bitcoin,
+                  iconSize = Avatar
+                ),
+                headline = "Transaction pending",
+                sublineModel = StringModel("bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh"),
+                sublineTreatment = MONO,
+                alignment = LEADING
+              ),
+              isLoading = false,
+              viewTransactionText = "View transaction",
+              onViewTransaction = {},
+              onClose = {},
+              onSpeedUpTransaction = {},
+              content =
+                immutableListOf(
+                  processingTransactionStepperDesignSystemV2,
                   FormMainContentModel.Divider,
                   DataList(
                     items = immutableListOf(
@@ -408,6 +460,46 @@ class TransactionDetailScreenSnapshots :
       }
     }
 
+    test("pending partnership sale transaction") {
+      paparazzi.snapshot {
+        FormScreen(
+          model =
+            TransactionDetailModel(
+              feeBumpEnabled = false,
+              formHeaderModel = FormHeaderModel(
+                iconModel = IconModel(
+                  icon = Bitcoin,
+                  iconSize = Avatar
+                ),
+                headline = "Cash App sale",
+                sublineModel = StringModel("Arrival times and fees are estimates. Confirm details through Cash App."),
+                alignment = LEADING
+              ),
+              isLoading = false,
+              viewTransactionText = "View in Cash App",
+              onViewTransaction = {},
+              onClose = {},
+              onSpeedUpTransaction = {},
+              content =
+                immutableListOf(
+                  submittedTransactionStepper,
+                  FormMainContentModel.Divider,
+                  DataList(
+                    items = immutableListOf(
+                      Data(
+                        title = "Amount",
+                        sideText = "$5.08",
+                        sideTextType = Data.SideTextType.BODY2BOLD,
+                        secondarySideText = "12,759 sats"
+                      )
+                    )
+                  )
+                )
+            )
+        )
+      }
+    }
+
     test("confirmed partnership transaction") {
       paparazzi.snapshot {
         FormScreen(
@@ -420,6 +512,77 @@ class TransactionDetailScreenSnapshots :
                   iconSize = Avatar
                 ),
                 headline = "Cash App sale",
+                sublineModel = StringModel("Arrival times and fees are estimates. Confirm details through Cash App."),
+                alignment = LEADING
+              ),
+              isLoading = false,
+              viewTransactionText = "View in Cash App",
+              onViewTransaction = {},
+              onClose = {},
+              onSpeedUpTransaction = {},
+              content =
+                immutableListOf(
+                  completeTransactionStepper,
+                  FormMainContentModel.Divider,
+                  DataList(
+                    items =
+                      immutableListOf(
+                        Data(
+                          title = "Confirmed",
+                          sideText = "03-17-1963"
+                        )
+                      )
+                  ),
+                  DataList(
+                    items = immutableListOf(
+                      Data(
+                        title = "Transaction ID",
+                        sideText = "c4f5...67be",
+                        onClick = {},
+                        endIcon = SmallIconCopy
+                      )
+                    )
+                  ),
+                  DataList(
+                    items =
+                      immutableListOf(
+                        Data(
+                          title = "Amount",
+                          sideText = "$9.00",
+                          secondarySideText = "35,584 sats"
+                        ),
+                        Data(
+                          title = "Network fees",
+                          sideText = "$1.00",
+                          secondarySideText = "5,526 sats"
+                        )
+                      ),
+                    total =
+                      Data(
+                        title = "Total",
+                        sideText = "$10.00",
+                        sideTextType = Data.SideTextType.BODY2BOLD,
+                        secondarySideText = "41,110 sats"
+                      )
+                  )
+                )
+            )
+        )
+      }
+    }
+
+    test("confirmed partnership purchase transaction") {
+      paparazzi.snapshot {
+        FormScreen(
+          model =
+            TransactionDetailModel(
+              feeBumpEnabled = false,
+              formHeaderModel = FormHeaderModel(
+                iconModel = IconModel(
+                  icon = Bitcoin,
+                  iconSize = Avatar
+                ),
+                headline = "Cash App purchase",
                 sublineModel = StringModel("Arrival times and fees are estimates. Confirm details through Cash App."),
                 alignment = LEADING
               ),

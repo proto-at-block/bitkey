@@ -10,7 +10,7 @@ class ChaincodeDelegationFeatureFlag(
     identifier = "mobile-chaincode-delegation-enabled",
     title = "Chaincode Delegation",
     description = "Turn on chaincode delegation. Must onboard a new account.",
-    defaultFlagValue = FeatureFlagValue.BooleanFlag(false),
+    defaultFlagValue = FeatureFlagValue.BooleanFlag(true),
     featureFlagDao = featureFlagDao,
     type = FeatureFlagValue.BooleanFlag::class
   )

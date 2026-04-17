@@ -2,7 +2,7 @@
   <!-- Splash Screen Theme. -->
   <style name="Theme.AppSplash" parent="Theme.SplashScreen">
     <item name="windowSplashScreenBackground">@color/black</item>
-    <item name="windowSplashScreenAnimatedIcon">@drawable/bitkey_splash_logo</item>
-    <item name="postSplashScreenTheme">@style/Theme.AppCompat.DayNight.NoActionBar</item>
+    <item name="windowSplashScreenAnimatedIcon">@drawable/splash_transparent_icon</item>
+    <item name="postSplashScreenTheme">@style/Theme.BitkeyPostSplash</item>
   </style>
 </resources>

@@ -97,7 +97,7 @@ class SweepDataStateMachineImpl(
       GeneratingPsbtsState -> {
         LaunchedEffect("generate-psbts") {
           withMinimumDelay(minimumLoadingDuration.value) {
-            sweepService.prepareSweep(props.keybox)
+            sweepService.prepareSweep(props.keybox, props.sweepContext)
           }
             .onSuccess { sweep ->
               when (sweep) {
@@ -110,7 +110,8 @@ class SweepDataStateMachineImpl(
                   if (props.hasAttemptedSweep) {
                     sweepState = SweepSuccessNoDataState
                   } else {
-                    // We don't show the NoFundsFoundScreen during the migration
+                    // Private wallet migration skips the zero-balance screen, but W3 upgrade
+                    // shows it as the final sweep step.
                     if (props.sweepContext is SweepContext.PrivateWalletMigration) {
                       props.onSuccess()
                     } else {

@@ -86,7 +86,7 @@ static void fs_mount_task(void* UNUSED(arg)) {
     rtos_semaphore_give(&mount_lock);
     is_mounted = true;
   } else {
-    LOGE("Failed to mount filesystem");
+    LOGE("Mount FS fail");
     goto cleanup;
   }
 
@@ -274,7 +274,7 @@ int fs_remove(const char* path) {
 
   int ret = LOCK_UNLOCK(lfs_remove(lfs, path));
   if (ret < 0) {
-    LOGE("Failed to remove file: %s", path);
+    LOGE("Remove fail: %s", path);
   }
 
   return ret;
@@ -501,8 +501,6 @@ int fs_ensure_file_path(const char* path) {
         if (ret != LFS_ERR_EXIST) {
           return ret;
         }
-      } else {
-        LOGI("Created directory: %s", temp_path);
       }
     }
   }
@@ -592,10 +590,10 @@ int fs_dir_rewind(fs_dir_t* dir) {
 bool fs_erase_all(void) {
   int ret = bd_erase_all();
   if (ret == 0) {
-    LOGI("filesystem erased\ndevice must be reset, fs is in an unknown state!\n");
+    LOGI("FS erased, reset required");
     return true;
   } else {
-    LOGE("failed to erase filesystem");
+    LOGE("Erase FS fail");
     return false;
   }
 }
@@ -614,6 +612,37 @@ static bool lock(void) {
 
 static bool unlock(void) {
   return rtos_mutex_unlock(&fs_lock);
+}
+
+bool fs_is_busy(void) {
+#ifdef EMBEDDED_BUILD
+  // Check both the filesystem mutex (held during LittleFS operations)
+  // and the global file semaphore (held while g_file is open).
+  // Use ISR-safe variants when called from the fault handler.
+  if (rtos_in_isr()) {
+    if (xSemaphoreGetMutexHolderFromISR(fs_lock.handle) != NULL) {
+      return true;
+    }
+    if (uxSemaphoreGetCountFromISR(g_file_access_lock.handle) == 0) {
+      return true;
+    }
+  } else {
+    if (xSemaphoreGetMutexHolder(fs_lock.handle) != NULL) {
+      return true;
+    }
+    if (uxSemaphoreGetCount(g_file_access_lock.handle) == 0) {
+      return true;
+    }
+  }
+  return false;
+#else
+  // Host builds don't have FreeRTOS — use a non-blocking try-lock instead.
+  if (!rtos_mutex_take(&fs_lock, 0)) {
+    return true;
+  }
+  rtos_mutex_unlock(&fs_lock);
+  return false;
+#endif
 }
 
 #ifndef EMBEDDED_BUILD

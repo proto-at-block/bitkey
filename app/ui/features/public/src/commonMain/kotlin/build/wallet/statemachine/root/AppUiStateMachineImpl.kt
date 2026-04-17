@@ -19,6 +19,7 @@ import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.AppUpdateModalFeatureFlag
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.logging.logInfo
 import build.wallet.mapResult
 import build.wallet.onboarding.CreateFullAccountContext
@@ -35,17 +36,18 @@ import build.wallet.statemachine.account.full.FullAccountUiProps
 import build.wallet.statemachine.account.full.FullAccountUiStateMachine
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.data.keybox.AccountData
-import build.wallet.statemachine.data.keybox.AccountDataProps
-import build.wallet.statemachine.data.keybox.AccountDataStateMachine
 import build.wallet.statemachine.dev.DebugMenuScreen
+import build.wallet.statemachine.fwup.FwupNfcBodyModel
 import build.wallet.statemachine.home.full.HomeUiProps
 import build.wallet.statemachine.home.full.HomeUiStateMachine
 import build.wallet.statemachine.home.lite.LiteHomeUiProps
 import build.wallet.statemachine.home.lite.LiteHomeUiStateMachine
+import build.wallet.statemachine.nfc.NfcBodyModel
 import build.wallet.statemachine.recovery.cloud.LiteAccountCloudBackupRestorationUiProps
 import build.wallet.statemachine.recovery.cloud.LiteAccountCloudBackupRestorationUiStateMachine
+import build.wallet.statemachine.send.signtransaction.SignTransactionNfcBodyModel
 import build.wallet.statemachine.settings.showDebugMenu
+import build.wallet.ui.theme.Theme
 import build.wallet.worker.AppWorkerExecutor
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -53,6 +55,7 @@ import com.github.michaelbull.result.get
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNot
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -65,7 +68,6 @@ class AppUiStateMachineImpl(
   private val liteHomeUiStateMachine: LiteHomeUiStateMachine,
   private val fullAccountUiStateMachine: FullAccountUiStateMachine,
   private val createAccountUiStateMachine: CreateAccountUiStateMachine,
-  private val accountDataStateMachine: AccountDataStateMachine,
   private val noActiveAccountUiStateMachine: NoActiveAccountUiStateMachine,
   private val loadAppService: LoadAppService,
   private val createLiteAccountUiStateMachine: CreateLiteAccountUiStateMachine,
@@ -77,6 +79,7 @@ class AppUiStateMachineImpl(
   private val splashScreenDelay: SplashScreenDelay,
   private val welcomeToBitkeyScreenDuration: WelcomeToBitkeyScreenDuration,
   private val deviceInfoProvider: DeviceInfoProvider,
+  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
   private val appUpdateModalFeatureFlag: AppUpdateModalFeatureFlag,
   private val appStoreUrlProvider: AppStoreUrlProvider,
   private val deepLinkHandler: DeepLinkHandler,
@@ -202,21 +205,19 @@ class AppUiStateMachineImpl(
         if (shouldShowWelcomeScreen) {
           WelcomeScreenModel { shouldShowWelcomeScreen = false }
         } else {
-          accountDataStateMachine.model(
-            props = AccountDataProps(
-              account = state.account
-            )
-          ).let {
-            AppLoadedDataScreenModel(
-              accountData = it,
-              account = state.account,
-              isNewlyCreatedAccount = state.isNewlyCreatedAccount,
-              isRenderingViaAccountData = false,
-              onViewNoActiveAccount = {
-                uiState = State.NoActiveAccount
-              }
-            )
+          // this mimics the legacy behavior of auto switching when going from AccountData to
+          // NoActiveAccountData. This should be removed once DSMs are removed and there is proper routing
+          val activeAccount = rememberActiveAccount(state.account)
+          val currentAccount = activeAccount.get()
+          if (currentAccount !is FullAccount) {
+            uiState = State.NoActiveAccount
           }
+          fullAccountUiStateMachine.model(
+            props = FullAccountUiProps(
+              account = (currentAccount as? FullAccount) ?: state.account,
+              isNewlyCreatedAccount = state.isNewlyCreatedAccount
+            )
+          )
         }
       }
       is State.OnboardingFullAccount -> createAccountUiStateMachine.model(
@@ -338,13 +339,36 @@ class AppUiStateMachineImpl(
       )
     }
 
+    val isDesignSystemV2Enabled by remember {
+      designSystemUpdatesFeatureFlag.flagValue().map { it.value }
+    }.collectAsState(initial = designSystemUpdatesFeatureFlag.flagValue().value.value)
+
+    // On iOS with real hardware, NFC screens are hidden and the previous screen is
+    // preserved because the system CoreNFC sheet is shown natively. With fake hardware
+    // there is no native CoreNFC sheet, so we skip preservation to allow the NFC
+    // screen (and any emulated prompt bottom sheet) to render normally.
+    val isHardwareFake by remember {
+      accountService.accountStatus()
+        .map { result ->
+          val account = (result.get() as? AccountStatus.ActiveAccount)?.account
+          (account as? FullAccount)?.config?.isHardwareFake == true
+        }
+    }.collectAsState(initial = false)
+
+    val isIosWithRealHardware = remember(deviceInfo, isHardwareFake) {
+      deviceInfo.devicePlatform == DevicePlatform.IOS && !isHardwareFake
+    }
+
+    val isNfcScreen = (screenModel.body as? NfcBodyModel)?.showNativeSheetOnIos == true ||
+      ((screenModel.body as? FwupNfcBodyModel)?.showNativeSheetOnIos == true &&
+        (screenModel.body as? FwupNfcBodyModel)?.status?.isActiveSession == true) ||
+      (screenModel.body as? SignTransactionNfcBodyModel)?.showNativeSheetOnIos == true
+
+    val shouldPreservePreviousScreenForPlatformNfc = isIosWithRealHardware &&
+      ((isDesignSystemV2Enabled && isNfcScreen) || (!isDesignSystemV2Enabled && screenModel.platformNfcScreen))
+
     val targetModel = when {
-      deviceInfo.devicePlatform == DevicePlatform.IOS && screenModel.platformNfcScreen -> {
-        // If incoming model displays an NFC screen that is handled
-        // by native iOS UI, keep displaying the previous screen model
-        // to maintain overlay effect.
-        previousScreenModel ?: screenModel
-      }
+      shouldPreservePreviousScreenForPlatformNfc -> previousScreenModel ?: screenModel
       else -> {
         previousScreenModel = screenModel
         screenModel
@@ -376,6 +400,17 @@ class AppUiStateMachineImpl(
       else -> finalModel
     }
   }
+
+  private val FwupNfcBodyModel.Status.isActiveSession: Boolean
+    get() =
+      when (this) {
+        is FwupNfcBodyModel.Status.Searching,
+        is FwupNfcBodyModel.Status.InProgress,
+        -> true
+        is FwupNfcBodyModel.Status.LostConnection,
+        is FwupNfcBodyModel.Status.Success,
+        -> false
+      }
 
   @Composable
   private fun HasActiveSoftwareAccountScreenModel(
@@ -420,29 +455,6 @@ class AppUiStateMachineImpl(
   }
 
   @Composable
-  private fun AppLoadedDataScreenModel(
-    accountData: AccountData,
-    account: FullAccount,
-    isNewlyCreatedAccount: Boolean,
-    isRenderingViaAccountData: Boolean,
-    onViewNoActiveAccount: () -> Unit,
-  ): ScreenModel {
-    // this mimics the legacy behavior of auto switching when going from AccountData to
-    // NoActiveAccountData. This should be removed once DSMs are removed and there is proper routing
-    val account = rememberActiveAccount(account)
-    if (account.get() !is FullAccount) {
-      onViewNoActiveAccount()
-    }
-    return fullAccountUiStateMachine.model(
-      props = FullAccountUiProps(
-        accountData = accountData,
-        isNewlyCreatedAccount = isNewlyCreatedAccount,
-        isRenderingViaAccountData = isRenderingViaAccountData
-      )
-    )
-  }
-
-  @Composable
   private fun AppLoadingScreenModel(): ScreenModel {
     // Determine which loading screen to show for overall app loading based on
     // what is currently on the screen. We only want the splash screen to show
@@ -472,7 +484,7 @@ class AppUiStateMachineImpl(
     SplashBodyModel(
       bitkeyWordMarkAnimationDelay = 700.milliseconds,
       bitkeyWordMarkAnimationDuration = 500.milliseconds
-    ).asScreen(presentationStyle = ScreenPresentationStyle.FullScreen)
+    ).asRootFullScreen(theme = Theme.DARK)
 
   /**
    * Logs screen transitions as breadcrumbstate.
@@ -480,10 +492,12 @@ class AppUiStateMachineImpl(
   @Composable
   private fun LogScreenModelEffect(screenModel: ScreenModel) {
     DisposableEffect(screenModel.key) {
-      logInfo(
-        tag = "Screen" // This tag is used by a Datadog dashboard.
-      ) {
-        "bodyName=${screenModel.body::class.qualifiedName} screenId=${screenModel.eventInfoToTrack()?.screenId}"
+      if (screenModel.eventInfoToTrack()?.eventTrackerShouldTrack != false) {
+        logInfo(
+          tag = "Screen" // This tag is used by a Datadog dashboard.
+        ) {
+          "bodyName=${screenModel.body::class.qualifiedName} screenId=${screenModel.eventInfoToTrack()?.screenId}"
+        }
       }
 
       onDispose { }

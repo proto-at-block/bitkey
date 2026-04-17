@@ -11,6 +11,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration.Companion.LineThrough
 import androidx.compose.ui.text.style.TextDecoration.Companion.None
 import androidx.compose.ui.text.style.TextDecoration.Companion.Underline
+import androidx.compose.ui.unit.sp
 import build.wallet.ui.components.label.LabelTreatment.Destructive
 import build.wallet.ui.components.label.LabelTreatment.Disabled
 import build.wallet.ui.components.label.LabelTreatment.Jumbo
@@ -26,6 +27,7 @@ import build.wallet.ui.components.label.LabelTreatment.Warning
 import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
+import build.wallet.ui.tokens.LabelType.Body3Mono
 import build.wallet.ui.tokens.currentStyle
 import build.wallet.ui.typography.font.cashSansFontFamily
 import build.wallet.ui.typography.font.interFontFamily
@@ -112,10 +114,13 @@ fun buttonTextStyle(
       fontStyle = FontStyle.Normal
     )
 
-  return type.currentStyle(baseFont).copy(
+  val resolvedStyle = type.currentStyle(baseFont)
+
+  return resolvedStyle.copy(
     textAlign = TextAlign.Center,
     color = textColor,
     textDecoration = if (underline) Underline else None,
+    letterSpacing = if (isDesignSystemV2Enabled && type == Body3Mono) 0.sp else resolvedStyle.letterSpacing,
     lineHeightStyle =
       LineHeightStyle(
         alignment = Alignment.Center,

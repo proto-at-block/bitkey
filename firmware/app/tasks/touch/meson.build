@@ -17,7 +17,7 @@ touch_task_mfgtest_lib = library('touch-task-mfgtest', [
     'src/touch_task_mpu.c',
   ],
   include_directories : ['inc', mpu_regions_includes],
-  dependencies : [assert_dep, display_ui_mfgtest_dep, helpers_dep, log_dep, mcu_dep, rtos_dep, touch_dep],
+  dependencies : [assert_dep, display_ui_mfgtest_dep, helpers_dep, log_dep, mcu_dep, rtos_dep, touch_mfgtest_dep],
   c_args : ['-DMFGTEST=1'],
 )
 

@@ -1,5 +1,6 @@
 #include "touch.h"
 
+#include "arithmetic.h"
 #include "assert.h"
 #include "attributes.h"
 #include "exti.h"
@@ -15,13 +16,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
-touch_priv_t _touch_priv = {0};
+touch_priv_t _touch_priv SHARED_TASK_BSS;
 
+SYSCALL NO_OPTIMIZE static void _touch_init(void);
 static bool _touch_check_chip_id(void);
 static bool _touch_fetch_touch_data(ft3169_touch_data_t* data, size_t data_size);
 static bool _touch_handle_fw_recovery(const ft3169_touch_data_t* data);
-static bool _touch_hw_reset(void);
-static bool _touch_i2c_transfer(mcu_i2c_transfer_seq_t* seq);
+SYSCALL NO_OPTIMIZE static bool _touch_hw_reset(void);
+SYSCALL NO_OPTIMIZE static bool _touch_i2c_transfer(mcu_i2c_transfer_seq_t* seq);
 static bool _touch_reset_device(void);
 static bool _touch_set_mode(uint8_t mode);
 static bool _touch_decode_data(const ft3169_touch_data_t* data, touch_event_t* event);
@@ -31,53 +33,7 @@ void touch_init(const touch_config_t* config) {
 
   // Store configuration and callback.
   _touch_priv.config = *config;
-
-  switch (config->interface_type) {
-    case TOUCH_INTERFACE_I2C:
-      // Initialize I2C bus and device.
-      mcu_i2c_bus_init(&config->interface.i2c.config, &config->interface.i2c.device, true);
-      break;
-
-    case TOUCH_INTERFACE_NONE:
-      // 'break' intentionally omitted.
-
-    default:
-      ASSERT(false);
-  }
-
-  if (_touch_priv.config.gpio.reset != NULL) {
-    // Reset the touch controller.
-    mcu_gpio_configure(_touch_priv.config.gpio.reset, _touch_priv.config.gpio.reset_active_high);
-  }
-
-  // Enable 1v8 power to the touch controller before enabling interrupts.
-  if (_touch_priv.config.gpio.pwr.pwr_1v8_en != NULL) {
-    mcu_gpio_configure(_touch_priv.config.gpio.pwr.pwr_1v8_en, false);
-  }
-
-  // Enable AVDD power to the touch controller.
-  if (_touch_priv.config.gpio.pwr.pwr_avdd_en != NULL) {
-    mcu_gpio_configure(_touch_priv.config.gpio.pwr.pwr_avdd_en, false);
-  }
-
-  rtos_thread_sleep(10);
-
-  if (_touch_priv.config.gpio.reset != NULL) {
-    // Enable the touch controller
-    mcu_gpio_configure(_touch_priv.config.gpio.reset, !_touch_priv.config.gpio.reset_active_high);
-  }
-
-  if (_touch_priv.config.gpio.interrupt != NULL) {
-    // Per FT3169 application note 1.2, signal is active low.
-    _touch_priv.exti_config.gpio = *_touch_priv.config.gpio.interrupt;
-    _touch_priv.exti_config.trigger = EXTI_TRIGGER_FALLING;
-    exti_enable(&_touch_priv.exti_config);
-  }
-
-  _touch_priv.flow_work_cnt_last = 0;
-  _touch_priv.flow_work_hold_cnt = 0;
-  _touch_priv.last_touch_event = (touch_event_t){0};
-  _touch_priv.last_esd_check_ms = 0;
+  _touch_init();
 }
 
 bool touch_enable(void) {
@@ -95,11 +51,13 @@ bool touch_enable(void) {
   return true;
 }
 
-bool touch_disable(void) {
+SYSCALL NO_OPTIMIZE bool touch_disable(void) {
   // Per FT3169 datasheet figure 3-6
   // Assert reset and hold.
   if (_touch_priv.config.gpio.reset != NULL) {
-    mcu_gpio_output_set(_touch_priv.config.gpio.reset, _touch_priv.config.gpio.reset_active_high);
+    RTOS_THREAD_WITH_PRIVILEGE({
+      mcu_gpio_output_set(_touch_priv.config.gpio.reset, _touch_priv.config.gpio.reset_active_high);
+    });
   }
 
   return true;
@@ -111,6 +69,16 @@ bool touch_get_coordinates(touch_event_t* event) {
   if (_touch_priv.config.interface_type != TOUCH_INTERFACE_I2C) {
     return false;
   }
+
+#ifdef MFGTEST
+  // Skip ALL I2C reads when host is suspended (for external I2C debugging)
+  if (_touch_priv.host_i2c_suspended) {
+    if (_touch_priv.config.gpio.interrupt != NULL) {
+      exti_clear(&_touch_priv.exti_config);
+    }
+    return false;
+  }
+#endif
 
   FT3169_TOUCH_DATA(touch_data, FT3169_MAX_TOUCH_POINTS);
   if (!_touch_fetch_touch_data(touch_data, touch_data_size)) {
@@ -155,6 +123,60 @@ bool touch_pend_event(touch_event_t* event, uint32_t timeout_ms) {
   return true;
 }
 
+SYSCALL NO_OPTIMIZE static void _touch_init(void) {
+  RTOS_THREAD_WITH_PRIVILEGE({
+    switch (_touch_priv.config.interface_type) {
+      case TOUCH_INTERFACE_I2C:
+        // Initialize I2C bus and device.
+        mcu_i2c_bus_init(&_touch_priv.config.interface.i2c.config,
+                         &_touch_priv.config.interface.i2c.device, true);
+        break;
+
+      case TOUCH_INTERFACE_NONE:
+        // 'break' intentionally omitted.
+
+      default:
+        ASSERT(false);
+    }
+
+    if (_touch_priv.config.gpio.reset != NULL) {
+      // Reset the touch controller.
+      mcu_gpio_configure(_touch_priv.config.gpio.reset, _touch_priv.config.gpio.reset_active_high);
+    }
+
+    // Enable 1v8 power to the touch controller before enabling interrupts.
+    if (_touch_priv.config.gpio.pwr.pwr_1v8_en != NULL) {
+      mcu_gpio_configure(_touch_priv.config.gpio.pwr.pwr_1v8_en, false);
+    }
+
+    // Enable AVDD power to the touch controller.
+    if (_touch_priv.config.gpio.pwr.pwr_avdd_en != NULL) {
+      mcu_gpio_configure(_touch_priv.config.gpio.pwr.pwr_avdd_en, false);
+    }
+  });
+
+  rtos_thread_sleep(10);
+
+  RTOS_THREAD_WITH_PRIVILEGE({
+    if (_touch_priv.config.gpio.reset != NULL) {
+      // Enable the touch controller
+      mcu_gpio_configure(_touch_priv.config.gpio.reset, !_touch_priv.config.gpio.reset_active_high);
+    }
+
+    if (_touch_priv.config.gpio.interrupt != NULL) {
+      // Per FT3169 application note 1.2, signal is active low.
+      _touch_priv.exti_config.gpio = *_touch_priv.config.gpio.interrupt;
+      _touch_priv.exti_config.trigger = EXTI_TRIGGER_FALLING;
+      exti_enable(&_touch_priv.exti_config);
+    }
+  });
+
+  _touch_priv.flow_work_cnt_last = 0;
+  _touch_priv.flow_work_hold_cnt = 0;
+  _touch_priv.last_touch_event = (touch_event_t){0};
+  _touch_priv.last_esd_check_ms = 0;
+}
+
 static bool _touch_set_mode(uint8_t mode) {
   if (_touch_priv.config.interface_type != TOUCH_INTERFACE_I2C) {
     return false;
@@ -178,7 +200,7 @@ static bool _touch_handle_fw_recovery(const ft3169_touch_data_t* data) {
 }
 
 static bool _touch_decode_data(const ft3169_touch_data_t* data, touch_event_t* event) {
-  const uint8_t raw_points = data->num_points & 0x0F;
+  const uint8_t raw_points = BLK_MIN((data->num_points & 0x0F), FT3169_MAX_TOUCH_POINTS);
 
   event->timestamp_ms = rtos_thread_systime();
 
@@ -217,14 +239,17 @@ static bool _touch_decode_data(const ft3169_touch_data_t* data, touch_event_t* e
   return true;
 }
 
-static bool _touch_i2c_transfer(mcu_i2c_transfer_seq_t* seq) {
+SYSCALL NO_OPTIMIZE static bool _touch_i2c_transfer(mcu_i2c_transfer_seq_t* seq) {
   if (_touch_priv.config.interface_type != TOUCH_INTERFACE_I2C) {
     return false;
   }
 
   for (uint8_t attempt = 0; attempt < FT3169_I2C_MAX_RETRIES; attempt++) {
-    const mcu_i2c_err_t result =
-      mcu_i2c_transfer(&_touch_priv.config.interface.i2c.device, seq, FT3169_I2C_TIMEOUT_MS);
+    mcu_i2c_err_t result;
+    RTOS_THREAD_WITH_PRIVILEGE({
+      result =
+        mcu_i2c_transfer(&_touch_priv.config.interface.i2c.device, seq, FT3169_I2C_TIMEOUT_MS);
+    });
     if (result == MCU_I2C_TRANSFER_DONE) {
       return true;
     }
@@ -332,11 +357,18 @@ static bool _touch_check_chip_id(void) {
   return (chip_id.id_high == FT3169_CHIP_IDH) && (chip_id.id_low == FT3169_CHIP_IDL);
 }
 
-static bool _touch_hw_reset(void) {
+SYSCALL NO_OPTIMIZE static bool _touch_hw_reset(void) {
   if (_touch_priv.config.gpio.reset != NULL) {
-    mcu_gpio_output_set(_touch_priv.config.gpio.reset, _touch_priv.config.gpio.reset_active_high);
+    RTOS_THREAD_WITH_PRIVILEGE({
+      mcu_gpio_output_set(_touch_priv.config.gpio.reset, _touch_priv.config.gpio.reset_active_high);
+    });
+
     rtos_thread_sleep(FT3169_RESET_PULSE_MS);
-    mcu_gpio_output_set(_touch_priv.config.gpio.reset, !_touch_priv.config.gpio.reset_active_high);
+
+    RTOS_THREAD_WITH_PRIVILEGE({
+      mcu_gpio_output_set(_touch_priv.config.gpio.reset,
+                          !_touch_priv.config.gpio.reset_active_high);
+    });
   }
 
   rtos_thread_sleep(FT3169_INIT_TIME_MS);
@@ -356,31 +388,6 @@ static bool _touch_reset_device(void) {
 
   status &= _touch_set_mode(FT3169_MODE_WORKING);
 
-  /* These settings should be default on power up, but write them to make sure */
-  status &= touch_exit_monitor_mode();
-
-  return status;
-}
-
-bool touch_enter_monitor_mode(void) {
-  bool status = true;
-  /* Enter Gesture Mode */
-  status &= touch_write_reg(FT3169_REG_GESTURE_EN, FT3169_GESTURE_ENABLE);
-  /* Set Gesture to Wake From Monitor Mode */
-  status &= touch_write_reg(FT3169_REG_GESTURE_MASK, FT3169_GESTURE_MASK_TAP);
-  /* Set Power Mode to Monitor Mode*/
-  status &= touch_write_reg(FT3169_REG_POWER_MODE, FT3169_POWER_MODE_MONITOR);
-  return status;
-}
-
-bool touch_exit_monitor_mode(void) {
-  bool status = true;
-  /* Disable Gesture Mode */
-  status &= touch_write_reg(FT3169_REG_GESTURE_EN, FT3169_GESTURE_DISABLE);
-  /* Clear Gesture Mask */
-  status &= touch_write_reg(FT3169_REG_GESTURE_MASK, FT3169_GESTURE_DISABLE);
-  /* Set Power Mode to Active */
-  status &= touch_write_reg(FT3169_REG_POWER_MODE, FT3169_POWER_MODE_ACTIVE);
   return status;
 }
 
@@ -479,7 +486,7 @@ static void _touch_check_esd(void) {
   if (flow_cnt == _touch_priv.flow_work_cnt_last) {
     if (++_touch_priv.flow_work_hold_cnt >= FT3169_ESD_HOLD_THRESHOLD) {
       _touch_priv.flow_work_hold_cnt = 0;
-      LOGE("FT3169 ESD detected, resetting device");
+      LOGE("ESD reset");
       (void)_touch_reset_device();
     }
   } else {
@@ -494,6 +501,12 @@ void touch_process_esd_check(void) {
   if (_touch_priv.fwup_in_progress) {
     return;
   }
+#ifdef MFGTEST
+  // Skip ESD check when host I2C is suspended (external debugging)
+  if (_touch_priv.host_i2c_suspended) {
+    return;
+  }
+#endif
 
   // Check if at least 1 second has passed since the last ESD check
   uint32_t current_time_ms = rtos_thread_systime();
@@ -511,3 +524,9 @@ void touch_set_fwup_in_progress(bool in_progress) {
 bool touch_get_fwup_in_progress(void) {
   return _touch_priv.fwup_in_progress;
 }
+
+#ifdef MFGTEST
+void touch_set_host_i2c_suspended(bool suspended) {
+  _touch_priv.host_i2c_suspended = suspended;
+}
+#endif

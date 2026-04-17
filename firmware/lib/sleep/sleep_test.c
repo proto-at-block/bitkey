@@ -1,5 +1,6 @@
 #include "assert.h"
 #include "criterion_test_utils.h"
+#include "fff.h"
 #include "sleep.h"
 
 #include <criterion/criterion.h>
@@ -27,6 +28,9 @@ typedef struct {
 } rtos_timer_t;
 
 static rtos_timer_t* g_timer = NULL;
+
+DEFINE_FFF_GLOBALS;
+FAKE_VALUE_FUNC(bool, rtos_in_isr);
 
 void rtos_mutex_create(void* UNUSED(mutex)) {}
 bool rtos_mutex_lock(void* UNUSED(t)) {
@@ -161,15 +165,46 @@ Test(sleep_test, inhibit_restarts_from_current_time, .init = init) {
   uint32_t expected_end = global_time_ms + POWER_TIMEOUT_MS + 30000;
   cr_assert_eq(g_timer->handle.end, expected_end);
 
-  // Original timeout would have been at 60000, but now it's 20000 + 90000 = 110000
-  advance_time_ms(POWER_TIMEOUT_MS - 1);  // At 79999ms
+  // Base timeout would have fired here, but inhibit extends it.
+  advance_time_ms(POWER_TIMEOUT_MS - 1);  // Just before timeout
   cr_assert_eq(power_down_called, false);
 
-  advance_time_ms(30000);  // At 109999ms - still not fired
+  advance_time_ms(30000);  // Still before the extended timeout.
   cr_assert_eq(power_down_called, false);
 
-  advance_time_ms(2);  // At 110001ms - should fire
+  advance_time_ms(2);  // Past the extended timeout - should fire.
   cr_assert(power_down_called);
+}
+
+Test(sleep_test, charger_extension, .init = init) {
+  // Extension without timer running doesn't start it
+  sleep_set_charger_extension(30000);
+  cr_assert_eq(g_timer->handle.active, false);
+  cr_assert_eq(sleep_get_configured_timeout(), POWER_TIMEOUT_MS + 30000);
+
+  // Start timer - uses extended timeout
+  sleep_start_power_timer();
+  cr_assert_eq(g_timer->handle.duration, POWER_TIMEOUT_MS + 30000);
+
+  // Extension stacks with inhibit
+  sleep_inhibit(10000);
+  cr_assert_eq(sleep_get_configured_timeout(), POWER_TIMEOUT_MS + 10000 + 30000);
+  cr_assert_eq(g_timer->handle.duration, POWER_TIMEOUT_MS + 10000 + 30000);
+
+  // Clearing inhibit preserves charger extension
+  sleep_clear_inhibit();
+  cr_assert_eq(sleep_get_configured_timeout(), POWER_TIMEOUT_MS + 30000);
+  cr_assert_eq(g_timer->handle.duration, POWER_TIMEOUT_MS + 30000);
+
+  // Clearing charger extension restores base + inhibit only
+  sleep_set_charger_extension(0);
+  cr_assert_eq(sleep_get_configured_timeout(), POWER_TIMEOUT_MS);
+  cr_assert_eq(g_timer->handle.duration, POWER_TIMEOUT_MS);
+
+  // Stop clears inhibit but not charger extension
+  sleep_set_charger_extension(30000);
+  sleep_stop_power_timer();
+  cr_assert_eq(sleep_get_configured_timeout(), POWER_TIMEOUT_MS + 30000);
 }
 
 Test(sleep_test, inhibit_infinite, .init = init) {

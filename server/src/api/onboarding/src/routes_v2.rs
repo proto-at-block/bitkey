@@ -4,26 +4,26 @@ use account::service::{
     CreateAccountAndKeysetsInput, CreateInactiveSpendingKeysetInput, FetchAccountInput,
     Service as AccountService, UpgradeLiteAccountToFullAccountInput,
 };
-use authn_authz::key_claims::KeyClaims;
 use axum::{
     extract::{Path, State},
     Json,
 };
 use bdk_utils::bdk::{bitcoin::secp256k1::PublicKey, keys::DescriptorPublicKey};
 use errors::{ApiError, RouteError};
+use instrumentation::middleware::HardwareSerialHeader;
 use external_identifier::ExternalIdentifier;
 use http_server::middlewares::identifier_generator::IdentifierGenerator;
 use notification::clients::iterable::IterableClient;
 use recovery::repository::RecoveryRepository;
 use serde::{Deserialize, Serialize};
-use tracing::{error, event, instrument, Level};
+use tracing::{error, instrument};
 use types::account::{
     bitcoin::to_wsm_bitcoin_network,
     entities::{
         v2::{
             FullAccountAuthKeysInputV2, SpendingKeysetInputV2, UpgradeLiteAccountAuthKeysInputV2,
         },
-        Account, Keyset, LiteAccount,
+        Account, HardwareType, Keyset, LiteAccount,
     },
     identifiers::{AccountId, AuthKeysId, KeysetId},
     keys::FullAccountAuthKeys,
@@ -100,6 +100,7 @@ impl TryFrom<&Account> for CreateAccountResponseV2 {
         user_pool_service,
         config,
         iterable_client,
+        request,
     )
 )]
 #[utoipa::path(
@@ -119,8 +120,12 @@ pub async fn create_account_v2(
     State(user_pool_service): State<UserPoolService>,
     State(config): State<Config>,
     State(iterable_client): State<IterableClient>,
+    hw_serial: HardwareSerialHeader,
     Json(request): Json<CreateAccountRequestV2>,
 ) -> Result<Json<CreateAccountResponseV2>, ApiError> {
+    // Block W3 hardware claiming to be W1
+    HardwareType::reject_w3_claiming_w1(hw_serial.as_deref(), request.auth.hardware_type)
+        .map_err(|e| ApiError::GenericForbidden(e.to_string()))?;
     if let Some(v) = AccountValidation::default()
         .validate(
             AccountValidationRequest::from(&request),
@@ -192,11 +197,12 @@ pub async fn create_account_v2(
         keyset_id,
         auth_key_id: auth_key_id.clone(),
         keyset: Keyset {
-            auth: FullAccountAuthKeys {
-                app_pubkey: request.auth.app_pub,
-                hardware_pubkey: request.auth.hardware_pub,
-                recovery_pubkey: Some(request.auth.recovery_pub),
-            },
+            auth: FullAccountAuthKeys::new(
+                request.auth.app_pub,
+                request.auth.hardware_pub,
+                Some(request.auth.recovery_pub),
+                request.auth.hardware_type,
+            ),
             spending: SpendingKeyset::new_private_multi_sig(
                 request.spend.network.into(),
                 request.spend.app_pub,
@@ -274,8 +280,12 @@ pub async fn upgrade_account_v2(
     State(user_pool_service): State<UserPoolService>,
     State(config): State<Config>,
     Path(account_id): Path<AccountId>,
+    hw_serial: HardwareSerialHeader,
     Json(request): Json<UpgradeAccountRequestV2>,
 ) -> Result<Json<CreateKeysetResponseV2>, ApiError> {
+    // Block W3 hardware claiming to be W1
+    HardwareType::reject_w3_claiming_w1(hw_serial.as_deref(), request.auth.hardware_type)
+        .map_err(|e| ApiError::GenericForbidden(e.to_string()))?;
     let existing_account = &account_service
         .fetch_account(FetchAccountInput {
             account_id: &account_id,
@@ -377,16 +387,17 @@ pub async fn upgrade_account_v2(
             key.pub_sig.clone(),
         ),
         auth_key_id: auth_key_id.clone(),
-        auth_keys: FullAccountAuthKeys {
-            app_pubkey: request.auth.app_pub,
-            hardware_pubkey: request.auth.hardware_pub,
-            recovery_pubkey: Some(
+        auth_keys: FullAccountAuthKeys::new(
+            request.auth.app_pub,
+            request.auth.hardware_pub,
+            Some(
                 lite_account
                     .active_auth_keys()
                     .ok_or(RouteError::NoActiveAuthKeys)?
                     .recovery_pubkey,
             ),
-        },
+            request.auth.hardware_type,
+        ),
     };
     let full_account = account_service
         .upgrade_lite_account_to_full_account(input)
@@ -447,21 +458,10 @@ impl TryFrom<&Account> for CreateKeysetResponseV2 {
 )]
 pub async fn create_keyset_v2(
     Path(account_id): Path<AccountId>,
-    key_proof: KeyClaims,
     State(account_service): State<AccountService>,
     State(wsm_client): State<WsmClient>,
     Json(request): Json<SpendingKeysetInputV2>,
 ) -> Result<Json<CreateKeysetResponseV2>, ApiError> {
-    if !(key_proof.hw_signed && key_proof.app_signed) {
-        event!(
-            Level::WARN,
-            "valid signature over access token required by both app and hw auth keys"
-        );
-        return Err(ApiError::GenericForbidden(
-            "valid signature over access token required by both app and hw auth keys".to_string(),
-        ));
-    }
-
     let account = account_service
         .fetch_full_account(FetchAccountInput {
             account_id: &account_id,

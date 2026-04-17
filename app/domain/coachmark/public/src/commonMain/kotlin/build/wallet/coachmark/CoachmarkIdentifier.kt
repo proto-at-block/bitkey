@@ -29,4 +29,13 @@ enum class CoachmarkIdentifier(
     action = Action.ACTION_APP_COACHMARK_VIEWED_BIP_177,
     expiration = 14.days
   ),
+  W3UpgradeCompleteCoachmark(
+    id = "w3_upgrade_complete_coachmark",
+    action = Action.ACTION_APP_COACHMARK_VIEWED_W3_UPGRADE_COMPLETE
+  ),
+  @Deprecated("Feature removed. Kept for DB row compatibility with older app versions.")
+  AddressVerificationEducationCoachmark(
+    id = "address_verification_education_coachmark",
+    action = Action.ACTION_APP_COACHMARK_VIEWED_ADDRESS_VERIFICATION_EDUCATION
+  ),
 }

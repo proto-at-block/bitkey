@@ -14,14 +14,14 @@ use onboarding::routes::CreateAccountRequest;
 use recovery::entities::{RecoveryDestination, RecoveryStatus, RecoveryType};
 use recovery::routes::delay_notify::{AuthenticationKey, RotateAuthenticationKeysRequest};
 use time::{Duration, OffsetDateTime};
-use types::account::bitcoin::Network;
 use types::account::entities::{Factor, FullAccountAuthKeysInput, SpendingKeysetInput};
 use types::account::identifiers::AccountId;
+use types::account::{bitcoin::Network, entities::HardwareType};
 use types::authn_authz::cognito::CognitoUser;
 
 use crate::tests::lib::{
-    create_keypair, create_new_authkeys, create_phone_touchpoint, create_push_touchpoint,
-    generate_delay_and_notify_recovery,
+    create_keypair, create_new_authkeys, create_onboarded_w3_account, create_phone_touchpoint,
+    create_push_touchpoint, generate_delay_and_notify_recovery,
 };
 use crate::tests::{gen_services, requests::axum::TestClient};
 
@@ -51,9 +51,7 @@ use crate::tests::{gen_services, requests::axum::TestClient};
 #[case::rotate_app_with_delay_notify(true, None, None, true, None, StatusCode::OK, true, false)]
 #[case::bad_signature_app_auth(true, None, Some("this_should_fail".to_string()), true, None, StatusCode::BAD_REQUEST, false, false)]
 #[case::bad_signature_recovery_auth(true, None, None, true, Some("this_should_fail".to_string()), StatusCode::BAD_REQUEST, false, false)]
-// For now, we'll only allow you to rotate the application key
-// TODO: Remove this test once we support rotating both keys
-#[case::rotate_both_keys(true, Some(SecretKey::from_str("09d04b6f58117ad43a04f671daf776ff00ca8c97807aea12d432eb500c0e2bde").unwrap()), None, true, None, StatusCode::BAD_REQUEST, false, false)]
+#[case::rotate_both_keys(true, Some(SecretKey::from_str("09d04b6f58117ad43a04f671daf776ff00ca8c97807aea12d432eb500c0e2bde").unwrap()), None, true, None, StatusCode::OK, false, false)]
 #[case::invalid_keyproof_account_id(
     false,
     None,
@@ -94,6 +92,7 @@ async fn test_rotate_authentication_keys(
             } else {
                 None
             },
+            hardware_type: HardwareType::default(),
         },
         spending: SpendingKeysetInput {
             network: network.into(),
@@ -139,6 +138,7 @@ async fn test_rotate_authentication_keys(
                 app_auth_pubkey: dn_keys.app.public_key,
                 hardware_auth_pubkey: dn_keys.hw.public_key,
                 recovery_auth_pubkey: None,
+                hardware_type: HardwareType::default(),
             },
             OffsetDateTime::now_utc() + Duration::days(1),
             recovery::entities::RecoveryStatus::Pending,
@@ -220,6 +220,7 @@ async fn test_rotate_authentication_keys(
                 } else {
                     None
                 },
+                hardware_type: HardwareType::default(),
             },
             &keys,
         )
@@ -254,7 +255,7 @@ async fn test_rotate_authentication_keys(
             .active_auth_keys()
             .expect("Auth keys should be present");
         assert_eq!(auth.app_pubkey, new_auth_app_pubkey);
-        assert_eq!(auth.hardware_pubkey, keys.hw.public_key);
+        assert_eq!(auth.hardware_pubkey, new_auth_hardware_pubkey);
         let recovery_cognito_user_exists = bootstrap
             .services
             .userpool_service
@@ -310,4 +311,108 @@ async fn test_rotate_authentication_keys(
         assert_eq!(auth.recovery_pubkey, Some(keys.recovery.public_key));
         assert_eq!(account.common_fields.touchpoints.len(), 2);
     }
+}
+
+// ---- W3 ActionProof tests for rotate_authentication_keys ----
+
+#[tokio::test]
+async fn w3_rotate_authentication_keys_with_action_proof_succeeds() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+    let secp = Secp256k1::new();
+
+    let (account_id, keys) = create_onboarded_w3_account(&mut context, &client).await;
+
+    // Create new auth keys via context (so they're registered for association)
+    let new_keys = create_new_authkeys(&mut context);
+
+    // Sign the account ID with each key (keep existing hw key — route requires hw key match)
+    let message = bdk_utils::signature::message_to_digest(account_id.as_ref());
+    let app_signature = secp
+        .sign_ecdsa(&message, &new_keys.app.secret_key)
+        .to_string();
+    let hw_signature = secp.sign_ecdsa(&message, &keys.hw.secret_key).to_string();
+    let recovery_signature = secp
+        .sign_ecdsa(&message, &new_keys.recovery.secret_key)
+        .to_string();
+
+    let response = client
+        .rotate_authentication_keys_with_action_proof(
+            &mut context,
+            &account_id,
+            &RotateAuthenticationKeysRequest {
+                application: AuthenticationKey {
+                    key: new_keys.app.public_key,
+                    signature: app_signature,
+                },
+                hardware: AuthenticationKey {
+                    key: keys.hw.public_key,
+                    signature: hw_signature,
+                },
+                recovery: Some(AuthenticationKey {
+                    key: new_keys.recovery.public_key,
+                    signature: recovery_signature,
+                }),
+                hardware_type: HardwareType::default(),
+            },
+            &keys,
+            true,
+            true,
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "W3 rotate_authentication_keys with ActionProof should succeed: {}",
+        response.body_string
+    );
+}
+
+#[tokio::test]
+async fn w3_rotate_authentication_keys_rejects_keyclaims() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+    let secp = Secp256k1::new();
+
+    let (account_id, keys) = create_onboarded_w3_account(&mut context, &client).await;
+
+    let new_keys = create_new_authkeys(&mut context);
+
+    let message = bdk_utils::signature::message_to_digest(account_id.as_ref());
+    let app_signature = secp
+        .sign_ecdsa(&message, &new_keys.app.secret_key)
+        .to_string();
+    let hw_signature = secp.sign_ecdsa(&message, &keys.hw.secret_key).to_string();
+    let recovery_signature = secp
+        .sign_ecdsa(&message, &new_keys.recovery.secret_key)
+        .to_string();
+
+    // KeyClaims should be rejected for W3
+    let response = client
+        .rotate_authentication_keys(
+            &mut context,
+            &account_id,
+            &RotateAuthenticationKeysRequest {
+                application: AuthenticationKey {
+                    key: new_keys.app.public_key,
+                    signature: app_signature,
+                },
+                hardware: AuthenticationKey {
+                    key: keys.hw.public_key,
+                    signature: hw_signature,
+                },
+                recovery: Some(AuthenticationKey {
+                    key: new_keys.recovery.public_key,
+                    signature: recovery_signature,
+                }),
+                hardware_type: HardwareType::default(),
+            },
+            &keys,
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::FORBIDDEN,
+        "W3 rotate_authentication_keys with KeyClaims should be rejected"
+    );
 }

@@ -43,6 +43,14 @@ annotation class Impl
 annotation class Fake
 
 /**
+ * Qualifier for W1 hardware-specific implementations.
+ * Used when providing W1-specific fake hardware behavior (key store, spending wallet).
+ */
+@Qualifier
+@Target(CLASS, PROPERTY_GETTER, FUNCTION, VALUE_PARAMETER, TYPE)
+annotation class W1
+
+/**
  * Qualifier for W3 hardware-specific implementations.
  * Used when providing W3-specific behavior that differs from the default W1 implementation.
  */

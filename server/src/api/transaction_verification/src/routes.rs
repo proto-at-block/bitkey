@@ -21,7 +21,7 @@ use crate::{
 use account::service::{
     tests::default_electrum_rpc_uris, FetchAccountInput, Service as AccountService,
 };
-use authn_authz::key_claims::KeyClaims;
+use authn_authz::{Authorization, AuthorizationRequirements};
 use bdk_utils::{bdk::bitcoin::psbt::Psbt, generate_electrum_rpc_uris, DescriptorKeyset};
 use errors::ApiError;
 use exchange_rate::{
@@ -36,7 +36,7 @@ use http_server::{
 };
 use privileged_action::service::{
     authorize_privileged_action::{
-        AuthorizationContext, AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
+        AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
         PrivilegedActionRequestValidatorBuilder,
     },
     Service as PrivilegedActionService,
@@ -88,6 +88,7 @@ pub struct RouteState(
     pub TransactionVerificationService,
     pub ExchangeRateService,
     pub PrivilegedActionService,
+    pub repository::anti_replay::AntiReplayRepository,
 );
 
 impl RouterBuilder for RouteState {
@@ -214,82 +215,90 @@ pub struct PutTransactionVerificationPolicyResponse {}
         (status = 404, description = "Account could not be found")
     ),
 )]
-#[instrument(skip(account_service, privileged_action_service))]
+#[instrument(skip(account_service, privileged_action_service, anti_replay_repository, auth, request))]
 async fn put_transaction_verification_policy(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
     State(privileged_action_service): State<PrivilegedActionService>,
-    key_proof: KeyClaims,
+    State(anti_replay_repository): State<repository::anti_replay::AntiReplayRepository>,
+    auth: Authorization,
     Json(request): Json<PutTransactionVerificationPolicyRequest>,
 ) -> Result<Json<PrivilegedActionResponse<PutTransactionVerificationPolicyResponse>>, ApiError> {
-    let policy = TransactionVerificationPolicy::from(request.policy.clone());
-    let account = account_service
-        .fetch_full_account(FetchAccountInput {
-            account_id: &account_id,
+    // No route-level signature requirement — for policy tightening, JWT alone is sufficient.
+    // For policy loosening the full both-factors check is enforced inside the validator closure.
+    let result = AuthorizationRequirements::keyclaims_only()
+        .proof(authn_authz::ProofRequirement::JwtOnly)
+        .execute(&auth, &anti_replay_repository, |ctx| async move {
+            let policy = TransactionVerificationPolicy::from(request.policy.clone());
+            let account = account_service
+                .fetch_full_account(FetchAccountInput {
+                    account_id: &account_id,
+                })
+                .await?;
+
+            let get_threshold_amount = |policy: &TransactionVerificationPolicy| match policy {
+                TransactionVerificationPolicy::Always => 0,
+                TransactionVerificationPolicy::Threshold(v) => v.amount,
+                TransactionVerificationPolicy::Never => u64::MAX,
+            };
+
+            let current_threshold = account
+                .transaction_verification_policy
+                .as_ref()
+                .map(get_threshold_amount)
+                .unwrap_or(u64::MAX);
+            let new_threshold = get_threshold_amount(&policy);
+
+            // Requires out-of-band if we're making verification LESS restrictive (increasing threshold)
+            if new_threshold > current_threshold {
+                let is_app_signed = ctx.app_signed();
+                let is_hw_signed = ctx.hw_signed();
+                let authorize_result = privileged_action_service
+                    .authorize_privileged_action(AuthorizePrivilegedActionInput {
+                        account_id: &account_id,
+                        privileged_action_definition:
+                            &PrivilegedActionType::LoosenTransactionVerificationPolicy.into(),
+                        privileged_action_request: &PrivilegedActionRequest::Initiate(request),
+                        request_validator: PrivilegedActionRequestValidatorBuilder::default()
+                        .on_initiate_out_of_band(Box::new(
+                            move |_| {
+                                Box::pin(async move {
+                                    if !(is_hw_signed && is_app_signed) {
+                                        event!(
+                                            Level::WARN,
+                                            "valid signature over access token required by both app and hw auth keys"
+                                        );
+                                        return Err(ApiError::GenericForbidden(
+                                            "valid signature over access token required by both app and hw auth keys".to_string(),
+                                        ));
+                                    }
+                                    Ok::<(), ApiError>(())
+                                })
+                            },
+                        ))
+                        .build()?,
+                    })
+                    .await?;
+
+                // For policy loosening, we expect this to always return Pending (requiring out-of-band)
+                if let AuthorizePrivilegedActionOutput::Pending(response) = authorize_result {
+                    return Ok(response);
+                }
+                return Err(ApiError::GenericInternalApplicationError(
+                    "Policy loosening should require privileged action authorization".to_string(),
+                ));
+            }
+
+            account_service
+                .put_transaction_verification_policy(&account_id, policy)
+                .await?;
+            Ok::<_, ApiError>(PrivilegedActionResponse::Completed(
+                PutTransactionVerificationPolicyResponse {},
+            ))
         })
         .await?;
 
-    let get_threshold_amount = |policy: &TransactionVerificationPolicy| match policy {
-        TransactionVerificationPolicy::Always => 0,
-        TransactionVerificationPolicy::Threshold(v) => v.amount,
-        TransactionVerificationPolicy::Never => u64::MAX,
-    };
-
-    let current_threshold = account
-        .transaction_verification_policy
-        .as_ref()
-        .map(get_threshold_amount)
-        .unwrap_or(u64::MAX);
-    let new_threshold = get_threshold_amount(&policy);
-
-    // Requires out-of-band if we're making verification LESS restrictive (increasing threshold)
-    if new_threshold > current_threshold {
-        let is_app_signed = key_proof.app_signed;
-        let is_hw_signed = key_proof.hw_signed;
-        let authorize_result = privileged_action_service
-            .authorize_privileged_action(AuthorizePrivilegedActionInput {
-                account_id: &account_id,
-                privileged_action_definition:
-                    &PrivilegedActionType::LoosenTransactionVerificationPolicy.into(),
-                authorization: AuthorizationContext::Standard,
-                privileged_action_request: &PrivilegedActionRequest::Initiate(request),
-                validation_context: None,
-                request_validator: PrivilegedActionRequestValidatorBuilder::default()
-                .on_initiate_out_of_band(Box::new(
-                    move |_| {
-                        Box::pin(async move {
-                            if !(is_hw_signed && is_app_signed) {
-                                event!(
-                                    Level::WARN,
-                                    "valid signature over access token required by both app and hw auth keys"
-                                );
-                                return Err(ApiError::GenericForbidden(
-                                    "valid signature over access token required by both app and hw auth keys".to_string(),
-                                ));
-                            }
-                            Ok::<(), ApiError>(())
-                        })
-                    },
-                ))
-                .build()?,
-            })
-            .await?;
-
-        // For policy loosening, we expect this to always return Pending (requiring out-of-band)
-        if let AuthorizePrivilegedActionOutput::Pending(response) = authorize_result {
-            return Ok(Json(response));
-        }
-        return Err(ApiError::GenericInternalApplicationError(
-            "Policy loosening should require privileged action authorization".to_string(),
-        ));
-    }
-
-    account_service
-        .put_transaction_verification_policy(&account_id, policy)
-        .await?;
-    Ok(Json(PrivilegedActionResponse::Completed(
-        PutTransactionVerificationPolicyResponse {},
-    )))
+    Ok(Json(result))
 }
 
 #[instrument(skip(transaction_verification_service), fields(account_id = %account_id))]
@@ -356,7 +365,8 @@ pub struct InitiateTransactionVerificationRequest {
         account_service,
         feature_flags_service,
         transaction_verification_service,
-        experimentation_claims
+        experimentation_claims,
+        request
     ),
     fields(account_id = %account_id)
 )]

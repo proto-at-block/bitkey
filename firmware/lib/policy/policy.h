@@ -1,6 +1,7 @@
 #pragma once
 
 #include "bip32.h"
+#include "secutils.h"
 
 #include <stdint.h>
 
@@ -15,15 +16,15 @@ typedef derivation_path_t* (*policy_fetch_path_cb_t)(void);
 typedef struct {
   policy_fetch_path_cb_t fetch_path_cb;
   // Are we enforcing policies?
-  bool enabled;
+  secure_bool_t enabled;
   // Has the server presented a grant which allows us to sign
   // bitcoin transactions?
-  bool grant_presented;
+  secure_bool_t grant_presented;
 } policy_ctx_t;
 
 // Initialize the policy module with the provided callback function.
 // Necessary to break a potential circular dependency between bip32, wallet, policy, and key cache.
-void policy_init(policy_fetch_path_cb_t fetch_path_cb, bool enabled);
+void policy_init(policy_fetch_path_cb_t fetch_path_cb, secure_bool_t enabled);
 
 // Enforce signing policies.
 // CRITICAL:

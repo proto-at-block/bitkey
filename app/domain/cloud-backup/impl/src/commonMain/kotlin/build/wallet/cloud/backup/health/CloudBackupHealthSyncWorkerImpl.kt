@@ -56,6 +56,6 @@ class CloudBackupHealthSyncWorkerImpl(
     }
 
     logInfo { "CloudBackupHealthSyncWorker: executing health check" }
-    cloudBackupHealthRepository.performSync(account)
+    cloudBackupHealthRepository.performSync(account.accountId, account.keybox)
   }
 }

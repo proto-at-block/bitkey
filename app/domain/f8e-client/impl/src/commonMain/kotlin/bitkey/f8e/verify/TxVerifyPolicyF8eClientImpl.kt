@@ -12,9 +12,9 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.applyTo
 import build.wallet.f8e.client.plugins.withAccountId
 import build.wallet.f8e.client.plugins.withEnvironment
-import build.wallet.f8e.client.plugins.withHardwareFactor
 import build.wallet.f8e.logging.withDescription
 import build.wallet.f8e.money.MoneyDTO
 import build.wallet.ktor.result.RedactedRequestBody
@@ -52,7 +52,7 @@ class TxVerifyPolicyF8eClientImpl(
     return f8eHttpClient.authenticated()
       .bodyResult<SetPolicyResponse> {
         put("/api/accounts/${fullAccountId.serverId}/tx-verify/policy") {
-          withHardwareFactor(request.hwFactorProofOfPossession)
+          request.proof.applyTo(this)
           withDescription("Set Tx Verification Policy")
           withEnvironment(f8eEnvironment)
           withAccountId(fullAccountId)

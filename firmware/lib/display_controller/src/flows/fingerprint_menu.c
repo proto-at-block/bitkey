@@ -5,29 +5,75 @@
 #include <stdio.h>
 #include <string.h>
 
-// Helper function to update screen parameters
+// Map visual position to raw slot index. Enrolled slots appear first, then empty.
+static uint8_t visual_to_slot(const bool enrolled[FINGERPRINT_SLOT_COUNT], uint8_t visual) {
+  uint8_t pos = 0;
+  for (uint8_t s = 0; s < FINGERPRINT_SLOT_COUNT; s++) {
+    if (enrolled[s]) {
+      if (pos == visual)
+        return s;
+      pos++;
+    }
+  }
+  for (uint8_t s = 0; s < FINGERPRINT_SLOT_COUNT; s++) {
+    if (!enrolled[s]) {
+      if (pos == visual)
+        return s;
+      pos++;
+    }
+  }
+  return visual;
+}
+
+// Map raw slot index to visual position.
+static uint8_t slot_to_visual(const bool enrolled[FINGERPRINT_SLOT_COUNT], uint8_t slot) {
+  if (slot >= FINGERPRINT_SLOT_COUNT) {
+    return slot;
+  }
+  uint8_t visual = 0;
+  if (enrolled[slot]) {
+    for (uint8_t s = 0; s < slot; s++) {
+      if (enrolled[s])
+        visual++;
+    }
+  } else {
+    for (uint8_t s = 0; s < FINGERPRINT_SLOT_COUNT; s++) {
+      if (enrolled[s])
+        visual++;
+    }
+    for (uint8_t s = 0; s < slot; s++) {
+      if (!enrolled[s])
+        visual++;
+    }
+  }
+  return visual;
+}
+
+// Reorders fingerprints so enrolled slots come first, followed by empty slots.
 static void update_screen_params(display_controller_t* controller) {
-  // Copy enrolled array and labels
   controller->show_screen.params.menu_fingerprints.enrolled_count =
     ARRAY_SIZE(controller->fingerprint_enrolled);
-  memcpy(controller->show_screen.params.menu_fingerprints.enrolled,
-         controller->fingerprint_enrolled, sizeof(controller->fingerprint_enrolled));
-
   controller->show_screen.params.menu_fingerprints.labels_count =
     ARRAY_SIZE(controller->fingerprint_labels);
-  for (size_t i = 0; i < ARRAY_SIZE(controller->fingerprint_labels); i++) {
-    strncpy(controller->show_screen.params.menu_fingerprints.labels[i],
-            controller->fingerprint_labels[i],
-            sizeof(controller->show_screen.params.menu_fingerprints.labels[i]) - 1);
+
+  for (uint8_t v = 0; v < ARRAY_SIZE(controller->fingerprint_enrolled); v++) {
+    uint8_t slot = visual_to_slot(controller->fingerprint_enrolled, v);
+    controller->show_screen.params.menu_fingerprints.enrolled[v] =
+      controller->fingerprint_enrolled[slot];
+    strncpy(controller->show_screen.params.menu_fingerprints.labels[v],
+            controller->fingerprint_labels[slot],
+            sizeof(controller->show_screen.params.menu_fingerprints.labels[v]) - 1);
     controller->show_screen.params.menu_fingerprints
-      .labels[i][sizeof(controller->show_screen.params.menu_fingerprints.labels[i]) - 1] = '\0';
+      .labels[v][sizeof(controller->show_screen.params.menu_fingerprints.labels[v]) - 1] = '\0';
   }
 
-  // Set authentication animation trigger (like bounce)
   controller->show_screen.params.menu_fingerprints.show_authenticated =
     controller->nav.fingerprint_menu.show_authenticated;
   controller->show_screen.params.menu_fingerprints.authenticated_index =
-    controller->nav.fingerprint_menu.authenticated_index;
+    controller->nav.fingerprint_menu.show_authenticated
+      ? slot_to_visual(controller->fingerprint_enrolled,
+                       controller->nav.fingerprint_menu.authenticated_index)
+      : controller->nav.fingerprint_menu.authenticated_index;
 }
 
 void display_controller_fingerprint_menu_on_enter(display_controller_t* controller,
@@ -36,18 +82,21 @@ void display_controller_fingerprint_menu_on_enter(display_controller_t* controll
 
   controller->nav.fingerprint_menu.show_authenticated = false;
 
+  display_controller_query_fingerprint_status();
+
   // If coming from menu (depth==1), always start at first fingerprint slot.
   // Otherwise (depth > 1, returning from enrollment), keep the restored value from nav_stack.
   if (controller->nav_stack_depth == 1) {
     controller->nav.fingerprint_menu.selected_item = 0;
   }
 
-  // Set up screen params for fingerprints menu
   update_screen_params(controller);
 
-  // Pass selected item to screen for scroll restoration
   controller->show_screen.params.menu_fingerprints.initial_slot =
-    controller->nav.fingerprint_menu.selected_item;
+    (controller->nav_stack_depth == 1)
+      ? 0
+      : slot_to_visual(controller->fingerprint_enrolled,
+                       controller->nav.fingerprint_menu.selected_item);
 
   controller->show_screen.which_params = fwpb_display_show_screen_menu_fingerprints_tag;
 }
@@ -64,23 +113,27 @@ flow_action_result_t display_controller_fingerprint_menu_on_tick(display_control
 flow_action_result_t display_controller_fingerprint_menu_on_event(display_controller_t* controller,
                                                                   ui_event_type_t event,
                                                                   const void* data, uint32_t len) {
-  (void)data;
-  (void)len;
-
-  if (event == UI_EVENT_FINGERPRINT_DELETED) {
-    // Fingerprint successfully deleted - query fresh enrollment status
+  if (event == UI_EVENT_FINGERPRINT_DELETED || event == UI_EVENT_FINGERPRINT_DELETE_FAILED) {
     display_controller_query_fingerprint_status();
     return flow_result_handled();
   } else if (event == UI_EVENT_FINGERPRINT_STATUS) {
-    // Enrollment status updated - refresh screen with new data
     controller->nav.fingerprint_menu.show_authenticated = false;
     update_screen_params(controller);
     display_controller_show_screen(controller, fwpb_display_show_screen_menu_fingerprints_tag,
                                    fwpb_display_transition_DISPLAY_TRANSITION_NONE,
                                    TRANSITION_DURATION_NONE);
     return flow_result_handled();
-  } else if (event == UI_EVENT_FINGERPRINT_DELETE_FAILED) {
-    // Silent failure - just stay in current state
+  } else if (event == UI_EVENT_AUTH_SUCCESS && data && len == sizeof(fingerprint_auth_data_t)) {
+    const fingerprint_auth_data_t* auth_data = (const fingerprint_auth_data_t*)data;
+    if (auth_data->template_index < FINGERPRINT_SLOT_COUNT) {
+      controller->nav.fingerprint_menu.authenticated_index = auth_data->template_index;
+      controller->nav.fingerprint_menu.show_authenticated = true;
+      update_screen_params(controller);
+      display_controller_show_screen(controller, fwpb_display_show_screen_menu_fingerprints_tag,
+                                     fwpb_display_transition_DISPLAY_TRANSITION_NONE,
+                                     TRANSITION_DURATION_NONE);
+      controller->nav.fingerprint_menu.show_authenticated = false;
+    }
     return flow_result_handled();
   }
 
@@ -90,33 +143,31 @@ flow_action_result_t display_controller_fingerprint_menu_on_event(display_contro
 flow_action_result_t display_controller_fingerprint_menu_on_action(
   display_controller_t* controller, fwpb_display_action_display_action_type action, uint32_t data) {
   if (action == fwpb_display_action_display_action_type_DISPLAY_ACTION_BACK) {
-    // Back button (top_back widget) - return to caller (MENU)
     return flow_result_exit_with_transition(fwpb_display_transition_DISPLAY_TRANSITION_FADE,
                                             TRANSITION_DURATION_STANDARD);
   } else if (action == fwpb_display_action_display_action_type_DISPLAY_ACTION_EXIT) {
-    // data contains fingerprint slot index (0-2)
-    uint8_t index = (uint8_t)data;
+    uint8_t visual_index = (uint8_t)data;
 
-    if (index < 3) {
-      // Save selection before navigation
-      controller->nav.fingerprint_menu.selected_item = index;
+    if (visual_index < FINGERPRINT_SLOT_COUNT) {
+      uint8_t slot_index = visual_to_slot(controller->fingerprint_enrolled, visual_index);
+      controller->nav.fingerprint_menu.selected_item = slot_index;
 
-      // Fingerprint slot selected
-      if (controller->fingerprint_enrolled[index]) {
-        // Enrolled slot - screen will handle showing modal for deletion
-        // Single-fingerprint protection is handled at screen layer
+      if (controller->fingerprint_enrolled[slot_index]) {
+        // Enrolled slot - screen layer handles showing deletion modal
         return flow_result_handled();
       } else {
-        // Empty slot - start enrollment
-        controller->nav.fingerprint.slot_index = index;
+        controller->nav.fingerprint.slot_index = slot_index;
+        controller->fingerprint_enrollment_is_required = false;
         return flow_result_navigate(FLOW_FINGERPRINT_MGMT,
                                     fwpb_display_transition_DISPLAY_TRANSITION_FADE);
       }
     }
   } else if (action == fwpb_display_action_display_action_type_DISPLAY_ACTION_DELETE_FINGERPRINT) {
-    // User confirmed deletion via hold_cancel modal - trigger actual deletion
-    uint8_t fingerprint_index = (uint8_t)data;
-    display_controller_handle_action_delete_fingerprint(fingerprint_index);
+    uint8_t visual_index = (uint8_t)data;
+    if (visual_index < FINGERPRINT_SLOT_COUNT) {
+      uint8_t slot_index = visual_to_slot(controller->fingerprint_enrolled, visual_index);
+      display_controller_handle_action_delete_fingerprint(slot_index);
+    }
     return flow_result_handled();
   }
 

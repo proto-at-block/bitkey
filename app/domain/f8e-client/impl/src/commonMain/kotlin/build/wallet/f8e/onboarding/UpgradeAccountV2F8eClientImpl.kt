@@ -1,5 +1,6 @@
 package build.wallet.f8e.onboarding
 
+import bitkey.account.HardwareType
 import bitkey.auth.AuthTokenScope
 import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.code.CreateAccountClientErrorCode
@@ -64,7 +65,8 @@ class UpgradeAccountV2F8eClientImpl(
             RequestBody(
               auth = AuthKeys(
                 app = keyCrossDraft.appKeyBundle.authKey.value,
-                hardware = keyCrossDraft.hardwareKeyBundle.authKey.pubKey.value
+                hardware = keyCrossDraft.hardwareKeyBundle.authKey.pubKey.value,
+                hardwareType = keyCrossDraft.config.hardwareType
               ),
               spend = SpendingKeys(
                 app = appSpendingPubKey,
@@ -131,6 +133,8 @@ class UpgradeAccountV2F8eClientImpl(
     /** The hardware auth key. */
     @SerialName("hardware_pub")
     val hardware: String,
+    @SerialName("hardware_type")
+    val hardwareType: HardwareType,
   )
 
   @Serializable

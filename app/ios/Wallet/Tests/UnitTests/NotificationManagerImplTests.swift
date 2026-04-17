@@ -136,6 +136,20 @@ class NotificationManagerImplTests: XCTestCase {
         XCTAssertEqual(deviceTokenProvider.deviceToken, decodedDeviceToken)
     }
 
+    func test_didRegisterForRemoteNotificationsWithDeviceToken_skipsWhenAlreadyInProgress() {
+        let mgr = manager
+        deviceTokenManager.addCallExpectation = expectation(description: "token manager called")
+
+        // First call — launches the task
+        mgr.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
+        // Second call — should be skipped because the first task is still in flight
+        mgr.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
+
+        waitForExpectations(timeout: 10)
+
+        XCTAssertEqual(deviceTokenManager.addDeviceTokenIfActiveAccountCalls.count, 1)
+    }
+
     func test_didRegisterForRemoteNotificationsWithDeviceToken_deviceTokenProviderFailsOnError() {
         deviceTokenManager.addCallExpectation = expectation(description: "token manager failed")
         deviceTokenManager

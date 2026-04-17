@@ -39,7 +39,7 @@ void mpu_print_map(void) {
   _printf_formatted_mpu(7, "(A) boot", app_a_boot_start, app_a_boot_start + app_a_boot_size,
                         app_a_boot_size);
   _printf_formatted_mpu(8, "(A) signature", app_a_sig_start, app_a_sig_start + app_a_sig_size,
-                        app_b_sig_size);
+                        app_a_sig_size);
   _printf_formatted_mpu(9, "(B) metadata", app_b_meta_start, app_b_meta_start + app_b_meta_size,
                         app_b_meta_size);
   _printf_formatted_mpu(10, "(B) properties", app_b_prop_start, app_b_prop_start + app_b_prop_size,

@@ -5,6 +5,11 @@
 {% for hdr in proto_headers %}
 #include "{{hdr}}"
 {% endfor %}
+{% if includes is defined %}
+{% for inc in includes %}
+#include "{{inc}}"
+{% endfor %}
+{% endif %}
 #include <stdint.h>
 
 typedef uint32_t ipc_port_t;

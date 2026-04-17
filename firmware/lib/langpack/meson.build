@@ -23,6 +23,10 @@ endforeach
 langpack_gen = custom_target('langpack-generate',
   input : input_files,
   output : generated_files,
+  depend_files : [
+    'inc/langpack_ids.h',
+    'resources/build.py',
+  ],
   command : [
     python,
     meson.current_source_dir() + '/resources/build.py',

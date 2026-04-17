@@ -9,26 +9,22 @@ import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScree
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.*
 import build.wallet.availability.AppFunctionalityStatus.FullFunctionality
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
-import build.wallet.integration.statemachine.recovery.cloud.screenDecideIfShouldRotate
 import build.wallet.money.BitcoinMoney.Companion.sats
-import build.wallet.statemachine.account.AccountAccessMoreOptionsFormBodyModel
-import build.wallet.statemachine.account.ChooseAccountAccessModel
+import build.wallet.feature.setFlagValue
+import build.wallet.statemachine.account.create.full.hardware.CompleteTwoTapBodyModel
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
 import build.wallet.statemachine.cloud.CloudSignInModelFake
 import build.wallet.statemachine.cloud.SaveBackupInstructionsBodyModel
+import bitkey.account.HardwareType
+import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
-import build.wallet.statemachine.nfc.NfcBodyModel
-import build.wallet.statemachine.recovery.cloud.CloudBackupFoundModel
-import build.wallet.statemachine.recovery.cloud.RotateAuthKeyScreens
-import build.wallet.statemachine.recovery.cloud.RotateAuthKeyScreens.DeactivateDevicesAfterRestoreChoice
+import build.wallet.statemachine.nfc.PromptSelectionFormBodyModel
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationScreenModel
 import build.wallet.statemachine.recovery.hardware.initiating.HardwareReplacementInstructionsModel
 import build.wallet.statemachine.recovery.hardware.initiating.NewDeviceReadyQuestionBodyModel
 import build.wallet.statemachine.recovery.inprogress.DelayAndNotifyNewKeyReady
-import build.wallet.statemachine.recovery.inprogress.waiting.HardwareDelayNotifyInProgressScreenModel
-import build.wallet.statemachine.recovery.sweep.SweepFundsPromptBodyModel
-import build.wallet.statemachine.recovery.sweep.SweepSuccessScreenBodyModel
 import build.wallet.statemachine.recovery.sweep.ZeroBalancePromptBodyModel
 import build.wallet.statemachine.settings.full.device.DeviceSettingsFormBodyModel
 import build.wallet.statemachine.ui.awaitUntilBody
@@ -36,10 +32,10 @@ import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.robots.awaitLoadingScreen
 import build.wallet.statemachine.ui.robots.clickBitkeyDevice
-import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchLegacyWalletApp
 import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.integration.statemachine.recovery.socrec.awaitW3ConfirmableNfcSession
 import build.wallet.testing.ext.*
 import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.status.BannerStyle
@@ -118,596 +114,6 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     app.verifyPostRecoveryState()
   }
 
-  testForLegacyAndPrivateWallet(
-    "recovery lost hardware - force exiting before cloud backup takes you back to icloud backup"
-  ) { initialApp ->
-    var app = initialApp
-    app.prepareApp()
-
-    app.appUiStateMachine.test(
-      props = Unit,
-      testTimeout = 20.seconds,
-      turbineTimeout = 60.seconds
-    ) {
-      startRecoveryAndAdvanceToDelayNotify(app)
-
-      // Complete recovery
-      awaitUntilBody<DelayAndNotifyNewKeyReady>()
-        .onCompleteRecovery()
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
-      awaitUntilBody<SaveBackupInstructionsBodyModel>()
-    }
-
-    // Force exit app while on cloud backup step
-    app = app.relaunchApp()
-
-    app.appUiStateMachine.test(
-      props = Unit,
-      testTimeout = 20.seconds,
-      turbineTimeout = 60.seconds
-    ) {
-      // Resume on cloud backup step and complete recovery
-      awaitUntilBody<SaveBackupInstructionsBodyModel>()
-        .onBackupClick()
-      awaitUntilBody<CloudSignInModelFake>()
-        .signInSuccess(CloudStoreAccount1Fake)
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
-      awaitUntilBody<ZeroBalancePromptBodyModel>()
-        .onDone()
-
-      awaitUntilBody<MoneyHomeBodyModel>()
-      app.awaitNoActiveRecovery()
-
-      cancelAndIgnoreRemainingEvents()
-    }
-
-    app.verifyPostRecoveryState()
-  }
-
-  testForLegacyAndPrivateWallet("recovery lost hardware - force exiting in the middle of initiation") { initialApp ->
-    var app = initialApp
-    app.prepareApp()
-
-    app.appUiStateMachine.test(
-      props = Unit,
-      testTimeout = 20.seconds,
-      turbineTimeout = 60.seconds
-    ) {
-      // Initiate recovery
-      awaitUntilBody<MoneyHomeBodyModel>()
-        .onSecurityHubTabClick()
-      awaitUntilBody<SecurityHubBodyModel>()
-        .clickBitkeyDevice()
-      awaitUntilBody<DeviceSettingsFormBodyModel>()
-        .onReplaceDevice()
-      awaitUntilBody<HardwareReplacementInstructionsModel>()
-        .onContinue()
-      awaitUntilBody<NewDeviceReadyQuestionBodyModel>()
-        .clickPrimaryButton()
-      awaitUntilBody<PairNewHardwareBodyModel>(HW_ACTIVATION_INSTRUCTIONS)
-        .clickPrimaryButton()
-      awaitUntilBody<PairNewHardwareBodyModel>(HW_PAIR_INSTRUCTIONS)
-        .clickPrimaryButton()
-      awaitUntilBody<PairNewHardwareBodyModel>(HW_SAVE_FINGERPRINT_INSTRUCTIONS)
-        .clickPrimaryButton()
-      // Initiating NFC
-      awaitUntilBody<NfcBodyModel>()
-      // Detected NFC
-      awaitUntilBody<NfcBodyModel>()
-      // Success NFC
-      awaitUntilBody<NfcBodyModel>()
-
-      cancelAndIgnoreRemainingEvents()
-    }
-
-    app = app.relaunchApp()
-
-    app.appUiStateMachine.test(
-      props = Unit,
-      testTimeout = 20.seconds,
-      turbineTimeout = 60.seconds
-    ) {
-      // No recovery started, start over
-      app.awaitNoActiveRecovery()
-      startRecoveryAndAdvanceToDelayNotify(app)
-
-      // Complete recovery
-      awaitUntilBody<DelayAndNotifyNewKeyReady>()
-        .onCompleteRecovery()
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
-      awaitUntilBody<SaveBackupInstructionsBodyModel>()
-        .onBackupClick()
-      awaitUntilBody<CloudSignInModelFake>()
-        .signInSuccess(CloudStoreAccount1Fake)
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
-      awaitUntilBody<ZeroBalancePromptBodyModel>()
-        .onDone()
-
-      awaitUntilBody<SecurityHubBodyModel>()
-      app.awaitNoActiveRecovery()
-
-      cancelAndIgnoreRemainingEvents()
-    }
-
-    app.verifyPostRecoveryState()
-  }
-
-  testForLegacyAndPrivateWallet(
-    "recovery lost hardware - force exiting after spend key gen and before activating takes you back to activating"
-  ) { initialApp ->
-    var app = initialApp
-    app.prepareApp()
-
-    app.appUiStateMachine.test(
-      props = Unit,
-      testTimeout = 20.seconds,
-      turbineTimeout = 60.seconds
-    ) {
-      startRecoveryAndAdvanceToDelayNotify(app)
-
-      // Complete recovery
-      awaitUntilBody<DelayAndNotifyNewKeyReady>()
-        .onCompleteRecovery()
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ACTIVATING_SPENDING_KEYS)
-      cancelAndIgnoreRemainingEvents()
-    }
-
-    app = app.relaunchApp()
-
-    app.appUiStateMachine.test(
-      props = Unit,
-      testTimeout = 20.seconds,
-      turbineTimeout = 60.seconds
-    ) {
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ACTIVATING_SPENDING_KEYS)
-
-      awaitUntilBody<SaveBackupInstructionsBodyModel>()
-        .onBackupClick()
-      awaitUntilBody<CloudSignInModelFake>()
-        .signInSuccess(CloudStoreAccount1Fake)
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
-      awaitUntilBody<ZeroBalancePromptBodyModel>()
-        .onDone()
-
-      awaitUntilBody<MoneyHomeBodyModel>()
-      app.awaitNoActiveRecovery()
-
-      cancelAndIgnoreRemainingEvents()
-    }
-
-    app.verifyPostRecoveryState()
-  }
-
-  testForLegacyAndPrivateWallet(
-    "recovery lost hardware - force exiting after spend key gen and before ddk backup takes you back to DDK Backup"
-  ) { initialApp ->
-    var app = initialApp
-    app.prepareApp()
-
-    app.appUiStateMachine.test(
-      props = Unit,
-      testTimeout = 20.seconds,
-      turbineTimeout = 60.seconds
-    ) {
-      startRecoveryAndAdvanceToDelayNotify(app)
-
-      // Complete recovery
-      awaitUntilBody<DelayAndNotifyNewKeyReady>()
-        .onCompleteRecovery()
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_DDK_UPLOAD)
-      cancelAndIgnoreRemainingEvents()
-    }
-
-    // Force exit app on backup step
-    app = app.relaunchApp()
-
-    app.appUiStateMachine.test(
-      props = Unit,
-      testTimeout = 20.seconds,
-      turbineTimeout = 60.seconds
-    ) {
-      // Resume on backup step and complete recovery
-      awaitUntilBody<SaveBackupInstructionsBodyModel>()
-        .onBackupClick()
-      awaitUntilBody<CloudSignInModelFake>()
-        .signInSuccess(CloudStoreAccount1Fake)
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
-      awaitUntilBody<ZeroBalancePromptBodyModel>()
-        .onDone()
-
-      awaitUntilBody<MoneyHomeBodyModel>()
-      app.awaitNoActiveRecovery()
-
-      cancelAndIgnoreRemainingEvents()
-    }
-
-    app.verifyPostRecoveryState()
-  }
-
-  testForLegacyAndPrivateWallet(
-    "recovery lost hardware - force exiting after ddk tap and before ddk backup takes you back to DDK Backup"
-  ) { initialApp ->
-    var app = initialApp
-    app.prepareApp()
-
-    app.appUiStateMachine.test(
-      props = Unit,
-      testTimeout = 20.seconds,
-      turbineTimeout = 60.seconds
-    ) {
-      startRecoveryAndAdvanceToDelayNotify(app)
-
-      // Complete recovery
-      awaitUntilBody<DelayAndNotifyNewKeyReady>()
-        .onCompleteRecovery()
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_DDK_UPLOAD)
-      // Initiating NFC
-      awaitUntilBody<NfcBodyModel>()
-      // Detected NFC
-      awaitUntilBody<NfcBodyModel>()
-      // Success NFC
-      awaitUntilBody<NfcBodyModel>()
-
-      cancelAndIgnoreRemainingEvents()
-    }
-
-    // Force exit app on backup step
-    app = app.relaunchApp()
-
-    app.appUiStateMachine.test(
-      props = Unit,
-      testTimeout = 20.seconds,
-      turbineTimeout = 60.seconds
-    ) {
-      // Resume on backup step and complete recovery
-      awaitUntilBody<SaveBackupInstructionsBodyModel>()
-        .onBackupClick()
-      awaitUntilBody<CloudSignInModelFake>()
-        .signInSuccess(CloudStoreAccount1Fake)
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
-      awaitUntilBody<ZeroBalancePromptBodyModel>()
-        .onDone()
-
-      awaitUntilBody<MoneyHomeBodyModel>()
-      app.awaitNoActiveRecovery()
-
-      cancelAndIgnoreRemainingEvents()
-    }
-
-    app.verifyPostRecoveryState()
-  }
-
-  testForLegacyAndPrivateWallet(
-    "recovery lost hardware - force exiting after cloud backup & before sweep takes you back to sweep"
-  ) { initialApp ->
-    var app = initialApp
-    app.prepareApp()
-
-    app.appUiStateMachine.test(
-      props = Unit,
-      testTimeout = 20.seconds,
-      turbineTimeout = 60.seconds
-    ) {
-      startRecoveryAndAdvanceToDelayNotify(app)
-
-      awaitUntilBody<DelayAndNotifyNewKeyReady>()
-        .onCompleteRecovery()
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_DDK_UPLOAD)
-      awaitUntilBody<SaveBackupInstructionsBodyModel>()
-        .onBackupClick()
-      awaitUntilBody<CloudSignInModelFake>()
-        .signInSuccess(CloudStoreAccount1Fake)
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
-      cancelAndIgnoreRemainingEvents()
-    }
-
-    // Force exit app on sweep step
-    app = app.relaunchApp()
-
-    app.appUiStateMachine.test(
-      props = Unit,
-      testTimeout = 20.seconds,
-      turbineTimeout = 60.seconds
-    ) {
-      // Resume on sweep step and complete recovery
-      awaitUntilBody<ZeroBalancePromptBodyModel>()
-        .onDone()
-
-      awaitUntilBody<MoneyHomeBodyModel>()
-      app.awaitNoActiveRecovery()
-
-      cancelAndIgnoreRemainingEvents()
-    }
-
-    app.verifyPostRecoveryState()
-  }
-
-  testForLegacyAndPrivateWallet("recovery lost hardware - force exiting during D&N wait") { initialApp ->
-    var app = initialApp
-    // Use longer D&N duration to prevent race condition during app relaunch
-    app.prepareApp(delayNotifyDuration = 5.seconds)
-
-    app.appUiStateMachine.test(
-      props = Unit,
-      testTimeout = 20.seconds,
-      turbineTimeout = 60.seconds
-    ) {
-      // Go to Bitkey device settings
-      awaitUntilBody<MoneyHomeBodyModel>()
-        .onSecurityHubTabClick()
-      awaitUntilBody<SecurityHubBodyModel>()
-        .clickBitkeyDevice()
-      awaitUntilBody<DeviceSettingsFormBodyModel>()
-        .onReplaceDevice()
-
-      // Initiate recovery
-      awaitUntilBody<HardwareReplacementInstructionsModel>()
-        .onContinue()
-      awaitUntilBody<NewDeviceReadyQuestionBodyModel>()
-        .clickPrimaryButton()
-      awaitUntilBody<PairNewHardwareBodyModel>(HW_ACTIVATION_INSTRUCTIONS)
-        .clickPrimaryButton()
-      awaitUntilBody<PairNewHardwareBodyModel>(HW_PAIR_INSTRUCTIONS)
-        .clickPrimaryButton()
-      awaitUntilBody<PairNewHardwareBodyModel>(HW_SAVE_FINGERPRINT_INSTRUCTIONS)
-        .clickPrimaryButton()
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_INITIATION_INITIATING_SERVER_RECOVERY)
-      awaitUntilBody<HardwareDelayNotifyInProgressScreenModel>()
-
-      cancelAndIgnoreRemainingEvents()
-    }
-
-    // Force exit app during wait period
-    app = app.relaunchApp()
-
-    app.appUiStateMachine.test(
-      props = Unit,
-      testTimeout = 20.seconds,
-      turbineTimeout = 60.seconds
-    ) {
-      // Go to Bitkey device settings
-      awaitUntilBody<MoneyHomeBodyModel>()
-        .onSecurityHubTabClick()
-      awaitUntilBody<SecurityHubBodyModel>()
-        .clickBitkeyDevice()
-      awaitUntilBody<DeviceSettingsFormBodyModel>()
-        .onManageReplacement.shouldNotBeNull().invoke()
-
-      // Resume on delay in progress step
-      awaitUntilBody<HardwareDelayNotifyInProgressScreenModel>()
-
-      // Complete recovery
-      awaitUntilBody<DelayAndNotifyNewKeyReady>()
-        .onCompleteRecovery()
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_DDK_UPLOAD)
-      awaitUntilBody<SaveBackupInstructionsBodyModel>()
-        .onBackupClick()
-      awaitUntilBody<CloudSignInModelFake>()
-        .signInSuccess(CloudStoreAccount1Fake)
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
-      awaitUntilBody<ZeroBalancePromptBodyModel>()
-        .onDone()
-
-      awaitUntilBody<SecurityHubBodyModel>()
-      app.awaitNoActiveRecovery()
-
-      cancelAndIgnoreRemainingEvents()
-    }
-
-    app.verifyPostRecoveryState()
-  }
-
-  testForLegacyAndPrivateWallet("recover lost hardware - sweep real funds") { initialApp ->
-    val app = initialApp
-    app.prepareApp()
-    app.addSomeFunds(sats(10_000L))
-
-    app.appUiStateMachine.test(
-      props = Unit,
-      testTimeout = 60.seconds,
-      turbineTimeout = 60.seconds
-    ) {
-      startRecoveryAndAdvanceToDelayNotify(app)
-
-      awaitUntilBody<DelayAndNotifyNewKeyReady>()
-        .onCompleteRecovery()
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_DDK_UPLOAD)
-      awaitUntilBody<SaveBackupInstructionsBodyModel>()
-        .onBackupClick()
-      awaitUntilBody<CloudSignInModelFake>()
-        .signInSuccess(CloudStoreAccount1Fake)
-
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
-      awaitUntilBody<SweepFundsPromptBodyModel>()
-        .onSubmit()
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_BROADCASTING)
-      awaitUntilBody<SweepSuccessScreenBodyModel>()
-        .onDone()
-
-      awaitUntilBody<SecurityHubBodyModel>()
-      app.awaitNoActiveRecovery()
-
-      cancelAndIgnoreRemainingEvents()
-    }
-
-    app.verifyPostRecoveryState()
-    app.waitForFunds()
-    app.returnFundsToTreasury()
-  }
-
-  testForLegacyAndPrivateWallet("can Lost App from Cloud recovery then Lost Hardware recovery with funds") { initialApp ->
-    val app = initialApp
-
-    app.onboardFullAccountWithFakeHardware(
-      cloudStoreAccountForBackup = CloudStoreAccount1Fake
-    )
-
-    // Fund wallet with some funds
-    app.addSomeFunds()
-
-    // Create new blank app, persist cloud backups
-    val newApp = if (app.appMode == AppMode.Private) {
-      launchNewApp(
-        cloudStoreAccountRepository = app.cloudStoreAccountRepository,
-        cloudKeyValueStore = app.cloudKeyValueStore,
-        hardwareSeed = app.fakeHardwareKeyStore.getSeed()
-      )
-    } else {
-      launchLegacyWalletApp(
-        cloudStoreAccountRepository = app.cloudStoreAccountRepository,
-        cloudKeyValueStore = app.cloudKeyValueStore,
-        hardwareSeed = app.fakeHardwareKeyStore.getSeed()
-      )
-    }
-
-    // Lost App recovery from Cloud
-    newApp.appUiStateMachine.test(
-      props = Unit,
-      testTimeout = 60.seconds,
-      turbineTimeout = 60.seconds
-    ) {
-      // Complete cloud recovery
-      awaitUntilBody<ChooseAccountAccessModel>()
-        .clickMoreOptionsButton()
-      awaitUntilBody<AccountAccessMoreOptionsFormBodyModel>()
-        .onRestoreYourWalletClick()
-      awaitUntilBody<CloudSignInModelFake>()
-        .signInSuccess(CloudStoreAccount1Fake)
-      awaitUntilBody<CloudBackupFoundModel>()
-        .onRestore()
-      awaitUntilBody<DeactivateDevicesAfterRestoreChoice>(
-        matching = { it.removeAllOtherDevicesEnabled }
-      ).onRemoveAllOtherDevices()
-      awaitUntilBody<RotateAuthKeyScreens.Confirmation>()
-        .onSelected()
-      newApp.waitForFunds()
-      awaitUntilBody<MoneyHomeBodyModel>()
-      newApp.awaitNoActiveRecovery()
-
-      cancelAndIgnoreRemainingEvents()
-    }
-
-    newApp.verifyPostRecoveryState()
-    newApp.fakeNfcCommands.wipeDevice()
-
-    // Complete Lost Hardware Recovery with D&N
-    newApp.appUiStateMachine.test(
-      props = Unit,
-      testTimeout = 60.seconds,
-      turbineTimeout = 60.seconds
-    ) {
-      startRecoveryAndAdvanceToDelayNotify(app)
-
-      // Complete recovery
-      awaitUntilBody<DelayAndNotifyNewKeyReady>()
-        .onCompleteRecovery()
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
-      awaitUntilBody<SaveBackupInstructionsBodyModel>()
-        .onBackupClick()
-      awaitUntilBody<CloudSignInModelFake>()
-        .signInSuccess(CloudStoreAccount1Fake)
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
-      awaitUntilBody<SweepFundsPromptBodyModel>()
-        .onSubmit()
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_BROADCASTING)
-      awaitUntilBody<SweepSuccessScreenBodyModel>()
-        .onDone()
-
-      awaitUntilBody<SecurityHubBodyModel>()
-      newApp.awaitNoActiveRecovery()
-
-      newApp.waitForFunds()
-      newApp.returnFundsToTreasury()
-
-      cancelAndIgnoreRemainingEvents()
-    }
-    newApp.verifyPostRecoveryState()
-  }
-
-  testForLegacyAndPrivateWallet("can Lost Hardware recovery then Lost App recovery from Cloud with funds") { initialApp ->
-    val app = initialApp
-    app.prepareApp()
-    // Fund wallet with some funds
-    app.addSomeFunds()
-
-    // Complete Lost Hardware Recovery with D&N
-    app.appUiStateMachine.test(
-      props = Unit,
-      testTimeout = 60.seconds,
-      turbineTimeout = 60.seconds
-    ) {
-      startRecoveryAndAdvanceToDelayNotify(app)
-
-      awaitUntilBody<DelayAndNotifyNewKeyReady>()
-        .onCompleteRecovery()
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
-      awaitUntilBody<SaveBackupInstructionsBodyModel>()
-        .onBackupClick()
-      awaitUntilBody<CloudSignInModelFake>()
-        .signInSuccess(CloudStoreAccount1Fake)
-
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
-      awaitUntilBody<SweepFundsPromptBodyModel>()
-        .onSubmit()
-      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_BROADCASTING)
-      awaitUntilBody<SweepSuccessScreenBodyModel>()
-        .onDone()
-
-      awaitUntilBody<SecurityHubBodyModel>()
-      app.awaitNoActiveRecovery()
-
-      app.waitForFunds()
-
-      cancelAndIgnoreRemainingEvents()
-    }
-
-    app.verifyPostRecoveryState()
-    // Create new blank app, persist cloud backups, keep hardware
-    val newApp = if (app.appMode == AppMode.Private) {
-      launchNewApp(
-        cloudStoreAccountRepository = app.cloudStoreAccountRepository,
-        cloudKeyValueStore = app.cloudKeyValueStore,
-        hardwareSeed = app.fakeHardwareKeyStore.getSeed()
-      )
-    } else {
-      launchLegacyWalletApp(
-        cloudStoreAccountRepository = app.cloudStoreAccountRepository,
-        cloudKeyValueStore = app.cloudKeyValueStore,
-        hardwareSeed = app.fakeHardwareKeyStore.getSeed()
-      )
-    }
-
-    // Lost App recovery from Cloud
-    newApp.appUiStateMachine.test(
-      Unit,
-      testTimeout = 60.seconds,
-      turbineTimeout = 60.seconds
-    ) {
-      awaitUntilBody<ChooseAccountAccessModel>()
-        .clickMoreOptionsButton()
-      awaitUntilBody<AccountAccessMoreOptionsFormBodyModel>()
-        .onRestoreYourWalletClick()
-      awaitUntilBody<CloudSignInModelFake>()
-        .signInSuccess(CloudStoreAccount1Fake)
-      awaitUntilBody<CloudBackupFoundModel>()
-        .onRestore()
-      screenDecideIfShouldRotate {
-        clickPrimaryButton()
-      }
-      newApp.waitForFunds()
-      awaitUntilBody<MoneyHomeBodyModel>()
-      newApp.returnFundsToTreasury()
-
-      cancelAndIgnoreRemainingEvents()
-    }
-    newApp.verifyPostRecoveryState()
-  }
-
   testForLegacyAndPrivateWallet("cancel initiated recovery") { initialApp ->
     val app = initialApp
     app.prepareApp()
@@ -739,22 +145,97 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     }
   }
 
-  test("lost hardware recovery refreshes descriptor backups") {
-    val app = launchLegacyWalletApp()
-    app.onboardFullAccountWithFakeHardware(shouldUploadDescriptorBackups = false)
+  // --- W3 Hardware Transition Tests ---
 
-    val accountId = app.getActiveFullAccount().accountId
+  testForRecoveryTransitions(
+    "lost hardware recovery - happy path",
+    transitions = listOf(RecoveryHardwareTransition.W1ToW3, RecoveryHardwareTransition.W3ToW3)
+  ) { transition ->
+    val app = when (transition.appMode) {
+      AppMode.Legacy -> launchLegacyWalletApp()
+      AppMode.Private -> launchNewApp()
+    }
+    app.onboardFullAccountWithFakeHardware(
+      hardwareType = transition.sourceHardwareType
+    )
+    // Wipe the correct hardware type (W3 uses separate fake NFC commands)
+    if (transition.sourceHardwareType == HardwareType.W3) {
+      app.fakeW3NfcCommands.wipeDevice()
+    } else {
+      app.fakeNfcCommands.wipeDevice()
+    }
+    // Set replacement hardware type for the recovery flow
+    app.defaultAccountConfigService.setHardwareType(transition.replacementHardwareType)
+    // Both always enabled in production; needed for W1→W3 so server creates V2 keyset
+    app.chaincodeDelegationFeatureFlag.setFlagValue(true)
+    app.updateToPrivateWalletOnRecoveryFeatureFlag.setFlagValue(true)
 
-    app.verifyNoDescriptorBackups(accountId)
-    app.verifyCanUseKeyboxKeysets(true)
+    app.appUiStateMachine.test(
+      props = Unit,
+      testTimeout = 60.seconds,
+      turbineTimeout = 60.seconds
+    ) {
+      startW3RecoveryAndAdvanceToDelayNotify(app)
 
-    app.fakeNfcCommands.wipeDevice()
+      // Complete recovery
+      awaitUntilBody<DelayAndNotifyNewKeyReady>()
+        .onCompleteRecovery()
+      // W3: confirmable NFC session for spending key creation
+      awaitW3ConfirmableNfcSession()
+      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
+      // W3: confirmable NFC session for DDK upload
+      awaitW3ConfirmableNfcSession()
+      awaitUntilBody<SaveBackupInstructionsBodyModel>()
+        .onBackupClick()
+      awaitUntilBody<CloudSignInModelFake>()
+        .signInSuccess(CloudStoreAccount1Fake)
+      awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
+      awaitUntilBody<ZeroBalancePromptBodyModel>()
+        .onDone()
+      awaitUntilBody<SecurityHubBodyModel>()
+      app.awaitNoActiveRecovery()
 
-    app.performLostHardwareRecovery()
+      cancelAndIgnoreRemainingEvents()
+    }
 
-    app.verifyDescriptorBackupsUploaded(accountId, count = 2)
-    app.verifyCanUseKeyboxKeysets(true)
-    app.decryptCloudBackupKeys().keysets.size.shouldBe(2)
+    app.assertActiveHardwareType(transition.replacementHardwareType)
+    app.verifyPostRecoveryState()
+  }
+
+  testForRecoveryTransitions(
+    "cancel initiated recovery",
+    transitions = listOf(RecoveryHardwareTransition.W3ToW3)
+  ) { transition ->
+    val app = launchNewApp()
+    app.onboardFullAccountWithFakeHardware(hardwareType = transition.sourceHardwareType)
+    app.fakeW3NfcCommands.wipeDevice()
+    app.defaultAccountConfigService.setHardwareType(transition.replacementHardwareType)
+
+    app.appUiStateMachine.test(
+      props = Unit,
+      testTimeout = 60.seconds,
+      turbineTimeout = 60.seconds
+    ) {
+      startW3RecoveryAndAdvanceToDelayNotify(app)
+
+      // Cancel recovery
+      awaitUntilBody<DelayAndNotifyNewKeyReady>(
+        matching = { it.onStopRecovery != null }
+      ).onStopRecovery.shouldNotBeNull().invoke()
+
+      awaitUntilScreenWithBody<DelayAndNotifyNewKeyReady>(
+        matchingScreen = { it.alertModel != null }
+      ) {
+        alertModel.shouldBeTypeOf<ButtonAlertModel>()
+          .onPrimaryButtonClick()
+      }
+
+      awaitUntilBody<SecurityHubBodyModel>()
+
+      app.awaitNoActiveRecovery()
+
+      cancelAndIgnoreRemainingEvents()
+    }
   }
 })
 
@@ -783,31 +264,4 @@ suspend fun AppTester.performLostHardwareRecovery() {
 
     cancelAndIgnoreRemainingEvents()
   }
-}
-
-private suspend fun ReceiveTurbine<ScreenModel>.startRecoveryAndAdvanceToDelayNotify(
-  app: AppTester,
-) {
-  app.awaitNoActiveRecovery()
-
-  // Go to Bitkey device settings via Security Hub
-  awaitUntilBody<MoneyHomeBodyModel>()
-    .onSecurityHubTabClick()
-  awaitUntilBody<SecurityHubBodyModel>()
-    .clickBitkeyDevice()
-
-  // Initiate recovery
-  awaitUntilBody<DeviceSettingsFormBodyModel>()
-    .onReplaceDevice()
-  awaitUntilBody<HardwareReplacementInstructionsModel>()
-    .onContinue()
-  awaitUntilBody<NewDeviceReadyQuestionBodyModel>()
-    .clickPrimaryButton()
-  awaitUntilBody<PairNewHardwareBodyModel>(HW_ACTIVATION_INSTRUCTIONS)
-    .clickPrimaryButton()
-  awaitUntilBody<PairNewHardwareBodyModel>(HW_PAIR_INSTRUCTIONS)
-    .clickPrimaryButton()
-  awaitUntilBody<PairNewHardwareBodyModel>(HW_SAVE_FINGERPRINT_INSTRUCTIONS)
-    .clickPrimaryButton()
-  awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_INITIATION_INITIATING_SERVER_RECOVERY)
 }

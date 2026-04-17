@@ -1,56 +1,83 @@
 package build.wallet.statemachine.recovery.inprogress.completing
 
 import androidx.compose.runtime.*
+import bitkey.account.HardwareType
 import bitkey.recovery.RecoveryStatusService
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.APP_DELAY_NOTIFY_SIGN_ROTATE_KEYS
+import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.RECOVERY_PROOF_AND_KEY_TRANSFER_LOST_APP
+import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.RECOVERY_PROOF_AND_KEY_TRANSFER_LOST_HARDWARE
+import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.W3_RECOVERY_AUTHORIZE_LOST_APP
+import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.W3_RECOVERY_AUTHORIZE_LOST_HW
+import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.W3_SIGN_CHALLENGE_AND_SEAL_SEKS
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
 import build.wallet.analytics.v1.Action
+import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.f8e.isPrivateWallet
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
+import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.keybox.Keybox
+import build.wallet.chaincode.delegation.ChaincodeExtractor
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.crypto.WsmVerifier
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.logging.logFailure
+import build.wallet.nfc.transaction.RecoveryNfcSession
 import build.wallet.recovery.LocalRecoveryAttemptProgress
 import build.wallet.recovery.LocalRecoveryAttemptProgress.CompletedRecovery
 import build.wallet.recovery.getEventId
 import build.wallet.recovery.socrec.PostSocRecTaskRepository
 import build.wallet.recovery.sweep.SweepContext
-import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
-import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
-import build.wallet.statemachine.auth.Request.HwKeyProof
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiStateMachine
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.*
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.*
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.*
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
+import build.wallet.statemachine.nfc.verifyPublicKeysOrLog
 import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.inprogress.DelayAndNotifyNewKeyReady
 import build.wallet.statemachine.recovery.inprogress.waiting.cancelRecoveryAlertModel
 import build.wallet.statemachine.recovery.sweep.SweepUiProps
 import build.wallet.statemachine.recovery.sweep.SweepUiStateMachine
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationContent
+import com.github.michaelbull.result.coroutines.coroutineBinding
+import com.github.michaelbull.result.get
+import com.github.michaelbull.result.getError
+import com.github.michaelbull.result.onFailure
+import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.launch
+import okio.ByteString
+import okio.ByteString.Companion.decodeHex
+
+private fun String.decodeHexOrError(fieldName: String): ByteString =
+  runCatching { decodeHex() }
+    .getOrElse { throw IllegalArgumentException("Invalid $fieldName hex from server") }
 
 @BitkeyInject(ActivityScope::class)
 class CompletingRecoveryUiStateMachineImpl(
-  private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
   private val fullAccountCloudSignInAndBackupUiStateMachine:
     FullAccountCloudSignInAndBackupUiStateMachine,
   private val sweepUiStateMachine: SweepUiStateMachine,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
+  private val nfcConfirmableSessionUiStateMachine: NfcConfirmableSessionUiStateMachine,
+  private val chaincodeExtractor: ChaincodeExtractor,
   private val postSocRecTaskRepository: PostSocRecTaskRepository,
   private val recoveryStatusService: RecoveryStatusService,
   private val eventTracker: EventTracker,
+  private val wsmVerifier: WsmVerifier,
 ) : CompletingRecoveryUiStateMachine {
   @Composable
   override fun model(props: CompletingRecoveryUiProps): ScreenModel {
@@ -122,23 +149,11 @@ class CompletingRecoveryUiStateMachineImpl(
         ).asScreen(presentationStyle = props.presentationStyle)
 
       is AwaitingChallengeAndCsekSignedWithHardwareData ->
-        nfcSessionUIStateMachine.model(
-          NfcSessionUIStateMachineProps(
-            transaction = props.completingRecoveryData.nfcTransaction,
-            screenPresentationStyle = props.presentationStyle,
-            eventTrackerContext = APP_DELAY_NOTIFY_SIGN_ROTATE_KEYS,
-            hardwareVerification = Required(useRecoveryPubKey = true)
-          )
-        )
-
-      is FetchingSealedDelegatedDecryptionKeyStringData ->
-        nfcSessionUIStateMachine.model(
-          NfcSessionUIStateMachineProps(
-            transaction = props.completingRecoveryData.nfcTransaction,
-            screenPresentationStyle = props.presentationStyle,
-            eventTrackerContext = NfcEventTrackerScreenIdContext.APP_DELAY_NOTIFY_UNSEAL_DDK,
-            hardwareVerification = Required(useRecoveryPubKey = true)
-          )
+        nfcModel(
+          nfcSession = props.completingRecoveryData.nfcSession,
+          presentationStyle = props.presentationStyle,
+          eventTrackerContext = APP_DELAY_NOTIFY_SIGN_ROTATE_KEYS,
+          confirmableEventTrackerContext = W3_SIGN_CHALLENGE_AND_SEAL_SEKS
         )
 
       is SealingDelegatedDecryptionKeyData ->
@@ -183,17 +198,6 @@ class CompletingRecoveryUiStateMachineImpl(
           )
         )
 
-      is FetchingSealedDelegatedDecryptionKeyFromF8eData ->
-        LoadingBodyModel(
-          title = "Fetching recovery data...",
-          id =
-            props.completingRecoveryData.physicalFactor.getEventId(
-              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS,
-              HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS
-            ),
-          eventTrackerShouldTrack = false
-        ).asScreen(presentationStyle = props.presentationStyle)
-
       is RemovingTrustedContactsData ->
         LoadingBodyModel(
           title = "Removing Recovery Contacts...",
@@ -235,19 +239,30 @@ class CompletingRecoveryUiStateMachineImpl(
           eventTrackerScreenId = DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_DDK_LOADING_ERROR
         ).asScreen(props.presentationStyle)
 
-      is AwaitingHardwareProofOfPossessionData ->
-        proofOfPossessionNfcStateMachine.model(
-          ProofOfPossessionNfcProps(
-            HwKeyProof(
-              onSuccess = props.completingRecoveryData.addHwFactorProofOfPossession
-            ),
-            fullAccountId = props.completingRecoveryData.fullAccountId,
-            appAuthKey = props.completingRecoveryData.appAuthKey,
-            onBack = props.completingRecoveryData.rollback,
-            hardwareVerification = Required(useRecoveryPubKey = true),
-            shouldLock = false, // Don't lock because we quickly need more NFC transactions
-            screenPresentationStyle = props.presentationStyle
-          )
+      is PreparingProofAndKeyTransferData ->
+        LoadingBodyModel(
+          title = "Preparing recovery...",
+          id = props.completingRecoveryData.physicalFactor.getEventId(
+            DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS,
+            HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS
+          ),
+          eventTrackerShouldTrack = false
+        ).asScreen(presentationStyle = props.presentationStyle)
+
+      is AwaitingProofAndKeyTransferLostAppData ->
+        nfcModel(
+          nfcSession = props.completingRecoveryData.nfcSession,
+          presentationStyle = props.presentationStyle,
+          eventTrackerContext = RECOVERY_PROOF_AND_KEY_TRANSFER_LOST_APP,
+          confirmableEventTrackerContext = W3_RECOVERY_AUTHORIZE_LOST_APP
+        )
+
+      is AwaitingProofAndKeyTransferLostHwData ->
+        nfcModel(
+          nfcSession = props.completingRecoveryData.nfcSession,
+          presentationStyle = props.presentationStyle,
+          eventTrackerContext = RECOVERY_PROOF_AND_KEY_TRANSFER_LOST_HARDWARE,
+          confirmableEventTrackerContext = W3_RECOVERY_AUTHORIZE_LOST_HW
         )
 
       is CreatingSpendingKeysWithF8EData ->
@@ -296,19 +311,107 @@ class CompletingRecoveryUiStateMachineImpl(
         eventTrackerShouldTrack = false
       ).asScreen(props.presentationStyle)
 
-      is AwaitingHardwareProofOfPossessionForActivationData -> proofOfPossessionNfcStateMachine.model(
-        ProofOfPossessionNfcProps(
-          HwKeyProof(
-            onSuccess = props.completingRecoveryData.addHardwareProofOfPossession
-          ),
-          fullAccountId = props.completingRecoveryData.fullAccountId,
-          appAuthKey = props.completingRecoveryData.appAuthKey,
-          onBack = props.completingRecoveryData.rollback,
-          hardwareVerification = Required(useRecoveryPubKey = true),
-          shouldLock = false, // Don't lock because we quickly need more NFC transactions
-          screenPresentationStyle = props.presentationStyle
+      is BuildingHardwareDescriptorData -> {
+        val data = props.completingRecoveryData
+        nfcSessionUIStateMachine.model(
+          NfcSessionUIStateMachineProps(
+            session = { session, commands ->
+              coroutineBinding<AppGlobalAuthKeyHwSignature, Throwable> {
+                val response = data.signedKeysResponse
+
+                // Verify WSM signature over the 5 public keys before presenting to hardware.
+                wsmVerifier.verifyPublicKeysOrLog(
+                  appAuthPubHex = response.appAuthPub,
+                  hardwareAuthPubHex = response.hardwareAuthPub,
+                  appSpendingPubHex = response.appSpendingPub,
+                  hardwareSpendingPubHex = response.hardwareSpendingPub,
+                  serverSpendingPubHex = response.serverSpendingPub,
+                  signature = response.signature,
+                  f8eEnvironment = data.f8eEnvironment,
+                  context = "recovery build hardware descriptor"
+                )
+
+                // Decode hex keys from response
+                val appSpendingKey = response.appSpendingPub.decodeHexOrError("app spending key")
+                val appAuthKey = response.appAuthPub.decodeHexOrError("app auth key")
+                val serverSpendingKey = response.serverSpendingPub.decodeHexOrError("server spending key")
+                val wsmSignature = response.signature.decodeHexOrError("WSM signature")
+
+                // Extract chaincodes from spending keys
+                val appSpendingKeyChaincode = chaincodeExtractor
+                  .extractChaincode(data.appSpendingKeyXpub)
+                  .result.bind()
+
+                val serverSpendingXpub = data.serverPrivateWalletRootXpub
+                  ?: error("Server spending xpub is required for private wallets")
+                val serverSpendingKeyChaincode = chaincodeExtractor
+                  .extractChaincode(serverSpendingXpub)
+                  .result.bind()
+
+                // Determine network
+                val networkMainnet = data.networkType == BitcoinNetworkType.BITCOIN
+
+                val signature = commands.verifyKeysAndBuildDescriptor(
+                  session = session,
+                  appSpendingKey = appSpendingKey,
+                  appSpendingKeyChaincode = appSpendingKeyChaincode,
+                  networkMainnet = networkMainnet,
+                  appAuthKey = appAuthKey,
+                  serverSpendingKey = serverSpendingKey,
+                  serverSpendingKeyChaincode = serverSpendingKeyChaincode,
+                  wsmSignature = wsmSignature,
+                  accountIndex = data.accountIndex
+                )
+
+                AppGlobalAuthKeyHwSignature(signature)
+              }
+            },
+            onSuccess = { result ->
+              val signature = result.get()
+              if (signature != null) {
+                data.onSuccess(signature)
+              } else {
+                data.onFailure(
+                  Error(
+                    result.getError()?.message
+                      ?: "Hardware descriptor verification failed: key/signature mismatch"
+                  )
+                )
+              }
+            },
+            onCancel = {
+              data.onFailure(Error("Hardware descriptor validation cancelled"))
+            },
+            screenPresentationStyle = props.presentationStyle,
+            eventTrackerContext = NfcEventTrackerScreenIdContext.VERIFY_KEYS_AND_BUILD_HARDWARE_DESCRIPTOR,
+            hardwareVerification = Required(useRecoveryPubKey = true),
+            hardwareTypeOverride = HardwareType.W3,
+            showDeviceConfirmation = true
+          )
         )
-      )
+      }
+
+      is FailedToBuildHardwareDescriptorData -> ErrorFormBodyModel(
+        title = "We were unable to validate your hardware",
+        subline = "Please try again.",
+        primaryButton = ButtonDataModel(
+          text = "Retry",
+          onClick = props.completingRecoveryData.onRetry
+        ),
+        errorData = ErrorData(
+          segment = when (props.completingRecoveryData.physicalFactor) {
+            App -> RecoverySegment.DelayAndNotify.LostApp.Completion
+            Hardware -> RecoverySegment.DelayAndNotify.LostHardware.Completion
+          },
+          actionDescription = "Building hardware descriptor to complete recovery",
+          cause = props.completingRecoveryData.cause
+        ),
+        eventTrackerScreenId = props.completingRecoveryData.physicalFactor.getEventId(
+          DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_ACTIVATING_SPENDING_KEYS_ERROR,
+          HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_ACTIVATING_SPENDING_KEYS_ERROR
+        ),
+        eventTrackerShouldTrack = false
+      ).asScreen(props.presentationStyle)
 
       is FailedToActivateSpendingKeysetData -> ErrorFormBodyModel(
         title = "We were unable to complete your recovery.",
@@ -373,6 +476,10 @@ class CompletingRecoveryUiStateMachineImpl(
         val scope = rememberStableCoroutineScope()
         sweepUiStateMachine.model(
           SweepUiProps(
+            account = FullAccount(
+              props.completingRecoveryData.keybox.fullAccountId,
+              props.completingRecoveryData.keybox
+            ),
             presentationStyle = props.presentationStyle,
             onExit = props.completingRecoveryData.rollback,
             onSuccess = {
@@ -383,16 +490,24 @@ class CompletingRecoveryUiStateMachineImpl(
                 postSocRecTaskRepository.setHardwareReplacementNeeded(false)
                 recoveryStatusService
                   .setLocalRecoveryProgress(
-                    CompletedRecovery(props.completingRecoveryData.keybox)
+                    CompletedRecovery(
+                      keyboxToActivate = props.completingRecoveryData.keybox
+                    )
                   )
-                if (isPrivateKeysetUpgrade(props.completingRecoveryData.keybox)) {
-                  eventTracker.track(Action.ACTION_APP_PRIVATE_WALLET_RECOVERY_SWEEP_UPGRADE)
-                }
-
-                props.onComplete?.invoke()
+                  .logFailure { "Failed to complete recovery after sweep" }
+                  .onSuccess {
+                    if (isPrivateKeysetUpgrade(props.completingRecoveryData.keybox)) {
+                      eventTracker.track(Action.ACTION_APP_PRIVATE_WALLET_RECOVERY_SWEEP_UPGRADE)
+                    }
+                    props.onComplete?.invoke()
+                  }
+                  .onFailure {
+                    props.completingRecoveryData.onCompletionFailed(
+                      Error("Failed to complete recovery after sweep", it)
+                    )
+                  }
               }
             },
-            keybox = props.completingRecoveryData.keybox,
             sweepContext = SweepContext.Recovery(props.completingRecoveryData.physicalFactor),
             hasAttemptedSweep = props.completingRecoveryData.hasAttemptedSweep,
             onAttemptSweep = {
@@ -436,6 +551,30 @@ class CompletingRecoveryUiStateMachineImpl(
                 cause = Error("Failed sweeping funds to complete recovery for lost hardware")
               )
           }
+        ).asScreen(props.presentationStyle)
+
+      is FailedToCompleteRecoveryData ->
+        ErrorFormBodyModel(
+          title = "We were unable to complete your recovery.",
+          subline = "Your funds have been transferred. Please try again to finish setup.",
+          primaryButton =
+            ButtonDataModel(
+              text = "Retry",
+              onClick = props.completingRecoveryData.retry
+            ),
+          errorData = ErrorData(
+            segment = when (props.completingRecoveryData.physicalFactor) {
+              App -> RecoverySegment.DelayAndNotify.LostApp.Completion
+              Hardware -> RecoverySegment.DelayAndNotify.LostHardware.Completion
+            },
+            actionDescription = "Completing recovery after sweep",
+            cause = props.completingRecoveryData.cause
+          ),
+          eventTrackerScreenId =
+            props.completingRecoveryData.physicalFactor.getEventId(
+              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_COMPLETION_ERROR,
+              HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_COMPLETION_ERROR
+            )
         ).asScreen(props.presentationStyle)
 
       is PerformingDdkBackupData ->
@@ -491,16 +630,6 @@ class CompletingRecoveryUiStateMachineImpl(
           )
         ).asScreen(props.presentationStyle)
 
-      is ProcessingDescriptorBackupsData.AwaitingSsekUnsealingData ->
-        nfcSessionUIStateMachine.model(
-          NfcSessionUIStateMachineProps(
-            transaction = props.completingRecoveryData.nfcTransaction,
-            screenPresentationStyle = props.presentationStyle,
-            eventTrackerContext = NfcEventTrackerScreenIdContext.UNSEAL_SSEK,
-            hardwareVerification = Required(useRecoveryPubKey = true)
-          )
-        )
-
       is ProcessingDescriptorBackupsData.UploadingDescriptorBackupsData,
       is ProcessingDescriptorBackupsData.HandlingDescriptorEncryption,
       is ProcessingDescriptorBackupsData.RetrievingDescriptorsForKeyboxData,
@@ -532,6 +661,42 @@ class CompletingRecoveryUiStateMachineImpl(
         ).asScreen(props.presentationStyle)
     }
   }
+
+  @Composable
+  private fun nfcModel(
+    nfcSession: RecoveryNfcSession,
+    presentationStyle: ScreenPresentationStyle,
+    eventTrackerContext: NfcEventTrackerScreenIdContext,
+    confirmableEventTrackerContext: NfcEventTrackerScreenIdContext,
+  ): ScreenModel =
+    when (nfcSession) {
+      is RecoveryNfcSession.Standard<*> ->
+        nfcSessionUIStateMachine.model(
+          NfcSessionUIStateMachineProps(
+            transaction = nfcSession.transaction,
+            screenPresentationStyle = presentationStyle,
+            eventTrackerContext = eventTrackerContext,
+            hardwareVerification = Required(useRecoveryPubKey = true),
+            hardwareTypeOverride = HardwareType.W1
+          )
+        )
+      is RecoveryNfcSession.Confirmable<*> -> {
+        @Suppress("UNCHECKED_CAST")
+        val confirmable = nfcSession as RecoveryNfcSession.Confirmable<Any?>
+        nfcConfirmableSessionUiStateMachine.model(
+          NfcConfirmableSessionUIStateMachineProps(
+            session = confirmable.session,
+            onSuccess = confirmable.onSuccess,
+            onCancel = confirmable.onCancel,
+            screenPresentationStyle = presentationStyle,
+            eventTrackerContext = confirmableEventTrackerContext,
+            confirmationContent = HardwareConfirmationContent.LostAppRecovery,
+            hardwareVerification = Required(useRecoveryPubKey = true),
+            hardwareTypeOverride = HardwareType.W3
+          )
+        )
+      }
+    }
 }
 
 /**

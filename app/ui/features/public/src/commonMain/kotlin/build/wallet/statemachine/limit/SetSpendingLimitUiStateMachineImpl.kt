@@ -4,13 +4,14 @@ import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.MobilePayEventTrackerScreenId
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.limit.MobilePayService
 import build.wallet.limit.SpendingLimit
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.formatter.MoneyDisplayFormatter
+import build.wallet.platform.settings.Locale
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.RetreatStyle.Close
 import build.wallet.statemachine.limit.SpendingLimitUiState.*
@@ -40,13 +41,14 @@ class SetSpendingLimitUiStateMachineImpl(
         PickingAndConfirmingSpendingLimitScreenModel(
           props = props,
           state = state,
-          onLimitPickedAndConfirmed = { fiatLimit, btcLimit, spendingLimit, hwProofOfPossession ->
+          onLimitPickedAndConfirmed = { fiatLimit, btcLimit, spendingLimit, proof, locale ->
             uiState =
               SavingLimitUiState(
                 selectedFiatLimit = fiatLimit,
                 selectedBtcLimit = btcLimit,
                 spendingLimit = spendingLimit,
-                hwFactorProofOfPossession = hwProofOfPossession
+                proof = proof,
+                locale = locale
               )
           }
         )
@@ -103,7 +105,8 @@ class SetSpendingLimitUiStateMachineImpl(
       mobilePayService
         .setLimit(
           spendingLimit = state.spendingLimit,
-          hwFactorProofOfPossession = state.hwFactorProofOfPossession
+          proof = state.proof,
+          locale = state.locale
         )
         .apply(onResult)
     }
@@ -117,7 +120,8 @@ class SetSpendingLimitUiStateMachineImpl(
       FiatMoney,
       BitcoinMoney,
       SpendingLimit,
-      HwFactorProofOfPossession,
+      PrivilegedActionProof,
+      Locale,
     ) -> Unit,
   ): ScreenModel {
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
@@ -129,13 +133,13 @@ class SetSpendingLimitUiStateMachineImpl(
           style = Close,
           onRetreat = props.onClose
         ),
-        onSaveLimit = { fiatLimit, btcLimit, hwFactorProofOfPossession ->
+        onSaveLimit = { fiatLimit, btcLimit, proof, locale ->
           val spendingLimit = SpendingLimit(
             active = true,
             amount = fiatLimit,
             timezone = timeZoneProvider.current()
           )
-          onLimitPickedAndConfirmed(fiatLimit, btcLimit, spendingLimit, hwFactorProofOfPossession)
+          onLimitPickedAndConfirmed(fiatLimit, btcLimit, spendingLimit, proof, locale)
         }
       )
     )
@@ -186,13 +190,14 @@ sealed interface SpendingLimitUiState {
    * @property selectedBtcLimit The limit the user would like to update to in btc
    * @property selectedFiatLimit The limit the user would like to update to in fiat
    * @property spendingLimit - The initialized spending limit
-   * @property hwFactorProofOfPossession - The signature received from the hardware wallet to verify data
+   * @property proof - The proof received from hardware authorization to verify the action
    */
   data class SavingLimitUiState(
     val selectedBtcLimit: BitcoinMoney,
     val selectedFiatLimit: FiatMoney,
     val spendingLimit: SpendingLimit,
-    val hwFactorProofOfPossession: HwFactorProofOfPossession,
+    val proof: PrivilegedActionProof,
+    val locale: Locale,
   ) : SpendingLimitUiState
 
   /**

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use account::service::{FetchAccountInput, Service as AccountService};
-use authn_authz::key_claims::KeyClaims;
+use authn_authz::{Action, Authorization, AuthorizationRequirements};
 use axum::{
     extract::{Path, State},
     routing::get,
@@ -20,7 +20,10 @@ use instrumentation::metrics::KeyValue;
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};
 use types::{
-    account::identifiers::AccountId,
+    account::{
+        entities::{HardwareType, Touchpoint},
+        identifiers::AccountId,
+    },
     notification::{NotificationChannel, NotificationsPreferences, NotificationsTriggerType},
 };
 use userpool::userpool::UserPoolService;
@@ -49,6 +52,7 @@ pub struct RouteState(
     pub Box<dyn AddressWatchlistTrait>,
     pub TwilioClient,
     pub UserPoolService,
+    pub repository::anti_replay::AntiReplayRepository,
 );
 
 impl RouterBuilder for RouteState {
@@ -195,7 +199,7 @@ impl From<Vec<AddressAndKeysetId>> for RegisterWatchAddressRequest {
 #[serde(rename_all = "snake_case")]
 pub struct RegisterWatchAddressResponse {}
 
-#[instrument(err, skip(account_service, notification_service))]
+#[instrument(err, skip(account_service, notification_service, request))]
 #[utoipa::path(
     post,
     path = "/api/accounts/{account_id}/notifications/addresses",
@@ -270,7 +274,7 @@ mod x_twilio_signature {
     }
 }
 
-#[instrument(err, skip(twilio_client))]
+#[instrument(err, skip(twilio_client, signature, request))]
 #[utoipa::path(
     post,
     path = "/api/twilio/status-callback",
@@ -319,7 +323,10 @@ pub async fn twilio_status_callback(
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
 
-#[instrument(err, skip(notification_service))]
+#[instrument(
+    err,
+    skip(account_service, notification_service, anti_replay_repository)
+)]
 #[utoipa::path(
     put,
     path = "/api/accounts/{account_id}/notifications-preferences",
@@ -333,20 +340,125 @@ pub async fn twilio_status_callback(
 )]
 pub async fn set_notifications_preferences(
     Path(account_id): Path<AccountId>,
+    State(account_service): State<AccountService>,
     State(notification_service): State<NotificationService>,
-    key_proof: KeyClaims,
+    State(anti_replay_repository): State<repository::anti_replay::AntiReplayRepository>,
+    auth: Authorization,
     Json(request): Json<NotificationsPreferences>,
 ) -> Result<Json<NotificationsPreferences>, ApiError> {
-    let new_notifications_preferences = request;
-    notification_service
-        .update_notifications_preferences(UpdateNotificationsPreferencesInput {
+    let full_account = account_service
+        .fetch_full_account(FetchAccountInput {
             account_id: &account_id,
-            notifications_preferences: &new_notifications_preferences,
-            key_proof: Some(key_proof),
+        })
+        .await?;
+    let hardware_type = full_account
+        .active_hardware_type()
+        .map_err(|e| ApiError::GenericInternalApplicationError(e.to_string()))?;
+
+    // Determine the action from the account_security preference change.
+    // The mobile app changes one channel at a time, so we map the diff to
+    // the corresponding Set*/Disable* action. Non-security-only changes
+    // use jwt_only() — no proof needed for either W1 or W3.
+    let current_prefs: NotificationsPreferences = full_account
+        .common_fields
+        .notifications_preferences_state
+        .clone()
+        .into();
+    let action = account_security_action(
+        &current_prefs,
+        &request,
+        &full_account.common_fields.touchpoints,
+        hardware_type,
+    )?;
+
+    // No route-level signature requirement — the service conditionally enforces
+    // both-factor auth only when reducing account_security preferences.
+    let requirements = match action {
+        Some(AccountSecurityAction { action, entity_id }) => {
+            AuthorizationRequirements::new(action, hardware_type)
+                .entity_id_opt(entity_id)
+                .proof(authn_authz::ProofRequirement::Conditional)
+        }
+        None => AuthorizationRequirements::jwt_only(hardware_type),
+    };
+    let result = requirements
+        .execute(&auth, &anti_replay_repository, |ctx| async move {
+            let new_notifications_preferences = request;
+            notification_service
+                .update_notifications_preferences(UpdateNotificationsPreferencesInput {
+                    account_id: &account_id,
+                    notifications_preferences: &new_notifications_preferences,
+                    signed_by_both_factors: ctx.app_signed() && ctx.hw_signed(),
+                })
+                .await?;
+
+            Ok::<_, ApiError>(new_notifications_preferences)
         })
         .await?;
 
-    Ok(Json(new_notifications_preferences))
+    Ok(Json(result))
+}
+
+/// Result of diffing account_security preferences: the Action to verify
+/// and an optional touchpoint entity ID for the proof binding.
+struct AccountSecurityAction {
+    action: Action,
+    /// Touchpoint entity ID for email/SMS disable actions (the client signs
+    /// with `eid=<touchpoint_id>`). None for push disable actions.
+    entity_id: Option<String>,
+}
+
+/// Maps an account_security preference change to the corresponding Action.
+///
+/// For W3 accounts, returns an error if more than one channel changes in a
+/// single request, since each channel maps to a distinct action proof and
+/// only one can be verified per request. W1 accounts use KeyClaims and are
+/// not subject to this restriction.
+fn account_security_action(
+    current: &NotificationsPreferences,
+    new: &NotificationsPreferences,
+    touchpoints: &[Touchpoint],
+    hardware_type: HardwareType,
+) -> Result<Option<AccountSecurityAction>, ApiError> {
+    let removed: Vec<_> = current
+        .account_security
+        .difference(&new.account_security)
+        .collect();
+
+    // W3 accounts require a per-channel ActionProof for disabling, so only
+    // one disable is allowed per request. Enables don't need proof so they
+    // are unrestricted. W1 accounts use KeyClaims and can change multiple
+    // channels at once.
+    if hardware_type == HardwareType::W3 && removed.len() > 1 {
+        return Err(ApiError::GenericBadRequest(
+            "Only one account_security channel can be disabled per request".to_string(),
+        ));
+    }
+
+    // Check for channel removed from account_security (disable)
+    if let Some(channel) = removed.first() {
+        let (action, entity_id) = match channel {
+            NotificationChannel::Email => {
+                let eid = touchpoints.iter().find_map(|t| match t {
+                    Touchpoint::Email { id, .. } => Some(id.to_string()),
+                    _ => None,
+                });
+                (Action::DisableRecoveryEmail, eid)
+            }
+            NotificationChannel::Sms => {
+                let eid = touchpoints.iter().find_map(|t| match t {
+                    Touchpoint::Phone { id, .. } => Some(id.to_string()),
+                    _ => None,
+                });
+                (Action::DisableRecoveryPhone, eid)
+            }
+            NotificationChannel::Push => (Action::DisableRecoveryPushNotifications, None),
+        };
+        return Ok(Some(AccountSecurityAction { action, entity_id }));
+    }
+
+    // No disable detected — enables and no-ops don't require proof.
+    Ok(None)
 }
 
 #[instrument(err, skip(notification_service))]
@@ -438,4 +550,190 @@ pub async fn delete_addresses(
         .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use isocountry::CountryCode;
+    use std::collections::HashSet;
+    use types::account::identifiers::TouchpointId;
+
+    fn prefs(security: &[NotificationChannel]) -> NotificationsPreferences {
+        NotificationsPreferences {
+            account_security: security.iter().copied().collect(),
+            money_movement: HashSet::new(),
+            product_marketing: HashSet::new(),
+        }
+    }
+
+    fn email_touchpoint() -> Touchpoint {
+        Touchpoint::Email {
+            id: TouchpointId::gen().unwrap(),
+            email_address: "test@example.com".to_string(),
+            active: true,
+        }
+    }
+
+    fn phone_touchpoint() -> Touchpoint {
+        Touchpoint::Phone {
+            id: TouchpointId::gen().unwrap(),
+            phone_number: "+15551234567".to_string(),
+            country_code: CountryCode::USA,
+            active: true,
+        }
+    }
+
+    // ── Disable (channel removed from account_security) ──
+
+    #[test]
+    fn disable_email() {
+        let current = prefs(&[NotificationChannel::Email]);
+        let new = prefs(&[]);
+        let touchpoints = vec![email_touchpoint()];
+        let result = account_security_action(&current, &new, &touchpoints, HardwareType::W3)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.action, Action::DisableRecoveryEmail);
+        assert!(
+            result.entity_id.is_some(),
+            "email disable should include touchpoint eid"
+        );
+    }
+
+    #[test]
+    fn disable_sms() {
+        let current = prefs(&[NotificationChannel::Sms]);
+        let new = prefs(&[]);
+        let touchpoints = vec![phone_touchpoint()];
+        let result = account_security_action(&current, &new, &touchpoints, HardwareType::W3)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.action, Action::DisableRecoveryPhone);
+        assert!(
+            result.entity_id.is_some(),
+            "sms disable should include touchpoint eid"
+        );
+    }
+
+    #[test]
+    fn disable_push() {
+        let current = prefs(&[NotificationChannel::Push]);
+        let new = prefs(&[]);
+        let result = account_security_action(&current, &new, &[], HardwareType::W3)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.action, Action::DisableRecoveryPushNotifications);
+        assert!(
+            result.entity_id.is_none(),
+            "push disable has no touchpoint eid"
+        );
+    }
+
+    // ── Enable (channel added to account_security) → no proof needed ──
+
+    #[test]
+    fn enable_email_returns_none() {
+        let current = prefs(&[]);
+        let new = prefs(&[NotificationChannel::Email]);
+        assert!(
+            account_security_action(&current, &new, &[], HardwareType::W3)
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn enable_sms_returns_none() {
+        let current = prefs(&[]);
+        let new = prefs(&[NotificationChannel::Sms]);
+        assert!(
+            account_security_action(&current, &new, &[], HardwareType::W3)
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn enable_push_returns_none() {
+        let current = prefs(&[]);
+        let new = prefs(&[NotificationChannel::Push]);
+        assert!(
+            account_security_action(&current, &new, &[], HardwareType::W3)
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    // ── No change → None ──
+
+    #[test]
+    fn no_security_change_returns_none() {
+        let current = prefs(&[NotificationChannel::Push]);
+        let new = prefs(&[NotificationChannel::Push]);
+        assert!(
+            account_security_action(&current, &new, &[], HardwareType::W3)
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn empty_to_empty_returns_none() {
+        let current = prefs(&[]);
+        let new = prefs(&[]);
+        assert!(
+            account_security_action(&current, &new, &[], HardwareType::W3)
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    // ── Non-security-only changes → None ──
+
+    #[test]
+    fn only_money_movement_change_returns_none() {
+        let mut current = prefs(&[NotificationChannel::Push]);
+        current.money_movement = HashSet::from([NotificationChannel::Email]);
+        let mut new = prefs(&[NotificationChannel::Push]);
+        new.money_movement = HashSet::new();
+        assert!(
+            account_security_action(&current, &new, &[], HardwareType::W3)
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    // ── Multiple channel changes → Error ──
+
+    #[test]
+    fn swap_channel_returns_disable_action() {
+        // Swap: remove Email, add Push → only the disable matters
+        let current = prefs(&[NotificationChannel::Email]);
+        let new = prefs(&[NotificationChannel::Push]);
+        let touchpoints = vec![email_touchpoint()];
+        let result = account_security_action(&current, &new, &touchpoints, HardwareType::W3)
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.action, Action::DisableRecoveryEmail);
+    }
+
+    #[test]
+    fn multiple_removals_rejected() {
+        let current = prefs(&[NotificationChannel::Email, NotificationChannel::Sms]);
+        let new = prefs(&[]);
+        assert!(account_security_action(&current, &new, &[], HardwareType::W3).is_err());
+    }
+
+    // ── W1 allows multiple channel changes ──
+
+    #[test]
+    fn w1_allows_multiple_disables() {
+        // W1 uses KeyClaims (not per-channel ActionProofs), so multiple
+        // disables in one request are allowed — unlike W3.
+        let current = prefs(&[NotificationChannel::Email, NotificationChannel::Sms]);
+        let new = prefs(&[]);
+        let result = account_security_action(&current, &new, &[], HardwareType::W1).unwrap();
+        assert!(result.is_some());
+    }
 }

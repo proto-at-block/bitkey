@@ -13,7 +13,7 @@ import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.bitkey.keybox.WithAppKeysAndHardwareKeysMock
 import build.wallet.cloud.backup.CloudBackupError
-import build.wallet.cloud.backup.CloudBackupRepositoryFake
+import build.wallet.cloud.backup.CloudBackupServiceFake
 import build.wallet.cloud.backup.CloudBackupV2WithLiteAccountMock
 import build.wallet.cloud.store.CloudAccountMock
 import build.wallet.cloud.store.CloudStoreAccountError
@@ -50,7 +50,7 @@ class UpgradeLiteToFullAccountServiceImplTests : FunSpec({
   val upgradeAccountF8eClient = UpgradeAccountF8eClientMock(turbines::create)
   val upgradeAccountV2F8eClient = UpgradeAccountV2F8eClientFake(turbines::create)
   val sharedCloudBackupsFeatureFlag = SharedCloudBackupsFeatureFlag(featureFlagDao)
-  val cloudBackupRepository = CloudBackupRepositoryFake()
+  val cloudBackupService = CloudBackupServiceFake()
   val cloudStoreAccountRepository = CloudStoreAccountRepositoryMock()
 
   val service = UpgradeLiteToFullAccountServiceImpl(
@@ -63,7 +63,7 @@ class UpgradeLiteToFullAccountServiceImplTests : FunSpec({
     uuidGenerator = UuidGeneratorFake(),
     chaincodeDelegationFeatureFlag = chaincodeDelegationFeatureFlag,
     sharedCloudBackupsFeatureFlag = sharedCloudBackupsFeatureFlag,
-    cloudBackupRepository = cloudBackupRepository,
+    cloudBackupService = cloudBackupService,
     cloudStoreAccountRepository = cloudStoreAccountRepository
   )
 
@@ -76,7 +76,7 @@ class UpgradeLiteToFullAccountServiceImplTests : FunSpec({
     authTokensService.reset()
     featureFlagDao.reset()
     chaincodeDelegationFeatureFlag.setFlagValue(value = false)
-    cloudBackupRepository.reset()
+    cloudBackupService.reset()
     cloudStoreAccountRepository.reset()
   }
 
@@ -173,7 +173,7 @@ class UpgradeLiteToFullAccountServiceImplTests : FunSpec({
     val liteBackup = CloudBackupV2WithLiteAccountMock.copy(
       accountId = LiteAccountMock.accountId.serverId
     )
-    cloudBackupRepository.writeBackup(
+    cloudBackupService.writeBackup(
       accountId = LiteAccountMock.accountId,
       cloudStoreAccount = cloudStoreAccount,
       backup = liteBackup,
@@ -183,7 +183,7 @@ class UpgradeLiteToFullAccountServiceImplTests : FunSpec({
     service.upgradeAccount(LiteAccountMock, WithAppKeysAndHardwareKeysMock).shouldBeOk()
 
     // Verify backup was archived and cleared when feature flag is enabled
-    val allBackups = cloudBackupRepository.readAllBackups(cloudStoreAccount).shouldBeOk()
+    val allBackups = cloudBackupService.readAllBackups(cloudStoreAccount).shouldBeOk()
     allBackups.size.shouldBe(0) // All backups cleared in fake implementation
 
     upgradeAccountF8eClient.upgradeAccountCalls.awaitItem()
@@ -245,7 +245,7 @@ class UpgradeLiteToFullAccountServiceImplTests : FunSpec({
     val differentAccountBackup = CloudBackupV2WithLiteAccountMock.copy(
       accountId = "different-account-id"
     )
-    cloudBackupRepository.writeBackup(
+    cloudBackupService.writeBackup(
       accountId = LiteAccountMock.accountId,
       cloudStoreAccount = cloudStoreAccount,
       backup = differentAccountBackup,
@@ -258,7 +258,7 @@ class UpgradeLiteToFullAccountServiceImplTests : FunSpec({
     fullAccount.accountId.serverId.shouldBe(LiteAccountMock.accountId.serverId)
 
     // Verify no backup was archived since account ID didn't match
-    val allBackups = cloudBackupRepository.readAllBackups(cloudStoreAccount).shouldBeOk()
+    val allBackups = cloudBackupService.readAllBackups(cloudStoreAccount).shouldBeOk()
     allBackups.size.shouldBe(1) // Only the original different-account backup
 
     upgradeAccountF8eClient.upgradeAccountCalls.awaitItem()
@@ -273,7 +273,7 @@ class UpgradeLiteToFullAccountServiceImplTests : FunSpec({
       cause = Throwable("read failed"),
       data = "data"
     )
-    cloudBackupRepository.returnReadError = readError
+    cloudBackupService.returnReadError = readError
 
     val result = service.upgradeAccount(LiteAccountMock, WithAppKeysAndHardwareKeysMock)
 
@@ -288,7 +288,7 @@ class UpgradeLiteToFullAccountServiceImplTests : FunSpec({
     val liteBackup = CloudBackupV2WithLiteAccountMock.copy(
       accountId = LiteAccountMock.accountId.serverId
     )
-    cloudBackupRepository.writeBackup(
+    cloudBackupService.writeBackup(
       accountId = LiteAccountMock.accountId,
       cloudStoreAccount = cloudStoreAccount,
       backup = liteBackup,
@@ -301,7 +301,7 @@ class UpgradeLiteToFullAccountServiceImplTests : FunSpec({
       cause = Throwable("clear failed"),
       data = "data"
     )
-    cloudBackupRepository.returnWriteError = clearError
+    cloudBackupService.returnWriteError = clearError
 
     val result = service.upgradeAccount(LiteAccountMock, WithAppKeysAndHardwareKeysMock)
 
@@ -343,7 +343,7 @@ class UpgradeLiteToFullAccountServiceImplTests : FunSpec({
     val liteBackup = CloudBackupV2WithLiteAccountMock.copy(
       accountId = LiteAccountMock.accountId.serverId
     )
-    cloudBackupRepository.writeBackup(
+    cloudBackupService.writeBackup(
       accountId = LiteAccountMock.accountId,
       cloudStoreAccount = cloudStoreAccount,
       backup = liteBackup,
@@ -369,7 +369,7 @@ class UpgradeLiteToFullAccountServiceImplTests : FunSpec({
     val liteBackup = CloudBackupV2WithLiteAccountMock.copy(
       accountId = LiteAccountMock.accountId.serverId
     )
-    cloudBackupRepository.writeBackup(
+    cloudBackupService.writeBackup(
       accountId = LiteAccountMock.accountId,
       cloudStoreAccount = cloudStoreAccount,
       backup = liteBackup,
@@ -379,7 +379,7 @@ class UpgradeLiteToFullAccountServiceImplTests : FunSpec({
     service.upgradeAccount(LiteAccountMock, WithAppKeysAndHardwareKeysMock).shouldBeOk()
 
     // Verify backup was NOT archived or cleared when feature flag is disabled
-    val allBackups = cloudBackupRepository.readAllBackups(cloudStoreAccount).shouldBeOk()
+    val allBackups = cloudBackupService.readAllBackups(cloudStoreAccount).shouldBeOk()
     allBackups.size.shouldBe(1) // Original backup still present
     allBackups.first().accountId.shouldBe(LiteAccountMock.accountId.serverId)
 
@@ -416,7 +416,7 @@ class UpgradeLiteToFullAccountServiceImplTests : FunSpec({
     val liteBackup = CloudBackupV2WithLiteAccountMock.copy(
       accountId = LiteAccountMock.accountId.serverId
     )
-    cloudBackupRepository.writeBackup(
+    cloudBackupService.writeBackup(
       accountId = LiteAccountMock.accountId,
       cloudStoreAccount = cloudStoreAccount,
       backup = liteBackup,
@@ -429,7 +429,7 @@ class UpgradeLiteToFullAccountServiceImplTests : FunSpec({
       cause = Throwable("clear failed"),
       data = "data"
     )
-    cloudBackupRepository.returnWriteError = clearError
+    cloudBackupService.returnWriteError = clearError
 
     // Upgrade should fail when backup clear fails
     val result = service.upgradeAccount(LiteAccountMock, WithAppKeysAndHardwareKeysMock)
@@ -445,7 +445,7 @@ class UpgradeLiteToFullAccountServiceImplTests : FunSpec({
     val differentAccountBackup = CloudBackupV2WithLiteAccountMock.copy(
       accountId = "different-account-id"
     )
-    cloudBackupRepository.writeBackup(
+    cloudBackupService.writeBackup(
       accountId = LiteAccountMock.accountId,
       cloudStoreAccount = cloudStoreAccount,
       backup = differentAccountBackup,
@@ -455,7 +455,7 @@ class UpgradeLiteToFullAccountServiceImplTests : FunSpec({
     service.upgradeAccount(LiteAccountMock, WithAppKeysAndHardwareKeysMock).shouldBeOk()
 
     // Verify backup was NOT archived since account ID didn't match
-    val allBackups = cloudBackupRepository.readAllBackups(cloudStoreAccount).shouldBeOk()
+    val allBackups = cloudBackupService.readAllBackups(cloudStoreAccount).shouldBeOk()
     allBackups.size.shouldBe(1) // Different account backup still present
     allBackups.first().accountId.shouldBe("different-account-id")
 
@@ -472,7 +472,7 @@ class UpgradeLiteToFullAccountServiceImplTests : FunSpec({
       cause = Throwable("read failed"),
       data = "data"
     )
-    cloudBackupRepository.returnReadError = readError
+    cloudBackupService.returnReadError = readError
 
     // Upgrade should fail when backup reading fails
     val result = service.upgradeAccount(LiteAccountMock, WithAppKeysAndHardwareKeysMock)

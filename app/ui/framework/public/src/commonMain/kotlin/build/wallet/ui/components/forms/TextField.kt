@@ -35,12 +35,18 @@ import build.wallet.ui.components.forms.TextFieldOverflowCharacteristic.*
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.label.labelStyle
+import build.wallet.ui.compose.resId
+import build.wallet.ui.compose.resolveTestTag
+import build.wallet.ui.compose.textFieldTestTag
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.input.TextFieldModel.Capitalization
 import build.wallet.ui.model.input.TextFieldModel.KeyboardType.*
 import build.wallet.ui.model.input.TextFieldModel.TextTransformation.INVITE_CODE
 import build.wallet.ui.model.input.TextFieldModel.TextTransformation.PASSWORD
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
+import build.wallet.ui.theme.LocalTheme
+import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 
@@ -49,6 +55,7 @@ import build.wallet.ui.tokens.LabelType
 fun TextField(
   modifier: Modifier = Modifier,
   model: TextFieldModel,
+  testTag: String? = null,
   labelType: LabelType = LabelType.Body2Regular,
   textFieldOverflowCharacteristic: TextFieldOverflowCharacteristic = Truncate,
   trailingButtonModel: ButtonModel? = null,
@@ -91,6 +98,7 @@ fun TextField(
     modifier = modifier,
     placeholderText = model.placeholderText,
     value = textState,
+    testTag = resolveTestTag(testTag ?: model.testTag, textFieldTestTag(model.placeholderText)),
     labelType = labelType,
     onValueChange = { newTextFieldValue ->
       val newValue = when {
@@ -178,6 +186,7 @@ fun TextField(
   focusRequester: FocusRequester = remember { FocusRequester() },
   placeholderText: String,
   value: TextFieldValue,
+  testTag: String? = null,
   labelType: LabelType = LabelType.Body2Regular,
   textFieldOverflowCharacteristic: TextFieldOverflowCharacteristic = Truncate,
   trailingButtonModel: ButtonModel? = null,
@@ -232,6 +241,7 @@ fun TextField(
           modifier = modifier.focusRequester(focusRequester),
           placeholderText = placeholderText,
           value = value,
+          testTag = testTag,
           textStyle = textStyle,
           textFieldOverflowCharacteristic = textFieldOverflowCharacteristic,
           trailingButtonModel = trailingButtonModel,
@@ -247,6 +257,7 @@ fun TextField(
         modifier = modifier.focusRequester(focusRequester),
         placeholderText = placeholderText,
         value = value,
+        testTag = testTag,
         textStyle = textStyle,
         textFieldOverflowCharacteristic = textFieldOverflowCharacteristic,
         trailingButtonModel = trailingButtonModel,
@@ -264,6 +275,7 @@ fun TextFieldWithCharacteristic(
   modifier: Modifier = Modifier,
   placeholderText: String,
   value: TextFieldValue,
+  testTag: String? = null,
   textStyle: TextStyle,
   textFieldOverflowCharacteristic: TextFieldOverflowCharacteristic,
   trailingButtonModel: ButtonModel?,
@@ -272,11 +284,24 @@ fun TextFieldWithCharacteristic(
   visualTransformation: VisualTransformation,
   onValueChange: (TextFieldValue) -> Unit,
 ) {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val shape =
+    RoundedCornerShape(
+      size = if (isDesignSystemV2Enabled) 8.dp else 32.dp
+    )
+  val backgroundColor =
+    when {
+      !isDesignSystemV2Enabled -> WalletTheme.colors.foreground10
+      LocalTheme.current == Theme.LIGHT -> WalletTheme.colors.subtleBackground
+      else -> WalletTheme.colors.foreground10
+    }
+
   Row(
     modifier =
       modifier
-        .clip(RoundedCornerShape(size = 32.dp))
-        .background(color = WalletTheme.colors.foreground10),
+        .resId(resolveTestTag(testTag, textFieldTestTag(placeholderText)))
+        .clip(shape)
+        .background(color = backgroundColor),
     verticalAlignment = Alignment.CenterVertically
   ) {
     BasicTextField(

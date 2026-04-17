@@ -20,7 +20,6 @@ import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.FeatureFlagValue
-import build.wallet.feature.flags.FingerprintResetFeatureFlag
 import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
 import build.wallet.feature.flags.KeysetRepairFeatureFlag
 import build.wallet.firmware.*
@@ -98,7 +97,6 @@ class SecurityActionsFunctionalTest : FunSpec({
   )
   val hardwareProvisionedAppKeyStatusDao = HardwareProvisionedAppKeyStatusDaoFake()
   val featureFlagDao = FeatureFlagDaoFake()
-  val fingerprintResetFeatureFlag = FingerprintResetFeatureFlag(featureFlagDao)
   val fingerprintResetMinFirmwareVersionFeatureFlag =
     FingerprintResetMinFirmwareVersionFeatureFlag(featureFlagDao)
   val fingerprintsActionFactory = FingerprintsActionFactoryImpl(
@@ -107,7 +105,6 @@ class SecurityActionsFunctionalTest : FunSpec({
     fingerprintResetService,
     hardwareProvisionedAppKeyStatusDao,
     fingerprintResetMinFirmwareVersionFeatureFlag,
-    fingerprintResetFeatureFlag,
     clock
   )
 
@@ -159,7 +156,6 @@ class SecurityActionsFunctionalTest : FunSpec({
     hardwareProvisionedAppKeyStatusDao.reset()
     featureFlagDao.reset()
     // Set default feature flag values
-    fingerprintResetFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("1.0.98"))
     keysetRepairFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     // Set activeAccountKeys but don't record provisioned key - simulates not provisioned state

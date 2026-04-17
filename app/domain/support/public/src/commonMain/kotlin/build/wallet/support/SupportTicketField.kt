@@ -156,5 +156,9 @@ sealed interface SupportTicketField<Value : Any> {
     data object HardwareFirmwareVersion : KnownFieldType<TextField> {
       override val fieldClass = TextField::class
     }
+
+    data object HardwareType : KnownFieldType<TextField> {
+      override val fieldClass = TextField::class
+    }
   }
 }

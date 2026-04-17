@@ -332,9 +332,9 @@ pub mod test {
             vec![
                 TestRule { fail_with_error: Some(SpendRuleCheckError::OutputsDontBelongToDestinationWallet) },
                 TestRule { fail_with_error: None },
-                TestRule { fail_with_error: Some(SpendRuleCheckError::OutputsBelongToSanctionedIndividuals) },
+                TestRule { fail_with_error: Some(SpendRuleCheckError::InputsOutputsBelongToSanctionedIndividuals) },
             ],
-            Some(vec![SpendRuleCheckError::OutputsDontBelongToDestinationWallet, SpendRuleCheckError::OutputsBelongToSanctionedIndividuals])
+            Some(vec![SpendRuleCheckError::OutputsDontBelongToDestinationWallet, SpendRuleCheckError::InputsOutputsBelongToSanctionedIndividuals])
         )
     )]
     fn test_check_spend_rules(

@@ -2,6 +2,7 @@ package bitkey.f8e.account
 
 import bitkey.backup.DescriptorBackup
 import build.wallet.encrypt.XCiphertext
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.testing.ext.createLostHardwareKeyset
 import build.wallet.testing.ext.getActiveAppGlobalAuthKey
 import build.wallet.testing.ext.getHardwareFactorProofOfPossession
@@ -42,7 +43,7 @@ class DescriptorBackupsF8eFunctionalTests : FunSpec({
       descriptorBackups = listOf(descriptorBackup, secondDescriptor),
       sealedSsek = sealedSsekByteArray.toByteString(),
       appAuthKey = app.getActiveAppGlobalAuthKey().publicKey,
-      hwKeyProof = app.getHardwareFactorProofOfPossession()
+      proof = PrivilegedActionProof.HwKeyProof(app.getHardwareFactorProofOfPossession())
     ).getOrThrow()
 
     app.listKeysetsF8eClient

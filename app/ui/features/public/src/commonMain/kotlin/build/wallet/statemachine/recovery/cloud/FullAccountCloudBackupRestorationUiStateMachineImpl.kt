@@ -1,6 +1,7 @@
 package build.wallet.statemachine.recovery.cloud
 
 import androidx.compose.runtime.*
+import bitkey.account.HardwareType
 import bitkey.auth.AuthTokenScope
 import bitkey.recovery.RecoveryStatusService
 import build.wallet.account.analytics.AppInstallationDao
@@ -38,6 +39,7 @@ import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
 import build.wallet.feature.flags.ReplaceFullWithLiteAccountFeatureFlag
 import build.wallet.feature.isEnabled
+import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.fwup.semverToInt
 import build.wallet.keybox.KeyboxDao
@@ -45,6 +47,9 @@ import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
 import build.wallet.nfc.NfcException
+import build.wallet.nfc.NfcSession
+import build.wallet.nfc.platform.HardwareInteraction
+import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.platform.unsealSymmetricKey
 import build.wallet.nfc.transaction.ProvisionAppAuthKeyTransactionProvider
 import build.wallet.notifications.DeviceTokenManager
@@ -57,6 +62,9 @@ import build.wallet.recovery.socrec.toActions
 import build.wallet.relationships.RelationshipsService
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
+import build.wallet.statemachine.nfc.ConfirmationResultContent
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
@@ -64,6 +72,7 @@ import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.cloud.CloudBackupRestorationUiState.*
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiProps
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiStateMachine
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationContent
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.collections.immutable.ImmutableList
@@ -86,6 +95,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
   private val deviceTokenManager: DeviceTokenManager,
   private val eventTracker: EventTracker,
   private val keyboxDao: KeyboxDao,
+  private val nfcConfirmableSessionUiStateMachine: NfcConfirmableSessionUiStateMachine,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val recoveryChallengeStateMachine: RecoveryChallengeUiStateMachine,
   private val recoveryStatusService: RecoveryStatusService,
@@ -330,67 +340,78 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
     setState: (CloudBackupRestorationUiState) -> Unit,
   ): ScreenModel {
     // Map backups to their sealed CSEKs so we can track which backup succeeds
-    val backupToSealedCsek = props.backups.mapNotNull { backup ->
+    val backupToSealedCsek = props.backups.map { backup ->
       when (backup) {
         is CloudBackupV2, is CloudBackupV3 ->
           backup to (backup.fullAccountFields as FullAccountFields).sealedHwEncryptionKey
-        else -> null
       }
     }
 
-    return nfcSessionUIStateMachine.model(
-      NfcSessionUIStateMachineProps(
+    // Captured during the NFC session for deferred persistence after successful unseal.
+    // Must be remembered so the value survives recompositions during the W3 two-tap flow.
+    var capturedDeviceInfo by remember { mutableStateOf<FirmwareDeviceInfo?>(null) }
+
+    return nfcConfirmableSessionUiStateMachine.model(
+      NfcConfirmableSessionUIStateMachineProps(
         session = { session, commands ->
-          // Try unsealing each CSEK until one succeeds
-          var unsealedCsek: Csek? = null
-          var successfulBackup: CloudBackup? = null
-          var lastError: Throwable? = null
+          // Fetch device info for hardware-type branching only.
+          // Don't persist metadata until after successful unseal/transfer
+          // to ensure the tapped hardware is verified before updating paired metadata.
+          val deviceInfo = commands.getDeviceInfo(session)
+          val hardwareType = deviceInfo.hardwareType()
+          // Capture for deferred persistence after successful unseal
+          capturedDeviceInfo = deviceInfo
 
-          for ((backup, sealedCsek) in backupToSealedCsek) {
-            try {
-              val result = Csek(commands.unsealSymmetricKey(session, sealedCsek))
-              unsealedCsek = result
-              successfulBackup = backup
+          when (hardwareType) {
+            HardwareType.W1 -> {
+              // Try unsealing each CSEK until one succeeds
+              var unsealedCsek: Csek? = null
+              var successfulBackup: CloudBackup? = null
+              var lastError: Throwable? = null
 
-              // Store the mapping for the successful CSEK
-              csekDao.set(key = sealedCsek, value = result)
-              break
-            } catch (e: NfcException) {
-              lastError = e
-              // Continue to next CSEK
-            } catch (e: IllegalArgumentException) {
-              lastError = e
-              // Continue to next CSEK
+              for ((backup, sealedCsek) in backupToSealedCsek) {
+                try {
+                  val result = Csek(commands.unsealSymmetricKey(session, sealedCsek))
+                  unsealedCsek = result
+                  successfulBackup = backup
+                  csekDao.set(key = sealedCsek, value = result)
+                  break
+                } catch (e: NfcException) {
+                  lastError = e
+                } catch (e: IllegalArgumentException) {
+                  lastError = e
+                }
+              }
+
+              if (unsealedCsek == null || successfulBackup == null) {
+                throw lastError ?: Error("Could not unseal any backup with this hardware")
+              }
+
+              // Persist device metadata only after successful unseal proves correct device
+              syncDeviceMetadata(session, commands, deviceInfo)
+
+              HardwareInteraction.Completed(Pair(unsealedCsek, successfulBackup))
+            }
+
+            HardwareType.W3 -> {
+              val sealedCseks = backupToSealedCsek.map { (_, sealedCsek) -> sealedCsek }
+
+              commands.fullAccountCloudBackupRestoration(
+                session = session,
+                sealedCseks = sealedCseks
+              ) { result ->
+                val (successfulBackup, sealedCsek) = backupToSealedCsek[result.index]
+                val unsealedCsek = Csek(result.unsealedCsek)
+                csekDao.set(key = sealedCsek, value = unsealedCsek)
+
+                Pair(unsealedCsek, successfulBackup)
+              }
             }
           }
-
-          if (unsealedCsek == null || successfulBackup == null) {
-            throw lastError ?: Error("Could not unseal any backup with this hardware")
-          }
-
-          // Unsealing proves we're on the original hardware, so reuse this session to
-          // persist current device info and fingerprint data for security hub.
-          val deviceInfo = commands.getDeviceInfo(session)
-          firmwareDeviceInfoDao.setDeviceInfo(deviceInfo)
-            .logFailure { "Failed to sync firmware device info during cloud recovery" }
-
-          // Restore HW serial number
-          if (deviceInfo.serial.isNotBlank()) {
-            appInstallationDao.updateAppInstallationHardwareSerialNumber(deviceInfo.serial)
-              .logFailure { "Failed to sync hardware serial number during cloud recovery" }
-          } else {
-            logError { "Hardware serial number is blank during cloud recovery" }
-          }
-
-          // This will fail on firmware versions that don't support the command (W1 <=1.0.67).
-          catchingResult {
-            val enrolledFingerprints = commands.getEnrolledFingerprints(session)
-            hardwareUnlockInfoService.replaceAllUnlockInfo(enrolledFingerprints.toUnlockInfoList())
-          }.logFailure { "Failed to sync fingerprint data during cloud recovery" }
-
-          Pair(unsealedCsek, successfulBackup)
         },
         onSuccess = { (_, successfulBackup) ->
+          // Persist device metadata now that unseal has proven correct hardware
+          capturedDeviceInfo?.let { persistDeviceMetadata(it) }
           setState(RestoringFromBackupUiState(successfulBackup))
         },
         onCancel = { setState(CloudBackupFoundUiState) },
@@ -415,8 +436,18 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
         hardwareVerification = NotRequired,
         screenPresentationStyle = Root,
         eventTrackerContext = UNSEAL_CLOUD_BACKUP,
+        confirmationContent = HardwareConfirmationContent.CloudBackupRestoration,
+        confirmationResultContent = ConfirmationResultContent(
+          pendingHeadline = "Approve on Bitkey",
+          pendingSubline = "You'll need to approve on your Bitkey device before tapping again."
+        ),
         segment = RecoverySegment.CloudBackup.FullAccount.Restoration,
-        actionDescription = "Unsealing CSEK for full account cloud restoration"
+        actionDescription = "Unsealing CSEK for full account cloud restoration",
+        // Always use W3 NfcCommands — they delegate to W1 for all shared commands
+        // (getDeviceInfo, unsealSymmetricKey, etc.) and only override W3-specific ones.
+        // The session lambda detects actual hardware type via getDeviceInfo and branches.
+        // This is a hack that we should improve with better abstractions
+        hardwareTypeOverride = HardwareType.W3
       )
     )
   }
@@ -826,7 +857,6 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
     setState: (CloudBackupRestorationUiState) -> Unit,
   ) {
     LaunchedEffect("saving-keybox") {
-      fullAccountAuthKeyRotationService.recommendKeyRotation()
       keyboxDao
         .saveKeyboxAsActive(
           state.accountRestoration.asKeybox(
@@ -834,6 +864,9 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
             state.fullAccountId
           )
         )
+        .onSuccess {
+          fullAccountAuthKeyRotationService.recommendKeyRotation()
+        }
         .onFailure { error ->
           setState(
             RestoringFromBackupFailureUiState(
@@ -849,6 +882,40 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
         }
     }
   }
+
+  /**
+   * Persists device metadata (device info, serial number) after successful unseal.
+   * Does not require an NFC session — uses previously fetched device info.
+   */
+  private suspend fun persistDeviceMetadata(deviceInfo: FirmwareDeviceInfo) {
+    firmwareDeviceInfoDao.setDeviceInfo(deviceInfo)
+      .logFailure { "Failed to sync firmware device info during cloud recovery" }
+
+    if (deviceInfo.serial.isNotBlank()) {
+      appInstallationDao.updateAppInstallationHardwareSerialNumber(deviceInfo.serial)
+        .logFailure { "Failed to sync hardware serial number during cloud recovery" }
+    } else {
+      logError { "Hardware serial number is blank during cloud recovery" }
+    }
+  }
+
+  /**
+   * Syncs device metadata including fingerprints during cloud recovery.
+   * Called after unsealing proves we're on the original hardware, reusing the same NFC session.
+   */
+  private suspend fun syncDeviceMetadata(
+    session: NfcSession,
+    commands: NfcCommands,
+    deviceInfo: FirmwareDeviceInfo,
+  ) {
+    persistDeviceMetadata(deviceInfo)
+
+    // This will fail on firmware versions that don't support the command (W1 <=1.0.67).
+    catchingResult {
+      val enrolledFingerprints = commands.getEnrolledFingerprints(session)
+      hardwareUnlockInfoService.replaceAllUnlockInfo(enrolledFingerprints.toUnlockInfoList())
+    }.logFailure { "Failed to sync fingerprint data during cloud recovery" }
+  }
 }
 
 private sealed interface CloudBackupRestorationUiState {
@@ -861,6 +928,7 @@ private sealed interface CloudBackupRestorationUiState {
    * Customer has chosen to restore. Show the NFC prompt to unseal the CSEK and,
    * once we know we're talking to the correct hardware, sync the device +
    * biometric metadata.
+   * Detecting the hardware type before unsealing. A quick NFC tap to getDeviceInfo.
    */
   data object UnsealingCsek : CloudBackupRestorationUiState
 

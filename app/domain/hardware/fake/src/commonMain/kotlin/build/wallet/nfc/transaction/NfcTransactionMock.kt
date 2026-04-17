@@ -7,9 +7,9 @@ class NfcTransactionMock<T : Any>(
   private val value: T,
   onSuccess: (T) -> Unit = {},
   onCancel: () -> Unit = {},
+  override val shouldLock: Boolean = true,
 ) : NfcTransaction<T> {
   override val needsAuthentication = true
-  override val shouldLock = true
 
   override suspend fun session(
     session: NfcSession,

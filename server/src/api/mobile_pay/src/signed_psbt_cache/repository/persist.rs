@@ -38,7 +38,7 @@ impl PsbtTxidCacheRepository {
         Ok(())
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, txid))]
     pub async fn delete(&self, txid: bdk_utils::bdk::bitcoin::Txid) -> Result<(), DatabaseError> {
         let table_name = self.get_table_name().await?;
         let database_object = self.get_database_object();

@@ -3,6 +3,8 @@ package build.wallet
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+import android.content.res.Configuration
+import android.graphics.Color
 import android.os.Build.VERSION
 import android.os.Build.VERSION_CODES
 import android.os.Bundle
@@ -41,6 +43,7 @@ class MainActivity : FragmentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     showSplashScreen()
+    drawContentBehindSystemBars()
 
     lifecycleScope.launch {
       // Wait for the app component to be initialized before proceeding
@@ -48,13 +51,13 @@ class MainActivity : FragmentActivity() {
       logAppLaunchState(savedInstanceState, application as BitkeyApplication)
 
       lockOrientationToPortrait()
-      drawContentBehindSystemBars()
       registerLifecycleObservers()
 
       maybeHideAppInLauncher()
 
       val activityComponent = activityComponent.await()
 
+      activityComponent.themePreferenceService.setSystemTheme(currentSystemTheme())
       observeThemeChanges(activityComponent)
 
       setContent {
@@ -87,6 +90,14 @@ class MainActivity : FragmentActivity() {
     super.onResume()
     CoroutineScope(Dispatchers.Default).launch {
       activityComponent.await().inAppBrowserNavigator.onClose()
+    }
+  }
+
+  override fun onConfigurationChanged(newConfig: Configuration) {
+    super.onConfigurationChanged(newConfig)
+
+    lifecycleScope.launch {
+      activityComponent.await().themePreferenceService.setSystemTheme(currentSystemTheme())
     }
   }
 
@@ -153,6 +164,10 @@ class MainActivity : FragmentActivity() {
 
   private fun drawContentBehindSystemBars() {
     enableEdgeToEdge()
+    window.navigationBarColor = Color.TRANSPARENT
+    if (VERSION.SDK_INT >= VERSION_CODES.Q) {
+      window.isNavigationBarContrastEnforced = false
+    }
   }
 
   @SuppressLint("SourceLockedOrientationActivity")
@@ -190,8 +205,17 @@ class MainActivity : FragmentActivity() {
           Theme.LIGHT -> AppCompatDelegate.MODE_NIGHT_NO
           Theme.DARK -> AppCompatDelegate.MODE_NIGHT_YES
         }
-        AppCompatDelegate.setDefaultNightMode(nightMode)
+        if (AppCompatDelegate.getDefaultNightMode() != nightMode) {
+          AppCompatDelegate.setDefaultNightMode(nightMode)
+        }
       }
+    }
+  }
+
+  private fun currentSystemTheme(): Theme {
+    return when (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) {
+      Configuration.UI_MODE_NIGHT_YES -> Theme.DARK
+      else -> Theme.LIGHT
     }
   }
 }

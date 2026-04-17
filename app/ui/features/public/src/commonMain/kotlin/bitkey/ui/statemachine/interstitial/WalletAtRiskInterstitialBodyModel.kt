@@ -29,6 +29,7 @@ data class WalletAtRiskInterstitialBodyModel(
             iconSize = IconSize.Accessory,
             iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Regular)
           ),
+          testTag = "close",
           onClick = StandardClick { onClose() }
         )
       )

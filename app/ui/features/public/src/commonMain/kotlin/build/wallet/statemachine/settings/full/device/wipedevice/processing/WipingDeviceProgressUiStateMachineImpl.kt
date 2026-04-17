@@ -6,6 +6,7 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceEventTrackerScreenId
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.seconds
@@ -22,7 +23,8 @@ class WipingDeviceProgressUiStateMachineImpl : WipingDeviceProgressUiStateMachin
       body = LoadingBodyModel(
         id = WipingDeviceEventTrackerScreenId.RESET_DEVICE_IN_PROGRESS,
         title = "Your Bitkey device is being wiped"
-      )
+      ),
+      presentationStyle = ScreenPresentationStyle.Modal
     )
   }
 }

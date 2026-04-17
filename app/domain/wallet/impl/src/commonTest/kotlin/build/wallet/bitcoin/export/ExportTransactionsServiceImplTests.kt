@@ -15,6 +15,7 @@ import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.f8e.recovery.LegacyRemoteKeyset
 import build.wallet.f8e.recovery.ListKeysetsF8eClientMock
 import build.wallet.f8e.recovery.ListKeysetsResponse
+import build.wallet.f8e.recovery.PrivateMultisigRemoteKeyset
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.Bdk2FeatureFlag
 import build.wallet.feature.flags.setBdk2Enabled
@@ -27,6 +28,7 @@ import com.github.michaelbull.result.Ok
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
+import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.ints.shouldBeExactly
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.flow.first
@@ -225,6 +227,65 @@ class ExportTransactionsServiceImplTests : FunSpec({
           "WatchingWallet uuid-0",
           "WatchingWallet uuid-1"
         )
+    }
+  }
+
+  test("export filters out PrivateMultisigRemoteKeyset from F8e response") {
+    val accountWithoutLocalKeysets = FullAccountMock.copy(
+      keybox = KeyboxMock.copy(
+        canUseKeyboxKeysets = false
+      )
+    )
+
+    accountService.accountState.value = Ok(ActiveAccount(accountWithoutLocalKeysets))
+
+    val activeKeyset = FullAccountMock.keybox.activeSpendingKeyset
+    val legacyKeyset = LegacyRemoteKeyset(
+      keysetId = "legacy-keyset-id",
+      networkType = activeKeyset.networkType.name,
+      appDescriptor = activeKeyset.appKey.key.dpub,
+      hardwareDescriptor = activeKeyset.hardwareKey.key.dpub,
+      serverDescriptor = activeKeyset.f8eSpendingKeyset.spendingPublicKey.key.dpub
+    )
+
+    val privateKeyset = PrivateMultisigRemoteKeyset(
+      keysetId = "private-orphaned-keyset",
+      networkType = "SIGNET",
+      appPublicKey = "app-pub",
+      hardwarePublicKey = "hw-pub",
+      serverPublicKey = "server-pub"
+    )
+
+    val f8eClient = ListKeysetsF8eClientMock().apply {
+      result = Ok(
+        ListKeysetsResponse(
+          keysets = listOf(legacyKeyset, privateKeyset),
+          wrappedSsek = null,
+          descriptorBackups = emptyList(),
+          activeKeysetId = activeKeyset.f8eSpendingKeyset.keysetId
+        )
+      )
+    }
+
+    val testService = ExportTransactionsServiceImpl(
+      accountService = accountService,
+      watchingWalletProvider = watchingWalletProvider,
+      spendingWalletV2Provider = spendingWalletV2Provider,
+      bdk2FeatureFlag = bdk2FeatureFlag,
+      bitcoinMultiSigDescriptorBuilder = BitcoinMultiSigDescriptorBuilderMock(),
+      exportTransactionsAsCsvSerializer = ExportTransactionsAsCsvSerializerImpl(),
+      listKeysetsF8eClient = f8eClient,
+      uuidGenerator = UuidGeneratorFake()
+    )
+
+    // Should succeed without crashing — the private keyset is filtered out
+    testService.export().shouldBeOk()
+
+    watchingWalletProvider.requestedDescriptors.test {
+      val requestedDescriptors = awaitUntil { it.isNotEmpty() }
+      // Only the legacy keyset should be used
+      requestedDescriptors.shouldHaveSize(1)
+      requestedDescriptors.first().identifier.shouldBe("WatchingWallet uuid-0")
     }
   }
 })

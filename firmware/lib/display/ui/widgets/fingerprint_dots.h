@@ -23,13 +23,6 @@
 #define FINGERPRINT_DOT_SIZE_ACTIVE   10
 
 /**
- * @brief Callback invoked when all dots have been activated
- *
- * @param user_data User data passed to fingerprint_dots_set_percent()
- */
-typedef void (*fingerprint_dots_complete_cb_t)(void* user_data);
-
-/**
  * @brief Context for dot animation callbacks
  */
 typedef struct {
@@ -51,16 +44,11 @@ typedef enum {
  * @brief Fingerprint dots widget state
  */
 typedef struct {
-  lv_obj_t* parent;                                           // Parent object
   lv_obj_t* container;                                        // Container for centering
   lv_obj_t* dots[FINGERPRINT_DOTS_COUNT];                     // Dot objects
   fingerprint_dot_state_t dot_state[FINGERPRINT_DOTS_COUNT];  // State per dot (inactive/mid/active)
   fingerprint_dot_anim_ctx_t anim_ctx[FINGERPRINT_DOTS_COUNT];  // Per-dot animation contexts
-  uint16_t active_count;                                        // Number of currently active dots
-  lv_coord_t offset_x;                                          // X offset for positioning
-  lv_coord_t offset_y;                                          // Y offset for positioning
   bool is_initialized;                                          // True if widget created
-  bool is_visible;                                              // True if dots are visible
 } fingerprint_dots_t;
 
 /**
@@ -103,15 +91,6 @@ void fingerprint_dots_hide(fingerprint_dots_t* dots);
  * @param percent Percentage of dots to activate (0-100)
  */
 void fingerprint_dots_set_percent(fingerprint_dots_t* dots, uint8_t percent);
-
-/**
- * @brief Reset all dots to inactive state
- *
- * Stops all animations and sets all dots to dimmed/inactive appearance.
- *
- * @param dots Widget structure
- */
-void fingerprint_dots_reset(fingerprint_dots_t* dots);
 
 /**
  * @brief Destroy fingerprint dots widget

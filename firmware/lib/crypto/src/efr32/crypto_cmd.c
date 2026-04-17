@@ -134,16 +134,14 @@ static void _curve25519_test(void) {
   };
 
   if (!crypto_ecc_compute_shared_secret(&our_privkey, &their_pubkey, &shared_secret)) {
-    LOGE("Failed to compute shared secret");
+    LOGE("ECDH fail");
     return;
   }
 
   if (memcmp(shared_secret_buf, expected_secret, sizeof(expected_secret)) != 0) {
-    LOGE("Secret does not match expected.");
+    LOGE("ECDH mismatch");
     return;
   }
-
-  LOGI("25519_ecdh_test PASS");
 }
 #endif
 
@@ -238,13 +236,13 @@ static void cmd_crypto_run(int argc, char** argv) {
 #if defined(CRYPTO_CMD_ECC_TEST_EN) && CRYPTO_CMD_ECC_TEST_EN
     _ecc_test(crypto_cmd_args.ecc->value);
 #else
-    LOGE("ecc test not enabled (CRYPTO_CMD_ECC_TEST_EN=0)");
+    LOGE("ecc test disabled");
 #endif
   } else if (crypto_cmd_args.gcm->header.found) {
 #if defined(CRYPTO_CMD_GCM_TEST_EN) && CRYPTO_CMD_GCM_TEST_EN
     crypto_test_gcm();
 #else
-    LOGE("gcm test not enabled (CRYPTO_CMD_GCM_TEST_EN=0)");
+    LOGE("gcm test disabled");
 #endif
   } else if (crypto_cmd_args.rng->header.found) {
     _randomness_test();

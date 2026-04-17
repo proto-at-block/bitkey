@@ -17,6 +17,7 @@ kotlin {
         implementation(projects.domain.availabilityPublic)
         implementation(projects.domain.debugPublic)
         implementation(projects.domain.f8eClientPublic)
+        implementation(projects.domain.featureFlagPublic)
         implementation(projects.libs.ktorClientPublic)
         implementation(projects.domain.databasePublic)
         implementation(projects.libs.loggingPublic)

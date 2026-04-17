@@ -4,6 +4,8 @@ import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
+import build.wallet.feature.collectIsEnabledAsState
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FingerprintEnrollmentStatus
 import build.wallet.firmware.FingerprintHandle
@@ -32,9 +34,11 @@ class EnrollingFingerprintUiStateMachineImpl(
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val fingerprintNfcCommands: FingerprintNfcCommands,
   private val fingerprintResetGrantNfcHandler: FingerprintResetGrantNfcHandler,
+  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : EnrollingFingerprintUiStateMachine {
   @Composable
   override fun model(props: EnrollingFingerprintProps): ScreenModel {
+    val isDesignSystemV2Enabled by designSystemUpdatesFeatureFlag.collectIsEnabledAsState()
     val initialState = when (props.context) {
       is EnrollmentContext.FingerprintReset -> ShowingFingerprintInstructionsUiState()
       EnrollmentContext.AddingFingerprint -> StartingEnrollmentUiState
@@ -90,6 +94,7 @@ class EnrollingFingerprintUiStateMachineImpl(
           onBack = props.onCancel,
           eventTrackerContext = NfcEventTrackerScreenIdContext.ENROLLING_NEW_FINGERPRINT,
           isNavigatingBack = state.isNavigatingBack,
+          isDesignSystemV2Enabled = isDesignSystemV2Enabled,
           presentationStyle = ScreenPresentationStyle.RootFullScreen,
           headline = when (props.context) {
             is EnrollmentContext.FingerprintReset -> "Set up your fingerprint"
@@ -244,8 +249,7 @@ class EnrollingFingerprintUiStateMachineImpl(
         text = "Having trouble?",
         treatment = ButtonModel.Treatment.TertiaryNoUnderlineWhite,
         onClick = StandardClick(onTrouble),
-        size = ButtonModel.Size.Footer,
-        testTag = "having-trouble"
+        size = ButtonModel.Size.Footer
       )
     } else {
       null

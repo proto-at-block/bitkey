@@ -8,7 +8,7 @@ import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.relationships.*
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.relationships.CreateInvitationError
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -45,7 +45,7 @@ class InheritanceServiceMock(
   override val inheritanceRelationships = relationships
 
   override suspend fun createInheritanceInvitation(
-    hardwareProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
     trustedContactAlias: TrustedContactAlias,
   ): Result<OutgoingInvitation, CreateInvitationError> {
     return Ok(
@@ -66,6 +66,14 @@ class InheritanceServiceMock(
     relationshipId: RelationshipId,
   ): Result<PendingClaim, Throwable> {
     return startClaimResult
+  }
+
+  override suspend fun pendingBenefactorClaim(
+    relationshipId: RelationshipId,
+  ): BenefactorClaim.PendingClaim? {
+    return claims.value
+      .filterIsInstance<BenefactorClaim.PendingClaim>()
+      .firstOrNull { it.relationshipId == relationshipId }
   }
 
   override suspend fun loadApprovedClaim(

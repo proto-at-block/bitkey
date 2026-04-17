@@ -121,6 +121,23 @@ class RouterTests : DescribeSpec({
         )
       }
     }
+
+    describe("hardware setup routing") {
+      it("parses download link as HardwareSetup") {
+        Route.from("https://bitkey.world/download/")
+          .shouldNotBeNull().shouldBe(Route.HardwareSetup)
+      }
+
+      it("parses download link without trailing slash as HardwareSetup") {
+        Route.from("https://bitkey.world/download")
+          .shouldNotBeNull().shouldBe(Route.HardwareSetup)
+      }
+
+      it("parses download link with UTM params as HardwareSetup") {
+        Route.from("https://bitkey.world/download/?utm_source=gsg&utm_campaign=launch&utm_medium=qrcode")
+          .shouldNotBeNull().shouldBe(Route.HardwareSetup)
+      }
+    }
   }
 
   describe("Router.onRouteChange") {

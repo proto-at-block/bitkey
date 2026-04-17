@@ -166,15 +166,26 @@ class RelationshipsCryptoImpl(
         )
       }
 
+      // Verify HW endorsement of app auth key.
+      // W3 firmware uses domain separation: SHA-256("BKRelationshipEndorsement" || pubkey_hex).
+      // W1 firmware signs SHA-256(pubkey_hex) directly (no prefix).
+      // Try with prefix first (W3), fall back to without (W1).
+      val appAuthKeyMessage = keyCertificate.appGlobalAuthPublicKey.value.encodeUtf8()
+      val prefixedAppAuthKeyMessage =
+        ("BKRelationshipEndorsement".encodeUtf8().toByteArray() + appAuthKeyMessage.toByteArray()).toByteString()
+      val hwEndorsementValid = signatureVerifier.verifyEcdsaResult(
+        signature = keyCertificate.appAuthGlobalKeyHwSignature.value,
+        publicKey = hwEndorsementKey.pubKey,
+        message = prefixedAppAuthKeyMessage
+      ).getOrElse { false } || signatureVerifier.verifyEcdsaResult(
+        signature = keyCertificate.appAuthGlobalKeyHwSignature.value,
+        publicKey = hwEndorsementKey.pubKey,
+        message = appAuthKeyMessage
+      ).getOrElse { false }
+
       // Verify the key certificate
       ensure(
-        signatureVerifier.verifyEcdsaResult(
-          signature = keyCertificate.appAuthGlobalKeyHwSignature.value,
-          publicKey = hwEndorsementKey.pubKey,
-          message = keyCertificate.appGlobalAuthPublicKey.value.encodeUtf8()
-        ).mapError {
-          RelationshipsCryptoError.KeyCertificateVerificationFailed(it)
-        }.bind() &&
+        hwEndorsementValid &&
           signatureVerifier.verifyEcdsaResult(
             signature = keyCertificate.trustedContactIdentityKeyAppSignature.value,
             publicKey = appEndorsementKey.toSecp256k1PublicKey(),

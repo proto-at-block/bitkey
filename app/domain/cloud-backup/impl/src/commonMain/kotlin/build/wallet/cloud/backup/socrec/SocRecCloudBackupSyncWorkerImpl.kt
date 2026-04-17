@@ -13,7 +13,7 @@ import build.wallet.bitkey.relationships.TrustedContactAuthenticationState
 import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupOperationLock
-import build.wallet.cloud.backup.CloudBackupRepository
+import build.wallet.cloud.backup.CloudBackupService
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator
@@ -47,7 +47,7 @@ class SocRecCloudBackupSyncWorkerImpl(
   private val relationshipsService: RelationshipsService,
   private val cloudBackupDao: CloudBackupDao,
   private val cloudStoreAccountRepository: CloudStoreAccountRepository,
-  private val cloudBackupRepository: CloudBackupRepository,
+  private val cloudBackupService: CloudBackupService,
   private val fullAccountCloudBackupCreator: FullAccountCloudBackupCreator,
   private val eventTracker: EventTracker,
   private val clock: Clock,
@@ -221,7 +221,7 @@ class SocRecCloudBackupSyncWorkerImpl(
           .bind()
 
         // Upload new cloud backup to the cloud.
-        cloudBackupRepository.writeBackup(
+        cloudBackupService.writeBackup(
           accountId = fullAccount.accountId,
           cloudStoreAccount = cloudStoreAccount,
           backup = cloudBackup,

@@ -1,18 +1,22 @@
 package build.wallet.statemachine.limit.picker
 
 import app.cash.turbine.plusAssign
+import bitkey.privilegedactions.ActionProofServiceFake
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.bitkey.keybox.FullAccountW3Mock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.Money
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryFake
 import build.wallet.money.exchange.ExchangeRateServiceFake
+import build.wallet.platform.settings.LocaleProviderFake
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
-import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
-import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
+import build.wallet.statemachine.auth.ActionProofType
+import build.wallet.statemachine.auth.HardwareAuthUiProps
+import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
 import build.wallet.statemachine.core.Retreat
 import build.wallet.statemachine.core.RetreatStyle.Close
 import build.wallet.statemachine.core.test
@@ -23,6 +27,7 @@ import build.wallet.statemachine.money.calculator.MoneyCalculatorUiProps
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
+import build.wallet.statemachine.ui.awaitUntilBodyMock
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
@@ -51,19 +56,22 @@ class SpendingLimitPickerUiStateMachineImplTests : FunSpec({
       StateMachineMock<MoneyCalculatorUiProps, MoneyCalculatorModel>(
         defaultMoneyCalculatorModel
       ) {}
+  val actionProofServiceFake = ActionProofServiceFake()
   val stateMachine: SpendingLimitPickerUiStateMachine =
     SpendingLimitPickerUiStateMachineImpl(
       exchangeRateService = ExchangeRateServiceFake(),
-      proofOfPossessionNfcStateMachine =
-        object : ProofOfPossessionNfcStateMachine, ScreenStateMachineMock<ProofOfPossessionNfcProps>(
-          id = "pop-nfc"
+      hardwareAuthUiStateMachine =
+        object : HardwareAuthUiStateMachine, ScreenStateMachineMock<HardwareAuthUiProps>(
+          id = "hardware-auth"
         ) {},
       moneyCalculatorUiStateMachine = moneyCalculatorUiStateMachine,
-      fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryFake()
+      fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryFake(),
+      actionProofService = actionProofServiceFake,
+      localeProvider = LocaleProviderFake()
     )
 
   val onCloseCalls = turbines.create<Unit>("close calls")
-  val onSaveLimitCalls = turbines.create<Pair<Money, HwFactorProofOfPossession>>("save limit calls")
+  val onSaveLimitCalls = turbines.create<Pair<Money, PrivilegedActionProof>>("save limit calls")
   val testMoney = FiatMoney.usd(100.0)
 
   val props =
@@ -71,8 +79,10 @@ class SpendingLimitPickerUiStateMachineImplTests : FunSpec({
       account = FullAccountMock,
       initialLimit = FiatMoney.zeroUsd(),
       retreat = Retreat(style = Close, onRetreat = { onCloseCalls += Unit }),
-      onSaveLimit = { value, _, hwPoP -> onSaveLimitCalls += Pair(value, hwPoP) }
+      onSaveLimit = { value, _, proof, _ -> onSaveLimitCalls += Pair(value, proof) }
     )
+
+  val w3Props = props.copy(account = FullAccountW3Mock)
 
   val moneyCalculatorModelWithAmount = defaultMoneyCalculatorModel.copy(
     primaryAmount = testMoney,
@@ -126,17 +136,54 @@ class SpendingLimitPickerUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("onTokenRefresh returns SpendingLimitPickerModel with loading button") {
+  test("W3 - hardware auth props contain correct action proof type with formatted value") {
+    moneyCalculatorUiStateMachine.emitModel(moneyCalculatorModelWithAmount)
+    stateMachine.test(w3Props) {
+      awaitBody<SpendingLimitPickerModel> {
+        setLimitButtonModel.onClick()
+      }
+
+      awaitUntilBodyMock<HardwareAuthUiProps> {
+        fullAccountId.shouldBe(FullAccountW3Mock.accountId)
+        actionProofType.shouldBeInstanceOf<ActionProofType.SetMobilePayLimit>().let { proofType ->
+          // The formatted value comes from the fake ("50.00 USD" by default)
+          proofType.limit.shouldBe("50.00 USD")
+          proofType.currency.shouldBe(testMoney.currency.textCode.code)
+        }
+      }
+    }
+  }
+
+  test("W1 - skips formatting and goes directly to hardware auth") {
     moneyCalculatorUiStateMachine.emitModel(moneyCalculatorModelWithAmount)
     stateMachine.test(props) {
+      awaitBody<SpendingLimitPickerModel> {
+        setLimitButtonModel.onClick()
+      }
+
+      // W1 should skip formatting and go straight to hardware auth
+      awaitBodyMock<HardwareAuthUiProps> {
+        fullAccountId.shouldBe(FullAccountMock.accountId)
+        actionProofType.shouldBeInstanceOf<ActionProofType.SetMobilePayLimit>().let { proofType ->
+          // W1 uses raw fractional unit value, not server-formatted
+          proofType.limit.shouldBe(testMoney.fractionalUnitValue.toString())
+          proofType.currency.shouldBe(testMoney.currency.textCode.code)
+        }
+      }
+    }
+  }
+
+  test("onTokenRefresh returns SpendingLimitPickerModel with loading button") {
+    moneyCalculatorUiStateMachine.emitModel(moneyCalculatorModelWithAmount)
+    stateMachine.test(w3Props) {
       // initial state
       awaitBody<SpendingLimitPickerModel> {
         setLimitButtonModel.isLoading.shouldBeFalse()
         setLimitButtonModel.onClick()
       }
 
-      // hw proof of possession
-      awaitBodyMock<ProofOfPossessionNfcProps> {
+      // hardware auth (skipping intermediate formatting state)
+      awaitUntilBodyMock<HardwareAuthUiProps> {
         val model = onTokenRefresh.shouldNotBeNull().invoke()
         val limitBody = model.body.shouldBeInstanceOf<SpendingLimitPickerModel>()
         limitBody.setLimitButtonModel.isLoading.shouldBeTrue()
@@ -146,7 +193,7 @@ class SpendingLimitPickerUiStateMachineImplTests : FunSpec({
 
   test("onTokenRefreshError returns SpendingLimitPickerModel with error sheet") {
     moneyCalculatorUiStateMachine.emitModel(moneyCalculatorModelWithAmount)
-    stateMachine.test(props) {
+    stateMachine.test(w3Props) {
       // initial state
       with(awaitItem()) {
         bottomSheetModel.shouldBeNull()
@@ -155,8 +202,8 @@ class SpendingLimitPickerUiStateMachineImplTests : FunSpec({
         limitBody.setLimitButtonModel.onClick()
       }
 
-      // hw proof of possession
-      awaitBodyMock<ProofOfPossessionNfcProps> {
+      // hardware auth (skipping intermediate formatting state)
+      awaitUntilBodyMock<HardwareAuthUiProps> {
         val model = onTokenRefreshError.shouldNotBeNull().invoke(false) {}
         model.bottomSheetModel.shouldNotBeNull()
       }

@@ -15,9 +15,13 @@ internal fun LogsScreenPreview() {
     LogsScreen(
       model = LogsBodyModel(
         errorsOnly = false,
+        showDebugLogs = false,
         analyticsEventsOnly = false,
+        searchQuery = "",
         onErrorsOnlyValueChanged = {},
+        onShowDebugLogsValueChanged = {},
         onAnalyticsEventsOnlyValueChanged = {},
+        onSearchQueryChanged = {},
         onClear = {},
         logsModel =
           LogsModel(

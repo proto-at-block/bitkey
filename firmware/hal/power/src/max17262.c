@@ -34,8 +34,8 @@ enum {
 
 #define READ_REGISTER_16_AND_LOG_ON_FAIL(register, buffer) \
   do {                                                     \
-    if (!read_register_16(register, buffer) != 0) {        \
-      LOGE("Failed to read_register_16: %s", #register);   \
+    if (!read_register_16(register, buffer)) {             \
+      LOGE("reg read fail: 0x%02x", register);             \
       BITLOG_EVENT(fuel_gauge_reg_read_err, register);     \
       return false;                                        \
     }                                                      \
@@ -43,20 +43,11 @@ enum {
 
 #define WRITE_REGISTER_16_AND_LOG_ON_FAIL(register, buffer) \
   do {                                                      \
-    if (!write_register_16(register, buffer) != 0) {        \
-      LOGE("Failed to write_register_16: %s", #register);   \
+    if (!write_register_16(register, buffer)) {             \
+      LOGE("reg write fail: 0x%02x", register);             \
       BITLOG_EVENT(fuel_gauge_reg_write_err, register);     \
       return false;                                         \
     }                                                       \
-  } while (0)
-
-#define WRITE_REGISTER_AND_LOG_ON_FAIL(register, buffer) \
-  do {                                                   \
-    if (!write_register(register, buffer) != 0) {        \
-      LOGE("Failed to write_register: %s", #register);   \
-      BITLOG_EVENT(fuel_gauge_reg_write_err, register);  \
-      return false;                                      \
-    }                                                    \
   } while (0)
 
 extern mcu_i2c_bus_config_t power_i2c_config;
@@ -73,16 +64,20 @@ static const uint32_t model_load_attempts = 60000u / 10u;  // 60 seconds
 static bool modelgauge_configured(void);
 static bool read_register(const max17262_reg_t address, uint8_t* result, const size_t len);
 static bool read_register_16(const max17262_reg_t address, uint8_t* result);
-static bool write_register(const max17262_reg_t address, const uint8_t data);
 static bool write_register_16(const max17262_reg_t address, const uint8_t* data);
 static bool write_register_16_verify(const max17262_reg_t address, const uint8_t* data);
 static bool write_register_16_critical(const max17262_reg_t address, const uint8_t* data);
 static bool write_table_16(const max17262_reg_t address, const uint16_t* data);
 static bool read_table_16(const max17262_reg_t address, uint16_t* data);
+static bool log_read_register_16_fail(const max17262_reg_t address);
+static bool log_write_register_16_fail(const max17262_reg_t address);
+static bool read_register_16_and_log(const max17262_reg_t address, uint8_t* data);
+static bool write_register_16_and_log(const max17262_reg_t address, const uint8_t* data);
+static bool restore_hibcfg(const uint16_t hibcfg);
 
 static bool modelgauge_unlock(void);
 static bool modelgauge_lock(void);
-static bool ez_config_option_3(uint8_t* hibcfg, battery_variant_t variant);
+static bool ez_config_option_3(const uint16_t hibcfg, battery_variant_t variant);
 
 max17262_status_t max17262_init(void) {
   mcu_i2c_bus_init(&power_i2c_config, &max17262_i2c_config, true);
@@ -118,7 +113,11 @@ bool max17262_validate(void) {
   return true;
 }
 
-uint32_t max17262_soc_millipercent(void) {
+bool max17262_get_soc_millipercent(uint32_t* soc_out) {
+  if (soc_out == NULL) {
+    return false;
+  }
+
   uint16_t soc = {0};
 
   READ_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_REPSOC, (uint8_t*)&soc);
@@ -127,10 +126,12 @@ uint32_t max17262_soc_millipercent(void) {
   // Clip SOC to 100.000% max
   const uint32_t soc_max = 100 * 1000;
   if (scaled_soc > soc_max) {
-    return soc_max;
+    *soc_out = soc_max;
+    return true;
   }
 
-  return scaled_soc;
+  *soc_out = scaled_soc;
+  return true;
 }
 
 uint32_t max17262_vcell_mv(void) {
@@ -150,7 +151,7 @@ bool max17262_por_initialise(void) {
     rtos_thread_sleep(wait_loop_delay_ms);
     if (!read_register_16(MAX17262_REG_FSTAT, &fstat.bytes[0]) ||
         TIMED_OUT_MS(start, fstat_timeout_ms)) {
-      LOGE("Error reading MAX17262_REG_FSTAT DNR");
+      LOGE("FSTAT DNR read err");
       BITLOG_EVENT(fuel_gauge_por_init_err, MAX17262_POR_INIT_ERR_FSTAT_TIMEOUT);
       return false;
     }
@@ -158,21 +159,36 @@ bool max17262_por_initialise(void) {
 
   // Step 2 - Initialize Configuration
   // Store original HibCFG value
-  uint8_t hibcfg = 0;
-  READ_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_HIBCFG, &hibcfg);
+  uint16_t hibcfg = 0;
+  READ_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_HIBCFG, (uint8_t*)&hibcfg);
 
-  WRITE_REGISTER_AND_LOG_ON_FAIL(MAX17262_REG_COMMAND, 0x90);  // Exit Hibernate Mode step 1
-  WRITE_REGISTER_AND_LOG_ON_FAIL(MAX17262_REG_HIBCFG, 0x00);   // Exit Hibernate Mode step 2
-  WRITE_REGISTER_AND_LOG_ON_FAIL(MAX17262_REG_COMMAND, 0x00);  // Exit Hibernate Mode step 3
+  const uint16_t hibernate_exit_step_1 = 0x0090;
+  const uint16_t hibernate_exit_step_2 = 0x0000;
+  const uint16_t hibernate_exit_step_3 = 0x0000;
+  if (!write_register_16(MAX17262_REG_COMMAND, (const uint8_t*)&hibernate_exit_step_1)) {
+    log_write_register_16_fail(MAX17262_REG_COMMAND);
+    (void)restore_hibcfg(hibcfg);
+    return false;
+  }
+  if (!write_register_16(MAX17262_REG_HIBCFG, (const uint8_t*)&hibernate_exit_step_2)) {
+    log_write_register_16_fail(MAX17262_REG_HIBCFG);
+    (void)restore_hibcfg(hibcfg);
+    return false;
+  }
+  if (!write_register_16(MAX17262_REG_COMMAND, (const uint8_t*)&hibernate_exit_step_3)) {
+    log_write_register_16_fail(MAX17262_REG_COMMAND);
+    (void)restore_hibcfg(hibcfg);
+    return false;
+  }
 
   // Get configured battery variant from filesystem
   battery_variant_t variant = BATTERY_VARIANT_DEFAULT;
   if (!battery_get_variant((uint32_t*)&variant)) {
-    LOGW("Unable to read battery variant");
+    LOGW("Batt variant read fail");
   }
 
   // Modelgauge M5 Option 3
-  if (!ez_config_option_3(&hibcfg, variant)) {
+  if (!ez_config_option_3(hibcfg, variant)) {
     BITLOG_EVENT(fuel_gauge_por_init_err, MAX17262_POR_INIT_ERR_MODELGAUGE_LOAD);
     return false;
   }
@@ -180,14 +196,14 @@ bool max17262_por_initialise(void) {
   // Step 3: Initialization Complete
   max17262_reg_status_t status = {0};
   if (!read_register_16(MAX17262_REG_STATUS, &status.bytes[0])) {
-    LOGE("Error reading status register");
+    LOGE("Status rd err");
     BITLOG_EVENT(fuel_gauge_por_init_err, MAX17262_POR_INIT_ERR_STATUS_READ);
     return false;
   }
 
   status.values.POR = 0;
   if (!write_register_16_verify(MAX17262_REG_STATUS, &status.bytes[0])) {
-    LOGE("Error resetting POR bit in status register");
+    LOGE("POR bit reset err");
     BITLOG_EVENT(fuel_gauge_por_init_err, MAX17262_POR_INIT_ERR_STATUS_WRITE);
     return false;
   }
@@ -214,7 +230,8 @@ uint32_t max17262_cycles(void) {
 }
 
 void max17262_get_regdump(max17262_regdump_t* registers_out) {
-  registers_out->soc = max17262_soc_millipercent();
+  registers_out->soc = 0;
+  max17262_get_soc_millipercent(&registers_out->soc);
   registers_out->vcell = max17262_vcell_mv();
   registers_out->avg_current = max17262_average_current();
   registers_out->cycles = max17262_cycles();
@@ -231,7 +248,7 @@ bool max17262_clear_modelgauge(void) {
   const uint16_t xtable_clear[16] = {0};
   if (!write_table_16(MAX17262_OCVTABLE0, ocvtable_clear) ||
       !write_table_16(MAX17262_XTABLE0, xtable_clear)) {
-    LOGE("Error clearing OCVTable and XTable");
+    LOGE("OCV/XT clr err");
     BITLOG_EVENT(fuel_gauge_por_init_err, MAX17262_POR_INIT_ERR_OCVTABLE_WRITE);
     return false;
   }
@@ -279,20 +296,6 @@ static bool read_register(const max17262_reg_t address, uint8_t* result, const s
 
 static bool read_register_16(const max17262_reg_t address, uint8_t* result) {
   return read_register(address, result, sizeof(uint16_t));
-}
-
-static bool write_register(const max17262_reg_t address, const uint8_t data) {
-  uint8_t tx_buf[1] = {address};
-  uint8_t tx_data[1] = {data};
-  mcu_i2c_transfer_seq_t seq = {
-    .buf[0] = {.data = tx_buf, .len = 1},
-    .buf[1] = {.data = tx_data, .len = 1},
-    .flags = MCU_I2C_FLAG_WRITE_WRITE,
-  };
-
-  const mcu_i2c_err_t ret = mcu_i2c_transfer(&max17262_i2c_config, &seq, transfer_timeout_ms);
-
-  return ret == MCU_I2C_TRANSFER_DONE;
 }
 
 static bool write_register_16(const max17262_reg_t address, const uint8_t* data) {
@@ -345,7 +348,7 @@ static bool write_register_16_critical(const max17262_reg_t address, const uint8
 static bool write_table_16(const max17262_reg_t address, const uint16_t* data) {
   for (size_t i = 0; i < 16; i++) {
     if (!write_register_16(address + i, (const uint8_t*)&data[i])) {
-      LOGE("Error writing table %02x at position %02x", address, i);
+      LOGE("Tbl write err: 0x%02x[%02x]", address, i);
       return false;
     }
   }
@@ -356,9 +359,47 @@ static bool write_table_16(const max17262_reg_t address, const uint16_t* data) {
 static bool read_table_16(const max17262_reg_t address, uint16_t* data) {
   for (size_t i = 0; i < 16; i++) {
     if (!read_register_16(address + i, (uint8_t*)&data[i])) {
-      LOGE("Error reading table %02x at position %02x", address, i);
+      LOGE("Tbl read err: 0x%02x[%02x]", address, i);
       return false;
     }
+  }
+
+  return true;
+}
+
+static bool log_read_register_16_fail(const max17262_reg_t address) {
+  LOGE("reg read fail: 0x%02x", address);
+  BITLOG_EVENT(fuel_gauge_reg_read_err, address);
+  return false;
+}
+
+static bool log_write_register_16_fail(const max17262_reg_t address) {
+  LOGE("reg write fail: 0x%02x", address);
+  BITLOG_EVENT(fuel_gauge_reg_write_err, address);
+  return false;
+}
+
+static bool read_register_16_and_log(const max17262_reg_t address, uint8_t* data) {
+  if (!read_register_16(address, data)) {
+    return log_read_register_16_fail(address);
+  }
+
+  return true;
+}
+
+static bool write_register_16_and_log(const max17262_reg_t address, const uint8_t* data) {
+  if (!write_register_16(address, data)) {
+    return log_write_register_16_fail(address);
+  }
+
+  return true;
+}
+
+static bool restore_hibcfg(const uint16_t hibcfg) {
+  if (!write_register_16(MAX17262_REG_HIBCFG, (const uint8_t*)&hibcfg)) {
+    LOGE("HibCFG restore err");
+    BITLOG_EVENT(fuel_gauge_reg_write_err, MAX17262_REG_HIBCFG);
+    return false;
   }
 
   return true;
@@ -476,63 +517,68 @@ bool max17262_get_soc_alert(max17262_soc_alert_t* alert) {
   return true;
 }
 
-static bool ez_config_option_3(uint8_t* hibcfg, battery_variant_t variant) {
+static bool ez_config_option_3(const uint16_t hibcfg, battery_variant_t variant) {
+  bool result = false;
+  bool model_unlocked = false;
+
   // Unlock model access
   if (!modelgauge_unlock()) {
-    return false;
+    goto cleanup;
   }
+  model_unlocked = true;
 
   // Get the model
   max17262_modelgauge_t* model = battery_config_get(variant);
 
   // Write the custom model
   if (!write_table_16(MAX17262_OCVTABLE0, (const uint16_t*)model->OCVTable)) {
-    LOGE("Error writing OCVTable");
+    LOGE("OCV wr err");
     BITLOG_EVENT(fuel_gauge_por_init_err, MAX17262_POR_INIT_ERR_OCVTABLE_WRITE);
-    return false;
+    goto cleanup;
   }
   if (!write_table_16(MAX17262_XTABLE0, (const uint16_t*)model->XTable)) {
-    LOGE("Error writing XTable");
+    LOGE("XT wr err");
     BITLOG_EVENT(fuel_gauge_por_init_err, MAX17262_POR_INIT_ERR_XTABLE_WRITE);
-    return false;
+    goto cleanup;
   }
 
   // Read back and verify the model
   uint16_t ocvtable[MAX17262_OCVTABLE_SIZE] = {0};
   const bool ocvtable_read_ok = read_table_16(MAX17262_OCVTABLE0, ocvtable);
   if (!ocvtable_read_ok || memcmp(ocvtable, model->OCVTable, sizeof(ocvtable)) != 0) {
-    LOGE("Error verifying OCVTable");
+    LOGE("OCV vfy err");
     BITLOG_EVENT(fuel_gauge_por_init_err, MAX17262_POR_INIT_ERR_OCVTABLE_VERIFY);
-    return false;
+    goto cleanup;
   }
 
   uint16_t xtable[MAX17262_XTABLE_SIZE] = {0};
   const bool xtable_read_ok = read_table_16(MAX17262_XTABLE0, xtable);
   if (!xtable_read_ok || memcmp(xtable, model->XTable, sizeof(xtable)) != 0) {
-    LOGE("Error verifying XTable");
+    LOGE("XT vfy err");
     BITLOG_EVENT(fuel_gauge_por_init_err, MAX17262_POR_INIT_ERR_XTABLE_VERIFY);
-    return false;
+    goto cleanup;
   }
 
   // Lock model access
   if (!modelgauge_lock()) {
-    return false;
+    goto cleanup;
   }
+  model_unlocked = false;
 
   // Verify model is locked
   // Read 16 words from the ocvtable register and verify each word is 0x0000
   memset(ocvtable, 0, sizeof(ocvtable));
   const bool ocvtable_read_locked_ok = read_table_16(MAX17262_OCVTABLE0, ocvtable);
   if (!ocvtable_read_locked_ok) {
-    LOGE("Error verifying OCVTable is locked");
+    LOGE("OCV lock rd err");
     BITLOG_EVENT(fuel_gauge_por_init_err, MAX17262_POR_INIT_ERR_OCVTABLE_READ_LOCKED);
-    return false;
+    goto cleanup;
   }
   for (size_t i = 0; i < MAX17262_OCVTABLE_SIZE; i++) {
     if (ocvtable[i] != 0) {
-      LOGE("Error verifying OCVTable is locked");
+      LOGE("OCV lock vfy err");
       BITLOG_EVENT(fuel_gauge_por_init_err, MAX17262_POR_INIT_ERR_OCVTABLE_LOCKED);
-      return false;
+      goto cleanup;
     }
   }
 
@@ -540,15 +586,15 @@ static bool ez_config_option_3(uint8_t* hibcfg, battery_variant_t variant) {
   memset(xtable, 0, sizeof(xtable));
   const bool xtable_read_locked_ok = read_table_16(MAX17262_XTABLE0, xtable);
   if (!xtable_read_locked_ok) {
-    LOGE("Error verifying XTable is locked");
+    LOGE("XT lock rd err");
     BITLOG_EVENT(fuel_gauge_por_init_err, MAX17262_POR_INIT_ERR_XTABLE_READ_LOCKED);
-    return false;
+    goto cleanup;
   }
   for (size_t i = 0; i < MAX17262_XTABLE_SIZE; i++) {
     if (xtable[i] != 0) {
-      LOGE("Error verifying XTable is locked");
+      LOGE("XT lock vfy err");
       BITLOG_EVENT(fuel_gauge_por_init_err, MAX17262_POR_INIT_ERR_XTABLE_LOCKED);
-      return false;
+      goto cleanup;
     }
   }
 
@@ -556,83 +602,135 @@ static bool ez_config_option_3(uint8_t* hibcfg, battery_variant_t variant) {
   rtos_thread_sleep(100);
   const uint8_t repcap_clear[2] = {0x00, 0x00};
   if (!write_register_16_verify(MAX17262_REG_REPCAP, repcap_clear)) {  // Clear RepCap
-    LOGE("Error writing RepCap and DesignCap");
+    LOGE("Cap wr err");
     BITLOG_EVENT(fuel_gauge_por_init_err, MAX17262_POR_INIT_ERR_CAPACITY_CLEAR);
-    return false;
+    goto cleanup;
   }
-  WRITE_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_DESIGNCAP, (const uint8_t*)&model->DesignCap);
+  if (!write_register_16_and_log(MAX17262_REG_DESIGNCAP, (const uint8_t*)&model->DesignCap)) {
+    goto cleanup;
+  }
 
   // No saved history exists, so we load the design values
-  WRITE_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_FULLCAPREP, (const uint8_t*)&model->DesignCap);
+  if (!write_register_16_and_log(MAX17262_REG_FULLCAPREP, (const uint8_t*)&model->DesignCap)) {
+    goto cleanup;
+  }
   for (uint32_t attempt = 0; attempt < model_capacity_attempts; attempt++) {
-    WRITE_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_DQACC, (const uint8_t*)&model->dQacc);
-    WRITE_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_DPACC, (const uint8_t*)&model->dPacc);
+    if (!write_register_16_and_log(MAX17262_REG_DQACC, (const uint8_t*)&model->dQacc)) {
+      goto cleanup;
+    }
+    if (!write_register_16_and_log(MAX17262_REG_DPACC, (const uint8_t*)&model->dPacc)) {
+      goto cleanup;
+    }
     rtos_thread_sleep(10);
-    WRITE_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_FULLCAPNOM, (const uint8_t*)&model->DesignCap);
+    if (!write_register_16_and_log(MAX17262_REG_FULLCAPNOM, (const uint8_t*)&model->DesignCap)) {
+      goto cleanup;
+    }
 
     uint16_t fullcapnom, dqacc, dpacc = 0;
-    READ_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_FULLCAPNOM, (uint8_t*)&fullcapnom);
-    READ_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_DQACC, (uint8_t*)&dqacc);
-    READ_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_DPACC, (uint8_t*)&dpacc);
+    if (!read_register_16_and_log(MAX17262_REG_FULLCAPNOM, (uint8_t*)&fullcapnom)) {
+      goto cleanup;
+    }
+    if (!read_register_16_and_log(MAX17262_REG_DQACC, (uint8_t*)&dqacc)) {
+      goto cleanup;
+    }
+    if (!read_register_16_and_log(MAX17262_REG_DPACC, (uint8_t*)&dpacc)) {
+      goto cleanup;
+    }
     if (fullcapnom == model->DesignCap && dqacc == model->dQacc && dpacc == model->dPacc) {
       break;
     } else if (attempt == (model_capacity_attempts - 1)) {
-      LOGE("Error writing fullcapnom, dqacc, dpacc");
+      LOGE("Cap params wr err");
       BITLOG_EVENT(fuel_gauge_por_init_err, MAX17262_POR_INIT_ERR_CAPACITY_WRITE);
-      return false;
+      goto cleanup;
     }
   }
 
   uint16_t vfsoc = 0;
-  READ_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_VFSOC, (uint8_t*)&vfsoc);
+  if (!read_register_16_and_log(MAX17262_VFSOC, (uint8_t*)&vfsoc)) {
+    goto cleanup;
+  }
   const uint16_t update_capacity =
-    (uint16_t)((uint32_t)vfsoc / ((uint32_t)MAX17262_VFSOC_MAX * (uint32_t)model->DesignCap));
+    (uint16_t)(((uint32_t)vfsoc * (uint32_t)model->DesignCap) / (uint32_t)MAX17262_VFSOC_MAX);
 
-  WRITE_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_MIXCAP, (const uint8_t*)&update_capacity);
-  WRITE_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_AVGCAP, (const uint8_t*)&update_capacity);
+  if (!write_register_16_and_log(MAX17262_REG_MIXCAP, (const uint8_t*)&update_capacity)) {
+    goto cleanup;
+  }
+  if (!write_register_16_and_log(MAX17262_REG_AVGCAP, (const uint8_t*)&update_capacity)) {
+    goto cleanup;
+  }
   rtos_thread_sleep(200);
 
-  WRITE_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_ICHGTERM, (const uint8_t*)&model->ICHGTerm);
-  WRITE_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_VEMPTY, (const uint8_t*)&model->Vempty);
-  WRITE_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_RCOMP0, (const uint8_t*)&model->RCOMP0);
-  WRITE_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_TEMPCO, (const uint8_t*)&model->TempCo);
-  WRITE_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_QRTABLE00, (const uint8_t*)&model->QRTable00);
-  WRITE_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_QRTABLE10, (const uint8_t*)&model->QRTable10);
-  WRITE_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_QRTABLE20, (const uint8_t*)&model->QRTable20);
-  WRITE_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_QRTABLE30, (const uint8_t*)&model->QRTable30);
+  if (!write_register_16_and_log(MAX17262_REG_ICHGTERM, (const uint8_t*)&model->ICHGTerm)) {
+    goto cleanup;
+  }
+  if (!write_register_16_and_log(MAX17262_REG_VEMPTY, (const uint8_t*)&model->Vempty)) {
+    goto cleanup;
+  }
+  if (!write_register_16_and_log(MAX17262_REG_RCOMP0, (const uint8_t*)&model->RCOMP0)) {
+    goto cleanup;
+  }
+  if (!write_register_16_and_log(MAX17262_REG_TEMPCO, (const uint8_t*)&model->TempCo)) {
+    goto cleanup;
+  }
+  if (!write_register_16_and_log(MAX17262_REG_QRTABLE00, (const uint8_t*)&model->QRTable00)) {
+    goto cleanup;
+  }
+  if (!write_register_16_and_log(MAX17262_REG_QRTABLE10, (const uint8_t*)&model->QRTable10)) {
+    goto cleanup;
+  }
+  if (!write_register_16_and_log(MAX17262_REG_QRTABLE20, (const uint8_t*)&model->QRTable20)) {
+    goto cleanup;
+  }
+  if (!write_register_16_and_log(MAX17262_REG_QRTABLE30, (const uint8_t*)&model->QRTable30)) {
+    goto cleanup;
+  }
 
   // Update optional registers
   if (!write_register_16_verify(MAX17262_REG_LEARNCFG, (const uint8_t*)&model->learncfg)) {
-    LOGE("Error writing learn config");
+    LOGE("LearnCfg write err");
     BITLOG_EVENT(fuel_gauge_por_init_err, MAX17262_POR_INIT_ERR_LEARNCFG_WRITE);
-    return false;
+    goto cleanup;
   }
-  WRITE_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_RELAXCFG, (const uint8_t*)&model->relaxcfg);
-  WRITE_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_MISCCFG, (const uint8_t*)&model->misccfg);
+  if (!write_register_16_and_log(MAX17262_REG_RELAXCFG, (const uint8_t*)&model->relaxcfg)) {
+    goto cleanup;
+  }
+  if (!write_register_16_and_log(MAX17262_REG_MISCCFG, (const uint8_t*)&model->misccfg)) {
+    goto cleanup;
+  }
 
   // Initiate Model Loading
   uint16_t config2 = 0;
-  READ_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_CONFIG2, (uint8_t*)&config2);
+  if (!read_register_16_and_log(MAX17262_REG_CONFIG2, (uint8_t*)&config2)) {
+    goto cleanup;
+  }
   config2 |= MAX17262_REG_CONFIG2_LDMDL_MASK;  // Set LdMdl bit
-  WRITE_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_CONFIG2, (uint8_t*)&config2);
+  if (!write_register_16_and_log(MAX17262_REG_CONFIG2, (uint8_t*)&config2)) {
+    goto cleanup;
+  }
 
   // Poll the LdMdl bit in the Config2 register, proceed when LdMdl bit becomes 0
   config2 = 0;
   for (uint32_t attempt = 0; attempt < model_load_attempts; attempt++) {
-    READ_REGISTER_16_AND_LOG_ON_FAIL(MAX17262_REG_CONFIG2, (uint8_t*)&config2);
+    if (!read_register_16_and_log(MAX17262_REG_CONFIG2, (uint8_t*)&config2)) {
+      goto cleanup;
+    }
     if ((config2 & MAX17262_REG_CONFIG2_LDMDL_MASK) == 0) {
       break;
     } else if (attempt == (model_load_attempts - 1)) {
-      LOGE("Error verifying LdMdl bit is 0");
+      LOGE("LdMdl verify err");
       BITLOG_EVENT(fuel_gauge_por_init_err, MAX17262_POR_INIT_ERR_LOAD_MODEL);
-      return false;
+      goto cleanup;
     }
 
     // These two register addresses are undocumented, but are required to be written by the
     // modelgauge m5 implementation guide
     const uint8_t unknown_clear[2] = {0x00, 0x00};
-    WRITE_REGISTER_16_AND_LOG_ON_FAIL(0x0A, (const uint8_t*)unknown_clear);
-    WRITE_REGISTER_16_AND_LOG_ON_FAIL(0x0B, (const uint8_t*)unknown_clear);
+    if (!write_register_16_and_log(0x0A, (const uint8_t*)unknown_clear)) {
+      goto cleanup;
+    }
+    if (!write_register_16_and_log(0x0B, (const uint8_t*)unknown_clear)) {
+      goto cleanup;
+    }
     rtos_thread_sleep(10);
   }
 
@@ -641,13 +739,20 @@ static bool ez_config_option_3(uint8_t* hibcfg, battery_variant_t variant) {
   if (!write_register_16_verify(MAX17262_REG_QRTABLE20, (const uint8_t*)&model->QRTable20) ||
       !write_register_16_verify(MAX17262_REG_QRTABLE30, (const uint8_t*)&model->QRTable30) ||
       !write_register_16_verify(MAX17262_REG_CYCLES, (const uint8_t*)&cycles)) {
-    LOGE("Error writing QRTable20, QRTable30, Cycles");
+    LOGE("QRT/Cyc wr err");
     BITLOG_EVENT(fuel_gauge_por_init_err, MAX17262_POR_INIT_ERR_CYCLES_WRITE);
-    return false;
+    goto cleanup;
   }
 
-  // Restore HibCFG
-  WRITE_REGISTER_AND_LOG_ON_FAIL(MAX17262_REG_HIBCFG, *hibcfg);
+  result = true;
 
-  return true;
+cleanup:
+  if (model_unlocked) {
+    (void)modelgauge_lock();
+  }
+  if (!restore_hibcfg(hibcfg)) {
+    result = false;
+  }
+
+  return result;
 }

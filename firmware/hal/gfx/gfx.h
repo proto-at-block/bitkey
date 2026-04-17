@@ -15,7 +15,7 @@ typedef struct gfx_config {
 } gfx_config_t;
 
 void gfx_init(const gfx_config_t* gfx_config);
-void gfx_set_brightness(uint8_t level);
+void gfx_set_brightness(uint8_t level, bool verify);
 void gfx_set_rotation(bool rotate_180);
 
 uint32_t gfx_get_fps(void);            // Flush rate (partial frames/sec)

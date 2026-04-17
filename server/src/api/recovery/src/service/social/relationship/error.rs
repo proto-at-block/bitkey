@@ -39,6 +39,8 @@ pub enum ServiceError {
     AccountAlreadyTrustedContact,
     #[error("Invalid Keyproof, signature over access token required both app and hw auth key")]
     InvalidKeyProof,
+    #[error("Invalid action proof, W3 trusted contact must provide hardware-signed action proof")]
+    InvalidActionProof,
     #[error("Invalid operation for access token")]
     InvalidOperationForAccessToken,
     #[error(transparent)]
@@ -86,6 +88,7 @@ impl From<ServiceError> for ApiError {
             | ServiceError::UnauthorizedRelationshipUpdate
             | ServiceError::CustomerIsTrustedContact
             | ServiceError::InvalidKeyProof
+            | ServiceError::InvalidActionProof
             | ServiceError::InvalidOperationForAccessToken => Self::GenericForbidden(msg),
             ServiceError::InvitationExpired => ApiError::Specific {
                 code: ErrorCode::InvitationExpired,

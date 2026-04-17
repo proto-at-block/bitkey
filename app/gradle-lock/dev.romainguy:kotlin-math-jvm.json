@@ -1,0 +1,18 @@
+{
+    "module-identifier": "dev.romainguy:kotlin-math-jvm",
+    "components": [
+        {
+            "version": "1.5.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-math-jvm-1.5.3.jar": "1bed2190b7d7846649538b91d6b7519d7c2e78395a021b59b4f0eefc66c8865d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

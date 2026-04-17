@@ -1,4 +1,5 @@
 import functools
+import json
 import os
 import pathlib
 import subprocess
@@ -13,22 +14,30 @@ from bitkey_proto import mfgtest_pb2 as mfgtest_pb
 from bitkey_proto import ops_keybundle_pb2 as ops_keybundle
 from bitkey_proto import ops_keys_pb2 as ops_keys
 from bitkey_proto import wallet_pb2 as wallet_pb
-from google.protobuf.json_format import MessageToJson
+from google.protobuf.json_format import MessageToDict, MessageToJson
 from tqdm import tqdm
 
 from . import bitlog, charger
+from .confirmation import CONFIRMATION_TIMEOUT_SECONDS
 from . import coredump as coredump_api
 from .btc import DerivationPath, Sha256Hash
+from .certificate_manager import CertificateManager
 from .comms import WalletComms, NFCTransaction, ShellTransaction
 from .fwup import FirmwareUpdater
 from .wallet import Wallet
 
 
-def print_proto(proto):
+def print_proto(proto, mutate: Optional[Callable[[dict, Any], None]] = None):
     """Print a proto as JSON, including fields which are set to their default
     value (e.g. false for boolean fields).
     """
-    click.echo(MessageToJson(proto, including_default_value_fields=True))
+    if mutate is None:
+        click.echo(MessageToJson(proto, including_default_value_fields=True))
+        return
+
+    data = MessageToDict(proto, including_default_value_fields=True)
+    mutate(data, proto)
+    click.echo(json.dumps(data, indent=2))
 
 
 def add_mcu_option(callback: Callable) -> Callable:
@@ -136,7 +145,29 @@ def sign_txn(ctx, sighash, change, address_index):
 @cli.command()
 @click.pass_context
 def wipe_state(ctx):
-    print_proto(ctx.obj.wipe_state())
+    wallet = ctx.obj
+    rsp = wallet.wipe_state()
+    print_proto(rsp)
+
+    if rsp.status != wallet_pb.status.CONFIRMATION_PENDING:
+        return
+
+    response_handle = rsp.response_handle
+    confirmation_handle = rsp.confirmation_handle
+
+    click.echo("\nWaiting for confirmation on device (hold to approve)...")
+    for i in range(CONFIRMATION_TIMEOUT_SECONDS):
+        time.sleep(1)
+        result = wallet.get_confirmation_result(
+            response_handle, confirmation_handle)
+        if result.status != wallet_pb.status.CONFIRMATION_PENDING:
+            click.echo(f"\nResult (attempt {i+1}):")
+            print_proto(result)
+            return
+        click.echo(".", nl=False)
+
+    click.echo(
+        f"\nTimeout waiting for confirmation ({CONFIRMATION_TIMEOUT_SECONDS}s).")
 
 
 @cli.command()
@@ -290,8 +321,9 @@ def mfgtest_runin_get_data(ctx):
 @click.option("-t", "--timeout", type=int, default=5000, help="Timeout (ms) for card detection.")
 @click.option("-d", "--delay", type=int, default=1000, help="Delay (ms) before starting the tap test.")
 @click.option("--continuous", is_flag=True, default=False, help="Keep NFC active and restart polling after each card detection.")
+@click.option("--poll-delay", type=int, default=0, help="Delay (ms) between card detection and re-polling in continuous mode.")
 @click.pass_context
-def mfgtest_tap_test_start(ctx: click.Context, test_type: str, delay: int, timeout: int, continuous: bool) -> None:
+def mfgtest_tap_test_start(ctx: click.Context, test_type: str, delay: int, timeout: int, continuous: bool, poll_delay: int) -> None:
     """Starts a tap test over NFC. Test is started after the specified delay."""
     nfc_test = getattr(
         mfgtest_pb.mfgtest_nfc_loopback_test_type, f"NFC_LOOPBACK_TEST_{test_type.upper()}", None)
@@ -299,7 +331,7 @@ def mfgtest_tap_test_start(ctx: click.Context, test_type: str, delay: int, timeo
         click.secho(f"Invalid test specified: {test_type}", fg="red")
     else:
         res = ctx.obj.mfgtest_tap_test_start(
-            nfc_test=nfc_test, delay=delay, timeout=timeout, continuous=continuous)
+            nfc_test=nfc_test, delay=delay, timeout=timeout, continuous=continuous, poll_delay_ms=poll_delay)
         status = res.mfgtest_nfc_loopback_rsp.rsp_status
         if status == res.mfgtest_nfc_loopback_rsp.mfgtest_nfc_loopback_rsp_status.SUCCESS:
             click.secho(f"Test started successfully.", fg="green")
@@ -427,7 +459,7 @@ def mfgtest_show_screen(ctx, mode, brightness):
     """Show a manufacturing test screen on the device display.
 
     MODE can be a color name (RED, GREEN, BLUE, WHITE, BLACK, GRAY), a hex RGB color
-    (e.g., 808080, #FF00FF), or a special mode (BURNIN, COLOR_BARS, SCROLLING_H, EXIT).
+    (e.g., 808080, #FF00FF), or a special mode (BURNIN, BURNIN_CHECKER, COLOR_BARS, SCROLLING_H, EXIT).
 
     Examples:
         bitkey-cli mfgtest-show-screen RED
@@ -453,6 +485,7 @@ def mfgtest_show_screen(ctx, mode, brightness):
     special_mode_map = {
         'EXIT': mfgtest_pb.mfgtest_show_screen_cmd.EXIT,
         'BURNIN': mfgtest_pb.mfgtest_show_screen_cmd.BURNIN_GRID,
+        'BURNIN_CHECKER': mfgtest_pb.mfgtest_show_screen_cmd.BURNIN_CHECKER,
         'COLOR_BARS': mfgtest_pb.mfgtest_show_screen_cmd.COLOR_BARS,
         'SCROLLING_H': mfgtest_pb.mfgtest_show_screen_cmd.SCROLLING_H,
     }
@@ -503,6 +536,52 @@ def mfgtest_board_id(ctx: click.Context) -> None:
         click.echo(f"Board ID: 0x{board_id:02X}")
     else:
         click.secho("Failed to read board ID", fg="red")
+
+
+@cli.command()
+@add_mcu_option
+@click.pass_context
+def mfgtest_device_set_production_lock(ctx: click.Context, mcu: str) -> None:
+    """Sets device production lock (one-way, irreversible)."""
+    try:
+        current_state = ctx.obj.mfgtest_device_get_production_lock(mcu=mcu)
+    except NotImplementedError as e:
+        ctx.fail(str(e))
+
+    if current_state is True:
+        click.secho(
+            "Device production lock is already SET (no change needed).", fg="yellow")
+        return
+
+    try:
+        is_success = ctx.obj.mfgtest_device_set_production_lock(mcu=mcu)
+    except NotImplementedError as e:
+        ctx.fail(str(e))
+
+    if is_success:
+        click.secho("Device production lock set successfully.", fg="green")
+    else:
+        click.secho("Failed to set device production lock.", fg="red")
+
+
+@cli.command()
+@add_mcu_option
+@click.pass_context
+def mfgtest_device_get_production_lock(ctx: click.Context, mcu: str) -> None:
+    """Reads the device production lock state."""
+    try:
+        result = ctx.obj.mfgtest_device_get_production_lock(mcu=mcu)
+    except NotImplementedError as e:
+        ctx.fail(str(e))
+
+    if result is None:
+        click.secho("Failed to read device production lock.", fg="red")
+    elif result:
+        click.secho(
+            "Device production lock is SET (production unit).", fg="green")
+    else:
+        click.secho(
+            "Device production lock is NOT SET (non-production unit).", fg="yellow")
 
 
 @cli.command()
@@ -645,13 +724,29 @@ def events(ctx: click.Context, mcu: str):
 
 
 @cli.command()
+@click.option(
+    "--count",
+    type=click.IntRange(min=1),
+    default=None,
+    help="Number of metadata requests to run (default: unlimited).",
+)
+@click.option(
+    "--delay",
+    type=click.FloatRange(min=0.0),
+    default=0.0,
+    show_default=True,
+    help="Delay in seconds between metadata requests.",
+)
 @click.pass_context
-def stress(ctx):
-    count = 0
-    while True:
+def stress(ctx, count: Optional[int], delay: float):
+    completed = 0
+    while count is None or completed < count:
         _ = ctx.obj.metadata()
-        count += 1
-        print(count)
+        completed += 1
+        print(completed)
+
+        if delay > 0 and (count is None or completed < count):
+            time.sleep(delay)
 
 
 @cli.command()
@@ -707,6 +802,43 @@ def cert_get(ctx, kind, verbose):
                 f"openssl x509 -inform der -in {f.name} -noout -text", shell=True))
 
 
+@cli.command(name="verify-pairing")
+@click.option(
+    "--output-dir",
+    type=click.Path(file_okay=False, dir_okay=True),
+    default=None,
+    help="Write certs to files in this directory",
+)
+@click.pass_context
+def verify_pairing(ctx: click.Context, output_dir: str | None) -> None:
+    manager = CertificateManager.from_product(ctx.obj.product)
+    if manager is None:
+        ctx.fail(f"No certificate manager for product: {ctx.obj.product}")
+
+    try:
+        certs = manager.fetch(ctx.obj)
+    except RuntimeError as error:
+        ctx.fail(f"Failed to fetch certificates: {error=}")
+
+    if output_dir:
+        pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
+        for cert_name, cert_bytes in certs.items():
+            path = pathlib.Path(output_dir) / cert_name
+            path.write_bytes(cert_bytes)
+            click.echo(f"Wrote {cert_name} to {path}")
+
+    try:
+        verified = manager.verify(certs)
+    except ValueError as error:
+        click.echo(f"Failed to verify certificates: {error=}")
+        verified = False
+
+    if verified:
+        click.secho("Pairing verified", fg="green")
+    else:
+        ctx.fail("Pairing failed")
+
+
 @cli.command()
 @click.pass_context
 def pubkeys_get(ctx):
@@ -740,7 +872,15 @@ def cap_touch_cal(ctx):
 @click.pass_context
 def device_info(ctx):
     wallet = ctx.obj
-    print_proto(wallet.device_info())
+    rsp = wallet.device_info()
+
+    def _mutate(data: dict, proto: Any) -> None:
+        mcus = data.get("deviceInfoRsp", {}).get("deviceInfoMcus", [])
+        for i, mcu in enumerate(proto.device_info_rsp.device_info_mcus):
+            if i < len(mcus) and len(mcu.chip_id) > 0:
+                mcus[i]["chipId"] = mcu.chip_id.hex()
+
+    print_proto(rsp, mutate=_mutate)
 
 
 @cli.command()
@@ -754,9 +894,11 @@ def lock_device(ctx):
 @add_mcu_option
 @click.option("--bundle", required=True, type=click.Path(exists=True, path_type=pathlib.Path), help="Bundle path")
 @click.option("--timeout", required=False, type=click.INT, help="Timeout in seconds")
+@click.option("--version-override", required=False, type=click.STRING, help="Override the version shown on the confirmation screen (e.g. '1.2.3')")
 @click.pass_context
-def fwup_local(ctx, bundle, mcu: str, timeout=None) -> None:
-    FirmwareUpdater(ctx.obj).fwup_local(bundle, timeout=timeout, mcu=mcu)
+def fwup_local(ctx, bundle, mcu: str, timeout=None, version_override=None) -> None:
+    FirmwareUpdater(ctx.obj).fwup_local(bundle, timeout=timeout,
+                                        mcu=mcu, version_override=version_override)
 
 
 @cli.command()
@@ -768,6 +910,38 @@ def fwup(ctx: click.Context, image: click.Path, signature: click.Path, mcu: str)
     """Performs a normal firmware update using a specific firmware asset."""
     FirmwareUpdater(ctx.obj).fwup(mcu=mcu, image=image,
                                   signature=signature, params=ctx.obj.fwup_params(mcu))
+
+
+@cli.command()
+@click.option(
+    '-m',
+    '--mcu',
+    required=False,
+    default='EFR32',
+    type=click.Choice(['EFR32'], case_sensitive=False),
+    help='Target MCU (bootloader upgrades are only supported on EFR32)',
+    show_default=True,
+)
+@click.option("--binary", required=True, type=click.Path(exists=True, path_type=pathlib.Path),
+              help="Path to bootloader .signed.bin")
+@click.option("--signature", required=True, type=click.Path(exists=True, path_type=pathlib.Path),
+              help="Path to bootloader .detached_signature")
+@click.option("--metadata", required=True, type=click.Path(exists=True, path_type=pathlib.Path),
+              help="Path to bootloader .detached_metadata")
+@click.option("--bl-size", required=False, type=click.INT, default=(48 * 1024), show_default=True,
+              help="Bootloader slot size in bytes")
+@click.pass_context
+def bl_upgrade(ctx: click.Context, binary: pathlib.Path, signature: pathlib.Path,
+               metadata: pathlib.Path, bl_size: int, mcu: str) -> None:
+    """Performs a bootloader upgrade using explicit bootloader artifacts."""
+    FirmwareUpdater(ctx.obj).bl_upgrade(
+        mcu=mcu,
+        image=binary,
+        signature=signature,
+        metadata=metadata,
+        params=ctx.obj.fwup_params(mcu),
+        bl_size=bl_size,
+    )
 
 
 @cli.command()
@@ -837,15 +1011,6 @@ def derive_public_key(ctx, curve, label):
         ops_keys.curve.Value(curve), label))
 
 
-@cli.command()
-@click.option('--digest', type=Sha256Hash, required=True)
-@click.option('--curve', type=click.Choice(ops_keys.curve.keys()), required=True)
-@click.option('--label', type=click.STRING, required=True)
-@click.pass_context
-def derive_public_key_and_sign(ctx, digest, curve, label):
-    wallet = ctx.obj
-    print_proto(wallet.derive_public_key_and_sign(curve, label, digest.bytes))
-
 
 @cli.command()
 @click.option('--response', type=click.Choice(wallet_pb.configure_unlock_limit_response_cmd.response_cfg.keys()), required=True)
@@ -910,15 +1075,29 @@ def mfgtest_touch_data_enable(ctx, mode):
     if rsp.rsp_status == mfgtest_pb.mfgtest_touch_data_rsp.SUCCESS:
         click.echo("ENABLED")
     else:
-        status_name = mfgtest_pb.mfgtest_touch_data_rsp.mfgtest_touch_data_rsp_status.Name(rsp.rsp_status)
+        status_name = mfgtest_pb.mfgtest_touch_data_rsp.mfgtest_touch_data_rsp_status.Name(
+            rsp.rsp_status)
         click.echo(f"ERROR: {status_name}")
 
 
 @cli.command()
 @click.option('-o', '--output', type=click.File('w'), help='Save touch points to file (CSV format)')
+@click.option('--resume/--no-resume', default=True,
+              help='After successful fetch, clear device buffer and resume collection (default: --resume)')
+@click.option('--mode', type=click.Choice(
+    mfgtest_pb.mfgtest_touch_data_cmd.mfgtest_touch_data_buffer_mode.keys()),
+    default='CIRCULAR', help='Buffer mode when resuming: CIRCULAR (drop oldest) or STOP_WHEN_FULL')
 @click.pass_context
-def mfgtest_touch_data_fetch(ctx, output):
-    """Fetch all buffered touch points."""
+def mfgtest_touch_data_fetch(ctx, output, resume, mode):
+    """Fetch all buffered touch points.
+
+    First FETCH freezes the buffer and reports total_points. Subsequent FETCHes
+    return chunks of 25 until all data is transferred. If the received count
+    doesn't match total_points, retransmission is attempted automatically.
+
+    After a successful fetch, the device buffer is cleared and collection resumes
+    (unless --no-resume is passed).
+    """
     result = ctx.obj.mfgtest_touch_data_fetch_all()
 
     if result.error:
@@ -940,6 +1119,89 @@ def mfgtest_touch_data_fetch(ctx, output):
         click.echo("BUFFER_FULL: true")
     if result.dropped_count > 0:
         click.echo(f"DROPPED: {result.dropped_count}")
+
+    # Clear old data and resume collection so next fetch gets fresh data
+    if resume:
+        response = ctx.obj.mfgtest_touch_data('START', buffer_mode=mode)
+        rsp = response.mfgtest_touch_data_rsp
+        if rsp.rsp_status != mfgtest_pb.mfgtest_touch_data_rsp.SUCCESS:
+            status_name = mfgtest_pb.mfgtest_touch_data_rsp.mfgtest_touch_data_rsp_status.Name(rsp.rsp_status)
+            click.echo(f"WARNING: Failed to resume collection: {status_name}")
+        else:
+            click.echo(f"Collection resumed (mode={mode})")
+
+
+
+@cli.command()
+@click.option('-n', '--iterations', type=click.IntRange(min=1), default=10, help='Number of fill+fetch cycles (default: 10)')
+@click.pass_context
+def mfgtest_nfc_stress_test(ctx, iterations):
+    """Stress test NFC touch data pipeline.
+
+    Fills the device buffer with a sequential test pattern (500 points per cycle),
+    fetches all points over NFC, and verifies the sequence. Repeats for N iterations.
+    """
+    total_sent = 0
+    total_received = 0
+    total_errors = 0
+    total_retries = 0
+
+    for i in range(iterations):
+        # Fill buffer with test pattern
+        response = ctx.obj.mfgtest_touch_data('STRESS_FILL')
+        rsp = response.mfgtest_touch_data_rsp
+        if rsp.rsp_status != mfgtest_pb.mfgtest_touch_data_rsp.SUCCESS:
+            click.echo(f"  [{i+1}] STRESS_FILL failed")
+            total_errors += 1
+            continue
+
+        expected_total = rsp.total_points
+        total_sent += expected_total
+
+        # Fetch all points
+        result = ctx.obj.mfgtest_touch_data_fetch_all()
+
+        if result.error:
+            click.echo(f"  [{i+1}] FETCH ERROR: {result.error} (retries={result.retries})")
+            total_errors += 1
+            total_retries += result.retries
+            # Clear buffer for next iteration
+            ctx.obj.mfgtest_touch_data('STOP')
+            continue
+
+        total_retries += result.retries
+
+        # Verify sequential pattern
+        gaps = []
+        for idx, (x, y, ts) in enumerate(result.points):
+            seq = x | (y << 16)
+            if seq != idx:
+                gaps.append((idx, seq))
+
+        total_received += len(result.points)
+
+        if len(result.points) != expected_total or gaps:
+            total_errors += 1
+            click.echo(f"  [{i+1}] FAIL: expected={expected_total} received={len(result.points)} "
+                       f"pattern_errors={len(gaps)} retries={result.retries}")
+            if gaps[:5]:
+                for expected_idx, got_seq in gaps[:5]:
+                    click.echo(f"    seq[{expected_idx}] = {got_seq}")
+        else:
+            retry_note = f" (retries={result.retries})" if result.retries > 0 else ""
+            click.echo(f"  [{i+1}] OK: {len(result.points)} points verified{retry_note}")
+
+        # Clear buffer for next iteration
+        ctx.obj.mfgtest_touch_data('STOP')
+
+    click.echo(f"\n{'='*50}")
+    click.echo(f"NFC Stress Test Results ({iterations} iterations):")
+    click.echo(f"  Total sent:      {total_sent}")
+    click.echo(f"  Total received:  {total_received}")
+    click.echo(f"  Failed cycles:   {total_errors}")
+    click.echo(f"  Total retries:   {total_retries}")
+    click.echo(f"  Success rate:    {(iterations - total_errors) / iterations * 100:.1f}%")
+    click.echo(f"{'='*50}")
 
 
 @cli.command()
@@ -966,8 +1228,61 @@ def mfgtest_touch_data_disable(ctx, fetch_all):
     elif rsp.rsp_status == mfgtest_pb.mfgtest_touch_data_rsp.NOT_STARTED:
         click.echo("ERROR: NOT_ENABLED")
     else:
-        status_name = mfgtest_pb.mfgtest_touch_data_rsp.mfgtest_touch_data_rsp_status.Name(rsp.rsp_status)
+        status_name = mfgtest_pb.mfgtest_touch_data_rsp.mfgtest_touch_data_rsp_status.Name(
+            rsp.rsp_status)
         click.echo(f"ERROR: {status_name}")
+
+
+@cli.command()
+@click.option('--action', type=click.Choice([
+    'SetSpendWithoutHardware', 'DisableSpendWithoutHardware',
+    'SetVerificationThreshold',
+    'SetRecoveryEmail', 'DisableRecoveryEmail',
+    'SetRecoveryPhone', 'DisableRecoveryPhone',
+    'SetRecoveryPushNotifications', 'DisableRecoveryPushNotifications',
+    'AddRecoveryContact', 'RemoveRecoveryContact', 'RemoveRecoveryCustomer',
+    'AddBeneficiary', 'RemoveBeneficiary', 'RemoveBenefactor',
+    'AcceptRecoveryContactsInvite', 'AcceptBeneficiariesInvite',
+], case_sensitive=True), required=True, help='Action to sign')
+@click.option('--value', type=click.STRING, default='',
+              help='Value for the action (e.g. email address)')
+@click.option('--bindings', type=click.STRING, default='',
+              help='Context bindings (e.g. eid=ABC,tb=XYZ)')
+@click.pass_context
+def sign_action_proof(ctx, action, value, bindings):
+    """Send sign_action_proof_cmd and poll for confirmation result."""
+    wallet = ctx.obj
+    rsp = wallet.sign_action_proof(1, action, value, bindings)
+    print_proto(rsp)
+
+    if rsp.status != wallet_pb.status.CONFIRMATION_PENDING:
+        click.echo(
+            f"Expected CONFIRMATION_PENDING, got {wallet_pb.status.Name(rsp.status)}")
+        return
+
+    response_handle = rsp.response_handle
+    confirmation_handle = rsp.confirmation_handle
+
+    click.echo("\nWaiting for confirmation on device (hold to approve)...")
+    for i in range(CONFIRMATION_TIMEOUT_SECONDS):
+        time.sleep(1)
+        result = wallet.get_confirmation_result(
+            response_handle, confirmation_handle)
+        if result.status != wallet_pb.status.CONFIRMATION_PENDING:
+            click.echo(f"\nResult (attempt {i+1}):")
+            print_proto(result)
+            try:
+                cr = result.get_confirmation_result_rsp
+                sig = cr.sign_action_proof_result.signature
+                if sig:
+                    click.echo(f"\nSignature ({len(sig)} bytes): {sig.hex()}")
+            except AttributeError as e:
+                click.echo(f"Could not extract signature: {e}")
+            return
+        click.echo(".", nl=False)
+
+    click.echo(
+        f"\nTimeout waiting for confirmation ({CONFIRMATION_TIMEOUT_SECONDS}s).")
 
 
 if __name__ == "__main__":

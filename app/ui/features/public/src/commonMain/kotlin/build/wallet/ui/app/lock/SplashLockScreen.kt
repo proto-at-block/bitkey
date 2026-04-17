@@ -11,13 +11,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import bitkey.ui.framework_public.generated.resources.Res
 import bitkey.ui.framework_public.generated.resources.bitkey_full_logo
+import bitkey.ui.framework_public.generated.resources.bitkey_logo_mark
+import bitkey.ui.framework_public.generated.resources.bitkey_word_mark
 import build.wallet.statemachine.core.SplashLockModel
+import build.wallet.ui.app.loading.LogoMarkHeight
+import build.wallet.ui.app.loading.WordMarkHeight
+import build.wallet.ui.app.loading.WordMarkTopPadding
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.icon.Icon
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.tokens.LabelType
 import org.jetbrains.compose.resources.painterResource
 
@@ -34,16 +40,41 @@ fun SplashLockScreen(
       .fillMaxSize(),
     horizontalAlignment = Alignment.CenterHorizontally
   ) {
-    Box(
-      modifier = Modifier
-        .padding(horizontal = 20.dp, vertical = 52.dp)
-        .height(25.dp)
-    ) {
-      androidx.compose.foundation.Image(
-        painter = painterResource(Res.drawable.bitkey_full_logo),
-        contentDescription = "Bitkey Logo",
-        colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color.White.copy(alpha = 0.5F))
-      )
+    val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+    if (isDesignSystemV2Enabled) {
+      Row(
+        modifier = Modifier
+          .padding(horizontal = 20.dp, vertical = 52.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        androidx.compose.foundation.Image(
+          modifier = Modifier.height(LogoMarkHeight),
+          painter = painterResource(Res.drawable.bitkey_logo_mark),
+          contentDescription = "Bitkey Logo",
+          colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color.White.copy(alpha = 0.5F))
+        )
+        androidx.compose.foundation.Image(
+          modifier = Modifier
+            .padding(top = WordMarkTopPadding)
+            .height(WordMarkHeight),
+          painter = painterResource(Res.drawable.bitkey_word_mark),
+          contentDescription = null,
+          colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color.White.copy(alpha = 0.5F))
+        )
+      }
+    } else {
+      Box(
+        modifier = Modifier
+          .padding(horizontal = 20.dp, vertical = 52.dp)
+          .height(25.dp)
+      ) {
+        androidx.compose.foundation.Image(
+          painter = painterResource(Res.drawable.bitkey_full_logo),
+          contentDescription = "Bitkey Logo",
+          colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color.White.copy(alpha = 0.5F))
+        )
+      }
     }
     Column(
       modifier =

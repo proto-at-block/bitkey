@@ -63,7 +63,7 @@ impl DailySpendRecordRepository {
 
     /// Remove a spending entry by txid with retry on version conflict.
     /// Fetches the current record, removes the entry, and persists.
-    #[instrument(skip(self))]
+    #[instrument(skip(self, txid))]
     pub(crate) async fn remove_spending_entry(
         &self,
         account_id: &AccountId,

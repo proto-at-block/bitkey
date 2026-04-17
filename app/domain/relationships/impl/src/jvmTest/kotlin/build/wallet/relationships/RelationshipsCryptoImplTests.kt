@@ -241,6 +241,60 @@ class RelationshipsCryptoImplTests : FunSpec({
     ).getOrThrow().utf8().shouldBe(privateKeyMaterial)
   }
 
+  test("verifyKeyCertificate accepts W3 domain-separated appAuthGlobalKeyHwSignature") {
+    val (hwPubKey, hwPrivKey) = secp256k1KeyGenerator.generateKeypair()
+    val (appPubKey, appPrivKey) = secp256k1KeyGenerator.generateKeypair()
+    appPrivateKeyDao.asymmetricKeys[appPubKey.toPublicKey<AppGlobalAuthKey>()] =
+      appPrivKey.toPrivateKey<AppGlobalAuthKey>()
+
+    // W3-style: sign with "BKRelationshipEndorsement" prefix
+    val prefixedMessage =
+      ("BKRelationshipEndorsement".encodeUtf8().toByteArray() +
+        appPubKey.value.encodeUtf8().toByteArray()).toByteString()
+    val w3HwSignature = messageSigner.signResult(prefixedMessage, hwPrivKey).getOrThrow()
+
+    val delegatedDecryptionKey = relationshipsCrypto.generateDelegatedDecryptionKey().getOrThrow()
+    val keyCertificate =
+      relationshipsCrypto.generateKeyCertificate(
+        delegatedDecryptionKey.publicKey,
+        HwAuthPublicKey(hwPubKey),
+        appPubKey.toPublicKey(),
+        AppGlobalAuthKeyHwSignature(w3HwSignature)
+      ).getOrThrow()
+
+    relationshipsCrypto.verifyKeyCertificate(
+      keyCertificate = keyCertificate,
+      hwAuthKey = HwAuthPublicKey(hwPubKey),
+      appGlobalAuthKey = appPubKey.toPublicKey()
+    ).getOrThrow().shouldBe(delegatedDecryptionKey.publicKey)
+  }
+
+  test("verifyKeyCertificate accepts W1 unprefixed appAuthGlobalKeyHwSignature") {
+    val (hwPubKey, hwPrivKey) = secp256k1KeyGenerator.generateKeypair()
+    val (appPubKey, appPrivKey) = secp256k1KeyGenerator.generateKeypair()
+    appPrivateKeyDao.asymmetricKeys[appPubKey.toPublicKey<AppGlobalAuthKey>()] =
+      appPrivKey.toPrivateKey<AppGlobalAuthKey>()
+
+    // W1-style: sign without prefix (legacy)
+    val w1HwSignature =
+      messageSigner.signResult(appPubKey.value.encodeUtf8(), hwPrivKey).getOrThrow()
+
+    val delegatedDecryptionKey = relationshipsCrypto.generateDelegatedDecryptionKey().getOrThrow()
+    val keyCertificate =
+      relationshipsCrypto.generateKeyCertificate(
+        delegatedDecryptionKey.publicKey,
+        HwAuthPublicKey(hwPubKey),
+        appPubKey.toPublicKey(),
+        AppGlobalAuthKeyHwSignature(w1HwSignature)
+      ).getOrThrow()
+
+    relationshipsCrypto.verifyKeyCertificate(
+      keyCertificate = keyCertificate,
+      hwAuthKey = HwAuthPublicKey(hwPubKey),
+      appGlobalAuthKey = appPubKey.toPublicKey()
+    ).getOrThrow().shouldBe(delegatedDecryptionKey.publicKey)
+  }
+
   test("invalid keys") {
     // Valid keys
     val delegatedDecryptionKey = relationshipsCrypto.generateDelegatedDecryptionKey().getOrThrow()

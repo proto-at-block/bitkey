@@ -148,16 +148,25 @@ fun logDev(
  * @param tag to use for the log entry. If `null`, will default to [KermitLogger.tag].
  * @param throwable cause exception to log, if any.
  */
+@Suppress("TooGenericExceptionCaught")
 inline fun logInternal(
   level: LogLevel,
   tag: String? = null,
   throwable: Throwable? = null,
   message: () -> String,
 ) {
-  KermitLogger.logBlock(
-    severity = level.toKermitSeverity(),
-    tag = tag ?: KermitLogger.tag,
-    message = message,
-    throwable = throwable
-  )
+  val severity = level.toKermitSeverity()
+  val resolvedTag = tag ?: KermitLogger.tag
+  // Don't crash because of a logging error
+  try {
+    KermitLogger.logBlock(
+      severity = severity,
+      tag = resolvedTag,
+      message = message,
+      throwable = throwable
+    )
+  } catch (loggingError: Throwable) {
+    println("Logger failed while logging (severity=$severity, tag=$resolvedTag): $loggingError")
+    return
+  }
 }

@@ -15,6 +15,7 @@ import build.wallet.bitkey.relationships.OutgoingInvitation
 import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.ktor.result.HttpError
 import build.wallet.ktor.test.HttpResponseMock
 import build.wallet.platform.clipboard.ClipboardMock
@@ -23,9 +24,9 @@ import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.relationships.CreateInvitationError
 import build.wallet.relationships.RelationshipsServiceMock
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
-import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
-import build.wallet.statemachine.auth.Request
+import build.wallet.statemachine.auth.ActionProofType
+import build.wallet.statemachine.auth.HardwareAuthUiProps
+import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
 import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.SuccessBodyModel
@@ -48,7 +49,6 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeInstanceOf
 import io.ktor.http.*
 
 class AddingTrustedContactUiStateMachineImplTests : FunSpec({
@@ -62,9 +62,9 @@ class AddingTrustedContactUiStateMachineImplTests : FunSpec({
   val relationshipService = RelationshipsServiceMock(turbines::create, clock)
   val notificationsService = NotificationsServiceMock()
 
-  val proofOfPossessionUIStateMachine =
-    object : ProofOfPossessionNfcStateMachine,
-      ScreenStateMachineMock<ProofOfPossessionNfcProps>(id = "hw-proof-of-possession") {}
+  val hardwareAuthUiStateMachine =
+    object : HardwareAuthUiStateMachine,
+      ScreenStateMachineMock<HardwareAuthUiProps>(id = "hw-auth") {}
   val promoCodeUpsellStateMachine =
     object : PromoCodeUpsellUiStateMachine,
       ScreenStateMachineMock<PromoCodeUpsellUiProps>(id = "promo-code") {}
@@ -73,7 +73,7 @@ class AddingTrustedContactUiStateMachineImplTests : FunSpec({
       ScreenStateMachineMock<RecoveryChannelSettingsProps>("recovery-channel-settings") {}
 
   val stateMachine = AddingTrustedContactUiStateMachineImpl(
-    proofOfPossessionNfcStateMachine = proofOfPossessionUIStateMachine,
+    hardwareAuthUiStateMachine = hardwareAuthUiStateMachine,
     inAppBrowserNavigator = inAppBrowserNavigator,
     sharingManager = SharingManagerFake(),
     clipboard = ClipboardMock(),
@@ -129,9 +129,10 @@ class AddingTrustedContactUiStateMachineImplTests : FunSpec({
       awaitBody<SaveContactBodyModel> {
         onSave()
       }
-      awaitBodyMock<ProofOfPossessionNfcProps> {
-        request.shouldBeInstanceOf<Request.HwKeyProof>().onSuccess(
-          HwFactorProofOfPossession("test-token")
+      awaitBodyMock<HardwareAuthUiProps> {
+        actionProofType.shouldBe(ActionProofType.CreateBeneficiary(name = "Alice"))
+        onSuccess(
+          PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("test-token"))
         )
       }
       awaitUntilBody<ShareInviteBodyModel> {
@@ -183,9 +184,9 @@ class AddingTrustedContactUiStateMachineImplTests : FunSpec({
       awaitBody<SaveContactBodyModel> {
         onSave()
       }
-      awaitBodyMock<ProofOfPossessionNfcProps> {
-        request.shouldBeInstanceOf<Request.HwKeyProof>().onSuccess(
-          HwFactorProofOfPossession("test-token")
+      awaitBodyMock<HardwareAuthUiProps> {
+        onSuccess(
+          PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("test-token"))
         )
       }
       awaitUntilBody<ShareInviteBodyModel> {
@@ -232,9 +233,10 @@ class AddingTrustedContactUiStateMachineImplTests : FunSpec({
       awaitBody<SaveContactBodyModel> {
         onSave()
       }
-      awaitBodyMock<ProofOfPossessionNfcProps> {
-        request.shouldBeInstanceOf<Request.HwKeyProof>().onSuccess(
-          HwFactorProofOfPossession("test-token")
+      awaitBodyMock<HardwareAuthUiProps> {
+        actionProofType.shouldBe(ActionProofType.CreateRecoveryContact(name = "Alice"))
+        onSuccess(
+          PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("test-token"))
         )
       }
       awaitUntilBody<ShareInviteBodyModel> {
@@ -344,9 +346,9 @@ class AddingTrustedContactUiStateMachineImplTests : FunSpec({
       awaitBody<SaveContactBodyModel> {
         onSave()
       }
-      awaitBodyMock<ProofOfPossessionNfcProps> {
-        request.shouldBeInstanceOf<Request.HwKeyProof>().onSuccess(
-          HwFactorProofOfPossession("test-token")
+      awaitBodyMock<HardwareAuthUiProps> {
+        onSuccess(
+          PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("test-token"))
         )
       }
       awaitUntilBody<ShareInviteBodyModel> {
@@ -390,9 +392,9 @@ class AddingTrustedContactUiStateMachineImplTests : FunSpec({
       awaitBody<SaveContactBodyModel> {
         onSave()
       }
-      awaitBodyMock<ProofOfPossessionNfcProps> {
-        request.shouldBeInstanceOf<Request.HwKeyProof>().onSuccess(
-          HwFactorProofOfPossession("test-token")
+      awaitBodyMock<HardwareAuthUiProps> {
+        onSuccess(
+          PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("test-token"))
         )
       }
       awaitBody<LoadingSuccessBodyModel> {
@@ -451,9 +453,9 @@ class AddingTrustedContactUiStateMachineImplTests : FunSpec({
       awaitBody<SaveContactBodyModel> {
         onSave()
       }
-      awaitBodyMock<ProofOfPossessionNfcProps> {
-        request.shouldBeInstanceOf<Request.HwKeyProof>().onSuccess(
-          HwFactorProofOfPossession("test-token")
+      awaitBodyMock<HardwareAuthUiProps> {
+        onSuccess(
+          PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("test-token"))
         )
       }
       awaitBody<LoadingSuccessBodyModel> {

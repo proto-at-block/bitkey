@@ -20,7 +20,9 @@ import build.wallet.coroutines.createBackgroundScope
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.awaitUntilNotNull
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.f8e.recovery.LegacyRemoteKeyset
 import build.wallet.f8e.recovery.ListKeysetsF8eClientMock
+import build.wallet.f8e.recovery.PrivateMultisigRemoteKeyset
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.Bdk2FeatureFlag
 import build.wallet.feature.flags.ExpectedTransactionsPhase2FeatureFlag
@@ -294,5 +296,52 @@ class TransactionsActivityServiceImplTests : FunSpec({
     }
 
     watchingWalletProvider.requestedDescriptors.value.shouldBe(emptyList())
+  }
+
+  test("remote keysets with PrivateMultisigRemoteKeyset are filtered without error") {
+    val activeKeyset = FullAccountMock.keybox.activeSpendingKeyset
+    val accountWithoutLocalKeysets =
+      FullAccountMock.copy(
+        keybox =
+          KeyboxMock.copy(
+            canUseKeyboxKeysets = false,
+            activeSpendingKeyset = activeKeyset,
+            keysets = listOf(activeKeyset)
+          )
+      )
+
+    val legacyKeyset = LegacyRemoteKeyset(
+      keysetId = "legacy-keyset-id",
+      networkType = activeKeyset.networkType.name,
+      appDescriptor = activeKeyset.appKey.key.dpub,
+      hardwareDescriptor = activeKeyset.hardwareKey.key.dpub,
+      serverDescriptor = activeKeyset.f8eSpendingKeyset.spendingPublicKey.key.dpub
+    )
+
+    val privateKeyset = PrivateMultisigRemoteKeyset(
+      keysetId = "private-orphaned-keyset",
+      networkType = "SIGNET",
+      appPublicKey = "app-pub",
+      hardwarePublicKey = "hw-pub",
+      serverPublicKey = "server-pub"
+    )
+
+    listKeysetsF8eClient.result = com.github.michaelbull.result.Ok(
+      build.wallet.f8e.recovery.ListKeysetsResponse(
+        keysets = listOf(legacyKeyset, privateKeyset),
+        wrappedSsek = null,
+        descriptorBackups = emptyList(),
+        activeKeysetId = activeKeyset.f8eSpendingKeyset.keysetId
+      )
+    )
+
+    accountService.setActiveAccount(accountWithoutLocalKeysets)
+
+    createBackgroundScope().launch { service.executeWork() }
+
+    // The service should proceed without crashing — the private keyset is filtered out
+    watchingWalletProvider.requestedDescriptors.test {
+      awaitUntil { it.isNotEmpty() }
+    }
   }
 })

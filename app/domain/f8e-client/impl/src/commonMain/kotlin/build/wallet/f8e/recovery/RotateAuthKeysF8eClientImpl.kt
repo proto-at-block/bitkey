@@ -1,5 +1,6 @@
 package build.wallet.f8e.recovery
 
+import bitkey.account.HardwareType
 import build.wallet.auth.AppAuthKeyMessageSigner
 import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.bitkey.app.AppGlobalAuthKey
@@ -9,12 +10,12 @@ import build.wallet.crypto.PublicKey
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.applyTo
 import build.wallet.f8e.client.plugins.withAccountId
 import build.wallet.f8e.client.plugins.withAppAuthKey
 import build.wallet.f8e.client.plugins.withEnvironment
-import build.wallet.f8e.client.plugins.withHardwareFactor
 import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.RedactedRequestBody
 import build.wallet.ktor.result.catching
@@ -40,7 +41,8 @@ class RotateAuthKeysF8eClientImpl(
     newAppAuthPublicKeys: AppAuthPublicKeys,
     hwAuthPublicKey: HwAuthPublicKey,
     hwSignedAccountId: String,
-    hwFactorProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
+    hardwareType: HardwareType,
   ): Result<Unit, Throwable> =
     coroutineBinding {
       /**
@@ -67,7 +69,7 @@ class RotateAuthKeysF8eClientImpl(
             withEnvironment(f8eEnvironment)
             withAccountId(fullAccountId)
             withAppAuthKey(oldAppAuthPublicKey)
-            withHardwareFactor(hwFactorProofOfPossession)
+            proof.applyTo(this)
             setRedactedBody(
               RotateAuthKeysetResponse(
                 application = AuthenticationKey(
@@ -81,7 +83,8 @@ class RotateAuthKeysF8eClientImpl(
                 recovery = AuthenticationKey(
                   newAppAuthPublicKeys.appRecoveryAuthPublicKey.value,
                   signedAppRecoveryAuthPublicKey
-                )
+                ),
+                hardwareType = hardwareType
               )
             )
           }
@@ -106,5 +109,7 @@ class RotateAuthKeysF8eClientImpl(
     val hardware: AuthenticationKey,
     @SerialName("recovery")
     val recovery: AuthenticationKey,
+    @SerialName("hardware_type")
+    val hardwareType: HardwareType,
   ) : RedactedRequestBody
 }

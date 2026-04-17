@@ -15,8 +15,8 @@ import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
-import build.wallet.firmware.FirmwareDeviceInfo
-import build.wallet.firmware.FirmwareDeviceInfoMock
+import build.wallet.statemachine.nfc.HardwarePresenceProps
+import build.wallet.statemachine.nfc.HardwarePresenceUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.settings.full.device.wipedevice.intro.WipingDeviceIntroProps
@@ -26,6 +26,7 @@ import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -36,6 +37,10 @@ class WipingDeviceIntroUiStateMachineImplTests : FunSpec({
   val bitcoinWalletService = BitcoinWalletServiceFake()
 
   val stateMachine = WipingDeviceIntroUiStateMachineImpl(
+    hardwarePresenceUiStateMachine =
+      object : HardwarePresenceUiStateMachine, ScreenStateMachineMock<HardwarePresenceProps>(
+        "hw-proof-of-possession"
+      ) {},
     nfcSessionUIStateMachine =
       object : NfcSessionUIStateMachine, ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(
         "nfc-session"
@@ -119,8 +124,9 @@ class WipingDeviceIntroUiStateMachineImplTests : FunSpec({
           .primaryButton?.onClick?.invoke()
       }
 
-      awaitBodyMock<NfcSessionUIStateMachineProps<FirmwareDeviceInfo>> {
-        onSuccess(FirmwareDeviceInfoMock)
+      awaitBodyMock<HardwarePresenceProps> {
+        showNativeSheetOnIos.shouldBeFalse()
+        onSuccess()
       }
 
       // Transfer funds warning sheet

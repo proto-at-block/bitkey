@@ -1,21 +1,29 @@
 package build.wallet.recovery
 
+import bitkey.account.HardwareType
 import bitkey.recovery.InitiateDelayNotifyRecoveryError
 import build.wallet.auth.AccountAuthTokensMock
+import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.auth.HwAuthPublicKeyMock
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.f8e.FullAccountIdMock
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.bitkey.hardware.HwKeyBundle
+import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.keybox.AppKeyBundleMock
 import build.wallet.bitkey.recovery.HardwareKeysForRecovery
 import build.wallet.f8e.auth.AuthF8eClient.InitiateAuthenticationSuccess
-import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.auth.InitiateAuthenticationSuccessMock
+import build.wallet.f8e.auth.PrivilegedActionProof
+import build.wallet.platform.random.UuidGenerator
 import build.wallet.recovery.LostAppAndCloudRecoveryService.CompletedAuth
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
-class LostAppAndCloudRecoveryServiceFake : LostAppAndCloudRecoveryService {
+class LostAppAndCloudRecoveryServiceFake(
+  private val uuidGenerator: UuidGenerator = UuidGenerator { "fake-uuid" },
+) : LostAppAndCloudRecoveryService {
   var cancelResult: Result<Unit, CancelDelayNotifyRecoveryError> = Ok(Unit)
   var initiateAuthResult: Result<InitiateAuthenticationSuccess, Error> =
     Ok(InitiateAuthenticationSuccessMock)
@@ -33,6 +41,7 @@ class LostAppAndCloudRecoveryServiceFake : LostAppAndCloudRecoveryService {
         authTokens = AccountAuthTokensMock,
         hwAuthKey = HwAuthPublicKeyMock,
         destinationAppKeys = AppKeyBundleMock,
+        bitcoinNetworkType = BitcoinNetworkType.BITCOIN,
         existingHwSpendingKeys = emptyList()
       )
     )
@@ -55,9 +64,29 @@ class LostAppAndCloudRecoveryServiceFake : LostAppAndCloudRecoveryService {
     return initiateRecoveryResult
   }
 
+  override fun buildHardwareKeys(
+    proof: PrivilegedActionProof,
+    hardwareAuthKey: HwAuthPublicKey,
+    spendingKey: HwSpendingPublicKey,
+    appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+    bitcoinNetworkType: BitcoinNetworkType,
+    hardwareType: HardwareType,
+  ): HardwareKeysForRecovery =
+    HardwareKeysForRecovery(
+      proof = proof,
+      newAppGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
+      newKeyBundle = HwKeyBundle(
+        localId = uuidGenerator.random(),
+        spendingKey = spendingKey,
+        authKey = hardwareAuthKey,
+        networkType = bitcoinNetworkType
+      ),
+      hardwareType = hardwareType
+    )
+
   override suspend fun cancelRecovery(
     accountId: FullAccountId,
-    hwProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
   ): Result<Unit, CancelDelayNotifyRecoveryError> {
     return cancelResult
   }
@@ -73,6 +102,7 @@ class LostAppAndCloudRecoveryServiceFake : LostAppAndCloudRecoveryService {
           authTokens = AccountAuthTokensMock,
           hwAuthKey = HwAuthPublicKeyMock,
           destinationAppKeys = AppKeyBundleMock,
+          bitcoinNetworkType = BitcoinNetworkType.BITCOIN,
           existingHwSpendingKeys = emptyList()
         )
       )

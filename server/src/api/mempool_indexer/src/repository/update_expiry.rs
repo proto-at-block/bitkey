@@ -9,7 +9,7 @@ use crate::entities::TransactionRecord;
 use super::MempoolIndexerRepository;
 
 impl MempoolIndexerRepository {
-    #[instrument(skip(self))]
+    #[instrument(skip(self, records))]
     pub(crate) async fn update_expiry(
         &self,
         records: Vec<TransactionRecord>,

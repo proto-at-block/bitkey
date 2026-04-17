@@ -15,6 +15,7 @@ extern "C" {
 
 DEFINE_FFF_GLOBALS;
 
+FAKE_VOID_FUNC(_putchar, char);
 FAKE_VOID_FUNC(secure_glitch_random_delay);
 FAKE_VOID_FUNC(refresh_auth);
 
@@ -40,7 +41,7 @@ bool rtos_mutex_take(rtos_mutex_t* UNUSED(a), uint32_t UNUSED(b)) {
 bool rtos_mutex_unlock(rtos_mutex_t* UNUSED(a)) {
   return true;
 }
-secure_bool_t addr_in_flash(uintptr_t UNUSED(addr)) {
+secure_bool_t addrs_in_same_slot(uintptr_t UNUSED(addr_a), uintptr_t UNUSED(addr_b)) {
   return SECURE_TRUE;
 }
 bool rtos_mutex_lock_from_isr(rtos_mutex_t* UNUSED(t)) {
@@ -70,6 +71,13 @@ bool bd_error_str(char*, const size_t, const int) {
 uint32_t rtos_event_group_set_bits(rtos_event_group_t*, const uint32_t) {
   return 0;
 }
+bool rtos_event_group_set_bits_from_isr(rtos_event_group_t* UNUSED(a), const uint32_t UNUSED(b),
+                                        bool* UNUSED(c)) {
+  return true;
+}
+uint32_t rtos_event_group_get_bits(rtos_event_group_t* UNUSED(a)) {
+  return 0;
+}
 uint32_t rtos_event_group_clear_bits(rtos_event_group_t*, const uint32_t) {
   return 0;
 }
@@ -93,6 +101,15 @@ security_config_t security_config = {
 };
 
 rtos_thread_mpu_t _fs_mount_task_regions;
+
+// Stub definitions for metadata.c (metadata_get_active_slot() will return METADATA_MISSING)
+size_t active_slot = 0;
+size_t bl_metadata_size = 0;
+size_t bl_metadata_page = 0;
+size_t app_a_metadata_size = 0;
+size_t app_a_metadata_page = 0;
+size_t app_b_metadata_size = 0;
+size_t app_b_metadata_page = 0;
 }
 
 #include "application_properties.h"
@@ -147,6 +164,12 @@ static void fuzz_start(FuzzedDataProvider& data) {
   cmd.mode =
     (fwpb_fwup_mode)data.ConsumeIntegralInRange<int>(_fwpb_fwup_mode_MIN, _fwpb_fwup_mode_MAX);
   cmd.patch_size = data.ConsumeIntegral<uint32_t>();
+  cmd.has_version = data.ConsumeBool();
+  if (cmd.has_version) {
+    cmd.version.major = data.ConsumeIntegral<uint32_t>();
+    cmd.version.minor = data.ConsumeIntegral<uint32_t>();
+    cmd.version.patch = data.ConsumeIntegral<uint32_t>();
+  }
   fwup_start(&cmd, &rsp);
 }
 

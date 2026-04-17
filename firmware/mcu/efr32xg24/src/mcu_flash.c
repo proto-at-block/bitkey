@@ -116,6 +116,31 @@ RAMFUNC mcu_flash_status_t mcu_flash_erase_page(uint32_t* address) {
   return status;
 }
 
+mcu_flash_status_t mcu_flash_opt_write(mcu_flash_opt_t const* opt, bool write_rdp) {
+  (void)opt;
+  (void)write_rdp;
+  return MCU_FLASH_STATUS_UNSUPPORTED;
+}
+
+mcu_flash_status_t mcu_flash_opt_read(mcu_flash_opt_info_t* opt_info) {
+  if (opt_info == NULL) {
+    return MCU_FLASH_STATUS_INVALID_ADDR;
+  }
+
+  opt_info->current_rdp = MCU_FLASH_RDP_UNKNOWN;
+  return MCU_FLASH_STATUS_UNSUPPORTED;
+}
+
+mcu_flash_status_t mcu_flash_opt_get_rdp(mcu_flash_opt_t const* opt, mcu_flash_rdp_t* rdp) {
+  (void)opt;
+  if (rdp == NULL) {
+    return MCU_FLASH_STATUS_INVALID_ADDR;
+  }
+
+  *rdp = MCU_FLASH_RDP_UNKNOWN;
+  return MCU_FLASH_STATUS_UNSUPPORTED;
+}
+
 RAMFUNC static mcu_flash_status_t write_burst(uint32_t address, const uint32_t* data,
                                               uint32_t len) {
   MSC->ADDRB = address;

@@ -19,6 +19,9 @@ insertKeyBundle:
 INSERT OR REPLACE INTO hwKeyBundleEntity(id, keyboxId, spendingKey, authKey, isActive)
 VALUES(?, ?, ?, ?, ?);
 
+updateAuthKeyForActiveBundle:
+UPDATE hwKeyBundleEntity SET authKey = ? WHERE keyboxId = ? AND isActive = 1;
+
 clear:
 DELETE FROM hwKeyBundleEntity;
 

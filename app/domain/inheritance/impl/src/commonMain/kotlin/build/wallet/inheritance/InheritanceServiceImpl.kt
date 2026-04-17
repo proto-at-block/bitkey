@@ -15,7 +15,7 @@ import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.relationships.*
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.inheritance.*
 import build.wallet.logging.logDebug
 import build.wallet.logging.logError
@@ -31,6 +31,7 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
 
@@ -115,7 +116,7 @@ class InheritanceServiceImpl(
   }
 
   override suspend fun createInheritanceInvitation(
-    hardwareProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
     trustedContactAlias: TrustedContactAlias,
   ): Result<OutgoingInvitation, CreateInvitationError> {
     return coroutineBinding {
@@ -126,7 +127,7 @@ class InheritanceServiceImpl(
       relationshipsService.createInvitation(
         account = account,
         trustedContactAlias = trustedContactAlias,
-        hardwareProofOfPossession = hardwareProofOfPossession,
+        proof = proof,
         roles = setOf(TrustedContactRole.Beneficiary)
       ).bind()
     }
@@ -187,6 +188,14 @@ class InheritanceServiceImpl(
 
       claim
     }
+
+  override suspend fun pendingBenefactorClaim(
+    relationshipId: RelationshipId,
+  ): BenefactorClaim.PendingClaim? {
+    return claims.first()
+      .filterIsInstance<BenefactorClaim.PendingClaim>()
+      .firstOrNull { it.relationshipId == relationshipId }
+  }
 
   override suspend fun loadApprovedClaim(
     relationshipId: RelationshipId,

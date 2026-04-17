@@ -15,14 +15,14 @@ use tracing::{event, instrument, Level};
 use utoipa::{OpenApi, ToSchema};
 
 use account::service::{FetchAccountInput, Service as AccountService};
-use authn_authz::key_claims::KeyClaims;
+use authn_authz::{Action, Authorization, AuthorizationRequirements};
 use errors::ApiError;
 use feature_flags::service::Service as FeatureFlagsService;
 use http_server::router::RouterBuilder;
 use http_server::swagger::{SwaggerEndpoint, Url};
 use promotion_code::entities::CodeKey;
 use promotion_code::service::Service as PromotionCodeService;
-use types::account::entities::Account;
+use types::account::entities::{Account, FullAccount, HardwareType};
 use types::account::identifiers::AccountId;
 use types::authn_authz::cognito::CognitoUser;
 use types::recovery::social::relationship::RecoveryRelationshipEndorsement;
@@ -49,6 +49,35 @@ use crate::{
     service::social::relationship::Service as RecoveryRelationshipService,
 };
 
+/// Maps trusted contact roles to the corresponding "add" action proof action.
+fn add_action_for_roles(roles: &[TrustedContactRole]) -> Action {
+    if roles.contains(&TrustedContactRole::Beneficiary) {
+        Action::AddBeneficiary
+    } else {
+        Action::AddRecoveryContact
+    }
+}
+
+/// Maps trusted contact roles to the corresponding "remove" action proof action
+/// when the customer (relationship owner) is the one removing.
+fn customer_remove_action_for_roles(roles: &[TrustedContactRole]) -> Action {
+    if roles.contains(&TrustedContactRole::Beneficiary) {
+        Action::RemoveBeneficiary
+    } else {
+        Action::RemoveRecoveryContact
+    }
+}
+
+/// Maps trusted contact roles to the corresponding "remove" action proof action
+/// when the trusted contact is the one removing themselves.
+fn tc_remove_action_for_roles(roles: &[TrustedContactRole]) -> Action {
+    if roles.contains(&TrustedContactRole::Beneficiary) {
+        Action::RemoveBenefactor
+    } else {
+        Action::RemoveRecoveryCustomer
+    }
+}
+
 #[derive(Clone, axum_macros::FromRef)]
 pub struct RouteState(
     pub AccountService,
@@ -57,6 +86,7 @@ pub struct RouteState(
     pub FeatureFlagsService,
     pub PromotionCodeService,
     pub InheritanceService,
+    pub repository::anti_replay::AntiReplayRepository,
 );
 
 impl RouterBuilder for RouteState {
@@ -173,6 +203,34 @@ impl From<RouteState> for SwaggerEndpoint {
     )
 )]
 struct ApiDoc;
+
+/// Returns the alias as a proof value if it passes action-proof validation,
+/// or empty string if it doesn't (legacy aliases may contain mixed scripts,
+/// exceed 128 bytes, etc.). Both app and server must use this same fallback
+/// so the signed payload matches during verification. When the value is empty,
+/// the hardware shows a generic "Confirm action" screen instead of the name.
+fn alias_for_proof(alias: &str) -> &str {
+    let trimmed = alias.trim();
+    if trimmed.is_empty() || trimmed.chars().count() > 64 {
+        return "";
+    }
+    for c in trimmed.chars() {
+        if !is_hw_displayable(c) {
+            return "";
+        }
+    }
+    trimmed
+}
+
+/// Mirrors `TrustedContactAlias.isHwDisplayable()` in the app.
+fn is_hw_displayable(c: char) -> bool {
+    matches!(c,
+        ' '..='~'                  // ASCII printable
+        | '\u{00C0}'..='\u{00FF}'  // Latin-1 Supplement letters (À-ÿ)
+        | '\u{0100}'..='\u{017F}'  // Latin Extended-A
+        | '\u{0180}'..='\u{024F}'  // Latin Extended-B
+    )
+}
 
 #[derive(Serialize, Deserialize, Debug, ToSchema, PartialEq)]
 pub struct OutboundInvitation {
@@ -349,7 +407,12 @@ pub struct CreateRelationshipResponse {
 ///
 #[instrument(
     err,
-    skip(account_service, recovery_relationship_service, _feature_flags_service)
+    skip(
+        account_service,
+        recovery_relationship_service,
+        _feature_flags_service,
+        anti_replay_repository
+    )
 )]
 #[utoipa::path(
     post,
@@ -367,29 +430,50 @@ pub async fn create_relationship(
     State(account_service): State<AccountService>,
     State(recovery_relationship_service): State<RecoveryRelationshipService>,
     State(_feature_flags_service): State<FeatureFlagsService>,
-    key_proof: KeyClaims,
+    State(anti_replay_repository): State<repository::anti_replay::AntiReplayRepository>,
+    auth: Authorization,
     Json(request): Json<CreateRelationshipRequest>,
 ) -> Result<Json<CreateRelationshipResponse>, ApiError> {
-    let trusted_contact =
-        TrustedContactInfo::new(request.trusted_contact_alias, request.trusted_contact_roles)
+    let full_account = account_service
+        .fetch_full_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await?;
+    let hardware_type = full_account
+        .active_hardware_type()
+        .map_err(|e| ApiError::GenericInternalApplicationError(e.to_string()))?;
+    let action = add_action_for_roles(&request.trusted_contact_roles);
+
+    let result = AuthorizationRequirements::new(action, hardware_type)
+        .value(alias_for_proof(&request.trusted_contact_alias))
+        .execute(&auth, &anti_replay_repository, |_ctx| async move {
+            let trusted_contact = TrustedContactInfo::new(
+                request.trusted_contact_alias,
+                request.trusted_contact_roles,
+            )
             .map_err(ServiceError::from)?;
 
-    let response = create_relationship_common(
-        &account_id,
-        &account_service,
-        &recovery_relationship_service,
-        &key_proof,
-        trusted_contact,
-        &request.protected_customer_enrollment_pake_pubkey,
-    )
-    .await?;
+            create_relationship_common(
+                &full_account,
+                &recovery_relationship_service,
+                trusted_contact,
+                &request.protected_customer_enrollment_pake_pubkey,
+            )
+            .await
+        })
+        .await?;
 
-    Ok(Json(response))
+    Ok(Json(result))
 }
 
 #[instrument(
     err,
-    skip(account_service, recovery_relationship_service, _feature_flags_service)
+    skip(
+        account_service,
+        recovery_relationship_service,
+        _feature_flags_service,
+        anti_replay_repository
+    )
 )]
 #[utoipa::path(
     post,
@@ -408,51 +492,48 @@ pub async fn create_recovery_relationship(
     State(account_service): State<AccountService>,
     State(recovery_relationship_service): State<RecoveryRelationshipService>,
     State(_feature_flags_service): State<FeatureFlagsService>,
-    key_proof: KeyClaims,
+    State(anti_replay_repository): State<repository::anti_replay::AntiReplayRepository>,
+    auth: Authorization,
     Json(request): Json<CreateRecoveryRelationshipRequest>,
 ) -> Result<Json<CreateRelationshipResponse>, ApiError> {
-    let trusted_contact =
-        TrustedContactInfo::new(request.trusted_contact_alias, vec![SocialRecoveryContact])
-            .map_err(ServiceError::from)?;
+    let full_account = account_service
+        .fetch_full_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await?;
+    let hardware_type = full_account
+        .active_hardware_type()
+        .map_err(|e| ApiError::GenericInternalApplicationError(e.to_string()))?;
 
-    let response = create_relationship_common(
-        &account_id,
-        &account_service,
-        &recovery_relationship_service,
-        &key_proof,
-        trusted_contact,
-        &request.protected_customer_enrollment_pake_pubkey,
-    )
-    .await?;
+    let response = AuthorizationRequirements::new(Action::AddRecoveryContact, hardware_type)
+        .value(alias_for_proof(&request.trusted_contact_alias))
+        .execute(&auth, &anti_replay_repository, |_ctx| async move {
+            let trusted_contact =
+                TrustedContactInfo::new(request.trusted_contact_alias, vec![SocialRecoveryContact])
+                    .map_err(ServiceError::from)?;
+
+            create_relationship_common(
+                &full_account,
+                &recovery_relationship_service,
+                trusted_contact,
+                &request.protected_customer_enrollment_pake_pubkey,
+            )
+            .await
+        })
+        .await?;
 
     Ok(Json(response))
 }
 
 async fn create_relationship_common(
-    account_id: &AccountId,
-    account_service: &AccountService,
+    full_account: &FullAccount,
     recovery_relationship_service: &RecoveryRelationshipService,
-    key_proof: &KeyClaims,
     trusted_contact: TrustedContactInfo,
     protected_customer_enrollment_pake_pubkey: &str,
 ) -> Result<CreateRelationshipResponse, ApiError> {
-    if !(key_proof.hw_signed && key_proof.app_signed) {
-        event!(
-            Level::WARN,
-            "valid signature over access token required by both app and hw auth keys"
-        );
-        return Err(ApiError::GenericForbidden(
-            "valid signature over access token required by both app and hw auth keys".to_string(),
-        ));
-    }
-
-    let full_account = account_service
-        .fetch_full_account(FetchAccountInput { account_id })
-        .await?;
-
     let result = recovery_relationship_service
         .create_recovery_relationship_invitation(CreateRecoveryRelationshipInvitationInput {
-            customer_account: &full_account,
+            customer_account: full_account,
             trusted_contact: &trusted_contact,
             protected_customer_enrollment_pake_pubkey,
         })
@@ -476,9 +557,11 @@ async fn create_relationship_common(
 #[instrument(
     err,
     skip(
+        account_service,
         recovery_relationship_service,
         feature_flags_service,
-        inheritance_service
+        inheritance_service,
+        anti_replay_repository,
     )
 )]
 #[utoipa::path(
@@ -494,10 +577,12 @@ async fn create_relationship_common(
 )]
 pub async fn delete_recovery_relationship(
     Path((account_id, recovery_relationship_id)): Path<(AccountId, RecoveryRelationshipId)>,
+    State(account_service): State<AccountService>,
     State(recovery_relationship_service): State<RecoveryRelationshipService>,
     State(feature_flags_service): State<FeatureFlagsService>,
     State(inheritance_service): State<InheritanceService>,
-    key_proof: KeyClaims,
+    State(anti_replay_repository): State<repository::anti_replay::AntiReplayRepository>,
+    auth: Authorization,
     experimentation_claims: ExperimentationClaims,
     Extension(cognito_user): Extension<CognitoUser>,
 ) -> Result<(), ApiError> {
@@ -532,14 +617,93 @@ pub async fn delete_recovery_relationship(
         }
     }
 
-    recovery_relationship_service
-        .delete_recovery_relationship(DeleteRecoveryRelationshipInput {
-            acting_account_id: &account_id,
-            recovery_relationship_id: &recovery_relationship_id,
-            key_proof: &key_proof,
-            cognito_user: &cognito_user,
+    // Determine authorization based on account type.
+    // Full accounts (customers) get action proof with contact name binding.
+    // W3 TCs also need action proof for self-removal; W1 TCs use basic auth only.
+    let account = account_service
+        .fetch_account(FetchAccountInput {
+            account_id: &account_id,
         })
         .await?;
+
+    match account {
+        Account::Full(full_account) => {
+            let hardware_type = full_account
+                .active_hardware_type()
+                .map_err(|e| ApiError::GenericInternalApplicationError(e.to_string()))?;
+
+            let relationship = recovery_relationship_service
+                .get_recovery_relationship(&recovery_relationship_id)
+                .await?;
+            let roles = &relationship.common_fields().trusted_contact_info.roles;
+            let is_customer =
+                relationship.common_fields().customer_account_id == account_id;
+
+            // Action and alias both depend on who is acting:
+            //   - Customer → removes the TC, signs the TC's alias
+            //   - TC → removes themselves, signs the customer's alias
+            let (action, proof_alias) = if is_customer {
+                (
+                    customer_remove_action_for_roles(roles),
+                    alias_for_proof(
+                        &relationship.common_fields().trusted_contact_info.alias,
+                    ),
+                )
+            } else {
+                let customer_alias = match &relationship {
+                    RecoveryRelationship::Unendorsed(r) => {
+                        &r.connection_fields.customer_alias
+                    }
+                    RecoveryRelationship::Endorsed(r) => {
+                        &r.connection_fields.customer_alias
+                    }
+                    RecoveryRelationship::Invitation(_) => {
+                        // A TC cannot delete an invitation — they haven't accepted yet,
+                        // so they have no relationship to delete.
+                        return Err(ApiError::GenericBadRequest(
+                            "Trusted contact cannot delete an invitation".to_string(),
+                        ));
+                    }
+                };
+                (
+                    tc_remove_action_for_roles(roles),
+                    alias_for_proof(customer_alias),
+                )
+            };
+
+            // Conditional: The service conditionally enforces both-factor auth for active
+            // relationship deletes when the actor has hardware.
+            AuthorizationRequirements::new(action, hardware_type)
+                .value(proof_alias)
+                .entity_id(recovery_relationship_id.to_string())
+                .proof(authn_authz::ProofRequirement::Conditional)
+                .execute(&auth, &anti_replay_repository, |ctx| async move {
+                    recovery_relationship_service
+                        .delete_recovery_relationship(DeleteRecoveryRelationshipInput {
+                            acting_account_id: &account_id,
+                            recovery_relationship_id: &recovery_relationship_id,
+                            signed_by_both_factors: ctx.app_signed() && ctx.hw_signed(),
+                            acting_account_is_w3: matches!(hardware_type, HardwareType::W3),
+                            cognito_user: &cognito_user,
+                        })
+                        .await?;
+                    Ok::<_, ApiError>(())
+                })
+                .await?;
+        }
+        Account::Lite(_) | Account::Software(_) => {
+            // Non-full accounts (trusted contacts) have no proof mechanism.
+            recovery_relationship_service
+                .delete_recovery_relationship(DeleteRecoveryRelationshipInput {
+                    acting_account_id: &account_id,
+                    recovery_relationship_id: &recovery_relationship_id,
+                    signed_by_both_factors: false,
+                    acting_account_is_w3: false,
+                    cognito_user: &cognito_user,
+                })
+                .await?;
+        }
+    }
 
     Ok(())
 }
@@ -695,7 +859,12 @@ pub enum UpdateRecoveryRelationshipResponse {
 ///
 #[instrument(
     err,
-    skip(account_service, recovery_relationship_service, _feature_flags_service)
+    skip(
+        account_service,
+        recovery_relationship_service,
+        _feature_flags_service,
+        anti_replay_repository
+    )
 )]
 #[utoipa::path(
     put,
@@ -714,7 +883,8 @@ pub async fn update_recovery_relationship(
     State(account_service): State<AccountService>,
     State(recovery_relationship_service): State<RecoveryRelationshipService>,
     State(_feature_flags_service): State<FeatureFlagsService>,
-    key_proof: KeyClaims,
+    State(anti_replay_repository): State<repository::anti_replay::AntiReplayRepository>,
+    auth: Authorization,
     Extension(cognito_user): Extension<CognitoUser>,
     Json(request): Json<UpdateRecoveryRelationshipRequest>,
 ) -> Result<Json<UpdateRecoveryRelationshipResponse>, ApiError> {
@@ -777,28 +947,39 @@ pub async fn update_recovery_relationship(
                 ));
             }
 
-            if !key_proof.hw_signed || !key_proof.app_signed {
-                event!(
-                    Level::WARN,
-                    "valid signature over access token requires both app and hw auth keys"
-                );
-                return Err(ApiError::GenericBadRequest(
-                    "valid signature over access token requires both app and hw auth keys"
-                        .to_string(),
-                ));
-            }
+            let hardware_type = full_account
+                .active_hardware_type()
+                .map_err(|e| ApiError::GenericInternalApplicationError(e.to_string()))?;
 
-            let result = recovery_relationship_service
-                .reissue_recovery_relationship_invitation(
-                    ReissueRecoveryRelationshipInvitationInput {
-                        customer_account: &full_account,
-                        recovery_relationship_id: &recovery_relationship_id,
-                    },
-                )
+            // Fetch the relationship to get the contact name and roles for proof binding.
+            // Reissue uses the same add action as create — it's logically re-inviting.
+            let relationship = recovery_relationship_service
+                .get_recovery_relationship(&recovery_relationship_id)
+                .await?;
+            let common = relationship.common_fields();
+            let action = add_action_for_roles(&common.trusted_contact_info.roles);
+            let contact_name = alias_for_proof(&common.trusted_contact_info.alias);
+
+            let result = AuthorizationRequirements::new(action, hardware_type)
+                .value(contact_name)
+                .entity_id(recovery_relationship_id.to_string())
+                .execute(&auth, &anti_replay_repository, |_ctx| async move {
+                    let result = recovery_relationship_service
+                        .reissue_recovery_relationship_invitation(
+                            ReissueRecoveryRelationshipInvitationInput {
+                                customer_account: &full_account,
+                                recovery_relationship_id: &recovery_relationship_id,
+                            },
+                        )
+                        .await?;
+
+                    let invitation: OutboundInvitation = result.try_into()?;
+                    Ok::<_, ApiError>(invitation)
+                })
                 .await?;
 
             Ok(Json(UpdateRecoveryRelationshipResponse::Reissue {
-                invitation: result.try_into()?,
+                invitation: result,
             }))
         }
     }
@@ -839,7 +1020,7 @@ pub async fn endorse_recovery_relationships(
     State(account_service): State<AccountService>,
     State(recovery_relationship_service): State<RecoveryRelationshipService>,
     State(_feature_flags_service): State<FeatureFlagsService>,
-    key_proof: KeyClaims,
+    _auth: Authorization,
     Json(request): Json<EndorseRecoveryRelationshipsRequest>,
 ) -> Result<Json<EndorseRecoveryRelationshipsResponse>, ApiError> {
     let account = account_service

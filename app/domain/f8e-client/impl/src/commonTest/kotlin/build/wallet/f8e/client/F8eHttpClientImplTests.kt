@@ -535,7 +535,7 @@ class F8eHttpClientImplTests : FunSpec({
     request.headers["Bitkey-Device-Region"].shouldNotBeNull().shouldBeEqual("US")
     request.headers["Bitkey-OS-Type"].shouldNotBeNull().shouldBeEqual("OS_TYPE_ANDROID")
     request.headers["Bitkey-OS-Version"].shouldNotBeNull().shouldBeEqual("version_num_1")
-    request.headers["Bitkey-Hardware-Serial"].shouldNotBeNull().shouldBeEqual("serial")
+    request.headers["Bitkey-Hardware-Serial"].shouldNotBeNull().shouldBeEqual("fakeS203serial")
 
     unauthedNetworkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
 

@@ -1,21 +1,27 @@
 package build.wallet.statemachine.partnerships
 
+import build.wallet.account.AccountServiceFake
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.PARTNER_QUOTES_LIST
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.PURCHASE_PARTNER_REDIRECTING
 import build.wallet.analytics.v1.Action
+import build.wallet.bitcoin.address.BitcoinAddressServiceFake
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.setFlagValue
 import build.wallet.feature.flags.CashAppFeePromotionFeatureFlag
 import build.wallet.money.FiatMoney
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.exchange.ExchangeRateServiceFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
+import build.wallet.nfc.NfcCommandsMock
 import build.wallet.partnerships.*
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineFake
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseQuotesUiProps
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseQuotesUiStateMachineImpl
 import build.wallet.statemachine.ui.awaitBody
@@ -45,6 +51,9 @@ class PartnershipsPurchaseQuotesUiStateMachineImplTests : FunSpec({
     getCalls = turbines.create("get transaction by id calls")
   )
   val currencyConverter = CurrencyConverterFake()
+  val accountService = AccountServiceFake()
+  val featureFlagDao = FeatureFlagDaoFake()
+  val cashAppFeePromotionFeatureFlag = CashAppFeePromotionFeatureFlag(featureFlagDao)
 
   val stateMachine = PartnershipsPurchaseQuotesUiStateMachineImpl(
     moneyDisplayFormatter = MoneyDisplayFormatterFake,
@@ -53,7 +62,12 @@ class PartnershipsPurchaseQuotesUiStateMachineImplTests : FunSpec({
     eventTracker = eventTracker,
     currencyConverter = currencyConverter,
     exchangeRateService = ExchangeRateServiceFake(),
-    cashAppFeePromotionFeatureFlag = CashAppFeePromotionFeatureFlag(FeatureFlagDaoFake())
+    cashAppFeePromotionFeatureFlag = cashAppFeePromotionFeatureFlag,
+    accountService = accountService,
+    bitcoinAddressService = BitcoinAddressServiceFake(),
+    nfcSessionUIStateMachine = NfcSessionUIStateMachineFake(
+      nfcCommands = NfcCommandsMock(turbines::create)
+    )
   )
 
   fun props(purchaseAmount: FiatMoney = FiatMoney.usd(100.0)) =
@@ -68,6 +82,8 @@ class PartnershipsPurchaseQuotesUiStateMachineImplTests : FunSpec({
     partnershipPurchaseService.reset()
     partnershipTransactionsService.reset()
     currencyConverter.conversionRate = 3.0
+    accountService.setActiveAccount(FullAccountMock)
+    featureFlagDao.reset()
   }
 
   test("partnerships purchase quotes") {
@@ -230,6 +246,9 @@ class PartnershipsPurchaseQuotesUiStateMachineImplTests : FunSpec({
 
       eventTracker.eventCalls.awaitItem().action.shouldBe(Action.ACTION_APP_PARTNERSHIPS_VIEWED_PURCHASE_QUOTE)
 
+      // generating address (non-W3 account skips verification)
+      awaitBody<LoadingSuccessBodyModel>()
+
       // load redirect info
       awaitBody<LoadingSuccessBodyModel>()
 
@@ -262,6 +281,76 @@ class PartnershipsPurchaseQuotesUiStateMachineImplTests : FunSpec({
           title.shouldBe("partner")
           sideText.shouldBe("195,701 sats")
           secondarySideText.shouldBeNull()
+        }
+      }
+
+      eventTracker.eventCalls.awaitItem().action.shouldBe(Action.ACTION_APP_PARTNERSHIPS_VIEWED_PURCHASE_QUOTE)
+    }
+  }
+
+  test("CashApp promotion banner not shown when cryptoAmount below 0.001") {
+    cashAppFeePromotionFeatureFlag.setFlagValue(true)
+    val cashAppQuote = PurchaseQuote(
+      fiatCurrency = "USD",
+      cryptoAmount = 0.0003,
+      networkFeeCrypto = 0.0001,
+      networkFeeFiat = 5.0,
+      cryptoPrice = 43786.18,
+      partnerInfo = PartnerInfo(
+        name = "Cash App",
+        logoUrl = "https://logo.url.example.com",
+        partnerId = PartnerId("CashApp"),
+        logoBadgedUrl = "https://badged-logo.url.example.com"
+      ),
+      userFeeFiat = 0.0,
+      quoteId = "quoteId"
+    )
+    partnershipPurchaseService.purchaseQuotes = Ok(listOf(cashAppQuote))
+
+    stateMachine.test(props()) {
+      awaitBody<LoadingSuccessBodyModel>()
+
+      awaitBody<FormBodyModel> {
+        id.shouldBe(PARTNER_QUOTES_LIST)
+        val listItems = mainContentList[0].shouldBeTypeOf<ListGroup>().listGroupModel.items
+        listItems[0].shouldBeTypeOf<ListItemModel>().apply {
+          title.shouldBe("Cash App")
+          explainer.shouldBeNull()
+        }
+      }
+
+      eventTracker.eventCalls.awaitItem().action.shouldBe(Action.ACTION_APP_PARTNERSHIPS_VIEWED_PURCHASE_QUOTE)
+    }
+  }
+
+  test("CashApp promotion banner shown when cryptoAmount at or above 0.001") {
+    cashAppFeePromotionFeatureFlag.setFlagValue(true)
+    val cashAppQuote = PurchaseQuote(
+      fiatCurrency = "USD",
+      cryptoAmount = 0.002,
+      networkFeeCrypto = 0.0001,
+      networkFeeFiat = 5.0,
+      cryptoPrice = 43786.18,
+      partnerInfo = PartnerInfo(
+        name = "Cash App",
+        logoUrl = "https://logo.url.example.com",
+        partnerId = PartnerId("CashApp"),
+        logoBadgedUrl = "https://badged-logo.url.example.com"
+      ),
+      userFeeFiat = 0.0,
+      quoteId = "quoteId"
+    )
+    partnershipPurchaseService.purchaseQuotes = Ok(listOf(cashAppQuote))
+
+    stateMachine.test(props()) {
+      awaitBody<LoadingSuccessBodyModel>()
+
+      awaitBody<FormBodyModel> {
+        id.shouldBe(PARTNER_QUOTES_LIST)
+        val listItems = mainContentList[0].shouldBeTypeOf<ListGroup>().listGroupModel.items
+        listItems[0].shouldBeTypeOf<ListItemModel>().apply {
+          title.shouldBe("Cash App")
+          explainer.shouldNotBeNull()
         }
       }
 

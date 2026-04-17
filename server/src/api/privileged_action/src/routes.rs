@@ -1,4 +1,4 @@
-use authn_authz::key_claims::KeyClaims;
+use authn_authz::Authorization;
 use axum::{
     extract::{Path, Query, State},
     http::{header, StatusCode},
@@ -10,13 +10,14 @@ use http_server::router::RouterBuilder;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
+use types::currencies::CurrencyCode;
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{
     metrics::{FACTORY, FACTORY_NAME},
     service::{
         authorize_privileged_action::{
-            AuthorizationContext, AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
+            AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
             PrivilegedActionRequestValidatorBuilder,
         },
         cancel_pending_instance::CancelPendingDelayAndNotifyInstanceByTokenInput,
@@ -94,6 +95,10 @@ impl RouterBuilder for RouteState {
                 "/api/accounts/:account_id/privileged-actions/instances",
                 get(get_pending_instances),
             )
+            .route(
+                "/api/accounts/:account_id/action-proof/format-value",
+                post(format_value),
+            )
             .route_layer(FACTORY.route_layer(FACTORY_NAME.to_owned()))
             .with_state(self.to_owned())
     }
@@ -142,9 +147,12 @@ impl From<RouteState> for SwaggerEndpoint {
         get_pending_instances,
         get_privileged_action_definitions,
         update_delay_duration_for_test,
+        format_value,
     ),
     components(
         schemas(
+            FormatValueRequest,
+            FormatValueResponse,
             GetPrivilegedActionDefinitionsResponse,
             ResolvedPrivilegedActionDefinition,
             PrivilegedActionDelayDuration,
@@ -226,7 +234,7 @@ pub struct ConfigurePrivilegedActionDelayDurationsResponse {}
 pub async fn configure_privileged_action_delay_durations(
     State(privileged_action_service): State<PrivilegedActionService>,
     Path(account_id): Path<AccountId>,
-    key_proof: KeyClaims,
+    _auth: Authorization,
     Json(privileged_action_request): Json<
         PrivilegedActionRequest<ConfigurePrivilegedActionDelayDurationsRequest>,
     >,
@@ -240,9 +248,7 @@ pub async fn configure_privileged_action_delay_durations(
             account_id: &account_id,
             privileged_action_definition: &PrivilegedActionType::ConfigurePrivilegedActionDelays
                 .into(),
-            authorization: AuthorizationContext::KeyClaims(&key_proof),
             privileged_action_request: &privileged_action_request,
-            validation_context: None,
             request_validator: PrivilegedActionRequestValidatorBuilder::default()
                 .on_initiate_delay_and_notify(Box::new(
                     |r: ConfigurePrivilegedActionDelayDurationsRequest| {
@@ -265,24 +271,25 @@ pub async fn configure_privileged_action_delay_durations(
         })
         .await?;
 
-    let authorized_request = match authorize_result {
-        AuthorizePrivilegedActionOutput::Pending(response) => {
-            return Ok(Json(response));
+    match authorize_result {
+        AuthorizePrivilegedActionOutput::Pending(response) => Ok(Json(response)),
+        AuthorizePrivilegedActionOutput::Authorized(authorized_request) => {
+            privileged_action_service
+                .configure_privileged_action_delay_durations(
+                    ConfigurePrivilegedActionDelayDurationsInput {
+                        account_id: &account_id,
+                        configured_delay_durations: authorized_request.delays,
+                        dry_run: false,
+                    },
+                )
+                .await?;
+
+            let result = PrivilegedActionResponse::Completed(
+                ConfigurePrivilegedActionDelayDurationsResponse {},
+            );
+            Ok(Json(result))
         }
-        AuthorizePrivilegedActionOutput::Authorized(initial_request) => initial_request,
-    };
-
-    privileged_action_service
-        .configure_privileged_action_delay_durations(ConfigurePrivilegedActionDelayDurationsInput {
-            account_id: &account_id,
-            configured_delay_durations: authorized_request.delays,
-            dry_run: false,
-        })
-        .await?;
-
-    Ok(Json(PrivilegedActionResponse::Completed(
-        ConfigurePrivilegedActionDelayDurationsResponse {},
-    )))
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, ToSchema)]
@@ -399,7 +406,7 @@ pub struct CancelPendingDelayAndNotifyInstanceByTokenRequest {
 #[serde(rename_all = "snake_case")]
 pub struct CancelPendingInstanceResponse {}
 
-#[instrument(err, skip(privileged_action_service))]
+#[instrument(err, skip(privileged_action_service, request))]
 #[utoipa::path(
     post,
     path = "/api/privileged-actions/cancel",
@@ -516,7 +523,7 @@ pub async fn get_privileged_action_verification_interface(
     ))
 }
 
-#[instrument(err, skip(privileged_action_service, account_service))]
+#[instrument(err, skip(privileged_action_service, account_service, request))]
 #[utoipa::path(
     put,
     path = "/api/privileged-action/respond",
@@ -589,7 +596,7 @@ async fn confirm_transaction_verification_policy(
     validate_out_of_band_authorization(&privileged_action.authorization_strategy)?;
 
     // Continue the privileged action flow
-    let policy_request = continue_out_of_band_privileged_action(
+    let authorized_action = continue_out_of_band_privileged_action(
         privileged_action_service,
         &privileged_action,
         web_auth_token,
@@ -597,11 +604,9 @@ async fn confirm_transaction_verification_policy(
     .await?;
 
     // Apply the policy change
+    let account_id = privileged_action.account_id.clone();
     account_service
-        .put_transaction_verification_policy(
-            &privileged_action.account_id,
-            policy_request.policy.into(),
-        )
+        .put_transaction_verification_policy(&account_id, authorized_action.policy.into())
         .await?;
 
     Ok(())
@@ -650,17 +655,59 @@ where
                     .privileged_action_type
                     .clone()
                     .into(),
-                authorization: AuthorizationContext::Standard,
                 privileged_action_request: &continue_request,
-                validation_context: None,
                 request_validator: PrivilegedActionRequestValidatorBuilder::default().build()?,
             })
             .await?;
 
     match result {
-        AuthorizePrivilegedActionOutput::Authorized(request) => Ok(request),
+        AuthorizePrivilegedActionOutput::Authorized(action) => Ok(action),
         AuthorizePrivilegedActionOutput::Pending(_) => Err(ApiError::GenericBadRequest(
             "Expected authorized response, but action is still pending".to_string(),
         )),
     }
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(tag = "action", rename_all = "snake_case")]
+pub enum FormatValueRequest {
+    SetSpendWithoutHardware {
+        amount: u64,
+        currency_code: CurrencyCode,
+        locale: String,
+    },
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct FormatValueResponse {
+    pub formatted_value: String,
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/accounts/{account_id}/action-proof/format-value",
+    request_body = FormatValueRequest,
+    responses(
+        (status = 200, description = "Formatted display value", body = FormatValueResponse),
+        (status = 400, description = "Unsupported action"),
+    ),
+)]
+#[instrument(skip(request))]
+async fn format_value(
+    Json(request): Json<FormatValueRequest>,
+) -> Result<Json<FormatValueResponse>, ApiError> {
+    let formatted_value = match request {
+        FormatValueRequest::SetSpendWithoutHardware {
+            amount,
+            currency_code,
+            locale,
+        } => {
+            let money = types::account::money::Money {
+                amount,
+                currency_code,
+            };
+            money.format_display(&types::account::money::MoneyLocale::from_bcp47(&locale))
+        }
+    };
+    Ok(Json(FormatValueResponse { formatted_value }))
 }

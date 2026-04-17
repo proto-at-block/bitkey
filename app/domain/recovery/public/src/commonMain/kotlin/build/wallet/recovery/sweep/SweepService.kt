@@ -32,7 +32,10 @@ interface SweepService {
    *
    * @param keybox The keybox to perform the sweep for
    */
-  suspend fun prepareSweep(keybox: Keybox): Result<Sweep?, Error>
+  suspend fun prepareSweep(
+    keybox: Keybox,
+    sweepContext: SweepContext,
+  ): Result<Sweep?, Error>
 
   /**
    * Estimates sweep fees by creating a mock destination keyset to force the sweep generator
@@ -49,7 +52,10 @@ interface SweepService {
    *
    * @param keybox The keybox containing the active keyset to sweep from
    */
-  suspend fun estimateSweepWithMockDestination(keybox: Keybox): Result<Sweep, SweepError>
+  suspend fun estimateSweepWithMockDestination(
+    keybox: Keybox,
+    sweepContext: SweepContext = SweepContext.InactiveWallet,
+  ): Result<Sweep, SweepError>
 
   sealed interface SweepError {
     /**

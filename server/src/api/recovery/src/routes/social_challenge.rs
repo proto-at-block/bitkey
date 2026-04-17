@@ -197,7 +197,7 @@ pub struct StartSocialChallengeResponse {
 ///
 #[instrument(
     err,
-    skip(account_service, social_challenge_service, _feature_flags_service)
+    skip(account_service, social_challenge_service, _feature_flags_service, request)
 )]
 #[utoipa::path(
     post,
@@ -309,7 +309,7 @@ pub struct RespondToSocialChallengeResponse {}
 /// and to provide the shared secret that the Customer will use to recover
 /// their account.
 ///
-#[instrument(err, skip(social_challenge_service, _feature_flags_service))]
+#[instrument(err, skip(social_challenge_service, _feature_flags_service, request))]
 #[utoipa::path(
     put,
     path = "/api/accounts/{account_id}/recovery/social-challenges/{social_challenge_id}",

@@ -43,8 +43,7 @@ import platform.Foundation.create
  * - [iCloudAccount] is accepted for interface parity with KVS but isn't used directly
  *   because CloudKit's private database is already scoped to the signed-in account.
  *
- * Used by [CloudKeyValueStoreImpl] when [IosCloudKitBackupFeatureFlag] is enabled,
- * with [UbiquitousKeyValueStore] (iCloud KVS) as fallback during the migration period.
+ * Used by backup-domain stores when CloudKit is enabled for backups.
  */
 @Suppress("unused", "ClassName")
 @BitkeyInject(AppScope::class)

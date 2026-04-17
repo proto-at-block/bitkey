@@ -42,7 +42,7 @@ data class RemoveTrustedContactBodyModel(
     },
     primaryButton = ButtonModel(
       text = if (isBeneficiary) "Remove beneficiary" else "Remove Recovery Contact",
-      requiresBitkeyInteraction = isExpiredInvitation,
+      requiresBitkeyInteraction = !isExpiredInvitation,
       treatment = ButtonModel.Treatment.Primary,
       size = ButtonModel.Size.Footer,
       onClick = onRemove

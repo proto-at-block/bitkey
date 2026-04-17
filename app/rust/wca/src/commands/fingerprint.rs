@@ -71,10 +71,10 @@ fn get_fingerprint_enrollment_status(
     {
         if let Ok(status) = GetFingerprintEnrollmentStatusRspStatus::try_from(rsp_status) {
             if status != GetFingerprintEnrollmentStatusRspStatus::Success {
-                return Err(CommandError::GeneralCommandError);
+                return Err(CommandError::FingerprintEnrollmentFailed);
             }
             let fingerprint_status = FingerprintEnrollmentStatus::try_from(fingerprint_status)
-                .map_err(|_| CommandError::GeneralCommandError)?;
+                .map_err(|_| CommandError::InvalidResponse)?;
             Ok(FingerprintEnrollmentResult {
                 status: fingerprint_status,
                 pass_count: Some(pass_count),
@@ -123,7 +123,7 @@ fn start_fingerprint_enrollment(index: u32, label: String) -> Result<bool, Comma
             }
             Ok(StartFingerprintEnrollmentRspStatus::Success) => Ok(true),
             Ok(StartFingerprintEnrollmentRspStatus::Error) => {
-                Err(CommandError::GeneralCommandError)
+                Err(CommandError::FingerprintEnrollmentFailed)
             }
             Ok(StartFingerprintEnrollmentRspStatus::Unauthenticated) => {
                 Err(CommandError::Unauthenticated)

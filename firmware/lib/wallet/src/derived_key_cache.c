@@ -128,7 +128,7 @@ static bool create_derived_key_cache(coin_type_t coin_type) {
   const derivation_path_t* path = get_derivation_path(parts);
   ASSERT(path);
   if (!derive_key_priv_from_seed(&derived_key_cache.bip84_external_key, *path)) {
-    LOGE("Failed to derive BIP-84 external private key");
+    LOGE("BIP84 ext err");
     return false;
   }
 
@@ -138,7 +138,7 @@ static bool create_derived_key_cache(coin_type_t coin_type) {
   path = get_derivation_path(parts);
   ASSERT(path);
   if (!derive_key_priv_from_seed(&derived_key_cache.bip84_internal_key, *path)) {
-    LOGE("Failed to derive BIP-84 internal private key");
+    LOGE("BIP84 int err");
     return false;
   }
 
@@ -148,13 +148,13 @@ static bool create_derived_key_cache(coin_type_t coin_type) {
   path = get_derivation_path(parts);
   ASSERT(path);
   if (!derive_key_priv_from_seed(&derived_key_cache.w1_auth_key, *path)) {
-    LOGE("Failed to derive W1 auth private key");
+    LOGE("W1 auth err");
     return false;
   }
 
   if (!wkek_encrypt_and_store(DERIVED_KEY_CACHE_PATH, (uint8_t*)&derived_key_cache,
                               sizeof(derived_key_cache))) {
-    LOGE("Failed to store derived key cache");
+    LOGE("Key cache store fail");
     return false;
   }
 
@@ -178,8 +178,7 @@ void derived_key_cache_lazy_init(coin_type_t coin_type) {
         derived_key_cache.version = DERIVED_KEY_CACHE_VERSION;
         derived_key_cache_initialized = create_derived_key_cache(coin_type);
       } else {
-        LOGE("Failed to remove derived key cache with unknown version %d",
-             derived_key_cache.version);
+        LOGE("Cache ver err %d", derived_key_cache.version);
         BITLOG_EVENT(wallet_derived_key_cache_version_err, derived_key_cache.version);
       }
     }
@@ -220,7 +219,6 @@ bool wallet_derive_key_priv_using_cache(extended_key_t* key_priv,
   if (parts) {
     // Edge case: we're trying to derive an auth key, but we haven't derived the bip84 keys yet.
     if (parts->purpose == PURPOSE_W1_AUTH && !fs_file_exists(DERIVED_KEY_CACHE_PATH)) {
-      LOGD("Manually deriving W1 auth key");
       goto full_derive;
     }
 

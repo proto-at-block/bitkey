@@ -17,6 +17,8 @@ data class TicketDebugDataDTO(
   val hardwareFirmwareVersion: String,
   @SerialName("hardware_serial_number")
   val hardwareSerialNumber: String,
+  @SerialName("hardware_type")
+  val hardwareType: String,
   @SerialName("feature_flags")
   val featureFlags: Map<String, String>,
   @SerialName("descriptor_encrypted_attachment_id")

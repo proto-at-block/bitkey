@@ -5,6 +5,8 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.Icon.DotNotifyEmail
+import build.wallet.statemachine.core.Icon.DotNotifyPush
 import build.wallet.statemachine.core.Icon.SmallIconEmail
 import build.wallet.statemachine.core.Icon.SmallIconPushNotification
 import build.wallet.statemachine.core.LabelModel
@@ -17,11 +19,13 @@ import build.wallet.statemachine.core.form.FormMainContentModel.Explainer.Statem
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.notifications.NotificationPreferencesFormEditingState.Editing
 import build.wallet.statemachine.notifications.NotificationPreferencesFormEditingState.Loading
+import build.wallet.ui.compose.normalizeTestTagValue
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconSize.Small
+import build.wallet.ui.model.icon.IconTint.Foreground
 import build.wallet.ui.model.icon.IconTint.On30
 import build.wallet.ui.model.icon.IconTint.Primary
 import build.wallet.ui.model.label.CallToActionModel
@@ -30,6 +34,7 @@ import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
 import build.wallet.ui.model.switch.SwitchModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
+import build.wallet.ui.tokens.LabelType
 
 data class TosInfo(
   val termsAgree: Boolean,
@@ -48,6 +53,7 @@ data class NotificationPreferenceFormBodyModel(
   val onUpdatesEmailToggle: (Boolean) -> Unit,
   val formEditingState: NotificationPreferencesFormEditingState,
   val ctaModel: CallToActionModel?,
+  val isDesignSystemV2Enabled: Boolean = false,
   override val onBack: () -> Unit,
   val continueOnClick: (() -> Unit),
   val onMoneyMovementLearnMore: () -> Unit,
@@ -58,7 +64,7 @@ data class NotificationPreferenceFormBodyModel(
     header =
       FormHeaderModel(
         headline = "Notifications and updates",
-        subline = "Customize the notifications you receive for transactions and product updates."
+        subline = if (isDesignSystemV2Enabled) null else "Customize the notifications you receive for transactions and product updates."
       ),
     mainContentList =
       immutableListOfNotNull(
@@ -66,13 +72,15 @@ data class NotificationPreferenceFormBodyModel(
           immutableListOf(
             Statement(
               title = "Transactions",
+              titleLabelType = if (isDesignSystemV2Enabled) LabelType.Body1Bold else LabelType.Body2Bold,
               body = LabelModel.LinkSubstringModel.from(
                 substringToOnClick = mapOf(
                   "Learn more" to onMoneyMovementLearnMore
                 ),
                 string = "Get notified when you receive bitcoin. Wallet addresses are stored on Bitkey servers only while notifications are on. Learn more",
                 underline = true,
-                bold = true
+                bold = true,
+                color = if (isDesignSystemV2Enabled) LabelModel.Color.FOREGROUND else LabelModel.Color.PRIMARY
               )
             )
           )
@@ -84,7 +92,8 @@ data class NotificationPreferenceFormBodyModel(
                 immutableListOf(
                   createListItem(
                     title = "Push",
-                    icon = SmallIconPushNotification,
+                    icon = if (isDesignSystemV2Enabled) DotNotifyPush else SmallIconPushNotification,
+                    isDesignSystemV2Enabled = isDesignSystemV2Enabled,
                     checked = transactionPush,
                     onCheckedChanged = onTransactionPushToggle,
                     enabled = formEditingState == Editing
@@ -97,6 +106,7 @@ data class NotificationPreferenceFormBodyModel(
           immutableListOf(
             Statement(
               title = "Bitkey updates",
+              titleLabelType = if (isDesignSystemV2Enabled) LabelType.Body1Bold else LabelType.Body2Bold,
               body = "Learn about new Bitkey features and easily send us customer feedback."
             )
           )
@@ -108,14 +118,16 @@ data class NotificationPreferenceFormBodyModel(
                 immutableListOf(
                   createListItem(
                     title = "Push",
-                    icon = SmallIconPushNotification,
+                    icon = if (isDesignSystemV2Enabled) DotNotifyPush else SmallIconPushNotification,
+                    isDesignSystemV2Enabled = isDesignSystemV2Enabled,
                     checked = updatesPush,
                     onCheckedChanged = onUpdatesPushToggle,
                     enabled = formEditingState == Editing
                   ),
                   createListItem(
                     title = "Email",
-                    icon = SmallIconEmail,
+                    icon = if (isDesignSystemV2Enabled) DotNotifyEmail else SmallIconEmail,
+                    isDesignSystemV2Enabled = isDesignSystemV2Enabled,
                     checked = updatesEmail,
                     onCheckedChanged = onUpdatesEmailToggle,
                     enabled = formEditingState == Editing
@@ -154,11 +166,13 @@ data class NotificationPreferenceFormBodyModel(
                         ),
                         string = "I agree to Bitkey’s Terms of Service and Privacy Notice",
                         underline = false,
-                        bold = false
+                        bold = false,
+                        color = if (isDesignSystemV2Enabled) LabelModel.Color.FOREGROUND else LabelModel.Color.PRIMARY
                       ),
                       treatment = ListItemTreatment.PRIMARY,
                       trailingAccessory = IconAccessory(
                         onClick = { ti.onTermsAgreeToggle(!ti.termsAgree) },
+                        testTag = "notifications-terms-toggle",
                         model = IconModel(
                           icon = if (ti.termsAgree) {
                             Icon.SmallIconCheckFilled
@@ -199,18 +213,20 @@ enum class NotificationPreferencesFormEditingState {
 private fun createListItem(
   title: String,
   icon: Icon? = null,
+  isDesignSystemV2Enabled: Boolean = false,
   checked: Boolean,
   onCheckedChanged: (Boolean) -> Unit,
   enabled: Boolean,
 ): ListItemModel {
+  val titleTag = normalizeTestTagValue(title, fallback = "notification")
   return ListItemModel(
     leadingAccessory = icon?.run {
       IconAccessory(
         model =
           IconModel(
             icon = this,
-            iconTint = On30,
-            iconSize = Small
+            iconTint = if (isDesignSystemV2Enabled) Foreground else On30,
+            iconSize = if (isDesignSystemV2Enabled) IconSize.Regular else Small
           )
       )
     },
@@ -220,6 +236,7 @@ private fun createListItem(
       model =
         SwitchModel(
           checked = checked,
+          testTag = "notifications-preference-$titleTag-toggle",
           onCheckedChange = onCheckedChanged,
           enabled = enabled
         )

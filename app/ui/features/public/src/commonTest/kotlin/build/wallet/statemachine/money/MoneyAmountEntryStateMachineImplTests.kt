@@ -61,4 +61,23 @@ class MoneyAmountEntryStateMachineImplTests : FunSpec({
       )
     }
   }
+
+  test("whole dollar fiat secondary amount keeps cents") {
+    stateMachine.test(
+      props =
+        MoneyAmountEntryProps(
+          inputAmount = WholeNumber(1000000),
+          secondaryAmount = FiatMoney.usd(3.0),
+          inputAmountMoney = BitcoinMoney.btc(0.01)
+        )
+    ) {
+      awaitItem().shouldBe(
+        MoneyAmountEntryModel(
+          primaryAmount = "MoneyInputFormatter.displayText",
+          primaryAmountGhostedSubstringRange = null,
+          secondaryAmount = "$3.00"
+        )
+      )
+    }
+  }
 })

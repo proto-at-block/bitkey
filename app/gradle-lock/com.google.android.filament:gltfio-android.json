@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.android.filament:gltfio-android",
+    "components": [
+        {
+            "version": "1.56.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "gltfio-android-1.56.0.aar": "25370a7b6a5af3be66367b6d609deed18b37333e1963b7ee6856f50e0dab544e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

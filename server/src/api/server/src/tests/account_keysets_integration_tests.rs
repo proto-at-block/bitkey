@@ -8,10 +8,10 @@ use bdk_utils::bdk::keys::DescriptorPublicKey;
 use http_server::middlewares::wsm;
 use onboarding::routes::{
     AccountKeyset, CreateAccountRequest, CreateKeysetRequest, LegacyMultiSigAccountKeyset,
-    RotateSpendingKeysetRequest,
+    RotateSpendingKeysetRequest, RotateSpendingKeysetResponse,
 };
 use types::account::bitcoin::Network;
-use types::account::entities::{FullAccountAuthKeysInput, SpendingKeysetInput};
+use types::account::entities::{FullAccountAuthKeysInput, HardwareType, SpendingKeysetInput};
 use types::account::identifiers::KeysetId;
 use types::account::keys::FullAccountAuthKeys;
 use types::account::spending::SpendingKeyset;
@@ -19,6 +19,7 @@ use wsm_rust_client::SigningService;
 use wsm_rust_client::{TEST_XPUB_SPEND, TEST_XPUB_SPEND_ORIGIN};
 
 use crate::tests::gen_services;
+use crate::tests::lib::wallet_protocol::WalletTestProtocol;
 use crate::tests::lib::{create_inactive_spending_keyset_for_account, create_new_authkeys};
 use crate::tests::requests::axum::TestClient;
 
@@ -41,6 +42,7 @@ async fn test_account_keyset_lifecycle() {
                     app: keys.app.public_key,
                     hardware: keys.hw.public_key,
                     recovery: Some(keys.recovery.public_key),
+                    hardware_type: HardwareType::default(),
                 },
                 spending: SpendingKeysetInput {
                     network: network.into(),
@@ -81,7 +83,6 @@ async fn test_account_keyset_lifecycle() {
                     hardware: spend_hw,
                 },
             },
-            &keys,
         )
         .await;
     assert_eq!(
@@ -117,6 +118,7 @@ async fn test_account_keyset_lifecycle() {
             app_pubkey: keys.app.public_key,
             hardware_pubkey: keys.hw.public_key,
             recovery_pubkey: Some(keys.recovery.public_key),
+            hardware_type: HardwareType::default(),
         }
     );
 
@@ -154,7 +156,7 @@ async fn test_account_keyset_lifecycle() {
             network,
             active_spend_app,
             active_spend_hw,
-            active_spend_server_xpub
+            active_spend_server_xpub,
         )
     );
 }
@@ -177,6 +179,7 @@ async fn test_account_keyset_switch_networks() {
                     app: keys.app.public_key,
                     hardware: keys.hw.public_key,
                     recovery: Some(keys.recovery.public_key),
+                    hardware_type: HardwareType::default(),
                 },
                 spending: SpendingKeysetInput {
                     network: network.into(),
@@ -195,9 +198,6 @@ async fn test_account_keyset_switch_networks() {
     );
     let create_account_response = response.body.unwrap();
     let account_id = create_account_response.account_id;
-    let keys = context
-        .get_authentication_keys_for_account_id(&account_id)
-        .expect("Keys not found for account");
 
     // Switching networks should fail
     network = Network::BitcoinMain;
@@ -214,7 +214,6 @@ async fn test_account_keyset_switch_networks() {
                     hardware: spend_hw,
                 },
             },
-            &keys,
         )
         .await;
     assert_eq!(
@@ -244,6 +243,7 @@ async fn test_account_duplicate_spending_keyset() {
                     app: keys.app.public_key,
                     hardware: keys.hw.public_key,
                     recovery: Some(keys.recovery.public_key),
+                    hardware_type: HardwareType::default(),
                 },
                 spending: SpendingKeysetInput {
                     network: network.into(),
@@ -262,9 +262,6 @@ async fn test_account_duplicate_spending_keyset() {
     );
     let create_account_response = response.body.unwrap();
     let account_id = create_account_response.account_id;
-    let keys = context
-        .get_authentication_keys_for_account_id(&account_id)
-        .expect("Keys not found for account");
     let keyset = create_account_response
         .keyset
         .expect("Account should have a keyset");
@@ -281,7 +278,6 @@ async fn test_account_duplicate_spending_keyset() {
                     hardware: spend_hw,
                 },
             },
-            &keys,
         )
         .await;
     assert_eq!(
@@ -324,6 +320,7 @@ async fn test_inactive_keyset_id_exists_in_wsm() {
                     app: keys.app.public_key,
                     hardware: keys.hw.public_key,
                     recovery: Some(keys.recovery.public_key),
+                    hardware_type: HardwareType::default(),
                 },
                 spending: SpendingKeysetInput {
                     network: network.into(),
@@ -342,9 +339,6 @@ async fn test_inactive_keyset_id_exists_in_wsm() {
     );
     let create_account_response = response.body.unwrap();
     let account_id = create_account_response.account_id;
-    let keys = context
-        .get_authentication_keys_for_account_id(&account_id)
-        .expect("Keys not found for account");
 
     // Use hardcoded values since our PSBT down below applies a partial signature from `spend_app`'s associated tprv ([71f40633/84'/1'/0']tprv8gED5H3xs3dJB3jUzE8LHSJVHD4m9oN4RNM137FrnPycWEhNr3qnbipEzJFJrUaHMgneaqhoUT8av6F49PFV5kp1sH77yqVztLWpFDdXuKP/*).
     let spend_app = DescriptorPublicKey::from_str("[71f40633/84'/1'/0']tpubDCvFDh6D1RJy4WmGssnvgqxbrEahK8YxzfwnKdJACfn1Lix9USfNnDS7ASsN5r1XHsrksBa7Kyz7Si6H9KfJTVKgKyv34HXCKrkcRf5K1Cy/*").unwrap();
@@ -360,7 +354,6 @@ async fn test_inactive_keyset_id_exists_in_wsm() {
                     hardware: spend_hw.clone(),
                 },
             },
-            &keys,
         )
         .await;
     assert_eq!(
@@ -421,6 +414,7 @@ async fn test_fetch_account_keysets() {
                     app: keys.app.public_key,
                     hardware: keys.hw.public_key,
                     recovery: Some(keys.recovery.public_key),
+                    hardware_type: HardwareType::default(),
                 },
                 spending: SpendingKeysetInput {
                     network: network.into(),
@@ -439,9 +433,6 @@ async fn test_fetch_account_keysets() {
     );
     let create_account_response = response.body.unwrap();
     let account_id = create_account_response.account_id;
-    let keys = context
-        .get_authentication_keys_for_account_id(&account_id)
-        .expect("Keys not found for account");
     let keyset = create_account_response
         .keyset
         .expect("Account should have a keyset");
@@ -461,7 +452,6 @@ async fn test_fetch_account_keysets() {
                     hardware: inactive_spend_hw.clone(),
                 },
             },
-            &keys,
         )
         .await;
     assert_eq!(
@@ -527,6 +517,7 @@ async fn test_rotate_spending_keyset(
             app: keys.app.public_key,
             hardware: keys.hw.public_key,
             recovery: Some(keys.hw.public_key),
+            hardware_type: HardwareType::default(),
         },
         spending: SpendingKeysetInput {
             network: network.into(),
@@ -599,4 +590,79 @@ async fn test_rotate_spending_keyset(
             .active_spending_keyset()
             .expect("Spending keyset should be present");
     }
+}
+
+/// Tests that rotating a W1 (legacy) account keyset returns empty response
+#[tokio::test]
+async fn test_rotate_spending_keyset_w1_returns_empty_response() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let network = Network::BitcoinTest;
+    let keys = create_new_authkeys(&mut context);
+    let (_, active_spend_app) = create_descriptor_keys(network);
+    let (_, active_spend_hw) = create_descriptor_keys(network);
+
+    // Create a W1 (legacy) account
+    let request = CreateAccountRequest::Full {
+        auth: FullAccountAuthKeysInput {
+            app: keys.app.public_key,
+            hardware: keys.hw.public_key,
+            recovery: Some(keys.hw.public_key),
+            hardware_type: HardwareType::default(),
+        },
+        spending: SpendingKeysetInput {
+            network: network.into(),
+            app: active_spend_app.clone(),
+            hardware: active_spend_hw.clone(),
+        },
+        is_test_account: true,
+    };
+
+    let create_response = client.create_account(&mut context, &request).await;
+    assert_eq!(
+        create_response.status_code,
+        StatusCode::OK,
+        "{}",
+        create_response.body_string
+    );
+    let account_id = create_response.body.unwrap().account_id;
+
+    let keys = context
+        .get_authentication_keys_for_account_id(&account_id)
+        .expect("Keys not found for account");
+
+    // Create an inactive keyset (Legacy for W1)
+    let (new_keyset_id, _) = create_inactive_spending_keyset_for_account(
+        &context,
+        &client,
+        &account_id,
+        network,
+        WalletTestProtocol::Legacy,
+    )
+    .await;
+
+    // Rotate to the new keyset
+    let response = client
+        .rotate_to_spending_keyset(
+            &account_id.to_string(),
+            &new_keyset_id.to_string(),
+            &RotateSpendingKeysetRequest {},
+            &keys,
+        )
+        .await;
+
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "{}",
+        response.body_string
+    );
+
+    // Verify the response is empty (W1 should not have signed keys)
+    let body = response.body.unwrap();
+    assert!(
+        matches!(body, RotateSpendingKeysetResponse::Empty {}),
+        "W1 should return Empty response"
+    );
 }

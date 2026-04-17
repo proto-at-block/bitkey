@@ -20,6 +20,8 @@
 #define QSPI_TIMEOUT_MS       1000 /* Default timeout for QSPI operations */
 #define QSPI_ABORT_TIMEOUT_MS 100  /* Timeout for abort operations */
 #define QSPI_BUSY_TIMEOUT_MS  100  /* Timeout for busy flag checks */
+#define QSPI_POLL_YIELD_US    250 /* Fast path for status bits that normally clear in microseconds */
+#define QSPI_POLL_SLEEP_MS    1   /* Slow path so stalled hardware does not monopolize the CPU */
 
 /* OCTOSPI functional modes */
 #define OSPI_FUNCTIONAL_MODE_INDIRECT_WRITE ((uint32_t)0x00000000)
@@ -41,6 +43,7 @@ static qspi_handle_t qspi_handles[QSPI_MAX_INSTANCES];
 static void gpio_init(mcu_qspi_config_t* config);
 static mcu_err_t setup_command(OCTOSPI_TypeDef* ospi, mcu_qspi_command_t* cmd);
 static mcu_err_t wait_for_flag(OCTOSPI_TypeDef* ospi, uint32_t flag, uint32_t timeout_ms);
+static void qspi_poll_delay(uint64_t poll_start_us);
 static mcu_err_t octospi_transmit(OCTOSPI_TypeDef* ospi, const uint8_t* data, uint32_t len);
 static mcu_err_t octospi_receive(OCTOSPI_TypeDef* ospi, uint8_t* data, uint32_t len);
 static bool qspi_dma_callback(uint32_t channel, uint32_t flags, void* user_param);
@@ -104,6 +107,7 @@ mcu_err_t mcu_qspi_init(mcu_qspi_state_t* state, mcu_qspi_config_t* config) {
 
   /* Wait for peripheral to be disabled */
   uint32_t tickstart = rtos_thread_systime();
+  uint64_t poll_start_us = rtos_thread_micros();
   while (ospi->SR & OCTOSPI_SR_BUSY) {
     if ((rtos_thread_systime() - tickstart) > QSPI_TIMEOUT_MS) {
       mcu_dma_channel_free(state->dma_channel);
@@ -112,7 +116,7 @@ mcu_err_t mcu_qspi_init(mcu_qspi_state_t* state, mcu_qspi_config_t* config) {
       rtos_semaphore_destroy(&state->transfer_complete);
       return MCU_ERROR_UNKNOWN;
     }
-    rtos_thread_sleep(1);
+    qspi_poll_delay(poll_start_us);
   }
 
   /* Configure DCR1 - Device Configuration Register 1 */
@@ -145,6 +149,7 @@ mcu_err_t mcu_qspi_init(mcu_qspi_state_t* state, mcu_qspi_config_t* config) {
 
   /* Wait for busy flag to clear */
   tickstart = rtos_thread_systime();
+  poll_start_us = rtos_thread_micros();
   while (ospi->SR & OCTOSPI_SR_BUSY) {
     if ((rtos_thread_systime() - tickstart) > QSPI_TIMEOUT_MS) {
       mcu_dma_channel_free(state->dma_channel);
@@ -153,7 +158,7 @@ mcu_err_t mcu_qspi_init(mcu_qspi_state_t* state, mcu_qspi_config_t* config) {
       rtos_semaphore_destroy(&state->transfer_complete);
       return MCU_ERROR_UNKNOWN;
     }
-    rtos_thread_sleep(1);
+    qspi_poll_delay(poll_start_us);
   }
 
   /* Set clock prescaler (must be done after busy flag clears) */
@@ -199,9 +204,20 @@ mcu_err_t mcu_qspi_command(mcu_qspi_state_t* state, mcu_qspi_command_t* cmd, con
 
   rtos_mutex_lock(&state->access);
 
+  /* Wait for any in-progress async operation to complete.
+   * Sync operations may overlap with async DMA flushes. Instead of
+   * immediately returning BUSY, wait for the async operation to finish. */
   if (state->state != MCU_QSPI_STATE_IDLE) {
-    rtos_mutex_unlock(&state->access);
-    return MCU_ERROR_SPI_BUSY;
+    uint32_t wait_start = rtos_thread_systime();
+    uint64_t poll_start_us = rtos_thread_micros();
+    while (state->state != MCU_QSPI_STATE_IDLE) {
+      rtos_mutex_unlock(&state->access);
+      if ((rtos_thread_systime() - wait_start) > QSPI_BUSY_TIMEOUT_MS) {
+        return MCU_ERROR_SPI_BUSY;
+      }
+      qspi_poll_delay(poll_start_us);
+      rtos_mutex_lock(&state->access);
+    }
   }
 
   qspi_handle_t* handle = (qspi_handle_t*)state->instance;
@@ -296,11 +312,14 @@ mcu_err_t mcu_qspi_command_async(mcu_qspi_state_t* state, mcu_qspi_command_t* cm
   OCTOSPI_TypeDef* ospi = handle->instance;
 
   if (wait_for_flag(ospi, OCTOSPI_SR_BUSY, QSPI_TIMEOUT_MS) != MCU_ERROR_OK) {
-    /* Peripheral timed out while busy - attempt abort and reset state */
-    mcu_err_t abort_result = octospi_abort(ospi, QSPI_ABORT_TIMEOUT_MS);
-    if (abort_result == MCU_ERROR_OK) {
-      qspi_cleanup_state(state, false);
-    }
+    /* Peripheral timed out while busy - attempt abort and always reset state.
+     * Disable interrupts first to prevent late ISR/DMA completions from
+     * racing with state cleanup (they could give a spurious semaphore or
+     * access nulled buffers). */
+    (void)octospi_abort(ospi, QSPI_ABORT_TIMEOUT_MS);
+    CLEAR_BIT(ospi->CR, OCTOSPI_CR_FTIE | OCTOSPI_CR_TCIE | OCTOSPI_CR_TEIE);
+    ospi->FCR = OCTOSPI_FCR_CTEF | OCTOSPI_FCR_CTCF;
+    qspi_cleanup_state(state, false);
     rtos_mutex_unlock(&state->access);
     return MCU_ERROR_UNKNOWN;
   }
@@ -399,11 +418,14 @@ mcu_err_t mcu_qspi_command_async_dma(mcu_qspi_state_t* state, mcu_qspi_command_t
   OCTOSPI_TypeDef* ospi = handle->instance;
 
   if (wait_for_flag(ospi, OCTOSPI_SR_BUSY, QSPI_TIMEOUT_MS) != MCU_ERROR_OK) {
-    /* Peripheral timed out while busy - attempt abort and reset state */
-    mcu_err_t abort_result = octospi_abort(ospi, QSPI_ABORT_TIMEOUT_MS);
-    if (abort_result == MCU_ERROR_OK) {
-      qspi_cleanup_state(state, true);
-    }
+    /* Peripheral timed out while busy - attempt abort and always reset state.
+     * Disable DMA and interrupts first to prevent late ISR/DMA completions
+     * from racing with state cleanup. */
+    (void)octospi_abort(ospi, QSPI_ABORT_TIMEOUT_MS);
+    mcu_dma_channel_stop(state->dma_channel);
+    CLEAR_BIT(ospi->CR, OCTOSPI_CR_DMAEN | OCTOSPI_CR_FTIE | OCTOSPI_CR_TCIE | OCTOSPI_CR_TEIE);
+    ospi->FCR = OCTOSPI_FCR_CTEF | OCTOSPI_FCR_CTCF;
+    qspi_cleanup_state(state, true);
     rtos_mutex_unlock(&state->access);
     return MCU_ERROR_UNKNOWN;
   }
@@ -580,14 +602,27 @@ static mcu_err_t octospi_abort(OCTOSPI_TypeDef* ospi, uint32_t timeout_ms) {
   ospi->CR |= OCTOSPI_CR_ABORT;
 
   uint32_t abort_start = rtos_thread_systime();
+  uint64_t poll_start_us = rtos_thread_micros();
   while (ospi->CR & OCTOSPI_CR_ABORT) {
     if ((rtos_thread_systime() - abort_start) > timeout_ms) {
       return MCU_ERROR_UNKNOWN;
     }
-    rtos_thread_sleep(1);
+    qspi_poll_delay(poll_start_us);
   }
 
   return MCU_ERROR_OK;
+}
+
+static void qspi_poll_delay(uint64_t poll_start_us) {
+  /* OCTOSPI status bits usually clear within a few microseconds. Yield briefly
+   * to avoid injecting a full 1 ms tick of latency into the fast path, then
+   * fall back to a blocking sleep so slow or faulted hardware does not keep the
+   * caller runnable for the entire timeout window. */
+  if ((rtos_thread_micros() - poll_start_us) < QSPI_POLL_YIELD_US) {
+    rtos_thread_yield();
+  } else {
+    rtos_thread_sleep(QSPI_POLL_SLEEP_MS);
+  }
 }
 
 static uint32_t map_instr_mode(mcu_qspi_mode_e m) {
@@ -647,11 +682,12 @@ static uint32_t get_address_size_bits(uint8_t size) {
 static mcu_err_t setup_command(OCTOSPI_TypeDef* ospi, mcu_qspi_command_t* cmd) {
   /* Wait for any ongoing operation to complete */
   uint32_t tickstart = rtos_thread_systime();
+  uint64_t poll_start_us = rtos_thread_micros();
   while (ospi->SR & OCTOSPI_SR_BUSY) {
     if ((rtos_thread_systime() - tickstart) > QSPI_BUSY_TIMEOUT_MS) {
       return MCU_ERROR_UNKNOWN;
     }
-    rtos_thread_sleep(1);
+    qspi_poll_delay(poll_start_us);
   }
 
   /* Clear all flags */
@@ -760,27 +796,28 @@ static mcu_err_t setup_command(OCTOSPI_TypeDef* ospi, mcu_qspi_command_t* cmd) {
 
 static mcu_err_t wait_for_flag(OCTOSPI_TypeDef* ospi, uint32_t flag, uint32_t timeout_ms) {
   uint32_t tickstart = rtos_thread_systime();
+  uint64_t poll_start_us = rtos_thread_micros();
 
   if (flag == OCTOSPI_SR_BUSY) {
     while (ospi->SR & OCTOSPI_SR_BUSY) {
       if ((rtos_thread_systime() - tickstart) > timeout_ms) {
         return MCU_ERROR_UNKNOWN;
       }
-      rtos_thread_sleep(1);
+      qspi_poll_delay(poll_start_us);
     }
   } else if (flag == OCTOSPI_SR_TCF) {
     while (!(ospi->SR & OCTOSPI_SR_TCF)) {
       if ((rtos_thread_systime() - tickstart) > timeout_ms) {
         return MCU_ERROR_UNKNOWN;
       }
-      rtos_thread_sleep(1);
+      qspi_poll_delay(poll_start_us);
     }
   } else {
     while (!(ospi->SR & flag)) {
       if ((rtos_thread_systime() - tickstart) > timeout_ms) {
         return MCU_ERROR_UNKNOWN;
       }
-      rtos_thread_sleep(1);
+      qspi_poll_delay(poll_start_us);
     }
   }
 

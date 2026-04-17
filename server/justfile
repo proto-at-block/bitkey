@@ -207,25 +207,36 @@ start-backend $TAG="latest" $PRINT_LOGS="0":
   fi
 
   {{ compose_backends }} pull fromagerie wsm-enclave wsm-api
+
   set +e
-  {{ compose_backends }} up --wait
-  status=$?
+  max_retries=2
+  for attempt in $(seq 1 $max_retries); do
+    {{ compose_backends }} up --wait
+    status=$?
 
-  [[ "$PRINT_LOGS" -eq 1 ]] && {{ compose_backends }} logs
+    [[ "$PRINT_LOGS" -eq 1 ]] && {{ compose_backends }} logs
 
-  # If starting the containers failed, print debug instructions and exit
-  if [[ $status -ne 0 ]]; then
-    echo ""
-    echo "❌ Failed to start containers. View logs by running"
-    echo ""
-    echo "    docker-compose -f $PWD/{{ compose_file }} logs"
-    echo ""
-    echo "   View logs for a specific container by running"
-    echo ""
-    echo "    docker-compose -f $PWD/{{ compose_file }} logs <container-name>"
-    exit 1
-  fi
+    if [[ $status -eq 0 ]]; then
+      break
+    fi
 
+    if [[ $attempt -lt $max_retries ]]; then
+      echo ""
+      echo "⚠️  Attempt $attempt failed, retrying..."
+      {{ compose_backends }} down
+      sleep 5
+    else
+      echo ""
+      echo "❌ Failed to start containers after $max_retries attempts. View logs by running"
+      echo ""
+      echo "    docker compose -f $PWD/{{ compose_file }} logs"
+      echo ""
+      echo "   View logs for a specific container by running"
+      echo ""
+      echo "    docker compose -f $PWD/{{ compose_file }} logs <container-name>"
+      exit 1
+    fi
+  done
   set -e
 
   just _setup-treasury
@@ -257,11 +268,11 @@ start-backend-local-build $PRINT_LOGS="0":
     echo ""
     echo "❌ Failed to start containers. View logs by running"
     echo ""
-    echo "       docker-compose -f $PWD/{{ compose_file }} logs"
+    echo "       docker compose -f $PWD/{{ compose_file }} logs"
     echo ""
     echo "   View logs for a specific container by running"
     echo ""
-    echo "       docker-compose -f $PWD/{{ compose_file }} logs <container-name>"
+    echo "       docker compose -f $PWD/{{ compose_file }} logs <container-name>"
     exit 1
   fi
 

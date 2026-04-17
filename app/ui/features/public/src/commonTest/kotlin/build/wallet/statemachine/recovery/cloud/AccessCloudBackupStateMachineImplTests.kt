@@ -5,7 +5,7 @@ import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.cloud.backup.AllFullAccountBackupMocks
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupError.UnrectifiableCloudBackupError
-import build.wallet.cloud.backup.CloudBackupRepositoryFake
+import build.wallet.cloud.backup.CloudBackupServiceFake
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV2WithLiteAccountMock
 import build.wallet.cloud.backup.CloudBackupV3
@@ -39,13 +39,13 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
         val accountId = FullAccountIdMock
         val fakeCloudAccount = CloudAccountMock(instanceId = "1")
         val fakeBackup = backup
-        val cloudBackupRepository = CloudBackupRepositoryFake()
+        val cloudBackupService = CloudBackupServiceFake()
         val selectCloudBackupUiStateMachine = object : SelectCloudBackupUiStateMachine,
           ScreenStateMachineMock<SelectCloudBackupUiProps>("select-cloud-backup") {}
         val stateMachine =
           AccessCloudBackupUiStateMachineImpl(
             cloudSignInUiStateMachine = CloudSignInUiStateMachineMock(),
-            cloudBackupRepository = cloudBackupRepository,
+            cloudBackupService = cloudBackupService,
             rectifiableErrorHandlingUiStateMachine = RectifiableErrorHandlingUiStateMachineMock(),
             deviceInfoProvider = DeviceInfoProviderMock(),
             inAppBrowserNavigator = InAppBrowserNavigatorMock { name ->
@@ -91,11 +91,11 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
         )
 
         afterTest {
-          cloudBackupRepository.reset()
+          cloudBackupService.reset()
         }
 
         test("successfully find backup and restore it") {
-          cloudBackupRepository.writeBackup(accountId, fakeCloudAccount, fakeBackup, true)
+          cloudBackupService.writeBackup(accountId, fakeCloudAccount, fakeBackup, true)
 
           stateMachine.test(props) {
             awaitBodyMock<CloudSignInUiProps> {
@@ -124,7 +124,7 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
         }
 
         test("cloud account signed in but failure when trying to access cloud backup") {
-          cloudBackupRepository.returnReadError = UnrectifiableCloudBackupError(Exception("oops"))
+          cloudBackupService.returnReadError = UnrectifiableCloudBackupError(Exception("oops"))
 
           stateMachine.test(props) {
             awaitBodyMock<CloudSignInUiProps> {
@@ -169,7 +169,7 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
             }
 
             awaitBody<CloudWarningBodyModel> {
-              cloudBackupRepository.writeBackup(accountId, fakeCloudAccount, fakeBackup, true)
+              cloudBackupService.writeBackup(accountId, fakeCloudAccount, fakeBackup, true)
               onCannotAccessCloud()
             }
 
@@ -239,9 +239,9 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
             else -> error("Unsupported backup type")
           }
 
-          cloudBackupRepository.writeBackup(accountId, fakeCloudAccount, liteBackup, true)
-          cloudBackupRepository.writeBackup(accountId, fakeCloudAccount, fullBackup1, true)
-          cloudBackupRepository.writeBackup(accountId, fakeCloudAccount, fullBackup2, true)
+          cloudBackupService.writeBackup(accountId, fakeCloudAccount, liteBackup, true)
+          cloudBackupService.writeBackup(accountId, fakeCloudAccount, fullBackup1, true)
+          cloudBackupService.writeBackup(accountId, fakeCloudAccount, fullBackup2, true)
 
           stateMachine.test(props) {
             awaitBodyMock<CloudSignInUiProps> {
@@ -271,8 +271,8 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
             else -> error("Unsupported backup type")
           }
 
-          cloudBackupRepository.writeBackup(accountId, fakeCloudAccount, fullBackup1, true)
-          cloudBackupRepository.writeBackup(accountId, fakeCloudAccount, fullBackup2, true)
+          cloudBackupService.writeBackup(accountId, fakeCloudAccount, fullBackup1, true)
+          cloudBackupService.writeBackup(accountId, fakeCloudAccount, fullBackup2, true)
 
           stateMachine.test(props) {
             awaitBodyMock<CloudSignInUiProps> {
@@ -292,7 +292,7 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
         }
 
         test("single full account backup proceeds directly without selection") {
-          cloudBackupRepository.writeBackup(accountId, fakeCloudAccount, fakeBackup, true)
+          cloudBackupService.writeBackup(accountId, fakeCloudAccount, fakeBackup, true)
 
           stateMachine.test(props) {
             awaitBodyMock<CloudSignInUiProps> {

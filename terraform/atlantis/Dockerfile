@@ -29,7 +29,7 @@ mv terragrunt-atlantis-config_${TERRAGRUNT_ATLANTIS_CONFIG_VERSION}_linux_amd64 
 chmod +x out/terragrunt-atlantis-config
 EOF
 
-FROM ghcr.io/runatlantis/atlantis:v0.40-alpine@sha256:bdf219f4ee5a87435ef1f1b0ffc39cf8e86d39bd67d2fac6d86f25a8500c4ce2
+FROM ghcr.io/runatlantis/atlantis:v0.41-alpine@sha256:7e9cfcf03ad31492e1c806335ef51bcf9c39c8b1e10a8eb434ef2568c2a9eda8
 COPY ./policies /policies
 COPY --from=builder /binaries/out/* /usr/local/bin
 

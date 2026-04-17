@@ -1,5 +1,8 @@
 port_name: ui_port
 
+includes:
+  - ui_events.h
+
 messages:
   structs:
     # High-level UI events (cross-platform)
@@ -10,7 +13,7 @@ messages:
       fields:
         - uint32_t event        # ui_event_type_t
         - uint32_t data_len     # Actual length of data
-        - uint8_t data[256]     # Flexible data buffer for addresses, strings, etc
+        - ui_event_payload_t data
     - name: ui_set_idle_state_t
       fields:
         - uint32_t idle_state   # ui_event_type_t

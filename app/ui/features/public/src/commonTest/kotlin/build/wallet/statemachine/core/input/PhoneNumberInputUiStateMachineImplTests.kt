@@ -19,7 +19,6 @@ import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.clickSecondaryButton
 import build.wallet.statemachine.ui.matchers.shouldBeDisabled
 import build.wallet.statemachine.ui.matchers.shouldBeEnabled
-import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.ButtonAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
@@ -53,8 +52,7 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
       primaryButtonText = "Skip for Now",
       primaryButtonOnClick = { onSkipCalls += Unit },
       secondaryButtonText = "Use Different Country Number",
-      secondaryButtonOnClick = null,
-      skipBottomSheetProvider = { SheetModelMock(it) }
+      secondaryButtonOnClick = null
     )
 
   val phoneNumberFormatter = PhoneNumberFormatterMock()
@@ -105,32 +103,6 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
           .leadingAccessory.shouldNotBeNull().shouldBeInstanceOf<IconAccessory>()
           .model.onClick.shouldNotBeNull().invoke()
         onCloseCalls.awaitItem()
-      }
-    }
-  }
-
-  test("skip sheet - go back") {
-    stateMachine.test(props) {
-      awaitBody<FormBodyModel> {
-        toolbar.shouldNotBeNull()
-          .trailingAccessory.shouldNotBeNull().shouldBeInstanceOf<ButtonAccessory>()
-          .model.onClick.shouldNotBeNull().invoke()
-      }
-
-      awaitItem().bottomSheetModel
-        .shouldNotBeNull()
-        .onClosed()
-
-      awaitItem().bottomSheetModel
-        .shouldBeNull()
-    }
-  }
-
-  test("skipBottomSheetProvider passed as null") {
-    stateMachine.test(props.copy(skipBottomSheetProvider = null)) {
-      awaitBody<FormBodyModel> {
-        toolbar.shouldNotBeNull()
-          .trailingAccessory.shouldBeNull()
       }
     }
   }

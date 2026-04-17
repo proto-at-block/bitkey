@@ -31,6 +31,7 @@ interface NfcSession : AutoCloseable {
    * @param hardwareType: The type of hardware (W1 or W3) to use/simulate
    * @param checkHardwareIsPaired: Function to verify if a challenge signature was made by the paired hardware
    * @param requirePairedHardware: Whether to validate that the hardware being used is the one paired with the account
+   * @param showDeviceConfirmation: Whether to show a device confirmation screen on W3 after a successful transaction (W3 only)
    * @param maxNfcRetryAttempts: Maximum number of retry attempts for NFC sessions that are invalidated unexpectedly
    */
   class Parameters(
@@ -42,9 +43,17 @@ interface NfcSession : AutoCloseable {
     val asyncNfcSigning: Boolean,
     val nfcFlowName: String,
     val requirePairedHardware: RequirePairedHardware,
+    /**
+     * When true, the hardware Delay+Notify guard is skipped.
+     * Set only by the lost-hardware cancellation PoP flow, which needs to tap the replacement
+     * hardware to cancel an existing recovery rather than being blocked by it.
+     */
+    val skipLostHardwareCheck: Boolean = false,
+    val showDeviceConfirmation: Boolean = false,
     val maxNfcRetryAttempts: Int = 3,
     onTagConnected: (NfcSession?) -> Unit,
     onTagDisconnected: () -> Unit,
+    onSessionCanceled: () -> Unit = {},
   ) {
     val onTagConnectedObservers = mutableListOf(onTagConnected)
     val onTagConnected: (NfcSession?) -> Unit =
@@ -52,6 +61,9 @@ interface NfcSession : AutoCloseable {
 
     val onTagDisconnectedObservers = mutableListOf(onTagDisconnected)
     val onTagDisconnected: () -> Unit = { onTagDisconnectedObservers.forEach { it() } }
+
+    val onSessionCanceledObservers = mutableListOf(onSessionCanceled)
+    val onSessionCanceled: () -> Unit = { onSessionCanceledObservers.forEach { it() } }
   }
 
   /** Whether we should check that the tapped hardware matches that expected by the app. */

@@ -17,7 +17,7 @@ use experimentation::routes::{
 use export_tools::routes::GetAccountDescriptorResponse;
 use hmac::{Hmac, Mac};
 use http::HeaderMap;
-use http::{header::CONTENT_TYPE, HeaderValue, Method, Request};
+use http::{header::CONTENT_TYPE, HeaderValue, Method, Request, StatusCode};
 use http_body_util::BodyExt as ExternalBodyExt;
 use linear::routes::WebhookResponse;
 use mobile_pay::routes::{
@@ -38,7 +38,8 @@ use onboarding::routes::{
     ContinueDistributedKeygenResponse, CreateAccountRequest, CreateAccountResponse,
     CreateKeysetRequest, CreateKeysetResponse, GetAccountKeysetsResponse, GetAccountStatusResponse,
     InititateDistributedKeygenRequest, InititateDistributedKeygenResponse,
-    RotateSpendingKeysetRequest, UpdateDescriptorBackupsResponse, UpgradeAccountRequest,
+    RotateSpendingKeysetRequest, RotateSpendingKeysetResponse, UpdateDescriptorBackupsResponse,
+    UpgradeAccountRequest,
 };
 use onboarding::routes_v2::{
     CreateAccountRequestV2, CreateAccountResponseV2, CreateKeysetResponseV2,
@@ -92,8 +93,9 @@ use transaction_verification::routes::{
     ProcessTransactionVerificationTokenRequest, ProcessTransactionVerificationTokenResponse,
     PutTransactionVerificationPolicyResponse,
 };
+use instrumentation::middleware::HARDWARE_SERIAL_HEADER_NAME;
 use types::account::entities::v2::SpendingKeysetInputV2;
-use types::account::entities::DescriptorBackupsSet;
+use types::account::entities::{DescriptorBackupsSet, Factor, HardwareType};
 use types::account::identifiers::{AccountId, KeysetId};
 use types::notification::NotificationsPreferences;
 use types::privileged_action::router::generic::{
@@ -220,8 +222,11 @@ impl TestClient {
         context: &mut TestContext,
         request: &CreateAccountRequest,
     ) -> Response<CreateAccountResponse> {
-        let response: Response<CreateAccountResponse> = Request::builder()
-            .uri("/api/accounts")
+        let mut builder = Request::builder().uri("/api/accounts");
+        if matches!(request, CreateAccountRequest::Full { .. }) {
+            builder = builder.header(HARDWARE_SERIAL_HEADER_NAME, HardwareType::TEST_SERIAL_W1);
+        }
+        let response: Response<CreateAccountResponse> = builder
             .post(request)
             .call(&self.router)
             .await;
@@ -245,6 +250,7 @@ impl TestClient {
     ) -> Response<CreateAccountResponse> {
         let response: Response<CreateAccountResponse> = Request::builder()
             .uri(format!("/api/accounts/{account_id}/upgrade"))
+            .header(HARDWARE_SERIAL_HEADER_NAME, HardwareType::TEST_SERIAL_W1)
             .recovery_authenticated(&AccountId::from_str(account_id).unwrap())
             .post(request)
             .call(&self.router)
@@ -260,16 +266,12 @@ impl TestClient {
         &self,
         account_id: &str,
         request: &CreateKeysetRequest,
-        keys: &TestAuthenticationKeys,
     ) -> Response<CreateKeysetResponse> {
         let account_id = AccountId::from_str(account_id).expect("Account id not valid");
         Request::builder()
             .uri(format!("/api/accounts/{account_id}/keysets"))
-            .authenticated(
-                &account_id,
-                Some(keys.app.secret_key),
-                Some(keys.hw.secret_key),
-            )
+            .header(HARDWARE_SERIAL_HEADER_NAME, HardwareType::TEST_SERIAL_W1)
+            .authenticated(&account_id, None, None)
             .post(request)
             .call(&self.router)
             .await
@@ -385,7 +387,6 @@ impl TestClient {
         touchpoint_id: &str,
         request: &PrivilegedActionRequest<AccountActivateTouchpointRequest>,
         action: action_proof::Action,
-        field: action_proof::Field,
         value: Option<&str>,
         keys: &TestAuthenticationKeys,
         sign_with_app: bool,
@@ -398,8 +399,48 @@ impl TestClient {
             .action_proof_authenticated(
                 &AccountId::from_str(account_id).expect("Account id not valid"),
                 action,
-                field,
                 value,
+                Some(touchpoint_id),
+                if sign_with_app {
+                    Some(keys.app.secret_key)
+                } else {
+                    None
+                },
+                if sign_with_hw {
+                    Some(keys.hw.secret_key)
+                } else {
+                    None
+                },
+            )
+            .post(request)
+            .call(&self.router)
+            .await
+    }
+
+    /// Like `activate_touchpoint_with_action_proof`, but uses a pre-built access token
+    /// so that multiple calls share the same JWT (and therefore the same content hash).
+    /// Needed for anti-replay integration tests.
+    pub(crate) async fn activate_touchpoint_with_action_proof_token(
+        &self,
+        account_id: &str,
+        touchpoint_id: &str,
+        request: &PrivilegedActionRequest<AccountActivateTouchpointRequest>,
+        action: action_proof::Action,
+        value: Option<&str>,
+        keys: &TestAuthenticationKeys,
+        sign_with_app: bool,
+        sign_with_hw: bool,
+        access_token: &str,
+    ) -> Response<PrivilegedActionResponse<AccountActivateTouchpointResponse>> {
+        Request::builder()
+            .uri(format!(
+                "/api/accounts/{account_id}/touchpoints/{touchpoint_id}/activate"
+            ))
+            .action_proof_authenticated_with_token(
+                access_token,
+                action,
+                value,
+                Some(touchpoint_id),
                 if sign_with_app {
                     Some(keys.app.secret_key)
                 } else {
@@ -574,8 +615,13 @@ impl TestClient {
         hw_signed: bool,
         keys: &TestAuthenticationKeys,
     ) -> Response<PendingRecoveryResponse> {
+        let serial = match request.auth.hardware_type {
+            HardwareType::W1 => HardwareType::TEST_SERIAL_W1,
+            HardwareType::W3 => HardwareType::TEST_SERIAL_W3,
+        };
         Request::builder()
             .uri(format!("/api/accounts/{account_id}/delay-notify"))
+            .header(HARDWARE_SERIAL_HEADER_NAME, serial)
             .authenticated(
                 &AccountId::from_str(account_id).expect("Account id not valid"),
                 if app_signed {
@@ -678,60 +724,34 @@ impl TestClient {
         &self,
         account_id: &str,
         request: &SendAccountVerificationCodeRequest,
-        app_signed: bool,
-        hw_signed: bool,
-        keys: &TestAuthenticationKeys,
+        factor: Factor,
     ) -> Response<SendAccountVerificationCodeResponse> {
-        Request::builder()
-            .uri(format!(
-                "/api/accounts/{account_id}/delay-notify/send-verification-code"
-            ))
-            .authenticated(
-                &AccountId::from_str(account_id).unwrap(),
-                if app_signed {
-                    Some(keys.app.secret_key)
-                } else {
-                    None
-                },
-                if hw_signed {
-                    Some(keys.hw.secret_key)
-                } else {
-                    None
-                },
-            )
-            .post(&request)
-            .call(&self.router)
-            .await
+        let account_id = AccountId::from_str(account_id).unwrap();
+        let builder = Request::builder().uri(format!(
+            "/api/accounts/{account_id}/delay-notify/send-verification-code"
+        ));
+        let builder = match factor {
+            Factor::App => builder.authenticated(&account_id, None, None),
+            Factor::Hw => builder.hw_authenticated(&account_id),
+        };
+        builder.post(&request).call(&self.router).await
     }
 
     pub(crate) async fn verify_delay_notify_verification_code(
         &self,
         account_id: &str,
         request: &VerifyAccountVerificationCodeRequest,
-        app_signed: bool,
-        hw_signed: bool,
-        keys: &TestAuthenticationKeys,
+        factor: Factor,
     ) -> Response<VerifyAccountVerificationCodeResponse> {
-        Request::builder()
-            .uri(format!(
-                "/api/accounts/{account_id}/delay-notify/verify-code"
-            ))
-            .authenticated(
-                &AccountId::from_str(account_id).unwrap(),
-                if app_signed {
-                    Some(keys.app.secret_key)
-                } else {
-                    None
-                },
-                if hw_signed {
-                    Some(keys.hw.secret_key)
-                } else {
-                    None
-                },
-            )
-            .post(&request)
-            .call(&self.router)
-            .await
+        let account_id = AccountId::from_str(account_id).unwrap();
+        let builder = Request::builder().uri(format!(
+            "/api/accounts/{account_id}/delay-notify/verify-code"
+        ));
+        let builder = match factor {
+            Factor::App => builder.authenticated(&account_id, None, None),
+            Factor::Hw => builder.hw_authenticated(&account_id),
+        };
+        builder.post(&request).call(&self.router).await
     }
 
     pub(crate) async fn get_account_keysets(
@@ -763,7 +783,7 @@ impl TestClient {
                 keys,
             )
             .await;
-        if response.body.is_some() {
+        if response.status_code == StatusCode::OK {
             context.associate_with_account(&account_id, request.application.key);
         }
         response
@@ -777,9 +797,14 @@ impl TestClient {
         request: &RotateAuthenticationKeysRequest,
         keys: &TestAuthenticationKeys,
     ) -> Response<RotateAuthenticationKeysResponse> {
+        let serial = match request.hardware_type {
+            HardwareType::W1 => HardwareType::TEST_SERIAL_W1,
+            HardwareType::W3 => HardwareType::TEST_SERIAL_W3,
+        };
         let response = Request::builder()
             .method("POST")
             .uri(format!("/api/accounts/{account_id}/authentication-keys"))
+            .header(HARDWARE_SERIAL_HEADER_NAME, serial)
             .authenticated(
                 keyproof_account_id,
                 Some(keys.app.secret_key),
@@ -800,7 +825,7 @@ impl TestClient {
         keyset_id: &str,
         request: &RotateSpendingKeysetRequest,
         keys: &TestAuthenticationKeys,
-    ) -> Response<GetAccountKeysetsResponse> {
+    ) -> Response<RotateSpendingKeysetResponse> {
         Request::builder()
             .uri(format!("/api/accounts/{account_id}/keysets/{keyset_id}"))
             .authenticated(
@@ -1198,6 +1223,111 @@ impl TestClient {
             .await
     }
 
+    pub(crate) async fn create_relationship_with_action_proof(
+        &self,
+        account_id: &str,
+        request: &CreateRelationshipRequest,
+        action: action_proof::Action,
+        value: Option<&str>,
+        keys: &TestAuthenticationKeys,
+        sign_with_app: bool,
+        sign_with_hw: bool,
+    ) -> Response<CreateRelationshipResponse> {
+        Request::builder()
+            .uri(format!("/api/accounts/{account_id}/relationships"))
+            .action_proof_authenticated(
+                &AccountId::from_str(account_id).expect("Account id not valid"),
+                action,
+                value,
+                None,
+                if sign_with_app {
+                    Some(keys.app.secret_key)
+                } else {
+                    None
+                },
+                if sign_with_hw {
+                    Some(keys.hw.secret_key)
+                } else {
+                    None
+                },
+            )
+            .post(request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn delete_recovery_relationship_with_action_proof(
+        &self,
+        account_id: &str,
+        recovery_relationship_id: &str,
+        action: action_proof::Action,
+        value: Option<&str>,
+        entity_id: Option<&str>,
+        keys: &TestAuthenticationKeys,
+        sign_with_app: bool,
+        sign_with_hw: bool,
+    ) -> Response<()> {
+        Request::builder()
+            .uri(format!(
+                "/api/accounts/{account_id}/recovery/relationships/{recovery_relationship_id}"
+            ))
+            .action_proof_authenticated(
+                &AccountId::from_str(account_id).expect("Account id not valid"),
+                action,
+                value,
+                entity_id,
+                if sign_with_app {
+                    Some(keys.app.secret_key)
+                } else {
+                    None
+                },
+                if sign_with_hw {
+                    Some(keys.hw.secret_key)
+                } else {
+                    None
+                },
+            )
+            .delete()
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn reissue_recovery_relationship_with_action_proof(
+        &self,
+        account_id: &str,
+        recovery_relationship_id: &str,
+        action: action_proof::Action,
+        value: Option<&str>,
+        entity_id: Option<&str>,
+        keys: &TestAuthenticationKeys,
+        sign_with_app: bool,
+        sign_with_hw: bool,
+    ) -> Response<UpdateRecoveryRelationshipResponse> {
+        Request::builder()
+            .uri(format!(
+                "/api/accounts/{account_id}/recovery/relationships/{recovery_relationship_id}"
+            ))
+            .action_proof_authenticated(
+                &AccountId::from_str(account_id).expect("Account id not valid"),
+                action,
+                value,
+                entity_id,
+                if sign_with_app {
+                    Some(keys.app.secret_key)
+                } else {
+                    None
+                },
+                if sign_with_hw {
+                    Some(keys.hw.secret_key)
+                } else {
+                    None
+                },
+            )
+            .put(&UpdateRecoveryRelationshipRequest::Reissue)
+            .call(&self.router)
+            .await
+    }
+
     pub(crate) async fn get_recovery_relationships(
         &self,
         account_id: &str,
@@ -1355,6 +1485,40 @@ impl TestClient {
                     None
                 },
                 if hw_signed {
+                    Some(keys.hw.secret_key)
+                } else {
+                    None
+                },
+            )
+            .put(request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn set_notifications_preferences_with_action_proof(
+        &self,
+        account_id: &str,
+        request: &NotificationsPreferences,
+        action: action_proof::Action,
+        keys: &TestAuthenticationKeys,
+        sign_with_app: bool,
+        sign_with_hw: bool,
+    ) -> Response<NotificationsPreferences> {
+        Request::builder()
+            .uri(format!(
+                "/api/accounts/{account_id}/notifications-preferences"
+            ))
+            .action_proof_authenticated(
+                &AccountId::from_str(account_id).expect("Account id not valid"),
+                action,
+                None,
+                None,
+                if sign_with_app {
+                    Some(keys.app.secret_key)
+                } else {
+                    None
+                },
+                if sign_with_hw {
                     Some(keys.hw.secret_key)
                 } else {
                     None
@@ -1936,8 +2100,13 @@ impl TestClient {
         context: &mut TestContext,
         request: &CreateAccountRequestV2,
     ) -> Response<CreateAccountResponseV2> {
+        let serial = match request.auth.hardware_type {
+            HardwareType::W1 => HardwareType::TEST_SERIAL_W1,
+            HardwareType::W3 => HardwareType::TEST_SERIAL_W3,
+        };
         let response: Response<CreateAccountResponseV2> = Request::builder()
             .uri("/api/v2/accounts")
+            .header(HARDWARE_SERIAL_HEADER_NAME, serial)
             .post(request)
             .call(&self.router)
             .await;
@@ -1954,8 +2123,13 @@ impl TestClient {
         account_id: &str,
         request: &UpgradeAccountRequestV2,
     ) -> Response<CreateKeysetResponseV2> {
+        let serial = match request.auth.hardware_type {
+            HardwareType::W1 => HardwareType::TEST_SERIAL_W1,
+            HardwareType::W3 => HardwareType::TEST_SERIAL_W3,
+        };
         let response: Response<CreateKeysetResponseV2> = Request::builder()
             .uri(format!("/api/v2/accounts/{account_id}/upgrade"))
+            .header(HARDWARE_SERIAL_HEADER_NAME, serial)
             .recovery_authenticated(&AccountId::from_str(account_id).unwrap())
             .post(request)
             .call(&self.router)
@@ -1971,18 +2145,264 @@ impl TestClient {
         &self,
         account_id: &str,
         request: &SpendingKeysetInputV2,
-        keys: &TestAuthenticationKeys,
     ) -> Response<CreateKeysetResponseV2> {
         let account_id = AccountId::from_str(account_id).expect("Account id not valid");
         Request::builder()
             .uri(format!("/api/v2/accounts/{account_id}/keysets"))
-            .authenticated(
-                &account_id,
-                Some(keys.app.secret_key),
-                Some(keys.hw.secret_key),
+            .authenticated(&account_id, None, None)
+            .post(request)
+            .call(&self.router)
+            .await
+    }
+
+    // ---- ActionProof test helpers for keyclaims_only migration ----
+
+    pub(crate) async fn rotate_to_spending_keyset_with_action_proof(
+        &self,
+        account_id: &str,
+        keyset_id: &str,
+        request: &RotateSpendingKeysetRequest,
+        keys: &TestAuthenticationKeys,
+        sign_with_app: bool,
+        sign_with_hw: bool,
+    ) -> Response<RotateSpendingKeysetResponse> {
+        Request::builder()
+            .uri(format!("/api/accounts/{account_id}/keysets/{keyset_id}"))
+            .action_proof_authenticated(
+                &AccountId::from_str(account_id).unwrap(),
+                action_proof::Action::RotateSpendingKeyset,
+                None,
+                Some(keyset_id),
+                if sign_with_app {
+                    Some(keys.app.secret_key)
+                } else {
+                    None
+                },
+                if sign_with_hw {
+                    Some(keys.hw.secret_key)
+                } else {
+                    None
+                },
+            )
+            .put(request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn delete_account_with_action_proof(
+        &self,
+        account_id: &str,
+        keys: &TestAuthenticationKeys,
+        sign_with_app: bool,
+        sign_with_hw: bool,
+    ) -> Response<()> {
+        Request::builder()
+            .uri(format!("/api/accounts/{account_id}"))
+            .action_proof_authenticated(
+                &AccountId::from_str(account_id).unwrap(),
+                action_proof::Action::DeleteAccount,
+                None,
+                Some(account_id),
+                if sign_with_app {
+                    Some(keys.app.secret_key)
+                } else {
+                    None
+                },
+                if sign_with_hw {
+                    Some(keys.hw.secret_key)
+                } else {
+                    None
+                },
+            )
+            .delete()
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn update_descriptor_backups_with_action_proof(
+        &self,
+        account_id: &str,
+        request: &DescriptorBackupsSet,
+        keys: &TestAuthenticationKeys,
+        sign_with_app: bool,
+        sign_with_hw: bool,
+    ) -> Response<UpdateDescriptorBackupsResponse> {
+        Request::builder()
+            .uri(format!("/api/accounts/{account_id}/descriptor-backups"))
+            .action_proof_authenticated(
+                &AccountId::from_str(account_id).unwrap(),
+                action_proof::Action::UpdateDescriptorBackups,
+                None,
+                None,
+                if sign_with_app {
+                    Some(keys.app.secret_key)
+                } else {
+                    None
+                },
+                if sign_with_hw {
+                    Some(keys.hw.secret_key)
+                } else {
+                    None
+                },
+            )
+            .put(request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn create_delay_notify_recovery_with_action_proof(
+        &self,
+        account_id: &str,
+        request: &CreateAccountDelayNotifyRequest,
+        keys: &TestAuthenticationKeys,
+        sign_with_app: bool,
+        sign_with_hw: bool,
+    ) -> Response<PendingRecoveryResponse> {
+        let create_action = match request.lost_factor {
+            Factor::App => action_proof::Action::CreateLostAppRecovery,
+            Factor::Hw => action_proof::Action::CreateLostHardwareRecovery,
+        };
+        self.create_delay_notify_recovery_with_explicit_action(
+            account_id,
+            request,
+            create_action,
+            keys,
+            sign_with_app,
+            sign_with_hw,
+        )
+        .await
+    }
+
+    pub(crate) async fn create_delay_notify_recovery_with_explicit_action(
+        &self,
+        account_id: &str,
+        request: &CreateAccountDelayNotifyRequest,
+        action: action_proof::Action,
+        keys: &TestAuthenticationKeys,
+        sign_with_app: bool,
+        sign_with_hw: bool,
+    ) -> Response<PendingRecoveryResponse> {
+        let serial = match request.auth.hardware_type {
+            HardwareType::W1 => HardwareType::TEST_SERIAL_W1,
+            HardwareType::W3 => HardwareType::TEST_SERIAL_W3,
+        };
+        Request::builder()
+            .uri(format!("/api/accounts/{account_id}/delay-notify"))
+            .header(HARDWARE_SERIAL_HEADER_NAME, serial)
+            .action_proof_authenticated(
+                &AccountId::from_str(account_id).expect("Account id not valid"),
+                action,
+                None,
+                None,
+                if sign_with_app {
+                    Some(keys.app.secret_key)
+                } else {
+                    None
+                },
+                if sign_with_hw {
+                    Some(keys.hw.secret_key)
+                } else {
+                    None
+                },
             )
             .post(request)
             .call(&self.router)
             .await
+    }
+
+    pub(crate) async fn cancel_delay_notify_recovery_with_action_proof(
+        &self,
+        account_id: &str,
+        lost_factor: Factor,
+        keys: &TestAuthenticationKeys,
+        sign_with_app: bool,
+        sign_with_hw: bool,
+    ) -> Response<()> {
+        let cancel_action = match lost_factor {
+            Factor::App => action_proof::Action::CancelLostAppRecovery,
+            Factor::Hw => action_proof::Action::CancelLostHardwareRecovery,
+        };
+        self.cancel_delay_notify_recovery_with_explicit_action(
+            account_id,
+            cancel_action,
+            keys,
+            sign_with_app,
+            sign_with_hw,
+        )
+        .await
+    }
+
+    pub(crate) async fn cancel_delay_notify_recovery_with_explicit_action(
+        &self,
+        account_id: &str,
+        action: action_proof::Action,
+        keys: &TestAuthenticationKeys,
+        sign_with_app: bool,
+        sign_with_hw: bool,
+    ) -> Response<()> {
+        Request::builder()
+            .uri(format!("/api/accounts/{account_id}/delay-notify"))
+            .action_proof_authenticated(
+                &AccountId::from_str(account_id).expect("Account id not valid"),
+                action,
+                None,
+                None,
+                if sign_with_app {
+                    Some(keys.app.secret_key)
+                } else {
+                    None
+                },
+                if sign_with_hw {
+                    Some(keys.hw.secret_key)
+                } else {
+                    None
+                },
+            )
+            .delete()
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn rotate_authentication_keys_with_action_proof(
+        &self,
+        context: &mut TestContext,
+        account_id: &str,
+        request: &RotateAuthenticationKeysRequest,
+        keys: &TestAuthenticationKeys,
+        sign_with_app: bool,
+        sign_with_hw: bool,
+    ) -> Response<RotateAuthenticationKeysResponse> {
+        let account_id_parsed = AccountId::from_str(account_id).expect("Account id not valid");
+        let serial = match request.hardware_type {
+            HardwareType::W1 => HardwareType::TEST_SERIAL_W1,
+            HardwareType::W3 => HardwareType::TEST_SERIAL_W3,
+        };
+        let response = Request::builder()
+            .method("POST")
+            .uri(format!("/api/accounts/{account_id}/authentication-keys"))
+            .header(HARDWARE_SERIAL_HEADER_NAME, serial)
+            .action_proof_authenticated(
+                &account_id_parsed,
+                action_proof::Action::RotateAppAuthKeys,
+                None,
+                None,
+                if sign_with_app {
+                    Some(keys.app.secret_key)
+                } else {
+                    None
+                },
+                if sign_with_hw {
+                    Some(keys.hw.secret_key)
+                } else {
+                    None
+                },
+            )
+            .post(&request)
+            .call(&self.router)
+            .await;
+        if response.status_code == StatusCode::OK {
+            context.associate_with_account(&account_id_parsed, request.application.key);
+        }
+        response
     }
 }

@@ -7,6 +7,8 @@ import build.wallet.pricechart.ChartRange
 import build.wallet.pricechart.ChartType
 import build.wallet.pricechart.DataPoint
 import build.wallet.ui.model.render
+import build.wallet.ui.theme.Theme
+import build.wallet.ui.tokens.lightStyleDictionaryColorsDesignSystemUpdates
 import build.wallet.ui.tooling.PreviewWalletTheme
 import kotlinx.collections.immutable.toImmutableList
 
@@ -20,6 +22,22 @@ fun PriceChartPreview() {
       }.toImmutableList(),
       range = ChartRange.YEAR,
       type = ChartType.BTC_PRICE
+    ).render()
+  }
+}
+
+@Preview
+@Composable
+fun YourBalanceEmptyStateDesignSystemV2LightPreview() {
+  PreviewWalletTheme(
+    theme = Theme.LIGHT,
+    backgroundColor = lightStyleDictionaryColorsDesignSystemUpdates.background,
+    designSystemUpdatesEnabled = true
+  ) {
+    BitcoinPriceDetailsBodyModel(
+      type = ChartType.BALANCE,
+      isLoading = false,
+      fiatCurrencyCode = "USD"
     ).render()
   }
 }

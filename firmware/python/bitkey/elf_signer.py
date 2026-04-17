@@ -39,6 +39,8 @@ class ElfSigner(ABC):
 
     ECC_P256_SIG_SIZE = 64
     FLASH_ERASED_VALUE = 0xFF
+    PRODUCT_ID_SIZE = 16
+    CHIP_ID_LENGTH = None
 
     def _inject_cert(self, cert: bytes, image_type: str):
         """Inject certificate into the appropriate symbol."""
@@ -47,13 +49,21 @@ class ElfSigner(ABC):
         assert self._read_symbol_data(sym_name) == cert
 
     @abstractmethod
-    def _set_version(self, image_type: str, app_version: str):
+    def _set_version(self, image_type: str, app_version: str, chip_id: bytes = None):
         """Set firmware version in properties structure. Must be implemented by subclasses."""
         raise NotImplementedError("Subclasses must implement _set_version")
 
     def _validate_image_type(self, image_type: str):
         """Validate that image_type is supported by this platform. Override if needed."""
         pass
+
+    def _validate_chip_id(self, image_type: str, chip_id: bytes):
+        if image_type != "app":
+            raise ValueError("chip_id is only supported for app images")
+        if self.CHIP_ID_LENGTH is not None and len(chip_id) != self.CHIP_ID_LENGTH:
+            raise ValueError(f"chip_id must be {self.CHIP_ID_LENGTH} bytes, got {len(chip_id)}")
+        if len(chip_id) > self.PRODUCT_ID_SIZE:
+            raise ValueError(f"chip_id cannot exceed {self.PRODUCT_ID_SIZE} bytes")
 
     def codesign(self, key_manager: KeyManager, asset_info: AssetInfo):
         """Sign the firmware ELF file. Standard implementation used by all platforms."""
@@ -71,6 +81,7 @@ class ElfSigner(ABC):
         image_type = asset_info.get_image_type()
         slot = asset_info.get_slot()
         app_version = asset_info.get_app_version()
+        chip_id = asset_info.get_chip_id()
 
         # Validate image type support
         self._validate_image_type(image_type)
@@ -78,6 +89,8 @@ class ElfSigner(ABC):
         # Validate slot requirement for app images
         if image_type == "app" and not slot:
             raise ValueError("must set slot when signing app")
+        if chip_id is not None:
+            self._validate_chip_id(image_type, chip_id)
 
         # Inject certificate and set version before signing
         with open(key_manager.get_signing_cert_path(), "rb") as f:
@@ -85,7 +98,7 @@ class ElfSigner(ABC):
         self._inject_cert(cert, image_type)
 
         if app_version is not None:
-            self._set_version(image_type, app_version)
+            self._set_version(image_type, app_version, chip_id)
 
         # Update the Memfault build ID.
         if image_type == "app":

@@ -30,6 +30,7 @@ public class NfcSessionImpl: NSObject, NfcSession {
             params: parameters,
             { [weak self] in parameters.onTagConnected(self) },
             parameters.onTagDisconnected,
+            parameters.onSessionCanceled,
             maxRetries: maxRetries
         )
 
@@ -102,12 +103,14 @@ private class NfcSessionDelegate: NSObject, NFCTagReaderSessionDelegate {
     @Published var tag = SessionReadiness.Waiting
     private let onTagConnected: () -> Void
     private let onTagDisconnected: () -> Void
+    private let onSessionCanceled: () -> Void
     private let params: NfcSessionParameters
     private weak var session: NFCTagReaderSession? = nil
 
     // Retry mechanism for session invalidation
     private var retryCount = 0
     private let maxRetries: Int
+    private var isClosingSession = false
     private let retryableErrorCodes: Set<NFCReaderError.Code> = [
         .readerSessionInvalidationErrorSessionTerminatedUnexpectedly,
     ]
@@ -124,10 +127,12 @@ private class NfcSessionDelegate: NSObject, NFCTagReaderSessionDelegate {
         params: NfcSessionParameters,
         _ onTagConnected: @escaping () -> Void,
         _ onTagDisconnected: @escaping () -> Void,
+        _ onSessionCanceled: @escaping () -> Void,
         maxRetries: Int = 3
     ) {
         self.onTagConnected = onTagConnected
         self.onTagDisconnected = onTagDisconnected
+        self.onSessionCanceled = onSessionCanceled
         self.params = params
         self.maxRetries = maxRetries
     }
@@ -147,6 +152,7 @@ private class NfcSessionDelegate: NSObject, NFCTagReaderSessionDelegate {
     }
 
     func close() {
+        self.isClosingSession = true
         self.session?.invalidate()
     }
 
@@ -216,6 +222,11 @@ private class NfcSessionDelegate: NSObject, NFCTagReaderSessionDelegate {
                 userInfo: [NSLocalizedDescriptionKey: error.localizedDescription]
             )
         )
+        let wasClosedByApp = self.isClosingSession
+        self.isClosingSession = false
+        if nfcError.code == .readerSessionInvalidationErrorUserCanceled, !wasClosedByApp {
+            self.onSessionCanceled()
+        }
         self.tag = .Invalidated(nfcError)
         self.resetRetryCount()
 
@@ -282,6 +293,6 @@ private extension Data {
 
 // TODO: foundation-[mobile]-app-localization-4f75ff34e3da
 private enum NFCStrings {
-    static let tapInstructions = "Hold your unlocked device to the back of your phone"
-    static let tapInstructionsNoAuthNeeded = "Hold your device to the back of your phone"
+    static let tapInstructions = "Hold your unlocked Bitkey to the back of your phone"
+    static let tapInstructionsNoAuthNeeded = "Hold your Bitkey to the back of your phone"
 }

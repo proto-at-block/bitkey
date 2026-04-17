@@ -1,6 +1,7 @@
 import {Construct} from "constructs";
 import {AverageLatencyHighMonitor, ErrorRateHighMonitor} from "./common/http";
 import {Monitor} from "./common/monitor";
+import {log_count_query} from "./common/queries";
 import {getCriticalRecipients, getErrorRecipients} from "./recipients";
 import {Environment} from "./common/environments";
 
@@ -12,7 +13,6 @@ export class WsmApiMonitors extends Construct {
 
     const recipients = getErrorRecipients(environment)
     const highPriorityRecipients = getCriticalRecipients(environment)
-    
     new Monitor(this, "abnormal_throughput", {
       name: "[wsm]: service has an abnormal change in throughput (ANOMALY)",
       message: "`wsm` throughput deviated too much from its usual value.",
@@ -151,6 +151,22 @@ export class WsmApiMonitors extends Construct {
       window: "last_1h",
       priority: "1",
       tags: tags.concat("resource_name:sign_psbt"),
+      recipients: highPriorityRecipients,
+    });
+    new Monitor(this, "sighash_type_rejected", {
+      query: log_count_query(
+        `service:wsm env:${environment} ("Only SIGHASH_ALL is permitted for custodian signing" OR "Invalid sighash type for custodian signing")`,
+        "10m",
+        "0"
+      ),
+      name: "[wsm]: non-SIGHASH_ALL signing attempt rejected",
+      message: "WSM rejected a PSBT signing request with a disallowed sighash type. This could indicate a malicious or malformed signing request.\n\nDoc: https://docs.google.com/document/d/1wxRek42wdUr6IYbH5SItpCJwCbpD1cxi2NCXkdDyZuQ/edit\n\nEscalate to cgarrett@, maxguise@, and tkilbride@.",
+      monitorThresholds: {
+        critical: "0",
+      },
+      priority: "1",
+      tags: tags,
+      type: "log alert",
       recipients: highPriorityRecipients,
     });
   }

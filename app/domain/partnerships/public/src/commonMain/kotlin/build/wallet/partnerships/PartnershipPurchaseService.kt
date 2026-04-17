@@ -21,6 +21,7 @@ interface PartnershipPurchaseService {
   suspend fun preparePurchase(
     quote: PurchaseQuote,
     purchaseAmount: FiatMoney,
+    address: String? = null,
   ): Result<PurchaseRedirectInfo, Throwable>
 
   class NoDisplayAmountsError(paymentMethod: String) :

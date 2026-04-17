@@ -27,8 +27,10 @@ import build.wallet.coroutines.scopes.mapAsStateFlow
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.ensureNotNull
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.feature.flags.TxVerificationFeatureFlag
 import build.wallet.feature.isEnabled
+import build.wallet.feature.collectIsEnabledAsState
 import build.wallet.limit.DailySpendingLimitStatus
 import build.wallet.limit.MobilePayData
 import build.wallet.limit.MobilePayService
@@ -46,6 +48,7 @@ import build.wallet.statemachine.send.TransferConfirmationUiState.ErrorUiState.*
 import build.wallet.statemachine.send.TransferConfirmationUiState.ViewingTransferConfirmationUiState.SheetState.*
 import build.wallet.statemachine.send.fee.FeeOptionListProps
 import build.wallet.statemachine.send.fee.FeeOptionListUiStateMachine
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationContent
 import build.wallet.statemachine.send.signtransaction.SignTransactionNfcSessionUiProps
 import build.wallet.statemachine.send.signtransaction.SignTransactionNfcSessionUiStateMachine
 import build.wallet.statemachine.transactions.TransactionDetails
@@ -72,10 +75,12 @@ class TransferConfirmationUiStateMachineImpl(
   private val accountConfigService: bitkey.account.AccountConfigService,
   private val txVerificationService: TxVerificationService,
   private val txVerificationFeatureFlag: TxVerificationFeatureFlag,
+  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : TransferConfirmationUiStateMachine {
   @Composable
   override fun model(props: TransferConfirmationUiProps): ScreenModel {
     val scope = rememberStableCoroutineScope()
+    val isDesignSystemV2Enabled by designSystemUpdatesFeatureFlag.collectIsEnabledAsState()
 
     var uiState: TransferConfirmationUiState by remember {
       mutableStateOf(CreatingAppSignedPsbtUiState)
@@ -293,6 +298,7 @@ class TransferConfirmationUiStateMachineImpl(
       is SigningWithHardwareUiState ->
         signTransactionNfcSessionUiStateMachine.model(
           SignTransactionNfcSessionUiProps(
+            account = props.account,
             psbt = state.appSignedPsbt,
             onBack = {
               uiState = ViewingTransferConfirmationUiState(
@@ -304,8 +310,11 @@ class TransferConfirmationUiStateMachineImpl(
                 twoOfThreeSignedPsbt = signedPsbt,
                 cosigner = Hardware
               )
-            }
+            },
             // onError uses default - shows NFC-specific error UI internally
+            confirmationContent = HardwareConfirmationContent.SendTransaction.copy(
+              recipientAddress = props.recipientAddress
+            )
           )
         )
       is ViewingTransferConfirmationUiState ->
@@ -313,6 +322,7 @@ class TransferConfirmationUiStateMachineImpl(
           props = props,
           state = state,
           isW3 = isW3,
+          isDesignSystemV2Enabled = isDesignSystemV2Enabled,
           selectedPriority = selectedPriority,
           requiredSigner = requiredSigner,
           onConfirm = {
@@ -614,6 +624,7 @@ class TransferConfirmationUiStateMachineImpl(
     selectedPriority: EstimatedTransactionPriority,
     requiredSigner: SigningFactor,
     isW3: Boolean,
+    isDesignSystemV2Enabled: Boolean,
     onConfirm: () -> Unit,
     onNetworkFees: () -> Unit,
     onArrivalTime: (() -> Unit)?,
@@ -638,13 +649,14 @@ class TransferConfirmationUiStateMachineImpl(
     )
 
     val variant = props.variant
+    val requiresHardware = requiredSigner == Hardware
 
     return TransferConfirmationScreenModel(
       onBack = props.onBack,
       variant = variant,
       recipientAddress = props.recipientAddress,
       transactionDetails = transactionDetailsCard,
-      requiresHardware = requiredSigner == Hardware,
+      requiresHardware = requiresHardware,
       confirmButtonEnabled = true,
       onConfirmClick = onConfirm,
       onNetworkFeesClick = onNetworkFees,
@@ -653,7 +665,8 @@ class TransferConfirmationUiStateMachineImpl(
       } else {
         onArrivalTime
       },
-      requiresHardwareReview = isW3
+      requiresHardwareReview = isW3 && requiresHardware,
+      useDesignSystemV2Layout = isDesignSystemV2Enabled
     ).asModalFullScreen(
       bottomSheetModel = when (state.sheetState) {
         InfoSheet -> SheetModel(

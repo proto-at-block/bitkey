@@ -85,21 +85,10 @@
 #define FT3169_REG_GESTURE_OUTPUT 0xD3  //<! Gesture information block
 #define FT3169_REG_BOOT_START     0x55  //<! Boot command register
 
-/**
- * @brief FT3169 Gesture Mask Bits
- *
- * @details As of V30 touch firmware, the only supported gesture is tap
- * and the vendor recommends setting all bits to this register to enable.
- */
-#define FT3169_GESTURE_MASK_TAP 0xFF
-
 // FT3169 command/data values
 #define FT3169_CMD_READ_ID        0x90
 #define FT3169_BOOT_TRIGGER_VALUE 0xAA
-#define FT3169_GESTURE_ENABLE     0x01
-#define FT3169_GESTURE_DISABLE    0x00
 #define FT3169_POWER_MODE_ACTIVE  0x00
-#define FT3169_POWER_MODE_MONITOR 0x01
 #define FT3169_POWER_MODE_SLEEP   0x03
 
 // Chip IDs

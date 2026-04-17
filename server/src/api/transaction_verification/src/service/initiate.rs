@@ -49,7 +49,7 @@ impl Service {
         use_bip_177: bool,
     ) -> Result<InitiateVerificationResult, TransactionVerificationError> {
         let hardware_auth_pubkey = account.hardware_auth_pubkey;
-        self.screener_service.screen_psbt_outputs_for_sanctions(
+        self.screener_service.screen_psbt_for_sanctions(
             &psbt,
             network,
             &Account::Full(account.clone()),
@@ -139,7 +139,7 @@ impl Service {
             .fetch_full_account(FetchAccountInput { account_id })
             .await?;
 
-        self.screener_service.screen_psbt_outputs_for_sanctions(
+        self.screener_service.screen_psbt_for_sanctions(
             &psbt,
             network,
             &Account::Full(account),

@@ -60,7 +60,7 @@ import build.wallet.relationships.RelationshipsKeysDaoFake
 import build.wallet.relationships.RelationshipsServiceMock
 import build.wallet.testing.shouldBeOk
 import build.wallet.time.ClockFake
-import build.wallet.wallet.migration.PrivateWalletMigrationServiceFake
+import build.wallet.wallet.migration.MigrationServiceFake
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -108,7 +108,7 @@ class AppDataDeleterImplTests : FunSpec({
     turbineFactory = turbines::create
   )
   val descriptorBackupVerificationDao = DescriptorBackupVerificationDaoFake()
-  val privateWalletMigrationService = PrivateWalletMigrationServiceFake()
+  val migrationService = MigrationServiceFake()
 
   fun appDataDeleter(appVariant: AppVariant) =
     AppDataDeleterImpl(
@@ -148,7 +148,7 @@ class AppDataDeleterImplTests : FunSpec({
       securityRecommendationInteractionDao = securityRecommendationInteractionDao,
       coachmarkService = coachmarkService,
       descriptorBackupVerificationDao = descriptorBackupVerificationDao,
-      privateWalletMigrationService = privateWalletMigrationService
+      migrationService = migrationService
     )
 
   beforeTest {

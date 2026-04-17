@@ -1,11 +1,11 @@
 package build.wallet.recovery
 
+import bitkey.account.HardwareType
 import bitkey.recovery.InitiateDelayNotifyRecoveryError
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.AppKeyBundleMock
-import build.wallet.f8e.auth.HwFactorProofOfPossession
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
@@ -20,6 +20,7 @@ class LostHardwareRecoveryServiceFake : LostHardwareRecoveryService {
     destinationAppKeyBundle: AppKeyBundle,
     destinationHardwareKeyBundle: HwKeyBundle,
     appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+    hardwareType: HardwareType,
   ): Result<Unit, InitiateDelayNotifyRecoveryError> {
     return initiateResult
   }
@@ -30,9 +31,7 @@ class LostHardwareRecoveryServiceFake : LostHardwareRecoveryService {
     return cancelResult
   }
 
-  override suspend fun cancelRecoveryWithHwProofOfPossession(
-    proofOfPossession: HwFactorProofOfPossession,
-  ): Result<Unit, CancelDelayNotifyRecoveryError> {
+  override suspend fun cancelConflictingRecovery(): Result<Unit, CancelDelayNotifyRecoveryError> {
     return cancelResult
   }
 

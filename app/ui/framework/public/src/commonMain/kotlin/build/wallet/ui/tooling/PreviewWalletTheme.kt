@@ -8,6 +8,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
@@ -20,18 +21,29 @@ val LocalIsPreviewTheme = compositionLocalOf { false }
 @Composable
 fun PreviewWalletTheme(
   modifier: Modifier = Modifier,
-  backgroundColor: Color = WalletTheme.colors.background,
-  theme: Theme = Theme.LIGHT,
+  backgroundColor: Color? = null,
+  theme: Theme? = null,
+  designSystemUpdatesEnabled: Boolean? = null,
   content: @Composable () -> Unit,
 ) {
   PreviewContextConfigurationEffect()
+  val isNestedPreviewTheme = LocalIsPreviewTheme.current
+  val resolvedTheme = theme ?: if (isNestedPreviewTheme) LocalTheme.current else Theme.LIGHT
+  val resolvedDesignSystemUpdatesEnabled =
+    designSystemUpdatesEnabled ?: if (isNestedPreviewTheme) {
+      LocalDesignSystemUpdatesEnabled.current
+    } else {
+      false
+    }
   CompositionLocalProvider(
     LocalIsPreviewTheme provides true,
-    LocalTheme provides theme
+    LocalTheme provides resolvedTheme,
+    LocalDesignSystemUpdatesEnabled provides resolvedDesignSystemUpdatesEnabled
   ) {
     WalletTheme {
+      val resolvedBackgroundColor = backgroundColor ?: WalletTheme.colors.background
       Box(
-        modifier = modifier.background(backgroundColor),
+        modifier = modifier.background(resolvedBackgroundColor),
         contentAlignment = Alignment.Center
       ) {
         content()

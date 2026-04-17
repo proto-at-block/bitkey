@@ -6,6 +6,7 @@ import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.core.BodyModel
+import build.wallet.statemachine.core.Icon
 import build.wallet.ui.app.settings.electrum.CustomElectrumServerScreen
 import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.alert.DisableAlertModel
@@ -32,12 +33,14 @@ data class CustomElectrumServerBodyModel(
     onBack = onBack,
     switchCardModel =
       SwitchCardModel(
+        icon = Icon.DotServer,
         title = "Custom Electrum Server",
         subline = "By default, Bitkey connects to Mempool’s Electrum Server in order to access the Bitcoin blockchain. You can choose to connect to your own Electrum Server any time.",
         switchModel =
           SwitchModel(
             checked = switchIsChecked,
-            onCheckedChange = onSwitchCheckedChange
+            onCheckedChange = onSwitchCheckedChange,
+            testTag = "custom-electrum-server-toggle"
           ),
         actionRows = immutableListOfNotNull(electrumServerRow)
       ),

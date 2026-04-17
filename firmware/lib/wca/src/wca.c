@@ -7,8 +7,10 @@
 #include "log.h"
 #include "pb.h"
 #include "pb_decode.h"
+#include "ui_messaging.h"
 #include "wallet.pb.h"
 #include "wca_impl.h"
+#include "wstring.h"
 
 static const uint16_t WCA_VERSION = 1;
 
@@ -20,13 +22,45 @@ wca_priv_t wca_priv SHARED_TASK_BSS = {
 
 PB_STATIC_ASSERT(sizeof(pb_size_t) == sizeof(uint16_t), "wrong pb_size_t");
 
+static void clear_proto_cmd_ctx(void) {
+  // The command buffer is routed through IPC by reference, so a timed-out WCA
+  // exchange must not clear bytes that a queued consumer may still decode.
+  wca_priv.encoded_proto_cmd_ctx.tag = 0;
+  wca_priv.encoded_proto_cmd_ctx.size = 0;
+  wca_priv.encoded_proto_cmd_ctx.offset = 0;
+}
+
+static void clear_proto_rsp_ctx(void) {
+  wca_sem_take_nowait_t sem_take_nowait = wca_priv.encoded_proto_rsp_ctx.sem_take_nowait;
+
+  if (sem_take_nowait != NULL) {
+    while (sem_take_nowait()) {
+    }
+  }
+
+  // The response scratch buffer is shared with IPC producers and protected by
+  // the IPC response lock. Reset only the consumer-visible state here.
+  wca_priv.encoded_proto_rsp_ctx.offset = 0;
+  wca_priv.encoded_proto_rsp_ctx.size = 0;
+}
+
+static void clear_proto_state(void) {
+  clear_proto_rsp_ctx();
+  clear_proto_cmd_ctx();
+}
+
+void wca_reset_session_state(void) {
+  clear_proto_state();
+}
+
 static void handle_proto_response(uint8_t* encoded_proto, uint32_t size) {
   if (!encoded_proto && (size == 0)) {
     // Empty response, just give the semaphore.
+    clear_proto_rsp_ctx();
     wca_priv.encoded_proto_rsp_ctx.sem_give();
     return;
   }
-  ASSERT(size < sizeof(wca_priv.encoded_proto_rsp_ctx.buffer));
+  ASSERT(size <= sizeof(wca_priv.encoded_proto_rsp_ctx.buffer));
   memcpy(wca_priv.encoded_proto_rsp_ctx.buffer, encoded_proto, size);
   wca_priv.encoded_proto_rsp_ctx.size = size;
   wca_priv.encoded_proto_rsp_ctx.offset = 0;
@@ -67,6 +101,8 @@ void drain_response_buffer(uint8_t* rsp, uint32_t* rsp_len) {
 }
 
 static bool handle_proto_exchange(uint8_t* rsp, uint32_t* rsp_len) {
+  clear_proto_rsp_ctx();
+
 #ifndef EMBEDDED_BUILD
   return true;  // TODO Replace with function hook for unit tests
 #endif
@@ -77,6 +113,8 @@ static bool handle_proto_exchange(uint8_t* rsp, uint32_t* rsp_len) {
                     wca_priv.encoded_proto_cmd_ctx.size);
   if (!status) {
     LOGE("Failed to route proto %d", wca_priv.encoded_proto_cmd_ctx.tag);
+    UI_SHOW_EVENT(UI_EVENT_NFC_ERROR);
+    clear_proto_state();
     return false;
   }
 
@@ -84,8 +122,10 @@ static bool handle_proto_exchange(uint8_t* rsp, uint32_t* rsp_len) {
 
   if (!status) {
     // Expired.
-    LOGE("Task did not provide proto response in time");
+    LOGE("Proto rsp timeout");
+    UI_SHOW_EVENT(UI_EVENT_NFC_ERROR);
     RSP_FCI_GENERIC_FAILURE(rsp, 0);
+    clear_proto_state();
     return false;
   }
 
@@ -97,7 +137,9 @@ static bool handle_proto_exchange(uint8_t* rsp, uint32_t* rsp_len) {
 
 void wca_init(wca_api_t* api) {
   wca_priv.mempool = api->mempool;
+  wca_reset_session_state();
   wca_priv.encoded_proto_rsp_ctx.sem_take = api->sem_take;
+  wca_priv.encoded_proto_rsp_ctx.sem_take_nowait = api->sem_take_nowait;
   wca_priv.encoded_proto_rsp_ctx.sem_give = api->sem_give;
   ipc_proto_register_api(wca_priv.mempool, wca_priv.encoded_proto_rsp_ctx.buffer,
                          &handle_proto_response);
@@ -125,6 +167,7 @@ bool wca_handle_command(uint8_t* cmd, uint32_t cmd_len, uint8_t* rsp, uint32_t* 
   }
 
 err:
+  clear_proto_state();
   RSP_UNSUPPORTED_INS(rsp, 0);
   return false;
 }
@@ -140,6 +183,7 @@ bool wca_version(uint8_t* UNUSED(cmd), uint32_t UNUSED(cmd_len), uint8_t* rsp, u
 bool wca_proto(uint8_t* cmd, uint32_t cmd_len, uint8_t* rsp, uint32_t* rsp_len) {
   uint32_t in_len = *rsp_len;
   *rsp_len = SW_SIZE;
+  clear_proto_state();
 
   const uint32_t desired_size = (cmd[P1] << 8) | cmd[P2];
   if (desired_size > COMMAND_BUFFER_SIZE) {
@@ -182,6 +226,7 @@ bool wca_proto(uint8_t* cmd, uint32_t cmd_len, uint8_t* rsp, uint32_t* rsp_len) 
   RSP_OK(rsp, 0);
   return true;
 err:
+  clear_proto_state();
   RSP_FCI_GENERIC_FAILURE(rsp, 0);
   return false;
 }
@@ -198,6 +243,10 @@ bool wca_proto_cont(uint8_t* cmd, uint32_t cmd_len, uint8_t* rsp, uint32_t* rsp_
     goto err;
   }
 
+  if ((wca_priv.encoded_proto_cmd_ctx.size == 0) || received_full_proto()) {
+    goto err;
+  }
+
   if (wca_priv.encoded_proto_cmd_ctx.offset > wca_priv.encoded_proto_cmd_ctx.size) {
     goto err;
   }
@@ -205,7 +254,7 @@ bool wca_proto_cont(uint8_t* cmd, uint32_t cmd_len, uint8_t* rsp, uint32_t* rsp_
   const uint32_t max_proto_bytes =
     wca_priv.encoded_proto_cmd_ctx.size - wca_priv.encoded_proto_cmd_ctx.offset;
   if (num_bytes > max_proto_bytes) {
-    num_bytes = max_proto_bytes;
+    goto err;
   }
 
   memcpy(&wca_priv.encoded_proto_cmd_ctx.buffer[wca_priv.encoded_proto_cmd_ctx.offset],
@@ -221,6 +270,7 @@ bool wca_proto_cont(uint8_t* cmd, uint32_t cmd_len, uint8_t* rsp, uint32_t* rsp_
   return true;
 
 err:
+  clear_proto_state();
   RSP_FCI_GENERIC_FAILURE(rsp, 0);
   return false;
 }

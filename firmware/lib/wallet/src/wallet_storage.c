@@ -18,7 +18,6 @@ bool wkek_encrypt_and_store(char* filename, const uint8_t* data, uint32_t size) 
   uint8_t* tag = &blob[AES_GCM_IV_LENGTH + size];
 
   if (!wkek_encrypt(data, ciphertext, size, iv, tag)) {
-    LOGD("Failed to encrypt");
     goto out;
   }
 
@@ -69,8 +68,23 @@ void wallet_remove_files(void) {
 #define WALLET_INACTIVE_SPEND_KEY_PATH  ("encrypted-spend-key-inactive.bin")
 #define BTC_NETWORK_PATH                ("btc-network-type.bin")
 
-  wkek_remove_files();
+  // Delete derived key cache and keyset metadata FIRST — these contain
+  // cached private key material derived from the seed.  If a reset
+  // interrupts this sequence after the seed is deleted but before the
+  // cache is cleared, re-onboarding could mix stale cached keys (old
+  // seed) with freshly derived keys (new seed), splitting the device's
+  // auth and spending identities.
+  fs_remove(DERIVED_KEY_CACHE_PATH);
+  fs_remove(WALLET_KEYSET_PATH);
+  fs_remove(BTC_NETWORK_PATH);
 
+  // Delete seed — this is the file that wallet_is_initialized() checks.
+  // Removing it after the cache ensures no stale derivation state
+  // survives if the seed sentinel flips to "not initialized".
+  seed_remove_files();
+
+  // Delete encrypted keys before WKEK.  If interrupted, at least the
+  // WKEK still exists and any surviving keys remain decryptable.
   fs_remove(WALLET_ACTIVE_AUTH_KEY_PATH);
   fs_remove(WALLET_ACTIVE_CONFIG_KEY_PATH);
   fs_remove(WALLET_ACTIVE_SPEND_KEY_PATH);
@@ -80,9 +94,7 @@ void wallet_remove_files(void) {
   fs_remove(WALLET_INACTIVE_AUTH_KEY_PATH);
   fs_remove(WALLET_INACTIVE_CONFIG_KEY_PATH);
   fs_remove(WALLET_INACTIVE_SPEND_KEY_PATH);
-  fs_remove(BTC_NETWORK_PATH);
-  fs_remove(DERIVED_KEY_CACHE_PATH);
-  fs_remove(WALLET_KEYSET_PATH);
 
-  seed_remove_files();
+  // WKEK last — only delete after all encrypted keys are gone.
+  wkek_remove_files();
 }

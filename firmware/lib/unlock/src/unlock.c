@@ -55,7 +55,6 @@ static uint32_t get_delay_for_retry_count(uint32_t count) {
   unlock_delay_status_t delay_status = DELAY_INCOMPLETE;
   if ((retry_counter_read_delay_period_status(&delay_status) == UNLOCK_OK) &&
       (delay_status == DELAY_COMPLETE)) {
-    LOGI("Delay period for attempt %ld already waited out", count);
     return 0;
   }
 
@@ -67,10 +66,8 @@ static uint32_t get_delay_for_retry_count(uint32_t count) {
 }
 
 static void delay_callback(rtos_timer_handle_t UNUSED(timer)) {
-  LOGD("Unlock delay complete");
-
   if (retry_counter_write_delay_period_status(DELAY_COMPLETE) != UNLOCK_OK) {
-    LOGE("Failed to write delay period status");
+    LOGE("Delay status write fail");
   }
 
   rtos_timer_stop(&unlock_ctx.delay_timer);
@@ -83,10 +80,8 @@ static void begin_delay(uint32_t current_count) {
   }
 
   // Inhibit sleep for the delay duration to ensure device stays on
-  LOGD("Inhibiting sleep for %ld ms delay", delay_ms);
   sleep_inhibit(delay_ms);
 
-  LOGD("Delaying for %ld ms", delay_ms);
   rtos_timer_start(&unlock_ctx.delay_timer, delay_ms);
 }
 
@@ -105,7 +100,7 @@ static secure_bool_t compare_secrets(unlock_secret_t* secret, unlock_secret_t* s
 }
 
 static void perform_limit_response(void) {
-  LOGW("Performing limit response %d!", unlock_ctx.limit_response);
+  LOGW("Limit response %d", unlock_ctx.limit_response);
 
   switch (unlock_ctx.limit_response) {
     case RESPONSE_DELAY:
@@ -115,14 +110,14 @@ static void perform_limit_response(void) {
       unlock_perform_wipe_state();
       return;
     default:
-      LOGW("Unknown limit response");
+      LOGW("Bad limit response");
       return;
   }
 }
 
 void unlock_init_and_begin_delay(void) {
   if (unlock_storage_init() != UNLOCK_OK) {
-    LOGE("Couldn't initialize unlock storage");
+    LOGE("Unlock storage init fail");
   }
 
   unlock_ctx.initialized = true;
@@ -133,12 +128,12 @@ void unlock_init_and_begin_delay(void) {
   if (limit_response_read(&limit_response) == UNLOCK_OK) {
     unlock_ctx.limit_response = limit_response;
   } else {
-    LOGW("Couldn't load limit response; using default");
+    LOGW("Limit resp default");
   }
 
   uint32_t current_count;
   if (retry_counter_read(&current_count) != UNLOCK_OK) {
-    LOGW("Couldn't load retry counter. Defaulting to max attempt limit delay.");
+    LOGW("Retry ctr err, max delay");
     current_count = ATTEMPT_LIMIT;
   }
 
@@ -152,7 +147,7 @@ NO_OPTIMIZE unlock_err_t unlock_check_secret(unlock_secret_t* secret, uint32_t* 
   bool unlock_secret_provisioned = false;
   if ((unlock_secret_exists(&unlock_secret_provisioned) != UNLOCK_OK) ||
       !unlock_secret_provisioned) {
-    LOGE("No secret provisioned");
+    LOGE("No secret");
     return UNLOCK_NO_SECRET_PROVISIONED;
   }
 
@@ -165,7 +160,6 @@ NO_OPTIMIZE unlock_err_t unlock_check_secret(unlock_secret_t* secret, uint32_t* 
   *remaining_delay_ms = get_remaining_delay_ms();
   if (*remaining_delay_ms > 0) {
     *retry_counter = current_count;
-    LOGI("Waiting on delay: %ld to go", *remaining_delay_ms);
     return UNLOCK_WAITING_ON_DELAY;
   }
 
@@ -173,7 +167,7 @@ NO_OPTIMIZE unlock_err_t unlock_check_secret(unlock_secret_t* secret, uint32_t* 
   if (current_count < UINT32_MAX) {
     current_count++;
   } else {
-    LOGW("Retry counter would overflow!");
+    LOGW("Retry counter overflow");
   }
   if (retry_counter_write(current_count) != UNLOCK_OK) {
     return UNLOCK_STORAGE_ERR;
@@ -183,10 +177,12 @@ NO_OPTIMIZE unlock_err_t unlock_check_secret(unlock_secret_t* secret, uint32_t* 
   unlock_secret_t stored_secret = {0};
   unlock_err_t err = unlock_secret_read(&stored_secret);
   if (err != UNLOCK_OK) {
+    memzero(&stored_secret, sizeof(stored_secret));
     return err;
   }
 
   SECURE_DO_FAILOUT(compare_secrets(secret, &stored_secret) == SECURE_TRUE, { goto success; });
+  memzero(&stored_secret, sizeof(stored_secret));
 
   // Wrong secret.
   begin_delay(current_count);
@@ -214,6 +210,7 @@ success:
 
   auth_authenticate_unlock_secret();
 
+  memzero(&stored_secret, sizeof(stored_secret));
   return UNLOCK_OK;
 }
 

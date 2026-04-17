@@ -16,6 +16,6 @@ interface BitkeyDeviceOptionsUiStateMachine : StateMachine<BitkeyDeviceOptionsUi
 data class BitkeyDeviceOptionsUiProps(
   val firmwareData: FirmwareData,
   val onFirmwareMetadataClick: () -> Unit,
-  val onFirmwareUpdateClick: (FirmwareData.FirmwareUpdateState.PendingUpdate) -> Unit,
+  val onFirmwareUpdateClick: () -> Unit,
   val onWipeBitkeyClick: () -> Unit,
 )

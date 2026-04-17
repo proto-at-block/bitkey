@@ -30,6 +30,7 @@ class EmergencyExitPayloadRestorerImpl(
 ) : EmergencyExitPayloadRestorer {
   override suspend fun restoreFromPayload(
     payload: EmergencyExitKitPayload,
+    hardwareType: HardwareType,
   ): Result<AccountRestoration, EmergencyExitPayloadRestorerError> =
     coroutineBinding {
       when (payload) {
@@ -80,7 +81,7 @@ class EmergencyExitPayloadRestorerImpl(
                 isHardwareFake = false,
                 isUsingSocRecFakes = false,
                 isTestAccount = false,
-                hardwareType = HardwareType.W1
+                hardwareType = hardwareType
               )
           )
         }

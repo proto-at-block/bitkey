@@ -12,6 +12,8 @@
 #include "ipc.h"
 #include "key_manager_task_impl.h"
 #include "log.h"
+#include "lost_app_recovery_impl.h"
+#include "mcu_reset.h"
 #include "mempool.h"
 #include "onboarding.h"
 #include "pb_decode.h"
@@ -29,6 +31,8 @@
 #include "wkek.h"
 #include "wstring.h"
 
+#include <inttypes.h>
+
 static struct {
   rtos_queue_t* queue;
   uint32_t send_timeout_ms;
@@ -39,6 +43,74 @@ static struct {
   .send_timeout_ms = 1000,
   .crypto_thread = NULL,
 };
+
+bool key_manager_derive_and_serialize_pubkey(derivation_path_t path, version_bytes_t version,
+                                             uint8_t bare_key_out[BIP32_SERIALIZED_EXT_KEY_SIZE],
+                                             fingerprint_t* master_fp_out) {
+  extended_key_t key_priv __attribute__((__cleanup__(bip32_zero_key)));
+  fingerprint_t master_fp;
+  fingerprint_t parent_fp;
+
+  if (seed_derive_bip32(path, &key_priv, &master_fp, &parent_fp) != SEED_RES_OK) {
+    LOGE("derive_pubkey: seed derive fail");
+    return false;
+  }
+
+  extended_key_t key_pub __attribute__((__cleanup__(bip32_zero_key)));
+  if (!bip32_priv_to_pub(&key_priv, &key_pub)) {
+    LOGE("derive_pubkey: priv_to_pub fail");
+    return false;
+  }
+
+  uint32_t child_number = path.num_indices > 0 ? path.indices[path.num_indices - 1] : 0;
+
+  if (!bip32_serialize_ext_key(&key_pub, NULL, parent_fp.bytes, version, child_number,
+                               path.num_indices, bare_key_out, BIP32_SERIALIZED_EXT_KEY_SIZE)) {
+    LOGE("derive_pubkey: serialize fail");
+    return false;
+  }
+
+  if (master_fp_out) {
+    memcpy(master_fp_out, &master_fp, sizeof(fingerprint_t));
+  }
+
+  return true;
+}
+
+bool key_manager_derive_key_descriptor(derivation_path_t path, version_bytes_t version,
+                                       fwpb_key_descriptor* descriptor_out) {
+  if (!descriptor_out) {
+    return false;
+  }
+
+  fingerprint_t master_fingerprint;
+  if (!key_manager_derive_and_serialize_pubkey(path, version, descriptor_out->bare_bip32_key.bytes,
+                                               &master_fingerprint)) {
+    return false;
+  }
+
+  descriptor_out->bare_bip32_key.size = BIP32_SERIALIZED_EXT_KEY_SIZE;
+
+  if (path.num_indices > 0) {
+    descriptor_out->has_origin_path = true;
+    memcpy(descriptor_out->origin_path.child, path.indices, path.num_indices * sizeof(uint32_t));
+    descriptor_out->origin_path.child_count = path.num_indices;
+    descriptor_out->origin_path.wildcard = false;
+  } else {
+    descriptor_out->has_origin_path = false;
+    memzero(&descriptor_out->origin_path, sizeof(descriptor_out->origin_path));
+  }
+
+  descriptor_out->has_xpub_path = false;
+  memzero(&descriptor_out->xpub_path, sizeof(descriptor_out->xpub_path));
+
+  memcpy(descriptor_out->origin_fingerprint.bytes, master_fingerprint.bytes,
+         BIP32_KEY_FINGERPRINT_SIZE);
+  descriptor_out->origin_fingerprint.size = BIP32_KEY_FINGERPRINT_SIZE;
+  descriptor_out->wildcard = fwpb_wildcard_UNHARDENED;
+
+  return true;
+}
 
 static void handle_derive(ipc_ref_t* message) {
   fwpb_wallet_cmd* m_cmd = proto_get_cmd((uint8_t*)message->object, message->length);
@@ -51,11 +123,11 @@ static void handle_derive(ipc_ref_t* message) {
 
   if (!cmd->has_derivation_path) {
     rsp->status = fwpb_derive_rsp_derive_rsp_status_ERROR;
-    LOGE("derivation path not provided");
+    LOGE("No deriv path");
     goto out;
   } else if (cmd->derivation_path.child_count > BIP32_MAX_DERIVATION_DEPTH) {
     rsp->status = fwpb_derive_rsp_derive_rsp_status_ERROR;
-    LOGE("derivation path too long");
+    LOGE("Deriv path too long");
     goto out;
   }
 
@@ -63,58 +135,15 @@ static void handle_derive(ipc_ref_t* message) {
     .indices = cmd->derivation_path.child,
     .num_indices = cmd->derivation_path.child_count,
   };
-  extended_key_t key_priv __attribute__((__cleanup__(bip32_zero_key)));
-  fingerprint_t key_priv_master_fingerprint;
-  fingerprint_t key_priv_childs_parent_fingerprint;
-  if (seed_derive_bip32(derivation_path, &key_priv, &key_priv_master_fingerprint,
-                        &key_priv_childs_parent_fingerprint) != SEED_RES_OK) {
+
+  version_bytes_t version = (cmd->network == BITCOIN) ? MAINNET_PUB : TESTNET_PUB;
+  if (!key_manager_derive_key_descriptor(derivation_path, version, &rsp->descriptor)) {
     rsp->status = fwpb_derive_rsp_derive_rsp_status_DERIVATION_FAILED;
-    LOGE("seed_derive failed");
-    goto out;
-  }
-
-  extended_key_t key_pub __attribute__((__cleanup__(bip32_zero_key)));
-  if (!bip32_priv_to_pub(&key_priv, &key_pub)) {
-    rsp->status = fwpb_derive_rsp_derive_rsp_status_ERROR;
-    LOGE("bip32_priv_to_pub failed");
-    goto out;
-  }
-
-  uint32_t child_number =
-    derivation_path.num_indices > 0 ? derivation_path.indices[derivation_path.num_indices - 1] : 0;
-
-  if (!bip32_serialize_ext_key(&key_pub, NULL, key_priv_childs_parent_fingerprint.bytes,
-                               (cmd->network == BITCOIN) ? MAINNET_PUB : TESTNET_PUB, child_number,
-                               derivation_path.num_indices, rsp->descriptor.bare_bip32_key.bytes,
-                               BIP32_SERIALIZED_EXT_KEY_SIZE)) {
-    rsp->status = fwpb_derive_rsp_derive_rsp_status_ERROR;
-    LOGE("bip32_serialize_ext_key failed");
+    LOGE("Key derive fail");
     goto out;
   }
 
   rsp->has_descriptor = true;
-
-  // bare_bip32_key set by bip32_serialize_ext_key
-  rsp->descriptor.bare_bip32_key.size = BIP32_SERIALIZED_EXT_KEY_SIZE;
-
-  if (derivation_path.num_indices > 0) {
-    rsp->descriptor.has_origin_path = true;
-    memcpy(rsp->descriptor.origin_path.child, derivation_path.indices,
-           derivation_path.num_indices * sizeof(uint32_t));
-    rsp->descriptor.origin_path.child_count = derivation_path.num_indices;
-    rsp->descriptor.origin_path.wildcard = false;
-  } else {
-    rsp->descriptor.has_origin_path = false;
-    memzero(&rsp->descriptor.origin_path, sizeof(rsp->descriptor.origin_path));
-  }
-
-  rsp->descriptor.has_xpub_path = false;
-  memzero(&rsp->descriptor.xpub_path, sizeof(rsp->descriptor.xpub_path));
-
-  memcpy(rsp->descriptor.origin_fingerprint.bytes, key_priv_master_fingerprint.bytes,
-         BIP32_KEY_FINGERPRINT_SIZE);
-  rsp->descriptor.origin_fingerprint.size = BIP32_KEY_FINGERPRINT_SIZE;
-  rsp->descriptor.wildcard = fwpb_wildcard_UNHARDENED;
 
   rsp->status = fwpb_derive_rsp_derive_rsp_status_SUCCESS;
 
@@ -122,59 +151,74 @@ out:
   proto_send_rsp(m_cmd, m_rsp);
 }
 
+key_manager_sign_result_t key_manager_derive_and_sign(derivation_path_t path,
+                                                      const uint8_t hash[SHA256_DIGEST_SIZE],
+                                                      uint8_t sig_out[ECC_SIG_SIZE]) {
+  extended_key_t key_priv CLEANUP(bip32_zero_key);
+  if (!wallet_derive_key_priv_using_cache(&key_priv, path)) {
+    LOGE("d&s: deriv");
+    return KEY_MANAGER_SIGN_DERIVATION_FAILED;
+  }
+
+  uint8_t hash_buf[SHA256_DIGEST_SIZE];
+  memcpy(hash_buf, hash, SHA256_DIGEST_SIZE);
+  policy_sign_result_t sign_result = bip32_sign_with_policy(&key_priv, path, hash_buf, sig_out);
+  memzero(hash_buf, sizeof(hash_buf));
+  switch (sign_result) {
+    case POLICY_SIGN_SUCCESS:
+      return KEY_MANAGER_SIGN_SUCCESS;
+    case POLICY_SIGN_SIGNING_ERROR:
+      LOGE("d&s: sign");
+      return KEY_MANAGER_SIGN_SIGNING_FAILED;
+    case POLICY_SIGN_POLICY_VIOLATION:
+      LOGE("d&s: policy");
+      return KEY_MANAGER_SIGN_POLICY_VIOLATION;
+    default:
+      LOGE("d&s: err");
+      return KEY_MANAGER_SIGN_SIGNING_FAILED;
+  }
+}
+
 static void do_sync_derive_and_sign(fwpb_wallet_cmd* m_cmd, fwpb_wallet_rsp* m_rsp) {
   fwpb_derive_key_descriptor_and_sign_cmd* cmd = &m_cmd->msg.derive_key_descriptor_and_sign_cmd;
   fwpb_derive_and_sign_rsp* rsp = &m_rsp->msg.derive_and_sign_rsp;
-
-  LOGD("Sync derive and sign");
 
   derivation_path_t derivation_path = {
     .indices = cmd->derivation_path.child,
     .num_indices = cmd->derivation_path.child_count,
   };
 
-  extended_key_t key_priv CLEANUP(bip32_zero_key);
-  if (!wallet_derive_key_priv_using_cache(&key_priv, derivation_path)) {
-    rsp->status = fwpb_derive_and_sign_rsp_derive_and_sign_rsp_status_DERIVATION_FAILED;
-    return;
-  }
-
-  policy_sign_result_t sign_result =
-    bip32_sign_with_policy(&key_priv, derivation_path, cmd->hash.bytes, rsp->signature.bytes);
-  switch (sign_result) {
-    case POLICY_SIGN_SUCCESS:
+  key_manager_sign_result_t result =
+    key_manager_derive_and_sign(derivation_path, cmd->hash.bytes, rsp->signature.bytes);
+  switch (result) {
+    case KEY_MANAGER_SIGN_SUCCESS:
+      rsp->signature.size = ECC_SIG_SIZE;
+      rsp->status = fwpb_derive_and_sign_rsp_derive_and_sign_rsp_status_SUCCESS;
       break;
-    case POLICY_SIGN_SIGNING_ERROR:
+    case KEY_MANAGER_SIGN_DERIVATION_FAILED:
+      rsp->status = fwpb_derive_and_sign_rsp_derive_and_sign_rsp_status_DERIVATION_FAILED;
+      break;
+    case KEY_MANAGER_SIGN_SIGNING_FAILED:
       rsp->status = fwpb_derive_and_sign_rsp_derive_and_sign_rsp_status_SIGNING_FAILED;
-      LOGE("bip32_sign: signing failed");
-      return;
-    case POLICY_SIGN_POLICY_VIOLATION:
+      break;
+    case KEY_MANAGER_SIGN_POLICY_VIOLATION:
       rsp->status = fwpb_derive_and_sign_rsp_derive_and_sign_rsp_status_POLICY_VIOLATION;
-      LOGE("bip32_sign: policy enforced");
-      return;
+      break;
     default:
-      rsp->status = fwpb_derive_and_sign_rsp_derive_and_sign_rsp_status_ERROR;
-      LOGE("bip32_sign: failed");
-      return;
+      rsp->status = fwpb_derive_and_sign_rsp_derive_and_sign_rsp_status_SIGNING_FAILED;
+      break;
   }
-
-  rsp->signature.size = ECC_SIG_SIZE;
-  rsp->status = fwpb_derive_and_sign_rsp_derive_and_sign_rsp_status_SUCCESS;
 }
 
 static void do_async_derive_and_sign(fwpb_wallet_cmd* m_cmd, fwpb_wallet_rsp* m_rsp) {
   fwpb_derive_key_descriptor_and_sign_cmd* cmd = &m_cmd->msg.derive_key_descriptor_and_sign_cmd;
   fwpb_derive_and_sign_rsp* rsp = &m_rsp->msg.derive_and_sign_rsp;
 
-  LOGD("Status: %d", crypto_task_get_status());
-
   switch (crypto_task_get_status()) {
     case CRYPTO_TASK_IN_PROGRESS:
-      LOGD("in progress");
       m_rsp->status = fwpb_status_IN_PROGRESS;
       return;
     case CRYPTO_TASK_SUCCESS:
-      LOGD("success");
       if (!crypto_task_get_and_clear_signature(cmd->hash.bytes, cmd->derivation_path.child,
                                                cmd->derivation_path.child_count,
                                                rsp->signature.bytes)) {
@@ -185,7 +229,6 @@ static void do_async_derive_and_sign(fwpb_wallet_cmd* m_cmd, fwpb_wallet_rsp* m_
       }
       return;
     case CRYPTO_TASK_ERROR:
-      LOGD("error");
       crypto_task_reset_status();
       m_rsp->status = fwpb_status_ERROR;
       return;
@@ -199,34 +242,32 @@ static void do_async_derive_and_sign(fwpb_wallet_cmd* m_cmd, fwpb_wallet_rsp* m_
   };
   crypto_task_set_parameters(&derivation_path, cmd->hash.bytes);
 
-  rtos_notification_signal(key_manager_priv.crypto_thread);
+  crypto_task_signal();
 
   m_rsp->status = fwpb_status_IN_PROGRESS;
 }
 
-static void handle_derive_and_sign(ipc_ref_t* message) {
+void handle_derive_and_sign(ipc_ref_t* message) {
   fwpb_wallet_cmd* m_cmd = proto_get_cmd((uint8_t*)message->object, message->length);
   fwpb_wallet_rsp* m_rsp = proto_get_rsp();
 
   m_rsp->which_msg = fwpb_wallet_rsp_derive_and_sign_rsp_tag;
 
-  LOGD("Received derive_and_sign command");
-
   fwpb_derive_key_descriptor_and_sign_cmd* cmd = &m_cmd->msg.derive_key_descriptor_and_sign_cmd;
 
   if (!cmd->has_derivation_path) {
     m_rsp->status = fwpb_status_ERROR;
-    LOGE("derivation path not provided");
+    LOGE("No deriv path");
     goto out;
   } else if (cmd->derivation_path.child_count > BIP32_MAX_DERIVATION_DEPTH) {
     m_rsp->status = fwpb_status_ERROR;
-    LOGE("derivation path too long");
+    LOGE("Deriv path too long");
     goto out;
   }
 
   if (cmd->hash.size != SHA256_DIGEST_SIZE) {
     m_rsp->status = fwpb_status_ERROR;
-    LOGE("invalid hash length");
+    LOGE("Bad hash len");
     goto out;
   }
 
@@ -253,18 +294,23 @@ static void handle_seal_csek(ipc_ref_t* message) {
                  "mismatched CSEK sizes");
   _Static_assert(sizeof(cmd->msg.seal_csek_cmd.unsealed_csek.bytes) == CSEK_LENGTH,
                  "mismatched CSEK sizes");
+  _Static_assert(sizeof(cmd->msg.seal_csek_cmd.csek.nonce.bytes) == AES_GCM_IV_LENGTH,
+                 "mismatched CSEK IV sizes");
+  _Static_assert(sizeof(cmd->msg.seal_csek_cmd.csek.mac.bytes) == AES_GCM_TAG_LENGTH,
+                 "mismatched CSEK tag sizes");
 
   uint8_t* csek = NULL;
   if (!cmd->msg.seal_csek_cmd.has_csek) {
-    LOGD("Received plaintext CSEK");
-    ASSERT(sizeof(cmd->msg.seal_csek_cmd.unsealed_csek.bytes) ==
-           cmd->msg.seal_csek_cmd.unsealed_csek.size);
     csek = cmd->msg.seal_csek_cmd.unsealed_csek.bytes;
+    if (cmd->msg.seal_csek_cmd.unsealed_csek.size != CSEK_LENGTH) {
+      LOGE("Bad CSEK len");
+      rsp->status = fwpb_status_INVALID_ARGUMENT;
+      goto out;
+    }
   } else {
-    LOGD("Received CSEK wrapped in secure channel message");
-
-    if (cmd->msg.seal_csek_cmd.csek.ciphertext.size != CSEK_LENGTH) {
-      LOGE("Wrong CSEK length");
+    if (!proto_secure_channel_message_has_valid_sizes(&cmd->msg.seal_csek_cmd.csek, CSEK_LENGTH)) {
+      LOGE("Bad CSEK sizes");
+      rsp->status = fwpb_status_INVALID_ARGUMENT;
       goto out;
     }
 
@@ -273,7 +319,7 @@ static void handle_seal_csek(ipc_ref_t* message) {
                                    cmd->msg.seal_csek_cmd.csek.ciphertext.size,
                                    cmd->msg.seal_csek_cmd.csek.nonce.bytes,
                                    cmd->msg.seal_csek_cmd.csek.mac.bytes) != SECURE_CHANNEL_OK) {
-      LOGE("Failed to decrypt CSEK");
+      LOGE("CSEK decrypt fail");
       rsp->status = fwpb_status_SECURE_CHANNEL_ERROR;
       goto out;
     }
@@ -313,54 +359,24 @@ static void handle_seal_csek(ipc_ref_t* message) {
   _Static_assert(AES_GCM_TAG_LENGTH == sizeof(rsp->msg.seal_csek_rsp.sealed_csek.tag.bytes),
                  "mismatch CSEK tag sizes");
   rsp->msg.seal_csek_rsp.sealed_csek.tag.size = AES_GCM_TAG_LENGTH;
+  rsp->status = fwpb_status_SUCCESS;
 
 out:
   memzero(csek, CSEK_LENGTH);
   proto_send_rsp(cmd, rsp);
 }
 
-static void handle_unseal_csek(ipc_ref_t* message) {
-  fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
-  fwpb_wallet_rsp* rsp = proto_get_rsp();
-
-  rsp->which_msg = fwpb_wallet_rsp_unseal_csek_rsp_tag;
-
-  ASSERT(sizeof(cmd->msg.unseal_csek_cmd.sealed_csek.data.bytes) ==
-         cmd->msg.unseal_csek_cmd.sealed_csek.data.size);
-  _Static_assert(sizeof(cmd->msg.unseal_csek_cmd.sealed_csek.data.bytes) ==
-                   sizeof(rsp->msg.unseal_csek_rsp.unsealed_csek.bytes),
-                 "mismatch CSEK sizes");
-  wallet_res_t result =
-    wallet_csek_decrypt(cmd->msg.unseal_csek_cmd.sealed_csek.data.bytes,          // Wrapped CSEK
-                        rsp->msg.unseal_csek_rsp.unsealed_csek.bytes,             // Raw CSEK out
-                        sizeof(cmd->msg.unseal_csek_cmd.sealed_csek.data.bytes),  // CSEK size
-                        cmd->msg.unseal_csek_cmd.sealed_csek.nonce.bytes,         // IV
-                        cmd->msg.unseal_csek_cmd.sealed_csek.tag.bytes            // Tag
-    );
-
-  switch (result) {
-    case WALLET_RES_OK:
-      rsp->msg.unseal_csek_rsp.rsp_status = fwpb_unseal_csek_rsp_unseal_csek_rsp_status_SUCCESS;
-      break;
-    case WALLET_RES_UNSEALING_ERR:
-      rsp->msg.unseal_csek_rsp.rsp_status =
-        fwpb_unseal_csek_rsp_unseal_csek_rsp_status_UNSEAL_ERROR;
-      goto out;
-    default:
-      rsp->msg.unseal_csek_rsp.rsp_status = fwpb_unseal_csek_rsp_unseal_csek_rsp_status_ERROR;
-      goto out;
-  }
-
-  _Static_assert(CSEK_LENGTH == sizeof(rsp->msg.unseal_csek_rsp.unsealed_csek.bytes),
-                 "mismatch CSEK sizes");
-  rsp->msg.unseal_csek_rsp.unsealed_csek.size = CSEK_LENGTH;
-
-out:
-  proto_send_rsp(cmd, rsp);
-}
-
 void handle_remove_wallet_state(void) {
   onboarding_wipe_state();
+
+  // Give sysinfo time to send the wipe response back to the host before we
+  // reboot. The wipe itself is already complete at this point, so the delay
+  // only risks the app not seeing the response (worst case it retries or
+  // observes the reboot), never partial erasure.
+#define WIPE_RESET_DELAY_MS (500u)
+  rtos_thread_sleep(WIPE_RESET_DELAY_MS);
+
+  mcu_reset_with_reason(MCU_RESET_WIPE);
 }
 
 static void handle_hardware_attestation(ipc_ref_t* message) {
@@ -383,6 +399,7 @@ static void handle_hardware_attestation(ipc_ref_t* message) {
 static void handle_secure_channel_establish(ipc_ref_t* message) {
   fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
   fwpb_wallet_rsp* rsp = proto_get_rsp();
+  volatile uint32_t protocol_version = cmd->msg.secure_channel_establish_cmd.protocol_version;
 
   rsp->which_msg = fwpb_wallet_rsp_secure_channel_establish_rsp_tag;
   rsp->msg.secure_channel_establish_rsp.protocol_version = SECURE_CHANNEL_PROTOCOL_VERSION;
@@ -401,9 +418,21 @@ static void handle_secure_channel_establish(ipc_ref_t* message) {
     sizeof(rsp->msg.secure_channel_establish_rsp.key_confirmation_tag.bytes) == AES_GCM_TAG_LENGTH,
     "wrong size for key_confirmation_tag");
 
+  SECURE_IF_FAILIN(!secure_channel_protocol_version_supported(protocol_version)) {
+    LOGE("Bad SC proto ver: %" PRIu32, protocol_version);
+    rsp->status = fwpb_status_VERSION_MISMATCH;
+    goto out;
+  }
+
+  uint32_t pk_host_len = (uint32_t)cmd->msg.secure_channel_establish_cmd.pk_host.size;
+  if (pk_host_len != EC_PUBKEY_SIZE_X25519) {
+    LOGE("Bad SC pk len");
+    rsp->status = fwpb_status_INVALID_ARGUMENT;
+    goto out;
+  }
+
   if (secure_nfc_channel_establish(
-        cmd->msg.secure_channel_establish_cmd.pk_host.bytes,
-        (uint32_t)cmd->msg.secure_channel_establish_cmd.pk_host.size,
+        cmd->msg.secure_channel_establish_cmd.pk_host.bytes, pk_host_len,
         rsp->msg.secure_channel_establish_rsp.pk_device.bytes, &pk_device_len,
         rsp->msg.secure_channel_establish_rsp.exchange_sig.bytes,
         sizeof(rsp->msg.secure_channel_establish_rsp.exchange_sig.bytes),
@@ -432,6 +461,8 @@ static fwpb_status handle_grant_request(grant_action_t action, grant_request_t* 
       return fwpb_status_SUCCESS;
     case GRANT_RESULT_ERROR_SIGNING:
       return fwpb_status_SIGNING_FAILED;
+    case GRANT_RESULT_ERROR_INVALID_ARGUMENT:
+      return fwpb_status_INVALID_ARGUMENT;
     default:
       return fwpb_status_ERROR;
   }
@@ -444,6 +475,8 @@ static fwpb_status handle_grant_finalize(grant_t* grant) {
       return fwpb_status_SUCCESS;
     case GRANT_RESULT_ERROR_VERIFICATION:
       return fwpb_status_VERIFICATION_FAILED;
+    case GRANT_RESULT_ERROR_INVALID_ARGUMENT:
+      return fwpb_status_INVALID_ARGUMENT;
     case GRANT_RESULT_ERROR_REQUEST_MISMATCH:
       return fwpb_status_REQUEST_MISMATCH;
     case GRANT_RESULT_ERROR_VERSION_MISMATCH:
@@ -481,6 +514,7 @@ void handle_fingerprint_reset_finalize(ipc_ref_t* message) {
   fwpb_wallet_rsp* rsp = proto_get_rsp();
 
   rsp->which_msg = fwpb_wallet_rsp_fingerprint_reset_finalize_rsp_tag;
+  rsp->status = fwpb_status_ERROR;
 
   grant_t* grant = (grant_t*)cmd->msg.fingerprint_reset_finalize_cmd.grant.bytes;
   if (cmd->msg.fingerprint_reset_finalize_cmd.grant.size != sizeof(grant_t)) {
@@ -504,8 +538,7 @@ void handle_provision_app_auth_pubkey(ipc_ref_t* message) {
   // Check pubkey size (33 bytes for compressed secp256k1)
   if (cmd->msg.provision_app_auth_pubkey_cmd.pubkey.size != 33) {
     rsp->status = fwpb_status_INVALID_ARGUMENT;
-    LOGE("Invalid app auth pubkey size: %d (expected 33)",
-         cmd->msg.provision_app_auth_pubkey_cmd.pubkey.size);
+    LOGE("Bad app pk sz");
     goto out;
   }
 
@@ -555,7 +588,7 @@ void key_manager_thread(void* UNUSED(args)) {
 
 #if 0
     if (sysevent_get(SYSEVENT_BREAK_GLASS_READY)) {
-      LOGW("Entering break glass mode - disabling signing policies!");
+      LOGW("Break glass: policies off");
       policy_disable();
     }
 #endif
@@ -570,13 +603,13 @@ void key_manager_thread(void* UNUSED(args)) {
         break;
       // Authenticated commands
       case IPC_PROTO_UNSEAL_CSEK_CMD:
-        handle_unseal_csek(&message);
+        key_manager_task_port_handle_unseal_csek(&message);
         break;
       case IPC_PROTO_DERIVE_KEY_DESCRIPTOR_CMD:
         handle_derive(&message);
         break;
       case IPC_PROTO_DERIVE_KEY_DESCRIPTOR_AND_SIGN_CMD:
-        handle_derive_and_sign(&message);
+        key_manager_task_port_handle_derive_and_sign(&message);
         break;
       case IPC_KEY_MANAGER_REMOVE_WALLET_STATE:
         handle_remove_wallet_state();
@@ -586,6 +619,11 @@ void key_manager_thread(void* UNUSED(args)) {
         break;
       case IPC_KEY_MANAGER_CLEAR_DERIVED_KEY_CACHE:
         wallet_clear_derived_key_cache();
+        break;
+      case IPC_KEY_MANAGER_SIGN_DEFERRED:
+        key_manager_task_try_deferred_sign();
+        key_manager_task_try_deferred_stream_sign();
+        key_manager_task_try_sap_deferred_sign();
         break;
       case IPC_PROTO_FINGERPRINT_RESET_REQUEST_CMD: {
         handle_fingerprint_reset_request(&message);
@@ -607,16 +645,92 @@ void key_manager_thread(void* UNUSED(args)) {
         key_manager_task_port_handle_verify_keys_and_build_descriptor(&message);
         break;
       }
-      case IPC_KEY_MANAGER_UXC_BOOT: {
-        key_manager_task_handle_uxc_boot();
+      case IPC_KEY_MANAGER_UXC_SESSION_INIT: {
+        key_manager_task_handle_uxc_session_init();
+        break;
+      }
+      case IPC_PROTO_SIGN_TX_REQUEST_CMD: {
+        key_manager_task_handle_sign_tx_request(&message);
+        break;
+      }
+      case IPC_PROTO_SIGN_STREAM_START_CMD: {
+        key_manager_task_handle_sign_stream_start(&message);
+        break;
+      }
+      case IPC_PROTO_SIGN_STREAM_TRANSFER_CMD: {
+        key_manager_task_handle_sign_stream_transfer(&message);
+        break;
+      }
+      case IPC_PROTO_SIGN_STREAM_FINALIZE_CMD: {
+        key_manager_task_handle_sign_stream_finalize(&message);
+        break;
+      }
+      case IPC_PROTO_GET_TX_SIGNATURE_CMD: {
+        key_manager_task_handle_get_tx_signature(&message);
+        break;
+      }
+      case IPC_PROTO_GET_TX_SIGNATURES_BATCH_CMD: {
+        key_manager_task_handle_get_tx_signatures_batch(&message);
         break;
       }
       case IPC_KEY_MANAGER_UXC_SESSION_RESPONSE: {
         key_manager_task_handle_uxc_session_response(&message);
         break;
       }
+      case IPC_PROTO_SIGN_ACTION_PROOF_CMD: {
+        key_manager_task_handle_sign_action_proof(&message);
+        break;
+      }
+      case IPC_PROTO_LOST_APP_RECOVERY_CMD: {
+        key_manager_task_handle_lost_app_recovery(&message);
+        break;
+      }
+      case IPC_PROTO_LOST_APP_RECOVERY_CONTINUE_CMD: {
+        key_manager_task_handle_lost_app_recovery_continue(&message);
+        break;
+      }
+      case IPC_PROTO_LOST_APP_RECOVERY_SIGN_CHALLENGE_CMD: {
+        key_manager_task_handle_lost_app_recovery_sign_challenge(&message);
+        break;
+      }
+      case IPC_PROTO_ROTATE_APP_AUTH_KEYS_CMD: {
+        key_manager_task_handle_rotate_app_auth_keys(&message);
+        break;
+      }
+      case IPC_PROTO_UPGRADE_ROTATE_APP_AUTH_KEYS_CMD: {
+        key_manager_task_handle_upgrade_rotate_app_auth_keys(&message);
+        break;
+      }
+      case IPC_PROTO_SIGN_CHALLENGE_AND_SEAL_SEKS_CMD: {
+        key_manager_task_handle_sign_challenge_and_seal_seks(&message);
+        break;
+      }
+      case IPC_PROTO_RECOVERY_AUTHORIZE_LOST_APP_CMD: {
+        key_manager_task_handle_recovery_authorize_lost_app(&message);
+        break;
+      }
+      case IPC_PROTO_RECOVERY_AUTHORIZE_LOST_HW_CMD: {
+        key_manager_task_handle_recovery_authorize_lost_hw(&message);
+        break;
+      }
+      case IPC_PROTO_UPGRADE_AUTHORIZE_W3_CMD: {
+        key_manager_task_handle_upgrade_authorize_w3(&message);
+        break;
+      }
+      case IPC_PROTO_EEK_RESTORATION_UNSEAL_SYMMETRIC_KEY_CMD: {
+        key_manager_task_handle_eek_restoration_unseal_symmetric_key(&message);
+        break;
+      }
+      case IPC_PROTO_FULL_ACCOUNT_CLOUD_BACKUP_RESTORATION_CMD: {
+        key_manager_task_handle_full_account_cloud_backup_restoration(&message);
+        break;
+      }
+      case IPC_PROTO_FULL_ACCOUNT_CLOUD_BACKUP_RESTORATION_CONTINUE_CMD: {
+        key_manager_task_handle_full_account_cloud_backup_restoration_continue(&message);
+        break;
+      }
       default:
-        LOGE("unknown message %ld", message.tag);
+        LOGE("Unknown msg: %ld", message.tag);
     }
   }
 }
@@ -642,5 +756,5 @@ void key_manager_task_create(void) {
   wallet_init(key_manager_priv.mempool);
 
   // Intentionally NOT enabled for this release.
-  policy_init(&wallet_get_w1_auth_path, false);
+  policy_init(&wallet_get_w1_auth_path, SECURE_FALSE);
 }

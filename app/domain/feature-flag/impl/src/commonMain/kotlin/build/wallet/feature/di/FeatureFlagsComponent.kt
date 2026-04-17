@@ -83,18 +83,18 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
-  fun provideCheckHardwareIsPairedFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    CheckHardwareIsPairedFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
   fun provideNfcSessionRetryAttemptsFeatureFlag(featureFlagDao: FeatureFlagDao) =
     NfcSessionRetryAttemptsFeatureFlag(featureFlagDao)
 
   @Provides
   @SingleIn(AppScope::class)
-  fun fingerprintResetFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    FingerprintResetFeatureFlag(featureFlagDao)
+  fun fwupNfcCooldownPeriodSecondsFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    FwupNfcCooldownPeriodSecondsFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun fwupNfcBackgroundRetryStartupRevealDelayMsFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    FwupNfcBackgroundRetryStartupRevealDelayMsFeatureFlag(featureFlagDao)
 
   @Provides
   @SingleIn(AppScope::class)
@@ -232,6 +232,11 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
+  fun defaultBitcoinDisplayUnitFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    DefaultBitcoinDisplayUnitFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
   fun wipeHardwareLoggedOutFeatureFlag(featureFlagDao: FeatureFlagDao) =
     WipeHardwareLoggedOutFeatureFlag(featureFlagDao)
 
@@ -248,9 +253,10 @@ interface FeatureFlagsComponent {
     utxoMaxConsolidationCountFeatureFlag: UtxoMaxConsolidationCountFeatureFlag,
     mobileRealTimeMetricsFeatureFlag: MobileRealTimeMetricsFeatureFlag,
     usSmsFeatureFlag: UsSmsFeatureFlag,
-    checkHardwareIsPairedFeatureFlag: CheckHardwareIsPairedFeatureFlag,
     nfcSessionRetryAttemptsFeatureFlag: NfcSessionRetryAttemptsFeatureFlag,
-    fingerprintResetFeatureFlag: FingerprintResetFeatureFlag,
+    fwupNfcCooldownPeriodSecondsFeatureFlag: FwupNfcCooldownPeriodSecondsFeatureFlag,
+    fwupNfcBackgroundRetryStartupRevealDelayMsFeatureFlag:
+      FwupNfcBackgroundRetryStartupRevealDelayMsFeatureFlag,
     fingerprintResetMinFirmwareVersionFeatureFlag: FingerprintResetMinFirmwareVersionFeatureFlag,
     txVerificationFeatureFlag: TxVerificationFeatureFlag,
     atRiskNotificationsFeatureFlag: AtRiskNotificationsFeatureFlag,
@@ -280,6 +286,7 @@ interface FeatureFlagsComponent {
     iosCloudKitBackupFeatureFlag: IosCloudKitBackupFeatureFlag,
     designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
     vaultsFeatureFlag: VaultsFeatureFlag,
+    defaultBitcoinDisplayUnitFeatureFlag: DefaultBitcoinDisplayUnitFeatureFlag,
     wipeHardwareLoggedOutFeatureFlag: WipeHardwareLoggedOutFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
@@ -289,8 +296,6 @@ interface FeatureFlagsComponent {
       expectedTransactionsPhase2FeatureFlag,
       mobileRealTimeMetricsFeatureFlag,
       usSmsFeatureFlag,
-      checkHardwareIsPairedFeatureFlag,
-      fingerprintResetFeatureFlag,
       fingerprintResetMinFirmwareVersionFeatureFlag,
       atRiskNotificationsFeatureFlag,
       chaincodeDelegationFeatureFlag,
@@ -318,6 +323,8 @@ interface FeatureFlagsComponent {
       coachmarksGlobalFeatureFlag,
       nfcHapticsOnConnectedIsEnabledFeatureFlag,
       nfcSessionRetryAttemptsFeatureFlag,
+      fwupNfcCooldownPeriodSecondsFeatureFlag,
+      fwupNfcBackgroundRetryStartupRevealDelayMsFeatureFlag,
       firmwareCommsLoggingFeatureFlag,
       asyncNfcSigningFeatureFlag,
       bip177FeatureFlag,
@@ -325,6 +332,7 @@ interface FeatureFlagsComponent {
       cloudBackupForceReuploadTimestampFeatureFlag,
       designSystemUpdatesFeatureFlag,
       vaultsFeatureFlag,
+      defaultBitcoinDisplayUnitFeatureFlag,
       wipeHardwareLoggedOutFeatureFlag
     )
   }

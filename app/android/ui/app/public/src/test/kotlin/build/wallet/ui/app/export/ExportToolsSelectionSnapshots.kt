@@ -19,7 +19,8 @@ class ExportToolsSelectionSnapshots : FunSpec({
         ExportToolsSelectionModel(
           onBack = {},
           onExportDescriptorClick = {},
-          onExportTransactionHistoryClick = {}
+          onExportTransactionHistoryClick = {},
+          isDesignSystemV2Enabled = false
         )
       )
     }

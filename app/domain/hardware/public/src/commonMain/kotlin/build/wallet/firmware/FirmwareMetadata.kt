@@ -16,6 +16,13 @@ data class FirmwareMetadata(
   enum class FirmwareSlot {
     A,
     B,
+    ;
+
+    /** Returns the opposite slot. FWUP writes to the inactive slot and boots from it. */
+    fun toggled(): FirmwareSlot = when (this) {
+      A -> B
+      B -> A
+    }
   }
 
   public fun versionAsUInt(): UInt {

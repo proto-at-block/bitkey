@@ -51,8 +51,11 @@ void usart_task_mpu_init(void) {
   /* USART peripheral */
   mpu_set_region(regions, idx++, MPU_PERIPHERAL_EUSART0_ADDR, MPU_PERIPHERAL_EUSART0_SIZE,
                  MPU_PARAMS_PERIPHERAL);
+
+  /* SEMAILBOX peripheral */
+  mpu_set_region(regions, idx++, MPU_PERIPHERAL_SEMAILBOX_ADDR, MPU_PERIPHERAL_SEMAILBOX_SIZE,
+                 MPU_PARAMS_PERIPHERAL);
 #endif
 
-  /* Privileged required to access peripherals. */
-  _usart_task_thread_regions.privilege = rtos_thread_privileged_bit;
+  _usart_task_thread_regions.privilege = rtos_thread_unprivileged_bit;
 }

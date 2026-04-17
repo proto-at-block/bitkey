@@ -1,11 +1,9 @@
 package build.wallet.statemachine.dev
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.fwup.FirmwareData
 import build.wallet.platform.config.AppVariant
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
@@ -22,33 +20,25 @@ class BitkeyDeviceOptionsUiStateMachineImpl(
 ) : BitkeyDeviceOptionsUiStateMachine {
   @Composable
   override fun model(props: BitkeyDeviceOptionsUiProps): ListGroupModel {
-    // Only show button to FWUP if there is a pending update
-    // and we are not in a Customer build
+    // Always show FWUP button in non-Customer builds so users can
+    // trigger a fresh memfault download + metadata verification
     val firmwareUpdateItem =
       when (appVariant) {
         AppVariant.Customer -> null
-        else -> {
-          when (val firmwareUpdateState = props.firmwareData.firmwareUpdateState) {
-            is FirmwareData.FirmwareUpdateState.UpToDate -> null
-            is FirmwareData.FirmwareUpdateState.PendingUpdate ->
-              ListItemModel(
-                title = "Firmware Update",
-                trailingAccessory =
-                  ButtonAccessory(
-                    model =
-                      BitkeyInteractionButtonModel(
-                        text = "Update",
-                        isLoading = false,
-                        size = Compact,
-                        onClick = StandardClick
-                          {
-                            props.onFirmwareUpdateClick(firmwareUpdateState)
-                          }
-                      )
+        else ->
+          ListItemModel(
+            title = "Firmware Update",
+            trailingAccessory =
+              ButtonAccessory(
+                model =
+                  BitkeyInteractionButtonModel(
+                    text = "Update",
+                    isLoading = false,
+                    size = Compact,
+                    onClick = StandardClick { props.onFirmwareUpdateClick() }
                   )
               )
-          }
-        }
+          )
       }
 
     return ListGroupModel(

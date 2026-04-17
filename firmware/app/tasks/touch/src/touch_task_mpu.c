@@ -26,6 +26,10 @@ void touch_task_mpu_init(void) {
     mpu_calc_region_size(&__shared_task_protected_start__, &__shared_task_protected_end__),
     MPU_PARAMS_RO_NOEXEC);
 
-  /* Privileged required to access peripherals. */
-  _touch_task_thread_regions.privilege = rtos_thread_privileged_bit;
+  /* Shared task data */
+  mpu_set_region(regions, idx++, (void*)&__shared_task_data_start__,
+                 mpu_calc_region_size(&__shared_task_data_start__, &__shared_task_data_end__),
+                 MPU_PARAMS_RW_NOEXEC);
+
+  _touch_task_thread_regions.privilege = rtos_thread_unprivileged_bit;
 }

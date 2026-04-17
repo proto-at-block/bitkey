@@ -20,7 +20,7 @@ import kotlinx.coroutines.sync.Mutex
  *
  * Current implementation is deadlock-free because:
  * - No operation calls another operation that holds this lock
- * - CloudBackupRepository operations don't acquire this lock
+ * - CloudBackupService operations don't acquire this lock
  * - No circular dependencies in the call graph
  *
  * **RACE CONDITIONS PREVENTED:**

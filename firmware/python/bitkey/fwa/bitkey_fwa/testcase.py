@@ -1,15 +1,18 @@
+import os
 import re
+import shutil
+import subprocess
+import tempfile
 import unittest
 from typing import Optional
 
 from Crypto.Hash import SHA256
-from Crypto.Signature import DSS
 from elftools.dwarf.dwarfinfo import DWARFInfo
 from elftools.elf.elffile import ELFFile
 from elftools.elf.sections import Section, Symbol
 
 from . import decorators, fwut, reporter
-from .keys import get_all_keys, get_key
+from .keys import get_all_verification_key_managers, get_verification_key_manager
 
 
 class TestCase(unittest.TestCase):
@@ -218,6 +221,46 @@ class TestCase(unittest.TestCase):
 
         return data
 
+    def get_elf_binary_data(self) -> bytes:
+        """Convert the ELF under test to a gap-filled binary like the signer does."""
+
+        input_path = fwut.FirmwareUnderTest.path
+        self.assertIsNotNone(input_path, "Firmware path not set")
+
+        objcopy = shutil.which("arm-none-eabi-objcopy")
+        if objcopy is None:
+            objcopy = str(fwut.root_fw_dir / "bin" / "arm-none-eabi-objcopy")
+
+        with tempfile.NamedTemporaryFile(suffix=".bin", delete=False) as tmp:
+            output_path = tmp.name
+
+        try:
+            subprocess.run(
+                [
+                    objcopy,
+                    "-O",
+                    "binary",
+                    str(input_path),
+                    output_path,
+                    "--gap-fill",
+                    str(hex(0xFF)),
+                ],
+                check=True,
+                capture_output=True,
+            )
+            with open(output_path, "rb") as f:
+                return f.read()
+        except FileNotFoundError:
+            self.fail("arm-none-eabi-objcopy not found")
+        except subprocess.CalledProcessError as e:
+            stderr = e.stderr.decode(errors="replace").strip()
+            self.fail(f"arm-none-eabi-objcopy failed: {stderr}")
+        finally:
+            try:
+                os.unlink(output_path)
+            except FileNotFoundError:
+                pass
+
     def get_macros(self, name: bytes, limit: Optional[int] = None) -> list:
         """Get the macro bodies that starts with 'name'
 
@@ -259,14 +302,16 @@ class TestCase(unittest.TestCase):
         """
 
         try:
-            key = get_key(key_fmt)
+            key_manager = get_verification_key_manager(key_fmt)
         except FileNotFoundError as e:
             self.fail(f"Key not found: {e}")
+        except ValueError as e:
+            self.fail(f"Key invalid: {e}")
+
         h = SHA256.new(data)
-        verifier = DSS.new(key, "fips-186-3")
 
         try:
-            verifier.verify(h, signature)
+            key_manager.verify_signature(h, signature)
             return
         except ValueError:
             pass
@@ -275,23 +320,23 @@ class TestCase(unittest.TestCase):
         # check all keys of the associated security level
         # if that fails, then check the opposite security keys
         security = fwut.FirmwareUnderTest.security
-        keys = get_all_keys(key_fmt, security)
-        for key in keys:
-            verifier = DSS.new(key, "fips-186-3")
+        key_managers = get_all_verification_key_managers(key_fmt, security)
+        for key_manager in key_managers:
             try:
-                verifier.verify(h, signature)
+                key_manager.verify_signature(h, signature)
                 raise Warning("Warning: Firmware signed with incorrect key type")
             except ValueError:
                 pass
 
         # check the latest opposite security key
         opposite_security = fwut.FirmwareUnderTest.get_opposite_security()
-        opposite_keys = get_all_keys(key_fmt, opposite_security)
+        opposite_key_managers = get_all_verification_key_managers(
+            key_fmt, opposite_security
+        )
 
-        for key in opposite_keys:
-            verifier = DSS.new(key, "fips-186-3")
+        for key_manager in opposite_key_managers:
             try:
-                verifier.verify(h, signature)
+                key_manager.verify_signature(h, signature)
                 if fwut.FirmwareUnderTest.is_production():
                     raise Warning("Warning: Prod fw is dev signed")
                 else:

@@ -7,6 +7,9 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.P
 import build.wallet.bitcoin.transactions.BitcoinTransactionReceive
 import build.wallet.bitcoin.transactions.BitcoinTransactionSend
 import build.wallet.bitcoin.transactions.BitcoinTransactionUtxoConsolidation
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
+import build.wallet.feature.setFlagValue
 import build.wallet.money.currency.USD
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
@@ -29,6 +32,8 @@ import kotlin.time.Duration.Companion.minutes
 
 class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
   val timeZoneProvider = TimeZoneProviderMock()
+  val featureFlagDao = FeatureFlagDaoFake()
+  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(featureFlagDao)
   val confirmedTime = BitcoinTransactionSend.confirmationTime()!!
   val broadcastTime = someInstant
   val timeToFormattedTime =
@@ -42,6 +47,7 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
 
   val stateMachine =
     BitcoinTransactionItemUiStateMachineImpl(
+      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
       currencyConverter =
         CurrencyConverterFake(
           conversionRate = 3.0,
@@ -55,6 +61,7 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
 
   beforeTest {
     clock.reset()
+    designSystemUpdatesFeatureFlag.reset()
   }
 
   test("pending receive transaction model") {
@@ -90,6 +97,21 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
       }
 
       awaitItem().sideText.shouldBe("+ $4.00")
+    }
+  }
+
+  test("pending receive transaction model with design system v2") {
+    designSystemUpdatesFeatureFlag.setFlagValue(true)
+
+    stateMachine.test(makeProps(BitcoinTransactionReceive.copy(confirmationStatus = Pending))) {
+      awaitItem().let {
+        it.leadingAccessory.shouldBeTypeOf<ListItemAccessory.IconAccessory>()
+          .model
+          .badge
+          .shouldBe(BadgeType.CircularLoading)
+      }
+
+      awaitItem().sideText.shouldBe("+ $3.00")
     }
   }
 

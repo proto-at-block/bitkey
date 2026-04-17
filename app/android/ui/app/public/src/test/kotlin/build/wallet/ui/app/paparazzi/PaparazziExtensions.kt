@@ -18,8 +18,11 @@ import build.wallet.ui.theme.WalletTheme
  * Renders actual sheet layout with [model]'s UI content.
  * Uses blank background behind the sheet.
  */
-fun PaparazziExtension.snapshotSheet(model: SheetModel) {
-  snapshot {
+fun PaparazziExtension.snapshotSheet(
+  model: SheetModel,
+  designSystemUpdatesEnabled: Boolean = false,
+) {
+  snapshot(designSystemUpdatesEnabled = designSystemUpdatesEnabled) {
     Column(
       Modifier
         .fillMaxSize()
@@ -43,6 +46,12 @@ fun PaparazziExtension.snapshotSheet(model: SheetModel) {
 /**
  * Captures UI snapshot of a [Sheet] for given [FormBodyModel].
  */
-fun PaparazziExtension.snapshotSheet(model: FormBodyModel) {
-  snapshotSheet(model.asSheetModalScreen(onClosed = {}))
+fun PaparazziExtension.snapshotSheet(
+  model: FormBodyModel,
+  designSystemUpdatesEnabled: Boolean = false,
+) {
+  snapshotSheet(
+    model = model.asSheetModalScreen(onClosed = {}),
+    designSystemUpdatesEnabled = designSystemUpdatesEnabled
+  )
 }

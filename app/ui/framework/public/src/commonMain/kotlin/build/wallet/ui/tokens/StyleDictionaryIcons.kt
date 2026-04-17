@@ -28,6 +28,7 @@ private class LightStyleDictionaryIcons : StyleDictionaryIcons {
       BitkeyDeviceRaised -> Res.drawable.bitkey_device_raised
       BitkeyDeviceRaisedSmall -> Res.drawable.bitkey_device_raised_small
       BitkeyLogo -> Res.drawable.bitkey_logo
+      NfcTwoTap -> Res.drawable.nfc_two_tap_light
       BuyOwnBitkeyHero -> Res.drawable.buy_own_bitkey_hero
       CloudBackupEmergencyExitKit -> Res.drawable.cloud_backup_emergency_access_kit
       CloudBackupMobileKey -> Res.drawable.cloud_backup_mobile_key
@@ -148,6 +149,41 @@ private class LightStyleDictionaryIcons : StyleDictionaryIcons {
       SmallIconX -> Res.drawable.small_icon_x
       SmallIconXFilled -> Res.drawable.small_icon_xfilled
       SmallIconXStroked -> Res.drawable.small_icon_xstroked
+      DotAddressVerification -> Res.drawable.dot_address_verification
+      DotAppKey -> Res.drawable.dot_app_key
+      DotAppSecurity -> Res.drawable.dot_app_security
+      DotBitcoin -> Res.drawable.dot_bitcoin
+      DotBitkey -> Res.drawable.dot_bitkey
+      DotCloud -> Res.drawable.dot_cloud
+      DotCloudBackup -> Res.drawable.dot_cloud_backup
+      DotCoins -> Res.drawable.dot_coins
+      DotCommunication -> Res.drawable.dot_communication
+      DotCriticalAlerts -> Res.drawable.dot_critical_alerts
+      DotCriticalAlerts2 -> Res.drawable.dot_critical_alerts_2
+      DotDevelopers -> Res.drawable.dot_developers
+      DotEmergency -> Res.drawable.dot_emergency
+      DotEmptyState -> Res.drawable.dot_empty_state
+      DotFingerprint -> Res.drawable.dot_fingerprint
+      DotFingerprintsMultiple -> Res.drawable.dot_fingerprints_multiple
+      DotIconsSearch -> Res.drawable.dot_icons_search
+      DotInheritance -> Res.drawable.dot_inheritance
+      DotLab -> Res.drawable.dot_lab
+      DotLoading -> Res.drawable.dot_loading
+      DotMobile -> Res.drawable.dot_mobile
+      DotNews -> Res.drawable.dot_news
+      DotNotifyEmail -> Res.drawable.dot_notify_email
+      DotNotifyPush -> Res.drawable.dot_notify_push
+      DotNotifySms -> Res.drawable.dot_notify_sms
+      DotPair -> Res.drawable.dot_pair
+      DotPrivacy -> Res.drawable.dot_privacy
+      DotRecoveryContact -> Res.drawable.dot_recovery_contact
+      DotRecoveryContact2 -> Res.drawable.dot_recovery_contact_2
+      DotSecurity -> Res.drawable.dot_security
+      DotServer -> Res.drawable.dot_server
+      DotTakes -> Res.drawable.dot_takes
+      DotVaults -> Res.drawable.dot_vaults
+      DotVerification -> Res.drawable.dot_verification
+      DotWorld -> Res.drawable.dot_world
       CalloutArrow -> Res.drawable.callout_arrow
       ThemeLight -> Res.drawable.theme_light
       ThemeDark -> Res.drawable.theme_dark
@@ -168,6 +204,7 @@ private class DarkStyleDictionaryIcons(
       MoneyHomeHero -> Res.drawable.money_home_hero_dark
       LargeIconNetworkError -> Res.drawable.large_icon_network_error_dark
       SmallIconSettingsBadged -> Res.drawable.small_icon_settings_badged_dark
+      NfcTwoTap -> Res.drawable.nfc_two_tap_dark
 
       // For all other icons, fall back to the light theme icons
       else -> lightIcons.getDrawableResource(icon)

@@ -60,6 +60,7 @@ fun QrCode(
   matrix: QRMatrix,
   cellShape: CellShape = Circle,
   centerIcon: Icon? = null,
+  backgroundColor: Color? = null,
 ) {
   // Use BoxWithConstraints so that we can derive size constraints from
   // parent layout node. We need those constraints to set appropriate
@@ -75,6 +76,7 @@ fun QrCode(
       matrix = matrix,
       cellShape = cellShape,
       centerIcon = centerIcon,
+      backgroundColor = backgroundColor,
       qrCodeSizeDp = qrCodeSizeDp
     )
   }
@@ -85,9 +87,10 @@ fun QrCodeWithData(
   matrix: QRMatrix,
   cellShape: CellShape = Circle,
   centerIcon: Icon? = null,
+  backgroundColor: Color? = null,
   qrCodeSizeDp: Dp,
 ) {
-  val backgroundColor = WalletTheme.colors.background
+  val resolvedBackgroundColor = backgroundColor ?: WalletTheme.colors.background
   val cellColor = WalletTheme.colors.foreground
 
   // Track old and new matrices for animation
@@ -153,7 +156,7 @@ fun QrCodeWithData(
           baseOffset = baseOffset,
           cellSize = cellSize,
           color = cellColor,
-          backgroundColor = backgroundColor
+          backgroundColor = resolvedBackgroundColor
         )
       }
 
@@ -175,7 +178,7 @@ fun QrCodeWithData(
         baseOffset = baseOffset,
         cellSize = cellSize,
         color = cellColor,
-        backgroundColor = backgroundColor
+        backgroundColor = resolvedBackgroundColor
       )
     }
 

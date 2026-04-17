@@ -115,6 +115,7 @@ class FeeBumpConfirmationUiStateMachineImpl(
 
       is State.SigningWithHardware -> signTransactionNfcSessionUiStateMachine.model(
         SignTransactionNfcSessionUiProps(
+          account = props.account,
           psbt = currentState.appSignedPsbt,
           onBack = {
             uiState = State.ConfirmingFeeBump(

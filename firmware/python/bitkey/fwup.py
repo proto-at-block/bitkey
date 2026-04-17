@@ -18,7 +18,9 @@ from nanopb_pb2 import nanopb
 from tqdm import tqdm
 
 from . import util
+from .confirmation import CONFIRMATION_TIMEOUT_SECONDS
 from .comms import WalletComms
+from .partition_info import get_bootloader_metadata_offset_and_size
 
 
 @dataclass
@@ -37,11 +39,42 @@ class FwupStartConfirmationPending:
 @dataclass
 class FwupStartFailure:
     """Firmware update failed to start."""
+    response: Optional[object] = None
+    reason: Optional[str] = None
+
+
+@dataclass
+class FwupStartSkipped:
+    """Firmware update was skipped because it is already up to date."""
     pass
 
 
 FwupStartResult = Union[FwupStartSuccess,
-                        FwupStartConfirmationPending, FwupStartFailure]
+                        FwupStartConfirmationPending, FwupStartFailure, FwupStartSkipped]
+
+
+def _active_fwup_start_rsp(response: object) -> Optional[object]:
+    try:
+        if hasattr(response, "WhichOneof") and response.WhichOneof("msg") == "fwup_start_rsp":
+            return response.fwup_start_rsp
+    except Exception:
+        pass
+
+    try:
+        if hasattr(response, "HasField") and response.HasField("fwup_start_rsp"):
+            return response.fwup_start_rsp
+    except Exception:
+        pass
+
+    return None
+
+
+def _print_start_failure(message: str, failure: FwupStartFailure) -> None:
+    print(message)
+    if failure.response is not None:
+        print(_active_fwup_start_rsp(failure.response) or failure.response)
+    elif failure.reason is not None:
+        print(f"Reason: {failure.reason}")
 
 
 @dataclass
@@ -70,7 +103,7 @@ class FwupBundle:
 
 @dataclass
 class FwupParams:
-    version: int
+    version: str
     chunk_size: int
     signature_offset: int
     app_props_offset: int
@@ -129,7 +162,7 @@ class FwupParams:
 
         # Finally iterate over the sections, now with sizes, to compute the
         # offset and populate the FWUP parameters.
-        params: FwupParams = FwupParams(0, 0, 0, 0, 0)
+        params: FwupParams = FwupParams("", 0, 0, 0, 0)
         offset: int = 0
         for section in sections:
             name = section.get("name", "")
@@ -160,6 +193,14 @@ class FwupParams:
         return params
 
 
+@dataclass(frozen=True)
+class FwupUpdateInfo:
+    active_slot: int
+    active_version: semver.VersionInfo
+    target_slot: int
+    target_version: semver.VersionInfo
+
+
 class Fwup:
     FWUP_BUNDLE_YAML_NAME = "fwup-manifest.yml"
 
@@ -170,7 +211,8 @@ class Fwup:
                  comms: WalletComms = None,
                  mode="FWUP_MODE_NORMAL",
                  fwup_params: Optional[FwupParams] = None,
-                 mcu_role: Optional[int] = None):
+                 mcu_role: Optional[int] = None,
+                 defer_commit: bool = False):
         """Firmware update handler.
 
         A directory containing a 'fwup bundle' (a manifest yaml and associated firmware
@@ -188,6 +230,7 @@ class Fwup:
         self.delta = (mode == 'FWUP_MODE_DELTA_INLINE') or (
             mode == 'FWUP_MODE_DELTA_ONESHOT')
         self.mcu_role: int = mcu_role
+        self.defer_commit: bool = defer_commit
 
         self.force = self.binary or self.signature
         if self.bundle_dir and self.force:
@@ -248,24 +291,34 @@ class Fwup:
 
         raise ValueError(f"MCU role {mcu_role} not found in manifest")
 
-    def _prepare(self):
+    def _prepare(self) -> Optional[FwupStartResult]:
         if self.force:
-            return True
+            return None
 
         # Determine if update is needed.
-        target_slot, version = self._update_info()
+        update_info = self._update_info()
         bundle_version = semver.VersionInfo.parse(self.params.version)
-        needed = version < bundle_version
-        if not needed:
+        if update_info.active_version == bundle_version:
             print(
-                f"Update not needed. Current version is {version}, but requested an update to {self.params.version}")
+                "Update not needed. "
+                f"Active slot {wallet_pb.firmware_slot.Name(update_info.active_slot).lower()} "
+                f"is already {update_info.active_version}, "
+                f"requested {self.params.version}; "
+                f"target slot {wallet_pb.firmware_slot.Name(update_info.target_slot).lower()} "
+                f"is {update_info.target_version}"
+            )
+            return FwupStartSkipped()
+        elif update_info.active_version > bundle_version:
+            print(
+                "Update rejected. "
+                f"Active slot {wallet_pb.firmware_slot.Name(update_info.active_slot).lower()} "
+                f"is newer ({update_info.active_version}) than requested {self.params.version}; "
+                f"target slot {wallet_pb.firmware_slot.Name(update_info.target_slot).lower()} "
+                f"is {update_info.target_version}"
+            )
+            return FwupStartFailure()
 
         # Select binary and signature from MCU-specific or single-MCU assets
-        if target_slot == wallet_pb.firmware_slot.SLOT_A:
-            app = 'application_a'
-        elif target_slot == wallet_pb.firmware_slot.SLOT_B:
-            app = 'application_b'
-
         if self.is_multi_mcu:
             # Use MCU-specific assets
             assets = self.mcu_manifest['assets']
@@ -273,32 +326,59 @@ class Fwup:
             # Single-MCU (W1)
             assets = self.manifest_dict['assets']
 
+        if self.delta:
+            if update_info.target_slot == wallet_pb.firmware_slot.SLOT_A:
+                app = "b2a_patch"
+            elif update_info.target_slot == wallet_pb.firmware_slot.SLOT_B:
+                app = "a2b_patch"
+        else:
+            if update_info.target_slot == wallet_pb.firmware_slot.SLOT_A:
+                app = 'application_a'
+            elif update_info.target_slot == wallet_pb.firmware_slot.SLOT_B:
+                app = 'application_b'
+
         self.binary = Path(self.bundle_dir) / assets[app]['image']['name']
         self.signature = Path(self.bundle_dir) / \
             assets[app]['signature']['name']
 
+        active_slot_name: str = wallet_pb.firmware_slot.Name(
+            update_info.active_slot).lower()
+        target_slot_name: str = wallet_pb.firmware_slot.Name(
+            update_info.target_slot).lower()
         print(
-            f"Updating into slot {app} from {version} to {self.params.version} with {self.binary}, {self.signature}")
-        return needed
+            f"Active slot {active_slot_name} is {update_info.active_version}; "
+            f"updating {target_slot_name} to {self.params.version} "
+            f"with {self.binary}, {self.signature}"
+        )
+        return None
 
-    def start(self: FirmwareUpdater) -> FwupStartResult:
+    def start(self: Fwup) -> FwupStartResult:
         """Start the firmware update.
 
-        :param self: the updater instance.
+        :param self: the firmware update instance.
         :returns: FwupStartResult indicating success, failure, or confirmation pending.
         """
-        if not self._prepare():
-            return FwupStartFailure()
+        prepare_result = self._prepare()
+        if prepare_result is not None:
+            return prepare_result
         if self.start_sequence_id > 0:
             return FwupStartSuccess()
 
         cmd = wallet_pb.wallet_cmd()
         msg = wallet_pb.fwup_start_cmd()
         msg.mode = self.mode
+        msg.defer_commit = self.defer_commit
         if self.delta:
             msg.patch_size = stat(self.binary).st_size
         if self.mcu_role:
             msg.mcu_role = self.mcu_role
+        if hasattr(self.params, 'version') and self.params.version:
+            version_str = str(self.params.version)
+            parts = version_str.split('.')
+            if len(parts) == 3 and hasattr(msg, "version"):
+                msg.version.major = int(parts[0])
+                msg.version.minor = int(parts[1])
+                msg.version.patch = int(parts[2])
         cmd.fwup_start_cmd.CopyFrom(msg)
         result = self.comms.transceive(cmd, timeout=2)
 
@@ -317,7 +397,7 @@ class Fwup:
                 self.params.chunk_size = max_chunk_size
             return FwupStartSuccess(max_chunk_size=max_chunk_size)
         else:
-            return FwupStartFailure()
+            return FwupStartFailure(response=result)
 
     def finish(self, bl_upgrade: bool = False) -> wallet_pb.fwup_finish_rsp:
         """Finalize the firmware update."""
@@ -385,7 +465,11 @@ class Fwup:
                 return False
         return True
 
-    def _update_info(self) -> (wallet_pb.firmware_slot, semver.VersionInfo):
+    @staticmethod
+    def _parse_version(version) -> semver.VersionInfo:
+        return semver.VersionInfo(version.major, version.minor, version.patch)
+
+    def _update_info(self) -> FwupUpdateInfo:
         cmd = wallet_pb.wallet_cmd()
         msg = wallet_pb.meta_cmd()
         if self.mcu_role:
@@ -395,15 +479,26 @@ class Fwup:
 
         active_slot = result.meta_rsp.active_slot
         if active_slot == wallet_pb.firmware_slot.SLOT_A:
-            version = result.meta_rsp.meta_slot_a.version
+            active_version = self._parse_version(
+                result.meta_rsp.meta_slot_a.version)
             target_slot = wallet_pb.firmware_slot.SLOT_B
+            target_version = self._parse_version(
+                result.meta_rsp.meta_slot_b.version)
         elif active_slot == wallet_pb.firmware_slot.SLOT_B:
-            version = result.meta_rsp.meta_slot_b.version
+            active_version = self._parse_version(
+                result.meta_rsp.meta_slot_b.version)
             target_slot = wallet_pb.firmware_slot.SLOT_A
+            target_version = self._parse_version(
+                result.meta_rsp.meta_slot_a.version)
         else:
             raise AssertionError("invalid slot")
 
-        return target_slot, semver.VersionInfo(version.major, version.minor, version.patch)
+        return FwupUpdateInfo(
+            active_slot=active_slot,
+            active_version=active_version,
+            target_slot=target_slot,
+            target_version=target_version,
+        )
 
     def _transfer_chunk(self, id: int, data: bytes, offset: int, mode=wallet_pb.fwup_mode.FWUP_MODE_NORMAL) -> bool:
         """Transfer a single chunk of data to the device."""
@@ -428,9 +523,22 @@ class FirmwareUpdater:
         self.wallet = wallet
         self.gui = gui
 
-    def _build_updater(self, fwup_bundle: FwupBundle, mcu: Optional[str] = "efr32") -> Fwup:
+    def _build_updater(
+        self,
+        fwup_bundle: FwupBundle,
+        mcu: Optional[str] = "efr32",
+        sequence_id: int = 0,
+        deferred: bool = False,
+    ) -> Fwup:
         """Determine if we should do a normal or delta fwup, and return the appropriately
-        configured Fwup object."""
+        configured Fwup object.
+
+        :param self: the updater instance.
+        :param fwup_bundle: FWUP bundle instance.
+        :param mcu: optional target MCU name.
+        :param sequence_id: optional start sequence id.
+        :returns: ``Fwup`` instance.
+        """
         mode = fwup_bundle.mode
         mcu_role = self.wallet.chip_name_to_role(self.wallet.product, mcu)
 
@@ -462,8 +570,7 @@ class FirmwareUpdater:
 
             if manifest_params:
                 params = FwupParams(
-                    version=int(
-                        fwup_bundle_data['to_version'].replace('.', '')),
+                    version=fwup_bundle_data['to_version'],
                     chunk_size=manifest_params['wca_chunk_size'],
                     signature_offset=manifest_params['signature_offset'],
                     app_props_offset=manifest_params['app_properties_offset'],
@@ -473,10 +580,9 @@ class FirmwareUpdater:
             assert False, mode
 
         if mode == wallet_pb.fwup_mode.FWUP_MODE_NORMAL:
-            return Fwup(fwup_bundle.path, None, None, 0, comms=self.wallet.comms,
-                        fwup_params=params, mode=wallet_pb.fwup_mode.Name(
-                            fwup_bundle.mode),
-                        mcu_role=mcu_role)
+            return Fwup(fwup_bundle.path, None, None, sequence_id, comms=self.wallet.comms,
+                        fwup_params=params, mode=wallet_pb.fwup_mode.Name(mode),
+                        mcu_role=mcu_role, defer_commit=deferred)
         elif mode == wallet_pb.fwup_mode.FWUP_MODE_DELTA_ONESHOT:
             manifest = fwup_bundle.manifest
 
@@ -511,10 +617,9 @@ class FirmwareUpdater:
             signature = fwup_bundle.path / \
                 assets[patch_name]['signature']['name']
 
-            return Fwup(None, binary, signature, 0, comms=self.wallet.comms,
-                        fwup_params=params, mode=wallet_pb.fwup_mode.Name(
-                            fwup_bundle.mode),
-                        mcu_role=mcu_role)
+            return Fwup(None, binary, signature, sequence_id, comms=self.wallet.comms,
+                        fwup_params=params, mode=wallet_pb.fwup_mode.Name(mode),
+                        mcu_role=mcu_role, defer_commit=deferred)
         else:
             assert False, mode
 
@@ -531,7 +636,6 @@ class FirmwareUpdater:
         print("Waiting for user confirmation...")
 
         # Poll for confirmation result (user must approve on device screen)
-        CONFIRMATION_TIMEOUT_SECONDS = 30
         POLL_INTERVAL_SECONDS = 1
         PROGRESS_UPDATE_INTERVAL = 2  # Print progress every N seconds
 
@@ -581,7 +685,9 @@ class FirmwareUpdater:
         image: Path,
         signature: Path,
         params: FwupParams,
-        timeout: Optional[int] = None
+        timeout: Optional[int] = None,
+        sequence_id: int = 0,
+        mode: str = "FWUP_MODE_NORMAL"
     ) -> bool:
         """Performs a firmware update of the specified target chip.
 
@@ -593,7 +699,9 @@ class FirmwareUpdater:
         :param image: path to the image to download to the target.
         :param signature: path to the image signature.
         :param params: FWUP parameters.
+        :param sequence_id: optional start sequence id for the update.
         :param timeout: optional timeout (in seconds) to wait for the update to finish.
+        :param mode: FWUP mode string (e.g. "FWUP_MODE_NORMAL", "FWUP_MODE_DELTA_ONESHOT").
         :returns: ``True`` if update was successful, otherwise ``False``.
         """
         role = self.wallet.chip_name_to_role(self.wallet.product, mcu)
@@ -601,9 +709,11 @@ class FirmwareUpdater:
             bundle_dir=None,
             binary=image,
             signature=signature,
+            start_sequence_id=sequence_id,
             comms=self.wallet.comms,
             mcu_role=role,
             fwup_params=params,
+            mode=mode,
         )
 
         # Send a custom start message.
@@ -623,8 +733,10 @@ class FirmwareUpdater:
         elif isinstance(result, FwupStartSuccess):
             # Without confirmation flow: immediate success
             print("Firmware update successfully started.")
+        elif isinstance(result, FwupStartSkipped):
+            return True
         elif isinstance(result, FwupStartFailure):
-            print("Firmware update failed to start.")
+            _print_start_failure("Firmware update failed to start.", result)
             return False
         else:
             print("Unexpected start result.")
@@ -647,16 +759,115 @@ class FirmwareUpdater:
 
         return True
 
+    def bl_upgrade(
+        self: FirmwareUpdater,
+        mcu: str,
+        image: Path,
+        signature: Path,
+        metadata: Path,
+        params: FwupParams,
+        bl_size: int = (48 * 1024),
+    ) -> bool:
+        """Performs a bootloader upgrade of the specified target chip.
+
+        Bootloader upgrades are a special-case FWUP flow:
+        - the signed binary is transferred at offset 0
+        - the detached signature is written to the end of the bootloader slot
+        - detached metadata is written just before the signature
+        - finish() must be called with bl_upgrade=True
+        """
+        role = self.wallet.chip_name_to_role(self.wallet.product, mcu)
+        update = Fwup(
+            bundle_dir=None,
+            binary=image,
+            signature=signature,
+            start_sequence_id=0,
+            comms=self.wallet.comms,
+            mcu_role=role,
+            fwup_params=params,
+        )
+
+        result = update.start()
+
+        if isinstance(result, FwupStartConfirmationPending):
+            conf_result = self._wait_for_confirmation(result)
+            if conf_result is None:
+                return False
+
+            fwup_start_result = conf_result.get_confirmation_result_rsp.fwup_start_result
+            if fwup_start_result.max_chunk_size:
+                update.params.chunk_size = fwup_start_result.max_chunk_size
+        elif isinstance(result, FwupStartSuccess):
+            print("Bootloader upgrade successfully started.")
+        elif isinstance(result, FwupStartFailure):
+            _print_start_failure("Bootloader upgrade failed to start.", result)
+            return False
+        else:
+            print("Unexpected start result.")
+            return False
+
+        print("Bootloader upgrade in progress...")
+
+        signature_size = update.params.signature_size
+        _, metadata_size = get_bootloader_metadata_offset_and_size(
+            self.wallet.partition_config_name(mcu)
+        )
+
+        update.params.app_props_offset = 0
+        update.params.signature_offset = bl_size - signature_size
+
+        if not update.transfer_bytes(image.read_bytes(), 0, 0):
+            print("Bootloader upgrade failed.")
+            return False
+
+        signature_offset = update.params.signature_offset
+        if not update.transfer_bytes(signature.read_bytes(), 0, signature_offset):
+            print("Bootloader upgrade failed.")
+            return False
+
+        # Bootloader metadata is laid out immediately before the detached
+        # signature; derive its size from the partition config so changes in
+        # the partition layout don't silently break the transfer offsets.
+        metadata_offset = signature_offset - metadata_size
+        if not update.transfer_bytes(metadata.read_bytes(), 0, metadata_offset):
+            print("Bootloader upgrade failed.")
+            return False
+
+        result = update.finish(True)
+        if result.fwup_finish_rsp.rsp_status == result.fwup_finish_rsp.SUCCESS:
+            print("Bootloader upgrade finished successfully.")
+        else:
+            print("Bootloader upgrade failed.")
+            print(result)
+            return False
+
+        return True
+
     def fwup_local(
         self,
         bundle: Path,
         timeout: Optional[int] = None,
-        mcu: Optional[str] = "efr32"
-    ):
-        """Firmware update using the specified `bundle`."""
+        mcu: Optional[str] = "efr32",
+        sequence_id: int = 0,
+        version_override: Optional[str] = None,
+        deferred: bool = False,
+    ) -> bool:
+        """Firmware update using the specified ``bundle``.
+
+        :param self: the updater instance.
+        :param bundle: path to the firmware update bundle directory.
+        :param mcu: optional target MCU name (default: EFR32).
+        :param sequence_id: optional start sequence ID.
+        :param version_override: optional version override used for confirmation
+        :returns: ``True`` if updated succeeded, otherwise ``False``.
+        """
         assert bundle.exists()
 
-        update = self._build_updater(FwupBundle(bundle), mcu=mcu)
+        update = self._build_updater(FwupBundle(
+            bundle), mcu=mcu, sequence_id=sequence_id, deferred=deferred)
+
+        if version_override is not None:
+            update.params.version = version_override
 
         result = update.start()
 
@@ -671,8 +882,10 @@ class FirmwareUpdater:
             fwup_start_result = conf_result.get_confirmation_result_rsp.fwup_start_result
             if fwup_start_result.max_chunk_size:
                 update.params.chunk_size = fwup_start_result.max_chunk_size
+        elif isinstance(result, FwupStartSkipped):
+            return True
         elif isinstance(result, FwupStartFailure):
-            print("Failed to start")
+            _print_start_failure("Failed to start", result)
             return False
 
         print(f"Update Image: {update.binary}")
@@ -697,5 +910,6 @@ class FirmwareUpdater:
         else:
             print("Firmware update failed.")
             print(result)
+            return False
 
         return True

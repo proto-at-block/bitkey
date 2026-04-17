@@ -20,12 +20,12 @@ class InviteTrustedContactFlowUiStateMachineImpl(
       props =
         AddingTrustedContactUiProps(
           account = props.account,
-          onAddTc = { trustedContactAlias, hardwareProofOfPossession ->
+          onAddTc = { trustedContactAlias, proof ->
             relationshipsService
               .createInvitation(
                 account = props.account,
                 trustedContactAlias = trustedContactAlias,
-                hardwareProofOfPossession = hardwareProofOfPossession,
+                proof = proof,
                 roles = setOf(TrustedContactRole.SocialRecoveryContact)
               )
           },

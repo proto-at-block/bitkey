@@ -9,7 +9,10 @@ import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.BoldStyle
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.ColorStyle
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.FontFeatureStyle
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
+
+private const val SLASHED_ZERO_FONT_FEATURE = "zero"
 
 @Composable
 fun LabelModel.Color.toWalletTheme(): androidx.compose.ui.graphics.Color {
@@ -17,6 +20,7 @@ fun LabelModel.Color.toWalletTheme(): androidx.compose.ui.graphics.Color {
     LabelModel.Color.GREEN -> WalletTheme.colors.deviceLEDGreen
     LabelModel.Color.BLUE -> WalletTheme.colors.deviceLEDBlue
     LabelModel.Color.ON60 -> WalletTheme.colors.foreground60
+    LabelModel.Color.FOREGROUND -> WalletTheme.colors.foreground
     LabelModel.Color.PRIMARY -> WalletTheme.colors.bitkeyPrimary
     LabelModel.Color.UNSPECIFIED -> Color.Unspecified
   }
@@ -40,7 +44,14 @@ fun LabelModel.buildAnnotatedString(): AnnotatedString {
               when (val substringStyle = styledSubstring.style) {
                 is ColorStyle -> SpanStyle(color = substringStyle.color.toWalletTheme())
                 is BoldStyle -> SpanStyle(fontWeight = FontWeight.W600)
-                is FontFeatureStyle -> SpanStyle(fontFeatureSettings = substringStyle.fontFeatureSettings)
+                is FontFeatureStyle -> {
+                  val fontFeatureSettings = if (LocalDesignSystemUpdatesEnabled.current) {
+                    substringStyle.fontFeatureSettings.withSlashedZero()
+                  } else {
+                    substringStyle.fontFeatureSettings
+                  }
+                  SpanStyle(fontFeatureSettings = fontFeatureSettings)
+                }
               },
             start = styledSubstring.range.first,
             end = styledSubstring.range.last + 1
@@ -67,3 +78,10 @@ fun LabelModel.buildAnnotatedString(): AnnotatedString {
     }
   }
 }
+
+private fun String.withSlashedZero(): String =
+  if (contains("zero")) {
+    this
+  } else {
+    "$this, $SLASHED_ZERO_FONT_FEATURE"
+  }

@@ -65,16 +65,17 @@ fun Modifier.loadingScrim(
   isLoading: Boolean,
   isShimmering: Boolean = true,
   maskColor: Color? = null,
+  loadingColor: Color? = null,
 ): Modifier {
   return composed {
     val backgroundColor = WalletTheme.colors.background
     val resolvedMaskColor = maskColor ?: WalletTheme.colors.background
-    val loadingColor = WalletTheme.colors.loadingBackground
+    val resolvedLoadingColor = loadingColor ?: WalletTheme.colors.loadingBackground
 
     val transitionSpec = tween<Color>(durationMillis = 300, easing = Ease)
     val disabledColor by animateColorAsState(
       label = "loading-scrim-disabled-color",
-      targetValue = if (isLoading) loadingColor else loadingColor.copy(alpha = 0f),
+      targetValue = if (isLoading) resolvedLoadingColor else resolvedLoadingColor.copy(alpha = 0f),
       animationSpec = transitionSpec
     )
     val maskColorAnimated by animateColorAsState(
@@ -127,7 +128,7 @@ fun Modifier.loadingScrim(
 
           // Draw loading background
           drawRoundRect(
-            color = if (isLoading) loadingColor else disabledColor,
+            color = if (isLoading) resolvedLoadingColor else disabledColor,
             cornerRadius = cornerRadius,
             size = size
           )

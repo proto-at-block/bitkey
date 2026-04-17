@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.android.filament:filament-android",
+    "components": [
+        {
+            "version": "1.56.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "filament-android-1.56.0.aar": "b03d35dd50698d0c61e28eec24734b7b257a0f13017817375598c0d3af49da39"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

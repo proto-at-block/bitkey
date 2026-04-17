@@ -14,19 +14,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.unit.dp
-import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.send.QrCodeScanBodyModel
-import build.wallet.ui.components.button.Button
-import build.wallet.ui.components.icon.IconButton
-import build.wallet.ui.components.icon.iconStyle
+import build.wallet.ui.components.button.OrderedButtonPair
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment.Unspecified
 import build.wallet.ui.components.label.labelStyle
 import build.wallet.ui.components.toolbar.Toolbar
+import build.wallet.ui.components.toolbar.ToolbarAccessory
+import build.wallet.ui.model.StandardClick
+import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.*
+import build.wallet.ui.model.icon.IconButtonModel
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.system.BackHandler
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
+import build.wallet.ui.tokens.market.MarketIcons
 
 private val qrCodeViewfinderMargin = 48.dp
 private val qrCodeViewfinderBorderRadius = 40.dp
@@ -109,6 +113,8 @@ fun QrCodeScanViewFinder() {
 
 @Composable
 fun QrCodeScanWidgets(model: QrCodeScanBodyModel) {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+
   BoxWithConstraints(
     modifier =
       Modifier
@@ -121,26 +127,29 @@ fun QrCodeScanWidgets(model: QrCodeScanBodyModel) {
         Modifier
           .background(color = Color.Transparent)
           .align(Alignment.TopCenter),
+      designSystemChromeBackgroundColor = Color.Transparent,
+      showDesignSystemBottomGradient = false,
       leadingContent = {
-        IconButton(
-          iconModel =
-            IconModel(
-              icon = Icon.SmallIconX,
-              iconSize = IconSize.Accessory,
-              iconTint = IconTint.OnTranslucent,
-              iconBackgroundType =
-                IconBackgroundType.Circle(
-                  circleSize = IconSize.Regular,
-                  color = IconBackgroundType.Circle.CircleColor.TranslucentBlack
+        ToolbarAccessory(
+          model =
+            ToolbarAccessoryModel.IconAccessory(
+              model =
+                IconButtonModel(
+                  iconModel =
+                    IconModel(
+                      icon = MarketIcons.X,
+                      iconSize = IconSize.Accessory,
+                      iconTint = IconTint.OnTranslucent,
+                      iconBackgroundType =
+                        IconBackgroundType.Circle(
+                          circleSize = IconSize.Regular,
+                          color = IconBackgroundType.Circle.CircleColor.TranslucentBlack
+                        )
+                    ),
+                  onClick = StandardClick(model.onClose),
+                  testTag = "toolbar-close"
                 )
-            ),
-          color =
-            WalletTheme.iconStyle(
-              icon = IconImage.LocalImage(Icon.SmallIconX),
-              color = Color.Unspecified,
-              tint = IconTint.OnTranslucent
-            ).color,
-          onClick = model.onClose
+            )
         )
       },
       middleContent =
@@ -180,11 +189,30 @@ fun QrCodeScanWidgets(model: QrCodeScanBodyModel) {
         Modifier
           .align(Alignment.BottomCenter)
     ) {
-      model.primaryButton?.let { Button(it) }
-      model.secondaryButton?.let {
-        Spacer(Modifier.size(16.dp))
-        Button(it)
-      }
+      OrderedButtonPair(
+        primary = model.primaryButton,
+        secondary = model.secondaryButton,
+        spacing = 16.dp,
+        renderButton = {
+          build.wallet.ui.components.button.Button(
+            qrCodeActionButtonModel(
+              buttonModel = it,
+              isDesignSystemV2Enabled = isDesignSystemV2Enabled
+            )
+          )
+        }
+      )
     }
+  }
+}
+
+private fun qrCodeActionButtonModel(
+  buttonModel: ButtonModel,
+  isDesignSystemV2Enabled: Boolean,
+): ButtonModel {
+  return if (isDesignSystemV2Enabled && buttonModel.treatment == ButtonModel.Treatment.Translucent) {
+    buttonModel.copy(treatment = ButtonModel.Treatment.Secondary)
+  } else {
+    buttonModel
   }
 }

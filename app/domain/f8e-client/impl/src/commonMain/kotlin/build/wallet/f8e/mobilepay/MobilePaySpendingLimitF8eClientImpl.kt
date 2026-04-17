@@ -7,11 +7,11 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.applyTo
 import build.wallet.f8e.client.plugins.withAccountId
 import build.wallet.f8e.client.plugins.withEnvironment
-import build.wallet.f8e.client.plugins.withHardwareFactor
 import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.EmptyRequestBody
 import build.wallet.ktor.result.EmptyResponseBody
@@ -22,6 +22,7 @@ import build.wallet.ktor.result.catching
 import build.wallet.ktor.result.setRedactedBody
 import build.wallet.limit.SpendingLimit
 import build.wallet.mapUnit
+import build.wallet.platform.settings.Locale
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapError
 import io.ktor.client.request.delete
@@ -38,7 +39,8 @@ class MobilePaySpendingLimitF8eClientImpl(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
     limit: SpendingLimit,
-    hwFactorProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
+    locale: Locale,
   ): Result<Unit, NetworkingError> {
     return f8eHttpClient
       .authenticated()
@@ -46,10 +48,11 @@ class MobilePaySpendingLimitF8eClientImpl(
         put("/api/accounts/${fullAccountId.serverId}/mobile-pay") {
           withEnvironment(f8eEnvironment)
           withAccountId(fullAccountId)
-          withHardwareFactor(hwFactorProofOfPossession)
+          proof.applyTo(this)
           setRedactedBody(
             RequestBody(
-              limit = limit.toServerSpendingLimit(clock)
+              limit = limit.toServerSpendingLimit(clock),
+              locale = locale.toBcp47()
             )
           )
         }
@@ -60,6 +63,7 @@ class MobilePaySpendingLimitF8eClientImpl(
   override suspend fun disableMobilePay(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
+    proof: PrivilegedActionProof?,
   ): Result<Unit, F8eError<MobilePayErrorCode>> {
     return f8eHttpClient.authenticated()
       .catching {
@@ -67,6 +71,7 @@ class MobilePaySpendingLimitF8eClientImpl(
           withDescription("Disable Mobile Pay")
           withAccountId(fullAccountId)
           withEnvironment(f8eEnvironment)
+          proof.applyTo(this)
           setRedactedBody(EmptyRequestBody)
         }
       }.mapUnit()
@@ -76,6 +81,7 @@ class MobilePaySpendingLimitF8eClientImpl(
   @Serializable
   private data class RequestBody(
     val limit: ServerSpendingLimitDTO?,
+    val locale: String,
   ) : RedactedRequestBody
 
   @Serializable

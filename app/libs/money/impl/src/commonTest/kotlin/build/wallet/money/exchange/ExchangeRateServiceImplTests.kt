@@ -69,6 +69,7 @@ class ExchangeRateServiceImplTests : FunSpec({
       accountConfigService = accountConfigService,
       appVariant = AppVariant.Development,
       clock = ClockFake(now = Instant.fromEpochSeconds(500)),
+      appSessionManager = appSessionManager,
       exchangeRateSyncFrequency = ExchangeRateSyncFrequency(syncFrequency),
       appScope = testScope
     )

@@ -1,6 +1,7 @@
 #include "gfx.h"
 
 #include "assert.h"
+#include "bitlog.h"
 #include "exti.h"
 #include "log.h"
 #include "mcu_gpio.h"
@@ -25,13 +26,14 @@ typedef struct {
 static pixel_sample_t fps_samples[FLUSH_HISTORY_SIZE] = {0};
 static uint8_t fps_idx = 0;
 static rtos_mutex_t fps_mutex = {0};
+static rtos_mutex_t qspi_mutex = {0};
 
-#define TE_WINDOW_US            16000  // Allowed flush window from falling to rising edge
+#define TE_WINDOW_US            16100  // Measured: TE falling→rising edge
 #define TE_WAIT_TIMEOUT_MS      18     // Timeout for single TE wait
 #define TE_PREPARE_MAX_ATTEMPTS 2      // Max attempts to find suitable window (initial + 1 retry)
 #define TE_MARGIN_US            500    // Safety margin before window ends
 #define FLUSH_TIME_STATIC_US    1300   // Fixed overhead per flush
-#define FLUSH_BYTES_PER_US      35     // Transfer rate
+#define FLUSH_BYTES_PER_US      22     // Measured: Quad-SPI DMA @ 44MHz CLK
 
 // ILI8688F command definitions
 #define QSPI_CMD_WRITE       0x02
@@ -54,6 +56,7 @@ static rtos_mutex_t fps_mutex = {0};
 #define CMD_MADCTL      0x36
 #define CMD_COLMOD      0x3A
 #define CMD_WRDISBV     0x51
+#define CMD_RDDISBV     0x52
 #define CMD_WRCTRLD     0x53
 #define CMD_SETDSPIMODE 0xC4
 // Display ID register addresses (page 0)
@@ -65,6 +68,7 @@ static rtos_mutex_t fps_mutex = {0};
 typedef enum {
   DISPLAY_HW_EVT_PDVT,  // Factory default, OTP not programmed
   DISPLAY_HW_DVT,       // OTP programmed by Tianma
+  DISPLAY_HW_PVT,       // Same as DVT
   DISPLAY_HW_UNKNOWN
 } display_hw_revision_t;
 
@@ -77,6 +81,11 @@ typedef enum {
 #define DISPLAY_ID_DVT_MFR 0x02
 #define DISPLAY_ID_DVT_DIS 0x82  // Bit 7 unchangeable per datasheet
 #define DISPLAY_ID_DVT_REV 0x01
+
+// PVT (programmed by Tianma)
+#define DISPLAY_ID_PVT_MFR 0x02
+#define DISPLAY_ID_PVT_DIS 0x82
+#define DISPLAY_ID_PVT_REV 0x02
 
 // MADCTL (Memory Data Access Control) register bits:
 #define MADCTL_MY  (1 << 7)  // Page Address Order (0=top-to-bottom, 1=bottom-to-top)
@@ -172,8 +181,8 @@ static display_reg_config_t display_init_table[] = {
   // Turn on tearing effect signal (mode 0)
   {.page = 0x00, .reg = CMD_TEON, .data = {0x00}, .len = 0x01, .delay_ms = 1, .verify = true},
 
-  // Turn on display (requires 5ms delay)
-  {.page = 0x00, .reg = CMD_DISPON, .data = {0x00}, .len = 0x00, .delay_ms = 5, .verify = true},
+  // Turn on display (delay required before display accepts brightness writes)
+  {.page = 0x00, .reg = CMD_DISPON, .data = {0x00}, .len = 0x00, .delay_ms = 100, .verify = true},
 };
 
 static const size_t display_init_table_size =
@@ -184,7 +193,7 @@ static void write_reg(uint8_t reg, const uint8_t* params, size_t param_len) {
 
   // Validate param_len (display typically accepts up to 4 parameter bytes)
   if (param_len > 4) {
-    LOGE("QSPI write reg %02X: param_len %zu exceeds max 4", reg, param_len);
+    LOGE("QSPI wr 0x%02X: len %zu > 4", reg, param_len);
     return;
   }
 
@@ -214,13 +223,13 @@ static void write_reg(uint8_t reg, const uint8_t* params, size_t param_len) {
 
   mcu_err_t res = mcu_qspi_command(&display_qspi_state, &cmd, params, NULL);
   if (res != MCU_ERROR_OK) {
-    LOGE("QSPI write reg %02X failed: %d", reg, res);
+    LOGE("QSPI wr %02X: %d", reg, res);
   }
 }
 
 static bool read_reg(uint8_t reg, uint8_t* rx_buffer, size_t rx_len) {
   if (rx_buffer == NULL || rx_len == 0 || rx_len > MAX_QSPI_READ_BYTES) {
-    LOGE("QSPI read reg %02X: invalid parameters", reg);
+    LOGE("QSPI rd %02X: bad", reg);
     return false;
   }
 
@@ -255,7 +264,7 @@ static bool read_reg(uint8_t reg, uint8_t* rx_buffer, size_t rx_len) {
 
   mcu_err_t res = mcu_qspi_command(&display_qspi_state, &cmd, NULL, quad_buffer);
   if (res != MCU_ERROR_OK) {
-    LOGE("QSPI read reg 0x%02X failed with error %d", reg, res);
+    LOGE("QSPI rd %02X: %d", reg, res);
     return false;
   }
 
@@ -335,7 +344,7 @@ static bool gfx_prepare_flush_window(uint32_t flush_time_us) {
   }
 
   // Failed to find window after max attempts
-  LOGW("TE sync failed after %u attempts", TE_PREPARE_MAX_ATTEMPTS);
+  LOGW("TE sync fail");
   return false;
 }
 
@@ -415,8 +424,8 @@ static void verify_register_table(const display_reg_config_t* table, size_t tabl
         // LOGI("P%d Reg 0x%02X: 0x%02X", cfg->page, cfg->reg, read_val);
       } else {
         fail_count++;
-        LOGE("%s: P%d Reg 0x%02X: wrote 0x%02X, read 0x%02X", table_name, cfg->page, cfg->reg,
-             cfg->data[0], read_val);
+        LOGE("%s: P%d R0x%02X: w0x%02X r0x%02X", table_name, cfg->page, cfg->reg, cfg->data[0],
+             read_val);
       }
     } else {
       fail_count++;
@@ -465,17 +474,21 @@ static display_hw_revision_t read_display_hw_revision(void) {
     if (manufacturer_id == DISPLAY_ID_EVT_PDVT_MFR && display_id == DISPLAY_ID_EVT_PDVT_DIS &&
         revision_id == DISPLAY_ID_EVT_PDVT_REV) {
       hw_rev = DISPLAY_HW_EVT_PDVT;
-      LOGI("Display hardware: EVT/PDVT");
+      LOGI("Disp: EVT");
     } else if (manufacturer_id == DISPLAY_ID_DVT_MFR && display_id == DISPLAY_ID_DVT_DIS &&
                revision_id == DISPLAY_ID_DVT_REV) {
       hw_rev = DISPLAY_HW_DVT;
-      LOGI("Display hardware: DVT");
+      LOGI("Disp: DVT");
+    } else if (manufacturer_id == DISPLAY_ID_PVT_MFR && display_id == DISPLAY_ID_PVT_DIS &&
+               revision_id == DISPLAY_ID_PVT_REV) {
+      hw_rev = DISPLAY_HW_PVT;
+      LOGI("Disp: PVT");
     } else {
-      LOGW("Display hardware: Unknown revision (MFR=0x%02X, ID=0x%02X, REV=0x%02X)",
-           manufacturer_id, display_id, revision_id);
+      LOGW("Display HW: unknown (MFR=0x%02X ID=0x%02X REV=0x%02X)", manufacturer_id, display_id,
+           revision_id);
     }
   } else {
-    LOGE("Failed to read display ID registers");
+    LOGE("Display ID read fail");
   }
 
   return hw_rev;
@@ -511,6 +524,7 @@ void gfx_init(const gfx_config_t* gfx_config) {
   memset(fps_samples, 0, sizeof(fps_samples));
   fps_idx = 0;
   rtos_mutex_create(&fps_mutex);
+  rtos_mutex_create(&qspi_mutex);
 
   display_reset(gfx_config);
 
@@ -522,7 +536,7 @@ void gfx_init(const gfx_config_t* gfx_config) {
   bool otp_written = false;
   if (hw_rev == DISPLAY_HW_EVT_PDVT || hw_rev == DISPLAY_HW_UNKNOWN) {
     if (hw_rev == DISPLAY_HW_UNKNOWN) {
-      LOGW("Unknown display revision, applying OTP config as fallback");
+      LOGW("Disp rev unk, OTP");
     }
     write_register_table(display_otp_config_table, display_otp_config_table_size);
     otp_written = true;
@@ -540,16 +554,52 @@ void gfx_init(const gfx_config_t* gfx_config) {
   set_page(0);  // Return to page 0
 }
 
-void gfx_set_brightness(uint8_t level) {
-  write_reg(CMD_WRDISBV, (uint8_t[]){level, 0}, 2);
-  rtos_thread_sleep(1);
+void gfx_set_brightness(uint8_t level, bool verify) {
+  int attempts = 3;
+
+  for (int attempt = 0; attempt < attempts; attempt++) {
+    rtos_mutex_lock(&qspi_mutex);
+    write_reg(CMD_WRDISBV, (uint8_t[]){level, 0}, 2);
+    rtos_mutex_unlock(&qspi_mutex);
+
+    if (!verify) {
+      return;
+    }
+
+    // Wait one frame period for the display to latch the value
+    rtos_thread_sleep(17);
+
+    // Read back to verify the display accepted the value
+    rtos_mutex_lock(&qspi_mutex);
+    set_page(0x01);
+    write_reg(0xFD, (uint8_t[]){0x00, 0x81, 0x00}, 3);  // Enable read
+    rtos_thread_sleep(1);
+    set_page(0x00);
+
+    uint8_t read_val = 0xFF;
+    bool read_ok = read_reg(CMD_RDDISBV, &read_val, 1);
+
+    set_page(0x01);
+    write_reg(0xFD, (uint8_t[]){0x00, 0x00, 0x00}, 3);  // Disable read
+    rtos_thread_sleep(1);
+    set_page(0x00);
+    rtos_mutex_unlock(&qspi_mutex);
+
+    if (read_ok && read_val == level) {
+      return;
+    }
+  }
+
+  BITLOG_EVENT(display_brightness_err, level);
 }
 
 void gfx_set_rotation(bool rotate_180) {
+  rtos_mutex_lock(&qspi_mutex);
   uint8_t madctl_val = rotate_180 ? (MADCTL_MY | MADCTL_MX) : 0x00;
   set_page(0);
   write_reg(CMD_MADCTL, &madctl_val, 1);
   rtos_thread_sleep(1);
+  rtos_mutex_unlock(&qspi_mutex);
 }
 
 static void flush_complete(mcu_qspi_state_t* state, mcu_err_t status, uint32_t sent) {
@@ -557,7 +607,7 @@ static void flush_complete(mcu_qspi_state_t* state, mcu_err_t status, uint32_t s
   (void)sent;
 
   if (status != MCU_ERROR_OK) {
-    LOGE("QSPI flush failed: %d", status);
+    LOGE("QSPI flush: %d", status);
   }
 
   // Call user callback on completion
@@ -576,7 +626,7 @@ void gfx_flush(uint8_t* buffer, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t 
 
   bool te_ready = gfx_prepare_flush_window(flush_time_us);
   if (!te_ready) {
-    LOGW("Proceeding without TE sync");
+    LOGW("No TE sync");
   }
 
   // Track flush rate and pixel count in circular buffer
@@ -590,12 +640,17 @@ void gfx_flush(uint8_t* buffer, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t 
   s_flush_ctx.user_cb = callback;
   s_flush_ctx.user_data = user_data;
 
+  // Lock QSPI bus for register setup (CASET/RASET), release before async DMA
+  rtos_mutex_lock(&qspi_mutex);
+
   // column/row set - using 1-wire SPI for commands
   uint8_t col_addr[] = {(uint8_t)(x1 >> 8), (uint8_t)x1, (uint8_t)(x2 >> 8), (uint8_t)x2};
   write_reg(CMD_CASET, col_addr, sizeof(col_addr));
+  rtos_thread_sleep(1);  // TODO: W-16589
 
   uint8_t row_addr[] = {(uint8_t)(y1 >> 8), (uint8_t)y1, (uint8_t)(y2 >> 8), (uint8_t)y2};
   write_reg(CMD_RASET, row_addr, sizeof(row_addr));
+  rtos_thread_sleep(1);  // TODO: W-16589
 
   // Send RAMWR command with all pixel data using DMA
   mcu_qspi_command_t cmd = {0};
@@ -615,6 +670,8 @@ void gfx_flush(uint8_t* buffer, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t 
 
   // Queue the entire transfer and call user callback on completion
   mcu_qspi_command_async_dma(&display_qspi_state, &cmd, buffer, NULL, flush_complete);
+
+  rtos_mutex_unlock(&qspi_mutex);
 }
 
 uint32_t gfx_get_fps(void) {

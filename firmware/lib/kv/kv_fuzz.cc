@@ -59,6 +59,13 @@ FAKE_VOID_FUNC(rtos_event_group_create, rtos_event_group_t*);
 uint32_t rtos_event_group_set_bits(rtos_event_group_t* UNUSED(a), const uint32_t UNUSED(b)) {
   return 1;
 }
+bool rtos_event_group_set_bits_from_isr(rtos_event_group_t* UNUSED(a), const uint32_t UNUSED(b),
+                                        bool* UNUSED(c)) {
+  return true;
+}
+uint32_t rtos_event_group_get_bits(rtos_event_group_t* UNUSED(a)) {
+  return 0;
+}
 uint32_t rtos_event_group_clear_bits(rtos_event_group_t* UNUSED(a), const uint32_t UNUSED(b)) {
   return 1;
 }

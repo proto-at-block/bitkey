@@ -92,7 +92,7 @@ pub struct CreateSelfSovereignBackupResponse {
     pub sealed_response: Vec<u8>,
 }
 
-#[instrument(skip(account_service))]
+#[instrument(skip(account_service, request))]
 #[utoipa::path(
     post,
     path = "/api/accounts/{account_id}/self-sovereign-backup",
@@ -177,7 +177,7 @@ pub struct InitiateShareRefreshResponse {
     pub sealed_response: Vec<u8>,
 }
 
-#[instrument(skip(account_service))]
+#[instrument(skip(account_service, request))]
 #[utoipa::path(
     post,
     path = "/api/accounts/{account_id}/share-refresh",
@@ -257,7 +257,7 @@ pub struct ContinueShareRefreshRequest {
 #[serde(rename_all = "snake_case")]
 pub struct ContinueShareRefreshResponse {}
 
-#[instrument(skip(account_service))]
+#[instrument(skip(account_service, request))]
 #[utoipa::path(
     put,
     path = "/api/accounts/{account_id}/share-refresh",

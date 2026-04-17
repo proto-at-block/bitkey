@@ -1,4 +1,4 @@
-use authn_authz::key_claims::extract_account_id;
+use authn_authz::extract_account_id;
 use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::Response;

@@ -63,6 +63,10 @@ class MoneyInputFormatterImpl(
           }
 
         val locale = localeProvider.currentLocale()
+        if (moneyAmount is BitcoinMoney && inputAmount.numberString.contains(locale.decimalSeparator)) {
+          return buildBitcoinDecimalEntryDisplayText(inputAmount)
+        }
+
         if (moneyAmount.isWholeNumber && !inputAmount.numberString.contains(locale.decimalSeparator)) {
           // If there's no decimal entry yet, use the "compact" format to show the number
           // i.e. $10 instead of $10.00
@@ -83,6 +87,29 @@ class MoneyInputFormatterImpl(
         }
       }
     }
+  }
+
+  private fun buildBitcoinDecimalEntryDisplayText(
+    inputDecimalAmount: DecimalNumber,
+  ): MoneyInputDisplayText {
+    val decimalSeparator = localeProvider.currentLocale().decimalSeparator
+    val wholeNumberText =
+      doubleFormatter.format(
+        double = inputDecimalAmount.numberString.substringBefore(decimalSeparator).toDouble(),
+        minimumFractionDigits = 0,
+        maximumFractionDigits = 0,
+        isGroupingUsed = true
+      )
+
+    return MoneyInputDisplayText(
+      displayText =
+        buildString {
+          append(wholeNumberText)
+          append(decimalSeparator)
+          append(inputDecimalAmount.numberString.substringAfter(decimalSeparator, ""))
+          append(" ${BTC.textCode.code}")
+        }
+    )
   }
 
   private fun buildGhostedSubstringForDecimalAmount(

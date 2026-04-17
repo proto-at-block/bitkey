@@ -37,7 +37,7 @@ typedef struct {
   rtos_mutex_t access;
 } mcu_usart_tx_state_t;
 
-static mcu_usart_tx_state_t PERIPHERALS_DATA _tx_states[PLATFORM_CFG_MCU_UART_CNT] = {0};
+static mcu_usart_tx_state_t SHARED_TASK_BSS _tx_states[PLATFORM_CFG_MCU_UART_CNT] = {0};
 
 static uint32_t _tx_n_free(mcu_usart_tx_state_t* state);
 static bool _tx_ldma_isr(uint32_t channel, uint32_t sequence_num, void* user_param);

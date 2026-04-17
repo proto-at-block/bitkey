@@ -2,6 +2,7 @@ package build.wallet.ui
 
 import app.cash.turbine.test
 import build.wallet.coroutines.createBackgroundScope
+import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.store.KeyValueStoreFactoryFake
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.ThemePreference
@@ -42,12 +43,10 @@ class ThemePreferenceDaoImplTests : FunSpec({
   test("themePreference flow emits updates") {
     val dao = dao()
     dao.themePreference().test {
-      // The flow should initially emit System.
-      awaitItem() shouldBe ThemePreference.System
+      awaitUntil(ThemePreference.System)
 
-      // After updating, the flow should emit the new theme.
       dao.setThemePreference(ThemePreference.Manual(Theme.DARK)) shouldBe Ok(Unit)
-      awaitItem() shouldBe ThemePreference.Manual(Theme.DARK)
+      awaitUntil(ThemePreference.Manual(Theme.DARK))
     }
   }
 })

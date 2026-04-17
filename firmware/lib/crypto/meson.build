@@ -79,14 +79,22 @@ srcs = [
   'src/ecc.c',
   'src/key_management.c',
   'src/key_exchange.c',
-  'src/ripemd160.c',
   'src/wsm_integrity_key.c',
 ]
+
+ripemd160_lib = static_library('ripemd160',
+  'src/ripemd160.c',
+  c_args : ['-Os'],
+  include_directories : ['inc', 'inc-private', 'src'],
+  dependencies : [wstd_dep],
+)
+ripemd160_dep = declare_dependency(link_with : ripemd160_lib)
 
 deps = [
   assert_dep,
   helpers_dep,
   log_dep,
+  ripemd160_dep,
   secp256k1_dep,
   wstd_dep,
 ]

@@ -50,4 +50,31 @@ interface WsmVerifier {
     signature: String,
     keyVariant: WsmIntegrityKeyVariant,
   ): WsmVerifierResult
+
+  /**
+   * Verifies a WSM signature over 5 concatenated public keys using the `SignPublicKeysV1` context.
+   *
+   * The WSM enclave signs `SHA256("WsmIntegrityV1" + "SignPublicKeysV1" + concat(keys))`,
+   * where each key is a 33-byte compressed secp256k1 public key provided as hex.
+   *
+   * @param appAuthPubHex hex-encoded app authentication public key (33 bytes compressed)
+   * @param hardwareAuthPubHex hex-encoded hardware authentication public key
+   * @param appSpendingPubHex hex-encoded app spending public key
+   * @param hardwareSpendingPubHex hex-encoded hardware spending public key
+   * @param serverSpendingPubHex hex-encoded server spending public key
+   * @param signature hex-encoded compact ECDSA signature from WSM
+   * @param keyVariant the WSM integrity key variant (prod vs test)
+   * @return True if the signature is valid, false otherwise.
+   * @throws Error If there is an invalid public key or signature.
+   */
+  @Throws(Error::class)
+  fun verifyPublicKeys(
+    appAuthPubHex: String,
+    hardwareAuthPubHex: String,
+    appSpendingPubHex: String,
+    hardwareSpendingPubHex: String,
+    serverSpendingPubHex: String,
+    signature: String,
+    keyVariant: WsmIntegrityKeyVariant,
+  ): WsmVerifierResult
 }

@@ -21,9 +21,26 @@ static usart_task_config_t* _usart_task_allocate_config(void) {
   return NULL;
 }
 
+SYSCALL NO_OPTIMIZE static void _usart_task_init(mcu_usart_config_t* config) {
+  RTOS_THREAD_WITH_PRIVILEGE({ mcu_usart_init(config); });
+}
+
+SYSCALL NO_OPTIMIZE static void _usart_task_write(mcu_usart_config_t* config, const uint8_t* data,
+                                                  uint32_t data_len) {
+  RTOS_THREAD_WITH_PRIVILEGE({ (void)mcu_usart_write(config, data, data_len); });
+}
+
+SYSCALL NO_OPTIMIZE static uint32_t _usart_task_read(mcu_usart_config_t* config, uint8_t* data,
+                                                     uint32_t data_len, uint32_t timeout_ms) {
+  uint32_t bytes_read = 0;
+  RTOS_THREAD_WITH_PRIVILEGE(
+    { bytes_read = mcu_usart_read_timeout(config, data, data_len, timeout_ms); });
+  return bytes_read;
+}
+
 static void _usart_task_echo(const uint8_t* data, uint32_t data_len, void* context) {
   ASSERT(context != NULL);
-  mcu_usart_write((mcu_usart_config_t*)context, data, data_len);
+  _usart_task_write((mcu_usart_config_t*)context, data, data_len);
 }
 
 static void usart_task_thread(void* args) {
@@ -39,11 +56,11 @@ static void usart_task_thread(void* args) {
   uint8_t* recv_buf = cfg->recv_buf;
   const uint32_t recv_buf_len = sizeof(cfg->recv_buf);
 
-  mcu_usart_init(usart_cfg);
+  _usart_task_init(usart_cfg);
 
   while (1) {
     const uint32_t bytes_read =
-      mcu_usart_read_timeout(usart_cfg, recv_buf, recv_buf_len, USART_TASK_RD_TIMEOUT_MS);
+      _usart_task_read(usart_cfg, recv_buf, recv_buf_len, USART_TASK_RD_TIMEOUT_MS);
     if (bytes_read > 0) {
       recv_data_cb(recv_buf, bytes_read, context);
     }

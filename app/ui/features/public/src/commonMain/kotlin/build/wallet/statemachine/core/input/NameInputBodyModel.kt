@@ -51,6 +51,7 @@ data class NameInputBodyModel(
         fieldModel = TextFieldModel(
           value = value,
           placeholderText = placeholder,
+          testTag = "name-input-field",
           onValueChange = { newValue, _ -> onValueChange(newValue) },
           keyboardType = TextFieldModel.KeyboardType.Default,
           capitalization = Capitalization.Words,

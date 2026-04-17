@@ -23,12 +23,15 @@ fun SettingsScreenPreview() {
 @Composable
 fun SettingsScreenWithSecurityHubCoachmarkPreview() {
   PreviewWalletTheme {
-    SettingsScreen {}
+    SettingsScreen(securityHubClickHandler = {})
   }
 }
 
 @Composable
-fun SettingsScreen(securityHubClickHandler: (() -> Unit)? = null) {
+fun SettingsScreen(
+  securityHubClickHandler: (() -> Unit)? = null,
+  allItemsEnabled: Boolean = false,
+) {
   SettingsScreen(
     model = SettingsBodyModel(
       onBack = {},
@@ -41,12 +44,12 @@ fun SettingsScreen(securityHubClickHandler: (() -> Unit)? = null) {
                 SettingsBodyModel.RowModel(
                   icon = Icon.SmallIconPhone,
                   title = "Mobile Pay",
-                  isDisabled = true
+                  isDisabled = !allItemsEnabled
                 ) {},
                 SettingsBodyModel.RowModel(
                   icon = Icon.SmallIconBitkey,
                   title = "Lost or Stolen Device",
-                  isDisabled = true
+                  isDisabled = !allItemsEnabled
                 ) {},
                 SettingsBodyModel.RowModel(
                   icon = Icon.SmallIconQuestion,
@@ -80,4 +83,12 @@ fun SettingsScreen(securityHubClickHandler: (() -> Unit)? = null) {
       onSecurityHubCoachmarkClick = securityHubClickHandler
     )
   )
+}
+
+@Preview
+@Composable
+fun SettingsScreenAllItemsEnabledDesignSystemPreview() {
+  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+    SettingsScreen(allItemsEnabled = true)
+  }
 }

@@ -17,9 +17,9 @@
 #include <stddef.h>
 #include <string.h>
 
-static SHARED_TASK_DATA perf_counter_t* perf_counters = NULL;
-static SHARED_TASK_DATA rtos_mutex_t perf_lock = {0};
-static SHARED_TASK_DATA bool initialised = false;
+static SHARED_TASK_BSS perf_counter_t* perf_counters = NULL;
+static SHARED_TASK_BSS rtos_mutex_t perf_lock = {0};
+static SHARED_TASK_BSS bool initialised = false;
 static const uint64_t us_in_ms = 1000;
 
 static void perf_init(void);

@@ -1,35 +1,47 @@
 use account::service::tests::create_private_spend_keyset;
 use axum::response::IntoResponse;
 use bdk_utils::bdk::bitcoin::Network;
+use comms_verification::TEST_CODE;
 use errors::ApiError;
 use http::StatusCode;
 use http_body_util::BodyExt;
 use onboarding::{
     account_validation::error::AccountValidationError,
-    routes::{CompleteOnboardingRequest, RotateSpendingKeysetRequest},
+    routes::{
+        AccountActivateTouchpointRequest, AccountAddTouchpointRequest,
+        AccountVerifyTouchpointRequest, CompleteOnboardingRequest, CompleteOnboardingRequestV2,
+        RotateSpendingKeysetRequest,
+    },
     routes_v2::{CreateAccountRequestV2, UpgradeAccountRequestV2},
 };
 use recovery::entities::{RecoveryDestination, RecoveryStatus};
 use rstest::rstest;
 use time::Duration;
-use types::account::{
-    bitcoin::Network as AccountNetwork,
-    entities::{
-        v2::{
-            FullAccountAuthKeysInputV2, SpendingKeysetInputV2, UpgradeLiteAccountAuthKeysInputV2,
+use types::{
+    account::{
+        bitcoin::Network as AccountNetwork,
+        entities::{
+            v2::{
+                FullAccountAuthKeysInputV2, SpendingKeysetInputV2,
+                UpgradeLiteAccountAuthKeysInputV2,
+            },
+            DescriptorBackup, DescriptorBackupsSet, Factor, HardwareType,
         },
-        DescriptorBackup, DescriptorBackupsSet, Factor,
     },
+    privileged_action::router::generic::PrivilegedActionRequest,
 };
 
 use crate::tests::{
     gen_services,
     lib::{
         create_email_touchpoint, create_full_account, create_full_account_v2, create_lite_account,
-        create_new_authkeys, create_pubkey, generate_delay_and_notify_recovery,
+        create_new_authkeys, create_onboarded_w3_account, create_pubkey,
+        generate_delay_and_notify_recovery, rotate_auth_keys_with_hardware_type,
     },
     requests::{axum::TestClient, Response},
+    TestContext,
 };
+use account::service::tests::TestAuthenticationKeys;
 
 #[tokio::test]
 async fn create_account_v2_test_with_idempotency() {
@@ -43,6 +55,7 @@ async fn create_account_v2_test_with_idempotency() {
             app_pub: keys.app.public_key,
             hardware_pub: keys.hw.public_key,
             recovery_pub: keys.recovery.public_key,
+            hardware_type: HardwareType::default(),
         },
         spend: SpendingKeysetInputV2 {
             network: Network::Signet,
@@ -108,6 +121,7 @@ async fn upgrade_account_v2_test_with_idempotency() {
         auth: UpgradeLiteAccountAuthKeysInputV2 {
             app_pub: keys.app.public_key,
             hardware_pub: keys.hw.public_key,
+            hardware_type: HardwareType::default(),
         },
         spend: SpendingKeysetInputV2 {
             network: Network::Signet,
@@ -142,6 +156,7 @@ async fn create_keyset_v2_test_with_idempotency() {
             app_pub: keys.app.public_key,
             hardware_pub: keys.hw.public_key,
             recovery_pub: keys.recovery.public_key,
+            hardware_type: HardwareType::default(),
         },
         spend: SpendingKeysetInputV2 {
             network: Network::Signet,
@@ -163,7 +178,6 @@ async fn create_keyset_v2_test_with_idempotency() {
                 app_pub: spending_app_pub,
                 hardware_pub: spending_hw_pub,
             },
-            &keys,
         )
         .await;
     assert_eq!(actual_response.status_code, StatusCode::OK);
@@ -177,7 +191,6 @@ async fn create_keyset_v2_test_with_idempotency() {
                 app_pub: spending_app_pub,
                 hardware_pub: spending_hw_pub,
             },
-            &keys,
         )
         .await;
     assert_eq!(actual_response.status_code, StatusCode::OK);
@@ -256,6 +269,7 @@ async fn create_account_v2_key_validation_test(
             app_auth_pubkey: keys.app.public_key,
             hardware_auth_pubkey: keys.hw.public_key,
             recovery_auth_pubkey: Some(keys.recovery.public_key),
+            hardware_type: HardwareType::default(),
         },
         fixed_cur_time + Duration::days(7),
         RecoveryStatus::Pending,
@@ -311,6 +325,7 @@ async fn create_account_v2_key_validation_test(
                     app_pub: account_app_pubkey,
                     hardware_pub: account_hardware_pubkey,
                     recovery_pub: account_recovery_pubkey,
+                    hardware_type: HardwareType::default(),
                 },
                 spend: SpendingKeysetInputV2 {
                     network: Network::Signet,
@@ -400,6 +415,7 @@ async fn test_complete_onboarding_v2_success() {
             app_pub: keys.app.public_key,
             hardware_pub: keys.hw.public_key,
             recovery_pub: keys.recovery.public_key,
+            hardware_type: HardwareType::default(),
         },
         spend: SpendingKeysetInputV2 {
             network: Network::Signet,
@@ -494,6 +510,7 @@ async fn test_complete_onboarding_v2_missing_descriptor_backup() {
             app_pub: keys.app.public_key,
             hardware_pub: keys.hw.public_key,
             recovery_pub: keys.recovery.public_key,
+            hardware_type: HardwareType::default(),
         },
         spend: SpendingKeysetInputV2 {
             network: Network::Signet,
@@ -538,6 +555,7 @@ async fn test_complete_onboarding_v2_test_account_missing_email_allowed() {
             app_pub: keys.app.public_key,
             hardware_pub: keys.hw.public_key,
             recovery_pub: keys.recovery.public_key,
+            hardware_type: HardwareType::default(),
         },
         spend: SpendingKeysetInputV2 {
             network: Network::Signet,
@@ -606,6 +624,7 @@ async fn test_complete_onboarding_v2_production_account_missing_email_fails() {
             app_pub: keys.app.public_key,
             hardware_pub: keys.hw.public_key,
             recovery_pub: keys.recovery.public_key,
+            hardware_type: HardwareType::default(),
         },
         spend: SpendingKeysetInputV2 {
             network: Network::Signet,
@@ -694,4 +713,888 @@ async fn test_complete_onboarding_v2_legacy_keyset_success() {
     assert!(!body.signature.is_empty());
     assert_eq!(body.signature.len(), 128);
     assert!(body.signature.chars().all(|c| c.is_ascii_hexdigit()));
+}
+
+#[tokio::test]
+async fn complete_onboarding_v2_requires_w3_hardware_type() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    // Create a W3 account
+    let (spending_app_pub, spending_hw_pub) = (create_pubkey(), create_pubkey());
+    let keys = create_new_authkeys(&mut context);
+    let request = CreateAccountRequestV2 {
+        auth: FullAccountAuthKeysInputV2 {
+            app_pub: keys.app.public_key,
+            hardware_pub: keys.hw.public_key,
+            recovery_pub: keys.recovery.public_key,
+            hardware_type: HardwareType::W3,
+        },
+        spend: SpendingKeysetInputV2 {
+            network: Network::Signet,
+            app_pub: spending_app_pub,
+            hardware_pub: spending_hw_pub,
+        },
+        is_test_account: true,
+    };
+
+    let create_response = client.create_account_v2(&mut context, &request).await;
+    assert_eq!(create_response.status_code, StatusCode::OK);
+    let account = create_response.body.unwrap();
+
+    // Add descriptor backups (required for W3 onboarding completion)
+    let descriptor_response = client
+        .update_descriptor_backups(
+            &account.account_id.to_string(),
+            &DescriptorBackupsSet {
+                wrapped_ssek: vec![],
+                descriptor_backups: vec![DescriptorBackup::Private {
+                    keyset_id: account.keyset_id.clone(),
+                    sealed_descriptor: "test".to_string(),
+                    sealed_server_root_xpub: "test".to_string(),
+                }],
+            },
+            Some(&keys),
+        )
+        .await;
+    assert_eq!(descriptor_response.status_code, StatusCode::OK);
+
+    // Complete onboarding v2 should succeed for W3
+    let onboarding_response = client
+        .complete_onboarding_v2(
+            &account.account_id.to_string(),
+            &CompleteOnboardingRequestV2 {},
+            Some(&keys),
+        )
+        .await;
+    assert_eq!(onboarding_response.status_code, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn complete_onboarding_v2_rejects_w1_hardware_type() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    // Create a W1 account
+    let (spending_app_pub, spending_hw_pub) = (create_pubkey(), create_pubkey());
+    let keys = create_new_authkeys(&mut context);
+    let request = CreateAccountRequestV2 {
+        auth: FullAccountAuthKeysInputV2 {
+            app_pub: keys.app.public_key,
+            hardware_pub: keys.hw.public_key,
+            recovery_pub: keys.recovery.public_key,
+            hardware_type: HardwareType::W1,
+        },
+        spend: SpendingKeysetInputV2 {
+            network: Network::Signet,
+            app_pub: spending_app_pub,
+            hardware_pub: spending_hw_pub,
+        },
+        is_test_account: true,
+    };
+
+    let create_response = client.create_account_v2(&mut context, &request).await;
+    assert_eq!(create_response.status_code, StatusCode::OK);
+    let account = create_response.body.unwrap();
+
+    // Add descriptor backups
+    let descriptor_response = client
+        .update_descriptor_backups(
+            &account.account_id.to_string(),
+            &DescriptorBackupsSet {
+                wrapped_ssek: vec![],
+                descriptor_backups: vec![DescriptorBackup::Private {
+                    keyset_id: account.keyset_id.clone(),
+                    sealed_descriptor: "test".to_string(),
+                    sealed_server_root_xpub: "test".to_string(),
+                }],
+            },
+            Some(&keys),
+        )
+        .await;
+    assert_eq!(descriptor_response.status_code, StatusCode::OK);
+
+    // Complete onboarding v2 should FAIL for W1
+    let onboarding_response = client
+        .complete_onboarding_v2(
+            &account.account_id.to_string(),
+            &CompleteOnboardingRequestV2 {},
+            Some(&keys),
+        )
+        .await;
+    assert_eq!(onboarding_response.status_code, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn complete_onboarding_v2_rejects_default_hardware_type() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    // Create an account with default hardware_type (W1)
+    let (spending_app_pub, spending_hw_pub) = (create_pubkey(), create_pubkey());
+    let keys = create_new_authkeys(&mut context);
+    let request = CreateAccountRequestV2 {
+        auth: FullAccountAuthKeysInputV2 {
+            app_pub: keys.app.public_key,
+            hardware_pub: keys.hw.public_key,
+            recovery_pub: keys.recovery.public_key,
+            hardware_type: HardwareType::default(),
+        },
+        spend: SpendingKeysetInputV2 {
+            network: Network::Signet,
+            app_pub: spending_app_pub,
+            hardware_pub: spending_hw_pub,
+        },
+        is_test_account: true,
+    };
+
+    let create_response = client.create_account_v2(&mut context, &request).await;
+    assert_eq!(create_response.status_code, StatusCode::OK);
+    let account = create_response.body.unwrap();
+
+    // Add descriptor backups
+    let descriptor_response = client
+        .update_descriptor_backups(
+            &account.account_id.to_string(),
+            &DescriptorBackupsSet {
+                wrapped_ssek: vec![],
+                descriptor_backups: vec![DescriptorBackup::Private {
+                    keyset_id: account.keyset_id.clone(),
+                    sealed_descriptor: "test".to_string(),
+                    sealed_server_root_xpub: "test".to_string(),
+                }],
+            },
+            Some(&keys),
+        )
+        .await;
+    assert_eq!(descriptor_response.status_code, StatusCode::OK);
+
+    // Complete onboarding v2 should FAIL for default hardware_type (W1)
+    let onboarding_response = client
+        .complete_onboarding_v2(
+            &account.account_id.to_string(),
+            &CompleteOnboardingRequestV2 {},
+            Some(&keys),
+        )
+        .await;
+    assert_eq!(onboarding_response.status_code, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn w3_rejects_key_claims_auth_for_touchpoint_activation() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    // Create a W3 account (NOT yet onboarded)
+    let (spending_app_pub, spending_hw_pub) = (create_pubkey(), create_pubkey());
+    let keys = create_new_authkeys(&mut context);
+    let request = CreateAccountRequestV2 {
+        auth: FullAccountAuthKeysInputV2 {
+            app_pub: keys.app.public_key,
+            hardware_pub: keys.hw.public_key,
+            recovery_pub: keys.recovery.public_key,
+            hardware_type: HardwareType::W3,
+        },
+        spend: SpendingKeysetInputV2 {
+            network: Network::Signet,
+            app_pub: spending_app_pub,
+            hardware_pub: spending_hw_pub,
+        },
+        is_test_account: true,
+    };
+
+    let create_response = client.create_account_v2(&mut context, &request).await;
+    assert_eq!(create_response.status_code, StatusCode::OK);
+    let account = create_response.body.unwrap();
+
+    // Add a touchpoint
+    let email = "test@example.com";
+    let add_touchpoint_response = client
+        .add_touchpoint(
+            &account.account_id.to_string(),
+            &AccountAddTouchpointRequest::Email {
+                email_address: email.to_string(),
+            },
+            Some(&keys),
+        )
+        .await;
+    assert_eq!(add_touchpoint_response.status_code, StatusCode::OK);
+    let touchpoint_id = add_touchpoint_response.body.unwrap().touchpoint_id;
+
+    // Verify touchpoint
+    let _ = client
+        .verify_touchpoint(
+            &account.account_id.to_string(),
+            &touchpoint_id.to_string(),
+            &AccountVerifyTouchpointRequest {
+                verification_code: TEST_CODE.to_string(),
+            },
+        )
+        .await;
+
+    // W3 accounts MUST use ActionProof — KeyClaims auth should be rejected
+    let activate_response = client
+        .activate_touchpoint(
+            &account.account_id.to_string(),
+            &touchpoint_id.to_string(),
+            &PrivilegedActionRequest::Initiate(AccountActivateTouchpointRequest {}),
+            true, // app_signed = true (KeyClaims)
+            true, // hw_signed = true (KeyClaims)
+            &keys,
+        )
+        .await;
+    assert_eq!(
+        activate_response.status_code,
+        StatusCode::FORBIDDEN,
+        "W3 should reject KeyClaims auth — must use ActionProof"
+    );
+}
+
+#[tokio::test]
+async fn w3_requires_action_proof_signatures_for_touchpoint_during_onboarding() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    // Create a W3 account (NOT yet onboarded)
+    let (spending_app_pub, spending_hw_pub) = (create_pubkey(), create_pubkey());
+    let keys = create_new_authkeys(&mut context);
+    let request = CreateAccountRequestV2 {
+        auth: FullAccountAuthKeysInputV2 {
+            app_pub: keys.app.public_key,
+            hardware_pub: keys.hw.public_key,
+            recovery_pub: keys.recovery.public_key,
+            hardware_type: HardwareType::W3,
+        },
+        spend: SpendingKeysetInputV2 {
+            network: Network::Signet,
+            app_pub: spending_app_pub,
+            hardware_pub: spending_hw_pub,
+        },
+        is_test_account: true,
+    };
+
+    let create_response = client.create_account_v2(&mut context, &request).await;
+    assert_eq!(create_response.status_code, StatusCode::OK);
+    let account = create_response.body.unwrap();
+
+    // Add a touchpoint
+    let email = "test@example.com";
+    let add_touchpoint_response = client
+        .add_touchpoint(
+            &account.account_id.to_string(),
+            &AccountAddTouchpointRequest::Email {
+                email_address: email.to_string(),
+            },
+            Some(&keys),
+        )
+        .await;
+    assert_eq!(add_touchpoint_response.status_code, StatusCode::OK);
+    let touchpoint_id = add_touchpoint_response.body.unwrap().touchpoint_id;
+
+    // Verify touchpoint
+    let _ = client
+        .verify_touchpoint(
+            &account.account_id.to_string(),
+            &touchpoint_id.to_string(),
+            &AccountVerifyTouchpointRequest {
+                verification_code: TEST_CODE.to_string(),
+            },
+        )
+        .await;
+
+    // Try ActionProof WITHOUT signatures — should FAIL for W3 (BothFactors required)
+    let activate_response = client
+        .activate_touchpoint_with_action_proof(
+            &account.account_id.to_string(),
+            &touchpoint_id.to_string(),
+            &PrivilegedActionRequest::Initiate(AccountActivateTouchpointRequest {}),
+            action_proof::Action::SetRecoveryEmail,
+            Some(email),
+            &keys,
+            false, // sign_with_app = false
+            false, // sign_with_hw = false
+        )
+        .await;
+    assert_eq!(
+        activate_response.status_code,
+        StatusCode::FORBIDDEN,
+        "W3 should require ActionProof signatures even during onboarding"
+    );
+
+    // Try ActionProof WITH both signatures — should SUCCEED
+    let activate_response = client
+        .activate_touchpoint_with_action_proof(
+            &account.account_id.to_string(),
+            &touchpoint_id.to_string(),
+            &PrivilegedActionRequest::Initiate(AccountActivateTouchpointRequest {}),
+            action_proof::Action::SetRecoveryEmail,
+            Some(email),
+            &keys,
+            true, // sign_with_app = true
+            true, // sign_with_hw = true
+        )
+        .await;
+    assert_eq!(
+        activate_response.status_code,
+        StatusCode::OK,
+        "W3 should succeed with ActionProof and both signatures"
+    );
+}
+
+#[tokio::test]
+async fn w1_allows_skip_signatures_for_touchpoint_during_onboarding() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    // Create a W1 account (NOT yet onboarded)
+    let (spending_app_pub, spending_hw_pub) = (create_pubkey(), create_pubkey());
+    let keys = create_new_authkeys(&mut context);
+    let request = CreateAccountRequestV2 {
+        auth: FullAccountAuthKeysInputV2 {
+            app_pub: keys.app.public_key,
+            hardware_pub: keys.hw.public_key,
+            recovery_pub: keys.recovery.public_key,
+            hardware_type: HardwareType::W1,
+        },
+        spend: SpendingKeysetInputV2 {
+            network: Network::Signet,
+            app_pub: spending_app_pub,
+            hardware_pub: spending_hw_pub,
+        },
+        is_test_account: true,
+    };
+
+    let create_response = client.create_account_v2(&mut context, &request).await;
+    assert_eq!(create_response.status_code, StatusCode::OK);
+    let account = create_response.body.unwrap();
+
+    // Add a touchpoint
+    let add_touchpoint_response = client
+        .add_touchpoint(
+            &account.account_id.to_string(),
+            &AccountAddTouchpointRequest::Email {
+                email_address: "test@example.com".to_string(),
+            },
+            Some(&keys),
+        )
+        .await;
+    assert_eq!(add_touchpoint_response.status_code, StatusCode::OK);
+    let touchpoint_id = add_touchpoint_response.body.unwrap().touchpoint_id;
+
+    // Verify touchpoint
+    let _ = client
+        .verify_touchpoint(
+            &account.account_id.to_string(),
+            &touchpoint_id.to_string(),
+            &AccountVerifyTouchpointRequest {
+                verification_code: TEST_CODE.to_string(),
+            },
+        )
+        .await;
+
+    // Try to activate WITHOUT signatures - should SUCCEED for W1 during onboarding
+    let activate_response = client
+        .activate_touchpoint(
+            &account.account_id.to_string(),
+            &touchpoint_id.to_string(),
+            &PrivilegedActionRequest::Initiate(AccountActivateTouchpointRequest {}),
+            false, // app_signed = false
+            false, // hw_signed = false
+            &keys,
+        )
+        .await;
+    assert_eq!(
+        activate_response.status_code,
+        StatusCode::OK,
+        "W1 should allow skipping signatures during onboarding"
+    );
+}
+
+// ---- W3 ActionProof tests for migrated routes ----
+
+#[tokio::test]
+async fn w3_create_keyset_v2_with_action_proof_succeeds() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let (account_id, _keys) = create_onboarded_w3_account(&mut context, &client).await;
+
+    let keyset_request = SpendingKeysetInputV2 {
+        network: Network::Signet,
+        app_pub: create_pubkey(),
+        hardware_pub: create_pubkey(),
+    };
+
+    let response = client.create_keyset_v2(&account_id, &keyset_request).await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "W3 create_keyset_v2 should succeed"
+    );
+}
+
+#[tokio::test]
+async fn w3_rotate_spending_keyset_with_action_proof_succeeds() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let (account_id, keys) = create_onboarded_w3_account(&mut context, &client).await;
+
+    // Create a second W3 keyset to rotate to
+    let keyset_request = SpendingKeysetInputV2 {
+        network: Network::Signet,
+        app_pub: create_pubkey(),
+        hardware_pub: create_pubkey(),
+    };
+    let keyset_response = client.create_keyset_v2(&account_id, &keyset_request).await;
+    assert_eq!(keyset_response.status_code, StatusCode::OK);
+    let new_keyset_id = keyset_response.body.unwrap().keyset_id;
+
+    // Upload descriptor backup for the new keyset (must be superset of existing backups)
+    // First, get the existing keyset_id from the account
+    let account_status = client.get_account_status(&account_id).await;
+    let existing_keyset_id = account_status.body.unwrap().keyset_id;
+
+    let backup_response = client
+        .update_descriptor_backups_with_action_proof(
+            &account_id,
+            &DescriptorBackupsSet {
+                wrapped_ssek: vec![],
+                descriptor_backups: vec![
+                    DescriptorBackup::Private {
+                        keyset_id: existing_keyset_id,
+                        sealed_descriptor: "test".to_string(),
+                        sealed_server_root_xpub: "test".to_string(),
+                    },
+                    DescriptorBackup::Private {
+                        keyset_id: new_keyset_id.clone(),
+                        sealed_descriptor: "test2".to_string(),
+                        sealed_server_root_xpub: "test2".to_string(),
+                    },
+                ],
+            },
+            &keys,
+            true,
+            true,
+        )
+        .await;
+    assert_eq!(backup_response.status_code, StatusCode::OK);
+
+    // Rotate to the new keyset using ActionProof
+    let response = client
+        .rotate_to_spending_keyset_with_action_proof(
+            &account_id,
+            &new_keyset_id.to_string(),
+            &RotateSpendingKeysetRequest {},
+            &keys,
+            true,
+            true,
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "W3 rotate_spending_keyset with ActionProof should succeed"
+    );
+}
+
+#[tokio::test]
+async fn w1_to_w3_rotate_spending_keyset_rejects_keyclaims() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    // Create a W1 account, then rotate auth keys to W3
+    let keys = create_new_authkeys(&mut context);
+    let request = CreateAccountRequestV2 {
+        auth: FullAccountAuthKeysInputV2 {
+            app_pub: keys.app.public_key,
+            hardware_pub: keys.hw.public_key,
+            recovery_pub: keys.recovery.public_key,
+            hardware_type: HardwareType::W1,
+        },
+        spend: SpendingKeysetInputV2 {
+            network: Network::Signet,
+            app_pub: create_pubkey(),
+            hardware_pub: create_pubkey(),
+        },
+        is_test_account: true,
+    };
+    let create_response = client.create_account_v2(&mut context, &request).await;
+    assert_eq!(create_response.status_code, StatusCode::OK);
+    let account = create_response.body.unwrap();
+    let account_id = account.account_id.to_string();
+
+    let desc_response = client
+        .update_descriptor_backups(
+            &account_id,
+            &DescriptorBackupsSet {
+                wrapped_ssek: vec![],
+                descriptor_backups: vec![DescriptorBackup::Private {
+                    keyset_id: account.keyset_id.clone(),
+                    sealed_descriptor: "test".to_string(),
+                    sealed_server_root_xpub: "test".to_string(),
+                }],
+            },
+            Some(&keys),
+        )
+        .await;
+    assert_eq!(desc_response.status_code, StatusCode::OK);
+
+    let onboarding_response = client
+        .complete_onboarding(&account_id, &CompleteOnboardingRequest {})
+        .await;
+    assert_eq!(onboarding_response.status_code, StatusCode::OK);
+
+    // Rotate auth keys to W3 — this switches the account's auth strategy to ActionProof
+    let keys = rotate_auth_keys_with_hardware_type(
+        &mut context,
+        &client,
+        &account_id,
+        &keys,
+        HardwareType::W3,
+    )
+    .await;
+
+    // Create a destination keyset
+    let keyset_request = SpendingKeysetInputV2 {
+        network: Network::Signet,
+        app_pub: create_pubkey(),
+        hardware_pub: create_pubkey(),
+    };
+    let create_response = client.create_keyset_v2(&account_id, &keyset_request).await;
+    assert_eq!(create_response.status_code, StatusCode::OK);
+    let new_keyset_id = create_response.body.unwrap().keyset_id;
+
+    // KeyClaims auth should be rejected because auth keys are now W3
+    let response = client
+        .rotate_to_spending_keyset(
+            &account_id,
+            &new_keyset_id.to_string(),
+            &RotateSpendingKeysetRequest {},
+            &keys,
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::FORBIDDEN,
+        "KeyClaims should be rejected when auth keys are W3"
+    );
+}
+
+#[tokio::test]
+async fn w3_delete_account_with_action_proof_succeeds() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    // Create a non-onboarded W3 account (only non-onboarded accounts can be deleted)
+    let keys = create_new_authkeys(&mut context);
+    let request = CreateAccountRequestV2 {
+        auth: FullAccountAuthKeysInputV2 {
+            app_pub: keys.app.public_key,
+            hardware_pub: keys.hw.public_key,
+            recovery_pub: keys.recovery.public_key,
+            hardware_type: HardwareType::W3,
+        },
+        spend: SpendingKeysetInputV2 {
+            network: Network::Signet,
+            app_pub: create_pubkey(),
+            hardware_pub: create_pubkey(),
+        },
+        is_test_account: true,
+    };
+    let create_response = client.create_account_v2(&mut context, &request).await;
+    assert_eq!(create_response.status_code, StatusCode::OK);
+    let account_id = create_response.body.unwrap().account_id.to_string();
+
+    let response = client
+        .delete_account_with_action_proof(&account_id, &keys, true, true)
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "W3 delete_account with ActionProof should succeed"
+    );
+}
+
+// ---- Descriptor backup: pre-onboarding and post-onboarding variants for W1 and W3 ----
+
+/// Helper: create a non-onboarded account via the v2 API.
+/// Returns (account_id_string, keyset_id, keys).
+async fn create_non_onboarded_v2_account(
+    context: &mut TestContext,
+    client: &TestClient,
+    hardware_type: HardwareType,
+) -> (
+    String,
+    types::account::identifiers::KeysetId,
+    TestAuthenticationKeys,
+) {
+    let keys = create_new_authkeys(context);
+    let request = CreateAccountRequestV2 {
+        auth: FullAccountAuthKeysInputV2 {
+            app_pub: keys.app.public_key,
+            hardware_pub: keys.hw.public_key,
+            recovery_pub: keys.recovery.public_key,
+            hardware_type,
+        },
+        spend: SpendingKeysetInputV2 {
+            network: Network::Signet,
+            app_pub: create_pubkey(),
+            hardware_pub: create_pubkey(),
+        },
+        is_test_account: true,
+    };
+    let create_response = client.create_account_v2(context, &request).await;
+    assert_eq!(create_response.status_code, StatusCode::OK);
+    let account = create_response.body.unwrap();
+    (account.account_id.to_string(), account.keyset_id, keys)
+}
+
+/// Helper: onboard a v2 account by uploading its descriptor backup and completing onboarding.
+/// Uses the correct complete-onboarding endpoint based on hardware type.
+async fn onboard_v2_account(
+    client: &TestClient,
+    account_id: &str,
+    keyset_id: &types::account::identifiers::KeysetId,
+    keys: &TestAuthenticationKeys,
+    hardware_type: HardwareType,
+) {
+    let desc_response = client
+        .update_descriptor_backups(
+            account_id,
+            &DescriptorBackupsSet {
+                wrapped_ssek: vec![],
+                descriptor_backups: vec![DescriptorBackup::Private {
+                    keyset_id: keyset_id.clone(),
+                    sealed_descriptor: "test".to_string(),
+                    sealed_server_root_xpub: "test".to_string(),
+                }],
+            },
+            Some(keys),
+        )
+        .await;
+    assert_eq!(desc_response.status_code, StatusCode::OK);
+
+    match hardware_type {
+        HardwareType::W3 => {
+            let onboard_response = client
+                .complete_onboarding_v2(account_id, &CompleteOnboardingRequestV2 {}, Some(keys))
+                .await;
+            assert_eq!(onboard_response.status_code, StatusCode::OK);
+        }
+        HardwareType::W1 => {
+            let onboard_response = client
+                .complete_onboarding(account_id, &CompleteOnboardingRequest {})
+                .await;
+            assert_eq!(onboard_response.status_code, StatusCode::OK);
+        }
+    }
+}
+
+// -- W1 pre-onboarding: KeyClaims, JwtOnly --
+
+#[tokio::test]
+async fn w1_update_descriptor_backups_pre_onboarding_keyclaims_succeeds() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let (account_id, keyset_id, _keys) =
+        create_non_onboarded_v2_account(&mut context, &client, HardwareType::W1).await;
+
+    // Pre-onboarding: JwtOnly, no signatures needed
+    let response = client
+        .update_descriptor_backups(
+            &account_id,
+            &DescriptorBackupsSet {
+                wrapped_ssek: vec![],
+                descriptor_backups: vec![DescriptorBackup::Private {
+                    keyset_id,
+                    sealed_descriptor: "test".to_string(),
+                    sealed_server_root_xpub: "test".to_string(),
+                }],
+            },
+            None, // no keys = no signatures
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "W1 pre-onboarding descriptor backup should succeed with JwtOnly"
+    );
+}
+
+// -- W1 post-onboarding: KeyClaims, BothFactors --
+
+#[tokio::test]
+async fn w1_update_descriptor_backups_post_onboarding_keyclaims_succeeds() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let (account_id, keyset_id, keys) =
+        create_non_onboarded_v2_account(&mut context, &client, HardwareType::W1).await;
+    onboard_v2_account(&client, &account_id, &keyset_id, &keys, HardwareType::W1).await;
+
+    // Post-onboarding: BothFactors required
+    let response = client
+        .update_descriptor_backups(
+            &account_id,
+            &DescriptorBackupsSet {
+                wrapped_ssek: vec![],
+                descriptor_backups: vec![DescriptorBackup::Private {
+                    keyset_id,
+                    sealed_descriptor: "updated".to_string(),
+                    sealed_server_root_xpub: "updated".to_string(),
+                }],
+            },
+            Some(&keys), // both app + hw signatures
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "W1 post-onboarding descriptor backup should succeed with BothFactors KeyClaims"
+    );
+}
+
+// -- W3 pre-onboarding: ActionProof, JwtOnly --
+
+#[tokio::test]
+async fn w3_update_descriptor_backups_pre_onboarding_action_proof_succeeds() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let (account_id, keyset_id, keys) =
+        create_non_onboarded_v2_account(&mut context, &client, HardwareType::W3).await;
+
+    // Pre-onboarding W3: JwtOnly proof, ActionProof with signatures still accepted
+    let response = client
+        .update_descriptor_backups_with_action_proof(
+            &account_id,
+            &DescriptorBackupsSet {
+                wrapped_ssek: vec![],
+                descriptor_backups: vec![DescriptorBackup::Private {
+                    keyset_id,
+                    sealed_descriptor: "test".to_string(),
+                    sealed_server_root_xpub: "test".to_string(),
+                }],
+            },
+            &keys,
+            true,
+            true,
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "W3 pre-onboarding descriptor backup with ActionProof should succeed"
+    );
+}
+
+// -- W3 pre-onboarding: KeyClaims still works (JwtOnly = no sig check) --
+
+#[tokio::test]
+async fn w3_update_descriptor_backups_pre_onboarding_keyclaims_succeeds() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let (account_id, keyset_id, _keys) =
+        create_non_onboarded_v2_account(&mut context, &client, HardwareType::W3).await;
+
+    // Pre-onboarding W3 with KeyClaims: JwtOnly means no sigs are checked,
+    // so even though W3 ignores KeyClaims sigs, the unsigned context passes JwtOnly.
+    let response = client
+        .update_descriptor_backups(
+            &account_id,
+            &DescriptorBackupsSet {
+                wrapped_ssek: vec![],
+                descriptor_backups: vec![DescriptorBackup::Private {
+                    keyset_id,
+                    sealed_descriptor: "test".to_string(),
+                    sealed_server_root_xpub: "test".to_string(),
+                }],
+            },
+            None, // no keys
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "W3 pre-onboarding descriptor backup with KeyClaims should succeed (JwtOnly)"
+    );
+}
+
+// -- W3 post-onboarding: ActionProof, BothFactors --
+
+#[tokio::test]
+async fn w3_update_descriptor_backups_post_onboarding_action_proof_succeeds() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let (account_id, keys) = create_onboarded_w3_account(&mut context, &client).await;
+    let keyset_id = client
+        .get_account_status(&account_id)
+        .await
+        .body
+        .unwrap()
+        .keyset_id;
+
+    // Post-onboarding: BothFactors via ActionProof
+    let response = client
+        .update_descriptor_backups_with_action_proof(
+            &account_id,
+            &DescriptorBackupsSet {
+                wrapped_ssek: vec![],
+                descriptor_backups: vec![DescriptorBackup::Private {
+                    keyset_id,
+                    sealed_descriptor: "updated".to_string(),
+                    sealed_server_root_xpub: "updated".to_string(),
+                }],
+            },
+            &keys,
+            true,
+            true,
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "W3 post-onboarding descriptor backup with ActionProof should succeed"
+    );
+}
+
+// -- W3 post-onboarding: KeyClaims rejected (BothFactors can't be met) --
+
+#[tokio::test]
+async fn w3_update_descriptor_backups_post_onboarding_rejects_keyclaims() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let (account_id, keys) = create_onboarded_w3_account(&mut context, &client).await;
+    let keyset_id = client
+        .get_account_status(&account_id)
+        .await
+        .body
+        .unwrap()
+        .keyset_id;
+
+    // Post-onboarding W3 with KeyClaims: BothFactors required but W3 ignores KeyClaims sigs
+    let response = client
+        .update_descriptor_backups(
+            &account_id,
+            &DescriptorBackupsSet {
+                wrapped_ssek: vec![],
+                descriptor_backups: vec![DescriptorBackup::Private {
+                    keyset_id,
+                    sealed_descriptor: "updated".to_string(),
+                    sealed_server_root_xpub: "updated".to_string(),
+                }],
+            },
+            Some(&keys), // KeyClaims sigs — ignored for W3
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::FORBIDDEN,
+        "W3 post-onboarding descriptor backup with KeyClaims should be rejected"
+    );
 }

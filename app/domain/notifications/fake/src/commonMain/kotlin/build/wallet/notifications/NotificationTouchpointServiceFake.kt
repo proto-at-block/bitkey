@@ -5,7 +5,6 @@ import bitkey.f8e.error.code.VerifyTouchpointClientErrorCode
 import bitkey.notifications.NotificationTouchpoint
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.f8e.auth.HwFactorProofOfPossession
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,7 +33,6 @@ class NotificationTouchpointServiceFake : NotificationTouchpointService {
   override suspend fun sendVerificationCodeToTouchpoint(
     fullAccountId: FullAccountId,
     touchpoint: NotificationTouchpoint,
-    hwProofOfPossession: HwFactorProofOfPossession?,
   ): Result<Unit, Error> {
     return sendVerificationCodeToTouchpointResult
   }
@@ -44,9 +42,16 @@ class NotificationTouchpointServiceFake : NotificationTouchpointService {
   override suspend fun verifyCode(
     fullAccountId: FullAccountId,
     verificationCode: String,
-    hwProofOfPossession: HwFactorProofOfPossession?,
   ): Result<Unit, F8eError<VerifyTouchpointClientErrorCode>> {
     return verifyCodeResult
+  }
+
+  /**
+   * Set the touchpoint data for testing purposes.
+   * Use this to simulate a touchpoint being activated/verified.
+   */
+  fun setTouchpointData(data: NotificationTouchpointData) {
+    notificationTouchpointData.value = data
   }
 
   fun reset() {

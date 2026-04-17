@@ -37,7 +37,6 @@ pub struct OutOfBandRecord {
     rename_all = "SCREAMING_SNAKE_CASE"
 )]
 pub enum AuthorizationStrategyRecord {
-    HardwareProofOfPossession,
     DelayAndNotify(DelayAndNotifyRecord),
     OutOfBand(OutOfBandRecord),
 }
@@ -82,7 +81,6 @@ impl<T> PrivilegedActionInstanceRecord<T> {
         match &self.authorization_strategy {
             AuthorizationStrategyRecord::DelayAndNotify(dn) => dn.status,
             AuthorizationStrategyRecord::OutOfBand(out_of_band) => out_of_band.status,
-            AuthorizationStrategyRecord::HardwareProofOfPossession => RecordStatus::Completed,
         }
     }
 }

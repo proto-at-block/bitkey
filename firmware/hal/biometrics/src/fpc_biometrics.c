@@ -38,7 +38,7 @@ static struct {
   uint32_t image_capture_tries;
   uint32_t enroll_tries;
   fpc_bep_template_t* template;
-  bool cancel_triggered;
+  volatile bool cancel_triggered;
   bio_template_id_t template_id;
   bio_match_stats_t match_stats;
 } bio_priv = {
@@ -79,11 +79,13 @@ static fpc_bep_result_t wait_for_finger_status(fpc_bep_finger_status_t status,
   for (;;) {
     fpc_bep_result_t result = fpc_bep_sensor_sleep(bio_priv.sensor_hw_detect_poll_period_ms);
     if (result != FPC_BEP_RESULT_OK) {
-      LOGE("Sleep failed: %d", result);
+      LOGE("Sleep fail: %d", result);
       goto fail;
     }
 
+    bio_sensor_unlock();
     fpc_sensor_wfi(timeout_ms, fpc_sensor_spi_check_irq, use_exti);
+    bio_sensor_lock();
 
     if (bio_priv.cancel_triggered) {
       goto cancel;
@@ -95,7 +97,7 @@ static fpc_bep_result_t wait_for_finger_status(fpc_bep_finger_status_t status,
       break;
     }
     if (result != FPC_BEP_RESULT_OK) {
-      LOGE("Check finger present failed: %d", result);
+      LOGE("Finger chk: %d", result);
       goto fail;
     }
   }
@@ -106,14 +108,12 @@ static fpc_bep_result_t wait_for_finger_status(fpc_bep_finger_status_t status,
 cancel:
   perf_cancel(perf.capture);
   perf_count(perf.errors);
-  LOGD("Wait for finger status cancelled");
   fpc_bep_sensor_deep_sleep();
   return FPC_BEP_RESULT_CANCELLED;
 
 fail:
   perf_cancel(perf.capture);
   perf_count(perf.errors);
-  LOGE("Wait for finger status failed");
   fpc_bep_sensor_deep_sleep();
   return FPC_BEP_RESULT_GENERAL_ERROR;
 }
@@ -129,14 +129,14 @@ static fpc_bep_result_t wait_for_finger_up(uint32_t timeout_ms) {
 static bool capture_image_and_extract_template(fpc_bep_image_t* image) {
   bool capture_result = bio_capture_image(image, bio_priv.image_capture_tries);
   if (!capture_result) {
-    LOGE("Failed to capture image");
+    LOGE("Image capture fail");
     return false;
   }
 
   // Extract template from image, template stored within bep_lib for internal matching.
   fpc_bep_result_t result = fpc_bep_image_extract(&image, NULL);
   if (result != FPC_BEP_RESULT_OK) {
-    LOGE("Failed to extract template from image: %d", result);
+    LOGE("Tmpl extract: %d", result);
     return false;
   }
 
@@ -173,8 +173,6 @@ static secure_bool_t match_against_all_templates(fpc_bep_identify_result_t* iden
   secure_bool_t match_found = SECURE_FALSE;
 
   for (bio_template_id_t id = 0; id < TEMPLATE_MAX_COUNT; id++) {
-    LOGD("Trying to match template %d...", id);
-
     if (!bio_storage_template_retrieve(id, &bio_priv.template)) {
       continue;
     }
@@ -213,7 +211,7 @@ bool bio_capture_image(fpc_bep_image_t* image, uint8_t max_tries) {
   while (tries < max_tries) {
     fpc_bep_result_t result = wait_for_finger_down(bio_priv.finger_detect_timeout_ms);
     if (result != FPC_BEP_RESULT_OK) {
-      LOGE("Wait for finger down failed: %d", result);
+      LOGE("Finger down fail: %d", result);
       goto fail;
     }
 
@@ -228,7 +226,6 @@ bool bio_capture_image(fpc_bep_image_t* image, uint8_t max_tries) {
   }
 
   if (tries >= max_tries) {
-    LOGE("Exceeded tries limit");
     goto fail;
   }
 
@@ -251,14 +248,16 @@ bool bio_wait_for_finger_non_blocking(bio_gesture_t gesture) {
       status = FPC_BEP_FINGER_STATUS_NOT_PRESENT;
       break;
     default:
-      LOGE("Invalid gesture: %d", gesture);
+      LOGE("Bad gesture: %d", gesture);
       return false;
   }
 
+  bio_sensor_lock();
   fpc_bep_result_t result = fpc_bep_sensor_sleep(bio_priv.sensor_hw_detect_poll_period_ms);
   if (result != FPC_BEP_RESULT_OK) {
-    LOGE("Sleep failed: %d", result);
+    LOGE("Sleep fail: %d", result);
     fpc_bep_sensor_deep_sleep();
+    bio_sensor_unlock();
     return false;
   }
 
@@ -266,17 +265,20 @@ bool bio_wait_for_finger_non_blocking(bio_gesture_t gesture) {
   result = fpc_bep_check_finger_present(&finger_present);
   if (result != FPC_BEP_RESULT_OK) {
     fpc_bep_sensor_deep_sleep();
+    bio_sensor_unlock();
     return false;
   }
+  bio_sensor_unlock();
   return (finger_present == status);
 }
 
-void bio_wait_for_finger_blocking(bio_gesture_t gesture) {
+bool bio_wait_for_finger_blocking(bio_gesture_t gesture) {
 #if BIO_DEV_MODE
   // This function is called from auth_task, and interferes with other FPC
   // sensor API calls.
   while (true) rtos_thread_sleep(5000);
 #endif
+  bio_sensor_lock();
   fpc_bep_result_t result = FPC_BEP_RESULT_GENERAL_ERROR;
   switch (gesture) {
     case BIO_FINGER_DOWN:
@@ -286,15 +288,21 @@ void bio_wait_for_finger_blocking(bio_gesture_t gesture) {
       result = wait_for_finger_up(BLOCKING_WAIT);
       break;
     default:
-      LOGE("Invalid gesture: %d", gesture);
+      LOGE("Bad gesture: %d", gesture);
       break;
   }
+  bio_sensor_unlock();
+  if (result == FPC_BEP_RESULT_CANCELLED) {
+    bio_priv.cancel_triggered = false;
+    return false;
+  }
   ASSERT_LOG(result == FPC_BEP_RESULT_OK, "%d", result);
+  return true;
 }
 
 bool bio_enroll_finger(bio_template_id_t id, char label[BIO_LABEL_MAX_LEN],
                        bio_enroll_stats_t* stats) {
-  LOGD("Enroll begin");
+  bio_sensor_lock();
   perf_count(perf.enroll);
   perf_reset(perf.enroll_pass);
   perf_reset(perf.enroll_fail);
@@ -309,15 +317,15 @@ bool bio_enroll_finger(bio_template_id_t id, char label[BIO_LABEL_MAX_LEN],
 
   fpc_bep_image_t* image = fpc_bep_image_new();
   fpc_bep_template_t* enroll_template = NULL;
-
-  if (id > TEMPLATE_MAX_COUNT) {
-    LOGE("Invalid template id: %d", id);
+  bool template_persisted = false;
+  if (id >= TEMPLATE_MAX_COUNT) {
+    LOGE("Bad tmpl id: %d", id);
     goto hard_fail;
   }
 
   fpc_bep_result_t result = fpc_bep_enroll_start();
   if (result != FPC_BEP_RESULT_OK) {
-    LOGE("Enrollment failed to begin: %d", result);
+    LOGE("Enroll start fail: %d", result);
     BITLOG_EVENT(bio_enroll_error, result);
     goto hard_fail;
   }
@@ -326,19 +334,17 @@ bool bio_enroll_finger(bio_template_id_t id, char label[BIO_LABEL_MAX_LEN],
   uint32_t previous_samples_remaining = number_required_samples;
   while (tries < bio_priv.enroll_tries) {
     if (bio_priv.cancel_triggered) {
-      LOGD("Enrollment cancelled");
       bio_priv.cancel_triggered = false;
       goto fail;
     }
 
     if (image == NULL) {
-      LOGE("Null image pointer");
+      BITLOG_EVENT(fp_err, BIO_FP_ERR_OOM);
       goto fail;
     }
 
     // Capture image. Finger must be lifted before capture.
     if (!bio_capture_image(image, BIO_IMAGE_CAPTURE_MAX_TRIES)) {
-      LOGE("Failed to capture image");
       continue;
     }
 
@@ -352,7 +358,7 @@ bool bio_enroll_finger(bio_template_id_t id, char label[BIO_LABEL_MAX_LEN],
         goto fail;
       }
 
-      LOGE("Failed to enroll fingerprint: %d", result);
+      LOGE("Enroll fail: %d", result);
       tries++;
       continue;
     }
@@ -385,12 +391,8 @@ bool bio_enroll_finger(bio_template_id_t id, char label[BIO_LABEL_MAX_LEN],
 
     previous_samples_remaining = enroll_status.samples_remaining;
 
-    LOGD("Remaining touches %lu", enroll_status.samples_remaining);
-
     wait_for_finger_up(BLOCKING_WAIT);
   }
-
-  UI_SHOW_EVENT(UI_EVENT_ENROLLMENT_COMPLETE);
 
   result = fpc_bep_enroll_finish(&enroll_template);  // May be null
   if (result != FPC_BEP_RESULT_OK) {
@@ -398,36 +400,42 @@ bool bio_enroll_finger(bio_template_id_t id, char label[BIO_LABEL_MAX_LEN],
     goto hard_fail;
   }
 
+  // Free the image before saving — it's no longer needed after enroll_finish.
+  fpc_bep_image_delete(&image);
+
   // Save the template
   result = bio_storage_template_save(id, enroll_template);
   if (!result) {
-    LOGE("Failed to save template");
+    LOGE("Tmpl save fail");
     goto fail;
   }
+  template_persisted = true;
 
-  fpc_bep_image_delete(&image);  // Noop if image is null
   fpc_bep_template_delete(&enroll_template);
 
   // Save the label
   if (!bio_storage_label_save(id, label)) {
-    LOGE("Failed to save label");
+    LOGE("Label save fail");
     goto fail;
   }
 
   // Save which firmware version this template was enrolled with
   kv_result_t kv_result = bio_template_enrolled_by_version_store(id);
   if (kv_result != KV_ERR_NONE) {
-    LOGE("Failed to save firmware version for template (%d)", kv_result);
+    LOGE("FW ver save: %d", kv_result);
     goto fail;
   }
 
+  // Signal completion only after all artifacts are persisted, so any
+  // status query triggered by this event sees consistent storage.
+  UI_SHOW_EVENT(UI_EVENT_ENROLLMENT_COMPLETE);
+
   const uint32_t pass = (uint32_t)perf_get_count(perf.enroll_pass);
   const uint32_t fail = (uint32_t)perf_get_count(perf.enroll_fail);
-  LOGD("Enrollment complete (%ld, %ld)", pass, fail);
-
   stats->pass_count = pass;
   stats->fail_count = fail;
 
+  bio_sensor_unlock();
   return true;
 
 hard_fail:
@@ -436,10 +444,14 @@ fail:
   if (image != NULL) {
     fpc_bep_image_delete(&image);
   }
-  fpc_bep_result_t finish_result = fpc_bep_enroll_finish(&enroll_template);
-  LOGD("Enroll finish result: %d", finish_result);
+  (void)fpc_bep_enroll_finish(&enroll_template);
   fpc_bep_template_delete(&enroll_template);
+  // Roll back any persisted template and label to avoid orphaned state.
+  if (template_persisted) {
+    bio_storage_delete_template(id);
+  }
   // NOTE: Caller must play an animation here.
+  bio_sensor_unlock();
   return false;
 }
 
@@ -456,11 +468,13 @@ NO_OPTIMIZE secure_bool_t bio_authenticate_finger(secure_bool_t* is_match,
   SECURE_DO({ *is_match = SECURE_FALSE; });
   *match_template_id = BIO_TEMPLATE_ID_INVALID;
 
+  bio_sensor_lock();
   perf_begin(perf.auth);
 
   fpc_bep_image_t* image = fpc_bep_image_new();
   if (!image) {
-    LOGE("Couldn't allocate image");
+    LOGE("Image alloc fail");
+    BITLOG_EVENT(fp_err, BIO_FP_ERR_OOM);
     perf_cancel(perf.auth);
     perf_count(perf.errors);
     goto out;
@@ -486,7 +500,6 @@ NO_OPTIMIZE secure_bool_t bio_authenticate_finger(secure_bool_t* is_match,
     *match_template_id = identify_result.index;
     *is_match = SECURE_TRUE;
 
-    LOGD("Authenticated with template %d", *match_template_id);
     if (update_template) {
       bio_update_template(*match_template_id, bio_priv.template, comms_timestamp);
     }
@@ -500,9 +513,9 @@ out:
   bio_update_match_stats(*match_template_id, identify_result.match);
   fpc_bep_template_delete(&bio_priv.template);
   if (image != NULL) {
-    LOGD("Deleting image");
     fpc_bep_image_delete(&image);
   }
+  bio_sensor_unlock();
   return ret;
 }
 
@@ -583,8 +596,8 @@ kv_result_t bio_template_enrolled_by_version_get(bio_template_id_t id, uint32_t*
 kv_result_t bio_template_enrolled_by_version_store(bio_template_id_t id) {
   uint32_t fw_version = 0;
   if (metadata_get_firmware_version(&fw_version) != METADATA_VALID) {
-    LOGE("Failed to get firmware version");
-    return false;
+    LOGE("FW ver get fail");
+    return KV_ERR_IO;
   }
 
   char template_id[TEMPLATE_TO_FW_VERSION_KEY_LEN] = {0};

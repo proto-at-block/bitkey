@@ -1,5 +1,8 @@
 #include "security_config.h"
 
+#include "attributes.h"
+#include "rtos.h"
+
 // This key is for signing delta update patch files, *not* the actual
 // firmware signing. The purpose of signing patch files is to prevent unauthorized
 // access to the delta update code paths, to help defend against potential memory
@@ -18,3 +21,9 @@ security_config_t security_config FWUP_TASK_DATA = {
   .biometrics_mac_key = NULL,
   .fwup_delta_patch_pubkey = (uint8_t*)&fwup_delta_patch_pubkey,
 };
+
+SYSCALL NO_OPTIMIZE secure_bool_t security_config_is_production(void) {
+  secure_bool_t is_production = SECURE_TRUE;
+  RTOS_THREAD_WITH_PRIVILEGE({ is_production = security_config.is_production; });
+  return is_production;
+}

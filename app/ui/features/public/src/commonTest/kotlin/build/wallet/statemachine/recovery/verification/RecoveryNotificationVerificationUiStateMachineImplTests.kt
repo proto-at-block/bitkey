@@ -7,7 +7,6 @@ import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.email.EmailFake
-import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.ktor.result.HttpError
 import build.wallet.notifications.NotificationTouchpointServiceFake
 import build.wallet.phonenumber.PhoneNumberMock
@@ -48,7 +47,6 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
   val props = RecoveryNotificationVerificationUiProps(
     fullAccountId = FullAccountIdMock,
     localLostFactor = PhysicalFactor.Hardware,
-    hwFactorProofOfPossession = HwFactorProofOfPossession(""),
     onRollback = { propsOnRollbackCalls.add(Unit) },
     onComplete = { propsOnCompleteCalls.add(Unit) }
   )

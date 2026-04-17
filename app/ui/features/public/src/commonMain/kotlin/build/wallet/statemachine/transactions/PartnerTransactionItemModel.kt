@@ -14,6 +14,7 @@ fun PartnerTransactionItemModel(
   amountEquivalent: String?,
   isPending: Boolean,
   isError: Boolean,
+  pendingBadgeType: BadgeType = BadgeType.Loading,
   sideTextTint: ListItemSideTextTint,
   isLoading: Boolean = false,
   onClick: () -> Unit,
@@ -29,6 +30,7 @@ fun PartnerTransactionItemModel(
         else -> IconImage.LocalImage(Bitcoin)
       },
       iconSize = when {
+        isPending && !isError && pendingBadgeType == BadgeType.CircularLoading -> IconSize.Custom(44)
         isError || isPending -> IconSize.Custom(48)
         else -> IconSize.Custom(44)
       },
@@ -40,7 +42,7 @@ fun PartnerTransactionItemModel(
       iconAlignmentInBackground = IconAlignmentInBackground.Start,
       badge = when {
         isError -> BadgeType.Error
-        isPending -> BadgeType.Loading
+        isPending -> pendingBadgeType
         else -> null
       }
     )

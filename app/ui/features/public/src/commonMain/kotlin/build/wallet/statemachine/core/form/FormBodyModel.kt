@@ -18,6 +18,37 @@ import build.wallet.ui.model.label.CallToActionModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.collections.immutable.ImmutableList
 
+data class FormDesignSystemV2Model(
+  val title: String? = null,
+  val toolbar: ToolbarModel? = null,
+  val useLegacyToolbarFallback: Boolean = true,
+  val header: FormHeaderModel? = null,
+  val useLegacyHeaderFallback: Boolean = true,
+  val mainContentList: ImmutableList<FormMainContentModel>? = null,
+  val primaryButton: ButtonModel? = null,
+  val secondaryButton: ButtonModel? = null,
+  val footerRevealDelayMillis: Int = 0,
+  val useDesignSystemV2ScreenLayout: Boolean = false,
+  val headerToMainContentSpacing: Int? = null,
+  val contentSpacing: Int = 24,
+  val scrollable: Boolean = true,
+  val mainContentVerticalAlignment: MainContentVerticalAlignment = MainContentVerticalAlignment.TOP,
+  /**
+   * Content rendered in the footer area before the animated button reveal.
+   * This content is always visible (not subject to the footer reveal animation).
+   */
+  val preFooterMainContentList: ImmutableList<FormMainContentModel> = emptyImmutableList(),
+  val useLegacyPrimaryButtonFallback: Boolean = true,
+  val useLegacySecondaryButtonFallback: Boolean = true,
+  val eyebrow: String? = null,
+) {
+  enum class MainContentVerticalAlignment {
+    TOP,
+    CENTER,
+    BOTTOM,
+  }
+}
+
 /**
  * A generic model capable of showing many different "form" like screens.
  *
@@ -49,8 +80,8 @@ import kotlinx.collections.immutable.ImmutableList
  * @property mainContentList: A list of customizable main content for the screen that will be
  * arranged in a vertical column.
  * @property primaryButton: The primary button in the footer area of the screen.
- * @property secondaryButton: Optional secondary button shown below the primary button.
- * @property tertiaryButton: Optional tertiary button shown below the secondary button.
+ * @property secondaryButton: Optional secondary button shown above the primary button.
+ * @property tertiaryButton: Optional tertiary button shown below the primary button.
  * @property ctaWarning If specified, show a warning text above button stack.
  * @property keepScreenOn: Prevent screen dimming from inactivity.
  * @property renderContext [RenderContext]: how the model will be displayed to the user, defaults to
@@ -79,6 +110,7 @@ abstract class FormBodyModel(
   open val eventTrackerShouldTrack: Boolean = true,
   open val errorData: ErrorData? = null,
   open val disableFixedFooter: Boolean = false,
+  open val designSystemV2Model: FormDesignSystemV2Model? = null,
 ) : BodyModel(), AutomaticUiTests {
   override val eventTrackerScreenInfo: EventTrackerScreenInfo?
     get() =
@@ -206,6 +238,7 @@ private data class FormBodyModelImpl(
   override val eventTrackerContext: EventTrackerContext? = null,
   override val eventTrackerShouldTrack: Boolean = true,
   override val errorData: ErrorData? = null,
+  override val designSystemV2Model: FormDesignSystemV2Model? = null,
 ) : FormBodyModel(
     id = id,
     onBack = onBack,
@@ -222,5 +255,6 @@ private data class FormBodyModelImpl(
     onLoaded = onLoaded,
     eventTrackerContext = eventTrackerContext,
     eventTrackerShouldTrack = eventTrackerShouldTrack,
-    errorData = errorData
+    errorData = errorData,
+    designSystemV2Model = designSystemV2Model
   )

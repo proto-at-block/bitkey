@@ -11,4 +11,10 @@ class RequestPermissionScreenSnapshots : FunSpec({
       PreviewRequestPermissionScreen()
     }
   }
+
+  test("PreviewRequestPermissionScreen design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      PreviewRequestPermissionScreen()
+    }
+  }
 })

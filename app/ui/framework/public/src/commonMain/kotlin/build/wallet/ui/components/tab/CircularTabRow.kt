@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.model.tab.CircularTabRowModel
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import kotlinx.collections.immutable.ImmutableList
@@ -51,13 +52,26 @@ fun CircularTabRow(
   modifier: Modifier = Modifier,
   onClick: (Int) -> Unit,
   backgroundColor: Color = WalletTheme.colors.subtleBackground,
+  indicatorColor: Color = WalletTheme.colors.background,
 ) {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val effectiveBackgroundColor = if (isDesignSystemV2Enabled) {
+    WalletTheme.colors.subtleBackground
+  } else {
+    backgroundColor
+  }
+  val effectiveIndicatorColor = if (isDesignSystemV2Enabled) {
+    WalletTheme.colors.secondary
+  } else {
+    indicatorColor
+  }
+
   BoxWithConstraints(
     modifier = modifier
       .wrapContentHeight()
       .fillMaxWidth()
       .clip(shape = CircleShape)
-      .background(backgroundColor)
+      .background(effectiveBackgroundColor)
       .padding(all = 4.dp)
   ) {
     val tabWidth = remember(maxWidth, items.size) { maxWidth / items.size }
@@ -71,7 +85,8 @@ fun CircularTabRow(
         modifier = Modifier
           .fillMaxHeight()
           .requiredWidth(tabWidth)
-          .offset(indicatorOffset)
+          .offset(indicatorOffset),
+        color = effectiveIndicatorColor
       )
     }
     Row(
@@ -90,12 +105,15 @@ fun CircularTabRow(
 }
 
 @Composable
-private fun CircularTabIndicator(modifier: Modifier = Modifier) {
+private fun CircularTabIndicator(
+  modifier: Modifier = Modifier,
+  color: Color,
+) {
   Box(
     modifier = modifier
       .shadow(1.dp, CircleShape)
       .clip(shape = CircleShape)
-      .background(color = WalletTheme.colors.background)
+      .background(color = color)
   )
 }
 

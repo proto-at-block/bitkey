@@ -40,7 +40,7 @@ fun MobilePayStatusScreenEnabledPreview() {
 @Preview
 @Composable
 fun MobilePayStatusScreenEnabledWithDialogPreviewAndRevamp() {
-  PreviewWalletTheme {
+  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
     MobilePayStatusScreen(
       model = MobilePayStatusModel(
         onBack = {},
@@ -69,6 +69,52 @@ fun MobilePayStatusScreenEnabledWithDialogPreviewAndRevamp() {
             remainingAmountText = "$50.00 remaining",
             progressPercentage = .5f
           )
+      )
+    )
+  }
+}
+
+@Preview
+@Composable
+fun MobilePayStatusScreenEnabledDesignSystemV2Preview() {
+  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+    MobilePayStatusScreen(
+      model = MobilePayStatusModel(
+        onBack = {},
+        switchIsChecked = true,
+        onSwitchCheckedChange = {},
+        dailyLimitRow =
+          SwitchCardModel.ActionRow(
+            title = "Daily limit",
+            sideText = "$100.00",
+            onClick = {}
+          ),
+        disableAlertModel = null,
+        spendingLimitCardModel =
+          SpendingLimitCardModel(
+            titleText = "Daily limit",
+            dailyResetTimezoneText = "Resets at 3:00am PDT",
+            spentAmountText = "$50.00 spent",
+            remainingAmountText = "$50.00 remaining",
+            progressPercentage = .5f
+          )
+      )
+    )
+  }
+}
+
+@Preview
+@Composable
+fun MobilePayStatusScreenDisabledDesignSystemV2Preview() {
+  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+    MobilePayStatusScreen(
+      model = MobilePayStatusModel(
+        onBack = {},
+        switchIsChecked = false,
+        onSwitchCheckedChange = {},
+        dailyLimitRow = null,
+        disableAlertModel = null,
+        spendingLimitCardModel = null
       )
     )
   }

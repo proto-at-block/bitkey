@@ -258,11 +258,12 @@ class SpeedUpTransactionServiceImplTests : FunSpec({
   test("uses 5x fee rate for Signet test accounts") {
     val signetAccount = FullAccount(
       accountId = FullAccountMock.accountId,
-      config = FullAccountConfigMock.copy(
-        isTestAccount = true,
-        bitcoinNetworkType = SIGNET
-      ),
-      keybox = KeyboxMock
+      keybox = KeyboxMock.copy(
+        config = FullAccountConfigMock.copy(
+          isTestAccount = true,
+          bitcoinNetworkType = SIGNET
+        )
+      )
     )
 
     feeRateEstimator.estimatedFeeRateResult = FeeRate(2.0f)
@@ -288,11 +289,12 @@ class SpeedUpTransactionServiceImplTests : FunSpec({
   test("does not apply 5x multiplier for mainnet accounts") {
     val mainnetAccount = FullAccount(
       accountId = FullAccountMock.accountId,
-      config = FullAccountConfigMock.copy(
-        isTestAccount = false,
-        bitcoinNetworkType = BITCOIN
-      ),
-      keybox = KeyboxMock
+      keybox = KeyboxMock.copy(
+        config = FullAccountConfigMock.copy(
+          isTestAccount = false,
+          bitcoinNetworkType = BITCOIN
+        )
+      )
     )
 
     feeRateEstimator.estimatedFeeRateResult = FeeRate(15.0f)
@@ -478,8 +480,8 @@ class SpeedUpTransactionServiceImplTests : FunSpec({
     (transaction.inputs.first().sequence < UInt.MAX_VALUE - 1u).shouldBeTrue()
   }
 
-  context("Manual fee bump (BDK2 with output shrinking)") {
-    test("uses manual fee bump path when BDK2 enabled and shrinking is needed") {
+  context("Fee bump with output shrinking (BDK2)") {
+    test("succeeds when BDK2 enabled and shrinking is needed") {
       bdk2FeatureFlag.setBdk2Enabled(true)
       feeBumpAllowShrinkingChecker.shrinkingOutput = BdkScriptMock()
 
@@ -511,7 +513,7 @@ class SpeedUpTransactionServiceImplTests : FunSpec({
       result.shouldBeOk()
     }
 
-    test("manual fee bump succeeds when clamped to BIP125 minimum after low requested fee") {
+    test("succeeds when clamped to BIP125 minimum after low requested fee") {
       bdk2FeatureFlag.setBdk2Enabled(true)
       feeBumpAllowShrinkingChecker.shrinkingOutput = BdkScriptMock()
       feeRateEstimator.estimatedFeeRateResult = FeeRate(1.0f) // Low rate -> initial fee below old
@@ -602,7 +604,7 @@ class SpeedUpTransactionServiceImplTests : FunSpec({
       result.shouldBeOk()
     }
 
-    test("uses manual fee bump when only unconfirmed UTXOs exist") {
+    test("uses fee bump with drain when only unconfirmed UTXOs exist") {
       bdk2FeatureFlag.setBdk2Enabled(true)
 
       bitcoinWalletService.transactionsData.value = TransactionsDataMock.copy(
@@ -628,7 +630,10 @@ class SpeedUpTransactionServiceImplTests : FunSpec({
           BdkTxIn(outpoint = BdkOutPoint("abc", 0u), sequence = 0xFFFFFFFDu, witness = emptyList())
         ),
         outputs = immutableListOf(
-          BdkTxOutMock.copy(value = 9_800u)
+          BdkTxOutMock.copy(
+            value = 9_800u,
+            scriptPubkey = BdkScriptMock(listOf(1u.toUByte(), 2u.toUByte()))
+          )
         )
       )
 
@@ -642,8 +647,10 @@ class SpeedUpTransactionServiceImplTests : FunSpec({
       val result = serviceWithRealChecker.prepareTransactionSpeedUp(FullAccountMock, transaction)
 
       result.shouldBeOk()
-      spendingWallet.lastCreateSignedPsbtConstructionType
-        .shouldBeInstanceOf<SpendingWallet.PsbtConstructionMethod.ManualFeeBump>()
+      val constructionType = spendingWallet.lastCreateSignedPsbtConstructionType
+        .shouldBeInstanceOf<SpendingWallet.PsbtConstructionMethod.FeeBumpWithDrain>()
+      // Drain to the original output script so the fee bump shrinks the same recipient output.
+      constructionType.drainToScript.shouldBe(transaction.outputs.single().scriptPubkey)
     }
 
     test("uses regular fee bump when confirmed UTXO exists") {
@@ -744,10 +751,11 @@ class SpeedUpTransactionServiceImplTests : FunSpec({
       result.shouldBeErrOfType<SpeedUpTransactionError.OutputBelowDustLimit>()
     }
 
-    test("returns FeeRateTooLow when target fee rate <= old fee rate") {
+    test("returns FeeRateTooLow when output shrinking path rejected due to low fee rate") {
       bdk2FeatureFlag.setBdk2Enabled(true)
       feeBumpAllowShrinkingChecker.shrinkingOutput = BdkScriptMock()
-      feeRateEstimator.estimatedFeeRateResult = FeeRate(1.0f) // Very low fee rate
+      // Configure mock to return fee rate too low error from BDK
+      spendingWallet.createSignedPsbtResult = Err(BdkError.FeeRateTooLow(null, null))
 
       // Transaction with high existing fee rate
       val transaction = BitcoinTransactionMock(

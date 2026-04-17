@@ -2,7 +2,9 @@ package build.wallet.logging
 
 import build.wallet.logging.LogLevel.Error
 import build.wallet.logging.LogLevel.Verbose
+import co.touchlab.kermit.LogWriter
 import co.touchlab.kermit.Severity
+import io.kotest.assertions.throwables.shouldNotThrowAny
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainOnly
 import io.kotest.matchers.shouldBe
@@ -192,5 +194,28 @@ class LoggerTests : FunSpec({
       throwable = myException,
       tag = "DefaultTag"
     )
+  }
+
+  test("logError - should not throw when writer fails") {
+    Logger.configure(
+      tag = "DefaultTag",
+      minimumLogLevel = Verbose,
+      logWriters = listOf(
+        object : LogWriter() {
+          override fun log(
+            severity: Severity,
+            message: String,
+            tag: String,
+            throwable: Throwable?,
+          ) {
+            throw ConcurrentModificationException("simulated writer failure")
+          }
+        }
+      )
+    )
+
+    shouldNotThrowAny {
+      logError(throwable = Exception("oops")) { "error message" }
+    }
   }
 })

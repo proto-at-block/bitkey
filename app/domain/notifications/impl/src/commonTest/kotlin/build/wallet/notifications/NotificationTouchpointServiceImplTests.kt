@@ -17,7 +17,6 @@ import build.wallet.coroutines.createBackgroundScope
 import build.wallet.coroutines.turbine.awaitUntilNotNull
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.email.EmailFake
-import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClientMock
 import build.wallet.f8e.recovery.RecoveryNotificationVerificationF8eClientMock
 import build.wallet.f8e.recovery.RecoveryNotificationVerificationF8eClientMock.SendTouchpointCall
@@ -64,19 +63,27 @@ class NotificationTouchpointServiceImplTests : FunSpec({
       service.notificationTouchpointData().test {
         with(awaitItem()) {
           phoneNumber.shouldBeNull()
+          phoneNumberTouchpointId.shouldBeNull()
           email.shouldBeNull()
+          emailTouchpointId.shouldBeNull()
         }
 
-        notificationTouchpointDao.phoneNumberFlow.value = PhoneNumberMock
+        notificationTouchpointDao.phoneTouchpointFlow.value =
+          PhoneNumberTouchpoint("sms-tp-1", PhoneNumberMock)
         with(awaitItem()) {
           phoneNumber.shouldBe(PhoneNumberMock)
+          phoneNumberTouchpointId.shouldBe("sms-tp-1")
           email.shouldBeNull()
+          emailTouchpointId.shouldBeNull()
         }
 
-        notificationTouchpointDao.emailFlow.value = EmailFake
+        notificationTouchpointDao.emailTouchpointFlow.value =
+          EmailTouchpoint("email-tp-1", EmailFake)
         with(awaitItem()) {
           phoneNumber.shouldBe(PhoneNumberMock)
+          phoneNumberTouchpointId.shouldBe("sms-tp-1")
           email.shouldBe(EmailFake)
+          emailTouchpointId.shouldBe("email-tp-1")
         }
       }
     }
@@ -103,7 +110,9 @@ class NotificationTouchpointServiceImplTests : FunSpec({
       service.notificationTouchpointData().test {
         with(awaitUntilNotNull()) {
           phoneNumber.shouldBe(PhoneNumberMock)
+          phoneNumberTouchpointId.shouldBe("sms-id")
           email.shouldBe(EmailFake)
+          emailTouchpointId.shouldBe("email-id")
         }
       }
     }
@@ -166,16 +175,14 @@ class NotificationTouchpointServiceImplTests : FunSpec({
       val touchpoint = EmailTouchpoint("id", EmailFake)
       service.sendVerificationCodeToTouchpoint(
         fullAccountId = FullAccountIdMock,
-        touchpoint = touchpoint,
-        hwProofOfPossession = HwFactorProofOfPossession("hw")
+        touchpoint = touchpoint
       )
 
       recoveryNotificationVerificationF8eClient.sendCodeCalls.awaitItem()
         .shouldBe(
           SendTouchpointCall(
             fullAccountId = FullAccountIdMock,
-            touchpoint = touchpoint,
-            hwFactorProofOfPossession = HwFactorProofOfPossession("hw")
+            touchpoint = touchpoint
           )
         )
     }
@@ -187,8 +194,7 @@ class NotificationTouchpointServiceImplTests : FunSpec({
       val touchpoint = EmailTouchpoint("id", EmailFake)
       val errorResult = service.sendVerificationCodeToTouchpoint(
         fullAccountId = FullAccountIdMock,
-        touchpoint = touchpoint,
-        hwProofOfPossession = HwFactorProofOfPossession("hw")
+        touchpoint = touchpoint
       )
 
       errorResult.shouldBe(result)
@@ -200,16 +206,14 @@ class NotificationTouchpointServiceImplTests : FunSpec({
     test("success") {
       service.verifyCode(
         fullAccountId = FullAccountIdMock,
-        verificationCode = "verification-code",
-        hwProofOfPossession = HwFactorProofOfPossession("hw")
+        verificationCode = "verification-code"
       )
 
       recoveryNotificationVerificationF8eClient.verifyCodeCalls.awaitItem()
         .shouldBe(
           VerifyTouchpointCall(
             fullAccountId = FullAccountIdMock,
-            verificationCode = "verification-code",
-            hwFactorProofOfPossession = HwFactorProofOfPossession("hw")
+            verificationCode = "verification-code"
           )
         )
     }
@@ -221,8 +225,7 @@ class NotificationTouchpointServiceImplTests : FunSpec({
 
       val errorResult = service.verifyCode(
         fullAccountId = FullAccountIdMock,
-        verificationCode = "verification-code",
-        hwProofOfPossession = HwFactorProofOfPossession("hw")
+        verificationCode = "verification-code"
       )
 
       recoveryNotificationVerificationF8eClient.verifyCodeCalls.awaitItem()

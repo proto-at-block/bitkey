@@ -10,6 +10,7 @@ extern "C" {
 #define BUF_SIZE 64
 
 DEFINE_FFF_GLOBALS;
+FAKE_VALUE_FUNC(bool, rtos_in_isr);
 
 static bool fuzz_lock(void) {
   return true;

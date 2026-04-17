@@ -13,12 +13,14 @@ import build.wallet.statemachine.dev.logs.LogsBodyModel
 import build.wallet.statemachine.dev.logs.LogsModel
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.card.Card
+import build.wallet.ui.components.forms.TextField
 import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.components.list.ListItem
 import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel.Size
 import build.wallet.ui.model.button.ButtonModel.Treatment.TertiaryDestructive
+import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.list.ListItemAccessory.SwitchAccessory
 import build.wallet.ui.model.switch.SwitchModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
@@ -55,7 +57,20 @@ fun LogsScreen(
             model =
               SwitchModel(
                 checked = model.errorsOnly,
-                onCheckedChange = model.onErrorsOnlyValueChanged
+                onCheckedChange = model.onErrorsOnlyValueChanged,
+                testTag = "debug-logs-errors-only-toggle"
+              )
+          )
+      )
+      ListItem(
+        title = "Debug logs",
+        trailingAccessory =
+          SwitchAccessory(
+            model =
+              SwitchModel(
+                checked = model.showDebugLogs,
+                onCheckedChange = model.onShowDebugLogsValueChanged,
+                testTag = "debug-logs-show-debug-toggle"
               )
           )
       )
@@ -66,7 +81,8 @@ fun LogsScreen(
             model =
               SwitchModel(
                 checked = model.analyticsEventsOnly,
-                onCheckedChange = model.onAnalyticsEventsOnlyValueChanged
+                onCheckedChange = model.onAnalyticsEventsOnlyValueChanged,
+                testTag = "debug-logs-analytics-only-toggle"
               )
           )
       )
@@ -78,7 +94,18 @@ fun LogsScreen(
         onClick = StandardClick(model.onClear)
       )
     }
-    Spacer(Modifier.height(24.dp))
+    Spacer(Modifier.height(12.dp))
+    TextField(
+      model = TextFieldModel(
+        value = model.searchQuery,
+        placeholderText = "Search logs...",
+        onValueChange = { value, _ -> model.onSearchQueryChanged(value) },
+        keyboardType = TextFieldModel.KeyboardType.Default,
+        focusByDefault = false
+      ),
+      testTag = "debug-logs-search-field"
+    )
+    Spacer(Modifier.height(12.dp))
     LogsCard(model.logsModel)
   }
 }

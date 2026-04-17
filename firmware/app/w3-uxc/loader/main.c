@@ -53,6 +53,14 @@ USED const app_properties_t bl_app_properties = {
   .cert = (app_certificate_t*)&bl_certificate,
 };
 
+#if (defined(CONFIG_PROD) || defined(MFGTEST_PROD))
+extern const mcu_flash_opt_t mcu_flash_opt_prod;
+const mcu_flash_opt_t* const mcu_flash_opt = &mcu_flash_opt_prod;
+#else
+extern const mcu_flash_opt_t mcu_flash_opt_dev;
+const mcu_flash_opt_t* const mcu_flash_opt = &mcu_flash_opt_dev;
+#endif
+
 NO_OPTIMIZE static secure_bool_t app_verify_img(const bootload_img_t* img) {
   if (img == NULL) {
     return SECURE_FALSE;
@@ -151,6 +159,14 @@ NO_OPTIMIZE int main(void) {
     .detect_glitch = &app_detect_glitch,
     .secure_random = &crypto_rand_short,
     .cpu_freq = &clock_get_freq,
+  });
+
+  volatile secure_bool_t opt_valid = SECURE_FALSE;
+  SECURE_DO_ONCE({ opt_valid = mcu_flash_opt_verify(mcu_flash_opt) ? SECURE_TRUE : SECURE_FALSE; });
+  SECURE_DO_FAILIN((opt_valid != SECURE_TRUE), {
+    const mcu_flash_status_t status = mcu_flash_opt_write(mcu_flash_opt, false);
+    mcu_reset_with_reason((status == MCU_FLASH_STATUS_OK) ? MCU_RESET_OPT_WRITE
+                                                          : MCU_RESET_OPT_WRITE_FAILED);
   });
 
   SECURE_DO_ONCE({ canary_init(); });

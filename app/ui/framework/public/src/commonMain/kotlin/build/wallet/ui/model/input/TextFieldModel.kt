@@ -31,6 +31,7 @@ data class TextFieldModel(
   val onDone: (() -> Unit)? = null,
   val focusByDefault: Boolean = true,
   val maxLength: Int? = null,
+  val testTag: String? = null,
 ) {
   enum class KeyboardType {
     /** Default keyboard */

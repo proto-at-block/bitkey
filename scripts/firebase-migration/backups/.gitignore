@@ -1,0 +1,4 @@
+# Backup snapshots contain secrets (API keys, OAuth client IDs).
+# They should live locally, not in the repo.
+*
+!.gitignore

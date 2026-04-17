@@ -7,13 +7,15 @@ import build.wallet.bitkey.f8e.F8eSpendingKeysetMock
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.crypto.PublicKey
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
+import build.wallet.f8e.recovery.SignedKeysetVerificationResponse
+import build.wallet.recovery.CancelDelayNotifyRecoveryError
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
 class DelayNotifyServiceFake : DelayNotifyService {
-  var cancelResult: Result<Unit, Error> = Ok(Unit)
-  var activateSpendingKeysetResult: Result<Unit, Error> = Ok(Unit)
+  var cancelResult: Result<Unit, CancelDelayNotifyRecoveryError> = Ok(Unit)
+  var activateSpendingKeysetResult: Result<SignedKeysetVerificationResponse?, Error> = Ok(null)
   var createSpendingKeysetResult: Result<F8eSpendingKeyset, Error> = Ok(F8eSpendingKeysetMock)
   var rotateAuthKeysResult: Result<Unit, Error> = Ok(Unit)
   var rotateAuthTokensResult: Result<Unit, Throwable> = Ok(Unit)
@@ -23,20 +25,18 @@ class DelayNotifyServiceFake : DelayNotifyService {
 
   override suspend fun cancelDelayNotify(
     request: DelayNotifyCancellationRequest,
-  ): Result<Unit, Error> {
+  ): Result<Unit, CancelDelayNotifyRecoveryError> {
     return cancelResult
   }
 
   override suspend fun activateSpendingKeyset(
     keyset: F8eSpendingKeyset,
-    hardwareProofOfPossession: HwFactorProofOfPossession,
-  ): Result<Unit, Error> {
+    proof: PrivilegedActionProof,
+  ): Result<SignedKeysetVerificationResponse?, Error> {
     return activateSpendingKeysetResult
   }
 
-  override suspend fun createSpendingKeyset(
-    hardwareProofOfPossession: HwFactorProofOfPossession,
-  ): Result<F8eSpendingKeyset, Error> {
+  override suspend fun createSpendingKeyset(): Result<F8eSpendingKeyset, Error> {
     return createSpendingKeysetResult
   }
 
@@ -68,7 +68,7 @@ class DelayNotifyServiceFake : DelayNotifyService {
 
   fun reset() {
     cancelResult = Ok(Unit)
-    activateSpendingKeysetResult = Ok(Unit)
+    activateSpendingKeysetResult = Ok(null)
     createSpendingKeysetResult = Ok(F8eSpendingKeysetMock)
     rotateAuthKeysResult = Ok(Unit)
     rotateAuthTokensResult = Ok(Unit)

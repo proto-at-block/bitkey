@@ -36,6 +36,9 @@ enum class NfcEventTrackerScreenIdContext : EventTrackerContext {
   /** NFC flow to provision app auth key during cloud backup recovery */
   CLOUD_BACKUP_PROVISION_APP_AUTH_KEY,
 
+  /** NFC flow to provision app auth key after rotating auth keys */
+  ROTATE_AUTH_KEYS_PROVISION_APP_AUTH_KEY,
+
   /** NFC flow to get the spending key during app recovery */
   APP_DELAY_NOTIFY_GET_INITIAL_SPENDING_KEY,
 
@@ -107,4 +110,34 @@ enum class NfcEventTrackerScreenIdContext : EventTrackerContext {
 
   /** NFC flow to build hardware descriptor for W3 devices during onboarding */
   VERIFY_KEYS_AND_BUILD_HARDWARE_DESCRIPTOR,
+
+  /** NFC flow to sign an action proof payload for privileged action verification */
+  SIGN_ACTION_PROOF,
+
+  /** NFC flow to deliver hardware wallet descriptor after cloud backup restore */
+  DELIVER_HARDWARE_DESCRIPTOR,
+
+  /** NFC flow to verify found hardware during lost hardware recovery */
+  HW_DELAY_NOTIFY_VERIFY_FOUND_HARDWARE,
+
+  /** NFC flow for W3 lost app recovery composite (unseal SSEK + action proof + spending key) */
+  LOST_APP_RECOVERY,
+
+  /** NFC flow to confirm hardware presence before canceling an inheritance claim */
+  CANCEL_INHERITANCE_CLAIM,
+
+  /** NFC flow for recovery proof-and-key-transfer during lost app recovery */
+  RECOVERY_PROOF_AND_KEY_TRANSFER_LOST_APP,
+
+  /** NFC flow for recovery proof-and-key-transfer during lost hardware recovery */
+  RECOVERY_PROOF_AND_KEY_TRANSFER_LOST_HARDWARE,
+
+  /** NFC flow for W3 sign challenge and seal SEKs (confirmable tap 1) */
+  W3_SIGN_CHALLENGE_AND_SEAL_SEKS,
+
+  /** NFC flow for W3 recovery authorize lost app (confirmable tap 2) */
+  W3_RECOVERY_AUTHORIZE_LOST_APP,
+
+  /** NFC flow for W3 recovery authorize lost hw (confirmable tap 2) */
+  W3_RECOVERY_AUTHORIZE_LOST_HW,
 }

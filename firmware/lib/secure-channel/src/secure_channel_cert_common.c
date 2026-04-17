@@ -1,4 +1,5 @@
 #include "assert.h"
+#include "attributes.h"
 #include "ecc.h"
 #include "hash.h"
 #include "key_management.h"
@@ -16,17 +17,87 @@
 #include <stdio.h>
 #include <string.h>
 
-static secure_channel_cert_priv_t secure_channel_cert_priv;
+static secure_channel_cert_priv_t secure_channel_cert_priv SHARED_TASK_BSS;
+
+// Migrate from old directory-based layout to flat files, freeing 2 blocks (16 KB).
+// Uses copy-then-delete to preserve key material so pinned peer certs remain valid.
+// If any copy fails, the old directory is left intact — path fallback in read/exists
+// functions ensures files are still found, and migration retries on next boot.
+SYSCALL static void secure_channel_cert_migrate_from_directory(void) {
+  fs_filetype_t dir_type;
+
+  RTOS_THREAD_WITH_PRIVILEGE({ dir_type = fs_get_filetype(SC_CERT_OLD_DIRECTORY); });
+
+  if (dir_type != FS_FILE_TYPE_DIR) {
+    return;
+  }
+
+  LOGI("SC migrate");
+  static const struct {
+    const char* old_path;
+    const char* new_path;
+  } sc_migrate[] = {
+    {SC_CERT_OLD_DIRECTORY "/w3_core_id.cert", "sc-w3_core_id.cert"},
+    {SC_CERT_OLD_DIRECTORY "/w3_core_id.key", "sc-w3_core_id.key"},
+    {SC_CERT_OLD_DIRECTORY "/w3_uxc_id.cert", "sc-w3_uxc_id.cert"},
+    {SC_CERT_OLD_DIRECTORY "/w3_uxc_id.key", "sc-w3_uxc_id.key"},
+  };
+
+  // Copy each file to the new flat path. Track success so we only delete
+  // the old directory if everything copied successfully.
+  bool all_ok = true;
+  uint8_t buf[256];
+  RTOS_THREAD_WITH_PRIVILEGE({
+    for (size_t i = 0; i < sizeof(sc_migrate) / sizeof(sc_migrate[0]); i++) {
+      if (!fs_file_exists(sc_migrate[i].old_path)) {
+        continue;
+      }
+
+      const int filesize = fs_get_filesize(sc_migrate[i].old_path);
+      if (filesize <= 0 || (size_t)filesize > sizeof(buf)) {
+        LOGE("Mig skip %d: %s", filesize, sc_migrate[i].old_path);
+        all_ok = false;
+        continue;
+      }
+
+      if (!fs_util_read_global((char*)sc_migrate[i].old_path, buf, (uint32_t)filesize)) {
+        LOGE("Migrate read fail: %s", sc_migrate[i].old_path);
+        all_ok = false;
+        continue;
+      }
+
+      if (!fs_util_write_global((char*)sc_migrate[i].new_path, buf, (uint32_t)filesize)) {
+        LOGE("Migrate write fail: %s", sc_migrate[i].new_path);
+        all_ok = false;
+        continue;
+      }
+    }
+  });
+
+  memzero(buf, sizeof(buf));
+
+  if (!all_ok) {
+    LOGW("Mig incomplete");
+    return;
+  }
+
+  // All copies succeeded — remove old files and directory
+  for (size_t i = 0; i < sizeof(sc_migrate) / sizeof(sc_migrate[0]); i++) {
+    RTOS_THREAD_WITH_PRIVILEGE({
+      if (fs_file_exists(sc_migrate[i].old_path)) {
+        fs_remove(sc_migrate[i].old_path);
+      }
+    });
+  }
+
+  RTOS_THREAD_WITH_PRIVILEGE({ fs_remove(SC_CERT_OLD_DIRECTORY); });
+}
 
 void secure_channel_cert_init(void) {
   const secure_channel_cert_desc_t* const* cert_descriptors = secure_channel_product_certs;
   ASSERT(cert_descriptors != NULL);
 
-  // Create secure_channel directory if it doesn't exist
-  fs_filetype_t file_type = fs_get_filetype(SC_CERT_DIRECTORY);
-  if (file_type != FS_FILE_TYPE_DIR) {
-    ASSERT(fs_mkdir(SC_CERT_DIRECTORY) == 0);
-  }
+  secure_channel_cert_migrate_from_directory();
 
   // Initialize mutex only once (should not call init more than once)
   if (secure_channel_cert_priv.mutex.handle == NULL) {
@@ -58,14 +129,14 @@ bool secure_channel_read_cert(const char* cert_id, secure_channel_cert_data_t* c
 
   // Load certificate from filesystem (implementation in secure_channel_cert_impl.c)
   if (!secure_channel_cert_load(cert_id, cert_data_out)) {
-    LOGE("Failed to load certificate for %s", cert_id);
+    LOGW("Cert load fail: %s", cert_id);
     rtos_mutex_unlock(&secure_channel_cert_priv.mutex);
     return false;
   }
 
   // Verify self-signature
   if (!secure_channel_cert_verify_self_signed_picocert_signature(&cert_data_out->data.picocert)) {
-    LOGE("Failed to verify self-signed certificate signature");
+    LOGE("SS cert fail");
     rtos_mutex_unlock(&secure_channel_cert_priv.mutex);
     return false;
   }
@@ -82,12 +153,12 @@ bool secure_channel_sign_digest(const secure_channel_cert_desc_t* cert_desc, con
   ASSERT(signature != NULL);
 
   if (signature_size != ECC_SIG_SIZE) {
-    LOGE("Invalid signature size: %lu (expected %d)", signature_size, ECC_SIG_SIZE);
+    LOGE("Sig sz %lu!=%d", signature_size, ECC_SIG_SIZE);
     return false;
   }
 
   if (digest_size != SHA256_DIGEST_SIZE) {
-    LOGE("Invalid digest size: %lu (expected %d)", digest_size, SHA256_DIGEST_SIZE);
+    LOGE("Dig sz %lu!=%d", digest_size, SHA256_DIGEST_SIZE);
     return false;
   }
 
@@ -108,7 +179,7 @@ bool secure_channel_sign_digest(const secure_channel_cert_desc_t* cert_desc, con
   }
 
   if (!secure_channel_cert_read_key(cert_desc->id, key_buf, key_buf_size)) {
-    LOGE("Failed to load private key for %s", cert_desc->id);
+    LOGE("Privkey load fail: %s", cert_desc->id);
     rtos_mutex_unlock(&secure_channel_cert_priv.mutex);
     return false;
   }
@@ -129,7 +200,7 @@ bool secure_channel_sign_digest(const secure_channel_cert_desc_t* cert_desc, con
   memzero(key_buf, sizeof(key_buf));
 
   if (result != SECURE_TRUE) {
-    LOGE("Failed to sign digest");
+    LOGE("Sign digest fail");
     rtos_mutex_unlock(&secure_channel_cert_priv.mutex);
     return false;
   }
@@ -148,19 +219,23 @@ static secure_channel_cert_err_t secure_channel_pin_picocert(
   // 1) Validate certificate subject is null-terminated
   size_t subject_len = strnlen(cert->subject, sizeof(cert->subject));
   if (subject_len == sizeof(cert->subject)) {
-    LOGE("Invalid certificate subject (not null-terminated)");
+    LOGE("Cert subj NUL");
+    return SECURE_CHANNEL_CERT_ERROR;
+  }
+
+  if (!secure_channel_cert_subject_is_valid(cert->subject)) {
     return SECURE_CHANNEL_CERT_ERROR;
   }
 
   // 2) Check if certificate already pinned
   if (secure_channel_cert_exists(cert->subject)) {
-    LOGE("Certificate already pinned: %s", cert->subject);
+    LOGE("Cert already pinned: %s", cert->subject);
     return SECURE_CHANNEL_CERT_PINNED_ALREADY_EXISTS;
   }
 
   // 3) Verify self-signed certificate
   if (!secure_channel_cert_verify_self_signed_picocert_signature(&cert_data->data.picocert)) {
-    LOGE("Failed to verify self-signed certificate signature");
+    LOGE("SS cert fail");
     return SECURE_CHANNEL_CERT_ERROR;
   }
 
@@ -170,7 +245,7 @@ static secure_channel_cert_err_t secure_channel_pin_picocert(
   // Additionally, storing the full certificate means we don't need to request/send them on every
   // boot when establishing a secure channel.
   if (!secure_channel_cert_write_cert(cert->subject, cert_data)) {
-    LOGE("Failed to store pinned certificate: %s", cert->subject);
+    LOGE("Cert store fail: %s", cert->subject);
     return SECURE_CHANNEL_CERT_ERROR;
   }
 
@@ -179,12 +254,11 @@ static secure_channel_cert_err_t secure_channel_pin_picocert(
 
 secure_channel_cert_err_t secure_channel_pin_cert(const secure_channel_cert_data_t* cert_data) {
   if (cert_data == NULL) {
-    LOGE("Invalid certificate data");
     return SECURE_CHANNEL_CERT_ERROR;
   }
 
   if (cert_data->type == CERT_TYPE_UNSUPPORTED || cert_data->type >= CERT_TYPE_MAX_TYPES) {
-    LOGE("Unsupported certificate type: %d", cert_data->type);
+    LOGE("Bad cert type: %d", cert_data->type);
     return SECURE_CHANNEL_CERT_UNSUPPORTED_TYPE;
   }
 
@@ -197,7 +271,6 @@ secure_channel_cert_err_t secure_channel_pin_cert(const secure_channel_cert_data
       break;
 
     default:
-      LOGE("Unhandled certificate type: %d", cert_data->type);
       result = SECURE_CHANNEL_CERT_UNSUPPORTED_TYPE;
       break;
   }
@@ -212,7 +285,7 @@ secure_channel_cert_err_t secure_channel_matches_pinned_cert(
 
   // Check certificate type
   if (cert_data->type == CERT_TYPE_UNSUPPORTED || cert_data->type >= CERT_TYPE_MAX_TYPES) {
-    LOGE("Unsupported certificate type: %d", cert_data->type);
+    LOGE("Bad cert type: %d", cert_data->type);
     return SECURE_CHANNEL_CERT_UNSUPPORTED_TYPE;
   }
 
@@ -223,7 +296,12 @@ secure_channel_cert_err_t secure_channel_matches_pinned_cert(
   // Ensure cert->subject is null-terminated before using it as a string
   size_t subject_len = strnlen(cert->subject, sizeof(cert->subject));
   if (subject_len == sizeof(cert->subject)) {
-    LOGE("Invalid certificate subject (missing null terminator)");
+    LOGE("Cert subj NUL");
+    rtos_mutex_unlock(&secure_channel_cert_priv.mutex);
+    return SECURE_CHANNEL_CERT_ERROR;
+  }
+
+  if (!secure_channel_cert_subject_is_valid(cert->subject)) {
     rtos_mutex_unlock(&secure_channel_cert_priv.mutex);
     return SECURE_CHANNEL_CERT_ERROR;
   }
@@ -233,7 +311,7 @@ secure_channel_cert_err_t secure_channel_matches_pinned_cert(
 
   // 1) Extract subject to find pinned cert
   if (!secure_channel_cert_exists(subject_buf)) {
-    LOGE("No pinned secure channel certificate found: %s", subject_buf);
+    LOGW("No pinned cert: %s", subject_buf);
     rtos_mutex_unlock(&secure_channel_cert_priv.mutex);
     return SECURE_CHANNEL_CERT_PINNED_NOT_FOUND;
   }
@@ -241,15 +319,15 @@ secure_channel_cert_err_t secure_channel_matches_pinned_cert(
   // 2) Load the pinned secure channel certificate
   secure_channel_cert_data_t pinned_cert = {0};
   if (!secure_channel_cert_load(subject_buf, &pinned_cert)) {
-    LOGE("Failed to load pinned secure channel certificate: %s", subject_buf);
+    LOGE("Pinned cert load fail: %s", subject_buf);
     rtos_mutex_unlock(&secure_channel_cert_priv.mutex);
     return SECURE_CHANNEL_CERT_ERROR;
   }
 
   // 3) Compare the certificates (only active fields to avoid padding issues)
   if (pinned_cert.type != cert_data->type ||
-      memcmp(&cert_data->data.picocert, &pinned_cert.data.picocert, sizeof(picocert_t)) != 0) {
-    LOGE("Secure channel certificate mismatch");
+      memcmp_s(&cert_data->data.picocert, &pinned_cert.data.picocert, sizeof(picocert_t)) != 0) {
+    LOGE("SC cert mismatch");
     rtos_mutex_unlock(&secure_channel_cert_priv.mutex);
     return SECURE_CHANNEL_CERT_PINNED_MISMATCH;
   }
@@ -267,17 +345,17 @@ bool secure_channel_verify_digest(const secure_channel_cert_data_t* cert_data,
 
   // 1) Check certificate type
   if (cert_data->type == CERT_TYPE_UNSUPPORTED || cert_data->type >= CERT_TYPE_MAX_TYPES) {
-    LOGE("Unsupported certificate type for verification: %d", cert_data->type);
+    LOGE("Bad cert type: %d", cert_data->type);
     return false;
   }
 
   if (digest_size != SHA256_DIGEST_SIZE) {
-    LOGE("Invalid digest size: %lu (expected %d)", digest_size, SHA256_DIGEST_SIZE);
+    LOGE("Dig sz %lu!=%d", digest_size, SHA256_DIGEST_SIZE);
     return false;
   }
 
   if (signature_size != ECC_SIG_SIZE) {
-    LOGE("Invalid signature size: %lu (expected %d)", signature_size, ECC_SIG_SIZE);
+    LOGE("Sig sz %lu!=%d", signature_size, ECC_SIG_SIZE);
     return false;
   }
 
@@ -285,7 +363,7 @@ bool secure_channel_verify_digest(const secure_channel_cert_data_t* cert_data,
   // Picocert stores public key in SEC1 format: 0x04 || X || Y (65 bytes)
   // crypto_ecc_verify_hash expects just X || Y (64 bytes), so skip the 0x04 prefix
   if (cert_data->data.picocert.public_key[0] != ECC_PUBKEY_SEC1_UNCOMPRESSED_PREFIX) {
-    LOGE("Invalid public key prefix: %02x", cert_data->data.picocert.public_key[0]);
+    LOGE("Bad pk pfx: %02x", cert_data->data.picocert.public_key[0]);
     return false;
   }
   key_handle_t pubkey_handle = {
@@ -299,7 +377,7 @@ bool secure_channel_verify_digest(const secure_channel_cert_data_t* cert_data,
   secure_bool_t verified = crypto_ecc_verify_hash(&pubkey_handle, digest, digest_size, signature);
 
   if (verified != SECURE_TRUE) {
-    LOGE("Signature verification failed");
+    LOGE("Sig verify fail");
     return false;
   }
 
@@ -311,7 +389,7 @@ bool secure_channel_cert_handle_cmd_get(fwpb_cert_get_cmd* cmd, fwpb_cert_get_rs
   ASSERT(rsp != NULL);
 
   if (cmd->kind != fwpb_cert_get_cmd_cert_type_DEVICE_SECURE_CHANNEL_CERT) {
-    LOGE("Unsupported certificate type for CERT_GET: %d", cmd->kind);
+    LOGE("Bad cert type: %d", cmd->kind);
     return false;
   }
 
@@ -320,10 +398,7 @@ bool secure_channel_cert_handle_cmd_get(fwpb_cert_get_cmd* cmd, fwpb_cert_get_rs
   secure_channel_cert_data_t cert_data = {0};
   size_t cert_size = sizeof(secure_channel_cert_data_t);
   if (cert_size > sizeof(rsp->cert.bytes)) {
-    LOGE(
-      "Secure channel certificate cannot be transmitted due to the certificate size being greater "
-      "than the protobuf buffer (%lu > %lu)",
-      (uint32_t)cert_size, (uint32_t)sizeof(rsp->cert.bytes));
+    LOGE("Cert too big: %lu>%lu", (uint32_t)cert_size, (uint32_t)sizeof(rsp->cert.bytes));
     rsp->rsp_status = fwpb_cert_get_rsp_cert_get_rsp_status_CERT_READ_FAIL;
     return false;
   }
@@ -335,12 +410,11 @@ bool secure_channel_cert_handle_cmd_get(fwpb_cert_get_cmd* cmd, fwpb_cert_get_rs
     memcpy(rsp->cert.bytes, &cert_data, cert_size);
     rsp->cert.size = cert_size;
     rsp->rsp_status = fwpb_cert_get_rsp_cert_get_rsp_status_SUCCESS;
-    LOGI("Exported secure channel certificate: %s", cmd->cert_id);
     rtos_mutex_unlock(&secure_channel_cert_priv.mutex);
     return true;
   }
 
-  LOGE("Error getting secure channel certificate: %s", cmd->cert_id);
+  LOGE("SC cert get fail: %s", cmd->cert_id);
   rsp->rsp_status = fwpb_cert_get_rsp_cert_get_rsp_status_CERT_READ_FAIL;
   rtos_mutex_unlock(&secure_channel_cert_priv.mutex);
   return false;

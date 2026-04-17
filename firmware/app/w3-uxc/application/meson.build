@@ -13,6 +13,7 @@ includes = [
 ]
 
 partitions_config = meson.project_source_root()/'config/partitions/w3a-uxc/partitions.yml'
+chip_id = get_option('chip_id')
 
 base_deps = [
   # MPU
@@ -24,21 +25,19 @@ base_deps = [
   memfault_deps['stm32u5xx'],
   serial_dep,
   sysevent_dep,
-  touch_dep,
-
   # Libs
   bitlog_dep,
   canary_dep,
   crypto_deps['stm32u5xx'],
   fs_dep,
   fs_stm32u585_dep,
-  fwup_deps['stm32'],
   gfx_dep,
   langpack_deps['en'],
   metadata_dep,
   mpu_regions_dep,
   protos_dep,
   ringbuf_dep,
+  secutils_dep,
   secure_channel_deps['w3-uxc'],
   telemetry_storage_dep,
   uc_device_dep,
@@ -58,8 +57,8 @@ base_deps = [
 display_deps = [display_driver_dep, display_task_dep]
 display_mfgtest_deps = [display_driver_mfgtest_dep, display_task_mfgtest_dep]
 
-touch_deps = [touch_task_dep]
-touch_mfgtest_deps = [touch_task_mfgtest_dep]
+touch_deps = [touch_dep, touch_task_dep]
+touch_mfgtest_deps = [touch_mfgtest_dep, touch_task_mfgtest_dep]
 
 dev_tools_deps = [
   shell_deps['w3-uxc'],
@@ -67,15 +66,10 @@ dev_tools_deps = [
   log_dep,
 
   # Commands
+  fs_cmd_dep,
   canary_cmd_dep,
   crypto_cmd_deps['stm32u5xx'],
   secure_channel_cmd_deps['w3-uxc'],
-]
-
-dev_variant_deps = base_deps + display_deps + touch_deps + dev_tools_deps
-mfgtest_variant_deps = base_deps + display_mfgtest_deps + touch_mfgtest_deps + dev_tools_deps
-prod_variant_deps = base_deps + display_deps + touch_deps + [
-  log_noprintf_dep
 ]
 
 foreach hardware : w3_uxc_hardware_configs.keys()
@@ -95,13 +89,22 @@ foreach hardware : w3_uxc_hardware_configs.keys()
       build_env_deps = w3_build_env_configs[build_env][0]
       build_env_args = w3_build_env_configs[build_env][1]
       key_type = w3_build_env_configs[build_env][2]
+      fwup_platform_dep = fwup_deps['stm32']
+
+      if build_env == 'mfgtest-dev' or build_env == 'mfgtest-prod'
+        fwup_platform_dep = fwup_deps['stm32-mfgtest']
+      endif
+
+      base_variant_deps = base_deps + [fwup_platform_dep]
 
       if build_env == 'prod'
-        deps = prod_variant_deps
-      elif build_env == 'mfgtest-dev' or build_env == 'mfgtest-prod'
-        deps = mfgtest_variant_deps
+        deps = base_variant_deps + display_deps + touch_deps + [log_noprintf_dep, opt_deps['prod']]
+      elif build_env == 'mfgtest-prod'
+        deps = base_variant_deps + display_mfgtest_deps + touch_mfgtest_deps + dev_tools_deps + [opt_deps['prod']]
+      elif build_env == 'mfgtest-dev'
+        deps = base_variant_deps + display_mfgtest_deps + touch_mfgtest_deps + dev_tools_deps + [opt_deps['dev']]
       else
-        deps = dev_variant_deps
+        deps = base_variant_deps + display_deps + touch_deps + dev_tools_deps + [opt_deps['dev']]
       endif
 
       ldscript = custom_target(ldscript_name,
@@ -169,10 +172,7 @@ foreach hardware : w3_uxc_hardware_configs.keys()
 
       # Sign the ELF
       combined_elf_input = '@OUTDIR@'/elf_name
-      signed_elf = custom_target(signed_elf_name,
-        input : combined_elf,
-        output : signed_elf_name,
-        command : [signer, 'sign',
+      signer_cmd = [signer, 'sign',
                   '--elf', combined_elf_input,
                   '--product', 'w3a-uxc',
                   '--key-type', key_type,
@@ -180,7 +180,14 @@ foreach hardware : w3_uxc_hardware_configs.keys()
                   '--slot', slot,
                   '--app-version', fw_version,
                   '--partitions-config', partitions_config,
-                  '--keys-dir', meson.current_source_dir() + '/' + fw_root + '/config/keys'],
+                  '--keys-dir', meson.current_source_dir() + '/' + fw_root + '/config/keys']
+      if chip_id != ''
+        signer_cmd += ['--chip-id', chip_id]
+      endif
+      signed_elf = custom_target(signed_elf_name,
+        input : combined_elf,
+        output : signed_elf_name,
+        command : signer_cmd,
         build_by_default : true,
         depends : [combined_elf]
       )

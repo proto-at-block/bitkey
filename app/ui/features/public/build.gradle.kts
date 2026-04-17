@@ -97,6 +97,7 @@ kotlin {
         implementation(libs.android.compose.ui.core)
         implementation(libs.android.compose.ui.tooling)
         implementation(libs.android.compose.ui.tooling.preview)
+        implementation(libs.android.sceneview)
       }
     }
 

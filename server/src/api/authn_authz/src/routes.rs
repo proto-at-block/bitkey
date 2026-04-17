@@ -118,7 +118,7 @@ pub struct AuthenticateWithRecoveryResponse {
 //TODO[BKR-608]: Remove this once we're using /api/authenticate
 #[instrument(
     fields(username),
-    skip(account_service, user_pool_service, feature_flags_service)
+    skip(account_service, user_pool_service, feature_flags_service, request, headers)
 )]
 #[utoipa::path(
     post,
@@ -160,9 +160,8 @@ pub async fn authenticate_with_recovery(
         .initiate_auth_for_user(user, &pubkeys_to_account)
         .await
         .map_err(|e| {
-            let msg = "Failed to initiate authentication with pubkey";
-            error!("{msg}: {e}");
-            ApiError::GenericInternalApplicationError(msg.to_string())
+            error!("Failed to initiate authentication with recovery pubkey: {e}");
+            e
         })?;
     Ok(Json(AuthenticateWithRecoveryResponse {
         username: CognitoUser::Recovery(pubkeys_to_account.id.clone()).into(),
@@ -194,7 +193,7 @@ pub struct AuthenticateWithHardwareResponse {
 
 #[instrument(
     fields(account_id),
-    skip(account_service, user_pool_service, feature_flags_service)
+    skip(account_service, user_pool_service, feature_flags_service, request, headers)
 )]
 #[utoipa::path(
     post,
@@ -236,9 +235,8 @@ pub async fn authenticate_with_hardware(
         .initiate_auth_for_user(user, &pubkeys_to_account)
         .await
         .map_err(|e| {
-            let msg = "Failed to initiate authentication with pubkey";
-            error!("{msg}: {e}");
-            ApiError::GenericInternalApplicationError(msg.to_string())
+            error!("Failed to initiate authentication with hardware pubkey: {e}");
+            e
         })?;
     Ok(Json(AuthenticateWithHardwareResponse {
         account_id: pubkeys_to_account.id,
@@ -271,7 +269,7 @@ pub struct AuthenticationResponse {
 
 #[instrument(
     fields(account_id),
-    skip(account_service, user_pool_service, feature_flags_service)
+    skip(account_service, user_pool_service, feature_flags_service, request, headers)
 )]
 #[utoipa::path(
     post,
@@ -336,9 +334,8 @@ pub async fn authenticate(
         .initiate_auth_for_user(requested_cognito_user, &pubkeys_to_account)
         .await
         .map_err(|e| {
-            let msg = "Failed to initiate authentication with pubkey";
-            error!("{msg}: {e}");
-            ApiError::GenericInternalApplicationError(msg.to_string())
+            error!("Failed to initiate authentication with pubkey: {e}");
+            e
         })?;
 
     Ok(Json(AuthenticationResponse {
@@ -380,7 +377,7 @@ pub struct InitiateWsmSecureChannelResponse {
     pub noise_bundle: String,
 }
 
-#[instrument(fields(account_id), skip(user_pool_service))]
+#[instrument(fields(account_id), skip(user_pool_service, request))]
 #[utoipa::path(
     post,
     path = "/api/authenticate/tokens",
@@ -414,7 +411,7 @@ pub async fn get_tokens(
             .map_err(|e: UserPoolError| {
                 let msg = "failed to refresh access tokens";
                 error!("{msg}: {e}");
-                ApiError::from(e)
+                e
             })?
     } else if let Some(params) = request.challenge {
         // There's an app bug in which the hw auth path always passes the account ID as the username here instead of
@@ -434,7 +431,7 @@ pub async fn get_tokens(
             .map_err(|e: UserPoolError| {
                 let msg = "failed to complete auth challenge";
                 error!("{msg}: {e}");
-                ApiError::from(e)
+                e
             })?
     } else {
         return Err(ApiError::GenericInternalApplicationError(
@@ -492,7 +489,7 @@ pub struct NoiseInitiateBundleResponse {
     pub noise_session: Vec<u8>,
 }
 
-#[instrument(skip(wsm_client))]
+#[instrument(skip(wsm_client, request))]
 #[utoipa::path(post, path = "/api/secure-channel/initiate")]
 pub async fn initiate_wsm_secure_channel(
     State(wsm_client): State<WsmClient>,

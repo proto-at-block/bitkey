@@ -5,8 +5,9 @@ import app.cash.turbine.plusAssign
 import bitkey.verification.TxVerificationApproval
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.Psbt
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.money.BitcoinMoney
+import build.wallet.platform.settings.Locale
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,7 +66,8 @@ class MobilePayServiceMock(
 
   override suspend fun setLimit(
     spendingLimit: SpendingLimit,
-    hwFactorProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
+    locale: Locale,
   ): Result<Unit, Error> {
     setLimitCalls += spendingLimit
     return Ok(Unit)

@@ -31,6 +31,7 @@ experimentation = { workspace = true }
 feature_flags = { workspace = true }
 notification = { workspace = true }
 privileged_action = { workspace = true }
+repository = { workspace = true, features = ["anti_replay"] }
 screener = { workspace = true }
 secure_site = { workspace = true }
 userpool = { workspace = true }

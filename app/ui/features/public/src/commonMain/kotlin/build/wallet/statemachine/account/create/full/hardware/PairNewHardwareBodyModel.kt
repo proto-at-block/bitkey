@@ -26,6 +26,7 @@ data class PairNewHardwareBodyModel(
   val primaryButton: ButtonModel,
   val secondaryButton: ButtonModel? = null,
   val backgroundVideo: BackgroundVideo,
+  val heroImageContent: HeroImageContent? = null,
   val isNavigatingBack: Boolean,
   /** Prevent screen dimming from inactivity. */
   val keepScreenOn: Boolean = false,
@@ -47,21 +48,44 @@ data class PairNewHardwareBodyModel(
     }
   }
 
+  enum class HeroImageContent {
+    FingerprintSetup,
+    BuildHardwareDescriptor,
+  }
+
   private val unique = eventTrackerScreenInfo?.eventTrackerScreenId?.name ?: uuid()
   override val key: String = "${this::class.qualifiedName}-$unique."
 
-  fun toolbarModel(onRefreshClick: () -> Unit) =
-    ToolbarModel(
+  fun toolbarModel(
+    onRefreshClick: () -> Unit,
+    showReplayAction: Boolean = true,
+    useAdaptiveStyle: Boolean = false,
+  ): ToolbarModel {
+    return ToolbarModel(
       leadingAccessory = onBack?.let {
-        toolbarAccessory(icon = Icon.SmallIconArrowLeft, onClick = it)
+        toolbarAccessory(
+          icon = Icon.SmallIconArrowLeft,
+          onClick = it,
+          useAdaptiveStyle = useAdaptiveStyle
+        )
       },
       trailingAccessory =
-        toolbarAccessory(icon = Icon.SmallIconRefresh, onClick = onRefreshClick)
+        if (showReplayAction) {
+          toolbarAccessory(
+            icon = Icon.SmallIconRefresh,
+            onClick = onRefreshClick,
+            useAdaptiveStyle = useAdaptiveStyle
+          )
+        } else {
+          null
+        }
     )
+  }
 
   private fun toolbarAccessory(
     icon: Icon,
     onClick: () -> Unit,
+    useAdaptiveStyle: Boolean,
   ) = ToolbarAccessoryModel.IconAccessory(
     model =
       IconButtonModel(
@@ -72,10 +96,21 @@ data class PairNewHardwareBodyModel(
             iconBackgroundType =
               IconBackgroundType.Circle(
                 circleSize = IconSize.Regular,
-                color = IconBackgroundType.Circle.CircleColor.TranslucentWhite
+                color =
+                  if (useAdaptiveStyle) {
+                    IconBackgroundType.Circle.CircleColor.Secondary
+                  } else {
+                    IconBackgroundType.Circle.CircleColor.TranslucentWhite
+                  }
               ),
-            iconTint = IconTint.OnTranslucent
+            iconTint =
+              if (useAdaptiveStyle) {
+                IconTint.Foreground
+              } else {
+                IconTint.OnTranslucent
+              }
           ),
+        testTag = "pair-new-hardware-toolbar-action",
         onClick = StandardClick(onClick)
       )
   )

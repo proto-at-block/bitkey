@@ -72,6 +72,10 @@ class Wallet:
         :param mcu: target MCU to retrieve the FWUP parameters for.
         :returns: FWUP parameters for target MCU of target product.
         """
+        return FwupParams.from_product(self.partition_config_name(mcu))
+
+    def partition_config_name(self: Wallet, mcu: Optional[str] = "efr32") -> str:
+        """Returns the partition-config name for the target MCU."""
         _product_to_partition_mapping = {
             "w1": {
                 "efr32": "w1a",
@@ -82,9 +86,8 @@ class Wallet:
             },
         }
 
-        _product = _product_to_partition_mapping.get(
+        return _product_to_partition_mapping.get(
             self.product, {}).get(mcu.lower(), "w1a")
-        return FwupParams.from_product(_product)
 
     def start_fingerprint_enrollment(self, index=0, label=""):
         cmd = self._build_cmd()
@@ -270,13 +273,15 @@ class Wallet:
         cmd.mfgtest_runin_get_data_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)
 
-    def mfgtest_tap_test_start(self, nfc_test: int, timeout: int, delay: int, continuous: bool = False) -> Any:
+    def mfgtest_tap_test_start(self, nfc_test: int, timeout: int, delay: int,
+                               continuous: bool = False, poll_delay_ms: int = 0) -> Any:
         """Starts an NFC loopback test.
 
         :param nfc_test: the NFC test to perform.
         :param timeout: timeout (ms) to perform the test for.
         :param delay: delay (ms) before starting the test.
         :param continuous: if True, keep NFC active and restart polling after each card detection.
+        :param poll_delay_ms: delay (ms) between card detection and re-polling in continuous mode.
         :returns: the response proto.
         """
         cmd = self._build_cmd()
@@ -286,6 +291,7 @@ class Wallet:
         msg.delay_ms = delay
         msg.timeout_ms = timeout
         msg.continuous = continuous
+        msg.poll_delay_ms = poll_delay_ms
         cmd.mfgtest_nfc_loopback_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)
 
@@ -415,6 +421,38 @@ class Wallet:
         if rsp.mfgtest_board_id_rsp.rsp_status != rsp.mfgtest_board_id_rsp.SUCCESS:
             return None
         return rsp.mfgtest_board_id_rsp.board_id
+
+    def mfgtest_device_set_production_lock(self: Wallet, mcu: Optional[str] = None) -> bool:
+        """Sets the device production lock state.
+
+        This is a one-way operation intended for manufacturing provisioning.
+        Once set, production lock cannot be cleared.
+
+        :param mcu: optional target MCU name (defaults to `EFR32` if not specified).
+        :returns: ``True`` on success, otherwise ``False``.
+        """
+        cmd = self._build_cmd()
+        msg = mfgtest_pb.mfgtest_device_set_production_lock_cmd()
+        msg.mcu_role = self.chip_name_to_role(self.product, mcu)
+        cmd.mfgtest_device_set_production_lock_cmd.CopyFrom(msg)
+        rsp = self.comms.transceive(cmd)
+        return rsp.mfgtest_device_set_production_lock_rsp.rsp_status == mfgtest_pb.mfgtest_device_set_production_lock_rsp.SUCCESS
+
+    def mfgtest_device_get_production_lock(self: Wallet, mcu: Optional[str] = None) -> Optional[bool]:
+        """Reads the device production lock state from the device.
+
+        :param mcu: optional target MCU name (defaults to `EFR32` if not specified).
+        :returns: ``True`` if production lock is set, ``False`` if not set,
+                  or ``None`` on error.
+        """
+        cmd = self._build_cmd()
+        msg = mfgtest_pb.mfgtest_device_get_production_lock_cmd()
+        msg.mcu_role = self.chip_name_to_role(self.product, mcu)
+        cmd.mfgtest_device_get_production_lock_cmd.CopyFrom(msg)
+        rsp = self.comms.transceive(cmd)
+        if rsp.mfgtest_device_get_production_lock_rsp.rsp_status != mfgtest_pb.mfgtest_device_get_production_lock_rsp.SUCCESS:
+            return None
+        return rsp.mfgtest_device_get_production_lock_rsp.is_production
 
     def mfgtest_touch_test_start(self: Wallet, timeout: int) -> bool:
         """Starts a touch test over NFC.
@@ -575,10 +613,14 @@ class Wallet:
         cmd.secinfo_get_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)
 
-    def cert_get(self, kind):
+    def cert_get(self, kind, cert_id=None, cert_source=None):
         cmd = self._build_cmd()
         msg = wallet_pb.cert_get_cmd()
         msg.kind = kind
+        if cert_id is not None:
+            msg.cert_id = cert_id
+        if cert_source is not None:
+            msg.cert_source = cert_source
         cmd.cert_get_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)
 
@@ -670,15 +712,6 @@ class Wallet:
         cmd.derive_public_key_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)
 
-    def derive_public_key_and_sign(self, curve, label, digest: bytes):
-        cmd = self._build_cmd()
-        msg = ops_keys.derive_public_key_and_sign_cmd()
-        msg.curve = curve
-        msg.label = bytes(label, encoding='ascii')
-        msg.hash = digest
-        cmd.derive_public_key_and_sign_cmd.CopyFrom(msg)
-        return self.comms.transceive(cmd)
-
     def hardware_attestation(self, nonce):
         cmd = self._build_cmd()
         msg = wallet_pb.hardware_attestation_cmd()
@@ -686,16 +719,32 @@ class Wallet:
         cmd.hardware_attestation_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)
 
+    def unlock_device(self: Wallet) -> bool:
+        """Programmatically unlocks a device.
+
+        This is only supported on development devices. Production devices will
+        not respond to this command.
+
+        :param self: the ``Wallet`` instance.
+        :returns: ``True`` if device was unlocked, otherwise ``False``.
+        """
+        cmd = self._build_cmd()
+        msg = wallet_pb.unlock_device_cmd()
+        cmd.unlock_device_cmd.CopyFrom(msg)
+
+        response = self.comms.transceive(cmd)
+        rsp = response.unlock_device_rsp
+        return rsp.rsp_status == wallet_pb.unlock_device_rsp.SUCCESS
+
     def unlock_secret(self, secret: str):
         with SecureChannel(self) as secure_channel:
             secret_hash = hashlib.sha256(secret.encode('ascii')).digest()
             cmd = wallet_pb.wallet_cmd()
             msg = wallet_pb.send_unlock_secret_cmd()
             logger = logging.getLogger()
-            logger.info(cmd)
-            logger.info(msg)
             msg.secret.CopyFrom(secure_channel.encrypt(secret_hash))
             cmd.send_unlock_secret_cmd.CopyFrom(msg)
+            logger.info(msg)
             return self.comms.transceive(cmd)
 
     def provision_unlock_secret(self, secret: str):
@@ -763,67 +812,120 @@ class Wallet:
         cmd.fingerprint_reset_finalize_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)
 
-    def mfgtest_touch_data(self, action: str, buffer_mode: str = 'CIRCULAR'):
+    def mfgtest_touch_data(self, action: str, buffer_mode: str = 'CIRCULAR', restart: bool = False):
         """Send a touch data collection command.
 
         :param action: One of 'START', 'FETCH', or 'STOP'
         :param buffer_mode: For START: 'CIRCULAR' or 'STOP_WHEN_FULL'
+        :param restart: For FETCH: if True, restart from beginning of frozen buffer
         :returns: wallet response proto
         """
         cmd = self._build_cmd()
         msg = mfgtest_pb.mfgtest_touch_data_cmd()
 
-        msg.cmd_id = mfgtest_pb.mfgtest_touch_data_cmd.mfgtest_touch_data_cmd_id.Value(action.upper())
+        msg.cmd_id = mfgtest_pb.mfgtest_touch_data_cmd.mfgtest_touch_data_cmd_id.Value(
+            action.upper())
 
         if action.upper() == 'START':
-            msg.buffer_mode = mfgtest_pb.mfgtest_touch_data_cmd.mfgtest_touch_data_buffer_mode.Value(buffer_mode.upper())
+            msg.buffer_mode = mfgtest_pb.mfgtest_touch_data_cmd.mfgtest_touch_data_buffer_mode.Value(
+                buffer_mode.upper())
+
+        if action.upper() == 'FETCH':
+            msg.restart = restart
 
         cmd.mfgtest_touch_data_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)
 
     # Result type for mfgtest_touch_data_fetch_all
-    TouchDataResult = namedtuple('TouchDataResult', ['points', 'dropped_count', 'buffer_full', 'error'])
+    TouchDataResult = namedtuple(
+        'TouchDataResult', ['points', 'dropped_count', 'buffer_full', 'retries', 'error'])
 
-    def mfgtest_touch_data_fetch_all(self):
+    def mfgtest_touch_data_fetch_all(self, max_retries: int = 5):
         """Fetch all buffered touch points (handles multiple NFC calls internally).
 
+        First FETCH freezes the buffer and returns total_points. Subsequent FETCHes
+        return chunks until all points are received. If the received count doesn't
+        match total_points, retransmission is requested automatically.
+
+        :param max_retries: Number of times to retry full transmission on count mismatch
         :returns: TouchDataResult namedtuple with:
             - points: list of (x, y, timestamp_ms) tuples
             - dropped_count: number of points dropped due to buffer overflow
             - buffer_full: True if buffer reached capacity
+            - retries: number of retransmission attempts needed (0 = first try succeeded)
             - error: error string if failed, None on success
         """
-        points = []
         dropped_count = 0
         buffer_full = False
+        retries = 0
 
-        while True:
-            response = self.mfgtest_touch_data('FETCH')
-            rsp = response.mfgtest_touch_data_rsp
+        for attempt in range(max_retries + 1):
+            points = []
+            total_points = None
+            # Always restart on the first FETCH of each attempt so we read
+            # from the beginning — handles stale frozen state from a prior
+            # interrupted fetch_all() as well as explicit retries.
+            restart = True
 
-            if rsp.rsp_status == mfgtest_pb.mfgtest_touch_data_rsp.NOT_STARTED:
-                return self.TouchDataResult(points=[], dropped_count=0, buffer_full=False, error='NOT_ENABLED')
+            while True:
+                response = self.mfgtest_touch_data('FETCH', restart=restart)
+                restart = False  # Only restart on the first fetch of each attempt
+                rsp = response.mfgtest_touch_data_rsp
 
-            if rsp.rsp_status != mfgtest_pb.mfgtest_touch_data_rsp.SUCCESS:
-                status_name = mfgtest_pb.mfgtest_touch_data_rsp.mfgtest_touch_data_rsp_status.Name(rsp.rsp_status)
-                return self.TouchDataResult(points=points, dropped_count=dropped_count, buffer_full=buffer_full, error=status_name)
+                if rsp.rsp_status == mfgtest_pb.mfgtest_touch_data_rsp.NOT_STARTED:
+                    return self.TouchDataResult(points=[], dropped_count=0, buffer_full=False, retries=retries, error='NOT_ENABLED')
 
-            for point in rsp.points:
-                points.append((point.x, point.y, point.timestamp_ms))
+                if rsp.rsp_status != mfgtest_pb.mfgtest_touch_data_rsp.SUCCESS:
+                    status_name = mfgtest_pb.mfgtest_touch_data_rsp.mfgtest_touch_data_rsp_status.Name(
+                        rsp.rsp_status)
+                    return self.TouchDataResult(points=points, dropped_count=dropped_count, buffer_full=buffer_full, retries=retries, error=status_name)
 
-            dropped_count = rsp.dropped_count
-            buffer_full = rsp.buffer_full
+                if total_points is None:
+                    total_points = rsp.total_points if rsp.total_points > 0 else None
 
-            if rsp.points_remaining == 0:
-                break
+                for point in rsp.points:
+                    points.append((point.x, point.y, point.timestamp_ms))
 
-        return self.TouchDataResult(points=points, dropped_count=dropped_count, buffer_full=buffer_full, error=None)
+                dropped_count = rsp.dropped_count
+                buffer_full = rsp.buffer_full
+
+                # End of data: either a short chunk or we've collected everything
+                if len(rsp.points) < 25 or (total_points is not None and len(points) == total_points):
+                    break
+
+            # Legacy firmware doesn't report total_points — accept whatever we got
+            if total_points is None:
+                return self.TouchDataResult(points=points, dropped_count=dropped_count, buffer_full=buffer_full, retries=retries, error=None)
+
+            # Verify count
+            if len(points) == total_points:
+                return self.TouchDataResult(points=points, dropped_count=dropped_count, buffer_full=buffer_full, retries=retries, error=None)
+
+            # Count mismatch — retry with restart
+            if attempt < max_retries:
+                retries += 1
+                restart = True
+
+        return self.TouchDataResult(
+            points=points, dropped_count=dropped_count, buffer_full=buffer_full, retries=retries,
+            error=f'COUNT_MISMATCH: expected {total_points}, got {len(points)} after {max_retries + 1} attempts')
 
     def provision_app_auth_pubkey(self, pubkey):
         cmd = self._build_cmd()
         msg = wallet_pb.provision_app_auth_pubkey_cmd()
         msg.pubkey = pubkey
         cmd.provision_app_auth_pubkey_cmd.CopyFrom(msg)
+        return self.comms.transceive(cmd)
+
+    def sign_action_proof(self, version: int, action: str,
+                          value: str = "", bindings: str = ""):
+        cmd = self._build_cmd()
+        msg = wallet_pb.sign_action_proof_cmd()
+        msg.version = version
+        msg.action = action
+        msg.value = value
+        msg.bindings = bindings
+        cmd.sign_action_proof_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)
 
     def get_confirmation_result(self, response_handle: bytes, confirmation_handle: bytes):

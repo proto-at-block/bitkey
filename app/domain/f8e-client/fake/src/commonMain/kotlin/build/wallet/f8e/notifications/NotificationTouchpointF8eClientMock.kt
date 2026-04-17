@@ -11,7 +11,7 @@ import bitkey.notifications.NotificationTouchpoint.EmailTouchpoint
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.email.Email
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.ktor.result.NetworkingError
 import com.github.michaelbull.result.Ok
@@ -67,7 +67,7 @@ class NotificationTouchpointF8eClientMock(
 
   data class ActivateTouchpointParams(
     val touchpointId: String,
-    val hwFactorProofOfPossession: HwFactorProofOfPossession?,
+    val proof: PrivilegedActionProof?,
   )
 
   var activateTouchpointResult: Result<Unit, NetworkError> = Ok(Unit)
@@ -76,12 +76,12 @@ class NotificationTouchpointF8eClientMock(
     f8eEnvironment: F8eEnvironment,
     accountId: AccountId,
     touchpointId: String,
-    hwFactorProofOfPossession: HwFactorProofOfPossession?,
+    proof: PrivilegedActionProof?,
   ): Result<Unit, NetworkingError> {
     activateTouchpointCalls +=
       ActivateTouchpointParams(
         touchpointId,
-        hwFactorProofOfPossession
+        proof
       )
     return activateTouchpointResult
   }
@@ -111,7 +111,7 @@ class NotificationTouchpointF8eClientMock(
     f8eEnvironment: F8eEnvironment,
     accountId: AccountId,
     preferences: NotificationPreferences,
-    hwFactorProofOfPossession: HwFactorProofOfPossession?,
+    proof: PrivilegedActionProof?,
   ): Result<Unit, NetworkingError> {
     return updateNotificationsPreferencesResult
   }

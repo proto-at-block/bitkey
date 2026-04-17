@@ -1,6 +1,10 @@
 package build.wallet.statemachine.settings.full.device.wipedevice
 
 import app.cash.turbine.plusAssign
+import bitkey.account.AccountConfigServiceFake
+import bitkey.account.HardwareType
+import build.wallet.bitkey.keybox.FullAccountConfigMock
+import build.wallet.bitkey.keybox.FullAccountW3Mock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.firmware.FirmwareDeviceInfoDaoMock
 import build.wallet.firmware.HardwareUnlockInfoServiceFake
@@ -33,11 +37,13 @@ import kotlinx.coroutines.flow.first
 class WipingDeviceConfirmationUiStateMachineImplTests : FunSpec({
   val firmwareDeviceInfoDao = FirmwareDeviceInfoDaoMock(turbines::create)
   val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
+  val accountConfigService = AccountConfigServiceFake()
 
   val stateMachine = WipingDeviceConfirmationUiStateMachineImpl(
     nfcConfirmableSessionUiStateMachine = NfcConfirmableSessionUiStateMachineMock("wiping device nfc"),
     firmwareDeviceInfoDao = firmwareDeviceInfoDao,
-    hardwareUnlockInfoService = hardwareUnlockInfoService
+    hardwareUnlockInfoService = hardwareUnlockInfoService,
+    accountConfigService = accountConfigService
   )
 
   val onBackCalls = turbines.create<Unit>("on back calls")
@@ -46,7 +52,8 @@ class WipingDeviceConfirmationUiStateMachineImplTests : FunSpec({
   val props = WipingDeviceConfirmationProps(
     onBack = { onBackCalls += Unit },
     onWipeDevice = { onConfirmWipeDeviceCalls += Unit },
-    isDevicePaired = true
+    isDevicePaired = true,
+    fullAccount = null
   )
 
   test("onBack calls") {
@@ -207,6 +214,102 @@ class WipingDeviceConfirmationUiStateMachineImplTests : FunSpec({
 
       // Verify the bottom sheet is dismissed
       awaitItem().bottomSheetModel.shouldBeNull()
+    }
+  }
+
+  test("W1 config skips two-tap confirmation (onRequiresConfirmation is non-null)") {
+    accountConfigService.setActiveConfig(
+      FullAccountConfigMock.copy(hardwareType = HardwareType.W1)
+    )
+    stateMachine.test(props) {
+      awaitBody<FormBodyModel> {
+        checkBoxAtIndex(0)
+      }
+      awaitBody<FormBodyModel> {
+        checkBoxAtIndex(1)
+      }
+      awaitBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull().onClick()
+      }
+      awaitSheet<FormBodyModel> {
+        primaryButton.shouldNotBeNull().onClick()
+      }
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Boolean>> {
+        // W1 should have onRequiresConfirmation set (skip second tap)
+        onRequiresConfirmation.shouldNotBeNull()
+        config.showNativeSheetOnIos.shouldBe(true)
+      }
+    }
+  }
+
+  test("W3 config uses two-tap confirmation (onRequiresConfirmation is null)") {
+    accountConfigService.setActiveConfig(
+      FullAccountConfigMock.copy(hardwareType = HardwareType.W3)
+    )
+    stateMachine.test(props) {
+      awaitBody<FormBodyModel> {
+        checkBoxAtIndex(0)
+      }
+      awaitBody<FormBodyModel> {
+        checkBoxAtIndex(1)
+      }
+      awaitBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull().onClick()
+      }
+      awaitSheet<FormBodyModel> {
+        primaryButton.shouldNotBeNull().onClick()
+      }
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Boolean>> {
+        // W3 should have onRequiresConfirmation null (use default two-tap)
+        onRequiresConfirmation.shouldBeNull()
+        config.showNativeSheetOnIos.shouldBe(false)
+      }
+    }
+  }
+
+  test("unknown hardware type defaults to two-tap confirmation") {
+    accountConfigService.setActiveConfig(null)
+    stateMachine.test(props) {
+      awaitBody<FormBodyModel> {
+        checkBoxAtIndex(0)
+      }
+      awaitBody<FormBodyModel> {
+        checkBoxAtIndex(1)
+      }
+      awaitBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull().onClick()
+      }
+      awaitSheet<FormBodyModel> {
+        primaryButton.shouldNotBeNull().onClick()
+      }
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Boolean>> {
+        onRequiresConfirmation.shouldBeNull()
+        config.showNativeSheetOnIos.shouldBe(false)
+      }
+    }
+  }
+
+  test("full account hardware type is used when provided by parent state machine") {
+    accountConfigService.setActiveConfig(
+      FullAccountConfigMock.copy(hardwareType = HardwareType.W1)
+    )
+    stateMachine.test(props.copy(fullAccount = FullAccountW3Mock)) {
+      awaitBody<FormBodyModel> {
+        checkBoxAtIndex(0)
+      }
+      awaitBody<FormBodyModel> {
+        checkBoxAtIndex(1)
+      }
+      awaitBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull().onClick()
+      }
+      awaitSheet<FormBodyModel> {
+        primaryButton.shouldNotBeNull().onClick()
+      }
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Boolean>> {
+        onRequiresConfirmation.shouldBeNull()
+        config.showNativeSheetOnIos.shouldBe(false)
+      }
     }
   }
 })

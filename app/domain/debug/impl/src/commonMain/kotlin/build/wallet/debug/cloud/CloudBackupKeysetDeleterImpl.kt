@@ -1,7 +1,7 @@
 package build.wallet.debug.cloud
 
 import build.wallet.cloud.backup.CloudBackup
-import build.wallet.cloud.backup.CloudBackupRepository
+import build.wallet.cloud.backup.CloudBackupService
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.backup.csek.CsekDao
@@ -25,7 +25,7 @@ import okio.ByteString.Companion.encodeUtf8
 @BitkeyInject(AppScope::class)
 class CloudBackupKeysetDeleterImpl(
   private val appVariant: AppVariant,
-  private val cloudBackupRepository: CloudBackupRepository,
+  private val cloudBackupService: CloudBackupService,
   private val cloudStoreAccountRepository: CloudStoreAccountRepository,
   private val keyboxDao: KeyboxDao,
   private val csekDao: CsekDao,
@@ -40,7 +40,7 @@ class CloudBackupKeysetDeleterImpl(
         .bind()
         ?: error("No cloud account")
 
-      val backup = cloudBackupRepository.readActiveBackup(cloudAccount)
+      val backup = cloudBackupService.readActiveBackup(cloudAccount)
         .mapError { KeysetDeletionError.BackupReadError("Failed to read backup", it) }
         .bind()
         ?: error("No backup found")
@@ -51,7 +51,7 @@ class CloudBackupKeysetDeleterImpl(
 
       val modifiedBackup = modifyBackup(backup).bind()
 
-      cloudBackupRepository.writeBackup(
+      cloudBackupService.writeBackup(
         accountId = keybox.fullAccountId,
         cloudStoreAccount = cloudAccount,
         backup = modifiedBackup,

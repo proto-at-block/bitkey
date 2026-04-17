@@ -1,6 +1,7 @@
 package build.wallet.ui.app.inheritance
 
 import androidx.compose.ui.Modifier
+import build.wallet.Progress
 import build.wallet.bitkey.relationships.*
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
@@ -10,9 +11,11 @@ import build.wallet.statemachine.inheritance.BenefactorListModel
 import build.wallet.statemachine.inheritance.BeneficiaryListModel
 import build.wallet.statemachine.inheritance.ManagingInheritanceBodyModel
 import build.wallet.statemachine.inheritance.ManagingInheritanceTab
+import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.ui.model.StandardClick
 import io.kotest.core.spec.style.FunSpec
 import kotlinx.datetime.Instant
+import kotlin.time.Duration.Companion.days
 
 class InheritanceManagementSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
@@ -55,6 +58,7 @@ class InheritanceManagementSnapshots : FunSpec({
     paparazzi.snapshot {
       ManagingInheritanceBodyModel(
         onBack = {},
+        isDesignSystemV2Enabled = false,
         onLearnMore = {},
         onInviteClick = StandardClick {},
         onTabRowClick = {},
@@ -77,6 +81,7 @@ class InheritanceManagementSnapshots : FunSpec({
     paparazzi.snapshot {
       ManagingInheritanceBodyModel(
         onBack = {},
+        isDesignSystemV2Enabled = false,
         onLearnMore = {},
         onInviteClick = StandardClick {},
         onTabRowClick = {},
@@ -93,6 +98,7 @@ class InheritanceManagementSnapshots : FunSpec({
     paparazzi.snapshot {
       ManagingInheritanceBodyModel(
         onBack = {},
+        isDesignSystemV2Enabled = false,
         onLearnMore = {},
         onInviteClick = StandardClick {},
         onTabRowClick = {},
@@ -115,6 +121,7 @@ class InheritanceManagementSnapshots : FunSpec({
     paparazzi.snapshot {
       ManagingInheritanceBodyModel(
         onBack = {},
+        isDesignSystemV2Enabled = false,
         onLearnMore = {},
         onInviteClick = StandardClick {},
         onTabRowClick = {},
@@ -131,6 +138,7 @@ class InheritanceManagementSnapshots : FunSpec({
     paparazzi.snapshot {
       ManagingInheritanceBodyModel(
         onBack = {},
+        isDesignSystemV2Enabled = false,
         onLearnMore = {},
         onInviteClick = StandardClick {},
         onTabRowClick = {},
@@ -139,6 +147,84 @@ class InheritanceManagementSnapshots : FunSpec({
         hasPendingBeneficiaries = false,
         benefactors = benefactors,
         beneficiaries = beneficiaries
+      ).render(modifier = Modifier)
+    }
+  }
+
+  test("inheritance management - inheritance tab - empty with design system v2 feature flag on") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      ManagingInheritanceBodyModel(
+        onBack = {},
+        isDesignSystemV2Enabled = true,
+        onLearnMore = {},
+        onInviteClick = StandardClick {},
+        onTabRowClick = {},
+        onAcceptInvitation = {},
+        selectedTab = ManagingInheritanceTab.Inheritance,
+        hasPendingBeneficiaries = false,
+        beneficiaries = BeneficiaryListModel(
+          beneficiaries = immutableListOf(),
+          onManageClick = {}
+        ),
+        benefactors = BenefactorListModel(
+          benefactors = emptyImmutableList(),
+          onManageClick = {}
+        )
+      ).render(modifier = Modifier)
+    }
+  }
+
+  test("inheritance management - beneficiaries tab - empty with design system v2 feature flag on") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      ManagingInheritanceBodyModel(
+        onBack = {},
+        isDesignSystemV2Enabled = true,
+        onLearnMore = {},
+        onInviteClick = StandardClick {},
+        onTabRowClick = {},
+        onAcceptInvitation = {},
+        selectedTab = ManagingInheritanceTab.Beneficiaries,
+        hasPendingBeneficiaries = false,
+        beneficiaries = BeneficiaryListModel(
+          beneficiaries = immutableListOf(),
+          onManageClick = {}
+        ),
+        benefactors = BenefactorListModel(
+          benefactors = emptyImmutableList(),
+          onManageClick = {}
+        )
+      ).render(modifier = Modifier)
+    }
+  }
+
+  test("inheritance management - inheritance tab - claim callout with design system v2 feature flag on") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      ManagingInheritanceBodyModel(
+        onBack = {},
+        isDesignSystemV2Enabled = true,
+        onLearnMore = {},
+        onInviteClick = StandardClick {},
+        onTabRowClick = {},
+        onAcceptInvitation = {},
+        selectedTab = ManagingInheritanceTab.Inheritance,
+        hasPendingBeneficiaries = false,
+        benefactors = benefactors,
+        beneficiaries = beneficiaries,
+        claimCallouts = immutableListOf(
+          CardModel(
+            title = null,
+            content = CardModel.CardContent.PendingClaim(
+              title = "Inheritance claim pending",
+              subtitle = "Funds available Apr 14, 2026.",
+              isPendingClaim = true,
+              timeRemaining = 1.days,
+              progress = Progress.Half,
+              onClick = null,
+              useMonochromeStyleInDesignSystemV2 = true
+            ),
+            style = CardModel.CardStyle.Plain
+          )
+        )
       ).render(modifier = Modifier)
     }
   }

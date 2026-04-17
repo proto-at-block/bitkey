@@ -1,40 +1,31 @@
-//! Signature requirement types for authorization policies.
+//! Proof requirement types for authorization policies.
 //!
-//! These types define which signers are required for authorization and are
-//! shared between action-proof and key-claims authentication mechanisms.
+//! `ProofRequirement` expresses the route's intent for what level of
+//! cryptographic proof of possession is needed, independent of the
+//! underlying mechanism (ActionProof for W3, KeyClaims for W1).
 
-/// Specifies which signers are required for authorization.
+/// Specifies what level of proof of possession is required.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Signers {
-    /// Require both app AND hardware signatures
-    All,
-    /// Require at least one signature (app OR hardware)
-    Any,
-}
+pub enum ProofRequirement {
+    /// Both app AND hardware must prove possession.
+    /// Reject if either signature is missing.
+    BothFactors,
 
-/// Signer requirements that can differ between action-proof and key-claims.
-#[derive(Debug, Clone, Copy)]
-pub struct SignerRequirements {
-    pub action_proof: Signers,
-    pub key_claims: Signers,
-}
+    /// At least one factor must prove possession.
+    /// Reject if neither signature is present.
+    /// Used in recovery flows where the required factor depends on which key was lost.
+    AnyFactor,
 
-/// Trait for converting values into signer requirements.
-pub trait IntoSignerRequirements {
-    fn into_requirements(self) -> SignerRequirements;
-}
+    /// Verify signatures through the correct mechanism if present,
+    /// but don't reject if absent. The closure uses `ctx.hw_signed()` /
+    /// `ctx.app_signed()` to make conditional decisions.
+    ///
+    /// For W3: only ActionProof counts. If no ActionProof header is sent,
+    /// `hw_signed=false` and `app_signed=false` — KeyClaims signatures are
+    /// never used for W3 accounts.
+    Conditional,
 
-impl IntoSignerRequirements for Signers {
-    fn into_requirements(self) -> SignerRequirements {
-        SignerRequirements {
-            action_proof: self,
-            key_claims: self,
-        }
-    }
-}
-
-impl IntoSignerRequirements for SignerRequirements {
-    fn into_requirements(self) -> SignerRequirements {
-        self
-    }
+    /// No proof needed. JWT authentication alone is sufficient.
+    /// Signatures are neither expected nor verified.
+    JwtOnly,
 }

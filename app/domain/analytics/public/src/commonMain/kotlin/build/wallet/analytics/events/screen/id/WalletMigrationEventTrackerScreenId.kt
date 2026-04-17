@@ -45,4 +45,61 @@ enum class WalletMigrationEventTrackerScreenId : EventTrackerScreenId {
 
   /** Warning sheet shown when there are pending transactions that must be confirmed first */
   PRIVATE_WALLET_MIGRATION_PENDING_TRANSACTIONS_WARNING,
+
+  /** Introduction screen for W3 hardware upgrade */
+  W3_UPGRADE_INTRO,
+
+  /** Screen asking if user has new device ready */
+  W3_UPGRADE_DEVICE_READY,
+
+  /** Screen showing old hardware instructions before sweep */
+  W3_UPGRADE_OLD_HARDWARE_INSTRUCTIONS,
+
+  /** Screen showing old hardware instructions before auth key rotation */
+  W3_UPGRADE_OLD_HARDWARE_AUTH_ROTATION_INSTRUCTIONS,
+
+  /** Screen showing new hardware instructions before auth key rotation */
+  W3_UPGRADE_NEW_HARDWARE_AUTH_ROTATION_INSTRUCTIONS,
+
+  /** Creating keyset during W3 upgrade */
+  W3_UPGRADE_CREATING_KEYSET,
+
+  /** Success screen when W3 upgrade is complete */
+  W3_UPGRADE_COMPLETE,
+
+  /** Error screen when W3 upgrade fails */
+  W3_UPGRADE_ERROR,
+
+  /** Error screen when wrong hardware type is tapped during W3 upgrade */
+  W3_UPGRADE_WRONG_HARDWARE_ERROR,
+
+  /** Warning sheet shown when pending transactions block W3 upgrade */
+  W3_UPGRADE_PENDING_TRANSACTIONS_WARNING,
+
+  /** Sheet shown when UTXO consolidation is required before W3 upgrade */
+  W3_UPGRADE_UTXO_CONSOLIDATION_REQUIRED,
+
+  /** Loading screen while generating new auth keys during W3 upgrade */
+  W3_UPGRADE_GENERATING_AUTH_KEYS,
+
+  /** Loading screen while preparing for auth key rotation during W3 upgrade */
+  W3_UPGRADE_PREPARING_AUTH_ROTATION,
+
+  /** Loading screen while running auth key rotation during W3 upgrade */
+  W3_UPGRADE_RUNNING_AUTH_ROTATION,
+
+  /** Loading screen while preparing action proof authorization during W3 upgrade */
+  W3_UPGRADE_PREPARING_AUTHORIZATION,
+
+  /** Loading screen while running server keyset activation during W3 upgrade */
+  W3_UPGRADE_RUNNING_SERVER_KEYSET_ACTIVATION,
+
+  /** Loading screen while checking for funds during W3 upgrade */
+  W3_UPGRADE_CHECKING_FOR_FUNDS,
+
+  /** Loading screen while resuming auth key rotation during W3 upgrade */
+  W3_UPGRADE_RESUMING_AUTH_KEY_ROTATION,
+
+  /** Initial loading screen while checking for in-progress W3 upgrade migration */
+  W3_UPGRADE_LOADING,
 }

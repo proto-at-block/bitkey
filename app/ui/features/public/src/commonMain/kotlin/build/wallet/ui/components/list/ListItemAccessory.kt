@@ -2,7 +2,6 @@ package build.wallet.ui.components.list
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -16,9 +15,11 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import bitkey.ui.framework_public.generated.resources.Res
 import bitkey.ui.framework_public.generated.resources.bitkey_corian
+import build.wallet.statemachine.core.Icon
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.icon.dp
@@ -27,9 +28,14 @@ import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.label.loadingScrim
 import build.wallet.ui.components.loading.LoadingIndicator
 import build.wallet.ui.components.switch.Switch
+import build.wallet.ui.compose.resId
+import build.wallet.ui.compose.resolveTestTag
+import build.wallet.ui.compose.switchTestTag
+import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemAccessory.*
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tooling.LocalIsPreviewTheme
@@ -40,15 +46,39 @@ import kotlin.random.Random
 internal fun ListItemAccessory(
   model: ListItemAccessory,
   isLoading: Boolean = false,
+  parentTestTag: String? = null,
 ) {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+
   when (model) {
     is IconAccessory ->
       {
+        val isDesignSystemV2Chevron = isDesignSystemV2Enabled && model.isChevronAccessory()
+        val resolvedIconModel =
+          if (isDesignSystemV2Chevron) {
+            model.model.copy(iconSize = IconSize.Accessory)
+          } else {
+            model.model
+          }
+        val resolvedOpticalOffsetX =
+          if (isDesignSystemV2Chevron) {
+            4
+          } else {
+            model.opticalOffsetX
+          }
+
         IconImage(
           modifier =
             Modifier
               .loadingScrim(isLoading)
+              .resId(resolveTestTag(model.testTag, parentTestTag ?: "list-item-icon-accessory"))
               .padding(model.iconPadding?.dp ?: 0.dp)
+              .offset {
+                IntOffset(
+                  x = (resolvedOpticalOffsetX ?: 0).dp.roundToPx(),
+                  y = 0
+                )
+              }
               .let { modifier ->
                 model.onClick?.let {
                   modifier.clickable(
@@ -56,37 +86,82 @@ internal fun ListItemAccessory(
                   )
                 } ?: modifier
               },
-          model = model.model
+          model = resolvedIconModel
         )
       }
 
-    is SwitchAccessory -> Switch(model.model)
-    is ButtonAccessory -> Button(model.model)
+    is SwitchAccessory -> {
+      val resolvedSwitchTestTag = resolveTestTag(
+        model.model.testTag,
+        parentTestTag ?: switchTestTag(descriptor = "list-item")
+      )
+      Switch(
+        model = model.model.copy(testTag = resolvedSwitchTestTag)
+      )
+    }
+    is ButtonAccessory -> {
+      Box(
+        modifier = Modifier.resId(parentTestTag)
+      ) {
+        Button(
+          model = model.model
+        )
+      }
+    }
     is TextAccessory ->
       Label(
         modifier = Modifier
           .loadingScrim(isLoading)
+          .resId(parentTestTag?.let { "$it-text" })
           .padding(end = 12.dp),
         text = model.text,
         type = LabelType.Body2Regular
       )
-    is CircularCharacterAccessory -> CircularCharacterAccessory(model)
-    is ContactAvatarAccessory -> ContactAvatarAccessory(model)
-    is CheckAccessory -> CircularCheckAccessory(isChecked = model.isChecked)
+    is CircularCharacterAccessory ->
+      CircularCharacterAccessory(
+        model = model,
+        modifier = Modifier.resId(parentTestTag?.let { "$it-circular-character" })
+      )
+    is CircularIconAccessory ->
+      CircularIconAccessoryView(
+        model = model,
+        modifier = Modifier.resId(parentTestTag?.let { "$it-circular-icon" })
+      )
+    is ContactAvatarAccessory ->
+      ContactAvatarAccessory(
+        model = model,
+        modifier = Modifier.resId(parentTestTag?.let { "$it-contact-avatar" })
+      )
+    is CheckAccessory ->
+      CheckIconAccessory(
+        modifier = Modifier.resId(parentTestTag?.let { "$it-check" }),
+        isChecked = model.isChecked
+      )
   }
 }
 
+private fun IconAccessory.isChevronAccessory(): Boolean {
+  val iconImage = model.iconImage
+  return iconImage is build.wallet.ui.model.icon.IconImage.LocalImage &&
+    iconImage.icon == Icon.SmallIconCaretRight
+}
+
 @Composable
-private fun CircularCharacterAccessory(model: CircularCharacterAccessory) {
+private fun CircularCharacterAccessory(
+  model: CircularCharacterAccessory,
+  modifier: Modifier = Modifier,
+) {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+
   Box(
     modifier =
-      Modifier
+      modifier
         .padding(end = 4.dp)
   ) {
     Box(
       modifier =
         Modifier
-          .size(24.dp)
+          .size(model.circleSize.dp)
           .background(
             color = WalletTheme.colors.foreground10,
             shape = CircleShape
@@ -95,17 +170,51 @@ private fun CircularCharacterAccessory(model: CircularCharacterAccessory) {
     ) {
       Label(
         text = model.character.toString(),
-        type = LabelType.Label3
+        type = model.characterType.regularizedForDesignSystemV2ListItems(isDesignSystemV2Enabled)
       )
     }
   }
 }
 
 @Composable
-private fun ContactAvatarAccessory(model: ContactAvatarAccessory) {
+private fun CircularIconAccessoryView(
+  model: build.wallet.ui.model.list.ListItemAccessory.CircularIconAccessory,
+  modifier: Modifier = Modifier,
+) {
   Box(
     modifier =
-      Modifier
+      modifier
+        .padding(end = 4.dp)
+  ) {
+    Box(
+      modifier =
+        Modifier
+          .size(model.circleSize.dp)
+          .background(
+            color = WalletTheme.colors.foreground10,
+            shape = CircleShape
+          ),
+      contentAlignment = Alignment.Center
+    ) {
+      IconImage(
+        model = IconModel(
+          icon = model.icon,
+          iconSize = model.iconSize,
+          iconTint = model.iconTint
+        )
+      )
+    }
+  }
+}
+
+@Composable
+private fun ContactAvatarAccessory(
+  model: ContactAvatarAccessory,
+  modifier: Modifier = Modifier,
+) {
+  Box(
+    modifier =
+      modifier
         .padding(end = 4.dp)
   ) {
     val bitmap = imageResource(Res.drawable.bitkey_corian)
@@ -174,24 +283,36 @@ private fun ContactAvatarAccessory(model: ContactAvatarAccessory) {
 }
 
 @Composable
-private fun CircularCheckAccessory(
+private fun CheckIconAccessory(
   modifier: Modifier = Modifier,
   isChecked: Boolean,
 ) {
-  val (color, width) = if (isChecked) {
-    Pair(WalletTheme.colors.bitkeyPrimary, 4.dp)
+  val icon = if (isChecked) {
+    Icon.SmallIconCheckboxSelected
   } else {
-    Pair(WalletTheme.colors.foreground60, 2.dp)
+    Icon.SmallIconCheckbox
   }
 
-  Box(
-    modifier = modifier
-      .size(24.dp)
-      .background(WalletTheme.colors.foreground10, CircleShape)
-      .border(
-        width = width,
-        color = color,
-        shape = CircleShape
-      )
+  IconImage(
+    modifier = modifier.size(24.dp),
+    model = IconModel(
+      icon = icon,
+      iconSize = IconSize.Small
+    )
   )
 }
+
+private fun LabelType.regularizedForDesignSystemV2ListItems(
+  isDesignSystemV2Enabled: Boolean,
+): LabelType =
+  if (!isDesignSystemV2Enabled) {
+    this
+  } else {
+    when (this) {
+      LabelType.Body1Medium -> LabelType.Body1Regular
+      LabelType.Body2Medium -> LabelType.Body2Regular
+      LabelType.Body3Medium -> LabelType.Body3Regular
+      LabelType.Body4Medium -> LabelType.Body4Regular
+      else -> this
+    }
+  }

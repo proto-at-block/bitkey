@@ -93,4 +93,16 @@ class LiteHomeUiStateMachineImplTests : FunSpec({
       }
     }
   }
+
+  test("HardwareSetup deep link is consumed without navigating away") {
+    stateMachine.test(props) {
+      awaitBodyMock<LiteMoneyHomeUiProps>()
+
+      Router.route = Route.HardwareSetup
+
+      // Route should be consumed (cleared) but no navigation should occur
+      Router.route.shouldBe(null)
+      expectNoEvents()
+    }
+  }
 })

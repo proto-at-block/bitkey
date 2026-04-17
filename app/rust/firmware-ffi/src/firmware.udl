@@ -2,6 +2,17 @@ namespace firmware {
   void enable_proto_exchange_logging();
   void disable_proto_exchange_logging();
   sequence<string> get_proto_exchange_logs();
+
+  [Throws=CommandError]
+  DecomposedPsbt decompose_psbt(string psbt_base64, string origin_fingerprint);
+
+  [Throws=CommandError]
+  string assemble_psbt_signatures(string psbt_base64, sequence<InputSignatureTuple> signatures);
+
+  /// Serializes transaction inputs/outputs into the canonical binary format
+  /// for the streaming signing protocol. Returns the complete payload bytes.
+  [Throws=CommandError]
+  StreamPayload serialize_sign_stream_payload(u32 version, u32 lock_time, sequence<SignTxInputData> inputs, sequence<SignTxOutputData> outputs);
 };
 
 interface Version {
@@ -18,6 +29,12 @@ interface StartFingerprintEnrollment {
 
 interface QueryAuthentication {
   constructor();
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
+interface ShowConfirmationScreen {
+  constructor(boolean lock_on_dismiss);
   [Throws=CommandError]
   BooleanState next(sequence<u8> response);
 };
@@ -41,7 +58,7 @@ interface WipeState {
 };
 
 interface SignActionProof {
-  constructor(u32 version, string action, string field, string? value, string? current, string bindings);
+  constructor(u32 version, string action, string? value, string bindings);
   [Throws=CommandError]
   SignActionProofResultState next(sequence<u8> response);
 };
@@ -60,7 +77,7 @@ interface UnsealKey {
 };
 
 interface GetFirmwareMetadata {
-  constructor();
+  constructor(McuRole mcu_role);
   [Throws=CommandError]
   FirmwareMetadataState next(sequence<u8> response);
 };
@@ -72,7 +89,7 @@ interface GetDeviceIdentifiers {
 };
 
 interface FwupStart {
-  constructor(u32? patch_size, FwupMode fwup_mode, McuRole mcu_role, string version);
+  constructor(u32? patch_size, FwupMode fwup_mode, McuRole mcu_role, string version, boolean defer_commit);
   [Throws=CommandError]
   FwupStartResultState next(sequence<u8> response);
 };
@@ -137,11 +154,6 @@ interface GetAuthenticationKey {
   PublicKeyState next(sequence<u8> response);
 };
 
-interface GetAuthenticationKeyV2 {
-  constructor();
-  [Throws=CommandError]
-  PublicKeyHandleState next(sequence<u8> response);
-};
 
 interface SignChallenge {
   constructor(sequence<u8> challenge, boolean async_sign);
@@ -149,11 +161,6 @@ interface SignChallenge {
   SignatureState next(sequence<u8> response);
 };
 
-interface SignChallengeV2 {
-  constructor(sequence<u8> challenge);
-  [Throws=CommandError]
-  SignatureContextState next(sequence<u8> response);
-};
 
 interface GetInitialSpendingKey {
   constructor(BtcNetwork network);
@@ -246,9 +253,15 @@ interface GetAddress {
 };
 
 interface VerifyKeysAndBuildDescriptor {
-  constructor(sequence<u8> app_spending_key, sequence<u8> app_spending_key_chaincode, boolean network_mainnet, sequence<u8> app_auth_key, sequence<u8> server_spending_key, sequence<u8> server_spending_key_chaincode, sequence<u8> wsm_signature);
+  constructor(sequence<u8> app_spending_key, sequence<u8> app_spending_key_chaincode, boolean network_mainnet, sequence<u8> app_auth_key, sequence<u8> server_spending_key, sequence<u8> server_spending_key_chaincode, sequence<u8> wsm_signature, u32 account_index);
   [Throws=CommandError]
-  BooleanState next(sequence<u8> response);
+  SignatureState next(sequence<u8> response);
+};
+
+interface SignTxRequest {
+  constructor(u32 version, u32 lock_time, sequence<SignTxInputData> inputs, sequence<SignTxOutputData> outputs, BtcDisplayUnit btc_display_unit);
+  [Throws=CommandError]
+  SignTxRequestResultState next(sequence<u8> response);
 };
 
 interface SignStart {
@@ -267,6 +280,108 @@ interface GetConfirmationResultChunk {
   constructor(sequence<u8> response_handle, sequence<u8> confirmation_handle, u32 chunk_index);
   [Throws=CommandError]
   ChunkDataState next(sequence<u8> response);
+};
+
+interface SignStreamStart {
+  constructor(u32 num_inputs, u32 num_outputs, u32 version, u32 lock_time, u32 payload_size, BtcDisplayUnit btc_display_unit);
+  [Throws=CommandError]
+  SignStreamStartResultState next(sequence<u8> response);
+};
+
+interface SignStreamTransfer {
+  constructor(u32 sequence_id, sequence<u8> chunk_data);
+  [Throws=CommandError]
+  SignStreamTransferResultState next(sequence<u8> response);
+};
+
+interface SignStreamFinalize {
+  constructor(sequence<u8> commitment_hash);
+  [Throws=CommandError]
+  SignStreamFinalizeResultState next(sequence<u8> response);
+};
+
+interface GetTxSignature {
+  constructor(u32 input_index);
+  [Throws=CommandError]
+  TxSignatureState next(sequence<u8> response);
+};
+
+interface GetTxSignaturesBatch {
+  constructor(u32 start_index, u32 count);
+  [Throws=CommandError]
+  TxSignaturesBatchState next(sequence<u8> response);
+};
+
+interface LostAppRecovery {
+  constructor(sequence<u8> sealed_ssek);
+  [Throws=CommandError]
+  LostAppRecoveryResultState next(sequence<u8> response);
+};
+
+interface SignChallengeAndSealSeks {
+  constructor(sequence<u8> challenge, sequence<u8> unsealed_csek, sequence<u8> unsealed_ssek);
+  [Throws=CommandError]
+  SignChallengeAndSealSeksResultState next(sequence<u8> response);
+};
+
+interface RecoveryAuthorizeLostApp {
+  constructor(sequence<u8> sealed_ddk, sequence<u8> sealed_ssek, string descriptor_backups_bindings, string activate_keyset_bindings, u32 action_proof_version);
+  [Throws=CommandError]
+  RecoveryAuthorizeLostAppResultState next(sequence<u8> response);
+};
+
+interface RecoveryAuthorizeLostHw {
+  constructor(sequence<u8> ddk_private_key, string descriptor_backups_bindings, string activate_keyset_bindings, u32 action_proof_version);
+  [Throws=CommandError]
+  RecoveryAuthorizeLostHwResultState next(sequence<u8> response);
+};
+
+interface UpgradeAuthorizeW3 {
+  constructor(sequence<u8> ddk_private_key, string descriptor_backups_bindings, string activate_keyset_bindings, u32 action_proof_version);
+  [Throws=CommandError]
+  UpgradeAuthorizeW3ResultState next(sequence<u8> response);
+};
+
+interface LostAppRecoveryContinue {
+  constructor(u32 action_proof_version, string action, string? value, string bindings, sequence<DescriptorPublicKey> existing_descriptor_public_keys, BtcNetwork network, sequence<u8> app_global_auth_key);
+  [Throws=CommandError]
+  LostAppRecoveryContinueResultState next(sequence<u8> response);
+};
+
+interface LostAppRecoverySignChallenge {
+  constructor(sequence<u8> challenge);
+  [Throws=CommandError]
+  LostAppRecoverySignChallengeResultState next(sequence<u8> response);
+};
+
+interface RotateAppAuthKeys {
+  constructor(u32 action_proof_version, string action, string? value, string bindings, string account_id, string app_global_auth_key);
+  [Throws=CommandError]
+  RotateAppAuthKeysResultState next(sequence<u8> response);
+};
+
+interface UpgradeRotateAppAuthKeys {
+  constructor(string account_id, string app_global_auth_key);
+  [Throws=CommandError]
+  UpgradeRotateAppAuthKeysResultState next(sequence<u8> response);
+};
+
+interface EekRestorationUnseal {
+  constructor(sequence<u8> sealed_key);
+  [Throws=CommandError]
+  EekRestorationUnsealResultState next(sequence<u8> response);
+};
+
+interface FullAccountCloudBackupRestoration {
+  constructor();
+  [Throws=CommandError]
+  FullAccountCloudBackupRestorationResultState next(sequence<u8> response);
+};
+
+interface FullAccountCloudBackupRestorationContinue {
+  constructor(sequence<u8> sealed_csek, u32 csek_index, sequence<u8> session_token);
+  [Throws=CommandError]
+  FullAccountCloudBackupRestorationContinueResultState next(sequence<u8> response);
 };
 
 [Enum]
@@ -353,17 +468,6 @@ interface DescriptorPublicKeyState {
   Result(DescriptorPublicKey value);
 };
 
-[Enum]
-interface PublicKeyHandleState {
-  Data(sequence<u8> response);
-  Result(PublicKeyHandle value);
-};
-
-[Enum]
-interface SignatureContextState {
-  Data(sequence<u8> response);
-  Result(SignatureContext value);
-};
 
 [Enum]
 interface SignatureState {
@@ -401,6 +505,18 @@ interface ConfirmedCommandResult {
   FwupStart(boolean success);
   ChunkedDataAvailable(u32 total_size);
   SignActionProof(sequence<u8> signature);
+  SignTx(sequence<InputSignatureTuple> signatures);
+  SignStreamReady(u32 num_inputs);
+  LostAppRecoverySsek(sequence<u8> ssek);
+  LostAppRecoverySignChallenge(string signature);
+  RotateAppAuthKeys(sequence<u8> action_proof_signature, sequence<u8> hw_signed_account_id, sequence<u8> app_auth_key_signature, sequence<u8> hw_auth_public_key);
+  UpgradeRotateAppAuthKeys(sequence<u8> hw_signed_account_id, sequence<u8> app_auth_key_signature, sequence<u8> hw_auth_public_key);
+  SignChallengeAndSealSeks(sequence<u8> signature, sequence<u8> sealed_csek, sequence<u8> sealed_ssek);
+  RecoveryAuthorizeLostApp(sequence<u8> descriptor_backups_signature, sequence<u8> activate_keyset_signature, sequence<u8> unsealed_ddk_data, sequence<u8> unsealed_ssek);
+  RecoveryAuthorizeLostHw(sequence<u8> descriptor_backups_signature, sequence<u8> activate_keyset_signature, sequence<u8> sealed_ddk_data);
+  UpgradeAuthorizeW3(sequence<u8> descriptor_backups_signature, sequence<u8> activate_keyset_signature, sequence<u8> sealed_ddk_data);
+  EekRestorationUnsealSymmetricKey(sequence<u8> unsealed_key);
+  FullAccountCloudBackupRestoration();
 };
 
 [Enum]
@@ -425,6 +541,45 @@ interface SignActionProofResultState {
 interface SignActionProofResult {
   Success(sequence<u8> signature);
   ConfirmationPending(sequence<u8> response_handle, sequence<u8> confirmation_handle);
+};
+
+[Enum]
+interface SignTxRequestResultState {
+  Data(sequence<u8> response);
+  Result(SignTxRequestResult value);
+};
+
+[Enum]
+interface SignTxRequestResult {
+  ConfirmationPending(sequence<u8> response_handle, sequence<u8> confirmation_handle);
+};
+
+dictionary SignTxInputData {
+  sequence<u8> prev_txid;
+  u32 prev_index;
+  u32 sequence;
+  u64 amount;
+  sequence<u32> derivation_path;
+};
+
+dictionary SignTxOutputData {
+  u64 amount;
+  sequence<u8> destination_spk;
+  sequence<u32> derivation_path;
+  boolean has_derivation_path;
+};
+
+dictionary InputSignatureTuple {
+  u32 input_index;
+  sequence<u8> public_key;
+  sequence<u8> signature;
+};
+
+dictionary DecomposedPsbt {
+  u32 version;
+  u32 lock_time;
+  sequence<SignTxInputData> inputs;
+  sequence<SignTxOutputData> outputs;
 };
 
 [Enum]
@@ -478,6 +633,200 @@ interface ChunkDataState {
   Result(ChunkData value);
 };
 
+[Enum]
+interface SignStreamStartResultState {
+  Data(sequence<u8> response);
+  Result(SignStreamStartResult value);
+};
+
+[Enum]
+interface SignStreamStartResult {
+  Success();
+};
+
+[Enum]
+interface SignStreamTransferResultState {
+  Data(sequence<u8> response);
+  Result(SignStreamTransferResult value);
+};
+
+[Enum]
+interface SignStreamTransferResult {
+  Success();
+};
+
+[Enum]
+interface SignStreamFinalizeResultState {
+  Data(sequence<u8> response);
+  Result(SignStreamFinalizeResult value);
+};
+
+[Enum]
+interface SignStreamFinalizeResult {
+  ConfirmationPending(sequence<u8> response_handle, sequence<u8> confirmation_handle);
+};
+
+[Enum]
+interface TxSignatureState {
+  Data(sequence<u8> response);
+  Result(TxSignature value);
+};
+
+[Enum]
+interface TxSignaturesBatchState {
+  Data(sequence<u8> response);
+  Result(sequence<TxSignature> value);
+};
+
+[Enum]
+interface LostAppRecoveryResultState {
+  Data(sequence<u8> response);
+  Result(LostAppRecoveryResult value);
+};
+
+[Enum]
+interface LostAppRecoveryResult {
+  ConfirmationPending(sequence<u8> response_handle, sequence<u8> confirmation_handle);
+};
+
+[Enum]
+interface SignChallengeAndSealSeksResultState {
+  Data(sequence<u8> response);
+  Result(SignChallengeAndSealSeksResult value);
+};
+
+[Enum]
+interface SignChallengeAndSealSeksResult {
+  ConfirmationPending(sequence<u8> response_handle, sequence<u8> confirmation_handle);
+};
+
+[Enum]
+interface RecoveryAuthorizeLostAppResultState {
+  Data(sequence<u8> response);
+  Result(RecoveryAuthorizeLostAppResult value);
+};
+
+[Enum]
+interface RecoveryAuthorizeLostAppResult {
+  ConfirmationPending(sequence<u8> response_handle, sequence<u8> confirmation_handle);
+};
+
+[Enum]
+interface RecoveryAuthorizeLostHwResultState {
+  Data(sequence<u8> response);
+  Result(RecoveryAuthorizeLostHwResult value);
+};
+
+[Enum]
+interface RecoveryAuthorizeLostHwResult {
+  ConfirmationPending(sequence<u8> response_handle, sequence<u8> confirmation_handle);
+};
+
+[Enum]
+interface UpgradeAuthorizeW3ResultState {
+  Data(sequence<u8> response);
+  Result(UpgradeAuthorizeW3Result value);
+};
+
+[Enum]
+interface UpgradeAuthorizeW3Result {
+  ConfirmationPending(sequence<u8> response_handle, sequence<u8> confirmation_handle);
+};
+
+[Enum]
+interface LostAppRecoveryContinueResultState {
+  Data(sequence<u8> response);
+  Result(LostAppRecoveryContinueResult value);
+};
+
+[Enum]
+interface EekRestorationUnsealResultState {
+  Data(sequence<u8> response);
+  Result(EekRestorationUnsealResult value);
+};
+
+[Enum]
+interface EekRestorationUnsealResult {
+  ConfirmationPending(sequence<u8> response_handle, sequence<u8> confirmation_handle);
+};
+
+[Enum]
+interface FullAccountCloudBackupRestorationResultState {
+  Data(sequence<u8> response);
+  Result(FullAccountCloudBackupRestorationResult value);
+};
+
+[Enum]
+interface FullAccountCloudBackupRestorationResult {
+  ConfirmationPending(sequence<u8> response_handle, sequence<u8> confirmation_handle);
+};
+
+[Enum]
+interface FullAccountCloudBackupRestorationContinueResultState {
+  Data(sequence<u8> response);
+  Result(FullAccountCloudBackupRestorationContinueResult value);
+};
+
+dictionary FullAccountCloudBackupRestorationContinueResult {
+  sequence<u8> unsealed_csek;
+  u32 csek_index;
+};
+
+dictionary LostAppRecoveryContinueResult {
+  sequence<u8> action_proof_signature;
+  sequence<u8> bare_spending_key;
+  sequence<u8> app_auth_key_signature;
+  DescriptorPublicKey spending_key_dpub;
+};
+
+[Enum]
+interface LostAppRecoverySignChallengeResultState {
+  Data(sequence<u8> response);
+  Result(LostAppRecoverySignChallengeResult value);
+};
+
+[Enum]
+interface LostAppRecoverySignChallengeResult {
+ ConfirmationPending(sequence<u8> response_handle, sequence<u8> confirmation_handle);
+};
+
+[Enum]
+interface RotateAppAuthKeysResultState {
+  Data(sequence<u8> response);
+  Result(RotateAppAuthKeysResult value);
+};
+
+[Enum]
+interface RotateAppAuthKeysResult {
+  ConfirmationPending(sequence<u8> response_handle, sequence<u8> confirmation_handle);
+};
+
+[Enum]
+interface UpgradeRotateAppAuthKeysResultState {
+  Data(sequence<u8> response);
+  Result(UpgradeRotateAppAuthKeysResult value);
+};
+
+[Enum]
+interface UpgradeRotateAppAuthKeysResult {
+  ConfirmationPending(sequence<u8> response_handle, sequence<u8> confirmation_handle);
+};
+
+dictionary TxSignature {
+  sequence<u8> pubkey;
+  sequence<u8> signature;
+};
+
+/// Pre-computed streaming payload with commitment hash.
+dictionary StreamPayload {
+  /// The canonical binary payload bytes to stream in chunks.
+  sequence<u8> data;
+  /// SHA256 hash of the payload for commitment verification.
+  sequence<u8> commitment_hash;
+  /// Total size of the payload in bytes.
+  u32 payload_size;
+};
+
 dictionary ChunkData {
   sequence<u8> chunk;
   boolean is_last;
@@ -499,6 +848,7 @@ enum FwupFinishRspStatus {
   "Error",
   "WillApplyPatch",
   "Unauthenticated",
+  "ConfirmationMismatch",
 };
 
 [Error]
@@ -511,6 +861,21 @@ enum CommandError {
   "MissingMessage",
   "PoisonedLockError",
   "UnspecifiedCommandError",
+  "WipeStateFailed",
+  "FirmwareUpdateStartFailed",
+  "FirmwareUpdateTransferFailed",
+  "SignTransactionFailed",
+  "DeriveAndSignFailed",
+  "SealKeyFailed",
+  "UnsealKeyFailed",
+  "DeriveKeyDescriptorFailed",
+  "GetMetadataFailed",
+  "CoredumpFailed",
+  "DeviceInfoFailed",
+  "FingerprintEnrollmentFailed",
+  "FeatureFlagsFailed",
+  "TelemetryFailed",
+
   "GeneralCommandError",
   "SigningError",
   "Unauthenticated",
@@ -548,6 +913,9 @@ enum CommandError {
   "BadStatus",
   "PolicyViolation",
   "RequestMismatch",
+  "DescriptorNotLoaded",
+  "ConfirmationMismatch",
+  "ConfirmationNotCompleted",
 };
 
 enum FirmwareSlot {
@@ -601,6 +969,7 @@ dictionary McuInfo {
   McuName name;
   McuRole role;
   string firmware_version;
+  FirmwareSlot? active_slot;
 };
 
 dictionary DeviceInfoMcu {
@@ -697,6 +1066,11 @@ interface Attestation {
 
   [Throws=AttestationError]
   sequence<u8> generate_challenge();
+};
+
+enum BtcDisplayUnit {
+  "Satoshi",
+  "Bitcoin",
 };
 
 enum BtcNetwork {

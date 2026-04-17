@@ -80,6 +80,7 @@ class AuthTokensServiceFake : AuthTokensService {
   }
 
   var setTokensError: Error? = null
+  var setTokensErrorForScope: MutableMap<AuthTokenScope, Error> = mutableMapOf()
 
   override suspend fun setTokens(
     accountId: AccountId,
@@ -88,6 +89,7 @@ class AuthTokensServiceFake : AuthTokensService {
   ): Result<Unit, Throwable> {
     return lock.withLock {
       setTokensError?.let { return Err(it) }
+      setTokensErrorForScope[scope]?.let { return Err(it) }
       allTokens[accountId to scope] = tokens
       Ok(Unit)
     }
@@ -104,6 +106,7 @@ class AuthTokensServiceFake : AuthTokensService {
     lock.withLock {
       allTokens.clear()
       setTokensError = null
+      setTokensErrorForScope.clear()
       refreshAccessTokenError = null
       refreshAccessTokenTokens = null
       refreshRefreshTokenTokens = null

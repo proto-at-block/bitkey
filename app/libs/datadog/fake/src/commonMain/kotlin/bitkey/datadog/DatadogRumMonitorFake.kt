@@ -65,6 +65,7 @@ class DatadogRumMonitorFake(
     message: String,
     source: ErrorSource,
     attributes: Map<String, String>,
+    cause: Throwable?,
   ) {
     addErrorCalls += message
   }

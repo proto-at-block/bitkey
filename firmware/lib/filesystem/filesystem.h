@@ -109,6 +109,10 @@ bool fs_util_read_global(char* filename, uint8_t* data, uint32_t size);
 // Like fs_util_read_global, but returns the number of bytes read in `size_out`.
 bool fs_util_read_all_global(char* filename, uint8_t* data, uint32_t max_size, uint32_t* size_out);
 
+// Returns true if the filesystem lock is currently held by another context.
+// Intended for use from fault handlers to check if it's safe to write.
+bool fs_is_busy(void);
+
 #ifndef EMBEDDED_BUILD
 // Test only.
 void set_lfs(void* test_lfs);

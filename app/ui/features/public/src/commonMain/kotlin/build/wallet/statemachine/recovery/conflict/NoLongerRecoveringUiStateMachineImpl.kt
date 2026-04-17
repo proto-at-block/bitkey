@@ -41,7 +41,7 @@ class NoLongerRecoveringUiStateMachineImpl(
         LaunchedEffect("clear-local-recovery") {
           recoveryDao.clear()
             .onSuccess {
-              // Nothing to do here. The state change will be handled by AccountDataStateMachine.
+              // Nothing to do here. The full-account state machine observes recovery status changes.
             }
             .onFailure {
               state = ClearingLocalRecoveryFailed(it)

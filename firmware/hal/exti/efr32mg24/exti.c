@@ -6,10 +6,10 @@
 #include "perf.h"
 #include "rtos.h"
 
-static bool PERIPHERALS_DATA initialised = false;
-static rtos_event_group_t PERIPHERALS_DATA exti_events = {0};
+static bool SHARED_TASK_BSS initialised = false;
+static rtos_event_group_t SHARED_TASK_BSS exti_events = {0};
 static perf_counter_t* perf;
-static const mcu_gpio_config_t* PERIPHERALS_DATA exti_map[MCU_GPIO_EXTI_MAX] = {0};
+static const mcu_gpio_config_t* SHARED_TASK_BSS exti_map[MCU_GPIO_EXTI_MAX] = {0};
 
 #define EXTI_INVALID UINT32_MAX
 
@@ -35,7 +35,7 @@ void exti_enable(const exti_config_t* config) {
   // Ignore re-initialising the same exti
   uint32_t existing_exti = gpio_to_exti(&config->gpio);
   if (existing_exti != EXTI_INVALID) {
-    LOGW("repeated call to exti_enable for P%lu.%lu", config->gpio.port, config->gpio.pin);
+    LOGW("EXTI repeat P%lu.%lu", config->gpio.port, config->gpio.pin);
     return;
   }
 
@@ -65,7 +65,7 @@ void exti_enable(const exti_config_t* config) {
     // Add the exti gpio to the int num table
     exti_map[exti_num] = &config->gpio;
   } else {
-    LOGE("failed to add exti for gpio P%lu.%lu", config->gpio.port, config->gpio.pin);
+    LOGE("EXTI add fail P%lu.%lu", config->gpio.port, config->gpio.pin);
   }
 }
 

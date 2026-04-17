@@ -58,13 +58,5 @@ message derive_public_key_rsp {
   bytes pubkey = 1 [(nanopb).max_size = 64];
 }
 
-message derive_public_key_and_sign_cmd {
-  curve curve = 1;
-  bytes label = 2 [(nanopb).max_size = 32];
-  bytes hash = 3 [(nanopb).max_size = 32];
-}
-
-message derive_public_key_and_sign_rsp {
-  bytes pubkey = 1 [(nanopb).max_size = 64];
-  bytes signature = 2 [(nanopb).max_size = 64];
-}
+// derive_public_key_and_sign_cmd and derive_public_key_and_sign_rsp removed (never implemented in firmware).
+// Proto tag 49 in wallet_cmd/wallet_rsp is reserved.

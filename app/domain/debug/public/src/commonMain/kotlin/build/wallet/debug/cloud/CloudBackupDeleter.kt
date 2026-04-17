@@ -17,7 +17,13 @@ interface CloudBackupDeleter {
   suspend fun delete(accountId: AccountId?)
 
   /**
-   * Delete all backups in the cloud.
+   * Deletes all cloud backups and their local mirror state for the active cloud account.
    */
-  suspend fun deleteAll()
+  suspend fun deleteAllBackups()
+
+  /**
+   * Deletes cloud backups only in the selected remote backup store, then clears cached cloud
+   * account state (same behavior as other debug deletion operations).
+   */
+  suspend fun deleteBackupsIn(type: CloudBackupStoreType)
 }

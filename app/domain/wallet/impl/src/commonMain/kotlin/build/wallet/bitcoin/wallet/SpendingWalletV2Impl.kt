@@ -8,61 +8,26 @@ import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.address.BitcoinAddressInfo
 import build.wallet.bitcoin.balance.BitcoinBalance
-import build.wallet.bitcoin.bdk.BdkTransactionMapperV2
-import build.wallet.bitcoin.bdk.BdkWalletSyncerV2
-import build.wallet.bitcoin.bdk.bdkNetworkV2
-import build.wallet.bitcoin.bdk.coinSelectionStrategy
-import build.wallet.bitcoin.bdk.feePolicy
-import build.wallet.bitcoin.bdk.selectOnlyUtxos
-import build.wallet.bitcoin.bdk.sendTo
-import build.wallet.bitcoin.bdk.toBdkError
-import build.wallet.bitcoin.bdk.toBdkTxIn
-import build.wallet.bitcoin.bdk.toBdkTxOut
-import build.wallet.bitcoin.bdk.toBdkV2Amount
-import build.wallet.bitcoin.bdk.toBdkV2FeeRate
-import build.wallet.bitcoin.bdk.toBdkV2Script
-import build.wallet.bitcoin.bdk.toOutPoint
+import build.wallet.bitcoin.bdk.*
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
 import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.fees.FeePolicy
-import build.wallet.bitcoin.transactions.BitcoinTransaction
-import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
+import build.wallet.bitcoin.transactions.*
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod
 import build.wallet.catchingResult
 import build.wallet.coroutines.flow.launchTicker
-import build.wallet.logging.logError
 import build.wallet.logging.logFailure
 import build.wallet.logging.logWarn
 import build.wallet.money.BitcoinMoney
 import build.wallet.platform.app.AppSessionManager
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import com.github.michaelbull.result.getOrElse
-import com.github.michaelbull.result.map
-import com.github.michaelbull.result.mapError
-import com.github.michaelbull.result.onSuccess
-import com.github.michaelbull.result.recoverIf
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.withContext
-import uniffi.bdk.BumpFeeTxBuilder
-import uniffi.bdk.Descriptor
-import uniffi.bdk.DescriptorException
-import uniffi.bdk.ExtractTxException
-import uniffi.bdk.KeychainKind
-import uniffi.bdk.Persister
-import uniffi.bdk.PsbtException
-import uniffi.bdk.TxBuilder
-import uniffi.bdk.Txid
+import uniffi.bdk.*
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 import uniffi.bdk.Address as BdkV2Address
@@ -284,7 +249,8 @@ class SpendingWalletV2Impl(
       is PsbtConstructionMethod.Regular -> createRegularPsbt(constructionType)
       is PsbtConstructionMethod.DrainAllFromUtxos -> createDrainFromUtxosPsbt(constructionType)
       is PsbtConstructionMethod.FeeBump -> createFeeBumpPsbt(constructionType)
-      is PsbtConstructionMethod.ManualFeeBump -> createManualFeeBumpPsbt(constructionType)
+      is PsbtConstructionMethod.FeeBumpWithDrain -> createFeeBumpWithDrainPsbt(constructionType)
+      is PsbtConstructionMethod.Cpfp -> createCpfpPsbt(constructionType)
     }
     logPsbtCreationFailureIfNeeded(method, result)
     return result
@@ -430,111 +396,75 @@ class SpendingWalletV2Impl(
     }
 
   /**
-   * Creates a signed PSBT for a manual fee bump where the output amount is reduced
-   * to cover the increased fee (output shrinking).
+   * Creates a fee-bumped PSBT with output shrinking using BumpFeeTxBuilder.drainTo().
    *
-   * Used for sweeps and single-UTXO consolidations where BDK's BumpFeeTxBuilder
-   * cannot handle the case because there are no additional inputs to pull in.
-   *
-   * Uses drainWallet() + drainTo() to ensure single output with no change.
-   * Uses feeAbsolute() to avoid fee recalculation based on vsize.
+   * Used for sweeps and single-UTXO consolidations where the standard fee bump
+   * cannot add inputs to cover the fee increase. Instead, the output amount is reduced.
    */
-  private suspend fun createManualFeeBumpPsbt(
-    constructionType: PsbtConstructionMethod.ManualFeeBump,
+  private suspend fun createFeeBumpWithDrainPsbt(
+    constructionType: PsbtConstructionMethod.FeeBumpWithDrain,
   ): Result<Psbt, Throwable> =
     withContext(Dispatchers.BdkIO) {
-      val outputScript = constructionType.outputScript.toBdkV2Script()
-      val absoluteFee = constructionType.absoluteFee.amount.toBdkV2Amount()
-      val expectedFeeSats = constructionType.absoluteFee.amount.fractionalUnitValue.longValue()
-
-      // BIP125 only requires at least one input to signal RBF (sequence < BIP125_SEQUENCE_SIGNAL_THRESHOLD).
-      // Since TxBuilder.setExactSequence() sets ALL inputs to the same value, we:
-      // 1. Find if any input already signals RBF - if so, use that sequence
-      // 2. If none signal RBF, force all to RBF_SEQUENCE
-      // This is valid because a transaction is RBF-eligible as long as at least one input signals.
-      //
-      // Note: The fallback to RBF_SEQUENCE shouldn't occur in practice because
-      // SpeedUpTransactionServiceImpl.prepareTransactionSpeedUp() already validates that the
-      // transaction signals RBF before calling this method. The fallback exists as a safety net.
-      val rbfSequence = constructionType.originalInputs
-        .map { it.sequence }
-        .filter { it < BIP125_SEQUENCE_SIGNAL_THRESHOLD }
-        .minOrNull()
-
-      val inputSequence = rbfSequence ?: run {
-        logWarn { "ManualFeeBump: no RBF-signaling input found, using default RBF_SEQUENCE" }
-        RBF_SEQUENCE
+      val requestedSatsPerVb = constructionType.feeRate.satsPerVByte
+      if (!requestedSatsPerVb.isFinite() || requestedSatsPerVb <= 0f) {
+        return@withContext Err(SpendingWalletV2Error.InvalidFeeRate(requestedSatsPerVb))
       }
 
-      // For manual fee bumps, the original inputs may no longer be in the wallet's UTXO set
-      // (they've been marked as "spent" after broadcast). We use addForeignUtxo() which allows
-      // spending UTXOs not tracked in the wallet's UTXO set.
-
       val bdkPsbt = catchingResult {
-        constructionType.originalInputs
-          .fold(TxBuilder()) { builder, txIn ->
-            val outpoint = txIn.outpoint.toOutPoint()
-            val prevTxid = Txid.fromString(txIn.outpoint.txid)
-            val prevTx = bdkWallet.getTx(prevTxid)
-              ?: return@withContext Err(
-                SpendingWalletV2Error.PreviousTransactionNotFound()
-              )
-            val prevTransaction = prevTx.transaction
-            val prevOutput = prevTransaction.output().getOrNull(txIn.outpoint.vout.toInt())
-              ?: return@withContext Err(
-                SpendingWalletV2Error.PreviousOutputNotFound()
-              )
-            // Pass sequence directly to preserve RBF signaling (BDK default is 0xFFFFFFFF)
-            builder.addForeignUtxo(outpoint, prevOutput, prevTransaction, getSatisfactionWeight(), inputSequence)
-          }
-          .manuallySelectedOnly()
-          .drainWallet()
-          .drainTo(outputScript)
-          .feeAbsolute(absoluteFee)
+        val txid = Txid.fromString(constructionType.txid)
+        val drainScript = constructionType.drainToScript.toBdkV2Script()
+        // Preserve an RBF-signaling nSequence from the original tx to avoid breaking CSV semantics.
+        // Fallback to the standard RBF sequence if none are found.
+        val rbfSequence = bdkWallet.getTx(txid)
+          ?.transaction
+          ?.input()
+          ?.map { it.sequence }
+          ?.filter { it < BIP125_SEQUENCE_SIGNAL_THRESHOLD }
+          ?.minOrNull()
+        val builder = BumpFeeTxBuilder(txid, constructionType.feeRate.toBdkV2FeeRate())
+        val builderWithSequence = if (rbfSequence != null) {
+          builder.setExactSequence(rbfSequence)
+        } else {
+          logWarn { "FeeBumpWithDrain: no RBF-signaling input sequence found, using default RBF sequence" }
+          builder.setExactSequence(RBF_SEQUENCE)
+        }
+        builderWithSequence
+          .drainTo(drainScript)
           .finish(bdkWallet)
       }.getOrElse {
         return@withContext Err(it.toBdkError())
       }
 
-      // === POST-BUILD ASSERTIONS ===
-
-      // 1. Verify fee matches what we requested
-      val actualFeeSats = bdkPsbt.fee().toLong()
-      if (actualFeeSats != expectedFeeSats) {
-        logError {
-          "BDK2 manual fee bump invariant failed: fee mismatch"
-        }
-        return@withContext Err(
-          SpendingWalletV2Error.FeeMismatch(expected = expectedFeeSats, actual = actualFeeSats)
-        )
-      }
-
-      // 2. Verify exactly one output (no change was created)
-      val tx = bdkPsbt.extractTx()
-      if (tx.output().size != 1) {
-        logError {
-          "BDK2 manual fee bump invariant failed: unexpected output"
-        }
-        return@withContext Err(
-          SpendingWalletV2Error.UnexpectedChangeOutput(outputCount = tx.output().size)
-        )
-      }
-
-      // 3. Verify input count matches original inputs
-      val inputCount = tx.input().size
-      if (inputCount != constructionType.originalInputs.size) {
-        logError {
-          "BDK2 manual fee bump invariant failed: input count"
-        }
-        return@withContext Err(
-          SpendingWalletV2Error.InputCountMismatch(
-            expected = constructionType.originalInputs.size,
-            actual = inputCount
-          )
-        )
-      }
-
       persistSignAndFinalize(bdkPsbt)
+    }
+
+  /**
+   * Creates a signed CPFP PSBT that spends a single UTXO and drains to a recipient address.
+   */
+  private suspend fun createCpfpPsbt(
+    constructionType: PsbtConstructionMethod.Cpfp,
+  ): Result<Psbt, Throwable> =
+    withContext(Dispatchers.BdkIO) {
+      coroutineBinding {
+        validateFeePolicy(constructionType.feePolicy)?.let { Err(it).bind<Psbt>() }
+
+        val bdkAddress = catchingResult {
+          BdkV2Address(constructionType.recipientAddress.address, networkType.bdkNetworkV2)
+        }.mapError { it.toBdkError() }.bind()
+
+        val bdkPsbt = catchingResult {
+          TxBuilder()
+            .addUtxo(constructionType.utxoOutpoint.toOutPoint())
+            .manuallySelectedOnly()
+            .drainWallet()
+            .drainTo(bdkAddress.scriptPubkey())
+            .feePolicy(constructionType.feePolicy)
+            .setExactSequence(RBF_SEQUENCE)
+            .finish(bdkWallet)
+        }.mapError { it.toBdkError() }.bind()
+
+        persistSignAndFinalize(bdkPsbt).bind()
+      }
     }
 
   /**
@@ -580,7 +510,8 @@ class SpendingWalletV2Impl(
       is PsbtConstructionMethod.Regular -> "regular"
       is PsbtConstructionMethod.DrainAllFromUtxos -> "drain"
       is PsbtConstructionMethod.FeeBump -> "fee_bump"
-      is PsbtConstructionMethod.ManualFeeBump -> "manual_fee_bump"
+      is PsbtConstructionMethod.FeeBumpWithDrain -> "fee_bump_with_drain"
+      is PsbtConstructionMethod.Cpfp -> "cpfp"
     }
 
   private fun BdkV2Psbt.toPsbt(): Psbt {
@@ -621,40 +552,5 @@ class SpendingWalletV2Impl(
       }
     }
     return null
-  }
-
-  /**
-   * Computes the satisfaction weight for inputs using BDK's descriptor analysis.
-   * Falls back to P2WSH 2-of-3 multisig weight (260 WU) if calculation fails.
-   */
-  private fun getSatisfactionWeight(): ULong {
-    val descriptorString = bdkWallet.publicDescriptor(KeychainKind.EXTERNAL)
-    return try {
-      Descriptor(descriptorString, networkType.bdkNetworkV2).use { descriptor ->
-        descriptor.maxWeightToSatisfy()
-      }
-    } catch (e: DescriptorException) {
-      logWarn(throwable = e) { "Failed to calculate satisfaction weight, using fallback" }
-      P2WSH_2OF3_SATISFACTION_WEIGHT
-    }
-  }
-
-  private companion object {
-    /**
-     * BIP 125 sequence threshold for RBF signaling.
-     * Transactions with at least one input having nSequence < this value signal opt-in RBF.
-     */
-    const val BIP125_SEQUENCE_SIGNAL_THRESHOLD: UInt = 0xFFFFFFFEu
-
-    /**
-     * Standard BIP 125 RBF sequence value (0xFFFFFFFD).
-     */
-    const val RBF_SEQUENCE: UInt = 0xFFFFFFFDu
-
-    /**
-     * Fallback satisfaction weight for P2WSH 2-of-3 multisig inputs (260 WU).
-     * Used only when BDK's maxWeightToSatisfy() fails.
-     */
-    const val P2WSH_2OF3_SATISFACTION_WEIGHT: ULong = 260UL
   }
 }

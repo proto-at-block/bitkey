@@ -11,7 +11,7 @@ import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupError
 import build.wallet.cloud.backup.CloudBackupError.RectifiableCloudBackupError
 import build.wallet.cloud.backup.CloudBackupError.UnrectifiableCloudBackupError
-import build.wallet.cloud.backup.CloudBackupRepository
+import build.wallet.cloud.backup.CloudBackupService
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator
 import build.wallet.cloud.backup.UnknownAppDataFoundError
 import build.wallet.cloud.backup.csek.Csek
@@ -50,7 +50,7 @@ const val SAVING_BACKUP_MESSAGE = "Saving backup..."
 
 @BitkeyInject(ActivityScope::class)
 class FullAccountCloudSignInAndBackupUiStateMachineImpl(
-  private val cloudBackupRepository: CloudBackupRepository,
+  private val cloudBackupService: CloudBackupService,
   private val cloudSignInUiStateMachine: CloudSignInUiStateMachine,
   private val fullAccountCloudBackupCreator: FullAccountCloudBackupCreator,
   private val eventTracker: EventTracker,
@@ -147,7 +147,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
 
       is CheckingCloudBackupUiState -> {
         LaunchedEffect("check cloud account for backup") {
-          cloudBackupRepository.readAllBackups(state.account)
+          cloudBackupService.readAllBackups(state.account)
             .onSuccess { backups ->
               when {
                 backups.isEmpty() -> {
@@ -468,7 +468,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
             .bind()
 
         // Save the cloud backup.
-        cloudBackupRepository
+        cloudBackupService
           .writeBackup(
             accountId = props.keybox.fullAccountId,
             cloudStoreAccount = state.cloudStoreAccount,

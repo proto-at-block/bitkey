@@ -23,17 +23,20 @@ import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.crypto.PublicKey
+import build.wallet.crypto.SealedData
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.f8e.recovery.LostHardwareServerRecoveryMock
 import build.wallet.recovery.LocalRecoveryAttemptProgress.*
 import build.wallet.recovery.Recovery.NoActiveRecovery
 import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery
 import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.CreatedSpendingKeys
+import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.HwDescriptorValidated
 import build.wallet.sqldelight.inMemorySqlDriver
 import build.wallet.testing.shouldBeOkOfType
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.nulls.shouldNotBeNull
 import okio.ByteString.Companion.encodeUtf8
 
 class RecoveryDaoImplTests : FunSpec({
@@ -225,6 +228,30 @@ class RecoveryDaoImplTests : FunSpec({
             )
           )
 
+          val sealedDdk: SealedData = "sealedDdk".encodeUtf8()
+          setProgressHwDescriptorValidated(dao, sealedDdk)
+
+          awaitItem().shouldBe(
+            Ok(
+              HwDescriptorValidated(
+                f8eSpendingKeyset = serverSpendingKeyset,
+                fullAccountId = serverRecovery.fullAccountId,
+                appSpendingKey = keyset.appKey,
+                appGlobalAuthKey = serverRecovery.destinationAppGlobalAuthPubKey,
+                appRecoveryAuthKey = serverRecovery.destinationAppRecoveryAuthPubKey,
+                hardwareSpendingKey = keyset.hardwareKey,
+                hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
+                appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
+                factorToRecover = Hardware,
+                sealedCsek = sealedCsek,
+                sealedSsek = sealedSsek,
+                keysets = keysets,
+                originalAppGlobalAuthKey = originalAppGlobalAuthKey,
+                sealedDdkData = sealedDdk
+              )
+            )
+          )
+
           setProgressDdkBackedUp(dao)
 
           awaitItem().shouldBe(
@@ -325,6 +352,31 @@ class RecoveryDaoImplTests : FunSpec({
         }
       }
 
+      test("CompletedRecovery clears W3 upgrade migration state") {
+        setProgressInitiated(
+          dao,
+          customerAccount,
+          keyset,
+          appGlobalAuthKey,
+          appRecoveryAuthKey,
+          hardwareAuthKey,
+          originalAppGlobalAuthKey
+        )
+
+        databaseProvider.database().w3UpgradeMigrationQueries.saveHardwareKey(keyset.hardwareKey)
+        databaseProvider.database().w3UpgradeMigrationQueries.getState().executeAsOneOrNull()
+          .shouldNotBeNull()
+
+        setProgressCompletedRecovery(dao)
+
+        databaseProvider.database().recoveryQueries.getLocalRecovery().executeAsOneOrNull()
+          .shouldBe(null)
+        databaseProvider.database().w3UpgradeMigrationQueries.getState().executeAsOneOrNull()
+          .shouldBe(null)
+        databaseProvider.database().fullAccountQueries.getActiveFullAccount().executeAsOneOrNull()
+          ?.accountId.shouldBe(KeyboxMock.fullAccountId)
+      }
+
       test("NoLongerRecovering") {
         dao.activeRecovery().test {
           awaitItem().shouldBe(Ok(NoActiveRecovery))
@@ -346,6 +398,104 @@ class RecoveryDaoImplTests : FunSpec({
           dao.setActiveServerRecovery(null)
 
           awaitItem().shouldBeOkOfType<Recovery.NoLongerRecovering>()
+        }
+      }
+
+      test("HwDescriptorValidated persists and restores sealedDdkData") {
+        // Verifies the bug fix: sealedDdk is round-tripped through the DB so that
+        // on app restart (resume from HwDescriptorValidated checkpoint), the sealed
+        // DDK is available without requiring another NFC tap.
+        dao.activeRecovery().test {
+          awaitItem().shouldBe(Ok(NoActiveRecovery))
+
+          setProgressInitiated(dao, customerAccount, keyset, appGlobalAuthKey, appRecoveryAuthKey, hardwareAuthKey, originalAppGlobalAuthKey)
+          dao.setActiveServerRecovery(serverRecovery)
+          awaitItem() // InitiatedRecovery
+
+          setProgressGeneratedCsek(dao, sealedCsek, sealedSsek)
+          setProgressRotatedAuth(dao)
+          awaitItem() // RotatedAuthKeys
+
+          setProgressCreatedSpending(dao, serverSpendingKeyset)
+          awaitItem() // CreatedSpendingKeys
+
+          setProgressUploadedDescriptorBackups(dao, keysets)
+          awaitItem() // UploadedDescriptorBackups
+
+          setProgressActivatedSpending(dao, serverSpendingKeyset)
+          awaitItem() // ActivatedSpendingKeys
+
+          val sealedDdk: SealedData = "sealedDdkBytes".encodeUtf8()
+          setProgressHwDescriptorValidated(dao, sealedDdk)
+
+          awaitItem().shouldBe(
+            Ok(
+              HwDescriptorValidated(
+                f8eSpendingKeyset = serverSpendingKeyset,
+                fullAccountId = serverRecovery.fullAccountId,
+                appSpendingKey = keyset.appKey,
+                appGlobalAuthKey = serverRecovery.destinationAppGlobalAuthPubKey,
+                appRecoveryAuthKey = serverRecovery.destinationAppRecoveryAuthPubKey,
+                hardwareSpendingKey = keyset.hardwareKey,
+                hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
+                appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
+                factorToRecover = Hardware,
+                sealedCsek = sealedCsek,
+                sealedSsek = sealedSsek,
+                keysets = keysets,
+                originalAppGlobalAuthKey = originalAppGlobalAuthKey,
+                sealedDdkData = sealedDdk
+              )
+            )
+          )
+        }
+      }
+
+      test("HwDescriptorValidated with null sealedDdk is preserved") {
+        // For W1 hardware (old firmware path), the sealed DDK is obtained via a
+        // separate NFC tap rather than bundled. Null sealedDdkData must survive the round-trip.
+        dao.activeRecovery().test {
+          awaitItem().shouldBe(Ok(NoActiveRecovery))
+
+          setProgressInitiated(dao, customerAccount, keyset, appGlobalAuthKey, appRecoveryAuthKey, hardwareAuthKey, originalAppGlobalAuthKey)
+          dao.setActiveServerRecovery(serverRecovery)
+          awaitItem() // InitiatedRecovery
+
+          setProgressGeneratedCsek(dao, sealedCsek, sealedSsek)
+          setProgressRotatedAuth(dao)
+          awaitItem() // RotatedAuthKeys
+
+          setProgressCreatedSpending(dao, serverSpendingKeyset)
+          awaitItem() // CreatedSpendingKeys
+
+          setProgressUploadedDescriptorBackups(dao, keysets)
+          awaitItem() // UploadedDescriptorBackups
+
+          setProgressActivatedSpending(dao, serverSpendingKeyset)
+          awaitItem() // ActivatedSpendingKeys
+
+          setProgressHwDescriptorValidated(dao, sealedDdkData = null)
+
+          awaitItem().shouldBe(
+            Ok(
+              HwDescriptorValidated(
+                f8eSpendingKeyset = serverSpendingKeyset,
+                fullAccountId = serverRecovery.fullAccountId,
+                appSpendingKey = keyset.appKey,
+                appGlobalAuthKey = serverRecovery.destinationAppGlobalAuthPubKey,
+                appRecoveryAuthKey = serverRecovery.destinationAppRecoveryAuthPubKey,
+                hardwareSpendingKey = keyset.hardwareKey,
+                hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
+                appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
+                factorToRecover = Hardware,
+                sealedCsek = sealedCsek,
+                sealedSsek = sealedSsek,
+                keysets = keysets,
+                originalAppGlobalAuthKey = originalAppGlobalAuthKey,
+                sealedDdkData = null
+              )
+            )
+          )
         }
       }
 
@@ -450,7 +600,9 @@ private suspend fun setProgressBackedUpToCloud(dao: RecoveryDaoImpl) {
 
 private suspend fun setProgressCompletedRecovery(dao: RecoveryDaoImpl) {
   dao.setLocalRecoveryProgress(
-    CompletedRecovery(KeyboxMock)
+    CompletedRecovery(
+      keyboxToActivate = KeyboxMock
+    )
   )
 }
 
@@ -460,6 +612,18 @@ private suspend fun setProgressUploadedDescriptorBackups(
 ) {
   dao.setLocalRecoveryProgress(
     UploadedDescriptorBackups(keysets)
+  )
+}
+
+private suspend fun setProgressHwDescriptorValidated(
+  dao: RecoveryDaoImpl,
+  sealedDdkData: SealedData?,
+) {
+  dao.setLocalRecoveryProgress(
+    HwDescriptorValidated(
+      appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
+      sealedDdkData = sealedDdkData
+    )
   )
 }
 

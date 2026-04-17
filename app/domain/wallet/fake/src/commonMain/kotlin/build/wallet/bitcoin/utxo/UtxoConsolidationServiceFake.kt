@@ -24,7 +24,8 @@ class UtxoConsolidationServiceFake : UtxoConsolidationService {
     maxUtxoCount = 150
   )
 
-  var prepareUtxoConsolidationResult = Ok(listOf(defaultConsolidationParams))
+  var prepareUtxoConsolidationResult: Result<List<UtxoConsolidationParams>, Throwable> =
+    Ok(listOf(defaultConsolidationParams))
 
   override suspend fun prepareUtxoConsolidation(): Result<List<UtxoConsolidationParams>, Throwable> {
     return prepareUtxoConsolidationResult

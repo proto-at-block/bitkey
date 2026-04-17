@@ -1,21 +1,26 @@
+use std::str::FromStr;
+
 use http::StatusCode;
 
 use notification::NotificationPayloadType;
+use recovery::routes::relationship::CreateRelationshipRequest;
 use recovery::routes::relationship::UpdateRecoveryRelationshipRequest;
 use recovery::routes::relationship::UpdateRecoveryRelationshipResponse;
 use time::OffsetDateTime;
 use tokio::join;
 use types::account::bitcoin::Network;
 use types::account::entities::Account;
+use types::account::identifiers::AccountId;
 use types::recovery::trusted_contacts::TrustedContactRole;
 
 use super::shared::AccountType;
 use rstest::rstest;
 
 use crate::tests::gen_services;
-use crate::tests::lib::create_phone_touchpoint;
 use crate::tests::lib::update_recovery_relationship_invitation_expiration;
-use crate::tests::lib::{create_full_account, create_lite_account};
+use crate::tests::lib::{
+    create_full_account, create_lite_account, create_onboarded_w3_account, create_phone_touchpoint,
+};
 use crate::tests::recovery::shared::assert_notifications;
 use crate::tests::recovery::shared::try_create_relationship;
 use crate::tests::recovery::shared::{
@@ -191,7 +196,7 @@ async fn test_reissue_recovery_relationship_invitation() {
         .await;
     assert_eq!(
         reissue_response.status_code,
-        StatusCode::BAD_REQUEST,
+        StatusCode::FORBIDDEN,
         "{:?}",
         reissue_response.body_string
     );
@@ -555,14 +560,14 @@ enum RelationshipRole {
     TrustedContactRole::SocialRecoveryContact,
     StatusCode::OK,
 )]
-#[case::unrelated_delete_forbidden(
+#[case::unrelated_delete_invitation_bad_request(
     AccountType::Lite,
     RelationshipRole::Unrelated,
     false,
     false,
     CognitoAuthentication::Wallet { is_app_signed: true, is_hardware_signed: true },
     TrustedContactRole::SocialRecoveryContact,
-    StatusCode::FORBIDDEN,
+    StatusCode::BAD_REQUEST,
 )]
 #[case::customer_delete_accepted(
     AccountType::Lite,
@@ -582,23 +587,23 @@ enum RelationshipRole {
     TrustedContactRole::SocialRecoveryContact,
     StatusCode::OK,
 )]
-#[case::tc_delete_full_account_forbidden(
+#[case::tc_delete_full_account_global_scope(
     AccountType::Full,
     RelationshipRole::TrustedContact,
     true,
     false,
     CognitoAuthentication::Wallet { is_app_signed: true, is_hardware_signed: true },
     TrustedContactRole::SocialRecoveryContact,
-    StatusCode::FORBIDDEN,
+    StatusCode::OK,
 )]
-#[case::tc_delete_endorsed_full_forbidden(
+#[case::tc_delete_endorsed_full_global_scope(
     AccountType::Full,
     RelationshipRole::TrustedContact,
     true,
     true,
     CognitoAuthentication::Wallet { is_app_signed: true, is_hardware_signed: true },
     TrustedContactRole::SocialRecoveryContact,
-    StatusCode::FORBIDDEN,
+    StatusCode::OK,
 )]
 #[case::tc_delete_lite_account(
     AccountType::Lite,
@@ -1399,4 +1404,422 @@ async fn test_relationships_count_caps() {
         )
         .await;
     }
+}
+
+// ── W3 ActionProof tests ───────────────────────────────────────────────
+
+const PAKE_PUBKEY: &str = "003abf297a64bac071986e41c4dddf8160fe245f9f889699c9c57c35fa6d56f3";
+
+#[tokio::test]
+async fn w3_create_relationship_with_action_proof_succeeds() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+    let (account_id, keys) = create_onboarded_w3_account(&mut context, &client).await;
+
+    let response = client
+        .create_relationship_with_action_proof(
+            &account_id,
+            &CreateRelationshipRequest {
+                trusted_contact_alias: "Bob".to_string(),
+                trusted_contact_roles: vec![TrustedContactRole::SocialRecoveryContact],
+                protected_customer_enrollment_pake_pubkey: PAKE_PUBKEY.to_string(),
+            },
+            action_proof::Action::AddRecoveryContact,
+            Some("Bob"),
+            &keys,
+            true,
+            true,
+        )
+        .await;
+
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "{}",
+        response.body_string
+    );
+}
+
+#[tokio::test]
+async fn w3_create_relationship_rejects_keyclaims() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+    let (account_id, keys) = create_onboarded_w3_account(&mut context, &client).await;
+
+    let response = client
+        .create_relationship(
+            &account_id,
+            &CreateRelationshipRequest {
+                trusted_contact_alias: "Bob".to_string(),
+                trusted_contact_roles: vec![TrustedContactRole::SocialRecoveryContact],
+                protected_customer_enrollment_pake_pubkey: PAKE_PUBKEY.to_string(),
+            },
+            &CognitoAuthentication::Wallet {
+                is_app_signed: true,
+                is_hardware_signed: true,
+            },
+            &keys,
+        )
+        .await;
+
+    assert_eq!(
+        response.status_code,
+        StatusCode::FORBIDDEN,
+        "W3 should reject KeyClaims auth: {}",
+        response.body_string
+    );
+}
+
+#[tokio::test]
+async fn w3_delete_recovery_relationship_with_action_proof_succeeds() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+    let (account_id, keys) = create_onboarded_w3_account(&mut context, &client).await;
+
+    let create_response = client
+        .create_relationship_with_action_proof(
+            &account_id,
+            &CreateRelationshipRequest {
+                trusted_contact_alias: "Bob".to_string(),
+                trusted_contact_roles: vec![TrustedContactRole::SocialRecoveryContact],
+                protected_customer_enrollment_pake_pubkey: PAKE_PUBKEY.to_string(),
+            },
+            action_proof::Action::AddRecoveryContact,
+            Some("Bob"),
+            &keys,
+            true,
+            true,
+        )
+        .await;
+    assert_eq!(create_response.status_code, StatusCode::OK);
+    let relationship_id = create_response
+        .body
+        .unwrap()
+        .invitation
+        .recovery_relationship_info
+        .recovery_relationship_id;
+
+    let rel_id_str = relationship_id.to_string();
+    let delete_response = client
+        .delete_recovery_relationship_with_action_proof(
+            &account_id,
+            &rel_id_str,
+            action_proof::Action::RemoveRecoveryContact,
+            Some("Bob"),
+            Some(&rel_id_str),
+            &keys,
+            true,
+            true,
+        )
+        .await;
+
+    assert_eq!(
+        delete_response.status_code,
+        StatusCode::OK,
+        "{}",
+        delete_response.body_string
+    );
+}
+
+/// Helper to test create_relationship with a specific role and action proof action.
+async fn assert_create_relationship_action_proof(
+    role: TrustedContactRole,
+    action: action_proof::Action,
+    expected_status: StatusCode,
+) {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+    let (account_id, keys) = create_onboarded_w3_account(&mut context, &client).await;
+
+    let alias = "TestContact".to_string();
+    let response = client
+        .create_relationship_with_action_proof(
+            &account_id,
+            &CreateRelationshipRequest {
+                trusted_contact_alias: alias.clone(),
+                trusted_contact_roles: vec![role],
+                protected_customer_enrollment_pake_pubkey: PAKE_PUBKEY.to_string(),
+            },
+            action,
+            Some(&alias),
+            &keys,
+            true,
+            true,
+        )
+        .await;
+
+    assert_eq!(
+        response.status_code, expected_status,
+        "{}",
+        response.body_string
+    );
+}
+
+#[tokio::test]
+async fn w3_create_beneficiary_with_action_proof_succeeds() {
+    assert_create_relationship_action_proof(
+        TrustedContactRole::Beneficiary,
+        action_proof::Action::AddBeneficiary,
+        StatusCode::OK,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn w3_create_beneficiary_with_wrong_action_fails() {
+    assert_create_relationship_action_proof(
+        TrustedContactRole::Beneficiary,
+        action_proof::Action::AddRecoveryContact,
+        StatusCode::FORBIDDEN,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn w3_create_recovery_contact_with_wrong_action_fails() {
+    assert_create_relationship_action_proof(
+        TrustedContactRole::SocialRecoveryContact,
+        action_proof::Action::AddBeneficiary,
+        StatusCode::FORBIDDEN,
+    )
+    .await;
+}
+
+/// Helper to test delete_recovery_relationship with a specific role and action proof action.
+async fn assert_delete_relationship_action_proof(
+    role: TrustedContactRole,
+    create_action: action_proof::Action,
+    delete_action: action_proof::Action,
+    expected_status: StatusCode,
+) {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+    let (account_id, keys) = create_onboarded_w3_account(&mut context, &client).await;
+
+    let alias = "TestContact".to_string();
+    let create_response = client
+        .create_relationship_with_action_proof(
+            &account_id,
+            &CreateRelationshipRequest {
+                trusted_contact_alias: alias.clone(),
+                trusted_contact_roles: vec![role],
+                protected_customer_enrollment_pake_pubkey: PAKE_PUBKEY.to_string(),
+            },
+            create_action,
+            Some(&alias),
+            &keys,
+            true,
+            true,
+        )
+        .await;
+    assert_eq!(
+        create_response.status_code,
+        StatusCode::OK,
+        "Setup failed: {}",
+        create_response.body_string
+    );
+    let relationship_id = create_response
+        .body
+        .unwrap()
+        .invitation
+        .recovery_relationship_info
+        .recovery_relationship_id;
+
+    let rel_id_str = relationship_id.to_string();
+    let delete_response = client
+        .delete_recovery_relationship_with_action_proof(
+            &account_id,
+            &rel_id_str,
+            delete_action,
+            Some(&alias),
+            Some(&rel_id_str),
+            &keys,
+            true,
+            true,
+        )
+        .await;
+
+    assert_eq!(
+        delete_response.status_code, expected_status,
+        "{}",
+        delete_response.body_string
+    );
+}
+
+#[tokio::test]
+async fn w3_delete_beneficiary_with_action_proof_succeeds() {
+    assert_delete_relationship_action_proof(
+        TrustedContactRole::Beneficiary,
+        action_proof::Action::AddBeneficiary,
+        action_proof::Action::RemoveBeneficiary,
+        StatusCode::OK,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn w3_delete_beneficiary_with_wrong_action_fails() {
+    assert_delete_relationship_action_proof(
+        TrustedContactRole::Beneficiary,
+        action_proof::Action::AddBeneficiary,
+        action_proof::Action::RemoveRecoveryContact,
+        StatusCode::FORBIDDEN,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn w3_delete_recovery_contact_with_wrong_action_fails() {
+    assert_delete_relationship_action_proof(
+        TrustedContactRole::SocialRecoveryContact,
+        action_proof::Action::AddRecoveryContact,
+        action_proof::Action::RemoveBeneficiary,
+        StatusCode::FORBIDDEN,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn w3_tc_self_removal_without_action_proof_forbidden() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router.clone()).await;
+
+    // Customer (W1) creates invitation
+    let customer_account = create_full_account(
+        &mut context,
+        &bootstrap.services,
+        Network::BitcoinSignet,
+        None,
+    )
+    .await;
+    let create_body = try_create_recovery_relationship(
+        &context,
+        &client,
+        &customer_account.id,
+        &CognitoAuthentication::Wallet {
+            is_app_signed: true,
+            is_hardware_signed: true,
+        },
+        StatusCode::OK,
+        1,
+        0,
+    )
+    .await
+    .unwrap();
+
+    // W3 account accepts as TC
+    let (w3_tc_account_id, w3_tc_keys) = create_onboarded_w3_account(&mut context, &client).await;
+    let w3_tc_account_id_parsed = AccountId::from_str(&w3_tc_account_id).unwrap();
+    try_accept_recovery_relationship_invitation(
+        &context,
+        &client,
+        &customer_account.id,
+        &w3_tc_account_id_parsed,
+        &TrustedContactRole::SocialRecoveryContact,
+        &CognitoAuthentication::Recovery,
+        &create_body.invitation,
+        CodeOverride::None,
+        StatusCode::OK,
+        1,
+    )
+    .await;
+
+    // W3 TC tries to delete without action proof (app-only auth) → should fail
+    let rel_id_str = create_body
+        .invitation
+        .recovery_relationship_info
+        .recovery_relationship_id
+        .to_string();
+    let delete_response = client
+        .delete_recovery_relationship(
+            &w3_tc_account_id,
+            &rel_id_str,
+            &CognitoAuthentication::Wallet {
+                is_app_signed: true,
+                is_hardware_signed: false,
+            },
+            &w3_tc_keys,
+        )
+        .await;
+
+    assert_eq!(
+        delete_response.status_code,
+        StatusCode::FORBIDDEN,
+        "W3 TC without action proof should be forbidden: {}",
+        delete_response.body_string
+    );
+}
+
+#[tokio::test]
+async fn w3_tc_self_removal_with_action_proof_succeeds() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router.clone()).await;
+
+    // Customer (W1) creates invitation
+    let customer_account = create_full_account(
+        &mut context,
+        &bootstrap.services,
+        Network::BitcoinSignet,
+        None,
+    )
+    .await;
+    let create_body = try_create_recovery_relationship(
+        &context,
+        &client,
+        &customer_account.id,
+        &CognitoAuthentication::Wallet {
+            is_app_signed: true,
+            is_hardware_signed: true,
+        },
+        StatusCode::OK,
+        1,
+        0,
+    )
+    .await
+    .unwrap();
+
+    // W3 account accepts as TC
+    let (w3_tc_account_id, w3_tc_keys) = create_onboarded_w3_account(&mut context, &client).await;
+    let w3_tc_account_id_parsed = AccountId::from_str(&w3_tc_account_id).unwrap();
+    try_accept_recovery_relationship_invitation(
+        &context,
+        &client,
+        &customer_account.id,
+        &w3_tc_account_id_parsed,
+        &TrustedContactRole::SocialRecoveryContact,
+        &CognitoAuthentication::Recovery,
+        &create_body.invitation,
+        CodeOverride::None,
+        StatusCode::OK,
+        1,
+    )
+    .await;
+
+    // W3 TC deletes with action proof → should succeed.
+    // The proof value is the customer_alias (the name the TC gave the customer),
+    // not the trusted_contact_alias (the name the customer gave the TC).
+    let rel_id_str = create_body
+        .invitation
+        .recovery_relationship_info
+        .recovery_relationship_id
+        .to_string();
+    let delete_response = client
+        .delete_recovery_relationship_with_action_proof(
+            &w3_tc_account_id,
+            &rel_id_str,
+            action_proof::Action::RemoveRecoveryCustomer,
+            Some("Custy"),
+            Some(&rel_id_str),
+            &w3_tc_keys,
+            true,
+            true,
+        )
+        .await;
+
+    assert_eq!(
+        delete_response.status_code,
+        StatusCode::OK,
+        "W3 TC with action proof should succeed: {}",
+        delete_response.body_string
+    );
 }

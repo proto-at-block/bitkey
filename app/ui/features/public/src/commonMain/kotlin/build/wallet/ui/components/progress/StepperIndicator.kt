@@ -17,41 +17,62 @@ import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.StepperIndicator.StepStyle.*
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
+import build.wallet.ui.components.loading.CircularLoadingBadgePainter
 import build.wallet.ui.components.loading.LoadingBadgePainter
 import build.wallet.ui.components.loading.LoadingIndicatorPainter
 import build.wallet.ui.model.icon.IconImage
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.market.painter
 import build.wallet.ui.tokens.painter
+import build.wallet.ui.tooling.LocalIsPreviewTheme
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun StepperIndicator(model: FormMainContentModel.StepperIndicator) {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val highlightedStepColor =
+    if (isDesignSystemV2Enabled) {
+      WalletTheme.colors.inverseBackground
+    } else {
+      WalletTheme.colors.bitkeyPrimary
+    }
+  val upcomingStepColor =
+    if (isDesignSystemV2Enabled) {
+      WalletTheme.colors.subtleBackground
+    } else {
+      WalletTheme.colors.stepperIncomplete
+    }
+
   val stepData = model.steps.map { step ->
     val circleColor = when (step.style) {
-      PENDING -> WalletTheme.colors.bitkeyPrimary
-      COMPLETED -> WalletTheme.colors.bitkeyPrimary
-      UPCOMING -> WalletTheme.colors.stepperIncomplete
+      PENDING -> highlightedStepColor
+      COMPLETED -> highlightedStepColor
+      UPCOMING -> upcomingStepColor
     }
 
     val painter = when (step.icon) {
       IconImage.Loader -> LoadingIndicatorPainter(circleColor)
+      is IconImage.DrawableResourceImage -> painterResource(step.icon.resource)
       is IconImage.LocalImage -> step.icon.icon.painter()
       is IconImage.MarketIconImage -> step.icon.icon.painter()
       is IconImage.UrlImage -> TODO("UrlImage is not currently supported")
       null -> null
       IconImage.LoadingBadge -> LoadingBadgePainter(color = circleColor)
+      IconImage.CircularLoadingBadge -> CircularLoadingBadgePainter(color = circleColor)
     }
 
     StepData(
       painter = painter,
       circleColor = circleColor,
       contentTint = when (step.icon) {
-        IconImage.LoadingBadge -> null
+        IconImage.LoadingBadge, IconImage.CircularLoadingBadge ->
+          if (LocalIsPreviewTheme.current) circleColor else null
         else -> circleColor
       },
       iconSize = when (step.icon) {
-        IconImage.LoadingBadge -> 14.dp
+        IconImage.LoadingBadge, IconImage.CircularLoadingBadge -> 14.dp
         else -> 16.dp
       }
     )
@@ -136,8 +157,8 @@ fun StepperIndicator(model: FormMainContentModel.StepperIndicator) {
           type = LabelType.Label3,
           treatment = LabelTreatment.Unspecified,
           color = when (step.style) {
-            PENDING -> WalletTheme.colors.bitkeyPrimary
-            COMPLETED -> WalletTheme.colors.bitkeyPrimary
+            PENDING -> highlightedStepColor
+            COMPLETED -> highlightedStepColor
             UPCOMING -> WalletTheme.colors.stepperIncompleteLabel
           }
         )

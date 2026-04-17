@@ -3,6 +3,7 @@
 #include "attributes.h"
 #include "mcu.h"
 #include "rtos_mpu.h"
+#include "stm32u5xx.h"
 
 SYSCALL uint32_t mcu_systick_get_reload(void) {
   uint32_t ret_val;
@@ -34,4 +35,20 @@ SYSCALL uint32_t mcu_systick_get_value(void) {
   }
 
   return ret_val;
+}
+
+SYSCALL bool mcu_systick_is_pending(void) {
+  bool pending;
+  int was_priv = rtos_thread_is_privileged();
+  if (!was_priv) {
+    rtos_thread_raise_privilege();
+  }
+
+  pending = (SCB->ICSR & SCB_ICSR_PENDSTSET_Msk) != 0;
+
+  if (!was_priv) {
+    rtos_thread_reset_privilege();
+  }
+
+  return pending;
 }

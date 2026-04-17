@@ -1,0 +1,30 @@
+diff --git a/src/core/lv_obj_scroll.c b/src/core/lv_obj_scroll.c
+index f8c7d7902..02f152f7e 100644
+--- a/src/core/lv_obj_scroll.c
++++ b/src/core/lv_obj_scroll.c
+@@ -18,8 +18,8 @@
+  *      DEFINES
+  *********************/
+ #define MY_CLASS (&lv_obj_class)
+-#define SCROLL_ANIM_TIME_MIN    200    /*ms*/
+-#define SCROLL_ANIM_TIME_MAX    400    /*ms*/
++#define SCROLL_ANIM_TIME_MIN    200    /*ms*/
++#define SCROLL_ANIM_TIME_MAX    200    /*ms*/
+ #define SCROLLBAR_MIN_SIZE      (LV_DPX(10))
+ 
+ /**********************
+diff --git a/src/indev/lv_indev.c b/src/indev/lv_indev.c
+index a4b16b5a0..498432f3c 100644
+--- a/src/indev/lv_indev.c
++++ b/src/indev/lv_indev.c
+@@ -1890,8 +1890,8 @@ static void indev_scroll_throw_anim_start(lv_indev_t * indev)
+     lv_anim_t a;
+     lv_anim_init(&a);
+     lv_anim_set_var(&a, indev);
+-    lv_anim_set_duration(&a, 1024);
+-    lv_anim_set_values(&a, 0, 1024);
++    lv_anim_set_duration(&a, 512);
++    lv_anim_set_values(&a, 0, 512);
+     lv_anim_set_exec_cb(&a, indev_scroll_throw_anim_cb);
+     lv_anim_set_completed_cb(&a, indev_scroll_throw_anim_completed_cb);
+     lv_anim_set_deleted_cb(&a, indev_scroll_throw_anim_completed_cb);

@@ -192,6 +192,7 @@ private func initializeDatadog(appVariant: AppVariant) {
                 )
             ),
             trackBackgroundEvents: true,
+            // iOS hang/watchdog parity with Android RumConfiguration.trackNonFatalAnrs(true).
             appHangThreshold: 0.25,
             trackWatchdogTerminations: true,
             telemetrySampleRate: 100

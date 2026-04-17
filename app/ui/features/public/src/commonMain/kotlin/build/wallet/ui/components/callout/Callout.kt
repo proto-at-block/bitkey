@@ -19,6 +19,7 @@ import build.wallet.ui.model.callout.CalloutModel
 import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 
@@ -30,6 +31,15 @@ import build.wallet.ui.tokens.LabelType
 @Composable
 fun Callout(model: CalloutModel) {
   val style = model.calloutStyle()
+  val useMonochromeStyle =
+    LocalDesignSystemUpdatesEnabled.current && model.useMonochromeStyleInDesignSystemV2
+  val cornerRadius = if (LocalDesignSystemUpdatesEnabled.current) 8.dp else 16.dp
+  val leadingIcon =
+    if (LocalDesignSystemUpdatesEnabled.current) {
+      model.leadingIconOverrideInDesignSystemV2 ?: model.leadingIcon
+    } else {
+      model.leadingIcon
+    }
 
   // Track the alignment of the leading icon, which varies based on the number of text lines in the
   // subtitle.
@@ -40,7 +50,7 @@ fun Callout(model: CalloutModel) {
       .fillMaxWidth()
       .background(
         color = style.backgroundColor,
-        shape = RoundedCornerShape(size = 16.dp)
+        shape = RoundedCornerShape(size = cornerRadius)
       ),
     contentAlignment = Alignment.CenterStart
   ) {
@@ -51,7 +61,7 @@ fun Callout(model: CalloutModel) {
       verticalAlignment = iconVerticalAlignment,
       horizontalArrangement = Arrangement.Start
     ) {
-      model.leadingIcon?.let { icon ->
+      leadingIcon?.let { icon ->
         IconImage(
           modifier = Modifier
             // Adjust the height to match the line height of the title in case of top alignment
@@ -113,7 +123,8 @@ fun Callout(model: CalloutModel) {
             trailingIcon,
             style.trailingIconColor,
             model.treatment,
-            model.onClick
+            model.onClick,
+            useInverseButtonStyle = useMonochromeStyle
           )
         }
       }
@@ -130,6 +141,7 @@ fun CalloutButton(
   iconColor: Color,
   treatment: CalloutModel.Treatment,
   onClick: Click?,
+  useInverseButtonStyle: Boolean = false,
 ) {
   IconButton(
     modifier = Modifier
@@ -139,20 +151,23 @@ fun CalloutButton(
       iconSize = IconSize.Accessory,
       iconBackgroundType = IconBackgroundType.Square(
         size = IconSize.Large,
-        color = when (treatment) {
-          CalloutModel.Treatment.Default,
-          CalloutModel.Treatment.DefaultCentered,
-          -> IconBackgroundType.Square.Color.Default
-          CalloutModel.Treatment.Information -> IconBackgroundType.Square.Color.Information
-          CalloutModel.Treatment.Success -> IconBackgroundType.Square.Color.Success
-          CalloutModel.Treatment.Warning -> IconBackgroundType.Square.Color.Warning
-          CalloutModel.Treatment.Danger -> IconBackgroundType.Square.Color.Danger
-          CalloutModel.Treatment.White -> IconBackgroundType.Square.Color.White
+        color = when {
+          useInverseButtonStyle -> IconBackgroundType.Square.Color.InverseBackground
+          else -> when (treatment) {
+            CalloutModel.Treatment.Default,
+            CalloutModel.Treatment.DefaultCentered,
+            -> IconBackgroundType.Square.Color.Default
+            CalloutModel.Treatment.Information -> IconBackgroundType.Square.Color.Information
+            CalloutModel.Treatment.Success -> IconBackgroundType.Square.Color.Success
+            CalloutModel.Treatment.Warning -> IconBackgroundType.Square.Color.Warning
+            CalloutModel.Treatment.Danger -> IconBackgroundType.Square.Color.Danger
+            CalloutModel.Treatment.White -> IconBackgroundType.Square.Color.White
+          }
         },
         cornerRadius = 12
       )
     ),
-    color = iconColor,
+    color = if (useInverseButtonStyle) WalletTheme.colors.background else iconColor,
     onClick = {
       onClick?.invoke()
     }
@@ -174,13 +189,28 @@ data class CalloutStyle(
 @Composable
 @ReadOnlyComposable
 private fun CalloutModel.calloutStyle() =
-  when (treatment) {
+  when {
+    LocalDesignSystemUpdatesEnabled.current && useMonochromeStyleInDesignSystemV2 -> CalloutStyle(
+      titleColor = WalletTheme.colors.foreground,
+      subtitleColor = WalletTheme.colors.foreground60,
+      backgroundColor = WalletTheme.colors.secondary,
+      leadingIconColor = WalletTheme.colors.foreground60,
+      trailingIconColor = WalletTheme.colors.foreground60,
+      trailingIconBackgroundColor = WalletTheme.colors.foreground10
+    )
+
+    else -> when (treatment) {
     CalloutModel.Treatment.Default,
     CalloutModel.Treatment.DefaultCentered,
     -> CalloutStyle(
       titleColor = WalletTheme.colors.calloutDefaultTitle,
       subtitleColor = WalletTheme.colors.calloutDefaultSubtitle,
-      backgroundColor = WalletTheme.colors.subtleBackground,
+      backgroundColor =
+        if (LocalDesignSystemUpdatesEnabled.current) {
+          WalletTheme.colors.secondary
+        } else {
+          WalletTheme.colors.subtleBackground
+        },
       leadingIconColor = WalletTheme.colors.calloutDefaultTitle,
       trailingIconColor = WalletTheme.colors.calloutDefaultTrailingIcon,
       trailingIconBackgroundColor = WalletTheme.colors.calloutDefaultTrailingIconBackground
@@ -225,4 +255,5 @@ private fun CalloutModel.calloutStyle() =
       trailingIconColor = WalletTheme.colors.foreground,
       trailingIconBackgroundColor = WalletTheme.colors.subtleBackground
     )
+  }
   }

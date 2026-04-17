@@ -3,13 +3,14 @@ package build.wallet.statemachine.account.create.full
 import androidx.compose.runtime.*
 import bitkey.onboarding.DeleteFullAccountService
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.onboarding.LiteAccountBackupToFullAccountUpgrader
-import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
-import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
-import build.wallet.statemachine.auth.Request
+import build.wallet.statemachine.auth.ActionProofType
+import build.wallet.statemachine.auth.HardwareAuthUiProps
+import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
 import build.wallet.statemachine.cloud.SAVING_BACKUP_MESSAGE
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
@@ -20,7 +21,7 @@ import com.github.michaelbull.result.onSuccess
 
 @BitkeyInject(ActivityScope::class)
 class ReplaceWithLiteAccountRestoreUiStateMachineImpl(
-  private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
+  private val hardwareAuthUiStateMachine: HardwareAuthUiStateMachine,
   private val deleteFullAccountService: DeleteFullAccountService,
   private val liteAccountBackupToFullAccountUpgrader: LiteAccountBackupToFullAccountUpgrader,
 ) : ReplaceWithLiteAccountRestoreUiStateMachine {
@@ -30,27 +31,35 @@ class ReplaceWithLiteAccountRestoreUiStateMachineImpl(
     val onboardingKeybox = props.keyboxToReplace
 
     return when (val state = uiState) {
-      is State.ScanningHardware ->
-        proofOfPossessionNfcStateMachine.model(
-          ProofOfPossessionNfcProps(
-            request =
-              Request.HwKeyProof(
-                onSuccess = { proof ->
-                  uiState = State.DeleteAndRestore(proof)
-                }
-              ),
-            fullAccountId = onboardingKeybox.fullAccountId,
+      is State.ScanningHardware -> {
+        val account = FullAccount(
+          accountId = onboardingKeybox.fullAccountId,
+          keybox = onboardingKeybox
+        )
+        hardwareAuthUiStateMachine.model(
+          HardwareAuthUiProps(
+            account = account,
+            actionProofType = ActionProofType.DeleteAccount(
+              accountId = onboardingKeybox.fullAccountId.serverId
+            ),
+            segment = OnboardingAppSegment.LiteToFullAccountUpgrade,
+            actionDescription = "Replacing account with lite account restore",
+            screenPresentationStyle = ScreenPresentationStyle.Modal,
+            onSuccess = { proof ->
+              uiState = State.DeleteAndRestore(proof)
+            },
             onBack = props.onBack,
-            screenPresentationStyle = ScreenPresentationStyle.Modal
+            shouldLock = false
           )
         )
+      }
 
       is State.DeleteAndRestore -> {
         LaunchedEffect("replace-full-account-and-restore-lite-account") {
           deleteFullAccountService
             .deleteAccount(
               fullAccountId = onboardingKeybox.fullAccountId,
-              hardwareProofOfPossession = state.hwFactorProofOfPossession
+              proof = state.proof
             )
             .andThen {
               liteAccountBackupToFullAccountUpgrader.upgradeAccount(
@@ -83,7 +92,7 @@ class ReplaceWithLiteAccountRestoreUiStateMachineImpl(
   private sealed interface State {
     data object ScanningHardware : State
 
-    data class DeleteAndRestore(val hwFactorProofOfPossession: HwFactorProofOfPossession) : State
+    data class DeleteAndRestore(val proof: PrivilegedActionProof) : State
 
     data class Failed(val error: Error) : State
   }

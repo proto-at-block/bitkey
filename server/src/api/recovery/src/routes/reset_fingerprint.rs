@@ -1,7 +1,7 @@
 use crate::error::RecoveryError;
 use crate::metrics;
 use account::service::{FetchAccountInput, Service as AccountService};
-use authn_authz::key_claims::KeyClaims;
+use authn_authz::Authorization;
 use axum::{
     extract::{Path, State},
     routing::post,
@@ -16,7 +16,7 @@ use http_server::{
 };
 use privileged_action::service::{
     authorize_privileged_action::{
-        AuthorizationContext, AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
+        AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
         PrivilegedActionRequestValidatorBuilder,
     },
     Service as PrivilegedActionService,
@@ -107,7 +107,7 @@ pub struct ResetFingerprintResponse {
 
 #[instrument(
     fields(account_id),
-    skip(privileged_action_service, key_proof, account_service, wsm_client)
+    skip(privileged_action_service, account_service, wsm_client)
 )]
 #[utoipa::path(
     post,
@@ -127,7 +127,7 @@ pub async fn reset_fingerprint(
     State(privileged_action_service): State<PrivilegedActionService>,
     State(wsm_client): State<WsmClient>,
     State(account_service): State<AccountService>,
-    key_proof: KeyClaims,
+    _auth: Authorization,
     Json(privileged_action_request): Json<PrivilegedActionRequest<ResetFingerprintRequest>>,
 ) -> Result<Json<PrivilegedActionResponse<ResetFingerprintResponse>>, ApiError> {
     let account = account_service
@@ -140,9 +140,7 @@ pub async fn reset_fingerprint(
         .authorize_privileged_action(AuthorizePrivilegedActionInput {
             account_id: &account_id,
             privileged_action_definition: &PrivilegedActionType::ResetFingerprint.into(),
-            authorization: AuthorizationContext::KeyClaims(&key_proof),
             privileged_action_request: &privileged_action_request,
-            validation_context: None,
             request_validator: PrivilegedActionRequestValidatorBuilder::default()
                 .on_initiate_delay_and_notify(Box::new(move |req: ResetFingerprintRequest| {
                     Box::pin(async move {
@@ -195,15 +193,16 @@ pub async fn reset_fingerprint(
         .await?;
 
     match authorize_result {
+        AuthorizePrivilegedActionOutput::Pending(response) => Ok(Json(response)),
         AuthorizePrivilegedActionOutput::Authorized(request) => {
             let signed_grant =
                 create_signed_grant(wsm_client, request, account.hardware_auth_pubkey).await?;
-            let response = PrivilegedActionResponse::Completed(ResetFingerprintResponse {
-                grant: signed_grant,
-            });
-            Ok(Json(response))
+            Ok(Json(PrivilegedActionResponse::Completed(
+                ResetFingerprintResponse {
+                    grant: signed_grant,
+                },
+            )))
         }
-        AuthorizePrivilegedActionOutput::Pending(response) => Ok(Json(response)),
     }
 }
 

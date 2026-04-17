@@ -9,6 +9,7 @@ import build.wallet.debug.StrictModeEnabler
 import build.wallet.inappsecurity.BiometricPreference
 import build.wallet.logging.LoggerInitializer
 import build.wallet.notifications.DeviceTokenManager
+import build.wallet.platform.config.AppBuildDate
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVersion
@@ -26,6 +27,7 @@ import software.amazon.lastmile.kotlin.inject.anvil.MergeComponent
 @MergeComponent(AppScope::class)
 @SingleIn(AppScope::class)
 abstract class AndroidAppComponent(
+  @get:Provides val appBuildDate: AppBuildDate,
   @get:Provides val appId: AppId,
   @get:Provides val appVariant: AppVariant,
   @get:Provides val appVersion: AppVersion,

@@ -18,9 +18,12 @@ MEMFAULT_TRACE_REASON_DEFINE(bio_enroll_error)
 MEMFAULT_TRACE_REASON_DEFINE(bio_auth_failure)
 MEMFAULT_TRACE_REASON_DEFINE(bio_auth_error)
 
+MEMFAULT_TRACE_REASON_DEFINE(bio_template_save_error)
+
 // This is an abuse of trace reasons; should be a metric.
 MEMFAULT_TRACE_REASON_DEFINE(bio_enroll_sample_pass_count)
 MEMFAULT_TRACE_REASON_DEFINE(bio_enroll_sample_fail_count)
+MEMFAULT_TRACE_REASON_DEFINE(fp_err)
 
 // FWUP
 MEMFAULT_TRACE_REASON_DEFINE(fwup_finish)
@@ -52,6 +55,7 @@ MEMFAULT_TRACE_REASON_DEFINE(uc_err)
 
 // Display
 MEMFAULT_TRACE_REASON_DEFINE(display_send_dropped)
+MEMFAULT_TRACE_REASON_DEFINE(display_brightness_err)
 
 // Sleep coordination
 MEMFAULT_TRACE_REASON_DEFINE(sleep_prep_timeout)

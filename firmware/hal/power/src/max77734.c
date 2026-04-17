@@ -24,16 +24,18 @@ static const uint32_t VSYS_REG_MAX = 20u;     /* 4.6V = 4.1V + (20 * 25mV) */
 static const uint32_t CHG_CV_MAX = 31u;       /* 4.375V = 3.6V + (31 * 25mV) */
 static const uint32_t CHG_CV_JEITA_MAX = 24u; /* 4.2V = 3.6V + (24 * 25mV) */
 
-#define PRINT_REGISTER(addr)            \
-  {                                     \
-    uint8_t value;                      \
-    read_register(addr, &value);        \
-    printf(#addr " = 0x%02X\n", value); \
+#define PRINT_REGISTER(addr)                      \
+  {                                               \
+    uint8_t value;                                \
+    read_register(addr, &value);                  \
+    printf("reg 0x%02X = 0x%02X\n", addr, value); \
   }
 
 static void configure(const power_ldo_config_t* ldo_config);
 static bool read_register(const max77734_reg_t address, uint8_t* result);
 static bool write_register(const max77734_reg_t address, const uint8_t* data);
+static void clear_global_interrupts(void);
+static power_charger_mode_t get_mode_from_status(const max77734_reg_stat_chg_b_t* stat_chg_b);
 
 void max77734_init(const power_ldo_config_t* ldo_config) {
   mcu_i2c_bus_init(&power_i2c_config, &max77734_i2c_config, true);
@@ -44,7 +46,7 @@ bool max77734_validate(void) {
   max77734_reg_cid_t cid_reg = {0};
   read_register(MAX77734_REG_CID, cid_reg.bytes);
   if (cid_reg.values.CID != MAX77734GENP) {
-    LOGE("MAX77734 CID invalid (0x%x)", cid_reg.values.CID);
+    LOGE("CID err 0x%x", cid_reg.values.CID);
     BITLOG_EVENT(charger_validate_err, cid_reg.values.CID);
     return false;
   }
@@ -58,7 +60,7 @@ void max77734_irq_enable(exti_config_t* irq) {
   // Clear any pending interrupts
   max77734_reg_int_chg_t int_charge = {0};
   if (!read_register(MAX77734_REG_INT_CHG, int_charge.bytes)) {
-    LOGE("error reading INT_CHG");
+    LOGE("INT_CHG rd err");
   }
 
   // Enable the interrupts
@@ -69,26 +71,32 @@ void max77734_irq_enable(exti_config_t* irq) {
 }
 
 bool max77734_irq_wait(exti_config_t* irq, uint32_t timeout_ms) {
-  if (exti_wait(irq, timeout_ms, true)) {
-    max77734_irq_clear();
-    return true;
-  }
-  return false;
+  return exti_wait(irq, timeout_ms, true);
 }
 
 void max77734_irq_clear(void) {
-  // Read interrupt register to clear the interrupt flag
+  // Both interrupt banks are clear-on-read and share the same IRQ line.
+  clear_global_interrupts();
+
   max77734_reg_int_chg_t int_charge = {0};
   if (!read_register(MAX77734_REG_INT_CHG, int_charge.bytes)) {
-    LOGE("unable to read INT_CHG");
+    LOGE("INT_CHG rd err");
   }
 }
 
 void max77734_charge_enable(const bool enabled) {
-  max77734_reg_cnfg_chg_b_t b_reg = {0};
-  read_register(MAX77734_REG_CNFG_CHG_B, b_reg.bytes);
-  b_reg.values.CHG_EN = enabled;
-  write_register(MAX77734_REG_CNFG_CHG_B, b_reg.bytes);
+  // Rewrite the full register (not a read-modify-write) so the input current
+  // limit is always restored to 475mA instead of relying on retained IC state.
+  const max77734_reg_cnfg_chg_b_t b = {
+    .values =
+      {
+        .CHG_EN = enabled,
+        .I_PQ = 0,
+        .ICHGIN_LIM = 0b100, /* 475mA */
+        .VCHGIN_MIN = 0,     /* 4.0V */
+      },
+  };
+  write_register(MAX77734_REG_CNFG_CHG_B, b.bytes);
 }
 
 void max77734_usb_suspend(const bool enabled) {
@@ -138,12 +146,26 @@ void max77734_fast_charge(void) {
   write_register(MAX77734_REG_CNFG_CHG_E, e.bytes);
 }
 
-void max77734_charging_status(bool* charging, bool* chgin_valid) {
+void max77734_charging_status(bool* charging, bool* chgin_valid, power_charger_mode_t* mode) {
   max77734_reg_stat_chg_b_t stat_chg_b = {0};
   read_register(MAX77734_REG_STAT_CHG_B, stat_chg_b.bytes);
 
-  *charging = stat_chg_b.values.CHG;
-  *chgin_valid = (stat_chg_b.values.CHGIN_DTLS == 0b11);
+  if (charging != NULL) {
+    *charging = stat_chg_b.values.CHG;
+  }
+  if (chgin_valid != NULL) {
+    *chgin_valid = (stat_chg_b.values.CHGIN_DTLS == 0b11);
+  }
+  if (mode != NULL) {
+    *mode = get_mode_from_status(&stat_chg_b);
+  }
+}
+
+static void clear_global_interrupts(void) {
+  max77734_reg_int_glbl_t int_glbl = {0};
+  if (!read_register(MAX77734_REG_INT_GLBL, int_glbl.bytes)) {
+    LOGE("INT_GLBL rd err");
+  }
 }
 
 static void configure(const power_ldo_config_t* ldo_config) {
@@ -160,16 +182,7 @@ static void configure(const power_ldo_config_t* ldo_config) {
   };
   write_register(MAX77734_REG_CNFG_CHG_A, a.bytes);
 
-  const max77734_reg_cnfg_chg_b_t b = {
-    .values =
-      {
-        .CHG_EN = false,
-        .I_PQ = 0,
-        .ICHGIN_LIM = 0b100, /* 475ma/95ma */
-        .VCHGIN_MIN = 0,     /* 4.0V */
-      },
-  };
-  write_register(MAX77734_REG_CNFG_CHG_B, b.bytes);
+  max77734_charge_enable(false);
 
   const max77734_reg_cnfg_chg_c_t c = {
     .values =
@@ -238,19 +251,19 @@ static void configure(const power_ldo_config_t* ldo_config) {
 void max77734_set_ldo_low_power_mode(void) {
   max77734_reg_cnfg_ldo_b_t ldo_b = {0};
   if (!read_register(MAX77734_REG_CNFG_LDO_B, ldo_b.bytes)) {
-    LOGE("Failed to read LDO_B register");
+    LOGE("LDO_B rd err");
     return;
   }
   ldo_b.values.LDO_PM = MAX77734_LDO_PM_LOW_POWER;
   if (!write_register(MAX77734_REG_CNFG_LDO_B, ldo_b.bytes)) {
-    LOGE("Failed to write LDO_B register");
+    LOGE("LDO_B wr err");
   }
 }
 
 void max77734_disable_ldo(void) {
   max77734_reg_cnfg_ldo_b_t ldo_b = {0};
   if (!read_register(MAX77734_REG_CNFG_LDO_B, ldo_b.bytes)) {
-    LOGE("Failed to read LDO_B register");
+    LOGE("LDO_B rd err");
     return;
   }
 
@@ -259,7 +272,7 @@ void max77734_disable_ldo(void) {
   ldo_b.values.LDO_EN = MAX77734_LDO_EN_AUTO;
 
   if (!write_register(MAX77734_REG_CNFG_LDO_B, ldo_b.bytes)) {
-    LOGE("Failed to write LDO_B register");
+    LOGE("LDO_B wr err");
   }
 }
 
@@ -310,70 +323,24 @@ void max77734_print_registers(void) {
 void max77734_print_status(void) {
   max77734_reg_stat_chg_b_t stat_chg_b = {0};
   read_register(MAX77734_REG_STAT_CHG_B, stat_chg_b.bytes);
-
-  if (stat_chg_b.values.CHG) {
-    LOGD("Battery is charging");
-  } else {
-    LOGD("Battery is not charging");
-  }
+  LOGD("Battery charging: %d", stat_chg_b.values.CHG);
 }
 
 void max77734_print_mode(void) {
   max77734_reg_stat_chg_b_t stat_chg_b = {0};
   read_register(MAX77734_REG_STAT_CHG_B, stat_chg_b.bytes);
-
-  LOGD("Charger Mode:");
-  switch (stat_chg_b.values.CHG_DTLS) {
-    case MAX77734_CHG_DTLS_OFF:
-      LOGD("Charger off");
-      break;
-    case MAX77734_CHG_DTLS_PREQUALIFICATION:
-      LOGD("Prequalification mode");
-      break;
-    case MAX77734_CHG_DTLS_CC:
-      LOGD("Fast-charge constant-current (CC) mode");
-      break;
-    case MAX77734_CHG_DTLS_JEITA_CC:
-      LOGD("JEITA-modified fast-charge constant-current mode");
-      break;
-    case MAX77734_CHG_DTLS_CV:
-      LOGD("Fast-charge constant-voltage (CV) mode");
-      break;
-    case MAX77734_CHG_DTLS_JEITA_CV:
-      LOGD("JEITA-modified fast-charge constant-voltage mode");
-      break;
-    case MAX77734_CHG_DTLS_TOP_OFF:
-      LOGD("Top-off mode");
-      break;
-    case MAX77734_CHG_DTLS_JEITA_TOP_OFF:
-      LOGD("JEITA-modified top-off mode");
-      break;
-    case MAX77734_CHG_DTLS_DONE:
-      LOGD("Done");
-      break;
-    case MAX77734_CHG_DTLS_JEITA_DONE:
-      LOGD("JEITA-modified done");
-      break;
-    case MAX77734_CHG_DTLS_PREQUALIFICATION_TIMER_FAULT:
-      LOGD("Prequalification timer fault");
-      break;
-    case MAX77734_CHG_DTLS_FAST_CHARGE_TIMER_FAULT:
-      LOGD("Fast-charge timer fault");
-      break;
-    case MAX77734_CHG_DTLS_BATTERY_TEMP_FAULT:
-      LOGD("Battery temperature fault");
-      break;
-    default:
-      LOGD("Charger state is invalid");
-      break;
-  }
+  // Print the raw CHG_DTLS register value. See max77734_chg_dtls_bitfield_t.
+  LOGD("Charger mode: %d", stat_chg_b.values.CHG_DTLS);
 }
 
 power_charger_mode_t max77734_get_mode(void) {
-  max77734_reg_stat_chg_b_t stat_chg_b = {0};
-  read_register(MAX77734_REG_STAT_CHG_B, stat_chg_b.bytes);
+  power_charger_mode_t mode = POWER_CHARGER_MODE_INVALID;
+  max77734_charging_status(NULL, NULL, &mode);
+  return mode;
+}
 
-  switch (stat_chg_b.values.CHG_DTLS) {
+static power_charger_mode_t get_mode_from_status(const max77734_reg_stat_chg_b_t* stat_chg_b) {
+  switch (stat_chg_b->values.CHG_DTLS) {
     case MAX77734_CHG_DTLS_OFF:
       return POWER_CHARGER_MODE_OFF;
     case MAX77734_CHG_DTLS_PREQUALIFICATION:
@@ -410,13 +377,13 @@ void max77734_enable_thermal_interrupts(void) {
   // Read current interrupt masks
   max77734_reg_intm_glbl_t intm_glbl = {.bytes[0] = 0xff};
   if (!read_register(MAX77734_REG_INTM_GLBL, intm_glbl.bytes)) {
-    LOGE("Failed to read global interrupt mask register");
+    LOGE("INTM_GLBL read fail");
     return;
   }
 
   max77734_reg_int_m_chg_t int_m_chg = {.bytes[0] = 0xff};
   if (!read_register(MAX77734_REG_INT_M_CHG, int_m_chg.bytes)) {
-    LOGE("Failed to read charge interrupt mask register");
+    LOGE("INT_M_CHG read fail");
     return;
   }
 
@@ -424,14 +391,14 @@ void max77734_enable_thermal_interrupts(void) {
   intm_glbl.values.TJAL1_RM = 0;  // Enable TJAL1 interrupt
   intm_glbl.values.TJAL2_RM = 0;  // Enable TJAL2 interrupt
   if (!write_register(MAX77734_REG_INTM_GLBL, intm_glbl.bytes)) {
-    LOGE("Failed to enable thermal alarm interrupts (INTM_GLBL)");
+    LOGE("INTM_GLBL therm err");
     return;
   }
 
   // Unmask junction temperature regulation interrupt in charge interrupt mask
   int_m_chg.values.TJ_REG_M = 0;  // Enable TJ_REG interrupt
   if (!write_register(MAX77734_REG_INT_M_CHG, int_m_chg.bytes)) {
-    LOGE("Failed to enable TJ_REG interrupt (INT_M_CHG)");
+    LOGE("INT_M_CHG TJ err");
     return;
   }
 
@@ -443,31 +410,42 @@ void max77734_enable_thermal_interrupts(void) {
   read_register(MAX77734_REG_INT_CHG, int_chg.bytes);
 }
 
-bool max77734_check_thermal_status(bool* tjal1, bool* tjal2, bool* tj_reg) {
-  if (!tjal1 || !tjal2 || !tj_reg) {
+bool max77734_check_thermal_status(bool* tjal1, bool* tjal2, bool* tj_reg, bool* chgin_irq) {
+  if (!tjal1 || !tjal2 || !tj_reg || !chgin_irq) {
     return false;
   }
 
   *tjal1 = false;
   *tjal2 = false;
   *tj_reg = false;
+  *chgin_irq = false;
 
   // Read interrupt registers
   max77734_reg_int_glbl_t int_glbl = {0};
   if (!read_register(MAX77734_REG_INT_GLBL, int_glbl.bytes)) {
-    LOGE("Failed to read INT_GLBL");
+    LOGE("INT_GLBL rd err");
+    // Best-effort drain both clear-on-read interrupt banks so a transient I2C
+    // failure does not leave the shared IRQ line asserted.
+    max77734_irq_clear();
     return false;
   }
 
   max77734_reg_int_chg_t int_chg = {0};
   if (!read_register(MAX77734_REG_INT_CHG, int_chg.bytes)) {
-    LOGE("Failed to read INT_CHG");
+    LOGE("INT_CHG rd err");
+    // Best-effort drain both clear-on-read interrupt banks so a transient I2C
+    // failure does not leave the shared IRQ line asserted.
+    max77734_irq_clear();
     return false;
   }
 
   // Check thermal alarm rising edge interrupts
   *tjal1 = int_glbl.values.TJAL1_R;
   *tjal2 = int_glbl.values.TJAL2_R;
+
+  // Track CHGIN transitions so the caller can distinguish plug events from
+  // other charger interrupts using the same clear-on-read register snapshot.
+  *chgin_irq = int_chg.values.CHGIN_I;
 
   // Check junction temperature regulation interrupt
   *tj_reg = int_chg.values.TJ_REG_I;

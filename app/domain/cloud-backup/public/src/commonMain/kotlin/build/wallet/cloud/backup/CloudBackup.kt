@@ -15,7 +15,7 @@ import build.wallet.f8e.F8eEnvironment
  * The instance of [CloudBackup] is what ends up being stored to customer's remote cloud
  * storage (Google Drive or iCloud Keychain).
  *
- * Serialization is handled internally by [CloudBackupRepository].
+ * Serialization is handled internally by [CloudBackupService].
  *
  * Cloud backups use an immutable versioning pattern where each schema change requires
  * a new data class (e.g., [CloudBackupV2], CloudBackupV3).

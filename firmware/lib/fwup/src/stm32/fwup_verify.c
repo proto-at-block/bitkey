@@ -7,6 +7,7 @@
 #include "fwup_impl.h"
 #include "fwup_verify_impl.h"
 #include "log.h"
+#include "rtos.h"
 
 #include <inttypes.h>
 #include <limits.h>
@@ -16,29 +17,6 @@
 #include <string.h>
 
 extern fwup_priv_t fwup_priv;
-
-extern int __FLASH_segment_start__;
-extern int __FLASH_segment_end__;
-
-static const uintptr_t flash_start_addr = (uintptr_t)&__FLASH_segment_start__;
-static const uintptr_t flash_end_addr = (uintptr_t)&__FLASH_segment_end__;
-
-static bool _fwup_verify_is_address_in_flash(const uintptr_t addr, const size_t length) {
-  if (addr == 0u) {
-    // Invalid address.
-    return false;
-  }
-
-  if (addr < flash_start_addr) {
-    return false;
-  }
-
-  if ((addr > flash_end_addr) || (length > (flash_end_addr - addr))) {
-    return false;
-  }
-
-  return true;
-}
 
 static bool _fwup_verify_is_valid_app_properties(const app_properties_t* props) {
   if (props == NULL) {
@@ -56,14 +34,14 @@ static bool _fwup_verify_is_valid_app_properties(const app_properties_t* props) 
   }
 
   const uintptr_t cert_addr = (uintptr_t)props->cert;
-  if (!_fwup_verify_is_address_in_flash(cert_addr, sizeof(app_certificate_t))) {
-    // Certificate is invalid.
+
+  // Certificate must be in the same slot as the properties.
+  if (addrs_in_same_slot(cert_addr, (uintptr_t)props) != SECURE_TRUE) {
     return false;
   }
 
   if (cert_addr <= (uintptr_t)props) {
-    // Certificate address is in flash, but in the wrong place; must be after
-    // the application properties.
+    // Certificate address must be after the application properties.
     return false;
   }
 
@@ -99,71 +77,93 @@ static NO_OPTIMIZE fwup_verify_status_t _fwup_verify_app_signature(app_certifica
                                                                    app_properties_t* app_props,
                                                                    uint8_t* app_base,
                                                                    size_t app_size,
-                                                                   uint8_t* signature) {
+                                                                   const uint8_t* signature) {
   if ((bl_cert == NULL) || (app_props == NULL) || (app_base == NULL) || (signature == NULL)) {
     // Invalid argument.
     return FWUP_VERIFY_ERROR;
   }
 
-  volatile secure_bool_t verified =
-    bl_verify_app_slot(bl_cert, app_props, app_base, app_size, signature);
-
-  SECURE_IF_FAILIN(verified != SECURE_TRUE) { return FWUP_VERIFY_SIGNATURE_INVALID; }
-  return FWUP_VERIFY_SUCCESS;
+  volatile secure_bool_t verified = SECURE_FALSE;
+  SECURE_DO_ONCE({
+    verified = bl_verify_app_slot(bl_cert, app_props, app_base, app_size, (uint8_t*)signature);
+  });
+  SECURE_DO_FAILOUT(verified == SECURE_TRUE, { return FWUP_VERIFY_SUCCESS; });
+  return FWUP_VERIFY_SIGNATURE_INVALID;
 }
 
-fwup_verify_status_t fwup_verify_new_app(uintptr_t app_properties_offset,
-                                         uintptr_t signature_offset) {
-  if ((fwup_priv.target_slot_addr == NULL) || (fwup_priv.current_slot_addr == NULL)) {
-    LOGE("FWUP not initialised");
-    return FWUP_VERIFY_ERROR;
-  }
+SYSCALL NO_OPTIMIZE fwup_verify_status_t fwup_verify_new_app(uintptr_t app_properties_offset,
+                                                             const uint8_t* signature) {
+  fwup_verify_status_t result;
+  RTOS_THREAD_WITH_PRIVILEGE({
+    do {
+      if ((fwup_priv.target_slot_addr == NULL) || (fwup_priv.current_slot_addr == NULL)) {
+        LOGE("FWUP not initialised");
+        result = FWUP_VERIFY_ERROR;
+        break;
+      }
 
-  if (app_properties_offset > (fwup_priv.app_slot_size - sizeof(app_properties_t)) ||
-      signature_offset > (fwup_priv.app_slot_size - ECC_SIG_SIZE)) {
-    LOGE("Bad offset (props=%zu, sig=%zu)", app_properties_offset, signature_offset);
-    return FWUP_VERIFY_BAD_OFFSET;
-  }
+      if (signature == NULL) {
+        LOGE("No signature provided");
+        result = FWUP_VERIFY_SIGNATURE_INVALID;
+        break;
+      }
 
-  uint8_t* target_slot = (uint8_t*)fwup_priv.target_slot_addr;
-  const uint8_t* current_slot = (uint8_t*)fwup_priv.current_slot_addr;
+      if (app_properties_offset > (fwup_priv.app_slot_size - sizeof(app_properties_t))) {
+        LOGE("Bad offset (props=%zu)", app_properties_offset);
+        result = FWUP_VERIFY_BAD_OFFSET;
+        break;
+      }
 
-  app_properties_t* new_props = (app_properties_t*)(target_slot + app_properties_offset);
-  if (!_fwup_verify_is_valid_app_properties(new_props)) {
-    LOGE("New app properties invalid");
-    return FWUP_VERIFY_CANT_FIND_PROPERTIES;
-  }
+      uint8_t* target_slot = (uint8_t*)fwup_priv.target_slot_addr;
+      const uint8_t* current_slot = (uint8_t*)fwup_priv.current_slot_addr;
 
-  app_properties_t* current_props = NULL;
-  if (!_fwup_verify_locate_app_properties(current_slot, fwup_priv.app_slot_size, &current_props)) {
-    LOGE("Failed to locate current app properties");
-    return FWUP_VERIFY_CANT_FIND_PROPERTIES;
-  }
+      app_properties_t* new_props = (app_properties_t*)(target_slot + app_properties_offset);
+      if (!_fwup_verify_is_valid_app_properties(new_props)) {
+        LOGE("New app properties invalid");
+        result = FWUP_VERIFY_CANT_FIND_PROPERTIES;
+        break;
+      }
 
-  if (new_props->app.version <= current_props->app.version) {
-    LOGE("App version downgrade detected (%" PRIu32 " <= %" PRIu32 ")", new_props->app.version,
-         current_props->app.version);
-    return FWUP_VERIFY_VERSION_INVALID;
-  }
+      app_properties_t* current_props = NULL;
+      if (!_fwup_verify_locate_app_properties(current_slot, fwup_priv.app_slot_size,
+                                              &current_props)) {
+        LOGE("Failed to locate current app properties");
+        result = FWUP_VERIFY_CANT_FIND_PROPERTIES;
+        break;
+      }
 
-  app_properties_t* bl_props = NULL;
-  const uint8_t* bl_base = (uint8_t*)fwup_bl_address();
-  const size_t bl_size = fwup_bl_size();
-  if (!_fwup_verify_locate_app_properties(bl_base, bl_size, &bl_props)) {
-    LOGE("Failed to locate bootloader properties");
-    return FWUP_VERIFY_CANT_FIND_PROPERTIES;
-  }
+      SECURE_DO_FAILIN((new_props->app.version <= current_props->app.version), {
+        LOGE("App version downgrade detected (%" PRIu32 " <= %" PRIu32 ")", new_props->app.version,
+             current_props->app.version);
+        result = FWUP_VERIFY_VERSION_INVALID;
+        // `break` here would only exit SECURE_DO_FAILIN's internal do/while.
+        goto out;
+      });
 
-  // Validate the application signature against the bootloader certificate.
-  uint8_t* signature = target_slot + signature_offset;
-  fwup_verify_status_t status = _fwup_verify_app_signature(
-    bl_props->cert, new_props, target_slot, fwup_priv.app_slot_size - ECC_SIG_SIZE, signature);
-  if (status != FWUP_VERIFY_SUCCESS) {
-    LOGE("App signature invalid");
-    return status;
-  }
+      app_properties_t* bl_props = NULL;
+      const uint8_t* bl_base = (uint8_t*)fwup_bl_address();
+      const size_t bl_size = fwup_bl_size();
+      if (!_fwup_verify_locate_app_properties(bl_base, bl_size, &bl_props)) {
+        LOGE("Failed to locate bootloader properties");
+        result = FWUP_VERIFY_CANT_FIND_PROPERTIES;
+        break;
+      }
 
-  return FWUP_VERIFY_SUCCESS;
+      // Validate the application signature against the bootloader certificate.
+      // The signature is provided from a RAM buffer.
+      fwup_verify_status_t status = _fwup_verify_app_signature(
+        bl_props->cert, new_props, target_slot, fwup_priv.app_slot_size - ECC_SIG_SIZE, signature);
+      if (status != FWUP_VERIFY_SUCCESS) {
+        LOGE("App signature invalid");
+        result = status;
+        break;
+      }
+
+      result = FWUP_VERIFY_SUCCESS;
+    out:;
+    } while (0);
+  });
+  return result;
 }
 
 fwup_verify_status_t fwup_verify_new_bootloader(void) {

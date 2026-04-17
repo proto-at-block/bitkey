@@ -30,6 +30,32 @@ class AnalyticsTrackingPreferenceImplTests : FunSpec({
     preference.get().shouldBeTrue()
   }
 
+  test("preference defaults to true in team builds") {
+    val preference = AnalyticsTrackingPreferenceImpl(
+      appVariant = AppVariant.Team,
+      databaseProvider = BitkeyDatabaseProviderImpl(inMemorySqlDriver().factory)
+    )
+
+    preference.get().shouldBeTrue()
+  }
+
+  test("preference defaults to false in development builds") {
+    val preference = AnalyticsTrackingPreferenceImpl(
+      appVariant = AppVariant.Development,
+      databaseProvider = BitkeyDatabaseProviderImpl(inMemorySqlDriver().factory)
+    )
+
+    preference.get().shouldBeFalse()
+  }
+
+  test("preference defaults to false in alpha builds") {
+    val preference = AnalyticsTrackingPreferenceImpl(
+      appVariant = AppVariant.Alpha,
+      databaseProvider = BitkeyDatabaseProviderImpl(inMemorySqlDriver().factory)
+    )
+
+    preference.get().shouldBeFalse()
+  }
   test("can be updated in non-customer builds") {
     val preference = AnalyticsTrackingPreferenceImpl(
       appVariant = AppVariant.Development,

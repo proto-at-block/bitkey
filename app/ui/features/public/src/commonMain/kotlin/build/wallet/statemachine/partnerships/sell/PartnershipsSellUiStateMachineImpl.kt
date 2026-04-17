@@ -143,9 +143,11 @@ class PartnershipsSellUiStateMachineImpl(
           },
           initialAmount = initialAmount,
           exchangeRates = exchangeRates,
-          minAmount = sellBitcoinMinAmountFeatureFlag.flagValue().value.let { BitcoinMoney.btc(it.value) },
-          maxAmount = sellBitcoinMaxAmountFeatureFlag.flagValue().value.let { BitcoinMoney.btc(it.value) },
-          allowSendAll = false,
+          flow =
+            TransferAmountEntryUiProps.Flow.Sell(
+              minAmount = sellBitcoinMinAmountFeatureFlag.flagValue().value.let { BitcoinMoney.btc(it.value) },
+              maxAmount = sellBitcoinMaxAmountFeatureFlag.flagValue().value.let { BitcoinMoney.btc(it.value) }
+            ),
           onContinueClick = { continueTransferParams ->
             sellAmount = when (continueTransferParams.sendAmount) {
               is BitcoinTransactionSendAmount.ExactAmount -> continueTransferParams.sendAmount.money
@@ -200,6 +202,7 @@ class PartnershipsSellUiStateMachineImpl(
       is SellConfirmation -> {
         partnershipsSellConfirmationUiStateMachine.model(
           PartnershipsSellConfirmationProps(
+            account = props.account,
             confirmedPartnerSale = currentState.confirmedPartnerSale,
             onBack = {
               metricTrackerService.completeMetric(

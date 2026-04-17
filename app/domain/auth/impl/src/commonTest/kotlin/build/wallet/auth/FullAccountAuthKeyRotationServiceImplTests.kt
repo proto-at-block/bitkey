@@ -18,6 +18,7 @@ import build.wallet.cloud.store.CloudStoreAccountRepositoryMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.auth.RotateAuthKeysF8eClientMock
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.ktor.result.HttpBodyError
@@ -53,7 +54,7 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
   val cloudBackupDao = CloudBackupDaoFake()
   val fullAccountCloudBackupCreator = FullAccountCloudBackupCreatorMock(turbines::create)
   val cloudStoreAccountRepository = CloudStoreAccountRepositoryMock()
-  val cloudBackupRepository = CloudBackupRepositoryFake()
+  val cloudBackupService = CloudBackupServiceFake()
   val cloudAccount = CloudAccountMock("cloudInstanceId")
 
   val fullAccountAuthKeyRotationService = FullAccountAuthKeyRotationServiceImpl(
@@ -64,7 +65,7 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
     cloudBackupDao = cloudBackupDao,
     fullAccountCloudBackupCreator = fullAccountCloudBackupCreator,
     cloudStoreAccountRepository = cloudStoreAccountRepository,
-    cloudBackupRepository = cloudBackupRepository,
+    cloudBackupService = cloudBackupService,
     relationshipsService = relationshipsService,
     endorseTrustedContactsService = trustedContactKeyAuthenticator
   )
@@ -75,7 +76,7 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
     cloudBackupDao.reset()
     fullAccountCloudBackupCreator.reset()
     cloudStoreAccountRepository.reset()
-    cloudBackupRepository.reset()
+    cloudBackupService.reset()
   }
 
   val generatedGlobalAuthKey =
@@ -123,7 +124,7 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
           )
 
           val request = AuthKeyRotationRequest.Start(
-            hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
+            proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("signed-token")),
             hwSignedAccountId = "signed-account-id",
             hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
             newKeys = generateAppAuthKeys
@@ -219,7 +220,7 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
             )
 
             val request = AuthKeyRotationRequest.Start(
-              hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
+              proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("signed-token")),
               hwSignedAccountId = "signed-account-id",
               hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
               newKeys = generateAppAuthKeys
@@ -261,7 +262,7 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
             )
 
             val request = AuthKeyRotationRequest.Start(
-              hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
+              proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("signed-token")),
               hwSignedAccountId = "signed-account-id",
               hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
               newKeys = generateAppAuthKeys
@@ -305,7 +306,7 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
             )
 
             val request = AuthKeyRotationRequest.Start(
-              hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
+              proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("signed-token")),
               hwSignedAccountId = "signed-account-id",
               hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
               newKeys = generateAppAuthKeys
@@ -344,7 +345,7 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
       )
 
       val request = AuthKeyRotationRequest.Start(
-        hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
+        proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("signed-token")),
         hwSignedAccountId = "signed-account-id",
         hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
         newKeys = generateAppAuthKeys
@@ -380,7 +381,7 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
       )
 
       val request = AuthKeyRotationRequest.Start(
-        hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
+        proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("signed-token")),
         hwSignedAccountId = "signed-account-id",
         hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
         newKeys = generateAppAuthKeys
@@ -418,7 +419,7 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
       )
 
       val request = AuthKeyRotationRequest.Start(
-        hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
+        proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("signed-token")),
         hwSignedAccountId = "signed-account-id",
         hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
         newKeys = generateAppAuthKeys
@@ -458,7 +459,7 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
       )
 
       val request = AuthKeyRotationRequest.Start(
-        hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
+        proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("signed-token")),
         hwSignedAccountId = "signed-account-id",
         hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
         newKeys = generateAppAuthKeys
@@ -489,7 +490,7 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
       )
 
       val request = AuthKeyRotationRequest.Start(
-        hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
+        proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("signed-token")),
         hwSignedAccountId = "signed-account-id",
         hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
         newKeys = generateAppAuthKeys
@@ -520,7 +521,7 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
       )
 
       val request = AuthKeyRotationRequest.Start(
-        hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
+        proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("signed-token")),
         hwSignedAccountId = "signed-account-id",
         hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
         newKeys = generateAppAuthKeys
@@ -557,7 +558,7 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
       )
 
       val request = AuthKeyRotationRequest.Start(
-        hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
+        proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("signed-token")),
         hwSignedAccountId = "signed-account-id",
         hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
         newKeys = generateAppAuthKeys
@@ -597,7 +598,7 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
       )
 
       val request = AuthKeyRotationRequest.Start(
-        hwFactorProofOfPossession = HwFactorProofOfPossession("signed-token"),
+        proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("signed-token")),
         hwSignedAccountId = "signed-account-id",
         hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
         newKeys = generateAppAuthKeys

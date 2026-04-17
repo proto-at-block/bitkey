@@ -5,6 +5,7 @@ import build.wallet.db.DbError
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.firmware.FirmwareDeviceInfoDao
+import build.wallet.firmware.FirmwareMetadata.FirmwareSlot
 import build.wallet.firmware.McuRole
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.UpToDate
@@ -25,6 +26,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 
 @BitkeyInject(AppScope::class)
@@ -42,7 +44,8 @@ class FirmwareDataServiceImpl(
 
   override suspend fun executeWork() {
     coroutineScope {
-      val syncTicker = tickerFlow(firmwareUpdateSyncFrequency.value)
+      val syncTicker = firmwareUpdateSyncFrequency.value
+        .flatMapLatest { duration -> tickerFlow(duration) }
         .filter { appSessionManager.isAppForegrounded() }
       launch {
         combine(
@@ -90,13 +93,33 @@ class FirmwareDataServiceImpl(
         // Update main version field (CORE version for W1 backwards compatibility)
         val newVersion = updatedVersions[McuRole.CORE] ?: firmwareDeviceInfo.version
 
-        // Update mcuInfo list with new versions for W3+ devices
+        // Update mcuInfo list with new versions and toggled active slots for W3+ devices.
+        // FWUP writes to the inactive slot and boots from it, so toggle the slot for
+        // each updated MCU.
         val updatedMcuInfo = firmwareDeviceInfo.mcuInfo.map { mcu ->
-          updatedVersions[mcu.mcuRole]?.let { mcu.copy(firmwareVersion = it) } ?: mcu
+          updatedVersions[mcu.mcuRole]?.let { newVersion ->
+            mcu.copy(
+              firmwareVersion = newVersion,
+              activeSlot = mcu.activeSlot?.toggled()
+            )
+          } ?: mcu
+        }
+
+        // The top-level activeSlot represents CORE's slot (legacy field, used as
+        // fallback when per-MCU slots are unavailable). Only toggle it when CORE
+        // was actually updated.
+        val updatedActiveSlot = if (McuRole.CORE in updatedVersions) {
+          firmwareDeviceInfo.activeSlot.toggled()
+        } else {
+          firmwareDeviceInfo.activeSlot
         }
 
         firmwareDeviceInfoDao.setDeviceInfo(
-          firmwareDeviceInfo.copy(version = newVersion, mcuInfo = updatedMcuInfo)
+          firmwareDeviceInfo.copy(
+            version = newVersion,
+            activeSlot = updatedActiveSlot,
+            mcuInfo = updatedMcuInfo
+          )
         ).bind()
       } else {
         logError { "Firmware device info null after fwup. This should not happen" }

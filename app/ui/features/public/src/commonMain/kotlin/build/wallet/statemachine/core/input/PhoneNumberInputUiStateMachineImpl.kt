@@ -1,10 +1,6 @@
 package build.wallet.statemachine.core.input
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.code.AddTouchpointClientErrorCode
 import build.wallet.di.ActivityScope
@@ -18,7 +14,6 @@ import build.wallet.statemachine.core.input.DataInputStyle.Edit
 import build.wallet.statemachine.core.input.DataInputStyle.Enter
 import build.wallet.statemachine.core.input.PhoneNumberInputUiState.BottomSheetState.Hidden
 import build.wallet.statemachine.core.input.PhoneNumberInputUiState.BottomSheetState.ShowingErrorSheet
-import build.wallet.statemachine.core.input.PhoneNumberInputUiState.BottomSheetState.ShowingSkipSheet
 import build.wallet.statemachine.core.input.PhoneNumberInputUiState.EntryState.Complete
 import build.wallet.statemachine.core.input.PhoneNumberInputUiState.EntryState.Incomplete
 import build.wallet.ui.model.StandardClick
@@ -32,7 +27,7 @@ class PhoneNumberInputUiStateMachineImpl(
 ) : PhoneNumberInputUiStateMachine {
   @Composable
   override fun model(props: PhoneNumberInputUiProps): ScreenModel {
-    var state by remember {
+    var state by remember(props.prefillValue) {
       val dialingCode = phoneNumberValidator.dialingCodeForCurrentRegion()
       val exampleNumber = phoneNumberValidator.exampleFormattedNumberForCurrentRegion()
       val validatedPhoneNumber =
@@ -61,6 +56,7 @@ class PhoneNumberInputUiStateMachineImpl(
           Edit -> "Edit your phone number"
         },
       subline = props.subline,
+      sublineModel = props.sublineModel,
       textFieldValue = state.entryState.formattedValue,
       textFieldSelection = state.entrySelection,
       textFieldPlaceholder = state.placeholderText,
@@ -121,23 +117,11 @@ class PhoneNumberInputUiStateMachineImpl(
             onClick = StandardClick(onSkip)
           )
         },
-      onClose = { props.onClose() },
-      onSkip =
-        props.skipBottomSheetProvider?.let {
-          {
-            // Build the sheet with the onBack behavior
-            val skipBottomSheet =
-              it {
-                state = state.copy(bottomSheetState = Hidden)
-              }
-            // Update the state to show the sheet
-            state = state.copy(bottomSheetState = ShowingSkipSheet(skipBottomSheet))
-          }
-        },
+      onClose = props.onClose,
+      isCloseButton = props.isCloseButton,
       errorOverlayModel =
         when (val bottomSheetState = state.bottomSheetState) {
           is Hidden -> null
-          is ShowingSkipSheet -> bottomSheetState.sheet
           is ShowingErrorSheet ->
             SheetModel(
               onClosed = { state = state.copy(bottomSheetState = Hidden) },
@@ -200,8 +184,6 @@ private data class PhoneNumberInputUiState(
 
   sealed interface BottomSheetState {
     data object Hidden : BottomSheetState
-
-    data class ShowingSkipSheet(val sheet: SheetModel) : BottomSheetState
 
     data class ShowingErrorSheet(
       val error: F8eError<AddTouchpointClientErrorCode>,

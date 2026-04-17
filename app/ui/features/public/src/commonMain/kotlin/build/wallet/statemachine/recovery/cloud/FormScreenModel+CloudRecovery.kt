@@ -207,8 +207,7 @@ data class CloudBackupFoundModel(
     primaryButton = BitkeyInteractionButtonModel(
       text = "Restore Bitkey Wallet",
       onClick = StandardClick(onRestore),
-      size = Footer,
-      testTag = "restore-bitkey-wallet"
+      size = Footer
     ),
     id = CLOUD_BACKUP_FOUND
   )

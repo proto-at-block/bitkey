@@ -2,14 +2,20 @@
 #include "FreeRTOS.h"
 #include "display_driver.h"
 #include "gfx.h"
+#include "mcu_flash.h"
 #include "mcu_gpio.h"
+#include "mcu_opt.h"
 #include "mcu_qspi.h"
 #include "mcu_usart.h"
 #include "serial.h"
 #include "stm32u5xx.h"
 #include "touch.h"
 
+#include <stddef.h>
 #include <stdint.h>
+
+extern uintptr_t bl_base_addr;
+extern uintptr_t bl_slot_size;
 
 // FreeRTOS heap
 uint8_t ucHeap[configTOTAL_HEAP_SIZE];
@@ -101,8 +107,6 @@ display_config_t display_config = {.gfx_config =
                                        .display_width = 466,
                                        .display_height = 466,
                                      },
-                                   .pwr_on_delay = 100u,     // 100 ms
-                                   .pwr_off_delay = 100u,    // 100 ms
                                    .update_period_ms = 16u,  // ~60Hz
                                    .pwr = {
                                      .pwr_1v8_en =
@@ -266,3 +270,21 @@ const touch_config_t touch_config = {.interface = {.i2c =
                                            .pupd = MCU_GPIO_PUPD_NONE,
                                          },
                                      }};
+
+const mcu_flash_opt_t mcu_flash_opt_prod = {
+  .profile = MCU_FLASH_OPT_PROFILE_PROD,
+  .target_rdp = MCU_FLASH_RDP_2,
+  .bootloader_address = (uintptr_t)&bl_base_addr,
+  .bootloader_size = (size_t)&bl_slot_size,
+  .bootloader_lock = true,
+  .boot_address_lock = true,
+};
+
+const mcu_flash_opt_t mcu_flash_opt_dev = {
+  .profile = MCU_FLASH_OPT_PROFILE_DEV,
+  .target_rdp = MCU_FLASH_RDP_0,
+  .bootloader_address = (uintptr_t)&bl_base_addr,
+  .bootloader_size = (size_t)&bl_slot_size,
+  .bootloader_lock = false,
+  .boot_address_lock = false,
+};

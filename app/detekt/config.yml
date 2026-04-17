@@ -854,3 +854,11 @@ bitkey:
     active: true
   NoUnrememberedCollectAsState:
     active: true
+  MissingFeatureFlagInList:
+    active: true
+  NoKotlinResult:
+    active: true
+  NoServiceImportInDao:
+    active: true
+  RedundantStartupWithForegroundEvent:
+    active: true

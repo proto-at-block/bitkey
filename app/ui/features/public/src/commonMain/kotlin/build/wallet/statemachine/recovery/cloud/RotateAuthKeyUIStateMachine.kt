@@ -1,7 +1,13 @@
 package build.wallet.statemachine.recovery.cloud
 
 import androidx.compose.runtime.*
+import bitkey.account.HardwareType
+import bitkey.account.isW3Hardware
+import bitkey.privilegedactions.ActionProofService
+import bitkey.privilegedactions.ActionProofService.Companion.ACTION_PROOF_VERSION
 import build.wallet.analytics.events.screen.context.AuthKeyRotationEventTrackerScreenIdContext
+import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
+import build.wallet.analytics.events.screen.id.AuthEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.InactiveAppEventTrackerScreenId
 import build.wallet.auth.AuthKeyRotationFailure
 import build.wallet.auth.AuthKeyRotationRequest
@@ -11,24 +17,45 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppRecoveryAuthKey
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.crypto.PublicKey
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.logging.logDebug
 import build.wallet.logging.logFailure
 import build.wallet.logging.logWarn
+import build.wallet.nfc.platform.ActionProofAction
+import build.wallet.nfc.platform.RotateAppAuthKeysContinueParams
+import build.wallet.nfc.transaction.ProvisionAppAuthKeyTransactionProvider
 import build.wallet.platform.web.InAppBrowserNavigator
+import build.wallet.statemachine.auth.ActionProofType
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
+import build.wallet.statemachine.auth.RefreshAuthTokensProps
+import build.wallet.statemachine.auth.RefreshAuthTokensUiStateMachine
 import build.wallet.statemachine.auth.Request
+import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
+import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.InAppBrowserModel
+import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.StateMachine
+import build.wallet.statemachine.nfc.ConfirmationResultContent
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachine
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
+import build.wallet.statemachine.recovery.RecoverySegment
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationContent
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapBoth
+import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
 interface RotateAuthKeyUIStateMachine :
@@ -70,32 +97,20 @@ class RotateAuthKeyUIStateMachineImpl(
   val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
   val fullAccountAuthKeyRotationService: FullAccountAuthKeyRotationService,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
+  private val refreshAuthTokensUiStateMachine: RefreshAuthTokensUiStateMachine,
+  private val nfcConfirmableSessionUiStateMachine: NfcConfirmableSessionUiStateMachine,
+  private val actionProofService: ActionProofService,
+  private val provisionAppAuthKeyTransactionProvider: ProvisionAppAuthKeyTransactionProvider,
+  private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
 ) : RotateAuthKeyUIStateMachine {
   @Composable
   override fun model(props: RotateAuthKeyUIStateMachineProps): ScreenModel {
     val eventTrackerScreenIdContext = remember(props.origin) {
-      when (props.origin) {
-        is RotateAuthKeyUIOrigin.PendingAttempt -> when (props.origin.attempt) {
-          is PendingAuthKeyRotationAttempt.IncompleteAttempt -> AuthKeyRotationEventTrackerScreenIdContext.FAILED_ATTEMPT
-          PendingAuthKeyRotationAttempt.ProposedAttempt -> AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
-        }
-        is RotateAuthKeyUIOrigin.Settings -> AuthKeyRotationEventTrackerScreenIdContext.SETTINGS
-      }
+      eventTrackerContext(props.origin)
     }
 
     var state: State by remember(props.origin) {
-      val initialState = when (props.origin) {
-        is RotateAuthKeyUIOrigin.PendingAttempt -> when (props.origin.attempt) {
-          PendingAuthKeyRotationAttempt.ProposedAttempt -> State.WaitingOnChoiceState(
-            appGlobalAndRecoveryAuthKeys = null
-          )
-          is PendingAuthKeyRotationAttempt.IncompleteAttempt -> State.RotatingAuthKeys(
-            request = AuthKeyRotationRequest.Resume(newKeys = props.origin.attempt.newKeys)
-          )
-        }
-        is RotateAuthKeyUIOrigin.Settings -> State.WaitingOnChoiceState(appGlobalAndRecoveryAuthKeys = null)
-      }
-      mutableStateOf(initialState)
+      mutableStateOf(initialState(props.origin))
     }
 
     return when (val uiState = state) {
@@ -115,6 +130,89 @@ class RotateAuthKeyUIStateMachineImpl(
       is State.ObtainingHwProofOfPossession -> waitingOnProofOfPossession(props, uiState) {
         state = it
       }
+
+      // W3 action proof flow: refresh tokens → build payload → composite NFC tap
+      is State.W3RefreshingTokens -> {
+        refreshAuthTokensUiStateMachine.model(
+          RefreshAuthTokensProps(
+            fullAccountId = props.account.accountId,
+            onSuccess = {
+              state = State.W3BuildingPayload(
+                appGlobalAndRecoveryAuthKeys = uiState.appGlobalAndRecoveryAuthKeys
+              )
+            },
+            onBack = {
+              state = State.WaitingOnChoiceState(
+                appGlobalAndRecoveryAuthKeys = uiState.appGlobalAndRecoveryAuthKeys
+              )
+            },
+            screenPresentationStyle = ScreenPresentationStyle.FullScreen
+          )
+        )
+      }
+
+      is State.W3BuildingPayload -> {
+        LaunchedEffect("w3-build-and-sign-payload") {
+          val type = ActionProofType.RotateAuthKeys
+          actionProofService.buildAppSignedPayload(
+            action = type.action,
+            value = type.value,
+            extra = type.extra,
+            appAuthKey = props.account.keybox.activeAppKeyBundle.authKey,
+            accountId = props.account.accountId
+          )
+            .logFailure { "Failed to build and app-sign action proof payload for auth key rotation" }
+            .onSuccess { signed ->
+              state = State.W3CompositeNfcTap(
+                appGlobalAndRecoveryAuthKeys = uiState.appGlobalAndRecoveryAuthKeys,
+                bindings = signed.bindings,
+                appSignature = signed.appSignature,
+                nonce = signed.nonce
+              )
+            }
+            .onFailure {
+              state = State.W3ActionProofError(
+                appGlobalAndRecoveryAuthKeys = uiState.appGlobalAndRecoveryAuthKeys,
+                error = it
+              )
+            }
+        }
+
+        LoadingBodyModel(
+          id = AuthEventTrackerScreenId.ACTION_PROOF_BUILDING_PAYLOAD,
+          title = "Loading..."
+        ).asRootScreen()
+      }
+
+      is State.W3CompositeNfcTap -> {
+        w3CompositeNfcTapModel(props, uiState) { state = it }
+      }
+
+      is State.W3ActionProofError -> {
+        ErrorFormBodyModel(
+          title = "We couldn't verify this action",
+          primaryButton = ButtonDataModel(
+            text = "Retry",
+            onClick = {
+              state = State.W3BuildingPayload(
+                appGlobalAndRecoveryAuthKeys = uiState.appGlobalAndRecoveryAuthKeys
+              )
+            }
+          ),
+          onBack = {
+            state = State.WaitingOnChoiceState(
+              appGlobalAndRecoveryAuthKeys = uiState.appGlobalAndRecoveryAuthKeys
+            )
+          },
+          eventTrackerScreenId = AuthEventTrackerScreenId.ACTION_PROOF_ERROR,
+          errorData = ErrorData(
+            segment = RecoverySegment,
+            actionDescription = "Sign out other devices via action proof",
+            cause = uiState.error
+          )
+        ).asRootScreen()
+      }
+
       is State.RotatingAuthKeys -> {
         LaunchedEffect("rotate auth keys") {
           state = getAuthKeyRotationResult(uiState, props)
@@ -124,6 +222,21 @@ class RotateAuthKeyUIStateMachineImpl(
           context = eventTrackerScreenIdContext
         ).asRootScreen()
       }
+      is State.ProvisioningHardware -> nfcSessionUIStateMachine.model(
+        props = NfcSessionUIStateMachineProps(
+          transaction = provisionAppAuthKeyTransactionProvider(
+            appGlobalAuthPublicKey = uiState.appGlobalAuthPublicKey,
+            onSuccess = {
+              state = State.AcknowledgingSuccess(onAcknowledge = uiState.onAcknowledge)
+            },
+            onCancel = {
+              state = State.AcknowledgingSuccess(onAcknowledge = uiState.onAcknowledge)
+            }
+          ),
+          screenPresentationStyle = ScreenPresentationStyle.FullScreen,
+          eventTrackerContext = NfcEventTrackerScreenIdContext.ROTATE_AUTH_KEYS_PROVISION_APP_AUTH_KEY
+        )
+      )
       is State.AcknowledgingSuccess -> RotateAuthKeyScreens.Confirmation(
         context = eventTrackerScreenIdContext,
         onSelected = {
@@ -152,12 +265,15 @@ class RotateAuthKeyUIStateMachineImpl(
       is State.PresentingRecoverableFailure -> RotateAuthKeyScreens.AcceptableFailure(
         context = eventTrackerScreenIdContext,
         onRetry = {
-          state = State.ObtainingHwProofOfPossession(
-            AppGlobalAndRecoveryAuthKeys(
-              globalKey = uiState.newAppAuthKeys.appGlobalAuthPublicKey,
-              recoveryKey = uiState.newAppAuthKeys.appRecoveryAuthPublicKey
-            )
+          val keys = AppGlobalAndRecoveryAuthKeys(
+            globalKey = uiState.newAppAuthKeys.appGlobalAuthPublicKey,
+            recoveryKey = uiState.newAppAuthKeys.appRecoveryAuthPublicKey
           )
+          state = if (props.account.keybox.config.isW3Hardware) {
+            State.W3RefreshingTokens(appGlobalAndRecoveryAuthKeys = keys)
+          } else {
+            State.ObtainingHwProofOfPossession(appGlobalAndRecoveryAuthKeys = keys)
+          }
         },
         onAcknowledge = {
           uiState.onAcknowledge()
@@ -192,6 +308,30 @@ class RotateAuthKeyUIStateMachineImpl(
     }
   }
 
+  private fun eventTrackerContext(
+    origin: RotateAuthKeyUIOrigin,
+  ): AuthKeyRotationEventTrackerScreenIdContext =
+    when (origin) {
+      is RotateAuthKeyUIOrigin.PendingAttempt -> when (origin.attempt) {
+        is PendingAuthKeyRotationAttempt.IncompleteAttempt -> AuthKeyRotationEventTrackerScreenIdContext.FAILED_ATTEMPT
+        PendingAuthKeyRotationAttempt.ProposedAttempt -> AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
+      }
+      is RotateAuthKeyUIOrigin.Settings -> AuthKeyRotationEventTrackerScreenIdContext.SETTINGS
+    }
+
+  private fun initialState(origin: RotateAuthKeyUIOrigin): State =
+    when (origin) {
+      is RotateAuthKeyUIOrigin.PendingAttempt -> when (origin.attempt) {
+        PendingAuthKeyRotationAttempt.ProposedAttempt -> State.WaitingOnChoiceState(
+          appGlobalAndRecoveryAuthKeys = null
+        )
+        is PendingAuthKeyRotationAttempt.IncompleteAttempt -> State.RotatingAuthKeys(
+          request = AuthKeyRotationRequest.Resume(newKeys = origin.attempt.newKeys)
+        )
+      }
+      is RotateAuthKeyUIOrigin.Settings -> State.WaitingOnChoiceState(appGlobalAndRecoveryAuthKeys = null)
+    }
+
   private suspend fun getAuthKeyRotationResult(
     uiState: State.RotatingAuthKeys,
     props: RotateAuthKeyUIStateMachineProps,
@@ -201,7 +341,8 @@ class RotateAuthKeyUIStateMachineImpl(
   ).mapBoth(
     success = { success ->
       logDebug { "Successfully rotated auth keys" }
-      State.AcknowledgingSuccess(
+      State.ProvisioningHardware(
+        appGlobalAuthPublicKey = uiState.request.newKeys.appGlobalAuthPublicKey,
         onAcknowledge = success.onAcknowledge
       )
     },
@@ -254,9 +395,19 @@ class RotateAuthKeyUIStateMachineImpl(
       }
     }
 
-    val removeAllOtherDevices = remember(state.appGlobalAndRecoveryAuthKeys) {
+    val isW3 = props.account.keybox.config.isW3Hardware
+
+    val removeAllOtherDevices = remember(state.appGlobalAndRecoveryAuthKeys, isW3) {
       if (state.appGlobalAndRecoveryAuthKeys == null) {
         { /* noop */ }
+      } else if (isW3) {
+        {
+          setState(
+            State.W3RefreshingTokens(
+              appGlobalAndRecoveryAuthKeys = state.appGlobalAndRecoveryAuthKeys
+            )
+          )
+        }
       } else {
         {
           setState(
@@ -306,7 +457,7 @@ class RotateAuthKeyUIStateMachineImpl(
                   appRecoveryAuthPublicKey = state.appGlobalAndRecoveryAuthKeys.recoveryKey,
                   appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature
                 ),
-                hwFactorProofOfPossession = hwFactorProofOfPossession,
+                proof = PrivilegedActionProof.HwKeyProof(hwFactorProofOfPossession),
                 hwAuthPublicKey = hwAuthPublicKey,
                 hwSignedAccountId = signedAccountId
               )
@@ -323,18 +474,129 @@ class RotateAuthKeyUIStateMachineImpl(
     )
   )
 
+  /**
+   * W3 composite NFC tap: calls [NfcCommands.rotateAppAuthKeys] which signs the action proof,
+   * the new app global auth key, and the account ID in a single confirmable tap.
+   */
+  @Composable
+  private fun w3CompositeNfcTapModel(
+    props: RotateAuthKeyUIStateMachineProps,
+    state: State.W3CompositeNfcTap,
+    setState: (State) -> Unit,
+  ): ScreenModel {
+    return nfcConfirmableSessionUiStateMachine.model(
+      NfcConfirmableSessionUIStateMachineProps(
+        session = { session, commands ->
+          commands.rotateAppAuthKeys(
+            session = session,
+            params = RotateAppAuthKeysContinueParams(
+              actionProofVersion = ACTION_PROOF_VERSION,
+              actionProofAction = ActionProofAction.ROTATE_APP_AUTH_KEYS,
+              actionProofBindings = state.bindings,
+              accountId = props.account.accountId.serverId,
+              appGlobalAuthPublicKey = state.appGlobalAndRecoveryAuthKeys.globalKey.value
+            )
+          )
+        },
+        onSuccess = { result ->
+          // HW returns compact (r||s) hex-encoded action proof signature.
+          val hwSignature = result.actionProofSignature.lowercase()
+
+          actionProofService.createActionProofHeader(
+            signatures = listOf(state.appSignature, hwSignature),
+            nonce = state.nonce
+          )
+            .logFailure { "Failed to create action proof header for auth key rotation" }
+            .onSuccess { header ->
+              setState(
+                State.RotatingAuthKeys(
+                  request = AuthKeyRotationRequest.Start(
+                    newKeys = AppAuthPublicKeys(
+                      appGlobalAuthPublicKey = state.appGlobalAndRecoveryAuthKeys.globalKey,
+                      appRecoveryAuthPublicKey = state.appGlobalAndRecoveryAuthKeys.recoveryKey,
+                      appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(
+                        result.appGlobalAuthKeyHwSignature
+                      )
+                    ),
+                    proof = PrivilegedActionProof.HwSignedAction(actionProof = header),
+                    hwAuthPublicKey = props.account.keybox.activeHwKeyBundle.authKey,
+                    hwSignedAccountId = result.hwSignedAccountId
+                  )
+                )
+              )
+            }
+            .onFailure {
+              setState(
+                State.W3ActionProofError(
+                  appGlobalAndRecoveryAuthKeys = state.appGlobalAndRecoveryAuthKeys,
+                  error = it
+                )
+              )
+            }
+        },
+        onCancel = {
+          setState(
+            State.WaitingOnChoiceState(
+              appGlobalAndRecoveryAuthKeys = state.appGlobalAndRecoveryAuthKeys
+            )
+          )
+        },
+        segment = RecoverySegment,
+        actionDescription = "Sign out other devices via action proof",
+        screenPresentationStyle = ScreenPresentationStyle.FullScreen,
+        eventTrackerContext = NfcEventTrackerScreenIdContext.SIGN_ACTION_PROOF,
+        confirmationContent = HardwareConfirmationContent.SignActionProof,
+        confirmationResultContent = ConfirmationResultContent(
+          pendingHeadline = "Review action on Bitkey",
+          pendingSubline = "You’ll need to approve or deny on your Bitkey device before tapping again."
+        ),
+        hardwareVerification = Required(),
+        hardwareTypeOverride = HardwareType.W3
+      )
+    )
+  }
+
   private sealed interface State {
     // We're waiting on the customer to choose an option.
     data class WaitingOnChoiceState(
       val appGlobalAndRecoveryAuthKeys: AppGlobalAndRecoveryAuthKeys?,
     ) : State
 
-    // We've passed control to the proof of possession state machine and are awaiting it's completion
+    // W1 path: obtaining HW proof of possession via NFC
     data class ObtainingHwProofOfPossession(
       val appGlobalAndRecoveryAuthKeys: AppGlobalAndRecoveryAuthKeys,
     ) : State
 
+    // W3 path step 1: refreshing auth tokens before building action proof
+    data class W3RefreshingTokens(
+      val appGlobalAndRecoveryAuthKeys: AppGlobalAndRecoveryAuthKeys,
+    ) : State
+
+    // W3 path step 2: building action proof payload, bindings, and app-signing
+    data class W3BuildingPayload(
+      val appGlobalAndRecoveryAuthKeys: AppGlobalAndRecoveryAuthKeys,
+    ) : State
+
+    // W3 path step 3: composite NFC tap that signs action proof + app auth key + account ID
+    data class W3CompositeNfcTap(
+      val appGlobalAndRecoveryAuthKeys: AppGlobalAndRecoveryAuthKeys,
+      val bindings: String,
+      val appSignature: String,
+      val nonce: String,
+    ) : State
+
+    // W3 path: error during action proof building or header creation
+    data class W3ActionProofError(
+      val appGlobalAndRecoveryAuthKeys: AppGlobalAndRecoveryAuthKeys,
+      val error: Throwable,
+    ) : State
+
     data class RotatingAuthKeys(val request: AuthKeyRotationRequest) : State
+
+    data class ProvisioningHardware(
+      val appGlobalAuthPublicKey: PublicKey<AppGlobalAuthKey>,
+      val onAcknowledge: () -> Unit,
+    ) : State
 
     data class AcknowledgingSuccess(
       val onAcknowledge: () -> Unit,

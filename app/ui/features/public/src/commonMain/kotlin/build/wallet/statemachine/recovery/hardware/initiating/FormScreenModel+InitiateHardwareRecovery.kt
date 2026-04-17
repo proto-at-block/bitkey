@@ -60,6 +60,7 @@ data class NewDeviceReadyQuestionBodyModel(
             model =
               IconButtonModel(
                 iconModel = backIconModel,
+                testTag = "hardware-recovery-new-device-question-back",
                 onClick = StandardClick { onBack() }
               )
           ).takeIf { showBack }

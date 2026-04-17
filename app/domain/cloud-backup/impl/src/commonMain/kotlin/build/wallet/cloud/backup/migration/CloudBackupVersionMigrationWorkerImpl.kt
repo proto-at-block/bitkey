@@ -6,7 +6,7 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupOperationLock
-import build.wallet.cloud.backup.CloudBackupRepository
+import build.wallet.cloud.backup.CloudBackupService
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreator
@@ -34,7 +34,7 @@ import kotlinx.coroutines.sync.withLock
 class CloudBackupVersionMigrationWorkerImpl(
   private val accountService: AccountService,
   private val cloudStoreAccountRepository: CloudStoreAccountRepository,
-  private val cloudBackupRepository: CloudBackupRepository,
+  private val cloudBackupService: CloudBackupService,
   private val fullAccountCloudBackupCreator: FullAccountCloudBackupCreator,
   private val liteAccountCloudBackupCreator: LiteAccountCloudBackupCreator,
   private val cloudBackupDao: CloudBackupDao,
@@ -42,10 +42,6 @@ class CloudBackupVersionMigrationWorkerImpl(
   appSessionManager: AppSessionManager,
 ) : CloudBackupVersionMigrationWorker {
   override val runStrategy: Set<RunStrategy> = setOf(
-    RunStrategy.Startup(
-      // Skip if backgrounded. We'll start a new attempt when foregrounded.
-      backgroundStrategy = BackgroundStrategy.Skip
-    ),
     RunStrategy.OnEvent(
       observer = appSessionManager.appSessionState
         .filter { it == AppSessionState.FOREGROUND },
@@ -147,7 +143,7 @@ class CloudBackupVersionMigrationWorkerImpl(
       val newBackup = createNewBackup().bind()
 
       // Upload new backup to cloud
-      cloudBackupRepository.writeBackup(
+      cloudBackupService.writeBackup(
         accountId = account.accountId,
         cloudStoreAccount = cloudStoreAccount,
         backup = newBackup,

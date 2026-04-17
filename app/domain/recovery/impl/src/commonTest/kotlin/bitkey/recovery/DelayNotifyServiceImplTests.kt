@@ -18,6 +18,7 @@ import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.cloud.backup.csek.SealedSsekFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.onboarding.CreateAccountKeysetF8eClientFake
 import build.wallet.f8e.onboarding.CreateAccountKeysetV2F8eClientFake
 import build.wallet.f8e.onboarding.SetActiveSpendingKeysetF8eClientFake
@@ -25,10 +26,12 @@ import build.wallet.f8e.recovery.CompleteDelayNotifyF8eClientMock
 import build.wallet.f8e.recovery.ListKeysetsF8eClientMock
 import build.wallet.f8e.recovery.ListKeysetsResponse
 import build.wallet.f8e.recovery.PrivateMultisigRemoteKeyset
+import build.wallet.f8e.recovery.SignedKeysetVerificationResponseMock
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.ChaincodeDelegationFeatureFlag
 import build.wallet.feature.flags.UpdateToPrivateWalletOnRecoveryFeatureFlag
 import build.wallet.feature.setFlagValue
+
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.ktor.result.HttpError
 import build.wallet.notifications.DeviceTokenManagerMock
@@ -125,7 +128,7 @@ class DelayNotifyServiceImplTests : FunSpec({
       StillRecoveringInitiatedRecoveryMock.copy(factorToRecover = PhysicalFactor.App)
 
     val hwProof = HwFactorProofOfPossession("test-proof")
-    val request = CancelLostAppAndCloudRecovery(hwProof)
+    val request = CancelLostAppAndCloudRecovery(PrivilegedActionProof.HwKeyProof(hwProof))
 
     service.cancelDelayNotify(request).shouldBeOk()
   }
@@ -139,7 +142,7 @@ class DelayNotifyServiceImplTests : FunSpec({
     )
     lostAppAndCloudRecoveryService.cancelResult = Err(error)
     val hwProof = HwFactorProofOfPossession("test-proof")
-    val request = CancelLostAppAndCloudRecovery(hwProof)
+    val request = CancelLostAppAndCloudRecovery(PrivilegedActionProof.HwKeyProof(hwProof))
 
     service.cancelDelayNotify(request)
       .shouldBeErrOfType<CancelDelayNotifyRecoveryError.LocalCancelDelayNotifyError>()
@@ -169,19 +172,36 @@ class DelayNotifyServiceImplTests : FunSpec({
     recoveryStatusService.recoveryStatus.value = Recovery.NoActiveRecovery
 
     service.cancelDelayNotify(CancelLostHardwareRecovery)
-      .shouldBeErrOfType<Error>()
+      .shouldBeErrOfType<CancelDelayNotifyRecoveryError.LocalCancelDelayNotifyError>()
   }
 
-  test("activateSpendingKeyset success") {
+  test("activateSpendingKeyset success returns null for W1") {
     recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
-    setActiveSpendingKeysetF8eClient.setResult = Ok(Unit)
+    setActiveSpendingKeysetF8eClient.setResult = Ok(null)
 
     val result = service.activateSpendingKeyset(
       keyset = F8eSpendingKeysetMock,
-      hardwareProofOfPossession = HwFactorProofOfPossession("hw-proof")
+      proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("hw-proof"))
     )
 
-    result.shouldBeOk(Unit)
+    result.shouldBeOk(null)
+    val expectedProgress = LocalRecoveryAttemptProgress.ActivatedSpendingKeys(
+      f8eSpendingKeyset = F8eSpendingKeysetMock
+    )
+    recoveryDao.setLocalRecoveryProgressCalls.awaitItem().shouldBe(expectedProgress)
+  }
+
+  test("activateSpendingKeyset success returns signed keys for W3") {
+    recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
+    val signedKeys = SignedKeysetVerificationResponseMock
+    setActiveSpendingKeysetF8eClient.setResult = Ok(signedKeys)
+
+    val result = service.activateSpendingKeyset(
+      keyset = F8eSpendingKeysetMock,
+      proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("hw-proof"))
+    )
+
+    result.shouldBeOk(signedKeys)
     val expectedProgress = LocalRecoveryAttemptProgress.ActivatedSpendingKeys(
       f8eSpendingKeyset = F8eSpendingKeysetMock
     )
@@ -195,7 +215,7 @@ class DelayNotifyServiceImplTests : FunSpec({
 
     val result = service.activateSpendingKeyset(
       keyset = F8eSpendingKeysetMock,
-      hardwareProofOfPossession = HwFactorProofOfPossession("hw-proof")
+      proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("hw-proof"))
     )
 
     result.shouldBeErrOfType<HttpError.NetworkError>()
@@ -204,13 +224,13 @@ class DelayNotifyServiceImplTests : FunSpec({
 
   test("activateSpendingKeyset returns error when updating local recovery progress fails") {
     recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
-    setActiveSpendingKeysetF8eClient.setResult = Ok(Unit)
+    setActiveSpendingKeysetF8eClient.setResult = Ok(null)
     val error = Error("uh oh")
     recoveryDao.setLocalRecoveryProgressResult = Err(error)
 
     val result = service.activateSpendingKeyset(
       keyset = F8eSpendingKeysetMock,
-      hardwareProofOfPossession = HwFactorProofOfPossession("hw-proof")
+      proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("hw-proof"))
     )
 
     result.shouldBeErrOfType<Error>()
@@ -222,7 +242,7 @@ class DelayNotifyServiceImplTests : FunSpec({
 
     val result = service.activateSpendingKeyset(
       keyset = F8eSpendingKeysetMock,
-      hardwareProofOfPossession = HwFactorProofOfPossession("hw-proof")
+      proof = PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("hw-proof"))
     )
 
     result.shouldBeErrOfType<Error>()
@@ -232,11 +252,10 @@ class DelayNotifyServiceImplTests : FunSpec({
     recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
     createAccountKeysetF8eClient.createKeysetResult = Ok(F8eSpendingKeysetMock)
 
-    val result = service.createSpendingKeyset(
-      hardwareProofOfPossession = HwFactorProofOfPossession("hw-proof")
-    )
+    val result = service.createSpendingKeyset()
 
     result.shouldBeOk(F8eSpendingKeysetMock)
+    createAccountKeysetF8eClient.lastHardwareSpendingKey.shouldBe(StillRecoveringInitiatedRecoveryMock.hardwareSpendingKey)
     deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
     val expectedProgress = LocalRecoveryAttemptProgress.CreatedSpendingKeys(
       f8eSpendingKeyset = F8eSpendingKeysetMock
@@ -249,11 +268,10 @@ class DelayNotifyServiceImplTests : FunSpec({
     updateToPrivateWalletOnRecoveryFeatureFlag.setFlagValue(true)
     recoveryStatusService.recoveryStatus.value = StillRecoveringInitiatedRecoveryMock
 
-    val result = service.createSpendingKeyset(
-      hardwareProofOfPossession = HwFactorProofOfPossession("hw-proof")
-    )
+    val result = service.createSpendingKeyset()
 
     result.shouldBeOk(F8eSpendingKeysetPrivateWalletMock)
+    createAccountKeysetV2F8eClient.lastHardwareSpendingKey.shouldBe(StillRecoveringInitiatedRecoveryMock.hardwareSpendingKey)
     deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
     val expectedProgress = LocalRecoveryAttemptProgress.CreatedSpendingKeys(
       f8eSpendingKeyset = F8eSpendingKeysetPrivateWalletMock
@@ -283,9 +301,7 @@ class DelayNotifyServiceImplTests : FunSpec({
       )
     )
 
-    val result = service.createSpendingKeyset(
-      hardwareProofOfPossession = HwFactorProofOfPossession("hw-proof")
-    )
+    val result = service.createSpendingKeyset()
 
     result.shouldBeOk(F8eSpendingKeysetPrivateWalletMock)
     deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
@@ -300,9 +316,7 @@ class DelayNotifyServiceImplTests : FunSpec({
     val networkError = HttpError.NetworkError(Throwable("Network error"))
     createAccountKeysetF8eClient.createKeysetResult = Err(networkError)
 
-    val result = service.createSpendingKeyset(
-      hardwareProofOfPossession = HwFactorProofOfPossession("hw-proof")
-    )
+    val result = service.createSpendingKeyset()
 
     result.shouldBeErrOfType<HttpError.NetworkError>()
     deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
@@ -315,9 +329,7 @@ class DelayNotifyServiceImplTests : FunSpec({
     val error = Error("uh oh")
     recoveryDao.setLocalRecoveryProgressResult = Err(error)
 
-    val result = service.createSpendingKeyset(
-      hardwareProofOfPossession = HwFactorProofOfPossession("hw-proof")
-    )
+    val result = service.createSpendingKeyset()
 
     result.shouldBeErrOfType<Error>()
     deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
@@ -327,9 +339,7 @@ class DelayNotifyServiceImplTests : FunSpec({
   test("createSpendingKeyset returns error when no active recovery") {
     recoveryStatusService.recoveryStatus.value = Recovery.NoActiveRecovery
 
-    val result = service.createSpendingKeyset(
-      hardwareProofOfPossession = HwFactorProofOfPossession("hw-proof")
-    )
+    val result = service.createSpendingKeyset()
 
     result.shouldBeErrOfType<Error>()
   }

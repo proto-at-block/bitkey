@@ -37,7 +37,7 @@ class NotificationTouchpointDaoImpl(
     }
   }
 
-  override fun phoneNumber(): Flow<PhoneNumber?> {
+  override fun phoneTouchpoint(): Flow<PhoneNumberTouchpoint?> {
     return flow {
       databaseProvider.database()
         .phoneNumberTouchpointQueries
@@ -45,12 +45,18 @@ class NotificationTouchpointDaoImpl(
         .asFlowOfList()
         .map { result ->
           result
-            .logFailure { "Failed to fetch stored phone number" }
-            .mapOr(null) { phoneNumberEntities ->
-              phoneNumberEntities.firstOrNull()?.let { phoneNumberEntity ->
-                phoneNumberValidator.validatePhoneNumber(
-                  number = phoneNumberEntity.phoneNumber
+            .logFailure { "Failed to fetch stored phone number touchpoint" }
+            .mapOr(null) { entities ->
+              entities.firstOrNull()?.let { entity ->
+                val phoneNumber = phoneNumberValidator.validatePhoneNumber(
+                  number = entity.phoneNumber
                 )
+                phoneNumber?.let {
+                  PhoneNumberTouchpoint(
+                    touchpointId = entity.touchpointId,
+                    value = it
+                  )
+                }
               }
             }
         }
@@ -59,7 +65,7 @@ class NotificationTouchpointDaoImpl(
     }
   }
 
-  override fun email(): Flow<Email?> {
+  override fun emailTouchpoint(): Flow<EmailTouchpoint?> {
     return flow {
       databaseProvider.database()
         .emailTouchpointQueries
@@ -67,9 +73,14 @@ class NotificationTouchpointDaoImpl(
         .asFlowOfList()
         .map { result ->
           result
-            .logFailure { "Failed to fetch stored email" }
+            .logFailure { "Failed to fetch stored email touchpoint" }
             .mapOr(null) { entities ->
-              entities.firstOrNull()?.email
+              entities.firstOrNull()?.let { entity ->
+                EmailTouchpoint(
+                  touchpointId = entity.touchpointId,
+                  value = entity.email
+                )
+              }
             }
         }
         .distinctUntilChanged()

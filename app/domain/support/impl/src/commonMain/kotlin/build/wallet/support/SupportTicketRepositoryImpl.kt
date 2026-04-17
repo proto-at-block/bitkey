@@ -261,6 +261,8 @@ class SupportTicketRepositoryImpl(
         debugData.hardwareSerialNumber
       this[form, SupportTicketField.KnownFieldType.HardwareFirmwareVersion] =
         debugData.hardwareFirmwareVersion
+      this[form, SupportTicketField.KnownFieldType.HardwareType] =
+        debugData.hardwareType
     }
   }
 
@@ -278,6 +280,7 @@ class SupportTicketRepositoryImpl(
         TicketFormFieldDTO.KnownType.SystemNameAndVersion -> SupportTicketField.KnownFieldType.SystemNameAndVersion
         TicketFormFieldDTO.KnownType.HardwareSerialNumber -> SupportTicketField.KnownFieldType.HardwareSerialNumber
         TicketFormFieldDTO.KnownType.HardwareFirmwareVersion -> SupportTicketField.KnownFieldType.HardwareFirmwareVersion
+        TicketFormFieldDTO.KnownType.HardwareType -> SupportTicketField.KnownFieldType.HardwareType
         null -> return null
       }
 
@@ -362,6 +365,7 @@ class SupportTicketRepositoryImpl(
         ).joinToString(" "),
       hardwareSerialNumber = deviceInfo?.serial.orEmpty(),
       hardwareFirmwareVersion = deviceInfo?.version.orEmpty(),
+      hardwareType = deviceInfo?.hardwareType()?.name.orEmpty(),
       featureFlags =
         allFeatureFlags.associate { flag ->
           flag.identifier to flag.flagValue().value.toString()

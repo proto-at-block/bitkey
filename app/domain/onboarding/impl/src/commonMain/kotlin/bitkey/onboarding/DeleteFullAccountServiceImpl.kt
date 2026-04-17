@@ -5,7 +5,7 @@ import build.wallet.account.AccountService
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.onboarding.DeleteOnboardingFullAccountF8eClient
 import build.wallet.keybox.KeyboxDao
 import com.github.michaelbull.result.Result
@@ -20,14 +20,14 @@ class DeleteFullAccountServiceImpl(
 ) : DeleteFullAccountService {
   override suspend fun deleteAccount(
     fullAccountId: FullAccountId,
-    hardwareProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
   ): Result<Unit, Error> =
     coroutineBinding {
       val f8eEnvironment = accountConfigService.activeOrDefaultConfig().value.f8eEnvironment
       deleteOnboardingFullAccountF8eClient.deleteOnboardingFullAccount(
         f8eEnvironment = f8eEnvironment,
         fullAccountId = fullAccountId,
-        hwFactorProofOfPossession = hardwareProofOfPossession
+        proof = proof
       ).bind()
       accountService.clear().bind()
       keyboxDao.clear().bind()

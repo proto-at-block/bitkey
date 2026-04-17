@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.dp
 import build.wallet.Progress
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.education.EducationBodyModel
-import build.wallet.ui.components.button.Button
+import build.wallet.ui.components.button.OrderedButtonPair
 import build.wallet.ui.components.icon.IconButton
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
@@ -96,14 +96,11 @@ private fun EducationItem(model: EducationBodyModel) {
       }
     }
 
-    Column(modifier = Modifier.align(Alignment.BottomCenter)) {
-      model.primaryButton?.let {
-        Button(model = it)
-      }
-      model.secondaryButton?.let {
-        Spacer(Modifier.height(16.dp))
-        Button(model = it)
-      }
-    }
+    OrderedButtonPair(
+      modifier = Modifier.align(Alignment.BottomCenter),
+      primary = model.primaryButton,
+      secondary = model.secondaryButton,
+      spacing = 16.dp
+    )
   }
 }

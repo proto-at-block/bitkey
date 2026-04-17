@@ -1,9 +1,12 @@
 package build.wallet.integration.statemachine.inheritance.robots
 
 import app.cash.turbine.ReceiveTurbine
+import bitkey.account.HardwareType
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.cloud.store.CloudStoreAccountFake
+import build.wallet.statemachine.automations.AutomaticUiTests
+import build.wallet.statemachine.automations.AutomationUnavailable
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SuccessBodyModel
 import build.wallet.statemachine.core.input.NameInputBodyModel
@@ -12,7 +15,10 @@ import build.wallet.statemachine.inheritance.InheritanceManagementUiProps
 import build.wallet.statemachine.inheritance.ManagingInheritanceBodyModel
 import build.wallet.statemachine.inheritance.ManagingInheritanceTab
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
+import build.wallet.statemachine.nfc.HardwareConfirmationResultBodyModel
+import build.wallet.statemachine.nfc.PromptSelectionFormBodyModel
 import build.wallet.statemachine.recovery.socrec.add.SaveContactBodyModel
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationScreenModel
 import build.wallet.statemachine.settings.SettingsBodyModel
 import build.wallet.statemachine.trustedcontact.model.EnteringBenefactorNameBodyModel
 import build.wallet.statemachine.trustedcontact.model.EnteringInviteCodeBodyModel
@@ -23,8 +29,11 @@ import build.wallet.statemachine.ui.robots.clickSettings
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.*
+import io.kotest.assertions.failure
 import io.kotest.core.test.TestScope
 import io.kotest.matchers.nulls.shouldNotBeNull
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 
 /**
  * Test Applications initialized with an inheritance relationship.
@@ -66,14 +75,18 @@ data class InheritanceTestApps(
 suspend fun TestScope.launchInheritanceApps(
   benefactorName: String = "alice",
   beneficiaryName: String = "bob",
+  benefactorHardwareType: HardwareType = HardwareType.W1,
+  beneficiaryHardwareType: HardwareType = HardwareType.W1,
 ): InheritanceTestApps {
   val benefactorApp = launchNewApp(executeWorkers = false)
-  val beneficiaryApp = launchNewApp(cloudKeyValueStore = benefactorApp.cloudKeyValueStore)
+  val beneficiaryApp = launchNewApp(cloudBackupStore = benefactorApp.cloudBackupStore)
   return setupInheritanceBetween(
     benefactorApp = benefactorApp,
     beneficiaryApp = beneficiaryApp,
     benefactorName = benefactorName,
-    beneficiaryName = beneficiaryName
+    beneficiaryName = beneficiaryName,
+    benefactorHardwareType = benefactorHardwareType,
+    beneficiaryHardwareType = beneficiaryHardwareType
   )
 }
 
@@ -82,13 +95,17 @@ suspend fun TestScope.setupInheritanceBetween(
   beneficiaryApp: AppTester,
   benefactorName: String = "alice",
   beneficiaryName: String = "bob",
+  benefactorHardwareType: HardwareType = HardwareType.W1,
+  beneficiaryHardwareType: HardwareType = HardwareType.W1,
 ): InheritanceTestApps {
   benefactorApp.onboardFullAccountWithFakeHardware(
-    cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
+    cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake,
+    hardwareType = benefactorHardwareType
   )
 
   beneficiaryApp.onboardFullAccountWithFakeHardware(
-    cloudStoreAccountForBackup = CloudStoreAccountFake.TrustedContactFake
+    cloudStoreAccountForBackup = CloudStoreAccountFake.TrustedContactFake,
+    hardwareType = beneficiaryHardwareType
   )
   benefactorApp.inheritanceManagementUiStateMachine.test(
     props = InheritanceManagementUiProps(
@@ -109,7 +126,7 @@ suspend fun TestScope.setupInheritanceBetween(
     awaitUntilBody<SaveContactBodyModel> {
       onSave()
     }
-    advanceUntilScreenWithBody<SuccessBodyModel>()
+    advanceUntilSuccessBodyHandling()
     cancelAndIgnoreRemainingEvents()
   }
 
@@ -182,5 +199,31 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughFullAccountAcceptTCInviteS
     onValueChange(protectedCustomerAlias)
   }
 
-  advanceUntilScreenWithBody<SuccessBodyModel>()
+  advanceUntilSuccessBodyHandling()
+}
+
+@Suppress("ThrowsCount")
+private suspend fun ReceiveTurbine<ScreenModel>.advanceUntilSuccessBodyHandling() {
+  while (currentCoroutineContext().isActive) {
+    val screen = awaitItem()
+    // W3: PromptSelectionFormBodyModel appears in the bottom sheet, not as the main body
+    val bottomBody = screen.bottomSheetModel?.body
+    if (bottomBody is PromptSelectionFormBodyModel) {
+      bottomBody.onApprove()
+      continue
+    }
+    when (val body = screen.body) {
+      is SuccessBodyModel -> return
+      is HardwareConfirmationScreenModel -> body.onConfirm()
+      is HardwareConfirmationResultBodyModel -> body.onAcknowledge()
+      is AutomaticUiTests -> try {
+        body.automateNextPrimaryScreen()
+      } catch (e: AutomationUnavailable) {
+        throw AssertionError(e.reason, e)
+      }
+      else -> throw failure("Unable to auto-advance screen with body type ${body::class.simpleName}")
+    }
+  }
+
+  throw failure("Coroutine completed before advancing could complete")
 }

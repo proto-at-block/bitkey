@@ -1,13 +1,14 @@
 package build.wallet.inheritance
 
 import bitkey.relationships.Relationships
+import build.wallet.bitkey.inheritance.BenefactorClaim
 import build.wallet.bitkey.inheritance.BeneficiaryClaim
 import build.wallet.bitkey.inheritance.InheritanceClaim
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.relationships.OutgoingInvitation
 import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.bitkey.relationships.TrustedContactAlias
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.relationships.CreateInvitationError
 import com.github.michaelbull.result.Result
 import kotlinx.collections.immutable.ImmutableList
@@ -53,13 +54,13 @@ interface InheritanceService {
   /**
    * Creates an invitation for a trusted contact to become a beneficiary
    *
-   * @param hardwareProofOfPossession the hardware proof of possession for creating the invitation
+   * @param proof authorization proof — either HW proof-of-possession or a signed action proof
    * @param trustedContactAlias the alias of the beneficiary
    *
    * @return result either an [OutgoingInvitation] or a [CreateInvitationError]
    */
   suspend fun createInheritanceInvitation(
-    hardwareProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
     trustedContactAlias: TrustedContactAlias,
   ): Result<OutgoingInvitation, CreateInvitationError>
 
@@ -78,6 +79,14 @@ interface InheritanceService {
   suspend fun startInheritanceClaim(
     relationshipId: RelationshipId,
   ): Result<BeneficiaryClaim.PendingClaim, Throwable>
+
+  /**
+   * Returns the pending benefactor claim for the given relationship.
+   *
+   * A relationship may contain historical claims in terminal states, so this
+   * intentionally filters to pending benefactor claims only.
+   */
+  suspend fun pendingBenefactorClaim(relationshipId: RelationshipId): BenefactorClaim.PendingClaim?
 
   /**
    * Provides the details of an inheritance transfer.

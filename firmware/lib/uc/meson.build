@@ -11,7 +11,7 @@ uc_dep = declare_dependency(
 uc_host_lib = library('uc-host',
   srcs,
   c_args : ['-DUC_HOST_MODE=1'],
-  include_directories : ['inc', 'inc-private'],
+  include_directories : ['inc', 'inc-private', security_config_includes],
   dependencies : deps,
 )
 uc_host_dep = declare_dependency(
@@ -23,7 +23,7 @@ uc_host_dep = declare_dependency(
 uc_device_lib = library('uc-device',
   srcs,
   c_args : ['-DUC_HOST_MODE=0'],
-  include_directories : ['inc', 'inc-private'],
+  include_directories : ['inc', 'inc-private', security_config_includes],
   dependencies : deps,
 )
 uc_device_dep = declare_dependency(
@@ -35,7 +35,7 @@ uc_device_dep = declare_dependency(
 uc_host_test = executable('uc-host-test',
   'src/uc_test.c',
   c_args : ['-DUC_HOST_MODE=1'],
-  include_directories : ['inc', 'inc-private'],
+  include_directories : ['inc', 'inc-private', security_config_includes],
   dependencies : [crypto_deps['posix'], fff_dep, test_deps, uc_device_dep],
 )
 test('uc host test', uc_host_test)
@@ -43,7 +43,7 @@ test('uc host test', uc_host_test)
 uc_device_test = executable('uc-device-test',
   'src/uc_test.c',
   c_args : ['-DUC_HOST_MODE=0'],
-  include_directories : ['inc', 'inc-private'],
+  include_directories : ['inc', 'inc-private', security_config_includes],
   dependencies : [crypto_deps['posix'], fff_dep, test_deps, uc_device_dep],
 )
 test('uc device test', uc_device_test)

@@ -41,19 +41,19 @@ static void unlock_cmd_handler(int argc, char** argv) {
   if (unlock_cmd_args.read->header.found) {
     uint32_t retry_counter = 0;
     if (retry_counter_read(&retry_counter) != UNLOCK_OK) {
-      LOGE("Failed to get retry counter");
+      LOGE("Retry ctr rd err");
       return;
     }
     printf("Retry counter: %u\n", retry_counter);
   } else if (unlock_cmd_args.write->header.found) {
     if (retry_counter_write(unlock_cmd_args.write->value) != UNLOCK_OK) {
-      LOGE("Failed to set retry counter");
+      LOGE("Retry ctr wr err");
       return;
     }
     printf("Retry counter set to %d\n", unlock_cmd_args.write->value);
   } else if (unlock_cmd_args.clear->header.found) {
     if (unlock_reset_retry_counter() != UNLOCK_OK) {
-      LOGE("Failed to clear retry counter");
+      LOGE("Retry ctr clr err");
       return;
     }
     printf("Retry counter cleared\n");

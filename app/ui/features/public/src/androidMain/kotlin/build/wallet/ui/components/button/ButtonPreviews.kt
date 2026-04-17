@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
@@ -13,6 +14,8 @@ import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.*
 import build.wallet.ui.model.button.ButtonModel.Treatment.Tertiary
+import build.wallet.ui.theme.Theme
+import build.wallet.ui.tokens.lightStyleDictionaryColorsDesignSystemUpdates
 import build.wallet.ui.tooling.PreviewWalletTheme
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.seconds
@@ -26,6 +29,60 @@ fun RegularButtonsWithIconEnabled() {
       showLeadingIcon = true,
       enabled = true
     )
+  }
+}
+
+@Preview
+@Composable
+fun RegularButtonsWithIconEnabledDesignSystem() {
+  PreviewWalletTheme(
+    backgroundColor = lightStyleDictionaryColorsDesignSystemUpdates.background,
+    designSystemUpdatesEnabled = true
+  ) {
+    AllButtonsForSizeAndIcon(
+      size = Regular,
+      showLeadingIcon = true,
+      enabled = true
+    )
+  }
+}
+
+@Preview
+@Composable
+fun RegularButtonsWithIconEnabledDesignSystemDark() {
+  PreviewWalletTheme(
+    theme = Theme.DARK,
+    backgroundColor = Color.Black,
+    designSystemUpdatesEnabled = true
+  ) {
+    AllButtonsForSizeAndIcon(
+      size = Regular,
+      showLeadingIcon = true,
+      enabled = true
+    )
+  }
+}
+
+@Preview(name = "Bitkey Interaction DSV2 Light")
+@Composable
+fun BitkeyInteractionButtonDesignSystemPreview() {
+  PreviewWalletTheme(
+    backgroundColor = lightStyleDictionaryColorsDesignSystemUpdates.background,
+    designSystemUpdatesEnabled = true
+  ) {
+    BitkeyInteractionButtonPreview()
+  }
+}
+
+@Preview(name = "Bitkey Interaction DSV2 Dark")
+@Composable
+fun BitkeyInteractionButtonDesignSystemDarkPreview() {
+  PreviewWalletTheme(
+    theme = Theme.DARK,
+    backgroundColor = Color.Black,
+    designSystemUpdatesEnabled = true
+  ) {
+    BitkeyInteractionButtonPreview()
   }
 }
 
@@ -231,6 +288,26 @@ private fun AllButtonsForSizeAndIcon(
         )
       }
     }
+  }
+}
+
+@Composable
+private fun BitkeyInteractionButtonPreview() {
+  Box(
+    modifier =
+      Modifier
+        .fillMaxWidth()
+        .padding(20.dp),
+    contentAlignment = Alignment.Center
+  ) {
+    Button(
+      text = "Review on Bitkey",
+      treatment = ButtonModel.Treatment.BitkeyInteraction,
+      leadingIcon = Icon.SmallIconBitkey,
+      size = Regular,
+      enabled = true,
+      onClick = StandardClick {}
+    )
   }
 }
 

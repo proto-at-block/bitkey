@@ -1,7 +1,11 @@
 package build.wallet.statemachine.fwup
 
 import androidx.compose.runtime.*
-import bitkey.account.*
+import bitkey.account.AccountConfig
+import bitkey.account.AccountConfigService
+import bitkey.account.DefaultAccountConfig
+import bitkey.account.FullAccountConfig
+import bitkey.account.HardwareType
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.context.FwupMcuEventTrackerContext
@@ -18,11 +22,15 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.SignatureVerifier
 import build.wallet.encrypt.verifyEcdsaResult
+import build.wallet.feature.flags.FwupNfcBackgroundRetryStartupRevealDelayMsFeatureFlag
+import build.wallet.feature.flags.FwupNfcCooldownPeriodSecondsFeatureFlag
 import build.wallet.feature.flags.NfcSessionRetryAttemptsFeatureFlag
 import build.wallet.feature.intValue
+import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.fwup.*
 import build.wallet.fwup.FwupFinishResponseStatus.*
 import build.wallet.keybox.KeyboxDao
+import build.wallet.logging.logError
 import build.wallet.logging.logFailure
 import build.wallet.logging.logWarn
 import build.wallet.nfc.*
@@ -30,23 +38,29 @@ import build.wallet.nfc.NfcAvailability.Available.Disabled
 import build.wallet.nfc.NfcAvailability.Available.Enabled
 import build.wallet.nfc.NfcAvailability.NotAvailable
 import build.wallet.nfc.NfcSession.RequirePairedHardware
-import build.wallet.nfc.platform.EmulatedPromptOption
 import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.toSessionFn
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.ScreenPresentationStyle
+import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.fwup.FwupNfcSessionUiState.AndroidOnlyUiState
 import build.wallet.statemachine.fwup.FwupNfcSessionUiState.AndroidOnlyUiState.*
 import build.wallet.statemachine.fwup.FwupNfcSessionUiState.InSessionUiState
 import build.wallet.statemachine.fwup.FwupNfcSessionUiState.InSessionUiState.*
 import build.wallet.statemachine.nfc.EnableNfcInstructionsModel
+import build.wallet.statemachine.nfc.HardwareConfirmationResultBodyModel
 import build.wallet.statemachine.nfc.NfcSuccessScreenDuration
 import build.wallet.statemachine.nfc.NoNfcMessageModel
 import build.wallet.statemachine.nfc.PromptSelectionFormBodyModel
+import build.wallet.statemachine.nfc.delayForIosNativeNfcTransition
 import build.wallet.statemachine.platform.nfc.EnableNfcNavigator
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationContent
 import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationUiProps
 import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationUiStateMachine
 import build.wallet.toUByteList
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.onFailure
@@ -54,10 +68,13 @@ import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import okio.ByteString.Companion.toByteString
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 @Suppress("LargeClass")
 @BitkeyInject(ActivityScope::class)
@@ -74,6 +91,9 @@ class FwupNfcSessionUiStateMachineImpl(
   private val keyboxDao: KeyboxDao,
   private val signatureVerifier: SignatureVerifier,
   private val nfcSessionRetryAttemptsFeatureFlag: NfcSessionRetryAttemptsFeatureFlag,
+  private val fwupNfcCooldownPeriodSecondsFeatureFlag: FwupNfcCooldownPeriodSecondsFeatureFlag,
+  private val fwupNfcBackgroundRetryStartupRevealDelayMsFeatureFlag:
+    FwupNfcBackgroundRetryStartupRevealDelayMsFeatureFlag,
   private val hardwareConfirmationUiStateMachine: HardwareConfirmationUiStateMachine,
 ) : FwupNfcSessionUiStateMachine {
   private val secureRandom = SecureRandom()
@@ -82,25 +102,55 @@ class FwupNfcSessionUiStateMachineImpl(
   @Composable
   override fun model(props: FwupNfcSessionUiProps): ScreenModel {
     val scope = rememberStableCoroutineScope()
-    val accountConfig = remember { accountConfigService.activeOrDefaultConfig().value }
-    val mcuUpdates by remember {
-      firmwareDataService.firmwareData().mapAsStateFlow(scope) {
-        extractMcuUpdates(it.firmwareUpdateState)
-      }
+
+    // Get the active keybox to use its config as the source of truth for hardware type.
+    // This prevents a race condition where activeOrDefaultConfig() could return the fallback
+    // config (W1) before emitting the active account's W3 config.
+    val activeKeybox by remember {
+      keyboxDao.activeKeybox().map { it.get() }
+    }.collectAsState(initial = null)
+
+    // Fall back to activeOrDefaultConfig() if no active keybox exists (e.g., debug menu
+    // before account creation). Once a keybox exists, use its config.
+    val defaultConfig by remember {
+      accountConfigService.activeOrDefaultConfig()
     }.collectAsState()
-    val isHardwareFake = remember { determineIsHardwareFake(accountConfig) }
-    val hardwareType = remember { determineHardwareType(accountConfig) }
+    val isHardwareFake = activeKeybox?.config?.isHardwareFake
+      ?: extractIsHardwareFake(defaultConfig)
+    // Use hardwareTypeOverride if provided (e.g., from debug menu when real hardware is enabled
+    // but we need to derive hardware type from the firmware update itself).
+    val hardwareType = props.hardwareTypeOverride
+      ?: activeKeybox?.config?.hardwareType
+      ?: extractHardwareType(defaultConfig)
+
+    // Use explicitly selected MCU updates when provided (e.g. from debug menu),
+    // otherwise fall back to all pending updates from the firmware data service.
+    val mcuUpdates by if (props.selectedMcuUpdates.isNotEmpty()) {
+      remember(props.selectedMcuUpdates) {
+        mutableStateOf(props.selectedMcuUpdates)
+      }
+    } else {
+      remember {
+        firmwareDataService.firmwareData().mapAsStateFlow(scope) {
+          extractMcuUpdates(it.firmwareUpdateState)
+        }
+      }.collectAsState()
+    }
 
     var uiState by remember {
       mutableStateOf(
         determineInitialUiState(
           availability = nfcReaderCapability.availability(isHardwareFake),
-          mcuUpdates = mcuUpdates
+          mcuUpdates = mcuUpdates,
+          transactionType = props.transactionType
         )
       )
     }
 
     var fwupProgress by remember { mutableStateOf(0.0f) }
+    val nfcCooldownDurationSeconds = fwupNfcCooldownPeriodSecondsFeatureFlag.intValue()
+    val hiddenNfcScreenRevealDelayMs =
+      fwupNfcBackgroundRetryStartupRevealDelayMsFeatureFlag.intValue()
 
     return when (val state = uiState) {
       is InSessionUiState -> inSessionScreenModel(
@@ -109,7 +159,10 @@ class FwupNfcSessionUiStateMachineImpl(
         isHardwareFake = isHardwareFake,
         hardwareType = hardwareType,
         fwupProgress = fwupProgress,
+        nfcCooldownDurationSeconds = nfcCooldownDurationSeconds,
+        hiddenNfcScreenRevealDelayMs = hiddenNfcScreenRevealDelayMs,
         setProgress = { fwupProgress = it },
+        getCurrentState = { uiState },
         setState = { uiState = it }
       )
 
@@ -117,6 +170,7 @@ class FwupNfcSessionUiStateMachineImpl(
         props = props,
         state = state,
         mcuUpdates = mcuUpdates,
+        transactionType = props.transactionType,
         setState = { uiState = it }
       )
     }
@@ -126,6 +180,7 @@ class FwupNfcSessionUiStateMachineImpl(
    * Generates the screen model for in-session UI states (Searching, Updating, LostConnection, Success).
    * Manages NFC transaction effects and progress tracking during firmware updates.
    */
+  @Suppress("CyclomaticComplexMethod")
   @Composable
   private fun inSessionScreenModel(
     props: FwupNfcSessionUiProps,
@@ -133,9 +188,13 @@ class FwupNfcSessionUiStateMachineImpl(
     isHardwareFake: Boolean,
     hardwareType: HardwareType,
     fwupProgress: Float,
+    nfcCooldownDurationSeconds: Int,
+    hiddenNfcScreenRevealDelayMs: Int,
     setProgress: (Float) -> Unit,
+    getCurrentState: () -> FwupNfcSessionUiState,
     setState: (FwupNfcSessionUiState) -> Unit,
   ): ScreenModel {
+    val designSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
     return when (state) {
       is InNfcSessionUiState -> {
         // NfcTransactionEffect stays alive for the entire InNfcSessionUiState,
@@ -145,17 +204,31 @@ class FwupNfcSessionUiStateMachineImpl(
           state = state,
           isHardwareFake = isHardwareFake,
           hardwareType = hardwareType,
+          designSystemV2Enabled = designSystemV2Enabled,
+          hiddenNfcScreenRevealDelayMs = hiddenNfcScreenRevealDelayMs,
           setProgress = setProgress,
+          getCurrentState = getCurrentState,
           setState = setState
         )
 
-        when (state.displayMode) {
+        val nfcModel = when (state.displayMode) {
+          InNfcSessionUiState.DisplayMode.BackgroundRetryStartup -> {
+            ScreenModel(
+              body = FwupNfcCooldownModel(
+                onBack = props.onBack,
+                remainingSeconds = 0,
+                onContinue = null,
+                isStartingSession = true
+              )
+            )
+          }
           InNfcSessionUiState.DisplayMode.Searching -> {
             FwupNfcBodyModel(
               onCancel = props.onBack,
               status = FwupNfcBodyModel.Status.Searching(),
+              showNativeSheetOnIos = props.showNativeSheetOnIos,
               eventTrackerScreenInfo = EventTrackerScreenInfo(NFC_INITIATE, FWUP)
-            ).asFullScreen()
+            ).asFwupProgressScreen(designSystemV2Enabled)
           }
           InNfcSessionUiState.DisplayMode.Updating -> {
             FwupNfcBodyModel(
@@ -166,8 +239,9 @@ class FwupNfcSessionUiStateMachineImpl(
                 totalMcus = state.totalMcus,
                 fwupProgress = fwupProgress
               ),
+              showNativeSheetOnIos = props.showNativeSheetOnIos,
               eventTrackerScreenInfo = EventTrackerScreenInfo(NFC_UPDATE_IN_PROGRESS_FWUP)
-            ).asFullScreen()
+            ).asFwupProgressScreen(designSystemV2Enabled)
           }
           InNfcSessionUiState.DisplayMode.LostConnection -> {
             FwupNfcBodyModel(
@@ -178,9 +252,48 @@ class FwupNfcSessionUiStateMachineImpl(
                 totalMcus = state.totalMcus,
                 fwupProgress = fwupProgress
               ),
+              showNativeSheetOnIos = props.showNativeSheetOnIos,
               eventTrackerScreenInfo = EventTrackerScreenInfo(NFC_DEVICE_LOST_CONNECTION_FWUP)
-            ).asPlatformNfcScreen()
+            ).asPlatformNfcScreen(
+              designSystemV2Enabled = designSystemV2Enabled,
+              devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform
+            )
           }
+        }
+
+        val scope = rememberStableCoroutineScope()
+        val emulatedPrompt = state.emulatedPrompt
+        if (emulatedPrompt != null) {
+          nfcModel.copy(
+            bottomSheetModel = SheetModel(
+              onClosed = { props.onBack() },
+              body = PromptSelectionFormBodyModel(
+                details = emulatedPrompt.details,
+                onApprove = {
+                  scope.launch {
+                    emulatedPrompt.approve.onSelect?.invoke()
+                    setState(
+                      InNfcSessionUiState(
+                        mcuUpdates = state.mcuUpdates,
+                        currentMcuIndex = state.currentMcuIndex,
+                        fetchResult = emulatedPrompt.approve.fetchResult
+                      )
+                    )
+                  }
+                },
+                onDeny = {
+                  scope.launch {
+                    emulatedPrompt.deny.onSelect?.invoke()
+                    props.onBack()
+                  }
+                },
+                onBack = { props.onBack() },
+                eventTrackerContext = FWUP
+              )
+            )
+          )
+        } else {
+          nfcModel
         }
       }
 
@@ -200,8 +313,12 @@ class FwupNfcSessionUiStateMachineImpl(
         FwupNfcBodyModel(
           onCancel = null,
           status = FwupNfcBodyModel.Status.Success(),
+          showNativeSheetOnIos = props.showNativeSheetOnIos,
           eventTrackerScreenInfo = EventTrackerScreenInfo(NFC_SUCCESS, FWUP)
-        ).asPlatformNfcScreen()
+        ).asPlatformNfcScreen(
+          designSystemV2Enabled = designSystemV2Enabled,
+          devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform
+        )
       }
 
       is AwaitingConfirmationUiState -> {
@@ -209,6 +326,7 @@ class FwupNfcSessionUiStateMachineImpl(
         hardwareConfirmationUiStateMachine.model(
           props = HardwareConfirmationUiProps(
             onBack = props.onBack,
+            content = HardwareConfirmationContent.FirmwareUpdate,
             onConfirm = {
               // User confirmed - transition to InNfcSessionUiState with fetchResult
               // to start a new NFC session for the continuation
@@ -219,38 +337,10 @@ class FwupNfcSessionUiStateMachineImpl(
                   fetchResult = state.fetchResult
                 )
               )
-            }
+            },
+            isHardwareFake = isHardwareFake
           )
         )
-      }
-
-      is EmulatingPromptUiState -> {
-        val scope = rememberStableCoroutineScope()
-        PromptSelectionFormBodyModel(
-          options = state.options.map { it.name },
-          onOptionSelected = { selectedIndex ->
-            val selectedOption = state.options[selectedIndex]
-            scope.launch {
-              selectedOption.onSelect?.invoke()
-              // If "Deny" was selected, cancel the flow instead of continuing
-              if (selectedOption.name == EmulatedPromptOption.DENY) {
-                props.onBack()
-              } else {
-                // Transition to InNfcSessionUiState with fetchResult to start
-                // a new NFC session for the continuation
-                setState(
-                  InNfcSessionUiState(
-                    mcuUpdates = state.mcuUpdates,
-                    currentMcuIndex = state.currentMcuIndex,
-                    fetchResult = selectedOption.fetchResult
-                  )
-                )
-              }
-            }
-          },
-          onBack = props.onBack,
-          eventTrackerContext = FWUP
-        ).asModalScreen()
       }
 
       is AwaitingNextMcuStartUiState -> {
@@ -271,8 +361,96 @@ class FwupNfcSessionUiStateMachineImpl(
           )
         )
       }
+
+      is NfcCooldownUiState -> {
+        var remainingSeconds by remember(state.currentMcuIndex, state.mcuUpdates) {
+          mutableIntStateOf(nfcCooldownDurationSeconds)
+        }
+        LaunchedEffect("nfc-cooldown-retry-${state.currentMcuIndex}") {
+          for (seconds in nfcCooldownDurationSeconds downTo 1) {
+            remainingSeconds = seconds
+            delay(1.seconds)
+          }
+          remainingSeconds = 0
+        }
+        ScreenModel(
+          body = FwupNfcCooldownModel(
+            onBack = props.onBack,
+            remainingSeconds = remainingSeconds,
+            onContinue =
+              if (remainingSeconds == 0) {
+                {
+                  setState(
+                    InNfcSessionUiState(
+                      mcuUpdates = state.mcuUpdates,
+                      currentMcuIndex = state.currentMcuIndex,
+                      displayMode = InNfcSessionUiState.DisplayMode.BackgroundRetryStartup
+                    )
+                  )
+                }
+              } else {
+                null
+              }
+          )
+        )
+      }
+
+      is ConfirmationPendingUiState -> {
+        // W3 two-tap flow: User tapped before approving/denying on device
+        ScreenModel(
+          body = HardwareConfirmationResultBodyModel(
+            headline = "Review update on Bitkey",
+            subline = "Before updating, use your Bitkey device to review and approve the firmware update.",
+            buttonText = "Got it",
+            onAcknowledge = {
+              // Return to awaiting confirmation to retry
+              setState(
+                AwaitingConfirmationUiState(
+                  mcuUpdates = state.mcuUpdates,
+                  currentMcuIndex = state.currentMcuIndex,
+                  fetchResult = state.fetchResult
+                )
+              )
+            },
+            eventTrackerScreenId = NFC_CONFIRMATION_PENDING
+          ),
+          presentationStyle = ScreenPresentationStyle.Modal
+        )
+      }
+
+      is ConfirmationDeniedUiState -> {
+        // W3 two-tap flow: Confirmation was not completed on device
+        ScreenModel(
+          body = HardwareConfirmationResultBodyModel(
+            headline = "The update was not confirmed on your Bitkey",
+            subline = "",
+            buttonText = "OK",
+            onAcknowledge = {
+              // Return to beginning of flow (before first tap)
+              setState(
+                InNfcSessionUiState(
+                  mcuUpdates = state.mcuUpdates,
+                  currentMcuIndex = state.currentMcuIndex
+                )
+              )
+            },
+            eventTrackerScreenId = NFC_CONFIRMATION_DENIED
+          ),
+          presentationStyle = ScreenPresentationStyle.Modal
+        )
+      }
     }
   }
+
+  private fun FwupNfcBodyModel.asFwupProgressScreen(designSystemV2Enabled: Boolean): ScreenModel =
+    if (designSystemV2Enabled) {
+      asPlatformNfcScreen(
+        designSystemV2Enabled = true,
+        devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform
+      )
+    } else {
+      asFullScreen()
+    }
 
   /**
    * Generates the screen model for Android-only UI states (NoNFC, EnableNFC instructions, navigation).
@@ -283,6 +461,7 @@ class FwupNfcSessionUiStateMachineImpl(
     props: FwupNfcSessionUiProps,
     state: AndroidOnlyUiState,
     mcuUpdates: ImmutableList<McuFwupData>?,
+    transactionType: FwupTransactionType,
     setState: (FwupNfcSessionUiState) -> Unit,
   ): ScreenModel {
     return when (state) {
@@ -300,7 +479,7 @@ class FwupNfcSessionUiStateMachineImpl(
       is NavigateToEnableNFC -> {
         enableNfcNavigator.navigateToEnableNfc {
           mcuUpdates?.let {
-            setState(InNfcSessionUiState(mcuUpdates = it, currentMcuIndex = 0))
+            setState(InNfcSessionUiState(mcuUpdates = it, currentMcuIndex = transactionType.currentMcuIndex))
           } ?: error("No FWUP data available, this shouldn't happen")
         }
         NoNfcMessageModel(onBack = props.onBack)
@@ -323,10 +502,10 @@ class FwupNfcSessionUiStateMachineImpl(
   }
 
   /**
-   * Determines whether the hardware is using a fake implementation based on account configuration.
+   * Extracts whether hardware is fake from an AccountConfig.
    * Defaults to false for unknown account types.
    */
-  private fun determineIsHardwareFake(accountConfig: AccountConfig?): Boolean {
+  private fun extractIsHardwareFake(accountConfig: AccountConfig): Boolean {
     return when (accountConfig) {
       is FullAccountConfig -> accountConfig.isHardwareFake
       is DefaultAccountConfig -> accountConfig.isHardwareFake
@@ -335,10 +514,10 @@ class FwupNfcSessionUiStateMachineImpl(
   }
 
   /**
-   * Determines the hardware type from account configuration.
+   * Extracts the hardware type from an AccountConfig.
    * Defaults to W1 if not specified or unknown account type.
    */
-  private fun determineHardwareType(accountConfig: AccountConfig?): HardwareType {
+  private fun extractHardwareType(accountConfig: AccountConfig): HardwareType {
     return when (accountConfig) {
       is FullAccountConfig -> accountConfig.hardwareType
       is DefaultAccountConfig -> accountConfig.hardwareType ?: HardwareType.W1
@@ -353,13 +532,161 @@ class FwupNfcSessionUiStateMachineImpl(
   private fun determineInitialUiState(
     availability: NfcAvailability,
     mcuUpdates: ImmutableList<McuFwupData>?,
+    transactionType: FwupTransactionType,
   ): FwupNfcSessionUiState {
     return when (availability) {
       NotAvailable -> NoNFCMessage
       Disabled -> EnableNFCInstructions
       Enabled -> when (mcuUpdates) {
         null -> error("No FWUP data available, this shouldn't happen")
-        else -> InNfcSessionUiState(mcuUpdates = mcuUpdates, currentMcuIndex = 0)
+        else -> {
+          val clampedIndex = transactionType.currentMcuIndex.coerceIn(0, mcuUpdates.lastIndex)
+          InNfcSessionUiState(mcuUpdates = mcuUpdates, currentMcuIndex = clampedIndex)
+        }
+      }
+    }
+  }
+
+  /**
+   * Handles NFC transaction failures and updates the UI state accordingly.
+   */
+  private suspend fun handleNfcTransactionFailure(
+    error: NfcException,
+    state: InNfcSessionUiState,
+    continuation: (suspend (NfcSession, NfcCommands) -> HardwareInteraction<Boolean>)?,
+    props: FwupNfcSessionUiProps,
+    setState: (FwupNfcSessionUiState) -> Unit,
+  ) {
+    when (error) {
+      is NfcException.IOSOnly.UserCancellation -> props.onBack()
+      is NfcException.UserDenied,
+      is NfcException.ConfirmationNotCompleted -> handleUserDeniedOrConfirmationPending(error, state, continuation, props, setState, isDenied = true)
+      is NfcException.ConfirmationPending -> handleUserDeniedOrConfirmationPending(error, state, continuation, props, setState, isDenied = false)
+      is NfcException.IOSOnly.NoSession -> {
+        // If FWUP is already in progress and the active NFC session is gone,
+        // show the cooldown screen before allowing the user to continue. Progress is
+        // saved and the update resumes from the last successful sequence ID.
+        if (fwupInProgress) {
+          setState(
+            NfcCooldownUiState(
+              mcuUpdates = state.mcuUpdates,
+              currentMcuIndex = state.currentMcuIndex
+            )
+          )
+        } else {
+          handleGenericError(error, state, props)
+        }
+      }
+      else -> handleGenericError(error, state, props)
+    }
+  }
+
+  private suspend fun handleUserDeniedOrConfirmationPending(
+    error: NfcException,
+    state: InNfcSessionUiState,
+    continuation: (suspend (NfcSession, NfcCommands) -> HardwareInteraction<Boolean>)?,
+    props: FwupNfcSessionUiProps,
+    setState: (FwupNfcSessionUiState) -> Unit,
+    isDenied: Boolean,
+  ) {
+    if (continuation != null) {
+      val newState = if (isDenied) {
+        ConfirmationDeniedUiState(
+          mcuUpdates = state.mcuUpdates,
+          currentMcuIndex = state.currentMcuIndex,
+          fetchResult = continuation
+        )
+      } else {
+        ConfirmationPendingUiState(
+          mcuUpdates = state.mcuUpdates,
+          currentMcuIndex = state.currentMcuIndex,
+          fetchResult = continuation
+        )
+      }
+      setState(newState)
+    } else {
+      // Shouldn't happen, but fall back to normal error handling
+      val errorType = if (isDenied) "UserDenied" else "ConfirmationPending"
+      logWarn { "Received $errorType without continuation in FWUP flow" }
+      handleGenericError(error, state, props)
+    }
+  }
+
+  private suspend fun handleGenericError(
+    error: NfcException,
+    state: InNfcSessionUiState,
+    props: FwupNfcSessionUiProps,
+  ) {
+    val inProgress = fwupInProgress
+    val transactionType = when (inProgress) {
+      true -> FwupTransactionType.ResumeFromSequenceId(
+        sequenceId = getMcuSequenceId(state.currentMcu.mcuRole),
+        currentMcuIndex = state.currentMcuIndex
+      )
+      false -> FwupTransactionType.StartFromBeginning(
+        currentMcuIndex = state.currentMcuIndex
+      )
+    }
+    eventTracker.track(
+      Action.ACTION_APP_FWUP_MCU_UPDATE_FAILED,
+      state.currentMcu.mcuRole.toEventTrackerContext()
+    )
+    props.onError(error, fwupInProgress, transactionType)
+  }
+
+  /**
+   * Handles successful NFC transaction results and updates the UI state accordingly.
+   */
+  private fun handleNfcTransactionSuccess(
+    result: FwupTransactionResult,
+    state: InNfcSessionUiState,
+    props: FwupNfcSessionUiProps,
+    setProgress: (Float) -> Unit,
+    setState: (FwupNfcSessionUiState) -> Unit,
+  ) {
+    when (result) {
+      is FwupTransactionResult.Completed -> {
+        if (!state.isLastMcu) {
+          // Reset fwupInProgress so the next MCU starts fresh (version check,
+          // fwupStart, etc.) rather than trying to resume the completed MCU's state.
+          fwupInProgress = false
+          setProgress(0.0f)
+          setState(AwaitingNextMcuStartUiState(state.mcuUpdates, state.currentMcuIndex + 1))
+        } else {
+          setState(SuccessUiState(state.mcuUpdates, state.currentMcuIndex))
+        }
+      }
+      is FwupTransactionResult.RequiresConfirmation -> {
+        setState(
+          AwaitingConfirmationUiState(
+            mcuUpdates = state.mcuUpdates,
+            currentMcuIndex = state.currentMcuIndex,
+            fetchResult = result.fetchResult
+          )
+        )
+      }
+      is FwupTransactionResult.RequiresEmulatedPrompt -> {
+        setState(
+          InNfcSessionUiState(
+            mcuUpdates = state.mcuUpdates,
+            currentMcuIndex = state.currentMcuIndex,
+            emulatedPrompt = result.emulatedPrompt
+          )
+        )
+      }
+      is FwupTransactionResult.PreviousMcuUpdateNotApplied -> {
+        // The previous MCU update wasn't applied on the device. Return the user
+        // to the start of the update flow so they can retry the full sequence.
+        fwupInProgress = false
+        setProgress(0.0f)
+        props.onError(
+          NfcException.PreviousMcuUpdateNotApplied(
+            message = "Previous MCU ${result.mcuRole} update was not applied " +
+              "(expected ${result.expectedVersion}, found ${result.actualVersion})"
+          ),
+          false,
+          FwupTransactionType.StartFromBeginning()
+        )
       }
     }
   }
@@ -377,15 +704,42 @@ class FwupNfcSessionUiStateMachineImpl(
     state: InNfcSessionUiState,
     isHardwareFake: Boolean,
     hardwareType: HardwareType,
+    designSystemV2Enabled: Boolean,
+    hiddenNfcScreenRevealDelayMs: Int,
     // TODO(W-8034): use Progress type.
     setProgress: (progress: Float) -> Unit,
+    getCurrentState: () -> FwupNfcSessionUiState,
     setState: (FwupNfcSessionUiState) -> Unit,
   ) {
     val continuation = state.fetchResult
-    // Include whether this is a continuation in the key so a fresh NFC session starts
-    val effectKey = "nfc-transaction-${state.currentMcuIndex}-${continuation != null}"
+    // Include hardwareType in the key so the NFC session restarts if the config changes
+    // (e.g., when activeOrDefaultConfig() emits the active account's config after initially
+    // returning the fallback config). Also include continuation status for two-tap flows.
+    val effectKey = "nfc-transaction-${state.currentMcuIndex}-${continuation != null}-$hardwareType"
 
     LaunchedEffect(effectKey) {
+      if (state.displayMode == InNfcSessionUiState.DisplayMode.BackgroundRetryStartup) {
+        // After the cooldown screen, keep rendering the same screen briefly while the next NFC
+        // session starts in the background. In this failure mode iOS may immediately reject the
+        // session again, and showing the app's searching screen right away causes a visible flash
+        // back to the cooldown UI. The short delay gives the retry a chance to fail first, which
+        // means there is no app-level visual flash at all. If the session survives, we then reveal
+        // the normal searching UI.
+        launch {
+          delay(hiddenNfcScreenRevealDelayMs.milliseconds)
+          if (getCurrentState() == state) {
+            setState(
+              state.copy(
+                displayMode = InNfcSessionUiState.DisplayMode.Searching
+              )
+            )
+          }
+        }
+      }
+      delayForIosNativeNfcTransition(
+        designSystemV2Enabled = designSystemV2Enabled,
+        devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform
+      )
       val hwPubKey = keyboxDao.activeKeybox().first().value?.activeHwKeyBundle?.authKey?.pubKey
       nfcTransactor
         .transact(
@@ -394,18 +748,31 @@ class FwupNfcSessionUiStateMachineImpl(
               isHardwareFake = isHardwareFake,
               hardwareType = hardwareType,
               needsAuthentication = true,
-              // For W3 two-tap flow: don't lock after the initial transaction because user
-              // needs to confirm on the (unlocked) device before the second tap.
-              // Lock after the continuation completes, or for W1 where FWUP completes in one tap.
-              shouldLock = continuation != null || hardwareType != HardwareType.W3,
+              shouldLock = true,
               skipFirmwareTelemetry = true,
               nfcFlowName = if (continuation != null) "fwup-confirmation" else "fwup",
               onTagConnected = {
-                eventTracker.track(EventTrackerScreenInfo(NFC_DETECTED, FWUP))
-                setState(state.copy(displayMode = InNfcSessionUiState.DisplayMode.Updating))
+                when (val currentState = getCurrentState()) {
+                  is InNfcSessionUiState -> {
+                    eventTracker.track(EventTrackerScreenInfo(NFC_DETECTED, FWUP))
+                    setState(
+                      currentState.copy(displayMode = InNfcSessionUiState.DisplayMode.Updating)
+                    )
+                  }
+                  else -> Unit
+                }
               },
               onTagDisconnected = {
-                setState(state.copy(displayMode = InNfcSessionUiState.DisplayMode.LostConnection))
+                when (val currentState = getCurrentState()) {
+                  is InNfcSessionUiState -> {
+                    setState(
+                      currentState.copy(
+                        displayMode = InNfcSessionUiState.DisplayMode.LostConnection
+                      )
+                    )
+                  }
+                  else -> Unit
+                }
               },
               requirePairedHardware = hwPubKey?.let {
                 RequirePairedHardware.Required(
@@ -448,6 +815,8 @@ class FwupNfcSessionUiStateMachineImpl(
                 session = session,
                 commands = commands,
                 mcuFwupData = state.currentMcu,
+                previousMcuFwupData = state.mcuUpdates.getOrNull(state.currentMcuIndex - 1),
+                allMcuUpdates = state.mcuUpdates,
                 updateSequenceId = { sequenceId ->
                   setMcuSequenceId(state.currentMcu.mcuRole, sequenceId)
                   val progress =
@@ -462,57 +831,9 @@ class FwupNfcSessionUiStateMachineImpl(
             }
           }
         ).onFailure { error ->
-          when (error) {
-            is NfcException.IOSOnly.UserCancellation -> {
-              props.onBack()
-            }
-            else -> {
-              val inProgress = fwupInProgress
-              val transactionType = when (inProgress) {
-                true -> FwupTransactionType.ResumeFromSequenceId(getMcuSequenceId(state.currentMcu.mcuRole))
-                false -> FwupTransactionType.StartFromBeginning
-              }
-              eventTracker.track(
-                Action.ACTION_APP_FWUP_MCU_UPDATE_FAILED,
-                state.currentMcu.mcuRole.toEventTrackerContext()
-              )
-              props.onError(error, fwupInProgress, transactionType)
-            }
-          }
+          handleNfcTransactionFailure(error, state, continuation, props, setState)
         }.onSuccess { result ->
-          when (result) {
-            is FwupTransactionResult.Completed -> {
-              // Check if there are more MCUs to update
-              if (!state.isLastMcu) {
-                // Show intermediate screen before starting next MCU
-                setProgress(0.0f)
-                setState(AwaitingNextMcuStartUiState(state.mcuUpdates, state.currentMcuIndex + 1))
-              } else {
-                // All MCUs updated successfully
-                setState(SuccessUiState(state.mcuUpdates, state.currentMcuIndex))
-              }
-            }
-            is FwupTransactionResult.RequiresConfirmation -> {
-              // W3 two-tap flow: transition to awaiting confirmation state
-              setState(
-                AwaitingConfirmationUiState(
-                  mcuUpdates = state.mcuUpdates,
-                  currentMcuIndex = state.currentMcuIndex,
-                  fetchResult = result.fetchResult
-                )
-              )
-            }
-            is FwupTransactionResult.RequiresEmulatedPrompt -> {
-              // Fake hardware: transition to emulated prompt selection state
-              setState(
-                EmulatingPromptUiState(
-                  mcuUpdates = state.mcuUpdates,
-                  currentMcuIndex = state.currentMcuIndex,
-                  options = result.options
-                )
-              )
-            }
-          }
+          handleNfcTransactionSuccess(result, state, props, setProgress, setState)
         }
     }
   }
@@ -538,7 +859,9 @@ class FwupNfcSessionUiStateMachineImpl(
       )
     }
     if (!didStart) {
-      throw NfcException.CommandError()
+      throw NfcException.CommandError(
+        message = "fwup_start returned false after confirmation"
+      )
     }
     fwupInProgress = true
 
@@ -550,15 +873,21 @@ class FwupNfcSessionUiStateMachineImpl(
       updateSequenceId = updateSequenceId
     )
 
+    eventTracker.track(
+      Action.ACTION_APP_FWUP_MCU_UPDATE_COMPLETE,
+      mcuFwupData.mcuRole.toEventTrackerContext()
+    )
     return FwupTransactionResult.Completed
   }
 
   @Throws(NfcException::class, CancellationException::class)
-  @Suppress("ThrowsCount")
+  @Suppress("ThrowsCount", "CyclomaticComplexMethod")
   private suspend fun fwupTransaction(
     session: NfcSession,
     commands: NfcCommands,
     mcuFwupData: McuFwupData,
+    previousMcuFwupData: McuFwupData? = null,
+    allMcuUpdates: List<McuFwupData> = emptyList(),
     updateSequenceId: suspend (sequenceId: UInt) -> Unit,
   ): FwupTransactionResult {
     val mcuRole = mcuFwupData.mcuRole
@@ -567,6 +896,13 @@ class FwupNfcSessionUiStateMachineImpl(
       // FWUP can succeed on device but fail during app confirmation,
       // causing users to retry an already-completed update. Skip if already at target.
       val currentDeviceInfo = commands.getDeviceInfo(session)
+
+      // Verify previous MCU was actually applied before starting the next one.
+      // This must run before the "already at target" skip below so that a
+      // coincidentally up-to-date current MCU can't mask a failed previous MCU.
+      val verificationFailure =
+        verifyPreviousMcuApplied(currentDeviceInfo, previousMcuFwupData)
+      if (verificationFailure != null) return verificationFailure
 
       // For W1 (single MCU), check main version field
       // For W3 (multi MCU), check specific MCU version from mcuInfo
@@ -590,6 +926,17 @@ class FwupNfcSessionUiStateMachineImpl(
       // but the code must be this way for now.
       setMcuSequenceId(mcuRole, 0u)
 
+      // Opt into atomic FWUP when updating UXC as part of a multi-MCU update AND the
+      // other MCU (Core) actually still needs updating. If Core is already at its target
+      // version, it will be skipped and we shouldn't leave UXC in a deferred state.
+      // Old firmware ignores this field (proto3 default false).
+      val deferCommit = mcuRole == build.wallet.firmware.McuRole.UXC &&
+        allMcuUpdates.any { otherMcu ->
+          otherMcu.mcuRole != mcuRole &&
+            currentDeviceInfo.mcuInfo.find { it.mcuRole == otherMcu.mcuRole }
+              ?.firmwareVersion != otherMcu.version
+        }
+
       val startResult =
         commands.fwupStart(
           session = session,
@@ -600,18 +947,19 @@ class FwupNfcSessionUiStateMachineImpl(
             },
           fwupMode = mcuFwupData.fwupMode,
           mcuRole = mcuRole,
-          version = mcuFwupData.version
+          version = mcuFwupData.version,
+          deferCommit = deferCommit
         )
 
       val didStart = when (startResult) {
         is HardwareInteraction.Completed -> startResult.result
         is HardwareInteraction.RequiresConfirmation -> {
           // W3 two-tap flow: firmware requires user confirmation before continuing
-          return FwupTransactionResult.RequiresConfirmation(startResult.fetchResult)
+          return FwupTransactionResult.RequiresConfirmation(startResult.toSessionFn())
         }
         is HardwareInteraction.ConfirmWithEmulatedPrompt -> {
           // Fake hardware emulated prompt - show prompt selection UI
-          return FwupTransactionResult.RequiresEmulatedPrompt(startResult.options)
+          return FwupTransactionResult.RequiresEmulatedPrompt(startResult)
         }
         is HardwareInteraction.RequiresTransfer -> {
           // RequiresTransfer is only for transaction signing, should never happen in fwup
@@ -622,7 +970,9 @@ class FwupNfcSessionUiStateMachineImpl(
       }
 
       if (!didStart) {
-        throw NfcException.CommandError()
+        throw NfcException.CommandError(
+          message = "fwup_start returned false for MCU $mcuRole"
+        )
       }
 
       eventTracker.track(
@@ -630,6 +980,12 @@ class FwupNfcSessionUiStateMachineImpl(
         mcuRole.toEventTrackerContext()
       )
       fwupInProgress = true
+    } else {
+      // FWUP is already in progress (resuming after tag loss). Send a lightweight
+      // getDeviceInfo command first to ensure the NFC connection is stable before
+      // sending fwupTransfer chunks. Without this, the first fwupTransfer can fail
+      // immediately on Android because the tag connection isn't fully established yet.
+      commands.getDeviceInfo(session)
     }
 
     var sequenceId = getMcuSequenceId(mcuRole)
@@ -657,7 +1013,9 @@ class FwupNfcSessionUiStateMachineImpl(
         updateSequenceId(sequenceId)
       } else {
         // Early return if failed to transfer
-        throw NfcException.CommandError()
+        throw NfcException.CommandError(
+          message = "fwup_transfer failed for MCU $mcuRole at sequence ${sequenceId - 1u}"
+        )
       }
     }
 
@@ -675,7 +1033,9 @@ class FwupNfcSessionUiStateMachineImpl(
 
     // Early return if failed to transfer the final transfer
     if (!didTransfer) {
-      throw NfcException.CommandError()
+      throw NfcException.CommandError(
+        message = "fwup_transfer signature failed for MCU $mcuRole"
+      )
     }
 
     // Finish
@@ -691,8 +1051,11 @@ class FwupNfcSessionUiStateMachineImpl(
     fwupInProgress = false
 
     return when (finishResult) {
-      Unspecified, SignatureInvalid, VersionInvalid, Error ->
-        throw NfcException.CommandError()
+      Unspecified, SignatureInvalid, VersionInvalid, ConfirmationMismatch, Error ->
+        throw NfcException.FwupFinishError(
+          status = finishResult,
+          message = "fwup_finish failed for MCU $mcuRole: $finishResult"
+        )
       Success, WillApplyPatch -> {
         eventTracker.track(
           Action.ACTION_APP_FWUP_MCU_UPDATE_COMPLETE,
@@ -703,6 +1066,41 @@ class FwupNfcSessionUiStateMachineImpl(
       Unauthenticated ->
         throw NfcException.CommandErrorUnauthenticated()
     }
+  }
+
+  /**
+   * Verify that the previous MCU's update was actually applied by checking its
+   * version in [FirmwareDeviceInfo.mcuInfo]. Returns a [FwupTransactionResult]
+   * if verification fails, or `null` if the update was applied (or can't be checked).
+   *
+   * Old firmware that doesn't report per-MCU versions ([mcuInfo] empty) is allowed
+   * to proceed without verification.
+   */
+  private fun verifyPreviousMcuApplied(
+    currentDeviceInfo: FirmwareDeviceInfo,
+    previousMcuFwupData: McuFwupData?,
+  ): FwupTransactionResult? {
+    if (previousMcuFwupData == null || currentDeviceInfo.mcuInfo.isEmpty()) return null
+
+    val previousMcuVersion = currentDeviceInfo.mcuInfo
+      .find { it.mcuRole == previousMcuFwupData.mcuRole }?.firmwareVersion
+
+    if (previousMcuVersion != null && previousMcuVersion != previousMcuFwupData.version) {
+      logError {
+        "Previous MCU ${previousMcuFwupData.mcuRole} update was not applied. " +
+          "Expected version ${previousMcuFwupData.version} but found $previousMcuVersion."
+      }
+      eventTracker.track(
+        Action.ACTION_APP_FWUP_MCU_UPDATE_FAILED,
+        previousMcuFwupData.mcuRole.toEventTrackerContext()
+      )
+      return FwupTransactionResult.PreviousMcuUpdateNotApplied(
+        mcuRole = previousMcuFwupData.mcuRole,
+        expectedVersion = previousMcuFwupData.version,
+        actualVersion = previousMcuVersion
+      )
+    }
+    return null
   }
 
   /**
@@ -740,7 +1138,9 @@ class FwupNfcSessionUiStateMachineImpl(
       if (didTransfer) {
         updateSequenceId(sequenceId)
       } else {
-        throw NfcException.CommandError()
+        throw NfcException.CommandError(
+          message = "fwup_transfer failed for MCU $mcuRole at sequence ${sequenceId - 1u}"
+        )
       }
     }
 
@@ -756,7 +1156,9 @@ class FwupNfcSessionUiStateMachineImpl(
       )
 
     if (!didTransfer) {
-      throw NfcException.CommandError()
+      throw NfcException.CommandError(
+        message = "fwup_transfer signature failed for MCU $mcuRole"
+      )
     }
 
     // Finish
@@ -772,8 +1174,11 @@ class FwupNfcSessionUiStateMachineImpl(
     fwupInProgress = false
 
     return when (finishResult) {
-      Unspecified, SignatureInvalid, VersionInvalid, Error ->
-        throw NfcException.CommandError()
+      Unspecified, SignatureInvalid, VersionInvalid, ConfirmationMismatch, Error ->
+        throw NfcException.FwupFinishError(
+          status = finishResult,
+          message = "fwup_finish failed for MCU $mcuRole: $finishResult"
+        )
       Success, WillApplyPatch ->
         Unit
       Unauthenticated ->
@@ -821,8 +1226,32 @@ private sealed interface FwupNfcSessionUiState {
       override val currentMcuIndex: Int = 0,
       val fetchResult: (suspend (NfcSession, NfcCommands) -> HardwareInteraction<Boolean>)? = null,
       val displayMode: DisplayMode = DisplayMode.Searching,
+      val emulatedPrompt: HardwareInteraction.ConfirmWithEmulatedPrompt<Boolean>? = null,
     ) : InSessionUiState(mcuUpdates, currentMcuIndex) {
-      enum class DisplayMode { Searching, Updating, LostConnection }
+      enum class DisplayMode {
+        /**
+         * The app-level NFC flow is active and waiting for the customer to present Bitkey.
+         */
+        Searching,
+
+        /**
+         * Bitkey is connected and the firmware update transaction is actively progressing.
+         */
+        Updating,
+
+        /**
+         * The tag was disconnected after the session was established, so the user needs to
+         * reconnect Bitkey to continue the current update attempt.
+         */
+        LostConnection,
+
+        /**
+         * After the cooldown screen, start the next NFC session in the background but keep the
+         * cooldown UI visible briefly. This avoids flashing the app's searching screen when iOS
+         * immediately rejects the retry session.
+         */
+        BackgroundRetryStartup,
+      }
     }
 
     data class SuccessUiState(
@@ -841,16 +1270,6 @@ private sealed interface FwupNfcSessionUiState {
     ) : InSessionUiState(mcuUpdates, currentMcuIndex)
 
     /**
-     * Fake hardware emulated prompt: fwupStart returned ConfirmWithEmulatedPrompt.
-     * Display prompt options to simulate device confirmation.
-     */
-    data class EmulatingPromptUiState(
-      override val mcuUpdates: ImmutableList<McuFwupData>,
-      override val currentMcuIndex: Int = 0,
-      val options: List<EmulatedPromptOption<Boolean>>,
-    ) : InSessionUiState(mcuUpdates, currentMcuIndex)
-
-    /**
      * Shown between MCU updates in a sequence. Tells user the previous component is done
      * and prompts them to start the next component update.
      * Flow: User taps continue → NFC session → fwupStart → device confirmation → transfer
@@ -861,6 +1280,35 @@ private sealed interface FwupNfcSessionUiState {
     data class AwaitingNextMcuStartUiState(
       override val mcuUpdates: ImmutableList<McuFwupData>,
       override val currentMcuIndex: Int,
+    ) : InSessionUiState(mcuUpdates, currentMcuIndex)
+
+    /**
+     * iOS-only: the active FWUP session is gone and we need to wait briefly before letting the
+     * user continue. Progress is preserved and the next attempt resumes from the saved sequence ID.
+     */
+    data class NfcCooldownUiState(
+      override val mcuUpdates: ImmutableList<McuFwupData>,
+      override val currentMcuIndex: Int = 0,
+    ) : InSessionUiState(mcuUpdates, currentMcuIndex)
+
+    /**
+     * W3 two-tap flow: User tapped before approving/denying on device.
+     * Shows prompt to make decision on device.
+     */
+    data class ConfirmationPendingUiState(
+      override val mcuUpdates: ImmutableList<McuFwupData>,
+      override val currentMcuIndex: Int = 0,
+      val fetchResult: suspend (NfcSession, NfcCommands) -> HardwareInteraction<Boolean>,
+    ) : InSessionUiState(mcuUpdates, currentMcuIndex)
+
+    /**
+     * W3 two-tap flow: User explicitly denied on device.
+     * Shows acknowledgment screen before returning to confirmation flow.
+     */
+    data class ConfirmationDeniedUiState(
+      override val mcuUpdates: ImmutableList<McuFwupData>,
+      override val currentMcuIndex: Int = 0,
+      val fetchResult: suspend (NfcSession, NfcCommands) -> HardwareInteraction<Boolean>,
     ) : InSessionUiState(mcuUpdates, currentMcuIndex)
   }
 
@@ -883,12 +1331,18 @@ private sealed interface FwupNfcSessionUiState {
  * middle of FWUP.
  */
 sealed interface FwupTransactionType {
-  /** Start FWUP from the beginning */
-  data object StartFromBeginning : FwupTransactionType
+  /** The MCU index to start/resume at in a multi-MCU sequence. */
+  val currentMcuIndex: Int
 
-  /** Resume FWUP from the given [sequenceId] */
+  /** Start FWUP from the beginning at the given [currentMcuIndex]. */
+  data class StartFromBeginning(
+    override val currentMcuIndex: Int = 0,
+  ) : FwupTransactionType
+
+  /** Resume FWUP from the given [sequenceId] at the given [currentMcuIndex]. */
   data class ResumeFromSequenceId(
     val sequenceId: UInt,
+    override val currentMcuIndex: Int = 0,
   ) : FwupTransactionType
 }
 
@@ -914,8 +1368,20 @@ internal sealed interface FwupTransactionResult {
     val fetchResult: suspend (NfcSession, NfcCommands) -> HardwareInteraction<Boolean>,
   ) : FwupTransactionResult
 
-  /** Fake hardware: fwupStart returned emulated prompt options for user selection. */
+  /** Fake hardware: fwupStart returned emulated prompt for user selection. */
   data class RequiresEmulatedPrompt(
-    val options: List<EmulatedPromptOption<Boolean>>,
+    val emulatedPrompt: HardwareInteraction.ConfirmWithEmulatedPrompt<Boolean>,
+  ) : FwupTransactionResult
+
+  /**
+   * The previous MCU's firmware update was not applied on the device.
+   * Detected by reading the device info at the start of the next MCU's update
+   * and finding the previous MCU's version hasn't changed to the expected target.
+   * The user should be returned to the start of the update flow to retry.
+   */
+  data class PreviousMcuUpdateNotApplied(
+    val mcuRole: build.wallet.firmware.McuRole,
+    val expectedVersion: String,
+    val actualVersion: String,
   ) : FwupTransactionResult
 }

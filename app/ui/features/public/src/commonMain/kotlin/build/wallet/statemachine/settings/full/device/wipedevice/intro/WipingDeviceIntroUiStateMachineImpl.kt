@@ -5,7 +5,6 @@ import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdConte
 import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.limit.MobilePayData.MobilePayEnabledData
@@ -21,6 +20,8 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.RenderContext
+import build.wallet.statemachine.nfc.HardwarePresenceProps
+import build.wallet.statemachine.nfc.HardwarePresenceUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceEventTrackerScreenId
@@ -35,11 +36,11 @@ import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
 @BitkeyInject(ActivityScope::class)
 class WipingDeviceIntroUiStateMachineImpl(
+  private val hardwarePresenceUiStateMachine: HardwarePresenceUiStateMachine,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
@@ -58,8 +59,6 @@ class WipingDeviceIntroUiStateMachineImpl(
 
     val transactionsData =
       remember { bitcoinWalletService.transactionsData() }.collectAsState().value
-
-    val scope = rememberStableCoroutineScope()
 
     return when (val state = uiState) {
       is IntroState -> {
@@ -99,15 +98,15 @@ class WipingDeviceIntroUiStateMachineImpl(
             .collectAsState()
             .value
 
-          InitialDeviceTapModel(
-            onTapPairedDevice = {
-              val balance = transactionsData?.balance
-              if (balance == null) {
-                uiState = SpendableBalanceCheckFailedState
-              } else if (balance.untrustedPending.isPositive) {
-                uiState = TransferringFundsState
-              } else if (balance.spendable.isPositive && spendingWallet != null) {
-                scope.launch {
+          hardwarePresenceUiStateMachine.model(
+            props = HardwarePresenceProps(
+              onSuccess = {
+                val balance = transactionsData?.balance
+                if (balance == null) {
+                  uiState = SpendableBalanceCheckFailedState
+                } else if (balance.untrustedPending.isPositive) {
+                  uiState = TransferringFundsState
+                } else if (balance.spendable.isPositive && spendingWallet != null) {
                   spendingWallet.isBalanceSpendable()
                     .onSuccess { isSpendable ->
                       if (isSpendable) {
@@ -118,14 +117,20 @@ class WipingDeviceIntroUiStateMachineImpl(
                     }.onFailure {
                       uiState = SpendableBalanceCheckFailedState
                     }
+                } else {
+                  props.onDeviceConfirmed(true)
                 }
-              } else {
-                props.onDeviceConfirmed(true)
-              }
-            },
-            onCancel = {
-              uiState = IntroState()
-            }
+              },
+              onFailure = {
+                uiState = IntroState()
+              },
+              onCancel = {
+                uiState = IntroState()
+              },
+              screenPresentationStyle = ScreenPresentationStyle.Modal,
+              eventTrackerContext = NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION,
+              showNativeSheetOnIos = false
+            )
           )
         } else {
           UnpairedDeviceTapModel(
@@ -208,7 +213,7 @@ class WipingDeviceIntroUiStateMachineImpl(
     return ScreenModel(
       body = wipingDeviceModel,
       bottomSheetModel = bottomSheet,
-      presentationStyle = ScreenPresentationStyle.Root
+      presentationStyle = ScreenPresentationStyle.Modal
     )
   }
 
@@ -252,24 +257,6 @@ class WipingDeviceIntroUiStateMachineImpl(
       ),
       renderContext = RenderContext.Sheet
     )
-
-  @Composable
-  private fun InitialDeviceTapModel(
-    onTapPairedDevice: () -> Unit,
-    onCancel: () -> Unit,
-  ): ScreenModel {
-    return nfcSessionUIStateMachine.model(
-      NfcSessionUIStateMachineProps(
-        session = { session, commands ->
-          commands.getDeviceInfo(session)
-        },
-        onSuccess = { onTapPairedDevice() },
-        onCancel = onCancel,
-        screenPresentationStyle = ScreenPresentationStyle.Modal,
-        eventTrackerContext = NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION
-      )
-    )
-  }
 
   @Composable
   private fun UnpairedDeviceTapModel(

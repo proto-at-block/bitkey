@@ -1,5 +1,7 @@
 #include "display_send.h"
 
+#include "attributes.h"
+
 #include <stddef.h>
 
 // Callback registered by app/tasks/display to handle message sending.
@@ -7,7 +9,7 @@
 // but the queue implementation lives in app/tasks/display. By using a callback,
 // lib/display only depends on the interface while app/tasks/display provides
 // the implementation.
-static display_send_fn_t display_send_fn = NULL;
+static display_send_fn_t display_send_fn SHARED_TASK_BSS = NULL;
 
 void display_send_register(display_send_fn_t send_fn) {
   display_send_fn = send_fn;

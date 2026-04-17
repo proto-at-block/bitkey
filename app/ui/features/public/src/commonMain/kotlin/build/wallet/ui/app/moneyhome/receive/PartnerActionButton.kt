@@ -14,14 +14,17 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
+import build.wallet.ui.components.loading.CircularLoadingBadge
 import build.wallet.ui.components.loading.LoadingBadge
 import build.wallet.ui.compose.scalingClickable
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
+import build.wallet.ui.tokens.market.MarketIcons
 
 /**
  * A circular action button specifically designed for the receive screen.
@@ -42,7 +45,12 @@ fun PartnerActionButton(
   modifier: Modifier = Modifier,
   enabled: Boolean = true,
   isLoading: Boolean = false,
+  buttonBackgroundColor: Color? = null,
+  labelType: LabelType = LabelType.Body4Regular,
 ) {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val resolvedButtonBackgroundColor = buttonBackgroundColor ?: WalletTheme.colors.foreground10
+
   Column(
     modifier = modifier,
     horizontalAlignment = Alignment.CenterHorizontally
@@ -57,16 +65,23 @@ fun PartnerActionButton(
           onClick = onClick
         )
         .background(
-          color = WalletTheme.colors.foreground10,
+          color = resolvedButtonBackgroundColor,
           shape = CircleShape
         ),
       contentAlignment = Alignment.Center
     ) {
       if (isLoading) {
-        LoadingBadge(
-          modifier = Modifier.size(24.dp),
-          color = WalletTheme.colors.foreground
-        )
+        if (isDesignSystemV2Enabled) {
+          CircularLoadingBadge(
+            modifier = Modifier.size(24.dp),
+            color = WalletTheme.colors.foreground
+          )
+        } else {
+          LoadingBadge(
+            modifier = Modifier.size(24.dp),
+            color = WalletTheme.colors.foreground
+          )
+        }
       } else {
         IconImage(
           model = iconModel,
@@ -82,7 +97,7 @@ fun PartnerActionButton(
 
     Label(
       text = text,
-      type = LabelType.Body4Regular,
+      type = labelType,
       treatment = if (enabled) LabelTreatment.Secondary else LabelTreatment.Disabled
     )
   }
@@ -100,6 +115,8 @@ fun PartnerActionButton(
   fallbackIcon: Icon = Icon.Bitcoin,
   isLoading: Boolean = false,
 ) {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+
   PartnerActionButton(
     iconModel = IconModel(
       iconImage = when (logoUrl) {
@@ -115,7 +132,8 @@ fun PartnerActionButton(
     text = name,
     onClick = onClick,
     modifier = modifier,
-    isLoading = isLoading
+    isLoading = isLoading,
+    labelType = if (isDesignSystemV2Enabled) LabelType.Body4Mono else LabelType.Body4Regular
   )
 }
 
@@ -130,15 +148,39 @@ fun ActionButton(
   modifier: Modifier = Modifier,
   iconTint: IconTint? = IconTint.Foreground,
 ) {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+
   PartnerActionButton(
-    iconModel = IconModel(
-      iconImage = IconImage.LocalImage(icon),
-      // Smaller icon size for action buttons
-      iconSize = IconSize.Small,
+    iconModel = actionButtonIconModel(
+      icon = icon,
       iconTint = iconTint
     ),
     text = text,
     onClick = onClick,
-    modifier = modifier
+    modifier = modifier,
+    buttonBackgroundColor = if (isDesignSystemV2Enabled) {
+      WalletTheme.colors.secondary
+    } else {
+      WalletTheme.colors.foreground10
+    },
+    labelType = if (isDesignSystemV2Enabled) LabelType.Body4Mono else LabelType.Body4Regular
   )
 }
+
+private fun actionButtonIconModel(
+  icon: Icon,
+  iconTint: IconTint?,
+): IconModel =
+  if (icon == Icon.SmallIconShare) {
+    IconModel(
+      iconImage = IconImage.MarketIconImage(MarketIcons.FileUpload),
+      iconSize = IconSize.Small
+    )
+  } else {
+    IconModel(
+      iconImage = IconImage.LocalImage(icon),
+      // Smaller icon size for action buttons
+      iconSize = IconSize.Small,
+      iconTint = iconTint
+    )
+  }

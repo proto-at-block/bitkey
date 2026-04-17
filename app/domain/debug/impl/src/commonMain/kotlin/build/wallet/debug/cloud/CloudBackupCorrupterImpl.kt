@@ -1,10 +1,11 @@
 package build.wallet.debug.cloud
 
 import build.wallet.catchingResult
-import build.wallet.cloud.backup.CloudBackupRepositoryKeys
+import build.wallet.cloud.backup.CloudBackupStore
+import build.wallet.cloud.backup.CloudBackupStoreKeys
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV3
-import build.wallet.cloud.store.CloudKeyValueStore
+import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.cloudServiceProvider
@@ -21,13 +22,15 @@ import com.github.michaelbull.result.onSuccess
 import com.github.michaelbull.result.orElse
 import kotlinx.serialization.json.Json
 import okio.ByteString.Companion.decodeHex
+import okio.ByteString.Companion.encodeUtf8
 
 @BitkeyInject(AppScope::class)
 class CloudBackupCorrupterImpl(
   private val appVariant: AppVariant,
-  private val cloudKeyValueStore: CloudKeyValueStore,
+  private val cloudBackupStore: CloudBackupStore,
   private val cloudStoreAccountRepository: CloudStoreAccountRepository,
-  private val cloudBackupRepositoryKeys: CloudBackupRepositoryKeys,
+  private val cloudBackupStoreKeys: CloudBackupStoreKeys,
+  private val cloudBackupDao: CloudBackupDao,
 ) : CloudBackupCorrupter {
   val sealedDataMock =
     SealedData(
@@ -47,10 +50,10 @@ class CloudBackupCorrupterImpl(
         .bind()
 
       cloudAccount?.let {
-        cloudKeyValueStore.keys(cloudAccount)
+        cloudBackupStore.keys(cloudAccount)
           .onSuccess {
             it.asSequence()
-              .filter { key -> cloudBackupRepositoryKeys.isValidBackupKey(key) }
+              .filter { key -> cloudBackupStoreKeys.isValidBackupKey(key) }
               .forEach { key -> readBackupThenCorrupt(cloudAccount, key).bind() }
           }
       }
@@ -64,9 +67,10 @@ class CloudBackupCorrupterImpl(
     key: String,
   ): Result<Unit, CorruptionError> =
     coroutineBinding {
-      val backupJson = cloudKeyValueStore.getString(cloudAccount, key)
+      val backupJson = cloudBackupStore.get(cloudAccount, key)
         .mapError { CorruptionError.BackupReadError("Failed to get backup", it) }
         .bind()
+        ?.utf8()
 
       if (backupJson != null) {
         // Deserialize the existing backup
@@ -103,12 +107,30 @@ class CloudBackupCorrupterImpl(
           .bind()
 
         // Write the corrupted backup back to cloud storage
-        cloudKeyValueStore.setString(
+        cloudBackupStore.set(
           cloudAccount,
           key,
-          corruptedBackupJson
+          corruptedBackupJson.encodeUtf8()
         )
           .mapError { CorruptionError.BackupWriteError("Failed to corrupt backup", it) }
+          .bind()
+
+        // Keep local backup in sync so health auto-repair does not immediately undo corruption.
+        val corruptedBackup = catchingResult {
+          Json.decodeFromString<CloudBackupV3>(corruptedBackupJson)
+        }
+          .orElse {
+            catchingResult {
+              Json.decodeFromString<CloudBackupV2>(corruptedBackupJson)
+            }
+          }
+          .mapError { CorruptionError.DeserializationError("Failed to decode corrupted backup", it) }
+          .bind()
+
+        cloudBackupDao.set(corruptedBackup.accountId, corruptedBackup)
+          .mapError {
+            CorruptionError.BackupWriteError("Failed to persist corrupted local backup", it)
+          }
           .bind()
       }
     }

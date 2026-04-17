@@ -24,4 +24,10 @@ enum class FwupEventTrackerScreenId : EventTrackerScreenId {
 
   /** Screen shown between MCU updates prompting user to start the next component */
   FWUP_NEXT_COMPONENT_READY,
+
+  /** Error sheet shown when a previous MCU's update was not applied on the device */
+  FWUP_PREVIOUS_MCU_UPDATE_NOT_APPLIED_SHEET,
+
+  /** iOS-only: cooldown screen shown after the active NFC session becomes unavailable */
+  FWUP_NFC_SESSION_COOLDOWN,
 }

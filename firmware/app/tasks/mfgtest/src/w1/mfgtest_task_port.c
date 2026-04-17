@@ -67,6 +67,47 @@ void mfgtest_task_port_handle_coproc_gpio_response(ipc_ref_t* message) {
   ASSERT(false);
 }
 
+void mfgtest_task_port_handle_coproc_device_set_production_lock_command(
+  fwpb_wallet_cmd* wallet_cmd) {
+  fwpb_wallet_rsp* wallet_rsp = proto_get_rsp();
+  fwpb_mfgtest_device_set_production_lock_rsp* rsp =
+    &wallet_rsp->msg.mfgtest_device_set_production_lock_rsp;
+
+  wallet_rsp->which_msg = fwpb_wallet_rsp_mfgtest_device_set_production_lock_rsp_tag;
+  rsp->rsp_status =
+    fwpb_mfgtest_device_set_production_lock_rsp_mfgtest_device_set_production_lock_rsp_status_ERROR;
+
+  LOGE("Coprocessor set device production lock commands not supported on W1");
+  proto_send_rsp(wallet_cmd, wallet_rsp);
+}
+
+void mfgtest_task_port_handle_coproc_device_get_production_lock_command(
+  fwpb_wallet_cmd* wallet_cmd) {
+  fwpb_wallet_rsp* wallet_rsp = proto_get_rsp();
+  fwpb_mfgtest_device_get_production_lock_rsp* rsp =
+    &wallet_rsp->msg.mfgtest_device_get_production_lock_rsp;
+
+  wallet_rsp->which_msg = fwpb_wallet_rsp_mfgtest_device_get_production_lock_rsp_tag;
+  rsp->rsp_status =
+    fwpb_mfgtest_device_get_production_lock_rsp_mfgtest_device_get_production_lock_rsp_status_ERROR;
+  rsp->is_production = false;
+
+  LOGE("Coprocessor get device production lock commands not supported on W1");
+  proto_send_rsp(wallet_cmd, wallet_rsp);
+}
+
+void mfgtest_task_port_handle_coproc_device_set_production_lock_response(ipc_ref_t* message) {
+  // Should never be called on W1.
+  (void)message;
+  ASSERT(false);
+}
+
+void mfgtest_task_port_handle_coproc_device_get_production_lock_response(ipc_ref_t* message) {
+  // Should never be called on W1.
+  (void)message;
+  ASSERT(false);
+}
+
 void mfgtest_task_port_handle_touch_data_cmd(ipc_ref_t* message) {
   fwpb_wallet_cmd* wallet_cmd = proto_get_cmd((uint8_t*)message->object, message->length);
   fwpb_wallet_rsp* wallet_rsp = proto_get_rsp();

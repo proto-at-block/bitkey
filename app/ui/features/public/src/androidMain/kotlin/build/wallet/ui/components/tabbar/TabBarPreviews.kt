@@ -1,15 +1,66 @@
 package build.wallet.ui.components.tabbar
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.tooling.PreviewWalletTheme
 
 @Preview
 @Composable
 fun TabBarWithHomeAndSecurityHubPreview() {
   PreviewWalletTheme {
-    TabBar {
+    TabBarWithHomeAndSecurityHub()
+  }
+}
+
+@Preview
+@Composable
+fun TabBarWithHomeAndSecurityHubDesignSystemPreview() {
+  TabBarWithHomeAndSecurityHubDesignSystem()
+}
+
+@Preview
+@Composable
+fun TabBarWithHomeAndSecurityHubBadgedDesignSystemPreview() {
+  TabBarWithHomeAndSecurityHubBadgedDesignSystem()
+}
+
+@Preview
+@Composable
+fun TabBarWithHomeAndSecurityHubBadgedPreview() {
+  PreviewWalletTheme {
+    TabBarWithHomeAndSecurityHubBadged()
+  }
+}
+
+@Composable
+fun TabBarWithHomeAndSecurityHub() {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  TabBar(selectedIndex = 0, tabCount = 2) {
+    if (isDesignSystemV2Enabled) {
+      Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+        Tab(
+          icon = Icon.SmallIconWalletFilled,
+          selected = true,
+          onClick = { },
+          modifier = Modifier.offset(x = 3.dp)
+        )
+      }
+      Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+        Tab(
+          icon = Icon.SmallIconShield,
+          selected = false,
+          onClick = { },
+          modifier = Modifier.offset(x = (-3).dp)
+        )
+      }
+    } else {
       Tab(
         icon = Icon.SmallIconWalletFilled,
         selected = true,
@@ -24,11 +75,29 @@ fun TabBarWithHomeAndSecurityHubPreview() {
   }
 }
 
-@Preview
 @Composable
-fun TabBarWithHomeAndSecurityHubBadgedPreview() {
-  PreviewWalletTheme {
-    TabBar {
+fun TabBarWithHomeAndSecurityHubBadged() {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  TabBar(selectedIndex = 0, tabCount = 2) {
+    if (isDesignSystemV2Enabled) {
+      Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+        Tab(
+          icon = Icon.SmallIconWalletFilled,
+          selected = true,
+          onClick = { },
+          modifier = Modifier.offset(x = 3.dp)
+        )
+      }
+      Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+        Tab(
+          icon = Icon.SmallIconShield,
+          selected = false,
+          badged = true,
+          onClick = { },
+          modifier = Modifier.offset(x = (-3).dp)
+        )
+      }
+    } else {
       Tab(
         icon = Icon.SmallIconWalletFilled,
         selected = true,
@@ -45,34 +114,15 @@ fun TabBarWithHomeAndSecurityHubBadgedPreview() {
 }
 
 @Composable
-fun TabBarWithHomeAndSecurityHub() {
-  TabBar {
-    Tab(
-      icon = Icon.SmallIconWalletFilled,
-      selected = true,
-      onClick = { }
-    )
-    Tab(
-      icon = Icon.SmallIconShield,
-      selected = false,
-      onClick = { }
-    )
+fun TabBarWithHomeAndSecurityHubDesignSystem() {
+  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+    TabBarWithHomeAndSecurityHub()
   }
 }
 
 @Composable
-fun TabBarWithHomeAndSecurityHubBadged() {
-  TabBar {
-    Tab(
-      icon = Icon.SmallIconWalletFilled,
-      selected = true,
-      onClick = { }
-    )
-    Tab(
-      icon = Icon.SmallIconShield,
-      selected = false,
-      badged = true,
-      onClick = { }
-    )
+fun TabBarWithHomeAndSecurityHubBadgedDesignSystem() {
+  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+    TabBarWithHomeAndSecurityHubBadged()
   }
 }

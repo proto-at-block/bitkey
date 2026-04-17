@@ -15,7 +15,7 @@ import build.wallet.analytics.v1.Action
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.feature.flags.UsSmsFeatureFlag
 import build.wallet.notifications.NotificationTouchpointData
 import build.wallet.notifications.NotificationTouchpointService
@@ -31,9 +31,8 @@ import build.wallet.statemachine.account.create.full.onboard.notifications.RECOV
 import build.wallet.statemachine.account.create.full.onboard.notifications.UiErrorHint
 import build.wallet.statemachine.account.create.full.onboard.notifications.UiErrorHintKey
 import build.wallet.statemachine.account.create.full.onboard.notifications.UiErrorHintsProvider
-import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
-import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
-import build.wallet.statemachine.auth.Request
+import build.wallet.statemachine.auth.HardwareAuthUiProps
+import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.notifications.NotificationOperationApprovalInstructionsFormScreenModel
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps
@@ -59,7 +58,7 @@ class RecoveryChannelSettingsScreenPresenter(
     NotificationTouchpointInputAndVerificationUiStateMachine,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val telephonyCountryCodeProvider: TelephonyCountryCodeProvider,
-  private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
+  private val hardwareAuthUiStateMachine: HardwareAuthUiStateMachine,
   private val systemSettingsLauncher: SystemSettingsLauncher,
   private val eventTracker: EventTracker,
   private val notificationPermissionRequester: NotificationPermissionRequester,
@@ -112,7 +111,7 @@ class RecoveryChannelSettingsScreenPresenter(
           screen = screen,
           updatedPrefs = updatedPrefs,
           state = currentState,
-          hwFactorProofOfPossession = currentState.hwFactorProofOfPossession,
+          proof = currentState.proof,
           setState = { state = it },
           updatedPrefsState = { notificationPreferences = it }
         ).asModalScreen()
@@ -130,14 +129,44 @@ class RecoveryChannelSettingsScreenPresenter(
         }
       )
 
-      is VerifyingProofOfHwPossessionUiState -> VerifyingProofOfHwPossessionModel(
-        screen = screen,
-        onBack = { state = ShowingNotificationsSettingsUiState() },
-        onSuccess = { proof ->
-          state = TogglingNotificationChannelUiState(currentState.notificationChannel, proof)
-        },
-        operationDescriptiton = currentState.notificationChannel.disableOperationDescription(
-          notificationTouchpointData
+      is VerifyingProofOfHwPossessionUiState -> hardwareAuthUiStateMachine.model(
+        props = HardwareAuthUiProps(
+          account = screen.account,
+          actionProofType = currentState.notificationChannel.toDisableActionProofType(
+            notificationTouchpointData
+          ),
+          segment = NotificationsDisableAppSegment,
+          actionDescription = "Disabling notification channel",
+          screenPresentationStyle = ScreenPresentationStyle.Modal,
+          onSuccess = { proof ->
+            state = TogglingNotificationChannelUiState(currentState.notificationChannel, proof)
+          },
+          onBack = { state = ShowingNotificationsSettingsUiState() },
+          onTokenRefresh = {
+            NotificationOperationApprovalInstructionsFormScreenModel(
+              onExit = { state = ShowingNotificationsSettingsUiState() },
+              operationDescription = currentState.notificationChannel.disableOperationDescription(
+                notificationTouchpointData
+              ),
+              isApproveButtonLoading = true,
+              errorBottomSheetState = ErrorBottomSheetState.Hidden,
+              onApprove = { /* no-op: button loading */ }
+            )
+          },
+          onTokenRefreshError = { isConnectivityError, _ ->
+            NotificationOperationApprovalInstructionsFormScreenModel(
+              onExit = { state = ShowingNotificationsSettingsUiState() },
+              operationDescription = currentState.notificationChannel.disableOperationDescription(
+                notificationTouchpointData
+              ),
+              isApproveButtonLoading = false,
+              errorBottomSheetState = ErrorBottomSheetState.Showing(
+                isConnectivityError = isConnectivityError,
+                onClosed = { state = ShowingNotificationsSettingsUiState() }
+              ),
+              onApprove = { /* no-op: showing error */ }
+            )
+          }
         )
       )
 
@@ -165,7 +194,9 @@ class RecoveryChannelSettingsScreenPresenter(
           props = NotificationTouchpointInputAndVerificationProps(
             accountId = screen.account.accountId,
             touchpointType = NotificationTouchpointType.PhoneNumber,
-            entryPoint = NotificationTouchpointInputAndVerificationProps.EntryPoint.Settings,
+            entryPoint = NotificationTouchpointInputAndVerificationProps.EntryPoint.Settings(
+              fullAccount = screen.account
+            ),
             onSuccess = {
               state = if (notificationPreferences.accountSecurity.contains(NotificationChannel.Sms)) {
                 ShowingNotificationsSettingsUiState()
@@ -185,7 +216,9 @@ class RecoveryChannelSettingsScreenPresenter(
           props = NotificationTouchpointInputAndVerificationProps(
             accountId = screen.account.accountId,
             touchpointType = NotificationTouchpointType.Email,
-            entryPoint = NotificationTouchpointInputAndVerificationProps.EntryPoint.Settings,
+            entryPoint = NotificationTouchpointInputAndVerificationProps.EntryPoint.Settings(
+              fullAccount = screen.account
+            ),
             onSuccess = {
               state = if (notificationPreferences.accountSecurity.contains(NotificationChannel.Email)) {
                 ShowingNotificationsSettingsUiState()
@@ -253,7 +286,7 @@ class RecoveryChannelSettingsScreenPresenter(
   private fun UpdateNotificationsPreferences(
     screen: RecoveryChannelSettingsScreen,
     updatedPrefs: NotificationPreferences,
-    hwFactorProofOfPossession: HwFactorProofOfPossession?,
+    proof: PrivilegedActionProof?,
     state: RecoveryState,
     setState: (RecoveryState) -> Unit,
     updatedPrefsState: (NotificationPreferences) -> Unit,
@@ -263,7 +296,7 @@ class RecoveryChannelSettingsScreenPresenter(
       notificationsPreferencesCachedProvider.updateNotificationsPreferences(
         accountId = screen.account.accountId,
         preferences = updatedPrefs,
-        hwFactorProofOfPossession = hwFactorProofOfPossession
+        proof = proof
       ).onSuccess {
         updatedPrefsState(updatedPrefs)
         setState(ShowingNotificationsSettingsUiState())
@@ -288,55 +321,6 @@ class RecoveryChannelSettingsScreenPresenter(
   }
 
   @Composable
-  private fun VerifyingProofOfHwPossessionModel(
-    screen: RecoveryChannelSettingsScreen,
-    operationDescriptiton: String,
-    onBack: () -> Unit,
-    onSuccess: (HwFactorProofOfPossession) -> Unit,
-  ): ScreenModel {
-    return proofOfPossessionNfcStateMachine.model(
-      props = ProofOfPossessionNfcProps(
-        request = Request.HwKeyProof(onSuccess),
-        fullAccountId = screen.account.accountId,
-        onBack = onBack,
-        screenPresentationStyle = ScreenPresentationStyle.Modal,
-        onTokenRefresh = {
-          // Provide a screen model to show while the token is being refreshed.
-          // We want this to be the same as [ActivationApprovalInstructionsUiState]
-          // but with the button in a loading state
-          NotificationOperationApprovalInstructionsFormScreenModel(
-            onExit = onBack,
-            operationDescription = operationDescriptiton,
-            isApproveButtonLoading = true,
-            errorBottomSheetState = ErrorBottomSheetState.Hidden,
-            onApprove = {
-              // No-op. Button is loading.
-            }
-          )
-        },
-        onTokenRefreshError = { isConnectivityError, _ ->
-          // Provide a screen model to show if the token refresh results in an error.
-          // We want this to be the same as [ActivationApprovalInstructionsUiState]
-          // but with the error bottom sheet showing
-          NotificationOperationApprovalInstructionsFormScreenModel(
-            onExit = onBack,
-            operationDescription = operationDescriptiton,
-            isApproveButtonLoading = false,
-            errorBottomSheetState =
-              ErrorBottomSheetState.Showing(
-                isConnectivityError = isConnectivityError,
-                onClosed = onBack
-              ),
-            onApprove = {
-              // No-op. Showing error sheet
-            }
-          )
-        }
-      )
-    )
-  }
-
-  @Composable
   @Suppress("CyclomaticComplexMethod")
   private fun ShowingMainScreen(
     state: ShowingNotificationsSettingsUiState,
@@ -351,7 +335,6 @@ class RecoveryChannelSettingsScreenPresenter(
       usSmsFeatureFlag.flagValue()
     }.collectAsState()
 
-    val isDisabled = state.overlayState != None
     val isLoading = state.overlayState is LoadingPreferencesOverlayState
     val smsNumber = notificationTouchpointData?.phoneNumber?.formattedDisplayValue
     val emailAddress = notificationTouchpointData?.email?.value
@@ -410,7 +393,6 @@ class RecoveryChannelSettingsScreenPresenter(
       pushItem = RecoveryChannelsSettingsFormItemModel(
         enabled = when {
           isLoading -> EnabledState.Loading
-          isDisabled -> EnabledState.Disabled
           pushRecoveryEnabled -> EnabledState.Enabled
           else -> EnabledState.Disabled
         },
@@ -433,7 +415,6 @@ class RecoveryChannelSettingsScreenPresenter(
         displayValue = smsNumber,
         enabled = when {
           isLoading -> EnabledState.Loading
-          isDisabled -> EnabledState.Disabled
           smsRecoveryEnabled -> EnabledState.Enabled
           else -> EnabledState.Disabled
         },
@@ -487,7 +468,7 @@ class RecoveryChannelSettingsScreenPresenter(
                       updateState(
                         TogglingNotificationChannelUiState(
                           notificationChannel = NotificationChannel.Sms,
-                          hwFactorProofOfPossession = null
+                          proof = null
                         )
                       )
                     },
@@ -526,7 +507,6 @@ class RecoveryChannelSettingsScreenPresenter(
         displayValue = emailAddress,
         enabled = when {
           isLoading -> EnabledState.Loading
-          isDisabled -> EnabledState.Disabled
           notificationPreferences.accountSecurity.contains(NotificationChannel.Email) -> EnabledState.Enabled
           else -> EnabledState.Disabled
         },
@@ -615,7 +595,7 @@ class RecoveryChannelSettingsScreenPresenter(
               updateState(
                 TogglingNotificationChannelUiState(
                   notificationChannel = NotificationChannel.Push,
-                  hwFactorProofOfPossession = null
+                  proof = null
                 )
               )
             }
@@ -623,18 +603,6 @@ class RecoveryChannelSettingsScreenPresenter(
         }
       }
     )
-  }
-
-  private fun NotificationChannel.disableOperationDescription(
-    notificationTouchpointData: NotificationTouchpointData?,
-  ): String {
-    return when (this) {
-      NotificationChannel.Email -> notificationTouchpointData?.email?.value ?: "(Email Address)"
-      NotificationChannel.Push -> "Push Notification"
-      NotificationChannel.Sms ->
-        notificationTouchpointData?.phoneNumber?.formattedDisplayValue
-          ?: "(SMS Number)"
-    }
   }
 
   private sealed interface RecoveryState {
@@ -676,7 +644,7 @@ class RecoveryChannelSettingsScreenPresenter(
 
     data class TogglingNotificationChannelUiState(
       val notificationChannel: NotificationChannel,
-      val hwFactorProofOfPossession: HwFactorProofOfPossession?,
+      val proof: PrivilegedActionProof?,
     ) : RecoveryState
 
     data class DisablingNotificationChannelProofOfHwPossessionUiState(

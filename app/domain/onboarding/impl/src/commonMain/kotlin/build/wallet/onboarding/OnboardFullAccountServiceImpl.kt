@@ -70,7 +70,7 @@ class OnboardFullAccountServiceImpl(
       // Reuse keybox configuration used for ongoing onboarding,
       // otherwise fall back on debug options
       val accountConfig = onboardingKeybox?.config
-        ?: accountConfigService.resolveHardwareTypeAndCreateFullAccountConfig()
+        ?: accountConfigService.defaultConfig().value.toFullAccountConfig()
 
       val appKeyBundle = generateAppKeys(accountConfig.bitcoinNetworkType).bind()
       // once we successfully generate app keys, persist them in the case onboarding is
@@ -120,11 +120,16 @@ class OnboardFullAccountServiceImpl(
         appGlobalAuthKeyHwSignature = hwActivation.appGlobalAuthKeyHwSignature
       ).bind()
 
+      // Resolve the hardware type from the actual device detected during pairing.
+      val configWithDetectedHardwareType = appKeys.config.copy(
+        hardwareType = hwActivation.hardwareType
+      )
+
       val appAndHwKeys = WithAppKeysAndHardwareKeys(
         appKeyBundle = appKeys.appKeyBundle,
         hardwareKeyBundle = hwActivation.keyBundle,
         appGlobalAuthKeyHwSignature = hwActivation.appGlobalAuthKeyHwSignature,
-        config = appKeys.config
+        config = configWithDetectedHardwareType
       )
 
       when (context) {

@@ -21,12 +21,16 @@ class SweepServiceMock : SweepService {
     sweepRequired.value = false
   }
 
-  override suspend fun prepareSweep(keybox: Keybox): Result<Sweep?, Error> {
+  override suspend fun prepareSweep(
+    keybox: Keybox,
+    sweepContext: SweepContext,
+  ): Result<Sweep?, Error> {
     return prepareSweepResult
   }
 
   override suspend fun estimateSweepWithMockDestination(
     keybox: Keybox,
+    sweepContext: SweepContext,
   ): Result<Sweep, SweepError> {
     return estimateSweepWithMockDestinationResult
   }

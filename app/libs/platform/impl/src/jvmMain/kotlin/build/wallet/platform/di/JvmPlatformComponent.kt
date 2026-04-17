@@ -1,6 +1,7 @@
 package build.wallet.platform.di
 
 import build.wallet.di.AppScope
+import build.wallet.platform.config.AppBuildDate
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVersion
@@ -15,6 +16,9 @@ interface JvmPlatformComponent {
 
   @Provides
   fun provideAppId(): AppId = AppId(value = "build.wallet.jvm")
+
+  @Provides
+  fun provideAppBuildDate(): AppBuildDate = AppBuildDate("N/A")
 
   @Provides
   fun provideAppVersion(): AppVersion = AppVersion("N/A")

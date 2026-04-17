@@ -36,6 +36,7 @@ data class SetElectrumServerModel(
         fieldModel = TextFieldModel(
           value = host,
           placeholderText = "example.com",
+          testTag = "electrum-server-host-input",
           onValueChange = { newValue, _ -> onHostStringChanged(newValue) },
           keyboardType = Uri,
           focusByDefault = true
@@ -46,6 +47,7 @@ data class SetElectrumServerModel(
         TextFieldModel(
           value = port,
           placeholderText = "50002",
+          testTag = "electrum-server-port-input",
           onValueChange = { newValue, _ -> onPortStringChanged(newValue) },
           keyboardType = Number,
           focusByDefault = false

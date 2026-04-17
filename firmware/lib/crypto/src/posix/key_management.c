@@ -24,7 +24,6 @@ static bool se_wrap(uint8_t* plaintext_key, size_t key_size) {
   bool result = false;
 
   uint8_t* blob = malloc(key_size + SE_WRAPPED_KEY_OVERHEAD);
-
   uint8_t* iv = &blob[0];
   uint8_t* ciphertext = &blob[AES_GCM_IV_LENGTH];
   uint8_t* tag = &blob[AES_GCM_IV_LENGTH + key_size];

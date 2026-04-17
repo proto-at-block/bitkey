@@ -2,7 +2,7 @@ package build.wallet.f8e.onboarding
 
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.ktor.result.NetworkingError
 import com.github.michaelbull.result.Result
 
@@ -14,6 +14,6 @@ interface DeleteOnboardingFullAccountF8eClient {
   suspend fun deleteOnboardingFullAccount(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
-    hwFactorProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
   ): Result<Unit, NetworkingError>
 }

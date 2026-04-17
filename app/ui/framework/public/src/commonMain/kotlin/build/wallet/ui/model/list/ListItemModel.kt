@@ -11,6 +11,7 @@ import build.wallet.ui.model.icon.IconTint.On10
 import build.wallet.ui.model.list.ListItemAccessory.*
 import build.wallet.ui.model.list.ListItemAccessoryAlignment.CENTER
 import build.wallet.ui.model.switch.SwitchModel
+import build.wallet.ui.tokens.LabelType
 
 data class ListItemModel(
   val title: String,
@@ -26,12 +27,13 @@ data class ListItemModel(
   val topAccessory: ListItemAccessory? = null,
   var treatment: ListItemTreatment = ListItemTreatment.PRIMARY,
   val sideTextTint: ListItemSideTextTint = ListItemSideTextTint.PRIMARY,
+  val titleType: LabelType? = null,
+  val secondarySideTextType: LabelType = LabelType.Body3Regular,
   val enabled: Boolean = true,
   val selected: Boolean = false,
   val coachmarkLabel: CoachmarkLabelModel? = null,
   val onClick: (() -> Unit)? = null,
   val pickerMenu: ListItemPickerMenu<*>? = null,
-  val testTag: String? = null,
   val titleLabel: LabelModel? = null,
   val coachmark: CoachmarkModel? = null,
   val allowFontScaling: Boolean = true,
@@ -91,12 +93,13 @@ fun ListItemAccessory.disable(): ListItemAccessory {
             leadingIcon = model.leadingIcon,
             treatment = model.treatment,
             size = model.size,
-            onClick = StandardClick {},
-            testTag = model.testTag
+            onClick = StandardClick {}
           )
       )
     is IconAccessory ->
       IconAccessory(
+        iconPadding = iconPadding,
+        opticalOffsetX = opticalOffsetX,
         model =
           IconModel(
             iconImage = model.iconImage,
@@ -105,7 +108,8 @@ fun ListItemAccessory.disable(): ListItemAccessory {
             iconTint = On10,
             text = model.text,
             iconAlignmentInBackground = IconAlignmentInBackground.Center
-          )
+          ),
+        testTag = testTag
       )
     is SwitchAccessory ->
       SwitchAccessory(
@@ -113,11 +117,13 @@ fun ListItemAccessory.disable(): ListItemAccessory {
           SwitchModel(
             checked = model.checked,
             onCheckedChange = model.onCheckedChange,
-            enabled = false
+            enabled = false,
+            testTag = model.testTag
           )
       )
     is TextAccessory -> this
     is CircularCharacterAccessory -> this
+    is CircularIconAccessory -> this
     is ContactAvatarAccessory -> this
     is CheckAccessory -> this
   }

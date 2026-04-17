@@ -6,6 +6,7 @@ import bitkey.datadog.AndroidDatadogInitializer
 import build.wallet.di.AndroidAppComponent
 import build.wallet.di.create
 import build.wallet.platform.appVariant
+import build.wallet.platform.config.AppBuildDate
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVersion
 import kotlinx.coroutines.CoroutineScope
@@ -34,6 +35,7 @@ class BitkeyApplication : Application() {
       // Initialize the app component in a background thread to avoid blocking the main thread and
       // potentially causing ANRs
       AndroidAppComponent::class.create(
+        appBuildDate = AppBuildDate(BuildConfig.BUILD_DATE),
         application = this@BitkeyApplication,
         appId = AppId(BuildConfig.APPLICATION_ID),
         appVariant = appVariant,

@@ -1,6 +1,7 @@
 package build.wallet.nfc
 
-import build.wallet.Progress
+import bitkey.account.AccountConfigServiceFake
+import bitkey.account.HardwareType
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilderMock
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.wallet.SpendingWalletFake
@@ -11,12 +12,18 @@ import build.wallet.encrypt.MessageSignerFake
 import build.wallet.encrypt.SignatureUtilsMock
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.Bdk2FeatureFlag
-import build.wallet.nfc.platform.EmulatedPromptOption
+import build.wallet.nfc.platform.ConfirmationHandles
+import build.wallet.nfc.platform.ConfirmationHandlesFake
+import build.wallet.nfc.platform.ConfirmationResult
 import build.wallet.nfc.platform.HardwareInteraction
+import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.confirmationResultMapper
+import build.wallet.nfc.platform.toSessionFn
 import build.wallet.sqldelight.inMemorySqlDriver
 import com.github.michaelbull.result.Ok
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
+import okio.ByteString.Companion.encodeUtf8
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -42,6 +49,9 @@ class SignTransactionW3IntegrationTests : FunSpec({
     val signatureUtils = SignatureUtilsMock()
     val fakeHardwareKeyStore = FakeHardwareKeyStoreFake()
     val featureFlagDao = FeatureFlagDaoFake()
+    val accountConfigService = AccountConfigServiceFake().also {
+      it.setHardwareType(HardwareType.W3)
+    }
     val fakeHardwareSpendingWalletProvider =
       FakeHardwareSpendingWalletProvider(
         spendingWalletProvider = { Ok(SpendingWalletFake()) },
@@ -60,10 +70,33 @@ class SignTransactionW3IntegrationTests : FunSpec({
         fakeHardwareStatesDao = fakeHardwareStatesDao
       )
 
-    w3CommandsFake = BitkeyW3CommandsFake(w1CommandsFake)
+    w3CommandsFake = BitkeyW3CommandsFake(
+      w1CommandsFake = w1CommandsFake,
+      accountConfigService = accountConfigService,
+      fakeHardwareKeyStore = fakeHardwareKeyStore,
+      fakeHardwareSpendingWalletProvider = fakeHardwareSpendingWalletProvider,
+      fakeHardwareStatesDao = fakeHardwareStatesDao,
+      messageSigner = messageSigner,
+      signatureUtils = signatureUtils
+    )
 
     fakeHardwareKeyStore.clear()
     fakeHardwareStatesDao.clear()
+
+    // Deliver the hardware descriptor so signing tests don't throw DescriptorNotLoaded.
+    // Real W3 hardware starts without a descriptor; this mirrors the onboarding step.
+    val session = NfcSessionFake.invoke()
+    w3CommandsFake.verifyKeysAndBuildDescriptor(
+      session = session,
+      appSpendingKey = "fake-app-spending-key".encodeUtf8(),
+      appSpendingKeyChaincode = "fake-app-chaincode".encodeUtf8(),
+      networkMainnet = false,
+      appAuthKey = "fake-app-auth-key".encodeUtf8(),
+      serverSpendingKey = "fake-server-key".encodeUtf8(),
+      serverSpendingKeyChaincode = "fake-server-chaincode".encodeUtf8(),
+      wsmSignature = "fake-wsm-signature".encodeUtf8(),
+      accountIndex = 0u,
+    )
   }
 
   // ========================================================================
@@ -71,91 +104,55 @@ class SignTransactionW3IntegrationTests : FunSpec({
   // ========================================================================
 
   context("W3 complete signing flow") {
-    test("full two-tap flow with progress tracking") {
+    test("signTransaction returns ConfirmWithEmulatedPrompt with APPROVE and DENY options") {
       val session = NfcSessionFake.invoke()
 
-      // First tap: initiate signing
-      val firstTapInteraction = w3CommandsFake.signTransaction(
+      val interaction = w3CommandsFake.signTransaction(
         session = session,
         psbt = PsbtMock,
         spendingKeyset = SpendingKeysetMock
       )
 
-      firstTapInteraction.shouldBeInstanceOf<HardwareInteraction.RequiresTransfer<*>>()
+      // W3 non-PSBT protocol returns ConfirmWithEmulatedPrompt (no transfer phase)
+      interaction.shouldBeInstanceOf<HardwareInteraction.ConfirmWithEmulatedPrompt<*>>()
 
-      // Transfer phase with progress tracking
-      val progressUpdates = mutableListOf<Progress>()
-      val confirmationNeeded = (firstTapInteraction as HardwareInteraction.RequiresTransfer)
-        .transferAndFetch(session, w3CommandsFake) { progress ->
-          progressUpdates.add(progress)
-        }
-
-      // Validate progress reached completion
-      // Note: BitkeyW3CommandsFake.signTransaction only calls onProgress once with 1.0f
-      // (see BitkeyW3CommandsFake.signTransaction implementation). Real W3 hardware would provide multiple
-      // progress updates during chunked PSBT transfer, but the fake provides minimal
-      // updates for testing purposes since transfers are instantaneous.
-      progressUpdates.isNotEmpty().shouldBe(true)
-      progressUpdates.last().value.shouldBe(1.0f)
-      // Progress should be monotonically increasing
-      progressUpdates.zipWithNext().all { (a, b) -> a.value <= b.value }.shouldBe(true)
-
-      // Should now need confirmation
-      confirmationNeeded.shouldBeInstanceOf<HardwareInteraction.ConfirmWithEmulatedPrompt<*>>()
-
-      val emulatedPrompt = confirmationNeeded as HardwareInteraction.ConfirmWithEmulatedPrompt
-      emulatedPrompt.options.shouldHaveSize(2)
-
-      emulatedPrompt.options.first { it.name == EmulatedPromptOption.APPROVE }.shouldNotBeNull()
-      emulatedPrompt.options.first { it.name == EmulatedPromptOption.DENY }.shouldNotBeNull()
-
-      // Note: Existence is already validated by first() above; if the options
-      // didn't exist with these names, first() would throw NoSuchElementException
+      val emulatedPrompt = interaction as HardwareInteraction.ConfirmWithEmulatedPrompt
+      emulatedPrompt.approve.shouldNotBeNull()
+      emulatedPrompt.deny.shouldNotBeNull()
     }
 
     test("APPROVE flow structure validation") {
       val session = NfcSessionFake.invoke()
 
-      val firstTap = w3CommandsFake.signTransaction(
+      val emulatedPrompt = w3CommandsFake.signTransaction(
         session = session,
         psbt = PsbtMock,
         spendingKeyset = SpendingKeysetMock
-      ) as HardwareInteraction.RequiresTransfer
+      ) as HardwareInteraction.ConfirmWithEmulatedPrompt
 
-      val emulatedPrompt = firstTap.transferAndFetch(session, w3CommandsFake) { }
-        as HardwareInteraction.ConfirmWithEmulatedPrompt
-
-      val approveOption = emulatedPrompt.options.first { it.name == EmulatedPromptOption.APPROVE }
-
-      // APPROVE should have a fetchResult callback for second tap, completing the
-      // interaction chain from signTransaction through RequiresTransfer to
-      // ConfirmWithEmulatedPrompt. Actual execution would require a signing-capable
-      // wallet (SpendingWalletFake doesn't support signPsbt), so we validate the
+      // APPROVE should have a fetchResult callback for second tap.
+      // Actual execution would require a signing-capable wallet
+      // (SpendingWalletFake doesn't support signPsbt), so we validate the
       // structure rather than executing the full flow.
-      approveOption.fetchResult.shouldNotBeNull()
+      emulatedPrompt.approve.fetchResult.shouldNotBeNull()
 
       // APPROVE should not have immediate side effects (onSelect is null)
-      val hasImmediateSideEffect = approveOption.onSelect != null
+      val hasImmediateSideEffect = emulatedPrompt.approve.onSelect != null
       hasImmediateSideEffect.shouldBe(false)
     }
 
     test("DENY flow validation") {
       val session = NfcSessionFake.invoke()
 
-      val firstTap = w3CommandsFake.signTransaction(
+      val emulatedPrompt = w3CommandsFake.signTransaction(
         session = session,
         psbt = PsbtMock,
         spendingKeyset = SpendingKeysetMock
-      ) as HardwareInteraction.RequiresTransfer
+      ) as HardwareInteraction.ConfirmWithEmulatedPrompt
 
-      val emulatedPrompt = firstTap.transferAndFetch(session, w3CommandsFake) { }
-        as HardwareInteraction.ConfirmWithEmulatedPrompt
-
-      val denyOption = emulatedPrompt.options.first { it.name == EmulatedPromptOption.DENY }
-
-      // DENY should throw NfcException.CommandError when fetchResult is called
-      shouldThrow<NfcException.CommandError> {
-        denyOption.fetchResult(session, w3CommandsFake)
+      // DENY should throw NfcException.UserDenied when fetchResult is called
+      shouldThrow<NfcException.UserDenied> {
+        emulatedPrompt.deny.fetchResult(session, w3CommandsFake)
       }
     }
   }
@@ -165,7 +162,7 @@ class SignTransactionW3IntegrationTests : FunSpec({
   // ========================================================================
 
   context("W3 interaction pattern") {
-    test("W3 returns RequiresTransfer (not Completed like W1)") {
+    test("W3 returns ConfirmWithEmulatedPrompt (not Completed like W1)") {
       val session = NfcSessionFake.invoke()
 
       val w3Interaction = w3CommandsFake.signTransaction(
@@ -174,8 +171,113 @@ class SignTransactionW3IntegrationTests : FunSpec({
         spendingKeyset = SpendingKeysetMock
       )
 
-      // W3 should return RequiresTransfer, not Completed
-      w3Interaction.shouldBeInstanceOf<HardwareInteraction.RequiresTransfer<*>>()
+      // W3 uses non-PSBT protocol: sends raw tx fields, requires on-device confirmation
+      w3Interaction.shouldBeInstanceOf<HardwareInteraction.ConfirmWithEmulatedPrompt<*>>()
+    }
+  }
+
+  // ========================================================================
+  // RequiresConfirmation data-driven wiring tests
+  //
+  // These tests exercise the full RequiresConfirmation → toSessionFn() →
+  // getConfirmationResult → mapResult chain that real (non-fake) hardware
+  // implementations use. A stub NfcCommands returns a canned ConfirmationResult
+  // so we can verify the wiring without a physical device.
+  // ========================================================================
+
+  context("RequiresConfirmation toSessionFn wiring") {
+    // Stub NfcCommands that returns a controlled ConfirmationResult for second tap
+    fun makeStubCommands(confirmationResult: ConfirmationResult): NfcCommands =
+      object : NfcCommands by w3CommandsFake {
+        override suspend fun getConfirmationResult(
+          session: NfcSession,
+          handles: ConfirmationHandles,
+        ): ConfirmationResult = confirmationResult
+      }
+
+    test("mapResult is called with the ConfirmationResult returned by getConfirmationResult") {
+      val confirmation = HardwareInteraction.RequiresConfirmation<Boolean>(
+        handles = ConfirmationHandlesFake,
+        mapResult = confirmationResultMapper<Boolean> { result ->
+          when (result) {
+            is ConfirmationResult.FwupStart -> HardwareInteraction.Completed(result.success)
+            else -> throw NfcException.CommandError(message = "unexpected: ${result::class.simpleName}")
+          }
+        }
+      )
+      val session = NfcSessionFake.invoke()
+      val stubCommands = makeStubCommands(ConfirmationResult.FwupStart(success = true))
+
+      val result = confirmation.toSessionFn<Boolean>()(session, stubCommands)
+
+      result.shouldBeInstanceOf<HardwareInteraction.Completed<Boolean>>()
+      (result as HardwareInteraction.Completed<Boolean>).result.shouldBe(true)
+    }
+
+    test("NfcException.ConfirmationPending from mapResult propagates correctly") {
+      val confirmation = HardwareInteraction.RequiresConfirmation<Boolean>(
+        handles = ConfirmationHandlesFake,
+        mapResult = confirmationResultMapper<Boolean> { result ->
+          when (result) {
+            is ConfirmationResult.Pending -> throw NfcException.ConfirmationPending()
+            else -> throw NfcException.CommandError(message = "unexpected: ${result::class.simpleName}")
+          }
+        }
+      )
+      val session = NfcSessionFake.invoke()
+      val stubCommands = makeStubCommands(ConfirmationResult.Pending)
+
+      shouldThrow<NfcException.ConfirmationPending> {
+        confirmation.toSessionFn<Boolean>()(session, stubCommands)
+      }
+    }
+
+    test("NfcException.UserDenied from mapResult propagates correctly") {
+      val confirmation = HardwareInteraction.RequiresConfirmation<Boolean>(
+        handles = ConfirmationHandlesFake,
+        mapResult = confirmationResultMapper<Boolean> { result ->
+          when (result) {
+            is ConfirmationResult.Denied -> throw NfcException.UserDenied()
+            else -> throw NfcException.CommandError(message = "unexpected: ${result::class.simpleName}")
+          }
+        }
+      )
+      val session = NfcSessionFake.invoke()
+      val stubCommands = makeStubCommands(ConfirmationResult.Denied)
+
+      shouldThrow<NfcException.UserDenied> {
+        confirmation.toSessionFn<Boolean>()(session, stubCommands)
+      }
+    }
+
+    test("handles are forwarded to getConfirmationResult") {
+      val capturedHandles = mutableListOf<ConfirmationHandles>()
+      val specificHandles = ConfirmationHandles(
+        responseHandle = listOf(0xAB.toUByte()),
+        confirmationHandle = listOf(0xCD.toUByte())
+      )
+      val confirmation = HardwareInteraction.RequiresConfirmation<Boolean>(
+        handles = specificHandles,
+        mapResult = confirmationResultMapper<Boolean> { _ ->
+          HardwareInteraction.Completed(true)
+        }
+      )
+      val session = NfcSessionFake.invoke()
+      val capturingCommands = object : NfcCommands by w3CommandsFake {
+        override suspend fun getConfirmationResult(
+          session: NfcSession,
+          handles: ConfirmationHandles,
+        ): ConfirmationResult {
+          capturedHandles += handles
+          return ConfirmationResult.FwupStart(success = true)
+        }
+      }
+
+      confirmation.toSessionFn<Boolean>()(session, capturingCommands)
+
+      capturedHandles.shouldHaveSize(1)
+      capturedHandles.first().responseHandle.shouldBe(specificHandles.responseHandle)
+      capturedHandles.first().confirmationHandle.shouldBe(specificHandles.confirmationHandle)
     }
   }
 })

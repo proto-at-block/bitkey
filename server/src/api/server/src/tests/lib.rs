@@ -1,10 +1,11 @@
+use std::collections::HashSet;
 use std::str::FromStr;
 use std::sync::RwLock;
 
 use account::service::tests::{
     create_bdk_wallet, create_descriptor_keys, create_full_account_for_test,
     create_full_account_for_test_v2, default_electrum_rpc_uris, generate_test_authkeys,
-    TestAuthenticationKeys,
+    TestAuthenticationKeys, TestKeypair,
 };
 use account::service::{
     ActivateTouchpointForAccountInput, AddPushTouchpointToAccountInput, CreateLiteAccountInput,
@@ -26,6 +27,7 @@ use bdk_utils::bdk::miniscript::ToPublicKey;
 use bdk_utils::bdk::test_utils::get_funded_wallet_wpkh;
 use bdk_utils::bdk::Wallet as BdkWallet;
 use bdk_utils::bdk::{AddressInfo, KeychainKind};
+use bdk_utils::signature::message_to_digest;
 use bdk_utils::{get_bdk_electrum_client, FULL_SCAN_STOP_GAP_AND_BATCH_SIZE};
 use external_identifier::ExternalIdentifier;
 use http::StatusCode;
@@ -33,20 +35,22 @@ use isocountry::CountryCode;
 use notification::service::{
     FetchNotificationsPreferencesInput, UpdateNotificationsPreferencesInput,
 };
-use onboarding::routes::{CreateAccountRequest, CreateKeysetRequest};
+use onboarding::routes::{CompleteOnboardingRequestV2, CreateAccountRequest, CreateKeysetRequest};
 use onboarding::routes_v2::CreateAccountRequestV2;
 use rand::thread_rng;
 use recovery::entities::{
     DelayNotifyRecoveryAction, DelayNotifyRequirements, RecoveryAction, RecoveryDestination,
     RecoveryRequirements, RecoveryStatus, RecoveryType, WalletRecovery,
 };
+use recovery::routes::delay_notify::{AuthenticationKey, RotateAuthenticationKeysRequest};
 use time::format_description::well_known::Rfc3339;
 use time::{Duration, OffsetDateTime};
 use types::account::bitcoin::Network;
 use types::account::entities::v2::{FullAccountAuthKeysInputV2, SpendingKeysetInputV2};
 use types::account::entities::{
     Account, DescriptorBackup, DescriptorBackupsSet, Factor, FullAccount, FullAccountAuthKeysInput,
-    LiteAccount, SoftwareAccount, SpendingKeysetInput, Touchpoint, TouchpointPlatform,
+    HardwareType, LiteAccount, SoftwareAccount, SpendingKeysetInput, Touchpoint,
+    TouchpointPlatform,
 };
 use types::account::identifiers::{AccountId, AuthKeysId, KeysetId, TouchpointId};
 use types::account::keys::{FullAccountAuthKeys, LiteAccountAuthKeys, SoftwareAccountAuthKeys};
@@ -88,6 +92,68 @@ pub(crate) fn create_new_authkeys(context: &mut TestContext) -> TestAuthenticati
     let auth_keys = generate_test_authkeys();
     context.add_authentication_keys(auth_keys.clone());
     auth_keys
+}
+
+/// Rotate auth keys with a new hardware type.
+/// Uses KeyClaims auth (caller must ensure the account is still W1 when calling this).
+/// Returns the updated TestAuthenticationKeys with the new hw key.
+pub(crate) async fn rotate_auth_keys_with_hardware_type(
+    context: &mut TestContext,
+    client: &TestClient,
+    account_id: &str,
+    keys: &TestAuthenticationKeys,
+    hardware_type: HardwareType,
+) -> TestAuthenticationKeys {
+    let secp = Secp256k1::new();
+    let (new_hw_seckey, new_hw_pubkey) = create_keypair();
+
+    let new_keys = TestAuthenticationKeys {
+        app: keys.app.clone(),
+        hw: TestKeypair {
+            public_key: new_hw_pubkey,
+            secret_key: new_hw_seckey,
+        },
+        recovery: keys.recovery.clone(),
+    };
+    context.add_authentication_keys(new_keys.clone());
+
+    let message = message_to_digest(account_id.as_ref());
+    let app_signature = secp.sign_ecdsa(&message, &keys.app.secret_key).to_string();
+    let hw_signature = secp.sign_ecdsa(&message, &new_hw_seckey).to_string();
+    let recovery_signature = secp
+        .sign_ecdsa(&message, &keys.recovery.secret_key)
+        .to_string();
+
+    let response = client
+        .rotate_authentication_keys(
+            context,
+            account_id,
+            &RotateAuthenticationKeysRequest {
+                application: AuthenticationKey {
+                    key: keys.app.public_key,
+                    signature: app_signature,
+                },
+                hardware: AuthenticationKey {
+                    key: new_hw_pubkey,
+                    signature: hw_signature,
+                },
+                recovery: Some(AuthenticationKey {
+                    key: keys.recovery.public_key,
+                    signature: recovery_signature,
+                }),
+                hardware_type,
+            },
+            keys,
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "Auth key rotation should succeed: {}",
+        response.body_string
+    );
+
+    new_keys
 }
 
 pub(crate) async fn create_default_account_with_private_wallet(
@@ -168,6 +234,7 @@ async fn create_default_account_with_predefined_wallet_internal(
                         app_pub: auth.app_pubkey,
                         hardware_pub: auth.hardware_pubkey,
                         recovery_pub: auth.recovery_pubkey.unwrap(),
+                        hardware_type: HardwareType::default(),
                     },
                     spend: SpendingKeysetInputV2 {
                         network: network.into(),
@@ -235,6 +302,7 @@ async fn create_default_account_with_predefined_wallet_internal(
                         app: auth.app_pubkey,
                         hardware: auth.hardware_pubkey,
                         recovery: auth.recovery_pubkey,
+                        hardware_type: HardwareType::default(),
                     },
                     spending: SpendingKeysetInput {
                         network: network.into(),
@@ -331,7 +399,6 @@ pub(crate) async fn create_inactive_spending_keyset_for_account(
                             hardware: spend_hw.clone(),
                         },
                     },
-                    &keys,
                 )
                 .await;
 
@@ -349,7 +416,6 @@ pub(crate) async fn create_inactive_spending_keyset_for_account(
                             app_pub: app_xpub.xkey.public_key,
                             hardware_pub: hw_xpub.xkey.public_key,
                         },
-                        &keys,
                     )
                     .await;
 
@@ -595,7 +661,7 @@ pub(crate) async fn create_phone_touchpoint(
                         NotificationCategory::AccountSecurity,
                         NotificationChannel::Sms,
                     ),
-                    key_proof: None,
+                    signed_by_both_factors: false,
                 })
                 .await
                 .unwrap();
@@ -637,7 +703,7 @@ pub(crate) async fn create_push_touchpoint(
                 NotificationCategory::AccountSecurity,
                 NotificationChannel::Push,
             ),
-            key_proof: None,
+            signed_by_both_factors: false,
         })
         .await
         .unwrap();
@@ -684,7 +750,7 @@ pub(crate) async fn create_email_touchpoint(
                         NotificationCategory::AccountSecurity,
                         NotificationChannel::Email,
                     ),
-                    key_proof: None,
+                    signed_by_both_factors: false,
                 })
                 .await
                 .unwrap();
@@ -890,4 +956,54 @@ pub(crate) fn predefined_server_root_xpub(
         public_key,
         chain_code,
     }
+}
+
+/// Helper: create a W3 account, complete onboarding, return (account_id_string, keys).
+pub(crate) async fn create_onboarded_w3_account(
+    context: &mut super::TestContext,
+    client: &TestClient,
+) -> (String, TestAuthenticationKeys) {
+    let keys = create_new_authkeys(context);
+    let request = CreateAccountRequestV2 {
+        auth: FullAccountAuthKeysInputV2 {
+            app_pub: keys.app.public_key,
+            hardware_pub: keys.hw.public_key,
+            recovery_pub: keys.recovery.public_key,
+            hardware_type: HardwareType::W3,
+        },
+        spend: SpendingKeysetInputV2 {
+            network: Network::BitcoinSignet.into(),
+            app_pub: create_pubkey(),
+            hardware_pub: create_pubkey(),
+        },
+        is_test_account: true,
+    };
+
+    let create_response = client.create_account_v2(context, &request).await;
+    assert_eq!(create_response.status_code, StatusCode::OK);
+    let account = create_response.body.unwrap();
+    let account_id = account.account_id.to_string();
+
+    let desc_response = client
+        .update_descriptor_backups(
+            &account_id,
+            &DescriptorBackupsSet {
+                wrapped_ssek: vec![],
+                descriptor_backups: vec![DescriptorBackup::Private {
+                    keyset_id: account.keyset_id.clone(),
+                    sealed_descriptor: "test".to_string(),
+                    sealed_server_root_xpub: "test".to_string(),
+                }],
+            },
+            Some(&keys),
+        )
+        .await;
+    assert_eq!(desc_response.status_code, StatusCode::OK);
+
+    let onboarding_response = client
+        .complete_onboarding_v2(&account_id, &CompleteOnboardingRequestV2 {}, Some(&keys))
+        .await;
+    assert_eq!(onboarding_response.status_code, StatusCode::OK);
+
+    (account_id, keys)
 }

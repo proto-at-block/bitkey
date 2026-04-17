@@ -22,6 +22,9 @@ bool rtos_mutex_lock(void* UNUSED(t)) {
 bool rtos_mutex_unlock(void* UNUSED(a)) {
   return true;
 }
+bool rtos_in_isr(void) {
+  return false;
+}
 void detect_glitch(void) {}
 uint16_t crypto_rand_short(void) {
   return 1;

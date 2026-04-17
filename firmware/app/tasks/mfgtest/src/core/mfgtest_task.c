@@ -21,6 +21,7 @@
 #include "power.h"
 #include "proto_helpers.h"
 #include "rtos.h"
+#include "sysevent.h"
 #include "sysinfo.h"
 #include "ui_messaging.h"
 #include "wallet.h"
@@ -354,22 +355,19 @@ void handle_runin_get_data_cmd(ipc_ref_t* message) {
   if (!mfgtest_priv.runin_has_results) {
     rsp->rsp_status = fwpb_mfgtest_runin_get_data_rsp_mfgtest_runin_get_data_rsp_status_NO_DATA;
   } else {
-    rsp->discharging = !mfgtest_priv.runin_results.plugged_in;
     rsp->loop_count = mfgtest_priv.runin_results.loop_count;
     rsp->initial_soc = mfgtest_priv.runin_results.initial_soc;
-    rsp->final_soc = mfgtest_priv.runin_results.final_soc;
-    rsp->min_soc = mfgtest_priv.runin_results.min_soc;
     rsp->duration_ms = mfgtest_priv.runin_results.elapsed_ms;
     rsp->phantom_button_events = mfgtest_priv.runin_results.button_events;
     rsp->phantom_touch_events = mfgtest_priv.runin_results.touch_events;
     rsp->phantom_captouch_events = mfgtest_priv.runin_results.captouch_events;
     rsp->phantom_fingerprint_events = mfgtest_priv.runin_results.fingerprint_events;
 
-    if (mfgtest_priv.runin_results.success) {
-      rsp->rsp_status = fwpb_mfgtest_runin_get_data_rsp_mfgtest_runin_get_data_rsp_status_SUCCESS;
-    } else {
-      rsp->rsp_status = fwpb_mfgtest_runin_get_data_rsp_mfgtest_runin_get_data_rsp_status_FAILED;
-    }
+    rsp->phase1_duration_ms = mfgtest_priv.runin_results.phase1_duration_ms;
+    rsp->phase2_duration_ms = mfgtest_priv.runin_results.phase2_duration_ms;
+    rsp->phase3_duration_ms = mfgtest_priv.runin_results.phase3_duration_ms;
+
+    rsp->rsp_status = fwpb_mfgtest_runin_get_data_rsp_mfgtest_runin_get_data_rsp_status_COMPLETE;
   }
 
   proto_send_rsp(wallet_cmd, wallet_rsp);
@@ -429,6 +427,7 @@ static void handle_nfc_loopback_cmd(ipc_ref_t* message) {
       const uint32_t delay_ms = cmd->delay_ms;
       const uint32_t test = cmd->test;
       const bool continuous = cmd->continuous;
+      const uint32_t poll_delay_ms = cmd->poll_delay_ms;
 
       rsp->rsp_status = fwpb_mfgtest_nfc_loopback_rsp_mfgtest_nfc_loopback_rsp_status_SUCCESS;
 
@@ -446,7 +445,7 @@ static void handle_nfc_loopback_cmd(ipc_ref_t* message) {
           (test == fwpb_mfgtest_nfc_loopback_test_type_NFC_LOOPBACK_TEST_A)
             ? HAL_NFC_MODE_LOOPBACK_A
             : HAL_NFC_MODE_LOOPBACK_B,
-          timeout_ms, continuous);
+          timeout_ms, continuous, poll_delay_ms);
         return;
       }
 
@@ -486,6 +485,40 @@ static void handle_mfgtest_board_id_cmd(ipc_ref_t* message) {
     rsp->board_id = 0;
   }
   proto_send_rsp(wallet_cmd, wallet_rsp);
+}
+
+static void handle_device_set_production_lock_cmd(ipc_ref_t* message) {
+  fwpb_wallet_cmd* wallet_cmd = proto_get_cmd((uint8_t*)message->object, message->length);
+  fwpb_mfgtest_device_set_production_lock_cmd* cmd =
+    &wallet_cmd->msg.mfgtest_device_set_production_lock_cmd;
+  if (cmd->mcu_role != fwpb_mcu_role_MCU_ROLE_UXC) {
+    fwpb_wallet_rsp* wallet_rsp = proto_get_rsp();
+    wallet_rsp->which_msg = fwpb_wallet_rsp_mfgtest_device_set_production_lock_rsp_tag;
+    wallet_rsp->msg.mfgtest_device_set_production_lock_rsp.rsp_status =
+      fwpb_mfgtest_device_set_production_lock_rsp_mfgtest_device_set_production_lock_rsp_status_ERROR;
+    proto_send_rsp(wallet_cmd, wallet_rsp);
+    return;
+  }
+
+  // Forward UXC-targeted device production lock commands to coprocessor.
+  mfgtest_task_port_handle_coproc_device_set_production_lock_command(wallet_cmd);
+}
+
+static void handle_device_get_production_lock_cmd(ipc_ref_t* message) {
+  fwpb_wallet_cmd* wallet_cmd = proto_get_cmd((uint8_t*)message->object, message->length);
+  fwpb_mfgtest_device_get_production_lock_cmd* cmd =
+    &wallet_cmd->msg.mfgtest_device_get_production_lock_cmd;
+  if (cmd->mcu_role != fwpb_mcu_role_MCU_ROLE_UXC) {
+    fwpb_wallet_rsp* wallet_rsp = proto_get_rsp();
+    wallet_rsp->which_msg = fwpb_wallet_rsp_mfgtest_device_get_production_lock_rsp_tag;
+    wallet_rsp->msg.mfgtest_device_get_production_lock_rsp.rsp_status =
+      fwpb_mfgtest_device_get_production_lock_rsp_mfgtest_device_get_production_lock_rsp_status_ERROR;
+    wallet_rsp->msg.mfgtest_device_get_production_lock_rsp.is_production = false;
+    proto_send_rsp(wallet_cmd, wallet_rsp);
+    return;
+  }
+
+  mfgtest_task_port_handle_coproc_device_get_production_lock_command(wallet_cmd);
 }
 
 static void handle_charger_cmd(ipc_ref_t* message) {
@@ -605,14 +638,15 @@ static void handle_runin_complete_internal(ipc_ref_t* message) {
     (const mfgtest_runin_complete_internal_t*)message->object;
 
   LOGI(
-    "[MfgTest] Run-in complete: loops=%lu battery=%lu%%->%lu%% min=%lu%% duration=%lums usb=%s "
-    "phantom(btn=%lu touch=%lu fp=%lu)",
+    "[MfgTest] Run-in complete: loops=%lu initial_soc=%lu%% duration=%lums usb=%s "
+    "phase_ms(%lu/%lu/%lu) phantom(btn=%lu touch=%lu fp=%lu)",
     (unsigned long)results->loop_count,             //
     (unsigned long)results->initial_soc,            //
-    (unsigned long)results->final_soc,              //
-    (unsigned long)results->min_soc,                //
     (unsigned long)results->elapsed_ms,             //
     results->plugged_in ? "plugged" : "unplugged",  //
+    (unsigned long)results->phase1_duration_ms,     //
+    (unsigned long)results->phase2_duration_ms,     //
+    (unsigned long)results->phase3_duration_ms,     //
     (unsigned long)results->button_events,          //
     (unsigned long)results->touch_events,           //
     (unsigned long)results->fingerprint_events);
@@ -632,7 +666,11 @@ static void handle_touch_test_result_internal(ipc_ref_t* message) {
 }
 
 void mfgtest_thread(void* UNUSED(args)) {
-  bio_lib_init();
+  if (bio_lib_init()) {
+    sysevent_set(SYSEVENT_BIO_READY);
+  } else {
+    LOGE("bio_lib_init failed");
+  }
   mfgtest_task_port_init();
 
   power_fast_charge();
@@ -689,8 +727,20 @@ void mfgtest_thread(void* UNUSED(args)) {
       case IPC_MFGTEST_COPROC_GPIO_RESPONSE:
         mfgtest_task_port_handle_coproc_gpio_response(&message);
         break;
+      case IPC_MFGTEST_COPROC_DEVICE_SET_PRODUCTION_LOCK_RESPONSE:
+        mfgtest_task_port_handle_coproc_device_set_production_lock_response(&message);
+        break;
+      case IPC_MFGTEST_COPROC_DEVICE_GET_PRODUCTION_LOCK_RESPONSE:
+        mfgtest_task_port_handle_coproc_device_get_production_lock_response(&message);
+        break;
       case IPC_PROTO_MFGTEST_TOUCH_DATA_CMD:
         mfgtest_task_port_handle_touch_data_cmd(&message);
+        break;
+      case IPC_PROTO_MFGTEST_DEVICE_SET_PRODUCTION_LOCK_CMD:
+        handle_device_set_production_lock_cmd(&message);
+        break;
+      case IPC_PROTO_MFGTEST_DEVICE_GET_PRODUCTION_LOCK_CMD:
+        handle_device_get_production_lock_cmd(&message);
         break;
       case IPC_MFGTEST_TOUCH_POINT:
         mfgtest_task_port_handle_touch_point(&message);

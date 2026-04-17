@@ -60,7 +60,7 @@ class SweepServiceImpl(
     val activeFullAccount = (accountStatus as? ActiveAccount)?.account as? FullAccount
 
     return if (activeFullAccount != null) {
-      sweepGenerator.generateSweep(activeFullAccount.keybox)
+      sweepGenerator.generateSweep(activeFullAccount.keybox, sweepContext = SweepContext.InactiveWallet)
         .map { it.isNotEmpty() }
         .logFailure { "Failure Generating Sweep used to check for funds on old wallets" }
         .get() ?: false
@@ -69,11 +69,14 @@ class SweepServiceImpl(
     }
   }
 
-  override suspend fun prepareSweep(keybox: Keybox): Result<Sweep?, Error> =
-    prepareSweepInternal(keybox, SweepGenerationContext.Real)
+  override suspend fun prepareSweep(
+    keybox: Keybox,
+    sweepContext: SweepContext,
+  ): Result<Sweep?, Error> = prepareSweepInternal(keybox, sweepContext, SweepGenerationContext.Real)
 
   override suspend fun estimateSweepWithMockDestination(
     keybox: Keybox,
+    sweepContext: SweepContext,
   ): Result<Sweep, SweepService.SweepError> =
     coroutineBinding {
       // Create a fake destination keyset to trick the sweep generator into treating
@@ -89,7 +92,7 @@ class SweepServiceImpl(
         keysets = keybox.keysets + fakeDestinationKeyset
       )
 
-      val sweep = prepareSweepInternal(mockKeybox, SweepGenerationContext.Estimate)
+      val sweep = prepareSweepInternal(mockKeybox, sweepContext, SweepGenerationContext.Estimate)
         .mapError { SweepGenerationFailed(it) }
         .bind()
 
@@ -99,10 +102,11 @@ class SweepServiceImpl(
 
   private suspend fun prepareSweepInternal(
     keybox: Keybox,
+    sweepContext: SweepContext,
     context: SweepGenerationContext,
   ): Result<Sweep?, Error> =
     coroutineBinding {
-      val sweepPsbts = sweepGenerator.generateSweep(keybox, context).bind()
+      val sweepPsbts = sweepGenerator.generateSweep(keybox, sweepContext, context).bind()
 
       when {
         sweepPsbts.isEmpty() -> null

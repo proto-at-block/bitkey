@@ -15,6 +15,8 @@ actual fun VideoPlayer(
   backgroundColor: Color,
   autoStart: Boolean,
   startingPosition: VideoStartingPosition,
+  scalingMode: VideoScalingMode,
+  allowSurfaceOnTopWorkaround: Boolean,
   videoPlayerCallback: (VideoPlayerHandler) -> Unit,
 ) {
   // no-op

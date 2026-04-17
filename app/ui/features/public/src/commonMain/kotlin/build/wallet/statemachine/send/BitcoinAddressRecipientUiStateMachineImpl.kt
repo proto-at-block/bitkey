@@ -2,33 +2,38 @@ package build.wallet.statemachine.send
 
 import androidx.compose.runtime.*
 import bitkey.account.AccountConfigService
-import build.wallet.bitcoin.invoice.ParsedPaymentData
 import build.wallet.bitcoin.invoice.ParsedPaymentData.*
 import build.wallet.bitcoin.invoice.PaymentDataParser
 import build.wallet.bitcoin.invoice.PaymentDataParser.PaymentDataParserError
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.collectIsEnabledAsState
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
+import build.wallet.platform.app.AppSessionManager
+import build.wallet.platform.clipboard.Clipboard
 import build.wallet.statemachine.core.BodyModel
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
+import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 @BitkeyInject(ActivityScope::class)
 class BitcoinAddressRecipientUiStateMachineImpl(
   private val paymentDataParser: PaymentDataParser,
   private val accountConfigService: AccountConfigService,
   private val bitcoinWalletService: BitcoinWalletService,
+  private val clipboard: Clipboard,
+  private val appSessionManager: AppSessionManager,
+  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : BitcoinAddressRecipientUiStateMachine {
   @Composable
   override fun model(props: BitcoinAddressRecipientUiProps): BodyModel {
     var state by remember {
       mutableStateOf(
-        State(
-          enteredText = props.address?.address.orEmpty(),
-          validInvoiceInClipboard = props.validInvoiceInClipboard
-        )
+        State(enteredText = props.address?.address.orEmpty())
       )
     }
     val bitcoinNetwork by remember {
@@ -38,6 +43,35 @@ class BitcoinAddressRecipientUiStateMachineImpl(
     }
 
     val wallet by remember { bitcoinWalletService.spendingWallet() }.collectAsState()
+    val isDesignSystemV2Enabled by designSystemUpdatesFeatureFlag.collectIsEnabledAsState()
+
+    // Re-read clipboard on each foreground resume so the paste button stays current
+    // after the user app-switches to copy an address. Polls the foreground boolean
+    // (not the clipboard) to detect transitions — only reads the clipboard once per
+    // resume, avoiding Android's "pasted from clipboard" toast spam. We poll instead
+    // of observing AppSessionManager.appSessionState because that StateFlow is
+    // conflated: fast BACKGROUND→FOREGROUND transitions are invisible to collectors
+    // that were suspended during the transition.
+    var clipboardPaymentData by remember {
+      mutableStateOf(
+        clipboard.getPlainTextItem()?.let {
+          paymentDataParser.decode(it.data, bitcoinNetwork).get()
+        }
+      )
+    }
+    LaunchedEffect(Unit) {
+      var wasForegrounded = true
+      while (true) {
+        delay(500.milliseconds)
+        val isNowForegrounded = appSessionManager.isAppForegrounded()
+        if (isNowForegrounded && !wasForegrounded) {
+          clipboardPaymentData = clipboard.getPlainTextItem()?.let {
+            paymentDataParser.decode(it.data, bitcoinNetwork).get()
+          }
+        }
+        wasForegrounded = isNowForegrounded
+      }
+    }
 
     val paymentDataParserResult by remember(state.enteredText) {
       derivedStateOf {
@@ -82,9 +116,9 @@ class BitcoinAddressRecipientUiStateMachineImpl(
         }
     }
 
-    val showPasteButton by remember(state.enteredText) {
+    val showPasteButton by remember(state.enteredText, clipboardPaymentData) {
       derivedStateOf {
-        props.validInvoiceInClipboard.takeIf { it !is Lightning } != null && state.enteredText == ""
+        clipboardPaymentData.takeIf { it !is Lightning } != null && state.enteredText == ""
       }
     }
 
@@ -109,19 +143,23 @@ class BitcoinAddressRecipientUiStateMachineImpl(
           },
       onScanQrCodeClick = props.onScanQrCodeClick,
       onPasteButtonClick = {
-        state.validInvoiceInClipboard.let { parsedPaymentData ->
-          when (parsedPaymentData) {
-            is BIP21 ->
-              state =
-                state.copy(enteredText = parsedPaymentData.bip21PaymentData.onchainInvoice.address.address)
+        // Read clipboard fresh on click so paste always reflects the current system
+        // clipboard, not a stale snapshot captured when the send flow was entered.
+        val freshPaymentData = clipboard.getPlainTextItem()?.let {
+          paymentDataParser.decode(it.data, bitcoinNetwork).get()
+        }
+        when (freshPaymentData) {
+          is BIP21 ->
+            state =
+              state.copy(enteredText = freshPaymentData.bip21PaymentData.onchainInvoice.address.address)
 
-            is Onchain -> state = state.copy(enteredText = parsedPaymentData.bitcoinAddress.address)
-            else -> {}
-          }
+          is Onchain -> state = state.copy(enteredText = freshPaymentData.bitcoinAddress.address)
+          else -> {}
         }
       },
       showSelfSendWarningWithRedirect = bitcoinAddressResult == BitcoinAddressResult.SelfSend,
-      onGoToUtxoConsolidation = props.onGoToUtxoConsolidation
+      onGoToUtxoConsolidation = props.onGoToUtxoConsolidation,
+      isDesignSystemV2Enabled = isDesignSystemV2Enabled
     )
   }
 
@@ -152,6 +190,5 @@ class BitcoinAddressRecipientUiStateMachineImpl(
 
   private data class State(
     val enteredText: String,
-    val validInvoiceInClipboard: ParsedPaymentData?,
   )
 }

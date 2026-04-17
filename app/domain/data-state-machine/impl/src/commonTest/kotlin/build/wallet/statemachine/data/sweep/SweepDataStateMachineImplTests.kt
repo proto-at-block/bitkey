@@ -375,6 +375,30 @@ class SweepDataStateMachineImplTests : FunSpec({
     sweepService.sweepRequired.value.shouldBe(false)
   }
 
+  test("w3 upgrade with no funds shows zero balance flow before proceeding") {
+    sweepService.prepareSweepResult = Ok(null)
+    sweepService.sweepRequired.value = true
+    var successCount = 0
+
+    stateMachine.test(
+      SweepDataProps(
+        hasAttemptedSweep = false,
+        onAttemptSweep = {},
+        keybox = KeyboxMock,
+        sweepContext = SweepContext.W3Upgrade(replacedHardwareFingerprint = "old-fingerprint"),
+        onSuccess = {
+          successCount++
+        }
+      )
+    ) {
+      awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()
+      awaitItem().shouldBeTypeOf<NoFundsFoundData>().proceed()
+    }
+
+    successCount.shouldBe(1)
+    sweepService.sweepRequired.value.shouldBe(false)
+  }
+
   test("recovery progress set immediately when sweep starts") {
     val expectedSweepPsbts = listOf(
       SweepPsbt(PsbtMock, SweepSignaturePlan.AppAndServer, SpendingKeysetMock, "bc1qtest")

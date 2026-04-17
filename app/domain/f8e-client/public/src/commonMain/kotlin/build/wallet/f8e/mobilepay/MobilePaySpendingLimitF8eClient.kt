@@ -4,9 +4,10 @@ import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.code.MobilePayErrorCode
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.limit.SpendingLimit
+import build.wallet.platform.settings.Locale
 import com.github.michaelbull.result.Result
 
 interface MobilePaySpendingLimitF8eClient {
@@ -18,7 +19,8 @@ interface MobilePaySpendingLimitF8eClient {
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
     limit: SpendingLimit,
-    hwFactorProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
+    locale: Locale,
   ): Result<Unit, NetworkingError>
 
   /**
@@ -27,5 +29,6 @@ interface MobilePaySpendingLimitF8eClient {
   suspend fun disableMobilePay(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
+    proof: PrivilegedActionProof? = null,
   ): Result<Unit, F8eError<MobilePayErrorCode>>
 }

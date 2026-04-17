@@ -4,7 +4,7 @@ import app.cash.turbine.plusAssign
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.cloud.backup.AllFullAccountBackupMocks
 import build.wallet.cloud.backup.CloudBackup
-import build.wallet.cloud.backup.CloudBackupRepositoryFake
+import build.wallet.cloud.backup.CloudBackupServiceFake
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.store.CloudAccountMock
@@ -38,13 +38,13 @@ class AccessCloudBackupStateMachineImplTestsAndroid : FunSpec({
         val accountId = FullAccountIdMock
         val fakeCloudAccount = CloudAccountMock(instanceId = "1")
         val fakeBackup = backup
-        val cloudBackupRepository = CloudBackupRepositoryFake()
+        val cloudBackupService = CloudBackupServiceFake()
         val selectCloudBackupUiStateMachine = object : SelectCloudBackupUiStateMachine,
           ScreenStateMachineMock<SelectCloudBackupUiProps>("select-cloud-backup") {}
         val stateMachine =
           AccessCloudBackupUiStateMachineImpl(
             cloudSignInUiStateMachine = CloudSignInUiStateMachineMock(),
-            cloudBackupRepository = cloudBackupRepository,
+            cloudBackupService = cloudBackupService,
             rectifiableErrorHandlingUiStateMachine = RectifiableErrorHandlingUiStateMachineMock(),
             deviceInfoProvider = DeviceInfoProviderMock(),
             inAppBrowserNavigator = InAppBrowserNavigatorMock { name ->
@@ -90,7 +90,7 @@ class AccessCloudBackupStateMachineImplTestsAndroid : FunSpec({
         )
 
         afterTest {
-          cloudBackupRepository.reset()
+          cloudBackupService.reset()
         }
 
         test("android - cloud account signed in but cloud backup not found - check cloud again and fail") {
@@ -133,7 +133,7 @@ class AccessCloudBackupStateMachineImplTestsAndroid : FunSpec({
               state.shouldBe(LoadingSuccessBodyModel.State.Loading)
             }
             awaitBody<CloudWarningBodyModel> {
-              cloudBackupRepository.writeBackup(
+              cloudBackupService.writeBackup(
                 accountId,
                 fakeCloudAccount,
                 fakeBackup,

@@ -1,9 +1,12 @@
 package build.wallet.statemachine.home.full
 
+import bitkey.ui.framework.NavigatorModelFake
 import bitkey.ui.framework.NavigatorPresenterFake
+import bitkey.ui.screens.securityhub.SecurityHubScreen
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.currency.USD
+import build.wallet.navigation.v1.NavigationScreenId
 import build.wallet.partnerships.*
 import build.wallet.platform.links.AppRestrictions
 import build.wallet.platform.links.DeepLinkHandler
@@ -32,13 +35,16 @@ import build.wallet.statemachine.trustedcontact.RecoveryRelationshipNotification
 import build.wallet.statemachine.trustedcontact.RecoveryRelationshipNotificationUiStateMachine
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiProps
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiStateMachine
+import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.time.ClockFake
 import build.wallet.time.TimeZoneProviderMock
 import build.wallet.ui.model.status.StatusBannerModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
-import kotlinx.coroutines.test.TestScope
+import io.kotest.matchers.types.shouldBeTypeOf
+import build.wallet.coroutines.createBackgroundScope
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.datetime.Instant
 
 class HomeUiStateMachineImplTests : FunSpec({
@@ -68,9 +74,7 @@ class HomeUiStateMachineImplTests : FunSpec({
     updateRecentTransactionStatusCalls = turbines.create("update recent transaction status calls"),
     getCalls = turbines.create("get transaction by id calls")
   )
-  val appScope = TestScope()
-
-  val stateMachine =
+  fun stateMachine(appCoroutineScope: CoroutineScope) =
     HomeUiStateMachineImpl(
       homeStatusBannerUiStateMachine =
         object : HomeStatusBannerUiStateMachine,
@@ -110,7 +114,7 @@ class HomeUiStateMachineImplTests : FunSpec({
         ScreenStateMachineMock<RecoveryRelationshipNotificationUiProps>(
           "recovery-relationship-notifications"
         ) {},
-      appCoroutineScope = appScope,
+      appCoroutineScope = appCoroutineScope,
       navigatorPresenter = NavigatorPresenterFake(),
       repairCloudBackupStateMachine = object : RepairCloudBackupStateMachine,
         ScreenStateMachineMock<RepairAppKeyBackupProps>(
@@ -129,24 +133,98 @@ class HomeUiStateMachineImplTests : FunSpec({
   }
 
   test("initial screen is money home") {
-    stateMachine.test(props) {
+    stateMachine(createBackgroundScope()).test(props) {
       awaitBodyMock<MoneyHomeUiProps>()
     }
   }
 
-  test("switch to settings tab") {
-    stateMachine.test(props) {
+  test("switch to settings tab and back returns to money home settings origin") {
+    stateMachine(createBackgroundScope()).test(props) {
       awaitBodyMock<MoneyHomeUiProps> {
         onSettings()
       }
 
-      awaitBodyMock<SettingsHomeUiProps>()
+      awaitBodyMock<SettingsHomeUiProps> {
+        onBack()
+      }
+
+      awaitBodyMock<MoneyHomeUiProps> {
+        origin.shouldBe(MoneyHomeUiProps.Origin.Settings)
+      }
+    }
+  }
+
+  test("switch to settings from partner transfer link and back returns to money home settings origin") {
+    stateMachine(createBackgroundScope()).test(props) {
+      awaitBodyMock<MoneyHomeUiProps>()
+
+      Router.route =
+        Route.from("https://bitkey.world/links/app?context=partner_transfer_link&event=transaction_created&source=MoonPay&event_id=transfer-link-id")
+
+      inAppBrowserNavigator.onCloseCalls.awaitItem()
+
+      awaitBodyMock<MoneyHomeUiProps> {
+        origin.shouldBe(
+          MoneyHomeUiProps.Origin.PartnershipTransferLink(
+            PartnerTransferLinkRequest(
+              partner = "MoonPay",
+              event = "transaction_created",
+              eventId = "transfer-link-id"
+            )
+          )
+        )
+        onSettings()
+      }
+
+      awaitBodyMock<SettingsHomeUiProps> {
+        onBack()
+      }
+
+      awaitBodyMock<MoneyHomeUiProps> {
+        origin.shouldBe(MoneyHomeUiProps.Origin.Settings)
+      }
+    }
+  }
+
+  test("switch to settings from security hub and back returns to security hub") {
+    stateMachine(createBackgroundScope()).test(props) {
+      awaitBodyMock<MoneyHomeUiProps> {
+        onGoToSecurityHub()
+      }
+
+      awaitBody<NavigatorModelFake> {
+        initialScreen.shouldBeTypeOf<SecurityHubScreen>()
+      }
+
+      Router.route = Route.NavigationDeeplink(screen = NavigationScreenId.NAVIGATION_SCREEN_ID_SETTINGS)
+
+      awaitBodyMock<SettingsHomeUiProps> {
+        onBack()
+      }
+
+      awaitBody<NavigatorModelFake> {
+        initialScreen.shouldBeTypeOf<SecurityHubScreen>()
+      }
     }
   }
 
   test("cloud backup health does not sync when app is inactive") {
-    stateMachine.test(props) {
+    stateMachine(createBackgroundScope()).test(props) {
       awaitBodyMock<MoneyHomeUiProps>()
+    }
+  }
+
+  test("W3 upgrade completion routes to money home with W3 upgrade complete origin") {
+    stateMachine(createBackgroundScope()).test(props) {
+      awaitBodyMock<MoneyHomeUiProps> {
+        origin.shouldBe(MoneyHomeUiProps.Origin.Launch)
+      }
+
+      Router.route = Route.W3UpgradeComplete
+
+      awaitBodyMock<MoneyHomeUiProps> {
+        origin.shouldBe(MoneyHomeUiProps.Origin.W3UpgradeComplete)
+      }
     }
   }
 
@@ -170,20 +248,14 @@ class HomeUiStateMachineImplTests : FunSpec({
       )
     )
 
-    stateMachine.test(props) {
+    stateMachine(createBackgroundScope()).test(props) {
       awaitBodyMock<MoneyHomeUiProps> {
         origin.shouldBe(MoneyHomeUiProps.Origin.Launch)
       }
 
-      // Set route AFTER LaunchedEffect is active
       Router.route =
         Route.from("https://bitkey.world/links/app?context=partner_sale&event=transaction_created&source=MoonPay&event_id=01J91MGSEQ5JA0Q456ZQBN61D4")
 
-      // Advance time to allow the launched coroutine to execute
-      appScope.testScheduler.runCurrent()
-      appScope.testScheduler.advanceUntilIdle()
-
-      // Now the service call should have happened
       partnershipsTransactionsService.getCalls.awaitItem()
         .shouldBe(PartnershipTransactionId("01J91MGSEQ5JA0Q456ZQBN61D4"))
 
@@ -221,18 +293,13 @@ class HomeUiStateMachineImplTests : FunSpec({
       )
     )
 
-    stateMachine.test(props) {
+    stateMachine(createBackgroundScope()).test(props) {
       awaitBodyMock<MoneyHomeUiProps> {
         origin.shouldBe(MoneyHomeUiProps.Origin.Launch)
       }
 
-      // Set route AFTER LaunchedEffect is active
       Router.route =
         Route.from("https://bitkey.world/links/app?context=partner_sale&event=transaction_created&source=MoonPay&event_id=not-found-id")
-
-      // Advance time to allow the launched coroutine to execute
-      appScope.testScheduler.runCurrent()
-      appScope.testScheduler.advanceUntilIdle()
 
       inAppBrowserNavigator.onCloseCalls.awaitItem()
       partnershipsTransactionsService.getCalls.awaitItem()
@@ -243,7 +310,7 @@ class HomeUiStateMachineImplTests : FunSpec({
   test("deep link routing for beneficiary invite") {
     Router.route = Route.BeneficiaryInvite("inviteCode")
 
-    stateMachine.test(props) {
+    stateMachine(createBackgroundScope()).test(props) {
       awaitBodyMock<MoneyHomeUiProps> {
         origin.shouldBe(MoneyHomeUiProps.Origin.Launch)
       }

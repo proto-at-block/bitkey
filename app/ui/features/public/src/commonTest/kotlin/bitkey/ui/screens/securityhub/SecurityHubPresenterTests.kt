@@ -14,7 +14,7 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.database.SecurityInteractionStatus
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.FeatureFlagValue
-import build.wallet.feature.flags.FingerprintResetFeatureFlag
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FingerprintHandle
@@ -68,14 +68,11 @@ class SecurityHubPresenterTests : FunSpec({
   firmwareDataService.pendingUpdate = FirmwareDataPendingUpdateMock
 
   val featureFlagDao = FeatureFlagDaoFake()
+  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(featureFlagDao)
 
-  val fingerprintResetFeatureFlag = FingerprintResetFeatureFlag(
-    featureFlagDao = featureFlagDao
-  )
   val fingerprintResetMinFirmwareVersionFeatureFlag = FingerprintResetMinFirmwareVersionFeatureFlag(featureFlagDao)
 
   val fingerprintResetAvailabilityService = FingerprintResetAvailabilityServiceImpl(
-    fingerprintResetFeatureFlag = fingerprintResetFeatureFlag,
     fingerprintResetMinFirmwareVersionFeatureFlag = fingerprintResetMinFirmwareVersionFeatureFlag,
     firmwareDataService = firmwareDataService
   )
@@ -114,20 +111,20 @@ class SecurityHubPresenterTests : FunSpec({
     haptics = haptics,
     fingerprintResetAvailabilityService = fingerprintResetAvailabilityService,
     provisionAppAuthKeyTransactionProvider = provisionAppAuthKeyTransactionProvider,
-    nfcSessionUIStateMachine = nfcSessionUIStateMachine
+    nfcSessionUIStateMachine = nfcSessionUIStateMachine,
+    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag
   )
 
-  suspend fun setupFingerprintResetFeatureFlags(
-    featureEnabled: Boolean = true,
-    minFirmwareVersion: String = "1.0.98",
-  ) {
-    fingerprintResetFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(featureEnabled))
+  suspend fun setupFingerprintResetMinFirmwareVersion(minFirmwareVersion: String = "1.0.98") {
     fingerprintResetMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag(minFirmwareVersion))
   }
 
-  fun setupFirmwareVersion(version: String) {
+  fun setupFirmwareVersion(
+    version: String,
+    hwRevision: String = FirmwareDeviceInfoMock.hwRevision,
+  ) {
     firmwareDataService.firmwareData.value = FirmwareData(
-      firmwareDeviceInfo = FirmwareDeviceInfoMock.copy(version = version),
+      firmwareDeviceInfo = FirmwareDeviceInfoMock.copy(version = version, hwRevision = hwRevision),
       firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
     )
   }
@@ -225,27 +222,9 @@ class SecurityHubPresenterTests : FunSpec({
     }
   }
 
-  test("fingerprint reset feature disabled should pass false to ManageFingerprintsOptionsSheet") {
-    setupFingerprintResetFeatureFlags(featureEnabled = false)
-
-    val action = createFingerprintsAction()
-    addFingerprintsActionToService(action)
-
-    presenter.test(createSecurityHubScreen()) {
-      awaitBody<SecurityHubBodyModel> {
-        onSecurityActionClick(action)
-      }
-
-      it.showSheetCalls.awaitItem().run {
-        shouldBeTypeOf<ManageFingerprintsOptionsSheet>()
-        fingerprintResetEnabled.shouldBeFalse()
-      }
-    }
-  }
-
   // TODO: fix flaky test
   xtest("fingerprint reset disabled when firmware version too old") {
-    setupFingerprintResetFeatureFlags()
+    setupFingerprintResetMinFirmwareVersion()
     setupFirmwareVersion("1.0.97")
 
     val action = createFingerprintsAction(
@@ -267,7 +246,7 @@ class SecurityHubPresenterTests : FunSpec({
 
   // TODO: fix flaky test
   xtest("fingerprint reset enabled when firmware version meets requirement") {
-    setupFingerprintResetFeatureFlags()
+    setupFingerprintResetMinFirmwareVersion()
     setupFirmwareVersion("1.0.98")
 
     val action = createFingerprintsAction(
@@ -288,7 +267,7 @@ class SecurityHubPresenterTests : FunSpec({
   }
 
   test("fingerprintResetReady false should not show COMPLETE_FINGERPRINT_RESET recommendation") {
-    setupFingerprintResetFeatureFlags()
+    setupFingerprintResetMinFirmwareVersion()
 
     val action = createFingerprintsAction(
       fingerprintCount = 1,
@@ -304,7 +283,7 @@ class SecurityHubPresenterTests : FunSpec({
   }
 
   test("both ADD_FINGERPRINTS and COMPLETE_FINGERPRINT_RESET recommendations present") {
-    setupFingerprintResetFeatureFlags()
+    setupFingerprintResetMinFirmwareVersion()
 
     val action = createFingerprintsAction(fingerprintCount = 1)
     addFingerprintsActionToService(action)
@@ -321,7 +300,7 @@ class SecurityHubPresenterTests : FunSpec({
   }
 
   test("clicking complete fingerprint reset transitions to fingerprint reset state") {
-    setupFingerprintResetFeatureFlags()
+    setupFingerprintResetMinFirmwareVersion()
 
     presenter.test(createSecurityHubScreen()) {
       awaitBody<SecurityHubBodyModel> {
@@ -340,7 +319,7 @@ class SecurityHubPresenterTests : FunSpec({
   }
 
   test("fingerprint reset onComplete callback navigates to manage fingerprints") {
-    setupFingerprintResetFeatureFlags()
+    setupFingerprintResetMinFirmwareVersion()
 
     presenter.test(createSecurityHubScreen()) {
       awaitBody<SecurityHubBodyModel> {
@@ -365,7 +344,7 @@ class SecurityHubPresenterTests : FunSpec({
   }
 
   test("fingerprint reset onFwUpRequired callback navigates to firmware update") {
-    setupFingerprintResetFeatureFlags()
+    setupFingerprintResetMinFirmwareVersion()
 
     presenter.test(createSecurityHubScreen()) {
       awaitBody<SecurityHubBodyModel> {

@@ -14,6 +14,8 @@ import build.wallet.debug.AppDataDeleter
 import build.wallet.debug.cloud.CloudBackupCorrupter
 import build.wallet.debug.cloud.CloudBackupDeleter
 import build.wallet.debug.cloud.CloudBackupKeysetDeleter
+import build.wallet.debug.cloud.CloudBackupStoreType
+import build.wallet.debug.cloud.name
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.notifications.TestNotificationF8eClient
@@ -256,8 +258,11 @@ class DebugMenuListStateMachineImpl(
       if (request.deleteAppKey) {
         appDataDeleter.deleteAll()
       }
-      if (request.deleteAllBackup) {
-        cloudBackupDeleter.deleteAll()
+      if (request.deleteAllBackups) {
+        cloudBackupDeleter.deleteAllBackups()
+      }
+      request.deleteBackupsInStoreTarget?.let { target ->
+        cloudBackupDeleter.deleteBackupsIn(target)
       }
       onDone()
     }
@@ -293,12 +298,8 @@ class DebugMenuListStateMachineImpl(
       props =
         BitkeyDeviceOptionsUiProps(
           firmwareData = props.firmwareData ?: return null,
-          onFirmwareUpdateClick = { updateFirmwareData ->
-            props.onSetState(
-              DebugMenuState.ShowingFirmwareUpdateDetails(
-                firmwareData = updateFirmwareData
-              )
-            )
+          onFirmwareUpdateClick = {
+            props.onSetState(DebugMenuState.VerifyingFirmwareMetadata)
           },
           onWipeBitkeyClick = {
             onActionConfirmationRequest(
@@ -355,8 +356,7 @@ class DebugMenuListStateMachineImpl(
                   onDeleteKeybox(
                     DeleteAppDataRequest(
                       deleteAppKey = true,
-                      deleteAppKeyBackup = false,
-                      deleteAllBackup = false
+                      deleteAppKeyBackup = false
                     )
                   )
                 }
@@ -371,8 +371,7 @@ class DebugMenuListStateMachineImpl(
                   onDeleteKeybox(
                     DeleteAppDataRequest(
                       deleteAppKey = false,
-                      deleteAppKeyBackup = true,
-                      deleteAllBackup = false
+                      deleteAppKeyBackup = true
                     )
                   )
                 }
@@ -387,15 +386,14 @@ class DebugMenuListStateMachineImpl(
                   onDeleteKeybox(
                     DeleteAppDataRequest(
                       deleteAppKey = true,
-                      deleteAppKeyBackup = true,
-                      deleteAllBackup = false
+                      deleteAppKeyBackup = true
                     )
                   )
                 }
               )
             )
           },
-          onDeleteAllBackupRequest = {
+          onDeleteAllBackupsRequest = {
             onActionConfirmationRequest(
               ActionConfirmationRequest(
                 gatedActionTitle = "Delete All App Key Backups",
@@ -404,7 +402,23 @@ class DebugMenuListStateMachineImpl(
                     DeleteAppDataRequest(
                       deleteAppKey = false,
                       deleteAppKeyBackup = false,
-                      deleteAllBackup = true
+                      deleteAllBackups = true
+                    )
+                  )
+                }
+              )
+            )
+          },
+          onDeleteBackupsInStoreRequest = { target ->
+            onActionConfirmationRequest(
+              ActionConfirmationRequest(
+                gatedActionTitle = "Delete App Key Backups (${target.name})",
+                gatedAction = {
+                  onDeleteKeybox(
+                    DeleteAppDataRequest(
+                      deleteAppKey = false,
+                      deleteAppKeyBackup = false,
+                      deleteBackupsInStoreTarget = target
                     )
                   )
                 }
@@ -608,12 +622,14 @@ class DebugMenuListStateMachineImpl(
  *
  * @property deleteAppKey - determines if we should delete local app key.
  * @property deleteAppKeyBackup - determines if we should delete app key cloud backup.
- * @property deleteAllBackup - determines if we should delete app key in all cloud backup.
+ * @property deleteAllBackups - determines if we should delete all backups and local mirror state.
+ * @property deleteBackupsInStoreTarget - determines if we should delete backups for a specific store.
  */
 private data class DeleteAppDataRequest(
   val deleteAppKey: Boolean,
   val deleteAppKeyBackup: Boolean,
-  val deleteAllBackup: Boolean,
+  val deleteAllBackups: Boolean = false,
+  val deleteBackupsInStoreTarget: CloudBackupStoreType? = null,
 )
 
 private data class ActionConfirmationRequest(

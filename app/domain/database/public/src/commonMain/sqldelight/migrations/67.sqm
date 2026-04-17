@@ -1,0 +1,4 @@
+-- Add hwDescriptorValidated column to track W3 hardware descriptor validation progress
+ALTER TABLE localRecoveryAttemptEntity ADD COLUMN hwDescriptorValidated INTEGER NOT NULL DEFAULT 0;
+
+PRAGMA foreign_key_check;

@@ -21,6 +21,7 @@ secure_bool_t is_allowing_fingerprint_enrollment(void) {
 FAKE_VOID_FUNC(rtos_timer_create_static, rtos_timer_t*, rtos_timer_callback_t);
 FAKE_VOID_FUNC(rtos_timer_start, rtos_timer_t*, uint32_t);
 FAKE_VOID_FUNC(rtos_timer_stop, rtos_timer_t*);
+FAKE_VALUE_FUNC(bool, rtos_in_isr);
 
 secure_bool_t onboarding_complete(void) {
   return SECURE_TRUE;

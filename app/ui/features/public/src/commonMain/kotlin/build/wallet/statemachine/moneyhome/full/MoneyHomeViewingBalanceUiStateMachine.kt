@@ -33,4 +33,5 @@ data class MoneyHomeViewingBalanceUiProps(
    * Called when the user has confirmed a purchase amount and is ready to see partner quotes.
    */
   val onPurchaseAmountConfirmed: (FiatMoney) -> Unit,
+  val isDesignSystemV2Enabled: Boolean = false,
 )

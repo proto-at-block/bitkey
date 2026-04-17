@@ -1,17 +1,18 @@
 package build.wallet.statemachine.recovery.emergencyexitkit
 
 import app.cash.turbine.test
+import bitkey.account.HardwareType
 import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId.LOADING_BACKUP
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitkey.spending.AppSpendingPrivateKeyMock
 import build.wallet.bitkey.spending.AppSpendingPublicKeyMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
-import build.wallet.cloud.backup.csek.Csek
 import build.wallet.cloud.backup.csek.CsekDaoFake
 import build.wallet.cloud.backup.csek.CsekFake
 import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.crypto.SymmetricKey
 import build.wallet.emergencyexitkit.EmergencyExitKitBackup
 import build.wallet.emergencyexitkit.EmergencyExitKitPayload.EmergencyExitKitPayloadV1
 import build.wallet.emergencyexitkit.EmergencyExitKitPayloadDecoderImpl
@@ -26,6 +27,8 @@ import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachineMock
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification
@@ -50,9 +53,8 @@ import okio.ByteString.Companion.toByteString
 class EmergencyExitKitRecoveryUiStateMachineImplTests : FunSpec({
   val onExitCalls = turbines.create<Unit>("onExit callbacks")
   val clipboard = ClipboardMock()
-  val nfcSessionUIStateMachine =
-    object : NfcSessionUIStateMachine,
-      ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(id = "nfc-session") {}
+  val nfcConfirmableSessionUiStateMachine =
+    NfcConfirmableSessionUiStateMachineMock(id = "nfc-confirmable-session")
   val csekDao = CsekDaoFake()
   val keyboxDao = KeyboxDaoMock(turbines::create)
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
@@ -74,7 +76,11 @@ class EmergencyExitKitRecoveryUiStateMachineImplTests : FunSpec({
     ),
     csekDao = csekDao,
     keyboxDao = keyboxDao,
-    nfcSessionUIStateMachine = nfcSessionUIStateMachine,
+    nfcConfirmableSessionUiStateMachine = nfcConfirmableSessionUiStateMachine,
+    nfcSessionUIStateMachine = object : NfcSessionUIStateMachine,
+      ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(
+        "nfc-session"
+      ) {},
     uuidGenerator = UuidGeneratorFake()
   )
 
@@ -248,11 +254,18 @@ class EmergencyExitKitRecoveryUiStateMachineImplTests : FunSpec({
       ) {
         onRestore.shouldNotBeNull().invoke()
       }
-      // Unsealing CSEK
-      awaitBodyMock<NfcSessionUIStateMachineProps<Csek>>(
-        id = nfcSessionUIStateMachine.id
+      // Detecting hardware type
+      awaitBodyMock<NfcSessionUIStateMachineProps<*>>(
+        id = "nfc-session"
       ) {
-        onSuccess(CsekFake)
+        @Suppress("UNCHECKED_CAST")
+        (onSuccess as suspend (Any?) -> Unit).invoke(HardwareType.W1)
+      }
+      // Unsealing CSEK
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<SymmetricKey>>(
+        id = nfcConfirmableSessionUiStateMachine.id
+      ) {
+        onSuccess(CsekFake.key)
       }
 
       // Decoding backup and attempting to apply
@@ -296,11 +309,18 @@ class EmergencyExitKitRecoveryUiStateMachineImplTests : FunSpec({
       ) {
         onRestore.shouldNotBeNull().invoke()
       }
-      // Unsealing CSEK
-      awaitBodyMock<NfcSessionUIStateMachineProps<Csek>>(
-        id = nfcSessionUIStateMachine.id
+      // Detecting hardware type
+      awaitBodyMock<NfcSessionUIStateMachineProps<*>>(
+        id = "nfc-session"
       ) {
-        onSuccess(CsekFake)
+        @Suppress("UNCHECKED_CAST")
+        (onSuccess as suspend (Any?) -> Unit).invoke(HardwareType.W1)
+      }
+      // Unsealing CSEK
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<SymmetricKey>>(
+        id = nfcConfirmableSessionUiStateMachine.id
+      ) {
+        onSuccess(CsekFake.key)
       }
 
       awaitBody<LoadingSuccessBodyModel>(LOADING_BACKUP) {
@@ -339,11 +359,18 @@ class EmergencyExitKitRecoveryUiStateMachineImplTests : FunSpec({
       ) {
         onRestore.shouldNotBeNull().invoke()
       }
-      // Unsealing CSEK
-      awaitBodyMock<NfcSessionUIStateMachineProps<Csek>>(
-        id = nfcSessionUIStateMachine.id
+      // Detecting hardware type
+      awaitBodyMock<NfcSessionUIStateMachineProps<*>>(
+        id = "nfc-session"
       ) {
-        onSuccess(CsekFake)
+        @Suppress("UNCHECKED_CAST")
+        (onSuccess as suspend (Any?) -> Unit).invoke(HardwareType.W1)
+      }
+      // Unsealing CSEK
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<SymmetricKey>>(
+        id = nfcConfirmableSessionUiStateMachine.id
+      ) {
+        onSuccess(CsekFake.key)
       }
 
       awaitBody<LoadingSuccessBodyModel>(LOADING_BACKUP) {
@@ -371,16 +398,25 @@ class EmergencyExitKitRecoveryUiStateMachineImplTests : FunSpec({
         onRestore.shouldNotBeNull().invoke()
       }
 
+      // Detecting hardware type - also uses NotRequired
+      awaitBodyMock<NfcSessionUIStateMachineProps<*>>(
+        id = "nfc-session"
+      ) {
+        hardwareVerification.shouldBeTypeOf<HardwareVerification.NotRequired>()
+        @Suppress("UNCHECKED_CAST")
+        (onSuccess as suspend (Any?) -> Unit).invoke(HardwareType.W1)
+      }
+
       // Verify that EEK recovery now correctly uses NotRequired for hardware verification
       // This ensures that the hardware pairing check won't interfere when there's no active account
-      awaitBodyMock<NfcSessionUIStateMachineProps<Csek>>(
-        id = nfcSessionUIStateMachine.id
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<SymmetricKey>>(
+        id = nfcConfirmableSessionUiStateMachine.id
       ) {
         // The hardware verification should be NotRequired for EEK recovery
         hardwareVerification.shouldBeTypeOf<HardwareVerification.NotRequired>()
 
         // Continue with successful NFC operation
-        onSuccess(CsekFake)
+        onSuccess(CsekFake.key)
       }
 
       awaitBody<LoadingSuccessBodyModel>(LOADING_BACKUP) {

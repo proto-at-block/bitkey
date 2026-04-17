@@ -65,6 +65,21 @@ class OnboardingConfigStateMachineImpl(
               testTag = "skip-notifications"
             )
           )
+        ),
+        ListItemModel(
+          title = "Skip Build Hardware Descriptor",
+          secondaryText = "W3 onboarding will skip the hardware descriptor step",
+          trailingAccessory = SwitchAccessory(
+            model = SwitchModel(
+              checked = defaultConfig.skipBuildHardwareDescriptorOnboarding,
+              onCheckedChange = { shouldSkip ->
+                scope.launch {
+                  accountConfigService.setSkipBuildHardwareDescriptorOnboarding(shouldSkip)
+                }
+              },
+              testTag = "skip-build-hardware-descriptor"
+            )
+          )
         )
       )
     )

@@ -1,5 +1,5 @@
 import bitkey_fwa
-from bitkey.fwa.bitkey_fwa.constants import PRODUCT_W3A_UXC
+from bitkey_fwa.constants import PRODUCT_W3A_UXC
 from bitkey_fwa.fwut import FirmwareUnderTest
 from bitkey_fwa.keys import get_patch_signing_key_bytes
 
@@ -25,8 +25,6 @@ class KeyChecks(bitkey_fwa.TestCase):
         delta_key_hex = get_patch_signing_key_bytes(patch_signing_key_fmt)
         self.assertInFirmware(delta_key_hex, "Delta patch pubkey not found in firmware")
 
-    # TODO(SECENG-8964): Implement for UXC as well
-    @bitkey_fwa.product("w1a", "w3a-core")
     @bitkey_fwa.asset("app")
     @bitkey_fwa.suffix("elf")
     def fwtest_verify_app_slot(self):
@@ -50,24 +48,31 @@ class KeyChecks(bitkey_fwa.TestCase):
             f"Incorrect signature section size: {self.get_elf_section_size(signature)}",
         )
 
-        app_start_addr = self.get_elf_symbol_value_from_name(f"app_{slot}_slot_page")
-
-        signing_data = self.get_elf_data_from_addr_range(app_start_addr, signature_addr)
-
         if FirmwareUnderTest.product == PRODUCT_W3A_UXC:
-            expected_size = STM32U5_APP_SIZE - ECC_SIGNATURE_SIZE
+            signed_bin = self.get_elf_binary_data()
+            self.assertEqual(
+                len(signed_bin),
+                STM32U5_APP_SIZE,
+                f"Signing data has incorrect size: {STM32U5_APP_SIZE} != {len(signed_bin)}",
+            )
+            self.assertEqual(
+                signed_bin[-ECC_SIGNATURE_SIZE:],
+                signature_data,
+                "Signature mismatch between ELF section and binary image",
+            )
+            signing_data = signed_bin[:-ECC_SIGNATURE_SIZE]
         else:
+            app_start_addr = self.get_elf_symbol_value_from_name(f"app_{slot}_slot_page")
+            signing_data = self.get_elf_data_from_addr_range(app_start_addr, signature_addr)
             expected_size = EFR32_APP_SIZE - ECC_SIGNATURE_SIZE
-        self.assertEqual(
-            len(signing_data),
-            expected_size,
-            f"Signing data has incorrect size: {expected_size} != {len(signing_data)}",
-        )
+            self.assertEqual(
+                len(signing_data),
+                expected_size,
+                f"Signing data has incorrect size: {expected_size} != {len(signing_data)}",
+            )
 
         self.verify_signature(app_signing_key_fmt, signing_data, signature_data)
 
-    # TODO(SECENG-8964): Implement for UXC as well
-    @bitkey_fwa.product("w1a", "w3a-core")
     @bitkey_fwa.asset("app")
     @bitkey_fwa.suffix("elf")
     def fwtest_verify_app_certificate(self):
@@ -84,7 +89,7 @@ class KeyChecks(bitkey_fwa.TestCase):
 
         self.verify_signature(loader_signing_key_fmt, signing_data, signature_data)
 
-    # TODO(SECENG-8964): Implement for UXC as well
+    # UXC bootloaders inject a bootloader cert but do not carry a slot signature.
     @bitkey_fwa.product("w1a", "w3a-core")
     @bitkey_fwa.asset("loader")
     @bitkey_fwa.suffix("elf")
@@ -110,9 +115,7 @@ class KeyChecks(bitkey_fwa.TestCase):
         bl_slot_data = self.get_elf_data_from_addr_range(
             bl_base_addr, bl_base_addr + bl_slot_size
         )
-
         signing_size = bl_slot_size - bl_signature_size
-
         signing_data = bl_slot_data[:signing_size]
         signature_data = bl_slot_data[signing_size:]
 
@@ -130,8 +133,6 @@ class KeyChecks(bitkey_fwa.TestCase):
 
         self.verify_signature(loader_signing_key_fmt, signing_data, signature_data)
 
-    # TODO(SECENG-8964): Implement for UXC as well
-    @bitkey_fwa.product("w1a", "w3a-core")
     @bitkey_fwa.asset("loader")
     @bitkey_fwa.suffix("elf")
     def fwtest_verify_bl_certificate(self):
@@ -147,4 +148,10 @@ class KeyChecks(bitkey_fwa.TestCase):
         signing_data = bl_certificate[:-ECC_SIGNATURE_SIZE]
         signature_data = bl_certificate[-ECC_SIGNATURE_SIZE:]
 
-        self.verify_signature(root_fw_signing_ca_key_fmt, signing_data, signature_data)
+        key_fmt = root_fw_signing_ca_key_fmt
+        if FirmwareUnderTest.product == PRODUCT_W3A_UXC:
+            # UXC bootloader certs are the root of trust and are self-signed with the
+            # bootloader signing key rather than a separate root firmware CA.
+            key_fmt = loader_signing_key_fmt
+
+        self.verify_signature(key_fmt, signing_data, signature_data)

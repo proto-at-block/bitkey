@@ -48,6 +48,7 @@ android-lifecycle = "2.9.4"
 android-savedstate = "1.3.3"
 android-lottie = "6.6.2"
 android-anvil = "2.4.7-1-8"
+android-sceneview = "2.3.0"
 # Don't forget to also update .github/actions/android-sdk/action.yml and app/verifiable-build/android/Dockerfile
 android-build-tools = "35.0.0"
 # Don't forget to also update .github/actions/android-sdk/action.yml and app/verifiable-build/android/Dockerfile
@@ -203,6 +204,7 @@ android-lifecycle-runtime-ktx-android = { module = "androidx.lifecycle:lifecycle
 android-savedstate = { module = "androidx.savedstate:savedstate", version.ref = "android-savedstate" }
 android-loader = { module = "androidx.loader:loader", version = "1.1.0" }
 android-lottie-compose = { module = "com.airbnb.android:lottie-compose", version.ref = "android-lottie" }
+android-sceneview = { module = "io.github.sceneview:sceneview", version.ref = "android-sceneview" }
 android-security-cryptography = { module = "androidx.security:security-crypto-ktx", version = "1.1.0-alpha06" }
 android-sqlcipher = { module = "net.zetetic:sqlcipher-android", version = "4.6.1" }
 android-sqldelight-driver = { module = "app.cash.sqldelight:android-driver", version.ref = "kmp-sqldelight" }
@@ -270,8 +272,8 @@ jvm-test-toxiproxy-client = { module = "eu.rekawek.toxiproxy:toxiproxy-java", ve
 jvm-test-opentest4j = { module = "org.opentest4j:opentest4j", version = "1.3.0" }
 
 # Detekt libraries (for custom rules)
-detekt-api = { module = "io.gitlab.arturbosch.detekt:detekt-api", version.ref = "detekt" }
-detekt-test = { module = "io.gitlab.arturbosch.detekt:detekt-test", version.ref = "detekt" }
+jvm-detekt-api = { module = "io.gitlab.arturbosch.detekt:detekt-api", version.ref = "detekt" }
+jvm-detekt-test = { module = "io.gitlab.arturbosch.detekt:detekt-test", version.ref = "detekt" }
 
 # Native libraries
 native-nserror-kt = { module = "com.rickclephas.kmp:nserror-kt", version = "0.2.0" }

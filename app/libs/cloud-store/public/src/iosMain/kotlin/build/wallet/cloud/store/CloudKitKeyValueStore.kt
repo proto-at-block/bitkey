@@ -7,8 +7,7 @@ import okio.ByteString
  * CloudKit-based key-value store for iOS.
  *
  * This is the raw "bytes in / bytes out" layer. It doesn't know about schemas, encryption,
- * or higher-level types; it just stores a [ByteString] per key. The higher-level
- * [CloudKeyValueStoreImpl] handles String conversion and feature-flag orchestration.
+ * or higher-level types; it just stores a [ByteString] per key.
  *
  * Why CloudKit over KVS? CloudKit offers larger storage limits and better reliability than
  * [UbiquitousKeyValueStore] (iCloud KVS), which is capped at ~1MB total and 1024 keys.
@@ -20,7 +19,7 @@ import okio.ByteString
  * - [iCloudAccount] is kept for parity with KVS but isn't used directly because the private
  *   database is already scoped to the active iCloud account.
  *
- * @see CloudKeyValueStoreImpl for orchestration and String conversion
+ * Backup-specific orchestration lives in cloud-backup domain stores.
  * @see UbiquitousKeyValueStore for the legacy KVS implementation
  */
 @Suppress("ClassName")

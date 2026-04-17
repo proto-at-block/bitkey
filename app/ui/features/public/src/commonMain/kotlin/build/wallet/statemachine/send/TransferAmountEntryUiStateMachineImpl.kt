@@ -11,6 +11,8 @@ import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.coroutines.scopes.mapAsStateFlow
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.Money
@@ -25,6 +27,8 @@ import build.wallet.statemachine.money.calculator.MoneyCalculatorUiProps
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiStateMachine
 import build.wallet.statemachine.send.amountentry.TransferCardUiProps
 import build.wallet.statemachine.send.amountentry.TransferCardUiStateMachine
+import build.wallet.ui.components.label.LabelTreatment.Destructive
+import build.wallet.ui.components.label.LabelTreatment.Secondary
 
 @BitkeyInject(ActivityScope::class)
 class TransferAmountEntryUiStateMachineImpl(
@@ -33,6 +37,7 @@ class TransferAmountEntryUiStateMachineImpl(
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val bitcoinWalletService: BitcoinWalletService,
+  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
   private val transferCardUiStateMachine: TransferCardUiStateMachine,
   private val appFunctionalityService: AppFunctionalityService,
 ) : TransferAmountEntryUiStateMachine {
@@ -42,10 +47,34 @@ class TransferAmountEntryUiStateMachineImpl(
   @Composable
   @Suppress("CyclomaticComplexMethod")
   override fun model(props: TransferAmountEntryUiProps): ScreenModel {
+    val flow = props.flow
+    val allowSendAll = (flow as? TransferAmountEntryUiProps.Flow.Send)?.allowSendAll ?: false
+    val minimumAmount =
+      when (flow) {
+        is TransferAmountEntryUiProps.Flow.Send -> flow.minAmount
+        is TransferAmountEntryUiProps.Flow.Sell -> flow.minAmount
+      }
+    val maximumAmount =
+      when (flow) {
+        is TransferAmountEntryUiProps.Flow.Send -> flow.maxAmount
+        is TransferAmountEntryUiProps.Flow.Sell -> flow.maxAmount
+      }
+    val isSellFlow = flow is TransferAmountEntryUiProps.Flow.Sell
     val scope = rememberStableCoroutineScope()
-
+    val isDesignSystemV2Enabled by remember {
+      designSystemUpdatesFeatureFlag.flagValue().mapAsStateFlow(scope) { it.isEnabled() }
+    }.collectAsState(initial = designSystemUpdatesFeatureFlag.isEnabled())
     val fiatCurrency by remember { fiatCurrencyPreferenceRepository.fiatCurrencyPreference }
       .collectAsState()
+
+    var sheetState by remember {
+      mutableStateOf<SheetState>(SheetState.Hidden)
+    }
+
+    val mobilePayAvailability by remember {
+      appFunctionalityService.status
+        .mapAsStateFlow(scope) { it.featureStates.mobilePay }
+    }.collectAsState()
 
     // Always start with the currency of the given amount as the primary currency
     // and the given fiat or BTC as secondary, whichever the amount isn't
@@ -58,15 +87,6 @@ class TransferAmountEntryUiStateMachineImpl(
         )
       )
     }
-
-    var sheetState by remember {
-      mutableStateOf<SheetState>(SheetState.Hidden)
-    }
-
-    val mobilePayAvailability by remember {
-      appFunctionalityService.status
-        .mapAsStateFlow(scope) { it.featureStates.mobilePay }
-    }.collectAsState()
 
     val bitcoinBalance by remember {
       bitcoinWalletService.transactionsData()
@@ -158,14 +178,14 @@ class TransferAmountEntryUiStateMachineImpl(
           // Check for invalid cases first
           // User entered an amount while having a zero balance
           bitcoinBalance.total.isZero -> TransferAmountUiState.InvalidAmountEnteredUiState.AmountWithZeroBalanceUiState
-          // Amount entered is less than minAmount
-          props.minAmount != null && enteredBitcoinMoney < props.minAmount -> TransferAmountUiState.InvalidAmountEnteredUiState.AmountBelowMinimumUiState
-          // Amount entered is greater than maxAmount
-          props.maxAmount != null && enteredBitcoinMoney > props.maxAmount -> TransferAmountUiState.InvalidAmountEnteredUiState.AmountAboveMaximumUiState
           // Amount entered is above balance and send all is allowed
-          enteredAmountAboveBalance && props.allowSendAll -> TransferAmountUiState.ValidAmountEnteredUiState.AmountEqualOrAboveBalanceUiState
+          enteredAmountAboveBalance && allowSendAll -> TransferAmountUiState.ValidAmountEnteredUiState.AmountEqualOrAboveBalanceUiState
           // Amount entered is above balance and send all is *not* allowed
-          enteredAmountAboveBalance && !props.allowSendAll -> TransferAmountUiState.InvalidAmountEnteredUiState.InvalidAmountEqualOrAboveBalanceUiState
+          enteredAmountAboveBalance && !allowSendAll -> TransferAmountUiState.InvalidAmountEnteredUiState.InvalidAmountEqualOrAboveBalanceUiState
+          // Amount entered is less than minAmount
+          minimumAmount != null && enteredBitcoinMoney < minimumAmount -> TransferAmountUiState.InvalidAmountEnteredUiState.AmountBelowMinimumUiState
+          // Amount entered is greater than maxAmount
+          maximumAmount != null && enteredBitcoinMoney > maximumAmount -> TransferAmountUiState.InvalidAmountEnteredUiState.AmountAboveMaximumUiState
           // Amount entered is below dust limit
           enteredBitcoinMoney < dustLimit -> TransferAmountUiState.InvalidAmountEnteredUiState.AmountBelowDustLimitUiState
 
@@ -174,7 +194,106 @@ class TransferAmountEntryUiStateMachineImpl(
         }
       }
     }
-
+    val hasEnteredNonZeroAmount by remember(enteredBitcoinMoney, enteredFiatMoney) {
+      derivedStateOf {
+        !enteredBitcoinMoney.isZero || enteredFiatMoney?.isZero == false
+      }
+    }
+    val isAmountExceedsAvailableBalanceState by remember(
+      transferAmountState,
+      bitcoinBalance,
+      hasEnteredNonZeroAmount
+    ) {
+      derivedStateOf {
+        (bitcoinBalance.total.isZero && hasEnteredNonZeroAmount) ||
+          transferAmountState is TransferAmountUiState.ValidAmountEnteredUiState.AmountEqualOrAboveBalanceUiState ||
+          transferAmountState is TransferAmountUiState.InvalidAmountEnteredUiState.InvalidAmountEqualOrAboveBalanceUiState
+      }
+    }
+    val minimumAmountDisplay by remember(
+      minimumAmount,
+      props.exchangeRates,
+      currencyState.inputAmountCurrency
+    ) {
+      derivedStateOf {
+        minimumAmount?.let { lowerBound ->
+          when (currencyState.inputAmountCurrency) {
+            BTC -> lowerBound
+            else -> props.exchangeRates?.let {
+              currencyConverter.convert(
+                lowerBound,
+                currencyState.inputAmountCurrency,
+                it
+              )?.rounded()
+            } ?: lowerBound
+          }
+        }
+      }
+    }
+    val maximumAmountDisplay by remember(
+      maximumAmount,
+      props.exchangeRates,
+      currencyState.inputAmountCurrency
+    ) {
+      derivedStateOf {
+        maximumAmount?.let { upperBound ->
+          when (currencyState.inputAmountCurrency) {
+            BTC -> upperBound
+            else -> props.exchangeRates?.let {
+              currencyConverter.convert(
+                upperBound,
+                currencyState.inputAmountCurrency,
+                it
+              )?.rounded()
+            } ?: upperBound
+          }
+        }
+      }
+    }
+    val sellContextLineOverride by remember(
+      isSellFlow,
+      isAmountExceedsAvailableBalanceState,
+      hasEnteredNonZeroAmount,
+      transferAmountState,
+      minimumAmountDisplay,
+      maximumAmountDisplay
+    ) {
+      derivedStateOf {
+        if (!isSellFlow) return@derivedStateOf null
+        when {
+          isAmountExceedsAvailableBalanceState ->
+            "Amount exceeds available balance"
+          transferAmountState is TransferAmountUiState.InvalidAmountEnteredUiState.AmountAboveMaximumUiState ->
+            maximumAmountDisplay?.let { "Maximum sell amount is ${moneyDisplayFormatter.format(it)}" }
+          hasEnteredNonZeroAmount &&
+            transferAmountState is TransferAmountUiState.InvalidAmountEnteredUiState.AmountBelowMinimumUiState ->
+            minimumAmountDisplay?.let { "Minimum sell amount is ${moneyDisplayFormatter.format(it)}" }
+          else -> null
+        }
+      }
+    }
+    val amountContextLineTreatment by remember(sellContextLineOverride, isAmountExceedsAvailableBalanceState) {
+      derivedStateOf {
+        when {
+          sellContextLineOverride != null -> Destructive
+          isAmountExceedsAvailableBalanceState -> Destructive
+          else -> Secondary
+        }
+      }
+    }
+    val shouldTriggerContextualErrorFeedback by remember(
+      isSellFlow,
+      isAmountExceedsAvailableBalanceState,
+      transferAmountState
+    ) {
+      derivedStateOf {
+        when {
+          isSellFlow -> isAmountExceedsAvailableBalanceState ||
+            transferAmountState is TransferAmountUiState.InvalidAmountEnteredUiState.AmountAboveMaximumUiState
+          else -> isAmountExceedsAvailableBalanceState
+        }
+      }
+    }
     val disableTransferAmount by remember(
       enteredBitcoinMoney,
       enteredAmountAboveBalance,
@@ -184,46 +303,86 @@ class TransferAmountEntryUiStateMachineImpl(
         when {
           bitcoinBalance.total.isZero -> !(enteredBitcoinMoney.isZero || (enteredFiatMoney?.isZero == true))
           enteredAmountAboveBalance -> true
-          props.minAmount != null && enteredBitcoinMoney < props.minAmount -> true
-          props.maxAmount != null && enteredBitcoinMoney > props.maxAmount -> true
+          minimumAmount != null && enteredBitcoinMoney < minimumAmount -> true
+          maximumAmount != null && enteredBitcoinMoney > maximumAmount -> true
           else -> false
         }
       }
     }
+    val showSwapCurrencyControl by remember(
+      isAmountExceedsAvailableBalanceState,
+      calculatorModel.secondaryAmount,
+      sellContextLineOverride
+    ) {
+      derivedStateOf {
+        calculatorModel.secondaryAmount != null &&
+          sellContextLineOverride == null &&
+          !isAmountExceedsAvailableBalanceState
+      }
+    }
 
-    val cardModel = transferCardUiStateMachine.model(
-      props = TransferCardUiProps(
-        bitcoinBalance = bitcoinBalance,
-        enteredBitcoinMoney = enteredBitcoinMoney,
-        transferAmountState = transferAmountState,
-        onSendMaxClick = {
-          props.onContinueClick(
-            ContinueTransferParams(
-              SendAll
-            )
-          )
-        },
-        onHardwareRequiredClick = {
-          sheetState =
-            if (mobilePayAvailability == FunctionalityFeatureStates.FeatureState.Unavailable) {
-              SheetState.HardwareRequiredSheetState
-            } else {
-              SheetState.Hidden
+    val cardModel =
+      if (isSellFlow) {
+        null
+      } else {
+        transferCardUiStateMachine.model(
+          props = TransferCardUiProps(
+            bitcoinBalance = bitcoinBalance,
+            enteredBitcoinMoney = enteredBitcoinMoney,
+            transferAmountState = transferAmountState,
+            onSendMaxClick = {
+              props.onContinueClick(
+                ContinueTransferParams(
+                  SendAll
+                )
+              )
+            },
+            onHardwareRequiredClick = {
+              if (
+                !isDesignSystemV2Enabled &&
+                mobilePayAvailability == FunctionalityFeatureStates.FeatureState.Unavailable
+              ) {
+                sheetState = SheetState.HardwareRequiredSheetState
+              }
             }
-        }
-      )
-    )
+          )
+        )
+      }
+
+    val useSmartBar by remember(isDesignSystemV2Enabled, isSellFlow, transferAmountState) {
+      derivedStateOf {
+        isDesignSystemV2Enabled &&
+          !isSellFlow &&
+          transferAmountState is TransferAmountUiState.ValidAmountEnteredUiState.AmountEqualOrAboveBalanceUiState
+      }
+    }
 
     val bodyModel = TransferAmountBodyModel(
       onBack = props.onBack,
       balanceTitle = "$balancedFormatted available",
-      amountModel = calculatorModel.amountModel,
+      amountModel =
+        calculatorModel.amountModel.copy(
+          secondaryAmount = sellContextLineOverride
+            ?: if (isAmountExceedsAvailableBalanceState) {
+              "Amount exceeds available balance"
+            } else {
+              calculatorModel.amountModel.secondaryAmount
+            }
+        ),
       keypadModel = calculatorModel.keypadModel,
       cardModel = cardModel,
       continueButtonEnabled = transferAmountState is TransferAmountUiState.ValidAmountEnteredUiState.AmountBelowBalanceUiState,
-      amountDisabled = disableTransferAmount,
+      amountDisabled =
+        when {
+          isSellFlow -> false
+          enteredAmountAboveBalance -> false
+          else -> disableTransferAmount
+        },
+      amountContextLineTreatment = amountContextLineTreatment,
+      shouldTriggerContextualErrorFeedback = shouldTriggerContextualErrorFeedback,
+      useSmartBar = useSmartBar,
       onContinueClick = {
-        if (transferAmountState is TransferAmountUiState.ValidAmountEnteredUiState) {
+        if (transferAmountState is TransferAmountUiState.ValidAmountEnteredUiState.AmountBelowBalanceUiState) {
           props.onContinueClick(
             ContinueTransferParams(
               ExactAmount(enteredBitcoinMoney)
@@ -231,18 +390,23 @@ class TransferAmountEntryUiStateMachineImpl(
           )
         }
       },
-      onSwapCurrencyClick = {
-        if (calculatorModel.secondaryAmount != null) {
-          currencyState = currencyState.swapCurrency(
-            amountInSecondaryCurrency = calculatorModel.secondaryAmount
-          )
+      onSwapCurrencyClick =
+        if (showSwapCurrencyControl) {
+          {
+            calculatorModel.secondaryAmount?.let { amountInSecondaryCurrency ->
+              currencyState = currencyState.swapCurrency(
+                amountInSecondaryCurrency = amountInSecondaryCurrency
+              )
+            }
+          }
+        } else {
+          null
         }
-      }
     )
 
     val bottomSheetModel = when (sheetState) {
-      is SheetState.Hidden -> null
-      is SheetState.HardwareRequiredSheetState ->
+      SheetState.Hidden -> null
+      SheetState.HardwareRequiredSheetState ->
         SheetModel(
           onClosed = { sheetState = SheetState.Hidden },
           body = ErrorFormBodyModel(
@@ -282,12 +446,12 @@ class TransferAmountEntryUiStateMachineImpl(
 
   private sealed interface SheetState {
     /**
-     * Sheet is shown to the user to indicate that hardware is required for all transactions. Shown
-     * when the user clicks on the "Hardware Required" banner and f8e is unavailable.
+     * Legacy informational sheet shown when fiat exchange rates are unavailable and the customer
+     * would need hardware to continue.
      */
     data object HardwareRequiredSheetState : SheetState
 
-    /** No sheet is shown on the screen */
+    /** No sheet is currently displayed. */
     data object Hidden : SheetState
   }
 }

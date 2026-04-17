@@ -1,8 +1,6 @@
 package build.wallet.statemachine.utxo
 
 import androidx.compose.runtime.*
-import build.wallet.account.AccountService
-import build.wallet.account.getAccount
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.UTXO_CONSOLIDATION_SIGN_TRANSACTION
 import build.wallet.analytics.events.screen.id.UtxoConsolidationEventTrackerScreenId
 import build.wallet.bitcoin.transactions.Psbt
@@ -23,6 +21,7 @@ import build.wallet.money.formatter.amountDisplayText
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.LoadingSuccessBodyModel.State.Loading
 import build.wallet.statemachine.data.money.convertedOrNull
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationContent
 import build.wallet.statemachine.send.signtransaction.SignTransactionNfcSessionUiProps
 import build.wallet.statemachine.send.signtransaction.SignTransactionNfcSessionUiStateMachine
 import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachineImpl.State.*
@@ -37,7 +36,6 @@ import kotlinx.datetime.toLocalDateTime
 
 @BitkeyInject(ActivityScope::class)
 class UtxoConsolidationUiStateMachineImpl(
-  private val accountService: AccountService,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val currencyConverter: CurrencyConverter,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
@@ -63,23 +61,24 @@ class UtxoConsolidationUiStateMachineImpl(
     return when (val currentState = state) {
       is PreparingUtxoConsolidation -> {
         LaunchedEffect("prepare-utxo-consolidation-$preparationCount") {
-          val account = accountService.getAccount<FullAccount>().get()
-          if (account == null) {
-            props.onBack()
-            return@LaunchedEffect
-          }
-
           utxoConsolidationService.prepareUtxoConsolidation()
             .onSuccess { consolidationParamsList ->
               // TODO(W-9710): implement support for different consolidation types
               val consolidationParams = consolidationParamsList.single()
               if (consolidationParams.walletExceedsMaxUtxoCount && preparationCount == 0) {
-                state = ShowingExceedsMaxUtxoCount(account, consolidationParams)
+                state = ShowingExceedsMaxUtxoCount(props.account, consolidationParams)
               } else {
-                state = ViewingConfirmation(account, consolidationParams)
+                state = ViewingConfirmation(props.account, consolidationParams)
               }
             }
             .onFailure { error ->
+              if (error is NotEnoughUtxosToConsolidateError && preparationCount > 0) {
+                // Previous consolidation(s) succeeded but there aren't enough confirmed
+                // UTXOs left to consolidate further (e.g. new outputs still unconfirmed).
+                // Treat as success — return to the parent flow.
+                props.onConsolidationSuccess()
+                return@LaunchedEffect
+              }
               state = when (error) {
                 is NotEnoughUtxosToConsolidateError -> ShowingNotEnoughUtxosError(error.utxoCount)
                 else -> ShowingErrorLoadingUtxoConsolidation(error)
@@ -162,6 +161,7 @@ class UtxoConsolidationUiStateMachineImpl(
       is SigningConsolidationWithHardware -> {
         signTransactionNfcSessionUiStateMachine.model(
           SignTransactionNfcSessionUiProps(
+            account = currentState.account,
             psbt = currentState.consolidationParams.appSignedPsbt,
             onBack = {
               state = ViewingConfirmation(currentState.account, currentState.consolidationParams)
@@ -174,6 +174,8 @@ class UtxoConsolidationUiStateMachineImpl(
                 consolidationCostDisplayText = currentState.consolidationCostDisplayText
               )
             },
+            showNativeSheetOnIos = false,
+            confirmationContent = HardwareConfirmationContent.ConsolidateUtxos,
             eventTrackerContext = UTXO_CONSOLIDATION_SIGN_TRANSACTION
           )
         )
@@ -204,10 +206,10 @@ class UtxoConsolidationUiStateMachineImpl(
         ).asRootScreen()
       }
       is ShowingSuccessScreen -> {
-        val onDoneAction = if (props.context == UtxoConsolidationContext.PrivateWalletMigration &&
+        val onDoneAction = if (props.context != UtxoConsolidationContext.Standard &&
           currentState.consolidationParams.walletExceedsMaxUtxoCount
         ) {
-          // In private wallet migration context with multiple consolidations needed,
+          // In migration context with multiple consolidations needed,
           // loop back to prepare the next consolidation
           {
             preparationCount++

@@ -92,7 +92,7 @@ impl<A: AddressWatchlistTrait + Clone + 'static> TestContext<A> {
                     NotificationCategory::MoneyMovement,
                     NotificationChannel::Push,
                 ),
-                key_proof: None,
+                signed_by_both_factors: false,
             })
             .await
             .expect("Failed to enable money movement notifications in test");

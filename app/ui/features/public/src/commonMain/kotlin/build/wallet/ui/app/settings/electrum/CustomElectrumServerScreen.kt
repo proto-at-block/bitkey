@@ -4,9 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import build.wallet.statemachine.settings.full.electrum.CustomElectrumServerBodyModel
 import build.wallet.ui.app.core.form.FormScreen
+import build.wallet.ui.app.core.form.FormScreenContentVerticalAlignment
 import build.wallet.ui.components.alertdialog.AlertDialog
 import build.wallet.ui.components.switch.SwitchCard
-import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 
@@ -24,14 +24,12 @@ fun CustomElectrumServerScreen(
   FormScreen(
     modifier = modifier,
     onBack = onBack,
-    toolbarContent = {
-      Toolbar(
-        model =
-          ToolbarModel(
-            leadingAccessory = BackAccessory(onClick = model.onBack)
-          )
-      )
-    },
+    toolbarModel = ToolbarModel(
+      leadingAccessory = BackAccessory(onClick = onBack)
+    ),
+    designSystemV2Title = "Custom Electrum Server",
+    designSystemV2Scrollable = false,
+    designSystemV2MainContentAlignment = FormScreenContentVerticalAlignment.Bottom,
     mainContent = {
       SwitchCard(model = model.switchCardModel)
 

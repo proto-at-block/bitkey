@@ -2,6 +2,7 @@ package build.wallet.statemachine.nfc
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import bitkey.account.HardwareType
 import build.wallet.analytics.events.EventTrackerContext
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
@@ -25,6 +26,7 @@ data class FwupInstructionsBodyModel(
   val toolbarModel: ToolbarModel,
   val headerModel: FormHeaderModel,
   val buttonModel: ButtonModel,
+  val hardwareType: HardwareType,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo?,
 ) : BodyModel() {
   constructor(
@@ -32,6 +34,7 @@ data class FwupInstructionsBodyModel(
     headerModel: FormHeaderModel,
     buttonText: String,
     onButtonClick: () -> Unit,
+    hardwareType: HardwareType,
     eventTrackerScreenId: EventTrackerScreenId?,
     eventTrackerContext: EventTrackerContext? = null,
   ) : this(
@@ -53,6 +56,7 @@ data class FwupInstructionsBodyModel(
                       ),
                     iconTint = IconTint.OnTranslucent
                   ),
+                testTag = "fwup-instructions-close",
                 onClick = StandardClick(onClose)
               )
           )
@@ -64,6 +68,7 @@ data class FwupInstructionsBodyModel(
         size = Footer,
         onClick = StandardClick(onButtonClick)
       ),
+    hardwareType = hardwareType,
     eventTrackerScreenInfo =
       eventTrackerScreenId?.let {
         EventTrackerScreenInfo(

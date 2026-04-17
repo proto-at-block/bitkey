@@ -39,6 +39,7 @@ class F8eCustomUrlStateMachineImpl(
           fieldModel = TextFieldModel(
             value = customUrl,
             placeholderText = "http://localhost:8080",
+            testTag = "debug-f8e-custom-url-input",
             onValueChange = { newValue, _ -> customUrl = newValue },
             keyboardType = Uri
           )

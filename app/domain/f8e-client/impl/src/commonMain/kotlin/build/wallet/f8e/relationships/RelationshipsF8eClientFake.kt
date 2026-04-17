@@ -20,7 +20,7 @@ import build.wallet.di.BitkeyInject
 import build.wallet.di.Fake
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.ktor.result.HttpError.UnhandledException
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.platform.random.UuidGenerator
@@ -80,7 +80,7 @@ class RelationshipsF8eClientFake(
 
   override suspend fun createInvitation(
     account: FullAccount,
-    hardwareProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
     trustedContactAlias: TrustedContactAlias,
     protectedCustomerEnrollmentPakeKey: PublicKey<ProtectedCustomerEnrollmentPakeKey>,
     roles: Set<TrustedContactRole>,
@@ -135,7 +135,7 @@ class RelationshipsF8eClientFake(
 
   override suspend fun refreshInvitation(
     account: FullAccount,
-    hardwareProofOfPossession: HwFactorProofOfPossession,
+    proof: PrivilegedActionProof,
     relationshipId: String,
   ): Result<Invitation, NetworkingError> {
     val invitation =
@@ -170,7 +170,7 @@ class RelationshipsF8eClientFake(
   override suspend fun removeRelationship(
     accountId: AccountId,
     f8eEnvironment: F8eEnvironment,
-    hardwareProofOfPossession: HwFactorProofOfPossession?,
+    proof: PrivilegedActionProof?,
     authTokenScope: AuthTokenScope,
     relationshipId: String,
   ): Result<Unit, NetworkingError> {

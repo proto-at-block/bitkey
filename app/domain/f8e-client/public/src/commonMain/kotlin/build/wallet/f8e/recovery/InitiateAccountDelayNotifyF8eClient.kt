@@ -1,5 +1,6 @@
 package build.wallet.f8e.recovery
 
+import bitkey.account.HardwareType
 import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.code.InitiateAccountDelayNotifyErrorCode
 import build.wallet.bitkey.app.AppGlobalAuthKey
@@ -9,7 +10,7 @@ import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import com.github.michaelbull.result.Result
 import kotlin.time.Duration
 
@@ -27,10 +28,8 @@ interface InitiateAccountDelayNotifyF8eClient {
    * @param lostFactor The factor that is lost and we are recovering.
    * @param appGlobalAuthKey The new application authentication public key to rotate onto upon completion.
    * @param hardwareAuthKey The new hardware authentication public key to rotate onto upon completion.
-   * @param hwFactorProofOfPossession For lost app initiations, a proof of possession for the requesting
-   * factor needs to be provided. F8E services automatically add App proof-of-possession to all
-   * authenticated endpoints. But HW proofs of possession must be provided externally when needed.
-   * required.
+   * @param proof For lost app initiations, a privileged action proof for the requesting
+   * factor needs to be provided. Either a HW proof of possession (W1) or a signed action proof (W3).
    * @return The successfully initiated recovery.
    */
   suspend fun initiate(
@@ -40,9 +39,10 @@ interface InitiateAccountDelayNotifyF8eClient {
     // TODO(W-2863): use auth keys for Recovery V2
     appGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     appRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
-    hwFactorProofOfPossession: HwFactorProofOfPossession? = null,
+    proof: PrivilegedActionProof? = null,
     delayPeriod: Duration? = null,
     hardwareAuthKey: HwAuthPublicKey,
+    hardwareType: HardwareType,
   ): Result<SuccessfullyInitiated, F8eError<InitiateAccountDelayNotifyErrorCode>>
 
   data class SuccessfullyInitiated(

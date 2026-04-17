@@ -8,11 +8,14 @@ import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.address.signetAddressP2SH
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.invoice.*
-import build.wallet.bitcoin.invoice.ParsedPaymentData.BIP21
-import build.wallet.bitcoin.invoice.ParsedPaymentData.Onchain
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletFake
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
+import build.wallet.platform.app.AppSessionManagerFake
+import build.wallet.platform.clipboard.ClipItem.PlainText
+import build.wallet.platform.clipboard.ClipboardMock
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.core.testWithVirtualTime
@@ -35,20 +38,28 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
 
   val validSignetAddress = signetAddressP2SH.address
   val validSignetBIP21URI = "bitcoin:$validSignetAddress"
+  val lightningInvoiceString = "lnbc_test_invoice"
 
   val paymentParser =
     PaymentDataParserMock(
       validBip21URIs = mutableSetOf(validInvoiceUrl),
       validAddresses = mutableSetOf(validAddress.address, selfAddress.address),
-      validBOLT11Invoices = mutableSetOf()
+      validBOLT11Invoices = mutableSetOf(lightningInvoiceString)
     )
   val accountConfigService = AccountConfigServiceFake()
   val bitcoinWalletService = BitcoinWalletServiceFake()
+  val clipboardMock = ClipboardMock()
+  val appSessionManager = AppSessionManagerFake()
+  val featureFlagDao = FeatureFlagDaoFake()
+  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(featureFlagDao)
 
   val stateMachine = BitcoinAddressRecipientUiStateMachineImpl(
     paymentDataParser = paymentParser,
     accountConfigService = accountConfigService,
-    bitcoinWalletService = bitcoinWalletService
+    bitcoinWalletService = bitcoinWalletService,
+    clipboard = clipboardMock,
+    appSessionManager = appSessionManager,
+    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag
   )
 
   val onBackCalls = turbines.create<Unit>("on back calls")
@@ -79,6 +90,8 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
     accountConfigService.setBitcoinNetworkType(BITCOIN)
     bitcoinWalletService.reset()
     bitcoinWalletService.spendingWallet.value = SpendingWalletFake()
+    clipboardMock.plainTextItemToReturn = null
+    featureFlagDao.reset()
   }
 
   test("initial state without default address") {
@@ -258,8 +271,9 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("paste button fills text field") {
-    stateMachine.test(props.copy(validInvoiceInClipboard = Onchain(someBitcoinAddress))) {
+  test("paste button fills text field with fresh clipboard content") {
+    clipboardMock.plainTextItemToReturn = PlainText(data = someBitcoinAddress.address)
+    stateMachine.test(props) {
       awaitUntilBodyModel<BitcoinRecipientAddressScreenModel>(
         matching = { it.showPasteButton }
       ) {
@@ -275,8 +289,30 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
     }
   }
 
+  test("paste reads current clipboard, not stale snapshot from flow entry") {
+    // Enter flow with selfAddress on clipboard
+    clipboardMock.plainTextItemToReturn = PlainText(data = selfAddress.address)
+    stateMachine.test(props) {
+      awaitUntilBodyModel<BitcoinRecipientAddressScreenModel>(
+        matching = { it.showPasteButton }
+      ) {
+        // Clipboard changes before user taps paste (simulates app-switch + copy)
+        clipboardMock.plainTextItemToReturn = PlainText(data = validAddress.address)
+        onPasteButtonClick()
+      }
+
+      // Should paste the NEW address (validAddress), not the stale one (selfAddress)
+      awaitUntilBodyModel<BitcoinRecipientAddressScreenModel>(
+        matching = { it.onContinueClick != null }
+      ) {
+        enteredText.shouldBe(validAddress.address)
+      }
+    }
+  }
+
   test("paste button does not show with contents in address field") {
-    stateMachine.test(props.copy(validInvoiceInClipboard = Onchain(validAddress))) {
+    clipboardMock.plainTextItemToReturn = PlainText(data = validAddress.address)
+    stateMachine.test(props) {
       awaitUntilBodyModel<BitcoinRecipientAddressScreenModel>(
         matching = { it.showPasteButton }
       ) {
@@ -294,13 +330,7 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
   }
 
   test("paste button does not show with invalid address in clipboard") {
-    val invalidAddressInClipboardStateMachine =
-      BitcoinAddressRecipientUiStateMachineImpl(
-        paymentDataParser = paymentParser,
-        accountConfigService = accountConfigService,
-        bitcoinWalletService = bitcoinWalletService
-      )
-    invalidAddressInClipboardStateMachine.test(props) {
+    stateMachine.test(props) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
         showPasteButton.shouldBeFalse()
       }
@@ -308,7 +338,8 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
   }
 
   test("paste button does not show with Lightning address in clipboard") {
-    stateMachine.test(props.copy(validInvoiceInClipboard = validLightningInvoice)) {
+    clipboardMock.plainTextItemToReturn = PlainText(data = lightningInvoiceString)
+    stateMachine.test(props) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
         showPasteButton.shouldBeFalse()
       }
@@ -316,12 +347,8 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
   }
 
   test("paste button shows with valid address in clipboard") {
-    val validAddressProps =
-      props.copy(
-        validInvoiceInClipboard = Onchain(validAddress)
-      )
-
-    stateMachine.test(validAddressProps) {
+    clipboardMock.plainTextItemToReturn = PlainText(data = validAddress.address)
+    stateMachine.test(props) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
         showPasteButton.shouldBeTrue()
       }
@@ -329,19 +356,8 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
   }
 
   test("paste button shows with valid BIP21 URI in clipboard") {
-    // Valid BIP21 URI in clipboard
-    val validBIP21URIProps =
-      props.copy(
-        validInvoiceInClipboard =
-          BIP21(
-            BIP21PaymentData(
-              onchainInvoice = BitcoinInvoice(validAddress),
-              lightningInvoice = null
-            )
-          )
-      )
-
-    stateMachine.test(validBIP21URIProps) {
+    clipboardMock.plainTextItemToReturn = PlainText(data = validInvoiceUrl)
+    stateMachine.test(props) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
         showPasteButton.shouldBeTrue()
       }

@@ -20,6 +20,7 @@ data class ExportToolsSelectionModel(
   override val onBack: () -> Unit,
   val onExportTransactionHistoryClick: () -> Unit,
   val onExportDescriptorClick: () -> Unit,
+  val isDesignSystemV2Enabled: Boolean,
 ) : FormBodyModel(
     onBack = onBack,
     toolbar = ToolbarModel(
@@ -35,7 +36,7 @@ data class ExportToolsSelectionModel(
               secondaryText = "Export CSV",
               trailingAccessory = IconAccessory(
                 model = IconModel(
-                  icon = Icon.SmallIconDownload,
+                  icon = if (isDesignSystemV2Enabled) Icon.SmallIconDocument else Icon.SmallIconDownload,
                   iconSize = Small,
                   iconBackgroundType = Transient
                 ),
@@ -48,7 +49,7 @@ data class ExportToolsSelectionModel(
               secondaryText = "Export XPUB bundle",
               trailingAccessory = IconAccessory(
                 model = IconModel(
-                  icon = Icon.SmallIconDownload,
+                  icon = if (isDesignSystemV2Enabled) Icon.SmallIconDocument else Icon.SmallIconDownload,
                   iconSize = Small,
                   iconBackgroundType = Transient
                 ),

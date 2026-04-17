@@ -3,7 +3,7 @@ package build.wallet.statemachine.recovery.cloud
 import app.cash.turbine.plusAssign
 import build.wallet.cloud.backup.AllFullAccountBackupMocks
 import build.wallet.cloud.backup.CloudBackup
-import build.wallet.cloud.backup.CloudBackupRepositoryFake
+import build.wallet.cloud.backup.CloudBackupServiceFake
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.store.CloudAccountMock
@@ -31,7 +31,7 @@ class ExistingFullAccountUiStateMachineImplTests : FunSpec({
       }
 
       context("backup $backupVersion") {
-        val cloudBackupRepository = CloudBackupRepositoryFake()
+        val cloudBackupService = CloudBackupServiceFake()
         val cloudStoreAccountRepository = CloudStoreAccountRepositoryMock()
         val onBackCalls = turbines.create<Unit>("$backupVersion-on back calls")
         val onRestoreCalls = turbines.create<Unit>("$backupVersion-on restore calls")
@@ -48,11 +48,11 @@ class ExistingFullAccountUiStateMachineImplTests : FunSpec({
         val stateMachine =
           ExistingFullAccountUiStateMachineImpl(
             cloudStoreAccountRepository = cloudStoreAccountRepository,
-            cloudBackupRepository = cloudBackupRepository
+            cloudBackupService = cloudBackupService
           )
 
         beforeTest {
-          cloudBackupRepository.reset()
+          cloudBackupService.reset()
           cloudStoreAccountRepository.reset()
         }
 
