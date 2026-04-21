@@ -284,6 +284,7 @@ private class RetryingNfcCommandsImpl(
   override suspend fun upgradeAuthorizeW3(
     session: NfcSession,
     ddkPrivateKeyBytes: ByteString,
+    sealedSsekForDecryption: SealedData?,
     descriptorBackupsBindings: String,
     activateKeysetBindings: String,
     actionProofVersion: UInt,
@@ -293,6 +294,7 @@ private class RetryingNfcCommandsImpl(
         commands.upgradeAuthorizeW3(
           session,
           ddkPrivateKeyBytes,
+          sealedSsekForDecryption,
           descriptorBackupsBindings,
           activateKeysetBindings,
           actionProofVersion
@@ -384,14 +386,6 @@ private class RetryingNfcCommandsImpl(
     session: NfcSession,
     handles: ConfirmationHandles,
   ): ConfirmationResult = retry { commands.getConfirmationResult(session, handles) }
-
-  // Idempotent: firmware returns the same chunk for the same chunk_index.
-  // Safe to retry if NFC transmission fails after firmware responds.
-  override suspend fun getConfirmationResultChunk(
-    session: NfcSession,
-    handles: ConfirmationHandles,
-    chunkIndex: UInt,
-  ): ChunkData = retry { commands.getConfirmationResultChunk(session, handles, chunkIndex) }
 
   override suspend fun getAddress(
     session: NfcSession,

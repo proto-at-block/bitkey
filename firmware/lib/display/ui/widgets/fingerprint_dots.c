@@ -11,10 +11,10 @@
 
 // Colors
 #define COLOR_ACTIVE   0xFFFFFF  // White (active/mid dots)
-#define COLOR_INACTIVE 0x555555  // Grey (inactive dots)
+#define COLOR_INACTIVE 0x404040  // Dark grey (inactive dots)
 
 // Opacity levels (INACTIVE_OPA matches scan screen's orbital dots)
-#define INACTIVE_OPA LV_OPA_COVER
+#define INACTIVE_OPA LV_OPA_70
 #define MID_OPA      LV_OPA_80
 
 // Animation timing for individual dot activation

@@ -336,7 +336,7 @@ static void check_button_event_handler(lv_event_t* e) {
       lv_obj_add_flag(back_button.container, LV_OBJ_FLAG_HIDDEN);
     }
 
-    dot_ring_show(&approve_ring);
+    dot_ring_show_with_fade_in(&approve_ring, 400);
     dot_ring_animate_fill_from_current(&approve_ring, 100, HOLD_TO_CONFIRM_DURATION_MS,
                                        DOT_RING_COLOR_GREEN, DOT_RING_FILL_SPLIT,
                                        on_approve_complete, NULL);

@@ -20,6 +20,7 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 data class W3UpgradeOldHardwareInstructionsBodyModel(
   override val onBack: (() -> Unit)?,
   val onContinue: () -> Unit,
+  val step: Int = 4,
   val totalSteps: Int = 4,
 ) : FormBodyModel(
     id = WalletMigrationEventTrackerScreenId.W3_UPGRADE_OLD_HARDWARE_INSTRUCTIONS,
@@ -39,7 +40,7 @@ data class W3UpgradeOldHardwareInstructionsBodyModel(
       oldHardwareInstructionListGroup()
     ),
     designSystemV2Model = w3UpgradeInstructionDesignSystemV2Model(
-      eyebrow = w3UpgradeStepEyebrow(4, totalSteps),
+      eyebrow = w3UpgradeStepEyebrow(step, totalSteps),
       title = "Finish the upgrade using your first generation Bitkey",
       subline = "You'll need to tap your old Bitkey device a couple more times.",
       mainContentList = immutableListOf(oldHardwareInstructionListGroupDesignSystemV2())

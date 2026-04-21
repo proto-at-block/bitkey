@@ -31,7 +31,8 @@ class TestUtil(unittest.TestCase):
             port_spec = "1-6.4.4.2"
             mock_os.path.exists.return_value = False
             self.assertIsNone(util.usb_dev_from_port(port_spec))
-            mock_os.path.exists.assert_called_with("/sys/bus/usb/devices/1-6.4.4.2")
+            mock_os.path.exists.assert_called_with(
+                "/sys/bus/usb/devices/1-6.4.4.2")
 
             port_spec = "3-6.4.4.4.2"
             f = unittest.mock.Mock()
@@ -47,7 +48,16 @@ class TestUtil(unittest.TestCase):
             mock_open.return_value.__enter__.side_effect = [f, f]
             self.assertEqual((500, 199), util.usb_dev_from_port(port_spec))
 
-    def test_size_to_bytes(self):
+    def test_bytes_to_size(self) -> None:
+        """Test cases for converting byte counts to size strings."""
+        self.assertEqual(util.bytes_to_size(512), "512 B")
+        self.assertEqual(util.bytes_to_size(1024 * 1024), "1 MB")
+        self.assertEqual(util.bytes_to_size(1024), "1 KB")
+        self.assertEqual(util.bytes_to_size(1), "1 B")
+        self.assertEqual(util.bytes_to_size(1024 * 1024 * 1024), "1 GB")
+        self.assertEqual(util.bytes_to_size(256 * 1024 + 512), "256.5 KB")
+
+    def test_size_to_bytes(self) -> None:
         """Test cases for converting size strings to integers."""
         self.assertEqual(util.size_to_bytes("1M"), 1024 * 1024)
         self.assertEqual(util.size_to_bytes("1K"), 1024)

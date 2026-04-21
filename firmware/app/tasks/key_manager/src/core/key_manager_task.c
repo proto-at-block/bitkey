@@ -396,7 +396,7 @@ static void handle_hardware_attestation(ipc_ref_t* message) {
   proto_send_rsp(cmd, rsp);
 }
 
-static void handle_secure_channel_establish(ipc_ref_t* message) {
+NO_OPTIMIZE static void handle_secure_channel_establish(ipc_ref_t* message) {
   fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
   fwpb_wallet_rsp* rsp = proto_get_rsp();
   volatile uint32_t protocol_version = cmd->msg.secure_channel_establish_cmd.protocol_version;

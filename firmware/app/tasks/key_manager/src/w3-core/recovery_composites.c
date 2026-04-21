@@ -618,6 +618,8 @@ fail:
 typedef struct {
   uint8_t ddk_private_key[AES_256_LENGTH_BYTES];
   bool has_ddk;
+  fwpb_sealed_data sealed_ssek_for_decryption;
+  bool has_sealed_ssek_for_decryption;
   char descriptor_backups_bindings[256];
   char activate_keyset_bindings[256];
   uint32_t action_proof_version;
@@ -654,6 +656,11 @@ void recovery_composites_upgrade_authorize_w3_handle_init(ipc_ref_t* message) {
     }
     memcpy(uaw3_session.ddk_private_key, c->ddk_private_key.bytes, AES_256_LENGTH_BYTES);
     uaw3_session.has_ddk = true;
+  }
+  if (c->sealed_ssek_for_decryption.data.size > 0) {
+    memcpy(&uaw3_session.sealed_ssek_for_decryption, &c->sealed_ssek_for_decryption,
+           sizeof(fwpb_sealed_data));
+    uaw3_session.has_sealed_ssek_for_decryption = true;
   }
 
   // Stash bindings (reject if too long to avoid silent truncation)
@@ -717,7 +724,19 @@ static bool uaw3_confirmation_result_handler(ipc_ref_t* message) {
     out->has_sealed_ddk_data = true;
   }
 
-  // 2. Sign UpdateDescriptorBackups SAP proof
+  // 2. Unseal historical descriptor-backup SSEK if present
+  if (uaw3_session.has_sealed_ssek_for_decryption) {
+    uint8_t unsealed[AES_256_LENGTH_BYTES] = {0};
+    if (!sealed_data_unseal(&uaw3_session.sealed_ssek_for_decryption, unsealed, sizeof(unsealed))) {
+      LOGE("UAW3: unseal SSEK fail");
+      goto fail;
+    }
+    memcpy(out->unsealed_ssek.bytes, unsealed, sizeof(unsealed));
+    out->unsealed_ssek.size = sizeof(unsealed);
+    memzero(unsealed, sizeof(unsealed));
+  }
+
+  // 3. Sign UpdateDescriptorBackups SAP proof
   if (!sign_sap_proof("UpdateDescriptorBackups", uaw3_session.descriptor_backups_bindings,
                       uaw3_session.action_proof_version, out->descriptor_backups_signature.bytes)) {
     LOGE("UAW3: SAP desc backups fail");
@@ -726,7 +745,7 @@ static bool uaw3_confirmation_result_handler(ipc_ref_t* message) {
   }
   out->descriptor_backups_signature.size = ECC_SIG_SIZE;
 
-  // 3. Sign RotateSpendingKeyset SAP proof
+  // 4. Sign RotateSpendingKeyset SAP proof
   if (!sign_sap_proof("RotateSpendingKeyset", uaw3_session.activate_keyset_bindings,
                       uaw3_session.action_proof_version, out->activate_keyset_signature.bytes)) {
     LOGE("UAW3: SAP ks fail");

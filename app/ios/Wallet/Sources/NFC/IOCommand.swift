@@ -210,11 +210,6 @@ extension SignTransfer: IOCommand {
     typealias ResultType = SignTransferResult
 }
 
-extension GetConfirmationResultChunk: IOCommand {
-    typealias FFIStateType = ChunkDataState
-    typealias ResultType = firmware.ChunkData
-}
-
 extension GetAddress: IOCommand {
     typealias FFIStateType = GetAddressResultState
     typealias ResultType = GetAddressResult
@@ -526,15 +521,6 @@ extension IOCommand {
 
     func next(_ response: [UInt8]) throws -> IOResult<SignTransferResult>
         where FFIStateType == SignTransferResultState
-    {
-        switch try self.next(response: response) {
-        case let .data(response: response): return .data(response: response)
-        case let .result(value: value): return .result(value: value)
-        }
-    }
-
-    func next(_ response: [UInt8]) throws -> IOResult<firmware.ChunkData>
-        where FFIStateType == ChunkDataState
     {
         switch try self.next(response: response) {
         case let .data(response: response): return .data(response: response)

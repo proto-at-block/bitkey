@@ -15,10 +15,10 @@
 #define COLOR_GREEN    0xD1FB96  // Lime green
 #define COLOR_RED      0xF84752  // Red
 #define COLOR_WHITE    0xFFFFFF  // White
-#define COLOR_INACTIVE 0x555555  // Grey (inactive dots)
+#define COLOR_INACTIVE 0x404040  // Dark grey (inactive dots)
 
 // Inactive dot opacity
-#define INACTIVE_OPA LV_OPA_50
+#define INACTIVE_OPA LV_OPA_70
 
 // Animation timing for individual dot activation
 #define DOT_ACTIVATE_DURATION_MS      100
@@ -44,6 +44,9 @@ static void progress_anim_cb(void* var, int32_t value);
 static void progress_anim_complete_cb(lv_anim_t* a);
 static void activate_dot(dot_ring_t* ring, int dot_index);
 static void dot_activate_anim_cb(void* var, int32_t value);
+static void fade_in_anim_cb(void* var, int32_t value);
+static void stop_fade_in_anim(dot_ring_t* ring);
+static void fade_out_ready_cb(lv_anim_t* a);
 static uint32_t get_color_hex(dot_ring_color_t color);
 static int get_dot_activation_order(int dot_index, int total_dots, dot_ring_fill_dir_t fill_dir);
 static void set_dot_visual_state(dot_ring_t* ring, int dot_index, bool should_be_active);
@@ -190,6 +193,93 @@ void dot_ring_show(dot_ring_t* ring) {
   }
 
   ring->is_visible = true;
+}
+
+void dot_ring_show_with_fade_in(dot_ring_t* ring, uint32_t duration_ms) {
+  dot_ring_storage_t* storage = get_storage(ring);
+  if (!ring || !ring->is_initialized || !storage) {
+    return;
+  }
+
+  stop_fade_in_anim(ring);
+  ring->fade_duration_ms = duration_ms;
+
+  // Start each dot at transparent via main style_opa. Leaving bg_opa alone
+  // means the activation animation (which lerps bg_opa from INACTIVE_OPA to
+  // COVER) is unaffected — the rendered opacity is the product of the two.
+  for (uint16_t i = 0; i < ring->dot_count; i++) {
+    if (storage->dots[i]) {
+      lv_obj_set_style_opa(storage->dots[i], LV_OPA_TRANSP, 0);
+      lv_obj_clear_flag(storage->dots[i], LV_OBJ_FLAG_HIDDEN);
+    }
+  }
+  ring->is_visible = true;
+
+  if (duration_ms == 0) {
+    fade_in_anim_cb(ring, LV_OPA_COVER);
+    return;
+  }
+
+  lv_anim_t anim;
+  lv_anim_init(&anim);
+  lv_anim_set_var(&anim, ring);
+  lv_anim_set_values(&anim, LV_OPA_TRANSP, LV_OPA_COVER);
+  lv_anim_set_duration(&anim, duration_ms);
+  lv_anim_set_exec_cb(&anim, fade_in_anim_cb);
+  lv_anim_set_path_cb(&anim, lv_anim_path_linear);
+  lv_anim_start(&anim);
+}
+
+static void fade_out_ready_cb(lv_anim_t* a) {
+  dot_ring_t* ring = (dot_ring_t*)lv_anim_get_user_data(a);
+  if (!ring || !ring->is_initialized) {
+    return;
+  }
+  dot_ring_hide(ring);
+}
+
+void dot_ring_hide_with_fade_out(dot_ring_t* ring, uint32_t duration_ms) {
+  dot_ring_storage_t* storage = get_storage(ring);
+  if (!ring || !ring->is_initialized || !storage) {
+    return;
+  }
+
+  stop_fade_in_anim(ring);
+
+  if (duration_ms == 0 || !ring->is_visible) {
+    dot_ring_hide(ring);
+    return;
+  }
+
+  // Start from whatever opacity the first dot currently renders at so a rapid
+  // press→release during fade-in doesn't snap back up to full before fading.
+  lv_opa_t start_opa = LV_OPA_COVER;
+  if (storage->dots[0]) {
+    start_opa = lv_obj_get_style_opa(storage->dots[0], 0);
+  }
+
+  if (start_opa == LV_OPA_TRANSP) {
+    dot_ring_hide(ring);
+    return;
+  }
+
+  // Scale duration by starting opacity so the fade always runs at the same
+  // speed regardless of how much there is to fade.
+  uint32_t scaled_duration_ms = (duration_ms * start_opa) / LV_OPA_COVER;
+  if (scaled_duration_ms == 0) {
+    scaled_duration_ms = 1;
+  }
+
+  lv_anim_t anim;
+  lv_anim_init(&anim);
+  lv_anim_set_var(&anim, ring);
+  lv_anim_set_user_data(&anim, ring);
+  lv_anim_set_values(&anim, start_opa, LV_OPA_TRANSP);
+  lv_anim_set_duration(&anim, scaled_duration_ms);
+  lv_anim_set_exec_cb(&anim, fade_in_anim_cb);
+  lv_anim_set_ready_cb(&anim, fade_out_ready_cb);
+  lv_anim_set_path_cb(&anim, lv_anim_path_linear);
+  lv_anim_start(&anim);
 }
 
 void dot_ring_hide(dot_ring_t* ring) {
@@ -385,7 +475,11 @@ bool dot_ring_animate_release(dot_ring_t* ring, uint32_t full_duration_ms) {
   if (ring->dot_count == 0 || current_count == 0 || full_duration_ms == 0) {
     set_active_dot_count(ring, 0, true);
     ring->target_count = 0;
-    dot_ring_hide(ring);
+    if (ring->fade_duration_ms > 0) {
+      dot_ring_hide_with_fade_out(ring, ring->fade_duration_ms);
+    } else {
+      dot_ring_hide(ring);
+    }
     return false;
   }
 
@@ -433,6 +527,7 @@ void dot_ring_stop(dot_ring_t* ring) {
 
   // Stop all dot animations and reset to inactive (small, grey)
   stop_dot_activation_anims(ring);
+  stop_fade_in_anim(ring);
 
   ring->target_count = 0;
   set_active_dot_count(ring, 0, true);
@@ -625,13 +720,18 @@ static void progress_anim_complete_cb(lv_anim_t* a) {
     dot_ring_complete_cb_t complete_cb = ring->complete_cb;
     void* user_data = ring->user_data;
     bool should_hide = ring->hide_when_animation_complete && ring->target_count == 0;
+    uint32_t fade_ms = ring->fade_duration_ms;
 
     ring->complete_cb = NULL;
     ring->user_data = NULL;
     ring->hide_when_animation_complete = false;
 
     if (should_hide) {
-      dot_ring_hide(ring);
+      if (fade_ms > 0) {
+        dot_ring_hide_with_fade_out(ring, fade_ms);
+      } else {
+        dot_ring_hide(ring);
+      }
     }
 
     if (complete_cb) {
@@ -700,7 +800,6 @@ static void dot_activate_anim_cb(void* var, int32_t value) {
 
   int progress = value;  // 0 to 255
 
-  // Interpolate size from 2px to 8px
   lv_coord_t size =
     (lv_coord_t)(DOT_RING_DOT_SIZE_INACTIVE +
                  ((DOT_RING_DOT_SIZE_ACTIVE - DOT_RING_DOT_SIZE_INACTIVE) * progress) / 255);
@@ -710,12 +809,11 @@ static void dot_activate_anim_cb(void* var, int32_t value) {
   lv_obj_set_pos(dot, storage->dot_centers_x[dot_index] - (size / 2),
                  storage->dot_centers_y[dot_index] - (size / 2));
 
-  // Interpolate color from inactive grey to active color
   uint32_t target_color = get_color_hex(ring->active_color);
 
-  uint8_t start_r = (COLOR_INACTIVE >> 16) & 0xFF;  // 0x55
-  uint8_t start_g = (COLOR_INACTIVE >> 8) & 0xFF;   // 0x55
-  uint8_t start_b = COLOR_INACTIVE & 0xFF;          // 0x55
+  uint8_t start_r = (COLOR_INACTIVE >> 16) & 0xFF;
+  uint8_t start_g = (COLOR_INACTIVE >> 8) & 0xFF;
+  uint8_t start_b = COLOR_INACTIVE & 0xFF;
 
   uint8_t end_r = (target_color >> 16) & 0xFF;
   uint8_t end_g = (target_color >> 8) & 0xFF;
@@ -727,7 +825,6 @@ static void dot_activate_anim_cb(void* var, int32_t value) {
 
   lv_obj_set_style_bg_color(dot, lv_color_make(r, g, b), 0);
 
-  // Interpolate opacity from 50% to 100%
   lv_opa_t opa = (lv_opa_t)(INACTIVE_OPA + ((LV_OPA_COVER - INACTIVE_OPA) * progress) / 255);
   lv_obj_set_style_bg_opa(dot, opa, 0);
 }
@@ -781,6 +878,30 @@ static void stop_dot_activation_anims(dot_ring_t* ring) {
   for (uint16_t i = 0; i < ring->dot_count; i++) {
     lv_anim_del(&storage->dot_contexts[i], dot_activate_anim_cb);
   }
+}
+
+static void fade_in_anim_cb(void* var, int32_t value) {
+  dot_ring_t* ring = (dot_ring_t*)var;
+  if (!ring || !ring->is_initialized) {
+    return;
+  }
+  dot_ring_storage_t* storage = get_storage(ring);
+  if (!storage) {
+    return;
+  }
+  lv_opa_t opa = (lv_opa_t)value;
+  for (uint16_t i = 0; i < ring->dot_count; i++) {
+    if (storage->dots[i]) {
+      lv_obj_set_style_opa(storage->dots[i], opa, 0);
+    }
+  }
+}
+
+static void stop_fade_in_anim(dot_ring_t* ring) {
+  if (!ring) {
+    return;
+  }
+  lv_anim_del(ring, fade_in_anim_cb);
 }
 
 static void cancel_progress_anim(dot_ring_t* ring) {

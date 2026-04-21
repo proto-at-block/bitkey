@@ -105,7 +105,8 @@ class W3UpgradeCheckpointWriterImplTests : FunSpec({
       oldHardwareFingerprint = "old-hardware-fingerprint",
       newDeviceSerial = "new-device-serial",
       newKeyset = newKeyset,
-      updatedKeybox = updatedKeybox
+      updatedKeybox = updatedKeybox,
+      sealedSsekForDecryption = null
     ).shouldBeOk()
 
     val migrationState = w3UpgradeDao.currentState().first().get().shouldNotBeNull()
@@ -140,7 +141,8 @@ class W3UpgradeCheckpointWriterImplTests : FunSpec({
       oldHardwareFingerprint = "new-old-hardware-fingerprint",
       newDeviceSerial = "new-device-serial",
       newKeyset = conflictingKeyset,
-      updatedKeybox = conflictingKeybox
+      updatedKeybox = conflictingKeybox,
+      sealedSsekForDecryption = null
     ).shouldBeErrOfType<DbError>()
 
     w3UpgradeDao.currentState().first().get().shouldBe(null)

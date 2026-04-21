@@ -36,12 +36,6 @@ sealed interface ConfirmationResult {
   data class FwupStart(val success: Boolean) : ConfirmationResult
 
   /**
-   * Indicates that chunked data is available to be retrieved.
-   * Used when a confirmed operation produces large output data.
-   */
-  data class ChunkedDataAvailable(val totalSize: UInt) : ConfirmationResult
-
-  /**
    * Result of a confirmed action proof signing operation.
    */
   data class SignActionProof(val signature: String) : ConfirmationResult
@@ -135,12 +129,14 @@ sealed interface ConfirmationResult {
 
   /**
    * Result of the upgradeAuthorizeW3 confirmable command.
-   * Contains SAP signatures and sealed DDK from W3 upgrade composite tap.
+   * Contains SAP signatures, sealed DDK, and optionally an unsealed prior SSEK from the
+   * W3 upgrade composite tap.
    */
   data class UpgradeAuthorizeW3(
     val descriptorBackupsSignature: List<UByte>,
     val activateKeysetSignature: List<UByte>,
     val sealedDdkData: List<UByte>,
+    val unsealedSsek: List<UByte>?,
   ) : ConfirmationResult
 
   /**
@@ -165,16 +161,6 @@ sealed interface ConfirmationResult {
    */
   data object Denied : ConfirmationResult
 }
-
-/**
- * Chunk of data from a confirmed operation.
- */
-data class ChunkData(
-  val chunk: List<UByte>,
-  val isLast: Boolean,
-  /** Size (bytes) of data still remaining after this chunk (always non-negative). */
-  val remainingSize: UInt,
-)
 
 /**
  * Handles for retrieving the result of a confirmed command.
@@ -315,12 +301,14 @@ data class RecoveryAuthorizeLostHwResult(
 )
 
 /**
- * Result of the W3 upgrade composite command. Contains two SAP action proof signatures
+ * Result of the W3 upgrade composite command. Contains two SAP action proof signatures,
+ * sealed DDK data, and optionally an unsealed prior SSEK for resumed descriptor recovery.
  */
 data class UpgradeAuthorizeW3Result(
   val descriptorBackupsSignature: String,
   val activateKeysetSignature: String,
   val sealedDdkData: SealedData,
+  val unsealedSsek: ByteString? = null,
 )
 
 /**
@@ -725,13 +713,15 @@ interface NfcCommands {
 
   /**
    * Composite command for W3 upgrade: signs both descriptor-backup and keyset-activation
-   * action proofs and seals the DDK private key, all in a single confirmable tap.
+   * action proofs, seals the DDK private key, and optionally unseals a prior descriptor-backup
+   * SSEK, all in a single confirmable tap.
    *
    * Firmware shows "Approve wallet upgrade" prompt. After user confirms on device, the result
    * (sealed DDK + SAP signatures) is returned.
    *
    * @param session the active NFC session
    * @param ddkPrivateKeyBytes DDK private key bytes to seal
+   * @param sealedSsekForDecryption sealed SSEK for decrypting prior descriptor backups
    * @param descriptorBackupsBindings pre-sorted comma-joined bindings for descriptor backups proof
    * @param activateKeysetBindings pre-sorted comma-joined bindings for keyset activation proof
    * @return HardwareInteraction that resolves to [UpgradeAuthorizeW3Result]
@@ -739,6 +729,7 @@ interface NfcCommands {
   suspend fun upgradeAuthorizeW3(
     session: NfcSession,
     ddkPrivateKeyBytes: ByteString,
+    sealedSsekForDecryption: SealedData?,
     descriptorBackupsBindings: String,
     activateKeysetBindings: String,
     actionProofVersion: UInt,
@@ -897,27 +888,6 @@ interface NfcCommands {
     session: NfcSession,
     handles: ConfirmationHandles,
   ): ConfirmationResult
-
-  /**
-   * Retrieves a chunk of data from a confirmed operation.
-   *
-   * This is used to fetch large result data (like signed PSBTs) in chunks after
-   * getConfirmationResult returns [ConfirmationResult.ChunkedDataAvailable].
-   *
-   * The chunk_index parameter enables idempotent retry: requesting the same index
-   * multiple times returns the same data. This is critical for NFC reliability -
-   * if transmission fails after firmware responds, the app can safely retry.
-   *
-   * @param session the active `NfcSession` used to communicate with the hardware device
-   * @param handles the handles returned from the initial command
-   * @param chunkIndex zero-based index of the chunk to retrieve (0, 1, 2, ...)
-   * @return a chunk of data with completion indicator
-   */
-  suspend fun getConfirmationResultChunk(
-    session: NfcSession,
-    handles: ConfirmationHandles,
-    chunkIndex: UInt,
-  ): ChunkData
 
   /**
    * Generate and display a bitcoin address on the hardware device.

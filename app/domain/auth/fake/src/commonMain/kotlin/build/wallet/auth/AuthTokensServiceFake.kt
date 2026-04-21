@@ -27,6 +27,8 @@ class AuthTokensServiceFake : AuthTokensService {
   var refreshAccessTokenError: Error? = null
   var refreshAccessTokenTokens: AccountAuthTokens? = null
   var refreshRefreshTokenTokens: AccountAuthTokens? = null
+  val refreshAccessTokenCalls = mutableListOf<Pair<AccountId, AuthTokenScope>>()
+  val refreshRefreshTokenCalls = mutableListOf<Pair<AccountId, AuthTokenScope>>()
 
   override suspend fun refreshAccessTokenWithApp(
     f8eEnvironment: F8eEnvironment,
@@ -34,6 +36,7 @@ class AuthTokensServiceFake : AuthTokensService {
     scope: AuthTokenScope,
   ): Result<AccountAuthTokens, Error> {
     return lock.withLock {
+      refreshAccessTokenCalls += accountId to scope
       refreshAccessTokenError?.let { return Err(it) }
 
       val currentTokens = allTokens[accountId to scope]
@@ -55,12 +58,17 @@ class AuthTokensServiceFake : AuthTokensService {
     scope: AuthTokenScope,
   ): Result<AccountAuthTokens, Error> {
     return lock.withLock {
+      refreshRefreshTokenCalls += accountId to scope
       val currentTokens = allTokens[accountId to scope]
-        ?: return Err(Error("No $scope tokens found for $accountId"))
 
-      val newTokens = refreshRefreshTokenTokens ?: currentTokens.copy(
+      val newTokens = refreshRefreshTokenTokens ?: currentTokens?.copy(
         accessToken = AccessToken("${currentTokens.accessToken.raw}-${uuid()}"),
         refreshToken = RefreshToken("${currentTokens.refreshToken.raw}-${uuid()}"),
+        accessTokenExpiresAt = clock.now().plus(5.minutes),
+        refreshTokenExpiresAt = clock.now().plus(30.days)
+      ) ?: AccountAuthTokens(
+        accessToken = AccessToken("access-${accountId.serverId}-${scope.name.lowercase()}-${uuid()}"),
+        refreshToken = RefreshToken("refresh-${accountId.serverId}-${scope.name.lowercase()}-${uuid()}"),
         accessTokenExpiresAt = clock.now().plus(5.minutes),
         refreshTokenExpiresAt = clock.now().plus(30.days)
       )
@@ -110,6 +118,8 @@ class AuthTokensServiceFake : AuthTokensService {
       refreshAccessTokenError = null
       refreshAccessTokenTokens = null
       refreshRefreshTokenTokens = null
+      refreshAccessTokenCalls.clear()
+      refreshRefreshTokenCalls.clear()
     }
   }
 }

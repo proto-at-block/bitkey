@@ -87,6 +87,14 @@ class FakeHardwareKeyStoreTest : FunSpec({
     spendingKey.shouldNotBeEqual(newSpendingKey)
   }
 
+  test("descriptor loaded flag round trips through seed state") {
+    val seedWithDescriptor = fakeHardwareKeyStore.getSeed().copy(descriptorLoaded = true)
+
+    fakeHardwareKeyStore.setSeed(seedWithDescriptor)
+
+    fakeHardwareKeyStore.getSeed().descriptorLoaded.shouldBeTrue()
+  }
+
   test("get next spending keypair with no existing keys returns initial keypair") {
     val spendingKey = fakeHardwareKeyStore.getInitialSpendingKeypair(SIGNET)
     val nextKey = fakeHardwareKeyStore.getNextSpendingKeypair(listOf(), SIGNET)

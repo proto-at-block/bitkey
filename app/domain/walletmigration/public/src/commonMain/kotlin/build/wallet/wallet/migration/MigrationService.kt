@@ -1,6 +1,8 @@
 package build.wallet.wallet.migration
 
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.f8e.F8eEnvironment
 import build.wallet.money.BitcoinMoney
 import com.github.michaelbull.result.Result
 
@@ -56,6 +58,17 @@ interface MigrationService {
    * Used when deleting app data via the debug menu.
    */
   suspend fun clearMigration(type: MigrationType)
+
+  /**
+   * Checks whether the HW auth key is unknown to F8e (404).
+   *
+   * Cloud restore combines this with a failed recovery-app-auth check to determine whether
+   * it is resuming an interrupted W3 upgrade. Best-effort: returns false on any non-404 failure.
+   */
+  suspend fun isW3UpgradeInProgress(
+    f8eEnvironment: F8eEnvironment,
+    hwAuthPublicKey: HwAuthPublicKey,
+  ): Boolean
 
   /**
    * Returns the persisted old hardware fingerprint for a W3 upgrade, or null if not yet saved.

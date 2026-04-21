@@ -94,6 +94,20 @@ impl TransitioningRecoveryState for CompletableRecoveryState {
                 return Err(RecoveryError::InvalidRecoveryDestination);
             }
 
+            // Record hw auth pubkey in public_keys table before any external
+            // side effects (Cognito) and before rotating keys on the account.
+            if !services
+                .public_key
+                .persist_public_key(
+                    &action.destination.hardware_auth_pubkey.to_string(),
+                    &account.id,
+                    repository::public_key::KeyType::HardwareAuth,
+                )
+                .await?
+            {
+                return Err(RecoveryError::HwAuthPubkeyReuseAccount);
+            }
+
             user_pool_service
                 .create_or_update_account_users_if_necessary(
                     &account.id,

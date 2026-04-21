@@ -9,12 +9,13 @@ use axum::{
     Json,
 };
 use bdk_utils::bdk::{bitcoin::secp256k1::PublicKey, keys::DescriptorPublicKey};
-use errors::{ApiError, RouteError};
+use errors::{ApiError, ErrorCode, RouteError};
 use instrumentation::middleware::HardwareSerialHeader;
 use external_identifier::ExternalIdentifier;
 use http_server::middlewares::identifier_generator::IdentifierGenerator;
 use notification::clients::iterable::IterableClient;
 use recovery::repository::RecoveryRepository;
+use repository::public_key::{KeyType, PublicKeyRepository};
 use serde::{Deserialize, Serialize};
 use tracing::{error, instrument};
 use types::account::{
@@ -34,7 +35,7 @@ use utoipa::ToSchema;
 use wsm_rust_client::{SigningService, WsmClient};
 
 use crate::{
-    account_validation::{AccountValidation, AccountValidationRequest},
+    account_validation::{error::AccountValidationError, AccountValidation, AccountValidationRequest},
     emit_keyset_created,
     metrics::PRIVATE_VALUE,
     routes::Config,
@@ -100,6 +101,7 @@ impl TryFrom<&Account> for CreateAccountResponseV2 {
         user_pool_service,
         config,
         iterable_client,
+        public_key_repository,
         request,
     )
 )]
@@ -115,6 +117,7 @@ impl TryFrom<&Account> for CreateAccountResponseV2 {
 pub async fn create_account_v2(
     State(account_service): State<AccountService>,
     State(recovery_repository): State<RecoveryRepository>,
+    State(public_key_repository): State<PublicKeyRepository>,
     State(wsm_client): State<WsmClient>,
     State(id_generator): State<IdentifierGenerator>,
     State(user_pool_service): State<UserPoolService>,
@@ -132,6 +135,7 @@ pub async fn create_account_v2(
             &config,
             &account_service,
             &recovery_repository,
+            &public_key_repository,
         )
         .await?
     {
@@ -148,6 +152,19 @@ pub async fn create_account_v2(
 
     // provide the generated account ID once we have it
     tracing::Span::current().record("account_id", account_id.to_string());
+
+    // Record hw auth pubkey in public_keys table before any external side
+    // effects (Cognito, WSM).
+    if !public_key_repository
+        .persist_public_key(
+            &request.auth.hardware_pub.to_string(),
+            &account_id,
+            KeyType::HardwareAuth,
+        )
+        .await?
+    {
+        return Err(AccountValidationError::HwAuthPubkeyReuseAccount.into());
+    }
 
     // Create Cognito users
     user_pool_service
@@ -260,7 +277,8 @@ impl From<(&LiteAccount, &UpgradeAccountRequestV2)> for AccountValidationRequest
         recovery_repository,
         id_generator,
         user_pool_service,
-        config
+        config,
+        public_key_repository,
     )
 )]
 #[utoipa::path(
@@ -275,6 +293,7 @@ impl From<(&LiteAccount, &UpgradeAccountRequestV2)> for AccountValidationRequest
 pub async fn upgrade_account_v2(
     State(account_service): State<AccountService>,
     State(recovery_repository): State<RecoveryRepository>,
+    State(public_key_repository): State<PublicKeyRepository>,
     State(wsm_client): State<WsmClient>,
     State(id_generator): State<IdentifierGenerator>,
     State(user_pool_service): State<UserPoolService>,
@@ -332,8 +351,23 @@ pub async fn upgrade_account_v2(
             &config,
             &account_service,
             &recovery_repository,
+            &public_key_repository,
         )
         .await?;
+
+    // Record hw auth pubkey in public_keys table before any external side
+    // effects (Cognito, WSM). This ensures a rejected upgrade never leaves
+    // orphaned Cognito users or WSM keys behind.
+    if !public_key_repository
+        .persist_public_key(
+            &request.auth.hardware_pub.to_string(),
+            &account_id,
+            KeyType::HardwareAuth,
+        )
+        .await?
+    {
+        return Err(AccountValidationError::HwAuthPubkeyReuseAccount.into());
+    }
 
     // Create Cognito users
     user_pool_service

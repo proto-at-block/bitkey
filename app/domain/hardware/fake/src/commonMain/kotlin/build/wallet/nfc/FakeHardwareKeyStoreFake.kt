@@ -11,12 +11,14 @@ import build.wallet.platform.random.uuid
 import okio.ByteString.Companion.encodeUtf8
 
 class FakeHardwareKeyStoreFake : FakeHardwareKeyStore {
+  private var seed = FakeHardwareKeyStore.Seed(words = uuid())
+
   override suspend fun getSeed(): FakeHardwareKeyStore.Seed {
-    TODO("Not yet implemented")
+    return seed
   }
 
   override suspend fun setSeed(words: FakeHardwareKeyStore.Seed) {
-    TODO("Not yet implemented")
+    seed = words
   }
 
   private var authKeypair: FakeHwAuthKeypair? = null
@@ -52,6 +54,7 @@ class FakeHardwareKeyStoreFake : FakeHardwareKeyStore {
   }
 
   override suspend fun clear() {
+    seed = FakeHardwareKeyStore.Seed(words = uuid())
     authKeypair = null
   }
 }

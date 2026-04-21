@@ -61,6 +61,25 @@ class RotateAuthKeysF8eClientImpl(
         accountIdByteString
       ).bind()
 
+      // During the W3 upgrade the global app auth key intentionally stays the same, so the
+      // "old" app auth header and the "new" application key in the body may refer to the same
+      // public key while the recovery and hardware auth keys rotate.
+      val requestBody = RotateAuthKeysetResponse(
+        application = AuthenticationKey(
+          newAppAuthPublicKeys.appGlobalAuthPublicKey.value,
+          signedAppGlobalAuthPublicKey
+        ),
+        hardware = AuthenticationKey(
+          hwAuthPublicKey.pubKey.value,
+          hwSignedAccountId
+        ),
+        recovery = AuthenticationKey(
+          newAppAuthPublicKeys.appRecoveryAuthPublicKey.value,
+          signedAppRecoveryAuthPublicKey
+        ),
+        hardwareType = hardwareType
+      )
+
       f8eHttpClient
         .authenticated()
         .catching {
@@ -70,23 +89,7 @@ class RotateAuthKeysF8eClientImpl(
             withAccountId(fullAccountId)
             withAppAuthKey(oldAppAuthPublicKey)
             proof.applyTo(this)
-            setRedactedBody(
-              RotateAuthKeysetResponse(
-                application = AuthenticationKey(
-                  newAppAuthPublicKeys.appGlobalAuthPublicKey.value,
-                  signedAppGlobalAuthPublicKey
-                ),
-                hardware = AuthenticationKey(
-                  hwAuthPublicKey.pubKey.value,
-                  hwSignedAccountId
-                ),
-                recovery = AuthenticationKey(
-                  newAppAuthPublicKeys.appRecoveryAuthPublicKey.value,
-                  signedAppRecoveryAuthPublicKey
-                ),
-                hardwareType = hardwareType
-              )
-            )
+            setRedactedBody(requestBody)
           }
         }
         .mapUnit()

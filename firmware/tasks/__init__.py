@@ -12,7 +12,7 @@ from bitkey import fw_version
 from . import (build, install, generate, fwup, lfs,
                release, test, memfault, status, snapshot)
 
-from .mcu import (chipinfo, flash, debug, monitor, secinfo)
+from .mcu import (chipinfo, erase, flash, debug, monitor, secinfo)
 from .simulator import ui_sim
 
 # This hack is needed for pyinvoke version >=2.1.1
@@ -149,6 +149,7 @@ ns = Collection(clean, test, fuzz, targets, clang_format,
 
 # add single tasks to the root
 ns.add_task(chipinfo)
+ns.add_task(erase)
 ns.add_task(flash)
 ns.add_task(debug)
 ns.add_task(monitor)

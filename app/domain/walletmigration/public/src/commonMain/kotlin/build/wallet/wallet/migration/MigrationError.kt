@@ -40,7 +40,23 @@ sealed interface MigrationError {
   data class StatePersistenceFailed(val cause: Throwable) : MigrationError
 
   /** Missing required context for the operation. */
-  data class MissingContext(val message: String) : MigrationError
+  sealed interface MissingContext : MigrationError {
+    val message: String
+
+    /** Generic missing context with a descriptive message. */
+    data class Generic(override val message: String) : MissingContext
+
+    /** Auth key rotation requires the old W1 hardware proof of possession. */
+    data object W3AuthRotationOldHardwareProof : MissingContext {
+      override val message: String = "W3 auth key rotation requires old W1 proof of possession."
+    }
+
+    /** Resumed W3 auth key rotation requires a fresh W3 action proof. */
+    data object W3AuthRotationNewHardwareActionProof : MissingContext {
+      override val message: String =
+        "Resumed W3 auth key rotation requires a fresh W3 action proof."
+    }
+  }
 
   /** Failed to estimate migration fees. */
   data class FeeEstimationFailed(val cause: Throwable) : MigrationError

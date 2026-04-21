@@ -20,6 +20,7 @@ import build.wallet.firmware.*
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
 import build.wallet.grants.*
+import build.wallet.logging.logInfo
 import build.wallet.money.display.BitcoinDisplayUnit
 import build.wallet.nfc.platform.ActionProofAction
 import build.wallet.nfc.platform.CsekUnsealResult
@@ -116,8 +117,21 @@ class BitkeyW3CommandsFake(
       )
     )
 
-  private fun presentedHardwareType(): HardwareType =
+  private fun configuredHardwareType(): HardwareType =
     accountConfigService.defaultConfig().value.hardwareType ?: HardwareType.W1
+
+  /**
+   * Fake-only hint for which hardware is currently being "tapped".
+   *
+   * Most fake W3 upgrade flows use the session hardware type to make the fake behave like the
+   * presented device. Cloud backup restoration is the exception: that flow forces W3 commands to
+   * access a W3-only composite, but the tapped device may still be W1.
+   */
+  private fun presentedHardwareType(session: NfcSession? = null): HardwareType =
+    when (session?.parameters?.nfcFlowName) {
+      "UNSEAL_CLOUD_BACKUP" -> configuredHardwareType()
+      else -> session?.parameters?.hardwareType ?: configuredHardwareType()
+    }
 
   /**
    * Tactical fake-only workaround for cloud restore flows that always request W3 commands.
@@ -132,7 +146,7 @@ class BitkeyW3CommandsFake(
   private suspend fun cloudBackupRestorationHardwareType(
     sealedCseks: List<SealedData>,
   ): HardwareType {
-    val configuredHardwareType = presentedHardwareType()
+    val configuredHardwareType = configuredHardwareType()
     val w1AuthKeyBytes = w1CommandsFake.fakeHardwareKeyStore.getAuthKeypair().privateKey.key.bytes
     val w3AuthKeyBytes = fakeHardwareKeyStore.getAuthKeypair().privateKey.key.bytes
     val w1Nonce = w1AuthKeyBytes.substring(0, 12)
@@ -143,7 +157,12 @@ class BitkeyW3CommandsFake(
     val matchedHardwareTypes = sealedCseks.mapNotNull { sealedCsek ->
       val parsedSealedData = runCatching {
         FakeSealedDataCodec.parseSealedDataProto(sealedCsek)
-      }.getOrNull() ?: return configuredHardwareType
+      }.getOrNull() ?: run {
+        logInfo {
+          "W3 fake cloud backup restoration could not parse sealed CSEK; falling back to configuredHardwareType=$configuredHardwareType"
+        }
+        return configuredHardwareType
+      }
 
       val matchesW1 = parsedSealedData.nonce == w1Nonce && parsedSealedData.tag == w1Tag
       val matchesW3 = parsedSealedData.nonce == w3Nonce && parsedSealedData.tag == w3Tag
@@ -151,17 +170,26 @@ class BitkeyW3CommandsFake(
       when {
         matchesW1 && !matchesW3 -> HardwareType.W1
         matchesW3 && !matchesW1 -> HardwareType.W3
-        else -> return configuredHardwareType
+        else -> {
+          logInfo {
+            "W3 fake cloud backup restoration saw ambiguous CSEK match matchesW1=$matchesW1 matchesW3=$matchesW3; falling back to configuredHardwareType=$configuredHardwareType"
+          }
+          return configuredHardwareType
+        }
       }
     }.toSet()
 
-    return matchedHardwareTypes.singleOrNull() ?: configuredHardwareType
+    return matchedHardwareTypes.singleOrNull() ?: configuredHardwareType.also {
+      logInfo {
+        "W3 fake cloud backup restoration found mixed matched hardware types=$matchedHardwareTypes; falling back to configuredHardwareType=$configuredHardwareType"
+      }
+    }
   }
 
   // ---- Shared command overrides ----
 
   override suspend fun getAuthenticationKey(session: NfcSession) =
-    when (presentedHardwareType()) {
+    when (presentedHardwareType(session)) {
       HardwareType.W1 -> w1CommandsFake.getAuthenticationKey(session)
       HardwareType.W3 -> HwAuthPublicKey(fakeHardwareKeyStore.getAuthKeypair().publicKey.pubKey)
     }
@@ -170,7 +198,7 @@ class BitkeyW3CommandsFake(
     session: NfcSession,
     unsealedData: ByteString,
   ): SealedData =
-    when (presentedHardwareType()) {
+    when (presentedHardwareType(session)) {
       HardwareType.W1 -> w1CommandsFake.sealData(session, unsealedData)
       HardwareType.W3 -> FakeSealedDataCodec.sealWithKeyStore(fakeHardwareKeyStore, unsealedData)
     }
@@ -179,7 +207,7 @@ class BitkeyW3CommandsFake(
     session: NfcSession,
     sealedData: SealedData,
   ): ByteString =
-    when (presentedHardwareType()) {
+    when (presentedHardwareType(session)) {
       HardwareType.W1 -> w1CommandsFake.unsealData(session, sealedData)
       HardwareType.W3 -> FakeSealedDataCodec.unsealWithKeyStore(fakeHardwareKeyStore, sealedData)
     }
@@ -187,7 +215,7 @@ class BitkeyW3CommandsFake(
   override suspend fun getInitialSpendingKey(
     session: NfcSession,
     network: BitcoinNetworkType,
-  ) = when (presentedHardwareType()) {
+  ) = when (presentedHardwareType(session)) {
     HardwareType.W1 -> w1CommandsFake.getInitialSpendingKey(session, network)
     HardwareType.W3 ->
       HwSpendingPublicKey(fakeHardwareKeyStore.getInitialSpendingKeypair(network).publicKey.key)
@@ -197,7 +225,7 @@ class BitkeyW3CommandsFake(
     session: NfcSession,
     existingDescriptorPublicKeys: List<HwSpendingPublicKey>,
     network: BitcoinNetworkType,
-  ) = when (presentedHardwareType()) {
+  ) = when (presentedHardwareType(session)) {
     HardwareType.W1 -> w1CommandsFake.getNextSpendingKey(session, existingDescriptorPublicKeys, network)
     HardwareType.W3 ->
       HwSpendingPublicKey(
@@ -273,15 +301,17 @@ class BitkeyW3CommandsFake(
   private val appliedMcuVersions = mutableMapOf<McuRole, String>()
 
   /**
-   * Whether the hardware descriptor has been delivered to this fake device.
-   * Set to true by [verifyKeysAndBuildDescriptor]. Commands that require the descriptor
-   * ([getAddress], [signTransaction]) throw [NfcException.DescriptorNotLoaded] when false.
-   *
-   * Defaults to false, matching real W3 hardware behavior: the device starts without a
-   * descriptor and requires [verifyKeysAndBuildDescriptor] to be called before signing
-   * or address operations work.
+   * The fake W3 needs to remember whether its descriptor was provisioned even when tests relaunch
+   * or reinstall the app. Persist that flag via the fake hardware seed payload so it follows the
+   * simulated physical device instead of the app process.
    */
-  private var descriptorLoaded: Boolean = false
+  private suspend fun descriptorLoaded(): Boolean = fakeHardwareKeyStore.getSeed().descriptorLoaded
+
+  private suspend fun setDescriptorLoaded(loaded: Boolean) {
+    fakeHardwareKeyStore.setSeed(
+      fakeHardwareKeyStore.getSeed().copy(descriptorLoaded = loaded)
+    )
+  }
 
   /**
    * Records deferCommit values passed to [fwupStart] for each MCU, for test assertions.
@@ -301,7 +331,7 @@ class BitkeyW3CommandsFake(
   suspend fun wipeDevice() {
     fakeHardwareKeyStore.clear()
     fingerprintEnrollmentResult.status = FingerprintEnrollmentStatus.NOT_IN_PROGRESS
-    descriptorLoaded = false
+    setDescriptorLoaded(false)
   }
 
   override suspend fun wipeDevice(session: NfcSession): HardwareInteraction<Boolean> =
@@ -363,7 +393,7 @@ class BitkeyW3CommandsFake(
    * Reflects any firmware versions updated via [fwupFinish].
    */
   override suspend fun getDeviceInfo(session: NfcSession): FirmwareDeviceInfo =
-    when (presentedHardwareType()) {
+    when (presentedHardwareType(session)) {
       HardwareType.W1 -> w1CommandsFake.getDeviceInfo(session)
       HardwareType.W3 ->
         if (appliedMcuVersions.isEmpty()) {
@@ -391,7 +421,7 @@ class BitkeyW3CommandsFake(
     session: NfcSession,
     addressIndex: UInt,
   ): String {
-    if (!descriptorLoaded) throw NfcException.DescriptorNotLoaded()
+    if (!descriptorLoaded()) throw NfcException.DescriptorNotLoaded()
     return "bc1q_fake_w3_$addressIndex"
   }
 
@@ -427,7 +457,7 @@ class BitkeyW3CommandsFake(
     spendingKeyset: SpendingKeyset,
     displayPreference: HwDisplayPreference?,
   ): HardwareInteraction<Psbt> {
-    if (!descriptorLoaded) throw NfcException.DescriptorNotLoaded()
+    if (!descriptorLoaded()) throw NfcException.DescriptorNotLoaded()
     if (fakeHardwareStatesDao.getTransactionVerificationEnabled().get() == true) {
       throw TransactionError.VerificationRequired()
     }
@@ -467,7 +497,8 @@ class BitkeyW3CommandsFake(
    * 2. Verify the WSM signature over all public keys
    * 3. Store the descriptor in hardware for future use
    *
-   * Sets [descriptorLoaded] to true, unblocking [getAddress] and [signTransaction].
+   * Sets the persisted descriptor-loaded flag to true, unblocking [getAddress] and
+   * [signTransaction] across app relaunches.
    */
   override suspend fun verifyKeysAndBuildDescriptor(
     session: NfcSession,
@@ -480,7 +511,7 @@ class BitkeyW3CommandsFake(
     wsmSignature: ByteString,
     accountIndex: UInt,
   ): String {
-    descriptorLoaded = true
+    setDescriptorLoaded(true)
     return messageSigner
       // W3 relationship verification expects a domain-separated signature over the
       // UTF-8 hex app auth pubkey, matching firmware behavior.
@@ -592,29 +623,44 @@ class BitkeyW3CommandsFake(
     session: NfcSession,
     sealedCseks: List<SealedData>,
     onCsekUnsealed: suspend (CsekUnsealResult) -> T,
-  ): HardwareInteraction<T> =
-    emulatedPrompt(
-      details = listOf(
-        EmulatedPromptOption.Detail("Action", "Cloud Backup Restoration"),
-        EmulatedPromptOption.Detail("Sealed CSEKs", sealedCseks.size.toString())
-      ),
-      onApprove = { fetchSession, _ ->
-        val restorationHardwareType = cloudBackupRestorationHardwareType(sealedCseks)
-        sealedCseks.withIndex().firstNotNullOfOrNull { (index, sealedCsek) ->
-          try {
-            val unsealedKey = when (restorationHardwareType) {
-              HardwareType.W1 ->
-                SymmetricKeyImpl(w1CommandsFake.unsealData(fetchSession, sealedCsek))
-              HardwareType.W3 ->
-                SymmetricKeyImpl(FakeSealedDataCodec.unsealWithKeyStore(fakeHardwareKeyStore, sealedCsek))
-            }
-            onCsekUnsealed(CsekUnsealResult(index = index, unsealedCsek = unsealedKey))
-          } catch (_: NfcException) {
-            null
+  ): HardwareInteraction<T> {
+    val restorationHardwareType = cloudBackupRestorationHardwareType(sealedCseks)
+    logInfo {
+      "W3 fake cloud backup restoration using hardwareType=$restorationHardwareType configuredHardwareType=${configuredHardwareType()}"
+    }
+
+    suspend fun unsealCsek(activeSession: NfcSession): T =
+      sealedCseks.withIndex().firstNotNullOfOrNull { (index, sealedCsek) ->
+        try {
+          val unsealedKey = when (restorationHardwareType) {
+            HardwareType.W1 ->
+              SymmetricKeyImpl(w1CommandsFake.unsealData(activeSession, sealedCsek))
+            HardwareType.W3 ->
+              SymmetricKeyImpl(FakeSealedDataCodec.unsealWithKeyStore(fakeHardwareKeyStore, sealedCsek))
           }
-        } ?: throw NfcException.CommandErrorSealCsekResponseUnsealException()
-      }
-    )
+          onCsekUnsealed(CsekUnsealResult(index = index, unsealedCsek = unsealedKey))
+        } catch (error: NfcException) {
+          logInfo {
+            "W3 fake cloud backup restoration failed to unseal CSEK index=$index hardwareType=$restorationHardwareType error=$error"
+          }
+          null
+        }
+      } ?: throw NfcException.CommandErrorSealCsekResponseUnsealException()
+
+    return when (restorationHardwareType) {
+      HardwareType.W1 -> HardwareInteraction.Completed(unsealCsek(session))
+      HardwareType.W3 ->
+        emulatedPrompt(
+          details = listOf(
+            EmulatedPromptOption.Detail("Action", "Cloud Backup Restoration"),
+            EmulatedPromptOption.Detail("Sealed CSEKs", sealedCseks.size.toString())
+          ),
+          onApprove = { fetchSession, _ ->
+            unsealCsek(fetchSession)
+          }
+        )
+    }
+  }
 
   /**
    * W3 hardware lost app recovery composite.
@@ -761,6 +807,7 @@ class BitkeyW3CommandsFake(
   override suspend fun upgradeAuthorizeW3(
     session: NfcSession,
     ddkPrivateKeyBytes: ByteString,
+    sealedSsekForDecryption: SealedData?,
     descriptorBackupsBindings: String,
     activateKeysetBindings: String,
     actionProofVersion: UInt,
@@ -777,7 +824,8 @@ class BitkeyW3CommandsFake(
         UpgradeAuthorizeW3Result(
           descriptorBackupsSignature = descriptorSig,
           activateKeysetSignature = keysetSig,
-          sealedDdkData = sealData(fetchSession, ddkPrivateKeyBytes)
+          sealedDdkData = sealData(fetchSession, ddkPrivateKeyBytes),
+          unsealedSsek = sealedSsekForDecryption?.let { unsealData(fetchSession, it) }
         )
       }
     )

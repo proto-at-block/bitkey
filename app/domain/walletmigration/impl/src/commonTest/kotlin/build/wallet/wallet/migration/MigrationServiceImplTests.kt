@@ -1,5 +1,6 @@
 package build.wallet.wallet.migration
 
+import bitkey.backup.DescriptorBackup
 import bitkey.auth.AccessToken
 import bitkey.auth.AccountAuthTokens
 import bitkey.auth.AuthTokenScope.Global
@@ -8,14 +9,18 @@ import bitkey.auth.RefreshToken
 import build.wallet.account.AccountServiceFake
 import build.wallet.auth.AccountAuthenticator
 import build.wallet.auth.AccountAuthenticatorMock
-import build.wallet.auth.AuthNetworkError
 import build.wallet.auth.AuthTokensServiceFake
 import build.wallet.bitcoin.transactions.PsbtMock
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.auth.AppAuthPublicKeysMock
+import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock2
 import build.wallet.bitkey.auth.HwAuthSecp256k1PublicKeyMock
 import build.wallet.bitkey.f8e.F8eSpendingKeysetMock
+import build.wallet.bitkey.app.AppAuthPublicKeys
+import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.keybox.AppKeyBundleMock
+import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.FullAccountW3Mock
 import build.wallet.bitkey.keybox.HwKeyBundleMock
@@ -26,21 +31,26 @@ import build.wallet.cloud.backup.csek.SsekDaoFake
 import build.wallet.cloud.backup.csek.SsekFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.ActionProofHeader
+import build.wallet.f8e.auth.AuthF8eClient
+import build.wallet.f8e.auth.AuthF8eClientMock
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.auth.RotateAuthKeysF8eClientMock
 import build.wallet.f8e.onboarding.CreateAccountKeysetV2F8eClientFake
 import build.wallet.f8e.onboarding.SetActiveSpendingKeysetF8eClientFake
+import build.wallet.f8e.recovery.ListKeysetsResponse
 import build.wallet.f8e.recovery.ListKeysetsF8eClientMock
 import build.wallet.f8e.recovery.SignedKeysetVerificationResponseMock
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.keybox.keys.AppKeysGeneratorMock
 import build.wallet.ktor.result.HttpError
+import build.wallet.ktor.test.HttpResponseMock
 import build.wallet.money.BitcoinMoney
 import build.wallet.notifications.DeviceTokenManagerMock
 import build.wallet.onboarding.OnboardingKeyboxSealedSsekDaoFake
 import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.recovery.DescriptorBackupServiceFake
+import build.wallet.recovery.createFakeSpendingKeyset
 import build.wallet.recovery.sweep.Sweep
 import build.wallet.recovery.sweep.SweepPsbt
 import build.wallet.recovery.sweep.SweepService
@@ -52,9 +62,12 @@ import build.wallet.relationships.RelationshipsServiceMock
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOk
 import build.wallet.testing.shouldBeOkOfType
+import build.wallet.crypto.PublicKey
+import build.wallet.encrypt.XCiphertext
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.get
+import io.ktor.http.HttpStatusCode.Companion.NotFound
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -69,12 +82,15 @@ class MigrationServiceImplTests : FunSpec({
   val accountService = AccountServiceFake()
   val accountAuthenticator = AccountAuthenticatorMock(turbines::create)
   val authTokensService = AuthTokensServiceFake()
+  val authF8eClient = AuthF8eClientMock(
+    defaultInitiateAuthenticationResult = Err(HttpError.ClientError(HttpResponseMock(NotFound)))
+  )
   val keyboxDao = KeyboxDaoMock(
     turbine = turbines::create
   )
   val privateWalletMigrationDao = PrivateWalletMigrationDaoFake()
   val w3UpgradeDao = W3UpgradeDaoFake()
-  val w3UpgradeCheckpointWriter = W3UpgradeCheckpointWriterFake(w3UpgradeDao, keyboxDao)
+  val w3UpgradeCheckpointWriter = W3UpgradeCheckpointWriterIntegrationFake(w3UpgradeDao, keyboxDao)
   val ssekDao = SsekDaoFake()
   val descriptorBackupService = DescriptorBackupServiceFake()
   val descriptorBackupVerificationDao = build.wallet.recovery.DescriptorBackupVerificationDaoFake()
@@ -90,6 +106,7 @@ class MigrationServiceImplTests : FunSpec({
 
   val service = MigrationServiceImpl(
     appKeysGenerator = appKeysGenerator,
+    authF8eClient = authF8eClient,
     createKeysetClient = createKeysetClient,
     uuidGenerator = uuidGenerator,
     accountService = accountService,
@@ -132,16 +149,34 @@ class MigrationServiceImplTests : FunSpec({
       f8eSpendingKeyset = F8eSpendingKeysetMock
     )
 
-  fun rotatedKeybox() =
-    mockAccount.keybox.copy(
-      activeAppKeyBundle = mockAccount.keybox.activeAppKeyBundle.copy(
-        authKey = AppAuthPublicKeysMock.appGlobalAuthPublicKey,
-        recoveryAuthKey = AppAuthPublicKeysMock.appRecoveryAuthPublicKey
-      ),
-      appGlobalAuthKeyHwSignature = AppAuthPublicKeysMock.appGlobalAuthKeyHwSignature
+  fun w3RotatedAuthKeys(): AppAuthPublicKeys =
+    AppAuthPublicKeys(
+      appGlobalAuthPublicKey = mockAccount.keybox.activeAppKeyBundle.authKey,
+      appRecoveryAuthPublicKey = AppRecoveryAuthPublicKeyMock2,
+      appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature("rotated-app-global-auth-hw-signature")
     )
 
-  fun rotatedAccount() = mockAccount.copy(keybox = rotatedKeybox())
+  fun rotatedKeybox(
+    appAuthKeys: AppAuthPublicKeys = w3RotatedAuthKeys(),
+  ): Keybox = mockAccount.keybox.copy(
+      activeAppKeyBundle = mockAccount.keybox.activeAppKeyBundle.copy(
+        authKey = appAuthKeys.appGlobalAuthPublicKey,
+        recoveryAuthKey = appAuthKeys.appRecoveryAuthPublicKey
+      ),
+      appGlobalAuthKeyHwSignature = appAuthKeys.appGlobalAuthKeyHwSignature
+    )
+
+  fun rotatedAccount(
+    appAuthKeys: AppAuthPublicKeys = w3RotatedAuthKeys(),
+  ): FullAccount = mockAccount.copy(keybox = rotatedKeybox(appAuthKeys))
+
+  fun hwAuthInitiationSuccess() =
+    AuthF8eClient.InitiateAuthenticationSuccess(
+      username = "hardware-user",
+      accountId = mockAccount.accountId.serverId,
+      challenge = "hardware-challenge",
+      session = "hardware-session"
+    )
 
   fun authData(tokens: AccountAuthTokens) =
     AccountAuthenticator.AuthData(
@@ -155,7 +190,12 @@ class MigrationServiceImplTests : FunSpec({
     uuidGenerator.reset()
     accountService.reset()
     accountAuthenticator.reset()
+    accountAuthenticator.authResults = mutableListOf(
+      accountAuthenticator.defaultAuthResult,
+      accountAuthenticator.defaultAuthResult
+    )
     authTokensService.reset()
+    authF8eClient.reset()
     keyboxDao.reset()
     privateWalletMigrationDao.clear()
     w3UpgradeDao.clear()
@@ -1317,6 +1357,38 @@ class MigrationServiceImplTests : FunSpec({
     state.type.shouldBe(MigrationType.W3Upgrade)
   }
 
+  test("W3Upgrade resume returns cloud-restore placeholder when resumed flag is persisted") {
+    accountService.setActiveAccount(mockAccount)
+
+    w3UpgradeDao.markResumedFromCloudBackup().shouldBeOk()
+
+    val result = service.resume(MigrationType.W3Upgrade)
+
+    result.shouldBeOk()
+    val state = result.get().shouldNotBeNull().shouldBeInstanceOf<MigrationProgress.NotStarted>()
+    state.type.shouldBe(MigrationType.W3Upgrade)
+    state.resumedFromCloudBackup.shouldBe(true)
+
+    val daoState = w3UpgradeDao.state.value.get().shouldNotBeNull()
+    daoState.resumedFromCloudBackup.shouldBe(true)
+    daoState.newHardwareKey.shouldBe(null)
+  }
+
+  test("W3Upgrade resume returns Completed when stale cloud-restore placeholder exists on W3 account") {
+    // Regression: a previous interrupted restore left a resumedFromCloudBackup marker,
+    // but the account was later successfully restored to W3. The stale placeholder must
+    // not re-route the user into the W3 upgrade flow.
+    accountService.setActiveAccount(FullAccountW3Mock)
+    w3UpgradeDao.markResumedFromCloudBackup()
+
+    val result = service.resume(MigrationType.W3Upgrade)
+
+    result.shouldBeOk()
+    val state = result.get().shouldNotBeNull()
+    state.shouldBeInstanceOf<MigrationProgress.Completed>()
+    state.type.shouldBe(MigrationType.W3Upgrade)
+  }
+
   test("W3Upgrade resume returns DescriptorBackup after auth rotation completes") {
     accountService.setActiveAccount(rotatedAccount())
 
@@ -1333,6 +1405,46 @@ class MigrationServiceImplTests : FunSpec({
     state.shouldBeInstanceOf<MigrationProgress.DescriptorBackup>()
     state.currentKeybox.shouldBe(rotatedKeybox())
     state.proof.shouldBe(null)
+  }
+
+  test("W3Upgrade resumed-from-cloud create keyset persists wrapped SSEK when historical backups are missing") {
+    accountService.setActiveAccount(mockAccount)
+    listKeysetsClient.result = Ok(
+      ListKeysetsResponse(
+        keysets = emptyList(),
+        wrappedSsek = SealedSsekFake,
+        descriptorBackups = listOf(
+          DescriptorBackup(
+            keysetId = "historical-keyset-id",
+            sealedDescriptor = XCiphertext("historical-descriptor"),
+            privateWalletRootXpub = null
+          )
+        ),
+        activeKeysetId = mockAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
+      )
+    )
+
+    val createNewKeysetState = MigrationProgress.CreateNewKeyset.W3Upgrade(
+      oldDeviceSerial = "old-device-serial",
+      oldHardwareFingerprint = "old-hardware-fingerprint",
+      newDeviceSerial = "new-device-serial",
+      currentKeybox = mockAccount.keybox,
+      newHwSpendingKey = mockNewHwKeys.spendingKey,
+      hwProofOfPossession = HwFactorProofOfPossession(""),
+      ssek = SsekFake,
+      sealedSsek = mockSealedSsek,
+      resumedFromCloudBackup = true
+    )
+
+    val result = service.proceed(createNewKeysetState)
+
+    result.shouldBeOk()
+    val state = result.get().shouldNotBeNull().shouldBeInstanceOf<MigrationProgress.AuthKeyRotation>()
+    state.resumedFromCloudBackup.shouldBe(true)
+    state.sealedSsekForDecryption.shouldBe(SealedSsekFake)
+
+    val daoState = w3UpgradeDao.state.value.get().shouldNotBeNull()
+    daoState.sealedSsekForDecryption.shouldBe(SealedSsekFake)
   }
 
   test("W3Upgrade resume returns ServerKeysetActivation when descriptor backup already completed") {
@@ -1353,24 +1465,25 @@ class MigrationServiceImplTests : FunSpec({
     state.proof.shouldBe(null)
   }
 
-  test("W3Upgrade proceed from AuthKeyRotation rotates keys first and returns DescriptorBackup") {
-    accountService.setActiveAccount(mockAccount)
-    keyboxDao.rotateKeyboxResult = Ok(rotatedKeybox())
-    val globalTokens = AccountAuthTokens(
-      accessToken = AccessToken("new-global-access-token"),
-      refreshToken = RefreshToken("new-global-refresh-token"),
-      accessTokenExpiresAt = Instant.DISTANT_FUTURE,
-      refreshTokenExpiresAt = Instant.DISTANT_FUTURE
-    )
+  test("W3Upgrade proceed from AuthKeyRotation rotates recovery and hardware auth and returns DescriptorBackup") {
+    val rotatedAuthKeys = w3RotatedAuthKeys()
     val recoveryTokens = AccountAuthTokens(
       accessToken = AccessToken("new-recovery-access-token"),
       refreshToken = RefreshToken("new-recovery-refresh-token"),
       accessTokenExpiresAt = Instant.DISTANT_FUTURE,
       refreshTokenExpiresAt = Instant.DISTANT_FUTURE
     )
+    val globalTokens = AccountAuthTokens(
+      accessToken = AccessToken("new-global-access-token"),
+      refreshToken = RefreshToken("new-global-refresh-token"),
+      accessTokenExpiresAt = Instant.DISTANT_FUTURE,
+      refreshTokenExpiresAt = Instant.DISTANT_FUTURE
+    )
+    accountService.setActiveAccount(mockAccount)
+    keyboxDao.rotateKeyboxResult = Ok(rotatedKeybox(rotatedAuthKeys))
     accountAuthenticator.authResults = mutableListOf(
-      Ok(authData(globalTokens)),
-      Ok(authData(recoveryTokens))
+      Ok(authData(recoveryTokens)),
+      Ok(authData(globalTokens))
     )
 
     w3UpgradeDao.saveHardwareKey(mockNewHwKeys.spendingKey)
@@ -1383,12 +1496,12 @@ class MigrationServiceImplTests : FunSpec({
       currentKeybox = mockAccount.keybox,
       newKeyset = w3UpgradeKeyset()
     ).withProof(
-      newAppAuthKeys = AppAuthPublicKeysMock,
+      newAppAuthKeys = rotatedAuthKeys,
       proof = PrivilegedActionProof.HwKeyProof(mockProofOfPossession)
     ).withRotationData(
       hwSignedAccountId = "signed-account-id",
       hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
-      appGlobalAuthKeyHwSignature = AppAuthPublicKeysMock.appGlobalAuthKeyHwSignature
+      appGlobalAuthKeyHwSignature = rotatedAuthKeys.appGlobalAuthKeyHwSignature
     )
 
     val result = service.proceed(state = authKeyRotationState)
@@ -1396,16 +1509,22 @@ class MigrationServiceImplTests : FunSpec({
     result.shouldBeOk()
     val state = result.get().shouldNotBeNull()
     state.shouldBeInstanceOf<MigrationProgress.DescriptorBackup>()
-    state.currentKeybox.shouldBe(rotatedKeybox())
+    state.currentKeybox.shouldBe(rotatedKeybox(rotatedAuthKeys))
     state.proof.shouldBe(null)
 
     rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
-    rotateAuthKeysF8eClient.lastRotateKeysetArgs.shouldNotBeNull().proof.shouldBe(
-      PrivilegedActionProof.HwKeyProof(mockProofOfPossession)
-    )
+    rotateAuthKeysF8eClient.lastRotateKeysetArgs.shouldNotBeNull().apply {
+      oldAppAuthPublicKey.shouldBe(mockAccount.keybox.activeAppKeyBundle.authKey)
+      newAppAuthPublicKeys.shouldBe(rotatedAuthKeys)
+      hwAuthPublicKey.shouldBe(HwAuthSecp256k1PublicKeyMock)
+      proof.shouldBe(
+        PrivilegedActionProof.HwKeyProof(mockProofOfPossession)
+      )
+    }
 
-    accountAuthenticator.authCalls.awaitItem().shouldBe(AppAuthPublicKeysMock.appGlobalAuthPublicKey)
-    accountAuthenticator.authCalls.awaitItem().shouldBe(AppAuthPublicKeysMock.appRecoveryAuthPublicKey)
+    accountAuthenticator.authCalls.awaitItem().shouldBe(rotatedAuthKeys.appRecoveryAuthPublicKey)
+    accountAuthenticator.authCalls.awaitItem().shouldBe(rotatedAuthKeys.appGlobalAuthPublicKey)
+    accountAuthenticator.authCalls.expectNoEvents()
     keyboxDao.rotateAuthKeysCalls.awaitItem()
     keyboxDao.lastNewHwAuthPublicKey.shouldBe(HwAuthSecp256k1PublicKeyMock)
 
@@ -1419,7 +1538,7 @@ class MigrationServiceImplTests : FunSpec({
     val endorseArgs = endorseTrustedContactsService.lastRegenerateAndEndorseArgs.shouldNotBeNull()
     endorseArgs.oldAppGlobalAuthKey.shouldBe(mockAccount.keybox.activeAppKeyBundle.authKey)
     endorseArgs.oldHwAuthKey.shouldBe(mockAccount.keybox.activeHwKeyBundle.authKey)
-    endorseArgs.newAppGlobalAuthKey.shouldBe(AppAuthPublicKeysMock.appGlobalAuthPublicKey)
+    endorseArgs.newAppGlobalAuthKey.shouldBe(rotatedAuthKeys.appGlobalAuthPublicKey)
     endorseArgs.newHwAuthKey.shouldBe(HwAuthSecp256k1PublicKeyMock)
     relationshipsService.syncCalls.awaitItem()
 
@@ -1465,7 +1584,7 @@ class MigrationServiceImplTests : FunSpec({
     val daoState = w3UpgradeDao.state.value.get().shouldNotBeNull()
     daoState.descriptorBackupCompleted.shouldBe(true)
     daoState.serverKeysetActivated.shouldBe(false)
-    onboardingKeyboxSealedSsekDao.get().get().shouldBe(null)
+    onboardingKeyboxSealedSsekDao.get().get().shouldBe(mockSealedSsek)
   }
 
   test("W3Upgrade descriptor backup keeps sealed SSEK when persisting completion fails") {
@@ -1515,6 +1634,164 @@ class MigrationServiceImplTests : FunSpec({
     result.shouldBeErrOfType<MigrationError.MissingContext>()
   }
 
+  test("W3Upgrade can replay descriptor backup after completion while awaiting server keyset activation") {
+    accountService.setActiveAccount(rotatedAccount())
+
+    w3UpgradeDao.saveHardwareKey(mockNewHwKeys.spendingKey)
+    w3UpgradeDao.saveAppKey(AppKeyBundleMock.spendingKey)
+    w3UpgradeDao.saveServerKey(F8eSpendingKeysetMock)
+    w3UpgradeDao.saveKeysetLocalId("uuid-0")
+    w3UpgradeDao.setAuthKeyRotationComplete()
+    onboardingKeyboxSealedSsekDao.set(mockSealedSsek)
+
+    val descriptorBackupState = MigrationProgress.DescriptorBackup(
+      type = MigrationType.W3Upgrade,
+      currentKeybox = rotatedKeybox(),
+      newKeyset = w3UpgradeKeyset()
+    ).withProof(
+      descriptorBackupsProof
+    )
+
+    service.proceed(state = descriptorBackupState).shouldBeOk()
+    onboardingKeyboxSealedSsekDao.get().get().shouldBe(mockSealedSsek)
+
+    val replayResult = service.proceed(state = descriptorBackupState)
+
+    replayResult.shouldBeOk()
+    replayResult.get().shouldNotBeNull().shouldBeInstanceOf<MigrationProgress.ServerKeysetActivation>()
+    descriptorBackupService.lastUploadDescriptorBackupsArgs.shouldNotBeNull()
+      .sealedSsekForEncryption.shouldBe(mockSealedSsek)
+  }
+
+  test("W3Upgrade resumed-from-cloud descriptor backup repairs keybox and clears old wrapped SSEK") {
+    val resumedNewKeyset = w3UpgradeKeyset().copy(
+      f8eSpendingKeyset = F8eSpendingKeysetMock.copy(keysetId = "new-w3-keyset-id")
+    )
+    val recoveredHistoricalKeyset = createFakeSpendingKeyset(
+      keysetId = "historical-keyset-id",
+      localId = "historical-local-id"
+    )
+    val repairedKeysets = (rotatedKeybox().keysets + recoveredHistoricalKeyset + resumedNewKeyset)
+      .distinctBy { it.f8eSpendingKeyset.keysetId }
+
+    accountService.setActiveAccount(rotatedAccount())
+    descriptorBackupService.uploadDescriptorBackupsResult = Ok(repairedKeysets)
+    listKeysetsClient.result = Ok(
+      ListKeysetsResponse(
+        keysets = emptyList(),
+        wrappedSsek = SealedSsekFake,
+        descriptorBackups = listOf(
+          DescriptorBackup(
+            keysetId = recoveredHistoricalKeyset.f8eSpendingKeyset.keysetId,
+            sealedDescriptor = XCiphertext("historical-descriptor"),
+            privateWalletRootXpub = null
+          )
+        ),
+        activeKeysetId = resumedNewKeyset.f8eSpendingKeyset.keysetId
+      )
+    )
+
+    w3UpgradeDao.saveHardwareKey(mockNewHwKeys.spendingKey)
+    w3UpgradeDao.saveAppKey(AppKeyBundleMock.spendingKey)
+    w3UpgradeDao.saveServerKey(resumedNewKeyset.f8eSpendingKeyset)
+    w3UpgradeDao.saveKeysetLocalId("uuid-0")
+    w3UpgradeDao.setAuthKeyRotationComplete()
+    w3UpgradeDao.setSealedSsekForDecryption(SealedSsekFake)
+    // Simulate the SSEK that was persisted into ssekDao during the original pairing
+    ssekDao.set(mockSealedSsek, SsekFake)
+
+    val descriptorBackupState = MigrationProgress.DescriptorBackup(
+      type = MigrationType.W3Upgrade,
+      currentKeybox = rotatedKeybox(),
+      newKeyset = resumedNewKeyset,
+      sealedSsek = mockSealedSsek,
+      resumedFromCloudBackup = true,
+      sealedSsekForDecryption = SealedSsekFake
+    ).withProof(
+      descriptorBackupsProof
+    )
+
+    val result = service.proceed(descriptorBackupState)
+
+    result.shouldBeOk()
+    val state = result.get().shouldNotBeNull().shouldBeInstanceOf<MigrationProgress.ServerKeysetActivation>()
+    state.currentKeybox.activeSpendingKeyset.shouldBe(resumedNewKeyset)
+    state.currentKeybox.keysets.shouldBe(repairedKeysets)
+    state.currentKeybox.canUseKeyboxKeysets.shouldBe(true)
+
+    val uploadArgs = descriptorBackupService.lastUploadDescriptorBackupsArgs.shouldNotBeNull()
+    uploadArgs.sealedSsekForDecryption.shouldBe(SealedSsekFake)
+    uploadArgs.descriptorsToDecrypt.map { it.keysetId }.shouldBe(
+      listOf(recoveredHistoricalKeyset.f8eSpendingKeyset.keysetId)
+    )
+    uploadArgs.keysetsToEncrypt.map { it.f8eSpendingKeyset.keysetId }
+      .shouldBe(uploadArgs.keysetsToEncrypt.map { it.f8eSpendingKeyset.keysetId }.distinct())
+    uploadArgs.keysetsToEncrypt.map { it.f8eSpendingKeyset.keysetId }
+      .shouldBe(uploadArgs.keysetsToEncrypt.map { it.f8eSpendingKeyset.keysetId }
+        .filter { it != recoveredHistoricalKeyset.f8eSpendingKeyset.keysetId })
+
+    val daoState = w3UpgradeDao.state.value.get().shouldNotBeNull()
+    daoState.sealedSsekForDecryption.shouldBe(null)
+
+    // Verify the SSEK from pairing is still persisted in ssekDao
+    ssekDao.get(mockSealedSsek).get().shouldBe(SsekFake)
+  }
+
+  test("W3Upgrade resumed-from-cloud descriptor backup keeps old wrapped SSEK if keybox repair fails") {
+    val resumedNewKeyset = w3UpgradeKeyset().copy(
+      f8eSpendingKeyset = F8eSpendingKeysetMock.copy(keysetId = "new-w3-keyset-id")
+    )
+    val recoveredHistoricalKeyset = createFakeSpendingKeyset(
+      keysetId = "historical-keyset-id",
+      localId = "historical-local-id"
+    )
+
+    accountService.setActiveAccount(rotatedAccount())
+    descriptorBackupService.uploadDescriptorBackupsResult = Ok(
+      (rotatedKeybox().keysets + recoveredHistoricalKeyset + resumedNewKeyset)
+        .distinctBy { it.f8eSpendingKeyset.keysetId }
+    )
+    listKeysetsClient.result = Ok(
+      ListKeysetsResponse(
+        keysets = emptyList(),
+        wrappedSsek = SealedSsekFake,
+        descriptorBackups = listOf(
+          DescriptorBackup(
+            keysetId = recoveredHistoricalKeyset.f8eSpendingKeyset.keysetId,
+            sealedDescriptor = XCiphertext("historical-descriptor"),
+            privateWalletRootXpub = null
+          )
+        ),
+        activeKeysetId = resumedNewKeyset.f8eSpendingKeyset.keysetId
+      )
+    )
+
+    w3UpgradeDao.saveHardwareKey(mockNewHwKeys.spendingKey)
+    w3UpgradeDao.saveAppKey(AppKeyBundleMock.spendingKey)
+    w3UpgradeDao.saveServerKey(resumedNewKeyset.f8eSpendingKeyset)
+    w3UpgradeDao.saveKeysetLocalId("uuid-0")
+    w3UpgradeDao.setAuthKeyRotationComplete()
+    w3UpgradeDao.setSealedSsekForDecryption(SealedSsekFake)
+    keyboxDao.saveKeyboxAsActiveResult = Err(Error("failed to save repaired keybox"))
+
+    val descriptorBackupState = MigrationProgress.DescriptorBackup(
+      type = MigrationType.W3Upgrade,
+      currentKeybox = rotatedKeybox(),
+      newKeyset = resumedNewKeyset,
+      sealedSsek = mockSealedSsek,
+      resumedFromCloudBackup = true,
+      sealedSsekForDecryption = SealedSsekFake
+    ).withProof(
+      descriptorBackupsProof
+    )
+
+    val result = service.proceed(descriptorBackupState)
+
+    result.shouldBeErrOfType<MigrationError.LocalKeyboxActivationFailed>()
+    val daoState = w3UpgradeDao.state.value.get().shouldNotBeNull()
+    daoState.sealedSsekForDecryption.shouldBe(SealedSsekFake)
+  }
+
   test("W3Upgrade proceed from ServerKeysetActivation uses W3 action proof and returns provisioning step") {
     accountService.setActiveAccount(rotatedAccount())
     setActiveSpendingKeysetF8eClient.setResult = Ok(SignedKeysetVerificationResponseMock)
@@ -1525,6 +1802,7 @@ class MigrationServiceImplTests : FunSpec({
     w3UpgradeDao.saveKeysetLocalId("uuid-0")
     w3UpgradeDao.setAuthKeyRotationComplete()
     w3UpgradeDao.setDescriptorBackupComplete()
+    onboardingKeyboxSealedSsekDao.set(mockSealedSsek)
 
     val serverKeysetActivationState = MigrationProgress.ServerKeysetActivation(
       type = MigrationType.W3Upgrade,
@@ -1545,6 +1823,9 @@ class MigrationServiceImplTests : FunSpec({
     setActiveSpendingKeysetF8eClient.lastSetArguments.shouldNotBeNull().proof.shouldBe(
       activateKeysetProof
     )
+    // SSEK is preserved through ServerKeysetActivation — cleared only after DDK backup checkpoint,
+    // because earlier resume states rewind through DescriptorBackup which needs the SSEK.
+    onboardingKeyboxSealedSsekDao.get().get().shouldBe(mockSealedSsek)
   }
 
   test("W3Upgrade proceed from HardwareDescriptorProvisioning stores signature and activates server keyset") {
@@ -1591,24 +1872,9 @@ class MigrationServiceImplTests : FunSpec({
   // -- Crash-safety: Issue 1 --
 
   test("W3Upgrade AuthKeyRotation persists pending auth rotation data before server call") {
+    val rotatedAuthKeys = w3RotatedAuthKeys()
     accountService.setActiveAccount(mockAccount)
-    keyboxDao.rotateKeyboxResult = Ok(rotatedKeybox())
-    val globalTokens = AccountAuthTokens(
-      accessToken = AccessToken("g-access"),
-      refreshToken = RefreshToken("g-refresh"),
-      accessTokenExpiresAt = Instant.DISTANT_FUTURE,
-      refreshTokenExpiresAt = Instant.DISTANT_FUTURE
-    )
-    val recoveryTokens = AccountAuthTokens(
-      accessToken = AccessToken("r-access"),
-      refreshToken = RefreshToken("r-refresh"),
-      accessTokenExpiresAt = Instant.DISTANT_FUTURE,
-      refreshTokenExpiresAt = Instant.DISTANT_FUTURE
-    )
-    accountAuthenticator.authResults = mutableListOf(
-      Ok(authData(globalTokens)),
-      Ok(authData(recoveryTokens))
-    )
+    keyboxDao.rotateKeyboxResult = Ok(rotatedKeybox(rotatedAuthKeys))
 
     w3UpgradeDao.saveHardwareKey(mockNewHwKeys.spendingKey)
     w3UpgradeDao.saveAppKey(AppKeyBundleMock.spendingKey)
@@ -1620,18 +1886,19 @@ class MigrationServiceImplTests : FunSpec({
       currentKeybox = mockAccount.keybox,
       newKeyset = w3UpgradeKeyset()
     ).withProof(
-      newAppAuthKeys = AppAuthPublicKeysMock,
+      newAppAuthKeys = rotatedAuthKeys,
       proof = PrivilegedActionProof.HwKeyProof(mockProofOfPossession)
     ).withRotationData(
       hwSignedAccountId = "signed-account-id",
       hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
-      appGlobalAuthKeyHwSignature = AppAuthPublicKeysMock.appGlobalAuthKeyHwSignature
+      appGlobalAuthKeyHwSignature = rotatedAuthKeys.appGlobalAuthKeyHwSignature
     )
 
     service.proceed(state = authKeyRotationState).shouldBeOk()
     rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
-    accountAuthenticator.authCalls.awaitItem()
-    accountAuthenticator.authCalls.awaitItem()
+    accountAuthenticator.authCalls.awaitItem().shouldBe(rotatedAuthKeys.appRecoveryAuthPublicKey)
+    accountAuthenticator.authCalls.awaitItem().shouldBe(rotatedAuthKeys.appGlobalAuthPublicKey)
+    accountAuthenticator.authCalls.expectNoEvents()
     keyboxDao.rotateAuthKeysCalls.awaitItem()
     deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
     relationshipsService.syncCalls.awaitItem()
@@ -1646,6 +1913,7 @@ class MigrationServiceImplTests : FunSpec({
   }
 
   test("W3Upgrade resume reconstructs AuthKeyRotation from persisted pending data after crash") {
+    val rotatedAuthKeys = w3RotatedAuthKeys()
     accountService.setActiveAccount(mockAccount)
 
     w3UpgradeDao.saveHardwareKey(mockNewHwKeys.spendingKey)
@@ -1654,7 +1922,7 @@ class MigrationServiceImplTests : FunSpec({
     w3UpgradeDao.saveKeysetLocalId("uuid-0")
     // Simulate crash: pending data was persisted but auth rotation did not complete
     w3UpgradeDao.savePendingAuthRotationData(
-      newAppAuthKeys = AppAuthPublicKeysMock,
+      newAppAuthKeys = rotatedAuthKeys,
       hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
       hwSignedAccountId = "signed-account-id",
       oldAppGlobalAuthKey = mockAccount.keybox.activeAppKeyBundle.authKey,
@@ -1668,8 +1936,8 @@ class MigrationServiceImplTests : FunSpec({
     state.shouldBeInstanceOf<MigrationProgress.AuthKeyRotation>()
     // Should be pre-populated with the persisted auth rotation data
     state.newAppAuthKeys.shouldNotBeNull()
-    state.newAppAuthKeys!!.appGlobalAuthPublicKey.shouldBe(AppAuthPublicKeysMock.appGlobalAuthPublicKey)
-    state.newAppAuthKeys!!.appRecoveryAuthPublicKey.shouldBe(AppAuthPublicKeysMock.appRecoveryAuthPublicKey)
+    state.newAppAuthKeys!!.appGlobalAuthPublicKey.shouldBe(rotatedAuthKeys.appGlobalAuthPublicKey)
+    state.newAppAuthKeys!!.appRecoveryAuthPublicKey.shouldBe(rotatedAuthKeys.appRecoveryAuthPublicKey)
     state.hwAuthPublicKey.shouldBe(HwAuthSecp256k1PublicKeyMock)
     state.hwSignedAccountId.shouldBe("signed-account-id")
     // proof is intentionally null — the caller must supply a real proof
@@ -1677,25 +1945,41 @@ class MigrationServiceImplTests : FunSpec({
     state.proof.shouldBe(null)
   }
 
-  test("W3Upgrade resume with serverAuthRotationCompleted uses persisted keys, not state keys") {
+  test("W3Upgrade auth rotation returns missing context when only old W1 proof is missing") {
+    val rotatedAuthKeys = w3RotatedAuthKeys()
     accountService.setActiveAccount(mockAccount)
-    keyboxDao.rotateKeyboxResult = Ok(rotatedKeybox())
-    val globalTokens = AccountAuthTokens(
-      accessToken = AccessToken("g-access"),
-      refreshToken = RefreshToken("g-refresh"),
-      accessTokenExpiresAt = Instant.DISTANT_FUTURE,
-      refreshTokenExpiresAt = Instant.DISTANT_FUTURE
+
+    w3UpgradeDao.saveHardwareKey(mockNewHwKeys.spendingKey)
+    w3UpgradeDao.saveAppKey(AppKeyBundleMock.spendingKey)
+    w3UpgradeDao.saveServerKey(F8eSpendingKeysetMock)
+    w3UpgradeDao.saveKeysetLocalId("uuid-0")
+    w3UpgradeDao.savePendingAuthRotationData(
+      newAppAuthKeys = rotatedAuthKeys,
+      hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
+      hwSignedAccountId = "signed-account-id",
+      oldAppGlobalAuthKey = mockAccount.keybox.activeAppKeyBundle.authKey,
+      oldHwAuthPublicKey = mockAccount.keybox.activeHwKeyBundle.authKey
     )
-    val recoveryTokens = AccountAuthTokens(
-      accessToken = AccessToken("r-access"),
-      refreshToken = RefreshToken("r-refresh"),
-      accessTokenExpiresAt = Instant.DISTANT_FUTURE,
-      refreshTokenExpiresAt = Instant.DISTANT_FUTURE
+
+    val result = service.proceed(
+      state = MigrationProgress.AuthKeyRotation(
+        type = MigrationType.W3Upgrade,
+        currentKeybox = mockAccount.keybox,
+        newKeyset = w3UpgradeKeyset(),
+        newAppAuthKeys = rotatedAuthKeys,
+        hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
+        hwSignedAccountId = "signed-account-id"
+      )
     )
-    accountAuthenticator.authResults = mutableListOf(
-      Ok(authData(globalTokens)),
-      Ok(authData(recoveryTokens))
-    )
+
+    result.shouldBeErrOfType<MigrationError.MissingContext.W3AuthRotationOldHardwareProof>()
+    accountAuthenticator.authCalls.expectNoEvents()
+  }
+
+  test("W3Upgrade resume with serverAuthRotationCompleted uses persisted keys, not state keys") {
+    val rotatedAuthKeys = w3RotatedAuthKeys()
+    accountService.setActiveAccount(mockAccount)
+    keyboxDao.rotateKeyboxResult = Ok(rotatedKeybox(rotatedAuthKeys))
 
     w3UpgradeDao.saveHardwareKey(mockNewHwKeys.spendingKey)
     w3UpgradeDao.saveAppKey(AppKeyBundleMock.spendingKey)
@@ -1703,7 +1987,7 @@ class MigrationServiceImplTests : FunSpec({
     w3UpgradeDao.saveKeysetLocalId("uuid-0")
     // Simulate crash AFTER server rotation succeeded with the original keys
     w3UpgradeDao.savePendingAuthRotationData(
-      newAppAuthKeys = AppAuthPublicKeysMock,
+      newAppAuthKeys = rotatedAuthKeys,
       hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
       hwSignedAccountId = "signed-account-id",
       oldAppGlobalAuthKey = mockAccount.keybox.activeAppKeyBundle.authKey,
@@ -1716,8 +2000,10 @@ class MigrationServiceImplTests : FunSpec({
       Err(build.wallet.ktor.result.HttpError.UnhandledException(RuntimeException("should not be called")))
 
     // Build a state with DIFFERENT keys than what was persisted — simulating
-    // the UI regenerating fresh keys via GeneratingAuthKeys on resume.
-    val differentAppAuthKeys = AppAuthPublicKeysMock.copy(
+    // the UI generating a different recovery key via GeneratingAuthKeys on resume.
+    val differentAppAuthKeys = AppAuthPublicKeys(
+      appGlobalAuthPublicKey = mockAccount.keybox.activeAppKeyBundle.authKey,
+      appRecoveryAuthPublicKey = PublicKey<AppRecoveryAuthKey>("different-app-recovery-auth-key"),
       appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature("different-hw-sig")
     )
     val stateWithDifferentKeys = MigrationProgress.AuthKeyRotation(
@@ -1738,33 +2024,26 @@ class MigrationServiceImplTests : FunSpec({
     result.shouldBeOk()
     val nextState = result.get().shouldNotBeNull()
     nextState.shouldBeInstanceOf<MigrationProgress.DescriptorBackup>()
-    nextState.currentKeybox.shouldBe(rotatedKeybox())
+    nextState.currentKeybox.shouldBe(rotatedKeybox(rotatedAuthKeys))
 
-    // Verify local rotation used the persisted keys (AppAuthPublicKeysMock),
+    // Verify local rotation used the persisted keys,
     // not the different keys from the state.
     keyboxDao.rotateAuthKeysCalls.awaitItem()
     keyboxDao.lastNewHwAuthPublicKey.shouldBe(HwAuthSecp256k1PublicKeyMock)
 
-    // Token auth should use the persisted global/recovery auth keys
-    accountAuthenticator.authCalls.awaitItem()
-      .shouldBe(AppAuthPublicKeysMock.appGlobalAuthPublicKey)
-    accountAuthenticator.authCalls.awaitItem()
-      .shouldBe(AppAuthPublicKeysMock.appRecoveryAuthPublicKey)
+    accountAuthenticator.authCalls.awaitItem().shouldBe(rotatedAuthKeys.appRecoveryAuthPublicKey)
+    accountAuthenticator.authCalls.awaitItem().shouldBe(rotatedAuthKeys.appGlobalAuthPublicKey)
+    accountAuthenticator.authCalls.expectNoEvents()
     deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
     relationshipsService.syncCalls.awaitItem()
   }
 
-  // -- Partial token rotation rollback: Issue 2 --
+  // -- Recovery token refresh after mixed auth rotation --
 
-  test("W3Upgrade auth rotation rolls back tokens on partial setTokens failure") {
+  test("W3Upgrade recovery token refresh failure preserves existing tokens") {
+    val rotatedAuthKeys = w3RotatedAuthKeys()
     accountService.setActiveAccount(mockAccount)
-    keyboxDao.rotateKeyboxResult = Ok(rotatedKeybox())
-    val globalTokens = AccountAuthTokens(
-      accessToken = AccessToken("g-access"),
-      refreshToken = RefreshToken("g-refresh"),
-      accessTokenExpiresAt = Instant.DISTANT_FUTURE,
-      refreshTokenExpiresAt = Instant.DISTANT_FUTURE
-    )
+    keyboxDao.rotateKeyboxResult = Ok(rotatedKeybox(rotatedAuthKeys))
     val recoveryTokens = AccountAuthTokens(
       accessToken = AccessToken("r-access"),
       refreshToken = RefreshToken("r-refresh"),
@@ -1772,11 +2051,9 @@ class MigrationServiceImplTests : FunSpec({
       refreshTokenExpiresAt = Instant.DISTANT_FUTURE
     )
     accountAuthenticator.authResults = mutableListOf(
-      Ok(authData(globalTokens)),
       Ok(authData(recoveryTokens))
     )
 
-    // Seed pre-existing tokens so we can verify rollback restores them.
     val oldGlobalTokens = AccountAuthTokens(
       accessToken = AccessToken("old-global-access"),
       refreshToken = RefreshToken("old-global-refresh"),
@@ -1797,8 +2074,6 @@ class MigrationServiceImplTests : FunSpec({
     w3UpgradeDao.saveServerKey(F8eSpendingKeysetMock)
     w3UpgradeDao.saveKeysetLocalId("uuid-0")
 
-    // Make only Recovery token persistence fail — Global will succeed first,
-    // creating the partial-rotation scenario.
     authTokensService.setTokensErrorForScope[Recovery] =
       Error("Recovery token persist failed")
 
@@ -1807,38 +2082,34 @@ class MigrationServiceImplTests : FunSpec({
       currentKeybox = mockAccount.keybox,
       newKeyset = w3UpgradeKeyset()
     ).withProof(
-      newAppAuthKeys = AppAuthPublicKeysMock,
+      newAppAuthKeys = rotatedAuthKeys,
       proof = PrivilegedActionProof.HwKeyProof(mockProofOfPossession)
     ).withRotationData(
       hwSignedAccountId = "signed-account-id",
       hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
-      appGlobalAuthKeyHwSignature = AppAuthPublicKeysMock.appGlobalAuthKeyHwSignature
+      appGlobalAuthKeyHwSignature = rotatedAuthKeys.appGlobalAuthKeyHwSignature
     )
 
     val result = service.proceed(state = authKeyRotationState)
 
-    // Should fail because of token rotation failure
     result.shouldBeErrOfType<MigrationError.AuthKeyRotationFailed>()
 
     rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
-    accountAuthenticator.authCalls.awaitItem()
-    accountAuthenticator.authCalls.awaitItem()
+    accountAuthenticator.authCalls.awaitItem().shouldBe(rotatedAuthKeys.appRecoveryAuthPublicKey)
+    accountAuthenticator.authCalls.expectNoEvents()
     keyboxDao.rotateAuthKeysCalls.awaitItem()
 
-    // After rollback, Global tokens should be restored to the pre-rotation value
-    // (not the newly-rotated value), and Recovery should still have the old tokens.
-    // This uses setTokens for rollback (not clear()) so it works in Customer builds.
     authTokensService.getTokens(mockAccount.accountId, Global).get().shouldBe(oldGlobalTokens)
     authTokensService.getTokens(mockAccount.accountId, Recovery).get().shouldBe(oldRecoveryTokens)
   }
 
-  // -- Checkpoint before token refresh: Issue 3 --
+  // -- Checkpoint before recovery token refresh --
 
-  test("W3Upgrade token refresh failure retries from AuthKeyRotation without re-calling server") {
+  test("W3Upgrade recovery token refresh failure retries from AuthKeyRotation without re-calling server") {
+    val rotatedAuthKeys = w3RotatedAuthKeys()
     accountService.setActiveAccount(mockAccount)
-    keyboxDao.rotateKeyboxResult = Ok(rotatedKeybox())
+    keyboxDao.rotateKeyboxResult = Ok(rotatedKeybox(rotatedAuthKeys))
 
-    // Make token refresh fail
     accountAuthenticator.authResults = mutableListOf(
       Err(build.wallet.auth.AuthProtocolError("token refresh failed"))
     )
@@ -1853,67 +2124,47 @@ class MigrationServiceImplTests : FunSpec({
       currentKeybox = mockAccount.keybox,
       newKeyset = w3UpgradeKeyset()
     ).withProof(
-      newAppAuthKeys = AppAuthPublicKeysMock,
+      newAppAuthKeys = rotatedAuthKeys,
       proof = PrivilegedActionProof.HwKeyProof(mockProofOfPossession)
     ).withRotationData(
       hwSignedAccountId = "signed-account-id",
       hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
-      appGlobalAuthKeyHwSignature = AppAuthPublicKeysMock.appGlobalAuthKeyHwSignature
+      appGlobalAuthKeyHwSignature = rotatedAuthKeys.appGlobalAuthKeyHwSignature
     )
 
-    // This should fail due to token refresh failure
     val result = service.proceed(state = authKeyRotationState)
     result.shouldBeErrOfType<MigrationError.AuthKeyRotationFailed>()
 
     rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
-    accountAuthenticator.authCalls.awaitItem()
+    accountAuthenticator.authCalls.awaitItem().shouldBe(rotatedAuthKeys.appRecoveryAuthPublicKey)
+    accountAuthenticator.authCalls.expectNoEvents()
     keyboxDao.rotateAuthKeysCalls.awaitItem()
 
-    // authKeyRotationCompleted should NOT be set — post-rotation steps failed,
-    // so they need to be retried on resume.
     val daoState = w3UpgradeDao.state.value.get().shouldNotBeNull()
     daoState.authKeyRotationCompleted.shouldBe(false)
 
-    // But serverAuthRotationCompleted IS set, so the server call won't be repeated.
     daoState.serverAuthRotationCompleted.shouldBe(true)
 
-    // On resume, flow should re-enter AuthKeyRotation (with persisted keys)
-    // so that token refresh and TC endorsements are retried.
-    accountService.setActiveAccount(rotatedAccount())
+    accountService.setActiveAccount(rotatedAccount(rotatedAuthKeys))
     val resumeResult = service.resume(MigrationType.W3Upgrade)
     resumeResult.shouldBeOk()
     val resumeState = resumeResult.get().shouldNotBeNull()
     resumeState.shouldBeInstanceOf<MigrationProgress.AuthKeyRotation>()
-    // Persisted key material should be pre-populated
     resumeState.newAppAuthKeys.shouldNotBeNull()
     resumeState.newAppAuthKeys!!.appGlobalAuthPublicKey
-      .shouldBe(AppAuthPublicKeysMock.appGlobalAuthPublicKey)
-    // Proof is null — server call already succeeded, no proof needed
+      .shouldBe(rotatedAuthKeys.appGlobalAuthPublicKey)
+    resumeState.newAppAuthKeys!!.appRecoveryAuthPublicKey
+      .shouldBe(rotatedAuthKeys.appRecoveryAuthPublicKey)
     resumeState.proof.shouldBe(null)
   }
 
   test("W3Upgrade retry after keybox already rotated uses persisted pre-rotation keys for TC endorsements") {
+    val rotatedAuthKeys = w3RotatedAuthKeys()
     // Simulate: the keybox has already been rotated locally (previous attempt got
     // past rotateKeyboxAuthKeys but failed on token refresh or TC endorsements).
     // The active account now has the NEW auth keys.
-    accountService.setActiveAccount(rotatedAccount())
-    keyboxDao.rotateKeyboxResult = Ok(rotatedKeybox())
-    val globalTokens = AccountAuthTokens(
-      accessToken = AccessToken("g-access"),
-      refreshToken = RefreshToken("g-refresh"),
-      accessTokenExpiresAt = Instant.DISTANT_FUTURE,
-      refreshTokenExpiresAt = Instant.DISTANT_FUTURE
-    )
-    val recoveryTokens = AccountAuthTokens(
-      accessToken = AccessToken("r-access"),
-      refreshToken = RefreshToken("r-refresh"),
-      accessTokenExpiresAt = Instant.DISTANT_FUTURE,
-      refreshTokenExpiresAt = Instant.DISTANT_FUTURE
-    )
-    accountAuthenticator.authResults = mutableListOf(
-      Ok(authData(globalTokens)),
-      Ok(authData(recoveryTokens))
-    )
+    accountService.setActiveAccount(rotatedAccount(rotatedAuthKeys))
+    keyboxDao.rotateKeyboxResult = Ok(rotatedKeybox(rotatedAuthKeys))
 
     w3UpgradeDao.saveHardwareKey(mockNewHwKeys.spendingKey)
     w3UpgradeDao.saveAppKey(AppKeyBundleMock.spendingKey)
@@ -1921,7 +2172,7 @@ class MigrationServiceImplTests : FunSpec({
     w3UpgradeDao.saveKeysetLocalId("uuid-0")
     // Pending data includes the ORIGINAL pre-rotation keys
     w3UpgradeDao.savePendingAuthRotationData(
-      newAppAuthKeys = AppAuthPublicKeysMock,
+      newAppAuthKeys = rotatedAuthKeys,
       hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
       hwSignedAccountId = "signed-account-id",
       oldAppGlobalAuthKey = FullAccountMock.keybox.activeAppKeyBundle.authKey,
@@ -1942,8 +2193,9 @@ class MigrationServiceImplTests : FunSpec({
     val result = service.proceed(state = state)
     result.shouldBeOk()
 
-    accountAuthenticator.authCalls.awaitItem()
-    accountAuthenticator.authCalls.awaitItem()
+    accountAuthenticator.authCalls.awaitItem().shouldBe(rotatedAuthKeys.appRecoveryAuthPublicKey)
+    accountAuthenticator.authCalls.awaitItem().shouldBe(rotatedAuthKeys.appGlobalAuthPublicKey)
+    accountAuthenticator.authCalls.expectNoEvents()
     keyboxDao.rotateAuthKeysCalls.awaitItem()
     deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
     relationshipsService.syncCalls.awaitItem()
@@ -1953,30 +2205,19 @@ class MigrationServiceImplTests : FunSpec({
     val endorseArgs = endorseTrustedContactsService.lastRegenerateAndEndorseArgs.shouldNotBeNull()
     endorseArgs.oldAppGlobalAuthKey.shouldBe(FullAccountMock.keybox.activeAppKeyBundle.authKey)
     endorseArgs.oldHwAuthKey.shouldBe(FullAccountMock.keybox.activeHwKeyBundle.authKey)
-    endorseArgs.newAppGlobalAuthKey.shouldBe(AppAuthPublicKeysMock.appGlobalAuthPublicKey)
+    endorseArgs.newAppGlobalAuthKey.shouldBe(rotatedAuthKeys.appGlobalAuthPublicKey)
     endorseArgs.newHwAuthKey.shouldBe(HwAuthSecp256k1PublicKeyMock)
   }
 
   test("W3Upgrade crash after server rotation but before checkpoint still succeeds on retry") {
+    val rotatedAuthKeys = w3RotatedAuthKeys()
     // Scenario: server rotation succeeded, but the app crashed before
     // setServerAuthRotationCompleted() was written. On retry, the
     // persisted pending keys are verified against the server BEFORE any
     // new server call.  Since they are already active, the flow
     // short-circuits and reuses them without calling rotateKeyset again.
     accountService.setActiveAccount(mockAccount)
-    keyboxDao.rotateKeyboxResult = Ok(rotatedKeybox())
-    val globalTokens = AccountAuthTokens(
-      accessToken = AccessToken("g-access"),
-      refreshToken = RefreshToken("g-refresh"),
-      accessTokenExpiresAt = Instant.DISTANT_FUTURE,
-      refreshTokenExpiresAt = Instant.DISTANT_FUTURE
-    )
-    val recoveryTokens = AccountAuthTokens(
-      accessToken = AccessToken("r-access"),
-      refreshToken = RefreshToken("r-refresh"),
-      accessTokenExpiresAt = Instant.DISTANT_FUTURE,
-      refreshTokenExpiresAt = Instant.DISTANT_FUTURE
-    )
+    keyboxDao.rotateKeyboxResult = Ok(rotatedKeybox(rotatedAuthKeys))
 
     w3UpgradeDao.saveHardwareKey(mockNewHwKeys.spendingKey)
     w3UpgradeDao.saveAppKey(AppKeyBundleMock.spendingKey)
@@ -1985,7 +2226,7 @@ class MigrationServiceImplTests : FunSpec({
     // Pending data was persisted (before the server call), but the
     // serverAuthRotationCompleted checkpoint was NOT written (crash).
     w3UpgradeDao.savePendingAuthRotationData(
-      newAppAuthKeys = AppAuthPublicKeysMock,
+      newAppAuthKeys = rotatedAuthKeys,
       hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
       hwSignedAccountId = "signed-account-id",
       oldAppGlobalAuthKey = mockAccount.keybox.activeAppKeyBundle.authKey,
@@ -1993,24 +2234,19 @@ class MigrationServiceImplTests : FunSpec({
     )
     // NOTE: serverAuthRotationCompleted is NOT set — simulating the crash window.
 
-    // Auth calls: 1) prior-key validation (persisted global key), 2) token refresh global, 3) token refresh recovery
-    accountAuthenticator.authResults = mutableListOf(
-      Ok(authData(globalTokens)), // prior-key validation: persisted global key is active
-      Ok(authData(globalTokens)), // token refresh: global
-      Ok(authData(recoveryTokens)) // token refresh: recovery
-    )
+    authF8eClient.initiateAuthenticationResult = Ok(hwAuthInitiationSuccess())
 
     val authKeyRotationState = MigrationProgress.AuthKeyRotation(
       type = MigrationType.W3Upgrade,
       currentKeybox = mockAccount.keybox,
       newKeyset = w3UpgradeKeyset()
     ).withProof(
-      newAppAuthKeys = AppAuthPublicKeysMock,
+      newAppAuthKeys = rotatedAuthKeys,
       proof = PrivilegedActionProof.HwKeyProof(mockProofOfPossession)
     ).withRotationData(
       hwSignedAccountId = "signed-account-id",
       hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
-      appGlobalAuthKeyHwSignature = AppAuthPublicKeysMock.appGlobalAuthKeyHwSignature
+      appGlobalAuthKeyHwSignature = rotatedAuthKeys.appGlobalAuthKeyHwSignature
     )
 
     // Should succeed because persisted keys are detected as already active.
@@ -2018,14 +2254,11 @@ class MigrationServiceImplTests : FunSpec({
     result.shouldBeOk()
     val state = result.get().shouldNotBeNull()
     state.shouldBeInstanceOf<MigrationProgress.DescriptorBackup>()
-    state.currentKeybox.shouldBe(rotatedKeybox())
+    state.currentKeybox.shouldBe(rotatedKeybox(rotatedAuthKeys))
 
-    // rotateKeyset is NOT called — prior-key validation short-circuited.
-
-    // Auth calls: prior-key validation + token refresh
-    accountAuthenticator.authCalls.awaitItem() // prior-key validation: persisted global key
-    accountAuthenticator.authCalls.awaitItem() // token refresh: global
-    accountAuthenticator.authCalls.awaitItem() // token refresh: recovery
+    accountAuthenticator.authCalls.awaitItem().shouldBe(rotatedAuthKeys.appRecoveryAuthPublicKey)
+    accountAuthenticator.authCalls.awaitItem().shouldBe(rotatedAuthKeys.appGlobalAuthPublicKey)
+    accountAuthenticator.authCalls.expectNoEvents()
     keyboxDao.rotateAuthKeysCalls.awaitItem()
     deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
     relationshipsService.syncCalls.awaitItem()
@@ -2036,6 +2269,7 @@ class MigrationServiceImplTests : FunSpec({
   }
 
   test("W3Upgrade transient error during prior-key check preserves persisted keys") {
+    val rotatedAuthKeys = w3RotatedAuthKeys()
     // Scenario: persisted pending keys exist (no checkpoint), but the auth
     // check to verify them hits a transient network error.  The flow must
     // NOT overwrite the persisted keys and should propagate the error.
@@ -2046,16 +2280,15 @@ class MigrationServiceImplTests : FunSpec({
     w3UpgradeDao.saveServerKey(F8eSpendingKeysetMock)
     w3UpgradeDao.saveKeysetLocalId("uuid-0")
     w3UpgradeDao.savePendingAuthRotationData(
-      newAppAuthKeys = AppAuthPublicKeysMock,
+      newAppAuthKeys = rotatedAuthKeys,
       hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
       hwSignedAccountId = "signed-account-id",
       oldAppGlobalAuthKey = mockAccount.keybox.activeAppKeyBundle.authKey,
       oldHwAuthPublicKey = mockAccount.keybox.activeHwKeyBundle.authKey
     )
 
-    // Prior-key auth check returns a transient network error.
-    accountAuthenticator.authResults = mutableListOf(
-      Err(AuthNetworkError("transient network failure"))
+    authF8eClient.initiateAuthenticationResult = Err(
+      HttpError.NetworkError(Throwable("transient network failure"))
     )
 
     val authKeyRotationState = MigrationProgress.AuthKeyRotation(
@@ -2063,24 +2296,23 @@ class MigrationServiceImplTests : FunSpec({
       currentKeybox = mockAccount.keybox,
       newKeyset = w3UpgradeKeyset()
     ).withProof(
-      newAppAuthKeys = AppAuthPublicKeysMock,
+      newAppAuthKeys = rotatedAuthKeys,
       proof = PrivilegedActionProof.HwKeyProof(mockProofOfPossession)
     ).withRotationData(
       hwSignedAccountId = "signed-account-id",
       hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
-      appGlobalAuthKeyHwSignature = AppAuthPublicKeysMock.appGlobalAuthKeyHwSignature
+      appGlobalAuthKeyHwSignature = rotatedAuthKeys.appGlobalAuthKeyHwSignature
     )
 
     val result = service.proceed(state = authKeyRotationState)
     result.shouldBeErrOfType<MigrationError.AuthKeyRotationFailed>()
 
-    // Auth was called (prior-key check), but no rotation attempt was made.
-    accountAuthenticator.authCalls.awaitItem()
+    accountAuthenticator.authCalls.expectNoEvents()
 
     // Persisted pending keys must NOT have been overwritten.
     val entity = w3UpgradeDao.state.value.get().shouldNotBeNull()
-    entity.pendingAppGlobalAuthKey.shouldBe(AppAuthPublicKeysMock.appGlobalAuthPublicKey)
-    entity.pendingAppRecoveryAuthKey.shouldBe(AppAuthPublicKeysMock.appRecoveryAuthPublicKey)
+    entity.pendingAppGlobalAuthKey.shouldBe(rotatedAuthKeys.appGlobalAuthPublicKey)
+    entity.pendingAppRecoveryAuthKey.shouldBe(rotatedAuthKeys.appRecoveryAuthPublicKey)
     entity.serverAuthRotationCompleted.shouldBe(false)
   }
 })

@@ -40,7 +40,6 @@ import build.wallet.logging.NFC_TAG
 import build.wallet.logging.logDebug
 import build.wallet.logging.logWarn
 import build.wallet.nfc.platform.ActionProofAction
-import build.wallet.nfc.platform.ChunkData
 import build.wallet.nfc.platform.ConfirmationHandles
 import build.wallet.nfc.platform.ConfirmationResult
 import build.wallet.nfc.platform.CsekUnsealResult
@@ -584,6 +583,7 @@ class BitkeyW1Commands(
   override suspend fun upgradeAuthorizeW3(
     session: NfcSession,
     ddkPrivateKeyBytes: ByteString,
+    sealedSsekForDecryption: SealedData?,
     descriptorBackupsBindings: String,
     activateKeysetBindings: String,
     actionProofVersion: UInt,
@@ -732,8 +732,6 @@ class BitkeyW1Commands(
             ConfirmationResult.WipeDevice(result.success)
           is ConfirmedCommandResult.FwupStart ->
             ConfirmationResult.FwupStart(result.success)
-          is ConfirmedCommandResult.ChunkedDataAvailable ->
-            ConfirmationResult.ChunkedDataAvailable(result.totalSize)
           is ConfirmedCommandResult.SignActionProof ->
             ConfirmationResult.SignActionProof(result.signature.toByteString().hex())
           is ConfirmedCommandResult.SignTx ->
@@ -782,7 +780,8 @@ class BitkeyW1Commands(
             ConfirmationResult.UpgradeAuthorizeW3(
               descriptorBackupsSignature = result.descriptorBackupsSignature,
               activateKeysetSignature = result.activateKeysetSignature,
-              sealedDdkData = result.sealedDdkData
+              sealedDdkData = result.sealedDdkData,
+              unsealedSsek = result.unsealedSsek.takeIf { it.isNotEmpty() }
             )
           is ConfirmedCommandResult.UpgradeRotateAppAuthKeys ->
             ConfirmationResult.UpgradeRotateAppAuthKeys(
@@ -795,31 +794,6 @@ class BitkeyW1Commands(
           is ConfirmedCommandResult.FullAccountCloudBackupRestoration ->
             ConfirmationResult.FullAccountCloudBackupRestoration
         }
-      }
-    )
-
-  override suspend fun getConfirmationResultChunk(
-    session: NfcSession,
-    handles: ConfirmationHandles,
-    chunkIndex: UInt,
-  ): ChunkData =
-    executeCommand(
-      session = session,
-      generateCommand = {
-        GetConfirmationResultChunk(
-          responseHandle = handles.responseHandle,
-          confirmationHandle = handles.confirmationHandle,
-          chunkIndex = chunkIndex
-        )
-      },
-      getNext = { command, data -> command.next(data) },
-      getResponse = { state: ChunkDataState.Data -> state.response },
-      generateResult = { state: ChunkDataState.Result ->
-        ChunkData(
-          chunk = state.value.chunk,
-          isLast = state.value.isLast,
-          remainingSize = state.value.remainingSize
-        )
       }
     )
 

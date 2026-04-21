@@ -276,12 +276,6 @@ interface SignTransfer {
   SignTransferResultState next(sequence<u8> response);
 };
 
-interface GetConfirmationResultChunk {
-  constructor(sequence<u8> response_handle, sequence<u8> confirmation_handle, u32 chunk_index);
-  [Throws=CommandError]
-  ChunkDataState next(sequence<u8> response);
-};
-
 interface SignStreamStart {
   constructor(u32 num_inputs, u32 num_outputs, u32 version, u32 lock_time, u32 payload_size, BtcDisplayUnit btc_display_unit);
   [Throws=CommandError]
@@ -337,7 +331,7 @@ interface RecoveryAuthorizeLostHw {
 };
 
 interface UpgradeAuthorizeW3 {
-  constructor(sequence<u8> ddk_private_key, string descriptor_backups_bindings, string activate_keyset_bindings, u32 action_proof_version);
+  constructor(sequence<u8> ddk_private_key, sequence<u8> sealed_ssek_for_decryption, string descriptor_backups_bindings, string activate_keyset_bindings, u32 action_proof_version);
   [Throws=CommandError]
   UpgradeAuthorizeW3ResultState next(sequence<u8> response);
 };
@@ -503,7 +497,6 @@ interface ConfirmedCommandResultState {
 interface ConfirmedCommandResult {
   WipeState(boolean success);
   FwupStart(boolean success);
-  ChunkedDataAvailable(u32 total_size);
   SignActionProof(sequence<u8> signature);
   SignTx(sequence<InputSignatureTuple> signatures);
   SignStreamReady(u32 num_inputs);
@@ -514,7 +507,7 @@ interface ConfirmedCommandResult {
   SignChallengeAndSealSeks(sequence<u8> signature, sequence<u8> sealed_csek, sequence<u8> sealed_ssek);
   RecoveryAuthorizeLostApp(sequence<u8> descriptor_backups_signature, sequence<u8> activate_keyset_signature, sequence<u8> unsealed_ddk_data, sequence<u8> unsealed_ssek);
   RecoveryAuthorizeLostHw(sequence<u8> descriptor_backups_signature, sequence<u8> activate_keyset_signature, sequence<u8> sealed_ddk_data);
-  UpgradeAuthorizeW3(sequence<u8> descriptor_backups_signature, sequence<u8> activate_keyset_signature, sequence<u8> sealed_ddk_data);
+  UpgradeAuthorizeW3(sequence<u8> descriptor_backups_signature, sequence<u8> activate_keyset_signature, sequence<u8> sealed_ddk_data, sequence<u8> unsealed_ssek);
   EekRestorationUnsealSymmetricKey(sequence<u8> unsealed_key);
   FullAccountCloudBackupRestoration();
 };
@@ -625,12 +618,6 @@ interface SignTransferResultState {
 interface SignTransferResult {
   Success();
   ConfirmationPending(sequence<u8> response_handle, sequence<u8> confirmation_handle);
-};
-
-[Enum]
-interface ChunkDataState {
-  Data(sequence<u8> response);
-  Result(ChunkData value);
 };
 
 [Enum]
@@ -825,12 +812,6 @@ dictionary StreamPayload {
   sequence<u8> commitment_hash;
   /// Total size of the payload in bytes.
   u32 payload_size;
-};
-
-dictionary ChunkData {
-  sequence<u8> chunk;
-  boolean is_last;
-  u32 remaining_size;
 };
 
 enum FingerprintEnrollmentStatus {

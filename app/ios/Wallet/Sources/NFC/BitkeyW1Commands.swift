@@ -496,8 +496,6 @@ public final class BitkeyW1Commands: NfcCommands {
             return Shared.ConfirmationResultWipeDevice(success: success)
         case let .fwupStart(success):
             return Shared.ConfirmationResultFwupStart(success: success)
-        case let .chunkedDataAvailable(totalSize):
-            return Shared.ConfirmationResultChunkedDataAvailable(totalSize: totalSize)
         case let .signActionProof(signature):
             let hexSignature = signature.map { String(format: "%02x", $0) }.joined()
             return Shared.ConfirmationResultSignActionProof(signature: hexSignature)
@@ -549,11 +547,14 @@ public final class BitkeyW1Commands: NfcCommands {
                 activateKeysetSignature: akSig.map { KotlinUByte(value: $0) },
                 sealedDdkData: sealedDdk.map { KotlinUByte(value: $0) }
             )
-        case let .upgradeAuthorizeW3(dbSig, akSig, sealedDdk):
+        case let .upgradeAuthorizeW3(dbSig, akSig, sealedDdk, unsealedSsek):
             return Shared.ConfirmationResultUpgradeAuthorizeW3(
                 descriptorBackupsSignature: dbSig.map { KotlinUByte(value: $0) },
                 activateKeysetSignature: akSig.map { KotlinUByte(value: $0) },
-                sealedDdkData: sealedDdk.map { KotlinUByte(value: $0) }
+                sealedDdkData: sealedDdk.map { KotlinUByte(value: $0) },
+                unsealedSsek: unsealedSsek.isEmpty
+                    ? nil
+                    : unsealedSsek.map { KotlinUByte(value: $0) }
             )
         case let .upgradeRotateAppAuthKeys(hwSignedAccountId, appAuthKeySignature, hwAuthPublicKey):
             return Shared.ConfirmationResultUpgradeRotateAppAuthKeys(
@@ -666,6 +667,7 @@ public final class BitkeyW1Commands: NfcCommands {
     public func upgradeAuthorizeW3(
         session _: NfcSession,
         ddkPrivateKeyBytes _: OkioByteString,
+        sealedSsekForDecryption _: OkioByteString?,
         descriptorBackupsBindings _: String,
         activateKeysetBindings _: String,
         actionProofVersion _: UInt32
@@ -674,23 +676,6 @@ public final class BitkeyW1Commands: NfcCommands {
             message: "upgradeAuthorizeW3 is not supported on W1 hardware. This is a W3-only feature.",
             cause: nil
         ).asError()
-    }
-
-    public func getConfirmationResultChunk(
-        session: NfcSession,
-        handles: Shared.ConfirmationHandles,
-        chunkIndex: UInt32
-    ) async throws -> Shared.ChunkData {
-        let result = try await GetConfirmationResultChunk(
-            responseHandle: handles.responseHandle.map(\.uint8Value),
-            confirmationHandle: handles.confirmationHandle.map(\.uint8Value),
-            chunkIndex: chunkIndex
-        ).transceive(session: session)
-        return Shared.ChunkData(
-            chunk: result.chunk.map { KotlinUByte(value: $0) },
-            isLast: result.isLast,
-            remainingSize: result.remainingSize
-        )
     }
 
     public func getAddress(

@@ -15,6 +15,7 @@ kotlin {
         api(libs.kmp.kotlin.datetime)
         api(projects.domain.bitkeyPrimitivesPublic)
         api(projects.domain.recoveryPublic)
+        api(projects.libs.sqldelightPublic)
         implementation(projects.libs.loggingPublic)
         implementation(projects.libs.stdlibPublic)
       }

@@ -7,6 +7,7 @@ import psutil
 import certifi
 import pathlib
 import subprocess
+import tempfile
 from typing import List
 
 from tasks.lib.paths import BUILD_FW_DIR, CONFIG_FILE
@@ -21,18 +22,28 @@ load
 compare-sections
 monitor reset
 monitor go
+monitor writeU32 0xE000EDF0 0xA05F0000
 disconnect
 quit
 """
 
 
 class JLinkGdbServer:
-    def __init__(self, chip: str, gdb_config: str = None, gdb_server_path: str = None, gdb_client_path: str = None, jlink_serial: str = None):
-        self.chip = chip
-        self.gdb_config = gdb_config
-        self.gdb_server = gdb_server_path or "JLinkGDBServer"
-        self.gdb_client = gdb_client_path or "arm-none-eabi-gdb"
-        self.jlink_serial = jlink_serial
+    def __init__(
+        self,
+        chip: str,
+        gdb_config: str | None = None,
+        gdb_server_path: str | None = None,
+        gdb_client_path: str | None = None,
+        jlink_serial: str | None = None,
+        jlink_exe_path: str | None = None,
+    ) -> None:
+        self.chip: str = chip
+        self.gdb_config: str | None = gdb_config
+        self.gdb_server: str = gdb_server_path or "JLinkGDBServer"
+        self.gdb_client: str = gdb_client_path or "arm-none-eabi-gdb"
+        self.jlink_exe: str = jlink_exe_path or "JLinkExe"
+        self.jlink_serial: str | None = jlink_serial
 
     def __enter__(self):
         # Kill dangling JLink processes. They can cause flashing to fail.
@@ -58,10 +69,17 @@ class JLinkGdbServer:
                 p.wait()
 
     def _parse_gdb_err(self, err: str) -> str:
-        """Parses the error from a gdb stderr output"""
-        # Example stderr output:
-        # b'/.../gdb_flash.txt:1: Error in sourced command file:\nlocalhost:2331: Operation timed out.\n'
-        pattern = re.compile(r"^localhost:\d+: (.*)$")
+        """Parses the error from a gdb stderr output.
+
+        Example standard error output:
+            b'/.../gdb_flash.txt:1: Error in sourced command file:
+            localhost:2331: Operation timed out.
+
+        :param err: standard error from the GDB server execution.
+        :returns: extracted error string.
+        """
+        host, _ = self._gdb_server_endpoint()
+        pattern = re.compile(fr"^{host}:\d+: (.*)$")
         lines = err.decode("utf-8").split('\n')
         # Second line of the output is the gdb error (typically)
         err_line = str(lines[1])
@@ -93,12 +111,15 @@ class JLinkGdbServer:
         try:
             p = subprocess.Popen(command, stdin=subprocess.PIPE,
                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            host, port = self._gdb_server_endpoint()
             output = p.communicate(
-                input="""target extended-remote localhost:2331
-monitor reset
-monitor halt
-monitor flash erase
-kill""".encode())[0]
+                input="\n".join([
+                    f"target extended-remote {host}:{port}",
+                    "monitor reset",
+                    "monitor halt",
+                    "monitor flash erase",
+                    "kill"
+                ]).encode())[0]
 
             if "Flash erase: O.K." not in str(output):
                 click.echo(click.style(f'Failed to erase flash', fg='red'))
@@ -121,9 +142,73 @@ kill""".encode())[0]
                 f"Trying to erase flash again... ({attempt}/{limit})", fg='red'))
         return attempt != limit
 
+    def _gdb_server_endpoint(self) -> tuple[str, int]:
+        """Returns the host and port for the GDB server.
+
+        :returns: ``(hostname, port number)``.
+        """
+        host = (
+            getattr(self, "gdb_host", None)
+            or getattr(self, "host", None)
+            or "localhost"
+        )
+        port = (
+            getattr(self, "gdb_port", None)
+            or getattr(self, "port", None)
+            or getattr(self, "server_port", None)
+            or 2331
+        )
+        return host, int(port)
+
+    def erase_range(self, addr: int, size: int) -> bool:
+        """Erase a specific flash address range using the active J-Link GDB server.
+
+        :param addr: start address (in flash) to start the erase from.
+        :param size: number of bytes to erase, must be a multiple of the minimum erase size.
+        :returns: ``True`` on success, otherwise ``False``.
+        """
+        end_addr = addr + size
+        script = "\n".join([
+            f"device {self.chip}",
+            "si 1",
+            "speed 4000",
+            "connect",
+            f"erase {addr:#010x} {end_addr:#010x}",
+            "exit"
+        ])
+
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".jlink") as tf:
+                tf.write(script)
+                tf.flush()
+
+                cmd = f"{self.jlink_exe} -CommandFile {tf.name} -NoGui 1"
+                if self.jlink_serial:
+                    cmd += f" -USB {self.jlink_serial}"
+
+                output = subprocess.check_output(
+                    shlex.split(cmd), stderr=subprocess.STDOUT)
+                output_str = output.decode("utf-8", errors="replace")
+                if "error" not in output_str.lower():
+                    click.echo(click.style(
+                        f"Erased {addr:#010x}+{size:#x}", fg="green"))
+                    return True
+
+            click.echo(output_str)
+            click.echo(click.style(
+                f"Failed to erase range {addr:#010x}+{size:#x}", fg="red"))
+            return False
+        except subprocess.CalledProcessError as e:
+            output_str = e.output.decode("utf-8", errors="replace")
+            click.echo(output_str)
+            click.echo(click.style(
+                f"Failed to erase range {addr:#010x}+{size:#x}", fg="red"))
+            return False
+
     def debug_command(self, image: pathlib.Path):
         """Returns the command needed to open a gdb debugging session"""
-        target_command = "target extended-remote localhost:2331"
+        host, port = self._gdb_server_endpoint()
+        target_command = f"target extended-remote {host}:{port}"
         python_site_packages = list(filter(lambda x: x.endswith(
             'site-packages'), sys.path))[0]
         return [
@@ -143,8 +228,9 @@ kill""".encode())[0]
         try:
             p = subprocess.Popen(gdb, stdin=subprocess.PIPE,
                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            host, port = self._gdb_server_endpoint()
             output = p.communicate(
-                input=f"target extended-remote localhost:2331\n{command}".encode())[0]
+                input=f"target extended-remote {host}:{port}\n{command}".encode())[0]
         except subprocess.CalledProcessError as e:
             err = self._parse_gdb_err(e.output)
             click.echo(click.style(f'Error: {err}', fg='red'))
@@ -156,7 +242,13 @@ kill""".encode())[0]
 class GdbCapture:
     gdb_process = None
 
-    def __init__(self, breakpoints: List[str], platform: str) -> None:
+    def __init__(
+        self,
+        breakpoints: List[str],
+        platform: str,
+        host: str = "localhost",
+        port: int = 2331,
+    ) -> None:
         with open(CONFIG_FILE, "r") as f:
             config = json.load(f)
             target = config.get('target')
@@ -168,7 +260,7 @@ class GdbCapture:
 
         # Connect to remote GDB server
         self.gdb_process.stdin.write(
-            b'-target-select extended-remote localhost:2331\n')
+            f'-target-select extended-remote {host}:{port}\n'.encode('utf-8'))
         self.gdb_process.stdin.flush()
 
         # Set breakpoints

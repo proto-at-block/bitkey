@@ -35,7 +35,7 @@ sl_status_t se_sign_with_device_identity_key(uint8_t* data, uint32_t size, uint8
     goto fail;
   }
 
-  memset(&attestation_cmd_ctx, 0, sizeof(attestation_cmd_ctx));
+  memzero(&attestation_cmd_ctx, sizeof(attestation_cmd_ctx));
 
   // Export pubkey and verify after signing
   uint8_t pubkey[64] = {0};

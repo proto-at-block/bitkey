@@ -8,16 +8,18 @@ It also includes globally accessible pytest fixtures.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import pytest
 import yaml
 from typing import Any, Generator, NamedTuple
 
-from tasks.lib.paths import PLATFORM_FILE
-
+import wallet_pb2
 from bitkey.gdb import GdbCapture, JLinkGdbServer
 from bitkey.comms import NFCTransaction, WalletComms
+from bitkey.secure_channel import SecureChannel
 from bitkey.wallet import Wallet
+from tasks.lib.paths import PLATFORM_FILE
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -71,7 +73,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
                      help="skip firmware building")
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def platform_config(request: pytest.FixtureRequest) -> Generator[PlatformConfig, None, None]:
     """Yields a fixture specifying the platform configuration for the device
     under test.
@@ -139,7 +141,7 @@ def gdb_capture(
         gdb_capture.get_backtrace()
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def wallet(platform_config: PlatformConfig) -> Generator[Wallet, None, None]:
     """Yields an instance of a Wallet device connection.
 
@@ -153,13 +155,44 @@ def wallet(platform_config: PlatformConfig) -> Generator[Wallet, None, None]:
     comms.close()
 
 
-@pytest.fixture
-def auth_with_pin(wallet: Wallet) -> Generator[None, None, None]:
-    """Automatically provisions a secret ``"foobar"`` for use as a device PIN.
+@pytest.fixture(scope="function")
+def secure_channel(wallet: Wallet, test_pin: str = "itysl") -> Generator[SecureChannel, None, None]:
+    """Automatically provisions a secret for use as a device PIN.
 
     :param wallet: test ``Wallet`` instance.
-    :returns: ``None``
+    :param test_pin: PIN to use for unlock for on-device testing.
+    :returns: ``SecureChannel`` instance.
     """
-    logger.info("Authenticating with PIN")
-    logger.info(wallet.provision_unlock_secret("foobar"))
-    logger.info(wallet.unlock_secret("foobar"))
+    # Use the development test command to by-pass fingerprint authentication.
+    success: bool = wallet.unlock_device()
+    assert success, "Failed to unlock device."
+
+    with SecureChannel(wallet) as sc:
+        secret_hash = hashlib.sha256(test_pin.encode("ascii")).digest()
+
+        # Provision a new PIN to use for PIN-based authentication.
+        logger.info("Provisioning PIN for unlock.")
+        provision_cmd = wallet_pb2.wallet_cmd()
+        provision_msg = wallet_pb2.provision_unlock_secret_cmd()
+        provision_msg.secret.CopyFrom(sc.encrypt(secret_hash))
+        provision_cmd.provision_unlock_secret_cmd.CopyFrom(provision_msg)
+        logger.info(provision_msg)
+
+        provision_rsp = wallet.comms.transceive(provision_cmd)
+        logger.info(provision_rsp)
+        assert provision_rsp.status == wallet_pb2.status.SUCCESS, "Failed to provision PIN."
+
+        # Use the new PIN to finish the unlock process.
+        logger.info("Validating PIN")
+        unlock_cmd = wallet_pb2.wallet_cmd()
+        unlock_msg = wallet_pb2.send_unlock_secret_cmd()
+        unlock_msg.secret.CopyFrom(sc.encrypt(secret_hash))
+        unlock_cmd.send_unlock_secret_cmd.CopyFrom(unlock_msg)
+        logger.info(unlock_msg)
+
+        unlock_rsp = wallet.comms.transceive(unlock_cmd)
+        logger.info(unlock_rsp)
+        assert unlock_rsp.status == wallet_pb2.status.SUCCESS, "Failed to unlock device."
+        logger.info("Authentication complete.")
+
+        yield sc

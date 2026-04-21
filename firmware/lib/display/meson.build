@@ -146,7 +146,6 @@ image_pngs_a8 = [
   'ui/images/power.png',
   'ui/images/check.png',
   'ui/images/cross.png',
-  'ui/images/dot.png',
   'ui/images/battery_10.png',
   'ui/images/battery_25.png',
   'ui/images/battery_50.png',

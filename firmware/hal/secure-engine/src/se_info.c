@@ -75,7 +75,11 @@ out:
 sl_status_t se_get_secinfo(se_info_t* info) {
   sl_status_t status = SL_STATUS_FAIL;
 
-  memset(info, 0, sizeof(se_info_t));
+  if (info == NULL) {
+    return SL_STATUS_INVALID_PARAMETER;
+  }
+
+  memzero(info, sizeof(*info));
 
   sl_se_command_context_t cmd_ctx = {0};
   status = sl_se_init_command_context(&cmd_ctx);
@@ -88,25 +92,25 @@ sl_status_t se_get_secinfo(se_info_t* info) {
     goto out;
   }
 
-  memset(&cmd_ctx, 0, sizeof(cmd_ctx));
+  memzero(&cmd_ctx, sizeof(cmd_ctx));
   status = sl_se_get_otp_version(&cmd_ctx, &info->otp_version);
   if (status != SL_STATUS_OK) {
     goto out;
   }
 
-  memset(&cmd_ctx, 0, sizeof(cmd_ctx));
+  memzero(&cmd_ctx, sizeof(cmd_ctx));
   status = sl_se_get_serialnumber(&cmd_ctx, info->serial);
   if (status != SL_STATUS_OK) {
     goto out;
   }
 
-  memset(&cmd_ctx, 0, sizeof(cmd_ctx));
+  memzero(&cmd_ctx, sizeof(cmd_ctx));
   status = sl_se_read_otp(&cmd_ctx, &info->otp);
   if (status != SL_STATUS_OK) {
     goto out;
   }
 
-  memset(&cmd_ctx, 0, sizeof(cmd_ctx));
+  memzero(&cmd_ctx, sizeof(cmd_ctx));
   status = se_get_status(&info->se_status);  // Note: NOT sl_se_get_status.
   if (status != SL_STATUS_OK) {
     goto out;
@@ -142,7 +146,7 @@ sl_status_t se_read_cert(sl_se_cert_type_t kind, uint8_t cert[512], uint16_t* si
       break;
   }
 
-  memset(&cmd_ctx, 0, sizeof(cmd_ctx));
+  memzero(&cmd_ctx, sizeof(cmd_ctx));
 
   status = sl_se_read_cert(&cmd_ctx, kind, cert, *size);
   if (status != SL_STATUS_OK) {

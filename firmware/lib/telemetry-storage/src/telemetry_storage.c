@@ -88,8 +88,13 @@ bool telemetry_coredump_read_fragment(uint32_t offset, fwpb_coredump_fragment* f
     goto out;
   }
 
-  frag->data.size = bytes_read;
-  frag->offset = offset + bytes_read;
+  if (bytes_read > (int32_t)sizeof(frag->data.bytes)) {
+    LOGE("Read too big");
+    goto out;
+  }
+
+  frag->data.size = (pb_size_t)bytes_read;
+  frag->offset = (int32_t)offset + bytes_read;
 
   if (frag->offset >= TELEMETRY_COREDUMP_SIZE) {
     // Done processing a coredump. Truncate to remove it from flash.

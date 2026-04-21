@@ -10,12 +10,12 @@
 #include <string.h>
 
 // Dot styling
-#define DOT_SIZE_RESTING 3
-#define DOT_SIZE_MID     5
-#define DOT_SIZE_ACTIVE  6
-#define COLOR_RESTING    0x313131
+#define DOT_SIZE_RESTING 4
+#define DOT_SIZE_ACTIVE  8
+#define COLOR_RESTING    0x404040
 #define COLOR_ACTIVE     0xFFFFFF
 #define BLEND_MAX        255
+#define DOT_INACTIVE_OPA LV_OPA_70
 
 // Animation timing
 #define ANIM_UPDATE_MS    50
@@ -30,17 +30,13 @@
 // Success ring end state (matches screen_confirmation.c layout, white variant)
 #define FONT_TEXT_CONTENT                (&cash_sans_mono_regular_30)
 #define SUCCESS_RING_FILL_DURATION_MS    650
-#define SUCCESS_RING_HOLD_DURATION_MS    6000
+#define SUCCESS_RING_HOLD_DURATION_MS    4800
 #define SUCCESS_RING_OUTRO_DURATION_MS   650
 #define SUCCESS_CONTENT_FADE_DURATION_MS 650
 #define SUCCESS_CONTENT_FADE_DELAY_MS \
   (SUCCESS_RING_FILL_DURATION_MS - SUCCESS_CONTENT_FADE_DURATION_MS)
-#define SUCCESS_CHECKMARK_Y_OFFSET (-28)
-#define SUCCESS_TEXT_Y_OFFSET      28
-#define COLOR_INACTIVE_RING        lv_color_hex(0x555555)
-#define INACTIVE_RING_OPA          LV_OPA_50
-
-extern const lv_img_dsc_t check;
+#define COLOR_INACTIVE_RING lv_color_hex(0x404040)
+#define INACTIVE_RING_OPA   LV_OPA_70
 
 // Grid center (absolute display coords)
 #define GRID_X_CENTER 233
@@ -107,7 +103,6 @@ static bool success_content_visible = false;
 
 static lv_obj_t* screen = NULL;
 static lv_obj_t* dot_objs[DOTS_COUNT];
-static lv_obj_t* success_icon = NULL;
 static lv_obj_t* success_label = NULL;
 static dot_ring_t success_ring = {0};
 static lv_timer_t* anim_timer = NULL;
@@ -168,6 +163,9 @@ static void set_dot(int idx, uint8_t intensity) {
   lv_color_t resting = lv_color_hex(COLOR_RESTING);
   lv_color_t active = lv_color_hex(COLOR_ACTIVE);
   lv_obj_set_style_bg_color(dot_objs[idx], lerp_color(resting, active, color_t), 0);
+  lv_opa_t opa =
+    (lv_opa_t)(DOT_INACTIVE_OPA + ((LV_OPA_COVER - DOT_INACTIVE_OPA) * color_t) / BLEND_MAX);
+  lv_obj_set_style_bg_opa(dot_objs[idx], opa, 0);
 }
 
 static void set_dot_settled(int idx) {
@@ -179,6 +177,7 @@ static void set_dot_settled(int idx) {
   lv_obj_set_size(dot_objs[idx], DOT_SIZE_RESTING, DOT_SIZE_RESTING);
   lv_obj_set_pos(dot_objs[idx], x - DOT_SIZE_RESTING / 2, y - DOT_SIZE_RESTING / 2);
   lv_obj_set_style_bg_color(dot_objs[idx], lv_color_hex(COLOR_ACTIVE), 0);
+  lv_obj_set_style_bg_opa(dot_objs[idx], LV_OPA_COVER, 0);
 }
 
 static void set_dot_settling(int idx, uint8_t shrink_t) {
@@ -193,6 +192,7 @@ static void set_dot_settling(int idx, uint8_t shrink_t) {
   lv_obj_set_size(dot_objs[idx], size, size);
   lv_obj_set_pos(dot_objs[idx], x - size / 2, y - size / 2);
   lv_obj_set_style_bg_color(dot_objs[idx], lv_color_hex(COLOR_ACTIVE), 0);
+  lv_obj_set_style_bg_opa(dot_objs[idx], LV_OPA_COVER, 0);
 }
 
 // Forward declarations for success ring animation
@@ -346,7 +346,6 @@ lv_obj_t* screen_onboarding_complete_init(void* ctx) {
   dissolve_started = false;
   success_ring_filled = false;
   success_content_visible = false;
-  success_icon = NULL;
   success_label = NULL;
   success_ring_hold_timer = NULL;
 
@@ -357,14 +356,13 @@ lv_obj_t* screen_onboarding_complete_init(void* ctx) {
     }
 
     lv_obj_set_style_radius(dot_objs[i], LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_opa(dot_objs[i], LV_OPA_COVER, 0);
     lv_obj_set_style_border_opa(dot_objs[i], LV_OPA_TRANSP, 0);
     lv_obj_clear_flag(dot_objs[i], LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
 
     set_dot(i, 0);
   }
 
-  // Success ring, icon, and label are created later in start_success_sequence
+  // Success ring and label are created later in start_success_sequence
   // to avoid OOM — the 144 grid dots use most of the LVGL memory.
 
   anim_timer = lv_timer_create(anim_timer_cb, ANIM_UPDATE_MS, NULL);
@@ -393,7 +391,6 @@ void screen_onboarding_complete_destroy(void) {
   dot_ring_destroy(&success_ring);
 
   lv_obj_del(screen_to_delete);
-  success_icon = NULL;
   success_label = NULL;
   memset(dot_objs, 0, sizeof(dot_objs));
 }
@@ -407,25 +404,13 @@ void screen_onboarding_complete_update(void* ctx) {
 // --- Success ring animation (adapted from screen_confirmation.c, white variant) ---
 
 static void layout_success_content(void) {
-  if (!success_icon || !success_label)
+  if (!success_label)
     return;
 
-  lv_obj_update_layout(success_label);
-  lv_coord_t label_height = lv_obj_get_height(success_label);
-  lv_coord_t icon_height = check.header.h;
-  lv_coord_t content_gap =
-    (SUCCESS_TEXT_Y_OFFSET - (label_height / 2)) - (SUCCESS_CHECKMARK_Y_OFFSET + (icon_height / 2));
-  lv_coord_t icon_offset = -((content_gap + label_height) / 2);
-  lv_coord_t label_offset = ((icon_height + content_gap) / 2);
-
-  lv_obj_align(success_icon, LV_ALIGN_CENTER, 0, icon_offset);
-  lv_obj_align(success_label, LV_ALIGN_CENTER, 0, label_offset);
+  lv_obj_align(success_label, LV_ALIGN_CENTER, 0, 0);
 }
 
 static void success_content_set_opa(lv_opa_t opa) {
-  if (success_icon) {
-    lv_obj_set_style_img_opa(success_icon, opa, 0);
-  }
   if (success_label) {
     lv_obj_set_style_text_opa(success_label, opa, 0);
   }
@@ -473,14 +458,6 @@ static bool start_success_sequence(void) {
 }
 
 static void create_success_content(void) {
-  success_icon = lv_img_create(screen);
-  if (success_icon) {
-    lv_img_set_src(success_icon, &check);
-    lv_obj_set_style_img_recolor(success_icon, lv_color_white(), 0);
-    lv_obj_set_style_img_recolor_opa(success_icon, LV_OPA_COVER, 0);
-    lv_obj_set_style_img_opa(success_icon, LV_OPA_TRANSP, 0);
-  }
-
   success_label = lv_label_create(screen);
   if (success_label) {
     lv_label_set_text(success_label, "YOUR WALLET IS READY");

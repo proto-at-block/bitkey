@@ -89,8 +89,7 @@ class PrivateWalletMigrationUiStateMachineImpl(
     LaunchedEffect("check-migration-status") {
       migrationService.resume(MigrationType.PrivateWalletMigration)
         .onSuccess { progress ->
-          isMigrationInProgress = progress !is MigrationProgress.NotStarted &&
-            progress !is MigrationProgress.Completed
+          isMigrationInProgress = progress.isInProgress()
         }
     }
 

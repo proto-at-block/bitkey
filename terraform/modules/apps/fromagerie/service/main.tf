@@ -37,6 +37,7 @@ locals {
     transaction_verification_table_name = "${module.this.id_dot}.transaction_verification"
     encrypted_attachment_table_name     = "${module.this.id_dot}.encrypted_attachment"
     sanctions_screener_table_name       = "${module.this.id_dot}.sanctions_screener"
+    public_key_table_name               = "${module.this.id_dot}.public_key"
     anti_replay_table_name              = "${module.this.id_dot}.anti_replay"
   }
   table_name_list = [for k, name in local.tables : name]
@@ -98,6 +99,7 @@ locals {
     TRANSACTION_VERIFICATION_TABLE = local.tables.transaction_verification_table_name
     ENCRYPTED_ATTACHMENT_TABLE     = local.tables.encrypted_attachment_table_name
     SANCTIONS_SCREENER_TABLE       = local.tables.sanctions_screener_table_name
+    PUBLIC_KEY_TABLE               = local.tables.public_key_table_name
     ANTI_REPLAY_TABLE              = local.tables.anti_replay_table_name
   }
 
@@ -241,6 +243,7 @@ module "dynamodb_tables" {
   transaction_verification_table_name = local.tables.transaction_verification_table_name
   encrypted_attachment_table_name     = local.tables.encrypted_attachment_table_name
   sanctions_screener_table_name       = local.tables.sanctions_screener_table_name
+  public_key_table_name               = local.tables.public_key_table_name
   anti_replay_table_name              = local.tables.anti_replay_table_name
 }
 
@@ -831,6 +834,7 @@ data "aws_iam_policy_document" "api_iam_policy" {
     ]
     resources = [
       "arn:aws:dynamodb:*:${data.aws_caller_identity.this.account_id}:table/${local.tables.account_table_name}",
+      "arn:aws:dynamodb:*:${data.aws_caller_identity.this.account_id}:table/${local.tables.public_key_table_name}",
       "arn:aws:dynamodb:*:${data.aws_caller_identity.this.account_id}:table/${local.tables.social_recovery_table_name}",
       "arn:aws:dynamodb:*:${data.aws_caller_identity.this.account_id}:table/${local.tables.signed_psbt_cache_table_name}"
     ]

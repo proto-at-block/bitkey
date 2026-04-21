@@ -1,6 +1,7 @@
 use account::service::Service as AccountService;
 use async_trait::async_trait;
 use recovery::repository::RecoveryRepository;
+use repository::public_key::PublicKeyRepository;
 use types::account::bitcoin::Network;
 
 use super::{error::AccountValidationError, AccountValidationRequest, Rule};
@@ -16,6 +17,7 @@ impl Rule for TestAccountsWithMainnetKeysetsRule {
         config: &Config,
         _: &AccountService,
         _: &RecoveryRepository,
+        _: &PublicKeyRepository,
     ) -> Result<(), AccountValidationError> {
         // This check only applies to creating or upgrading to full accounts
         let (is_test_account, spending_network) = match request {

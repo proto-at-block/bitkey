@@ -20,12 +20,12 @@
 #define INFO_ITEM_SPACING          50
 #define INFO_TO_REGULATORY_SPACING INFO_ITEM_SPACING
 #define SECTION_BODY_SPACING       10
-#define LABEL_VALUE_OFFSET         8
+#define LABEL_VALUE_OFFSET         16
 #define LOGO_TOP_PAD               8
 #define INFO_MAX_WIDTH             400
 #define TEXT_MAX_WIDTH             340
 
-#define COLOR_REGULATORY_COUNTRY 0x808080
+#define COLOR_REGULATORY_COUNTRY 0xADADAD
 #define COLOR_LABEL_NAME         0xADADAD
 #define COLOR_LABEL_VALUE        0xFFFFFF
 #define COLOR_BODY_TEXT          0xFFFFFF

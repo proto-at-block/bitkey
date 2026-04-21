@@ -3,11 +3,14 @@
 #include "assert.h"
 #include "crypto_stm32_common.h"
 #include "mcu_hash.h"
+#include "wstring.h"
 
 #include <string.h>
 
 bool crypto_hkdf(key_handle_t* key_in, hash_alg_t hash, uint8_t const* salt, size_t salt_len,
                  uint8_t const* info, size_t info_len, key_handle_t* key_out) {
+  bool result = false;
+
   ASSERT(key_in != NULL);
   ASSERT(key_in->key.bytes != NULL);
   ASSERT(key_out != NULL);
@@ -25,15 +28,16 @@ bool crypto_hkdf(key_handle_t* key_in, hash_alg_t hash, uint8_t const* salt, siz
   // When salt is null hkdf uses a zero salt of the hash digest size
   // Using the prk buffer for this to save space
   uint8_t prk[SHA256_DIGEST_SIZE];
+  uint8_t message[SHA256_DIGEST_SIZE + CRYPTO_HKDF_INFO_MAX_LEN + 1];
   if (salt == NULL) {
-    memset(prk, 0, SHA256_DIGEST_SIZE);
+    memzero(prk, sizeof(prk));
     salt = prk;
-    salt_len = SHA256_DIGEST_SIZE;
+    salt_len = sizeof(prk);
   }
 
   if (!mcu_hash_hmac(crypto_alg_type(hash), key_in->key.bytes, key_in->key.size, salt, salt_len,
                      prk, SHA256_DIGEST_SIZE)) {
-    return false;
+    goto cleanup;
   }
 
   // HKDF-Expand: OKM = T(1) | T(2) | T(3) | ... | T(N)
@@ -43,7 +47,6 @@ bool crypto_hkdf(key_handle_t* key_in, hash_alg_t hash, uint8_t const* salt, siz
 
   size_t offset = 0;
   uint8_t counter = 0;
-  uint8_t message[SHA256_DIGEST_SIZE + CRYPTO_HKDF_INFO_MAX_LEN + 1];
 
   while (offset < key_out->key.size) {
     // Counter starts at 1 for the first iteration
@@ -70,7 +73,7 @@ bool crypto_hkdf(key_handle_t* key_in, hash_alg_t hash, uint8_t const* salt, siz
     // Writes T(i) to the start of the message buffer to avoid allocating additional space.
     if (!mcu_hash_hmac(crypto_alg_type(hash), message, message_len, prk, sizeof(prk), message,
                        SHA256_DIGEST_SIZE)) {
-      return false;
+      goto cleanup;
     }
 
     // Copy as much as needed to output
@@ -81,5 +84,10 @@ bool crypto_hkdf(key_handle_t* key_in, hash_alg_t hash, uint8_t const* salt, siz
     offset += to_copy;
   }
 
-  return true;
+  result = true;
+
+cleanup:
+  memzero(prk, sizeof(prk));
+  memzero(message, sizeof(message));
+  return result;
 }

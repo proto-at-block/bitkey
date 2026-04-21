@@ -415,6 +415,7 @@ class BitkeyDatabaseProviderImpl(
         newHardwareKeyAdapter = HwSpendingPublicKeyColumnAdapter,
         newAppKeyAdapter = AppSpendingPublicKeyColumnAdapter,
         newServerKeyAdapter = F8eSpendingKeysetColumnAdapter,
+        sealedSsekForDecryptionAdapter = ByteStringColumnAdapter,
         pendingAppGlobalAuthKeyAdapter = PublicKeyColumnAdapter(),
         pendingAppRecoveryAuthKeyAdapter = PublicKeyColumnAdapter(),
         pendingAppGlobalAuthKeyHwSignatureAdapter = AppGlobalAuthKeyHwSignatureColumnAdapter,

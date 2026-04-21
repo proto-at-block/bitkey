@@ -563,37 +563,6 @@ message sign_transaction_rsp {
   // Status code in response to the confirmation.
   sign_transaction_rsp_status rsp_status = 1;
 
-  // Note: The actual signed PSBT data is retrieved via get_confirmation_result_chunk_cmd,
-  // which returns the data in 452-byte chunks.
-}
-
-// Signals that chunked data is available after confirmation.
-// Returned from get_confirmation_result when the operation produces large output data.
-message chunked_data_info {
-  // Total size of the data in bytes
-  uint32 total_size = 1;
-}
-
-// Generic command to fetch chunked data after confirmation.
-// Used to retrieve large result data in 452-byte chunks.
-message get_confirmation_result_chunk_cmd {
-  bytes response_handle = 1 [(nanopb).max_size = 32];
-  bytes confirmation_handle = 2 [(nanopb).max_size = 32];
-  // Zero-based chunk index. Firmware returns the same chunk for the same index,
-  // enabling idempotent retry if NFC transmission fails.
-  uint32 chunk_index = 3;
-}
-
-// Response containing a chunk of data from a confirmed operation.
-message get_confirmation_result_chunk_rsp {
-  // Chunk of data bytes.
-  bytes chunk = 1 [(nanopb).max_size = 452];
-
-  // True if this is the last chunk of data.
-  bool is_last = 2;
-
-  // Size (bytes) of data still remaining after this chunk (always non-negative).
-  uint32 remaining_size = 3;
 }
 
 // Resets the MCU.
@@ -1164,7 +1133,7 @@ message get_confirmation_result_rsp {
     wipe_state_rsp wipe_state_result = 1;
     fwup_start_rsp fwup_start_result = 2;
     get_address_rsp get_address_result = 3;
-    chunked_data_info chunked_data_available = 4;
+    // Field 4 removed: was chunked_data_info chunked_data_available (dead code)
     sign_action_proof_rsp sign_action_proof_result = 5;
     sign_tx_response sign_tx_result = 6;
     sign_stream_signatures_ready sign_stream_signatures_ready = 7;
@@ -1329,12 +1298,14 @@ message upgrade_authorize_w3_cmd {
   string descriptor_backups_bindings = 2 [(nanopb).max_size = 256];
   string activate_keyset_bindings = 3 [(nanopb).max_size = 256];
   uint32 action_proof_version = 4;
+  sealed_data sealed_ssek_for_decryption = 5;
 }
 
 message upgrade_authorize_w3_rsp {
   bytes descriptor_backups_signature = 1 [(nanopb).max_size = 64];
   bytes activate_keyset_signature = 2 [(nanopb).max_size = 64];
   sealed_data sealed_ddk_data = 3;
+  bytes unsealed_ssek = 4 [(nanopb).max_size = 32];
 }
 
 // Unseals a sealed symmetric key during EEK (Emergency Exit Kit) restoration
@@ -1665,7 +1636,7 @@ message wallet_cmd {
     verify_keys_and_build_descriptor_cmd verify_keys_and_build_descriptor_cmd = 70;
     sign_start_cmd sign_start_cmd = 71;
     sign_transfer_cmd sign_transfer_cmd = 72;
-    get_confirmation_result_chunk_cmd get_confirmation_result_chunk_cmd = 73;
+    // Field 73 removed: was get_confirmation_result_chunk_cmd (dead code)
     ship_state_cmd ship_state_cmd = 74;
     mfgtest_touch_data_cmd mfgtest_touch_data_cmd = 75;
     sign_action_proof_cmd sign_action_proof_cmd = 76;
@@ -1770,7 +1741,7 @@ message wallet_rsp {
     verify_keys_and_build_descriptor_rsp verify_keys_and_build_descriptor_rsp = 70;
     sign_start_rsp sign_start_rsp = 71;
     sign_transfer_rsp sign_transfer_rsp = 72;
-    get_confirmation_result_chunk_rsp get_confirmation_result_chunk_rsp = 73;
+    // Field 73 removed: was get_confirmation_result_chunk_rsp (dead code)
     ship_state_rsp ship_state_rsp = 74;
     mfgtest_touch_data_rsp mfgtest_touch_data_rsp = 75;
     sign_action_proof_rsp sign_action_proof_rsp = 76;

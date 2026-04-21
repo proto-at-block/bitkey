@@ -4,9 +4,10 @@
 
 #include <string.h>
 
-#define SIGNING_CONFIRMATION_TEXT       "Signing..."
-#define SIGNING_CONFIRMATION_DISMISS_MS 3000
-#define SUCCESS_CONFIRMATION_DISMISS_MS 4000
+#define SIGNING_CONFIRMATION_TEXT        "Signing..."
+#define LEGACY_SIGNING_CONFIRMATION_TEXT "SIGNING..."
+#define SIGNING_CONFIRMATION_DISMISS_MS  3000
+#define SUCCESS_CONFIRMATION_DISMISS_MS  4000
 
 static uint32_t confirmation_dismiss_ticks(const fwpb_display_params_confirmation* params) {
   uint32_t dismiss_ms = SUCCESS_CONFIRMATION_DISMISS_MS;
@@ -20,7 +21,9 @@ static uint32_t confirmation_dismiss_ticks(const fwpb_display_params_confirmatio
     fwpb_display_params_confirmation_display_params_confirmation_mode_DISPLAY_PARAMS_CONFIRMATION_MODE_LOADING) {
     dismiss_ms = SIGNING_CONFIRMATION_DISMISS_MS;
   } else if (params->text_id == LANGPACK_ID_CONFIRMATION_SIGNING ||
-             (params->text[0] != '\0' && strcmp(params->text, SIGNING_CONFIRMATION_TEXT) == 0)) {
+             (params->text[0] != '\0' &&
+              (strcmp(params->text, SIGNING_CONFIRMATION_TEXT) == 0 ||
+               strcmp(params->text, LEGACY_SIGNING_CONFIRMATION_TEXT) == 0))) {
     dismiss_ms = SIGNING_CONFIRMATION_DISMISS_MS;
   }
 

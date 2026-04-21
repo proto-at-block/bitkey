@@ -1,0 +1,3 @@
+ALTER TABLE w3UpgradeMigrationEntity ADD COLUMN sealedSsekForDecryption BLOB;
+
+PRAGMA foreign_key_check;

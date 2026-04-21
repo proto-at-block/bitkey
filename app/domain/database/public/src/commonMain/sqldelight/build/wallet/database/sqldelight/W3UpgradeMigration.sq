@@ -5,6 +5,7 @@ import build.wallet.bitkey.f8e.F8eSpendingKeyset;
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature;
 import build.wallet.bitkey.hardware.HwAuthPublicKey;
 import build.wallet.bitkey.hardware.HwSpendingPublicKey;
+import build.wallet.cloud.backup.csek.SealedSsek;
 import build.wallet.crypto.PublicKey;
 import kotlin.Boolean;
 
@@ -30,7 +31,9 @@ CREATE TABLE w3UpgradeMigrationEntity(
   serverAuthRotationCompleted INTEGER AS Boolean NOT NULL DEFAULT 0,
   preRotationAppGlobalAuthKey TEXT AS PublicKey<AppGlobalAuthKey>,
   preRotationHwAuthPublicKey TEXT AS HwAuthPublicKey,
-  tcEndorsementsRegenerated INTEGER AS Boolean NOT NULL DEFAULT 0
+  tcEndorsementsRegenerated INTEGER AS Boolean NOT NULL DEFAULT 0,
+  resumedFromCloudBackup INTEGER AS Boolean NOT NULL DEFAULT 0,
+  sealedSsekForDecryption BLOB AS SealedSsek
 );
 
 getState:
@@ -86,6 +89,11 @@ UPDATE w3UpgradeMigrationEntity
 SET authKeyRotationCompleted = 1
 WHERE rowId = 0;
 
+markResumedFromCloudBackup:
+INSERT INTO w3UpgradeMigrationEntity(rowId, resumedFromCloudBackup)
+VALUES (0, 1)
+ON CONFLICT(rowId) DO UPDATE SET resumedFromCloudBackup = 1;
+
 setSweepCompleted:
 UPDATE w3UpgradeMigrationEntity
 SET sweepCompleted = 1
@@ -115,6 +123,11 @@ WHERE rowId = 0;
 setTcEndorsementsRegenerated:
 UPDATE w3UpgradeMigrationEntity
 SET tcEndorsementsRegenerated = 1
+WHERE rowId = 0;
+
+setSealedSsekForDecryption:
+UPDATE w3UpgradeMigrationEntity
+SET sealedSsekForDecryption = ?
 WHERE rowId = 0;
 
 clearPendingAuthRotationData:

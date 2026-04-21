@@ -40,13 +40,14 @@
 
 // Layout configuration - Content
 #define AMOUNT_SECTION_SPACING 16
-#define LABEL_TO_VALUE_SPACING 4
-#define CONTENT_CENTER_NUDGE_Y 8
+#define LABEL_TO_VALUE_SPACING 16
+#define CONTENT_CENTER_NUDGE_Y 0
+#define ADDRESS_CENTER_NUDGE_Y 0
 
 // Colors
 #define COLOR_USD            0xADADAD
 #define COLOR_RING           APPROVAL_BUTTON_RING_COLOR
-#define COLOR_SECTION_HEADER 0x808080
+#define COLOR_SECTION_HEADER 0xADADAD
 
 // Confirmed page configuration
 #define HOLD_TO_CONFIRM_DURATION_MS 2000
@@ -69,6 +70,7 @@
 #define FONT_ADDRESS (&cash_sans_mono_regular_28)
 #define FONT_FEE     (&cash_sans_mono_regular_26)
 #define FONT_VALUE   (&cash_sans_mono_regular_36)
+#define FONT_STATUS  (&cash_sans_mono_regular_30)
 
 // External image declarations
 extern const lv_img_dsc_t check;
@@ -151,6 +153,12 @@ static void header_hint_timer_cb(lv_timer_t* timer);
 static void set_header_prompt_mode(header_prompt_mode_t mode, bool animate);
 static void header_text_opa_anim_cb(void* var, int32_t value);
 static void header_fade_out_ready_cb(lv_anim_t* anim);
+static lv_coord_t get_top_group_bottom_screen(void);
+static void align_content_between_header_and_check_button(lv_obj_t* parent, lv_obj_t* content,
+                                                          lv_coord_t center_nudge_y);
+static void align_address_page_between_header_and_check_button(lv_obj_t* parent,
+                                                               address_display_t* widget,
+                                                               lv_coord_t center_nudge_y);
 
 // Helper to create check button (reusable across address/amount pages)
 static lv_obj_t* create_check_button(lv_obj_t* parent) {
@@ -186,6 +194,115 @@ static void format_sats_as_btc(const char* sats_str, size_t sats_max_len, char* 
   formatted[decimal_pos + 9] = '\0';
 
   snprintf(out_buf, out_size, "%s%s", formatted, btc_suffix);
+}
+
+static lv_coord_t get_top_group_bottom_screen(void) {
+  lv_coord_t top_group_bottom =
+    HEADER_PADDING_TOP + 44 + lv_font_get_line_height(FONT_TITLE) + TITLE_MARGIN_TOP;
+
+  if (header_title && lv_obj_is_valid(header_title) &&
+      !lv_obj_has_flag(header_title, LV_OBJ_FLAG_HIDDEN)) {
+    lv_area_t title_coords;
+    lv_obj_get_coords(header_title, &title_coords);
+    lv_coord_t title_bottom = title_coords.y2 + 1;
+    if (title_bottom > top_group_bottom) {
+      top_group_bottom = title_bottom;
+    }
+  }
+
+  if (menu_button.is_initialized && menu_button.container &&
+      lv_obj_is_valid(menu_button.container) &&
+      !lv_obj_has_flag(menu_button.container, LV_OBJ_FLAG_HIDDEN)) {
+    lv_area_t menu_coords;
+    lv_obj_get_coords(menu_button.container, &menu_coords);
+    lv_coord_t menu_bottom = menu_coords.y2 + 1;
+    if (menu_bottom > top_group_bottom) {
+      top_group_bottom = menu_bottom;
+    }
+  }
+
+  return top_group_bottom;
+}
+
+static void align_content_between_header_and_check_button(lv_obj_t* parent, lv_obj_t* content,
+                                                          lv_coord_t center_nudge_y) {
+  if (!parent || !content) {
+    return;
+  }
+
+  lv_obj_update_layout(screen ? screen : parent);
+  lv_obj_update_layout(content);
+
+  lv_area_t parent_coords;
+  lv_obj_get_coords(parent, &parent_coords);
+  lv_coord_t parent_height = lv_obj_get_height(parent);
+  lv_coord_t check_button_top =
+    parent_height - APPROVAL_BUTTON_BOTTOM_MARGIN - APPROVAL_BUTTON_SIZE;
+  lv_coord_t content_height = lv_obj_get_height(content);
+  lv_coord_t top_group_bottom_local = get_top_group_bottom_screen() - parent_coords.y1;
+  lv_coord_t center_y =
+    ((check_button_top + top_group_bottom_local - content_height) / 2) + center_nudge_y;
+  if (center_y < 0) {
+    center_y = 0;
+  }
+  lv_obj_align(content, LV_ALIGN_TOP_MID, 0, center_y);
+}
+
+static void align_address_page_between_header_and_check_button(lv_obj_t* parent,
+                                                               address_display_t* widget,
+                                                               lv_coord_t center_nudge_y) {
+  if (!parent || !widget || widget->label_count <= 0) {
+    return;
+  }
+
+  lv_obj_update_layout(screen ? screen : parent);
+
+  lv_area_t parent_coords;
+  lv_obj_get_coords(parent, &parent_coords);
+  lv_coord_t parent_height = lv_obj_get_height(parent);
+  lv_coord_t check_button_top =
+    parent_height - APPROVAL_BUTTON_BOTTOM_MARGIN - APPROVAL_BUTTON_SIZE;
+  lv_coord_t top_group_bottom_local = get_top_group_bottom_screen() - parent_coords.y1;
+
+  lv_coord_t content_top = LV_COORD_MAX;
+  lv_coord_t content_bottom = LV_COORD_MIN;
+  for (int i = 0; i < widget->label_count; i++) {
+    lv_obj_t* child = widget->char_labels[i];
+    if (!child || !lv_obj_is_valid(child)) {
+      continue;
+    }
+
+    lv_area_t child_coords;
+    lv_obj_get_coords(child, &child_coords);
+    lv_coord_t child_top = child_coords.y1 - parent_coords.y1;
+    lv_coord_t child_bottom = child_coords.y2 - parent_coords.y1 + 1;
+    if (child_top < content_top) {
+      content_top = child_top;
+    }
+    if (child_bottom > content_bottom) {
+      content_bottom = child_bottom;
+    }
+  }
+
+  if (content_top == LV_COORD_MAX || content_bottom == LV_COORD_MIN) {
+    return;
+  }
+
+  lv_coord_t content_height = content_bottom - content_top;
+  lv_coord_t desired_top =
+    ((check_button_top + top_group_bottom_local - content_height) / 2) + center_nudge_y;
+  if (desired_top < 0) {
+    desired_top = 0;
+  }
+  lv_coord_t delta = desired_top - content_top;
+
+  for (int i = 0; i < widget->label_count; i++) {
+    lv_obj_t* child = widget->char_labels[i];
+    if (!child || !lv_obj_is_valid(child)) {
+      continue;
+    }
+    lv_obj_set_y(child, lv_obj_get_y(child) + delta);
+  }
 }
 
 static void create_amount_page(lv_obj_t* parent, const fwpb_display_params_money_movement* params) {
@@ -289,23 +406,8 @@ static void create_amount_page(lv_obj_t* parent, const fwpb_display_params_money
   lv_obj_set_style_text_font(fee_value, FONT_VALUE, 0);
   lv_label_set_text(fee_value, fee_text);
 
-  // Center content between the step/menu area and the check button.
-  // parent is the page container (starts at HEADER_HEIGHT), so convert the
-  // step area bottom (screen coords) into this local coordinate space.
-  lv_obj_update_layout(content_container);
-  lv_coord_t parent_height = lv_obj_get_height(parent);
-  lv_coord_t check_button_top =
-    parent_height - APPROVAL_BUTTON_BOTTOM_MARGIN - APPROVAL_BUTTON_SIZE;
-  lv_coord_t content_height = lv_obj_get_height(content_container);
-  lv_coord_t step_area_bottom_screen =
-    HEADER_PADDING_TOP + 44 + lv_font_get_line_height(FONT_TITLE) + TITLE_MARGIN_TOP;
-  lv_coord_t step_area_bottom_local = step_area_bottom_screen - HEADER_HEIGHT;
-  lv_coord_t center_y =
-    ((check_button_top + step_area_bottom_local - content_height) / 2) + CONTENT_CENTER_NUDGE_Y;
-  if (center_y < 0) {
-    center_y = 0;
-  }
-  lv_obj_align(content_container, LV_ALIGN_TOP_MID, 0, center_y);
+  // Center content between the top chrome and the check button.
+  align_content_between_header_and_check_button(parent, content_container, CONTENT_CENTER_NUDGE_Y);
 
   // Check button
   create_check_button(parent);
@@ -323,21 +425,7 @@ static void create_self_send_info_page(lv_obj_t* parent) {
   lv_obj_set_style_text_align(info_label, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_set_width(info_label, LV_PCT(80));
 
-  // Center vertically in available space
-  lv_obj_update_layout(info_label);
-  lv_coord_t parent_height = lv_obj_get_height(parent);
-  lv_coord_t check_button_top =
-    parent_height - APPROVAL_BUTTON_BOTTOM_MARGIN - APPROVAL_BUTTON_SIZE;
-  lv_coord_t label_height = lv_obj_get_height(info_label);
-  lv_coord_t step_area_bottom_screen =
-    HEADER_PADDING_TOP + 44 + lv_font_get_line_height(FONT_TITLE) + TITLE_MARGIN_TOP;
-  lv_coord_t step_area_bottom_local = step_area_bottom_screen - HEADER_HEIGHT;
-  lv_coord_t center_y =
-    ((check_button_top + step_area_bottom_local - label_height) / 2) + CONTENT_CENTER_NUDGE_Y;
-  if (center_y < 0) {
-    center_y = 0;
-  }
-  lv_obj_align(info_label, LV_ALIGN_TOP_MID, 0, center_y);
+  align_content_between_header_and_check_button(parent, info_label, CONTENT_CENTER_NUDGE_Y);
 
   create_check_button(parent);
 }
@@ -745,7 +833,7 @@ static void show_confirmed_page(int next_page_index) {
   if (confirmed_label) {
     lv_label_set_text(confirmed_label, langpack_get_string(LANGPACK_ID_MONEY_MOVEMENT_CONFIRMED));
     lv_obj_set_style_text_color(confirmed_label, lv_color_hex(COLOR_RING), 0);
-    lv_obj_set_style_text_font(confirmed_label, FONT_TITLE, 0);
+    lv_obj_set_style_text_font(confirmed_label, FONT_STATUS, 0);
     lv_obj_align(confirmed_label, LV_ALIGN_CENTER, 0, CONFIRMED_LABEL_Y);
   }
 
@@ -892,7 +980,7 @@ static void check_button_event_handler(lv_event_t* e) {
       lv_obj_add_flag(menu_button.container, LV_OBJ_FLAG_HIDDEN);
     }
 
-    dot_ring_show(&approve_ring);
+    dot_ring_show_with_fade_in(&approve_ring, 400);
     dot_ring_animate_fill_from_current(&approve_ring, 100, HOLD_TO_CONFIRM_DURATION_MS,
                                        DOT_RING_COLOR_GREEN, DOT_RING_FILL_SPLIT,
                                        on_approve_complete, NULL);
@@ -1042,6 +1130,9 @@ lv_obj_t* screen_money_movement_init(void* ctx) {
         lv_obj_clear_flag(page_containers[i], LV_OBJ_FLAG_SCROLLABLE);
       }
 
+      memset(&menu_button, 0, sizeof(top_menu_t));
+      top_menu_create(screen, &menu_button, menu_button_custom_handler);
+
       create_page_content(0);
       scroll_to_page(0, false);
     }
@@ -1051,9 +1142,6 @@ lv_obj_t* screen_money_movement_init(void* ctx) {
     memset(&back_button, 0, sizeof(top_back_t));
     top_back_create(screen, &back_button, NULL);
     ui_set_local_brightness(RECEIVE_SCREEN_BRIGHTNESS);
-  } else {
-    memset(&menu_button, 0, sizeof(top_menu_t));
-    top_menu_create(screen, &menu_button, menu_button_custom_handler);
   }
 
   return screen;
@@ -1082,6 +1170,8 @@ static void create_page_content(int page_index) {
 
   if (page_index < first_amount_page) {
     address_display_create_page(page_containers[page_index], &address_widget, page_index);
+    align_address_page_between_header_and_check_button(page_containers[page_index], &address_widget,
+                                                       ADDRESS_CENTER_NUDGE_Y);
     create_check_button(page_containers[page_index]);
   } else if (page_index < first_scan_page) {
     create_amount_page(page_containers[page_index], &cached_params);

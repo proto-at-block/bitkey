@@ -1,6 +1,7 @@
 use account::service::{FetchAccountByAuthKeyInput, Service as AccountService};
 use async_trait::async_trait;
 use recovery::repository::RecoveryRepository;
+use repository::public_key::PublicKeyRepository;
 
 use super::{
     error::AccountValidationError, is_repeat_account_creation, AccountValidationRequest, Rule,
@@ -17,6 +18,7 @@ impl Rule for UniqueRecoveryAuthPubkeyForAccountRule {
         _: &Config,
         account_service: &AccountService,
         _: &RecoveryRepository,
+        _: &PublicKeyRepository,
     ) -> Result<(), AccountValidationError> {
         // This check only applies to creating full or lite accounts
         let recovery_auth_pubkey = match request {

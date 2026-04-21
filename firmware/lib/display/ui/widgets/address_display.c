@@ -9,19 +9,17 @@
 #define MAX_CHARS_PER_SCREEN (MAX_LINES * GROUPS_PER_LINE * CHARS_PER_GROUP)
 
 // Layout configuration
-#define CHAR_WIDTH   18
-#define BULLET_WIDTH 20
-#define LINE_HEIGHT  36
-#define TOP_PADDING  12
+#define CHAR_WIDTH    18
+#define GROUP_SPACING 20
+#define LINE_HEIGHT   36
+#define TOP_PADDING   12
 
 // Colors
-#define TEXT_ELLIPSIS "..."
+#define TEXT_ELLIPSIS         "..."
+#define COLOR_GROUP_SECONDARY 0xADADAD
 
 // Fonts
 #define FONT_ADDRESS (&cash_sans_mono_regular_28)
-
-// External image declarations
-extern const lv_img_dsc_t dot;
 extern const lv_font_t cash_sans_mono_regular_28;
 
 // Calculate how many pages needed to display an address
@@ -67,18 +65,14 @@ static int calculate_full_line_count(int addr_len) {
   return (groups + GROUPS_PER_LINE - 1) / GROUPS_PER_LINE;
 }
 
-static int separator_bullet_y(int line_top_y) {
-  return line_top_y + ((lv_font_get_line_height(FONT_ADDRESS) - dot.header.h) / 2);
-}
-
 static int address_content_start_x(void) {
   int total_width =
-    (GROUPS_PER_LINE * CHARS_PER_GROUP * CHAR_WIDTH) + ((GROUPS_PER_LINE - 1) * BULLET_WIDTH);
+    (GROUPS_PER_LINE * CHARS_PER_GROUP * CHAR_WIDTH) + ((GROUPS_PER_LINE - 1) * GROUP_SPACING);
   return -total_width / 2;
 }
 
 static bool render_address_label(address_display_t* widget, lv_obj_t* parent, const char* text,
-                                 int x_pos, int y_pos, int width) {
+                                 int x_pos, int y_pos, int width, lv_color_t color) {
   if (widget->label_count >= ADDRESS_DISPLAY_MAX_LABELS) {
     return false;
   }
@@ -89,7 +83,7 @@ static bool render_address_label(address_display_t* widget, lv_obj_t* parent, co
   }
 
   lv_label_set_text(label, text);
-  lv_obj_set_style_text_color(label, lv_color_white(), 0);
+  lv_obj_set_style_text_color(label, color, 0);
   lv_obj_set_style_text_font(label, FONT_ADDRESS, 0);
   lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
   if (width > 0) {
@@ -100,24 +94,8 @@ static bool render_address_label(address_display_t* widget, lv_obj_t* parent, co
   return true;
 }
 
-static void render_group_separator(address_display_t* widget, lv_obj_t* parent, int x_pos,
-                                   int line_top_y) {
-  if (widget->label_count >= ADDRESS_DISPLAY_MAX_LABELS) {
-    return;
-  }
-
-  lv_obj_t* bullet = lv_img_create(parent);
-  if (!bullet) {
-    return;
-  }
-
-  lv_img_set_src(bullet, &dot);
-  lv_obj_set_style_img_recolor(bullet, lv_color_white(), 0);
-  lv_obj_set_style_img_recolor_opa(bullet, LV_OPA_COVER, 0);
-  lv_obj_align(bullet, LV_ALIGN_TOP_MID,
-               x_pos + (CHARS_PER_GROUP * CHAR_WIDTH) + (BULLET_WIDTH / 2),
-               separator_bullet_y(line_top_y));
-  widget->char_labels[widget->label_count++] = bullet;
+static lv_color_t address_group_color(int group_index) {
+  return (group_index % 2 == 0) ? lv_color_white() : lv_color_hex(COLOR_GROUP_SECONDARY);
 }
 
 // Helper to render address characters with ellipses.
@@ -136,7 +114,8 @@ static void render_address_content(address_display_t* widget, lv_obj_t* parent, 
   // Show starting ellipsis if continuing from previous page
   if (show_start_ellipsis) {
     if (!render_address_label(widget, parent, TEXT_ELLIPSIS,
-                              start_x + (CHARS_PER_GROUP * CHAR_WIDTH / 2), address_top_y, 0)) {
+                              start_x + (CHARS_PER_GROUP * CHAR_WIDTH / 2), address_top_y, 0,
+                              lv_color_white())) {
       return;
     }
     group_in_line = 1;
@@ -149,9 +128,10 @@ static void render_address_content(address_display_t* widget, lv_obj_t* parent, 
     }
 
     int y_pos = address_top_y + (line * LINE_HEIGHT);
-    int x_pos = start_x + (group_in_line * (CHARS_PER_GROUP * CHAR_WIDTH + BULLET_WIDTH));
+    int x_pos = start_x + (group_in_line * (CHARS_PER_GROUP * CHAR_WIDTH + GROUP_SPACING));
+    int group_index = char_index / CHARS_PER_GROUP;
+    lv_color_t group_color = address_group_color(group_index);
 
-    int chars_in_group = 0;
     for (int i = 0; i < CHARS_PER_GROUP && char_index < addr_len; i++) {
       if (show_end_ellipsis && char_index >= start_offset + effective_chars) {
         break;
@@ -159,18 +139,11 @@ static void render_address_content(address_display_t* widget, lv_obj_t* parent, 
 
       char char_str[2] = {address[char_index], '\0'};
       if (!render_address_label(widget, parent, char_str,
-                                x_pos + (i * CHAR_WIDTH) + (CHAR_WIDTH / 2), y_pos, CHAR_WIDTH)) {
+                                x_pos + (i * CHAR_WIDTH) + (CHAR_WIDTH / 2), y_pos, CHAR_WIDTH,
+                                group_color)) {
         return;
       }
       char_index++;
-      chars_in_group++;
-    }
-
-    // Add bullet between groups
-    if (chars_in_group == CHARS_PER_GROUP && char_index < addr_len &&
-        group_in_line < GROUPS_PER_LINE - 1 &&
-        !(show_end_ellipsis && char_index >= start_offset + effective_chars)) {
-      render_group_separator(widget, parent, x_pos, y_pos);
     }
 
     group_in_line++;
@@ -185,8 +158,9 @@ static void render_address_content(address_display_t* widget, lv_obj_t* parent, 
   // Show ending ellipsis if continues on next page
   if (show_end_ellipsis) {
     int y_pos = address_top_y + (line * LINE_HEIGHT);
-    int x_pos = start_x + (group_in_line * (CHARS_PER_GROUP * CHAR_WIDTH + BULLET_WIDTH));
-    if (!render_address_label(widget, parent, TEXT_ELLIPSIS, x_pos + (CHAR_WIDTH * 2), y_pos, 0)) {
+    int x_pos = start_x + (group_in_line * (CHARS_PER_GROUP * CHAR_WIDTH + GROUP_SPACING));
+    if (!render_address_label(widget, parent, TEXT_ELLIPSIS, x_pos + (CHAR_WIDTH * 2), y_pos, 0,
+                              lv_color_white())) {
       return;
     }
   }
@@ -308,22 +282,18 @@ void address_display_create_full(lv_obj_t* parent, address_display_t* widget) {
 
   while (char_index < addr_len) {
     int y_pos = line * LINE_HEIGHT;
-    int x_pos = start_x + (group_in_line * (CHARS_PER_GROUP * CHAR_WIDTH + BULLET_WIDTH));
+    int x_pos = start_x + (group_in_line * (CHARS_PER_GROUP * CHAR_WIDTH + GROUP_SPACING));
+    int group_index = char_index / CHARS_PER_GROUP;
+    lv_color_t group_color = address_group_color(group_index);
 
-    int chars_in_group = 0;
     for (int i = 0; i < CHARS_PER_GROUP && char_index < addr_len; i++) {
       char char_str[2] = {address[char_index], '\0'};
       if (!render_address_label(widget, parent, char_str,
-                                x_pos + (i * CHAR_WIDTH) + (CHAR_WIDTH / 2), y_pos, CHAR_WIDTH)) {
+                                x_pos + (i * CHAR_WIDTH) + (CHAR_WIDTH / 2), y_pos, CHAR_WIDTH,
+                                group_color)) {
         return;
       }
       char_index++;
-      chars_in_group++;
-    }
-
-    if (chars_in_group == CHARS_PER_GROUP && char_index < addr_len &&
-        group_in_line < GROUPS_PER_LINE - 1) {
-      render_group_separator(widget, parent, x_pos, y_pos);
     }
 
     group_in_line++;

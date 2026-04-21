@@ -22,6 +22,7 @@ use crate::entities::{RecoveryStatus, RecoveryType};
 use crate::service::inheritance::Service as InheritanceService;
 use crate::service::social::challenge::Service as SocialChallengeService;
 use crate::{entities::RecoveryDestination, error::RecoveryError, repository::RecoveryRepository};
+use ::repository::public_key::PublicKeyRepository;
 
 // Delay Notify
 pub(crate) mod cancel_recovery;
@@ -41,6 +42,7 @@ pub struct RecoveryServices<'a> {
     pub challenge: &'a SocialChallengeService,
     pub comms_verification: &'a CommsVerificationService,
     pub feature_flags: &'a FeatureFlagsService,
+    pub public_key: &'a PublicKeyRepository,
 }
 
 pub type BoxedRecoveryState = Box<dyn RecoveryState>;
@@ -137,6 +139,7 @@ pub async fn run_recovery_fsm(
     challenge: &SocialChallengeService,
     comms_verification_service: &CommsVerificationService,
     feature_flags_service: &FeatureFlagsService,
+    public_key_repository: &PublicKeyRepository,
 ) -> Result<BoxedRecoveryState, ApiError> {
     let mut state: BoxedRecoveryState = Box::new(StartRecoveryState { account_id });
     let iter = events.iter();
@@ -148,6 +151,7 @@ pub async fn run_recovery_fsm(
         challenge,
         comms_verification: comms_verification_service,
         feature_flags: feature_flags_service,
+        public_key: public_key_repository,
     };
 
     for ref mut iter in iter {

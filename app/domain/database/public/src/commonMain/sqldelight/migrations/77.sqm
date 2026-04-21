@@ -1,0 +1,3 @@
+ALTER TABLE w3UpgradeMigrationEntity ADD COLUMN resumedFromCloudBackup INTEGER NOT NULL DEFAULT 0;
+
+PRAGMA foreign_key_check;

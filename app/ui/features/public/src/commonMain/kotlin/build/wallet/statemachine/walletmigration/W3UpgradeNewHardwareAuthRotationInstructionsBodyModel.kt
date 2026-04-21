@@ -20,6 +20,7 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 data class W3UpgradeNewHardwareAuthRotationInstructionsBodyModel(
   override val onBack: (() -> Unit)?,
   val onContinue: () -> Unit,
+  val step: Int = 3,
   val totalSteps: Int = 4,
 ) : FormBodyModel(
     id = WalletMigrationEventTrackerScreenId.W3_UPGRADE_NEW_HARDWARE_AUTH_ROTATION_INSTRUCTIONS,
@@ -39,7 +40,7 @@ data class W3UpgradeNewHardwareAuthRotationInstructionsBodyModel(
       newHardwareAuthRotationInstructionListGroup()
     ),
     designSystemV2Model = w3UpgradeInstructionDesignSystemV2Model(
-      eyebrow = w3UpgradeStepEyebrow(3, totalSteps),
+      eyebrow = w3UpgradeStepEyebrow(step, totalSteps),
       title = "Now tap your new Bitkey",
       subline = "Use your new Bitkey device to complete the upgrade. This registers your new device with your account.",
       mainContentList = immutableListOf(newHardwareAuthRotationInstructionListGroupDesignSystemV2())

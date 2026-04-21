@@ -2,6 +2,7 @@ use account::service::Service as AccountService;
 use async_trait::async_trait;
 use errors::ApiError;
 use recovery::repository::RecoveryRepository;
+use repository::public_key::PublicKeyRepository;
 use tracing::instrument;
 use types::account::bitcoin::Network;
 use types::account::entities::v2::{
@@ -77,6 +78,7 @@ trait Rule {
         config: &Config,
         account_service: &AccountService,
         recovery_repository: &RecoveryRepository,
+        public_key_repository: &PublicKeyRepository,
     ) -> Result<(), AccountValidationError>;
 }
 
@@ -101,17 +103,31 @@ impl Default for AccountValidation {
 }
 
 impl AccountValidation {
-    #[instrument(skip(self, config, account_service, recovery_repository, request))]
+    #[instrument(skip(
+        self,
+        config,
+        account_service,
+        recovery_repository,
+        public_key_repository,
+        request
+    ))]
     pub async fn validate(
         &self,
         request: AccountValidationRequest,
         config: &Config,
         account_service: &AccountService,
         recovery_repository: &RecoveryRepository,
+        public_key_repository: &PublicKeyRepository,
     ) -> Result<Option<AccountValidationResponse>, ApiError> {
         for rule in self.rules.iter() {
             match rule
-                .validate(&request, config, account_service, recovery_repository)
+                .validate(
+                    &request,
+                    config,
+                    account_service,
+                    recovery_repository,
+                    public_key_repository,
+                )
                 .await
             {
                 Err(AccountValidationError::DuplicateAccountForKeys(existing_account)) => {

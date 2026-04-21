@@ -16,7 +16,7 @@
 #include <stdint.h>
 
 /** Dot ring configuration */
-#define DOT_RING_DOT_SIZE_INACTIVE 2  // Inactive dot diameter in pixels
+#define DOT_RING_DOT_SIZE_INACTIVE 4  // Inactive dot diameter in pixels
 #define DOT_RING_DOT_SIZE_ACTIVE   8  // Active dot diameter in pixels
 #define DOT_RING_DOT_SPACING       2  // Gap between dots in pixels
 #define DOT_RING_EDGE_INSET        6  // Distance from screen edge in pixels
@@ -91,6 +91,8 @@ typedef struct {
 
   bool is_initialized;  // True if widget created
   bool is_visible;      // True if dots are visible
+
+  uint32_t fade_duration_ms;  // Fade duration for show/hide (0 = no fade)
 } dot_ring_t;
 
 /**
@@ -112,6 +114,32 @@ void dot_ring_create(lv_obj_t* parent, dot_ring_t* ring);
  * @param ring Ring widget structure
  */
 void dot_ring_show(dot_ring_t* ring);
+
+/**
+ * @brief Show the dot ring with a fade-in animation
+ *
+ * Same as dot_ring_show but fades the dots in from transparent over the given
+ * duration. Animates each dot's main style_opa; leaves bg_opa (which the dot
+ * activation animation owns) untouched. The duration is stored on the ring so
+ * the symmetric fade-out runs automatically when the internal release flow
+ * would have hidden the ring.
+ *
+ * @param ring Ring widget structure
+ * @param duration_ms Fade duration in milliseconds (0 = no fade)
+ */
+void dot_ring_show_with_fade_in(dot_ring_t* ring, uint32_t duration_ms);
+
+/**
+ * @brief Hide the dot ring with a fade-out animation
+ *
+ * Animates each dot's main style_opa from its current value down to
+ * transparent, then sets the HIDDEN flag. Safe to call repeatedly; in-flight
+ * fade animations are cancelled and restarted.
+ *
+ * @param ring Ring widget structure
+ * @param duration_ms Fade-out duration in milliseconds (0 = instant hide)
+ */
+void dot_ring_hide_with_fade_out(dot_ring_t* ring, uint32_t duration_ms);
 
 /**
  * @brief Hide the dot ring

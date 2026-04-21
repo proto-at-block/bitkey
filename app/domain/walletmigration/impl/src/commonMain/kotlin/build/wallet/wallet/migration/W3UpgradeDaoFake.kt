@@ -6,6 +6,7 @@ import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
+import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.crypto.PublicKey
 import build.wallet.database.sqldelight.W3UpgradeMigrationEntity
 import build.wallet.db.DbError
@@ -44,7 +45,9 @@ class W3UpgradeDaoFake : W3UpgradeDao {
       serverAuthRotationCompleted = false,
       preRotationAppGlobalAuthKey = null,
       preRotationHwAuthPublicKey = null,
-      tcEndorsementsRegenerated = false
+      tcEndorsementsRegenerated = false,
+      sealedSsekForDecryption = null,
+      resumedFromCloudBackup = false
     )
 
   override fun currentState(): Flow<Result<W3UpgradeMigrationEntity?, DbError>> {
@@ -120,6 +123,11 @@ class W3UpgradeDaoFake : W3UpgradeDao {
     return Ok(Unit)
   }
 
+  override suspend fun markResumedFromCloudBackup(): Result<Unit, DbError> {
+    upsert { it.copy(resumedFromCloudBackup = true) }
+    return Ok(Unit)
+  }
+
   override suspend fun setDdkBackedUp(): Result<Unit, DbError> {
     state.value = Ok(
       state.value.value!!.copy(ddkBackedUp = true)
@@ -165,6 +173,13 @@ class W3UpgradeDaoFake : W3UpgradeDao {
   override suspend fun setTcEndorsementsRegenerated(): Result<Unit, DbError> {
     state.value = Ok(
       state.value.value!!.copy(tcEndorsementsRegenerated = true)
+    )
+    return Ok(Unit)
+  }
+
+  override suspend fun setSealedSsekForDecryption(sealedSsek: SealedSsek?): Result<Unit, DbError> {
+    state.value = Ok(
+      state.value.value!!.copy(sealedSsekForDecryption = sealedSsek)
     )
     return Ok(Unit)
   }

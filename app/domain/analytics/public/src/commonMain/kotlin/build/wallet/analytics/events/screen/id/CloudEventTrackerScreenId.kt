@@ -111,4 +111,15 @@ enum class CloudEventTrackerScreenId : EventTrackerScreenId {
 
   /** Warning screen shown before deleting current backup and creating a new account */
   WARNING_DELETING_CLOUD_BACKUP,
+
+  /** Loading screen shown while verifying whether the backup's recovery auth key still matches the server */
+  CHECKING_RECOVERY_AUTH_KEY,
+
+  /**
+   * Blocking screen shown when we detect the user left a W3 upgrade mid-flow
+   * (server auth keys rotated, cloud backup still sealed for W1). Asks the user
+   * to tap their other Bitkey to continue restoration instead of falling through
+   * to Lost App & Cloud recovery.
+   */
+  RECOMMEND_TAP_OTHER_BITKEY,
 }

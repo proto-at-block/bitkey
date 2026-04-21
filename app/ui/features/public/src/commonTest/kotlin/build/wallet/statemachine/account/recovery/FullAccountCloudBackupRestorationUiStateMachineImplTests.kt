@@ -11,6 +11,7 @@ import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.v1.Action.ACTION_APP_CLOUD_RECOVERY_KEY_RECOVERED
 import build.wallet.auth.AccountAuthenticatorMock
 import build.wallet.auth.AppAuthKeyMessageSignerMock
+import build.wallet.auth.AuthSignatureMismatch
 import build.wallet.auth.AuthTokensServiceFake
 import build.wallet.auth.FullAccountAuthKeyRotationServiceMock
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
@@ -27,9 +28,20 @@ import build.wallet.cloud.backup.csek.CsekDaoFake
 import build.wallet.cloud.backup.csek.CsekFake
 import build.wallet.cloud.backup.local.CloudBackupDaoFake
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.f8e.auth.AuthF8eClient.InitiateAuthenticationSuccess
+import build.wallet.f8e.auth.AuthF8eClientMock
+import build.wallet.firmware.FirmwareDeviceInfoMock
+import build.wallet.ktor.result.HttpError
+import build.wallet.ktor.test.HttpResponseMock
+import build.wallet.nfc.NfcCommandsMock
+import build.wallet.nfc.NfcSessionFake
+import build.wallet.statemachine.recovery.cloud.RecommendTapOtherBitkeyModel
+import io.ktor.http.HttpStatusCode
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
 import build.wallet.feature.flags.ReplaceFullWithLiteAccountFeatureFlag
+import build.wallet.feature.flags.W3MidUpgradeRecoveryGuardFeatureFlag
+import build.wallet.feature.setFlagValue
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareDeviceInfoDaoMock
 import build.wallet.firmware.FirmwareMetadata.FirmwareSlot
@@ -63,9 +75,12 @@ import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiPr
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.testing.shouldBeOk
 import build.wallet.time.ClockFake
+import build.wallet.wallet.migration.MigrationServiceFake
+import build.wallet.wallet.migration.W3UpgradeCheckpointWriterFake
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.get
@@ -134,6 +149,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
 
         val fullAccountAuthKeyRotationService =
           FullAccountAuthKeyRotationServiceMock { name -> turbines.create("$backupVersion-$name") }
+        val migrationService = MigrationServiceFake()
+        val w3UpgradeCheckpointWriter = W3UpgradeCheckpointWriterFake()
 
         val spendingWallet =
           SpendingWalletMock(turbine = { name -> turbines.create("$backupVersion-$name") })
@@ -152,6 +169,9 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
         val appInstallationDao = AppInstallationDaoMock()
         val selectCloudBackupUiStateMachine = object : SelectCloudBackupUiStateMachine,
           ScreenStateMachineMock<SelectCloudBackupUiProps>("select-cloud-backup-fake") {}
+        val authF8eClient = AuthF8eClientMock()
+        val w3MidUpgradeRecoveryGuardFeatureFlag =
+          W3MidUpgradeRecoveryGuardFeatureFlag(FeatureFlagDaoFake())
         val stateMachineActiveDeviceFlagOn =
           FullAccountCloudBackupRestorationUiStateMachineImpl(
             appSpendingWalletProvider = AppSpendingWalletProviderMock(spendingWallet),
@@ -176,6 +196,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
             postSocRecTaskRepository = postSocRecTaskRepository,
             socRecStartedChallengeDao = socRecPendingChallengeDao,
             fullAccountAuthKeyRotationService = fullAccountAuthKeyRotationService,
+            migrationService = migrationService,
+            w3UpgradeCheckpointWriter = w3UpgradeCheckpointWriter,
             existingFullAccountUiStateMachine = existingFullAccountUiStateMachine,
             replaceFullWithLiteAccountFeatureFlag = ReplaceFullWithLiteAccountFeatureFlag(
               FeatureFlagDaoFake()
@@ -184,7 +206,9 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
             fingerprintResetMinFirmwareVersionFeatureFlag = fingerprintResetMinFirmwareVersionFeatureFlag,
             firmwareDeviceInfoDao = firmwareDeviceInfoDao,
             hardwareUnlockInfoService = hardwareUnlockInfoService,
-            selectCloudBackupUiStateMachine = selectCloudBackupUiStateMachine
+            selectCloudBackupUiStateMachine = selectCloudBackupUiStateMachine,
+            authF8eClient = authF8eClient,
+            w3MidUpgradeRecoveryGuardFeatureFlag = w3MidUpgradeRecoveryGuardFeatureFlag
           )
 
         val props = FullAccountCloudBackupRestorationUiProps(
@@ -195,12 +219,19 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
         )
 
         beforeTest {
+          authF8eClient.reset()
+          // Guard is opt-in; enable it for tests that exercise the W3 mid-upgrade
+          // recovery path. The flag-off behavior is covered by a dedicated test
+          // below that disables it.
+          w3MidUpgradeRecoveryGuardFeatureFlag.setFlagValue(true)
           authTokensService.reset()
           appAuthKeyMessageSigner.reset()
           keyboxDao.reset()
           recoveryStatusService.reset()
           cloudBackupDao.reset()
           csekDao.reset()
+          migrationService.reset()
+          w3UpgradeCheckpointWriter.reset()
           provisionAppAuthKeyTransactionProvider.reset()
           firmwareDeviceInfoDao.reset()
           appInstallationDao.reset()
@@ -299,6 +330,92 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
             keyboxDao.activeKeybox.value
               .shouldBeOk()
               .shouldNotBeNull()
+            migrationService.isW3UpgradeInProgressCalls.shouldBe(0)
+          }
+        }
+
+        test("restore from cloud backup skips provisioning and key rotation when recovery auth fails during W3 upgrade") {
+          migrationService.isW3UpgradeInProgressResult = true
+
+          stateMachineActiveDeviceFlagOn.testWithVirtualTime(props) {
+            accountAuthorizer.authResults =
+              mutableListOf(
+                Ok(accountAuthorizer.defaultAuthResult.get()!!.copy(accountId = "account-id")),
+                Err(AuthSignatureMismatch)
+              )
+
+            awaitBody<FormBodyModel> {
+              clickPrimaryButton()
+            }
+            awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
+              id = nfcConfirmableSessionUiStateMachine.id
+            ) {
+              onSuccess(Pair(CsekFake, backup as CloudBackup))
+            }
+
+            awaitBody<LoadingSuccessBodyModel> {
+              state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+            }
+
+            cloudBackupDao.get("account-id").shouldBeOk(backup as CloudBackup)
+            eventTracker.eventCalls.awaitItem().shouldBe(
+              TrackedAction(ACTION_APP_CLOUD_RECOVERY_KEY_RECOVERED)
+            )
+
+            accountAuthorizer.authCalls.awaitItem()
+            accountAuthorizer.authCalls.awaitItem()
+            authTokensService.getTokens(FullAccountId("account-id"), Global).shouldBeOk(
+              AccountAuthTokens(
+                accessToken = AccessToken("access-token-fake"),
+                refreshToken = RefreshToken("refresh-token-fake"),
+                accessTokenExpiresAt = Instant.DISTANT_FUTURE
+              )
+            )
+            authTokensService.getTokens(FullAccountId("account-id"), Recovery).shouldBeOk(null)
+            deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
+            recoveryStatusService.clearCalls.awaitItem()
+            relationshipsService.syncCalls.awaitItem()
+            spendingWallet.syncCalls.awaitItem()
+
+            migrationService.isW3UpgradeInProgressCalls.shouldBe(1)
+            w3UpgradeCheckpointWriter.persistCloudRestoreCheckpointCalls.shouldBe(1)
+            fullAccountAuthKeyRotationService.recommendKeyRotationCalls.expectNoEvents()
+          }
+        }
+
+        test("restore from cloud backup still fails when recovery auth fails outside W3 upgrade") {
+          stateMachineActiveDeviceFlagOn.testWithVirtualTime(props) {
+            accountAuthorizer.authResults =
+              mutableListOf(
+                Ok(accountAuthorizer.defaultAuthResult.get()!!.copy(accountId = "account-id")),
+                Err(AuthSignatureMismatch)
+              )
+
+            awaitBody<FormBodyModel> {
+              clickPrimaryButton()
+            }
+            awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
+              id = nfcConfirmableSessionUiStateMachine.id
+            ) {
+              onSuccess(Pair(CsekFake, backup as CloudBackup))
+            }
+
+            awaitBody<LoadingSuccessBodyModel> {
+              state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+            }
+
+            eventTracker.eventCalls.awaitItem().shouldBe(
+              TrackedAction(ACTION_APP_CLOUD_RECOVERY_KEY_RECOVERED)
+            )
+
+            accountAuthorizer.authCalls.awaitItem()
+            accountAuthorizer.authCalls.awaitItem()
+            migrationService.isW3UpgradeInProgressCalls.shouldBe(1)
+            w3UpgradeCheckpointWriter.persistCloudRestoreCheckpointCalls.shouldBe(0)
+
+            awaitBody<ProblemWithCloudBackupModel> {
+              failure.shouldBe(CloudBackupFailure.AppCantPerformPostRestorationSteps)
+            }
           }
         }
 
@@ -586,6 +703,247 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
 
             // Verify recommendKeyRotation was never called
             fullAccountAuthKeyRotationService.recommendKeyRotationCalls.expectNoEvents()
+          }
+        }
+
+        test("W3 unseal failure falls back to ProblemWithCloudBackup when guard flag is off") {
+          w3MidUpgradeRecoveryGuardFeatureFlag.setFlagValue(false)
+          authF8eClient.initiateAuthenticationResult = Err(
+            HttpError.ClientError(HttpResponseMock(HttpStatusCode.NotFound))
+          )
+
+          stateMachineActiveDeviceFlagOn.test(props) {
+            awaitBody<FormBodyModel> { clickPrimaryButton() }
+
+            awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
+              id = nfcConfirmableSessionUiStateMachine.id
+            ) {
+              val w3Commands = NfcCommandsMock(turbine = { name ->
+                app.cash.turbine.Turbine(name = name)
+              }).apply {
+                deviceInfoResult = FirmwareDeviceInfoMock.copy(hwRevision = "w3a-core-evt")
+              }
+              @Suppress("SwallowedException")
+              try {
+                session(NfcSessionFake(), w3Commands)
+              } catch (_: Throwable) {
+              }
+              onError(NfcException.CommandErrorSealCsekResponseUnsealException())
+            }
+
+            // With the guard disabled, the W3 unseal failure must route directly
+            // to the legacy ProblemWithCloudBackup screen — no probe, no modal.
+            awaitBody<ProblemWithCloudBackupModel> {
+              failure.shouldBe(CloudBackupFailure.HWCantDecryptCSEK)
+            }
+          }
+        }
+
+        test("W3 unseal failure + recovery pubkey rejected by server shows blocking modal") {
+          authF8eClient.initiateAuthenticationResult = Err(
+            HttpError.ClientError(HttpResponseMock(HttpStatusCode.NotFound))
+          )
+
+          stateMachineActiveDeviceFlagOn.testWithVirtualTime(props) {
+            awaitBody<FormBodyModel> { clickPrimaryButton() }
+
+            awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
+              id = nfcConfirmableSessionUiStateMachine.id
+            ) {
+              // Run session with W3 hardware so capturedDeviceInfo is populated,
+              // then simulate the "no CSEK matched" signal the real firmware
+              // command layer emits when every candidate is exhausted.
+              val w3Commands = NfcCommandsMock(turbine = { name ->
+                app.cash.turbine.Turbine(name = name)
+              }).apply {
+                deviceInfoResult = FirmwareDeviceInfoMock.copy(hwRevision = "w3a-core-evt")
+              }
+              @Suppress("SwallowedException")
+              try {
+                session(NfcSessionFake(), w3Commands)
+              } catch (_: Throwable) {
+                // Ignored — we only care that the session populated capturedDeviceInfo.
+              }
+              onError(NfcException.CommandErrorSealCsekResponseUnsealException())
+            }
+
+            awaitUntilBody<RecommendTapOtherBitkeyModel>()
+            onRecoverAppKeyCalls.expectNoEvents()
+          }
+        }
+
+        test("W3 unseal failure + recovery pubkey still valid on server falls back to ProblemWithCloudBackup") {
+          authF8eClient.initiateAuthenticationResult = Ok(
+            InitiateAuthenticationSuccess(
+              username = "account-id",
+              accountId = "account-id",
+              challenge = "challenge",
+              session = "session"
+            )
+          )
+
+          stateMachineActiveDeviceFlagOn.testWithVirtualTime(props) {
+            awaitBody<FormBodyModel> { clickPrimaryButton() }
+
+            awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
+              id = nfcConfirmableSessionUiStateMachine.id
+            ) {
+              val w3Commands = NfcCommandsMock(turbine = { name ->
+                app.cash.turbine.Turbine(name = name)
+              }).apply {
+                deviceInfoResult = FirmwareDeviceInfoMock.copy(hwRevision = "w3a-core-evt")
+              }
+              @Suppress("SwallowedException")
+              try {
+                session(NfcSessionFake(), w3Commands)
+              } catch (_: Throwable) {
+              }
+              onError(NfcException.CommandErrorSealCsekResponseUnsealException())
+            }
+
+            awaitUntilBody<ProblemWithCloudBackupModel> {
+              failure.shouldBe(CloudBackupFailure.HWCantDecryptCSEK)
+            }
+          }
+        }
+
+        test("W3 unseal failure + server network error falls back to ProblemWithCloudBackup") {
+          authF8eClient.initiateAuthenticationResult = Err(
+            HttpError.NetworkError(Exception("no connectivity"))
+          )
+
+          stateMachineActiveDeviceFlagOn.testWithVirtualTime(props) {
+            awaitBody<FormBodyModel> { clickPrimaryButton() }
+
+            awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
+              id = nfcConfirmableSessionUiStateMachine.id
+            ) {
+              val w3Commands = NfcCommandsMock(turbine = { name ->
+                app.cash.turbine.Turbine(name = name)
+              }).apply {
+                deviceInfoResult = FirmwareDeviceInfoMock.copy(hwRevision = "w3a-core-evt")
+              }
+              @Suppress("SwallowedException")
+              try {
+                session(NfcSessionFake(), w3Commands)
+              } catch (_: Throwable) {
+              }
+              onError(NfcException.CommandErrorSealCsekResponseUnsealException())
+            }
+
+            awaitUntilBody<ProblemWithCloudBackupModel> {
+              failure.shouldBe(CloudBackupFailure.HWCantDecryptCSEK)
+            }
+          }
+        }
+
+        test("Try a different Bitkey from blocking modal re-enters the NFC unseal flow") {
+          authF8eClient.initiateAuthenticationResult = Err(
+            HttpError.ClientError(HttpResponseMock(HttpStatusCode.NotFound))
+          )
+
+          stateMachineActiveDeviceFlagOn.testWithVirtualTime(props) {
+            awaitBody<FormBodyModel> { clickPrimaryButton() }
+
+            awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
+              id = nfcConfirmableSessionUiStateMachine.id
+            ) {
+              val w3Commands = NfcCommandsMock(turbine = { name ->
+                app.cash.turbine.Turbine(name = name)
+              }).apply {
+                deviceInfoResult = FirmwareDeviceInfoMock.copy(hwRevision = "w3a-core-evt")
+              }
+              @Suppress("SwallowedException")
+              try {
+                session(NfcSessionFake(), w3Commands)
+              } catch (_: Throwable) {
+              }
+              onError(NfcException.CommandErrorSealCsekResponseUnsealException())
+            }
+
+            awaitUntilBody<RecommendTapOtherBitkeyModel> {
+              clickPrimaryButton()
+            }
+
+            // Back in the NFC unseal flow.
+            awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
+              id = nfcConfirmableSessionUiStateMachine.id
+            )
+          }
+        }
+
+        test("Canceling NFC after Try a different Bitkey bounces back to blocking modal (not CloudBackupFound)") {
+          authF8eClient.initiateAuthenticationResult = Err(
+            HttpError.ClientError(HttpResponseMock(HttpStatusCode.NotFound))
+          )
+
+          stateMachineActiveDeviceFlagOn.testWithVirtualTime(props) {
+            awaitBody<FormBodyModel> { clickPrimaryButton() }
+
+            awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
+              id = nfcConfirmableSessionUiStateMachine.id
+            ) {
+              val w3Commands = NfcCommandsMock(turbine = { name ->
+                app.cash.turbine.Turbine(name = name)
+              }).apply {
+                deviceInfoResult = FirmwareDeviceInfoMock.copy(hwRevision = "w3a-core-evt")
+              }
+              @Suppress("SwallowedException")
+              try {
+                session(NfcSessionFake(), w3Commands)
+              } catch (_: Throwable) {
+              }
+              onError(NfcException.CommandErrorSealCsekResponseUnsealException())
+            }
+
+            awaitUntilBody<RecommendTapOtherBitkeyModel> {
+              clickPrimaryButton()
+            }
+
+            // NFC re-opens after tapping "Try a different Bitkey".
+            awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
+              id = nfcConfirmableSessionUiStateMachine.id
+            ) {
+              onCancel()
+            }
+
+            // Canceling should return to the blocking modal, NOT to CloudBackupFound.
+            awaitBody<RecommendTapOtherBitkeyModel>()
+            onRecoverAppKeyCalls.expectNoEvents()
+            onExitCalls.expectNoEvents()
+          }
+        }
+
+        test("Back from blocking modal exits via props.onExit (does not fall through to CloudBackupFound)") {
+          authF8eClient.initiateAuthenticationResult = Err(
+            HttpError.ClientError(HttpResponseMock(HttpStatusCode.NotFound))
+          )
+
+          stateMachineActiveDeviceFlagOn.testWithVirtualTime(props) {
+            awaitBody<FormBodyModel> { clickPrimaryButton() }
+
+            awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
+              id = nfcConfirmableSessionUiStateMachine.id
+            ) {
+              val w3Commands = NfcCommandsMock(turbine = { name ->
+                app.cash.turbine.Turbine(name = name)
+              }).apply {
+                deviceInfoResult = FirmwareDeviceInfoMock.copy(hwRevision = "w3a-core-evt")
+              }
+              @Suppress("SwallowedException")
+              try {
+                session(NfcSessionFake(), w3Commands)
+              } catch (_: Throwable) {
+              }
+              onError(NfcException.CommandErrorSealCsekResponseUnsealException())
+            }
+
+            awaitUntilBody<RecommendTapOtherBitkeyModel> {
+              onBack()
+            }
+
+            onExitCalls.awaitItem()
+            onRecoverAppKeyCalls.expectNoEvents()
           }
         }
 

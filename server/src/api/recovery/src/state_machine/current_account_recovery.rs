@@ -181,9 +181,23 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
                 return Err(RecoveryError::InvalidRecoveryDestination);
             }
 
+            // Hardware key must change for lost Hw
+            if *lost_factor == Factor::Hw
+                && account_auth_keys.hardware_pubkey == destination.hardware_auth_pubkey
+            {
+                tracing::error!(
+                    recovery_state = std::any::type_name_of_val(&self),
+                    recovery_event = event.to_string(),
+                    "Destination hardware key must differ from current for lost Hw recovery"
+                );
+                return Err(RecoveryError::HwAuthPubkeyReuseAccount);
+            }
+
             ensure_pubkeys_unique(
                 services.account,
                 services.recovery,
+                services.public_key,
+                &self.account.id,
                 Some(destination.app_auth_pubkey),
                 if *lost_factor == Factor::Hw {
                     Some(destination.hardware_auth_pubkey)

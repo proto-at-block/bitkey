@@ -1,5 +1,6 @@
 package build.wallet.testing.ext
 
+import bitkey.account.HardwareType
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupV2
@@ -9,7 +10,9 @@ import build.wallet.cloud.backup.v2.FullAccountKeys
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.cloud.store.cloudServiceProvider
+import build.wallet.nfc.NfcSession
 import build.wallet.nfc.NfcSessionFake
+import build.wallet.nfc.NfcSession.RequirePairedHardware.NotRequired
 import build.wallet.nfc.platform.unsealSymmetricKey
 import build.wallet.testing.AppTester
 import com.github.michaelbull.result.getOrThrow
@@ -39,8 +42,10 @@ suspend fun AppTester.readCloudBackup(cloudStoreAccount: CloudStoreAccount? = nu
  * Read the current cloud backup using [readCloudBackup] then decrypts the cloud backup to retrieve
  * its [FullAccountKeys].
  */
-suspend fun AppTester.decryptCloudBackupKeys(): FullAccountKeys {
-  val cloudBackup = readCloudBackup()
+suspend fun AppTester.decryptCloudBackupKeys(
+  cloudStoreAccount: CloudStoreAccount? = null,
+): FullAccountKeys {
+  val cloudBackup = readCloudBackup(cloudStoreAccount)
     .shouldNotBeNull()
 
   val fullAccountFields = when (cloudBackup) {
@@ -50,12 +55,39 @@ suspend fun AppTester.decryptCloudBackupKeys(): FullAccountKeys {
   }.shouldNotBeNull()
 
   val decryptedSsek = Sek(
-    fakeNfcCommands.unsealSymmetricKey(
-      session = NfcSessionFake(),
-      sealedData = fullAccountFields.sealedHwEncryptionKey
-    )
+    when (fullAccountFields.hardwareType) {
+      HardwareType.W1 ->
+        fakeNfcCommands.unsealSymmetricKey(
+          session = fakeSessionFor(fullAccountFields.hardwareType),
+          sealedData = fullAccountFields.sealedHwEncryptionKey
+        )
+      HardwareType.W3 ->
+        fakeW3NfcCommands.unsealSymmetricKey(
+          session = fakeSessionFor(fullAccountFields.hardwareType),
+          sealedData = fullAccountFields.sealedHwEncryptionKey
+        )
+    }
   )
   csekDao.set(fullAccountFields.sealedHwEncryptionKey, decryptedSsek)
 
   return cloudBackupRestorer.decryptCloudBackup(cloudBackup).getOrThrow()
 }
+
+private fun fakeSessionFor(
+  hardwareType: HardwareType,
+): NfcSession =
+  NfcSessionFake(
+    parameters = NfcSession.Parameters(
+      isHardwareFake = true,
+      hardwareType = hardwareType,
+      needsAuthentication = NfcSessionFake.FakeParameters.needsAuthentication,
+      shouldLock = NfcSessionFake.FakeParameters.shouldLock,
+      skipFirmwareTelemetry = NfcSessionFake.FakeParameters.skipFirmwareTelemetry,
+      asyncNfcSigning = NfcSessionFake.FakeParameters.asyncNfcSigning,
+      nfcFlowName = NfcSessionFake.FakeParameters.nfcFlowName,
+      requirePairedHardware = NotRequired,
+      maxNfcRetryAttempts = NfcSessionFake.FakeParameters.maxNfcRetryAttempts,
+      onTagConnected = {},
+      onTagDisconnected = {}
+    )
+  )

@@ -125,7 +125,6 @@ adpu_from_proto!(SealCsekCmd);
 adpu_from_proto!(SignTxnCmd);
 adpu_from_proto!(SignStartCmd);
 adpu_from_proto!(SignTransferCmd);
-adpu_from_proto!(GetConfirmationResultChunkCmd);
 adpu_from_proto!(StartFingerprintEnrollmentCmd);
 adpu_from_proto!(TelemetryIdGetCmd);
 adpu_from_proto!(DeviceInfoCmd);

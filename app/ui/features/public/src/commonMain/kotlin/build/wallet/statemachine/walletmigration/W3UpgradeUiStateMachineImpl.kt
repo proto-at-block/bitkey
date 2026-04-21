@@ -2,6 +2,7 @@ package build.wallet.statemachine.walletmigration
 
 import androidx.compose.runtime.*
 import bitkey.account.HardwareType
+import bitkey.auth.AuthTokenScope.Global
 import bitkey.privilegedactions.ActionProofService
 import bitkey.privilegedactions.ActionProofService.Companion.ACTION_PROOF_VERSION
 import bitkey.privilegedactions.AppSignedActionProof
@@ -11,7 +12,7 @@ import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.analytics.events.screen.id.WalletMigrationEventTrackerScreenId
-import build.wallet.analytics.v1.Action as AnalyticsAction
+import build.wallet.auth.AuthTokensService
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.keys.extractAccountIndex
 import build.wallet.bitcoin.transactions.BitcoinWalletService
@@ -27,9 +28,11 @@ import build.wallet.bitkey.relationships.DelegatedDecryptionKey
 import build.wallet.catchingResult
 import build.wallet.chaincode.delegation.ChaincodeExtractor
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.cloud.backup.csek.Sek
 import build.wallet.cloud.backup.csek.SsekDao
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.crypto.PublicKey
+import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.crypto.WsmVerifier
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
@@ -44,10 +47,7 @@ import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
 import build.wallet.nfc.NfcException
-import build.wallet.nfc.platform.UpgradeAuthorizeW3Result
-import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysParams
-import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysResult
-import build.wallet.nfc.platform.verifyHardwareType
+import build.wallet.nfc.platform.*
 import build.wallet.nfc.transaction.PairingTransactionResponse
 import build.wallet.recovery.sweep.SweepContext
 import build.wallet.relationships.RelationshipsKeysRepository
@@ -79,6 +79,7 @@ import kotlinx.coroutines.launch
 import okio.ByteString
 import okio.ByteString.Companion.decodeHex
 import uniffi.actionproof.Action
+import build.wallet.analytics.v1.Action as AnalyticsAction
 
 @BitkeyInject(ActivityScope::class)
 @Suppress("LargeClass")
@@ -91,6 +92,7 @@ class W3UpgradeUiStateMachineImpl(
     FullAccountCloudSignInAndBackupUiStateMachine,
   private val ssekDao: SsekDao,
   private val accountService: AccountService,
+  private val authTokensService: AuthTokensService,
   private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val nfcConfirmableSessionUiStateMachine: NfcConfirmableSessionUiStateMachine,
@@ -114,10 +116,12 @@ class W3UpgradeUiStateMachineImpl(
     // Check if migration is in progress by calling resume(), then navigate
     // to the correct screen. Avoids flashing the intro before bouncing.
     var isMigrationInProgress by remember { mutableStateOf(false) }
+    var resumedFromCloudBackupFlow by remember { mutableStateOf(false) }
     LaunchedEffect("check-w3-upgrade-status") {
-      val (inProgress, initialState) = resolveInitialUiState(props.account)
-      isMigrationInProgress = inProgress
-      uiState = initialState
+      val resolved = resolveInitialUiState(props.account)
+      isMigrationInProgress = resolved.isMigrationInProgress
+      resumedFromCloudBackupFlow = resolved.resumedFromCloudBackup
+      uiState = resolved.uiState
     }
 
     return when (val state = uiState) {
@@ -134,6 +138,7 @@ class W3UpgradeUiStateMachineImpl(
           props = props,
           scope = scope,
           isMigrationInProgress = isMigrationInProgress,
+          resumedFromCloudBackupFlow = resumedFromCloudBackupFlow,
           onStateChange = { uiState = it },
           firmwareDeviceInfoDao = firmwareDeviceInfoDao,
           bitcoinWalletService = bitcoinWalletService,
@@ -147,6 +152,7 @@ class W3UpgradeUiStateMachineImpl(
         PairingPhaseModel(
           state = uiState,
           props = props,
+          resumedFromCloudBackupFlow = resumedFromCloudBackupFlow,
           onStateChange = { uiState = it }
         )
 
@@ -154,7 +160,7 @@ class W3UpgradeUiStateMachineImpl(
       is W3UpgradeUiState.ShowingOldHardwareInstructionsForAuthorization,
       is W3UpgradeUiState.TappingOldHardwareForAuthorization,
       is W3UpgradeUiState.CreatingKeyset,
-      is W3UpgradeUiState.ResumingAuthKeyRotation,
+      is W3UpgradeUiState.AttemptingResumedAuthKeyRotation,
       is W3UpgradeUiState.PreparingNewHardwareRotation,
       is W3UpgradeUiState.ShowingNewHardwareInstructionsForRotation,
       is W3UpgradeUiState.TappingNewHardwareForRotation,
@@ -168,6 +174,7 @@ class W3UpgradeUiStateMachineImpl(
         AuthRotationPhaseModel(
           state = uiState,
           props = props,
+          resumedFromCloudBackupFlow = resumedFromCloudBackupFlow,
           onStateChange = { uiState = it },
           onMigrationStarted = { isMigrationInProgress = true },
           onRequestExit = {
@@ -184,6 +191,7 @@ class W3UpgradeUiStateMachineImpl(
           state = uiState,
           props = props,
           scope = scope,
+          resumedFromCloudBackupFlow = resumedFromCloudBackupFlow,
           onStateChange = { uiState = it }
         )
 
@@ -197,6 +205,7 @@ class W3UpgradeUiStateMachineImpl(
           isMigrationInProgress = isMigrationInProgress,
           onStateChange = { uiState = it },
           onMigrationInProgress = { isMigrationInProgress = it },
+          onResumedFromCloudBackupChange = { resumedFromCloudBackupFlow = it },
           accountService = accountService,
           resolveInitialUiState = ::resolveInitialUiState,
           eventTracker = eventTracker
@@ -225,6 +234,7 @@ class W3UpgradeUiStateMachineImpl(
   private fun PairingPhaseModel(
     state: W3UpgradeUiState,
     props: W3UpgradeUiProps,
+    resumedFromCloudBackupFlow: Boolean,
     onStateChange: (W3UpgradeUiState) -> Unit,
   ): ScreenModel =
     when (state) {
@@ -235,16 +245,26 @@ class W3UpgradeUiStateMachineImpl(
               appGlobalAuthPublicKey = props.account.keybox.activeAppKeyBundle.authKey,
               onSuccess = { fingerprintEnrolled ->
                 eventTracker.track(AnalyticsAction.ACTION_APP_W3_UPGRADE_HW_PAIRED)
-                // Show old hardware instructions immediately (keyset creation deferred until W1 tap)
-                onStateChange(
-                  W3UpgradeUiState.ShowingOldHardwareInstructionsForAuthorization(
-                    fingerprintEnrolled = fingerprintEnrolled,
-                    newAppGlobalAuthKey = null,
-                    newAppRecoveryAuthKey = null,
-                    oldDeviceSerial = state.oldDeviceSerial,
-                    oldHardwareFingerprint = state.oldHardwareFingerprint
+                if (resumedFromCloudBackupFlow) {
+                  onStateChange(
+                    W3UpgradeUiState.GeneratingAuthKeys(
+                      fingerprintEnrolled = fingerprintEnrolled,
+                      oldDeviceSerial = state.oldDeviceSerial,
+                      oldHardwareFingerprint = state.oldHardwareFingerprint
+                    )
                   )
-                )
+                } else {
+                  // Show old hardware instructions immediately (keyset creation deferred until W1 tap)
+                  onStateChange(
+                    W3UpgradeUiState.ShowingOldHardwareInstructionsForAuthorization(
+                      fingerprintEnrolled = fingerprintEnrolled,
+                      newAppGlobalAuthKey = null,
+                      newAppRecoveryAuthKey = null,
+                      oldDeviceSerial = state.oldDeviceSerial,
+                      oldHardwareFingerprint = state.oldHardwareFingerprint
+                    )
+                  )
+                }
               }
             ),
             onExit = {
@@ -263,6 +283,7 @@ class W3UpgradeUiStateMachineImpl(
   private fun AuthRotationPhaseModel(
     state: W3UpgradeUiState,
     props: W3UpgradeUiProps,
+    resumedFromCloudBackupFlow: Boolean,
     onStateChange: (W3UpgradeUiState) -> Unit,
     onMigrationStarted: () -> Unit,
     onRequestExit: () -> Unit,
@@ -270,36 +291,101 @@ class W3UpgradeUiStateMachineImpl(
     when (state) {
       is W3UpgradeUiState.GeneratingAuthKeys -> {
         LaunchedEffect(Unit) {
-          val keyBundle = appKeysGenerator.generateKeyBundle().get()
-          if (keyBundle == null) {
+          val persistedAuthKeys = state.resumedAuthRotation?.newAppAuthKeys
+          val generatedRecoveryAuthKey = if (persistedAuthKeys == null) {
+            appKeysGenerator.generateRecoveryAuthKey().get()
+          } else {
+            null
+          }
+          if (persistedAuthKeys == null && generatedRecoveryAuthKey == null) {
             onStateChange(W3UpgradeUiState.Error)
             return@LaunchedEffect
           }
-          onStateChange(
-            W3UpgradeUiState.TappingOldHardwareForAuthorization(
-              fingerprintEnrolled = state.fingerprintEnrolled,
-              newAppGlobalAuthKey = keyBundle.authKey,
-              newAppRecoveryAuthKey = keyBundle.recoveryAuthKey,
-              oldDeviceSerial = state.oldDeviceSerial,
-              oldHardwareFingerprint = state.oldHardwareFingerprint
-            )
+          val (appGlobalAuthKey, appRecoveryAuthKey) = authKeysForRotation(
+            account = props.account,
+            resumedAuthRotation = state.resumedAuthRotation,
+            generatedRecoveryAuthKey = generatedRecoveryAuthKey
           )
+          val resumedFromCloudBackup = resumedFromCloudBackupFlow ||
+            state.resumedAuthRotation?.resumedFromCloudBackup == true
+          when {
+            resumedFromCloudBackup && state.fingerprintEnrolled != null -> {
+              onStateChange(
+                W3UpgradeUiState.CreatingKeyset(
+                  fingerprintEnrolled = state.fingerprintEnrolled,
+                  newAppGlobalAuthKey = appGlobalAuthKey,
+                  newAppRecoveryAuthKey = appRecoveryAuthKey,
+                  w1ProofOfPossession = null,
+                  oldDeviceSerial = state.oldDeviceSerial!!,
+                  oldHardwareFingerprint = state.oldHardwareFingerprint!!
+                )
+              )
+            }
+
+            resumedFromCloudBackup && state.resumedAuthRotation != null -> {
+              val updatedState = state.resumedAuthRotation.withAppAuthKeys(
+                AppAuthPublicKeys(
+                  appGlobalAuthPublicKey = appGlobalAuthKey,
+                  appRecoveryAuthPublicKey = appRecoveryAuthKey,
+                  appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(
+                    value = AppGlobalAuthKeyHwSignature.W3_ONBOARDING_PLACEHOLDER
+                  )
+                )
+              )
+              onStateChange(
+                W3UpgradeUiState.PreparingNewHardwareRotation(
+                  migrationProgress = updatedState,
+                  newAppGlobalAuthKey = appGlobalAuthKey,
+                  newAppRecoveryAuthKey = appRecoveryAuthKey
+                )
+              )
+            }
+
+            else -> {
+              onStateChange(
+                W3UpgradeUiState.TappingOldHardwareForAuthorization(
+                  fingerprintEnrolled = state.fingerprintEnrolled,
+                  newAppGlobalAuthKey = appGlobalAuthKey,
+                  newAppRecoveryAuthKey = appRecoveryAuthKey,
+                  resumedAuthRotation = state.resumedAuthRotation,
+                  oldDeviceSerial = state.oldDeviceSerial,
+                  oldHardwareFingerprint = state.oldHardwareFingerprint
+                )
+              )
+            }
+          }
         }
 
-        w3LoadingScreenModel("Preparing key rotation...", WalletMigrationEventTrackerScreenId.W3_UPGRADE_GENERATING_AUTH_KEYS)
+        w3LoadingScreenModel(
+          "Preparing key rotation...",
+          WalletMigrationEventTrackerScreenId.W3_UPGRADE_GENERATING_AUTH_KEYS
+        )
       }
       is W3UpgradeUiState.ShowingOldHardwareInstructionsForAuthorization -> {
         ScreenModel(
           body = W3UpgradeOldHardwareAuthRotationInstructionsBodyModel(
             onBack = null,
             onContinue = {
-              onStateChange(
-                W3UpgradeUiState.GeneratingAuthKeys(
-                  fingerprintEnrolled = state.fingerprintEnrolled,
-                  oldDeviceSerial = state.oldDeviceSerial,
-                  oldHardwareFingerprint = state.oldHardwareFingerprint
+              val resumedAuthRotation = state.resumedAuthRotation
+              if (resumedAuthRotation?.canRetryWithOldHardwareProofOnly() == true) {
+                val authKeys = checkNotNull(resumedAuthRotation.newAppAuthKeys)
+                onStateChange(
+                  W3UpgradeUiState.TappingOldHardwareForAuthorization(
+                    newAppGlobalAuthKey = authKeys.appGlobalAuthPublicKey,
+                    newAppRecoveryAuthKey = authKeys.appRecoveryAuthPublicKey,
+                    resumedAuthRotation = resumedAuthRotation
+                  )
                 )
-              )
+              } else {
+                onStateChange(
+                  W3UpgradeUiState.GeneratingAuthKeys(
+                    fingerprintEnrolled = state.fingerprintEnrolled,
+                    resumedAuthRotation = resumedAuthRotation,
+                    oldDeviceSerial = state.oldDeviceSerial,
+                    oldHardwareFingerprint = state.oldHardwareFingerprint
+                  )
+                )
+              }
             },
             // Exit only available in pre-keyset flow (fingerprintEnrolled set, no migration yet)
             onDeferExit = state.fingerprintEnrolled?.let { onRequestExit }
@@ -324,15 +410,39 @@ class W3UpgradeUiStateMachineImpl(
                       oldHardwareFingerprint = state.oldHardwareFingerprint!!
                     )
                   )
-                } else {
-                  // Resume flow: keyset already exists. Resolve migration state from DAO.
-                  onStateChange(
-                    W3UpgradeUiState.ResumingAuthKeyRotation(
-                      w1ProofOfPossession = hwFactorProofOfPossession,
-                      newAppGlobalAuthKey = state.newAppGlobalAuthKey,
-                      newAppRecoveryAuthKey = state.newAppRecoveryAuthKey
+                } else if (state.resumedAuthRotation != null) {
+                  val existingState = state.resumedAuthRotation
+                  val newAppAuthKeys = existingState.newAppAuthKeys ?: AppAuthPublicKeys(
+                    appGlobalAuthPublicKey = state.newAppGlobalAuthKey,
+                    appRecoveryAuthPublicKey = state.newAppRecoveryAuthKey,
+                    appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(
+                      value = AppGlobalAuthKeyHwSignature.W3_ONBOARDING_PLACEHOLDER
                     )
                   )
+                  val updatedState = existingState.withProof(
+                    newAppAuthKeys = newAppAuthKeys,
+                    proof = PrivilegedActionProof.HwKeyProof(hwFactorProofOfPossession)
+                  )
+                  if (existingState.canRetryWithOldHardwareProofOnly()) {
+                    onStateChange(
+                      W3UpgradeUiState.RunningAuthRotation(
+                        migrationProgress = updatedState
+                      )
+                    )
+                  } else {
+                    onStateChange(
+                      W3UpgradeUiState.PreparingNewHardwareRotation(
+                        migrationProgress = updatedState,
+                        newAppGlobalAuthKey = state.newAppGlobalAuthKey,
+                        newAppRecoveryAuthKey = state.newAppRecoveryAuthKey
+                      )
+                    )
+                  }
+                } else {
+                  logError {
+                    "TappingOldHardwareForAuthorization: no fingerprintEnrolled or resumedAuthRotation"
+                  }
+                  onStateChange(W3UpgradeUiState.Error)
                 }
               }
             ),
@@ -349,6 +459,7 @@ class W3UpgradeUiStateMachineImpl(
                   fingerprintEnrolled = state.fingerprintEnrolled,
                   newAppGlobalAuthKey = state.newAppGlobalAuthKey,
                   newAppRecoveryAuthKey = state.newAppRecoveryAuthKey,
+                  resumedAuthRotation = state.resumedAuthRotation,
                   oldDeviceSerial = state.oldDeviceSerial,
                   oldHardwareFingerprint = state.oldHardwareFingerprint
                 )
@@ -383,7 +494,8 @@ class W3UpgradeUiStateMachineImpl(
             hwProofOfPossession = HwFactorProofOfPossession(""),
             ssek = unsealedSsek,
             sealedSsek = state.fingerprintEnrolled.sealedSsek,
-            sealedCsek = state.fingerprintEnrolled.sealedCsek
+            sealedCsek = state.fingerprintEnrolled.sealedCsek,
+            resumedFromCloudBackup = resumedFromCloudBackupFlow
           )
 
           // Loop through migration states until we reach one that needs UI interaction
@@ -412,10 +524,12 @@ class W3UpgradeUiStateMachineImpl(
                 value = AppGlobalAuthKeyHwSignature.W3_ONBOARDING_PLACEHOLDER
               )
             )
-            val updatedState = authRotation.withProof(
-              newAppAuthKeys = newAppAuthKeys,
-              proof = PrivilegedActionProof.HwKeyProof(state.w1ProofOfPossession)
-            )
+            val updatedState = state.w1ProofOfPossession?.let { proof ->
+              authRotation.withProof(
+                newAppAuthKeys = newAppAuthKeys,
+                proof = PrivilegedActionProof.HwKeyProof(proof)
+              )
+            } ?: authRotation.withAppAuthKeys(newAppAuthKeys)
             onStateChange(
               W3UpgradeUiState.PreparingNewHardwareRotation(
                 migrationProgress = updatedState,
@@ -431,64 +545,124 @@ class W3UpgradeUiStateMachineImpl(
           }
         }
 
-        w3LoadingScreenModel("Setting up your new device...", WalletMigrationEventTrackerScreenId.W3_UPGRADE_CREATING_KEYSET)
+        w3LoadingScreenModel(
+          "Setting up your new device...",
+          WalletMigrationEventTrackerScreenId.W3_UPGRADE_CREATING_KEYSET
+        )
       }
-      is W3UpgradeUiState.ResumingAuthKeyRotation -> {
+      is W3UpgradeUiState.AttemptingResumedAuthKeyRotation -> {
         LaunchedEffect(Unit) {
-          val resumeResult = migrationService.resume(MigrationType.W3Upgrade).get()
-          val progress = resumeResult as? MigrationProgress.AuthKeyRotation
-          if (progress == null) {
-            logError {
-              "Expected AuthKeyRotation on resume but got ${resumeResult?.let { it::class.simpleName }}"
+          migrationService.proceed(state.migrationProgress)
+            .onSuccess { nextState ->
+              eventTracker.track(AnalyticsAction.ACTION_APP_W3_UPGRADE_AUTH_ROTATED)
+              onStateChange(
+                uiStateForMigrationProgress(nextState)
+                  ?: W3UpgradeUiState.Error
+              )
             }
-            onStateChange(W3UpgradeUiState.Error)
-            return@LaunchedEffect
-          }
-          val newAppAuthKeys = AppAuthPublicKeys(
-            appGlobalAuthPublicKey = state.newAppGlobalAuthKey,
-            appRecoveryAuthPublicKey = state.newAppRecoveryAuthKey,
-            appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(
-              value = AppGlobalAuthKeyHwSignature.W3_ONBOARDING_PLACEHOLDER
-            )
-          )
-          val updatedState = progress.withProof(
-            newAppAuthKeys = newAppAuthKeys,
-            proof = PrivilegedActionProof.HwKeyProof(state.w1ProofOfPossession)
-          )
-          onStateChange(
-            W3UpgradeUiState.PreparingNewHardwareRotation(
-              migrationProgress = updatedState,
-              newAppGlobalAuthKey = state.newAppGlobalAuthKey,
-              newAppRecoveryAuthKey = state.newAppRecoveryAuthKey
-            )
-          )
+            .onFailure { error ->
+              when {
+                error is MigrationError.MissingContext.W3AuthRotationOldHardwareProof -> {
+                  onStateChange(
+                    W3UpgradeUiState.ShowingOldHardwareInstructionsForAuthorization(
+                      resumedAuthRotation = state.migrationProgress,
+                      newAppGlobalAuthKey = state.migrationProgress.newAppAuthKeys
+                        ?.appGlobalAuthPublicKey,
+                      newAppRecoveryAuthKey = state.migrationProgress.newAppAuthKeys
+                        ?.appRecoveryAuthPublicKey
+                    )
+                  )
+                }
+
+                error is MigrationError.MissingContext.W3AuthRotationNewHardwareActionProof -> {
+                  val authKeys = state.migrationProgress.newAppAuthKeys
+                  if (authKeys == null) {
+                    onStateChange(
+                      W3UpgradeUiState.GeneratingAuthKeys(
+                        resumedAuthRotation = state.migrationProgress
+                      )
+                    )
+                  } else {
+                    onStateChange(
+                      W3UpgradeUiState.PreparingNewHardwareRotation(
+                        migrationProgress = state.migrationProgress,
+                        newAppGlobalAuthKey = authKeys.appGlobalAuthPublicKey,
+                        newAppRecoveryAuthKey = authKeys.appRecoveryAuthPublicKey
+                      )
+                    )
+                  }
+                }
+
+                else -> {
+                  logError { "Failed resumed auth rotation attempt: $error" }
+                  onStateChange(W3UpgradeUiState.Error)
+                }
+              }
+            }
         }
 
-        w3LoadingScreenModel("Resuming upgrade...", WalletMigrationEventTrackerScreenId.W3_UPGRADE_RESUMING_AUTH_KEY_ROTATION)
+        w3LoadingScreenModel(
+          "Resuming upgrade...",
+          WalletMigrationEventTrackerScreenId.W3_UPGRADE_RESUMING_AUTH_KEY_ROTATION
+        )
       }
       is W3UpgradeUiState.PreparingNewHardwareRotation -> {
         LaunchedEffect(Unit) {
-          onStateChange(
-            W3UpgradeUiState.ShowingNewHardwareInstructionsForRotation(
-              migrationProgress = state.migrationProgress,
-              newAppGlobalAuthKey = state.newAppGlobalAuthKey,
-              newAppRecoveryAuthKey = state.newAppRecoveryAuthKey
+          if (state.migrationProgress.resumedFromCloudBackup && state.rotateAppAuthKeysSigned == null) {
+            ensureFreshGlobalTokensForActionProof(props.account)
+              .onSuccess {
+                actionProofService.buildAppSignedPayload(
+                  action = Action.ROTATE_APP_AUTH_KEYS,
+                  appAuthKey = state.migrationProgress.currentKeybox.activeAppKeyBundle.authKey,
+                  accountId = props.account.accountId
+                )
+                  .onSuccess { rotateAppAuthKeysSigned ->
+                    onStateChange(
+                      W3UpgradeUiState.ShowingNewHardwareInstructionsForRotation(
+                        migrationProgress = state.migrationProgress,
+                        newAppGlobalAuthKey = state.newAppGlobalAuthKey,
+                        newAppRecoveryAuthKey = state.newAppRecoveryAuthKey,
+                        rotateAppAuthKeysSigned = rotateAppAuthKeysSigned
+                      )
+                    )
+                  }
+                  .onFailure {
+                    onStateChange(W3UpgradeUiState.Error)
+                  }
+              }
+              .onFailure {
+                onStateChange(W3UpgradeUiState.Error)
+              }
+          } else {
+            onStateChange(
+              W3UpgradeUiState.ShowingNewHardwareInstructionsForRotation(
+                migrationProgress = state.migrationProgress,
+                newAppGlobalAuthKey = state.newAppGlobalAuthKey,
+                newAppRecoveryAuthKey = state.newAppRecoveryAuthKey,
+                rotateAppAuthKeysSigned = state.rotateAppAuthKeysSigned
+              )
             )
-          )
+          }
         }
 
-        w3LoadingScreenModel("Preparing auth rotation...", WalletMigrationEventTrackerScreenId.W3_UPGRADE_PREPARING_AUTH_ROTATION)
+        w3LoadingScreenModel(
+          "Preparing auth rotation...",
+          WalletMigrationEventTrackerScreenId.W3_UPGRADE_PREPARING_AUTH_ROTATION
+        )
       }
       is W3UpgradeUiState.ShowingNewHardwareInstructionsForRotation -> {
         ScreenModel(
           body = W3UpgradeNewHardwareAuthRotationInstructionsBodyModel(
             onBack = null,
+            step = if (resumedFromCloudBackupFlow) 2 else 3,
+            totalSteps = if (resumedFromCloudBackupFlow) 3 else 4,
             onContinue = {
               onStateChange(
                 W3UpgradeUiState.TappingNewHardwareForRotation(
                   migrationProgress = state.migrationProgress,
                   newAppGlobalAuthKey = state.newAppGlobalAuthKey,
-                  newAppRecoveryAuthKey = state.newAppRecoveryAuthKey
+                  newAppRecoveryAuthKey = state.newAppRecoveryAuthKey,
+                  rotateAppAuthKeysSigned = state.rotateAppAuthKeysSigned
                 )
               )
             }
@@ -497,55 +671,120 @@ class W3UpgradeUiStateMachineImpl(
       }
       is W3UpgradeUiState.TappingNewHardwareForRotation -> {
         // W3 composite NFC tap: signs app global auth key and account ID
-        // in a single confirmable tap (no action proof signing needed for upgrade).
-        // Survives recomposition between the two taps of the confirmable flow.
         var w3DeviceInfo by remember { mutableStateOf<FirmwareDeviceInfo?>(null) }
-        nfcConfirmableSessionUiStateMachine.model(
-          NfcConfirmableSessionUIStateMachineProps(
-            session = { session, commands ->
-              commands.verifyHardwareType(session, expectedType = HardwareType.W3)
-              w3DeviceInfo = commands.getDeviceInfo(session)
-              commands.upgradeRotateAppAuthKeys(
-                session = session,
-                params = UpgradeRotateAppAuthKeysParams(
-                  accountId = props.account.accountId.serverId,
-                  appGlobalAuthPublicKey = state.newAppGlobalAuthKey.value
-                )
-              )
-            },
-            onSuccess = { result: UpgradeRotateAppAuthKeysResult ->
-              coroutineBinding {
-                // First post-commitment W3 tap — persist identity so
-                // validateHardwareIsPaired has the W3 serial.
-                w3DeviceInfo?.let { firmwareDeviceInfoDao.setDeviceInfo(it).bind() }
-                val updatedState = state.migrationProgress.withRotationData(
-                  hwSignedAccountId = result.hwSignedAccountId,
-                  hwAuthPublicKey = result.hwAuthPublicKey,
-                  appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(
-                    result.appGlobalAuthKeyHwSignature
+        if (state.migrationProgress.resumedFromCloudBackup) {
+          val rotateAppAuthKeysSigned = checkNotNull(state.rotateAppAuthKeysSigned)
+          nfcConfirmableSessionUiStateMachine.model(
+            NfcConfirmableSessionUIStateMachineProps(
+              session = { session, commands ->
+                commands.verifyHardwareType(session, expectedType = HardwareType.W3)
+                w3DeviceInfo = commands.getDeviceInfo(session)
+                commands.rotateAppAuthKeys(
+                  session = session,
+                  params = RotateAppAuthKeysContinueParams(
+                    actionProofVersion = ACTION_PROOF_VERSION,
+                    actionProofAction = ActionProofAction.ROTATE_APP_AUTH_KEYS,
+                    actionProofBindings = rotateAppAuthKeysSigned.bindings,
+                    accountId = props.account.accountId.serverId,
+                    appGlobalAuthPublicKey = state.newAppGlobalAuthKey.value
                   )
                 )
-                onStateChange(
-                  W3UpgradeUiState.RunningAuthRotation(
-                    migrationProgress = updatedState
+              },
+              onSuccess = { result ->
+                coroutineBinding {
+                  w3DeviceInfo?.let { firmwareDeviceInfoDao.setDeviceInfo(it).bind() }
+                  val header = actionProofService.createActionProofHeader(
+                    signatures = listOf(
+                      rotateAppAuthKeysSigned.appSignature,
+                      result.actionProofSignature.lowercase()
+                    ),
+                    nonce = rotateAppAuthKeysSigned.nonce
+                  ).bind()
+                  val updatedState = state.migrationProgress.withProof(
+                    newAppAuthKeys = AppAuthPublicKeys(
+                      appGlobalAuthPublicKey = state.newAppGlobalAuthKey,
+                      appRecoveryAuthPublicKey = state.newAppRecoveryAuthKey,
+                      appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(
+                        result.appGlobalAuthKeyHwSignature
+                      )
+                    ),
+                    proof = HwSignedAction(header)
+                  ).withRotationData(
+                    hwSignedAccountId = result.hwSignedAccountId,
+                    hwAuthPublicKey = result.hwAuthPublicKey,
+                    appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(
+                      result.appGlobalAuthKeyHwSignature
+                    )
                   )
-                )
-              }.logFailure { "Failed to persist W3 device info during upgrade" }
-                .onFailure { onStateChange(W3UpgradeUiState.Error) }
-            },
-            onCancel = { onStateChange(W3UpgradeUiState.Error) },
-            onError = wrongHardwareErrorHandler(
-              expectedType = HardwareType.W3,
-              retryState = state,
-              onStateChange = onStateChange
-            ),
-            hardwareVerification = HardwareVerification.NotRequired,
-            hardwareTypeOverride = HardwareType.W3,
-            screenPresentationStyle = ScreenPresentationStyle.Root,
-            eventTrackerContext = NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION,
-            confirmationContent = HardwareConfirmationContent.SignActionProof
+                  onStateChange(
+                    W3UpgradeUiState.RunningAuthRotation(
+                      migrationProgress = updatedState
+                    )
+                  )
+                }.logFailure { "Failed to persist W3 device info during resumed auth rotation" }
+                  .onFailure { onStateChange(W3UpgradeUiState.Error) }
+              },
+              onCancel = { onStateChange(W3UpgradeUiState.Error) },
+              onError = wrongHardwareErrorHandler(
+                expectedType = HardwareType.W3,
+                retryState = state,
+                onStateChange = onStateChange
+              ),
+              hardwareVerification = HardwareVerification.NotRequired,
+              hardwareTypeOverride = HardwareType.W3,
+              screenPresentationStyle = ScreenPresentationStyle.Root,
+              eventTrackerContext = NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION,
+              confirmationContent = HardwareConfirmationContent.SignActionProof
+            )
           )
-        )
+        } else {
+          nfcConfirmableSessionUiStateMachine.model(
+            NfcConfirmableSessionUIStateMachineProps(
+              session = { session, commands ->
+                commands.verifyHardwareType(session, expectedType = HardwareType.W3)
+                w3DeviceInfo = commands.getDeviceInfo(session)
+                commands.upgradeRotateAppAuthKeys(
+                  session = session,
+                  params = UpgradeRotateAppAuthKeysParams(
+                    accountId = props.account.accountId.serverId,
+                    appGlobalAuthPublicKey = state.newAppGlobalAuthKey.value
+                  )
+                )
+              },
+              onSuccess = { result: UpgradeRotateAppAuthKeysResult ->
+                coroutineBinding {
+                  // First post-commitment W3 tap — persist identity so
+                  // validateHardwareIsPaired has the W3 serial.
+                  w3DeviceInfo?.let { firmwareDeviceInfoDao.setDeviceInfo(it).bind() }
+                  val updatedState = state.migrationProgress.withRotationData(
+                    hwSignedAccountId = result.hwSignedAccountId,
+                    hwAuthPublicKey = result.hwAuthPublicKey,
+                    appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(
+                      result.appGlobalAuthKeyHwSignature
+                    )
+                  )
+                  onStateChange(
+                    W3UpgradeUiState.RunningAuthRotation(
+                      migrationProgress = updatedState
+                    )
+                  )
+                }.logFailure { "Failed to persist W3 device info during upgrade" }
+                  .onFailure { onStateChange(W3UpgradeUiState.Error) }
+              },
+              onCancel = { onStateChange(W3UpgradeUiState.Error) },
+              onError = wrongHardwareErrorHandler(
+                expectedType = HardwareType.W3,
+                retryState = state,
+                onStateChange = onStateChange
+              ),
+              hardwareVerification = HardwareVerification.NotRequired,
+              hardwareTypeOverride = HardwareType.W3,
+              screenPresentationStyle = ScreenPresentationStyle.Root,
+              eventTrackerContext = NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION,
+              confirmationContent = HardwareConfirmationContent.SignActionProof
+            )
+          )
+        }
       }
       is W3UpgradeUiState.RunningAuthRotation -> {
         LaunchedEffect(Unit) {
@@ -562,52 +801,64 @@ class W3UpgradeUiStateMachineImpl(
             }
         }
 
-        w3LoadingScreenModel("Rotating auth keys...", WalletMigrationEventTrackerScreenId.W3_UPGRADE_RUNNING_AUTH_ROTATION)
+        w3LoadingScreenModel(
+          "Rotating auth keys...",
+          WalletMigrationEventTrackerScreenId.W3_UPGRADE_RUNNING_AUTH_ROTATION
+        )
       }
       is W3UpgradeUiState.PreparingUpgradeAuthorization -> {
         // Build both action proof payloads (with app co-signing) and fetch DDK keypair.
         LaunchedEffect(Unit) {
-          val appAuthKey = state.migrationProgress.currentKeybox.activeAppKeyBundle.authKey
-          val keysetId = state.migrationProgress.next().newKeyset.f8eSpendingKeyset.keysetId
+          ensureFreshGlobalTokensForActionProof(props.account)
+            .onSuccess {
+              val appAuthKey = state.migrationProgress.currentKeybox.activeAppKeyBundle.authKey
+              val keysetId = state.migrationProgress.next().newKeyset.f8eSpendingKeyset.keysetId
 
-          val result = coroutineBinding {
-            val dbSigned = actionProofService.buildAppSignedPayload(
-              action = Action.UPDATE_DESCRIPTOR_BACKUPS,
-              extra = emptyMap(),
-              appAuthKey = appAuthKey,
-              accountId = props.account.accountId
-            ).bind()
+              val result = coroutineBinding {
+                val dbSigned = actionProofService.buildAppSignedPayload(
+                  action = Action.UPDATE_DESCRIPTOR_BACKUPS,
+                  extra = emptyMap(),
+                  appAuthKey = appAuthKey,
+                  accountId = props.account.accountId
+                ).bind()
 
-            val akSigned = actionProofService.buildAppSignedPayload(
-              action = Action.ROTATE_SPENDING_KEYSET,
-              extra = mapOf("eid" to keysetId),
-              appAuthKey = appAuthKey,
-              accountId = props.account.accountId
-            ).bind()
+                val akSigned = actionProofService.buildAppSignedPayload(
+                  action = Action.ROTATE_SPENDING_KEYSET,
+                  extra = mapOf("eid" to keysetId),
+                  appAuthKey = appAuthKey,
+                  accountId = props.account.accountId
+                ).bind()
 
-            val ddkKeypair = relationshipsKeysRepository
-              .getKeyWithPrivateMaterialOrCreate<DelegatedDecryptionKey>()
-              .bind()
+                val ddkKeypair = relationshipsKeysRepository
+                  .getKeyWithPrivateMaterialOrCreate<DelegatedDecryptionKey>()
+                  .bind()
 
-            Triple(dbSigned, akSigned, ddkKeypair)
-          }
+                Triple(dbSigned, akSigned, ddkKeypair)
+              }
 
-          result
-            .onSuccess { (dbSigned, akSigned, ddkKeypair) ->
-              onStateChange(
-                W3UpgradeUiState.AuthorizingW3Upgrade(
-                  migrationProgress = state.migrationProgress,
-                  descriptorBackupsSigned = dbSigned,
-                  activateKeysetSigned = akSigned,
-                  ddkPrivateKeyBytes = ddkKeypair.privateKey.bytes
-                )
-              )
+              result
+                .onSuccess { (dbSigned, akSigned, ddkKeypair) ->
+                  onStateChange(
+                    W3UpgradeUiState.AuthorizingW3Upgrade(
+                      migrationProgress = state.migrationProgress,
+                      descriptorBackupsSigned = dbSigned,
+                      activateKeysetSigned = akSigned,
+                      ddkPrivateKeyBytes = ddkKeypair.privateKey.bytes
+                    )
+                  )
+                }
+                .onFailure {
+                  onStateChange(W3UpgradeUiState.Error)
+                }
             }
             .onFailure {
               onStateChange(W3UpgradeUiState.Error)
             }
         }
-        w3LoadingScreenModel("Preparing authorization...", WalletMigrationEventTrackerScreenId.W3_UPGRADE_PREPARING_AUTHORIZATION)
+        w3LoadingScreenModel(
+          "Preparing authorization...",
+          WalletMigrationEventTrackerScreenId.W3_UPGRADE_PREPARING_AUTHORIZATION
+        )
       }
       is W3UpgradeUiState.AuthorizingW3Upgrade -> {
         // Single confirmable NFC tap: signs both action proofs + seals DDK.
@@ -618,6 +869,7 @@ class W3UpgradeUiStateMachineImpl(
               commands.upgradeAuthorizeW3(
                 session = session,
                 ddkPrivateKeyBytes = state.ddkPrivateKeyBytes,
+                sealedSsekForDecryption = state.migrationProgress.sealedSsekForDecryption,
                 descriptorBackupsBindings = state.descriptorBackupsSigned.bindings,
                 activateKeysetBindings = state.activateKeysetSigned.bindings,
                 actionProofVersion = ACTION_PROOF_VERSION
@@ -626,6 +878,20 @@ class W3UpgradeUiStateMachineImpl(
             onSuccess = { result: UpgradeAuthorizeW3Result ->
               // Create action proof headers from HW + app signatures.
               coroutineBinding {
+                val sealedSsekForDecryption = state.migrationProgress.sealedSsekForDecryption
+                if (sealedSsekForDecryption != null) {
+                  val unsealedSsek = result.unsealedSsek
+                    ?: return@coroutineBinding Err(
+                      IllegalStateException(
+                        "Resumed W3 upgrade expected unsealed SSEK from upgradeAuthorizeW3"
+                      )
+                    ).bind<Unit>()
+                  ssekDao.set(
+                    sealedSsekForDecryption,
+                    Sek(SymmetricKeyImpl(unsealedSsek))
+                  ).bind()
+                }
+
                 val dbHeader = actionProofService.createActionProofHeader(
                   signatures = listOf(
                     state.descriptorBackupsSigned.appSignature,
@@ -751,6 +1017,7 @@ class W3UpgradeUiStateMachineImpl(
     state: W3UpgradeUiState,
     props: W3UpgradeUiProps,
     scope: CoroutineScope,
+    resumedFromCloudBackupFlow: Boolean,
     onStateChange: (W3UpgradeUiState) -> Unit,
   ): ScreenModel =
     when (state) {
@@ -815,12 +1082,17 @@ class W3UpgradeUiStateMachineImpl(
             }
         }
 
-        w3LoadingScreenModel("Checking wallet balance...", WalletMigrationEventTrackerScreenId.W3_UPGRADE_CHECKING_FOR_FUNDS)
+        w3LoadingScreenModel(
+          "Checking wallet balance...",
+          WalletMigrationEventTrackerScreenId.W3_UPGRADE_CHECKING_FOR_FUNDS
+        )
       }
       is W3UpgradeUiState.ShowingOldHardwareInstructions -> {
         ScreenModel(
           body = W3UpgradeOldHardwareInstructionsBodyModel(
             onBack = null,
+            step = if (resumedFromCloudBackupFlow) 3 else 4,
+            totalSteps = if (resumedFromCloudBackupFlow) 3 else 4,
             onContinue = {
               onStateChange(
                 W3UpgradeUiState.Sweeping(
@@ -861,15 +1133,15 @@ class W3UpgradeUiStateMachineImpl(
    */
   private suspend fun resolveInitialUiState(
     @Suppress("UNUSED_PARAMETER") account: FullAccount,
-  ): Pair<Boolean, W3UpgradeUiState> {
+  ): ResolvedInitialState {
     val progress = migrationService.resume(MigrationType.W3Upgrade).get()
-      ?: return false to W3UpgradeUiState.ShowingIntro
-    val inProgress = progress !is MigrationProgress.NotStarted &&
-      progress !is MigrationProgress.Completed
-    if (!inProgress) return false to W3UpgradeUiState.ShowingIntro
+      ?: return ResolvedInitialState(false, false, W3UpgradeUiState.ShowingIntro)
+    val inProgress = progress.isInProgress()
+    val resumedFromCloudBackup = progress.wasResumedFromCloudBackup()
+    if (!inProgress) return ResolvedInitialState(false, false, W3UpgradeUiState.ShowingIntro)
     val state = uiStateForMigrationProgress(progress)
       ?: W3UpgradeUiState.ShowingIntro
-    return true to state
+    return ResolvedInitialState(true, resumedFromCloudBackup, state)
   }
 
   /**
@@ -878,6 +1150,8 @@ class W3UpgradeUiStateMachineImpl(
    */
   private suspend fun uiStateForMigrationProgress(progress: MigrationProgress): W3UpgradeUiState? {
     return when (progress) {
+      is MigrationProgress.NotStarted ->
+        W3UpgradeUiState.ShowingIntro.takeIf { progress.resumedFromCloudBackup }
       is MigrationProgress.DdkBackup -> {
         // On resume, rewind to the composite tap to re-collect proofs + seal DDK.
         // This replays descriptor backup + keyset activation, which is safe (see comments below).
@@ -910,7 +1184,24 @@ class W3UpgradeUiStateMachineImpl(
         }
       }
       is MigrationProgress.AuthKeyRotation -> {
-        W3UpgradeUiState.ShowingOldHardwareInstructionsForAuthorization()
+        val authKeys = progress.newAppAuthKeys
+        if (progress.canRetryWithOldHardwareProofOnly()) {
+          W3UpgradeUiState.AttemptingResumedAuthKeyRotation(progress)
+        } else if (progress.resumedFromCloudBackup && authKeys != null) {
+          W3UpgradeUiState.PreparingNewHardwareRotation(
+            migrationProgress = progress,
+            newAppGlobalAuthKey = authKeys.appGlobalAuthPublicKey,
+            newAppRecoveryAuthKey = authKeys.appRecoveryAuthPublicKey
+          )
+        } else if (progress.resumedFromCloudBackup) {
+          W3UpgradeUiState.GeneratingAuthKeys(resumedAuthRotation = progress)
+        } else {
+          W3UpgradeUiState.ShowingOldHardwareInstructionsForAuthorization(
+            resumedAuthRotation = progress,
+            newAppGlobalAuthKey = progress.newAppAuthKeys?.appGlobalAuthPublicKey,
+            newAppRecoveryAuthKey = progress.newAppAuthKeys?.appRecoveryAuthPublicKey
+          )
+        }
       }
       is MigrationProgress.DescriptorBackup -> {
         W3UpgradeUiState.PreparingUpgradeAuthorization(migrationProgress = progress)
@@ -919,7 +1210,7 @@ class W3UpgradeUiStateMachineImpl(
         // On resume, rewind to the composite tap to re-collect proofs + seal DDK.
         // This replays the descriptor backup upload, which is safe because:
         //  - uploads are idempotent (already-uploaded keysets are filtered out)
-        //  - sealedSsek is persisted in onboardingKeyboxSealedSsekDao (not cleared during migration)
+        //  - sealedSsek is persisted in onboardingKeyboxSealedSsekDao (cleared only after DDK backup checkpoint)
         W3UpgradeUiState.PreparingUpgradeAuthorization(
           migrationProgress = MigrationProgress.DescriptorBackup(
             type = progress.type,
@@ -1128,6 +1419,34 @@ class W3UpgradeUiStateMachineImpl(
         false
       }
     }
+
+  private suspend fun ensureFreshGlobalTokensForActionProof(
+    account: FullAccount,
+  ): Result<Unit, Throwable> =
+    coroutineBinding {
+      authTokensService.refreshAccessTokenWithApp(
+        f8eEnvironment = account.config.f8eEnvironment,
+        accountId = account.accountId,
+        scope = Global
+      )
+        .mapError { it as Throwable }
+        .bind()
+    }
+}
+
+private fun authKeysForRotation(
+  account: FullAccount,
+  resumedAuthRotation: MigrationProgress.AuthKeyRotation?,
+  generatedRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>?,
+): Pair<PublicKey<AppGlobalAuthKey>, PublicKey<AppRecoveryAuthKey>> {
+  val persistedAuthKeys = resumedAuthRotation?.newAppAuthKeys
+  return (
+    persistedAuthKeys?.appGlobalAuthPublicKey ?: account.keybox.activeAppKeyBundle.authKey
+  ) to (
+    persistedAuthKeys?.appRecoveryAuthPublicKey ?: requireNotNull(generatedRecoveryAuthKey) {
+      "A new recovery auth key is required when no persisted auth rotation data exists"
+    }
+  )
 }
 
 @Composable
@@ -1136,21 +1455,25 @@ private fun IntroPhaseModel(
   props: W3UpgradeUiProps,
   scope: CoroutineScope,
   isMigrationInProgress: Boolean,
+  resumedFromCloudBackupFlow: Boolean,
   onStateChange: (W3UpgradeUiState) -> Unit,
   firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
   bitcoinWalletService: BitcoinWalletService,
   utxoConsolidationUiStateMachine: UtxoConsolidationUiStateMachine,
   utxoMaxConsolidationCountFeatureFlag: UtxoMaxConsolidationCountFeatureFlag,
   eventTracker: EventTracker,
-): ScreenModel =
-  when (state) {
+): ScreenModel {
+  val introOnBack = props.onExit.takeUnless {
+    isMigrationInProgress || resumedFromCloudBackupFlow
+  }
+  return when (state) {
     is W3UpgradeUiState.Loading -> {
       w3LoadingScreenModel("Loading...", WalletMigrationEventTrackerScreenId.W3_UPGRADE_LOADING)
     }
     is W3UpgradeUiState.ShowingIntro -> {
       ScreenModel(
         body = W3UpgradeIntroBodyModel(
-          onBack = props.onExit.takeUnless { isMigrationInProgress },
+          onBack = introOnBack,
           onContinue = {
             eventTracker.track(AnalyticsAction.ACTION_APP_W3_UPGRADE_STARTED)
             onStateChange(W3UpgradeUiState.CheckingPendingTransactions)
@@ -1161,7 +1484,10 @@ private fun IntroPhaseModel(
     is W3UpgradeUiState.ShowingDeviceReady -> {
       ScreenModel(
         body = W3UpgradeDeviceReadyBodyModel(
-          onBack = { onStateChange(W3UpgradeUiState.ShowingIntro) },
+          onBack = { onStateChange(W3UpgradeUiState.ShowingIntro) }
+            .takeUnless { resumedFromCloudBackupFlow },
+          step = 1,
+          totalSteps = if (resumedFromCloudBackupFlow) 3 else 4,
           onYes = {
             // Read old device identity to carry in memory through the pre-keyset flow.
             // Firmware telemetry is skipped during W3 pairing so FirmwareDeviceInfoDao
@@ -1220,7 +1546,7 @@ private fun IntroPhaseModel(
       }
       ScreenModel(
         body = W3UpgradeIntroBodyModel(
-          onBack = props.onExit.takeUnless { isMigrationInProgress },
+          onBack = introOnBack,
           onContinue = {}
         )
       )
@@ -1228,7 +1554,7 @@ private fun IntroPhaseModel(
     is W3UpgradeUiState.ShowingPendingTransactionsWarning -> {
       ScreenModel(
         body = W3UpgradeIntroBodyModel(
-          onBack = props.onExit.takeUnless { isMigrationInProgress },
+          onBack = introOnBack,
           onContinue = {}
         ),
         bottomSheetModel = SheetModel(
@@ -1243,7 +1569,7 @@ private fun IntroPhaseModel(
     is W3UpgradeUiState.ShowingUtxoConsolidationRequired -> {
       ScreenModel(
         body = W3UpgradeIntroBodyModel(
-          onBack = props.onExit.takeUnless { isMigrationInProgress },
+          onBack = introOnBack,
           onContinue = {}
         ),
         bottomSheetModel = SheetModel(
@@ -1271,6 +1597,7 @@ private fun IntroPhaseModel(
     }
     else -> error("Unexpected state in IntroPhaseModel: $state")
   }
+}
 
 @Composable
 private fun TerminalPhaseModel(
@@ -1280,8 +1607,9 @@ private fun TerminalPhaseModel(
   isMigrationInProgress: Boolean,
   onStateChange: (W3UpgradeUiState) -> Unit,
   onMigrationInProgress: (Boolean) -> Unit,
+  onResumedFromCloudBackupChange: (Boolean) -> Unit,
   accountService: AccountService,
-  resolveInitialUiState: suspend (FullAccount) -> Pair<Boolean, W3UpgradeUiState>,
+  resolveInitialUiState: suspend (FullAccount) -> ResolvedInitialState,
   eventTracker: EventTracker,
 ): ScreenModel =
   when (state) {
@@ -1313,9 +1641,10 @@ private fun TerminalPhaseModel(
             onClick = {
               scope.launch {
                 onStateChange(W3UpgradeUiState.Loading)
-                val (inProgress, resumedState) = resolveInitialUiState(props.account)
-                onMigrationInProgress(inProgress)
-                onStateChange(resumedState)
+                val resolved = resolveInitialUiState(props.account)
+                onMigrationInProgress(resolved.isMigrationInProgress)
+                onResumedFromCloudBackupChange(resolved.resumedFromCloudBackup)
+                onStateChange(resolved.uiState)
               }
             }
           ),
@@ -1344,23 +1673,47 @@ private fun MigrationProgress.requiresUiInteraction(): Boolean =
     this is MigrationProgress.LocalKeyboxActivation ||
     this is MigrationProgress.Completed
 
+private fun MigrationProgress.AuthKeyRotation.hasResumedRotationData(): Boolean {
+  return newAppAuthKeys != null &&
+    hwAuthPublicKey != null &&
+    hwSignedAccountId != null
+}
+
+private fun MigrationProgress.AuthKeyRotation.canRetryWithOldHardwareProofOnly(): Boolean {
+  return hasResumedRotationData() && proof == null
+}
+
+private fun MigrationProgress.wasResumedFromCloudBackup(): Boolean =
+  when (this) {
+    is MigrationProgress.NotStarted -> resumedFromCloudBackup
+    is MigrationProgress.CreateNewKeyset -> resumedFromCloudBackup
+    is MigrationProgress.AuthKeyRotation -> resumedFromCloudBackup
+    is MigrationProgress.DescriptorBackup -> resumedFromCloudBackup
+    else -> false
+  }
+
 private fun w3LoadingScreenModel(
   message: String,
   id: EventTrackerScreenId,
-) =
-  ScreenModel(
-    body = LoadingSuccessBodyModel(
-      state = LoadingSuccessBodyModel.State.Loading,
-      message = message,
-      id = id,
-      primaryButton = null,
-      secondaryButton = null
-    )
+) = ScreenModel(
+  body = LoadingSuccessBodyModel(
+    state = LoadingSuccessBodyModel.State.Loading,
+    message = message,
+    id = id,
+    primaryButton = null,
+    secondaryButton = null
   )
+)
 
 private fun String.decodeHexResult(fieldName: String): Result<ByteString, Throwable> =
   catchingResult { decodeHex() }
     .mapError { cause -> IllegalArgumentException("Invalid $fieldName hex from server", cause) }
+
+private data class ResolvedInitialState(
+  val isMigrationInProgress: Boolean,
+  val resumedFromCloudBackup: Boolean,
+  val uiState: W3UpgradeUiState,
+)
 
 private sealed interface W3UpgradeUiState {
   /** Initial loading state while checking for in-progress migration. */
@@ -1400,55 +1753,53 @@ private sealed interface W3UpgradeUiState {
     val fingerprintEnrolled: PairingTransactionResponse.FingerprintEnrolled,
     val newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     val newAppRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
-    val w1ProofOfPossession: HwFactorProofOfPossession,
+    val w1ProofOfPossession: HwFactorProofOfPossession?,
     val oldDeviceSerial: String,
     val oldHardwareFingerprint: String,
   ) : W3UpgradeUiState
 
   /**
-   * Generating new app auth keys before NFC rotation.
-   * First-time flow carries [fingerprintEnrolled]; resume flow has all fields null.
+   * Preparing the app auth keys used during W3 auth rotation.
+   * The normal W3 upgrade reuses the current global app auth key, generates a new recovery auth
+   * key, and rotates the hardware auth key.
+   * First-time flow carries [fingerprintEnrolled]; resume flow carries [resumedAuthRotation].
    */
   data class GeneratingAuthKeys(
     val fingerprintEnrolled: PairingTransactionResponse.FingerprintEnrolled? = null,
+    val resumedAuthRotation: MigrationProgress.AuthKeyRotation? = null,
     val oldDeviceSerial: String? = null,
     val oldHardwareFingerprint: String? = null,
   ) : W3UpgradeUiState
 
   /**
    * Showing instructions to tap old hardware to authorize auth rotation.
-   * First-time flow carries [fingerprintEnrolled]; resume flow has all fields null.
+   * Resume flow carries [resumedAuthRotation] so it can reuse any persisted rotation data.
    */
   data class ShowingOldHardwareInstructionsForAuthorization(
     val fingerprintEnrolled: PairingTransactionResponse.FingerprintEnrolled? = null,
     val newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>? = null,
     val newAppRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>? = null,
+    val resumedAuthRotation: MigrationProgress.AuthKeyRotation? = null,
     val oldDeviceSerial: String? = null,
     val oldHardwareFingerprint: String? = null,
   ) : W3UpgradeUiState
 
   /**
    * Tapping old W1 hardware to authorize moving auth from W1 to W3.
-   * First-time flow carries [fingerprintEnrolled]; resume flow has all fields null.
+   * Resume flow carries [resumedAuthRotation] so it can skip key regeneration or W3 retap.
    */
   data class TappingOldHardwareForAuthorization(
     val fingerprintEnrolled: PairingTransactionResponse.FingerprintEnrolled? = null,
     val newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     val newAppRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
+    val resumedAuthRotation: MigrationProgress.AuthKeyRotation? = null,
     val oldDeviceSerial: String? = null,
     val oldHardwareFingerprint: String? = null,
   ) : W3UpgradeUiState
 
-  /**
-   * Resumes the W3 upgrade from auth key rotation after a previous session created the keyset.
-   *
-   * Fetches persisted migration state from the DAO (expected to be [MigrationProgress.AuthKeyRotation])
-   * and attaches the W1 proof of possession needed to authorize auth key rotation.
-   */
-  data class ResumingAuthKeyRotation(
-    val w1ProofOfPossession: HwFactorProofOfPossession,
-    val newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
-    val newAppRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
+  /** Attempts to resume auth rotation immediately using persisted rotation data. */
+  data class AttemptingResumedAuthKeyRotation(
+    val migrationProgress: MigrationProgress.AuthKeyRotation,
   ) : W3UpgradeUiState
 
   /** Transition state after old-device authorization, before the W3 rotation tap. */
@@ -1456,15 +1807,15 @@ private sealed interface W3UpgradeUiState {
     val migrationProgress: MigrationProgress.AuthKeyRotation,
     val newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     val newAppRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
+    val rotateAppAuthKeysSigned: AppSignedActionProof? = null,
   ) : W3UpgradeUiState
-
-  /** Building the W3 auth-rotation payload before the W3 NFC tap. */
 
   /** Showing instructions to tap new hardware for auth rotation signatures. */
   data class ShowingNewHardwareInstructionsForRotation(
     val migrationProgress: MigrationProgress.AuthKeyRotation,
     val newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     val newAppRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
+    val rotateAppAuthKeysSigned: AppSignedActionProof? = null,
   ) : W3UpgradeUiState
 
   /** Tapping new W3 hardware to produce the auth-rotation signatures. */
@@ -1472,6 +1823,7 @@ private sealed interface W3UpgradeUiState {
     val migrationProgress: MigrationProgress.AuthKeyRotation,
     val newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     val newAppRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
+    val rotateAppAuthKeysSigned: AppSignedActionProof? = null,
   ) : W3UpgradeUiState
 
   /** Running W1-to-W3 auth key rotation on the server and locally. */

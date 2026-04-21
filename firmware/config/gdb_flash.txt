@@ -4,5 +4,9 @@ load
 compare-sections
 monitor reset
 monitor go
+# Clear C_DEBUGEN in CoreDebug->DHCSR after the CPU is running so the
+# firmware does not think a debugger is still attached after flash.
+# The debug key (0xA05F0000) is required for writes to DHCSR.
+monitor writeU32 0xE000EDF0 0xA05F0000
 disconnect
 quit

@@ -1,12 +1,13 @@
-import sys
 import click
+import string
+import sys
 from invoke import task
 from pathlib import Path
 from typing import Optional
 
+from bitkey import fw_version, util
 from bitkey.gdb import JLinkGdbServer
 from bitkey.meson import (MesonBuild, Target)
-from bitkey import fw_version
 
 from .lib.paths import (CONFIG_DIR, COMMANDER_BIN)
 from .lib.config import (check_config, get_defaults)
@@ -23,6 +24,67 @@ def chipinfo(c, chip: Optional[str] = None):
     if "darwin" in sys.platform:
         device = chip or "EFR32MG"
         c.run(f"{COMMANDER_BIN} device info --device={device}")
+
+
+@task(help={
+    "platform": "Target platform",
+    "jlink": "J-Link serial number",
+    "force": "Skip flash erase warnings",
+})
+def erase(c, platform: str | None = None, jlink: str | None = None, force: bool = False) -> None:
+    """Erases all non-bootloader regions of a target MCU."""
+    platform = platform or c.platform
+    target = get_defaults()[platform]["target"]
+    mb = MesonBuild(c, platform=platform, target=target)
+    chip = mb.platform["jlink_gdb_chip"]
+
+    prompt = click.style(
+        "[WARNING] Erasing flash may remove necessary files. Continue?", fg="red")
+    if not force and not click.confirm(prompt):
+        return
+
+    with JLinkGdbServer(chip, GDB_FLASH_CONFIG, jlink_serial=jlink) as gdb:
+        product: str = platform
+        if not any(product.split("-")[0].endswith(suffix) for suffix in string.ascii_lowercase):
+            # 'a' variants of products do not pass around their 'a' suffix, so add it here.
+            if "-" in product:
+                product = product.replace("-", "a-")
+            else:
+                product += "a"
+
+        try:
+            config = util.get_partition_config(product)
+            if not config:
+                raise RuntimeError(
+                    f"Failed to find configuration for {product=}")
+
+            if not isinstance(config, dict):
+                raise TypeError("top-level YAML document must be a mapping")
+
+            flash = config["flash"]
+            if not isinstance(flash, dict):
+                raise TypeError("'flash' must be a mapping")
+
+            offset: int = flash["origin"]
+            partitions = flash["partitions"]
+            if not isinstance(partitions, list):
+                raise TypeError("'flash.partitions' must be a list")
+        except (RuntimeError, KeyError, TypeError) as e:
+            raise click.ClickException(
+                f"Invalid partitions configuration for {product}"
+            ) from e
+        for partition in partitions:
+            name = partition.get("name", "")
+            start_offset: int = offset
+            region_size: int = util.size_to_bytes(partition.get("size"))
+            offset += region_size
+            if not name or name.lower() == "bootloader":
+                continue
+
+            click.echo(
+                f"Erasing {name}: offset=0x{start_offset:08X}, size={util.bytes_to_size(region_size)}")
+            if not gdb.erase_range(addr=start_offset, size=region_size):
+                raise click.ClickException(f"Failed to erase region: {name}")
 
 
 @task(help={
@@ -120,7 +182,7 @@ def monitor(c, port=None):
         c.monitor_port if hasattr(c, 'monitor_port') else None)
 
     if monitor_port is None:
-        print(
+        click.echo(
             "'monitor_port' not set in invoke.json config and no --port argument provided")
         exit(1)
 

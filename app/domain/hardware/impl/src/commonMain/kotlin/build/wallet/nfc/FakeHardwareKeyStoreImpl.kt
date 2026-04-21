@@ -36,14 +36,21 @@ class FakeHardwareKeyStoreImpl(
   private suspend fun store() = encryptedKeyValueStoreFactory.getOrCreate(storeName)
 
   override suspend fun getSeed(): FakeHardwareKeyStore.Seed {
-    val seed = store().getOrPutString(SEED_KEY) {
+    val secureStore = store()
+    val seed = secureStore.getOrPutString(SEED_KEY) {
       bdkMnemonicGenerator.generateMnemonic(WORDS_24).words
     }
-    return FakeHardwareKeyStore.Seed(seed)
+    val descriptorLoaded = secureStore.getBoolean(DESCRIPTOR_LOADED_KEY, false)
+    return FakeHardwareKeyStore.Seed(
+      words = seed,
+      descriptorLoaded = descriptorLoaded
+    )
   }
 
   override suspend fun setSeed(seed: FakeHardwareKeyStore.Seed) {
-    return store().putString(SEED_KEY, seed.words)
+    val secureStore = store()
+    secureStore.putString(SEED_KEY, seed.words)
+    secureStore.putBoolean(DESCRIPTOR_LOADED_KEY, seed.descriptorLoaded)
   }
 
   private suspend fun getRootPrivateKey(network: BitcoinNetworkType): BdkDescriptorSecretKey {
@@ -144,6 +151,7 @@ class FakeHardwareKeyStoreImpl(
     const val DEFAULT_STORE_NAME = "fakeHardware"
     const val W3_STORE_NAME = "fakeHardwareW3"
     private const val SEED_KEY = "seed-key"
+    private const val DESCRIPTOR_LOADED_KEY = "descriptor-loaded-key"
     private val pathPattern = Regex("""^/84'/(\d+)'/(\d+)'""")
   }
 }

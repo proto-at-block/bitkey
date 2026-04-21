@@ -67,6 +67,7 @@ use repository::anti_replay::AntiReplayRepository;
 use repository::consent::ConsentRepository;
 use repository::encrypted_attachment::EncryptedAttachmentRepository;
 use repository::privileged_action::PrivilegedActionRepository;
+use repository::public_key::PublicKeyRepository;
 use repository::recovery::inheritance::InheritanceRepository;
 use repository::recovery::social::SocialRecoveryRepository;
 use repository::screener::ScreenerRepository;
@@ -89,6 +90,7 @@ use utoipa_swagger_ui::SwaggerUi;
 use wallet_telemetry::{set_global_telemetry, METRICS_REPORTING_PERIOD_SECS};
 use wsm_rust_client::WsmClient;
 
+pub mod migrations;
 mod request_baggage;
 mod request_logger;
 mod routes;
@@ -134,6 +136,7 @@ pub struct Services {
     pub webhook_validator: WebhookValidator,
     pub customer_feedback_service: CustomerFeedbackService,
     pub anti_replay_repository: AntiReplayRepository,
+    pub public_key_repository: PublicKeyRepository,
     // Remove the following repositories from services
     pub consent_repository: ConsentRepository,
     pub privileged_action_repository: PrivilegedActionRepository,
@@ -238,6 +241,7 @@ struct Repositories {
     account_repository: AccountRepository,
     address_watchlist_repository: AddressRepository,
     anti_replay_repository: AntiReplayRepository,
+    public_key_repository: PublicKeyRepository,
     consent_repository: ConsentRepository,
     notification_repository: NotificationRepository,
     wallet_recovery_repository: RecoveryRepository,
@@ -297,6 +301,7 @@ impl BootstrapBuilder {
             account_repository: AccountRepository::new(ddb_connection.clone()),
             address_watchlist_repository: AddressRepository::new(ddb_connection.clone()),
             anti_replay_repository: AntiReplayRepository::new(ddb_connection.clone()),
+            public_key_repository: PublicKeyRepository::new(ddb_connection.clone()),
             consent_repository: ConsentRepository::new(ddb_connection.clone()),
             notification_repository: NotificationRepository::new(ddb_connection.clone()),
             wallet_recovery_repository: RecoveryRepository::new_with_override(
@@ -366,6 +371,9 @@ impl BootstrapBuilder {
             repositories.screener_repository.create_table_if_necessary(),
             repositories
                 .anti_replay_repository
+                .create_table_if_necessary(),
+            repositories
+                .public_key_repository
                 .create_table_if_necessary(),
         )?;
 
@@ -545,6 +553,7 @@ impl BootstrapBuilder {
             customer_feedback_service,
             // Repositories to be removed
             anti_replay_repository: repositories.anti_replay_repository.clone(),
+            public_key_repository: repositories.public_key_repository.clone(),
             consent_repository: repositories.consent_repository.clone(),
             privileged_action_repository: repositories.privileged_action_repository.clone(),
             inheritance_repository: repositories.inheritance_repository.clone(),
@@ -603,6 +612,7 @@ impl BootstrapBuilder {
             self.services.feature_flags_service.clone(),
             self.services.privileged_action_service.clone(),
             self.services.anti_replay_repository.clone(),
+            self.services.public_key_repository.clone(),
         );
 
         let mobile_pay_state = mobile_pay::routes::RouteState(
@@ -642,6 +652,7 @@ impl BootstrapBuilder {
             self.services.feature_flags_service.clone(),
             self.services.wsm_client.clone(),
             self.services.anti_replay_repository.clone(),
+            self.services.public_key_repository.clone(),
         );
 
         let distributed_keys_state = recovery::routes::distributed_keys::RouteState(

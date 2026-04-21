@@ -3,6 +3,8 @@ use account::service::{FetchAccountByAuthKeyInput, Service as AccountService};
 use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
 use entities::RecoveryStatus;
 use error::RecoveryError;
+use ::repository::public_key::PublicKeyRepository;
+use types::account::identifiers::AccountId;
 
 pub mod entities;
 pub mod error;
@@ -16,6 +18,8 @@ pub mod state_machine;
 pub(crate) async fn ensure_pubkeys_unique(
     account_service: &AccountService,
     recovery_service: &RecoveryRepository,
+    public_key_repo: &PublicKeyRepository,
+    account_id: &AccountId,
     app_auth_pubkey: Option<PublicKey>,
     hw_auth_pubkey: Option<PublicKey>,
     recovery_auth_pubkey: Option<PublicKey>,
@@ -70,15 +74,14 @@ pub(crate) async fn ensure_pubkeys_unique(
     }
 
     if let Some(hw_auth_pubkey) = hw_auth_pubkey {
-        // If there's an existing account with the same hw auth pubkey, error
-        if account_service
-            .fetch_account_by_hw_pubkey(FetchAccountByAuthKeyInput {
-                pubkey: hw_auth_pubkey,
-            })
+        // Check if the hw key was ever previously active on a different account
+        if let Some(existing_record) = public_key_repo
+            .fetch_by_public_key(&hw_auth_pubkey.to_string())
             .await?
-            .is_some()
         {
-            return Err(RecoveryError::HwAuthPubkeyReuseAccount);
+            if existing_record.account_id != *account_id {
+                return Err(RecoveryError::HwAuthPubkeyReuseAccount);
+            }
         }
 
         // If there's an existing pending recovery with the same destination hw auth pubkey, error

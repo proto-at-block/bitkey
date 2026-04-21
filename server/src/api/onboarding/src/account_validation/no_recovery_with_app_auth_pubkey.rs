@@ -1,6 +1,7 @@
 use account::service::Service as AccountService;
 use async_trait::async_trait;
 use recovery::repository::RecoveryRepository;
+use repository::public_key::PublicKeyRepository;
 
 use super::{error::AccountValidationError, AccountValidationRequest, Rule};
 use crate::routes::Config;
@@ -15,6 +16,7 @@ impl Rule for NoRecoveryWithAppAuthPubkeyRule {
         _: &Config,
         _: &AccountService,
         recovery_repository: &RecoveryRepository,
+        _: &PublicKeyRepository,
     ) -> Result<(), AccountValidationError> {
         // This check only applies to creating or upgrading to full accounts
         let app_auth_pubkey = match request {

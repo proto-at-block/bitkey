@@ -31,11 +31,12 @@
 #define ANIM_UPDATE_MS 50  // Redraw interval
 
 // Radiate pulse: dramatic inner-to-outer ring glow.
-#define RADIATE_CYCLE_MS     1200
+#define RADIATE_CYCLE_MS     1304
 #define RADIATE_GAP_RINGS    2
 #define RADIATE_TOTAL_RINGS  (NUM_RINGS + RADIATE_GAP_RINGS)
 #define RADIATE_PERIOD_Q8    (RADIATE_TOTAL_RINGS * NFC_BLEND_MAX)
-#define RADIATE_PEAK_COLOR_T 220
+#define RADIATE_PEAK_COLOR_T 255
+#define INACTIVE_OPA         LV_OPA_70
 
 // Dot coordinates from NFC.svg plus computed intermediate rings.
 static const struct {
@@ -244,6 +245,8 @@ static void set_dot_state(nfc_dots_animation_t* anim, uint8_t dot_idx, lv_coord_
   lv_obj_set_pos(anim->dots[dot_idx], x - size / 2, y - size / 2);
   lv_obj_set_style_bg_color(anim->dots[dot_idx],
                             lerp_color(anim->resting_color, anim->highlight_color, color_t), 0);
+  lv_opa_t opa = (lv_opa_t)(INACTIVE_OPA + ((LV_OPA_COVER - INACTIVE_OPA) * color_t) / 255);
+  lv_obj_set_style_bg_opa(anim->dots[dot_idx], opa, 0);
 }
 
 static void accumulate_dot_state(lv_coord_t* dot_sizes, uint8_t* dot_color_t, uint8_t dot_idx,
@@ -282,8 +285,8 @@ static const int16_t spoke_dx[NUM_SPOKES] = {-107, -85, -58, -30, 0, 30, 59, 85,
 static const uint8_t spoke_order[NUM_SPOKES] = {4, 3, 5, 2, 6, 1, 7, 0, 8};
 
 // Apply a radiate pulse to dots in an arc, selecting by angular spoke position.
-// Each spoke picks the nearest unactivated dot (by x-position) and alternates
-// big/small by spoke distance from center.
+// Each spoke picks the nearest unactivated dot; size and color lerp together
+// from resting to full active via weight_t.
 static void accumulate_radiate_arc(uint8_t start, uint8_t count, uint8_t weight_t,
                                    lv_coord_t* dot_sizes, uint8_t* dot_color_t) {
   if (count == 0 || weight_t == 0) {
@@ -316,22 +319,10 @@ static void accumulate_radiate_arc(uint8_t start, uint8_t count, uint8_t weight_
     }
     activated[best_i] = true;
 
-    // Size alternation: even distance from center spoke = big, odd = small.
-    uint8_t dist_from_center = (s >= NUM_SPOKES / 2) ? (s - NUM_SPOKES / 2) : (NUM_SPOKES / 2 - s);
-    lv_coord_t size = (dist_from_center % 2 == 0) ? NFC_DOT_SIZE_ACTIVE : NFC_DOT_SIZE_FAR;
-
-    // Boost trail for center spokes: small dots get extra boost so more
-    // appear in the trailing wake without doubling up the large highlights.
-    int16_t dx = (int16_t)dot_positions[start + best_i].x - PATTERN_CENTER_X;
-    uint16_t abs_dx = (uint16_t)abs(dx);
-    uint8_t boost_amount = (dist_from_center % 2 != 0) ? 70 : 40;
-    uint16_t boosted = (uint16_t)weight_t + (uint16_t)((107 - abs_dx) * boost_amount / 107);
-    uint8_t final_wt = (boosted > NFC_BLEND_MAX) ? NFC_BLEND_MAX : (uint8_t)boosted;
-
-    // Scale color intensity with dot size so smaller dots are dimmer.
-    uint8_t color_t = (uint8_t)((uint16_t)RADIATE_PEAK_COLOR_T * size / NFC_DOT_SIZE_ACTIVE);
-    accumulate_dot_state(dot_sizes, dot_color_t, (uint8_t)(start + best_i), size, color_t,
-                         final_wt);
+    // Single continuous lerp: size and color sweep together from resting to
+    // full active via weight_t (matches hex radiate).
+    accumulate_dot_state(dot_sizes, dot_color_t, (uint8_t)(start + best_i), NFC_DOT_SIZE_ACTIVE,
+                         RADIATE_PEAK_COLOR_T, weight_t);
   }
 
   // Ghost trail: the unactivated dot between each highlighted dot and the
@@ -408,7 +399,7 @@ lv_obj_t* nfc_dots_animation_create(lv_obj_t* parent, nfc_dots_animation_t* anim
 
   // Resting color is fixed dark grey. A zero highlight color selects the
   // default white pulse.
-  animation->resting_color = lv_color_hex(0x313131);
+  animation->resting_color = lv_color_hex(0x404040);
   bool has_custom = (saved_color.red != 0) || (saved_color.green != 0) || (saved_color.blue != 0);
   if (!has_custom) {
     animation->highlight_color = lv_color_hex(COLOR_ACTIVE);
@@ -425,7 +416,6 @@ lv_obj_t* nfc_dots_animation_create(lv_obj_t* parent, nfc_dots_animation_t* anim
   for (int i = 0; i < NFC_DOTS_COUNT; i++) {
     animation->dots[i] = lv_obj_create(animation->container);
     lv_obj_set_style_radius(animation->dots[i], LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_opa(animation->dots[i], LV_OPA_COVER, 0);
     lv_obj_set_style_border_opa(animation->dots[i], LV_OPA_TRANSP, 0);
     lv_obj_clear_flag(animation->dots[i], LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(animation->dots[i], LV_OBJ_FLAG_HIDDEN);

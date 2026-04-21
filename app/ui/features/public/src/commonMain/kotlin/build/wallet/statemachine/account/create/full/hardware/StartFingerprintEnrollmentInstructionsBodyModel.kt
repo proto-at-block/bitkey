@@ -13,7 +13,7 @@ import build.wallet.ui.model.video.VideoStartingPosition.START
 
 fun StartFingerprintEnrollmentInstructionsBodyModel(
   onButtonClick: () -> Unit,
-  onBack: () -> Unit,
+  onBack: (() -> Unit)?,
   eventTrackerScreenIdContext: PairHardwareEventTrackerScreenIdContext,
   isNavigatingBack: Boolean,
   isDesignSystemV2Enabled: Boolean,

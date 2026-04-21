@@ -8,6 +8,8 @@ pub mod consent;
 pub mod encrypted_attachment;
 #[cfg(feature = "privileged_action")]
 pub mod privileged_action;
+#[cfg(feature = "public_key")]
+pub mod public_key;
 #[cfg(feature = "recovery")]
 pub mod recovery;
 #[cfg(feature = "screener")]

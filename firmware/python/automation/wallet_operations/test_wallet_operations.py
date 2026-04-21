@@ -1,59 +1,98 @@
+"""On-device integration test suite for verifying Bitcoin transaction signing."""
+
+from __future__ import annotations
+
+import logging
+import sys
+import time
+
 import allure
+import pytest
 import wallet_pb2 as wallet_pb
+from bitkey.secure_channel import SecureChannel
+from bitkey.wallet import Wallet
+
 from python.automation.commander import CommanderHelper
 from python.automation.inv_commands import Inv
-import logging
-import pytest
-from bitkey.comms import NFCTransaction, WalletComms
-from bitkey.wallet import Wallet
-from tasks.lib.paths import ROOT_DIR
-from time import sleep
-
-from dataclasses import dataclass
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
-Inv_task = Inv()
-Commander = CommanderHelper()
 
+class TestWalletOperations:
+    Inv_task = Inv()
+    Commander = CommanderHelper()
 
-@pytest.fixture
-def setup():
-    """Each test starts with a fresh build flashed into App A Slot"""
-    logger.info("Setup fixture")
-    logger.info("Clean, build, and flash A slot")
-    Inv_task.clean()
-    Inv_task.build()
-    Inv_task.flash_with_filesystem_recovery()
-    Commander.reset()
+    @pytest.fixture(scope="class", autouse=True)
+    def setup(self, request: pytest.FixtureRequest) -> None:
+        """Pre-test setup. Performed once.
 
+        :param request: PyTest fixture request object for command-line arguments.
+        :returns: ``None``
+        """
+        logger.info("Setup fixture")
+        logger.info("Clean, build, and flash")
+        self.Inv_task.clean(request=request)
+        self.Inv_task.build(request=request)
+        self.Inv_task.flash_with_filesystem_recovery(request=request)
+        if not request.config.option.skip_flash:
+            self.Commander.reset()
 
-@allure.step("Sign Txn request")
-def sign_transaction():
-    wallet = Wallet(comms=WalletComms(NFCTransaction()))
-    rsp = wallet.sign_txn("12345678123456781234567812345678", 1, 2)
-    logger.info(rsp)
-    return rsp
+    @allure.step("Sign Txn request")
+    def test_derive_and_sign_sync(self, wallet: Wallet, secure_channel: SecureChannel) -> None:
+        """Synchronous derive-and-sign testing.
 
+        Derives a key at a BIP-32 path and signs a 32-bit digest.
 
-@allure.step("Async txn signing")
-def sign_transaction_async():
-    wallet = Wallet(comms=WalletComms(NFCTransaction()))
-
-    prev_status = None
-    while True:
+        :param wallet: the ``Wallet`` instance for the device under test.
+        :param secure_channel: authenticated secure channel.
+        :returns: ``None``.
+        """
         rsp = wallet.derive_and_sign(
-            digest = b"12345678123456781234567812345678",
-            path = [1, 2, 3],
-            async_sign=True
+            digest=b"12345678123456781234567812345678",
+            path=[1, 2],
+            async_sign=False,
         )
-        if rsp.status == wallet_pb.status.SUCCESS:
-            assert prev_status == wallet_pb.status.IN_PROGRESS
-        prev_status = rsp.status
+        logger.info(str(rsp))
 
-        sleep(0.001)
-    return rsp
+        if wallet.product.lower().startswith("w1"):
+            assert rsp.status == wallet_pb.status.SUCCESS
+        else:
+            assert rsp.status == wallet_pb.status.FEATURE_NOT_SUPPORTED
+
+    @allure.step("Async txn signing")
+    def test_derive_and_sign_async(self, wallet: Wallet, secure_channel: SecureChannel) -> None:
+        """Asynchronous derive-and-sign request.
+
+        Derives a key at a BIP-32 path and signs a 32-bit digest. Expects the
+        Wallet to be able to perform this operation and later retrieve the
+        result.
+
+        :param wallet: the ``Wallet`` instance for the device under test.
+        :param secure_channel: authenticated secure channel.
+        :returns: ``None``.
+        """
+        prev_status: None | int = None
+
+        for _ in range(100):
+            rsp = wallet.derive_and_sign(
+                digest=b"12345678123456781234567812345678",
+                path=[1, 2, 3],
+                async_sign=True,
+            )
+
+            if rsp.status == wallet_pb.status.SUCCESS:
+                assert prev_status == wallet_pb.status.IN_PROGRESS, f"Expected previous status to be 'IN_PROGRESS', but was {prev_status=}"
+                break
+
+            prev_status = rsp.status
+            time.sleep(0.001)
+        else:
+            if wallet.product.lower().startswith("w1"):
+                assert prev_status == wallet_pb.status.SUCCESS, f"Transaction signing failed, {prev_status=}."
+            else:
+                assert prev_status == wallet_pb.status.FEATURE_NOT_SUPPORTED, f"Transaction signing should not be supported, {prev_status=}."
+
 
 if __name__ == "__main__":
-    sign_transaction_async()
+    sys.exit(pytest.main(sys.argv[1:]))

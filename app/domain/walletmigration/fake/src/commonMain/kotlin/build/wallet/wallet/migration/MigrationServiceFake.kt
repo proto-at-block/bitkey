@@ -1,6 +1,8 @@
 package build.wallet.wallet.migration
 
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.f8e.F8eEnvironment
 import build.wallet.money.BitcoinMoney
 import build.wallet.wallet.migration.MigrationError
 import build.wallet.wallet.migration.MigrationProgress
@@ -38,6 +40,8 @@ class MigrationServiceFake : MigrationService {
   var resumeCalls = mutableListOf<MigrationType>()
   var proceedCalls = mutableListOf<MigrationProgress>()
   var clearMigrationCalls = mutableListOf<MigrationType>()
+  var isW3UpgradeInProgressResult: Boolean = false
+  var isW3UpgradeInProgressCalls = 0
 
   override suspend fun resume(type: MigrationType): Result<MigrationProgress, MigrationError> {
     resumeCalls.add(type)
@@ -76,6 +80,14 @@ class MigrationServiceFake : MigrationService {
     clearMigrationCalls.add(type)
   }
 
+  override suspend fun isW3UpgradeInProgress(
+    f8eEnvironment: F8eEnvironment,
+    hwAuthPublicKey: HwAuthPublicKey,
+  ): Boolean {
+    isW3UpgradeInProgressCalls += 1
+    return isW3UpgradeInProgressResult
+  }
+
   var savedOldHardwareFingerprint: String? = null
 
   override suspend fun getOldHardwareFingerprint(): Result<String?, MigrationError> {
@@ -91,6 +103,8 @@ class MigrationServiceFake : MigrationService {
     resumeCalls.clear()
     proceedCalls.clear()
     clearMigrationCalls.clear()
+    isW3UpgradeInProgressResult = false
+    isW3UpgradeInProgressCalls = 0
     savedOldHardwareFingerprint = null
   }
 }

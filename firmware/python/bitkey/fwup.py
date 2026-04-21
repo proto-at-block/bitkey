@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import importlib.resources
 import json
 import semver
 import time
@@ -116,21 +115,8 @@ class FwupParams:
         :param product: the product name.
         :returns: FWUP parameters for the target product on success.
         """
-
-        try:
-            try:
-                path = importlib.resources.files("bitkey_config").joinpath(
-                    f"partitions/{product}/partitions.yml"
-                )
-            except ModuleNotFoundError:
-                # If the `bitkey_config` is installed as editable, then the path
-                # will not contain the `bitkey_config`.
-                path = importlib.resources.files("partitions").joinpath(
-                    f"{product}/partitions.yml"
-                )
-            with path.open("rb") as f:
-                config = yaml.safe_load(f)
-        except FileNotFoundError:
+        config = util.get_partition_config(product)
+        if not config:
             return None
 
         flash = config.get("flash", {})
@@ -581,7 +567,8 @@ class FirmwareUpdater:
 
         if mode == wallet_pb.fwup_mode.FWUP_MODE_NORMAL:
             return Fwup(fwup_bundle.path, None, None, sequence_id, comms=self.wallet.comms,
-                        fwup_params=params, mode=wallet_pb.fwup_mode.Name(mode),
+                        fwup_params=params, mode=wallet_pb.fwup_mode.Name(
+                            mode),
                         mcu_role=mcu_role, defer_commit=deferred)
         elif mode == wallet_pb.fwup_mode.FWUP_MODE_DELTA_ONESHOT:
             manifest = fwup_bundle.manifest
@@ -618,7 +605,8 @@ class FirmwareUpdater:
                 assets[patch_name]['signature']['name']
 
             return Fwup(None, binary, signature, sequence_id, comms=self.wallet.comms,
-                        fwup_params=params, mode=wallet_pb.fwup_mode.Name(mode),
+                        fwup_params=params, mode=wallet_pb.fwup_mode.Name(
+                            mode),
                         mcu_role=mcu_role, defer_commit=deferred)
         else:
             assert False, mode

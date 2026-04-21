@@ -434,7 +434,7 @@ static void hold_handler(lv_event_t* e) {
       lv_obj_set_style_bg_color(modal->icon_bg, lv_color_hex(ICON_COLOR_RED), 0);
     }
 
-    dot_ring_show(&modal->ring);
+    dot_ring_show_with_fade_in(&modal->ring, 400);
     dot_ring_animate_fill_from_current(&modal->ring, 100, HOLD_TO_CANCEL_DURATION_MS,
                                        DOT_RING_COLOR_RED, DOT_RING_FILL_SPLIT, on_hold_complete,
                                        modal);

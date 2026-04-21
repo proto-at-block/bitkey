@@ -7,6 +7,7 @@ import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.crypto.PublicKey
+import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.database.sqldelight.W3UpgradeMigrationEntity
 import build.wallet.db.DbError
 import com.github.michaelbull.result.Result
@@ -73,6 +74,11 @@ interface W3UpgradeDao {
   suspend fun setAuthKeyRotationComplete(): Result<Unit, DbError>
 
   /**
+   * Persists a placeholder row indicating that a cloud-restored account must resume the W3 flow.
+   */
+  suspend fun markResumedFromCloudBackup(): Result<Unit, DbError>
+
+  /**
    * Marks the DDK re-sealing and upload as completed.
    */
   suspend fun setDdkBackedUp(): Result<Unit, DbError>
@@ -114,6 +120,12 @@ interface W3UpgradeDao {
    * authKeyRotationCompleted checkpoint.
    */
   suspend fun setTcEndorsementsRegenerated(): Result<Unit, DbError>
+
+  /**
+   * Persist the old wrapped SSEK that is needed to decrypt historical descriptor backups.
+   * Passing null clears any previously persisted requirement.
+   */
+  suspend fun setSealedSsekForDecryption(sealedSsek: SealedSsek?): Result<Unit, DbError>
 
   /**
    * Clear the pending auth rotation data after local rotation completes successfully.

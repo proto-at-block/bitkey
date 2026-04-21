@@ -22,6 +22,7 @@ data class W3UpgradeOldHardwareAuthRotationInstructionsBodyModel(
   override val onBack: (() -> Unit)?,
   val onContinue: () -> Unit,
   val onDeferExit: (() -> Unit)?,
+  val step: Int = 2,
   val totalSteps: Int = 4,
 ) : FormBodyModel(
     id = WalletMigrationEventTrackerScreenId.W3_UPGRADE_OLD_HARDWARE_AUTH_ROTATION_INSTRUCTIONS,
@@ -41,7 +42,7 @@ data class W3UpgradeOldHardwareAuthRotationInstructionsBodyModel(
       oldHardwareAuthRotationInstructionListGroup()
     ),
     designSystemV2Model = w3UpgradeInstructionDesignSystemV2Model(
-      eyebrow = w3UpgradeStepEyebrow(2, totalSteps),
+      eyebrow = w3UpgradeStepEyebrow(step, totalSteps),
       title = "Tap your old Bitkey to finish the upgrade",
       subline = "Use your first generation Bitkey device to authorize the upgrade to your new device.",
       mainContentList = immutableListOf(oldHardwareAuthRotationInstructionListGroupDesignSystemV2())

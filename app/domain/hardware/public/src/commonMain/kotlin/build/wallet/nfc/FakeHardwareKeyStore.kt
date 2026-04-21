@@ -45,6 +45,14 @@ interface FakeHardwareKeyStore {
 
   data class Seed(
     val words: String,
+    /**
+     * Whether the W3 descriptor has been delivered to the fake hardware.
+     *
+     * This is carried inside the seed payload so JVM integration tests can preserve the
+     * fake device's post-provisioning state across app relaunches and uninstall/reinstall
+     * simulations, mirroring real hardware behavior.
+     */
+    val descriptorLoaded: Boolean = false,
   )
 }
 

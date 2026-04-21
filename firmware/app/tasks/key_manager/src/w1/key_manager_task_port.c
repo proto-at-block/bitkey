@@ -112,17 +112,6 @@ void key_manager_task_handle_sign_transfer(ipc_ref_t* message) {
   proto_send_rsp(cmd, rsp);
 }
 
-void key_manager_task_handle_get_confirmation_result_chunk(ipc_ref_t* message) {
-  fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
-  fwpb_wallet_rsp* rsp = proto_get_rsp();
-
-  rsp->which_msg = fwpb_wallet_rsp_get_confirmation_result_chunk_rsp_tag;
-  rsp->status = fwpb_status_FEATURE_NOT_SUPPORTED;
-
-  LOGE("W1: chunked signing unsupported");
-  proto_send_rsp(cmd, rsp);
-}
-
 void key_manager_task_handle_sign_tx_request(ipc_ref_t* message) {
   fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
   fwpb_wallet_rsp* rsp = proto_get_rsp();

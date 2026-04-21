@@ -18,6 +18,7 @@ data class W3UpgradeDeviceReadyBodyModel(
   override val onBack: (() -> Unit)?,
   val onYes: () -> Unit,
   val onNo: () -> Unit,
+  val step: Int = 1,
   val totalSteps: Int = 4,
 ) : FormBodyModel(
     id = WalletMigrationEventTrackerScreenId.W3_UPGRADE_DEVICE_READY,
@@ -35,7 +36,7 @@ data class W3UpgradeDeviceReadyBodyModel(
     ),
     mainContentList = immutableListOf(),
     designSystemV2Model = FormDesignSystemV2Model(
-      eyebrow = w3UpgradeStepEyebrow(1, totalSteps),
+      eyebrow = w3UpgradeStepEyebrow(step, totalSteps),
       title = "Do you have a new Bitkey device ready?",
       header = FormHeaderModel(
         headline = null,

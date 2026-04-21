@@ -21,9 +21,6 @@ pub enum ConfirmedCommandResult {
     FwupStart {
         success: bool,
     },
-    ChunkedDataAvailable {
-        total_size: u32,
-    },
     SignActionProof {
         signature: Vec<u8>,
     },
@@ -73,6 +70,7 @@ pub enum ConfirmedCommandResult {
         descriptor_backups_signature: Vec<u8>,
         activate_keyset_signature: Vec<u8>,
         sealed_ddk_data: Vec<u8>,
+        unsealed_ssek: Vec<u8>,
     },
     EekRestorationUnsealSymmetricKey {
         unsealed_key: Vec<u8>,
@@ -128,11 +126,6 @@ fn get_confirmation_result(
                     Ok(FwupStartRspStatus::Unauthenticated) => Err(CommandError::Unauthenticated),
                     Err(_) => Err(CommandError::InvalidResponse),
                 }
-            }
-            Some(ConfirmationResult::ChunkedDataAvailable(chunked_info)) => {
-                Ok(ConfirmedCommandResult::ChunkedDataAvailable {
-                    total_size: chunked_info.total_size,
-                })
             }
             Some(ConfirmationResult::SignActionProofResult(sign_rsp)) => {
                 Ok(ConfirmedCommandResult::SignActionProof {
@@ -233,6 +226,7 @@ fn get_confirmation_result(
                         .sealed_ddk_data
                         .map(|s| s.encode_to_vec())
                         .unwrap_or_default(),
+                    unsealed_ssek: rsp.unsealed_ssek,
                 })
             }
             Some(ConfirmationResult::EekRestorationUnsealSymmetricKeyResult(rsp)) => {
@@ -263,7 +257,7 @@ mod tests {
         errors::CommandError,
         fwpb::{
             get_confirmation_result_rsp::Result as ConfirmationResult, wallet_rsp::Msg,
-            wipe_state_rsp::WipeStateRspStatus, ChunkedDataInfo, GetConfirmationResultRsp,
+            wipe_state_rsp::WipeStateRspStatus, GetConfirmationResultRsp,
             InputSignature, LostAppRecoverySignChallengeRsp, LostAppRecoverySsekRsp,
             SignActionProofRsp, SignStreamSignaturesReady, SignTxResponse, Status, WalletRsp,
             WipeStateRsp,
@@ -368,33 +362,6 @@ mod tests {
         assert!(matches!(
             command.next(response),
             Err(CommandError::UserDenied)
-        ));
-
-        Ok(())
-    }
-
-    #[test]
-    fn get_confirmation_result_chunked_data_available() -> Result<(), CommandError> {
-        let command =
-            GetConfirmationResult::new(vec![0x01, 0x02, 0x03, 0x04], vec![0x05, 0x06, 0x07, 0x08]);
-        command.next(Vec::default())?;
-
-        let total_size = 1234u32;
-        let response = make_response(WalletRsp {
-            status: Status::Success.into(),
-            msg: Some(Msg::GetConfirmationResultRsp(GetConfirmationResultRsp {
-                result: Some(ConfirmationResult::ChunkedDataAvailable(ChunkedDataInfo {
-                    total_size,
-                })),
-            })),
-            ..Default::default()
-        });
-
-        assert!(matches!(
-            command.next(response),
-            Ok(State::Result {
-                value: ConfirmedCommandResult::ChunkedDataAvailable { total_size: 1234 }
-            })
         ));
 
         Ok(())

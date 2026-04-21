@@ -1,6 +1,7 @@
 package build.wallet.statemachine.walletmigration
 
 import bitkey.account.HardwareType
+import bitkey.auth.AuthTokenScope.Global
 import bitkey.privilegedactions.ActionProofServiceFake
 import build.wallet.account.AccountServiceFake
 import build.wallet.analytics.events.EventTracker
@@ -22,6 +23,8 @@ import build.wallet.bitkey.keybox.AppKeyBundleMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.keybox.withNewSpendingKeyset
+import build.wallet.auth.AccountAuthTokensMock
+import build.wallet.auth.AuthTokensServiceFake
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.chaincode.delegation.ChaincodeExtractorFake
 import build.wallet.cloud.backup.csek.SsekDaoFake
@@ -85,6 +88,7 @@ class W3UpgradeUiStateMachineImplHardwareTypeTests : FunSpec({
   val firmwareDeviceInfoDao = FirmwareDeviceInfoDaoFake()
   val ssekDao = SsekDaoFake()
   val accountService = AccountServiceFake()
+  val authTokensService = AuthTokensServiceFake()
 
   val chaincodeExtractor = ChaincodeExtractorFake()
   val bitcoinWalletService = BitcoinWalletServiceFake()
@@ -166,6 +170,7 @@ class W3UpgradeUiStateMachineImplHardwareTypeTests : FunSpec({
       fullAccountCloudSignInAndBackupUiStateMachine = fullAccountCloudSignInAndBackupUiStateMachine,
       ssekDao = ssekDao,
       accountService = accountService,
+      authTokensService = authTokensService,
       firmwareDeviceInfoDao = firmwareDeviceInfoDao,
       nfcSessionUIStateMachine = nfcSessionUIStateMachine,
       nfcConfirmableSessionUiStateMachine = nfcConfirmableSessionUiStateMachine,
@@ -195,6 +200,12 @@ class W3UpgradeUiStateMachineImplHardwareTypeTests : FunSpec({
     actionProofService.reset()
     firmwareDeviceInfoDao.reset()
     ssekDao.reset()
+    authTokensService.reset()
+    authTokensService.setTokens(
+      accountId = FullAccountMock.accountId,
+      tokens = AccountAuthTokensMock,
+      scope = Global
+    ).shouldBe(Ok(Unit))
     bitcoinWalletService.reset()
     bitcoinWalletService.transactionsData.value = TransactionsDataMock
   }

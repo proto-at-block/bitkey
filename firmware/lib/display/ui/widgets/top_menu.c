@@ -15,7 +15,7 @@
 #define PILL_BG_OPA LV_OPA_COVER  // Fully opaque
 
 // Colors
-#define COLOR_PILL 0x333333
+#define COLOR_PILL 0x404040
 
 // External image declaration
 extern const lv_img_dsc_t ellipsis_horizontal;

@@ -133,8 +133,7 @@ class MoneyHomeUiStateMachineImpl(
     LaunchedEffect("check-migration-status") {
       migrationService.resume(MigrationType.PrivateWalletMigration)
         .onSuccess { progress ->
-          isMigrationInProgress = progress !is MigrationProgress.NotStarted &&
-            progress !is MigrationProgress.Completed
+          isMigrationInProgress = progress.isInProgress()
         }
     }
 
@@ -143,8 +142,7 @@ class MoneyHomeUiStateMachineImpl(
     LaunchedEffect("check-w3-upgrade-status") {
       migrationService.resume(MigrationType.W3Upgrade)
         .onSuccess { progress ->
-          isW3UpgradeInProgress = progress !is MigrationProgress.NotStarted &&
-            progress !is MigrationProgress.Completed
+          isW3UpgradeInProgress = progress.isInProgress()
         }
     }
 

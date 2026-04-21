@@ -11,6 +11,7 @@ import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdConte
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.analytics.v1.Action.ACTION_APP_CLOUD_RECOVERY_KEY_RECOVERED
 import build.wallet.auth.AccountAuthenticator
+import build.wallet.auth.AuthSignatureMismatch
 import build.wallet.auth.AuthTokensService
 import build.wallet.auth.FullAccountAuthKeyRotationService
 import build.wallet.auth.logAuthFailure
@@ -26,6 +27,7 @@ import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorer
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorer.AccountRestoration
 import build.wallet.cloud.backup.SocRecV1BackupFeatures
+import build.wallet.cloud.backup.f8eEnvironment
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.cloud.backup.csek.CsekDao
 import build.wallet.cloud.backup.local.CloudBackupDao
@@ -38,14 +40,20 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
 import build.wallet.feature.flags.ReplaceFullWithLiteAccountFeatureFlag
+import build.wallet.feature.flags.W3MidUpgradeRecoveryGuardFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.fwup.semverToInt
 import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
+import build.wallet.f8e.auth.AuthF8eClient
+import build.wallet.ktor.result.HttpError
+import build.wallet.ktor.result.NetworkingError
+import io.ktor.http.HttpStatusCode.Companion.NotFound
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
+import build.wallet.logging.logInfo
 import build.wallet.nfc.NfcException
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.HardwareInteraction
@@ -73,10 +81,16 @@ import build.wallet.statemachine.recovery.cloud.CloudBackupRestorationUiState.*
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiProps
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiStateMachine
 import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationContent
+import build.wallet.wallet.migration.MigrationError
+import build.wallet.wallet.migration.MigrationService
+import build.wallet.wallet.migration.W3UpgradeCheckpointWriter
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 
 internal const val START_SOCIAL_RECOVERY_MESSAGE = "Starting Recovery..."
 
@@ -105,6 +119,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
   private val socRecStartedChallengeDao: SocRecStartedChallengeDao,
   private val uuidGenerator: UuidGenerator,
   private val fullAccountAuthKeyRotationService: FullAccountAuthKeyRotationService,
+  private val migrationService: MigrationService,
+  private val w3UpgradeCheckpointWriter: W3UpgradeCheckpointWriter,
   private val replaceFullWithLiteAccountFeatureFlag: ReplaceFullWithLiteAccountFeatureFlag,
   private val existingFullAccountUiStateMachine: ExistingFullAccountUiStateMachine,
   private val provisionAppAuthKeyTransactionProvider: ProvisionAppAuthKeyTransactionProvider,
@@ -113,6 +129,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
   private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
   private val hardwareUnlockInfoService: bitkey.firmware.HardwareUnlockInfoService,
   private val selectCloudBackupUiStateMachine: SelectCloudBackupUiStateMachine,
+  private val authF8eClient: AuthF8eClient,
+  private val w3MidUpgradeRecoveryGuardFeatureFlag: W3MidUpgradeRecoveryGuardFeatureFlag,
 ) : FullAccountCloudBackupRestorationUiStateMachine {
   @Composable
   override fun model(props: FullAccountCloudBackupRestorationUiProps): ScreenModel {
@@ -159,7 +177,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
         selectingSocRecBackupModel(state, props.onExit, setState = { uiState = it })
 
       is UnsealingCsek ->
-        unsealingCsekModel(props, setState = { uiState = it })
+        unsealingCsekModel(state, props, setState = { uiState = it })
 
       is RestoringFromBackupUiState ->
         restoringFromBackupModel(
@@ -176,6 +194,12 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
 
       is RestoringFromBackupFailureUiState ->
         restoringFromBackupFailureModel(state, props)
+
+      is CheckingRecoveryAuthKeyUiState ->
+        checkingRecoveryAuthKeyModel(state, props, setState = { uiState = it })
+
+      is RecommendTapOtherBitkeyUiState ->
+        recommendTapOtherBitkeyModel(props, setState = { uiState = it })
 
       is SocRecRestorationFailedState ->
         socRecRestorationFailedModel(state, props, setState = { uiState = it })
@@ -263,7 +287,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
       devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
       onBack = props.onExit,
       onRestore = {
-        setState(UnsealingCsek)
+        setState(UnsealingCsek())
       },
       showSocRecButton = showSocRecButton,
       onLostBitkeyClick = {
@@ -336,6 +360,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
 
   @Composable
   private fun unsealingCsekModel(
+    state: UnsealingCsek,
     props: FullAccountCloudBackupRestorationUiProps,
     setState: (CloudBackupRestorationUiState) -> Unit,
   ): ScreenModel {
@@ -414,24 +439,23 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
           capturedDeviceInfo?.let { persistDeviceMetadata(it) }
           setState(RestoringFromBackupUiState(successfulBackup))
         },
-        onCancel = { setState(CloudBackupFoundUiState) },
+        onCancel = {
+          // When entered from the W-17080 blocking modal, bounce NFC cancel
+          // back to that modal instead of `CloudBackupFoundUiState` — the
+          // menu exposes paths (Social Recovery → auth failure →
+          // ProblemWithCloudBackupModel) that can reach Lost App & Cloud
+          // via `onRecoverAppKey` and defeat the intended block.
+          setState(
+            if (state.enteredFromBlockingModal) RecommendTapOtherBitkeyUiState
+            else CloudBackupFoundUiState
+          )
+        },
         onError = { error ->
-          if (error is NfcException.CommandErrorSealCsekResponseUnsealException) {
-            setState(
-              RestoringFromBackupFailureUiState(
-                errorData = ErrorData(
-                  segment = RecoverySegment.CloudBackup.FullAccount.Restoration,
-                  actionDescription = "Unsealing CSEK for full account cloud restoration",
-                  cause = error
-                ),
-                onBack = { setState(CloudBackupFoundUiState) },
-                failure = CloudBackupFailure.HWCantDecryptCSEK
-              )
-            )
-            true
-          } else {
-            false
-          }
+          handleUnsealError(
+            error = error,
+            capturedDeviceInfo = capturedDeviceInfo,
+            setState = setState
+          )
         },
         hardwareVerification = NotRequired,
         screenPresentationStyle = Root,
@@ -486,6 +510,123 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
     ).asRootScreen()
   }
 
+  // TODO(W-17080): extract this probe into a dedicated service. The state
+  //  machine shouldn't be calling `authF8eClient` directly — this lives here
+  //  for now because the W-17080 guard is temporary (removed once LostApp&Cloud
+  //  supports the mid-upgrade state).
+  @Composable
+  private fun checkingRecoveryAuthKeyModel(
+    state: CheckingRecoveryAuthKeyUiState,
+    props: FullAccountCloudBackupRestorationUiProps,
+    setState: (CloudBackupRestorationUiState) -> Unit,
+  ): ScreenModel {
+    LaunchedEffect("check-recovery-auth-key") {
+      // Probe each backup's recovery auth pubkey against the server. The
+      // blocking modal fires iff every backup's pubkey is rejected with a
+      // 404. Probes run per-backup against each backup's OWN f8eEnvironment
+      // (ambient `AccountConfigService` may query the wrong backend during
+      // unauthenticated recovery). A null result means the backup didn't
+      // carry a recovery auth keypair — treated the same as any other
+      // non-404 outcome and falls through to the fallback.
+      val recoveryResults = coroutineScope {
+        props.backups.map { backup ->
+          async {
+            (backup as? SocRecV1BackupFeatures)?.let { features ->
+              authF8eClient.initiateAuthentication(
+                f8eEnvironment = backup.f8eEnvironment,
+                authPublicKey = features.appRecoveryAuthKeypair.publicKey,
+                tokenScope = AuthTokenScope.Recovery
+              )
+            }
+          }
+        }.awaitAll()
+      }
+
+      val anyRecoveryPubkeyStillValid = recoveryResults.any { it?.isOk == true }
+      val allRecoveryPubkeysRejected = recoveryResults.isNotEmpty() &&
+        recoveryResults.all { it?.isClientNotFound() == true }
+
+      val next = when {
+        anyRecoveryPubkeyStillValid -> state.fallback
+        allRecoveryPubkeysRejected -> {
+          logInfo {
+            "Detected mid-W3-upgrade mismatch: all cloud backup recovery auth " +
+              "pubkeys rejected by server; recommending user tap other hardware"
+          }
+          RecommendTapOtherBitkeyUiState
+        }
+        else -> state.fallback
+      }
+      setState(next)
+    }
+    // Route Back to props.onExit (not CloudBackupFoundUiState) for the same
+    // reason as RecommendTapOtherBitkeyModel below: if the user cancels the
+    // probe and falls back to the cloud-backup menu, they can reach Lost
+    // App & Cloud via other paths and bypass the W-17080 block.
+    return LoadingBodyModel(
+      title = "Checking your backup…",
+      onBack = props.onExit,
+      id = CloudEventTrackerScreenId.CHECKING_RECOVERY_AUTH_KEY
+    ).asRootScreen()
+  }
+
+  @Composable
+  private fun recommendTapOtherBitkeyModel(
+    props: FullAccountCloudBackupRestorationUiProps,
+    setState: (CloudBackupRestorationUiState) -> Unit,
+  ): ScreenModel {
+    // Route Back to the parent onExit (not back to CloudBackupFoundUiState).
+    // Falling back to CloudBackupFoundUiState would re-expose paths that can
+    // reach `ProblemWithCloudBackupModel` and its `onRecoverAppKey` → Lost
+    // App & Cloud entry (e.g. via a Social Recovery failure or another
+    // restore attempt), defeating the "blocking" intent of this screen.
+    // The only forward action is primary "Try a different Bitkey".
+    return RecommendTapOtherBitkeyModel(
+      onBack = props.onExit,
+      onTapOtherBitkey = { setState(UnsealingCsek(enteredFromBlockingModal = true)) }
+    ).asRootScreen()
+  }
+
+  private fun Result<AuthF8eClient.InitiateAuthenticationSuccess, NetworkingError>.isClientNotFound(): Boolean {
+    val error = getError() ?: return false
+    return error is HttpError.ClientError && error.response.status == NotFound
+  }
+
+  /**
+   * Handles the `onError` callback for [unsealingCsekModel]'s NFC session.
+   * Returns true if the error was consumed; false lets it propagate.
+   *
+   * If the tapped hardware is W3 and the [W3MidUpgradeRecoveryGuardFeatureFlag]
+   * is enabled, route to [CheckingRecoveryAuthKeyUiState] to probe whether the
+   * user is mid-W3-upgrade (W-17080) before falling through to the generic
+   * "problem with backup" screen. When the flag is disabled, behavior matches
+   * the pre-W-17080 legacy flow.
+   */
+  private fun handleUnsealError(
+    error: NfcException,
+    capturedDeviceInfo: FirmwareDeviceInfo?,
+    setState: (CloudBackupRestorationUiState) -> Unit,
+  ): Boolean {
+    if (error !is NfcException.CommandErrorSealCsekResponseUnsealException) return false
+    val unsealFailure = RestoringFromBackupFailureUiState(
+      errorData = ErrorData(
+        segment = RecoverySegment.CloudBackup.FullAccount.Restoration,
+        actionDescription = "Unsealing CSEK for full account cloud restoration",
+        cause = error
+      ),
+      onBack = { setState(CloudBackupFoundUiState) },
+      failure = CloudBackupFailure.HWCantDecryptCSEK
+    )
+    val guardEnabled = w3MidUpgradeRecoveryGuardFeatureFlag.isEnabled()
+    val next = when {
+      guardEnabled && capturedDeviceInfo?.hardwareType() == HardwareType.W3 ->
+        CheckingRecoveryAuthKeyUiState(fallback = unsealFailure)
+      else -> unsealFailure
+    }
+    setState(next)
+    return true
+  }
+
   @Composable
   private fun socRecRestorationFailedModel(
     state: SocRecRestorationFailedState,
@@ -528,7 +669,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
         cloudBackup = primaryBackup,
         devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
         onBack = props.onExit,
-        onRestore = { setState(UnsealingCsek) },
+        onRestore = { setState(UnsealingCsek()) },
         onBackupArchive = props.goToLiteAccountCreation
       )
     )
@@ -621,7 +762,10 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
     setState: (CloudBackupRestorationUiState) -> Unit,
   ) {
     LaunchedEffect("completing-cloud-recovery") {
-      handleCloudKeyRecovered(state.accountRestoration)
+      handleCloudKeyRecovered(
+        accountRestoration = state.accountRestoration,
+        tolerateRecoveryAuthFailureForUpgradeResume = true
+      )
         .onFailure {
           setState(
             RestoringFromBackupFailureUiState(
@@ -635,33 +779,46 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
             )
           )
         }
-        .onSuccess { fullAccountId ->
-          firmwareDeviceInfoDao.getDeviceInfo().get()?.let { deviceInfo ->
-            val minFirmwareVersion = fingerprintResetMinFirmwareVersionFeatureFlag.flagValue().value.value
-            val currentVersionInt = semverToInt(deviceInfo.version)
-            val minVersionInt = semverToInt(minFirmwareVersion)
-            if (currentVersionInt >= minVersionInt) {
-              setState(
-                ProvisioningAppAuthKeyUiState(
-                  accountRestoration = state.accountRestoration,
-                  fullAccountId = fullAccountId
-                )
-              )
-            } else {
+        .onSuccess { result ->
+          when (result.recoveryAuthResult) {
+            RecoveryAuthForCloudRestoreResult.UpgradeInProgress -> {
               setState(
                 SavingKeyboxUiState(
                   accountRestoration = state.accountRestoration,
-                  fullAccountId = fullAccountId
+                  fullAccountId = result.fullAccountId,
+                  upgradeIsInProgress = true
                 )
               )
             }
-          } ?: run {
-            setState(
-              SavingKeyboxUiState(
-                accountRestoration = state.accountRestoration,
-                fullAccountId = fullAccountId
-              )
-            )
+            RecoveryAuthForCloudRestoreResult.Authenticated -> {
+              firmwareDeviceInfoDao.getDeviceInfo().get()?.let { deviceInfo ->
+                val minFirmwareVersion = fingerprintResetMinFirmwareVersionFeatureFlag.flagValue().value.value
+                val currentVersionInt = semverToInt(deviceInfo.version)
+                val minVersionInt = semverToInt(minFirmwareVersion)
+                if (currentVersionInt >= minVersionInt) {
+                  setState(
+                    ProvisioningAppAuthKeyUiState(
+                      accountRestoration = state.accountRestoration,
+                      fullAccountId = result.fullAccountId
+                    )
+                  )
+                } else {
+                  setState(
+                    SavingKeyboxUiState(
+                      accountRestoration = state.accountRestoration,
+                      fullAccountId = result.fullAccountId
+                    )
+                  )
+                }
+              } ?: run {
+                setState(
+                  SavingKeyboxUiState(
+                    accountRestoration = state.accountRestoration,
+                    fullAccountId = result.fullAccountId
+                  )
+                )
+              }
+            }
           }
         }
     }
@@ -692,7 +849,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
         socRecStartedChallengeDao.clear()
 
         // Put us into a state where we can start the hardware recovery flow
-        val accountId = handleCloudKeyRecovered(restoration).bind()
+        val accountId = handleCloudKeyRecovered(restoration).bind().fullAccountId
         keyboxDao
           .saveKeyboxAsActive(
             restoration.asKeybox(
@@ -715,7 +872,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
 
   private suspend fun handleCloudKeyRecovered(
     accountRestoration: AccountRestoration,
-  ): Result<FullAccountId, Error> =
+    tolerateRecoveryAuthFailureForUpgradeResume: Boolean = false,
+  ): Result<CloudKeyRecoveredResult, Error> =
     coroutineBinding {
       eventTracker.track(ACTION_APP_CLOUD_RECOVERY_KEY_RECOVERED)
 
@@ -727,11 +885,11 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
         ).bind()
       val accountId = FullAccountId(globalAuthData.accountId)
 
-      // Authenticate with f8e using recovered app [Recovery] authentication key.
-      authenticateWithF8eAndStoreAuthTokens(
-        appAuthPublicKey = accountRestoration.activeAppKeyBundle.recoveryAuthKey,
-        tokenScope = AuthTokenScope.Recovery
-      ).bind()
+      val recoveryAuthResult =
+        authenticateRecoveryAuthForCloudRestore(
+          accountRestoration = accountRestoration,
+          tolerateRecoveryAuthFailureForUpgradeResume = tolerateRecoveryAuthFailureForUpgradeResume
+        ).bind()
 
       // TODO(W-1535): this should be prompted by a notification prompt
       deviceTokenManager
@@ -763,8 +921,53 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
       appSpendingWalletProvider.getSpendingWallet(accountRestoration.activeSpendingKeyset)
         .onSuccess { it.sync() }
 
-      accountId
+      CloudKeyRecoveredResult(
+        fullAccountId = accountId,
+        recoveryAuthResult = recoveryAuthResult
+      )
     }
+
+  private suspend fun authenticateRecoveryAuthForCloudRestore(
+    accountRestoration: AccountRestoration,
+    tolerateRecoveryAuthFailureForUpgradeResume: Boolean,
+  ): Result<RecoveryAuthForCloudRestoreResult, Error> {
+    // Authenticate with F8e first, separately from token storage, so we can
+    // distinguish auth-key failures (tolerable during upgrade resume) from
+    // local token persistence failures (never tolerable).
+    val authResult =
+      accountAuthenticator
+        .appAuth(
+          appAuthPublicKey = accountRestoration.activeAppKeyBundle.recoveryAuthKey,
+          authTokenScope = AuthTokenScope.Recovery
+        )
+
+    if (authResult.isErr) {
+      // Only tolerate AuthSignatureMismatch (key mismatch) for upgrade resume.
+      // Transient network errors, protocol errors, etc. should propagate normally
+      // rather than being misclassified as an upgrade-in-progress scenario.
+      return if (
+        tolerateRecoveryAuthFailureForUpgradeResume &&
+        authResult.error is AuthSignatureMismatch &&
+        migrationService.isW3UpgradeInProgress(
+          f8eEnvironment = accountRestoration.config.f8eEnvironment,
+          hwAuthPublicKey = accountRestoration.activeHwKeyBundle.authKey
+        )
+      ) {
+        Ok(RecoveryAuthForCloudRestoreResult.UpgradeInProgress)
+      } else {
+        authResult.logAuthFailure { "Error authenticating with recovery auth key after cloud restore." }
+        Err(authResult.error)
+      }
+    }
+
+    // Auth succeeded — store tokens. Propagate storage failures normally.
+    val authData = authResult.value
+    val fullAccountId = FullAccountId(authData.accountId)
+    return authTokensService
+      .setTokens(fullAccountId, authData.authTokens, AuthTokenScope.Recovery)
+      .map { RecoveryAuthForCloudRestoreResult.Authenticated }
+      .mapError { Error(it) }
+  }
 
   /**
    * Performs auth with f8e using the given [AppAuthPublicKey] and stores the resulting
@@ -857,15 +1060,21 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
     setState: (CloudBackupRestorationUiState) -> Unit,
   ) {
     LaunchedEffect("saving-keybox") {
-      keyboxDao
-        .saveKeyboxAsActive(
-          state.accountRestoration.asKeybox(
-            uuidGenerator.random(),
-            state.fullAccountId
-          )
-        )
+      val keybox = state.accountRestoration.asKeybox(
+        uuidGenerator.random(),
+        state.fullAccountId
+      )
+      val saveResult = if (state.upgradeIsInProgress) {
+        w3UpgradeCheckpointWriter.persistCloudRestoreCheckpoint(keybox)
+          .mapError { Error("Failed to save keybox with cloud restore checkpoint", it) }
+      } else {
+        keyboxDao.saveKeyboxAsActive(keybox)
+      }
+      saveResult
         .onSuccess {
-          fullAccountAuthKeyRotationService.recommendKeyRotation()
+          if (!state.upgradeIsInProgress) {
+            fullAccountAuthKeyRotationService.recommendKeyRotation()
+          }
         }
         .onFailure { error ->
           setState(
@@ -918,6 +1127,17 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
   }
 }
 
+private data class CloudKeyRecoveredResult(
+  val fullAccountId: FullAccountId,
+  val recoveryAuthResult: RecoveryAuthForCloudRestoreResult,
+)
+
+private sealed interface RecoveryAuthForCloudRestoreResult {
+  data object Authenticated : RecoveryAuthForCloudRestoreResult
+
+  data object UpgradeInProgress : RecoveryAuthForCloudRestoreResult
+}
+
 private sealed interface CloudBackupRestorationUiState {
   /**
    * Initial state – found wallet backup on the cloud storage. Confirm with user they want to restore.
@@ -929,8 +1149,16 @@ private sealed interface CloudBackupRestorationUiState {
    * once we know we're talking to the correct hardware, sync the device +
    * biometric metadata.
    * Detecting the hardware type before unsealing. A quick NFC tap to getDeviceInfo.
+   *
+   * @property enteredFromBlockingModal true if this was entered from the
+   * W-17080 "Use your other Bitkey" blocking modal — used to route NFC
+   * cancel back to the modal instead of dropping the user on
+   * `CloudBackupFoundUiState`, where they could reach Lost App & Cloud via
+   * Social Recovery failure paths.
    */
-  data object UnsealingCsek : CloudBackupRestorationUiState
+  data class UnsealingCsek(
+    val enteredFromBlockingModal: Boolean = false,
+  ) : CloudBackupRestorationUiState
 
   /**
    * Restoring the account from the backup using the CSEK.
@@ -951,6 +1179,25 @@ private sealed interface CloudBackupRestorationUiState {
     val onBack: () -> Unit,
     val failure: CloudBackupFailure,
   ) : CloudBackupRestorationUiState
+
+  /**
+   * Transient state after a W3 CSEK unseal failure: verifies whether the
+   * cloud backup's recovery auth pubkey still matches the server. We only
+   * route to [RecommendTapOtherBitkeyUiState] when every backup's recovery
+   * pubkey is rejected with a 404 (the hardware-is-W3 check is already
+   * gated before entering this state). Any other outcome falls back to
+   * [fallback].
+   */
+  data class CheckingRecoveryAuthKeyUiState(
+    val fallback: RestoringFromBackupFailureUiState,
+  ) : CloudBackupRestorationUiState
+
+  /**
+   * Blocking screen shown when we've confirmed the user is in the mid-W3-upgrade
+   * state. Prompts them to tap their other (W1) Bitkey instead of falling
+   * through to Lost App & Cloud recovery. See W-17080.
+   */
+  data object RecommendTapOtherBitkeyUiState : CloudBackupRestorationUiState
 
   /**
    * Used at the end of the Cloud restoration flow
@@ -974,6 +1221,7 @@ private sealed interface CloudBackupRestorationUiState {
   data class SavingKeyboxUiState(
     val accountRestoration: AccountRestoration,
     val fullAccountId: FullAccountId,
+    val upgradeIsInProgress: Boolean = false,
   ) : CloudBackupRestorationUiState
 
   /**

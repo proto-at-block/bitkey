@@ -77,6 +77,7 @@ pub struct RouteState(
     pub FeatureFlagsService,
     pub WsmClient,
     pub repository::anti_replay::AntiReplayRepository,
+    pub repository::public_key::PublicKeyRepository,
 );
 
 impl RouterBuilder for RouteState {
@@ -214,6 +215,7 @@ pub struct CreateAccountDelayNotifyRequest {
         comms_verification_service,
         feature_flags_service,
         anti_replay_repository,
+        public_key_repository,
     )
 )]
 #[utoipa::path(
@@ -238,6 +240,7 @@ pub async fn create_delay_notify(
     State(comms_verification_service): State<CommsVerificationService>,
     State(feature_flags_service): State<FeatureFlagsService>,
     State(anti_replay_repository): State<repository::anti_replay::AntiReplayRepository>,
+    State(public_key_repository): State<repository::public_key::PublicKeyRepository>,
     auth: Authorization,
     hw_serial: HardwareSerialHeader,
     Json(request): Json<CreateAccountDelayNotifyRequest>,
@@ -292,6 +295,7 @@ pub async fn create_delay_notify(
                         &social_challenge_service,
                         &comms_verification_service,
                         &feature_flags_service,
+                        &public_key_repository,
                     )
                     .await
                     .map(|r| r.response())?;
@@ -309,6 +313,7 @@ pub async fn create_delay_notify(
                             social_challenge_service,
                             comms_verification_service,
                             feature_flags_service,
+                            public_key_repository,
                             UpdateDelayForTestRecoveryRequest {
                                 delay_period_num_sec: request.delay_period_num_sec,
                             },
@@ -340,6 +345,7 @@ async fn update_recovery_delay_for_test_account(
     social_challenge_service: SocialChallengeService,
     comms_verification_service: CommsVerificationService,
     feature_flags_service: FeatureFlagsService,
+    public_key_repository: repository::public_key::PublicKeyRepository,
     request: UpdateDelayForTestRecoveryRequest,
 ) -> Result<Json<Value>, ApiError> {
     let events = vec![
@@ -358,6 +364,7 @@ async fn update_recovery_delay_for_test_account(
         &social_challenge_service,
         &comms_verification_service,
         &feature_flags_service,
+        &public_key_repository,
     )
     .await
     .map(|r| Json(r.response()))
@@ -373,6 +380,7 @@ async fn update_recovery_delay_for_test_account(
         social_challenge_service,
         comms_verification_service,
         feature_flags_service,
+        public_key_repository,
     )
 )]
 #[utoipa::path(
@@ -397,6 +405,7 @@ pub async fn update_delay_for_test_account(
     State(social_challenge_service): State<SocialChallengeService>,
     State(comms_verification_service): State<CommsVerificationService>,
     State(feature_flags_service): State<FeatureFlagsService>,
+    State(public_key_repository): State<repository::public_key::PublicKeyRepository>,
     _auth: Authorization,
     Json(request): Json<UpdateDelayForTestRecoveryRequest>,
 ) -> Result<Json<Value>, ApiError> {
@@ -409,6 +418,7 @@ pub async fn update_delay_for_test_account(
         social_challenge_service,
         comms_verification_service,
         feature_flags_service,
+        public_key_repository,
         request,
     )
     .await
@@ -425,6 +435,7 @@ pub async fn update_delay_for_test_account(
         comms_verification_service,
         feature_flags_service,
         anti_replay_repository,
+        public_key_repository,
     )
 )]
 #[utoipa::path(
@@ -448,6 +459,7 @@ pub async fn cancel_delay_notify(
     State(comms_verification_service): State<CommsVerificationService>,
     State(feature_flags_service): State<FeatureFlagsService>,
     State(anti_replay_repository): State<repository::anti_replay::AntiReplayRepository>,
+    State(public_key_repository): State<repository::public_key::PublicKeyRepository>,
     auth: Authorization,
 ) -> Result<(), ApiError> {
     // Require at least one factor for canceling a recovery.
@@ -500,6 +512,7 @@ pub async fn cancel_delay_notify(
                     &social_challenge_service,
                     &comms_verification_service,
                     &feature_flags_service,
+                    &public_key_repository,
                 )
                 .await?;
 
@@ -519,6 +532,7 @@ pub async fn cancel_delay_notify(
         social_challenge_service,
         comms_verification_service,
         feature_flags_service,
+        public_key_repository,
     )
 )]
 #[utoipa::path(
@@ -541,6 +555,7 @@ pub async fn get_recovery_status(
     State(social_challenge_service): State<SocialChallengeService>,
     State(comms_verification_service): State<CommsVerificationService>,
     State(feature_flags_service): State<FeatureFlagsService>,
+    State(public_key_repository): State<repository::public_key::PublicKeyRepository>,
 ) -> Result<Json<Value>, ApiError> {
     let events = vec![RecoveryEvent::CheckAccountRecoveryState];
     run_recovery_fsm(
@@ -553,6 +568,7 @@ pub async fn get_recovery_status(
         &social_challenge_service,
         &comms_verification_service,
         &feature_flags_service,
+        &public_key_repository,
     )
     .await
     .map(|r| Json(r.response()))
@@ -579,6 +595,7 @@ pub struct CompleteDelayNotifyResponse {}
         user_pool_service,
         comms_verification_service,
         feature_flags_service,
+        public_key_repository,
     )
 )]
 #[utoipa::path(
@@ -604,6 +621,7 @@ pub async fn complete_delay_notify_transaction(
     State(comms_verification_service): State<CommsVerificationService>,
     State(user_pool_service): State<UserPoolService>,
     State(feature_flags_service): State<FeatureFlagsService>,
+    State(public_key_repository): State<repository::public_key::PublicKeyRepository>,
     experimentation_claims: ExperimentationClaims,
     Json(request): Json<CompleteDelayNotifyRequest>,
 ) -> Result<Json<Value>, ApiError> {
@@ -629,6 +647,7 @@ pub async fn complete_delay_notify_transaction(
         &social_challenge_service,
         &comms_verification_service,
         &feature_flags_service,
+        &public_key_repository,
     )
     .await
     .map(|r| Json(r.response()))
@@ -796,6 +815,7 @@ pub struct RotateAuthenticationKeysResponse {}
         user_pool_service,
         feature_flags_service,
         anti_replay_repository,
+        public_key_repository,
     )
 )]
 #[utoipa::path(
@@ -822,6 +842,7 @@ pub async fn rotate_authentication_keys(
     State(user_pool_service): State<UserPoolService>,
     State(feature_flags_service): State<FeatureFlagsService>,
     State(anti_replay_repository): State<repository::anti_replay::AntiReplayRepository>,
+    State(public_key_repository): State<repository::public_key::PublicKeyRepository>,
     auth: Authorization,
     experimentation_claims: ExperimentationClaims,
     hw_serial: HardwareSerialHeader,
@@ -885,6 +906,8 @@ pub async fn rotate_authentication_keys(
             ensure_pubkeys_unique(
                 &account_service,
                 &recovery_service,
+                &public_key_repository,
+                &account_id,
                 Some(request.application.key)
                     .filter(|&key| key != current_auth.app_pubkey),
                 Some(request.hardware.key)
@@ -909,12 +932,28 @@ pub async fn rotate_authentication_keys(
                 &social_challenge_service,
                 &comms_verification_service,
                 &feature_flags_service,
+                &public_key_repository,
             )
             .await
             {
                 if !matches!(e.clone(), ApiError::Specific{code, ..} if code == ErrorCode::NoRecoveryExists)
                 {
                     return Err(e);
+                }
+            }
+
+            // Record hw auth pubkey in public_keys table if key is rotating
+            if request.hardware.key != current_auth.hardware_pubkey {
+                if !public_key_repository
+                    .persist_public_key(
+                        &request.hardware.key.to_string(),
+                        &account_id,
+                        repository::public_key::KeyType::HardwareAuth,
+                    )
+                    .await
+                    .map_err(RecoveryError::from)?
+                {
+                    return Err(RecoveryError::HwAuthPubkeyReuseAccount.into());
                 }
             }
 

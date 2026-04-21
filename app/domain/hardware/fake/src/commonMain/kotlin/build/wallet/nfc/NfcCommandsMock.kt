@@ -42,6 +42,8 @@ class NfcCommandsMock(
   val getAuthenticationKeyCalls = turbine.invoke("GetAuthenticationKey calls")
   val lostAppRecoveryCalls = turbine.invoke("LostAppRecovery calls")
   val lostAppRecoveryContinueParamsCalls = turbine.invoke("LostAppRecoveryContinueParams calls")
+  val rotateAppAuthKeysCalls = turbine.invoke("RotateAppAuthKeys calls")
+  val upgradeRotateAppAuthKeysCalls = turbine.invoke("UpgradeRotateAppAuthKeys calls")
 
   private val defaultEnrollmentResult = FingerprintEnrollmentResult(
     status = FingerprintEnrollmentStatus.COMPLETE,
@@ -293,12 +295,6 @@ class NfcCommandsMock(
     handles: ConfirmationHandles,
   ): ConfirmationResult = ConfirmationResult.WipeDevice(success = true)
 
-  override suspend fun getConfirmationResultChunk(
-    session: NfcSession,
-    handles: ConfirmationHandles,
-    chunkIndex: UInt,
-  ): ChunkData = ChunkData(chunk = emptyList(), isLast = true, remainingSize = 0u)
-
   override suspend fun getAddress(
     session: NfcSession,
     addressIndex: UInt,
@@ -435,6 +431,7 @@ class NfcCommandsMock(
   override suspend fun upgradeAuthorizeW3(
     session: NfcSession,
     ddkPrivateKeyBytes: ByteString,
+    sealedSsekForDecryption: SealedData?,
     descriptorBackupsBindings: String,
     activateKeysetBindings: String,
     actionProofVersion: UInt,
@@ -462,6 +459,7 @@ class NfcCommandsMock(
     session: NfcSession,
     params: RotateAppAuthKeysContinueParams,
   ): HardwareInteraction<RotateAppAuthKeysCompositeResult> {
+    rotateAppAuthKeysCalls.add(params)
     return rotateAppAuthKeysResult
   }
 
@@ -478,6 +476,7 @@ class NfcCommandsMock(
     session: NfcSession,
     params: UpgradeRotateAppAuthKeysParams,
   ): HardwareInteraction<UpgradeRotateAppAuthKeysResult> {
+    upgradeRotateAppAuthKeysCalls.add(params)
     return upgradeRotateAppAuthKeysResult
   }
 

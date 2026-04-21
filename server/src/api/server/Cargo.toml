@@ -68,6 +68,7 @@ recovery = { workspace = true }
 repository = { workspace = true, features = [
   "account",
   "anti_replay",
+  "public_key",
   "recovery",
   "screener",
 ] }

@@ -12,7 +12,7 @@ import build.wallet.ui.model.video.VideoStartingPosition.START
 
 fun ActivationInstructionsBodyModel(
   onContinue: (() -> Unit)?,
-  onBack: () -> Unit,
+  onBack: (() -> Unit)?,
   isNavigatingBack: Boolean,
   eventTrackerContext: EventTrackerContext,
 ) = PairNewHardwareBodyModel(

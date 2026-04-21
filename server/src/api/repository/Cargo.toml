@@ -29,6 +29,7 @@ all = [
   "consent",
   "encrypted_attachment",
   "privileged_action",
+  "public_key",
   "recovery",
   "screener",
 ]
@@ -36,6 +37,7 @@ anti_replay = []
 consent = ["types/consent"]
 encrypted_attachment = ["types/account", "types/encrypted_attachment"]
 privileged_action = ["types/privileged_action"]
+public_key = ["types/account"]
 recovery = ["types/recovery"]
 screener = ["types/screener"]
 

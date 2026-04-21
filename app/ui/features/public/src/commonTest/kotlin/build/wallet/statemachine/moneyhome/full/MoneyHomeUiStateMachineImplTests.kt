@@ -201,6 +201,24 @@ class MoneyHomeUiStateMachineImplTests : FunSpec({
     }
   }
 
+  test("launch auto-routes to W3 upgrade when cloud restore persisted a W3 placeholder") {
+    resumeOverride = { type ->
+      Ok(
+        when (type) {
+          MigrationType.PrivateWalletMigration -> MigrationProgress.NotStarted(type)
+          MigrationType.W3Upgrade ->
+            MigrationProgress.NotStarted(type, resumedFromCloudBackup = true)
+        }
+      )
+    }
+
+    stateMachine.test(props) {
+      awaitUntilBodyMock<W3UpgradeUiProps>(id = defaultW3UpgradeUiStateMachine.id) {
+        account.shouldBe(FullAccountMock)
+      }
+    }
+  }
+
   test("completed resumed W3 upgrade returns to money home with coachmark state") {
     val w3UpgradeProgress = MigrationProgress.AuthKeyRotation(
       type = MigrationType.W3Upgrade,

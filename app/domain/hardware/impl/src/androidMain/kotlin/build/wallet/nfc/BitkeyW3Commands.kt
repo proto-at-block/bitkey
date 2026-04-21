@@ -852,20 +852,29 @@ class BitkeyW3Commands(
     sessionToken: List<UByte>,
   ): CsekUnsealResult {
     var lastError: NfcException? = null
+    var unsealMismatch: NfcException.CommandErrorSealCsekResponseUnsealException? = null
     for ((index, sealedCsek) in sealedCseks.withIndex()) {
       try {
         return unsealCsekInRestorationSession(session, index, sealedCsek, sessionToken)
       } catch (e: NfcException.CommandErrorSealCsekResponseUnsealException) {
         lastError = e
+        unsealMismatch = e
         // Firmware couldn't unseal this CSEK, try the next one
       } catch (e: NfcException.CommandError) {
         lastError = e
         // Generic command error during unseal — try the next CSEK
       }
     }
-    throw lastError ?: NfcException.CommandError(
-      message = "Could not unseal any CSEK with this hardware"
-    )
+    // If any iteration produced a genuine unseal-mismatch, that is the canonical
+    // "hardware can't decrypt these CSEKs" signal — surface it. Otherwise
+    // rethrow the last generic command error as-is so real firmware/state
+    // failures aren't masked as a decrypt mismatch. If `sealedCseks` was empty
+    // the loop never ran, so neither variable was set; throw a generic
+    // command error instead of fabricating an unseal-mismatch the user never
+    // experienced (that would mis-route into the W-17080 blocking UX).
+    throw unsealMismatch
+      ?: lastError
+      ?: NfcException.CommandError(message = "Could not unseal any CSEK with this hardware")
   }
 
   /**
@@ -1123,6 +1132,7 @@ class BitkeyW3Commands(
   override suspend fun upgradeAuthorizeW3(
     session: NfcSession,
     ddkPrivateKeyBytes: ByteString,
+    sealedSsekForDecryption: SealedData?,
     descriptorBackupsBindings: String,
     activateKeysetBindings: String,
     actionProofVersion: UInt,
@@ -1132,6 +1142,7 @@ class BitkeyW3Commands(
       generateCommand = {
         FfiUpgradeAuthorizeW3(
           ddkPrivateKey = ddkPrivateKeyBytes.toUByteList(),
+          sealedSsekForDecryption = sealedSsekForDecryption?.toUByteList().orEmpty(),
           descriptorBackupsBindings = descriptorBackupsBindings,
           activateKeysetBindings = activateKeysetBindings,
           actionProofVersion = actionProofVersion
@@ -1157,7 +1168,8 @@ class BitkeyW3Commands(
                   UpgradeAuthorizeW3Result(
                     descriptorBackupsSignature = confirmResult.descriptorBackupsSignature.toByteString().hex(),
                     activateKeysetSignature = confirmResult.activateKeysetSignature.toByteString().hex(),
-                    sealedDdkData = confirmResult.sealedDdkData.toByteString()
+                    sealedDdkData = confirmResult.sealedDdkData.toByteString(),
+                    unsealedSsek = confirmResult.unsealedSsek?.toByteString()
                   )
                 )
               }

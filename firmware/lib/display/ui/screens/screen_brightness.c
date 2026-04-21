@@ -30,7 +30,7 @@ static void back_button_click_handler(lv_event_t* e);
 #define SLIDER_Y_OFFSET 0
 
 // Colors
-#define COLOR_SLIDER_BG     0x333333
+#define COLOR_SLIDER_BG     0x404040
 #define COLOR_SLIDER_ACTIVE 0xFFFFFF
 
 // External image declarations

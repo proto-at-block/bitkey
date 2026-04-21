@@ -4,7 +4,7 @@
  *
  * Displays a fingerprint pattern made of dots that progressively activate
  * as the user provides fingerprint samples during enrollment.
- * Uses the same dot styling as dot_ring (inactive: 2px grey, active: 8px white).
+ * Uses fingerprint-specific styling (inactive: 4px grey, mid: 6px white, active: 8px white).
  */
 
 #pragma once
@@ -17,10 +17,10 @@
 /** Number of dots in the fingerprint pattern */
 #define FINGERPRINT_DOTS_COUNT 85
 
-/** Dot size configuration (scaled 25% larger than dot_ring styling) */
-#define FINGERPRINT_DOT_SIZE_INACTIVE 3
+/** Dot size configuration */
+#define FINGERPRINT_DOT_SIZE_INACTIVE 4
 #define FINGERPRINT_DOT_SIZE_MID      6
-#define FINGERPRINT_DOT_SIZE_ACTIVE   10
+#define FINGERPRINT_DOT_SIZE_ACTIVE   8
 
 /**
  * @brief Context for dot animation callbacks
@@ -84,7 +84,7 @@ void fingerprint_dots_hide(fingerprint_dots_t* dots);
  * @brief Set percentage of active dots with animation
  *
  * Sets dots to show the given percentage. Newly activated dots
- * animate from inactive (2px grey) to active (8px white).
+ * animate from inactive (4px grey) to active (8px white).
  * Dots are activated in a spiral pattern from outside to center.
  *
  * @param dots Widget structure

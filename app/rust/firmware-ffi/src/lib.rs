@@ -9,7 +9,7 @@ use wca::command_interface::{Command, State};
 use wca::commands::{assemble_psbt_signatures, decompose_psbt};
 use wca::commands::{
     compute_commitment_hash, serialize_stream_payload, BioMatchStats, BtcDisplayUnit, BtcNetwork,
-    CancelFingerprintEnrollment, ChunkData, ConfirmedCommandResult, CoredumpFragment,
+    CancelFingerprintEnrollment, ConfirmedCommandResult, CoredumpFragment,
     DecomposedPsbt, DeleteFingerprint, DescriptorPublicKey, DeviceIdentifiers, DeviceInfo,
     DeviceInfoMcu, EekRestorationUnseal, EekRestorationUnsealResult, EnrolledFingerprints,
     EnrollmentDiagnostics, EventFragment, FingerprintEnrollmentResult, FingerprintEnrollmentStatus,
@@ -18,7 +18,7 @@ use wca::commands::{
     FullAccountCloudBackupRestorationContinue, FullAccountCloudBackupRestorationContinueResult,
     FullAccountCloudBackupRestorationResult, FwupFinish, FwupFinishRspStatus, FwupMode, FwupStart,
     FwupStartResult, FwupTransfer, GetAddress, GetAddressResult, GetAuthenticationKey,
-    GetCert, GetConfirmationResult, GetConfirmationResultChunk,
+    GetCert, GetConfirmationResult,
     GetCoredumpCount, GetCoredumpFragment, GetDeviceIdentifiers, GetDeviceInfo,
     GetEnrolledFingerprints, GetEvents, GetFingerprintEnrollmentStatus, GetFirmwareFeatureFlags,
     GetFirmwareMetadata, GetInitialSpendingKey, GetNextSpendingKey, GetTelemetryIdentifiers,
@@ -74,7 +74,6 @@ type SignTxRequestResultState = State<SignTxRequestResult>;
 type GetAddressResultState = State<GetAddressResult>;
 type SignStartResultState = State<SignStartResult>;
 type SignTransferResultState = State<SignTransferResult>;
-type ChunkDataState = State<ChunkData>;
 type SignStreamStartResultState = State<SignStreamStartResult>;
 type SignStreamTransferResultState = State<SignStreamTransferResult>;
 type SignStreamFinalizeResultState = State<SignStreamFinalizeResult>;

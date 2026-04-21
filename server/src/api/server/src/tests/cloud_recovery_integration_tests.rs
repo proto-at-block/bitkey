@@ -313,6 +313,108 @@ async fn test_rotate_authentication_keys(
     }
 }
 
+#[tokio::test]
+async fn rotate_authentication_keys_accepts_unchanged_app_and_rotated_recovery_and_hardware_keys() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+    let secp = Secp256k1::new();
+
+    let network = Network::BitcoinSignet;
+    let keys = create_new_authkeys(&mut context);
+    let spending_app_dpub = DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap();
+    let spending_hardware_dpub = DescriptorPublicKey::from_str("[9e61ede9/84'/1'/0']tpubD6NzVbkrYhZ4Xwyrc51ZUDmxHYdTBpmTqTwSB6vr93T3Rt72nPzx2kjTV8VeWJW741HvVGvRyPSHZBgA5AEGD8Eib3sMwazMEuaQf1ioGBo/0/*").unwrap();
+
+    let create_account_response = client
+        .create_account(
+            &mut context,
+            &CreateAccountRequest::Full {
+                auth: FullAccountAuthKeysInput {
+                    app: keys.app.public_key,
+                    hardware: keys.hw.public_key,
+                    recovery: Some(keys.recovery.public_key),
+                    hardware_type: HardwareType::default(),
+                },
+                spending: SpendingKeysetInput {
+                    network: network.into(),
+                    app: spending_app_dpub,
+                    hardware: spending_hardware_dpub,
+                },
+                is_test_account: true,
+            },
+        )
+        .await;
+    assert_eq!(
+        create_account_response.status_code,
+        StatusCode::OK,
+        "{}",
+        create_account_response.body_string
+    );
+
+    let account_id = create_account_response.body.unwrap().account_id;
+    let account_id_string = account_id.to_string();
+    let before = bootstrap
+        .services
+        .account_service
+        .fetch_full_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await
+        .expect("Account should exist before auth rotation");
+
+    let new_keys = create_new_authkeys(&mut context);
+    let message = message_to_digest(account_id_string.as_ref());
+    let app_signature = secp.sign_ecdsa(&message, &keys.app.secret_key).to_string();
+    let hardware_signature = secp.sign_ecdsa(&message, &new_keys.hw.secret_key).to_string();
+    let recovery_signature = secp
+        .sign_ecdsa(&message, &new_keys.recovery.secret_key)
+        .to_string();
+
+    let response = client
+        .rotate_authentication_keys(
+            &mut context,
+            &account_id_string,
+            &RotateAuthenticationKeysRequest {
+                application: AuthenticationKey {
+                    key: keys.app.public_key,
+                    signature: app_signature,
+                },
+                hardware: AuthenticationKey {
+                    key: new_keys.hw.public_key,
+                    signature: hardware_signature,
+                },
+                recovery: Some(AuthenticationKey {
+                    key: new_keys.recovery.public_key,
+                    signature: recovery_signature,
+                }),
+                hardware_type: HardwareType::default(),
+            },
+            &keys,
+        )
+        .await;
+
+    assert_eq!(response.status_code, StatusCode::OK, "{}", response.body_string);
+
+    let after = bootstrap
+        .services
+        .account_service
+        .fetch_full_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await
+        .expect("Account should exist after auth rotation");
+    let auth = after
+        .active_auth_keys()
+        .expect("Auth keys should be present after auth rotation");
+
+    assert_ne!(
+        after.common_fields.active_auth_keys_id,
+        before.common_fields.active_auth_keys_id
+    );
+    assert_eq!(auth.app_pubkey, keys.app.public_key);
+    assert_eq!(auth.hardware_pubkey, new_keys.hw.public_key);
+    assert_eq!(auth.recovery_pubkey, Some(new_keys.recovery.public_key));
+}
+
 // ---- W3 ActionProof tests for rotate_authentication_keys ----
 
 #[tokio::test]

@@ -1,13 +1,68 @@
+from __future__ import annotations
+
+import importlib.resources
 import logging
 import os
 import platform
 import re
-from typing import Optional, Tuple, Union
+from typing import Any
+
+import yaml
 
 logger = logging.getLogger(__name__)
 
 
-def size_to_bytes(size: Union[str, int]) -> int:
+def get_partition_config(product: str) -> dict[str, Any] | None:
+    """Retrieves the flash / RAM partition configuration for the specified product.
+
+    The ``product`` names must correspond to names underneath the
+    'config/partitions' directory.
+
+    :param product: product to fetch the partition configuration for.
+    :returns: ``dict`` on success, otherwise ``None``.
+    """
+    try:
+        try:
+            path = importlib.resources.files("bitkey_config").joinpath(
+                f"partitions/{product}/partitions.yml"
+            )
+        except ModuleNotFoundError:
+            # If the `bitkey_config` is installed as editable, then the path
+            # will not contain the `bitkey_config`.
+            path = importlib.resources.files("partitions").joinpath(
+                f"{product}/partitions.yml"
+            )
+
+        with path.open("rb") as f:
+            config = yaml.safe_load(f)
+            return config
+    except (FileNotFoundError, yaml.YAMLError):
+        return None
+
+
+def bytes_to_size(num_bytes: int) -> str:
+    """Converts an integral byte count value to a size string.
+
+    E.g. `196608 -> 192 KB`. Supports at most GB (gigabyte).
+
+    :param num_bytes: number of bytes.
+    :returns: size string.
+    """
+    sizes = ["B", "KB", "MB", "GB"]
+    div: int = 1024
+    n: int | float = num_bytes
+
+    while sizes and n >= div:
+        n = n / div
+        _ = sizes.pop(0)
+
+    n_str: str = f"{int(n)}" if isinstance(
+        n, int) or n.is_integer() else str(n)
+    unit: str = sizes[0] if sizes else "GB"
+    return f"{n_str} {unit}"
+
+
+def size_to_bytes(size: str | int) -> int:
     """Converts a size parameter to its integral value.
 
     :param size: the size specifier.
@@ -29,7 +84,7 @@ def size_to_bytes(size: Union[str, int]) -> int:
     return int(size)
 
 
-def usb_dev_from_port(port_spec: str) -> Optional[Tuple[int, int]]:
+def usb_dev_from_port(port_spec: str) -> tuple[int, int] | None:
     """Retrieves a bus and device number given a physical USB device port
     specification.
 

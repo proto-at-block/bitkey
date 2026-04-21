@@ -2,6 +2,9 @@ package build.wallet.statemachine.walletmigration
 
 import app.cash.turbine.Turbine
 import bitkey.account.HardwareType
+import bitkey.auth.AuthTokenScope.Global
+import bitkey.data.PrivateData
+import build.wallet.auth.AccountAuthTokensMock
 import build.wallet.account.AccountServiceFake
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.EventTrackerContext
@@ -23,13 +26,17 @@ import build.wallet.bitcoin.utxo.UtxoConsolidationContext
 import build.wallet.bitcoin.utxo.Utxos
 import build.wallet.bitkey.auth.AppAuthPublicKeysMock
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
+import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock2
 import build.wallet.bitkey.auth.HwAuthSecp256k1PublicKeyMock
 import build.wallet.bitkey.f8e.F8eSpendingKeysetMock
 import build.wallet.bitkey.keybox.AppKeyBundleMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.HwKeyBundleMock
+import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.keybox.withNewSpendingKeyset
+import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.bitkey.spending.SpendingKeysetMock
+import build.wallet.auth.AuthTokensServiceFake
 import build.wallet.chaincode.delegation.ChaincodeExtractorFake
 import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.cloud.backup.csek.SealedSsekFake
@@ -49,7 +56,9 @@ import build.wallet.keybox.keys.AppKeysGeneratorMock
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.USD
 import build.wallet.nfc.NfcCommandsMock
+import build.wallet.nfc.NfcSession
 import build.wallet.nfc.NfcSessionFake
+import build.wallet.nfc.platform.RotateAppAuthKeysCompositeResult
 import build.wallet.nfc.platform.UpgradeAuthorizeW3Result
 import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysResult
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrolled
@@ -85,6 +94,7 @@ import build.wallet.wallet.migration.MigrationServiceFake
 import build.wallet.wallet.migration.MigrationType
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.get
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.nulls.shouldBeNull
@@ -95,6 +105,7 @@ import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.collections.immutable.persistentListOf
 import okio.ByteString.Companion.encodeUtf8
 
+@OptIn(PrivateData::class)
 class W3UpgradeUiStateMachineImplTests : FunSpec({
   val pairNewHardwareUiStateMachine =
     object : PairNewHardwareUiStateMachine,
@@ -115,6 +126,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
   val migrationService = MigrationServiceFake()
   val ssekDao = SsekDaoFake()
   val accountService = AccountServiceFake()
+  val authTokensService = AuthTokensServiceFake()
   val firmwareDeviceInfoDao = FirmwareDeviceInfoDaoFake()
   val nfcSessionUIStateMachine =
     object : NfcSessionUIStateMachine,
@@ -145,6 +157,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       fullAccountCloudSignInAndBackupUiStateMachine = fullAccountCloudSignInAndBackupUiStateMachine,
       ssekDao = ssekDao,
       accountService = accountService,
+      authTokensService = authTokensService,
       firmwareDeviceInfoDao = firmwareDeviceInfoDao,
       nfcSessionUIStateMachine = nfcSessionUIStateMachine,
       nfcConfirmableSessionUiStateMachine = nfcConfirmableSessionUiStateMachine,
@@ -185,7 +198,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
     hardwareType = HardwareType.W3
   )
 
-  fun w3UpgradeKeyset() =
+  fun w3UpgradeKeyset(): SpendingKeyset =
     SpendingKeysetMock.copy(
       localId = "uuid-0",
       appKey = AppKeyBundleMock.spendingKey,
@@ -193,23 +206,54 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       f8eSpendingKeyset = F8eSpendingKeysetMock
     )
 
-  fun rotatedKeybox() =
+  fun rotatedW3AuthKeys(): build.wallet.bitkey.app.AppAuthPublicKeys =
+    AppAuthPublicKeysMock.copy(
+      appGlobalAuthPublicKey = FullAccountMock.keybox.activeAppKeyBundle.authKey,
+      appRecoveryAuthPublicKey = AppRecoveryAuthPublicKeyMock2,
+      appGlobalAuthKeyHwSignature = build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature(
+        rotationResult.appGlobalAuthKeyHwSignature
+      )
+    )
+
+  fun rotatedKeyboxForAuthKeys(
+    appAuthKeys: build.wallet.bitkey.app.AppAuthPublicKeys,
+  ): Keybox =
     FullAccountMock.keybox
       .withNewSpendingKeyset(w3UpgradeKeyset())
       .copy(
         config = FullAccountMock.keybox.config.copy(hardwareType = HardwareType.W3),
         activeAppKeyBundle = FullAccountMock.keybox.activeAppKeyBundle.copy(
-          authKey = AppAuthPublicKeysMock.appGlobalAuthPublicKey,
-          recoveryAuthKey = AppAuthPublicKeysMock.appRecoveryAuthPublicKey
+          authKey = appAuthKeys.appGlobalAuthPublicKey,
+          recoveryAuthKey = appAuthKeys.appRecoveryAuthPublicKey
         ),
-        appGlobalAuthKeyHwSignature = build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature(
-          rotationResult.appGlobalAuthKeyHwSignature
-        )
+        appGlobalAuthKeyHwSignature = appAuthKeys.appGlobalAuthKeyHwSignature
       )
 
-  fun provisionedKeybox() =
+  fun rotatedKeybox(): Keybox =
+    rotatedKeyboxForAuthKeys(rotatedW3AuthKeys())
+
+  fun provisionedKeybox(): Keybox =
     rotatedKeybox().copy(
       appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock
+    )
+
+  fun resumedAuthRotationProgress(): MigrationProgress.AuthKeyRotation =
+    MigrationProgress.AuthKeyRotation(
+      type = MigrationType.W3Upgrade,
+      currentKeybox = FullAccountMock.keybox,
+      newKeyset = w3UpgradeKeyset(),
+      newAppAuthKeys = rotatedW3AuthKeys(),
+      hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock,
+      hwSignedAccountId = "signed-account-id"
+    )
+
+  fun resumedFromCloudBackupAuthRotationProgress(): MigrationProgress.AuthKeyRotation =
+    MigrationProgress.AuthKeyRotation(
+      type = MigrationType.W3Upgrade,
+      currentKeybox = FullAccountMock.keybox,
+      newKeyset = w3UpgradeKeyset(),
+      resumedFromCloudBackup = true,
+      newAppAuthKeys = rotatedW3AuthKeys()
     )
 
   fun generateConfirmedUtxos(count: Int): Set<BdkUtxo> {
@@ -244,11 +288,18 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
     migrationService.reset()
     ssekDao.reset()
     accountService.reset()
+    authTokensService.reset()
+    authTokensService.setTokens(
+      accountId = FullAccountMock.accountId,
+      tokens = AccountAuthTokensMock,
+      scope = Global
+    ).shouldBe(Ok(Unit))
     firmwareDeviceInfoDao.reset()
     actionProofService.reset()
     relationshipsKeysDao.clear()
     relationshipsCrypto.generateAsymmetricKeyResult = null
     appKeysGenerator.reset()
+    appKeysGenerator.recoveryAuthKeyResult = Ok(AppRecoveryAuthPublicKeyMock2)
     chaincodeExtractor.reset()
     bitcoinWalletService.reset()
     // Default to no unconfirmed UTXOs so existing tests pass through pending tx check
@@ -297,6 +348,25 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
     proceededState.proof.shouldBe(PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("w1-proof")))
   }
 
+  test("resume auth rotation with persisted rotation data retries proceed before asking for W1 proof") {
+    val descriptorBackupProgress = MigrationProgress.DescriptorBackup(
+      type = MigrationType.W3Upgrade,
+      currentKeybox = rotatedKeybox(),
+      newKeyset = w3UpgradeKeyset()
+    )
+    migrationService.resumeResult = Ok(resumedAuthRotationProgress())
+    migrationService.proceedResult = Ok(descriptorBackupProgress)
+
+    stateMachine.test(props) {
+      awaitUntilBodyMock<NfcConfirmableSessionUIStateMachineProps<UpgradeAuthorizeW3Result>>(
+        id = "nfc-confirmable"
+      ) {}
+    }
+
+    migrationService.resumeCalls.shouldBe(listOf(MigrationType.W3Upgrade))
+    migrationService.proceedCalls.single().shouldBe(resumedAuthRotationProgress())
+  }
+
   test("auth rotation confirmable tap persists W3 FirmwareDeviceInfo") {
     val w3DeviceInfo = FirmwareDeviceInfoMock.copy(hwRevision = "w3a-evt", serial = "w3-serial")
     // Raw turbines avoid auto-validation of getDeviceInfo calls triggered by verifyHardwareType
@@ -334,7 +404,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       // Unlike other tests that call onSuccess directly, we must run the session
       // first so that the compose-scoped w3DeviceInfo state is populated before
       // onSuccess tries to persist it.
-      confirmProps.session(NfcSessionFake(), nfcCommandsMock)
+      confirmProps.session(w3NfcSessionFake(), nfcCommandsMock)
       confirmProps.onSuccess(rotationResult)
 
       awaitUntilBodyMock<NfcConfirmableSessionUIStateMachineProps<UpgradeAuthorizeW3Result>>(
@@ -359,6 +429,8 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
         id = "nfc-confirmable"
       ) {}
     }
+
+    authTokensService.refreshAccessTokenCalls.shouldContain(FullAccountMock.accountId to Global)
   }
 
   test("resume server keyset activation rewinds to composite upgrade authorization tap") {
@@ -818,9 +890,24 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
     onExitCalls.awaitItem()
   }
 
+  test("cloud-restored placeholder shows intro without a back button") {
+    migrationService.resumeResult = Ok(
+      MigrationProgress.NotStarted(
+        type = MigrationType.W3Upgrade,
+        resumedFromCloudBackup = true
+      )
+    )
+
+    stateMachine.test(props) {
+      awaitUntilBody<W3UpgradeIntroBodyModel> {
+        onBack.shouldBeNull()
+      }
+    }
+  }
+
   test("error screen hides cancel button when migration is in progress") {
     // When a migration is in-progress, resolveInitialUiState sets isMigrationInProgress = true
-    // and jumps past the intro screen entirely (into GeneratingAuthKeys, etc.).
+    // and jumps past the intro screen entirely.
     // The intro screen's onBack is guarded by `props.onExit.takeUnless { isMigrationInProgress }`,
     // but in practice the intro is never rendered while in-progress — the state machine skips it.
     // The user-visible effect of isMigrationInProgress is that the error screen's Cancel button
@@ -831,10 +918,20 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       newKeyset = w3UpgradeKeyset()
     )
     migrationService.resumeResult = Ok(authRotationProgress)
-    // Key gen fails → error screen
-    appKeysGenerator.keyBundleResult = Err(Exception("key gen failed"))
+    migrationService.proceedResult = Err(MigrationError.AuthKeyRotationFailed(Exception("fail")))
 
     stateMachine.test(props) {
+      awaitUntilBody<W3UpgradeOldHardwareAuthRotationInstructionsBodyModel> { onContinue() }
+      val popProps = awaitUntilBodyMock<ProofOfPossessionNfcProps>(id = "proof-of-possession") {}
+      (popProps.request as Request.HwKeyProof)
+        .onSuccess(HwFactorProofOfPossession("w1-proof"))
+      awaitUntilBody<W3UpgradeNewHardwareAuthRotationInstructionsBodyModel> { onContinue() }
+      val confirmProps =
+        awaitUntilBodyMock<NfcConfirmableSessionUIStateMachineProps<UpgradeRotateAppAuthKeysResult>>(
+          id = "nfc-confirmable"
+        ) {}
+      confirmProps.onSuccess(rotationResult)
+
       awaitUntilBody<FormBodyModel> {
         // Cancel button should be hidden when migration is in progress
         secondaryButton.shouldBeNull()
@@ -851,7 +948,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
     migrationService.resumeResult = Ok(authRotationProgress)
 
     stateMachine.test(props) {
-      // Loading → auth rotation instructions (no key generation yet — keys generated on Continue).
+      // Loading → auth rotation instructions.
       awaitBody<LoadingSuccessBodyModel>()
       awaitBody<W3UpgradeOldHardwareAuthRotationInstructionsBodyModel>()
     }
@@ -953,17 +1050,48 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
 
   // -- Auth rotation error tests --
 
-  test("generating auth keys shows error when key generation fails") {
+  test("auth rotation keeps current global auth key and generates a new recovery auth key when preparing rotation") {
     val authRotationProgress = MigrationProgress.AuthKeyRotation(
       type = MigrationType.W3Upgrade,
       currentKeybox = FullAccountMock.keybox,
       newKeyset = w3UpgradeKeyset()
     )
     migrationService.resumeResult = Ok(authRotationProgress)
-    appKeysGenerator.keyBundleResult = Err(Exception("key gen failed"))
+    migrationService.proceedResult = Err(MigrationError.AuthKeyRotationFailed(Exception("fail")))
 
     stateMachine.test(props) {
-      // Resume shows instructions, Continue triggers key gen which fails → error
+      awaitUntilBody<W3UpgradeOldHardwareAuthRotationInstructionsBodyModel> { onContinue() }
+      val popProps = awaitUntilBodyMock<ProofOfPossessionNfcProps>(id = "proof-of-possession") {}
+      (popProps.request as Request.HwKeyProof)
+        .onSuccess(HwFactorProofOfPossession("w1-proof"))
+      awaitUntilBody<W3UpgradeNewHardwareAuthRotationInstructionsBodyModel> { onContinue() }
+      val confirmProps =
+        awaitUntilBodyMock<NfcConfirmableSessionUIStateMachineProps<UpgradeRotateAppAuthKeysResult>>(
+          id = "nfc-confirmable"
+        ) {}
+      confirmProps.onSuccess(rotationResult)
+      awaitUntilBody<FormBodyModel>(id = WalletMigrationEventTrackerScreenId.W3_UPGRADE_ERROR)
+    }
+
+    val proceededState =
+      migrationService.proceedCalls.single().shouldBeInstanceOf<MigrationProgress.AuthKeyRotation>()
+    proceededState.newAppAuthKeys.shouldNotBeNull()
+    proceededState.newAppAuthKeys!!.appGlobalAuthPublicKey
+      .shouldBe(FullAccountMock.keybox.activeAppKeyBundle.authKey)
+    proceededState.newAppAuthKeys!!.appRecoveryAuthPublicKey
+      .shouldBe(AppRecoveryAuthPublicKeyMock2)
+  }
+
+  test("generating recovery auth key shows error when recovery key generation fails") {
+    val authRotationProgress = MigrationProgress.AuthKeyRotation(
+      type = MigrationType.W3Upgrade,
+      currentKeybox = FullAccountMock.keybox,
+      newKeyset = w3UpgradeKeyset()
+    )
+    migrationService.resumeResult = Ok(authRotationProgress)
+    appKeysGenerator.recoveryAuthKeyResult = Err(Exception("recovery key gen failed"))
+
+    stateMachine.test(props) {
       awaitUntilBody<W3UpgradeOldHardwareAuthRotationInstructionsBodyModel> { onContinue() }
       awaitUntilBody<FormBodyModel>(id = WalletMigrationEventTrackerScreenId.W3_UPGRADE_ERROR)
     }
@@ -1138,16 +1266,24 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       newKeyset = w3UpgradeKeyset()
     )
     migrationService.resumeResult = Ok(authRotationProgress)
-    // Key gen fails → error (triggered after user taps Continue on instructions)
-    appKeysGenerator.keyBundleResult = Err(Exception("key gen failed"))
+    migrationService.proceedResult = Err(MigrationError.AuthKeyRotationFailed(Exception("fail")))
 
     stateMachine.test(props) {
-      // Resume shows instructions immediately; Continue triggers key gen failure.
       awaitUntilScreenWithBody<W3UpgradeOldHardwareAuthRotationInstructionsBodyModel>(
         matchingBody = { it.designSystemV2Model?.eyebrow == "Step 2 of 4" }
       ) {
         body.shouldBeInstanceOf<W3UpgradeOldHardwareAuthRotationInstructionsBodyModel>()
           .onContinue()
+      }
+      awaitUntilBodyMock<ProofOfPossessionNfcProps>(id = "proof-of-possession") {
+        (request as Request.HwKeyProof)
+          .onSuccess(HwFactorProofOfPossession("w1-proof"))
+      }
+      awaitUntilBody<W3UpgradeNewHardwareAuthRotationInstructionsBodyModel> { onContinue() }
+      awaitUntilBodyMock<NfcConfirmableSessionUIStateMachineProps<UpgradeRotateAppAuthKeysResult>>(
+        id = "nfc-confirmable"
+      ) {
+        onSuccess(rotationResult)
       }
 
       awaitUntilBody<FormBodyModel> {
@@ -1155,8 +1291,6 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
           .shouldBe(WalletMigrationEventTrackerScreenId.W3_UPGRADE_ERROR)
         primaryButton.shouldNotBeNull().text.shouldBe("Retry")
 
-        // Fix the key gen and retry.
-        appKeysGenerator.reset()
         primaryButton.shouldNotBeNull().onClick()
       }
 
@@ -1736,9 +1870,33 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
 
       val pairProps = awaitUntilBodyMock<PairNewHardwareProps>(id = "pair-new-hardware") {}
-      pairProps.onExit()
+      pairProps.onExit.shouldNotBeNull().invoke()
 
       awaitUntilBody<W3UpgradeIntroBodyModel>()
+    }
+  }
+
+  test("cloud-restored pairing flow back returns to intro without leaving upgrade") {
+    migrationService.resumeResult = Ok(
+      MigrationProgress.NotStarted(
+        type = MigrationType.W3Upgrade,
+        resumedFromCloudBackup = true
+      )
+    )
+    firmwareDeviceInfoDao.setDeviceInfo(FirmwareDeviceInfoMock.copy(serial = "old-serial"))
+
+    stateMachine.test(props) {
+      awaitUntilBody<W3UpgradeIntroBodyModel> {
+        onBack.shouldBeNull()
+        onContinue()
+      }
+      awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
+      awaitUntilBodyMock<PairNewHardwareProps>(id = "pair-new-hardware") {
+        onExit()
+      }
+      awaitUntilBody<W3UpgradeIntroBodyModel> {
+        onBack.shouldBeNull()
+      }
     }
   }
 
@@ -1983,35 +2141,97 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
     exitCalled.shouldBe(true)
   }
 
-  test("resume flow W1 tap goes through ResumingAuthKeyRotation to attach proof") {
-    val authRotationProgress = MigrationProgress.AuthKeyRotation(
-      type = MigrationType.W3Upgrade,
-      currentKeybox = FullAccountMock.keybox,
-      newKeyset = w3UpgradeKeyset()
-    )
+  test("resume flow falls back to W1 proof only when direct auth rotation retry needs proof") {
     val descriptorBackupProgress = MigrationProgress.DescriptorBackup(
       type = MigrationType.W3Upgrade,
       currentKeybox = rotatedKeybox(),
       newKeyset = w3UpgradeKeyset()
     )
-    migrationService.resumeResult = Ok(authRotationProgress)
-    migrationService.proceedResult = Ok(descriptorBackupProgress)
+    migrationService.resumeResult = Ok(resumedAuthRotationProgress())
+    migrationService.proceedResults.addAll(
+      listOf(
+        Err(MigrationError.MissingContext.W3AuthRotationOldHardwareProof),
+        Ok(descriptorBackupProgress)
+      )
+    )
 
     stateMachine.test(props) {
-      // Resume shows instructions (no exit button)
       awaitUntilBody<W3UpgradeOldHardwareAuthRotationInstructionsBodyModel> {
         onDeferExit.shouldBe(null)
         onContinue()
       }
-      // GeneratingAuthKeys (loading) → TappingOldHardwareForAuthorization
       awaitUntilBodyMock<ProofOfPossessionNfcProps>(id = "proof-of-possession") {
         (request as Request.HwKeyProof)
           .onSuccess(HwFactorProofOfPossession("w1-proof"))
       }
-      // ResumingAuthKeyRotation (loading) calls migrationService.resume() and attaches proof
-      // → PreparingNewHardwareRotation → BuildingAuthRotationPayload → ...
-      awaitUntilBody<W3UpgradeNewHardwareAuthRotationInstructionsBodyModel>()
+      awaitUntilBodyMock<NfcConfirmableSessionUIStateMachineProps<UpgradeAuthorizeW3Result>>(
+        id = "nfc-confirmable"
+      ) {}
     }
+
+    migrationService.resumeCalls.shouldBe(listOf(MigrationType.W3Upgrade))
+    migrationService.proceedCalls.first().shouldBe(resumedAuthRotationProgress())
+    val retriedState = migrationService.proceedCalls.last()
+      .shouldBeInstanceOf<MigrationProgress.AuthKeyRotation>()
+    retriedState.newAppAuthKeys.shouldBe(rotatedW3AuthKeys())
+    retriedState.hwAuthPublicKey.shouldBe(HwAuthSecp256k1PublicKeyMock)
+    retriedState.hwSignedAccountId.shouldBe("signed-account-id")
+    retriedState.proof.shouldBe(
+      PrivilegedActionProof.HwKeyProof(HwFactorProofOfPossession("w1-proof"))
+    )
+  }
+
+  test("cloud-restored auth rotation uses rotateAppAuthKeys and skips upgradeRotateAppAuthKeys") {
+    val w3DeviceInfo = FirmwareDeviceInfoMock.copy(hwRevision = "w3a-evt", serial = "w3-serial")
+    val nfcCommandsMock = NfcCommandsMock { Turbine(name = it) }
+    nfcCommandsMock.deviceInfoResult = w3DeviceInfo
+    migrationService.resumeResult = Ok(resumedFromCloudBackupAuthRotationProgress())
+
+    stateMachine.test(props) {
+      awaitUntilBody<W3UpgradeNewHardwareAuthRotationInstructionsBodyModel> { onContinue() }
+      val confirmProps =
+        awaitUntilBodyMock<NfcConfirmableSessionUIStateMachineProps<RotateAppAuthKeysCompositeResult>>(
+          id = "nfc-confirmable"
+        ) {}
+      confirmProps.session(w3NfcSessionFake(), nfcCommandsMock)
+    }
+
+    authTokensService.refreshAccessTokenCalls.shouldContain(FullAccountMock.accountId to Global)
+    nfcCommandsMock.rotateAppAuthKeysCalls.awaitItem()
+    nfcCommandsMock.upgradeRotateAppAuthKeysCalls.expectNoEvents()
+  }
+
+  test("cloud-restored composite tap stores unsealed SSEK before continuing") {
+    val recoveredSsek = "recovered-ssek".encodeUtf8()
+    migrationService.resumeResult = Ok(
+      MigrationProgress.DescriptorBackup(
+        type = MigrationType.W3Upgrade,
+        currentKeybox = rotatedKeybox(),
+        newKeyset = w3UpgradeKeyset(),
+        resumedFromCloudBackup = true,
+        sealedSsekForDecryption = SealedSsekFake
+      )
+    )
+    migrationService.proceedResult = Ok(MigrationProgress.Completed(MigrationType.W3Upgrade))
+
+    stateMachine.test(props) {
+      val upgradeProps =
+        awaitUntilBodyMock<NfcConfirmableSessionUIStateMachineProps<UpgradeAuthorizeW3Result>>(
+          id = "nfc-confirmable"
+        ) {}
+      upgradeProps.onSuccess(
+        UpgradeAuthorizeW3Result(
+          descriptorBackupsSignature = "descriptor-hw-sig",
+          activateKeysetSignature = "activate-hw-sig",
+          sealedDdkData = "sealed-ddk".encodeUtf8(),
+          unsealedSsek = recoveredSsek
+        )
+      )
+
+      awaitUntilBody<W3UpgradeCompleteBodyModel>()
+    }
+
+    ssekDao.get(SealedSsekFake).get().shouldNotBeNull().key.raw.shouldBe(recoveredSsek)
   }
 })
 
@@ -2028,3 +2248,19 @@ private fun recordingEventTracker(actions: MutableList<Action>) = object : Event
   override fun track(eventTrackerScreenInfo: EventTrackerScreenInfo) {}
   override fun track(eventTrackerFingerprintScanStatsInfo: EventTrackerFingerprintScanStatsInfo) {}
 }
+
+private fun w3NfcSessionFake() = NfcSessionFake(
+  NfcSession.Parameters(
+    isHardwareFake = true,
+    hardwareType = HardwareType.W3,
+    needsAuthentication = true,
+    shouldLock = true,
+    skipFirmwareTelemetry = false,
+    asyncNfcSigning = false,
+    nfcFlowName = "fake-flow-name",
+    requirePairedHardware = NfcSession.RequirePairedHardware.NotRequired,
+    maxNfcRetryAttempts = 3,
+    onTagConnected = {},
+    onTagDisconnected = {}
+  )
+)

@@ -51,7 +51,7 @@ typedef enum {
 #define HEADER_PADDING_BOTTOM   20
 #define TITLE_MARGIN_TOP        0
 #define CONFIRMATION_TEXT_WIDTH 400
-#define CONTENT_CENTER_OFFSET   24
+#define STATUS_TO_VALUE_SPACING 16
 
 // Colors
 #define COLOR_RING APPROVAL_BUTTON_RING_COLOR
@@ -59,7 +59,7 @@ typedef enum {
 // Fonts
 #define FONT_STEP         (&cash_sans_mono_regular_26)
 #define FONT_CONFIRMATION (&cash_sans_mono_regular_28)
-#define FONT_INFO         (&cash_sans_mono_regular_36)
+#define FONT_STATUS       (&cash_sans_mono_regular_30)
 #define FONT_VERSION      (&cash_sans_mono_regular_24)
 
 // Success/failed page layout (matches money_movement confirmed page)
@@ -111,6 +111,35 @@ static void header_hint_timer_cb(lv_timer_t* timer);
 static void set_header_prompt_mode(header_prompt_mode_t mode, bool animate);
 static void header_text_opa_anim_cb(void* var, int32_t value);
 static void header_fade_out_ready_cb(lv_anim_t* anim);
+static lv_coord_t get_top_group_bottom_screen(void);
+
+static lv_coord_t get_top_group_bottom_screen(void) {
+  lv_coord_t top_group_bottom =
+    HEADER_PADDING_TOP + 44 + lv_font_get_line_height(FONT_STEP) + TITLE_MARGIN_TOP;
+
+  if (header_title && lv_obj_is_valid(header_title) &&
+      !lv_obj_has_flag(header_title, LV_OBJ_FLAG_HIDDEN)) {
+    lv_area_t title_coords;
+    lv_obj_get_coords(header_title, &title_coords);
+    lv_coord_t title_bottom = title_coords.y2 + 1;
+    if (title_bottom > top_group_bottom) {
+      top_group_bottom = title_bottom;
+    }
+  }
+
+  if (menu_button.is_initialized && menu_button.container &&
+      lv_obj_is_valid(menu_button.container) &&
+      !lv_obj_has_flag(menu_button.container, LV_OBJ_FLAG_HIDDEN)) {
+    lv_area_t menu_coords;
+    lv_obj_get_coords(menu_button.container, &menu_coords);
+    lv_coord_t menu_bottom = menu_coords.y2 + 1;
+    if (menu_bottom > top_group_bottom) {
+      top_group_bottom = menu_bottom;
+    }
+  }
+
+  return top_group_bottom;
+}
 
 static void hold_ring_complete_handler(void* user_data) {
   (void)user_data;
@@ -189,18 +218,18 @@ static void create_confirmation_page(const fwpb_display_params_firmware_update* 
   lv_obj_set_width(confirmation_message, CONFIRMATION_TEXT_WIDTH);
   lv_label_set_long_mode(confirmation_message, LV_LABEL_LONG_WRAP);
 
-  // Vertically center between the header content area and check button.
-  lv_obj_update_layout(confirmation_message);
-  lv_coord_t message_height = lv_obj_get_height(confirmation_message);
-  lv_coord_t content_height = LV_VER_RES - HEADER_HEIGHT;
-  lv_coord_t check_button_top =
-    content_height - APPROVAL_BUTTON_BOTTOM_MARGIN - APPROVAL_BUTTON_SIZE;
-  lv_coord_t message_top =
-    HEADER_HEIGHT + ((check_button_top - message_height) / 2) - CONTENT_CENTER_OFFSET;
-  lv_obj_align(confirmation_message, LV_ALIGN_TOP_MID, 0, message_top);
-
   // Create menu after header/content so it stays visible on top.
   top_menu_create(screen, &menu_button, menu_button_custom_handler);
+
+  // Vertically center between the combined header block and check button.
+  lv_obj_update_layout(screen);
+  lv_coord_t message_height = lv_obj_get_height(confirmation_message);
+  lv_coord_t check_button_top = LV_VER_RES - APPROVAL_BUTTON_BOTTOM_MARGIN - APPROVAL_BUTTON_SIZE;
+  lv_coord_t message_top = (check_button_top + get_top_group_bottom_screen() - message_height) / 2;
+  if (message_top < 0) {
+    message_top = 0;
+  }
+  lv_obj_align(confirmation_message, LV_ALIGN_TOP_MID, 0, message_top);
 
   // Approve ring
   dot_ring_create(screen, &approve_ring);
@@ -424,7 +453,7 @@ static void create_progress_page(const fwpb_display_params_firmware_update* para
   lv_obj_set_flex_flow(progress_container, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_flex_align(progress_container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                         LV_FLEX_ALIGN_CENTER);
-  lv_obj_set_style_pad_row(progress_container, 12, 0);
+  lv_obj_set_style_pad_row(progress_container, STATUS_TO_VALUE_SPACING, 0);
   lv_obj_clear_flag(progress_container, LV_OBJ_FLAG_SCROLLABLE);
 
   progress_message = lv_label_create(progress_container);
@@ -434,7 +463,7 @@ static void create_progress_page(const fwpb_display_params_firmware_update* para
   }
 
   lv_obj_set_style_text_color(progress_message, lv_color_white(), 0);
-  lv_obj_set_style_text_font(progress_message, FONT_INFO, 0);
+  lv_obj_set_style_text_font(progress_message, FONT_STATUS, 0);
   lv_obj_set_style_text_align(progress_message, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_set_width(progress_message, 400);
   lv_label_set_long_mode(progress_message, LV_LABEL_LONG_WRAP);
@@ -473,7 +502,7 @@ static void create_success_page(void) {
   if (label) {
     lv_label_set_text(label, langpack_get_string(LANGPACK_ID_MONEY_MOVEMENT_CONFIRMED));
     lv_obj_set_style_text_color(label, lv_color_hex(COLOR_RING), 0);
-    lv_obj_set_style_text_font(label, FONT_STEP, 0);
+    lv_obj_set_style_text_font(label, FONT_STATUS, 0);
     lv_obj_align(label, LV_ALIGN_CENTER, 0, RESULT_LABEL_Y);
   }
 }
@@ -517,7 +546,7 @@ static void approve_button_event_handler(lv_event_t* e) {
       lv_obj_add_flag(menu_button.container, LV_OBJ_FLAG_HIDDEN);
     }
 
-    dot_ring_show(&approve_ring);
+    dot_ring_show_with_fade_in(&approve_ring, 400);
     dot_ring_animate_fill_from_current(&approve_ring, 100, HOLD_TO_CONFIRM_DURATION_MS,
                                        DOT_RING_COLOR_GREEN, DOT_RING_FILL_SPLIT,
                                        hold_ring_complete_handler, NULL);

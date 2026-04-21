@@ -24,7 +24,6 @@ import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
 import build.wallet.grants.*
 import build.wallet.nfc.platform.ActionProofAction
-import build.wallet.nfc.platform.ChunkData
 import build.wallet.nfc.platform.ConfirmationHandles
 import build.wallet.nfc.platform.ConfirmationResult
 import build.wallet.nfc.platform.CsekUnsealResult
@@ -336,14 +335,6 @@ class BitkeyW1CommandsFake(
     throw NfcException.CommandError(message = "W1 does not support confirmation protocol")
   }
 
-  override suspend fun getConfirmationResultChunk(
-    session: NfcSession,
-    handles: ConfirmationHandles,
-    chunkIndex: UInt,
-  ): ChunkData {
-    throw NfcException.CommandError(message = "W1 does not support confirmation protocol")
-  }
-
   override suspend fun getAddress(
     session: NfcSession,
     addressIndex: UInt,
@@ -430,6 +421,7 @@ class BitkeyW1CommandsFake(
   override suspend fun upgradeAuthorizeW3(
     session: NfcSession,
     ddkPrivateKeyBytes: ByteString,
+    sealedSsekForDecryption: SealedData?,
     descriptorBackupsBindings: String,
     activateKeysetBindings: String,
     actionProofVersion: UInt,

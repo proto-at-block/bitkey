@@ -38,6 +38,7 @@ use notification::service::{
 use onboarding::routes::{CompleteOnboardingRequestV2, CreateAccountRequest, CreateKeysetRequest};
 use onboarding::routes_v2::CreateAccountRequestV2;
 use rand::thread_rng;
+use repository::public_key::KeyType;
 use recovery::entities::{
     DelayNotifyRecoveryAction, DelayNotifyRequirements, RecoveryAction, RecoveryDestination,
     RecoveryRequirements, RecoveryStatus, RecoveryType, WalletRecovery,
@@ -507,6 +508,15 @@ pub(crate) async fn create_full_account(
         )
         .await
         .unwrap();
+    services
+        .public_key_repository
+        .persist_public_key(
+            &auth.hardware_pubkey.to_string(),
+            &account.id,
+            KeyType::HardwareAuth,
+        )
+        .await
+        .unwrap();
     context.associate_with_account(
         &account.id,
         account
@@ -536,6 +546,15 @@ pub(crate) async fn create_full_account_v2(
             Some(auth.app_pubkey),
             Some(auth.hardware_pubkey),
             auth.recovery_pubkey,
+        )
+        .await
+        .unwrap();
+    services
+        .public_key_repository
+        .persist_public_key(
+            &auth.hardware_pubkey.to_string(),
+            &account.id,
+            KeyType::HardwareAuth,
         )
         .await
         .unwrap();

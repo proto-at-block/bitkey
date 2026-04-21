@@ -62,6 +62,7 @@ use privileged_action::service::Service as PrivilegedActionService;
 use recovery::repository::RecoveryRepository;
 use regex::Regex;
 use repository::anti_replay::AntiReplayRepository;
+use repository::public_key::{KeyType, PublicKeyRepository};
 use serde::{Deserialize, Serialize};
 
 use serde_with::{base64::Base64, serde_as};
@@ -97,7 +98,9 @@ use userpool::userpool::UserPoolService;
 use utoipa::{OpenApi, ToSchema};
 use wsm_rust_client::{SigningService, WsmClient};
 
-use crate::account_validation::{AccountValidation, AccountValidationRequest};
+use crate::account_validation::{
+    error::AccountValidationError, AccountValidation, AccountValidationRequest,
+};
 use crate::metrics::LEGACY_VALUE;
 use crate::routes_v2::{
     create_account_v2, create_keyset_v2, upgrade_account_v2, CreateAccountRequestV2,
@@ -138,6 +141,7 @@ pub struct RouteState(
     pub FeatureFlagsService,
     pub PrivilegedActionService,
     pub AntiReplayRepository,
+    pub PublicKeyRepository,
 );
 
 impl RouterBuilder for RouteState {
@@ -1081,6 +1085,7 @@ impl TryFrom<&Account> for CreateAccountResponse {
         user_pool_service,
         config,
         iterable_client,
+        public_key_repository,
         request,
     )
 )]
@@ -1098,6 +1103,7 @@ impl TryFrom<&Account> for CreateAccountResponse {
 pub async fn create_account(
     State(account_service): State<AccountService>,
     State(recovery_repository): State<RecoveryRepository>,
+    State(public_key_repository): State<PublicKeyRepository>,
     State(wsm_client): State<WsmClient>,
     State(id_generator): State<IdentifierGenerator>,
     State(user_pool_service): State<UserPoolService>,
@@ -1118,6 +1124,7 @@ pub async fn create_account(
             &config,
             &account_service,
             &recovery_repository,
+            &public_key_repository,
         )
         .await?
     {
@@ -1147,8 +1154,20 @@ pub async fn create_account(
     // provide the generated account ID once we have it
     tracing::Span::current().record("account_id", account_id.to_string());
 
-    // Create Cognito users
     let (app_auth_pubkey, hardware_auth_pubkey, recovery_auth_pubkey) = request.auth_keys();
+
+    // Record hw auth pubkey in public_keys table before any external side
+    // effects (Cognito, WSM). Full accounts only — Lite/Software have no hw.
+    if let Some(hw_pk) = hardware_auth_pubkey {
+        if !public_key_repository
+            .persist_public_key(&hw_pk.to_string(), &account_id, KeyType::HardwareAuth)
+            .await?
+        {
+            return Err(AccountValidationError::HwAuthPubkeyReuseAccount.into());
+        }
+    }
+
+    // Create Cognito users
     user_pool_service
         .create_or_update_account_users_if_necessary(
             &account_id,
@@ -1308,7 +1327,8 @@ impl From<(&LiteAccount, &UpgradeAccountRequest)> for AccountValidationRequest {
         recovery_repository,
         id_generator,
         user_pool_service,
-        config
+        config,
+        public_key_repository,
     )
 )]
 #[utoipa::path(
@@ -1323,6 +1343,7 @@ impl From<(&LiteAccount, &UpgradeAccountRequest)> for AccountValidationRequest {
 pub async fn upgrade_account(
     State(account_service): State<AccountService>,
     State(recovery_repository): State<RecoveryRepository>,
+    State(public_key_repository): State<PublicKeyRepository>,
     State(wsm_client): State<WsmClient>,
     State(id_generator): State<IdentifierGenerator>,
     State(user_pool_service): State<UserPoolService>,
@@ -1386,8 +1407,23 @@ pub async fn upgrade_account(
             &config,
             &account_service,
             &recovery_repository,
+            &public_key_repository,
         )
         .await?;
+
+    // Record hw auth pubkey in public_keys table before any external side
+    // effects (Cognito, WSM). This ensures a rejected upgrade never leaves
+    // orphaned Cognito users or WSM keys behind.
+    if !public_key_repository
+        .persist_public_key(
+            &request.auth.hardware.to_string(),
+            &account_id,
+            KeyType::HardwareAuth,
+        )
+        .await?
+    {
+        return Err(AccountValidationError::HwAuthPubkeyReuseAccount.into());
+    }
 
     // Create Cognito users
     user_pool_service

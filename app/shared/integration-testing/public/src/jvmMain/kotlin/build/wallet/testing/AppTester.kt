@@ -85,11 +85,7 @@ class AppTester(
     f8eEnvironment: F8eEnvironment? = null,
     executeWorkers: Boolean = true,
   ): AppTester {
-    // Cancel
-    appCoroutineScope.run {
-      cancel()
-      coroutineContext.job.cancelAndJoin()
-    }
+    shutdown()
     return testScope.launchApp(
       existingAppDir = fileDirectoryProvider.appDir(),
       bdkBlockchainFactory = bdkBlockchainFactory,
@@ -102,6 +98,23 @@ class AppTester(
       executeWorkers = executeWorkers,
       appMode = appMode
     )
+  }
+
+  /**
+   * Stops the running app instance without reusing its app directory.
+   *
+   * This is used by integration tests that need to simulate uninstall + reinstall
+   * while still reusing external state like fake cloud storage and hardware seeds.
+   */
+  suspend fun closeForUninstall() {
+    shutdown()
+  }
+
+  private suspend fun shutdown() {
+    appCoroutineScope.run {
+      cancel()
+      coroutineContext.job.cancelAndJoin()
+    }
   }
 
   companion object {

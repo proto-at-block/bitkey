@@ -12,16 +12,18 @@
 
 #define SCREEN_BRIGHTNESS 100
 
-#define DONE_TEXT             "Success"
-#define DONE_DISPLAY_TEXT     "SUCCESS"
+#define LEGACY_DONE_TEXT      "Success"
+#define LEGACY_DONE_TEXT_ALT  "SUCCESS"
+#define DONE_DISPLAY_TEXT     "Done"
 #define SIGNING_TEXT          "Signing..."
+#define LEGACY_SIGNING_TEXT   "SIGNING..."
 #define SIGNING_RING_TAIL_OPA 38
 
 #define COLOR_GREEN    lv_color_make(0xD1, 0xFB, 0x96)
-#define COLOR_INACTIVE lv_color_hex(0x555555)
-#define INACTIVE_OPA   LV_OPA_50
+#define COLOR_INACTIVE lv_color_hex(0x404040)
+#define INACTIVE_OPA   LV_OPA_70
 
-#define FONT_TEXT_SUCCESS (&cash_sans_mono_regular_36)
+#define FONT_TEXT_SUCCESS (&cash_sans_mono_regular_30)
 #define FONT_TEXT_LOADING (&cash_sans_mono_regular_30)
 
 #define SUCCESS_RING_START_DELAY_MS      250
@@ -57,6 +59,7 @@ static void success_ring_hold_timer_cb(lv_timer_t* timer);
 static void success_ring_outro_anim_cb(void* var, int32_t value);
 static int get_success_ring_order(int dot_index, int total_dots);
 static bool is_done_confirmation(const char* text);
+static bool is_signing_confirmation_text(const char* text);
 static const char* get_confirmation_display_text(const char* text);
 static const char* get_success_content_text(void);
 static const lv_img_dsc_t* get_success_content_icon(void);
@@ -101,7 +104,7 @@ static bool is_loading_confirmation(const fwpb_display_params_confirmation* para
 
   // Preserve legacy behavior for callers that still populate only text while
   // leaving mode at its zero-value default (SUCCESS).
-  if (params->text[0] != '\0' && strcmp(params->text, SIGNING_TEXT) == 0) {
+  if (is_signing_confirmation_text(params->text)) {
     return true;
   }
 
@@ -119,10 +122,26 @@ static bool is_loading_confirmation(const fwpb_display_params_confirmation* para
 }
 
 static bool is_done_confirmation(const char* text) {
-  return text != NULL && strcmp(text, DONE_TEXT) == 0;
+  if (text == NULL) {
+    return false;
+  }
+
+  return strcmp(text, LEGACY_DONE_TEXT) == 0 || strcmp(text, LEGACY_DONE_TEXT_ALT) == 0;
+}
+
+static bool is_signing_confirmation_text(const char* text) {
+  if (text == NULL) {
+    return false;
+  }
+
+  return strcmp(text, SIGNING_TEXT) == 0 || strcmp(text, LEGACY_SIGNING_TEXT) == 0;
 }
 
 static const char* get_confirmation_display_text(const char* text) {
+  if (is_signing_confirmation_text(text)) {
+    return SIGNING_TEXT;
+  }
+
   if (is_done_confirmation(text)) {
     return DONE_DISPLAY_TEXT;
   }
@@ -242,18 +261,8 @@ static void layout_success_content(void) {
     return;
   }
 
-  lv_obj_update_layout(label);
-
-  lv_coord_t label_height = lv_obj_get_height(label);
-  lv_coord_t icon_height = success_icon_dsc ? success_icon_dsc->header.h : check.header.h;
-  lv_coord_t content_gap =
-    (SUCCESS_TEXT_Y_OFFSET - (label_height / 2)) - (SUCCESS_CHECKMARK_Y_OFFSET + (icon_height / 2));
-
-  lv_coord_t icon_offset = -((content_gap + label_height) / 2);
-  lv_coord_t label_offset = ((icon_height + content_gap) / 2);
-
-  lv_obj_align(icon, LV_ALIGN_CENTER, 0, icon_offset);
-  lv_obj_align(label, LV_ALIGN_CENTER, 0, label_offset);
+  lv_obj_align(icon, LV_ALIGN_CENTER, 0, SUCCESS_CHECKMARK_Y_OFFSET);
+  lv_obj_align(label, LV_ALIGN_CENTER, 0, SUCCESS_TEXT_Y_OFFSET);
 }
 
 static void start_success_ring_intro(void) {

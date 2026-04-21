@@ -39,6 +39,7 @@ import build.wallet.debug.AppDataDeleter
 import build.wallet.debug.cloud.CloudBackupDeleter
 import build.wallet.encrypt.MessageSigner
 import build.wallet.encrypt.Secp256k1KeyGenerator
+import build.wallet.f8e.auth.AuthF8eClient
 import build.wallet.f8e.debug.NetworkingDebugService
 import build.wallet.f8e.mobilepay.MobilePaySigningF8eClient
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
@@ -80,6 +81,7 @@ import build.wallet.relationships.*
 import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachine
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.wallet.migration.PrivateWalletMigrationDao
+import build.wallet.wallet.migration.MigrationService
 import build.wallet.worker.AppWorkerExecutor
 import kotlinx.coroutines.CoroutineScope
 
@@ -103,6 +105,7 @@ interface JvmAppComponent {
   val appSessionManager: AppSessionManager
   val appSpendingWalletProvider: AppSpendingWalletProvider
   val appWorkerExecutor: AppWorkerExecutor
+  val authF8eClient: AuthF8eClient
   val authTokensService: AuthTokensService
   val bitcoinBlockchain: BitcoinBlockchain
   val bitcoinWalletService: BitcoinWalletService
@@ -209,4 +212,5 @@ interface JvmAppComponent {
   val memfaultClientMock: MemfaultClientMock
   val notificationsPreferencesCachedProvider: NotificationsPreferencesCachedProvider
   val securityActionsService: SecurityActionsService
+  val migrationService: MigrationService
 }

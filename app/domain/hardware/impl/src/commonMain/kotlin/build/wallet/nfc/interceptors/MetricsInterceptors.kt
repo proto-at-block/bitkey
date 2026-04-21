@@ -25,7 +25,6 @@ import build.wallet.grants.GrantRequest
 import build.wallet.logging.*
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.ActionProofAction
-import build.wallet.nfc.platform.ChunkData
 import build.wallet.nfc.platform.ConfirmationHandles
 import build.wallet.nfc.platform.ConfirmationResult
 import build.wallet.nfc.platform.CsekUnsealResult
@@ -343,6 +342,7 @@ private class MetricsNfcCommandsImpl(
   override suspend fun upgradeAuthorizeW3(
     session: NfcSession,
     ddkPrivateKeyBytes: ByteString,
+    sealedSsekForDecryption: SealedData?,
     descriptorBackupsBindings: String,
     activateKeysetBindings: String,
     actionProofVersion: UInt,
@@ -350,6 +350,7 @@ private class MetricsNfcCommandsImpl(
     commands.upgradeAuthorizeW3(
       session,
       ddkPrivateKeyBytes,
+      sealedSsekForDecryption,
       descriptorBackupsBindings,
       activateKeysetBindings,
       actionProofVersion
@@ -436,15 +437,6 @@ private class MetricsNfcCommandsImpl(
   ): ConfirmationResult =
     measure("getConfirmationResult") {
       commands.getConfirmationResult(session, handles)
-    }
-
-  override suspend fun getConfirmationResultChunk(
-    session: NfcSession,
-    handles: ConfirmationHandles,
-    chunkIndex: UInt,
-  ): ChunkData =
-    measure("getConfirmationResultChunk") {
-      commands.getConfirmationResultChunk(session, handles, chunkIndex)
     }
 
   override suspend fun getAddress(

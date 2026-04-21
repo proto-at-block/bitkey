@@ -12,9 +12,8 @@
 #include <stdint.h>
 
 #define NFC_DOTS_COUNT       154
-#define NFC_DOT_SIZE_RESTING 3
-#define NFC_DOT_SIZE_FAR     6  // mid-level highlight
-#define NFC_DOT_SIZE_ACTIVE  10
+#define NFC_DOT_SIZE_RESTING 4
+#define NFC_DOT_SIZE_ACTIVE  8
 
 typedef struct {
   lv_obj_t* container;

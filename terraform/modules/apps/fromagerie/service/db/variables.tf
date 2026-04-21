@@ -95,6 +95,11 @@ variable "sanctions_screener_table_name" {
   description = "The name of the sanctions screener table"
 }
 
+variable "public_key_table_name" {
+  type        = string
+  description = "The name of the public key uniqueness table"
+}
+
 variable "anti_replay_table_name" {
   type        = string
   description = "The name of the anti-replay cache table for Action Proof"

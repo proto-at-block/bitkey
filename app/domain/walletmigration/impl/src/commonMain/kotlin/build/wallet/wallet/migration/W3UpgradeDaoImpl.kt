@@ -6,6 +6,7 @@ import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
+import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.crypto.PublicKey
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.W3UpgradeMigrationEntity
@@ -114,6 +115,14 @@ class W3UpgradeDaoImpl(
       }
   }
 
+  override suspend fun markResumedFromCloudBackup(): Result<Unit, DbError> {
+    return databaseProvider.database()
+      .w3UpgradeMigrationQueries
+      .awaitTransaction {
+        markResumedFromCloudBackup()
+      }
+  }
+
   override suspend fun setDdkBackedUp(): Result<Unit, DbError> {
     return databaseProvider.database()
       .w3UpgradeMigrationQueries
@@ -165,6 +174,16 @@ class W3UpgradeDaoImpl(
       .w3UpgradeMigrationQueries
       .awaitTransaction {
         setTcEndorsementsRegenerated()
+      }
+  }
+
+  override suspend fun setSealedSsekForDecryption(
+    sealedSsek: SealedSsek?,
+  ): Result<Unit, DbError> {
+    return databaseProvider.database()
+      .w3UpgradeMigrationQueries
+      .awaitTransaction {
+        setSealedSsekForDecryption(sealedSsek)
       }
   }
 

@@ -218,6 +218,11 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
+  fun w3MidUpgradeRecoveryGuardFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    W3MidUpgradeRecoveryGuardFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
   fun iosCloudKitBackupFeatureFlag(featureFlagDao: FeatureFlagDao) =
     IosCloudKitBackupFeatureFlag(featureFlagDao)
 
@@ -283,6 +288,7 @@ interface FeatureFlagsComponent {
     preBuiltPsbtFlowFeatureFlag: PreBuiltPsbtFlowFeatureFlag,
     cloudBackupForceReuploadTimestampFeatureFlag: CloudBackupForceReuploadTimestampFeatureFlag,
     w3OnboardingFeatureFlag: W3OnboardingFeatureFlag,
+    w3MidUpgradeRecoveryGuardFeatureFlag: W3MidUpgradeRecoveryGuardFeatureFlag,
     iosCloudKitBackupFeatureFlag: IosCloudKitBackupFeatureFlag,
     designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
     vaultsFeatureFlag: VaultsFeatureFlag,
@@ -301,6 +307,7 @@ interface FeatureFlagsComponent {
       chaincodeDelegationFeatureFlag,
       onboardingCompletionFailsafeFeatureFlag,
       w3OnboardingFeatureFlag,
+      w3MidUpgradeRecoveryGuardFeatureFlag,
       txVerificationFeatureFlag,
       appUpdateModalFeatureFlag,
       privateWalletMigrationFeatureFlag,

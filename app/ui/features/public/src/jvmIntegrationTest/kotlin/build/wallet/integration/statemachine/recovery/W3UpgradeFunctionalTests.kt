@@ -7,6 +7,7 @@ import bitkey.account.HardwareType
 import bitkey.ui.screens.securityhub.SecurityHubBodyModel
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
 import build.wallet.integration.statemachine.send.clickApprove
 import build.wallet.money.BitcoinMoney.Companion.sats
@@ -25,6 +26,7 @@ import build.wallet.statemachine.send.TransferInitiatedBodyModel
 import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationScreenModel
 import build.wallet.statemachine.settings.full.device.DeviceSettingsFormBodyModel
 import build.wallet.statemachine.ui.awaitUntilBody
+import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.robots.clickBitkeyDevice
 import build.wallet.statemachine.walletmigration.*
@@ -108,7 +110,7 @@ class W3UpgradeFunctionalTests : FunSpec({
     app.returnFundsToTreasury()
   }
 
-  test("W3 upgrade - force exit during auth rotation resumes at auth rotation") {
+  test("W3 upgrade - force exit during pre-keyset auth rotation returns to Money Home") {
     var app = launchLegacyWalletApp()
     app.onboardFullAccountWithFakeHardware()
 
@@ -127,7 +129,8 @@ class W3UpgradeFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
-    // Relaunch - MoneyHome auto-detects in-progress W3 upgrade
+    // Relaunch before the point of no return: keyset creation has not happened yet,
+    // so there is no persisted migration to auto-resume.
     app = app.relaunchApp()
 
     app.appUiStateMachine.test(
@@ -135,18 +138,12 @@ class W3UpgradeFunctionalTests : FunSpec({
       testTimeout = 120.seconds,
       turbineTimeout = 60.seconds
     ) {
-      // Resumes at auth rotation (GeneratingAuthKeys -> old HW instructions)
-      awaitUntilBody<W3UpgradeOldHardwareAuthRotationInstructionsBodyModel>()
-        .onContinue()
+      awaitUntilBody<MoneyHomeBodyModel>()
 
-      // Complete the rest of the auth rotation
-      awaitUntilBody<W3UpgradeNewHardwareAuthRotationInstructionsBodyModel>()
-        .onContinue()
-      // Approve W3 device confirmations (2 per confirmable session × 2 sessions)
-      approveW3Confirmation() // auth rotation: emulated prompt
-      approveW3Confirmation() // auth rotation: tap-to-confirm
-      approveW3Confirmation() // composite auth: emulated prompt
-      approveW3Confirmation() // composite auth: tap-to-confirm
+      navigateToW3Upgrade()
+      advanceThroughIntroPhase()
+      advanceThroughPairingPhase()
+      advanceThroughAuthAndKeyRotation()
 
       advanceThroughCloudBackup()
 
@@ -404,18 +401,20 @@ private suspend fun ReceiveTurbine<ScreenModel>.advanceThroughAuthAndKeyRotation
  * On resume after relaunch, sealedCsek may be null so SaveBackupInstructions is shown.
  * This helper handles both cases.
  */
-private suspend fun ReceiveTurbine<ScreenModel>.advanceThroughCloudBackup() {
+private suspend fun ReceiveTurbine<ScreenModel>.advanceThroughCloudBackup(
+  cloudStoreAccount: CloudStoreAccount = CloudStoreAccount1Fake,
+) {
   // CloudSignInModelFake extends BodyModel (not FormBodyModel), while
   // SaveBackupInstructionsBodyModel extends FormBodyModel. Await either.
   awaitUntilBody<BodyModel>(
     matching = { it is CloudSignInModelFake || it is SaveBackupInstructionsBodyModel }
   ).let { body ->
     when (body) {
-      is CloudSignInModelFake -> body.signInSuccess(CloudStoreAccount1Fake)
+      is CloudSignInModelFake -> body.signInSuccess(cloudStoreAccount)
       is SaveBackupInstructionsBodyModel -> {
         body.onBackupClick()
         awaitUntilBody<CloudSignInModelFake>()
-          .signInSuccess(CloudStoreAccount1Fake)
+          .signInSuccess(cloudStoreAccount)
       }
     }
   }
@@ -426,12 +425,19 @@ private suspend fun ReceiveTurbine<ScreenModel>.advanceThroughCloudBackup() {
  * (real confirmation flow) and [PromptSelectionFormBodyModel] (emulated prompt flow).
  */
 private suspend fun ReceiveTurbine<ScreenModel>.approveW3Confirmation() {
-  awaitUntilBody<FormBodyModel>(
-    matching = { it is HardwareConfirmationScreenModel || it is PromptSelectionFormBodyModel }
-  ).let { body ->
-    when (body) {
-      is HardwareConfirmationScreenModel -> body.onConfirm()
-      is PromptSelectionFormBodyModel -> body.clickApprove()
+  awaitUntilScreenWithBody<BodyModel>(
+    matchingScreen = { screen ->
+      screen.body is HardwareConfirmationScreenModel ||
+        screen.bottomSheetModel?.body is PromptSelectionFormBodyModel
+    }
+  ).let { screen ->
+    when {
+      screen.body is HardwareConfirmationScreenModel -> {
+        (screen.body as HardwareConfirmationScreenModel).onConfirm()
+      }
+      screen.bottomSheetModel?.body is PromptSelectionFormBodyModel -> {
+        (checkNotNull(screen.bottomSheetModel).body as PromptSelectionFormBodyModel).clickApprove()
+      }
     }
   }
 }

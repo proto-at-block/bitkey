@@ -133,6 +133,7 @@ impl Connection {
             }
             DatabaseObject::SanctionsScreener => ("SANCTIONS_SCREENER_TABLE", "SanctionsScreener"),
             DatabaseObject::ActionProofAntiReplay => ("ANTI_REPLAY_TABLE", "ActionProofAntiReplay"),
+            DatabaseObject::PublicKey => ("PUBLIC_KEY_TABLE", "PublicKey"),
         };
 
         match self {
@@ -409,6 +410,7 @@ pub enum DatabaseObject {
     EncryptedAttachment,
     SanctionsScreener,
     ActionProofAntiReplay,
+    PublicKey,
 }
 
 impl fmt::Display for DatabaseObject {
@@ -433,6 +435,7 @@ impl fmt::Display for DatabaseObject {
             DatabaseObject::EncryptedAttachment => write!(f, "EncryptedAttachment"),
             DatabaseObject::SanctionsScreener => write!(f, "SanctionsScreener"),
             DatabaseObject::ActionProofAntiReplay => write!(f, "ActionProofAntiReplay"),
+            DatabaseObject::PublicKey => write!(f, "PublicKey"),
         }
     }
 }

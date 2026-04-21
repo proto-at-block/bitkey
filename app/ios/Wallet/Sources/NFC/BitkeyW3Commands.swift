@@ -598,18 +598,6 @@ public final class BitkeyW3Commands: NfcCommands {
         return try await delegate.getConfirmationResult(session: session, handles: handles)
     }
 
-    public func getConfirmationResultChunk(
-        session: NfcSession,
-        handles: Shared.ConfirmationHandles,
-        chunkIndex: UInt32
-    ) async throws -> Shared.ChunkData {
-        return try await delegate.getConfirmationResultChunk(
-            session: session,
-            handles: handles,
-            chunkIndex: chunkIndex
-        )
-    }
-
     public func signActionProof(
         session: NfcSession,
         version: UInt32,
@@ -975,12 +963,14 @@ public final class BitkeyW3Commands: NfcCommands {
     public func upgradeAuthorizeW3(
         session: NfcSession,
         ddkPrivateKeyBytes: OkioByteString,
+        sealedSsekForDecryption: OkioByteString?,
         descriptorBackupsBindings: String,
         activateKeysetBindings: String,
         actionProofVersion: UInt32
     ) async throws -> Shared.HardwareInteraction {
         let result = try await UpgradeAuthorizeW3(
             ddkPrivateKey: ddkPrivateKeyBytes.toByteArray().asUInt8Array(),
+            sealedSsekForDecryption: sealedSsekForDecryption?.toByteArray().asUInt8Array() ?? [],
             descriptorBackupsBindings: descriptorBackupsBindings,
             activateKeysetBindings: activateKeysetBindings,
             actionProofVersion: actionProofVersion
@@ -1006,7 +996,11 @@ public final class BitkeyW3Commands: NfcCommands {
                             $0.uint8Value
                         ) }.joined(),
                         sealedDdkData: OkioKt
-                            .ByteString(data: Data(uaw3Result.sealedDdkData.map(\.uint8Value)))
+                            .ByteString(data: Data(uaw3Result.sealedDdkData.map(\.uint8Value))),
+                        unsealedSsek: uaw3Result.unsealedSsek.flatMap { bytes in
+                            bytes.isEmpty ? nil : OkioKt
+                                .ByteString(data: Data(bytes.map(\.uint8Value)))
+                        }
                     )
                     return Shared
                         .HardwareInteractionCompleted<Shared.UpgradeAuthorizeW3Result>(
@@ -1266,6 +1260,7 @@ public final class BitkeyW3Commands: NfcCommands {
         sessionToken: [UInt8]
     ) async throws -> Shared.CsekUnsealResult {
         var lastError: Error?
+        var unsealMismatch: Error?
         for (index, sealedCsek) in sealedCseks.enumerated() {
             do {
                 return try await unsealCsekInRestorationSessionIOS(
@@ -1276,11 +1271,28 @@ public final class BitkeyW3Commands: NfcCommands {
                 )
             } catch let error where Self.isCsekUnsealRetryable(error) {
                 lastError = error
+                if (error as NSError).isKotlinNfcCsekUnsealError() {
+                    unsealMismatch = error
+                }
                 // Firmware couldn't unseal this CSEK, try the next one
             }
             // All other errors (transport, auth, session) propagate immediately
         }
-        throw lastError ?? NfcException.CommandError(
+        // If any iteration produced a genuine unseal-mismatch, surface it as
+        // the canonical "hardware can't decrypt these CSEKs" signal. Otherwise
+        // rethrow the last generic command error as-is so real firmware/state
+        // failures aren't masked as a decrypt mismatch. If `sealedCseks` was
+        // empty the loop never ran, so neither variable was set; throw a
+        // generic command error instead of fabricating an unseal-mismatch the
+        // user never experienced (that would mis-route into the W-17080
+        // blocking UX).
+        if let mismatch = unsealMismatch {
+            throw mismatch
+        }
+        if let last = lastError {
+            throw last
+        }
+        throw NfcException.CommandError(
             message: "Could not unseal any CSEK with this hardware",
             cause: nil
         ).asError()
