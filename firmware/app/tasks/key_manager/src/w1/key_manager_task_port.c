@@ -42,6 +42,10 @@ void key_manager_task_port_handle_derive_and_sign(ipc_ref_t* message) {
   handle_derive_and_sign(message);
 }
 
+void key_manager_task_port_handle_fingerprint_reset_finalize(ipc_ref_t* message) {
+  handle_fingerprint_reset_finalize(message);
+}
+
 void key_manager_task_port_handle_unseal_csek(ipc_ref_t* message) {
   fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
   fwpb_wallet_rsp* rsp = proto_get_rsp();
@@ -120,6 +124,28 @@ void key_manager_task_handle_sign_tx_request(ipc_ref_t* message) {
   rsp->status = fwpb_status_FEATURE_NOT_SUPPORTED;
 
   LOGE("W1 does not support non-PSBT transaction signing");
+  proto_send_rsp(cmd, rsp);
+}
+
+void key_manager_task_handle_sweep_sign(ipc_ref_t* message) {
+  fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
+  fwpb_wallet_rsp* rsp = proto_get_rsp();
+
+  rsp->which_msg = fwpb_wallet_rsp_sweep_sign_rsp_tag;
+  rsp->status = fwpb_status_FEATURE_NOT_SUPPORTED;
+
+  LOGE("W1 does not support sweep signing");
+  proto_send_rsp(cmd, rsp);
+}
+
+void key_manager_task_handle_sweep_sign_stream_start(ipc_ref_t* message) {
+  fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
+  fwpb_wallet_rsp* rsp = proto_get_rsp();
+
+  rsp->which_msg = fwpb_wallet_rsp_sweep_sign_stream_start_rsp_tag;
+  rsp->status = fwpb_status_FEATURE_NOT_SUPPORTED;
+
+  LOGE("W1 does not support streaming sweep signing");
   proto_send_rsp(cmd, rsp);
 }
 

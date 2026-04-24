@@ -20,7 +20,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.LabelModel
-import build.wallet.statemachine.core.form.BackgroundTreatment
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.CENTER
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.LEADING
@@ -95,10 +94,7 @@ private fun TransactionDetailScreenV2(
   }
 
   val isFullScreen = model.renderContext == Screen
-  val background = when (model.backgroundTreatment) {
-    BackgroundTreatment.Inheritance -> WalletTheme.colors.inheritanceSurface
-    BackgroundTreatment.Default -> WalletTheme.colors.background
-  }
+  val background = WalletTheme.colors.background
   val headerToMainContentSpacing = when (model.formHeaderModel.sublineModel) {
     null -> 24.dp
     else -> 16.dp

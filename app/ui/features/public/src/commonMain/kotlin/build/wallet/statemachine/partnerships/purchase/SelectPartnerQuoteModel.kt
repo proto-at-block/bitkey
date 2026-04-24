@@ -84,10 +84,11 @@ internal fun selectPartnerPurchaseQuoteModel(
             explainer = when {
               isCashApp && isCashAppPromotionEnabled && quoteDisplay.quote.cryptoAmount >= 0.001 -> ListItemExplainer(
                 title = "No fees, no spread · Ends 4/29",
+                showTopDivider = true,
                 iconButton = IconButtonModel(
                   iconModel = IconModel(
                     icon = Icon.SmallIconInformationFilled,
-                    iconSize = IconSize.Small,
+                    iconSize = IconSize.Accessory,
                     iconTint = IconTint.On30
                   ),
                   testTag = "partner-purchase-quote-$partnerTagSuffix-promo-info",

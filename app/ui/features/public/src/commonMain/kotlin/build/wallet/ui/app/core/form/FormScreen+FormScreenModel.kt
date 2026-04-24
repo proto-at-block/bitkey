@@ -27,7 +27,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.SubcomposeLayout
@@ -43,12 +42,12 @@ import androidx.compose.ui.unit.sp
 import bitkey.ui.framework_public.generated.resources.Res
 import bitkey.ui.framework_public.generated.resources.bitkey_tilt_dark
 import bitkey.ui.framework_public.generated.resources.bitkey_tilt_light
+import bitkey.ui.framework_public.generated.resources.upgrade_w3
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.*
-import build.wallet.statemachine.core.form.BackgroundTreatment
 import build.wallet.statemachine.core.form.FORM_DS_V2_WAITING_REVEAL_DURATION_MILLIS
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormDesignSystemV2Model
@@ -109,10 +108,9 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.model.video.VideoStartingPosition
 import build.wallet.ui.system.KeepScreenOn
 import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
-import build.wallet.ui.tokens.market.MarketIcons
 import build.wallet.ui.theme.LocalTheme
-import androidx.compose.runtime.CompositionLocalProvider
 import build.wallet.ui.theme.Theme
+import build.wallet.ui.tokens.market.MarketIcons
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.painter
@@ -158,20 +156,7 @@ fun FormScreen(
     model.onLoaded?.invoke()
   }
 
-  // Inheritance screens use a fixed mauve background that doesn't change between
-  // light/dark themes, so force light theme to keep text and buttons consistent.
-  val content: @Composable () -> Unit = {
-    FormScreenContent(model = model, resolvedModel = resolvedModel, footerVisible = footerVisible, modifier = modifier)
-  }
-  if (model.backgroundTreatment == BackgroundTreatment.Inheritance) {
-    CompositionLocalProvider(LocalTheme provides Theme.LIGHT) {
-      WalletTheme {
-        content()
-      }
-    }
-  } else {
-    content()
-  }
+  FormScreenContent(model = model, resolvedModel = resolvedModel, footerVisible = footerVisible, modifier = modifier)
 }
 
 @Composable
@@ -187,11 +172,7 @@ private fun FormScreenContent(
     },
     onBack = model.onBack,
     renderContext = model.renderContext,
-    background = if (model.backgroundTreatment == BackgroundTreatment.Inheritance) {
-      WalletTheme.colors.inheritanceSurface
-    } else {
-      WalletTheme.colors.background
-    },
+    background = WalletTheme.colors.background,
     toolbarModel = resolvedModel.toolbarModel,
     designSystemV2Eyebrow = resolvedModel.designSystemV2Eyebrow,
     designSystemV2Title = resolvedModel.designSystemV2Title,
@@ -200,13 +181,8 @@ private fun FormScreenContent(
     designSystemV2Scrollable = resolvedModel.designSystemV2Scrollable,
     designSystemV2MainContentAlignment = resolvedModel.designSystemV2MainContentAlignment,
     toolbarContent = {
-      val toolbarBackground = if (model.backgroundTreatment == BackgroundTreatment.Inheritance) {
-        WalletTheme.colors.inheritanceSurface
-      } else {
-        WalletTheme.colors.background
-      }
       resolvedModel.toolbarModel?.let {
-        Toolbar(model = it, designSystemChromeBackgroundColor = toolbarBackground)
+        Toolbar(model = it, designSystemChromeBackgroundColor = WalletTheme.colors.background)
       }
     },
     headerToMainContentSpacing = resolvedModel.designSystemV2HeaderToMainContentSpacing,
@@ -647,27 +623,18 @@ fun Showcase(
   screenInstanceKey: String = model.hashCode().toString(),
   shouldPlayWaitingIntro: Boolean = false,
 ) {
-  val backgroundColor = when (model.treatment) {
-    Showcase.Treatment.DEFAULT -> Color.Transparent
-    Showcase.Treatment.INHERITANCE -> WalletTheme.colors.inheritanceSurface
-  }
-
-  // used to adjust spacing and padding to avoid scrolling on smaller devices
-  val smallDeviceWidth = 374.dp
-
   Column(
     modifier = Modifier
       .fillMaxWidth()
       .thenIf(model.fillAvailableSpace) {
         Modifier.fillMaxSize()
-      }
-      .background(backgroundColor),
+      },
     horizontalAlignment = CenterHorizontally,
     verticalArrangement = Arrangement.Top
   ) {
     when (val content = model.content) {
       is Showcase.Content.IconContent -> {
-        ShowcaseIconContent(content, model.treatment, smallDeviceWidth)
+        ShowcaseIconContent(content)
       }
       is Showcase.Content.ImageContent -> {
         ShowcaseImageContent(content)
@@ -677,16 +644,6 @@ fun Showcase(
           content = content,
           screenInstanceKey = screenInstanceKey,
           shouldPlayWaitingIntro = shouldPlayWaitingIntro
-        )
-      }
-    }
-
-    if (model.treatment == Showcase.Treatment.INHERITANCE) {
-      BoxWithConstraints {
-        Spacer(
-          modifier = Modifier.thenIf(maxWidth > smallDeviceWidth) {
-            Modifier.height(26.dp)
-          }
         )
       }
     }
@@ -704,6 +661,8 @@ private fun ShowcaseImageContent(content: Showcase.Content.ImageContent) {
           Theme.DARK -> Res.drawable.bitkey_tilt_dark
           Theme.LIGHT -> Res.drawable.bitkey_tilt_light
         }
+      Showcase.Content.ImageContent.Image.UPGRADE_W3 ->
+        Res.drawable.upgrade_w3
     }
   )
 
@@ -718,33 +677,19 @@ private fun ShowcaseImageContent(content: Showcase.Content.ImageContent) {
 @Composable
 private fun ShowcaseIconContent(
   content: Showcase.Content.IconContent,
-  treatment: Showcase.Treatment,
-  smallDeviceWidth: Dp,
 ) {
-  BoxWithConstraints {
-    Image(
-      modifier =
-        if (content.widthDp != null && content.heightDp != null) {
-          Modifier
-            .size(width = content.widthDp.dp, height = content.heightDp.dp)
-            .align(Alignment.Center)
-        } else {
-          when (treatment) {
-            Showcase.Treatment.DEFAULT ->
-              Modifier
-                .aspectRatio(1f)
-                .padding(horizontal = 24.dp)
-            Showcase.Treatment.INHERITANCE ->
-              Modifier
-                .thenIf(maxWidth <= smallDeviceWidth) {
-                  Modifier.padding(horizontal = 60.dp)
-                }
-          }
-        },
-      painter = content.icon.painter(),
-      contentDescription = null
-    )
-  }
+  Image(
+    modifier =
+      if (content.widthDp != null && content.heightDp != null) {
+        Modifier.size(width = content.widthDp.dp, height = content.heightDp.dp)
+      } else {
+        Modifier
+          .aspectRatio(1f)
+          .padding(horizontal = 24.dp)
+      },
+    painter = content.icon.painter(),
+    contentDescription = null
+  )
 }
 
 @Composable
@@ -899,7 +844,12 @@ private fun showcaseVideoResourcePath(video: Showcase.Content.VideoContent.Video
         Theme.DARK -> Res.getVideoResource("bitkey_wipe_dark")
       }
     }
-    Showcase.Content.VideoContent.Video.BITKEY_ROTATE -> Res.getVideoResource("bitkey_rotate")
+    Showcase.Content.VideoContent.Video.BITKEY_ROTATE -> {
+      when (LocalTheme.current) {
+        Theme.LIGHT -> Res.getVideoResource("bitkey_rotate")
+        Theme.DARK -> Res.getVideoResource("bitkey_rotate_dark")
+      }
+    }
     Showcase.Content.VideoContent.Video.BITKEY_WAITING_3D -> Res.getVideoResource("bitkey_waiting_3d")
   }
 
@@ -922,30 +872,18 @@ private fun ShowcaseLabels(model: Showcase) {
       .fillMaxWidth()
       .padding(horizontal = 8.dp),
     verticalArrangement = Arrangement.Top,
-    horizontalAlignment = when (model.treatment) {
-      Showcase.Treatment.DEFAULT -> CenterHorizontally
-      Showcase.Treatment.INHERITANCE -> Alignment.Start
-    }
+    horizontalAlignment = CenterHorizontally
   ) {
     model.title?.let {
       Label(
         model = StringModel(it),
-        treatment = when (model.treatment) {
-          Showcase.Treatment.DEFAULT -> LabelTreatment.Primary
-          Showcase.Treatment.INHERITANCE -> LabelTreatment.PrimaryDark
-        },
-        type = when (model.treatment) {
-          Showcase.Treatment.DEFAULT -> LabelType.Body1Medium
-          Showcase.Treatment.INHERITANCE -> LabelType.Display2
-        },
-        alignment = when (model.treatment) {
-          Showcase.Treatment.DEFAULT -> TextAlign.Center
-          Showcase.Treatment.INHERITANCE -> TextAlign.Start
-        }
+        treatment = LabelTreatment.Primary,
+        type = LabelType.Body1Medium,
+        alignment = TextAlign.Center
       )
     }
 
-    if (model.treatment == Showcase.Treatment.DEFAULT && model.title != null && model.body != null) {
+    if (model.title != null && model.body != null) {
       Spacer(modifier = Modifier.height(6.dp))
     }
 
@@ -953,14 +891,8 @@ private fun ShowcaseLabels(model: Showcase) {
       Label(
         model = it,
         treatment = LabelTreatment.Secondary,
-        type = when (model.treatment) {
-          Showcase.Treatment.DEFAULT -> LabelType.Body2Regular
-          Showcase.Treatment.INHERITANCE -> LabelType.Body1Regular
-        },
-        alignment = when (model.treatment) {
-          Showcase.Treatment.DEFAULT -> TextAlign.Center
-          Showcase.Treatment.INHERITANCE -> TextAlign.Start
-        }
+        type = LabelType.Body2Regular,
+        alignment = TextAlign.Center
       )
     }
   }

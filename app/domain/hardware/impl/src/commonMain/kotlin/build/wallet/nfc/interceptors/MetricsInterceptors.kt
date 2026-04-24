@@ -32,6 +32,7 @@ import build.wallet.nfc.platform.HwDisplayPreference
 import build.wallet.nfc.platform.LostAppRecoveryContinueParams
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.platform.RotateAppAuthKeysContinueParams
+import build.wallet.nfc.platform.SweepSigningContext
 import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysParams
 import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.onFailure
@@ -264,6 +265,14 @@ private class MetricsNfcCommandsImpl(
     spendingKeyset: SpendingKeyset,
     displayPreference: HwDisplayPreference?,
   ) = commands.signTransaction(session, psbt, spendingKeyset, displayPreference)
+
+  override suspend fun sweepTransaction(
+    session: NfcSession,
+    psbt: Psbt,
+    spendingKeyset: SpendingKeyset,
+    sweepContext: SweepSigningContext,
+    displayPreference: HwDisplayPreference?,
+  ) = commands.sweepTransaction(session, psbt, spendingKeyset, sweepContext, displayPreference)
 
   override suspend fun startFingerprintEnrollment(
     session: NfcSession,

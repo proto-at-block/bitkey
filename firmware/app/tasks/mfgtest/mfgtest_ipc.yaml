@@ -32,6 +32,8 @@ messages:
       auth: never
     - name: fwpb_mfgtest_device_get_production_lock_cmd
       auth: never
+    - name: fwpb_mfgtest_unlock_device_cmd
+      auth: never
   structs:
     - name: mfgtest_runin_complete_internal_t
       fields:

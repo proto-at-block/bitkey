@@ -32,7 +32,7 @@ fun GettingStartedCardModel(
       ?.let {
         DrillList(items = it)
       },
-  style = Outline,
+  style = Outline(),
   kind =
     CardModel.Kind.GettingStarted(
       tiles = (listOfNotNull(firmwareUpdateTile) + taskModels.map { it.tileModel }).toImmutableList()

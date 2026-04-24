@@ -45,7 +45,9 @@ pub(crate) fn derive(
 }
 
 #[generator(yield(Vec<u8>), resume(Vec<u8>))]
-fn get_initial_spending_key(network: BtcNetwork) -> Result<DescriptorPublicKey, CommandError> {
+pub(crate) fn get_initial_spending_key(
+    network: BtcNetwork,
+) -> Result<DescriptorPublicKey, CommandError> {
     let purpose = ChildNumber::Hardened { index: 84 };
     let coin_type = ChildNumber::Hardened {
         index: match network {

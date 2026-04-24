@@ -9,7 +9,6 @@ import bitkey.recovery.DescriptorBackupVerificationDao
 import bitkey.recovery.VerifiedBackup
 import build.wallet.account.AccountService
 import build.wallet.auth.AccountAuthenticator
-import build.wallet.auth.AuthSignatureMismatch
 import build.wallet.auth.AuthTokensService
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.app.AppAuthPublicKeys
@@ -44,6 +43,7 @@ import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.ktor.result.HttpError
 import build.wallet.logging.logFailure
 import build.wallet.logging.logInfo
+import build.wallet.logging.logWarn
 import build.wallet.money.BitcoinMoney
 import build.wallet.notifications.DeviceTokenManager
 import build.wallet.onboarding.OnboardingKeyboxSealedSsekDao
@@ -728,11 +728,10 @@ class MigrationServiceImpl(
           .bind()
       }
 
-      val nextKeybox = if (state.type == MigrationType.W3Upgrade && state.resumedFromCloudBackup) {
-        repairKeyboxAfterCloudResume(state, uploadedKeysets).bind()
-      } else {
-        state.currentKeybox
-      }
+      val nextKeybox = persistAuthoritativeKeybox(
+        state = state,
+        allKeysets = uploadedKeysets
+      ).bind()
 
       setDescriptorBackupComplete(state.type).bind()
 
@@ -744,30 +743,55 @@ class MigrationServiceImpl(
     }
   }
 
-  private suspend fun repairKeyboxAfterCloudResume(
+  private suspend fun persistAuthoritativeKeybox(
     state: MigrationProgress.DescriptorBackup,
-    uploadedKeysets: List<SpendingKeyset>,
+    allKeysets: List<SpendingKeyset>,
   ): Result<Keybox, MigrationError> {
     return coroutineBinding {
-      val repairedKeybox = state.currentKeybox.copy(
+      val existingKeysetsById = state.currentKeybox.keysets
+        .associateBy { it.f8eSpendingKeyset.keysetId }
+      val authoritativeKeysets = (allKeysets + state.newKeyset)
+        .map { keyset ->
+          val keysetId = keyset.f8eSpendingKeyset.keysetId
+          if (keysetId == state.newKeyset.f8eSpendingKeyset.keysetId) {
+            state.newKeyset
+          } else {
+            existingKeysetsById[keysetId] ?: keyset
+          }
+        }
+        .distinctBy { it.f8eSpendingKeyset.keysetId }
+      val authoritativeKeysetIds = authoritativeKeysets
+        .map { it.f8eSpendingKeyset.keysetId }
+        .toSet()
+      val extraLocalKeysets = state.currentKeybox.keysets
+        .filter { it.f8eSpendingKeyset.keysetId !in authoritativeKeysetIds }
+      if (extraLocalKeysets.isNotEmpty()) {
+        logWarn {
+          "Dropping ${extraLocalKeysets.size} extra keysets found locally in keybox that were not in descriptor backup results"
+        }
+      }
+
+      val authoritativeKeybox = state.currentKeybox.copy(
         activeSpendingKeyset = state.newKeyset,
-        keysets = uploadedKeysets.distinctBy { it.f8eSpendingKeyset.keysetId },
+        keysets = authoritativeKeysets,
         canUseKeyboxKeysets = true
       )
-      keyboxDao.saveKeyboxAsActive(repairedKeybox)
+      keyboxDao.saveKeyboxAsActive(authoritativeKeybox)
         .mapError { MigrationError.LocalKeyboxActivationFailed(it) }
         .bind()
-      val persistedSealedSsekForDecryption = w3UpgradeDao.currentState()
-        .first()
-        .mapError { MigrationError.StatePersistenceFailed(it) }
-        .bind()
-        ?.sealedSsekForDecryption
-      if (state.sealedSsekForDecryption != null || persistedSealedSsekForDecryption != null) {
-        w3UpgradeDao.setSealedSsekForDecryption(null)
+      if (state.type == MigrationType.W3Upgrade) {
+        val persistedSealedSsekForDecryption = w3UpgradeDao.currentState()
+          .first()
           .mapError { MigrationError.StatePersistenceFailed(it) }
           .bind()
+          ?.sealedSsekForDecryption
+        if (state.sealedSsekForDecryption != null || persistedSealedSsekForDecryption != null) {
+          w3UpgradeDao.setSealedSsekForDecryption(null)
+            .mapError { MigrationError.StatePersistenceFailed(it) }
+            .bind()
+        }
       }
-      repairedKeybox
+      authoritativeKeybox
     }
   }
 
@@ -1256,18 +1280,6 @@ class MigrationServiceImpl(
 
       setDdkBackedUp(state.type).bind()
 
-      // Clear the onboarding sealed SSEK only after the DDK checkpoint is durable.
-      // Earlier states (ServerKeysetActivation, HardwareDescriptorProvisioning, DdkBackup)
-      // all rewind through DescriptorBackup on resume, which needs the SSEK for encryption.
-      // CloudBackup is the first state that does NOT replay descriptor backup.
-      // Best-effort: if clear fails, the stale SSEK is harmless (sealed, overwritten on
-      // next onboarding). Moving clear before the checkpoint would reintroduce the crash
-      // window where a retry can't find the SSEK for descriptor backup replay.
-      if (state.type == MigrationType.W3Upgrade) {
-        onboardingKeyboxSealedSsekDao.clear()
-          .logFailure { "Failed to clear onboarding sealed SSEK after DDK backup" }
-      }
-
       logInfo { "DDK re-sealed and uploaded for ${state.type}" }
 
       state.next()
@@ -1279,6 +1291,13 @@ class MigrationServiceImpl(
   ): Result<MigrationProgress, MigrationError> {
     return coroutineBinding {
       setCloudBackupComplete(state.type).bind()
+
+      // Clear the onboarding sealed SSEK only after the cloud backup has completed and we're
+      // guaranteed not to return to descriptor backups.
+      if (state.type == MigrationType.W3Upgrade) {
+        onboardingKeyboxSealedSsekDao.clear()
+          .logFailure { "Failed to clear onboarding sealed SSEK after cloud backup completion" }
+      }
 
       logInfo { "Cloud backup marked as complete" }
 
@@ -1392,5 +1411,4 @@ class MigrationServiceImpl(
     val localKeysetIds = localKeysets.map { it.f8eSpendingKeyset.keysetId }.toSet()
     return descriptorBackups.map { it.keysetId }.toSet() - localKeysetIds
   }
-
 }

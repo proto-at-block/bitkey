@@ -27,6 +27,7 @@ import build.wallet.rust.firmware.BtcNetwork as FfiBtcNetwork
 import build.wallet.rust.firmware.InputSignatureTuple as FfiInputSignatureTuple
 import build.wallet.rust.firmware.RecoveryAuthorizeLostAppResult as FfiRecoveryAuthorizeLostAppResult
 import build.wallet.rust.firmware.RecoveryAuthorizeLostHwResult as FfiRecoveryAuthorizeLostHwResult
+import build.wallet.rust.firmware.SweepXpub as FfiSweepXpub
 import build.wallet.rust.firmware.RotateAppAuthKeys as FfiRotateAppAuthKeys
 import build.wallet.rust.firmware.RotateAppAuthKeysResult as FfiRotateAppAuthKeysResult
 import build.wallet.rust.firmware.RotateAppAuthKeysResultState as FfiRotateAppAuthKeysResultState
@@ -223,7 +224,8 @@ class BitkeyW3Commands(
                 val signedBase64 = try {
                   assemblePsbtSignatures(
                     psbtBase64 = psbt.base64,
-                    signatures = ffiSignatures
+                    signatures = ffiSignatures,
+                    allowUnfinalized = false
                   )
                 } catch (e: CommandException) {
                   throw NfcException.CommandError(
@@ -386,7 +388,8 @@ class BitkeyW3Commands(
                     session = signatureSession,
                     psbt = psbt,
                     numInputs = confirmResult.numInputs,
-                    onProgress = sigProgress
+                    onProgress = sigProgress,
+                    allowUnfinalized = false
                   )
                 }
               }
@@ -405,17 +408,279 @@ class BitkeyW3Commands(
   }
 
   /**
+   * W3 sweep signing. Used to move UTXOs from an OLD keyset to the current
+   * account's fresh address (index 0) after an account-bumping recovery.
+   *
+   * Structurally parallel to [signTransaction]: decomposes the PSBT, routes
+   * one-shot vs streaming on entry count, reuses the confirmation flow and
+   * streaming transfer/finalize/signature-retrieval machinery. The only
+   * difference is the initial start command, which carries the OLD account
+   * index + OLD app/server xpubs so firmware can reconstruct the correct
+   * witness script for the old account's UTXOs.
+   */
+  override suspend fun sweepTransaction(
+    session: NfcSession,
+    psbt: Psbt,
+    spendingKeyset: SpendingKeyset,
+    sweepContext: SweepSigningContext,
+    displayPreference: HwDisplayPreference?,
+  ): HardwareInteraction<Psbt> {
+    val decomposed = try {
+      decomposePsbt(
+        psbtBase64 = psbt.base64,
+        originFingerprint = spendingKeyset.hardwareKey.key.origin.fingerprint
+      )
+    } catch (e: CommandException) {
+      throw NfcException.CommandError(
+        message = "Failed to decompose PSBT: ${e.message}",
+        cause = e
+      )
+    }
+
+    val ffiBtcUnit = displayPreference?.bitcoinDisplayUnit.toFfi()
+
+    val needsStreaming = decomposed.inputs.size > MAX_SIGN_TX_ENTRIES ||
+      decomposed.outputs.size > MAX_SIGN_TX_ENTRIES
+    return if (needsStreaming) {
+      sweepTransactionStreaming(psbt, decomposed, sweepContext, ffiBtcUnit)
+    } else {
+      sweepTransactionOneShot(session, psbt, decomposed, sweepContext, ffiBtcUnit)
+    }
+  }
+
+  @Suppress("ThrowsCount")
+  private suspend fun sweepTransactionOneShot(
+    session: NfcSession,
+    psbt: Psbt,
+    decomposed: DecomposedPsbt,
+    sweepContext: SweepSigningContext,
+    btcDisplayUnit: FfiBtcDisplayUnit,
+  ): HardwareInteraction<Psbt> {
+    val result = executeCommand(
+      session = session,
+      generateCommand = {
+        SweepSignRequest(
+          sweepContext.oldAccountIndex,
+          sweepContext.oldAppXpub.toFfi(),
+          sweepContext.oldServerXpub.toFfi(),
+          decomposed.version,
+          decomposed.lockTime,
+          decomposed.inputs,
+          decomposed.outputs,
+          btcDisplayUnit
+        )
+      },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: SignTxRequestResultState.Data -> state.response },
+      generateResult = { state: SignTxRequestResultState.Result -> state.value }
+    )
+
+    return when (result) {
+      is SignTxRequestResult.ConfirmationPending -> {
+        val handles = ConfirmationHandles(
+          responseHandle = result.responseHandle,
+          confirmationHandle = result.confirmationHandle
+        )
+        HardwareInteraction.RequiresConfirmation(
+          handles = handles,
+          mapResult = confirmationResultMapper<Psbt> { confirmResult ->
+            when (confirmResult) {
+              is ConfirmationResult.SignTx -> {
+                val ffiSignatures = confirmResult.signatures.map { sig ->
+                  FfiInputSignatureTuple(
+                    inputIndex = sig.inputIndex,
+                    publicKey = sig.publicKey,
+                    signature = sig.signature
+                  )
+                }
+                val signedBase64 = try {
+                  assemblePsbtSignatures(
+                    psbtBase64 = psbt.base64,
+                    signatures = ffiSignatures,
+                    allowUnfinalized = true
+                  )
+                } catch (e: CommandException) {
+                  throw NfcException.CommandError(
+                    message = "Failed to assemble sweep PSBT signatures: ${e.message}",
+                    cause = e
+                  )
+                }
+                HardwareInteraction.Completed(psbt.copy(base64 = signedBase64))
+              }
+              is ConfirmationResult.Pending ->
+                throw NfcException.ConfirmationPending()
+              is ConfirmationResult.Denied ->
+                throw NfcException.UserDenied()
+              else -> throw NfcException.CommandError(
+                message = "sweepTransaction expected SignTx result but got: ${confirmResult::class.simpleName}"
+              )
+            }
+          }
+        )
+      }
+    }
+  }
+
+  private fun sweepTransactionStreaming(
+    psbt: Psbt,
+    decomposed: DecomposedPsbt,
+    sweepContext: SweepSigningContext,
+    btcDisplayUnit: FfiBtcDisplayUnit,
+  ): HardwareInteraction<Psbt> {
+    val streamPayload = try {
+      serializeSignStreamPayload(
+        decomposed.version,
+        decomposed.lockTime,
+        decomposed.inputs,
+        decomposed.outputs
+      )
+    } catch (e: CommandException) {
+      throw NfcException.CommandError(
+        message = "Failed to serialize sweep stream payload: ${e.message}",
+        cause = e
+      )
+    }
+
+    return HardwareInteraction.RequiresTransfer { transferSession, _, onProgress ->
+      streamSweepPayloadAndFinalize(
+        session = transferSession,
+        psbt = psbt,
+        decomposed = decomposed,
+        streamPayload = streamPayload,
+        sweepContext = sweepContext,
+        onProgress = onProgress,
+        btcDisplayUnit = btcDisplayUnit
+      )
+    }
+  }
+
+  @Suppress("ThrowsCount")
+  private suspend fun streamSweepPayloadAndFinalize(
+    session: NfcSession,
+    psbt: Psbt,
+    decomposed: DecomposedPsbt,
+    streamPayload: StreamPayload,
+    sweepContext: SweepSigningContext,
+    onProgress: NfcProgressCallback,
+    btcDisplayUnit: FfiBtcDisplayUnit,
+  ): HardwareInteraction<Psbt> {
+    // Step 1: sweep-flavored stream start
+    val startResult = executeCommand(
+      session = session,
+      generateCommand = {
+        SweepSignStreamStart(
+          sweepContext.oldAccountIndex,
+          sweepContext.oldAppXpub.toFfi(),
+          sweepContext.oldServerXpub.toFfi(),
+          decomposed.inputs.size.toUInt(),
+          decomposed.outputs.size.toUInt(),
+          decomposed.version,
+          decomposed.lockTime,
+          streamPayload.payloadSize,
+          btcDisplayUnit
+        )
+      },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: SweepSignStreamStartResultState.Data -> state.response },
+      generateResult = { state: SweepSignStreamStartResultState.Result -> state.value }
+    )
+    if (startResult != SweepSignStreamStartResult.SUCCESS) {
+      throw NfcException.CommandError(
+        message = "sweep_sign_stream_start failed: $startResult"
+      )
+    }
+
+    // Steps 2/3 reuse the regular streaming transfer + finalize commands —
+    // firmware stores the sweep context on the stream session and the
+    // signer applies it when producing per-input signatures.
+    val payloadBytes = streamPayload.data
+    val totalChunks = (payloadBytes.size + STREAM_CHUNK_SIZE - 1) / STREAM_CHUNK_SIZE
+    for (chunkIndex in 0 until totalChunks) {
+      val offset = chunkIndex * STREAM_CHUNK_SIZE
+      val end = minOf(offset + STREAM_CHUNK_SIZE, payloadBytes.size)
+      val chunkData = payloadBytes.subList(offset, end)
+
+      executeCommand(
+        session = session,
+        generateCommand = {
+          SignStreamTransfer(chunkIndex.toUInt(), chunkData)
+        },
+        getNext = { command, data -> command.next(data) },
+        getResponse = { state: SignStreamTransferResultState.Data -> state.response },
+        generateResult = { state: SignStreamTransferResultState.Result -> state.value }
+      )
+      onProgress.onProgress((chunkIndex.toFloat() + 1f) / totalChunks.toFloat())
+    }
+
+    val finalizeResult = executeCommand(
+      session = session,
+      generateCommand = {
+        SignStreamFinalize(streamPayload.commitmentHash)
+      },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: SignStreamFinalizeResultState.Data -> state.response },
+      generateResult = { state: SignStreamFinalizeResultState.Result -> state.value }
+    )
+
+    return when (finalizeResult) {
+      is SignStreamFinalizeResult.ConfirmationPending -> {
+        val handles = ConfirmationHandles(
+          responseHandle = finalizeResult.responseHandle,
+          confirmationHandle = finalizeResult.confirmationHandle
+        )
+        HardwareInteraction.RequiresConfirmation(
+          handles = handles,
+          mapResult = confirmationResultMapper<Psbt> { confirmResult ->
+            when (confirmResult) {
+              is ConfirmationResult.SignStreamReady -> {
+                HardwareInteraction.RequiresTransfer<Psbt> { signatureSession, _, sigProgress ->
+                  retrieveStreamingSignatures(
+                    session = signatureSession,
+                    psbt = psbt,
+                    numInputs = confirmResult.numInputs,
+                    onProgress = sigProgress,
+                    allowUnfinalized = true
+                  )
+                }
+              }
+              is ConfirmationResult.Pending ->
+                throw NfcException.ConfirmationPending()
+              is ConfirmationResult.Denied ->
+                throw NfcException.UserDenied()
+              else -> throw NfcException.CommandError(
+                message = "sweepTransaction (streaming) expected SignStreamReady but got: ${confirmResult::class.simpleName}"
+              )
+            }
+          }
+        )
+      }
+    }
+  }
+
+  private fun SweepXpub.toFfi(): FfiSweepXpub {
+    return FfiSweepXpub(
+      pubkey = pubkey.toUByteList(),
+      chaincode = chaincode.toUByteList()
+    )
+  }
+
+  /**
    * Retrieves per-input signatures from the hardware after a confirmed streaming
    * signing session and assembles them into the PSBT.
    *
    * Uses batched retrieval (4 signatures per NFC round-trip) to minimize latency.
    * Deterministic ECDSA (RFC 6979) makes all calls idempotent — NFC retries are safe.
+   *
+   * [allowUnfinalized] is passed straight through to `assemblePsbtSignatures` —
+   * `false` for regular sends (finalize is expected to succeed), `true` for
+   * sweep flows (HW signs first, app + server finalize later).
    */
   private suspend fun retrieveStreamingSignatures(
     session: NfcSession,
     psbt: Psbt,
     numInputs: UInt,
     onProgress: NfcProgressCallback,
+    allowUnfinalized: Boolean,
   ): HardwareInteraction<Psbt> {
     val ffiSignatures = mutableListOf<FfiInputSignatureTuple>()
     var startIndex = 0u
@@ -449,7 +714,8 @@ class BitkeyW3Commands(
     val signedBase64 = try {
       assemblePsbtSignatures(
         psbtBase64 = psbt.base64,
-        signatures = ffiSignatures
+        signatures = ffiSignatures,
+        allowUnfinalized = allowUnfinalized
       )
     } catch (e: CommandException) {
       throw NfcException.CommandError(

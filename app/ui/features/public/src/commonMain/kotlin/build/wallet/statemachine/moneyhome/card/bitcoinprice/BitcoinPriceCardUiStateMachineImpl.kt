@@ -113,7 +113,7 @@ class BitcoinPriceCardUiStateMachineImpl(
         isLoading = isLoading
       ),
       onClick = props.onOpenPriceChart,
-      style = CardModel.CardStyle.Outline
+      style = CardModel.CardStyle.Outline()
     )
   }
 

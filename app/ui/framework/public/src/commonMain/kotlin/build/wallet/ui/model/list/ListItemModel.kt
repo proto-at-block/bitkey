@@ -48,6 +48,7 @@ data class ListItemExplainer(
   val title: String? = null,
   val subtitle: String? = null,
   val iconButton: IconButtonModel? = null,
+  val showTopDivider: Boolean = false,
 )
 
 enum class ListItemTitleAlignment {

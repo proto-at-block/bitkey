@@ -9,6 +9,7 @@ use database::{
 use serde::{Deserialize, Serialize};
 use types::account::identifiers::AccountId;
 
+pub mod delete;
 pub mod fetch;
 pub mod persist;
 

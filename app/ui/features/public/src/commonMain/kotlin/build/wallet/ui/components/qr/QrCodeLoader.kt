@@ -8,7 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.min
-import build.wallet.ui.components.loading.CircularLoadingBadge
+import build.wallet.ui.components.loading.LoadingBadge
 import build.wallet.ui.components.loading.LoadingIndicator
 import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
@@ -28,7 +28,7 @@ fun QrCodeLoader(modifier: Modifier = Modifier) {
     Box(modifier = modifier.size(qrCodeSizeDp)) {
       // Show loading spinner while we are waiting for data
       if (isDesignSystemV2Enabled) {
-        CircularLoadingBadge(
+        LoadingBadge(
           modifier =
             Modifier.size(qrCodeSizeDp * LOADING_INDICATOR_SIZE_RATIO)
               .align(Alignment.Center),

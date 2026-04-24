@@ -10,7 +10,6 @@ import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.ScreenPresentationStyle.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.fwup.FwupNfcBodyModel
-import build.wallet.statemachine.inheritance.InheritanceUpsellBodyModel
 import build.wallet.statemachine.limit.picker.SpendingLimitPickerModel
 import build.wallet.statemachine.nfc.NfcBodyModel
 import build.wallet.statemachine.partnerships.purchase.CustomAmountBodyModel
@@ -99,7 +98,6 @@ internal fun screenStyle(
     bodyModel is SecurityHubBodyModel && bodyModel.isOffline -> WalletTheme.colors.background
     bodyModel is SecurityHubBodyModel && isDesignSystemV2Enabled -> WalletTheme.colors.background
     bodyModel is SecurityHubBodyModel -> WalletTheme.colors.secondary
-    bodyModel is InheritanceUpsellBodyModel -> WalletTheme.colors.inheritanceSurface
     isAmountEntryBodyModel(bodyModel) -> amountEntryBackgroundColor
     else -> WalletTheme.colors.background
   }
@@ -109,7 +107,6 @@ internal fun screenStyle(
       bodyModel = bodyModel,
       isDesignSystemV2Enabled = isDesignSystemV2Enabled
     ) -> Color.Black
-    bodyModel is InheritanceUpsellBodyModel -> WalletTheme.colors.inheritanceSurface
     isAmountEntryBodyModel(bodyModel) -> amountEntryBackgroundColor
     else -> WalletTheme.colors.background
   }

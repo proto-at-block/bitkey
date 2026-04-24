@@ -27,9 +27,11 @@ import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.relationships.DelegatedDecryptionKey
 import build.wallet.catchingResult
 import build.wallet.chaincode.delegation.ChaincodeExtractor
+import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.backup.csek.Sek
 import build.wallet.cloud.backup.csek.SsekDao
+import build.wallet.cloud.backup.health.AppKeyBackupStatus
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.crypto.PublicKey
 import build.wallet.crypto.SymmetricKeyImpl
@@ -46,6 +48,7 @@ import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
+import build.wallet.logging.logWarn
 import build.wallet.nfc.NfcException
 import build.wallet.nfc.platform.*
 import build.wallet.nfc.transaction.PairingTransactionResponse
@@ -59,6 +62,8 @@ import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiStateMachine
+import build.wallet.statemachine.cloud.health.RepairAppKeyBackupProps
+import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachine
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.nfc.*
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification
@@ -67,6 +72,7 @@ import build.wallet.statemachine.recovery.sweep.SweepUiStateMachine
 import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationContent
 import build.wallet.statemachine.utxo.UtxoConsolidationProps
 import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachine
+import build.wallet.statemachine.walletmigration.W3UpgradeUiState.ShowingCloudBackupUnhealthyWarning
 import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.wallet.migration.MigrationError
 import build.wallet.wallet.migration.MigrationProgress
@@ -104,6 +110,8 @@ class W3UpgradeUiStateMachineImpl(
   private val wsmVerifier: WsmVerifier,
   private val utxoConsolidationUiStateMachine: UtxoConsolidationUiStateMachine,
   private val utxoMaxConsolidationCountFeatureFlag: UtxoMaxConsolidationCountFeatureFlag,
+  private val cloudBackupHealthRepository: CloudBackupHealthRepository,
+  private val repairCloudBackupStateMachine: RepairCloudBackupStateMachine,
   private val eventTracker: EventTracker,
 ) : W3UpgradeUiStateMachine {
   @Composable
@@ -118,7 +126,7 @@ class W3UpgradeUiStateMachineImpl(
     var isMigrationInProgress by remember { mutableStateOf(false) }
     var resumedFromCloudBackupFlow by remember { mutableStateOf(false) }
     LaunchedEffect("check-w3-upgrade-status") {
-      val resolved = resolveInitialUiState(props.account)
+      val resolved = resolveInitialUiState()
       isMigrationInProgress = resolved.isMigrationInProgress
       resumedFromCloudBackupFlow = resolved.resumedFromCloudBackup
       uiState = resolved.uiState
@@ -128,6 +136,8 @@ class W3UpgradeUiStateMachineImpl(
       is W3UpgradeUiState.Loading,
       is W3UpgradeUiState.ShowingIntro,
       is W3UpgradeUiState.ShowingDeviceReady,
+      is ShowingCloudBackupUnhealthyWarning,
+      is W3UpgradeUiState.RepairingCloudBackup,
       is W3UpgradeUiState.CheckingPendingTransactions,
       is W3UpgradeUiState.ShowingPendingTransactionsWarning,
       is W3UpgradeUiState.ShowingUtxoConsolidationRequired,
@@ -144,6 +154,8 @@ class W3UpgradeUiStateMachineImpl(
           bitcoinWalletService = bitcoinWalletService,
           utxoConsolidationUiStateMachine = utxoConsolidationUiStateMachine,
           utxoMaxConsolidationCountFeatureFlag = utxoMaxConsolidationCountFeatureFlag,
+          cloudBackupHealthRepository = cloudBackupHealthRepository,
+          repairCloudBackupStateMachine = repairCloudBackupStateMachine,
           eventTracker = eventTracker
         )
 
@@ -224,7 +236,8 @@ class W3UpgradeUiStateMachineImpl(
               props.onExit()
             },
             onDismiss = { uiState = state.previousState }
-          )
+          ),
+          presentationStyle = ScreenPresentationStyle.Modal
         )
       }
     }
@@ -271,7 +284,7 @@ class W3UpgradeUiStateMachineImpl(
               onStateChange(W3UpgradeUiState.ShowingIntro)
             },
             eventTrackerContext = build.wallet.analytics.events.screen.context.PairHardwareEventTrackerScreenIdContext.PAIR_NEW_DEVICE_DURING_W3_UPGRADE,
-            screenPresentationStyle = ScreenPresentationStyle.Root,
+            screenPresentationStyle = ScreenPresentationStyle.Modal,
             pairingContext = PairingContext.W3Upgrade
           )
         )
@@ -389,7 +402,8 @@ class W3UpgradeUiStateMachineImpl(
             },
             // Exit only available in pre-keyset flow (fingerprintEnrolled set, no migration yet)
             onDeferExit = state.fingerprintEnrolled?.let { onRequestExit }
-          )
+          ),
+          presentationStyle = ScreenPresentationStyle.Modal
         )
       }
       is W3UpgradeUiState.TappingOldHardwareForAuthorization -> {
@@ -448,7 +462,7 @@ class W3UpgradeUiStateMachineImpl(
             ),
             fullAccountId = props.account.accountId,
             appAuthKey = props.account.keybox.activeAppKeyBundle.authKey,
-            screenPresentationStyle = ScreenPresentationStyle.Root,
+            screenPresentationStyle = ScreenPresentationStyle.Modal,
             // Skip pairing check — user taps the OLD W1, not the paired W3.
             hardwareVerification = HardwareVerification.NotRequired,
             onBack = {
@@ -666,7 +680,8 @@ class W3UpgradeUiStateMachineImpl(
                 )
               )
             }
-          )
+          ),
+          presentationStyle = ScreenPresentationStyle.Modal
         )
       }
       is W3UpgradeUiState.TappingNewHardwareForRotation -> {
@@ -732,7 +747,7 @@ class W3UpgradeUiStateMachineImpl(
               ),
               hardwareVerification = HardwareVerification.NotRequired,
               hardwareTypeOverride = HardwareType.W3,
-              screenPresentationStyle = ScreenPresentationStyle.Root,
+              screenPresentationStyle = ScreenPresentationStyle.Modal,
               eventTrackerContext = NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION,
               confirmationContent = HardwareConfirmationContent.SignActionProof
             )
@@ -779,7 +794,7 @@ class W3UpgradeUiStateMachineImpl(
               ),
               hardwareVerification = HardwareVerification.NotRequired,
               hardwareTypeOverride = HardwareType.W3,
-              screenPresentationStyle = ScreenPresentationStyle.Root,
+              screenPresentationStyle = ScreenPresentationStyle.Modal,
               eventTrackerContext = NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION,
               confirmationContent = HardwareConfirmationContent.SignActionProof
             )
@@ -932,7 +947,7 @@ class W3UpgradeUiStateMachineImpl(
             hardwareTypeOverride = HardwareType.W3,
             segment = PrivateWalletMigrationAppSegment,
             actionDescription = "Authorize wallet upgrade",
-            screenPresentationStyle = ScreenPresentationStyle.Root,
+            screenPresentationStyle = ScreenPresentationStyle.Modal,
             eventTrackerContext = NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION,
             confirmationContent = HardwareConfirmationContent.SignActionProof
           )
@@ -1049,7 +1064,7 @@ class W3UpgradeUiStateMachineImpl(
                   }
               }
             },
-            presentationStyle = ScreenPresentationStyle.FullScreen,
+            presentationStyle = ScreenPresentationStyle.Modal,
             requireAuthRefreshForCloudBackup = false,
             isSkipCloudBackupInstructions = true
           )
@@ -1102,7 +1117,8 @@ class W3UpgradeUiStateMachineImpl(
                 )
               )
             }
-          )
+          ),
+          presentationStyle = ScreenPresentationStyle.Modal
         )
       }
       is W3UpgradeUiState.Sweeping -> {
@@ -1112,7 +1128,7 @@ class W3UpgradeUiStateMachineImpl(
             sweepContext = SweepContext.W3Upgrade(
               replacedHardwareFingerprint = state.oldHardwareFingerprint
             ),
-            presentationStyle = ScreenPresentationStyle.Root,
+            presentationStyle = ScreenPresentationStyle.Modal,
             onExit = null,
             onSuccess = {
               scope.launch {
@@ -1131,9 +1147,7 @@ class W3UpgradeUiStateMachineImpl(
    * Resolves the initial UI state by checking for an in-progress W3 upgrade migration.
    * Returns whether the migration is in progress and the appropriate starting UI state.
    */
-  private suspend fun resolveInitialUiState(
-    @Suppress("UNUSED_PARAMETER") account: FullAccount,
-  ): ResolvedInitialState {
+  private suspend fun resolveInitialUiState(): ResolvedInitialState {
     val progress = migrationService.resume(MigrationType.W3Upgrade).get()
       ?: return ResolvedInitialState(false, false, W3UpgradeUiState.ShowingIntro)
     val inProgress = progress.isInProgress()
@@ -1355,7 +1369,7 @@ class W3UpgradeUiStateMachineImpl(
         ),
         hardwareVerification = HardwareVerification.Required(),
         hardwareTypeOverride = HardwareType.W3,
-        screenPresentationStyle = ScreenPresentationStyle.Root,
+        screenPresentationStyle = ScreenPresentationStyle.Modal,
         eventTrackerContext = NfcEventTrackerScreenIdContext.VERIFY_KEYS_AND_BUILD_HARDWARE_DESCRIPTOR,
         showDeviceConfirmation = true
       )
@@ -1461,6 +1475,8 @@ private fun IntroPhaseModel(
   bitcoinWalletService: BitcoinWalletService,
   utxoConsolidationUiStateMachine: UtxoConsolidationUiStateMachine,
   utxoMaxConsolidationCountFeatureFlag: UtxoMaxConsolidationCountFeatureFlag,
+  cloudBackupHealthRepository: CloudBackupHealthRepository,
+  repairCloudBackupStateMachine: RepairCloudBackupStateMachine,
   eventTracker: EventTracker,
 ): ScreenModel {
   val introOnBack = props.onExit.takeUnless {
@@ -1471,59 +1487,69 @@ private fun IntroPhaseModel(
       w3LoadingScreenModel("Loading...", WalletMigrationEventTrackerScreenId.W3_UPGRADE_LOADING)
     }
     is W3UpgradeUiState.ShowingIntro -> {
+      var isCheckingBackup by remember { mutableStateOf(false) }
+      if (isCheckingBackup) {
+        LaunchedEffect("checking-backup-health") {
+          val appKeyBackupStatus = catchingResult {
+            cloudBackupHealthRepository.performSync(
+              accountId = props.account.accountId,
+              keybox = props.account.keybox
+            ).appKeyBackupStatus
+          }.getOrElse { error ->
+            logWarn(throwable = error) {
+              "Failed to sync cloud backup health on W3 upgrade Continue"
+            }
+            AppKeyBackupStatus.ProblemWithBackup.ConnectivityUnavailable
+          }
+          isCheckingBackup = false
+          when (appKeyBackupStatus) {
+            is AppKeyBackupStatus.Healthy -> {
+              eventTracker.track(AnalyticsAction.ACTION_APP_W3_UPGRADE_STARTED)
+              onStateChange(W3UpgradeUiState.CheckingPendingTransactions)
+            }
+            is AppKeyBackupStatus.ProblemWithBackup -> onStateChange(
+              ShowingCloudBackupUnhealthyWarning(problemWithBackup = appKeyBackupStatus)
+            )
+          }
+        }
+      }
+
       ScreenModel(
         body = W3UpgradeIntroBodyModel(
           onBack = introOnBack,
+          isLoading = isCheckingBackup,
           onContinue = {
-            eventTracker.track(AnalyticsAction.ACTION_APP_W3_UPGRADE_STARTED)
-            onStateChange(W3UpgradeUiState.CheckingPendingTransactions)
-          }
-        )
-      )
-    }
-    is W3UpgradeUiState.ShowingDeviceReady -> {
-      ScreenModel(
-        body = W3UpgradeDeviceReadyBodyModel(
-          onBack = { onStateChange(W3UpgradeUiState.ShowingIntro) }
-            .takeUnless { resumedFromCloudBackupFlow },
-          step = 1,
-          totalSteps = if (resumedFromCloudBackupFlow) 3 else 4,
-          onYes = {
-            // Read old device identity to carry in memory through the pre-keyset flow.
-            // Firmware telemetry is skipped during W3 pairing so FirmwareDeviceInfoDao
-            // retains the W1 info. DAO persistence is deferred until after the W1 tap.
-            scope.launch {
-              val serial = firmwareDeviceInfoDao.getDeviceInfo().get()?.serial
-              if (serial == null) {
-                onStateChange(W3UpgradeUiState.Error)
-                return@launch
-              }
-              val fingerprint = props.account.keybox.activeSpendingKeyset
-                .hardwareKey.key.origin.fingerprint
-              onStateChange(
-                W3UpgradeUiState.PairingNewHardware(
-                  oldDeviceSerial = serial,
-                  oldHardwareFingerprint = fingerprint
-                )
-              )
-            }
-          },
-          onNo = {
-            onStateChange(state.copy(showingNoDeviceAlert = true))
+            isCheckingBackup = true
           }
         ),
-        alertModel = if (state.showingNoDeviceAlert) {
-          val dismissAlert = { onStateChange(state.copy(showingNoDeviceAlert = false)) }
-          ButtonAlertModel(
-            title = "A new Bitkey device is required for the upgrade",
-            subline = "Visit https://bitkey.world to purchase a new Bitkey device.",
-            onDismiss = dismissAlert,
-            primaryButtonText = "Got it",
-            onPrimaryButtonClick = dismissAlert
-          )
-        } else {
-          null
-        }
+        presentationStyle = ScreenPresentationStyle.Modal
+      )
+    }
+    is W3UpgradeUiState.ShowingDeviceReady ->
+      showingDeviceReadyScreenModel(
+        state = state,
+        scope = scope,
+        account = props.account,
+        firmwareDeviceInfoDao = firmwareDeviceInfoDao,
+        resumedFromCloudBackupFlow = resumedFromCloudBackupFlow,
+        onStateChange = onStateChange
+      )
+    is ShowingCloudBackupUnhealthyWarning ->
+      cloudBackupUnhealthyWarningScreenModel(
+        state = state,
+        isMigrationInProgress = isMigrationInProgress,
+        onExit = props.onExit,
+        onStateChange = onStateChange
+      )
+    is W3UpgradeUiState.RepairingCloudBackup -> {
+      repairCloudBackupStateMachine.model(
+        RepairAppKeyBackupProps(
+          account = props.account,
+          appKeyBackupStatus = state.problemWithBackup,
+          presentationStyle = ScreenPresentationStyle.Modal,
+          onExit = { onStateChange(W3UpgradeUiState.ShowingIntro) },
+          onRepaired = { onStateChange(W3UpgradeUiState.ShowingIntro) }
+        )
       )
     }
     is W3UpgradeUiState.CheckingPendingTransactions -> {
@@ -1548,7 +1574,8 @@ private fun IntroPhaseModel(
         body = W3UpgradeIntroBodyModel(
           onBack = introOnBack,
           onContinue = {}
-        )
+        ),
+        presentationStyle = ScreenPresentationStyle.Modal
       )
     }
     is W3UpgradeUiState.ShowingPendingTransactionsWarning -> {
@@ -1557,6 +1584,7 @@ private fun IntroPhaseModel(
           onBack = introOnBack,
           onContinue = {}
         ),
+        presentationStyle = ScreenPresentationStyle.Modal,
         bottomSheetModel = SheetModel(
           onClosed = { onStateChange(W3UpgradeUiState.ShowingIntro) },
           body = W3UpgradePendingTransactionsWarningSheetModel(
@@ -1572,6 +1600,7 @@ private fun IntroPhaseModel(
           onBack = introOnBack,
           onContinue = {}
         ),
+        presentationStyle = ScreenPresentationStyle.Modal,
         bottomSheetModel = SheetModel(
           onClosed = { onStateChange(W3UpgradeUiState.ShowingIntro) },
           body = W3UpgradeUtxoConsolidationRequiredSheetModel(
@@ -1599,6 +1628,87 @@ private fun IntroPhaseModel(
   }
 }
 
+private fun cloudBackupUnhealthyWarningScreenModel(
+  state: ShowingCloudBackupUnhealthyWarning,
+  isMigrationInProgress: Boolean,
+  onExit: () -> Unit,
+  onStateChange: (W3UpgradeUiState) -> Unit,
+): ScreenModel {
+  val returnToIntro = { onStateChange(W3UpgradeUiState.ShowingIntro) }
+  return ScreenModel(
+    body = W3UpgradeIntroBodyModel(
+      onBack = onExit.takeUnless { isMigrationInProgress },
+      onContinue = {}
+    ),
+    presentationStyle = ScreenPresentationStyle.Modal,
+    bottomSheetModel = SheetModel(
+      onClosed = returnToIntro,
+      body = W3UpgradeCloudBackupUnhealthyWarningSheetModel(
+        onBack = returnToIntro,
+        onRepair = {
+          onStateChange(
+            W3UpgradeUiState.RepairingCloudBackup(problemWithBackup = state.problemWithBackup)
+          )
+        }
+      )
+    )
+  )
+}
+
+private fun showingDeviceReadyScreenModel(
+  state: W3UpgradeUiState.ShowingDeviceReady,
+  scope: CoroutineScope,
+  account: FullAccount,
+  firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
+  resumedFromCloudBackupFlow: Boolean,
+  onStateChange: (W3UpgradeUiState) -> Unit,
+): ScreenModel {
+  return ScreenModel(
+    body = W3UpgradeDeviceReadyBodyModel(
+      onBack = { onStateChange(W3UpgradeUiState.ShowingIntro) }
+        .takeUnless { resumedFromCloudBackupFlow },
+      step = 1,
+      totalSteps = if (resumedFromCloudBackupFlow) 3 else 4,
+      onYes = {
+        // Read old device identity to carry in memory through the pre-keyset flow.
+        // Firmware telemetry is skipped during W3 pairing so FirmwareDeviceInfoDao
+        // retains the W1 info. DAO persistence is deferred until after the W1 tap.
+        scope.launch {
+          val serial = firmwareDeviceInfoDao.getDeviceInfo().get()?.serial
+          if (serial == null) {
+            onStateChange(W3UpgradeUiState.Error)
+            return@launch
+          }
+          val fingerprint = account.keybox.activeSpendingKeyset
+            .hardwareKey.key.origin.fingerprint
+          onStateChange(
+            W3UpgradeUiState.PairingNewHardware(
+              oldDeviceSerial = serial,
+              oldHardwareFingerprint = fingerprint
+            )
+          )
+        }
+      },
+      onNo = {
+        onStateChange(state.copy(showingNoDeviceAlert = true))
+      }
+    ),
+    alertModel = if (state.showingNoDeviceAlert) {
+      val dismissAlert = { onStateChange(state.copy(showingNoDeviceAlert = false)) }
+      ButtonAlertModel(
+        title = "A new Bitkey device is required for the upgrade",
+        subline = "Visit https://bitkey.world to purchase a new Bitkey device.",
+        onDismiss = dismissAlert,
+        primaryButtonText = "Got it",
+        onPrimaryButtonClick = dismissAlert
+      )
+    } else {
+      null
+    },
+    presentationStyle = ScreenPresentationStyle.Modal
+  )
+}
+
 @Composable
 private fun TerminalPhaseModel(
   state: W3UpgradeUiState,
@@ -1609,7 +1719,7 @@ private fun TerminalPhaseModel(
   onMigrationInProgress: (Boolean) -> Unit,
   onResumedFromCloudBackupChange: (Boolean) -> Unit,
   accountService: AccountService,
-  resolveInitialUiState: suspend (FullAccount) -> ResolvedInitialState,
+  resolveInitialUiState: suspend () -> ResolvedInitialState,
   eventTracker: EventTracker,
 ): ScreenModel =
   when (state) {
@@ -1624,11 +1734,12 @@ private fun TerminalPhaseModel(
           props.onUpgradeComplete(updatedAccount)
         }
       }
-      ScreenModel(
-        body = W3UpgradeCompleteBodyModel(
-          onBack = onComplete,
-          onDone = onComplete
-        )
+      LaunchedEffect("finish-upgrade") {
+        onComplete()
+      }
+      w3LoadingScreenModel(
+        message = "Loading wallet...",
+        id = WalletMigrationEventTrackerScreenId.W3_UPGRADE_COMPLETE
       )
     }
     is W3UpgradeUiState.Error -> {
@@ -1641,7 +1752,7 @@ private fun TerminalPhaseModel(
             onClick = {
               scope.launch {
                 onStateChange(W3UpgradeUiState.Loading)
-                val resolved = resolveInitialUiState(props.account)
+                val resolved = resolveInitialUiState()
                 onMigrationInProgress(resolved.isMigrationInProgress)
                 onResumedFromCloudBackupChange(resolved.resumedFromCloudBackup)
                 onStateChange(resolved.uiState)
@@ -1653,7 +1764,8 @@ private fun TerminalPhaseModel(
             onClick = props.onExit
           ).takeUnless { isMigrationInProgress },
           eventTrackerScreenId = WalletMigrationEventTrackerScreenId.W3_UPGRADE_ERROR
-        )
+        ),
+        presentationStyle = ScreenPresentationStyle.Modal
       )
     }
     else -> error("Unexpected state in TerminalPhaseModel: $state")
@@ -1702,7 +1814,8 @@ private fun w3LoadingScreenModel(
     id = id,
     primaryButton = null,
     secondaryButton = null
-  )
+  ),
+  presentationStyle = ScreenPresentationStyle.Modal
 )
 
 private fun String.decodeHexResult(fieldName: String): Result<ByteString, Throwable> =
@@ -1725,6 +1838,16 @@ private sealed interface W3UpgradeUiState {
   /** Asking if user has new device ready. */
   data class ShowingDeviceReady(
     val showingNoDeviceAlert: Boolean = false,
+  ) : W3UpgradeUiState
+
+  /** Showing warning sheet that cloud backup is unhealthy and blocks the upgrade. */
+  data class ShowingCloudBackupUnhealthyWarning(
+    val problemWithBackup: AppKeyBackupStatus.ProblemWithBackup,
+  ) : W3UpgradeUiState
+
+  /** Running the cloud backup repair flow inline. */
+  data class RepairingCloudBackup(
+    val problemWithBackup: AppKeyBackupStatus.ProblemWithBackup,
   ) : W3UpgradeUiState
 
   /** Checking for pending (unconfirmed) transactions before proceeding. */

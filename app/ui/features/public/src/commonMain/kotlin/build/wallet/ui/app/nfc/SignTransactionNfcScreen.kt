@@ -2,12 +2,9 @@ package build.wallet.ui.app.nfc
 
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -27,15 +24,12 @@ import build.wallet.ui.app.LocalDeviceInfo
 import build.wallet.ui.model.ComposeModel
 import build.wallet.ui.system.KeepScreenOn
 import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
-import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tooling.PreviewWalletTheme
 import build.wallet.ui.tokens.LabelType
 import org.jetbrains.compose.resources.painterResource
 
 private val IosSignTransactionStatusContentOffset = (-8).dp
-private val IosSignTransactionVideoTopSpacing = 16.dp
-
 @Composable
 fun SignTransactionNfcScreen(
   modifier: Modifier = Modifier,
@@ -66,17 +60,19 @@ internal fun SignTransactionNfcScreenInternalIos(
   val designSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
 
   if (model.shouldUseCustomBackgroundLayout()) {
-    NfcProgressScreenIosLayout(
-      modifier = modifier,
-      hardwareType = model.hardwareType,
-      backgroundColor = WalletTheme.colors.background,
-      statusTopPadding = 40.dp,
-      showDefaultHardwareBackground = false
-    ) {
-      SignTransactionNfcIosStatusContent(
-        status = model.status,
-        designSystemV2Enabled = designSystemV2Enabled
-      )
+    FwupSystemThemedContent(followIosSystemTheme = designSystemV2Enabled) {
+      NfcProgressScreenIosLayout(
+        modifier = modifier,
+        hardwareType = model.hardwareType,
+        backgroundColor = WalletTheme.colors.background,
+        statusTopPadding = 40.dp,
+        showDefaultHardwareBackground = false
+      ) {
+        SignTransactionNfcIosStatusContent(
+          status = model.status,
+          designSystemV2Enabled = designSystemV2Enabled
+        )
+      }
     }
     return
   }
@@ -84,13 +80,10 @@ internal fun SignTransactionNfcScreenInternalIos(
   FwupSystemThemedContent(
     followIosSystemTheme = model.shouldFollowIosSystemTheme(designSystemV2Enabled)
   ) {
-    val theme = LocalTheme.current
     val showDetailedIosInstructions = model.shouldShowDetailedIosInstructions(designSystemV2Enabled)
-    val videoTopPadding =
-      WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + IosSignTransactionVideoTopSpacing
-    val (heroVideo, backgroundDrawable) = when (model.hardwareType) {
-      HardwareType.W1 -> IosNfcHeroVideo.StandardW1 to Res.drawable.ios_nfc_background_w1
-      HardwareType.W3 -> IosNfcHeroVideo.Standard to Res.drawable.ios_nfc_background_standard
+    val backgroundDrawable = when (model.hardwareType) {
+      HardwareType.W1 -> Res.drawable.ios_nfc_background_w1
+      HardwareType.W3 -> Res.drawable.ios_nfc_background_standard
     }
 
     NfcProgressScreenIosLayout(
@@ -99,15 +92,7 @@ internal fun SignTransactionNfcScreenInternalIos(
       backgroundColor = WalletTheme.colors.background,
       backgroundPainter =
         if (designSystemV2Enabled && !showDetailedIosInstructions) painterResource(backgroundDrawable) else null,
-      backgroundVideoResourcePath =
-        if (designSystemV2Enabled && !showDetailedIosInstructions) {
-          iosNfcHeroVideoResource(heroVideo, theme)
-        } else {
-          null
-        },
-      backgroundVideoIsLooping = !designSystemV2Enabled,
-      backgroundVideoTopPadding = if (designSystemV2Enabled) videoTopPadding else 0.dp,
-      backgroundTopPadding = if (designSystemV2Enabled) videoTopPadding else 200.dp,
+      backgroundTopPadding = 200.dp,
       statusTopPadding = if (designSystemV2Enabled) 40.dp else 48.dp,
       showDefaultHardwareBackground = !showDetailedIosInstructions
     ) {

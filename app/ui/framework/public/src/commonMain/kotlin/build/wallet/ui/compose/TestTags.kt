@@ -55,7 +55,6 @@ fun IconModel.testTagDescriptor(): String =
     is IconImage.UrlImage -> iconImage.fallbackIcon.name
     IconImage.Loader -> "loader"
     IconImage.LoadingBadge -> "loading-badge"
-    IconImage.CircularLoadingBadge -> "circular-loading-badge"
   }
 
 fun normalizeTestTagValue(

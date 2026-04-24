@@ -153,7 +153,6 @@ class HardwareAuthUiStateMachineImpl(
               pendingHeadline = "Review action on Bitkey",
               pendingSubline = "You’ll need to approve or deny on your Bitkey device before tapping again."
             ),
-            showNativeSheetOnIos = false,
             hardwareVerification = Required(useRecoveryPubKey = props.useRecoveryPubKey),
             hardwareTypeOverride = props.hardwareType,
             shouldLock = props.shouldLock,

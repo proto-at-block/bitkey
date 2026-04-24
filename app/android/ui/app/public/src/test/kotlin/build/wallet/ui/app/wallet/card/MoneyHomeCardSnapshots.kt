@@ -116,6 +116,12 @@ class MoneyHomeCardSnapshots : FunSpec({
     }
   }
 
+  test("Money Home Card Inheritance with design system v2") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      PreviewInheritanceMoneyHomeCard()
+    }
+  }
+
   test("Money Home Card Pending Invitation") {
     paparazzi.snapshot {
       PreviewMoneyHomeCardInvitationPending()

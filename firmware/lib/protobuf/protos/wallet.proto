@@ -1546,6 +1546,104 @@ message get_tx_signatures_batch_rsp {
   repeated tx_signature_entry signatures = 1 [(nanopb).max_count = 10];
 }
 
+// =============================================================================
+// Sweep signing (W3)
+// =============================================================================
+// Signs inputs at a non-current (OLD) account index whose outputs spend into
+// the current account's fresh receive address (index 0). Used by lost-app
+// recovery sweeps where the HW is retained across an account bump and must
+// sign legacy UTXOs using the old account's keys.
+//
+// The regular sign_tx_request_cmd / sign_stream_* paths strictly reject any
+// input whose derivation_path[2] differs from the on-device
+// keyset.account_index. Sweep signing must go through these dedicated
+// commands.
+//
+// What's different from regular signing:
+// - old_account_index: firmware cross-checks every input's path[2] matches,
+//   and that it differs from keyset.account_index.
+// - sweep_app_xpub_{pubkey,chaincode}: OLD account's app xpub at depth 3.
+// - sweep_server_xpub_{pubkey,chaincode}: OLD account's server xpub at
+//   depth 3 (each account uses a distinct server key). Both xpubs must be
+//   supplied by the app; HW is the only cosigner derivable from master.
+// - outputs: exactly one output whose scriptPubKey matches the firmware-
+//   derived P2WSH scriptPubKey at current-keyset m/84'/coin'/current'/0/0.
+//   Works for both external destinations (no bip32_derivation) and
+//   derivation-path destinations.
+//
+// A compromised app cannot weaken the model via this command:
+// keyset.account_index is immutable device-side ground truth, output
+// scriptPubKeys are cryptographically verified against the current keyset,
+// and a bad sweep_app_xpub simply produces a signature that fails on-chain.
+
+// One-shot sweep signing (≤5 inputs/outputs). Mirrors sign_tx_request_cmd
+// with three extra sweep fields. Returns CONFIRMATION_PENDING + handles;
+// signatures are retrieved via get_confirmation_result_cmd → sign_tx_result.
+message sweep_sign_cmd {
+  // OLD account's app xpub at depth 3 (m/84'/coin'/old_account').
+  // 33-byte compressed pubkey + 32-byte chaincode.
+  bytes sweep_app_xpub_pubkey = 1 [(nanopb).max_size = 33];
+  bytes sweep_app_xpub_chaincode = 2 [(nanopb).max_size = 32];
+
+  // OLD account's server xpub at depth 3. Each account uses a distinct
+  // server cosigner key, so the stored (current-account) server xpub is
+  // unusable for signing old-account inputs.
+  bytes sweep_server_xpub_pubkey = 3 [(nanopb).max_size = 33];
+  bytes sweep_server_xpub_chaincode = 4 [(nanopb).max_size = 32];
+
+  // Explicit OLD account index. Must differ from keyset.account_index and
+  // must match input derivation_path[2] (with hardened bit stripped) for
+  // every input.
+  uint32 old_account_index = 5;
+
+  uint32 lock_time = 6;
+  repeated sign_tx_input inputs = 7 [(nanopb).max_count = 5];
+  repeated sign_tx_output outputs = 8 [(nanopb).max_count = 5];
+  uint32 version = 9;
+  btc_display_unit btc_display_unit = 10;
+}
+
+// Placeholder response for sweep_sign_cmd. Carries no payload; handler
+// returns CONFIRMATION_PENDING via the global status code. Signatures
+// come back through get_confirmation_result_rsp.sign_tx_result.
+message sweep_sign_rsp {}
+
+// Streaming sweep signing: initiates a sweep-flavored signing session.
+// Semantics match sign_stream_start_cmd but with the three sweep fields.
+// Subsequent sign_stream_transfer_cmd / sign_stream_finalize_cmd /
+// get_tx_signature_cmd are reused — the session stores the sweep context
+// and the signer applies it when signatures are produced.
+message sweep_sign_stream_start_cmd {
+  // OLD account's app xpub at depth 3.
+  bytes sweep_app_xpub_pubkey = 1 [(nanopb).max_size = 33];
+  bytes sweep_app_xpub_chaincode = 2 [(nanopb).max_size = 32];
+
+  // OLD account's server xpub at depth 3.
+  bytes sweep_server_xpub_pubkey = 3 [(nanopb).max_size = 33];
+  bytes sweep_server_xpub_chaincode = 4 [(nanopb).max_size = 32];
+
+  // Explicit OLD account index.
+  uint32 old_account_index = 5;
+
+  uint32 num_inputs = 6;
+  uint32 num_outputs = 7;
+  uint32 version = 8;
+  uint32 lock_time = 9;
+  uint32 payload_size = 10;
+  btc_display_unit btc_display_unit = 11;
+}
+
+message sweep_sign_stream_start_rsp {
+  enum sweep_sign_stream_start_rsp_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+    UNAUTHENTICATED = 3;
+    reserved 4 to 9;
+  }
+  sweep_sign_stream_start_rsp_status rsp_status = 1;
+}
+
 // DEVELOPMENT ONLY: Bypass authentication to unlock device for testing.
 message unlock_device_cmd {
 }
@@ -1662,6 +1760,9 @@ message wallet_cmd {
     upgrade_authorize_w3_cmd upgrade_authorize_w3_cmd = 96;
     upgrade_rotate_app_auth_keys_cmd upgrade_rotate_app_auth_keys_cmd = 97;
     unlock_device_cmd unlock_device_cmd = 98;
+    sweep_sign_cmd sweep_sign_cmd = 99;
+    sweep_sign_stream_start_cmd sweep_sign_stream_start_cmd = 100;
+    mfgtest_unlock_device_cmd mfgtest_unlock_device_cmd = 101;
   }
   reserved 2, 5, 14, 21, 22, 23, 24; // The deprecated old cryptography stack (key bundle, etc.)
   reserved 30, 31, 34;  // The never used create_root_key, list_recent_root_keys, and sign_hash operations
@@ -1764,6 +1865,9 @@ message wallet_rsp {
     full_account_cloud_backup_restoration_continue_rsp full_account_cloud_backup_restoration_continue_rsp = 94;
     show_confirmation_screen_rsp show_confirmation_screen_rsp = 95;
     unlock_device_rsp unlock_device_rsp = 98;
+    sweep_sign_rsp sweep_sign_rsp = 99;
+    sweep_sign_stream_start_rsp sweep_sign_stream_start_rsp = 100;
+    mfgtest_unlock_device_rsp mfgtest_unlock_device_rsp = 101;
   }
   reserved 2, 5, 14, 21, 22, 23, 24; // The deprecated old cryptography stack (key bundle, etc.)
   reserved 30, 31, 34;  // The never used create_root_key, list_recent_root_keys, and sign_hash operations

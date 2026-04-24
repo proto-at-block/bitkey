@@ -1314,6 +1314,44 @@ async fn w3_delete_account_with_action_proof_succeeds() {
         StatusCode::OK,
         "W3 delete_account with ActionProof should succeed"
     );
+
+    let deleted_pubkey_record = bootstrap
+        .services
+        .public_key_repository
+        .fetch_by_public_key(&keys.hw.public_key.to_string())
+        .await
+        .unwrap();
+    assert!(
+        deleted_pubkey_record.is_none(),
+        "Delete should clean up the hardware auth pubkey record"
+    );
+
+    let replacement_keys = create_new_authkeys(&mut context);
+    let recreate_response = client
+        .create_account_v2(
+            &mut context,
+            &CreateAccountRequestV2 {
+                auth: FullAccountAuthKeysInputV2 {
+                    app_pub: replacement_keys.app.public_key,
+                    hardware_pub: keys.hw.public_key,
+                    recovery_pub: replacement_keys.recovery.public_key,
+                    hardware_type: HardwareType::W3,
+                },
+                spend: SpendingKeysetInputV2 {
+                    network: Network::Signet,
+                    app_pub: create_pubkey(),
+                    hardware_pub: create_pubkey(),
+                },
+                is_test_account: true,
+            },
+        )
+        .await;
+    assert_eq!(
+        recreate_response.status_code,
+        StatusCode::OK,
+        "{}",
+        recreate_response.body_string
+    );
 }
 
 // ---- Descriptor backup: pre-onboarding and post-onboarding variants for W1 and W3 ----

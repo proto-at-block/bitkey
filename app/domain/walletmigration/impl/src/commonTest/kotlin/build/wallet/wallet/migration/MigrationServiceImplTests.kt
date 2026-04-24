@@ -16,6 +16,7 @@ import build.wallet.bitkey.auth.AppAuthPublicKeysMock
 import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock2
 import build.wallet.bitkey.auth.HwAuthSecp256k1PublicKeyMock
 import build.wallet.bitkey.f8e.F8eSpendingKeysetMock
+import build.wallet.bitkey.f8e.F8eSpendingKeysetPrivateWalletMock
 import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
@@ -146,7 +147,7 @@ class MigrationServiceImplTests : FunSpec({
       localId = "uuid-0",
       appKey = AppKeyBundleMock.spendingKey,
       hardwareKey = mockNewHwKeys.spendingKey,
-      f8eSpendingKeyset = F8eSpendingKeysetMock
+      f8eSpendingKeyset = F8eSpendingKeysetPrivateWalletMock.copy(keysetId = "new-f8e-spending-keyset-id")
     )
 
   fun w3RotatedAuthKeys(): AppAuthPublicKeys =
@@ -817,13 +818,29 @@ class MigrationServiceImplTests : FunSpec({
   }
 
   test("proceed from DescriptorBackup succeeds and transitions to ServerKeysetActivation") {
-    accountService.setActiveAccount(mockAccount)
+    // Add a local-only keyset that won't be in backup results to exercise keyset pruning
+    val localOnlyKeyset = SpendingKeysetMock.copy(
+      localId = "local-only-keyset-id",
+      f8eSpendingKeyset = F8eSpendingKeysetMock.copy(keysetId = "local-only-f8e-keyset-id")
+    )
+    val currentKeybox = mockAccount.keybox.copy(
+      canUseKeyboxKeysets = false,
+      keysets = mockAccount.keybox.keysets + localOnlyKeyset
+    )
+    accountService.setActiveAccount(mockAccount.copy(keybox = currentKeybox))
 
     val newKeyset = SpendingKeysetMock.copy(
-      localId = mockAccount.keybox.activeSpendingKeyset.localId, // Use existing keyset ID so account lookup works
+      localId = currentKeybox.activeSpendingKeyset.localId, // Use existing keyset ID so account lookup works
       appKey = AppKeyBundleMock.spendingKey,
       hardwareKey = mockNewHwKeys.spendingKey,
-      f8eSpendingKeyset = F8eSpendingKeysetMock
+      f8eSpendingKeyset = F8eSpendingKeysetPrivateWalletMock.copy(keysetId = "new-f8e-spending-keyset-id")
+    )
+    val uploadedKeysets = listOf(currentKeybox.activeSpendingKeyset, newKeyset)
+    descriptorBackupService.uploadDescriptorBackupsResult = Ok(uploadedKeysets)
+    val expectedKeybox = currentKeybox.copy(
+      activeSpendingKeyset = newKeyset,
+      keysets = listOf(currentKeybox.activeSpendingKeyset, newKeyset),
+      canUseKeyboxKeysets = true
     )
 
     privateWalletMigrationDao.saveHardwareKey(mockNewHwKeys.spendingKey)
@@ -833,7 +850,7 @@ class MigrationServiceImplTests : FunSpec({
 
     val descriptorBackupState = MigrationProgress.DescriptorBackup(
       type = MigrationType.PrivateWalletMigration,
-      currentKeybox = mockAccount.keybox,
+      currentKeybox = currentKeybox,
       newKeyset = newKeyset,
       hwProofOfPossession = mockProofOfPossession,
       ssek = SsekFake,
@@ -845,6 +862,7 @@ class MigrationServiceImplTests : FunSpec({
     result.shouldBeOk()
     val state = result.get().shouldNotBeNull()
     state.shouldBeInstanceOf<MigrationProgress.ServerKeysetActivation>()
+    state.currentKeybox.shouldBe(expectedKeybox)
 
     // Verify descriptor backup was marked complete, no other flags set
     val daoState = privateWalletMigrationDao.state.value.get().shouldNotBeNull()
@@ -858,6 +876,7 @@ class MigrationServiceImplTests : FunSpec({
 
     // Verify SSEK was stored
     ssekDao.get(mockSealedSsek).get().shouldBe(SsekFake)
+    keyboxDao.activeKeybox.value.get().shouldBe(expectedKeybox)
   }
 
   test("state transitions carry credentials through the flow") {
@@ -1212,7 +1231,10 @@ class MigrationServiceImplTests : FunSpec({
       localId = mockAccount.keybox.activeSpendingKeyset.localId,
       appKey = AppKeyBundleMock.spendingKey,
       hardwareKey = mockNewHwKeys.spendingKey,
-      f8eSpendingKeyset = F8eSpendingKeysetMock
+      f8eSpendingKeyset = F8eSpendingKeysetPrivateWalletMock.copy(keysetId = "new-f8e-spending-keyset-id")
+    )
+    descriptorBackupService.uploadDescriptorBackupsResult = Ok(
+      listOf(mockAccount.keybox.activeSpendingKeyset, newKeyset)
     )
 
     privateWalletMigrationDao.saveHardwareKey(mockNewHwKeys.spendingKey)
@@ -1547,7 +1569,15 @@ class MigrationServiceImplTests : FunSpec({
   }
 
   test("W3Upgrade proceed from DescriptorBackup uses W3 action proof and returns keyset activation") {
-    accountService.setActiveAccount(rotatedAccount())
+    // Add a local-only keyset that won't be in backup results to exercise keyset preservation
+    val localOnlyKeyset = SpendingKeysetMock.copy(
+      localId = "local-only-keyset-id",
+      f8eSpendingKeyset = F8eSpendingKeysetMock.copy(keysetId = "local-only-f8e-keyset-id")
+    )
+    val keyboxWithLocalKeyset = rotatedKeybox().copy(
+      keysets = rotatedKeybox().keysets + localOnlyKeyset
+    )
+    accountService.setActiveAccount(mockAccount.copy(keybox = keyboxWithLocalKeyset))
 
     w3UpgradeDao.saveHardwareKey(mockNewHwKeys.spendingKey)
     w3UpgradeDao.saveAppKey(AppKeyBundleMock.spendingKey)
@@ -1555,10 +1585,18 @@ class MigrationServiceImplTests : FunSpec({
     w3UpgradeDao.saveKeysetLocalId("uuid-0")
     w3UpgradeDao.setAuthKeyRotationComplete()
     onboardingKeyboxSealedSsekDao.set(mockSealedSsek)
+    val uploadedKeysets = (rotatedKeybox().keysets + w3UpgradeKeyset())
+      .distinctBy { it.f8eSpendingKeyset.keysetId }
+    descriptorBackupService.uploadDescriptorBackupsResult = Ok(uploadedKeysets)
+    val expectedKeybox = keyboxWithLocalKeyset.copy(
+      activeSpendingKeyset = w3UpgradeKeyset(),
+      keysets = listOf(rotatedKeybox().activeSpendingKeyset, w3UpgradeKeyset()),
+      canUseKeyboxKeysets = true
+    )
 
     val descriptorBackupState = MigrationProgress.DescriptorBackup(
       type = MigrationType.W3Upgrade,
-      currentKeybox = rotatedKeybox(),
+      currentKeybox = keyboxWithLocalKeyset,
       newKeyset = w3UpgradeKeyset()
     ).withProof(
       descriptorBackupsProof
@@ -1569,7 +1607,7 @@ class MigrationServiceImplTests : FunSpec({
     result.shouldBeOk()
     val state = result.get().shouldNotBeNull()
     state.shouldBeInstanceOf<MigrationProgress.ServerKeysetActivation>()
-    state.currentKeybox.shouldBe(rotatedKeybox())
+    state.currentKeybox.shouldBe(expectedKeybox)
     state.proof.shouldBe(null)
 
     val uploadArgs = descriptorBackupService.lastUploadDescriptorBackupsArgs.shouldNotBeNull()
@@ -1585,6 +1623,7 @@ class MigrationServiceImplTests : FunSpec({
     daoState.descriptorBackupCompleted.shouldBe(true)
     daoState.serverKeysetActivated.shouldBe(false)
     onboardingKeyboxSealedSsekDao.get().get().shouldBe(mockSealedSsek)
+    keyboxDao.activeKeybox.value.get().shouldBe(expectedKeybox)
   }
 
   test("W3Upgrade descriptor backup keeps sealed SSEK when persisting completion fails") {
@@ -1597,6 +1636,9 @@ class MigrationServiceImplTests : FunSpec({
     w3UpgradeDao.setAuthKeyRotationComplete()
     onboardingKeyboxSealedSsekDao.set(mockSealedSsek)
     w3UpgradeDao.shouldFailSetDescriptorBackupComplete = true
+    descriptorBackupService.uploadDescriptorBackupsResult = Ok(
+      (rotatedKeybox().keysets + w3UpgradeKeyset()).distinctBy { it.f8eSpendingKeyset.keysetId }
+    )
 
     val descriptorBackupState = MigrationProgress.DescriptorBackup(
       type = MigrationType.W3Upgrade,
@@ -1643,6 +1685,9 @@ class MigrationServiceImplTests : FunSpec({
     w3UpgradeDao.saveKeysetLocalId("uuid-0")
     w3UpgradeDao.setAuthKeyRotationComplete()
     onboardingKeyboxSealedSsekDao.set(mockSealedSsek)
+    descriptorBackupService.uploadDescriptorBackupsResult = Ok(
+      (rotatedKeybox().keysets + w3UpgradeKeyset()).distinctBy { it.f8eSpendingKeyset.keysetId }
+    )
 
     val descriptorBackupState = MigrationProgress.DescriptorBackup(
       type = MigrationType.W3Upgrade,
@@ -1823,7 +1868,7 @@ class MigrationServiceImplTests : FunSpec({
     setActiveSpendingKeysetF8eClient.lastSetArguments.shouldNotBeNull().proof.shouldBe(
       activateKeysetProof
     )
-    // SSEK is preserved through ServerKeysetActivation — cleared only after DDK backup checkpoint,
+    // SSEK is preserved through ServerKeysetActivation — cleared only after cloud backup completes,
     // because earlier resume states rewind through DescriptorBackup which needs the SSEK.
     onboardingKeyboxSealedSsekDao.get().get().shouldBe(mockSealedSsek)
   }
@@ -1859,6 +1904,25 @@ class MigrationServiceImplTests : FunSpec({
     daoState.serverKeysetActivated.shouldBe(true)
     keyboxDao.activeKeybox.value.get().shouldNotBeNull()
       .appGlobalAuthKeyHwSignature.shouldBe(provisioningSignature)
+  }
+
+  test("W3Upgrade CloudBackup clears onboarding sealed SSEK") {
+    w3UpgradeDao.saveHardwareKey(mockNewHwKeys.spendingKey)
+    onboardingKeyboxSealedSsekDao.set(mockSealedSsek)
+
+    val cloudBackupResult = service.proceed(
+      MigrationProgress.CloudBackup(
+        type = MigrationType.W3Upgrade,
+        currentKeybox = rotatedKeybox(),
+        newKeyset = w3UpgradeKeyset()
+      )
+    )
+
+    cloudBackupResult.shouldBeOk()
+    cloudBackupResult.get().shouldNotBeNull()
+      .shouldBeInstanceOf<MigrationProgress.LocalKeyboxActivation>()
+    onboardingKeyboxSealedSsekDao.get().get().shouldBe(null)
+    w3UpgradeDao.state.value.get().shouldNotBeNull().cloudBackupCompleted.shouldBe(true)
   }
 
   test("getOldHardwareFingerprint returns persisted W3 checkpoint fingerprint") {

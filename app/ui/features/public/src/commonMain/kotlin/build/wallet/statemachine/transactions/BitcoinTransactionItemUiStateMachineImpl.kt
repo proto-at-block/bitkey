@@ -1,7 +1,6 @@
 package build.wallet.statemachine.transactions
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -12,8 +11,6 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.bitcoin.transactions.isLate
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.data.money.convertedOrNull
@@ -21,13 +18,11 @@ import build.wallet.time.DateTimeFormatter
 import build.wallet.time.TimeZoneProvider
 import build.wallet.ui.model.icon.BadgeType
 import build.wallet.ui.model.list.ListItemModel
-import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toLocalDateTime
 
 @BitkeyInject(ActivityScope::class)
 class BitcoinTransactionItemUiStateMachineImpl(
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
   private val currencyConverter: CurrencyConverter,
   private val dateTimeFormatter: DateTimeFormatter,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
@@ -36,10 +31,6 @@ class BitcoinTransactionItemUiStateMachineImpl(
 ) : BitcoinTransactionItemUiStateMachine {
   @Composable
   override fun model(props: BitcoinTransactionItemUiProps): ListItemModel {
-    val isDesignSystemV2Enabled by remember {
-      designSystemUpdatesFeatureFlag.flagValue().map { it.isEnabled() }
-    }.collectAsState(initial = designSystemUpdatesFeatureFlag.isEnabled())
-
     val totalToUse =
       when (props.transaction.details.transactionType) {
         Incoming, UtxoConsolidation -> props.transaction.details.subtotal
@@ -78,7 +69,7 @@ class BitcoinTransactionItemUiStateMachineImpl(
         transactionType = transactionType,
         isPending = confirmationStatus == Pending,
         isLate = isLate(clock = clock) && confirmationStatus == Pending,
-        pendingBadgeType = if (isDesignSystemV2Enabled) BadgeType.CircularLoading else BadgeType.Loading
+        pendingBadgeType = BadgeType.Loading
       ) {
         props.onClick(props.transaction)
       }

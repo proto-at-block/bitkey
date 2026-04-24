@@ -17,7 +17,7 @@ fun InheritanceMoneyHomeCard(
     ),
   subtitle = "To accept an inheritance plan, you’ll need your own Bitkey.",
   content = null,
-  style = CardModel.CardStyle.Outline,
+  style = CardModel.CardStyle.Outline(surfaceTreatment = CardModel.SurfaceTreatment.Background),
   primaryButton = ButtonModel(
     text = "Accept invite",
     requiresBitkeyInteraction = false,

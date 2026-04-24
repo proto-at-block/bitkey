@@ -31,15 +31,4 @@ class CoachmarkSnapshots : FunSpec({
     }
   }
 
-  test("W3 upgrade complete coachmark") {
-    paparazzi.snapshot {
-      W3UpgradeCompleteCoachmarkPreview()
-    }
-  }
-
-  test("W3 upgrade complete coachmark with design system v2 feature flag on") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
-      W3UpgradeCompleteCoachmarkPreview()
-    }
-  }
 })

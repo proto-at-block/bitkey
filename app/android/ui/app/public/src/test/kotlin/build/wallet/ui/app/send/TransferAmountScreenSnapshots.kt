@@ -89,7 +89,7 @@ class TransferAmountScreenSnapshots : FunSpec({
             subtitle = null,
             leadingImage = CardModel.CardImage.StaticImage(SmallIconBitkey),
             content = null,
-            style = Outline
+            style = Outline()
           ),
           keypadModel =
             KeypadModel(
@@ -238,7 +238,7 @@ class TransferAmountScreenSnapshots : FunSpec({
             subtitle = null,
             leadingImage = null,
             content = null,
-            style = Outline,
+            style = Outline(),
             titleTreatment = CardModel.TitleTreatment.Destructive
           ),
           keypadModel =

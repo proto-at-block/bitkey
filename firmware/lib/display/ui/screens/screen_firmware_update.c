@@ -22,6 +22,7 @@
 #include "widgets/loading_ring.h"
 #include "widgets/top_menu.h"
 
+#include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -44,6 +45,7 @@ typedef enum {
 #define STEP_DISPLAY_MS             6000
 #define HOLD_DISPLAY_MS             1500
 #define HEADER_FADE_DURATION_MS     160
+#define MENU_BUTTON_HOLD_OPA        LV_OPA_50
 
 // Layout
 #define HEADER_HEIGHT           140
@@ -112,6 +114,24 @@ static void set_header_prompt_mode(header_prompt_mode_t mode, bool animate);
 static void header_text_opa_anim_cb(void* var, int32_t value);
 static void header_fade_out_ready_cb(lv_anim_t* anim);
 static lv_coord_t get_top_group_bottom_screen(void);
+static void uppercase_ascii_copy(char* dst, size_t dst_size, const char* src);
+
+static void uppercase_ascii_copy(char* dst, size_t dst_size, const char* src) {
+  if (!dst || dst_size == 0) {
+    return;
+  }
+
+  if (!src) {
+    dst[0] = '\0';
+    return;
+  }
+
+  size_t i = 0;
+  for (; i + 1 < dst_size && src[i] != '\0'; i++) {
+    dst[i] = (char)toupper((unsigned char)src[i]);
+  }
+  dst[i] = '\0';
+}
 
 static lv_coord_t get_top_group_bottom_screen(void) {
   lv_coord_t top_group_bottom =
@@ -146,6 +166,10 @@ static void hold_ring_complete_handler(void* user_data) {
   hold_completed = true;
   check_button_held = false;
   stop_header_hint_cycle();
+  if (menu_button.is_initialized && menu_button.container) {
+    top_menu_set_opacity(&menu_button, LV_OPA_COVER);
+    lv_obj_add_flag(menu_button.container, LV_OBJ_FLAG_HIDDEN);
+  }
   dot_ring_hide(&approve_ring);
   dot_ring_reset(&approve_ring);
   display_send_action(fwpb_display_action_display_action_type_DISPLAY_ACTION_APPROVE, 0);
@@ -233,6 +257,7 @@ static void create_confirmation_page(const fwpb_display_params_firmware_update* 
 
   // Approve ring
   dot_ring_create(screen, &approve_ring);
+  dot_ring_show(&approve_ring);
 
   // Approve button
   approve_button = approval_button_create(screen, approve_button_event_handler);
@@ -470,11 +495,16 @@ static void create_progress_page(const fwpb_display_params_firmware_update* para
   lv_label_set_text(progress_message, langpack_get_string(status_string_id));
 
   if (params && params->version[0] != '\0') {
+    char version_text[sizeof(params->version)] = {0};
+    uppercase_ascii_copy(version_text, sizeof(version_text), params->version);
+
     lv_obj_t* version_label = lv_label_create(progress_container);
-    lv_obj_set_style_text_color(version_label, lv_color_hex(0xADADAD), 0);
-    lv_obj_set_style_text_font(version_label, FONT_VERSION, 0);
-    lv_obj_set_style_text_align(version_label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_label_set_text(version_label, params->version);
+    if (version_label) {
+      lv_obj_set_style_text_color(version_label, lv_color_hex(0xADADAD), 0);
+      lv_obj_set_style_text_font(version_label, FONT_VERSION, 0);
+      lv_obj_set_style_text_align(version_label, LV_TEXT_ALIGN_CENTER, 0);
+      lv_label_set_text(version_label, version_text);
+    }
   }
 
   lv_obj_update_layout(progress_container);
@@ -493,7 +523,7 @@ static void create_success_page(void) {
   lv_obj_t* checkmark = lv_img_create(screen);
   if (checkmark) {
     lv_img_set_src(checkmark, &check);
-    lv_obj_set_style_img_recolor(checkmark, lv_color_hex(COLOR_RING), 0);
+    lv_obj_set_style_img_recolor(checkmark, lv_color_white(), 0);
     lv_obj_set_style_img_recolor_opa(checkmark, LV_OPA_COVER, 0);
     lv_obj_align(checkmark, LV_ALIGN_CENTER, 0, RESULT_ICON_Y);
   }
@@ -501,7 +531,7 @@ static void create_success_page(void) {
   lv_obj_t* label = lv_label_create(screen);
   if (label) {
     lv_label_set_text(label, langpack_get_string(LANGPACK_ID_MONEY_MOVEMENT_CONFIRMED));
-    lv_obj_set_style_text_color(label, lv_color_hex(COLOR_RING), 0);
+    lv_obj_set_style_text_color(label, lv_color_white(), 0);
     lv_obj_set_style_text_font(label, FONT_STATUS, 0);
     lv_obj_align(label, LV_ALIGN_CENTER, 0, RESULT_LABEL_Y);
   }
@@ -542,11 +572,7 @@ static void approve_button_event_handler(lv_event_t* e) {
       approval_button_set_hold_state(check_button);
     }
 
-    if (menu_button.is_initialized && menu_button.container) {
-      lv_obj_add_flag(menu_button.container, LV_OBJ_FLAG_HIDDEN);
-    }
-
-    dot_ring_show_with_fade_in(&approve_ring, 400);
+    top_menu_fade_to_opacity(&menu_button, MENU_BUTTON_HOLD_OPA, HEADER_FADE_DURATION_MS);
     dot_ring_animate_fill_from_current(&approve_ring, 100, HOLD_TO_CONFIRM_DURATION_MS,
                                        DOT_RING_COLOR_GREEN, DOT_RING_FILL_SPLIT,
                                        hold_ring_complete_handler, NULL);
@@ -555,7 +581,7 @@ static void approve_button_event_handler(lv_event_t* e) {
       return;
     }
 
-    if (dot_ring_animate_release(&approve_ring, HOLD_TO_CONFIRM_DURATION_MS)) {
+    if (dot_ring_animate_release_to_inactive(&approve_ring, HOLD_TO_CONFIRM_DURATION_MS)) {
       return;
     }
 
@@ -568,9 +594,7 @@ static void approve_button_event_handler(lv_event_t* e) {
       approval_button_set_idle_state(check_button);
     }
 
-    if (menu_button.is_initialized && menu_button.container) {
-      lv_obj_clear_flag(menu_button.container, LV_OBJ_FLAG_HIDDEN);
-    }
+    top_menu_fade_to_opacity(&menu_button, LV_OPA_COVER, HEADER_FADE_DURATION_MS);
   }
 }
 

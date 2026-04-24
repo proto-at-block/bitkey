@@ -201,6 +201,19 @@ private class RetryingNfcCommandsImpl(
       }
     )
 
+  override suspend fun sweepTransaction(
+    session: NfcSession,
+    psbt: Psbt,
+    spendingKeyset: SpendingKeyset,
+    sweepContext: SweepSigningContext,
+    displayPreference: HwDisplayPreference?,
+  ): HardwareInteraction<Psbt> =
+    wrapHardwareInteraction(
+      retry {
+        commands.sweepTransaction(session, psbt, spendingKeyset, sweepContext, displayPreference)
+      }
+    )
+
   override suspend fun startFingerprintEnrollment(
     session: NfcSession,
     fingerprintHandle: FingerprintHandle,

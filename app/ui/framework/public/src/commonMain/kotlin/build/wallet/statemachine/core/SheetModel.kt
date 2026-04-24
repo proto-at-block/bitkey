@@ -6,14 +6,12 @@ import dev.zacsweers.redacted.annotations.Redacted
 /**
  * Model for the sheet, this should be used in along with [ScreenModel].
  *
- * @param [treatment] defines appearance of the sheet, currently just the background color.
  * @param [onClosed] called whenever the sheet gets closed. A state machine should always implement
  * @param [body] model content of the sheet.
  */
 @Redacted
 data class SheetModel(
   val size: SheetSize = DEFAULT,
-  val treatment: SheetTreatment = SheetTreatment.STANDARD,
   val onClosed: () -> Unit,
   val body: BodyModel,
 )
@@ -44,12 +42,4 @@ enum class VerticalAlignment {
    * Contents are aligned to the center of the sheet
    */
   CENTER,
-}
-
-enum class SheetTreatment {
-  // Default background color
-  STANDARD,
-
-  // Inheritance background color
-  INHERITANCE,
 }

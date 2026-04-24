@@ -719,20 +719,33 @@ class Wallet:
         cmd.hardware_attestation_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)
 
-    def unlock_device(self: Wallet) -> bool:
+    def unlock_device(self: Wallet, manufacturing: bool = False) -> bool:
         """Programmatically unlocks a device.
 
-        This is only supported on development devices. Production devices will
-        not respond to this command.
+        This is supported on devices running development firmware, or on devices
+        running a manufacturing image when ``manufacturing`` is set to ``True``.
+        Production devices will not respond to this command.
 
         :param self: the ``Wallet`` instance.
+        :param manufacturing: optional boolean; set to ``True`` when targeting a
+          device running manufacturing image firmware; leave as ``False`` for
+          the development-firmware unlock path.
         :returns: ``True`` if device was unlocked, otherwise ``False``.
         """
         cmd = self._build_cmd()
-        msg = wallet_pb.unlock_device_cmd()
-        cmd.unlock_device_cmd.CopyFrom(msg)
+        if manufacturing:
+            msg = mfgtest_pb.mfgtest_unlock_device_cmd()
+            cmd.mfgtest_unlock_device_cmd.CopyFrom(msg)
+        else:
+            msg = wallet_pb.unlock_device_cmd()
+            cmd.unlock_device_cmd.CopyFrom(msg)
 
         response = self.comms.transceive(cmd)
+
+        if manufacturing:
+            rsp = response.mfgtest_unlock_device_rsp
+            return rsp.rsp_status == mfgtest_pb.mfgtest_unlock_device_rsp.SUCCESS
+
         rsp = response.unlock_device_rsp
         return rsp.rsp_status == wallet_pb.unlock_device_rsp.SUCCESS
 

@@ -105,11 +105,16 @@ fun MoneyHomeCard(
             )
           }
 
-        Outline -> {
+        is Outline -> {
           val isDesignSystemV2BitcoinPriceCard = isDesignSystemV2Enabled && model.content is BitcoinPrice
+          val backgroundColor = when (style.surfaceTreatment) {
+            CardModel.SurfaceTreatment.ContainerBackground -> WalletTheme.colors.containerBackground
+            CardModel.SurfaceTreatment.Background -> WalletTheme.colors.background
+          }
 
           Card(
             modifier = cardModifier,
+            backgroundColor = backgroundColor,
             cornerRadius = if (isDesignSystemV2BitcoinPriceCard) 8.dp else 16.dp,
             borderWidth = if (isDesignSystemV2BitcoinPriceCard && !isDarkTheme) 0.dp else 1.dp,
             paddingValues = PaddingValues(0.dp)

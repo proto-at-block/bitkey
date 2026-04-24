@@ -6,8 +6,6 @@ import build.wallet.activity.bitcoinTotal
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
@@ -22,13 +20,11 @@ import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.list.ListItemSideTextTint.GREEN
 import build.wallet.ui.model.list.ListItemSideTextTint.PRIMARY
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
-import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toLocalDateTime
 
 @BitkeyInject(ActivityScope::class)
 class PartnerTransactionItemUiStateMachineImpl(
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
   val currencyConverter: CurrencyConverter,
   val moneyDisplayFormatter: MoneyDisplayFormatter,
   val dateTimeFormatter: DateTimeFormatter,
@@ -38,10 +34,6 @@ class PartnerTransactionItemUiStateMachineImpl(
 ) : PartnerTransactionItemUiStateMachine {
   @Composable
   override fun model(props: PartnerTransactionItemUiProps): ListItemModel {
-    val isDesignSystemV2Enabled by remember {
-      designSystemUpdatesFeatureFlag.flagValue().map { it.isEnabled() }
-    }.collectAsState(initial = designSystemUpdatesFeatureFlag.isEnabled())
-
     val fiatCurrency by remember { fiatCurrencyPreferenceRepository.fiatCurrencyPreference }
       .collectAsState()
 
@@ -99,7 +91,7 @@ class PartnerTransactionItemUiStateMachineImpl(
         amountEquivalent = bitcoinTotal()?.let { moneyDisplayFormatter.format(it) } ?: "",
         isPending = details.status != PartnershipTransactionStatus.SUCCESS,
         isError = details.status == PartnershipTransactionStatus.FAILED,
-        pendingBadgeType = if (isDesignSystemV2Enabled) BadgeType.CircularLoading else BadgeType.Loading,
+        pendingBadgeType = BadgeType.Loading,
         onClick = { props.onClick(props.transaction) },
         sideTextTint = when (details.type) {
           PartnershipTransactionType.PURCHASE, PartnershipTransactionType.TRANSFER -> GREEN

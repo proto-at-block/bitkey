@@ -47,9 +47,6 @@ sealed class IconImage {
 
   /** Represents a circular loading badge */
   data object LoadingBadge : IconImage()
-
-  /** Represents a non-animated circular loading badge. */
-  data object CircularLoadingBadge : IconImage()
 }
 
 /**
@@ -272,6 +269,5 @@ enum class IconAlignmentInBackground {
 
 enum class BadgeType {
   Loading,
-  CircularLoading,
   Error,
 }

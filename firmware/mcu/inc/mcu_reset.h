@@ -55,6 +55,11 @@ typedef enum {
   MCU_RESET_FAULT_COREDUMP_SKIPPED,
 
   /**
+   * @brief Host-initiated firmware reset request.
+   */
+  MCU_RESET_SOFTWARE,
+
+  /**
    * @brief Unused (reset value is capped to `uint8_t`).
    */
   MCU_RESET_MAX = 255,

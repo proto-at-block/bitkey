@@ -27,6 +27,7 @@
 #define DISPLAY_SEND_QUEUE_SIZE      8
 
 #define DISPLAY_SEND_DROP_LOG_INTERVAL 10
+#define DISPLAY_READY_RETRY_MS         250
 
 // Display configuration
 extern display_config_t display_config;
@@ -39,6 +40,28 @@ static rtos_queue_t* display_send_queue SHARED_TASK_BSS = NULL;
 
 // Track dropped messages for telemetry
 static uint32_t display_send_dropped_count SHARED_TASK_BSS = 0;
+static bool display_first_command_applied SHARED_TASK_BSS = false;
+static uint32_t display_ready_last_send_ms SHARED_TASK_BSS = 0;
+
+static bool display_send_queue_msg_impl(const display_send_msg_t* msg);
+
+static void display_send_ready_handler(fwpb_uxc_msg_device* proto, const void* UNUSED(payload)) {
+  proto->which_msg = fwpb_uxc_msg_device_display_action_tag;
+  proto->msg.display_action.action = fwpb_display_action_display_action_type_DISPLAY_ACTION_READY;
+  proto->msg.display_action.data = 0;
+}
+
+static void display_queue_ready(void) {
+  const display_send_msg_t msg = {
+    .handler = display_send_ready_handler,
+    .flags = DISPLAY_SEND_FLAG_NONE,
+  };
+
+  display_ready_last_send_ms = rtos_thread_systime();
+  if (!display_send_queue_msg_impl(&msg)) {
+    LOGW("Display ready queue fail");
+  }
+}
 
 static bool display_send_queue_msg_impl(const display_send_msg_t* msg) {
   if (!display_send_queue || !msg) {
@@ -128,6 +151,8 @@ static bool display_process_commands(void) {
       fwpb_display_result result = ui_execute_command(&cmd_local);
       if (result != fwpb_display_result_DISPLAY_RESULT_SUCCESS) {
         LOGW("Display command failed with result: %d", result);
+      } else {
+        display_first_command_applied = true;
       }
 
       return true;
@@ -157,15 +182,7 @@ NO_OPTIMIZE void display_thread(void* UNUSED(args)) {
   uc_route_register_queue(fwpb_uxc_msg_host_display_cmd_tag, display_cmd_queue);
 
   sysevent_wait_with_timeout(SYSEVENT_UXC_SECURE_COMMS_ESTABLISHED, true, 1000);
-  // Send display ready action to signal we're ready to receive commands
-  fwpb_uxc_msg_device* ready_msg = uc_alloc_send_proto();
-  if (ready_msg) {
-    ready_msg->which_msg = fwpb_uxc_msg_device_display_action_tag;
-    ready_msg->msg.display_action.action =
-      fwpb_display_action_display_action_type_DISPLAY_ACTION_READY;
-    ready_msg->msg.display_action.data = 0;
-    uc_send(ready_msg);
-  }
+  display_queue_ready();
 
   uint32_t next_wake_time = rtos_thread_systime();
 
@@ -173,6 +190,13 @@ NO_OPTIMIZE void display_thread(void* UNUSED(args)) {
   for (;;) {
     // Process any pending display commands from w3-core
     display_process_commands();
+
+    // Retry READY until Core proves it can drive the display. This recovers
+    // from a missed READY on boot as well as a dropped first display command.
+    if (!display_first_command_applied &&
+        RTOS_DEADLINE(display_ready_last_send_ms, DISPLAY_READY_RETRY_MS)) {
+      display_queue_ready();
+    }
 
     // Update display
     display_update();

@@ -20,7 +20,7 @@ class MoneyHomeScreenSnapshots : FunSpec({
 
   test("MoneyHome Screen Full with design system v2 feature flag on and pending activity") {
     paparazzi.snapshot(designSystemUpdatesEnabled = true) {
-      MoneyHomeScreenFullWithPendingActivity(useCircularPendingIndicator = true)
+      MoneyHomeScreenFullWithPendingActivity()
     }
   }
 

@@ -15,7 +15,6 @@ import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
 import build.wallet.statemachine.transactions.TransactionDetailModel
 import build.wallet.statemachine.transactions.completeTransactionStepper
 import build.wallet.statemachine.transactions.processingTransactionStepper
-import build.wallet.statemachine.transactions.processingTransactionStepperDesignSystemV2
 import build.wallet.statemachine.transactions.submittedTransactionStepper
 import build.wallet.ui.app.core.form.FormScreen
 import build.wallet.ui.model.StandardClick
@@ -101,7 +100,7 @@ class TransactionDetailScreenSnapshots :
               onSpeedUpTransaction = {},
               content =
                 immutableListOf(
-                  processingTransactionStepperDesignSystemV2,
+                  processingTransactionStepper,
                   FormMainContentModel.Divider,
                   DataList(
                     items = immutableListOf(

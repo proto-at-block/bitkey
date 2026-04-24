@@ -6,9 +6,6 @@ import build.wallet.bitcoin.BlockTimeFake
 import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.USD
 import build.wallet.money.currency.code.IsoCurrencyTextCode
@@ -30,8 +27,6 @@ import kotlinx.datetime.Instant
 import kotlin.time.Duration.Companion.hours
 
 class PartnerTransactionItemUiStateMachineImplTests : FunSpec({
-  val featureFlagDao = FeatureFlagDaoFake()
-  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(featureFlagDao)
   val currencyConverter = CurrencyConverterFake(
     historicalConversionRate = mapOf(
       Instant.fromEpochSeconds(100) to 3.0
@@ -43,7 +38,6 @@ class PartnerTransactionItemUiStateMachineImplTests : FunSpec({
   val onClickCalls = turbines.create<Unit>("onClick calls")
 
   val stateMachine = PartnerTransactionItemUiStateMachineImpl(
-    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
     currencyConverter = currencyConverter,
     moneyDisplayFormatter = moneyDisplayFormatter,
     dateTimeFormatter = dateTimeFormatter,
@@ -96,10 +90,6 @@ class PartnerTransactionItemUiStateMachineImplTests : FunSpec({
     }
   )
 
-  beforeTest {
-    designSystemUpdatesFeatureFlag.reset()
-  }
-
   test("Completed partner transaction") {
     stateMachine.test(baseProps) {
       awaitItem().apply {
@@ -138,22 +128,4 @@ class PartnerTransactionItemUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("pending partner transaction uses circular loading badge with design system v2") {
-    designSystemUpdatesFeatureFlag.setFlagValue(true)
-
-    stateMachine.test(
-      baseProps.copy(
-        transaction = baseProps.transaction.copy(
-          details = baseProps.transaction.details.copy(status = PartnershipTransactionStatus.PENDING)
-        )
-      )
-    ) {
-      awaitItem().leadingAccessory.shouldBeTypeOf<ListItemAccessory.IconAccessory>()
-        .model
-        .badge
-        .shouldBe(BadgeType.CircularLoading)
-
-      cancelAndIgnoreRemainingEvents()
-    }
-  }
 })

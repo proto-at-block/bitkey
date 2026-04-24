@@ -10,6 +10,16 @@ use time::OffsetDateTime;
 use tracing::{error, info};
 use types::account::entities::Account;
 
+// Cutoff for which accounts this follow-up migration re-scans. The first
+// backfill migration ran once in the deployment pipeline before the new
+// server code was live; any account created or mutated between the first
+// migration's scan and the new server going live would have its hw auth
+// key mutations performed by the old server, which does not write to the
+// public_keys table. This follow-up re-scans every account touched on or
+// after this timestamp to ensure their current and historical hw auth
+// pubkeys are recorded.
+const FIRST_BACKFILL_START_TS: &str = "2026-04-17T22:41:46Z";
+
 pub(crate) struct BackfillHwAuthPublicKeys<'a> {
     account_service: &'a AccountService,
     public_key_repo: &'a PublicKeyRepository,
@@ -53,10 +63,13 @@ impl<'a> BackfillHwAuthPublicKeys<'a> {
 #[async_trait]
 impl Migration for BackfillHwAuthPublicKeys<'_> {
     fn name(&self) -> &str {
-        "20260416_backfill_hw_auth_public_keys"
+        "20260417_backfill_hw_auth_public_keys_followup"
     }
 
     async fn run(&self) -> Result<(), MigrationError> {
+        let threshold = OffsetDateTime::parse(FIRST_BACKFILL_START_TS, &Rfc3339)
+            .expect("FIRST_BACKFILL_START_TS must be a valid RFC3339 timestamp");
+
         let accounts = self
             .account_service
             .fetch_accounts()
@@ -79,11 +92,21 @@ impl Migration for BackfillHwAuthPublicKeys<'_> {
         // within a phase.
         let mut historical_by_key: HashMap<String, PublicKeyRecord> = HashMap::new();
         let mut active_by_key: HashMap<String, PublicKeyRecord> = HashMap::new();
+        let mut scanned = 0usize;
+        let mut skipped = 0usize;
 
         for account in &accounts {
+            // Skip accounts untouched since the first migration's scan —
+            // their hw keys were already captured.
+            if account.get_common_fields().updated_at < threshold {
+                skipped += 1;
+                continue;
+            }
+
             let Account::Full(full_account) = account else {
                 continue;
             };
+            scanned += 1;
 
             for auth_keys in full_account.auth_keys.values() {
                 let public_key = auth_keys.hardware_pubkey.to_string();
@@ -106,9 +129,11 @@ impl Migration for BackfillHwAuthPublicKeys<'_> {
         let active_records: Vec<PublicKeyRecord> = active_by_key.into_values().collect();
 
         info!(
+            scanned,
+            skipped,
             historical = historical_records.len(),
             active = active_records.len(),
-            "Backfilling hw auth public keys"
+            "Backfilling hw auth public keys (follow-up)"
         );
 
         // Phase 1: write historical (rotated-away) hw auth pubkeys.

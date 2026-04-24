@@ -30,7 +30,7 @@ database = { workspace = true }
 http-body-util = "0.1.0"
 jwt-authorizer = { workspace = true }
 mime = "0.3"
-repository = { workspace = true, features = ["consent"] }
+repository = { workspace = true, features = ["account", "consent", "public_key"] }
 serde_json = "1.0"
 server = { path = "../server" }
 tokio = { version = "1.36.0", features = ["full"] }

@@ -347,6 +347,23 @@ public final class BitkeyW1Commands: NfcCommands {
             .HardwareInteraction
     }
 
+    public func sweepTransaction(
+        session _: NfcSession,
+        psbt _: Psbt,
+        spendingKeyset _: SpendingKeyset,
+        sweepContext _: Shared.SweepSigningContext,
+        displayPreference _: Shared.HwDisplayPreference?
+    ) async throws -> Shared.HardwareInteraction {
+        // W1's PSBT-based signing carries derivation paths per-input, so spending
+        // from any account "just works" through signTransaction. The dedicated
+        // sweep command is a W3-only concept introduced to compensate for W3's
+        // compact non-PSBT protocol.
+        throw NfcException.CommandError(
+            message: "sweepTransaction is not supported on W1 hardware. Use signTransaction instead.",
+            cause: nil
+        ).asError()
+    }
+
     public func startFingerprintEnrollment(
         session: NfcSession,
         fingerprintHandle: Shared.FingerprintHandle

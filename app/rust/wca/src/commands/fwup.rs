@@ -208,7 +208,13 @@ mod tests {
 
     #[test]
     fn fwup_start_success() -> Result<(), CommandError> {
-        let command = FwupStart::new(None, FwupMode::Normal, McuRole::Core, "1.2.3".to_string(), false);
+        let command = FwupStart::new(
+            None,
+            FwupMode::Normal,
+            McuRole::Core,
+            "1.2.3".to_string(),
+            false,
+        );
         command.next(Vec::default())?;
 
         let response = make_response(WalletRsp {
@@ -232,7 +238,13 @@ mod tests {
 
     #[test]
     fn fwup_start_confirmation_pending() -> Result<(), CommandError> {
-        let command = FwupStart::new(None, FwupMode::Normal, McuRole::Core, "1.2.3".to_string(), false);
+        let command = FwupStart::new(
+            None,
+            FwupMode::Normal,
+            McuRole::Core,
+            "1.2.3".to_string(),
+            false,
+        );
         command.next(Vec::default())?;
 
         let response_handle = vec![0x01, 0x02, 0x03, 0x04];
@@ -266,8 +278,13 @@ mod tests {
     #[test]
     fn fwup_start_with_defer_commit() -> Result<(), CommandError> {
         // Verify that fwup_start with defer_commit=true works end-to-end
-        let command =
-            FwupStart::new(None, FwupMode::Normal, McuRole::Uxc, "2.0.0".to_string(), true);
+        let command = FwupStart::new(
+            None,
+            FwupMode::Normal,
+            McuRole::Uxc,
+            "2.0.0".to_string(),
+            true,
+        );
         command.next(Vec::default())?;
 
         let response = make_response(WalletRsp {
@@ -291,7 +308,13 @@ mod tests {
 
     #[test]
     fn fwup_start_error() {
-        let command = FwupStart::new(None, FwupMode::Normal, McuRole::Core, "1.2.3".to_string(), false);
+        let command = FwupStart::new(
+            None,
+            FwupMode::Normal,
+            McuRole::Core,
+            "1.2.3".to_string(),
+            false,
+        );
         command.next(Vec::default()).unwrap();
 
         let response = make_response(WalletRsp {

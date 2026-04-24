@@ -14,7 +14,6 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
-import build.wallet.ui.components.loading.CircularLoadingBadge
 import build.wallet.ui.components.loading.LoadingBadge
 import build.wallet.ui.compose.scalingClickable
 import build.wallet.ui.model.icon.IconImage
@@ -48,7 +47,6 @@ fun PartnerActionButton(
   buttonBackgroundColor: Color? = null,
   labelType: LabelType = LabelType.Body4Regular,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
   val resolvedButtonBackgroundColor = buttonBackgroundColor ?: WalletTheme.colors.foreground10
 
   Column(
@@ -71,17 +69,10 @@ fun PartnerActionButton(
       contentAlignment = Alignment.Center
     ) {
       if (isLoading) {
-        if (isDesignSystemV2Enabled) {
-          CircularLoadingBadge(
-            modifier = Modifier.size(24.dp),
-            color = WalletTheme.colors.foreground
-          )
-        } else {
-          LoadingBadge(
-            modifier = Modifier.size(24.dp),
-            color = WalletTheme.colors.foreground
-          )
-        }
+        LoadingBadge(
+          modifier = Modifier.size(24.dp),
+          color = WalletTheme.colors.foreground
+        )
       } else {
         IconImage(
           model = iconModel,

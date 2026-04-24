@@ -14,10 +14,10 @@
 
 #define LEGACY_DONE_TEXT      "Success"
 #define LEGACY_DONE_TEXT_ALT  "SUCCESS"
-#define DONE_DISPLAY_TEXT     "Done"
-#define SIGNING_TEXT          "Signing..."
-#define LEGACY_SIGNING_TEXT   "SIGNING..."
-#define SIGNING_RING_TAIL_OPA 38
+#define DONE_DISPLAY_TEXT     "DONE"
+#define SIGNING_TEXT          "SIGNING..."
+#define LEGACY_SIGNING_TEXT   "Signing..."
+#define SIGNING_RING_TAIL_OPA LV_OPA_70
 
 #define COLOR_GREEN    lv_color_make(0xD1, 0xFB, 0x96)
 #define COLOR_INACTIVE lv_color_hex(0x404040)
@@ -172,7 +172,7 @@ lv_obj_t* screen_confirmation_init(void* ctx) {
 
   if (use_loading_variant) {
     loading_ring_create(screen, &loading_ring);
-    loading_ring_set_palette(&loading_ring, 0xFF, 0xFF, 0xFF, 0x33, 0x33, 0x33,
+    loading_ring_set_palette(&loading_ring, 0xFF, 0xFF, 0xFF, 0x40, 0x40, 0x40,
                              SIGNING_RING_TAIL_OPA);
     loading_ring_start(&loading_ring);
   } else {
@@ -184,7 +184,7 @@ lv_obj_t* screen_confirmation_init(void* ctx) {
       return NULL;
     }
     lv_img_set_src(icon, success_icon_dsc);
-    lv_obj_set_style_img_recolor(icon, COLOR_GREEN, 0);
+    lv_obj_set_style_img_recolor(icon, lv_color_white(), 0);
     lv_obj_set_style_img_recolor_opa(icon, LV_OPA_COVER, 0);
     lv_obj_set_style_img_opa(icon, LV_OPA_TRANSP, 0);
   }
@@ -194,7 +194,7 @@ lv_obj_t* screen_confirmation_init(void* ctx) {
     return NULL;
   }
   lv_label_set_text(label, get_success_content_text());
-  lv_obj_set_style_text_color(label, use_loading_variant ? lv_color_white() : COLOR_GREEN, 0);
+  lv_obj_set_style_text_color(label, lv_color_white(), 0);
   lv_obj_set_style_text_font(label, use_loading_variant ? FONT_TEXT_LOADING : FONT_TEXT_SUCCESS, 0);
   if (use_loading_variant) {
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);

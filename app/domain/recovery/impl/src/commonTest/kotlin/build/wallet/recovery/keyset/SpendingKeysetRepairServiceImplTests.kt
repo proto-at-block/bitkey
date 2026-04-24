@@ -8,6 +8,7 @@ import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus
 import build.wallet.bitcoin.keys.DescriptorPublicKeyMock
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.bitkey.keybox.PrivateWalletKeyboxMock
 import build.wallet.bitkey.spending.HwSpendingPublicKeyMock
 import build.wallet.cloud.backup.CloudBackupServiceFake
 import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
@@ -33,6 +34,7 @@ import build.wallet.ktor.result.HttpError
 import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.recovery.DescriptorBackupServiceFake
+import build.wallet.recovery.createFakeLegacyRemoteKeyset
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Err
@@ -153,6 +155,43 @@ class SpendingKeysetRepairServiceImplTests : FunSpec({
       val status = service.syncStatus.value
       status.shouldBeInstanceOf<SpendingKeysetSyncStatus.Unknown>()
     }
+
+    test("returns IncompletePrivateWallet when private wallet keybox is not authoritative") {
+      val privateAccount = FullAccountMock.copy(
+        keybox = PrivateWalletKeyboxMock.copy(
+          keysets = listOf(PrivateWalletKeyboxMock.activeSpendingKeyset),
+          canUseKeyboxKeysets = false
+        )
+      )
+      accountService.setActiveAccount(privateAccount)
+      listKeysetsF8eClient.result = Ok(
+        ListKeysetsResponse(
+          keysets = listOf(
+            createFakeLegacyRemoteKeyset("legacy-keyset-1"),
+            PrivateMultisigRemoteKeyset(
+              keysetId = privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
+              networkType = "SIGNET",
+              appPublicKey = privateAccount.keybox.activeSpendingKeyset.appKey.key.dpub,
+              hardwarePublicKey = privateAccount.keybox.activeSpendingKeyset.hardwareKey.key.dpub,
+              serverPublicKey =
+                privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey.key.dpub
+            )
+          ),
+          wrappedSsek = null,
+          descriptorBackups = emptyList(),
+          activeKeysetId = privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
+        )
+      )
+
+      val service = service()
+      service.executeWork()
+
+      val status = service.syncStatus.value
+      status.shouldBeInstanceOf<SpendingKeysetSyncStatus.IncompletePrivateWallet>()
+      status.activeKeysetId.shouldBe(
+        privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
+      )
+    }
   }
 
   context("checkPrivateKeysets") {
@@ -213,6 +252,138 @@ class SpendingKeysetRepairServiceImplTests : FunSpec({
       val info = result.shouldBeOk()
       info.shouldBeInstanceOf<PrivateKeysetInfo.NeedsUnsealing>()
       info.cachedResponseData.serverActiveKeysetId.shouldBe("private-keyset-1")
+    }
+
+    test("returns None when only the active private keyset needs to be reconstructed") {
+      val privateAccount = FullAccountMock.copy(
+        keybox = PrivateWalletKeyboxMock.copy(
+          keysets = listOf(PrivateWalletKeyboxMock.activeSpendingKeyset),
+          canUseKeyboxKeysets = false
+        )
+      )
+      accountService.setActiveAccount(privateAccount)
+
+      val activeKeysetId = privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
+      listKeysetsF8eClient.result = Ok(
+        ListKeysetsResponse(
+          keysets = listOf(
+            createFakeLegacyRemoteKeyset("legacy-keyset-1"),
+            PrivateMultisigRemoteKeyset(
+              keysetId = activeKeysetId,
+              networkType = "SIGNET",
+              appPublicKey = privateAccount.keybox.activeSpendingKeyset.appKey.key.dpub,
+              hardwarePublicKey = privateAccount.keybox.activeSpendingKeyset.hardwareKey.key.dpub,
+              serverPublicKey =
+                privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey.key.dpub
+            )
+          ),
+          wrappedSsek = SealedSsekFake,
+          descriptorBackups = listOf(
+            DescriptorBackup(
+              keysetId = activeKeysetId,
+              sealedDescriptor = XCiphertext("fake-sealed-descriptor"),
+              privateWalletRootXpub = XCiphertext("fake-private-wallet-root-xpub")
+            )
+          ),
+          activeKeysetId = activeKeysetId
+        )
+      )
+
+      val result = service().checkPrivateKeysets(privateAccount)
+
+      val info = result.shouldBeOk()
+      info.shouldBeInstanceOf<PrivateKeysetInfo.None>()
+      info.cachedResponseData.serverActiveKeysetId.shouldBe(activeKeysetId)
+    }
+
+    test("returns NeedsUnsealing when multiple private keysets exist") {
+      val privateAccount = FullAccountMock.copy(
+        keybox = PrivateWalletKeyboxMock.copy(
+          keysets = listOf(PrivateWalletKeyboxMock.activeSpendingKeyset),
+          canUseKeyboxKeysets = false
+        )
+      )
+      accountService.setActiveAccount(privateAccount)
+
+      listKeysetsF8eClient.result = Ok(
+        ListKeysetsResponse(
+          keysets = listOf(
+            PrivateMultisigRemoteKeyset(
+              keysetId = privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
+              networkType = "SIGNET",
+              appPublicKey = privateAccount.keybox.activeSpendingKeyset.appKey.key.dpub,
+              hardwarePublicKey = privateAccount.keybox.activeSpendingKeyset.hardwareKey.key.dpub,
+              serverPublicKey =
+                privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey.key.dpub
+            ),
+            PrivateMultisigRemoteKeyset(
+              keysetId = "private-keyset-2",
+              networkType = "SIGNET",
+              appPublicKey = DescriptorPublicKeyMock(identifier = "private-app-2").dpub,
+              hardwarePublicKey = DescriptorPublicKeyMock(identifier = "private-hw-2").dpub,
+              serverPublicKey = DescriptorPublicKeyMock(identifier = "private-server-2").dpub
+            )
+          ),
+          wrappedSsek = SealedSsekFake,
+          descriptorBackups = listOf(
+            DescriptorBackup(
+              keysetId = privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
+              sealedDescriptor = XCiphertext("fake-sealed-descriptor-1"),
+              privateWalletRootXpub = XCiphertext("fake-private-wallet-root-xpub-1")
+            ),
+            DescriptorBackup(
+              keysetId = "private-keyset-2",
+              sealedDescriptor = XCiphertext("fake-sealed-descriptor-2"),
+              privateWalletRootXpub = XCiphertext("fake-private-wallet-root-xpub-2")
+            )
+          ),
+          activeKeysetId = privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
+        )
+      )
+
+      val result = service().checkPrivateKeysets(privateAccount)
+
+      val info = result.shouldBeOk()
+      info.shouldBeInstanceOf<PrivateKeysetInfo.NeedsUnsealing>()
+    }
+
+    test("returns error when private keysets require descriptor backups but none are available") {
+      val privateAccount = FullAccountMock.copy(
+        keybox = PrivateWalletKeyboxMock.copy(
+          keysets = listOf(PrivateWalletKeyboxMock.activeSpendingKeyset),
+          canUseKeyboxKeysets = false
+        )
+      )
+      accountService.setActiveAccount(privateAccount)
+
+      listKeysetsF8eClient.result = Ok(
+        ListKeysetsResponse(
+          keysets = listOf(
+            PrivateMultisigRemoteKeyset(
+              keysetId = privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
+              networkType = "SIGNET",
+              appPublicKey = privateAccount.keybox.activeSpendingKeyset.appKey.key.dpub,
+              hardwarePublicKey = privateAccount.keybox.activeSpendingKeyset.hardwareKey.key.dpub,
+              serverPublicKey =
+                privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey.key.dpub
+            ),
+            PrivateMultisigRemoteKeyset(
+              keysetId = "private-keyset-2",
+              networkType = "SIGNET",
+              appPublicKey = DescriptorPublicKeyMock(identifier = "private-app-2").dpub,
+              hardwarePublicKey = DescriptorPublicKeyMock(identifier = "private-hw-2").dpub,
+              serverPublicKey = DescriptorPublicKeyMock(identifier = "private-server-2").dpub
+            )
+          ),
+          wrappedSsek = null,
+          descriptorBackups = emptyList(),
+          activeKeysetId = privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
+        )
+      )
+
+      val result = service().checkPrivateKeysets(privateAccount)
+
+      result.shouldBeErrOfType<KeysetRepairError.FetchKeysetsFailed>()
     }
 
     test("returns error when network request fails") {
@@ -306,6 +477,62 @@ class SpendingKeysetRepairServiceImplTests : FunSpec({
       )
 
       result.shouldBeErrOfType<KeysetRepairError.FetchKeysetsFailed>()
+    }
+
+    test("repairs incomplete private wallet keybox directly from listKeysets response") {
+      val privateAccount = FullAccountMock.copy(
+        keybox = PrivateWalletKeyboxMock.copy(
+          keysets = listOf(PrivateWalletKeyboxMock.activeSpendingKeyset),
+          canUseKeyboxKeysets = false
+        )
+      )
+      accountService.setActiveAccount(privateAccount)
+
+      val activePrivateKeysetId =
+        privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
+      val cachedData = KeysetRepairCachedData(
+        response = ListKeysetsResponse(
+          keysets = listOf(
+            createFakeLegacyRemoteKeyset("legacy-keyset-1"),
+            PrivateMultisigRemoteKeyset(
+              keysetId = activePrivateKeysetId,
+              networkType = "SIGNET",
+              appPublicKey = privateAccount.keybox.activeSpendingKeyset.appKey.key.dpub,
+              hardwarePublicKey = privateAccount.keybox.activeSpendingKeyset.hardwareKey.key.dpub,
+              serverPublicKey =
+                privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey.key.dpub
+            )
+          ),
+          wrappedSsek = null,
+          descriptorBackups = emptyList(),
+          activeKeysetId = activePrivateKeysetId
+        ),
+        serverActiveKeysetId = activePrivateKeysetId
+      )
+
+      cloudStoreAccountRepository.currentAccountResult = Ok(testCloudStoreAccount)
+      cloudBackupService.writeBackup(
+        accountId = privateAccount.accountId,
+        cloudStoreAccount = testCloudStoreAccount,
+        backup = CloudBackupV2WithFullAccountMock,
+        requireAuthRefresh = false
+      )
+      fullAccountCloudBackupCreator.backupResult = Ok(CloudBackupV2WithFullAccountMock)
+
+      val result = service().attemptRepair(
+        account = privateAccount,
+        cachedData = cachedData
+      )
+
+      val repairComplete = result.shouldBeOk()
+      repairComplete.updatedKeybox.canUseKeyboxKeysets.shouldBe(true)
+      repairComplete.updatedKeybox.activeSpendingKeyset.shouldBe(
+        privateAccount.keybox.activeSpendingKeyset
+      )
+      repairComplete.updatedKeybox.keysets.map { it.f8eSpendingKeyset.keysetId }.sorted().shouldBe(
+        listOf("legacy-keyset-1", activePrivateKeysetId).sorted()
+      )
+      fullAccountCloudBackupCreator.createCalls.awaitItem()
     }
 
     test("returns error when cloud account not available") {

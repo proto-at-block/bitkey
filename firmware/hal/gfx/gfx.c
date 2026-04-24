@@ -92,9 +92,11 @@ typedef enum {
 #define MADCTL_MX  (1 << 6)  // Column Address Order (0=left-to-right, 1=right-to-left)
 #define MADCTL_BGR (1 << 3)  // RGB/BGR Order (0=RGB, 1=BGR)
 
-#define ICNA_RESET_PULSE_MS 10
-#define ICNA_RESET_DELAY_MS 120
-
+#define ICNA_RESET_PULSE_MS              10
+#define ICNA_RESET_DELAY_MS              120
+#define DISPLAY_INIT_MAX_ATTEMPTS        3
+#define DISPLAY_REG_WRITE_MAX_ATTEMPTS   3
+#define DISPLAY_REG_WRITE_RETRY_DELAY_MS 1
 typedef struct {
   gfx_flush_complete_cb_t user_cb;
   void* user_data;
@@ -221,9 +223,20 @@ static void write_reg(uint8_t reg, const uint8_t* params, size_t param_len) {
     cmd.data_length = 0;  // Command only, no data phase
   }
 
-  mcu_err_t res = mcu_qspi_command(&display_qspi_state, &cmd, params, NULL);
-  if (res != MCU_ERROR_OK) {
-    LOGE("QSPI wr %02X: %d", reg, res);
+  for (uint32_t attempt = 1; attempt <= DISPLAY_REG_WRITE_MAX_ATTEMPTS; attempt++) {
+    mcu_err_t res = mcu_qspi_command(&display_qspi_state, &cmd, params, NULL);
+    if (res == MCU_ERROR_OK) {
+      return;
+    }
+
+    if (attempt < DISPLAY_REG_WRITE_MAX_ATTEMPTS) {
+      LOGW("QSPI wr %02X: %d, retrying attempt %u/%u", reg, res, (unsigned)(attempt + 1),
+           DISPLAY_REG_WRITE_MAX_ATTEMPTS);
+      rtos_thread_sleep(DISPLAY_REG_WRITE_RETRY_DELAY_MS);
+      continue;
+    }
+
+    LOGE("QSPI wr %02X: %d after %u attempts", reg, res, DISPLAY_REG_WRITE_MAX_ATTEMPTS);
   }
 }
 
@@ -245,8 +258,7 @@ static bool read_reg(uint8_t reg, uint8_t* rx_buffer, size_t rx_len) {
   cmd.address_size = 3;
   cmd.address_mode = MCU_QSPI_MODE_SPI;
 
-  // Dummy cycle required for read
-  cmd.dummy_cycles = 1;
+  cmd.dummy_cycles = 0;
 
   // WORKAROUND: The ILI8688F display controller has non-standard SPI read behavior:
   // - It accepts standard single-wire SPI read commands (0x03 on D0)
@@ -361,6 +373,12 @@ static void display_reset(const gfx_config_t* gfx_config) {
   rtos_thread_sleep(ICNA_RESET_DELAY_MS);
 }
 
+static void display_set_register_reads_enabled_locked(bool enable) {
+  set_page(0x01);
+  write_reg(0xFD, (uint8_t[]){0x00, enable ? 0x81 : 0x00, 0x00}, 3);
+  rtos_thread_sleep(1);
+}
+
 // Write registers from a configuration table
 static void write_register_table(const display_reg_config_t* table, size_t table_size) {
   uint8_t last_page = 0xFF;
@@ -390,16 +408,14 @@ static void write_register_table(const display_reg_config_t* table, size_t table
 }
 
 // Verify registers from a configuration table
-static void verify_register_table(const display_reg_config_t* table, size_t table_size,
+static bool verify_register_table(const display_reg_config_t* table, size_t table_size,
                                   const char* table_name) {
   uint8_t last_page = 0xFF;
   uint32_t pass_count = 0;
   uint32_t fail_count = 0;
 
   // Enable read mode once
-  set_page(0x01);
-  write_reg(0xFD, (uint8_t[]){0x00, 0x81, 0x00}, 3);  // Enable read
-  rtos_thread_sleep(1);
+  display_set_register_reads_enabled_locked(true);
 
   // Verify all registers marked for verification
   for (size_t i = 0; i < table_size; i++) {
@@ -434,20 +450,18 @@ static void verify_register_table(const display_reg_config_t* table, size_t tabl
   }
 
   // Disable read mode
-  set_page(0x01);
-  write_reg(0xFD, (uint8_t[]){0x00, 0x00, 0x00}, 3);  // Disable read
-  rtos_thread_sleep(1);
+  display_set_register_reads_enabled_locked(false);
 
   if (fail_count > 0) {
     LOGW("%s verification: %lu passed, %lu failed", table_name, pass_count, fail_count);
   }
+
+  return fail_count == 0;
 }
 
 static display_hw_revision_t read_display_hw_revision(void) {
   // Enable read mode
-  set_page(0x01);
-  write_reg(0xFD, (uint8_t[]){0x00, 0x81, 0x00}, 3);
-  rtos_thread_sleep(1);
+  display_set_register_reads_enabled_locked(true);
 
   // Switch to page 0 where ID registers are located
   set_page(0x00);
@@ -463,9 +477,7 @@ static display_hw_revision_t read_display_hw_revision(void) {
   success &= read_reg(DISPLAY_REG_REVISION_ID, &revision_id, 1);
 
   // Disable read mode
-  set_page(0x01);
-  write_reg(0xFD, (uint8_t[]){0x00, 0x00, 0x00}, 3);
-  rtos_thread_sleep(1);
+  display_set_register_reads_enabled_locked(false);
 
   display_hw_revision_t hw_rev = DISPLAY_HW_UNKNOWN;
 
@@ -526,32 +538,57 @@ void gfx_init(const gfx_config_t* gfx_config) {
   rtos_mutex_create(&fps_mutex);
   rtos_mutex_create(&qspi_mutex);
 
-  display_reset(gfx_config);
+  bool init_ok = false;
+  for (uint32_t attempt = 1; attempt <= DISPLAY_INIT_MAX_ATTEMPTS; attempt++) {
+    rtos_mutex_lock(&qspi_mutex);
 
-  // Read display hardware revision to determine init sequence
-  display_hw_revision_t hw_rev = read_display_hw_revision();
+    display_reset(gfx_config);
 
-  // Write OTP config for EVT/PDVT displays (DVT displays have OTP already programmed)
-  // For unknown hardware, apply OTP config as a safe fallback
-  bool otp_written = false;
-  if (hw_rev == DISPLAY_HW_EVT_PDVT || hw_rev == DISPLAY_HW_UNKNOWN) {
-    if (hw_rev == DISPLAY_HW_UNKNOWN) {
-      LOGW("Disp rev unk, OTP");
+    // Read display hardware revision to determine init sequence
+    display_hw_revision_t hw_rev = read_display_hw_revision();
+
+    // Write OTP config for EVT/PDVT displays (DVT displays have OTP already programmed)
+    // For unknown hardware, apply OTP config as a safe fallback
+    bool otp_written = false;
+    if (hw_rev == DISPLAY_HW_EVT_PDVT || hw_rev == DISPLAY_HW_UNKNOWN) {
+      if (hw_rev == DISPLAY_HW_UNKNOWN) {
+        LOGW("Disp rev unk, OTP");
+      }
+      write_register_table(display_otp_config_table, display_otp_config_table_size);
+      otp_written = true;
     }
-    write_register_table(display_otp_config_table, display_otp_config_table_size);
-    otp_written = true;
+
+    // Write common initialization registers for all displays
+    write_register_table(display_init_table, display_init_table_size);
+
+    // Verify registers
+    init_ok = true;
+    if (otp_written) {
+      init_ok &= verify_register_table(display_otp_config_table, display_otp_config_table_size,
+                                       "OTP config");
+    }
+    init_ok &= verify_register_table(display_init_table, display_init_table_size, "Init");
+
+    set_page(0x00);
+
+    rtos_mutex_unlock(&qspi_mutex);
+
+    if (init_ok) {
+      break;
+    }
+
+    if (attempt < DISPLAY_INIT_MAX_ATTEMPTS) {
+      LOGW("Display init verification failed, retrying (%u/%u)", (unsigned)(attempt + 1),
+           DISPLAY_INIT_MAX_ATTEMPTS);
+    }
   }
 
-  // Write common initialization registers for all displays
-  write_register_table(display_init_table, display_init_table_size);
-
-  // Verify registers
-  if (otp_written) {
-    verify_register_table(display_otp_config_table, display_otp_config_table_size, "OTP config");
+  if (!init_ok) {
+    LOGE("Display init failed after %u attempts", DISPLAY_INIT_MAX_ATTEMPTS);
   }
-  verify_register_table(display_init_table, display_init_table_size, "Init");
 
-  set_page(0);  // Return to page 0
+  te_has_pulse = false;
+  te_last_pulse_us = 0;
 }
 
 void gfx_set_brightness(uint8_t level, bool verify) {
@@ -571,17 +608,13 @@ void gfx_set_brightness(uint8_t level, bool verify) {
 
     // Read back to verify the display accepted the value
     rtos_mutex_lock(&qspi_mutex);
-    set_page(0x01);
-    write_reg(0xFD, (uint8_t[]){0x00, 0x81, 0x00}, 3);  // Enable read
-    rtos_thread_sleep(1);
+    display_set_register_reads_enabled_locked(true);
     set_page(0x00);
 
     uint8_t read_val = 0xFF;
     bool read_ok = read_reg(CMD_RDDISBV, &read_val, 1);
 
-    set_page(0x01);
-    write_reg(0xFD, (uint8_t[]){0x00, 0x00, 0x00}, 3);  // Disable read
-    rtos_thread_sleep(1);
+    display_set_register_reads_enabled_locked(false);
     set_page(0x00);
     rtos_mutex_unlock(&qspi_mutex);
 

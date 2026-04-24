@@ -17,8 +17,11 @@ import build.wallet.nfc.platform.ConfirmationHandlesFake
 import build.wallet.nfc.platform.ConfirmationResult
 import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.SweepSigningContext
+import build.wallet.nfc.platform.SweepXpub
 import build.wallet.nfc.platform.confirmationResultMapper
 import build.wallet.nfc.platform.toSessionFn
+import okio.ByteString.Companion.toByteString
 import build.wallet.sqldelight.inMemorySqlDriver
 import com.github.michaelbull.result.Ok
 import io.kotest.assertions.throwables.shouldThrow
@@ -154,6 +157,55 @@ class SignTransactionW3IntegrationTests : FunSpec({
       shouldThrow<NfcException.UserDenied> {
         emulatedPrompt.deny.fetchResult(session, w3CommandsFake)
       }
+    }
+  }
+
+  // ========================================================================
+  // W3 sweep signing flow
+  // ========================================================================
+
+  context("W3 sweep signing flow") {
+    fun sweepContextFake(oldAccountIndex: UInt = 5u): SweepSigningContext = SweepSigningContext(
+      oldAccountIndex = oldAccountIndex,
+      oldAppXpub = SweepXpub(
+        pubkey = ByteArray(33) { 0x02 }.toByteString(),
+        chaincode = ByteArray(32) { 0xab.toByte() }.toByteString()
+      ),
+      oldServerXpub = SweepXpub(
+        pubkey = ByteArray(33) { 0x03 }.toByteString(),
+        chaincode = ByteArray(32) { 0xcd.toByte() }.toByteString()
+      )
+    )
+
+    test("sweepTransaction routes through dedicated prompt and records sweep context") {
+      val session = NfcSessionFake.invoke()
+      val ctx = sweepContextFake(oldAccountIndex = 7u)
+
+      val interaction = w3CommandsFake.sweepTransaction(
+        session = session,
+        psbt = PsbtMock,
+        spendingKeyset = SpendingKeysetMock,
+        sweepContext = ctx
+      )
+
+      // Sweep signing returns the same RequiresConfirmation shape as normal
+      // signing (same proto response path), so the fake surfaces the same
+      // emulated-prompt wrapper.
+      interaction.shouldBeInstanceOf<HardwareInteraction.ConfirmWithEmulatedPrompt<*>>()
+      w3CommandsFake.lastSweepContext.shouldNotBeNull()
+      w3CommandsFake.lastSweepContext?.oldAccountIndex.shouldBe(7u)
+    }
+
+    test("signTransaction leaves sweep context untouched (normal path does not touch sweep state)") {
+      val session = NfcSessionFake.invoke()
+
+      w3CommandsFake.signTransaction(
+        session = session,
+        psbt = PsbtMock,
+        spendingKeyset = SpendingKeysetMock
+      )
+
+      w3CommandsFake.lastSweepContext.shouldBe(null)
     }
   }
 

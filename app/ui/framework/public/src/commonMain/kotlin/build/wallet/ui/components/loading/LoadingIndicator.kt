@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import bitkey.ui.framework_public.generated.resources.Res
@@ -102,21 +103,6 @@ fun LoadingBadge(
   }
 }
 
-@Composable
-fun CircularLoadingBadge(
-  modifier: Modifier = Modifier,
-  color: Color = WalletTheme.colors.foreground,
-) {
-  LoadingBadge(
-    modifier = modifier,
-    color = color
-  )
-}
-
-@Composable
-fun CircularLoadingBadgePainter(color: Color? = null): Painter =
-  LoadingBadgePainter(color = color)
-
 @OptIn(ExperimentalResourceApi::class, ExperimentalCompottieApi::class)
 @Composable
 fun LoadingBadgePainter(color: Color? = null): Painter {
@@ -127,10 +113,10 @@ fun LoadingBadgePainter(color: Color? = null): Painter {
 
   // Apply the given color to the lottie animation
   val dynamicProperties = rememberLottieDynamicProperties(color) {
-    color?.let {
+    color?.takeIf { it.isSpecified }?.let { tintColor ->
       shapeLayer("Shape Layer 2") {
         stroke {
-          colorFilter { ColorFilter.tint(color) }
+          colorFilter { ColorFilter.tint(tintColor) }
         }
       }
     }

@@ -44,7 +44,7 @@ fun WalletTheme.iconStyle(
             Color.Unspecified
           }
         is UrlImage, IconImage.Loader -> color
-        IconImage.LoadingBadge, IconImage.CircularLoadingBadge -> Color.Unspecified
+        IconImage.LoadingBadge -> Color.Unspecified
       }
   )
 }

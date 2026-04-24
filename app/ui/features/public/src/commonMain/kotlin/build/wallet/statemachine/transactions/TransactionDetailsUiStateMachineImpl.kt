@@ -22,8 +22,6 @@ import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -62,7 +60,6 @@ import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -71,7 +68,6 @@ import kotlinx.datetime.toLocalDateTime
 
 @BitkeyInject(ActivityScope::class)
 class TransactionDetailsUiStateMachineImpl(
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
   private val bitcoinExplorer: BitcoinExplorer,
   private val timeZoneProvider: TimeZoneProvider,
   private val dateTimeFormatter: DateTimeFormatter,
@@ -97,10 +93,6 @@ class TransactionDetailsUiStateMachineImpl(
     var uiState: UiState by remember {
       mutableStateOf(ShowingTransactionDetailUiState(props.transaction))
     }
-
-    val isDesignSystemV2Enabled by remember {
-      designSystemUpdatesFeatureFlag.flagValue().map { it.isEnabled() }
-    }.collectAsState(initial = designSystemUpdatesFeatureFlag.isEnabled())
 
     val transaction by remember(props.transaction.id) {
       transactionsActivityService.transactionById(props.transaction.id)
@@ -185,7 +177,6 @@ class TransactionDetailsUiStateMachineImpl(
         val transactionDetailModel = bitcoinTransactionDetailModel(
           transaction = transaction,
           isLoading = isPreparingSpeedUp,
-          useCircularPendingIndicator = isDesignSystemV2Enabled,
           onViewSpeedUpEducation = {
             isShowingEducationSheet = true
           },
@@ -373,7 +364,6 @@ class TransactionDetailsUiStateMachineImpl(
     feeBumpEnabled: Boolean,
     onViewSpeedUpEducation: () -> Unit,
     onTransactionIdCopy: () -> Unit,
-    useCircularPendingIndicator: Boolean,
   ): ImmutableList<FormMainContentModel> {
     val coroutineScope = rememberStableCoroutineScope()
 
@@ -494,11 +484,7 @@ class TransactionDetailsUiStateMachineImpl(
     )
 
     val stepper = when (transaction.confirmationStatus) {
-      Pending -> if (useCircularPendingIndicator) {
-        processingTransactionStepperDesignSystemV2
-      } else {
-        processingTransactionStepper
-      }
+      Pending -> processingTransactionStepper
       is Confirmed -> completeTransactionStepper
     }
 
@@ -589,7 +575,6 @@ class TransactionDetailsUiStateMachineImpl(
   private fun bitcoinTransactionDetailModel(
     transaction: Transaction,
     isLoading: Boolean,
-    useCircularPendingIndicator: Boolean,
     viewTransactionText: String?,
     onViewTransaction: () -> Unit,
     onClose: () -> Unit,
@@ -633,8 +618,7 @@ class TransactionDetailsUiStateMachineImpl(
           transaction = transaction.details,
           feeBumpEnabled = feeBumpEnabled,
           onViewSpeedUpEducation = onViewSpeedUpEducation,
-          onTransactionIdCopy = onTransactionIdCopy,
-          useCircularPendingIndicator = useCircularPendingIndicator
+          onTransactionIdCopy = onTransactionIdCopy
         )
 
         is Transaction.PartnershipTransaction -> if (transaction.bitcoinTransaction != null) {
@@ -642,8 +626,7 @@ class TransactionDetailsUiStateMachineImpl(
             transaction = requireNotNull(transaction.bitcoinTransaction),
             feeBumpEnabled = feeBumpEnabled,
             onViewSpeedUpEducation = onViewSpeedUpEducation,
-            onTransactionIdCopy = onTransactionIdCopy,
-            useCircularPendingIndicator = useCircularPendingIndicator
+            onTransactionIdCopy = onTransactionIdCopy
           )
         } else {
           partnershipTransactionFormContent(

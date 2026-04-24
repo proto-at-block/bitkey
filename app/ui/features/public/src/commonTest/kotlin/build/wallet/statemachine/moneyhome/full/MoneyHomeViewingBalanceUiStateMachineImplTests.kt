@@ -43,6 +43,8 @@ import build.wallet.statemachine.trustedcontact.view.ViewingInvitationUiStateMac
 import build.wallet.statemachine.trustedcontact.view.ViewingRecoveryContactProps
 import build.wallet.statemachine.trustedcontact.view.ViewingRecoveryContactUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.walletmigration.W3UpgradeCompleteSheetBodyModel
 import build.wallet.wallet.migration.MigrationProgress
 import build.wallet.wallet.migration.MigrationServiceFake
 import build.wallet.wallet.migration.MigrationType
@@ -54,6 +56,7 @@ import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 
 class MoneyHomeViewingBalanceUiStateMachineImplTests : FunSpec({
   val coachmarkService = CoachmarkServiceMock(
@@ -191,119 +194,28 @@ class MoneyHomeViewingBalanceUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("displays W3 upgrade completion coachmark when launched from completed upgrade") {
-    coachmarkService.defaultCoachmarks = listOf(
-      CoachmarkIdentifier.W3UpgradeCompleteCoachmark
-    )
+  test("displays W3 upgrade completion sheet over money home when requested") {
     bitcoinWalletService.transactionsData.value = TransactionsDataMock
 
     stateMachine.test(
       props.copy(
-        state = ViewingBalanceUiState(showW3UpgradeCompleteCoachmark = true)
+        state = ViewingBalanceUiState(
+          bottomSheetDisplayState =
+            ViewingBalanceUiState.BottomSheetDisplayState.W3UpgradeComplete
+        )
       )
     ) {
-      awaitBody<MoneyHomeBodyModel>()
-
-      awaitBody<MoneyHomeBodyModel> {
-        coachmark.shouldNotBeNull()
-        coachmark.identifier.shouldBe(CoachmarkIdentifier.W3UpgradeCompleteCoachmark)
-        coachmark.title.shouldBe("Your wallet is ready")
-        coachmark.description.shouldBe("Start using your new Bitkey device anytime.")
-        coachmark.dismiss()
+      awaitUntilScreenWithBody<MoneyHomeBodyModel>(
+        matchingScreen = { it.bottomSheetModel?.body is W3UpgradeCompleteSheetBodyModel }
+      ) {
+        bottomSheetModel.shouldNotBeNull()
+          .body.shouldBeInstanceOf<W3UpgradeCompleteSheetBodyModel>()
+          .onDone()
       }
 
       setStateCalls.awaitItem().shouldBe(
-        ViewingBalanceUiState(showW3UpgradeCompleteCoachmark = false)
+        ViewingBalanceUiState(bottomSheetDisplayState = null)
       )
-      coachmarkService.markDisplayedTurbine.awaitItem().shouldBe(
-        CoachmarkIdentifier.W3UpgradeCompleteCoachmark
-      )
-
-      awaitBody<MoneyHomeBodyModel> {
-        coachmark.shouldBeNull()
-      }
-    }
-  }
-
-  test("does not display W3 upgrade completion coachmark when coachmark service suppresses it") {
-    bitcoinWalletService.transactionsData.value = TransactionsDataMock
-
-    stateMachine.test(
-      props.copy(
-        state = ViewingBalanceUiState(showW3UpgradeCompleteCoachmark = true)
-      )
-    ) {
-      awaitBody<MoneyHomeBodyModel> {
-        coachmark.shouldBeNull()
-      }
-
-      coachmarkService.markDisplayedTurbine.expectNoEvents()
-      setStateCalls.expectNoEvents()
-      eventTracker.eventCalls.expectNoEvents()
-    }
-  }
-
-  test("does not request W3 upgrade completion coachmark until balance data is loaded") {
-    coachmarkService.defaultCoachmarks = listOf(
-      CoachmarkIdentifier.W3UpgradeCompleteCoachmark
-    )
-    bitcoinWalletService.transactionsData.value = null
-
-    stateMachine.test(
-      props.copy(
-        state = ViewingBalanceUiState(showW3UpgradeCompleteCoachmark = true)
-      )
-    ) {
-      awaitBody<MoneyHomeBodyModel> {
-        coachmark.shouldBeNull()
-      }
-
-      coachmarkService.coachmarksToDisplayRequestsTurbine.awaitUntil(
-        setOf(
-          CoachmarkIdentifier.Bip177Coachmark,
-          CoachmarkIdentifier.PrivateWalletHomeCoachmark
-        )
-      )
-
-      bitcoinWalletService.transactionsData.value = TransactionsDataMock
-
-      awaitBody<MoneyHomeBodyModel> {
-        coachmark.shouldNotBeNull()
-        coachmark.identifier.shouldBe(CoachmarkIdentifier.W3UpgradeCompleteCoachmark)
-      }
-
-      coachmarkService.coachmarksToDisplayRequestsTurbine.awaitUntil(
-        setOf(
-          CoachmarkIdentifier.Bip177Coachmark,
-          CoachmarkIdentifier.PrivateWalletHomeCoachmark,
-          CoachmarkIdentifier.W3UpgradeCompleteCoachmark
-        )
-      )
-    }
-  }
-
-  test("shows other available money home coachmarks when W3 upgrade coachmark is unavailable") {
-    coachmarkService.defaultCoachmarks = listOf(
-      CoachmarkIdentifier.Bip177Coachmark
-    )
-    bitcoinWalletService.transactionsData.value = TransactionsDataMock
-
-    stateMachine.test(
-      props.copy(
-        state = ViewingBalanceUiState(showW3UpgradeCompleteCoachmark = true)
-      )
-    ) {
-      awaitBody<MoneyHomeBodyModel>()
-
-      awaitBody<MoneyHomeBodyModel> {
-        coachmark.shouldNotBeNull()
-        coachmark.identifier.shouldBe(
-          CoachmarkIdentifier.Bip177Coachmark
-        )
-      }
-      coachmarkService.markDisplayedTurbine.expectNoEvents()
-      setStateCalls.expectNoEvents()
-      eventTracker.eventCalls.expectNoEvents()
     }
   }
 

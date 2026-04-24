@@ -54,15 +54,12 @@ import build.wallet.ui.system.BackHandler
 import build.wallet.ui.system.KeepScreenOn
 import build.wallet.ui.system.isBlurSupported
 import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
-import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import io.github.alexzhirkevich.compottie.LottieCompositionSpec
 import io.github.alexzhirkevich.compottie.rememberLottieComposition
 import io.github.alexzhirkevich.compottie.rememberLottiePainter
 import org.jetbrains.compose.resources.painterResource
-
-private val IosNfcVideoTopSpacing = 16.dp
 
 @Composable
 fun NfcScreen(
@@ -132,7 +129,10 @@ internal fun NfcScreenInternal(
         contentAlignment = Center,
         label = "NfcStatusLabelAnimation"
       ) { text ->
-        NfcStatusLabel(Modifier.align(CenterHorizontally), text)
+        NfcScreenStatusLabel(
+          modifier = Modifier.align(CenterHorizontally),
+          text = text
+        )
       }
 
       Spacer(Modifier.weight(1F))
@@ -221,7 +221,10 @@ internal fun NfcScreenInternalV2(
         contentAlignment = Center,
         label = "NfcStatusLabelAnimation"
       ) { text ->
-        NfcStatusLabel(Modifier.align(CenterHorizontally), text)
+        NfcScreenStatusLabel(
+          modifier = Modifier.align(CenterHorizontally),
+          text = text
+        )
       }
     }
   )
@@ -233,8 +236,6 @@ internal fun NfcScreenInternalIos(
   modifier: Modifier = Modifier,
 ) {
   val designSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
-  val theme = LocalTheme.current
-  val videoTopPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + IosNfcVideoTopSpacing
 
   model.status.whenInProgress { onCancel ->
     BackHandler {
@@ -244,45 +245,94 @@ internal fun NfcScreenInternalIos(
 
   Box(modifier = modifier.fillMaxSize()) {
     if (!model.showNativeSheetOnIos) {
-      NfcProgressScreenIosLayout(
-        modifier = Modifier.matchParentSize(),
-        hardwareType = model.hardwareType,
-        backgroundColor = WalletTheme.colors.background,
-        statusTopPadding = 40.dp,
-        showDefaultHardwareBackground = false
-      ) {
-        NfcStatusLabel(
-          text = model.text,
-          labelType = LabelType.Body2Regular,
-          textColor =
-            when (model.status) {
-              is Success -> WalletTheme.colors.foreground
-              is Searching, is Connected -> WalletTheme.colors.foreground60
-            }
-        )
+      FwupSystemThemedContent(followIosSystemTheme = designSystemV2Enabled) {
+        NfcProgressScreenIosLayout(
+          modifier = Modifier.matchParentSize(),
+          hardwareType = model.hardwareType,
+          backgroundColor = WalletTheme.colors.background,
+          statusTopPadding = 40.dp,
+          showDefaultHardwareBackground = false
+        ) {
+          NfcIosStatusContent(
+            status = model.status,
+            text = model.text,
+            designSystemV2Enabled = designSystemV2Enabled
+          )
+        }
       }
       return@Box
     }
 
-    // Select video and placeholder based on hardware type
-    val (heroVideo, backgroundDrawable) = when (model.hardwareType) {
-      HardwareType.W1 -> IosNfcHeroVideo.StandardW1 to Res.drawable.ios_nfc_background_w1
-      HardwareType.W3 -> IosNfcHeroVideo.Standard to Res.drawable.ios_nfc_background_standard
+    val backgroundDrawable = when (model.hardwareType) {
+      HardwareType.W1 -> Res.drawable.ios_nfc_background_w1
+      HardwareType.W3 -> Res.drawable.ios_nfc_background_standard
     }
 
     NfcIosBackgroundLayout(
       modifier = Modifier.matchParentSize(),
       backgroundPainter = if (designSystemV2Enabled) painterResource(backgroundDrawable) else null,
-      backgroundVideoResourcePath =
-        if (designSystemV2Enabled) {
-          iosNfcHeroVideoResource(heroVideo, theme)
-        } else {
-          null
-        },
-      backgroundVideoIsLooping = !designSystemV2Enabled,
-      backgroundVideoTopPadding = if (designSystemV2Enabled) videoTopPadding else 0.dp,
-      backgroundTopPadding = if (designSystemV2Enabled) videoTopPadding else 200.dp
+      backgroundTopPadding = 200.dp
     ) {}
+  }
+}
+
+@Composable
+private fun NfcIosStatusContent(
+  status: NfcBodyModel.Status,
+  text: String,
+  designSystemV2Enabled: Boolean,
+) {
+  if (designSystemV2Enabled) {
+    val headline = nfcIosStatusHeadline(status = status, text = text)
+    val subtitle = nfcIosStatusSubtitle(status = status, text = text)
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+      NfcStatusLabel(
+        text = headline,
+        labelType = if (status is Success) LabelType.Body2Regular else LabelType.Body2MonoCaps,
+        textColor = WalletTheme.colors.foreground
+      )
+
+      subtitle?.let {
+        NfcStatusLabel(
+          text = it,
+          labelType = LabelType.Body2Regular,
+          textColor = WalletTheme.colors.foreground60
+        )
+      }
+    }
+  } else {
+    NfcScreenStatusLabel(
+      text = text
+    )
+  }
+}
+
+internal fun nfcIosStatusHeadline(
+  status: NfcBodyModel.Status,
+  text: String,
+): String {
+  return when (status) {
+    is Searching -> "Ready"
+    is Connected -> if (status.showProgressSpinner) "Keep holding..." else "Connected"
+    is Success -> text
+  }
+}
+
+internal fun nfcIosStatusSubtitle(
+  status: NfcBodyModel.Status,
+  text: String,
+): String? {
+  return when (status) {
+    is Searching -> text
+    is Connected ->
+      when {
+        status.showProgressSpinner -> text
+        text != "Connected" -> text
+        else -> null
+      }
+
+    is Success -> null
   }
 }
 
@@ -463,7 +513,7 @@ private fun IndeterminateCircularProgress(
 }
 
 @Composable
-private fun NfcStatusLabel(
+private fun NfcScreenStatusLabel(
   modifier: Modifier = Modifier,
   text: String,
 ) {

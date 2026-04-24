@@ -12,21 +12,20 @@
 #include <string.h>
 
 // Layout configuration
-#define ICON_SIZE                   120
-#define ICON_COLOR_GREY             0x404040      // Grey (default state)
-#define ICON_COLOR_RED              0xF84752      // Red (completed state)
-#define OVERLAY_OPA                 LV_OPA_COVER  // Fully opaque
-#define DISMISS_BTN_WIDTH           60
-#define DISMISS_BTN_HEIGHT          36
-#define DISMISS_BTN_RADIUS          22
-#define DISMISS_BTN_TOP_MARGIN      32
-#define CANCEL_LABEL_Y              80  // Y offset below vertical center
-#define HOLD_LABEL_TOP_MARGIN       80  // Top margin for HOLD label
-#define DEFAULT_COMPLETION_DELAY_MS 3000
-#define DEFAULT_FOLLOWUP_DELAY_MS   4000
-#define COMPLETED_ICON_Y \
-  (-20)  // Y offset from center for completed checkmark (matches confirmed page)
-#define COMPLETED_LABEL_Y               60  // Y offset from center for completed label (matches confirmed page)
+#define ICON_SIZE                       120
+#define ICON_COLOR_GREY                 0x404040      // Grey (default state)
+#define ICON_COLOR_RED                  0xF84752      // Red (completed state)
+#define OVERLAY_OPA                     LV_OPA_COVER  // Fully opaque
+#define DISMISS_BTN_WIDTH               60
+#define DISMISS_BTN_HEIGHT              36
+#define DISMISS_BTN_RADIUS              22
+#define DISMISS_BTN_TOP_MARGIN          32
+#define CANCEL_LABEL_Y                  80  // Y offset below vertical center
+#define HOLD_LABEL_TOP_MARGIN           80  // Top margin for HOLD label
+#define DEFAULT_COMPLETION_DELAY_MS     3000
+#define DEFAULT_FOLLOWUP_DELAY_MS       4000
+#define COMPLETED_ICON_Y                -28  // Matches done/confirmed layout
+#define COMPLETED_LABEL_Y               28   // Matches done/confirmed layout
 #define FOLLOWUP_TITLE_COLOR            0xADADAD
 #define FOLLOWUP_TEXT_CONTAINER_WIDTH   400
 #define FOLLOWUP_TEXT_CONTAINER_PAD_X   24
@@ -48,7 +47,6 @@ LV_FONT_DECLARE(cash_sans_mono_regular_26);
 // External images
 extern const lv_img_dsc_t cross;
 extern const lv_img_dsc_t back_arrow;
-extern const lv_img_dsc_t check;
 
 // Forward declarations
 static void dismiss_button_handler(lv_event_t* e);
@@ -157,10 +155,10 @@ void hold_cancel_show_with_options(hold_cancel_t* modal, hold_cancel_complete_cb
   hold_cancel_set_icon_color(modal->icon_x, lv_color_white());
   lv_obj_center(modal->icon_x);
 
-  // Create check icon centered in circle (hidden initially, shown on completion)
+  // Create completed-state icon centered in circle (hidden initially, shown on completion)
   modal->icon_check = lv_img_create(modal->icon_bg);
   if (modal->icon_check) {
-    lv_img_set_src(modal->icon_check, &check);
+    lv_img_set_src(modal->icon_check, &cross);
     lv_obj_center(modal->icon_check);
     lv_obj_add_flag(modal->icon_check, LV_OBJ_FLAG_HIDDEN);
   }
@@ -257,6 +255,37 @@ static uint32_t snapshot_hold_elapsed_ms(uint8_t percent, uint32_t full_duration
   }
 
   return (full_duration_ms * percent) / 100;
+}
+
+void hold_cancel_snapshot_show_completed(hold_cancel_t* modal,
+                                         const hold_cancel_options_t* options) {
+  if (!modal || !modal->is_initialized) {
+    return;
+  }
+
+  if (!modal->is_showing) {
+    hold_cancel_show_with_options(modal, NULL, NULL, NULL, options);
+    if (!modal->is_showing) {
+      return;
+    }
+  } else {
+    modal->initial_text = options ? options->initial_text : NULL;
+    modal->completed_text = options ? options->completed_text : NULL;
+    modal->followup_title = options ? options->followup_title : NULL;
+    modal->followup_text = options ? options->followup_text : NULL;
+  }
+
+  if (!modal->icon_bg) {
+    return;
+  }
+
+  lv_obj_send_event(modal->icon_bg, LV_EVENT_PRESSED, NULL);
+  snapshot_advance_lvgl_time(HOLD_TO_CANCEL_DURATION_MS);
+
+  if (modal->complete_timer) {
+    lv_timer_del(modal->complete_timer);
+    modal->complete_timer = NULL;
+  }
 }
 
 void hold_cancel_snapshot_show_followup(hold_cancel_t* modal,
@@ -511,19 +540,19 @@ static void on_hold_complete(void* user_data) {
     lv_obj_add_flag(modal->icon_bg, LV_OBJ_FLAG_HIDDEN);
   }
 
-  // Show check icon with red color to match the ring
-  // Reparent to overlay and position to match confirmed page alignment
+  // Show failure icon in white and position it to match the confirmed layout.
   if (modal->icon_check) {
     lv_obj_set_parent(modal->icon_check, modal->overlay);
     lv_obj_clear_flag(modal->icon_check, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_set_style_img_recolor(modal->icon_check, lv_color_hex(ICON_COLOR_RED), 0);
+    lv_img_set_src(modal->icon_check, &cross);
+    lv_obj_set_style_img_recolor(modal->icon_check, lv_color_white(), 0);
     lv_obj_set_style_img_recolor_opa(modal->icon_check, LV_OPA_COVER, 0);
     lv_obj_align(modal->icon_check, LV_ALIGN_CENTER, 0, COMPLETED_ICON_Y);
   }
 
-  // Update the label color and position to match confirmed page alignment
+  // Update the label color and position to match confirmed page alignment.
   if (modal->cancel_label) {
-    lv_obj_set_style_text_color(modal->cancel_label, lv_color_hex(ICON_COLOR_RED), 0);
+    lv_obj_set_style_text_color(modal->cancel_label, lv_color_white(), 0);
     lv_obj_align(modal->cancel_label, LV_ALIGN_CENTER, 0, COMPLETED_LABEL_Y);
   }
 

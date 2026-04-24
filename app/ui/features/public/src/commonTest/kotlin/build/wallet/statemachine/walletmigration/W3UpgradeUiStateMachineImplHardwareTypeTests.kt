@@ -28,6 +28,7 @@ import build.wallet.auth.AuthTokensServiceFake
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.chaincode.delegation.ChaincodeExtractorFake
 import build.wallet.cloud.backup.csek.SsekDaoFake
+import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.encrypt.WsmVerifierMock
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -57,7 +58,6 @@ import build.wallet.statemachine.recovery.sweep.SweepUiProps
 import build.wallet.statemachine.recovery.sweep.SweepUiStateMachine
 import build.wallet.statemachine.utxo.UtxoConsolidationProps
 import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachine
-import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.awaitUntilBodyMock
 import build.wallet.wallet.migration.MigrationProgress
@@ -98,6 +98,7 @@ class W3UpgradeUiStateMachineImplHardwareTypeTests : FunSpec({
   val utxoMaxConsolidationCountFeatureFlag = UtxoMaxConsolidationCountFeatureFlag(
     featureFlagDao = FeatureFlagDaoFake()
   )
+  val cloudBackupHealthRepository = CloudBackupHealthRepositoryMock(turbines::create)
 
   val relationshipsKeysRepository = RelationshipsKeysRepository(
     RelationshipsCryptoFake(),
@@ -182,6 +183,11 @@ class W3UpgradeUiStateMachineImplHardwareTypeTests : FunSpec({
       wsmVerifier = WsmVerifierMock(),
       utxoConsolidationUiStateMachine = utxoConsolidationUiStateMachine,
       utxoMaxConsolidationCountFeatureFlag = utxoMaxConsolidationCountFeatureFlag,
+      cloudBackupHealthRepository = cloudBackupHealthRepository,
+      repairCloudBackupStateMachine = object : build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachine,
+        ScreenStateMachineMock<build.wallet.statemachine.cloud.health.RepairAppKeyBackupProps>(
+          "repair-cloud-backup"
+        ) {},
       eventTracker = noopEventTracker
     )
 
@@ -208,6 +214,7 @@ class W3UpgradeUiStateMachineImplHardwareTypeTests : FunSpec({
     ).shouldBe(Ok(Unit))
     bitcoinWalletService.reset()
     bitcoinWalletService.transactionsData.value = TransactionsDataMock
+    cloudBackupHealthRepository.reset()
   }
 
   test("TappingOldHardwareForPoP skips paired-hardware verification") {

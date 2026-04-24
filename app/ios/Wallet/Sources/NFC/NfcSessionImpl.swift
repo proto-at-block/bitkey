@@ -60,6 +60,16 @@ public class NfcSessionImpl: NSObject, NfcSession {
                     response.append(sw2)
                 } catch {
                     self.delegate?.reconnect()
+                    // Session-invalidated mid-transceive → distinct subtype so FWUP shows the thermal cooldown.
+                    if (error as? NFCReaderError)?.code
+                        == .readerTransceiveErrorSessionInvalidated
+                    {
+                        throw NfcException.CanBeRetriedSessionInvalidated(
+                            message: error.localizedDescription,
+                            cause: nil
+                        )
+                        .asError()
+                    }
                     throw NfcException.CanBeRetriedTransceiveFailure(
                         message: error.localizedDescription,
                         cause: nil

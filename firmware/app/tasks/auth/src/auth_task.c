@@ -643,7 +643,7 @@ out:
 }
 
 #ifndef CONFIG_PROD
-static void handle_unlock_device(ipc_ref_t* message) {
+NO_OPTIMIZE static void handle_unlock_device(ipc_ref_t* message) {
   fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
   fwpb_wallet_rsp* rsp = proto_get_rsp();
 

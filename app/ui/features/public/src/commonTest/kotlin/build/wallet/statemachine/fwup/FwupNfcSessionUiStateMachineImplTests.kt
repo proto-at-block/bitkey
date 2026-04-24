@@ -348,6 +348,45 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
     }
   }
 
+  test("failure - session invalidated while fwup is in progress on iOS shows cooldown") {
+    deviceInfoProvider.devicePlatformValue = DevicePlatform.IOS
+    val commandsMock = NfcCommandsMock { name -> turbines.create("$name session-invalidated-cooldown") }
+    val failingCommands =
+      object : NfcCommands by commandsMock {
+        override suspend fun fwupTransfer(
+          session: NfcSession,
+          sequenceId: UInt,
+          fwupData: List<UByte>,
+          offset: UInt,
+          fwupMode: FwupMode,
+          mcuRole: build.wallet.firmware.McuRole,
+        ): Boolean {
+          throw NfcException.CanBeRetried.SessionInvalidated()
+        }
+      }
+
+    createStateMachineWithTransactor(
+      ExecutingNfcTransactor(commandsPerCall = listOf(failingCommands))
+    ).test(props) {
+      awaitBody<FwupNfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+      }
+
+      awaitUntilBody<FwupNfcCooldownModel> {
+        remainingSeconds.shouldBe(8)
+        onContinue.shouldBeNull()
+        isStartingSession.shouldBe(false)
+      }
+
+      commandsMock.getDeviceInfoCalls.awaitItem().shouldBe(FirmwareDeviceInfoMock)
+      fwupDataDao.setMcuSequenceIdCalls.awaitItem().shouldBe(build.wallet.firmware.McuRole.CORE to 0u)
+      eventTracker.eventCalls.awaitItem().shouldBe(
+        TrackedAction(ACTION_APP_FWUP_MCU_UPDATE_STARTED, context = FwupMcuEventTrackerContext.CORE)
+      )
+      onErrorCalls.expectNoEvents()
+    }
+  }
+
   test("failure - no session cooldown uses configured feature flag seconds") {
     deviceInfoProvider.devicePlatformValue = DevicePlatform.IOS
     fwupNfcCooldownPeriodSecondsFeatureFlag.setFlagValue(DoubleFlag(3.0))

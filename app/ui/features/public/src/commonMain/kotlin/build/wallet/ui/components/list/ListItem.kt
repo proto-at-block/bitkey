@@ -414,19 +414,31 @@ fun ListItem(
           modifier = Modifier.fillMaxWidth()
         ) {
           val extraWidth = 32.dp
-          Column(
+          Box(
             modifier =
               Modifier
                 .requiredWidth(maxWidth + extraWidth)
                 .background(
                   color = WalletTheme.colors.secondary,
                   shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
-                )
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.Start
+                ),
+            contentAlignment = Alignment.CenterStart
           ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            if (it.showTopDivider) {
+              Box(
+                modifier =
+                  Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(WalletTheme.colors.foreground10)
+                    .align(Alignment.TopCenter)
+              )
+            }
+
+            Row(
+              modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+              verticalAlignment = Alignment.CenterVertically
+            ) {
               Column(
                 modifier = Modifier.weight(1f)
               ) {

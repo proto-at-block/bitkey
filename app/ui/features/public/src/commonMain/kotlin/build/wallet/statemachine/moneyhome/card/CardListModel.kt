@@ -82,7 +82,9 @@ data class CardModel(
   sealed class CardStyle {
     data object Plain : CardStyle()
 
-    data object Outline : CardStyle()
+    data class Outline(
+      val surfaceTreatment: SurfaceTreatment = SurfaceTreatment.ContainerBackground,
+    ) : CardStyle()
 
     data class Gradient(val backgroundColor: BackgroundColor? = null) : CardStyle() {
       enum class BackgroundColor {
@@ -91,6 +93,11 @@ data class CardModel(
     }
 
     data class Callout(val model: CalloutModel) : CardStyle()
+  }
+
+  enum class SurfaceTreatment {
+    ContainerBackground,
+    Background,
   }
 
   enum class TitleTreatment {

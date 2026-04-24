@@ -62,7 +62,7 @@ fun PreviewMoneyHomePriceCard(
             .takeUnless { isLoading }
             ?: immutableListOf()
         ),
-        style = Outline
+        style = Outline()
       )
   )
 }

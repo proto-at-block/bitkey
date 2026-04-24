@@ -513,6 +513,7 @@ void sysinfo_task_port_prepare_power_down(void) {
   // Stop the power timer so it doesn't queue another power-off event while
   // we're already in the screen-off state.
   sleep_stop_power_timer();
+  sysevent_clear(SYSEVENT_FORCE_POWER_OFF_RESET);
 
   UI_SHOW_EVENT(UI_EVENT_POWER_OFF);
 
@@ -525,9 +526,9 @@ void sysinfo_task_port_prepare_power_down(void) {
     sysevent_clear(SYSEVENT_TOUCH | SYSEVENT_CAPTOUCH);
 
     // If there is a touch event (captouch or screen) while USB is plugged
-    // in, we exit to reset under the assumption that the user wants to
-    // use their device.
-    while (power_is_plugged_in() && !sysevent_get(SYSEVENT_TOUCH | SYSEVENT_CAPTOUCH)) {
+    // in, or the display path wedges and requests recovery, we exit to reset.
+    while (power_is_plugged_in() &&
+           !sysevent_get(SYSEVENT_TOUCH | SYSEVENT_CAPTOUCH | SYSEVENT_FORCE_POWER_OFF_RESET)) {
       rtos_thread_sleep(SYSINFO_POWER_OFF_POLL_MS);
     }
   }

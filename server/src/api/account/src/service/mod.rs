@@ -2,6 +2,7 @@ use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
 use isocountry::CountryCode;
 use repository::account::AccountRepository;
 use repository::consent::ConsentRepository;
+use repository::public_key::PublicKeyRepository;
 use types::account::bitcoin::Network;
 use types::account::entities::{
     CommsVerificationClaim, CommsVerificationScope, DescriptorBackupsSet, FullAccount,
@@ -41,6 +42,7 @@ mod upgrade_lite_account_to_full_account;
 pub struct Service {
     account_repo: AccountRepository,
     consent_repo: ConsentRepository,
+    public_key_repo: PublicKeyRepository,
     userpool_service: UserPoolService,
 }
 
@@ -48,11 +50,13 @@ impl Service {
     pub fn new(
         account_repo: AccountRepository,
         consent_repo: ConsentRepository,
+        public_key_repo: PublicKeyRepository,
         userpool_service: UserPoolService,
     ) -> Self {
         Self {
             account_repo,
             consent_repo,
+            public_key_repo,
             userpool_service,
         }
     }

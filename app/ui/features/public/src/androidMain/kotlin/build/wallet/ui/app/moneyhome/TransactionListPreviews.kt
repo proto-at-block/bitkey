@@ -8,11 +8,14 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.list.ListModel
 import build.wallet.statemachine.transactions.PartnerTransactionItemModel
 import build.wallet.statemachine.transactions.TransactionItemModel
+import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
+import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
 import build.wallet.ui.model.list.ListItemSideTextTint
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.tooling.PreviewWalletTheme
+import build.wallet.ui.tokens.market.MarketIcons
 
 @Preview
 @Composable
@@ -120,13 +123,13 @@ private fun populatedTransactionListModel() =
               isError = false,
               onClick = {}
             ),
-            PartnerTransactionItemModel(
+            previewPartnerTransactionItemModel(
               title = "Purchase",
               date = "July 21 at 1:25pm",
               amount = null,
               amountEquivalent = null,
               isPending = true,
-              logoUrl = "null",
+              logoUrl = null,
               sideTextTint = ListItemSideTextTint.PRIMARY,
               isError = false,
               onClick = {}
@@ -142,3 +145,34 @@ private fun emptyTransactionListModel() =
     headerText = "Recent activity",
     sections = immutableListOf()
   )
+
+private fun previewPartnerIconImage() = IconImage.MarketIconImage(MarketIcons.CashAppMulticolor)
+
+private fun previewPartnerTransactionItemModel(
+  title: String,
+  date: String,
+  logoUrl: String?,
+  amount: String?,
+  amountEquivalent: String?,
+  isPending: Boolean,
+  isError: Boolean,
+  sideTextTint: ListItemSideTextTint,
+  onClick: () -> Unit,
+) = PartnerTransactionItemModel(
+  title = title,
+  date = date,
+  logoUrl = logoUrl,
+  amount = amount,
+  amountEquivalent = amountEquivalent,
+  isPending = isPending,
+  isError = isError,
+  sideTextTint = sideTextTint,
+  onClick = onClick
+).let { model ->
+  val leadingAccessory = model.leadingAccessory as IconAccessory
+  model.copy(
+    leadingAccessory = leadingAccessory.copy(
+      model = leadingAccessory.model.copy(iconImage = previewPartnerIconImage())
+    )
+  )
+}

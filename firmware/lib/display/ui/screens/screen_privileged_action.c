@@ -74,6 +74,7 @@ static const char* get_privileged_action_title(
 #define STEP_DISPLAY_MS             6000
 #define HOLD_DISPLAY_MS             1500
 #define HEADER_FADE_DURATION_MS     160
+#define MENU_BUTTON_HOLD_OPA        LV_OPA_50
 
 // Layout configuration
 #define HEADER_HEIGHT               140
@@ -600,12 +601,8 @@ static void check_button_event_handler(lv_event_t* e) {
       approval_button_set_hold_state(check_button);
     }
 
-    // Hide menu button while holding
-    if (menu_button.is_initialized && menu_button.container) {
-      lv_obj_add_flag(menu_button.container, LV_OBJ_FLAG_HIDDEN);
-    }
-
-    dot_ring_show_with_fade_in(&approve_ring, 400);
+    // Dim menu button while holding so it stays visible but de-emphasized.
+    top_menu_fade_to_opacity(&menu_button, MENU_BUTTON_HOLD_OPA, HEADER_FADE_DURATION_MS);
     dot_ring_animate_fill_from_current(&approve_ring, 100, HOLD_TO_CONFIRM_DURATION_MS,
                                        DOT_RING_COLOR_GREEN, DOT_RING_FILL_SPLIT,
                                        on_approve_complete, NULL);
@@ -615,7 +612,7 @@ static void check_button_event_handler(lv_event_t* e) {
       return;
     }
 
-    if (dot_ring_animate_release(&approve_ring, HOLD_TO_CONFIRM_DURATION_MS)) {
+    if (dot_ring_animate_release_to_inactive(&approve_ring, HOLD_TO_CONFIRM_DURATION_MS)) {
       return;
     }
 
@@ -629,10 +626,7 @@ static void check_button_event_handler(lv_event_t* e) {
       approval_button_set_idle_state(check_button);
     }
 
-    // Show menu button again
-    if (menu_button.is_initialized && menu_button.container) {
-      lv_obj_clear_flag(menu_button.container, LV_OBJ_FLAG_HIDDEN);
-    }
+    top_menu_fade_to_opacity(&menu_button, LV_OPA_COVER, HEADER_FADE_DURATION_MS);
   }
 }
 
@@ -712,7 +706,7 @@ static void show_confirmed_page(int next_page_index) {
   confirmed_checkmark = lv_img_create(screen);
   if (confirmed_checkmark) {
     lv_img_set_src(confirmed_checkmark, &check);
-    lv_obj_set_style_img_recolor(confirmed_checkmark, lv_color_hex(COLOR_RING), 0);
+    lv_obj_set_style_img_recolor(confirmed_checkmark, lv_color_white(), 0);
     lv_obj_set_style_img_recolor_opa(confirmed_checkmark, LV_OPA_COVER, 0);
     lv_obj_align(confirmed_checkmark, LV_ALIGN_CENTER, 0, -20);
   }
@@ -721,7 +715,7 @@ static void show_confirmed_page(int next_page_index) {
   if (confirmed_label) {
     lv_label_set_text(confirmed_label,
                       langpack_get_string(LANGPACK_ID_PRIVILEGED_ACTION_CONFIRMED));
-    lv_obj_set_style_text_color(confirmed_label, lv_color_hex(COLOR_RING), 0);
+    lv_obj_set_style_text_color(confirmed_label, lv_color_white(), 0);
     lv_obj_set_style_text_font(confirmed_label, FONT_TITLE, 0);
     lv_obj_align(confirmed_label, LV_ALIGN_CENTER, 0, CONFIRMED_LABEL_Y);
   }
@@ -772,9 +766,12 @@ static void confirmed_timer_cb(lv_timer_t* timer) {
     lv_obj_clear_flag(scroll_container, LV_OBJ_FLAG_HIDDEN);
   }
 
+  dot_ring_show(&approve_ring);
+
   // Restore menu button (hidden by show_confirmed_page)
   if (menu_button.is_initialized && menu_button.container) {
     lv_obj_clear_flag(menu_button.container, LV_OBJ_FLAG_HIDDEN);
+    top_menu_set_opacity(&menu_button, LV_OPA_COVER);
     lv_obj_move_foreground(menu_button.container);
   }
 
@@ -891,9 +888,6 @@ static void create_action_page(lv_obj_t* parent,
     return;
   }
 
-  bool destructive = params->action.confirm_action.action_type ==
-                     fwpb_display_privileged_action_type_DISPLAY_PRIVILEGED_ACTION_WIPE_DEVICE;
-
   lv_obj_t* content_container = lv_obj_create(parent);
   if (!content_container) {
     return;
@@ -911,8 +905,7 @@ static void create_action_page(lv_obj_t* parent,
 
   lv_obj_t* title = lv_label_create(content_container);
   if (title) {
-    lv_obj_set_style_text_color(
-      title, destructive ? lv_color_hex(COLOR_CANCEL) : lv_color_hex(COLOR_TITLE), 0);
+    lv_obj_set_style_text_color(title, lv_color_hex(COLOR_TITLE), 0);
     lv_obj_set_style_text_font(title, FONT_TITLE, 0);
     lv_obj_set_style_text_align(title, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(title, get_privileged_action_title(params));
@@ -1125,6 +1118,7 @@ lv_obj_t* screen_privileged_action_init(void* ctx) {
   // Create widgets
   memset(&approve_ring, 0, sizeof(approve_ring));
   dot_ring_create(screen, &approve_ring);
+  dot_ring_show(&approve_ring);
 
   memset(&cancel_modal, 0, sizeof(cancel_modal));
   hold_cancel_create(screen, &cancel_modal);

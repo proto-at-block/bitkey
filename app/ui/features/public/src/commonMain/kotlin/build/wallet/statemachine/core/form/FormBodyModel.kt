@@ -104,7 +104,6 @@ abstract class FormBodyModel(
   open val ctaWarning: CallToActionModel? = null,
   open val keepScreenOn: Boolean = false,
   open val renderContext: RenderContext = Screen,
-  open val backgroundTreatment: BackgroundTreatment = BackgroundTreatment.Default,
   open val onLoaded: (() -> Unit)? = null,
   open val eventTrackerContext: EventTrackerContext? = null,
   open val eventTrackerShouldTrack: Boolean = true,
@@ -156,14 +155,6 @@ enum class RenderContext {
 
   /** Render the formscreen model as appropriate for a bottom sheet */
   Sheet,
-}
-
-enum class BackgroundTreatment {
-  /** Default background treatment */
-  Default,
-
-  /** Inheritance upsell background treatment */
-  Inheritance,
 }
 
 /**

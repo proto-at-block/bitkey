@@ -5,6 +5,8 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.ui.model.StandardClick
+import build.wallet.ui.model.icon.IconButtonModel
 import build.wallet.statemachine.partnerships.purchase.SelectPartnerQuoteBodyModel
 import build.wallet.statemachine.partnerships.sell.SellQuotesFormBodyModel
 import build.wallet.ui.app.core.form.FormScreen
@@ -14,7 +16,9 @@ import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle.CARD_ITEM
 import build.wallet.ui.model.list.ListItemAccessory
+import build.wallet.ui.model.list.ListItemExplainer
 import build.wallet.ui.model.list.ListItemModel
+import build.wallet.ui.theme.Theme
 import io.kotest.core.spec.style.FunSpec
 
 class PartnerQuoteComparisonScreenSnapshots : FunSpec({
@@ -55,11 +59,85 @@ class PartnerQuoteComparisonScreenSnapshots : FunSpec({
               ),
             id = SellEventTrackerScreenId.SELL_QUOTES_LIST,
             onBack = {}
-          )
+        )
+      )
+    }
+  }
+
+  test("purchase partner quotes comparison screen design system v2 light") {
+    paparazzi.snapshot(
+      onlyTheme = Theme.LIGHT,
+      designSystemUpdatesEnabled = true
+    ) {
+      FormScreen(
+        model = purchaseQuotesScreenModel()
+      )
+    }
+  }
+
+  test("sell partner quotes comparison screen design system v2 light") {
+    paparazzi.snapshot(
+      onlyTheme = Theme.LIGHT,
+      designSystemUpdatesEnabled = true
+    ) {
+      FormScreen(
+        model = sellQuotesScreenModel()
+      )
+    }
+  }
+
+  test("purchase partner quotes comparison screen design system v2 light with cash app promo") {
+    paparazzi.snapshot(
+      onlyTheme = Theme.LIGHT,
+      designSystemUpdatesEnabled = true
+    ) {
+      FormScreen(
+        model = purchaseQuotesScreenModel(includeCashAppPromo = true)
+      )
+    }
+  }
+
+  test("purchase partner quotes comparison screen design system v2 dark with cash app promo") {
+    paparazzi.snapshot(
+      onlyTheme = Theme.DARK,
+      designSystemUpdatesEnabled = true
+    ) {
+      FormScreen(
+        model = purchaseQuotesScreenModel(includeCashAppPromo = true)
       )
     }
   }
 })
+
+private fun purchaseQuotesScreenModel(
+  includeCashAppPromo: Boolean = false,
+) = SelectPartnerQuoteBodyModel(
+  title = "Purchase $250.00",
+  subTitle = "Offers show the amount you'll receive after exchange fees. Bitkey does not charge a fee.",
+  onClosed = {},
+  listGroupModel =
+    ListGroupModel(
+      style = CARD_ITEM,
+      items = buyQuoteListItems(includeCashAppPromo = includeCashAppPromo)
+    )
+)
+
+private fun sellQuotesScreenModel() =
+  SellQuotesFormBodyModel(
+    formattedSellAmount = "$250.00",
+    mainContentList =
+      immutableListOf(
+        FormMainContentModel.ListGroup(
+          listGroupModel =
+            ListGroupModel(
+              style = CARD_ITEM,
+              items = sellQuoteListItems()
+            )
+        )
+      ),
+    id = SellEventTrackerScreenId.SELL_QUOTES_LIST,
+    onBack = {}
+  )
 
 private fun buyQuoteListItems() =
   immutableListOf(
@@ -67,6 +145,19 @@ private fun buyQuoteListItems() =
     quoteItem(name = "Strike", sideText = "$247.86", secondarySideText = "10,558 sats"),
     quoteItem(name = "Coinbase", sideText = "$246.12", secondarySideText = "10,490 sats")
   )
+
+private fun buyQuoteListItems(
+  includeCashAppPromo: Boolean,
+) = immutableListOf(
+  quoteItem(
+    name = "Cash App",
+    sideText = "$250.00",
+    secondarySideText = "10,650 sats",
+    explainer = if (includeCashAppPromo) cashAppPromoExplainer() else null
+  ),
+  quoteItem(name = "Strike", sideText = "$247.86", secondarySideText = "10,558 sats"),
+  quoteItem(name = "Coinbase", sideText = "$246.12", secondarySideText = "10,490 sats")
+)
 
 private fun sellQuoteListItems() =
   immutableListOf(
@@ -79,6 +170,7 @@ private fun quoteItem(
   name: String,
   sideText: String,
   secondarySideText: String? = null,
+  explainer: ListItemExplainer? = null,
 ) = ListItemModel(
   title = name,
   sideText = sideText,
@@ -92,5 +184,23 @@ private fun quoteItem(
           iconSize = IconSize.Large
         )
     ),
-  trailingAccessory = ListItemAccessory.drillIcon(tint = IconTint.On30)
+  trailingAccessory = ListItemAccessory.drillIcon(tint = IconTint.On30),
+  explainer = explainer
 )
+
+private fun cashAppPromoExplainer() =
+  ListItemExplainer(
+    title = "No fees, no spread · Ends 4/29",
+    showTopDivider = true,
+    iconButton =
+      IconButtonModel(
+        iconModel =
+          IconModel(
+            icon = Icon.SmallIconInformationFilled,
+            iconSize = IconSize.Accessory,
+            iconTint = IconTint.On30
+          ),
+        testTag = "partner-purchase-quote-cashapp-promo-info",
+        onClick = StandardClick {}
+      )
+  )

@@ -35,6 +35,7 @@ use wca::commands::{
     SignStreamStartResult, SignStreamTransfer, SignStreamTransferResult, SignTransaction,
     SignTransfer, SignTransferResult, SignTxInputData, SignTxOutputData, SignTxRequest,
     SignTxRequestResult, SignVerifyAttestationChallenge, Signature, StartFingerprintEnrollment,
+    SweepSignRequest, SweepSignStreamStart, SweepSignStreamStartResult, SweepXpub,
     TemplateMatchStats, TxSignature, UnlockInfo, UpgradeAuthorizeW3, UpgradeAuthorizeW3Result,
     VerifyKeysAndBuildDescriptor, Version, WipeState, WipeStateResult,
 };
@@ -75,6 +76,7 @@ type GetAddressResultState = State<GetAddressResult>;
 type SignStartResultState = State<SignStartResult>;
 type SignTransferResultState = State<SignTransferResult>;
 type SignStreamStartResultState = State<SignStreamStartResult>;
+type SweepSignStreamStartResultState = State<SweepSignStreamStartResult>;
 type SignStreamTransferResultState = State<SignStreamTransferResult>;
 type SignStreamFinalizeResultState = State<SignStreamFinalizeResult>;
 type TxSignatureState = State<TxSignature>;

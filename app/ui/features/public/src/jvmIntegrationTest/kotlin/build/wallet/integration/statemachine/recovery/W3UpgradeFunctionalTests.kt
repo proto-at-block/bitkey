@@ -62,10 +62,7 @@ class W3UpgradeFunctionalTests : FunSpec({
       advanceThroughCloudBackup()
 
       // Zero balance - sweep is skipped entirely
-      awaitUntilBody<W3UpgradeCompleteBodyModel>()
-        .onDone()
-
-      awaitUntilBody<MoneyHomeBodyModel>()
+      dismissW3UpgradeCompleteSheet()
 
       cancelAndIgnoreRemainingEvents()
     }
@@ -97,10 +94,7 @@ class W3UpgradeFunctionalTests : FunSpec({
       awaitUntilBody<TransferInitiatedBodyModel>()
         .clickPrimaryButton()
 
-      awaitUntilBody<W3UpgradeCompleteBodyModel>()
-        .onDone()
-
-      awaitUntilBody<MoneyHomeBodyModel>()
+      dismissW3UpgradeCompleteSheet()
 
       cancelAndIgnoreRemainingEvents()
     }
@@ -148,10 +142,7 @@ class W3UpgradeFunctionalTests : FunSpec({
       advanceThroughCloudBackup()
 
       // Zero balance - sweep skipped
-      awaitUntilBody<W3UpgradeCompleteBodyModel>()
-        .onDone()
-
-      awaitUntilBody<MoneyHomeBodyModel>()
+      dismissW3UpgradeCompleteSheet()
 
       cancelAndIgnoreRemainingEvents()
     }
@@ -189,34 +180,30 @@ class W3UpgradeFunctionalTests : FunSpec({
     ) {
       // Force-exit after triggering cloud backup is racy for zero balance:
       // backup may or may not have persisted. Handle both resume paths.
-      val body = awaitUntilBody<BodyModel>(
-        matching = {
-          it is CloudSignInModelFake ||
-            it is SaveBackupInstructionsBodyModel ||
-            it is W3UpgradeCompleteBodyModel
+      val screen = awaitUntilScreenWithBody<BodyModel>(
+        matchingScreen = {
+          it.body is CloudSignInModelFake ||
+            it.body is SaveBackupInstructionsBodyModel ||
+            it.bottomSheetModel?.body is W3UpgradeCompleteSheetBodyModel
         }
       )
-      when (body) {
-        is SaveBackupInstructionsBodyModel -> {
-          body.onBackupClick()
+      when {
+        screen.body is SaveBackupInstructionsBodyModel -> {
+          (screen.body as SaveBackupInstructionsBodyModel).onBackupClick()
           awaitUntilBody<CloudSignInModelFake>()
             .signInSuccess(CloudStoreAccount1Fake)
           // Cloud backup re-done on resume; still need to reach complete
-          awaitUntilBody<W3UpgradeCompleteBodyModel>()
-            .onDone()
+          dismissW3UpgradeCompleteSheet()
         }
-        is CloudSignInModelFake -> {
-          body.signInSuccess(CloudStoreAccount1Fake)
-          awaitUntilBody<W3UpgradeCompleteBodyModel>()
-            .onDone()
+        screen.body is CloudSignInModelFake -> {
+          (screen.body as CloudSignInModelFake).signInSuccess(CloudStoreAccount1Fake)
+          dismissW3UpgradeCompleteSheet()
         }
-        is W3UpgradeCompleteBodyModel -> {
+        screen.bottomSheetModel?.body is W3UpgradeCompleteSheetBodyModel -> {
           // Backup already completed before exit; resume landed past cloud backup
-          body.onDone()
+          dismissW3UpgradeCompleteSheet()
         }
       }
-
-      awaitUntilBody<MoneyHomeBodyModel>()
 
       cancelAndIgnoreRemainingEvents()
     }
@@ -262,10 +249,7 @@ class W3UpgradeFunctionalTests : FunSpec({
       awaitUntilBody<TransferInitiatedBodyModel>()
         .clickPrimaryButton()
 
-      awaitUntilBody<W3UpgradeCompleteBodyModel>()
-        .onDone()
-
-      awaitUntilBody<MoneyHomeBodyModel>()
+      dismissW3UpgradeCompleteSheet()
 
       cancelAndIgnoreRemainingEvents()
     }
@@ -319,10 +303,7 @@ class W3UpgradeFunctionalTests : FunSpec({
       advanceThroughCloudBackup()
 
       // Zero balance - sweep skipped
-      awaitUntilBody<W3UpgradeCompleteBodyModel>()
-        .onDone()
-
-      awaitUntilBody<MoneyHomeBodyModel>()
+      dismissW3UpgradeCompleteSheet()
 
       cancelAndIgnoreRemainingEvents()
     }
@@ -418,6 +399,18 @@ private suspend fun ReceiveTurbine<ScreenModel>.advanceThroughCloudBackup(
       }
     }
   }
+}
+
+private suspend fun ReceiveTurbine<ScreenModel>.dismissW3UpgradeCompleteSheet() {
+  awaitUntilScreenWithBody<MoneyHomeBodyModel>(
+    matchingScreen = { it.bottomSheetModel?.body is W3UpgradeCompleteSheetBodyModel }
+  ).let { screen ->
+    checkNotNull(screen.bottomSheetModel)
+      .body
+      .shouldBeTypeOf<W3UpgradeCompleteSheetBodyModel>()
+      .onDone()
+  }
+  awaitUntilBody<MoneyHomeBodyModel>()
 }
 
 /**

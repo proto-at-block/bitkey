@@ -2,6 +2,7 @@
 
 #include "arithmetic.h"
 #include "attributes.h"
+#include "auth.h"
 #include "bio.h"
 #include "board_id.h"
 #include "filesystem.h"
@@ -13,6 +14,7 @@
 #include "ipc_messages_mfgtest_port.h"
 #include "led.h"
 #include "log.h"
+#include "mcu_gpio.h"
 #include "metadata.h"
 #include "mfgtest_task_impl.h"
 #include "mfgtest_task_port.h"
@@ -632,6 +634,19 @@ static void handle_charger_cmd(ipc_ref_t* message) {
   proto_send_rsp(wallet_cmd, wallet_rsp);
 }
 
+NO_OPTIMIZE static void handle_unlock_device(ipc_ref_t* message) {
+  fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
+  fwpb_wallet_rsp* rsp = proto_get_rsp();
+
+  rsp->which_msg = fwpb_wallet_rsp_mfgtest_unlock_device_rsp_tag;
+  rsp->status = fwpb_status_SUCCESS;
+  rsp->msg.mfgtest_unlock_device_rsp.rsp_status =
+    fwpb_mfgtest_unlock_device_rsp_mfgtest_unlock_device_rsp_status_SUCCESS;
+  auth_authenticate_unlock_secret();
+
+  proto_send_rsp(cmd, rsp);
+}
+
 static void handle_runin_complete_internal(ipc_ref_t* message) {
   // IPC callback from display_controller when run-in test completes
   const mfgtest_runin_complete_internal_t* results =
@@ -741,6 +756,9 @@ void mfgtest_thread(void* UNUSED(args)) {
         break;
       case IPC_PROTO_MFGTEST_DEVICE_GET_PRODUCTION_LOCK_CMD:
         handle_device_get_production_lock_cmd(&message);
+        break;
+      case IPC_PROTO_MFGTEST_UNLOCK_DEVICE_CMD:
+        handle_unlock_device(&message);
         break;
       case IPC_MFGTEST_TOUCH_POINT:
         mfgtest_task_port_handle_touch_point(&message);

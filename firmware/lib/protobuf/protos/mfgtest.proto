@@ -757,3 +757,22 @@ message mfgtest_device_get_production_lock_rsp {
   // True if production lock is set (device is production).
   bool is_production = 2;
 }
+
+// Requests programmatic unlock of a locked device (bypass for fingerprint).
+message mfgtest_unlock_device_cmd {
+}
+
+// Response to the `mfgtest_unlock_device_cmd`
+message mfgtest_unlock_device_rsp {
+  // Possible status codes returned in the response.
+  enum mfgtest_unlock_device_rsp_status {
+    // Unknown error.
+    UNSPECIFIED = 0;
+
+    // Device was successfully unlocked.
+    SUCCESS = 1;
+  }
+
+  // Response to the unlock command.
+  mfgtest_unlock_device_rsp_status rsp_status = 1;
+}

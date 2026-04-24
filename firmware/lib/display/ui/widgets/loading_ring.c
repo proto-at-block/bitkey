@@ -3,7 +3,7 @@
  * @brief Reusable loading ring widget implementation
  *
  * Continuously rotates a ~70% arc of dots around the screen edge.
- * Head dots are bright green, fading to dim toward the tail.
+ * Head dots are bright white, fading to dim toward the tail.
  */
 
 #include "loading_ring.h"
@@ -13,23 +13,24 @@
 #include <math.h>
 #include <string.h>
 
-// Head color: bright lime green (matches dot_ring active green)
-#define COLOR_HEAD_R 0xD1
-#define COLOR_HEAD_G 0xFB
-#define COLOR_HEAD_B 0x96
+// Head color: bright white
+#define COLOR_HEAD_R 0xFF
+#define COLOR_HEAD_G 0xFF
+#define COLOR_HEAD_B 0xFF
 
 // Tail color: dim grey
-#define COLOR_TAIL_R 0x33
-#define COLOR_TAIL_G 0x33
-#define COLOR_TAIL_B 0x33
+#define COLOR_TAIL_R 0x40
+#define COLOR_TAIL_G 0x40
+#define COLOR_TAIL_B 0x40
 
 // Opacity range
 #define OPA_HEAD LV_OPA_COVER  // 255 - fully opaque at head
-#define OPA_TAIL 38            // ~15% opacity at tail end
+#define OPA_TAIL LV_OPA_70
 
 // Forward declarations
 static void update_timer_cb(lv_timer_t* timer);
 static void update_dot_appearances(loading_ring_t* ring);
+static void set_dot_geometry(loading_ring_t* ring, uint16_t dot_index, lv_coord_t size);
 
 void loading_ring_create(lv_obj_t* parent, loading_ring_t* ring) {
   ASSERT(parent != NULL);
@@ -41,11 +42,12 @@ void loading_ring_create(lv_obj_t* parent, loading_ring_t* ring) {
   // Calculate ring dimensions (same as dot_ring for visual consistency)
   lv_coord_t center_x = LV_HOR_RES / 2;
   lv_coord_t center_y = LV_VER_RES / 2;
-  lv_coord_t radius = (LV_HOR_RES / 2) - LOADING_RING_EDGE_INSET - (LOADING_RING_DOT_SIZE / 2);
+  lv_coord_t radius =
+    (LV_HOR_RES / 2) - LOADING_RING_EDGE_INSET - (LOADING_RING_DOT_SIZE_ACTIVE / 2);
 
   // Calculate number of dots based on circumference
   float circumference = 2.0f * (float)M_PI * radius;
-  float arc_per_dot = LOADING_RING_DOT_SIZE + LOADING_RING_DOT_SPACING;
+  float arc_per_dot = LOADING_RING_DOT_SIZE_ACTIVE + LOADING_RING_DOT_SPACING;
   uint16_t num_dots = (uint16_t)(circumference / arc_per_dot);
 
   if (num_dots == 0) {
@@ -79,9 +81,9 @@ void loading_ring_create(lv_obj_t* parent, loading_ring_t* ring) {
     ring->dot_centers_y[i] = dot_y;
 
     ring->dots[i] = lv_obj_create(parent);
-    lv_obj_set_size(ring->dots[i], LOADING_RING_DOT_SIZE, LOADING_RING_DOT_SIZE);
-    lv_obj_set_pos(ring->dots[i], dot_x - (LOADING_RING_DOT_SIZE / 2),
-                   dot_y - (LOADING_RING_DOT_SIZE / 2));
+    lv_obj_set_size(ring->dots[i], LOADING_RING_DOT_SIZE_INACTIVE, LOADING_RING_DOT_SIZE_INACTIVE);
+    lv_obj_set_pos(ring->dots[i], dot_x - (LOADING_RING_DOT_SIZE_INACTIVE / 2),
+                   dot_y - (LOADING_RING_DOT_SIZE_INACTIVE / 2));
     lv_obj_set_style_radius(ring->dots[i], LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_opa(ring->dots[i], LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_opa(ring->dots[i], LV_OPA_TRANSP, 0);
@@ -189,7 +191,8 @@ void loading_ring_destroy(loading_ring_t* ring) {
  * @brief Update all dot colors and opacities based on current head position
  *
  * Every trail dot's distance-to-head changes each tick, so every trail dot
- * needs a color/opacity update. Gap dots are set to transparent.
+ * needs a color/opacity update. Dots outside the highlighted trail render
+ * in the resting palette so the full ring stays visible.
  */
 static void update_dot_appearances(loading_ring_t* ring) {
   for (uint16_t i = 0; i < ring->dot_count; i++) {
@@ -216,13 +219,31 @@ static void update_dot_appearances(loading_ring_t* ring) {
       uint8_t g = (uint8_t)(ring->head_g - ((ring->head_g - ring->tail_g) * factor) / 255);
       uint8_t b = (uint8_t)(ring->head_b - ((ring->head_b - ring->tail_b) * factor) / 255);
       lv_opa_t opa = (lv_opa_t)(OPA_HEAD - ((OPA_HEAD - ring->tail_opa) * factor) / 255);
+      lv_coord_t size =
+        (lv_coord_t)(LOADING_RING_DOT_SIZE_ACTIVE -
+                     ((LOADING_RING_DOT_SIZE_ACTIVE - LOADING_RING_DOT_SIZE_INACTIVE) * factor) /
+                       255);
 
+      set_dot_geometry(ring, i, size);
       lv_obj_set_style_bg_color(ring->dots[i], lv_color_make(r, g, b), 0);
       lv_obj_set_style_bg_opa(ring->dots[i], opa, 0);
     } else {
-      lv_obj_set_style_bg_opa(ring->dots[i], LV_OPA_TRANSP, 0);
+      set_dot_geometry(ring, i, LOADING_RING_DOT_SIZE_INACTIVE);
+      lv_obj_set_style_bg_color(ring->dots[i],
+                                lv_color_make(ring->tail_r, ring->tail_g, ring->tail_b), 0);
+      lv_obj_set_style_bg_opa(ring->dots[i], ring->tail_opa, 0);
     }
   }
+}
+
+static void set_dot_geometry(loading_ring_t* ring, uint16_t dot_index, lv_coord_t size) {
+  if (!ring || dot_index >= ring->dot_count || !ring->dots[dot_index]) {
+    return;
+  }
+
+  lv_obj_set_size(ring->dots[dot_index], size, size);
+  lv_obj_set_pos(ring->dots[dot_index], ring->dot_centers_x[dot_index] - (size / 2),
+                 ring->dot_centers_y[dot_index] - (size / 2));
 }
 
 /**

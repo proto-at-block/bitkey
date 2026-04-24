@@ -11,6 +11,7 @@
 #ifdef EMBEDDED_BUILD
 #include "ipc.h"
 #include "onboarding.h"
+#include "power.h"
 #include "sysevent.h"
 #endif
 
@@ -18,6 +19,42 @@
 #include <attributes.h>
 #include <stdio.h>
 #include <string.h>
+
+bool display_controller_update_power_off_send_failures(const fwpb_display_command* cmd,
+                                                       bool is_plugged_in, uint8_t* failure_count) {
+  if (failure_count == NULL) {
+    return false;
+  }
+
+  if ((cmd == NULL) || (cmd->which_command != fwpb_display_command_show_screen_tag) ||
+      (cmd->command.show_screen.which_params != fwpb_display_show_screen_power_off_tag) ||
+      !is_plugged_in) {
+    *failure_count = 0;
+    return false;
+  }
+
+  if (*failure_count >= DISPLAY_POWER_OFF_RESET_THRESHOLD) {
+    return false;
+  }
+
+  (*failure_count)++;
+  return *failure_count == DISPLAY_POWER_OFF_RESET_THRESHOLD;
+}
+
+#ifdef EMBEDDED_BUILD
+static SHARED_TASK_BSS uint8_t s_power_off_send_failures = 0;
+
+static void display_controller_reset_power_off_send_failures(void) {
+  s_power_off_send_failures = 0;
+}
+
+static bool display_controller_track_power_off_send_failure(const fwpb_display_command* cmd) {
+  return display_controller_update_power_off_send_failures(cmd, power_is_plugged_in(),
+                                                           &s_power_off_send_failures);
+}
+#else
+static void display_controller_reset_power_off_send_failures(void) {}
+#endif
 
 #ifndef EMBEDDED_BUILD
 // External functions and stub types for simulation
@@ -55,10 +92,20 @@ static fwpb_display_result display_controller_send_command(const fwpb_display_co
   bool success = uc_send_immediate(msg);
 
   if (!success) {
-    LOGE("Display cmd fail: %d", cmd->command.show_screen.which_params);
+    if (display_controller_track_power_off_send_failure(cmd)) {
+      LOGW("Reset MCUs: pwr-off disp send fail");
+      sysevent_set(SYSEVENT_FORCE_POWER_OFF_RESET);
+    }
+    if (cmd->which_command == fwpb_display_command_show_screen_tag) {
+      LOGE("Display cmd fail: command=%u show_screen=%u", (unsigned)cmd->which_command,
+           (unsigned)cmd->command.show_screen.which_params);
+    } else {
+      LOGE("Display cmd fail: command=%u", (unsigned)cmd->which_command);
+    }
     return fwpb_display_result_DISPLAY_RESULT_ERROR;
   }
 
+  display_controller_reset_power_off_send_failures();
   refresh_auth();
   return fwpb_display_result_DISPLAY_RESULT_SUCCESS;
 #else
@@ -385,6 +432,7 @@ void display_controller_init(void) {
   controller.scan_confirm_on_enter = false;
   controller.scan_confirm_cancel_returns_to_onboarding = false;
   battery_rescale_init(&controller.battery_rescale_state);
+  display_controller_reset_power_off_send_failures();
   // Initialize brightness to default (will be updated via UI_EVENT_SET_DEVICE_INFO)
   controller.show_screen.brightness_percent = 80;
 

@@ -137,6 +137,17 @@ void hold_cancel_show_with_text(hold_cancel_t* modal, hold_cancel_complete_cb_t 
 
 #if LV_USE_SNAPSHOT
 /**
+ * @brief Snapshot helper that renders the completed cancel state directly.
+ *
+ * Shows the completed cancel icon + label state before any followup transition.
+ *
+ * @param modal Modal widget structure
+ * @param options Modal presentation configuration
+ */
+void hold_cancel_snapshot_show_completed(hold_cancel_t* modal,
+                                         const hold_cancel_options_t* options);
+
+/**
  * @brief Snapshot helper that renders the followup state directly.
  *
  * @param modal Modal widget structure

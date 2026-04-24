@@ -236,6 +236,17 @@ out:
   proto_send_rsp(cmd, rsp);
 }
 
+void key_manager_task_port_handle_fingerprint_reset_finalize(ipc_ref_t* message) {
+  fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
+  fwpb_wallet_rsp* rsp = proto_get_rsp();
+
+  rsp->which_msg = fwpb_wallet_rsp_fingerprint_reset_finalize_rsp_tag;
+  rsp->status = fwpb_status_FEATURE_NOT_SUPPORTED;
+
+  LOGE("provide_grant (fingerprint_reset_finalize) unsupported on W3");
+  proto_send_rsp(cmd, rsp);
+}
+
 void key_manager_task_port_handle_verify_keys_and_build_descriptor(ipc_ref_t* message) {
   fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
   fwpb_wallet_rsp* rsp = proto_get_rsp();
@@ -482,6 +493,23 @@ typedef enum {
   STREAM_STATE_CONFIRMED,  // User confirmed, ready for signature retrieval
 } stream_signing_state_t;
 
+// Sweep signing context shared by one-shot (w3_signing_session_t) and streaming
+// (stream_signing_session_t). `active` is set when the session was initiated by
+// sweep_sign_cmd / sweep_sign_stream_start_cmd; the signer uses `app_xpub` /
+// `server_xpub` in place of keyset.app / keyset.server, and derives HW from
+// master at `old_account_index`.
+//
+// Each account uses distinct app, hw, and server cosigner keys. HW is derivable
+// from master; app and server xpubs must be supplied by the app because the
+// stored keyset only holds the current account's xpubs.
+typedef struct {
+  bool active;
+  uint32_t old_account_index;
+  xpub_t app_xpub;     // OLD account app xpub at depth 3
+  xpub_t server_xpub;  // OLD account server xpub at depth 3
+  xpub_t hw_xpub;      // OLD account HW xpub at depth 3, derived from master once per request
+} sweep_context_t;
+
 typedef struct {
   stream_signing_state_t state;
   // Transaction metadata from start_cmd
@@ -508,6 +536,9 @@ typedef struct {
   // Payload commitment hash (computed over ALL received bytes at finalize time).
   // Stored for post-approval verification - covers amounts, paths, and all tx fields.
   uint8_t payload_hash[SHA256_DIGEST_SIZE];
+  // Sweep signing context (populated iff stream was initiated by
+  // sweep_sign_stream_start_cmd). See sweep_context_t docs.
+  sweep_context_t sweep;
 } stream_signing_session_t;
 
 // ---------------------------------------------------------------------------
@@ -530,6 +561,9 @@ typedef struct {
   key_manager_psbt_signature_t signatures[RAW_TX_MAX_INPUTS];
   size_t num_signatures;
   fwpb_status sign_result;
+  // Sweep signing context (populated iff session was initiated by
+  // sweep_sign_cmd). See sweep_context_t docs.
+  sweep_context_t sweep;
 } w3_signing_session_t;
 
 // ---------------------------------------------------------------------------
@@ -1061,6 +1095,15 @@ static void stream_precompute_signatures(void) {
   const size_t app_hw_account_depth = 3;
   const size_t server_account_depth = 0;
 
+  // See sign_raw_tx_with_hw_key for rationale: normal path rejects any
+  // non-current-account input, sweep path uses OLD-account xpubs.
+  const bool is_sweep = stream_session.sweep.active;
+  const uint32_t expected_account_index =
+    is_sweep ? stream_session.sweep.old_account_index : (uint32_t)keyset.account_index;
+  const xpub_t* app_xpub_src = is_sweep ? &stream_session.sweep.app_xpub : &keyset.app;
+  const xpub_t* hw_xpub_src = is_sweep ? &stream_session.sweep.hw_xpub : &keyset.hw;
+  const xpub_t* server_xpub_src = is_sweep ? &stream_session.sweep.server_xpub : &keyset.server;
+
   // Only one file handle may be open at a time (fs_open_global uses a single
   // global handle).  The loop alternates between reading the payload file and
   // writing the sigs file, opening/closing each per iteration.
@@ -1075,9 +1118,19 @@ static void stream_precompute_signatures(void) {
       goto fail;
     }
 
+    // Account-consistency check (see sign_raw_tx_with_hw_key).
+    {
+      uint32_t input_account = input.derivation_path[2] & ~0x80000000u;
+      if (input_account != expected_account_index) {
+        LOGE("PC: in %lu acct %lu != %lu", (unsigned long)i, (unsigned long)input_account,
+             (unsigned long)expected_account_index);
+        goto fail;
+      }
+    }
+
     // Derive child pubkeys
     uint8_t child_pubkeys[PSBT_P2WSH_MAX_KEYPATHS * PSBT_P2WSH_PUBKEY_LEN];
-    const xpub_t* xpubs[PSBT_P2WSH_MAX_KEYPATHS] = {&keyset.app, &keyset.hw, &keyset.server};
+    const xpub_t* xpubs[PSBT_P2WSH_MAX_KEYPATHS] = {app_xpub_src, hw_xpub_src, server_xpub_src};
     const size_t account_depths[PSBT_P2WSH_MAX_KEYPATHS] = {
       app_hw_account_depth, app_hw_account_depth, server_account_depth};
 
@@ -1451,6 +1504,29 @@ static fwpb_status sign_raw_tx_with_hw_key(void) {
     return fwpb_status_ERROR;
   }
 
+  // Account-consistency guard.
+  //
+  // Normal signing (signing_session.sweep.active == false): every input must
+  // reference keyset.account_index. Any non-current-account input is rejected
+  // so a compromised app cannot smuggle an old-account spend through the
+  // regular path. Sweeps must go through sweep_sign_cmd.
+  //
+  // Sweep signing (signing_session.sweep.active == true): every input must
+  // reference signing_session.sweep.old_account_index (validated at request
+  // time but re-checked here defensively).
+  const bool is_sweep = signing_session.sweep.active;
+  const uint32_t expected_account_index =
+    is_sweep ? signing_session.sweep.old_account_index : (uint32_t)keyset.account_index;
+  for (size_t i = 0; i < signing_session.num_inputs; i++) {
+    uint32_t input_account = signing_session.inputs[i].derivation_path[2] & ~0x80000000u;
+    if (input_account != expected_account_index) {
+      LOGE("Sign: in %zu acct %lu != %lu", i, (unsigned long)input_account,
+           (unsigned long)expected_account_index);
+      memzero(&keyset, sizeof(keyset));
+      return fwpb_status_INVALID_ARGUMENT;
+    }
+  }
+
   // App and HW xpubs are at account depth 3: m/84'/coin'/account'
   // Server xpub is at depth 0 (all non-hardened derivation via chaincode delegation).
   // For app/hw: derive child using the non-hardened suffix (path[3:], e.g. [0, 0])
@@ -1458,6 +1534,12 @@ static fwpb_status sign_raw_tx_with_hw_key(void) {
   //             (e.g. [84', 1', 0', 0, 0] → [84, 1, 0, 0, 0])
   const size_t app_hw_account_depth = 3;
   const size_t server_account_depth = 0;
+
+  // In sweep mode, substitute OLD-account xpubs: app + server come from the
+  // sweep_sign_cmd, HW is derived from master (see validate_and_store_sweep_ctx).
+  const xpub_t* app_xpub_src = is_sweep ? &signing_session.sweep.app_xpub : &keyset.app;
+  const xpub_t* hw_xpub_src = is_sweep ? &signing_session.sweep.hw_xpub : &keyset.hw;
+  const xpub_t* server_xpub_src = is_sweep ? &signing_session.sweep.server_xpub : &keyset.server;
 
   signing_session.num_signatures = 0;
 
@@ -1467,7 +1549,7 @@ static fwpb_status sign_raw_tx_with_hw_key(void) {
     // Derive child pubkeys from xpubs for this input's derivation path.
     // App/HW use account_depth=3, server uses account_depth=0 with hardened bits stripped.
     uint8_t child_pubkeys[PSBT_P2WSH_MAX_KEYPATHS * PSBT_P2WSH_PUBKEY_LEN];
-    const xpub_t* xpubs[PSBT_P2WSH_MAX_KEYPATHS] = {&keyset.app, &keyset.hw, &keyset.server};
+    const xpub_t* xpubs[PSBT_P2WSH_MAX_KEYPATHS] = {app_xpub_src, hw_xpub_src, server_xpub_src};
     const size_t account_depths[PSBT_P2WSH_MAX_KEYPATHS] = {
       app_hw_account_depth, app_hw_account_depth, server_account_depth};
 
@@ -1952,6 +2034,410 @@ out:
   proto_send_rsp(cmd, rsp);
 }
 
+// ---------------------------------------------------------------------------
+// Sweep signing helpers and handlers
+// ---------------------------------------------------------------------------
+
+// Derive the HW account-level xpub from master at m/84'/coin'/old_account'.
+// Called once per sweep request to populate sweep_context_t.hw_xpub; subsequent
+// per-input derivation reuses this via derive_child_pubkey_from_xpub just like
+// the normal signing path does with keyset.hw.
+static bool derive_sweep_hw_xpub(uint32_t old_account_index, uint8_t network, xpub_t* xpub_out) {
+  uint32_t indices[] = {
+    BIP84_PURPOSE | BIP32_HARDENED_BIT,
+    (network == NETWORK_MAINNET ? BIP32_COIN_BTC : BIP32_COIN_TESTNET) | BIP32_HARDENED_BIT,
+    old_account_index | BIP32_HARDENED_BIT};
+  derivation_path_t path = {.indices = indices, .num_indices = BIP32_PATH_DEPTH_ACCOUNT};
+
+  extended_key_t priv __attribute__((__cleanup__(bip32_zero_key)));
+  if (!wallet_derive_key_priv_using_cache(&priv, path)) {
+    return false;
+  }
+  extended_key_t pub __attribute__((__cleanup__(bip32_zero_key)));
+  if (!bip32_priv_to_pub(&priv, &pub)) {
+    return false;
+  }
+  xpub_out->pubkey[0] = pub.prefix;
+  memcpy(&xpub_out->pubkey[1], pub.key, BIP32_KEY_SIZE);
+  memcpy(xpub_out->chaincode, pub.chaincode, BIP32_CHAINCODE_SIZE);
+  return true;
+}
+
+// Validate sweep-command-level invariants and populate a sweep_context_t.
+// Enforces:
+//   - old_account_index differs from the on-device keyset.account_index
+//   - app + server xpubs have the right on-wire sizes and are valid points
+//   - HW xpub can be derived from master at the requested account index
+static fwpb_status validate_and_init_sweep_ctx(
+  const wallet_keyset_t* keyset, uint32_t old_account_index, const uint8_t* app_pubkey,
+  size_t app_pubkey_size, const uint8_t* app_chaincode, size_t app_chaincode_size,
+  const uint8_t* server_pubkey, size_t server_pubkey_size, const uint8_t* server_chaincode,
+  size_t server_chaincode_size, sweep_context_t* out) {
+  if (old_account_index == (uint32_t)keyset->account_index) {
+    LOGE("SwS: acct == cur (%lu)", (unsigned long)old_account_index);
+    return fwpb_status_INVALID_ARGUMENT;
+  }
+  if (app_pubkey_size != PUBKEY_LENGTH || app_chaincode_size != CHAINCODE_LENGTH ||
+      server_pubkey_size != PUBKEY_LENGTH || server_chaincode_size != CHAINCODE_LENGTH) {
+    LOGE("SwS: xpub sz");
+    return fwpb_status_INVALID_ARGUMENT;
+  }
+  if (!validate_pubkey(app_pubkey) || !validate_pubkey(server_pubkey)) {
+    LOGE("SwS: bad pk");
+    return fwpb_status_INVALID_ARGUMENT;
+  }
+
+  memset(out, 0, sizeof(*out));
+  memcpy(out->app_xpub.pubkey, app_pubkey, PUBKEY_LENGTH);
+  memcpy(out->app_xpub.chaincode, app_chaincode, CHAINCODE_LENGTH);
+  memcpy(out->server_xpub.pubkey, server_pubkey, PUBKEY_LENGTH);
+  memcpy(out->server_xpub.chaincode, server_chaincode, CHAINCODE_LENGTH);
+
+  if (!derive_sweep_hw_xpub(old_account_index, keyset->network, &out->hw_xpub)) {
+    LOGE("SwS: hw derive");
+    return fwpb_status_ERROR;
+  }
+
+  out->old_account_index = old_account_index;
+  out->active = true;
+  return fwpb_status_SUCCESS;
+}
+
+// Derive the expected P2WSH scriptPubKey for the CURRENT keyset's fresh
+// receive address (m/84'/coin'/current_account'/0/0). Populates
+// [spk_out] / [spk_len_out] on success. Used by the sweep path to verify
+// that any non-derivation-path ("external") output actually lands on the
+// user's own fresh receive address rather than an attacker-controlled one.
+static bool derive_current_fresh_receive_spk(const wallet_keyset_t* keyset, uint8_t* spk_out,
+                                             size_t spk_buf_len, size_t* spk_len_out) {
+  uint32_t path[] = {
+    BIP84_PURPOSE | BIP32_HARDENED_BIT,
+    (keyset->network == NETWORK_MAINNET ? BIP32_COIN_BTC : BIP32_COIN_TESTNET) | BIP32_HARDENED_BIT,
+    ((uint32_t)keyset->account_index) | BIP32_HARDENED_BIT,
+    0u,
+    0u,
+  };
+  return wallet_derive_p2wsh_scriptpubkey(keyset, path, sizeof(path) / sizeof(path[0]), spk_out,
+                                          spk_buf_len, spk_len_out) == WALLET_RES_OK;
+}
+
+// Validate sweep-specific tx shape for the one-shot signing path.
+//
+// A sweep is structurally a single-output transaction: all old-account UTXOs
+// move to exactly ONE fresh receive address on the current keyset at
+// m/84'/coin'/current'/0/0. This tight shape is easier to audit than a
+// multi-output disjunction and removes the theoretical case where a crafted
+// request could ride multiple outputs that each individually satisfy the
+// sweep invariant.
+//
+// Invariants:
+//  - every input references `old_account_index`
+//  - num_outputs == 1
+//  - that single output's scriptPubKey exactly matches the firmware-derived
+//    P2WSH scriptPubKey at current-keyset /0/0. This works for both external
+//    destinations (no bip32_derivation on the output) AND derivation-path
+//    destinations — the scriptPubKey match is cryptographic and sufficient
+//    on its own, so no separate `has_derivation_path` branching is needed.
+static fwpb_status validate_sweep_tx_shape(const wallet_keyset_t* keyset,
+                                           uint32_t old_account_index, const raw_tx_input_t* inputs,
+                                           size_t num_inputs, const raw_tx_output_t* outputs,
+                                           size_t num_outputs) {
+  for (size_t i = 0; i < num_inputs; i++) {
+    uint32_t acct = inputs[i].derivation_path[2] & ~0x80000000u;
+    if (acct != old_account_index) {
+      LOGE("SwS: in %zu acct %lu != %lu", i, (unsigned long)acct, (unsigned long)old_account_index);
+      return fwpb_status_INVALID_ARGUMENT;
+    }
+  }
+
+  if (num_outputs != 1) {
+    LOGE("SwS: expected 1 output, got %zu", num_outputs);
+    return fwpb_status_INVALID_ARGUMENT;
+  }
+
+  uint8_t fresh_spk[sizeof(outputs[0].destination_spk)];
+  size_t fresh_spk_len = 0;
+  if (!derive_current_fresh_receive_spk(keyset, fresh_spk, sizeof(fresh_spk), &fresh_spk_len)) {
+    LOGE("SwS: fresh spk derive");
+    return fwpb_status_ERROR;
+  }
+
+  const raw_tx_output_t* out = &outputs[0];
+  if (out->destination_spk_len != fresh_spk_len ||
+      memcmp(out->destination_spk, fresh_spk, fresh_spk_len) != 0) {
+    LOGE("SwS: out spk mismatch (not current /0/0)");
+    return fwpb_status_INVALID_ARGUMENT;
+  }
+  return fwpb_status_SUCCESS;
+}
+
+void key_manager_task_handle_sweep_sign(ipc_ref_t* message) {
+  fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
+  fwpb_wallet_rsp* rsp = proto_get_rsp();
+  rsp->which_msg = fwpb_wallet_rsp_sweep_sign_rsp_tag;
+
+  // Unconditionally tear down any prior session (transaction, streaming, or SAP)
+  confirmation_manager_clear();
+  signing_session_reset();
+  stream_session_reset();
+  sap_session_init(&sap_session);
+
+  const fwpb_sweep_sign_cmd* req = &cmd->msg.sweep_sign_cmd;
+
+  if (req->inputs_count == 0 || req->inputs_count > RAW_TX_MAX_INPUTS || req->outputs_count == 0 ||
+      req->outputs_count > RAW_TX_MAX_OUTPUTS) {
+    LOGE("SwS: %lu in %lu out", (unsigned long)req->inputs_count,
+         (unsigned long)req->outputs_count);
+    rsp->status = fwpb_status_INVALID_ARGUMENT;
+    goto out;
+  }
+  if (req->version == 0 || req->version > 2) {
+    LOGE("SwS: bad ver %lu", (unsigned long)req->version);
+    rsp->status = fwpb_status_INVALID_ARGUMENT;
+    goto out;
+  }
+
+  wallet_keyset_t keyset = {0};
+  if (!wkek_read_and_decrypt(WALLET_KEYSET_PATH, (uint8_t*)&keyset, sizeof(keyset))) {
+    LOGE("SwS: KS load");
+    rsp->status = fwpb_status_DESCRIPTOR_NOT_LOADED;
+    goto out;
+  }
+  if (keyset.version != WALLET_KEYSET_VERSION) {
+    LOGE("SwS: KS ver %d", keyset.version);
+    memzero(&keyset, sizeof(keyset));
+    rsp->status = fwpb_status_ERROR;
+    goto out;
+  }
+
+  fwpb_status sweep_status = validate_and_init_sweep_ctx(
+    &keyset, req->old_account_index, req->sweep_app_xpub_pubkey.bytes,
+    req->sweep_app_xpub_pubkey.size, req->sweep_app_xpub_chaincode.bytes,
+    req->sweep_app_xpub_chaincode.size, req->sweep_server_xpub_pubkey.bytes,
+    req->sweep_server_xpub_pubkey.size, req->sweep_server_xpub_chaincode.bytes,
+    req->sweep_server_xpub_chaincode.size, &signing_session.sweep);
+  if (sweep_status != fwpb_status_SUCCESS) {
+    memzero(&keyset, sizeof(keyset));
+    signing_session_reset();
+    rsp->status = sweep_status;
+    goto out;
+  }
+
+  // Parse inputs/outputs using the same logic as handle_sign_tx_request.
+  signing_session.num_inputs = req->inputs_count;
+  signing_session.lock_time = req->lock_time;
+  signing_session.version = req->version;
+  for (size_t i = 0; i < req->inputs_count; i++) {
+    const fwpb_sign_tx_input* proto_input = &req->inputs[i];
+    raw_tx_input_t* input = &signing_session.inputs[i];
+
+    if (proto_input->prev_txid.size != 32) {
+      LOGE("SwS: txid sz %zu", i);
+      rsp->status = fwpb_status_INVALID_ARGUMENT;
+      memzero(&keyset, sizeof(keyset));
+      signing_session_reset();
+      goto out;
+    }
+    memcpy(input->prev_txid, proto_input->prev_txid.bytes, 32);
+    input->prev_index = proto_input->prev_index;
+    input->sequence = proto_input->sequence;
+    input->amount = proto_input->amount;
+
+    if (proto_input->derivation_path_count < 5 ||
+        proto_input->derivation_path_count > PSBT_BIP32_PATH_MAX_LEN) {
+      LOGE("SwS: path len %zu:%lu", i, (unsigned long)proto_input->derivation_path_count);
+      rsp->status = fwpb_status_INVALID_ARGUMENT;
+      memzero(&keyset, sizeof(keyset));
+      signing_session_reset();
+      goto out;
+    }
+    input->derivation_path_len = proto_input->derivation_path_count;
+    for (size_t j = 0; j < proto_input->derivation_path_count; j++) {
+      input->derivation_path[j] = proto_input->derivation_path[j];
+    }
+  }
+
+  signing_session.num_outputs = req->outputs_count;
+  for (size_t i = 0; i < req->outputs_count; i++) {
+    const fwpb_sign_tx_output* proto_output = &req->outputs[i];
+    raw_tx_output_t* output = &signing_session.outputs[i];
+
+    if (proto_output->destination_spk.size == 0 ||
+        proto_output->destination_spk.size > sizeof(output->destination_spk)) {
+      LOGE("SwS: spk sz %zu", i);
+      rsp->status = fwpb_status_INVALID_ARGUMENT;
+      memzero(&keyset, sizeof(keyset));
+      signing_session_reset();
+      goto out;
+    }
+    output->amount = proto_output->amount;
+    memcpy(output->destination_spk, proto_output->destination_spk.bytes,
+           proto_output->destination_spk.size);
+    output->destination_spk_len = proto_output->destination_spk.size;
+    output->has_derivation_path = proto_output->has_derivation_path;
+    if (proto_output->has_derivation_path) {
+      if (proto_output->derivation_path_count == 0 ||
+          proto_output->derivation_path_count > PSBT_BIP32_PATH_MAX_LEN) {
+        LOGE("SwS: opath len %zu", i);
+        rsp->status = fwpb_status_INVALID_ARGUMENT;
+        memzero(&keyset, sizeof(keyset));
+        signing_session_reset();
+        goto out;
+      }
+      output->derivation_path_len = proto_output->derivation_path_count;
+      for (size_t j = 0; j < proto_output->derivation_path_count; j++) {
+        output->derivation_path[j] = proto_output->derivation_path[j];
+      }
+    } else {
+      if (proto_output->derivation_path_count != 0) {
+        LOGE("SwS: unexpected path %zu", i);
+        rsp->status = fwpb_status_INVALID_ARGUMENT;
+        memzero(&keyset, sizeof(keyset));
+        signing_session_reset();
+        goto out;
+      }
+      output->derivation_path_len = 0;
+    }
+  }
+
+  fwpb_status shape_status = validate_sweep_tx_shape(
+    &keyset, signing_session.sweep.old_account_index, signing_session.inputs,
+    signing_session.num_inputs, signing_session.outputs, signing_session.num_outputs);
+  if (shape_status != fwpb_status_SUCCESS) {
+    memzero(&keyset, sizeof(keyset));
+    signing_session_reset();
+    rsp->status = shape_status;
+    goto out;
+  }
+
+  memzero(&keyset, sizeof(keyset));
+  signing_session.active = true;
+
+  // Reuse the same confirmation flow as normal signing.
+  // raw_tx_request_confirmation internally verifies every derivation-path
+  // output belongs to the CURRENT keyset's P2WSH policy — which is exactly
+  // what a sweep needs (destinations go to the current account).
+  fwpb_status confirm_status = raw_tx_request_confirmation(rsp, (uint32_t)req->btc_display_unit);
+  if (confirm_status != fwpb_status_SUCCESS) {
+    rsp->status = confirm_status;
+    signing_session_reset();
+  }
+
+out:
+  proto_send_rsp(cmd, rsp);
+}
+
+void key_manager_task_handle_sweep_sign_stream_start(ipc_ref_t* message) {
+  fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
+  fwpb_wallet_rsp* rsp = proto_get_rsp();
+  rsp->which_msg = fwpb_wallet_rsp_sweep_sign_stream_start_rsp_tag;
+
+  confirmation_manager_clear();
+  signing_session_reset();
+  stream_session_reset();
+  sap_session_init(&sap_session);
+  fwup_cleanup_stale_patch();
+
+  const fwpb_sweep_sign_stream_start_cmd* req = &cmd->msg.sweep_sign_stream_start_cmd;
+
+  if (req->num_inputs == 0 || req->num_outputs == 0) {
+    LOGE("SwSS: zero in/out");
+    rsp->msg.sweep_sign_stream_start_rsp.rsp_status =
+      fwpb_sweep_sign_stream_start_rsp_sweep_sign_stream_start_rsp_status_ERROR;
+    goto out;
+  }
+  if (req->num_inputs > STREAM_TX_MAX_INPUTS || req->num_outputs > STREAM_TX_MAX_OUTPUTS) {
+    LOGE("SwSS: max in=%lu out=%lu", (unsigned long)req->num_inputs,
+         (unsigned long)req->num_outputs);
+    rsp->msg.sweep_sign_stream_start_rsp.rsp_status =
+      fwpb_sweep_sign_stream_start_rsp_sweep_sign_stream_start_rsp_status_ERROR;
+    goto out;
+  }
+  if (req->version == 0 || req->version > 2) {
+    LOGE("SwSS: ver %lu", (unsigned long)req->version);
+    rsp->msg.sweep_sign_stream_start_rsp.rsp_status =
+      fwpb_sweep_sign_stream_start_rsp_sweep_sign_stream_start_rsp_status_ERROR;
+    goto out;
+  }
+
+  uint32_t expected_size = STREAM_HEADER_SIZE + req->num_inputs * STREAM_INPUT_RECORD_SIZE +
+                           req->num_outputs * STREAM_OUTPUT_RECORD_SIZE;
+  if (req->payload_size != expected_size) {
+    LOGE("SwSS: sz %lu!=%lu", (unsigned long)req->payload_size, (unsigned long)expected_size);
+    rsp->msg.sweep_sign_stream_start_rsp.rsp_status =
+      fwpb_sweep_sign_stream_start_rsp_sweep_sign_stream_start_rsp_status_ERROR;
+    goto out;
+  }
+
+  wallet_keyset_t keyset = {0};
+  if (!wkek_read_and_decrypt(WALLET_KEYSET_PATH, (uint8_t*)&keyset, sizeof(keyset))) {
+    LOGE("SwSS: KS load");
+    rsp->msg.sweep_sign_stream_start_rsp.rsp_status =
+      fwpb_sweep_sign_stream_start_rsp_sweep_sign_stream_start_rsp_status_ERROR;
+    goto out;
+  }
+  if (keyset.version != WALLET_KEYSET_VERSION) {
+    LOGE("SwSS: KS ver %d", keyset.version);
+    memzero(&keyset, sizeof(keyset));
+    rsp->msg.sweep_sign_stream_start_rsp.rsp_status =
+      fwpb_sweep_sign_stream_start_rsp_sweep_sign_stream_start_rsp_status_ERROR;
+    goto out;
+  }
+
+  fwpb_status sweep_status = validate_and_init_sweep_ctx(
+    &keyset, req->old_account_index, req->sweep_app_xpub_pubkey.bytes,
+    req->sweep_app_xpub_pubkey.size, req->sweep_app_xpub_chaincode.bytes,
+    req->sweep_app_xpub_chaincode.size, req->sweep_server_xpub_pubkey.bytes,
+    req->sweep_server_xpub_pubkey.size, req->sweep_server_xpub_chaincode.bytes,
+    req->sweep_server_xpub_chaincode.size, &stream_session.sweep);
+  memzero(&keyset, sizeof(keyset));
+  if (sweep_status != fwpb_status_SUCCESS) {
+    stream_session_reset();
+    rsp->msg.sweep_sign_stream_start_rsp.rsp_status =
+      (sweep_status == fwpb_status_UNAUTHENTICATED)
+        ? fwpb_sweep_sign_stream_start_rsp_sweep_sign_stream_start_rsp_status_UNAUTHENTICATED
+        : fwpb_sweep_sign_stream_start_rsp_sweep_sign_stream_start_rsp_status_ERROR;
+    goto out;
+  }
+
+  // Create (or truncate) the flash file for payload storage
+  {
+    fs_file_t* file = NULL;
+    if (fs_open_global(&file, STREAM_PAYLOAD_PATH, FS_O_WRONLY | FS_O_CREAT | FS_O_TRUNC) != 0) {
+      LOGE("SwSS: file create");
+      stream_session_reset();
+      rsp->msg.sweep_sign_stream_start_rsp.rsp_status =
+        fwpb_sweep_sign_stream_start_rsp_sweep_sign_stream_start_rsp_status_ERROR;
+      goto out;
+    }
+    fs_close_global(file);
+  }
+
+  stream_session.state = STREAM_STATE_RECEIVING;
+  stream_session.num_inputs = req->num_inputs;
+  stream_session.num_outputs = req->num_outputs;
+  stream_session.version = req->version;
+  stream_session.lock_time = req->lock_time;
+  stream_session.expected_payload_size = req->payload_size;
+  stream_session.bytes_received = 0;
+  stream_session.next_sequence_id = 0;
+  stream_session.btc_display_unit = (uint32_t)req->btc_display_unit;
+
+  if (!crypto_sha256_stream_init(&stream_session.commitment_ctx)) {
+    LOGE("SwSS: sha init");
+    stream_session_reset();
+    rsp->msg.sweep_sign_stream_start_rsp.rsp_status =
+      fwpb_sweep_sign_stream_start_rsp_sweep_sign_stream_start_rsp_status_ERROR;
+    goto out;
+  }
+
+  rsp->msg.sweep_sign_stream_start_rsp.rsp_status =
+    fwpb_sweep_sign_stream_start_rsp_sweep_sign_stream_start_rsp_status_SUCCESS;
+
+out:
+  proto_send_rsp(cmd, rsp);
+}
+
 void key_manager_task_handle_sign_action_proof(ipc_ref_t* message) {
   fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
   fwpb_wallet_rsp* rsp = proto_get_rsp();
@@ -2196,6 +2682,37 @@ out:
 // Streaming signing: validate that every output flagged as change actually
 // belongs to our wallet policy (mirrors the check in raw_tx_request_confirmation)
 // ---------------------------------------------------------------------------
+// Streaming: validate that every input's derivation_path[2] matches the
+// expected account index (the current keyset for normal signing, or the
+// declared old_account_index for sweeps). Called before user confirmation
+// so that a mismatch fails fast — otherwise the user would approve a tx
+// that later fails during signature retrieval (stream_precompute_signatures
+// / get_tx_signature raises KEYPATH_MISMATCH), which is a poor UX.
+static bool stream_validate_input_accounts(uint32_t expected_account_index) {
+  fs_file_t* file = NULL;
+  if (fs_open_global(&file, STREAM_PAYLOAD_PATH, FS_O_RDONLY) != 0)
+    return false;
+
+  bool ok = true;
+  for (uint32_t i = 0; i < stream_session.num_inputs; i++) {
+    raw_tx_input_t parsed_in = {0};
+    if (!parse_input_from_flash_f(file, i, &parsed_in)) {
+      ok = false;
+      break;
+    }
+    uint32_t acct = parsed_in.derivation_path[2] & ~0x80000000u;
+    if (acct != expected_account_index) {
+      LOGE("Strm: in %lu acct %lu != %lu", (unsigned long)i, (unsigned long)acct,
+           (unsigned long)expected_account_index);
+      ok = false;
+      break;
+    }
+  }
+
+  fs_close_global(file);
+  return ok;
+}
+
 static bool stream_validate_change_outputs(const wallet_keyset_t* keyset) {
   fs_file_t* file = NULL;
   if (fs_open_global(&file, STREAM_PAYLOAD_PATH, FS_O_RDONLY) != 0)
@@ -2236,6 +2753,43 @@ static bool stream_validate_change_outputs(const wallet_keyset_t* keyset) {
   return ok;
 }
 
+// Streaming counterpart to validate_sweep_tx_shape: sweep is a single-output
+// tx whose output is the current keyset's fresh /0/0 receive (see
+// validate_sweep_tx_shape for rationale). Input account-consistency is
+// handled by stream_validate_input_accounts, called earlier by
+// stream_tx_request_confirmation.
+static bool stream_validate_sweep_shape(const wallet_keyset_t* keyset) {
+  if (stream_session.num_outputs != 1) {
+    LOGE("SwSStrm: expected 1 output, got %lu", (unsigned long)stream_session.num_outputs);
+    return false;
+  }
+
+  uint8_t fresh_spk[sizeof(((raw_tx_output_t*)0)->destination_spk)];
+  size_t fresh_spk_len = 0;
+  if (!derive_current_fresh_receive_spk(keyset, fresh_spk, sizeof(fresh_spk), &fresh_spk_len)) {
+    LOGE("SwSStrm: fresh spk derive");
+    return false;
+  }
+
+  fs_file_t* file = NULL;
+  if (fs_open_global(&file, STREAM_PAYLOAD_PATH, FS_O_RDONLY) != 0)
+    return false;
+
+  raw_tx_output_t parsed_out = {0};
+  bool parsed = parse_output_from_flash_f(file, 0, &parsed_out);
+  fs_close_global(file);
+  if (!parsed) {
+    return false;
+  }
+
+  if (parsed_out.destination_spk_len != fresh_spk_len ||
+      memcmp(parsed_out.destination_spk, fresh_spk, fresh_spk_len) != 0) {
+    LOGE("SwSStrm: out spk mismatch (not current /0/0)");
+    return false;
+  }
+  return true;
+}
+
 // ---------------------------------------------------------------------------
 // Streaming signing: request user confirmation
 // ---------------------------------------------------------------------------
@@ -2249,6 +2803,19 @@ static fwpb_status stream_tx_request_confirmation(fwpb_wallet_rsp* rsp) {
   ew_network_t network =
     (keyset.network == NETWORK_MAINNET) ? EW_NETWORK_MAINNET : EW_NETWORK_TESTNET;
 
+  // Fail fast on account-index mismatch before showing the confirmation UI,
+  // so the user is never asked to approve a transaction that cannot be signed.
+  // Normal sessions: every input must reference the current keyset's account.
+  // Sweep sessions: every input must reference the declared old_account_index.
+  const uint32_t expected_input_account = stream_session.sweep.active
+                                            ? stream_session.sweep.old_account_index
+                                            : (uint32_t)keyset.account_index;
+  if (!stream_validate_input_accounts(expected_input_account)) {
+    LOGE("Strm: input account validate fail");
+    memzero(&keyset, sizeof(keyset));
+    return fwpb_status_INVALID_ARGUMENT;
+  }
+
   // Validate change outputs before displaying the transaction to the user.
   // Without this check, a malicious app could label an attacker-controlled output
   // as change, hiding the theft from the on-screen confirmation.
@@ -2256,6 +2823,19 @@ static fwpb_status stream_tx_request_confirmation(fwpb_wallet_rsp* rsp) {
     LOGE("Strm: chg validate fail");
     memzero(&keyset, sizeof(keyset));
     return fwpb_status_ERROR;
+  }
+
+  // For sweep sessions, additionally enforce the sweep-specific output
+  // invariant: exactly one output, whose scriptPubKey matches the firmware-
+  // derived P2WSH at current-keyset m/84'/coin'/current'/0/0. Works for
+  // both external destinations and derivation-path destinations — the
+  // scriptPubKey match is cryptographically sufficient on its own.
+  if (stream_session.sweep.active) {
+    if (!stream_validate_sweep_shape(&keyset)) {
+      LOGE("Strm: sweep shape fail");
+      memzero(&keyset, sizeof(keyset));
+      return fwpb_status_INVALID_ARGUMENT;
+    }
   }
 
   memzero(&keyset, sizeof(keyset));
@@ -2639,8 +3219,25 @@ void key_manager_task_handle_get_tx_signature(ipc_ref_t* message) {
     const size_t app_hw_account_depth = 3;
     const size_t server_account_depth = 0;
 
+    // See sign_raw_tx_with_hw_key for rationale.
+    const bool is_sweep = stream_session.sweep.active;
+    const uint32_t expected_account_index =
+      is_sweep ? stream_session.sweep.old_account_index : (uint32_t)keyset.account_index;
+    {
+      uint32_t input_account = input.derivation_path[2] & ~0x80000000u;
+      if (input_account != expected_account_index) {
+        LOGE("GS: in %lu acct %lu != %lu", (unsigned long)idx, (unsigned long)input_account,
+             (unsigned long)expected_account_index);
+        memzero(&keyset, sizeof(keyset));
+        goto out;
+      }
+    }
+    const xpub_t* app_xpub_src = is_sweep ? &stream_session.sweep.app_xpub : &keyset.app;
+    const xpub_t* hw_xpub_src = is_sweep ? &stream_session.sweep.hw_xpub : &keyset.hw;
+    const xpub_t* server_xpub_src = is_sweep ? &stream_session.sweep.server_xpub : &keyset.server;
+
     uint8_t child_pubkeys[PSBT_P2WSH_MAX_KEYPATHS * PSBT_P2WSH_PUBKEY_LEN];
-    const xpub_t* xpubs[PSBT_P2WSH_MAX_KEYPATHS] = {&keyset.app, &keyset.hw, &keyset.server};
+    const xpub_t* xpubs[PSBT_P2WSH_MAX_KEYPATHS] = {app_xpub_src, hw_xpub_src, server_xpub_src};
     const size_t account_depths[PSBT_P2WSH_MAX_KEYPATHS] = {
       app_hw_account_depth, app_hw_account_depth, server_account_depth};
 
@@ -2732,8 +3329,24 @@ static fwpb_status sign_single_input(uint32_t idx, const wallet_keyset_t* keyset
   const size_t app_hw_account_depth = 3;
   const size_t server_account_depth = 0;
 
+  // See sign_raw_tx_with_hw_key for rationale.
+  const bool is_sweep = stream_session.sweep.active;
+  const uint32_t expected_account_index =
+    is_sweep ? stream_session.sweep.old_account_index : (uint32_t)keyset->account_index;
+  {
+    uint32_t input_account = input.derivation_path[2] & ~0x80000000u;
+    if (input_account != expected_account_index) {
+      LOGE("BS: in %lu acct %lu != %lu", (unsigned long)idx, (unsigned long)input_account,
+           (unsigned long)expected_account_index);
+      return fwpb_status_INVALID_ARGUMENT;
+    }
+  }
+  const xpub_t* app_xpub_src = is_sweep ? &stream_session.sweep.app_xpub : &keyset->app;
+  const xpub_t* hw_xpub_src = is_sweep ? &stream_session.sweep.hw_xpub : &keyset->hw;
+  const xpub_t* server_xpub_src = is_sweep ? &stream_session.sweep.server_xpub : &keyset->server;
+
   uint8_t child_pubkeys[PSBT_P2WSH_MAX_KEYPATHS * PSBT_P2WSH_PUBKEY_LEN];
-  const xpub_t* xpubs[PSBT_P2WSH_MAX_KEYPATHS] = {&keyset->app, &keyset->hw, &keyset->server};
+  const xpub_t* xpubs[PSBT_P2WSH_MAX_KEYPATHS] = {app_xpub_src, hw_xpub_src, server_xpub_src};
   const size_t account_depths[PSBT_P2WSH_MAX_KEYPATHS] = {
     app_hw_account_depth, app_hw_account_depth, server_account_depth};
 

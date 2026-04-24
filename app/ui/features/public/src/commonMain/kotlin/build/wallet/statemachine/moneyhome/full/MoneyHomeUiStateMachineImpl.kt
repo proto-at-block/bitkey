@@ -218,9 +218,7 @@ class MoneyHomeUiStateMachineImpl(
           )
         }
         is MoneyHomeUiProps.Origin.W3Upgrade -> W3UpgradeInProgressUiState
-        is MoneyHomeUiProps.Origin.W3UpgradeComplete -> {
-          ViewingBalanceUiState(showW3UpgradeCompleteCoachmark = true)
-        }
+        is MoneyHomeUiProps.Origin.W3UpgradeComplete -> w3UpgradeCompleteViewingBalanceUiState()
         else -> ViewingBalanceUiState()
       }
       mutableStateOf(initialState)
@@ -446,7 +444,7 @@ class MoneyHomeUiStateMachineImpl(
         W3UpgradeUiProps(
           account = props.account as FullAccount,
           onUpgradeComplete = {
-            uiState = ViewingBalanceUiState(showW3UpgradeCompleteCoachmark = true)
+            uiState = w3UpgradeCompleteViewingBalanceUiState()
           },
           onExit = { uiState = ViewingBalanceUiState() }
         )
@@ -693,7 +691,6 @@ sealed interface MoneyHomeUiState {
     val bottomSheetDisplayState: BottomSheetDisplayState? = null,
     val selectedContact: TrustedContact? = null,
     val partnerTransferLinkRequest: PartnerTransferLinkRequest? = null,
-    val showW3UpgradeCompleteCoachmark: Boolean = false,
   ) : MoneyHomeUiState {
     sealed interface BottomSheetDisplayState {
       /**
@@ -717,6 +714,11 @@ sealed interface MoneyHomeUiState {
        * to add an additional fingerprint.
        */
       data object PromptingForFwUpUiState : BottomSheetDisplayState
+
+      /**
+       * Showing the DSV2 W3 upgrade completion sheet over Money Home.
+       */
+      data object W3UpgradeComplete : BottomSheetDisplayState
     }
   }
 
@@ -853,3 +855,9 @@ sealed interface MoneyHomeUiState {
     val purchaseAmount: FiatMoney,
   ) : MoneyHomeUiState
 }
+
+private fun w3UpgradeCompleteViewingBalanceUiState() =
+  MoneyHomeUiState.ViewingBalanceUiState(
+    bottomSheetDisplayState =
+      MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.W3UpgradeComplete
+)

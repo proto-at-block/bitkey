@@ -33,11 +33,13 @@ import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.BadgeType
 import build.wallet.ui.model.icon.IconButtonModel
+import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
+import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
 import build.wallet.ui.model.list.ListItemSideTextTint
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
@@ -88,7 +90,7 @@ fun MoneyHomeScreenFullPendingActivityDesignSystemV2PreviewLight() {
   PreviewWalletTheme(
     designSystemUpdatesEnabled = true
   ) {
-    MoneyHomeScreenFullWithPendingActivity(useCircularPendingIndicator = true)
+    MoneyHomeScreenFullWithPendingActivity()
   }
 }
 
@@ -99,7 +101,7 @@ fun MoneyHomeScreenFullPendingActivityDesignSystemV2PreviewDark() {
     theme = Theme.DARK,
     designSystemUpdatesEnabled = true
   ) {
-    MoneyHomeScreenFullWithPendingActivity(useCircularPendingIndicator = true)
+    MoneyHomeScreenFullWithPendingActivity()
   }
 }
 
@@ -112,7 +114,6 @@ fun MoneyHomeScreenFull(
   isSellButtonEnabled: Boolean = false,
   useSatsForRecentActivity: Boolean = false,
   usePendingActivity: Boolean = false,
-  useCircularPendingIndicator: Boolean = false,
   securityHubBadged: Boolean = false,
   isLoading: Boolean = false,
   isLoadingTransactions: Boolean = false,
@@ -130,7 +131,6 @@ fun MoneyHomeScreenFull(
         transactionsModel = moneyHomeRecentActivityModel(
           useSatsForRecentActivity = useSatsForRecentActivity,
           usePendingActivity = usePendingActivity,
-          useCircularPendingIndicator = useCircularPendingIndicator,
           isLoadingTransactions = isLoadingTransactions,
           useSkeletonTransactions = useSkeletonTransactions
         ),
@@ -177,7 +177,6 @@ private fun moneyHomeBalanceModel(
 private fun moneyHomeRecentActivityModel(
   useSatsForRecentActivity: Boolean,
   usePendingActivity: Boolean,
-  useCircularPendingIndicator: Boolean,
   isLoadingTransactions: Boolean,
   useSkeletonTransactions: Boolean,
 ) = ListModel(
@@ -198,7 +197,6 @@ private fun moneyHomeRecentActivityModel(
           populatedRecentActivityItems(
             useSatsForRecentActivity = useSatsForRecentActivity,
             usePendingActivity = usePendingActivity,
-            useCircularPendingIndicator = useCircularPendingIndicator,
             isLoadingTransactions = isLoadingTransactions
           )
         }
@@ -209,7 +207,6 @@ private fun moneyHomeRecentActivityModel(
 private fun populatedRecentActivityItems(
   useSatsForRecentActivity: Boolean,
   usePendingActivity: Boolean,
-  useCircularPendingIndicator: Boolean,
   isLoadingTransactions: Boolean,
 ) = immutableListOf(
   TransactionItemModel(
@@ -220,7 +217,7 @@ private fun populatedRecentActivityItems(
     transactionType = Incoming,
     isPending = usePendingActivity,
     isLate = false,
-    pendingBadgeType = if (useCircularPendingIndicator) BadgeType.CircularLoading else BadgeType.Loading,
+    pendingBadgeType = BadgeType.Loading,
     isLoading = isLoadingTransactions,
     onClick = {}
   ),
@@ -246,27 +243,71 @@ private fun populatedRecentActivityItems(
     isLoading = isLoadingTransactions,
     onClick = {}
   ),
-  PartnerTransactionItemModel(
-    title = "Purchase",
-    date = if (usePendingActivity) "Pending" else "July 4",
-    logoUrl = null,
-    amount = if (usePendingActivity) null else "$31.36",
-    amountEquivalent =
-      if (usePendingActivity) {
-        null
-      } else if (useSatsForRecentActivity) {
-        "30,500 sats"
-      } else {
-        "0.000305 BTC"
-      },
-    isPending = usePendingActivity,
-    isError = false,
-    pendingBadgeType = if (useCircularPendingIndicator) BadgeType.CircularLoading else BadgeType.Loading,
-    sideTextTint = ListItemSideTextTint.GREEN,
-    isLoading = isLoadingTransactions,
-    onClick = {}
-  )
+  if (usePendingActivity) {
+    previewPartnerTransactionItemModel(
+      title = "Purchase",
+      date = "Pending",
+      logoUrl = null,
+      amount = null,
+      amountEquivalent = null,
+      isPending = true,
+      isError = false,
+      pendingBadgeType = BadgeType.Loading,
+      sideTextTint = ListItemSideTextTint.GREEN,
+      isLoading = isLoadingTransactions,
+      onClick = {}
+    )
+  } else {
+    PartnerTransactionItemModel(
+      title = "Purchase",
+      date = "July 4",
+      logoUrl = null,
+      amount = "$31.36",
+      amountEquivalent = if (useSatsForRecentActivity) "30,500 sats" else "0.000305 BTC",
+      isPending = false,
+      isError = false,
+      pendingBadgeType = BadgeType.Loading,
+      sideTextTint = ListItemSideTextTint.GREEN,
+      isLoading = isLoadingTransactions,
+      onClick = {}
+    )
+  }
 )
+
+private fun previewPartnerIconImage() = IconImage.MarketIconImage(MarketIcons.CashAppMulticolor)
+
+private fun previewPartnerTransactionItemModel(
+  title: String,
+  date: String,
+  logoUrl: String?,
+  amount: String?,
+  amountEquivalent: String?,
+  isPending: Boolean,
+  isError: Boolean,
+  pendingBadgeType: BadgeType = BadgeType.Loading,
+  sideTextTint: ListItemSideTextTint,
+  isLoading: Boolean = false,
+  onClick: () -> Unit,
+) = PartnerTransactionItemModel(
+  title = title,
+  date = date,
+  logoUrl = logoUrl,
+  amount = amount,
+  amountEquivalent = amountEquivalent,
+  isPending = isPending,
+  isError = isError,
+  pendingBadgeType = pendingBadgeType,
+  sideTextTint = sideTextTint,
+  isLoading = isLoading,
+  onClick = onClick
+).let { model ->
+  val leadingAccessory = model.leadingAccessory as IconAccessory
+  model.copy(
+    leadingAccessory = leadingAccessory.copy(
+      model = leadingAccessory.model.copy(iconImage = previewPartnerIconImage())
+    )
+  )
+}
 
 private fun moneyMovementButtonsModel(
   showSellButton: Boolean,
@@ -336,10 +377,9 @@ fun MoneyHomeScreenFullWithBuyAndSellEnabled() {
 }
 
 @Composable
-fun MoneyHomeScreenFullWithPendingActivity(useCircularPendingIndicator: Boolean = false) {
+fun MoneyHomeScreenFullWithPendingActivity() {
   MoneyHomeScreenFull(
-    usePendingActivity = true,
-    useCircularPendingIndicator = useCircularPendingIndicator
+    usePendingActivity = true
   )
 }
 
@@ -467,7 +507,7 @@ fun MoneyHomeScreenFullNewWalletGettingStartedNoActivity() {
                       DataPoint(10L, 91_400.0)
                     )
                 ),
-                style = CardModel.CardStyle.Outline
+                style = CardModel.CardStyle.Outline()
               ),
               GettingStartedCardModel(
                 animations = null,

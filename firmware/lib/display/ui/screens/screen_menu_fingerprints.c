@@ -27,6 +27,7 @@
 #define ICON_CIRCLE_SIZE     120
 #define ICON_CIRCLE_SIZE_MIN 100
 #define ICON_CIRCLE_COLOR    0x404040
+#define ICON_CIRCLE_BG_OPA   LV_OPA_70
 #define COLOR_GREEN          0xD1FB96
 #define GREEN_PULSE_DURATION 200
 #define GREEN_PULSE_CYCLES   2
@@ -372,7 +373,7 @@ lv_obj_t* screen_menu_fingerprints_init(void* ctx) {
     lv_obj_set_size(item_icon_circles[i], ICON_CIRCLE_SIZE, ICON_CIRCLE_SIZE);
     lv_obj_set_style_radius(item_icon_circles[i], LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(item_icon_circles[i], lv_color_hex(ICON_CIRCLE_COLOR), 0);
-    lv_obj_set_style_bg_opa(item_icon_circles[i], LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_opa(item_icon_circles[i], ICON_CIRCLE_BG_OPA, 0);
     lv_obj_set_style_border_width(item_icon_circles[i], 0, 0);
     lv_obj_set_style_pad_all(item_icon_circles[i], 0, 0);
     lv_obj_align(item_icon_circles[i], LV_ALIGN_CENTER, 0, ICON_Y_OFFSET);

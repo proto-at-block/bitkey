@@ -1,5 +1,6 @@
 #include "display.pb.h"
 #include "display_controller.h"
+#include "display_controller_internal.h"
 #include "rtos.h"
 #include "secutils.h"
 
@@ -121,6 +122,32 @@ static void setup(void) {
 }
 
 TestSuite(display_controller, .init = setup);
+
+Test(display_controller, power_off_send_failure_threshold_is_one_shot_and_resets) {
+  fwpb_display_command power_off_cmd = {0};
+  power_off_cmd.which_command = fwpb_display_command_show_screen_tag;
+  power_off_cmd.command.show_screen.which_params = fwpb_display_show_screen_power_off_tag;
+
+  uint8_t failure_count = 0;
+
+  for (uint8_t i = 0; i < DISPLAY_POWER_OFF_RESET_THRESHOLD - 1; i++) {
+    cr_assert(
+      !display_controller_update_power_off_send_failures(&power_off_cmd, true, &failure_count));
+  }
+
+  cr_assert_eq(DISPLAY_POWER_OFF_RESET_THRESHOLD - 1, failure_count);
+  cr_assert(
+    display_controller_update_power_off_send_failures(&power_off_cmd, true, &failure_count));
+  cr_assert_eq(DISPLAY_POWER_OFF_RESET_THRESHOLD, failure_count);
+
+  cr_assert(
+    !display_controller_update_power_off_send_failures(&power_off_cmd, true, &failure_count));
+  cr_assert_eq(DISPLAY_POWER_OFF_RESET_THRESHOLD, failure_count);
+
+  cr_assert(
+    !display_controller_update_power_off_send_failures(&power_off_cmd, false, &failure_count));
+  cr_assert_eq(0, failure_count);
+}
 
 Test(display_controller, onboarding_root_menu_hides_post_onboarding_items) {
   boot_controller();
@@ -407,4 +434,37 @@ Test(display_controller, onboarding_complete_timeout_waits_for_initial_screen) {
 
   cr_assert_eq(last_command.which_command, fwpb_display_command_show_screen_tag);
   cr_assert_eq(last_command.command.show_screen.which_params, fwpb_display_show_screen_locked_tag);
+}
+
+Test(display_controller, ready_after_device_info_shows_initial_screen) {
+  display_controller_init();
+
+  device_info_t info = {0};
+  info.brightness_percent = 80;
+  display_controller_handle_ui_event(UI_EVENT_SET_DEVICE_INFO, &info, sizeof(info));
+
+  cr_assert_eq(ui_execute_command_call_count, 0);
+
+  display_controller_show_initial_screen();
+
+  cr_assert_eq(ui_execute_command_call_count, 1);
+  cr_assert_eq(last_command.which_command, fwpb_display_command_show_screen_tag);
+  cr_assert_eq(last_command.command.show_screen.which_params,
+               fwpb_display_show_screen_onboarding_tag);
+}
+
+Test(display_controller, repeated_ready_replays_current_screen) {
+  stub_onboarding_complete = SECURE_TRUE;
+  boot_controller();
+
+  display_controller_handle_ui_event(UI_EVENT_AUTH_SUCCESS, NULL, 0);
+  advance_ticks(4);
+
+  uint32_t command_count_before = ui_execute_command_call_count;
+
+  display_controller_show_initial_screen();
+
+  cr_assert_eq(ui_execute_command_call_count, command_count_before + 1);
+  cr_assert_eq(last_command.which_command, fwpb_display_command_show_screen_tag);
+  cr_assert_eq(last_command.command.show_screen.which_params, fwpb_display_show_screen_scan_tag);
 }

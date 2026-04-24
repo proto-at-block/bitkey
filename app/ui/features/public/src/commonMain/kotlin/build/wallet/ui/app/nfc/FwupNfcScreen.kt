@@ -29,7 +29,6 @@ import build.wallet.ui.tokens.LabelType
 import org.jetbrains.compose.resources.painterResource
 
 private val IosFwupStatusContentOffset = (-8).dp
-private val IosFwupVideoTopSpacing = 16.dp
 
 @Composable
 fun FwupNfcScreen(
@@ -62,16 +61,18 @@ internal fun FwupNfcScreenInternalIos(
   val designSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
 
   if (!model.showNativeSheetOnIos) {
-    NfcProgressScreenIosLayout(
-      modifier = modifier,
-      backgroundColor = WalletTheme.colors.background,
-      statusTopPadding = 40.dp,
-      showDefaultHardwareBackground = false
-    ) {
-      FwupNfcIosStatusContent(
-        status = model.status,
-        designSystemV2Enabled = designSystemV2Enabled
-      )
+    FwupSystemThemedContent(followIosSystemTheme = designSystemV2Enabled) {
+      NfcProgressScreenIosLayout(
+        modifier = modifier,
+        backgroundColor = WalletTheme.colors.background,
+        statusTopPadding = 40.dp,
+        showDefaultHardwareBackground = false
+      ) {
+        FwupNfcIosStatusContent(
+          status = model.status,
+          designSystemV2Enabled = designSystemV2Enabled
+        )
+      }
     }
     return
   }
@@ -80,10 +81,8 @@ internal fun FwupNfcScreenInternalIos(
     followIosSystemTheme = model.shouldFollowIosSystemTheme(designSystemV2Enabled)
   ) {
     val showDetailedIosInstructions = model.shouldShowDetailedIosInstructions(designSystemV2Enabled)
-    val videoTopPadding =
-      WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + IosFwupVideoTopSpacing
-    val backgroundConfig =
-      fwupIosBackgroundConfig(
+    val resolvedBackgroundPainter =
+      fwupIosBackgroundPainter(
         designSystemV2Enabled = designSystemV2Enabled,
         showDetailedIosInstructions = showDetailedIosInstructions,
         backgroundPainter = backgroundPainter
@@ -92,11 +91,8 @@ internal fun FwupNfcScreenInternalIos(
     NfcProgressScreenIosLayout(
       modifier = modifier,
       backgroundColor = WalletTheme.colors.background,
-      backgroundPainter = backgroundConfig.backgroundPainter,
-      backgroundVideoResourcePath = backgroundConfig.backgroundVideoResourcePath,
-      backgroundVideoIsLooping = !designSystemV2Enabled,
-      backgroundVideoTopPadding = if (designSystemV2Enabled) videoTopPadding else 0.dp,
-      backgroundTopPadding = if (designSystemV2Enabled) videoTopPadding else 200.dp,
+      backgroundPainter = resolvedBackgroundPainter,
+      backgroundTopPadding = 200.dp,
       statusTopPadding = if (designSystemV2Enabled) 40.dp else 48.dp,
       showDefaultHardwareBackground = !showDetailedIosInstructions
     ) {
@@ -108,17 +104,12 @@ internal fun FwupNfcScreenInternalIos(
   }
 }
 
-private data class FwupIosBackgroundConfig(
-  val backgroundPainter: Painter?,
-  val backgroundVideoResourcePath: String?,
-)
-
 @Composable
-private fun fwupIosBackgroundConfig(
+private fun fwupIosBackgroundPainter(
   designSystemV2Enabled: Boolean,
   showDetailedIosInstructions: Boolean,
   backgroundPainter: Painter?,
-): FwupIosBackgroundConfig {
+): Painter? {
   val theme = LocalTheme.current
   val backgroundDrawable = when (theme) {
     Theme.DARK -> Res.drawable.ios_nfc_background_fwup
@@ -126,15 +117,9 @@ private fun fwupIosBackgroundConfig(
   }
 
   return if (designSystemV2Enabled && !showDetailedIosInstructions) {
-    FwupIosBackgroundConfig(
-      backgroundPainter = backgroundPainter ?: painterResource(backgroundDrawable),
-      backgroundVideoResourcePath = iosNfcHeroVideoResource(IosNfcHeroVideo.Fwup, theme)
-    )
+    backgroundPainter ?: painterResource(backgroundDrawable)
   } else {
-    FwupIosBackgroundConfig(
-      backgroundPainter = backgroundPainter,
-      backgroundVideoResourcePath = null
-    )
+    backgroundPainter
   }
 }
 

@@ -2,8 +2,8 @@ package build.wallet.statemachine.walletmigration
 
 import build.wallet.analytics.events.screen.id.WalletMigrationEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.designSystemV2HeroIconHeader

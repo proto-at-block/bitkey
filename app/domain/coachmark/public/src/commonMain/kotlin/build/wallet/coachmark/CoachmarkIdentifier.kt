@@ -29,6 +29,7 @@ enum class CoachmarkIdentifier(
     action = Action.ACTION_APP_COACHMARK_VIEWED_BIP_177,
     expiration = 14.days
   ),
+  @Deprecated("W3 upgrade completion now uses a sheet. Kept for DB row compatibility.")
   W3UpgradeCompleteCoachmark(
     id = "w3_upgrade_complete_coachmark",
     action = Action.ACTION_APP_COACHMARK_VIEWED_W3_UPGRADE_COMPLETE

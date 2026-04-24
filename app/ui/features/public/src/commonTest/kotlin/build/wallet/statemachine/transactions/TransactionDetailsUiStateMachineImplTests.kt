@@ -16,9 +16,6 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.CurrencyConverterFake
@@ -65,8 +62,6 @@ import kotlin.time.Duration.Companion.minutes
 class TransactionDetailsUiStateMachineImplTests : FunSpec({
 
   val timeZoneProvider = TimeZoneProviderMock()
-  val featureFlagDao = FeatureFlagDaoFake()
-  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(featureFlagDao)
   val confirmedTime = BitcoinTransactionSend.confirmationTime()!!
   val broadcastTime = BitcoinTransactionSend.broadcastTime!!
   val estimatedConfirmationTime = BitcoinTransactionSend.estimatedConfirmationTime!!
@@ -103,7 +98,6 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
 
   val stateMachine =
     TransactionDetailsUiStateMachineImpl(
-      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
       bitcoinExplorer = BitcoinExplorerMock(),
       timeZoneProvider = timeZoneProvider,
       dateTimeFormatter = DateTimeFormatterMock(timeToFormattedTime = timeToFormattedTime),
@@ -210,7 +204,6 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
 
   beforeTest {
     clock.now = someInstant
-    designSystemUpdatesFeatureFlag.reset()
     bitcoinWalletService.reset()
     bitcoinWalletService.spendingWallet.value = spendingWallet
     bitcoinTransactionBumpabilityChecker.isBumpable = false
@@ -311,18 +304,6 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
             )
         }
       }
-    }
-  }
-
-  test("pending receive transaction uses circular processing stepper with design system v2") {
-    designSystemUpdatesFeatureFlag.setFlagValue(true)
-
-    stateMachine.test(pendingReceiveProps) {
-      awaitBody<TransactionDetailModel> {
-        content[0].shouldBe(processingTransactionStepperDesignSystemV2)
-      }
-
-      cancelAndIgnoreRemainingEvents()
     }
   }
 

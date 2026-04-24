@@ -44,6 +44,8 @@ messages:
       auth: after_onboarding
     - name: fwpb_ship_state_cmd
       auth: before_onboarding
+    - name: fwpb_reset_cmd
+      auth: dev
   structs:
     - name: sysinfo_boot_status_t
       fields:

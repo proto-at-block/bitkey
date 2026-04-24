@@ -50,7 +50,7 @@ fun WalletsProtectingMoneyHomeCardModel(
   return CardModel(
     title = title,
     content = CardModel.CardContent.DrillList(items = cardItems.toImmutableList()),
-    style = CardModel.CardStyle.Outline
+    style = CardModel.CardStyle.Outline()
   )
 }
 

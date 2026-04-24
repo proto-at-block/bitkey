@@ -11,6 +11,7 @@
 #include "lvgl.h"
 
 #include <stdbool.h>
+#include <stdint.h>
 
 // Top menu widget - displays ellipsis icon in a pill button at top center
 typedef struct {
@@ -27,6 +28,23 @@ typedef struct {
  * @param custom_handler Optional custom click handler (NULL for default MENU action).
  */
 void top_menu_create(lv_obj_t* parent, top_menu_t* widget, lv_event_cb_t custom_handler);
+
+/**
+ * @brief Sets the top menu opacity immediately.
+ *
+ * @param widget Widget state structure.
+ * @param opacity Target opacity.
+ */
+void top_menu_set_opacity(top_menu_t* widget, lv_opa_t opacity);
+
+/**
+ * @brief Animates the top menu opacity.
+ *
+ * @param widget Widget state structure.
+ * @param opacity Target opacity.
+ * @param duration_ms Animation duration in milliseconds.
+ */
+void top_menu_fade_to_opacity(top_menu_t* widget, lv_opa_t opacity, uint32_t duration_ms);
 
 /**
  * @brief Destroys a top menu widget.

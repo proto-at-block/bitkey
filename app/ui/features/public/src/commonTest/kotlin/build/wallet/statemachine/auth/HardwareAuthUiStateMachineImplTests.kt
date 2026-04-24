@@ -190,7 +190,7 @@ class HardwareAuthUiStateMachineImplTests : FunSpec({
         }
         awaitBody<LoadingSuccessBodyModel>()
         awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<String>>(id = "nfc-confirmable-session") {
-          config.showNativeSheetOnIos.shouldBe(false)
+          config.showNativeSheetOnIos.shouldBe(true)
           onSuccess("hw-signature")
         }
       }
@@ -326,7 +326,7 @@ class HardwareAuthUiStateMachineImplTests : FunSpec({
         }
         awaitBody<LoadingSuccessBodyModel>()
         awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<String>>(id = "nfc-confirmable-session") {
-          config.showNativeSheetOnIos.shouldBe(false)
+          config.showNativeSheetOnIos.shouldBe(true)
           onSuccess("hw-signature")
         }
       }

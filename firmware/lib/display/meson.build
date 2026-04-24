@@ -67,6 +67,15 @@ deps = [
   uc_dep,
 ]
 
+display_ui_c_args = []
+
+if meson.can_run_host_binaries()
+  # The simulator can momentarily hold both the outgoing and incoming screens
+  # during transitions, so give LVGL more heap headroom without changing the
+  # embedded builds' memory budget.
+  display_ui_c_args += ['-DLV_MEM_SIZE=(1024*1024U)']
+endif
+
 python = find_program('python3')
 
 # Font sizes we need for CashSansMono
@@ -240,6 +249,7 @@ display_ui_lib = library('display_ui',
   srcs,
   include_directories : includes,
   dependencies        : deps,
+  c_args              : display_ui_c_args,
 )
 display_ui_dep = declare_dependency(
   link_with : display_ui_lib,
@@ -251,7 +261,7 @@ display_ui_mfgtest_lib = library('display_ui_mfgtest',
   srcs,
   include_directories : includes,
   dependencies        : deps,
-  c_args : ['-DMFGTEST=1'],
+  c_args : display_ui_c_args + ['-DMFGTEST=1'],
 )
 display_ui_mfgtest_dep = declare_dependency(
   link_with : display_ui_mfgtest_lib,

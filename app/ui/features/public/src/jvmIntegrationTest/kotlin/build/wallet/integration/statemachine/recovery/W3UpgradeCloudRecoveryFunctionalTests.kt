@@ -39,7 +39,7 @@ import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.robots.clickBitkeyDevice
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
-import build.wallet.statemachine.walletmigration.W3UpgradeCompleteBodyModel
+import build.wallet.statemachine.walletmigration.W3UpgradeCompleteSheetBodyModel
 import build.wallet.statemachine.walletmigration.W3UpgradeDeviceReadyBodyModel
 import build.wallet.statemachine.walletmigration.W3UpgradeIntroBodyModel
 import build.wallet.statemachine.walletmigration.W3UpgradeNewHardwareAuthRotationInstructionsBodyModel
@@ -431,8 +431,14 @@ private suspend fun ReceiveTurbine<ScreenModel>.completeSweepAndFinish(
     .clickPrimaryButton()
   awaitUntilBody<TransferInitiatedBodyModel>()
     .clickPrimaryButton()
-  awaitUntilBody<W3UpgradeCompleteBodyModel>()
-    .onDone()
+  awaitUntilScreenWithBody<MoneyHomeBodyModel>(
+    matchingScreen = { it.bottomSheetModel?.body is W3UpgradeCompleteSheetBodyModel }
+  ).let { screen ->
+    checkNotNull(screen.bottomSheetModel)
+      .body
+      .shouldBeTypeOf<W3UpgradeCompleteSheetBodyModel>()
+      .onDone()
+  }
   awaitUntilBody<MoneyHomeBodyModel>()
 }
 

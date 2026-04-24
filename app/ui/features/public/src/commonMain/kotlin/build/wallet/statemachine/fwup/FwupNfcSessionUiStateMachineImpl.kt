@@ -562,10 +562,11 @@ class FwupNfcSessionUiStateMachineImpl(
       is NfcException.UserDenied,
       is NfcException.ConfirmationNotCompleted -> handleUserDeniedOrConfirmationPending(error, state, continuation, props, setState, isDenied = true)
       is NfcException.ConfirmationPending -> handleUserDeniedOrConfirmationPending(error, state, continuation, props, setState, isDenied = false)
-      is NfcException.IOSOnly.NoSession -> {
-        // If FWUP is already in progress and the active NFC session is gone,
-        // show the cooldown screen before allowing the user to continue. Progress is
-        // saved and the update resumes from the last successful sequence ID.
+      is NfcException.IOSOnly.NoSession,
+      is NfcException.CanBeRetried.SessionInvalidated -> {
+        // Session gone mid-FWUP — on iOS this usually means the NFC coil is thermally
+        // throttled. Show the cooldown screen so the coil can cool before the user
+        // retries; progress is saved and resumes from the last successful sequence ID.
         if (fwupInProgress) {
           setState(
             NfcCooldownUiState(

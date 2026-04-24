@@ -19,7 +19,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
-import build.wallet.ui.components.loading.CircularLoadingBadge
 import build.wallet.ui.components.loading.LoadingBadge
 import build.wallet.ui.components.loading.LoadingIndicator
 import build.wallet.ui.compose.thenIf
@@ -187,10 +186,6 @@ private fun IconImageContent(
       modifier = Modifier.size(model.iconSize.dp).alpha(model.iconOpacity ?: 1f),
       color = badgeColor
     )
-    IconImage.CircularLoadingBadge -> CircularLoadingBadge(
-      modifier = Modifier.size(model.iconSize.dp).alpha(model.iconOpacity ?: 1f),
-      color = badgeColor
-    )
   }
 }
 
@@ -268,20 +263,6 @@ private fun BoxScope.IconBadge(
         .size(IconSize.XSmall.dp)
         .align(Alignment.BottomEnd)
     )
-    BadgeType.CircularLoading -> Box(
-      modifier = Modifier.padding(bottom = 5.dp, end = 5.dp)
-        .size(IconSize.XSmall.dp)
-        .background(
-          color = WalletTheme.colors.background,
-          shape = CircleShape
-        )
-        .align(Alignment.BottomEnd),
-      contentAlignment = Alignment.Center
-    ) {
-      CircularLoadingBadge(
-        modifier = Modifier.size(IconSize.XSmall.dp)
-      )
-    }
     BadgeType.Error -> Image(
       modifier = Modifier.padding(bottom = 4.dp, end = 4.dp)
         .align(Alignment.BottomEnd),

@@ -4,7 +4,7 @@ import bitkey.ui.framework.NavigatorPresenterFake
 import build.wallet.bitcoin.invoice.PaymentDataParserMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoMock
+import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.money.FiatMoney
 import build.wallet.onboarding.OnboardingCompletionServiceFake
@@ -89,6 +89,8 @@ class MoneyHomeUiStateMachineImplTests : FunSpec({
       return resumeOverride?.invoke(type) ?: baseMigrationService.resumeResult
     }
   }
+  val featureFlagDao = FeatureFlagDaoFake()
+  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(featureFlagDao)
 
   fun createStateMachine(
     migrationService: MigrationService = defaultMigrationService,
@@ -137,7 +139,7 @@ class MoneyHomeUiStateMachineImplTests : FunSpec({
     partnershipsPurchaseQuotesUiStateMachine = object : PartnershipsPurchaseQuotesUiStateMachine,
       ScreenStateMachineMock<PartnershipsPurchaseQuotesUiProps>("purchase-quotes") {},
     deepLinkHandler = DeepLinkHandlerMock(turbines::create),
-    designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(FeatureFlagDaoMock()),
+    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
     w3UpgradeUiStateMachine = w3UpgradeUiStateMachine
   )
 
@@ -156,6 +158,8 @@ class MoneyHomeUiStateMachineImplTests : FunSpec({
   beforeTest {
     baseMigrationService.reset()
     resumeOverride = null
+    featureFlagDao.reset()
+    designSystemUpdatesFeatureFlag.reset()
   }
 
   test("backing out of custom amount returns to money home without reopening buy sheet") {
@@ -219,7 +223,7 @@ class MoneyHomeUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("completed resumed W3 upgrade returns to money home with coachmark state") {
+  test("completed resumed W3 upgrade returns to money home with success sheet") {
     val w3UpgradeProgress = MigrationProgress.AuthKeyRotation(
       type = MigrationType.W3Upgrade,
       currentKeybox = FullAccountMock.keybox,
@@ -241,7 +245,23 @@ class MoneyHomeUiStateMachineImplTests : FunSpec({
 
       awaitUntilBodyMock<MoneyHomeViewingBalanceUiProps>(id = moneyHomeViewingBalanceUiStateMachine.id) {
         state.shouldBe(
-          MoneyHomeUiState.ViewingBalanceUiState(showW3UpgradeCompleteCoachmark = true)
+          MoneyHomeUiState.ViewingBalanceUiState(
+            bottomSheetDisplayState =
+              MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.W3UpgradeComplete
+          )
+        )
+      }
+    }
+  }
+
+  test("W3 upgrade completion origin opens the success sheet") {
+    stateMachine.test(props.copy(origin = MoneyHomeUiProps.Origin.W3UpgradeComplete)) {
+      awaitUntilBodyMock<MoneyHomeViewingBalanceUiProps>(id = moneyHomeViewingBalanceUiStateMachine.id) {
+        state.shouldBe(
+          MoneyHomeUiState.ViewingBalanceUiState(
+            bottomSheetDisplayState =
+              MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.W3UpgradeComplete
+          )
         )
       }
     }

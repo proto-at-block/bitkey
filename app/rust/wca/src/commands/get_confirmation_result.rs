@@ -257,10 +257,9 @@ mod tests {
         errors::CommandError,
         fwpb::{
             get_confirmation_result_rsp::Result as ConfirmationResult, wallet_rsp::Msg,
-            wipe_state_rsp::WipeStateRspStatus, GetConfirmationResultRsp,
-            InputSignature, LostAppRecoverySignChallengeRsp, LostAppRecoverySsekRsp,
-            SignActionProofRsp, SignStreamSignaturesReady, SignTxResponse, Status, WalletRsp,
-            WipeStateRsp,
+            wipe_state_rsp::WipeStateRspStatus, GetConfirmationResultRsp, InputSignature,
+            LostAppRecoverySignChallengeRsp, LostAppRecoverySsekRsp, SignActionProofRsp,
+            SignStreamSignaturesReady, SignTxResponse, Status, WalletRsp, WipeStateRsp,
         },
     };
 

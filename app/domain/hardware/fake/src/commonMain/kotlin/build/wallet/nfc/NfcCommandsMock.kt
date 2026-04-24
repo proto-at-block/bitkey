@@ -29,6 +29,7 @@ class NfcCommandsMock(
   turbine: ((String) -> Turbine<Any>),
 ) : NfcCommands {
   val signTransactionCalls = turbine.invoke("SignTransaction calls")
+  val sweepTransactionCalls = turbine.invoke("SweepTransaction calls")
   val cancelFingerprintEnrollmentCalls = turbine.invoke("CancelFingerprintEnrollment calls")
   val getEnrolledFingerprintsCalls = turbine.invoke("GetEnrolledFingerprints calls")
   val deleteFingerprintCalls = turbine.invoke("DeleteFingerprint calls")
@@ -233,6 +234,23 @@ class NfcCommandsMock(
       numOfInputs = 1,
       amountSats = 10000UL
     ).also { signTransactionCalls.add(psbt) }
+  )
+
+  override suspend fun sweepTransaction(
+    session: NfcSession,
+    psbt: Psbt,
+    spendingKeyset: SpendingKeyset,
+    sweepContext: SweepSigningContext,
+    displayPreference: HwDisplayPreference?,
+  ) = HardwareInteraction.Completed(
+    Psbt(
+      id = "psbt-id",
+      base64 = "some-base-64",
+      fee = Fee(amount = BitcoinMoney.sats(10_000)),
+      vsize = 10000,
+      numOfInputs = 1,
+      amountSats = 10000UL
+    ).also { sweepTransactionCalls.add(psbt to sweepContext) }
   )
 
   override suspend fun startFingerprintEnrollment(

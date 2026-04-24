@@ -30,7 +30,6 @@ fun PartnerTransactionItemModel(
         else -> IconImage.LocalImage(Bitcoin)
       },
       iconSize = when {
-        isPending && !isError && pendingBadgeType == BadgeType.CircularLoading -> IconSize.Custom(44)
         isError || isPending -> IconSize.Custom(48)
         else -> IconSize.Custom(44)
       },

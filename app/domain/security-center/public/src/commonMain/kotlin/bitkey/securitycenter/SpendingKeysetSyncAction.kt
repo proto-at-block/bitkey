@@ -5,7 +5,7 @@ import build.wallet.recovery.keyset.SpendingKeysetSyncStatus
 /**
  * Security action for spending keyset sync status.
  *
- * When a keyset mismatch is detected between local and server state,
+ * When wallet keyset data needs repair,
  * this action will recommend the user repair their wallet.
  */
 data class SpendingKeysetSyncAction(
@@ -13,7 +13,9 @@ data class SpendingKeysetSyncAction(
 ) : SecurityAction {
   override fun getRecommendations(): List<SecurityActionRecommendation> =
     when (syncStatus) {
-      is SpendingKeysetSyncStatus.Mismatch -> listOf(SecurityActionRecommendation.REPAIR_KEYSET_MISMATCH)
+      is SpendingKeysetSyncStatus.Mismatch,
+      is SpendingKeysetSyncStatus.IncompletePrivateWallet ->
+        listOf(SecurityActionRecommendation.REPAIR_KEYSET_MISMATCH)
       else -> emptyList()
     }
 
@@ -23,7 +25,9 @@ data class SpendingKeysetSyncAction(
 
   override fun state(): SecurityActionState =
     when (syncStatus) {
-      is SpendingKeysetSyncStatus.Mismatch -> SecurityActionState.HasCriticalActions
+      is SpendingKeysetSyncStatus.Mismatch,
+      is SpendingKeysetSyncStatus.IncompletePrivateWallet ->
+        SecurityActionState.HasCriticalActions
       else -> SecurityActionState.Secure
     }
 }

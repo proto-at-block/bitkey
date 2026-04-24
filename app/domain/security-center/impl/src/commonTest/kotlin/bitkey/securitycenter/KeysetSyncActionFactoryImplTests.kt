@@ -57,6 +57,25 @@ class KeysetSyncActionFactoryImplTests : FunSpec({
     }
   }
 
+  test("returns action with REPAIR_KEYSET_MISMATCH recommendation when incomplete private wallet is detected") {
+    accountService.setActiveAccount(FullAccountMock)
+    spendingKeysetRepairService.setStatus(
+      SpendingKeysetSyncStatus.IncompletePrivateWallet(
+        activeKeysetId = "active-keyset-id"
+      )
+    )
+
+    factory().create().test {
+      val action = awaitItem()
+      action.type().shouldBe(SecurityActionType.KEYSET_SYNC)
+      action.category().shouldBe(SecurityActionCategory.RECOVERY)
+      action.state().shouldBe(SecurityActionState.HasCriticalActions)
+      action.getRecommendations().shouldContainExactly(
+        SecurityActionRecommendation.REPAIR_KEYSET_MISMATCH
+      )
+    }
+  }
+
   test("returns action with no recommendations when synced") {
     accountService.setActiveAccount(FullAccountMock)
     spendingKeysetRepairService.setStatus(SpendingKeysetSyncStatus.Synced)

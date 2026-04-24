@@ -301,7 +301,8 @@ public final class BitkeyW3Commands: NfcCommands {
                     do {
                         signedBase64 = try firmware.assemblePsbtSignatures(
                             psbtBase64: psbt.base64,
-                            signatures: ffiSignatures
+                            signatures: ffiSignatures,
+                            allowUnfinalized: false
                         )
                     } catch {
                         throw NfcException.CommandError(
@@ -484,7 +485,8 @@ public final class BitkeyW3Commands: NfcCommands {
                         do {
                             signedBase64 = try firmware.assemblePsbtSignatures(
                                 psbtBase64: psbt.base64,
-                                signatures: ffiSignatures
+                                signatures: ffiSignatures,
+                                allowUnfinalized: false
                             )
                         } catch {
                             throw NfcException.CommandError(
@@ -516,6 +518,299 @@ public final class BitkeyW3Commands: NfcCommands {
                 default:
                     throw NfcException.CommandError(
                         message: "signTransaction (streaming) expected SignStreamReady but got: \(type(of: confirmResult))",
+                        cause: nil
+                    ).asError()
+                }
+            }
+            return Shared.HardwareInteractionRequiresConfirmation<Shared.Psbt>(
+                handles: handles,
+                mapResult: mapper
+            ) as Shared.HardwareInteraction
+        }
+    }
+
+    /// W3 sweep signing. Parallel to `signTransaction` but uses the dedicated
+    /// sweep commands which accept the OLD account index + OLD app/server
+    /// xpubs. Firmware uses these to reconstruct the correct witness script
+    /// for the old account's UTXOs, derives HW from master at the old index,
+    /// and validates the destination is on the current keyset at address 0.
+    public func sweepTransaction(
+        session: NfcSession,
+        psbt: Shared.Psbt,
+        spendingKeyset: SpendingKeyset,
+        sweepContext: Shared.SweepSigningContext,
+        displayPreference: Shared.HwDisplayPreference?
+    ) async throws -> Shared.HardwareInteraction {
+        let decomposed: firmware.DecomposedPsbt
+        do {
+            decomposed = try firmware.decomposePsbt(
+                psbtBase64: psbt.base64,
+                originFingerprint: spendingKeyset.hardwareKey.key.origin.fingerprint
+            )
+        } catch {
+            throw NfcException.CommandError(
+                message: "Failed to decompose PSBT: \(error.localizedDescription)",
+                cause: nil
+            ).asError()
+        }
+
+        let needsStreaming = decomposed.inputs.count > Self.maxSignTxEntries ||
+            decomposed.outputs.count > Self.maxSignTxEntries
+        if needsStreaming {
+            return try sweepTransactionStreaming(
+                psbt: psbt,
+                decomposed: decomposed,
+                sweepContext: sweepContext,
+                displayPreference: displayPreference
+            )
+        } else {
+            return try await sweepTransactionOneShot(
+                session: session,
+                psbt: psbt,
+                decomposed: decomposed,
+                sweepContext: sweepContext,
+                displayPreference: displayPreference
+            )
+        }
+    }
+
+    private func sweepTransactionOneShot(
+        session: NfcSession,
+        psbt: Shared.Psbt,
+        decomposed: firmware.DecomposedPsbt,
+        sweepContext: Shared.SweepSigningContext,
+        displayPreference: Shared.HwDisplayPreference?
+    ) async throws -> Shared.HardwareInteraction {
+        let result = try await SweepSignRequest(
+            oldAccountIndex: sweepContext.oldAccountIndex,
+            appXpub: sweepContext.oldAppXpub.toFfi(),
+            serverXpub: sweepContext.oldServerXpub.toFfi(),
+            version: decomposed.version,
+            lockTime: decomposed.lockTime,
+            inputs: decomposed.inputs,
+            outputs: decomposed.outputs,
+            btcDisplayUnit: displayPreference?.ffiBtcDisplayUnit ?? .satoshi
+        ).transceive(session: session)
+
+        switch result {
+        case let .confirmationPending(responseHandle, confirmationHandle):
+            let handles = Shared.ConfirmationHandles(
+                responseHandle: responseHandle.map { KotlinUByte(value: $0) },
+                confirmationHandle: confirmationHandle.map { KotlinUByte(value: $0) }
+            )
+            let mapper = NfcConfirmationResultMapper { confirmResult in
+                switch confirmResult {
+                case let signTxResult as Shared.ConfirmationResultSignTx:
+                    let ffiSignatures: [firmware.InputSignatureTuple] = signTxResult.signatures
+                        .map { sharedSig in
+                            firmware.InputSignatureTuple(
+                                inputIndex: sharedSig.inputIndex,
+                                publicKey: sharedSig.publicKey.map(\.uint8Value),
+                                signature: sharedSig.signature.map(\.uint8Value)
+                            )
+                        }
+                    let signedBase64: String
+                    do {
+                        signedBase64 = try firmware.assemblePsbtSignatures(
+                            psbtBase64: psbt.base64,
+                            signatures: ffiSignatures,
+                            allowUnfinalized: true
+                        )
+                    } catch {
+                        throw NfcException.CommandError(
+                            message: "Failed to assemble sweep PSBT signatures: \(error.localizedDescription)",
+                            cause: nil
+                        ).asError()
+                    }
+                    let signedPsbt = Shared.Psbt(
+                        id: psbt.id,
+                        base64: signedBase64,
+                        fee: psbt.fee,
+                        vsize: psbt.vsize,
+                        numOfInputs: psbt.numOfInputs,
+                        amountSats: psbt.amountSats,
+                        inputs: psbt.inputs,
+                        outputs: psbt.outputs
+                    )
+                    return Shared.HardwareInteractionCompleted<Shared.Psbt>(
+                        result: signedPsbt
+                    ) as Shared.HardwareInteraction
+                case is Shared.ConfirmationResultPending:
+                    throw NfcException.ConfirmationPending().asError()
+                case is Shared.ConfirmationResultDenied:
+                    throw NfcException.UserDenied().asError()
+                default:
+                    throw NfcException.CommandError(
+                        message: "sweepTransaction expected SignTx result but got: \(type(of: confirmResult))",
+                        cause: nil
+                    ).asError()
+                }
+            }
+            return Shared.HardwareInteractionRequiresConfirmation<Shared.Psbt>(
+                handles: handles,
+                mapResult: mapper
+            ) as Shared.HardwareInteraction
+        }
+    }
+
+    private func sweepTransactionStreaming(
+        psbt: Shared.Psbt,
+        decomposed: firmware.DecomposedPsbt,
+        sweepContext: Shared.SweepSigningContext,
+        displayPreference: Shared.HwDisplayPreference?
+    ) throws -> Shared.HardwareInteraction {
+        let streamPayload: firmware.StreamPayload
+        do {
+            streamPayload = try firmware.serializeSignStreamPayload(
+                version: decomposed.version,
+                lockTime: decomposed.lockTime,
+                inputs: decomposed.inputs,
+                outputs: decomposed.outputs
+            )
+        } catch {
+            throw NfcException.CommandError(
+                message: "Failed to serialize sweep stream payload: \(error.localizedDescription)",
+                cause: nil
+            ).asError()
+        }
+
+        let transferFn = NfcSessionTransferFunction { [self] transferSession, _, onProgress in
+            return try await self.streamSweepPayloadAndFinalize(
+                session: transferSession,
+                psbt: psbt,
+                decomposed: decomposed,
+                streamPayload: streamPayload,
+                sweepContext: sweepContext,
+                displayPreference: displayPreference,
+                onProgress: onProgress
+            )
+        }
+        return Shared.HardwareInteractionRequiresTransfer<Shared.Psbt>(
+            transferAndFetch: transferFn
+        ) as Shared.HardwareInteraction
+    }
+
+    private func streamSweepPayloadAndFinalize(
+        session: NfcSession,
+        psbt: Shared.Psbt,
+        decomposed: firmware.DecomposedPsbt,
+        streamPayload: firmware.StreamPayload,
+        sweepContext: Shared.SweepSigningContext,
+        displayPreference: Shared.HwDisplayPreference?,
+        onProgress: Shared.NfcProgressCallback
+    ) async throws -> Shared.HardwareInteraction {
+        let startResult = try await SweepSignStreamStart(
+            oldAccountIndex: sweepContext.oldAccountIndex,
+            appXpub: sweepContext.oldAppXpub.toFfi(),
+            serverXpub: sweepContext.oldServerXpub.toFfi(),
+            numInputs: UInt32(decomposed.inputs.count),
+            numOutputs: UInt32(decomposed.outputs.count),
+            version: decomposed.version,
+            lockTime: decomposed.lockTime,
+            payloadSize: streamPayload.payloadSize,
+            btcDisplayUnit: displayPreference?.ffiBtcDisplayUnit ?? .satoshi
+        ).transceive(session: session)
+        guard case .success = startResult else {
+            throw NfcException.CommandError(
+                message: "sweep_sign_stream_start failed",
+                cause: nil
+            ).asError()
+        }
+
+        // Steps 2/3 reuse the regular streaming commands — firmware stores
+        // the sweep context on the stream session.
+        let payloadData = streamPayload.data
+        let totalChunks = (payloadData.count + Self.streamChunkSize - 1) / Self.streamChunkSize
+        for chunkIndex in 0 ..< totalChunks {
+            let offset = chunkIndex * Self.streamChunkSize
+            let end = min(offset + Self.streamChunkSize, payloadData.count)
+            let chunkData = Array(payloadData[offset ..< end])
+
+            let transferResult = try await SignStreamTransfer(
+                sequenceId: UInt32(chunkIndex),
+                chunkData: chunkData
+            ).transceive(session: session)
+            guard case .success = transferResult else {
+                throw NfcException.CommandError(
+                    message: "sign_stream_transfer failed at chunk \(chunkIndex)",
+                    cause: nil
+                ).asError()
+            }
+            onProgress.onProgress(progress: Float(chunkIndex + 1) / Float(totalChunks))
+        }
+
+        let finalizeResult = try await SignStreamFinalize(
+            commitmentHash: streamPayload.commitmentHash
+        ).transceive(session: session)
+
+        switch finalizeResult {
+        case let .confirmationPending(responseHandle, confirmationHandle):
+            let handles = Shared.ConfirmationHandles(
+                responseHandle: responseHandle.map { KotlinUByte(value: $0) },
+                confirmationHandle: confirmationHandle.map { KotlinUByte(value: $0) }
+            )
+            let mapper = NfcConfirmationResultMapper { confirmResult in
+                switch confirmResult {
+                case let streamReady as Shared.ConfirmationResultSignStreamReady:
+                    let sigTransferFn = NfcSessionTransferFunction { sigSession, _, sigProgress in
+                        let batchSize: UInt32 = Self.signatureBatchSize
+                        var ffiSignatures: [firmware.InputSignatureTuple] = []
+                        var startIndex: UInt32 = 0
+                        while startIndex < streamReady.numInputs {
+                            let count = min(batchSize, streamReady.numInputs - startIndex)
+                            let batchSigs = try await GetTxSignaturesBatch(
+                                startIndex: startIndex,
+                                count: count
+                            ).transceive(session: sigSession)
+                            for (offset, txSig) in batchSigs.enumerated() {
+                                ffiSignatures.append(firmware.InputSignatureTuple(
+                                    inputIndex: startIndex + UInt32(offset),
+                                    publicKey: txSig.pubkey,
+                                    signature: txSig.signature
+                                ))
+                            }
+                            startIndex += UInt32(batchSigs.count)
+                            sigProgress.onProgress(
+                                progress: Float(startIndex) / Float(streamReady.numInputs)
+                            )
+                        }
+                        let signedBase64: String
+                        do {
+                            signedBase64 = try firmware.assemblePsbtSignatures(
+                                psbtBase64: psbt.base64,
+                                signatures: ffiSignatures,
+                                allowUnfinalized: true
+                            )
+                        } catch {
+                            throw NfcException.CommandError(
+                                message: "Failed to assemble sweep streaming PSBT signatures: \(error.localizedDescription)",
+                                cause: nil
+                            ).asError()
+                        }
+                        let signedPsbt = Shared.Psbt(
+                            id: psbt.id,
+                            base64: signedBase64,
+                            fee: psbt.fee,
+                            vsize: psbt.vsize,
+                            numOfInputs: psbt.numOfInputs,
+                            amountSats: psbt.amountSats,
+                            inputs: psbt.inputs,
+                            outputs: psbt.outputs
+                        )
+                        return Shared.HardwareInteractionCompleted<Shared.Psbt>(
+                            result: signedPsbt
+                        ) as Shared.HardwareInteraction
+                    }
+                    return Shared.HardwareInteractionRequiresTransfer<Shared.Psbt>(
+                        transferAndFetch: sigTransferFn
+                    ) as Shared.HardwareInteraction
+                case is Shared.ConfirmationResultPending:
+                    throw NfcException.ConfirmationPending().asError()
+                case is Shared.ConfirmationResultDenied:
+                    throw NfcException.UserDenied().asError()
+                default:
+                    throw NfcException.CommandError(
+                        message: "sweepTransaction (streaming) expected SignStreamReady but got: \(type(of: confirmResult))",
                         cause: nil
                     ).asError()
                 }
@@ -1363,6 +1658,19 @@ public final class BitkeyW3Commands: NfcCommands {
             wsmSignature: wsmSignature.toByteArray().asUInt8Array(),
             accountIndex: accountIndex
         ).transceive(session: session)
+    }
+}
+
+// MARK: - Sweep xpub mapping
+
+private extension Shared.SweepXpub {
+    /// Maps the Kotlin sweep xpub to the Rust FFI type (33-byte pubkey + 32-byte chaincode).
+    /// The FFI `SweepXpub` dictionary takes `[UInt8]` directly for both fields.
+    func toFfi() -> firmware.SweepXpub {
+        return firmware.SweepXpub(
+            pubkey: self.pubkey.toByteArray().asUInt8Array(),
+            chaincode: self.chaincode.toByteArray().asUInt8Array()
+        )
     }
 }
 

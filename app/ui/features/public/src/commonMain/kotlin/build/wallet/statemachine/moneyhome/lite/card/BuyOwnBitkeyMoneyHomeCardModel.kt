@@ -14,6 +14,6 @@ fun BuyOwnBitkeyMoneyHomeCardModel(onClick: () -> Unit) =
       ),
     subtitle = "The safe, easy way to own and manage your bitcoin.",
     content = null,
-    style = CardModel.CardStyle.Outline,
+    style = CardModel.CardStyle.Outline(),
     onClick = onClick
   )

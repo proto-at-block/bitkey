@@ -21,6 +21,18 @@ class SpendingKeysetSyncActionTests : FunSpec({
     )
   }
 
+  test("returns REPAIR_KEYSET_MISMATCH recommendation when status is IncompletePrivateWallet") {
+    val action = SpendingKeysetSyncAction(
+      syncStatus = SpendingKeysetSyncStatus.IncompletePrivateWallet(
+        activeKeysetId = "active-keyset-id"
+      )
+    )
+
+    action.getRecommendations().shouldContainExactly(
+      SecurityActionRecommendation.REPAIR_KEYSET_MISMATCH
+    )
+  }
+
   test("returns empty recommendations when status is Synced") {
     val action = SpendingKeysetSyncAction(
       syncStatus = SpendingKeysetSyncStatus.Synced
@@ -58,6 +70,16 @@ class SpendingKeysetSyncActionTests : FunSpec({
       syncStatus = SpendingKeysetSyncStatus.Mismatch(
         localActiveKeysetId = "local-keyset-id",
         serverActiveKeysetId = "server-keyset-id"
+      )
+    )
+
+    action.state().shouldBe(SecurityActionState.HasCriticalActions)
+  }
+
+  test("returns HasCriticalActions state when status is IncompletePrivateWallet") {
+    val action = SpendingKeysetSyncAction(
+      syncStatus = SpendingKeysetSyncStatus.IncompletePrivateWallet(
+        activeKeysetId = "active-keyset-id"
       )
     )
 

@@ -4,7 +4,6 @@ import app.cash.turbine.Turbine
 import bitkey.account.HardwareType
 import bitkey.auth.AuthTokenScope.Global
 import bitkey.data.PrivateData
-import build.wallet.auth.AccountAuthTokensMock
 import build.wallet.account.AccountServiceFake
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.EventTrackerContext
@@ -12,8 +11,10 @@ import build.wallet.analytics.events.screen.EventTrackerCountInfo
 import build.wallet.analytics.events.screen.EventTrackerFingerprintScanStatsInfo
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
-import build.wallet.analytics.v1.Action
 import build.wallet.analytics.events.screen.id.WalletMigrationEventTrackerScreenId
+import build.wallet.analytics.v1.Action
+import build.wallet.auth.AccountAuthTokensMock
+import build.wallet.auth.AuthTokensServiceFake
 import build.wallet.bdk.bindings.BdkOutPoint
 import build.wallet.bdk.bindings.BdkScriptMock
 import build.wallet.bdk.bindings.BdkTxOut
@@ -24,11 +25,13 @@ import build.wallet.bitcoin.transactions.TransactionsData
 import build.wallet.bitcoin.transactions.TransactionsDataMock
 import build.wallet.bitcoin.utxo.UtxoConsolidationContext
 import build.wallet.bitcoin.utxo.Utxos
+import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.bitkey.auth.AppAuthPublicKeysMock
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock2
 import build.wallet.bitkey.auth.HwAuthSecp256k1PublicKeyMock
 import build.wallet.bitkey.f8e.F8eSpendingKeysetMock
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.keybox.AppKeyBundleMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.HwKeyBundleMock
@@ -36,12 +39,15 @@ import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.keybox.withNewSpendingKeyset
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.bitkey.spending.SpendingKeysetMock
-import build.wallet.auth.AuthTokensServiceFake
 import build.wallet.chaincode.delegation.ChaincodeExtractorFake
 import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.cloud.backup.csek.SealedSsekFake
 import build.wallet.cloud.backup.csek.SsekDaoFake
 import build.wallet.cloud.backup.csek.SsekFake
+import build.wallet.cloud.backup.health.AppKeyBackupStatus
+import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
+import build.wallet.cloud.backup.health.CloudBackupStatus
+import build.wallet.cloud.backup.health.EekBackupStatus
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.encrypt.WsmVerifierMock
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -66,6 +72,7 @@ import build.wallet.relationships.RelationshipsCryptoError
 import build.wallet.relationships.RelationshipsCryptoFake
 import build.wallet.relationships.RelationshipsKeysDaoFake
 import build.wallet.relationships.RelationshipsKeysRepository
+import build.wallet.statemachine.BodyModelMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareProps
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachine
@@ -74,6 +81,8 @@ import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiStateMachine
+import build.wallet.statemachine.cloud.health.RepairAppKeyBackupProps
+import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachine
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
@@ -147,6 +156,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
   val utxoMaxConsolidationCountFeatureFlag = UtxoMaxConsolidationCountFeatureFlag(
     featureFlagDao = FeatureFlagDaoFake()
   )
+  val cloudBackupHealthRepository = CloudBackupHealthRepositoryMock(turbines::create)
 
   fun createStateMachine(eventTracker: EventTracker = noopEventTracker) =
     W3UpgradeUiStateMachineImpl(
@@ -169,6 +179,11 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       wsmVerifier = WsmVerifierMock(),
       utxoConsolidationUiStateMachine = utxoConsolidationUiStateMachine,
       utxoMaxConsolidationCountFeatureFlag = utxoMaxConsolidationCountFeatureFlag,
+      cloudBackupHealthRepository = cloudBackupHealthRepository,
+      repairCloudBackupStateMachine = object : RepairCloudBackupStateMachine,
+        ScreenStateMachineMock<RepairAppKeyBackupProps>(
+          "repair-cloud-backup"
+        ) {},
       eventTracker = eventTracker
     )
 
@@ -206,18 +221,16 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       f8eSpendingKeyset = F8eSpendingKeysetMock
     )
 
-  fun rotatedW3AuthKeys(): build.wallet.bitkey.app.AppAuthPublicKeys =
+  fun rotatedW3AuthKeys(): AppAuthPublicKeys =
     AppAuthPublicKeysMock.copy(
       appGlobalAuthPublicKey = FullAccountMock.keybox.activeAppKeyBundle.authKey,
       appRecoveryAuthPublicKey = AppRecoveryAuthPublicKeyMock2,
-      appGlobalAuthKeyHwSignature = build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature(
+      appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(
         rotationResult.appGlobalAuthKeyHwSignature
       )
     )
 
-  fun rotatedKeyboxForAuthKeys(
-    appAuthKeys: build.wallet.bitkey.app.AppAuthPublicKeys,
-  ): Keybox =
+  fun rotatedKeyboxForAuthKeys(appAuthKeys: AppAuthPublicKeys): Keybox =
     FullAccountMock.keybox
       .withNewSpendingKeyset(w3UpgradeKeyset())
       .copy(
@@ -229,8 +242,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
         appGlobalAuthKeyHwSignature = appAuthKeys.appGlobalAuthKeyHwSignature
       )
 
-  fun rotatedKeybox(): Keybox =
-    rotatedKeyboxForAuthKeys(rotatedW3AuthKeys())
+  fun rotatedKeybox(): Keybox = rotatedKeyboxForAuthKeys(rotatedW3AuthKeys())
 
   fun provisionedKeybox(): Keybox =
     rotatedKeybox().copy(
@@ -305,6 +317,69 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
     // Default to no unconfirmed UTXOs so existing tests pass through pending tx check
     bitcoinWalletService.transactionsData.value = TransactionsDataMock
     utxoMaxConsolidationCountFeatureFlag.setFlagValue(FeatureFlagValue.DoubleFlag(150.0))
+    cloudBackupHealthRepository.reset()
+  }
+
+  test("unhealthy cloud backup blocks W3 upgrade and back dismisses sheet") {
+    migrationService.resumeResult = Ok(MigrationProgress.NotStarted(MigrationType.W3Upgrade))
+    cloudBackupHealthRepository.syncResult = CloudBackupStatus(
+      appKeyBackupStatus = AppKeyBackupStatus.ProblemWithBackup.NoCloudAccess,
+      eekBackupStatus = EekBackupStatus.ProblemWithBackup.NoCloudAccess
+    )
+
+    stateMachine.test(props) {
+      awaitUntilBody<W3UpgradeIntroBodyModel> {
+        onContinue()
+      }
+      awaitUntilSheet<W3UpgradeCloudBackupUnhealthyWarningSheetModel> {
+        cloudBackupHealthRepository.performSyncCalls.awaitItem()
+        onBack()
+      }
+      awaitUntilBody<W3UpgradeIntroBodyModel>()
+    }
+  }
+
+  test("unhealthy cloud backup blocks resumed-from-cloud-backup upgrade on Continue") {
+    migrationService.resumeResult = Ok(
+      MigrationProgress.NotStarted(
+        type = MigrationType.W3Upgrade,
+        resumedFromCloudBackup = true
+      )
+    )
+    // Continue runs the backup health sync and blocks when unhealthy.
+    cloudBackupHealthRepository.syncResult = CloudBackupStatus(
+      appKeyBackupStatus = AppKeyBackupStatus.ProblemWithBackup.NoCloudAccess,
+      eekBackupStatus = EekBackupStatus.ProblemWithBackup.NoCloudAccess
+    )
+    stateMachine.test(props) {
+      awaitUntilBody<W3UpgradeIntroBodyModel> {
+        onContinue()
+      }
+      awaitUntilSheet<W3UpgradeCloudBackupUnhealthyWarningSheetModel> {
+        cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
+      }
+    }
+  }
+
+  test("unhealthy cloud backup - Repair launches repair state machine") {
+    migrationService.resumeResult = Ok(MigrationProgress.NotStarted(MigrationType.W3Upgrade))
+    cloudBackupHealthRepository.syncResult = CloudBackupStatus(
+      appKeyBackupStatus = AppKeyBackupStatus.ProblemWithBackup.NoCloudAccess,
+      eekBackupStatus = EekBackupStatus.ProblemWithBackup.NoCloudAccess
+    )
+
+    stateMachine.test(props) {
+      awaitUntilBody<W3UpgradeIntroBodyModel> {
+        onContinue()
+      }
+      awaitUntilSheet<W3UpgradeCloudBackupUnhealthyWarningSheetModel> {
+        cloudBackupHealthRepository.performSyncCalls.awaitItem()
+        onRepair()
+      }
+      awaitUntilBody<BodyModelMock<*>> {
+        id.shouldBe("repair-cloud-backup")
+      }
+    }
   }
 
   test("resume auth rotation uses W3 tap result to continue into composite upgrade authorization") {
@@ -326,7 +401,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
         onContinue()
       }
       awaitUntilBodyMock<ProofOfPossessionNfcProps>(id = "proof-of-possession") {
-        (request as build.wallet.statemachine.auth.Request.HwKeyProof)
+        (request as Request.HwKeyProof)
           .onSuccess(HwFactorProofOfPossession("w1-proof"))
       }
       awaitUntilBody<W3UpgradeNewHardwareAuthRotationInstructionsBodyModel> {
@@ -525,6 +600,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       awaitUntilBody<W3UpgradeIntroBodyModel> {
         onContinue()
       }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> {
         onYes()
       }
@@ -597,8 +673,8 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
         w3Context.replacedHardwareFingerprint.shouldBe("e5ff120e")
       }
       sweepProps.onSuccess()
-
-      awaitUntilBody<W3UpgradeCompleteBodyModel>()
+      onUpgradeCompleteCalls.awaitItem()
+      cancelAndIgnoreRemainingEvents()
     }
 
     val createKeysetCall = migrationService.proceedCalls.first()
@@ -643,6 +719,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       awaitUntilBody<W3UpgradeIntroBodyModel> {
         onContinue()
       }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilScreenWithBody<W3UpgradeIntroBodyModel>(
         matchingScreen = { it.bottomSheetModel != null }
       ) {
@@ -664,6 +741,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       awaitUntilBody<W3UpgradeIntroBodyModel> {
         onContinue()
       }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilScreenWithBody<W3UpgradeIntroBodyModel>(
         matchingScreen = { it.bottomSheetModel != null }
       ) {
@@ -685,6 +763,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       awaitUntilBody<W3UpgradeIntroBodyModel> {
         onContinue()
       }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> {
         designSystemV2Model?.eyebrow.shouldBe("Step 1 of 4")
       }
@@ -699,6 +778,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       awaitUntilBody<W3UpgradeIntroBodyModel> {
         onContinue()
       }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> {
         designSystemV2Model?.eyebrow.shouldBe("Step 1 of 4")
       }
@@ -733,6 +813,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       awaitUntilBody<W3UpgradeIntroBodyModel> {
         onContinue()
       }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilScreenWithBody<W3UpgradeIntroBodyModel>(
         matchingScreen = { it.bottomSheetModel != null }
       ) {
@@ -756,6 +837,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       awaitUntilBody<W3UpgradeIntroBodyModel> {
         onContinue()
       }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilScreenWithBody<W3UpgradeIntroBodyModel>(
         matchingScreen = { it.bottomSheetModel != null }
       ) {
@@ -777,6 +859,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       awaitUntilBody<W3UpgradeIntroBodyModel> {
         onContinue()
       }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilScreenWithBody<W3UpgradeIntroBodyModel>(
         matchingScreen = { it.bottomSheetModel != null }
       ) {
@@ -808,6 +891,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       awaitUntilBody<W3UpgradeIntroBodyModel> {
         onContinue()
       }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilScreenWithBody<W3UpgradeIntroBodyModel>(
         matchingScreen = { it.bottomSheetModel != null }
       ) {
@@ -826,6 +910,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       awaitUntilBody<W3UpgradeIntroBodyModel> {
         onContinue()
       }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel>()
     }
   }
@@ -838,6 +923,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       awaitUntilBody<W3UpgradeIntroBodyModel> {
         onContinue()
       }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel>()
     }
   }
@@ -872,8 +958,8 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
         w3Context.replacedHardwareFingerprint.shouldBe("old-w1-fingerprint")
       }
       sweepProps.onSuccess()
-
-      awaitUntilBody<W3UpgradeCompleteBodyModel>()
+      onUpgradeCompleteCalls.awaitItem()
+      cancelAndIgnoreRemainingEvents()
     }
   }
 
@@ -961,6 +1047,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       awaitUntilBody<W3UpgradeIntroBodyModel> {
         onContinue()
       }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> {
         onNo()
       }
@@ -978,6 +1065,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       awaitUntilBody<W3UpgradeIntroBodyModel> {
         onContinue()
       }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> {
         onBack?.invoke()
       }
@@ -993,6 +1081,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       awaitUntilBody<W3UpgradeIntroBodyModel> {
         onContinue()
       }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> {
         onYes()
       }
@@ -1010,6 +1099,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
       awaitUntilBodyMock<PairNewHardwareProps>(id = "pair-new-hardware") {}
         .request.shouldBeTypeOf<PairNewHardwareProps.Request.Ready>()
@@ -1034,6 +1124,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
       awaitUntilBodyMock<PairNewHardwareProps>(id = "pair-new-hardware") {}
         .request.shouldBeTypeOf<PairNewHardwareProps.Request.Ready>()
@@ -1234,7 +1325,28 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       // Insufficient funds → skips sweep → proceeds to completion
-      awaitUntilBody<W3UpgradeCompleteBodyModel>()
+      onUpgradeCompleteCalls.awaitItem()
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("completion shows loading state while returning to money home") {
+    val localKeyboxActivation = MigrationProgress.LocalKeyboxActivation(
+      type = MigrationType.W3Upgrade,
+      currentKeybox = provisionedKeybox(),
+      newKeyset = w3UpgradeKeyset()
+    )
+    migrationService.resumeResult = Ok(localKeyboxActivation)
+    migrationService.savedOldHardwareFingerprint = "old-fingerprint"
+    migrationService.estimateMigrationFeesResult = Err(MigrationError.InsufficientFundsForMigration)
+    migrationService.proceedResult = Ok(MigrationProgress.Completed(MigrationType.W3Upgrade))
+    accountService.setActiveAccount(FullAccountMock)
+
+    stateMachine.test(props) {
+      awaitUntilBody<LoadingSuccessBodyModel>(id = WalletMigrationEventTrackerScreenId.W3_UPGRADE_COMPLETE) {
+        message.shouldBe("Loading wallet...")
+      }
+      onUpgradeCompleteCalls.awaitItem()
     }
   }
 
@@ -1305,6 +1417,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       // No device info → error on device ready → Yes
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
 
@@ -1662,7 +1775,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitUntilBody<W3UpgradeOldHardwareAuthRotationInstructionsBodyModel> { onContinue() }
       awaitUntilBodyMock<ProofOfPossessionNfcProps>(id = "proof-of-possession") {
-        (request as build.wallet.statemachine.auth.Request.HwKeyProof)
+        (request as Request.HwKeyProof)
           .onSuccess(HwFactorProofOfPossession("w1-pop-token"))
       }
       awaitUntilBody<W3UpgradeNewHardwareAuthRotationInstructionsBodyModel> { onContinue() }
@@ -1687,7 +1800,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
     )
     proceededAuth.newAppAuthKeys.shouldNotBeNull()
     proceededAuth.newAppAuthKeys!!.appGlobalAuthKeyHwSignature.shouldBe(
-      build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature("hw-app-auth-signature")
+      AppGlobalAuthKeyHwSignature("hw-app-auth-signature")
     )
   }
 
@@ -1867,6 +1980,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
 
       val pairProps = awaitUntilBodyMock<PairNewHardwareProps>(id = "pair-new-hardware") {}
@@ -1890,6 +2004,8 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
         onBack.shouldBeNull()
         onContinue()
       }
+      // Backup health sync runs on Continue click.
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
       awaitUntilBodyMock<PairNewHardwareProps>(id = "pair-new-hardware") {
         onExit()
@@ -1906,6 +2022,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
       awaitUntilBodyMock<PairNewHardwareProps>(id = "pair-new-hardware") {}
         .request.shouldBeTypeOf<PairNewHardwareProps.Request.Ready>()
@@ -1927,6 +2044,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(exitProps) {
       awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
       awaitUntilBodyMock<PairNewHardwareProps>(id = "pair-new-hardware") {}
         .request.shouldBeTypeOf<PairNewHardwareProps.Request.Ready>()
@@ -1959,6 +2077,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
 
     createStateMachine(recordingEventTracker(trackedActions)).test(props) {
       awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel>()
     }
     trackedActions.shouldContain(Action.ACTION_APP_W3_UPGRADE_STARTED)
@@ -1971,6 +2090,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
 
     createStateMachine(recordingEventTracker(trackedActions)).test(props) {
       awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
       awaitUntilBodyMock<PairNewHardwareProps>(id = "pair-new-hardware") {}
         .request.shouldBeTypeOf<PairNewHardwareProps.Request.Ready>()
@@ -1989,6 +2109,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
 
     createStateMachine(recordingEventTracker(trackedActions)).test(exitProps) {
       awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
       awaitUntilBodyMock<PairNewHardwareProps>(id = "pair-new-hardware") {}
         .request.shouldBeTypeOf<PairNewHardwareProps.Request.Ready>()
@@ -2057,7 +2178,8 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
     val trackedActions = mutableListOf<Action>()
 
     createStateMachine(recordingEventTracker(trackedActions)).test(props) {
-      awaitUntilBody<W3UpgradeCompleteBodyModel>()
+      onUpgradeCompleteCalls.awaitItem()
+      cancelAndIgnoreRemainingEvents()
     }
     trackedActions.shouldContain(Action.ACTION_APP_W3_UPGRADE_COMPLETE)
   }
@@ -2068,6 +2190,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
       awaitUntilBodyMock<PairNewHardwareProps>(id = "pair-new-hardware") {}
         .request.shouldBeTypeOf<PairNewHardwareProps.Request.Ready>()
@@ -2120,6 +2243,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(exitProps) {
       awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
+      cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
       awaitUntilBodyMock<PairNewHardwareProps>(id = "pair-new-hardware") {}
         .request.shouldBeTypeOf<PairNewHardwareProps.Request.Ready>()
@@ -2227,8 +2351,8 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
           unsealedSsek = recoveredSsek
         )
       )
-
-      awaitUntilBody<W3UpgradeCompleteBodyModel>()
+      onUpgradeCompleteCalls.awaitItem()
+      cancelAndIgnoreRemainingEvents()
     }
 
     ssekDao.get(SealedSsekFake).get().shouldNotBeNull().key.raw.shouldBe(recoveredSsek)
@@ -2236,31 +2360,47 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
 })
 
 private val noopEventTracker = object : EventTracker {
-  override fun track(action: Action, context: EventTrackerContext?) {}
+  override fun track(
+    action: Action,
+    context: EventTrackerContext?,
+  ) {}
+
   override fun track(eventTrackerCountInfo: EventTrackerCountInfo) {}
+
   override fun track(eventTrackerScreenInfo: EventTrackerScreenInfo) {}
+
   override fun track(eventTrackerFingerprintScanStatsInfo: EventTrackerFingerprintScanStatsInfo) {}
 }
 
-private fun recordingEventTracker(actions: MutableList<Action>) = object : EventTracker {
-  override fun track(action: Action, context: EventTrackerContext?) { actions += action }
-  override fun track(eventTrackerCountInfo: EventTrackerCountInfo) {}
-  override fun track(eventTrackerScreenInfo: EventTrackerScreenInfo) {}
-  override fun track(eventTrackerFingerprintScanStatsInfo: EventTrackerFingerprintScanStatsInfo) {}
-}
+private fun recordingEventTracker(actions: MutableList<Action>) =
+  object : EventTracker {
+    override fun track(
+      action: Action,
+      context: EventTrackerContext?,
+    ) {
+      actions += action
+    }
 
-private fun w3NfcSessionFake() = NfcSessionFake(
-  NfcSession.Parameters(
-    isHardwareFake = true,
-    hardwareType = HardwareType.W3,
-    needsAuthentication = true,
-    shouldLock = true,
-    skipFirmwareTelemetry = false,
-    asyncNfcSigning = false,
-    nfcFlowName = "fake-flow-name",
-    requirePairedHardware = NfcSession.RequirePairedHardware.NotRequired,
-    maxNfcRetryAttempts = 3,
-    onTagConnected = {},
-    onTagDisconnected = {}
+    override fun track(eventTrackerCountInfo: EventTrackerCountInfo) {}
+
+    override fun track(eventTrackerScreenInfo: EventTrackerScreenInfo) {}
+
+    override fun track(eventTrackerFingerprintScanStatsInfo: EventTrackerFingerprintScanStatsInfo) {}
+  }
+
+private fun w3NfcSessionFake() =
+  NfcSessionFake(
+    NfcSession.Parameters(
+      isHardwareFake = true,
+      hardwareType = HardwareType.W3,
+      needsAuthentication = true,
+      shouldLock = true,
+      skipFirmwareTelemetry = false,
+      asyncNfcSigning = false,
+      nfcFlowName = "fake-flow-name",
+      requirePairedHardware = NfcSession.RequirePairedHardware.NotRequired,
+      maxNfcRetryAttempts = 3,
+      onTagConnected = {},
+      onTagDisconnected = {}
+    )
   )
-)

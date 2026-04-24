@@ -2,7 +2,7 @@ use next_gen::generator;
 
 use crate::{
     errors::CommandError,
-    fwpb::{UpgradeRotateAppAuthKeysCmd, Status},
+    fwpb::{Status, UpgradeRotateAppAuthKeysCmd},
     wca::decode_and_check,
 };
 

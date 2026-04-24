@@ -237,6 +237,19 @@ void dot_ring_animate_fill_from_current(dot_ring_t* ring, uint8_t target_percent
 bool dot_ring_animate_release(dot_ring_t* ring, uint32_t full_duration_ms);
 
 /**
+ * @brief Animate the ring back to the start but keep inactive dots visible
+ *
+ * Cancels any active forward fill, preserves the current visual progress, then
+ * rewinds the ring back to zero while leaving the inactive dots on screen.
+ *
+ * @param ring Ring widget structure
+ * @param full_duration_ms Full hold duration in milliseconds
+ * @return true if the forward hold had already reached its threshold and the
+ *         completion callback was fired instead of starting a rewind
+ */
+bool dot_ring_animate_release_to_inactive(dot_ring_t* ring, uint32_t full_duration_ms);
+
+/**
  * @brief Stop any running fill animation
  *
  * Stops animation and resets all dots to inactive state.

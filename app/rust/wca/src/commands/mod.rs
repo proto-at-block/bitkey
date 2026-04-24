@@ -23,7 +23,6 @@ mod query_authentication;
 mod recovery_authorize_lost_app;
 mod recovery_authorize_lost_hw;
 mod rotate_app_auth_keys;
-mod upgrade_rotate_app_auth_keys;
 mod seal_key;
 mod show_confirmation_screen;
 mod sign_action_proof;
@@ -34,9 +33,11 @@ mod sign_stream_serializer;
 mod sign_transaction;
 mod sign_transaction_chunked;
 mod sign_tx_request;
+mod sweep_sign;
 mod telemetry;
 mod unseal_key;
 mod upgrade_authorize_w3;
+mod upgrade_rotate_app_auth_keys;
 mod verify_keys_and_build_descriptor;
 mod version;
 mod wipe_state;
@@ -106,7 +107,6 @@ pub use query_authentication::QueryAuthentication;
 pub use recovery_authorize_lost_app::{RecoveryAuthorizeLostApp, RecoveryAuthorizeLostAppResult};
 pub use recovery_authorize_lost_hw::{RecoveryAuthorizeLostHw, RecoveryAuthorizeLostHwResult};
 pub use rotate_app_auth_keys::{RotateAppAuthKeys, RotateAppAuthKeysResult};
-pub use upgrade_rotate_app_auth_keys::{UpgradeRotateAppAuthKeys, UpgradeRotateAppAuthKeysResult};
 pub use seal_key::SealKey;
 pub use show_confirmation_screen::ShowConfirmationScreen;
 pub use sign_action_proof::{SignActionProof, SignActionProofResult};
@@ -125,10 +125,14 @@ pub use sign_transaction_chunked::{SignStart, SignStartResult, SignTransfer, Sig
 pub use sign_tx_request::{
     InputSignatureTuple, SignTxInputData, SignTxOutputData, SignTxRequest, SignTxRequestResult,
 };
+pub use sweep_sign::{
+    SweepSignRequest, SweepSignStreamStart, SweepSignStreamStartResult, SweepXpub,
+};
 pub use telemetry::EventFragment;
 pub use telemetry::GetEvents;
 pub use unseal_key::UnsealKey;
 pub use upgrade_authorize_w3::{UpgradeAuthorizeW3, UpgradeAuthorizeW3Result};
+pub use upgrade_rotate_app_auth_keys::{UpgradeRotateAppAuthKeys, UpgradeRotateAppAuthKeysResult};
 pub use verify_keys_and_build_descriptor::VerifyKeysAndBuildDescriptor;
 pub use version::Version;
 pub use wipe_state::{WipeState, WipeStateResult};

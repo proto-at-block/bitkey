@@ -1,10 +1,6 @@
 package build.wallet.statemachine.send.signtransaction
 
 import androidx.compose.runtime.*
-import bitkey.account.AccountConfig
-import bitkey.account.AccountConfigService
-import bitkey.account.DefaultAccountConfig
-import bitkey.account.FullAccountConfig
 import bitkey.account.HardwareType
 import bitkey.recovery.RecoveryStatusService
 import bitkey.ui.verification.TxVerificationAppSegment
@@ -84,7 +80,6 @@ class SignTransactionNfcSessionUiStateMachineImpl(
   private val eventTracker: EventTracker,
   private val nfcReaderCapability: NfcReaderCapability,
   private val nfcTransactor: NfcTransactor,
-  private val accountConfigService: AccountConfigService,
   private val deviceInfoProvider: DeviceInfoProvider,
   private val keyboxDao: KeyboxDao,
   private val signatureVerifier: SignatureVerifier,
@@ -100,11 +95,12 @@ class SignTransactionNfcSessionUiStateMachineImpl(
 
   @Composable
   override fun model(props: SignTransactionNfcSessionUiProps): ScreenModel {
-    val accountConfig = remember { accountConfigService.activeOrDefaultConfig().value }
     val devicePlatform = remember { deviceInfoProvider.getDeviceInfo().devicePlatform }
-    val isHardwareFake = remember { determineIsHardwareFake(accountConfig) }
-    val hardwareType = remember {
-      props.hardwareTypeOverride ?: determineHardwareType(accountConfig)
+    // Recovery sweeps can sign with a recovered account before it becomes active, so the
+    // signing flow must use the caller-provided account as the hardware source of truth.
+    val isHardwareFake = remember(props.account) { props.account.config.isHardwareFake }
+    val hardwareType = remember(props.account, props.hardwareTypeOverride) {
+      props.hardwareTypeOverride ?: props.account.config.hardwareType
     }
 
     var uiState by remember {
@@ -396,28 +392,6 @@ class SignTransactionNfcSessionUiStateMachineImpl(
   }
 
   /**
-   * Determines whether the hardware is using a fake implementation based on account configuration.
-   */
-  private fun determineIsHardwareFake(accountConfig: AccountConfig?): Boolean {
-    return when (accountConfig) {
-      is FullAccountConfig -> accountConfig.isHardwareFake
-      is DefaultAccountConfig -> accountConfig.isHardwareFake
-      else -> false
-    }
-  }
-
-  /**
-   * Determines the hardware type from account configuration.
-   */
-  private fun determineHardwareType(accountConfig: AccountConfig?): HardwareType {
-    return when (accountConfig) {
-      is FullAccountConfig -> accountConfig.hardwareType
-      is DefaultAccountConfig -> accountConfig.hardwareType ?: HardwareType.W1
-      else -> HardwareType.W1
-    }
-  }
-
-  /**
    * Determines the initial UI state based on NFC availability.
    */
   private fun determineInitialUiState(availability: NfcAvailability): Any {
@@ -644,12 +618,28 @@ class SignTransactionNfcSessionUiStateMachineImpl(
       bitcoinDisplayUnit = bitcoinDisplayPreferenceRepository.bitcoinDisplayUnit.value
     )
 
-    val interaction = commands.signTransaction(
-      session = session,
-      psbt = props.psbt,
-      spendingKeyset = spendingKeyset,
-      displayPreference = displayPreference
-    )
+    // When a sweep context is provided, route to the dedicated W3 sweep command
+    // so firmware uses the OLD account's app/server xpubs and derives HW to the
+    // old account index. The regular signTransaction rejects non-current-account
+    // inputs on W3. On W1 the PSBT itself carries derivation paths so we always
+    // use signTransaction — callers on W1 should not set sweepSigningContext.
+    val sweepContext = props.sweepSigningContext
+    val interaction = if (sweepContext != null) {
+      commands.sweepTransaction(
+        session = session,
+        psbt = props.psbt,
+        spendingKeyset = spendingKeyset,
+        sweepContext = sweepContext,
+        displayPreference = displayPreference
+      )
+    } else {
+      commands.signTransaction(
+        session = session,
+        psbt = props.psbt,
+        spendingKeyset = spendingKeyset,
+        displayPreference = displayPreference
+      )
+    }
 
     return when (interaction) {
       is HardwareInteraction.Completed -> {

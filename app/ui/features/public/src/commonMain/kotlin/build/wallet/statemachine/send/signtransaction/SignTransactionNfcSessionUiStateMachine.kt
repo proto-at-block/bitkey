@@ -7,6 +7,7 @@ import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.nfc.NfcException
+import build.wallet.nfc.platform.SweepSigningContext
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.nfc.HardwareConfirmationResultBodyModel
@@ -58,6 +59,14 @@ interface SignTransactionNfcSessionUiStateMachine :
  * default pending screen is shown.
  * @property deniedBodyModel: Optional lambda to provide operation-specific content for the
  * "denied" screen shown when user explicitly denies on the device. If null, the flow is canceled.
+ * @property sweepSigningContext: When set, routes the signing call to the dedicated W3
+ * sweep signing command ([NfcCommands.sweepTransaction]) instead of the regular
+ * [NfcCommands.signTransaction]. Required for sweeps from a non-current account index on
+ * W3 hardware (the regular path rejects non-current-account inputs). Constructed by the
+ * sweep flow from the OLD source keyset's xpub material. Must be null on W1 hardware —
+ * a non-null value selects the sweep-signing command path, and W1 does not implement it
+ * (it throws). W1's full-PSBT signing handles arbitrary account indices natively via the
+ * regular signTransaction path, so the W1 caller should always leave this null.
  */
 data class SignTransactionNfcSessionUiProps(
   val account: FullAccount,
@@ -67,6 +76,7 @@ data class SignTransactionNfcSessionUiProps(
   val hardwareTypeOverride: HardwareType? = null,
   val skipPairingCheck: Boolean = false,
   val skipFirmwareTelemetry: Boolean = false,
+  val sweepSigningContext: SweepSigningContext? = null,
   val onBack: () -> Unit,
   val onSuccess: (Psbt) -> Unit,
   val onError: (NfcException) -> Boolean = { false },

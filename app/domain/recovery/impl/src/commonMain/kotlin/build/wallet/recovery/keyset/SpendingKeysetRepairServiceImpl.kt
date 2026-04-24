@@ -20,6 +20,8 @@ import build.wallet.f8e.onboarding.CreateAccountKeysetV2F8eClient
 import build.wallet.f8e.onboarding.SetActiveSpendingKeysetF8eClient
 import build.wallet.f8e.recovery.LegacyRemoteKeyset
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
+import build.wallet.f8e.recovery.ListKeysetsResponse
+import build.wallet.f8e.recovery.PrivateMultisigRemoteKeyset
 import build.wallet.f8e.recovery.toSpendingKeysets
 import build.wallet.feature.flags.KeysetRepairFeatureFlag
 import build.wallet.feature.isEnabled
@@ -111,6 +113,15 @@ class SpendingKeysetRepairServiceImpl(
       success = { response ->
         val serverActiveKeysetId = response.activeKeysetId
         if (localActiveKeysetId == serverActiveKeysetId) {
+          if (account.keybox.isPrivateWallet && !account.keybox.canUseKeyboxKeysets) {
+            logWarn {
+              "Incomplete private wallet keybox detected for active keyset $localActiveKeysetId"
+            }
+            return@mapBoth SpendingKeysetSyncStatus.IncompletePrivateWallet(
+              activeKeysetId = localActiveKeysetId
+            )
+          }
+
           return@mapBoth SpendingKeysetSyncStatus.Synced
         }
 
@@ -147,13 +158,17 @@ class SpendingKeysetRepairServiceImpl(
         serverActiveKeysetId = response.activeKeysetId
       )
 
-      val wrappedSsek = response.wrappedSsek
-      if (response.descriptorBackups.isNotEmpty() && wrappedSsek != null) {
-        PrivateKeysetInfo.NeedsUnsealing(
-          cachedResponseData = cachedData
-        )
-      } else {
-        PrivateKeysetInfo.None(cachedResponseData = cachedData)
+      when (determineRepairDataSource(account, response).bind()) {
+        RepairDataSource.DescriptorBackups -> {
+          PrivateKeysetInfo.NeedsUnsealing(
+            cachedResponseData = cachedData
+          )
+        }
+
+        RepairDataSource.DirectFromResponse,
+        RepairDataSource.LegacyOnly -> {
+          PrivateKeysetInfo.None(cachedResponseData = cachedData)
+        }
       }
     }
 
@@ -166,21 +181,37 @@ class SpendingKeysetRepairServiceImpl(
 
       // Use cached response from checkPrivateKeysets to avoid duplicate network call
       val response = cachedData.response
-      val sealedSsek = response.wrappedSsek
 
-      // 1. Decrypt private keysets using descriptor backups if they exist
-      // If there are descriptor backups, we should use them instead of the keysets directly
-      val keysets = if (response.descriptorBackups.isNotEmpty() && sealedSsek != null) {
-        descriptorBackupService.unsealDescriptors(
-          sealedSsek = sealedSsek,
-          encryptedDescriptorBackups = response.descriptorBackups
-        )
-          .mapError { KeysetRepairError.DecryptKeysetsFailed(cause = it) }
-          .bind()
-      } else {
-        response.keysets
-          .filterIsInstance<LegacyRemoteKeyset>()
-          .toSpendingKeysets(uuidGenerator)
+      // 1. Resolve the full keyset list from server data and, when required,
+      // descriptor backups for inactive private keysets.
+      val keysets = when (determineRepairDataSource(account, response).bind()) {
+        RepairDataSource.LegacyOnly -> {
+          logInfo { "Repairing wallet using legacy keysets from listKeysets" }
+          response.keysets
+            .filterIsInstance<LegacyRemoteKeyset>()
+            .toSpendingKeysets(uuidGenerator)
+        }
+
+        RepairDataSource.DirectFromResponse -> {
+          logInfo { "Repairing wallet directly from listKeysets response" }
+          buildKeysetsDirectlyFromResponse(account, response).bind()
+        }
+
+        RepairDataSource.DescriptorBackups -> {
+          logInfo { "Repairing wallet using descriptor backups for private keysets" }
+          val sealedSsek = response.wrappedSsek ?: Err(
+            KeysetRepairError.FetchKeysetsFailed(
+              cause = IllegalStateException("Descriptor backups require a wrapped SSEK")
+            )
+          ).bind()
+
+          descriptorBackupService.unsealDescriptors(
+            sealedSsek = sealedSsek,
+            encryptedDescriptorBackups = response.descriptorBackups
+          )
+            .mapError { KeysetRepairError.DecryptKeysetsFailed(cause = it) }
+            .bind()
+        }
       }
 
       // 2. Find the server's active keyset from the cached account status
@@ -411,6 +442,65 @@ class SpendingKeysetRepairServiceImpl(
     _syncStatus.value = SpendingKeysetSyncStatus.Synced
   }
 
+  private fun determineRepairDataSource(
+    account: FullAccount,
+    response: ListKeysetsResponse,
+  ): Result<RepairDataSource, KeysetRepairError> {
+    val privateKeysets = response.keysets.filterIsInstance<PrivateMultisigRemoteKeyset>()
+    val activePrivateKeysetId = account.keybox.activeSpendingKeyset
+      .takeIf { it.isPrivateWallet }
+      ?.f8eSpendingKeyset
+      ?.keysetId
+
+    return when {
+      privateKeysets.isEmpty() -> Ok(RepairDataSource.LegacyOnly)
+      privateKeysets.size == 1 && privateKeysets.single().keysetId == activePrivateKeysetId ->
+        Ok(RepairDataSource.DirectFromResponse)
+      response.descriptorBackups.isNotEmpty() && response.wrappedSsek != null ->
+        Ok(RepairDataSource.DescriptorBackups)
+      else -> Err(
+        KeysetRepairError.FetchKeysetsFailed(
+          cause = IllegalStateException(
+            "Private keysets require descriptor backups to repair local wallet data"
+          )
+        )
+      )
+    }
+  }
+
+  private fun buildKeysetsDirectlyFromResponse(
+    account: FullAccount,
+    response: ListKeysetsResponse,
+  ): Result<List<SpendingKeyset>, KeysetRepairError> =
+    binding {
+      val activePrivateKeyset = account.keybox.activeSpendingKeyset
+        .takeIf { it.isPrivateWallet }
+        ?: Err(
+          KeysetRepairError.FetchKeysetsFailed(
+            cause = IllegalStateException("Active private keyset not available locally")
+          )
+        ).bind()
+
+      response.keysets.map { remoteKeyset ->
+        when (remoteKeyset) {
+          is LegacyRemoteKeyset -> remoteKeyset.toSpendingKeyset(uuidGenerator)
+          is PrivateMultisigRemoteKeyset -> {
+            if (remoteKeyset.keysetId != activePrivateKeyset.f8eSpendingKeyset.keysetId) {
+              Err(
+                KeysetRepairError.FetchKeysetsFailed(
+                  cause = IllegalStateException(
+                    "Cannot reconstruct private keyset ${remoteKeyset.keysetId} without descriptor backup"
+                  )
+                )
+              ).bind()
+            }
+
+            activePrivateKeyset
+          }
+        }
+      }
+    }
+
   private suspend fun getCloudBackupSealedCsek(): SealedCsek? {
     val cloudAccount = cloudStoreAccountRepository.currentAccount(cloudServiceProvider())
       .get() ?: return null
@@ -420,6 +510,14 @@ class SpendingKeysetRepairServiceImpl(
 
     return backup.fullAccountFields?.sealedHwEncryptionKey
   }
+}
+
+private sealed interface RepairDataSource {
+  data object LegacyOnly : RepairDataSource
+
+  data object DirectFromResponse : RepairDataSource
+
+  data object DescriptorBackups : RepairDataSource
 }
 
 /**

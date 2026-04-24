@@ -15,10 +15,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/** Dot ring configuration (matches dot_ring.h for visual consistency) */
-#define LOADING_RING_DOT_SIZE    8  // Dot diameter in pixels
-#define LOADING_RING_DOT_SPACING 2  // Gap between dots in pixels
-#define LOADING_RING_EDGE_INSET  6  // Distance from screen edge in pixels
+/** Dot ring configuration (matches the 4px resting / 8px active loader style) */
+#define LOADING_RING_DOT_SIZE_INACTIVE 4  // Resting dot diameter in pixels
+#define LOADING_RING_DOT_SIZE_ACTIVE   8  // Animated dot diameter in pixels
+#define LOADING_RING_DOT_SPACING       2  // Gap between dots in pixels
+#define LOADING_RING_EDGE_INSET        6  // Distance from screen edge in pixels
 
 /** Maximum number of dots (calculated based on circumference) */
 #define LOADING_RING_MAX_DOTS 120

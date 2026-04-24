@@ -53,6 +53,7 @@ import build.wallet.nfc.platform.RecoveryAuthorizeLostHwResult
 import build.wallet.nfc.platform.RotateAppAuthKeysCompositeResult
 import build.wallet.nfc.platform.RotateAppAuthKeysContinueParams
 import build.wallet.nfc.platform.SignChallengeAndSealSeksResult
+import build.wallet.nfc.platform.SweepSigningContext
 import build.wallet.nfc.platform.UpgradeAuthorizeW3Result
 import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysParams
 import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysResult
@@ -461,6 +462,22 @@ class BitkeyW1Commands(
       }
     )
   )
+
+  override suspend fun sweepTransaction(
+    session: NfcSession,
+    psbt: Psbt,
+    spendingKeyset: SpendingKeyset,
+    sweepContext: SweepSigningContext,
+    displayPreference: HwDisplayPreference?,
+  ): HardwareInteraction<Psbt> {
+    // W1's PSBT-based signing carries derivation paths per-input, so spending
+    // from any account "just works" through [signTransaction]. Sweep routing
+    // is a W3-only concept introduced to compensate for W3's compact
+    // non-PSBT protocol.
+    throw NfcException.CommandError(
+      message = "sweepTransaction is not supported on W1 hardware. Use signTransaction instead."
+    )
+  }
 
   override suspend fun startFingerprintEnrollment(
     session: NfcSession,

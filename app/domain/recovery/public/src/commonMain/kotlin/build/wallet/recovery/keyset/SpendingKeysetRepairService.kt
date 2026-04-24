@@ -12,9 +12,10 @@ import kotlinx.coroutines.flow.StateFlow
  * Service for detecting and repairing keyset mismatches from stale cloud backup recovery.
  *
  * When a user recovers from a stale cloud backup, their local `activeSpendingKeyset`
- * may not match the server's active keyset. This service:
- * 1. Detects mismatches via [syncStatus] flow (updated by worker on startup/foreground)
- * 2. Provides on-demand mismatch checking via [checkSyncStatus]
+ * may not match the server's active keyset, or their local keybox may be missing
+ * private-wallet keysets that should be authoritative. This service:
+ * 1. Detects repair-needed states via [syncStatus] flow (updated by worker on startup/foreground)
+ * 2. Provides on-demand repair preparation via [checkPrivateKeysets]
  * 3. Manages the repair process via [attemptRepair]
  *
  * The repair process is resumable - if the app crashes during repair, the mismatch
@@ -29,11 +30,12 @@ interface SpendingKeysetRepairService {
   val syncStatus: StateFlow<SpendingKeysetSyncStatus>
 
   /**
-   * Checks if the account has private keysets that require SSEK unsealing.
+   * Checks if the account repair requires SSEK unsealing.
    *
    * @param account The full account to check
-   * @return [PrivateKeysetInfo.NeedsUnsealing] with the sealed SSEK if private keysets exist,
-   *         [PrivateKeysetInfo.None] if no private keysets exist, or an error if the check fails
+   * @return [PrivateKeysetInfo.NeedsUnsealing] when descriptor backups must be decrypted,
+   *         [PrivateKeysetInfo.None] when repair can proceed directly from server keysets,
+   *         or an error if the check fails
    */
   suspend fun checkPrivateKeysets(
     account: FullAccount,
@@ -44,8 +46,6 @@ interface SpendingKeysetRepairService {
    *
    * @param account The full account to repair
    * @param cachedData Cached response data from [checkPrivateKeysets] to avoid duplicate network calls.
-   * @param sealedSsek Sealed secret storage encryption key for decrypting private keysets.
-   *                   Required if [checkPrivateKeysets] returns [PrivateKeysetInfo.NeedsUnsealing].
    */
   suspend fun attemptRepair(
     account: FullAccount,
@@ -96,6 +96,13 @@ sealed interface SpendingKeysetSyncStatus {
   ) : SpendingKeysetSyncStatus
 
   /**
+   * Local keybox for a private wallet is incomplete and needs to be backfilled from server data.
+   */
+  data class IncompletePrivateWallet(
+    val activeKeysetId: String,
+  ) : SpendingKeysetSyncStatus
+
+  /**
    * Unable to determine sync status (e.g., network error).
    */
   data class Unknown(val error: Throwable) : SpendingKeysetSyncStatus
@@ -107,12 +114,12 @@ sealed interface SpendingKeysetSyncStatus {
  */
 sealed interface KeysetRepairState {
   /**
-   * Feature flag disabled or no mismatch detected - repair not needed.
+   * Feature flag disabled or no repair-needed condition detected.
    */
   data object NotNeeded : KeysetRepairState
 
   /**
-   * Mismatch detected, repair available but not started.
+   * Repair-needed state detected, repair available but not started.
    */
   data class Available(
     val localActiveKeysetId: String,
@@ -128,12 +135,12 @@ sealed interface KeysetRepairState {
 }
 
 /**
- * Information about whether private keysets exist and require SSEK unsealing.
+ * Information about whether repair requires SSEK unsealing.
  * Also contains cached data from the f8e response to avoid duplicate network calls.
  */
 sealed interface PrivateKeysetInfo {
   /**
-   * No private keysets exist - SSEK unsealing is not needed.
+   * SSEK unsealing is not needed.
    * Contains cached response data to pass to [SpendingKeysetRepairService.attemptRepair].
    */
   data class None(
@@ -141,7 +148,7 @@ sealed interface PrivateKeysetInfo {
   ) : PrivateKeysetInfo
 
   /**
-   * Private keysets exist and require SSEK unsealing.
+   * Descriptor-backed private keysets require SSEK unsealing.
 
    * @param cachedResponseData Cached response data to pass to [SpendingKeysetRepairService.attemptRepair].
    */

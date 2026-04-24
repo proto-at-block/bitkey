@@ -10,6 +10,8 @@ import build.wallet.analytics.v1.Action
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.collectIsEnabledAsState
+import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.feature.flags.UsSmsFeatureFlag
 import build.wallet.notifications.NotificationTouchpointData
@@ -60,12 +62,14 @@ class RecoveryChannelSettingsUiStateMachineImpl(
   private val notificationPermissionRequester: NotificationPermissionRequester,
   private val uiErrorHintsProvider: UiErrorHintsProvider,
   private val notificationTouchpointService: NotificationTouchpointService,
+  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
   private val usSmsFeatureFlag: UsSmsFeatureFlag,
 ) : RecoveryChannelSettingsUiStateMachine {
   @Composable
   override fun model(props: RecoveryChannelSettingsProps): ScreenModel {
     val scope = rememberStableCoroutineScope()
     val smsErrorHint = uiErrorHintsProvider.errorHintFlow(UiErrorHintKey.Phone).collectAsState()
+    val isDesignSystemV2Enabled by designSystemUpdatesFeatureFlag.collectIsEnabledAsState()
     val notificationTouchpointData = remember {
       notificationTouchpointService.notificationTouchpointData()
     }.collectAsState(null).value
@@ -181,7 +185,8 @@ class RecoveryChannelSettingsUiStateMachineImpl(
           scope = scope,
           smsErrorHint.value,
           updateState = { state = it },
-          notificationTouchpointData = notificationTouchpointData
+          notificationTouchpointData = notificationTouchpointData,
+          isDesignSystemV2Enabled = isDesignSystemV2Enabled
         )
 
       is EnteringAndVerifyingPhoneNumberUiState -> {
@@ -323,6 +328,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
     phoneErrorHint: UiErrorHint,
     updateState: (RecoveryState) -> Unit,
     notificationTouchpointData: NotificationTouchpointData?,
+    isDesignSystemV2Enabled: Boolean,
   ): ScreenModel {
     val delayedAlertOverlay = (stateVal.overlayState as? AlertOverlayState)?.alertModel
 
@@ -524,6 +530,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
       learnOnClick = {
         updateState(ShowLearnRecoveryWebView)
       },
+      isDesignSystemV2Enabled = isDesignSystemV2Enabled,
       bottomSheetModel = (stateVal.overlayState as? BottomSheetOverlayState)?.bottomSheetModel
     )
   }

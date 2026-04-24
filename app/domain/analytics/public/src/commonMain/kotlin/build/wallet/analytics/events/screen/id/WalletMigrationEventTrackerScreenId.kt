@@ -76,6 +76,9 @@ enum class WalletMigrationEventTrackerScreenId : EventTrackerScreenId {
   /** Warning sheet shown when pending transactions block W3 upgrade */
   W3_UPGRADE_PENDING_TRANSACTIONS_WARNING,
 
+  /** Warning sheet shown when cloud backup is unhealthy and blocks W3 upgrade */
+  W3_UPGRADE_CLOUD_BACKUP_UNHEALTHY_WARNING,
+
   /** Sheet shown when UTXO consolidation is required before W3 upgrade */
   W3_UPGRADE_UTXO_CONSOLIDATION_REQUIRED,
 

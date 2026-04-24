@@ -286,7 +286,7 @@ private fun CardListGroup(model: ListGroupModel) {
       ListSectionHeader(title = header, treatment = model.headerTreatment)
     }
     model.items.forEachIndexed { index, item ->
-      Card(backgroundColor = Color.Black.copy(alpha = 0.03f)) {
+      Card(backgroundColor = WalletTheme.colors.secondary) {
         ListItem(model = item)
       }
 

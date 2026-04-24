@@ -51,7 +51,7 @@ class TransferCardUiStateMachineImpl(
           subtitle = null,
           leadingImage = null,
           content = null,
-          style = Outline,
+          style = Outline(),
           onClick = props.onSendMaxClick
         )
         else -> null
@@ -109,7 +109,7 @@ class TransferCardUiStateMachineImpl(
         subtitle = null,
         leadingImage = null,
         content = null,
-        style = Outline,
+        style = Outline(),
         onClick = props.onSendMaxClick
       )
       is State.InsufficientFundsBanner -> CardModel(
@@ -121,7 +121,7 @@ class TransferCardUiStateMachineImpl(
         subtitle = null,
         leadingImage = null,
         content = null,
-        style = Outline,
+        style = Outline(),
         titleTreatment = CardModel.TitleTreatment.Destructive
       )
       is State.HardwareRequiredBanner -> CardModel(
@@ -133,7 +133,7 @@ class TransferCardUiStateMachineImpl(
         subtitle = null,
         leadingImage = CardModel.CardImage.StaticImage(SmallIconBitkey),
         content = null,
-        style = Outline
+        style = Outline()
       )
       State.F8eUnavailableBanner -> CardModel(
         title =
@@ -144,7 +144,7 @@ class TransferCardUiStateMachineImpl(
         subtitle = null,
         leadingImage = CardModel.CardImage.StaticImage(SmallIconBitkey),
         content = null,
-        style = Outline,
+        style = Outline(),
         onClick = props.onHardwareRequiredClick
       )
       State.NoBanner -> null

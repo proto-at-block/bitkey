@@ -405,6 +405,7 @@ impl BootstrapBuilder {
         let account_service = AccountService::new(
             repositories.account_repository.clone(),
             repositories.consent_repository.clone(),
+            repositories.public_key_repository.clone(),
             userpool_service.clone(),
         );
 

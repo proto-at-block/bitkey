@@ -1,6 +1,5 @@
 package build.wallet.statemachine.send.signtransaction
 
-import bitkey.account.AccountConfigServiceFake
 import bitkey.account.HardwareType
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.bitcoin.transactions.Psbt
@@ -25,6 +24,7 @@ import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.feature.flags.NfcSessionRetryAttemptsFeatureFlag
 import build.wallet.keybox.KeyboxDaoMock
+import build.wallet.bitkey.keybox.FullAccountW3Mock
 import build.wallet.money.display.BitcoinDisplayPreferenceRepositoryFake
 import build.wallet.nfc.*
 import build.wallet.platform.device.DeviceInfoProviderMock
@@ -51,7 +51,6 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
-import kotlinx.coroutines.runBlocking
 import okio.ByteString.Companion.encodeUtf8
 
 /**
@@ -67,7 +66,6 @@ class SignTransactionNfcSessionUiStateMachineImplTests : FunSpec({
   val eventTracker = EventTrackerMock(turbines::create)
   val nfcTransactor = NfcTransactorMock(turbines::create)
   val deviceInfoProvider = DeviceInfoProviderMock()
-  val accountConfigService = AccountConfigServiceFake()
   val keyboxDao = KeyboxDaoMock(turbines::create)
   val signatureVerifierTurbine = turbines.create<VerifyEcdsaCall>("verifyEcdsa calls")
   val nfcSessionRetryAttemptsFeatureFlag = NfcSessionRetryAttemptsFeatureFlag(FeatureFlagDaoFake())
@@ -84,7 +82,6 @@ class SignTransactionNfcSessionUiStateMachineImplTests : FunSpec({
       nfcReaderCapability = NfcReaderCapabilityMock(),
       nfcTransactor = nfcTransactor,
       deviceInfoProvider = deviceInfoProvider,
-      accountConfigService = accountConfigService,
       keyboxDao = keyboxDao,
       signatureVerifier = SignatureVerifierMock(signatureVerifierTurbine),
       nfcSessionRetryAttemptsFeatureFlag = nfcSessionRetryAttemptsFeatureFlag,
@@ -115,7 +112,6 @@ class SignTransactionNfcSessionUiStateMachineImplTests : FunSpec({
     )
 
   beforeTest {
-    accountConfigService.reset()
     deviceInfoProvider.reset()
     nfcTransactor.reset()
     keyboxDao.reset()
@@ -266,9 +262,6 @@ class SignTransactionNfcSessionUiStateMachineImplTests : FunSpec({
   // NFC Session Parameters Tests
 
   test("NFC session parameters are correctly configured for W1") {
-    runBlocking {
-      accountConfigService.setHardwareType(HardwareType.W1)
-    }
     nfcTransactor.transactResult = Err(NfcException.Timeout())
 
     stateMachine.test(props) {
@@ -288,13 +281,10 @@ class SignTransactionNfcSessionUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("NFC session parameters are correctly configured for W3") {
-    runBlocking {
-      accountConfigService.setHardwareType(HardwareType.W3)
-    }
+  test("NFC session parameters use the passed account's W3 hardware type") {
     nfcTransactor.transactResult = Err(NfcException.Timeout())
 
-    stateMachine.test(props) {
+    stateMachine.test(props.copy(account = FullAccountW3Mock)) {
       awaitBody<SignTransactionNfcBodyModel>()
 
       val transactCalls = nfcTransactor.transactCalls.awaitItem()
@@ -326,11 +316,15 @@ class SignTransactionNfcSessionUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("NFC session uses default W1 hardware type when no config") {
-    // Don't set any hardware type
+  test("hardwareTypeOverride takes precedence over the account config") {
     nfcTransactor.transactResult = Err(NfcException.Timeout())
 
-    stateMachine.test(props) {
+    stateMachine.test(
+      props.copy(
+        account = FullAccountW3Mock,
+        hardwareTypeOverride = HardwareType.W1
+      )
+    ) {
       awaitBody<SignTransactionNfcBodyModel>()
 
       val transactCalls = nfcTransactor.transactCalls.awaitItem()

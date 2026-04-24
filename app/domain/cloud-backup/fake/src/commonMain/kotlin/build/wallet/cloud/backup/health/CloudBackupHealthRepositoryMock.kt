@@ -5,6 +5,7 @@ import app.cash.turbine.plusAssign
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.CloudBackupHealthRepository
+import kotlinx.datetime.Instant
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -25,19 +26,27 @@ class CloudBackupHealthRepositoryMock(
 
   val performSyncCalls = turbine("performSync calls")
 
+  var syncResult: CloudBackupStatus = CloudBackupStatus(
+    appKeyBackupStatus = AppKeyBackupStatus.Healthy(lastUploaded = Instant.DISTANT_PAST),
+    eekBackupStatus = EekBackupStatus.Healthy(lastUploaded = Instant.DISTANT_PAST)
+  )
+
   override suspend fun performSync(
     accountId: FullAccountId,
     keybox: Keybox,
   ): CloudBackupStatus {
     performSyncCalls += keybox
-    return CloudBackupStatus(
-      appKeyBackupStatus = AppKeyBackupStatus.ProblemWithBackup.NoCloudAccess,
-      eekBackupStatus = EekBackupStatus.ProblemWithBackup.NoCloudAccess
-    )
+    appKeyBackupStatus.value = syncResult.appKeyBackupStatus
+    eekBackupStatus.value = syncResult.eekBackupStatus
+    return syncResult
   }
 
   fun reset() {
     appKeyBackupStatus.value = null
     eekBackupStatus.value = null
+    syncResult = CloudBackupStatus(
+      appKeyBackupStatus = AppKeyBackupStatus.Healthy(lastUploaded = Instant.DISTANT_PAST),
+      eekBackupStatus = EekBackupStatus.Healthy(lastUploaded = Instant.DISTANT_PAST)
+    )
   }
 }

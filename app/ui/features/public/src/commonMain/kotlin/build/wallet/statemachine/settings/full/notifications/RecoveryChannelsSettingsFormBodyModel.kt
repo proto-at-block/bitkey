@@ -15,11 +15,15 @@ import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize.Avatar
+import build.wallet.ui.model.icon.IconSize.Regular
 import build.wallet.ui.model.icon.IconSize.Small
+import build.wallet.ui.model.icon.IconTint.Foreground
 import build.wallet.ui.model.icon.IconTint.On30
 import build.wallet.ui.model.list.*
 import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.QuestionAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 fun RecoveryChannelsSettingsFormBodyModel(
@@ -31,6 +35,7 @@ fun RecoveryChannelsSettingsFormBodyModel(
   onBack: (() -> Unit)?,
   learnOnClick: (() -> Unit),
   continueOnClick: (() -> Unit)?,
+  isDesignSystemV2Enabled: Boolean = false,
   bottomSheetModel: SheetModel?,
   alertModel: ButtonAlertModel? = null,
 ) = ScreenModel(
@@ -43,7 +48,8 @@ fun RecoveryChannelsSettingsFormBodyModel(
     emailItem = emailItem,
     onBack = onBack,
     learnOnClick = learnOnClick,
-    continueOnClick = continueOnClick
+    continueOnClick = continueOnClick,
+    isDesignSystemV2Enabled = isDesignSystemV2Enabled
   ),
   presentationStyle = ScreenPresentationStyle.Root,
   alertModel = alertModel
@@ -58,11 +64,16 @@ data class RecoveryChannelsSettingsFormBodyModel(
   override val onBack: (() -> Unit)?,
   val learnOnClick: (() -> Unit),
   val continueOnClick: (() -> Unit)?,
+  val isDesignSystemV2Enabled: Boolean = false,
 ) : FormBodyModel(
     id = NotificationsEventTrackerScreenId.RECOVERY_CHANNELS_SETTINGS,
     onBack = onBack,
     toolbar = onBack?.let { ob ->
-      ToolbarModel(leadingAccessory = BackAccessory(ob))
+      ToolbarModel(
+        leadingAccessory = BackAccessory(ob),
+        trailingAccessory = QuestionAccessory(learnOnClick)
+          .takeIf { source != Source.InheritanceStartClaim }
+      )
     },
     header =
       FormHeaderModel(
@@ -109,13 +120,15 @@ data class RecoveryChannelsSettingsFormBodyModel(
                 immutableListOf(
                   createListItem(
                     itemModel = emailItem,
-                    icon = SmallIconEmail,
+                    icon = if (isDesignSystemV2Enabled) DotNotifyEmail else SmallIconEmail,
+                    isDesignSystemV2Enabled = isDesignSystemV2Enabled,
                     title = "Email",
                     secondaryText = emailItem.displayValue ?: "Required"
                   ),
                   createListItem(
                     itemModel = smsItem,
-                    icon = SmallIconMessage,
+                    icon = if (isDesignSystemV2Enabled) DotNotifySms else SmallIconMessage,
+                    isDesignSystemV2Enabled = isDesignSystemV2Enabled,
                     title = "SMS",
                     secondaryText = when (smsItem.enabled) {
                       EnabledState.Loading -> ""
@@ -125,7 +138,8 @@ data class RecoveryChannelsSettingsFormBodyModel(
                   ),
                   createListItem(
                     itemModel = pushItem,
-                    icon = SmallIconPushNotification,
+                    icon = if (isDesignSystemV2Enabled) DotNotifyPush else SmallIconPushNotification,
+                    isDesignSystemV2Enabled = isDesignSystemV2Enabled,
                     title = "Push notifications",
                     secondaryText = when (pushItem.enabled) {
                       EnabledState.Loading -> ""
@@ -136,20 +150,7 @@ data class RecoveryChannelsSettingsFormBodyModel(
                 ),
               style = ListGroupStyle.DIVIDER
             )
-        ),
-        ListGroup(
-          listGroupModel = ListGroupModel(
-            style = ListGroupStyle.CARD_GROUP,
-            items = immutableListOf(
-              ListItemModel(
-                title = "We’re serious about security",
-                secondaryText = "Learn more about critical alerts for recovery and inheritance.",
-                trailingAccessory = ListItemAccessory.drillIcon(),
-                onClick = learnOnClick
-              )
-            )
-          )
-        ).takeIf { source != Source.InheritanceStartClaim }
+        )
       ),
     primaryButton = ButtonModel(
       text = "Continue",
@@ -167,11 +168,12 @@ data class RecoveryChannelsSettingsFormBodyModel(
         learnOnClick()
       }
     ).takeIf { source == Source.InheritanceStartClaim }
-  )
+)
 
 private fun createListItem(
   itemModel: RecoveryChannelsSettingsFormItemModel,
   icon: Icon,
+  isDesignSystemV2Enabled: Boolean,
   title: String,
   secondaryText: String,
 ) = with(itemModel) {
@@ -181,17 +183,14 @@ private fun createListItem(
         model =
           IconModel(
             icon = icon,
-            iconTint = On30,
-            iconSize = Small
+            iconTint = if (isDesignSystemV2Enabled) Foreground else On30,
+            iconSize = if (isDesignSystemV2Enabled) Regular else Small
           )
       ),
     title = title,
     secondaryText = secondaryText,
     treatment = ListItemTreatment.PRIMARY,
-    trailingAccessory = IconAccessory(
-      model = IconModel(SmallIconCaretRight, iconSize = Small),
-      testTag = "$title-chevron"
-    ),
+    trailingAccessory = ListItemAccessory.drillIcon(tint = On30),
     onClick = onClick
   )
 }

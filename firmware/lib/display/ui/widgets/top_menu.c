@@ -12,13 +12,27 @@
 #define PILL_HEIGHT 36
 #define PILL_RADIUS 32
 #define TOP_MARGIN  32
-#define PILL_BG_OPA LV_OPA_COVER  // Fully opaque
+#define PILL_BG_OPA LV_OPA_70
 
 // Colors
 #define COLOR_PILL 0x404040
 
 // External image declaration
 extern const lv_img_dsc_t ellipsis_horizontal;
+
+static bool top_menu_is_ready(const top_menu_t* widget) {
+  return widget && widget->is_initialized && widget->container &&
+         lv_obj_is_valid(widget->container);
+}
+
+static void top_menu_opa_anim_cb(void* var, int32_t value) {
+  lv_obj_t* container = (lv_obj_t*)var;
+  if (!container || !lv_obj_is_valid(container)) {
+    return;
+  }
+
+  lv_obj_set_style_opa(container, (lv_opa_t)value, 0);
+}
 
 // Click event handler for the menu button
 static void menu_button_click_handler(lv_event_t* e) {
@@ -46,6 +60,7 @@ void top_menu_create(lv_obj_t* parent, top_menu_t* widget, lv_event_cb_t custom_
   lv_obj_set_style_radius(widget->container, PILL_RADIUS, 0);
   lv_obj_set_style_bg_color(widget->container, lv_color_hex(COLOR_PILL), 0);
   lv_obj_set_style_bg_opa(widget->container, PILL_BG_OPA, 0);
+  lv_obj_set_style_opa(widget->container, LV_OPA_COVER, 0);
   lv_obj_set_style_border_width(widget->container, 0, 0);
   lv_obj_set_style_shadow_opa(widget->container, LV_OPA_TRANSP, 0);
   lv_obj_set_style_pad_all(widget->container, 0, 0);
@@ -74,6 +89,42 @@ void top_menu_create(lv_obj_t* parent, top_menu_t* widget, lv_event_cb_t custom_
   lv_obj_add_event_cb(widget->container, handler, LV_EVENT_CLICKED, NULL);
 
   widget->is_initialized = true;
+}
+
+void top_menu_set_opacity(top_menu_t* widget, lv_opa_t opacity) {
+  if (!top_menu_is_ready(widget)) {
+    return;
+  }
+
+  lv_anim_del(widget->container, top_menu_opa_anim_cb);
+  lv_obj_set_style_opa(widget->container, opacity, 0);
+}
+
+void top_menu_fade_to_opacity(top_menu_t* widget, lv_opa_t opacity, uint32_t duration_ms) {
+  if (!top_menu_is_ready(widget)) {
+    return;
+  }
+
+  lv_anim_del(widget->container, top_menu_opa_anim_cb);
+
+  if (duration_ms == 0) {
+    lv_obj_set_style_opa(widget->container, opacity, 0);
+    return;
+  }
+
+  lv_opa_t current_opa = lv_obj_get_style_opa(widget->container, 0);
+  if (current_opa == opacity) {
+    return;
+  }
+
+  lv_anim_t anim;
+  lv_anim_init(&anim);
+  lv_anim_set_var(&anim, widget->container);
+  lv_anim_set_exec_cb(&anim, top_menu_opa_anim_cb);
+  lv_anim_set_values(&anim, current_opa, opacity);
+  lv_anim_set_time(&anim, duration_ms);
+  lv_anim_set_path_cb(&anim, lv_anim_path_linear);
+  lv_anim_start(&anim);
 }
 
 void top_menu_destroy(top_menu_t* widget) {

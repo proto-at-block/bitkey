@@ -861,6 +861,9 @@ void sysinfo_thread(void* UNUSED(args)) {
           proto_send_rsp(cmd, rsp);
         }
         break;
+      case IPC_PROTO_RESET_CMD:
+        mcu_reset_with_reason(MCU_RESET_SOFTWARE);
+        break;
       default:
         LOGE("Unknown msg %ld", message.tag);
     }

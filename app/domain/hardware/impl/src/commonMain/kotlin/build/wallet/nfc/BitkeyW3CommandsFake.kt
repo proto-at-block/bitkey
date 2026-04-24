@@ -35,6 +35,7 @@ import build.wallet.nfc.platform.RecoveryAuthorizeLostHwResult
 import build.wallet.nfc.platform.RotateAppAuthKeysCompositeResult
 import build.wallet.nfc.platform.RotateAppAuthKeysContinueParams
 import build.wallet.nfc.platform.SignChallengeAndSealSeksResult
+import build.wallet.nfc.platform.SweepSigningContext
 import build.wallet.nfc.platform.UpgradeAuthorizeW3Result
 import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysParams
 import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysResult
@@ -464,6 +465,53 @@ class BitkeyW3CommandsFake(
     return emulatedPrompt(
       details = listOf(
         EmulatedPromptOption.Detail("Action", "Sign Transaction"),
+        EmulatedPromptOption.Detail(
+          "Amount",
+          when (displayPreference?.bitcoinDisplayUnit) {
+            BitcoinDisplayUnit.Satoshi -> "₿ ${psbt.amountBtc.fractionalUnitValue}"
+            else -> "${psbt.amountBtc.value.toPlainString()} BTC"
+          }
+        ),
+        EmulatedPromptOption.Detail(
+          "Fee",
+          when (displayPreference?.bitcoinDisplayUnit) {
+            BitcoinDisplayUnit.Satoshi -> "₿ ${psbt.fee.amount.fractionalUnitValue}"
+            else -> "${psbt.fee.amount.value.toPlainString()} BTC"
+          }
+        )
+      ),
+      onApprove = { _, _ ->
+        fakeHardwareSpendingWalletProvider.get(spendingKeyset)
+          .signPsbt(psbt)
+          .mapError { NfcException.CommandError(cause = it) }
+          .getOrThrow()
+      }
+    )
+  }
+
+  /**
+   * Fake implementation of sweep signing. Mirrors [signTransaction]'s prompt
+   * structure but records that it was invoked in sweep mode so tests can
+   * assert routing. Actual signature production delegates to the same fake
+   * spending wallet — sweep-specific invariants (account index mismatch,
+   * fresh destination) are enforced by the real firmware, not by the fake.
+   */
+  var lastSweepContext: SweepSigningContext? = null
+    private set
+
+  override suspend fun sweepTransaction(
+    session: NfcSession,
+    psbt: Psbt,
+    spendingKeyset: SpendingKeyset,
+    sweepContext: SweepSigningContext,
+    displayPreference: HwDisplayPreference?,
+  ): HardwareInteraction<Psbt> {
+    if (!descriptorLoaded()) throw NfcException.DescriptorNotLoaded()
+    lastSweepContext = sweepContext
+    return emulatedPrompt(
+      details = listOf(
+        EmulatedPromptOption.Detail("Action", "Sweep Transaction"),
+        EmulatedPromptOption.Detail("Old Account", sweepContext.oldAccountIndex.toString()),
         EmulatedPromptOption.Detail(
           "Amount",
           when (displayPreference?.bitcoinDisplayUnit) {

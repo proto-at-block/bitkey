@@ -49,6 +49,10 @@ void key_manager_task_port_handle_get_address(ipc_ref_t* message);
 void key_manager_task_port_handle_verify_keys_and_build_descriptor(ipc_ref_t* message);
 void key_manager_task_port_handle_unseal_csek(ipc_ref_t* message);
 void key_manager_task_port_handle_derive_and_sign(ipc_ref_t* message);
+void key_manager_task_port_handle_fingerprint_reset_finalize(ipc_ref_t* message);
+
+// Core implementation of FingerprintResetFinalizeCmd (provide grant), used by W1 port.
+void handle_fingerprint_reset_finalize(ipc_ref_t* message);
 
 // Core implementation of DeriveKeyDescriptorAndSignCmd, used by W1 port.
 void handle_derive_and_sign(ipc_ref_t* message);
@@ -96,3 +100,7 @@ void key_manager_task_handle_sign_stream_transfer(ipc_ref_t* message);
 void key_manager_task_handle_sign_stream_finalize(ipc_ref_t* message);
 void key_manager_task_handle_get_tx_signature(ipc_ref_t* message);
 void key_manager_task_handle_get_tx_signatures_batch(ipc_ref_t* message);
+
+// Sweep signing handlers (W3 only). See sweep_sign_cmd in wallet.proto.
+void key_manager_task_handle_sweep_sign(ipc_ref_t* message);
+void key_manager_task_handle_sweep_sign_stream_start(ipc_ref_t* message);

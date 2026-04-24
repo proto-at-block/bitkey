@@ -20,6 +20,7 @@ use external_identifier::ExternalIdentifier;
 use http_server::config;
 use repository::account::AccountRepository;
 use repository::consent::ConsentRepository;
+use repository::public_key::PublicKeyRepository;
 use std::str::FromStr;
 use types::account::bitcoin::Network;
 use types::account::entities::{FullAccount, Keyset};
@@ -108,6 +109,7 @@ pub async fn construct_test_account_service() -> Service {
 
     let account_repository = AccountRepository::new(ddb_connection.clone());
     let consent_repository = ConsentRepository::new(ddb_connection.clone());
+    let public_key_repository = PublicKeyRepository::new(ddb_connection.clone());
 
     let cognito_config =
         config::extract::<userpool::userpool::Config>(profile).expect("extract cognito config");
@@ -117,6 +119,7 @@ pub async fn construct_test_account_service() -> Service {
     Service::new(
         account_repository.clone(),
         consent_repository.clone(),
+        public_key_repository.clone(),
         userpool_service.clone(),
     )
 }

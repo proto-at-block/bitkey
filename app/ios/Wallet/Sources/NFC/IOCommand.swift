@@ -315,6 +315,19 @@ extension GetTxSignaturesBatch: IOCommand {
     typealias ResultType = [TxSignature]
 }
 
+extension SweepSignRequest: IOCommand {
+    // Sweep signing reuses the regular sign_tx_request response shape
+    // (CONFIRMATION_PENDING + handles, signatures retrieved via
+    // get_confirmation_result), so the result type is the same.
+    typealias FFIStateType = SignTxRequestResultState
+    typealias ResultType = SignTxRequestResult
+}
+
+extension SweepSignStreamStart: IOCommand {
+    typealias FFIStateType = SweepSignStreamStartResultState
+    typealias ResultType = SweepSignStreamStartResult
+}
+
 extension IOCommand {
     // These are defined ONCE per monomorphized result type
 
@@ -657,6 +670,15 @@ extension IOCommand {
 
     func next(_ response: [UInt8]) throws -> IOResult<SignStreamStartResult>
         where FFIStateType == SignStreamStartResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<SweepSignStreamStartResult>
+        where FFIStateType == SweepSignStreamStartResultState
     {
         switch try self.next(response: response) {
         case let .data(response: response): return .data(response: response)

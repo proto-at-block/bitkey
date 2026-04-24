@@ -72,6 +72,16 @@ dev_tools_deps = [
   secure_channel_cmd_deps['w3-uxc'],
 ]
 
+reset_cmd_lib = library('w3-uxc-reset-cmd',
+  'reset_cmd.c',
+  dependencies : [shell_deps['w3-uxc'], helpers_dep, mcu_dep, printf_dep],
+)
+reset_cmd_dep = declare_dependency(
+  link_whole : reset_cmd_lib,
+)
+
+dev_tools_deps += [reset_cmd_dep]
+
 foreach hardware : w3_uxc_hardware_configs.keys()
   foreach build_env : w3_build_env_configs.keys()
     foreach slot : slot_configs.keys()

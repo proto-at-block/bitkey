@@ -167,5 +167,5 @@ private fun createTestCard(title: String) =
     subtitle = null,
     leadingImage = null,
     content = null,
-    style = CardModel.CardStyle.Outline
+    style = CardModel.CardStyle.Outline()
   )

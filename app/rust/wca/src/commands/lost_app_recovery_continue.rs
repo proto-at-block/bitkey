@@ -3,10 +3,11 @@ use miniscript::DescriptorPublicKey;
 use next_gen::generator;
 
 use crate::{
-    commands::find_next_bip84_derivation,
+    commands::{find_next_bip84_derivation, generate_keys::get_initial_spending_key},
     errors::CommandError,
     fwpb::{wallet_rsp::Msg, BtcNetwork, LostAppRecoveryContinueCmd, LostAppRecoveryContinueRsp},
     wca::decode_and_check,
+    yield_from_,
 };
 
 use crate::command_interface::command;
@@ -19,17 +20,15 @@ pub struct LostAppRecoveryContinueResult {
     pub spending_key_dpub: DescriptorPublicKey,
 }
 
-/// Compute the next account index from existing descriptor public keys.
-/// Uses `find_next_bip84_derivation` (from generate_keys) with the first key as `ours`.
-/// Returns 0 if no existing keys are found (first keyset).
+/// Compute the next account index from existing descriptor public keys using
+/// the current device's BIP84 lineage as the anchor. This matches
+/// `GetNextSpendingKey` and avoids treating an older hardware lineage as
+/// canonical when recovery history contains mixed keysets.
 fn compute_next_account_index(
+    ours: DescriptorPublicKey,
     existing_descriptor_public_keys: &[DescriptorPublicKey],
 ) -> Result<u32, CommandError> {
-    let first = match existing_descriptor_public_keys.first() {
-        Some(key) => key.clone(),
-        None => return Ok(0),
-    };
-    let path = find_next_bip84_derivation(first, existing_descriptor_public_keys.iter().cloned())
+    let path = find_next_bip84_derivation(ours, existing_descriptor_public_keys.iter().cloned())
         .ok_or(CommandError::InvalidArguments)?;
     match path[2] {
         ChildNumber::Hardened { index } => Ok(index),
@@ -47,7 +46,8 @@ fn lost_app_recovery_continue(
     network: BtcNetwork,
     app_global_auth_key: Vec<u8>,
 ) -> Result<LostAppRecoveryContinueResult, CommandError> {
-    let next_account_index = compute_next_account_index(&existing_descriptor_public_keys)?;
+    let ours = yield_from_!(get_initial_spending_key(network))?;
+    let next_account_index = compute_next_account_index(ours, &existing_descriptor_public_keys)?;
     let apdu: apdu::Command = LostAppRecoveryContinueCmd {
         action_proof_version,
         action,
@@ -98,25 +98,67 @@ command!(LostAppRecoveryContinue = lost_app_recovery_continue -> LostAppRecovery
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use prost::Message;
 
     use bitcoin::base58;
+    use miniscript::DescriptorPublicKey;
 
     use crate::{
         command_interface::{Command, State},
         errors::CommandError,
         fwpb::{
-            wallet_rsp::Msg, BtcNetwork, DerivationPath, KeyDescriptor, LostAppRecoveryContinueRsp,
-            Status, WalletRsp, Wildcard,
+            derive_rsp::DeriveRspStatus, wallet_rsp::Msg, BtcNetwork, DerivationPath, DeriveRsp,
+            KeyDescriptor, LostAppRecoveryContinueRsp, Status, WalletRsp, Wildcard,
         },
     };
 
-    use super::LostAppRecoveryContinue;
+    use super::{compute_next_account_index, LostAppRecoveryContinue};
 
     fn make_response(wallet_rsp: WalletRsp) -> Vec<u8> {
         let mut buf = wallet_rsp.encode_to_vec();
         buf.extend_from_slice(&[0x90, 0x00]);
         buf
+    }
+
+    #[allow(deprecated)]
+    fn descriptor(account_index: u32, origin_fingerprint: [u8; 4]) -> KeyDescriptor {
+        KeyDescriptor {
+            origin_fingerprint: origin_fingerprint.to_vec(),
+            origin_path: Some(DerivationPath {
+                child: vec![
+                    84 | 0x8000_0000,
+                    0x8000_0000,
+                    account_index | 0x8000_0000,
+                ],
+                wildcard: false,
+            }),
+            xpub_path: None,
+            bare_bip32_key: base58::decode_check("xpub6Gxgx4jtKP3xsM95Rtub11QE4YqGDxTw9imtJ23Bi7nFi2aqE27HwanX2x3m451zuni5tKSuHeFVHexyCkjDEwB74R7NRtQ2UryVKDy1fgK").unwrap(),
+            wildcard: Wildcard::Unhardened.into(),
+        }
+    }
+
+    #[test]
+    fn compute_next_account_index_uses_current_hardware_lineage() -> Result<(), CommandError> {
+        let ours_0 = DescriptorPublicKey::from_str(
+            "[0c5f9a1e/84'/1'/0']tpubDCxzhZZE31g2EqSv1UajMAw5Hd62htydz9r2XBkrccHgBh8uw3n62zr6Zjmj64tfTk8Tjxo6VctjUMAh5DXWTErfQPC6RmQhTdtNnXuTXTQ/*",
+        )
+        .unwrap();
+        let ours_1 = DescriptorPublicKey::from_str(
+            "[0c5f9a1e/84'/1'/1']tpubDCxzhZZE31g2GPc7WcCG4gEwMMTxB9uAcLKuGtbi4n5uQKGLaaNAbTZmcK4Rq6pCesEitB7PV9k1hXs7qU8YTXXfd2LpVXmpUT9FcsvEXC3/*",
+        )
+        .unwrap();
+        let other_0 = DescriptorPublicKey::from_str(
+            "[51135a9c/84'/1'/0']tpubDCUBn4Wj3t577bANcZqscxNH14vPuXm2L5vM6dcvdfqfcYDLCRFhZAqBvEjuPh2yWL8Sjbpa6HhaDEUG9iSVhANhyruL5Wcfz2DeR9Hf7cr/*",
+        )
+        .unwrap();
+
+        let next_account_index = compute_next_account_index(ours_0, &[other_0, ours_1])?;
+        assert_eq!(next_account_index, 2);
+
+        Ok(())
     }
 
     #[test]
@@ -130,7 +172,27 @@ mod tests {
             BtcNetwork::Bitcoin,
             vec![0x02; 33],
         );
-        command.next(Vec::default())?;
+        match command.next(Vec::default()) {
+            Ok(State::Data { .. }) => {}
+            other => panic!("Expected initial spending key request, got {:?}", other),
+        }
+
+        let initial_key_response = make_response(WalletRsp {
+            status: Status::Success.into(),
+            msg: Some(Msg::DeriveRsp(DeriveRsp {
+                status: DeriveRspStatus::Success.into(),
+                descriptor: Some(descriptor(0, [0xde, 0xad, 0xbe, 0xef])),
+            })),
+            ..Default::default()
+        });
+
+        match command.next(initial_key_response) {
+            Ok(State::Data { .. }) => {}
+            other => panic!(
+                "Expected lost app recovery continue request, got {:?}",
+                other
+            ),
+        }
 
         let action_proof_signature = vec![0xAA; 64];
         let bare_spending_key = vec![0xBB; 78];
@@ -144,16 +206,7 @@ mod tests {
                     bare_spending_key: bare_spending_key.clone(),
                     app_auth_key_signature: app_auth_key_signature.clone(),
                     #[allow(deprecated)]
-                    spending_key_descriptor: Some(KeyDescriptor {
-                        origin_fingerprint: vec![0xe3, 0xb0, 0xc4, 0x42],
-                        origin_path: Some(DerivationPath {
-                            child: vec![84 | 0x80000000, 0x80000000, 0x80000000],
-                            wildcard: false,
-                        }),
-                        xpub_path: None,
-                        bare_bip32_key: base58::decode_check("xpub6Gxgx4jtKP3xsM95Rtub11QE4YqGDxTw9imtJ23Bi7nFi2aqE27HwanX2x3m451zuni5tKSuHeFVHexyCkjDEwB74R7NRtQ2UryVKDy1fgK").unwrap(),
-                        wildcard: Wildcard::Unhardened.into(),
-                    }),
+                    spending_key_descriptor: Some(descriptor(0, [0xe3, 0xb0, 0xc4, 0x42])),
                 },
             )),
             ..Default::default()

@@ -19,6 +19,8 @@ import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.platform.web.InAppBrowserNavigator
+import build.wallet.bitcoin.keys.extractAccountIndex
+import build.wallet.nfc.platform.SweepSigningContextBuilder
 import build.wallet.recovery.sweep.SweepContext
 import build.wallet.recovery.sweep.SweepPsbt
 import build.wallet.statemachine.core.ErrorData
@@ -44,6 +46,7 @@ class SweepUiStateMachineImpl(
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val sweepDataStateMachine: SweepDataStateMachine,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
+  private val sweepSigningContextBuilder: SweepSigningContextBuilder,
 ) : SweepUiStateMachine {
   @Composable
   override fun model(props: SweepUiProps): ScreenModel {
@@ -421,11 +424,39 @@ class SweepUiStateMachineImpl(
     state: ScreenState.SigningSinglePsbt,
     setState: (ScreenState) -> Unit,
   ): ScreenModel {
+    // Build a SweepSigningContext for W3 sweeps spending from a non-current
+    // account. The regular W3 signing path rejects non-current-account inputs,
+    // so we must route through the dedicated sweep command. W3Upgrade sweeps
+    // are excluded because they tap the OLD W1 hardware (see
+    // hardwareTypeOverride below), and W1 signing handles any account index
+    // natively via its PSBT-based protocol.
+    //
+    // Cached with remember() because this block recomposes frequently as the
+    // NFC screens animate, and the builder decodes BIP-32 xpubs — cheap but
+    // not free to run on every recomposition.
+    val sweepSigningContext = remember(state.currentPsbt.sourceKeyset, props.account.keybox) {
+      if (props.sweepContext !is SweepContext.W3Upgrade &&
+        props.account.keybox.config.isW3Hardware
+      ) {
+        sweepSigningContextBuilder.buildFor(
+          oldKeyset = state.currentPsbt.sourceKeyset,
+          // HW key account index is the one that increments across
+          // account-bumping recoveries; the app key is always at account
+          // index 0. Use HW for both sides of the comparison.
+          currentAccountIndex = props.account.keybox.activeSpendingKeyset.hardwareKey.key
+            .extractAccountIndex()
+        )
+      } else {
+        null
+      }
+    }
+
     return signTransactionNfcSessionUiStateMachine.model(
       SignTransactionNfcSessionUiProps(
         account = props.account,
         psbt = state.currentPsbt.psbt,
         spendingKeyset = state.currentPsbt.sourceKeyset,
+        sweepSigningContext = sweepSigningContext,
         useRecoveryHwAuthKey = props.sweepContext is SweepContext.Recovery,
         // During W3 upgrade, the active keybox has been switched to the new W3 but the
         // sweep needs to sign with the OLD W1 hardware — skip pairing check to avoid

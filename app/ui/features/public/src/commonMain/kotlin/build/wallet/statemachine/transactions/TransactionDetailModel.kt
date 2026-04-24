@@ -203,26 +203,6 @@ val processingTransactionStepper: StepperIndicator = StepperIndicator(
   )
 )
 
-val processingTransactionStepperDesignSystemV2: StepperIndicator = StepperIndicator(
-  steps = immutableListOf(
-    StepperIndicator.Step(
-      style = StepStyle.COMPLETED,
-      icon = LocalImage(icon = SmallIconCheck),
-      label = "Submitted"
-    ),
-    StepperIndicator.Step(
-      style = StepStyle.PENDING,
-      icon = IconImage.CircularLoadingBadge,
-      label = "Processing"
-    ),
-    StepperIndicator.Step(
-      style = StepStyle.UPCOMING,
-      icon = null,
-      label = "Complete"
-    )
-  )
-)
-
 /**
  * A pre-built stepper indicator for a completed transaction.
  */

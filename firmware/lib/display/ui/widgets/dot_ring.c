@@ -57,6 +57,8 @@ static void cancel_progress_anim(dot_ring_t* ring);
 static bool should_complete_forward_fill_on_release(const dot_ring_t* ring);
 static void complete_forward_fill_now(dot_ring_t* ring);
 static bool should_use_fast_start_activation(const dot_ring_t* ring, int dot_index);
+static bool dot_ring_animate_release_internal(dot_ring_t* ring, uint32_t full_duration_ms,
+                                              bool hide_when_complete);
 static void dot_ring_animate_fill_internal(dot_ring_t* ring, uint8_t target_percent,
                                            uint32_t duration_ms, dot_ring_color_t color,
                                            dot_ring_fill_dir_t fill_dir,
@@ -454,7 +456,8 @@ static void dot_ring_animate_fill_internal(dot_ring_t* ring, uint8_t target_perc
   lv_anim_start(&ring->fill_anim);
 }
 
-bool dot_ring_animate_release(dot_ring_t* ring, uint32_t full_duration_ms) {
+static bool dot_ring_animate_release_internal(dot_ring_t* ring, uint32_t full_duration_ms,
+                                              bool hide_when_complete) {
   if (!ring || !ring->is_initialized || !ring->storage) {
     return false;
   }
@@ -475,10 +478,12 @@ bool dot_ring_animate_release(dot_ring_t* ring, uint32_t full_duration_ms) {
   if (ring->dot_count == 0 || current_count == 0 || full_duration_ms == 0) {
     set_active_dot_count(ring, 0, true);
     ring->target_count = 0;
-    if (ring->fade_duration_ms > 0) {
-      dot_ring_hide_with_fade_out(ring, ring->fade_duration_ms);
-    } else {
-      dot_ring_hide(ring);
+    if (hide_when_complete) {
+      if (ring->fade_duration_ms > 0) {
+        dot_ring_hide_with_fade_out(ring, ring->fade_duration_ms);
+      } else {
+        dot_ring_hide(ring);
+      }
     }
     return false;
   }
@@ -491,7 +496,7 @@ bool dot_ring_animate_release(dot_ring_t* ring, uint32_t full_duration_ms) {
 
   ring->target_count = 0;
   ring->is_animating = true;
-  ring->hide_when_animation_complete = true;
+  ring->hide_when_animation_complete = hide_when_complete;
   ring->anim_type = DOT_RING_ANIM_REVERSE;
   ring->anim_start_tick_ms = lv_tick_get();
   ring->anim_duration_ms = duration_ms;
@@ -509,6 +514,14 @@ bool dot_ring_animate_release(dot_ring_t* ring, uint32_t full_duration_ms) {
   lv_anim_start(&ring->fill_anim);
 
   return false;
+}
+
+bool dot_ring_animate_release(dot_ring_t* ring, uint32_t full_duration_ms) {
+  return dot_ring_animate_release_internal(ring, full_duration_ms, true);
+}
+
+bool dot_ring_animate_release_to_inactive(dot_ring_t* ring, uint32_t full_duration_ms) {
+  return dot_ring_animate_release_internal(ring, full_duration_ms, false);
 }
 
 void dot_ring_stop(dot_ring_t* ring) {

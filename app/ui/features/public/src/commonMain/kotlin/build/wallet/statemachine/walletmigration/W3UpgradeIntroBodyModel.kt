@@ -19,6 +19,7 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 data class W3UpgradeIntroBodyModel(
   override val onBack: (() -> Unit)?,
   val onContinue: () -> Unit,
+  val isLoading: Boolean = false,
 ) : FormBodyModel(
     id = WalletMigrationEventTrackerScreenId.W3_UPGRADE_INTRO,
     onBack = onBack,
@@ -45,6 +46,7 @@ data class W3UpgradeIntroBodyModel(
       text = "Continue",
       size = ButtonModel.Size.Footer,
       treatment = ButtonModel.Treatment.Primary,
+      isLoading = isLoading,
       onClick = StandardClick(onContinue)
     )
   )

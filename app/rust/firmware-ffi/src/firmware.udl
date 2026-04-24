@@ -7,7 +7,7 @@ namespace firmware {
   DecomposedPsbt decompose_psbt(string psbt_base64, string origin_fingerprint);
 
   [Throws=CommandError]
-  string assemble_psbt_signatures(string psbt_base64, sequence<InputSignatureTuple> signatures);
+  string assemble_psbt_signatures(string psbt_base64, sequence<InputSignatureTuple> signatures, boolean allow_unfinalized);
 
   /// Serializes transaction inputs/outputs into the canonical binary format
   /// for the streaming signing protocol. Returns the complete payload bytes.
@@ -304,6 +304,29 @@ interface GetTxSignaturesBatch {
   constructor(u32 start_index, u32 count);
   [Throws=CommandError]
   TxSignaturesBatchState next(sequence<u8> response);
+};
+
+/// Sweep signing command (W3). Mirrors SignTxRequest but with OLD-account
+/// app + server xpubs and the old account index. Firmware uses the old app
+/// xpub in place of the stored keyset.app xpub, derives the HW key from
+/// master at the old account, and uses the supplied old server xpub.
+interface SweepSignRequest {
+  constructor(u32 old_account_index, SweepXpub app_xpub, SweepXpub server_xpub, u32 version, u32 lock_time, sequence<SignTxInputData> inputs, sequence<SignTxOutputData> outputs, BtcDisplayUnit btc_display_unit);
+  [Throws=CommandError]
+  SignTxRequestResultState next(sequence<u8> response);
+};
+
+/// Streaming sweep signing start (W3). Subsequent sign_stream_transfer and
+/// sign_stream_finalize commands are reused for the streaming payload.
+interface SweepSignStreamStart {
+  constructor(u32 old_account_index, SweepXpub app_xpub, SweepXpub server_xpub, u32 num_inputs, u32 num_outputs, u32 version, u32 lock_time, u32 payload_size, BtcDisplayUnit btc_display_unit);
+  [Throws=CommandError]
+  SweepSignStreamStartResultState next(sequence<u8> response);
+};
+
+dictionary SweepXpub {
+  sequence<u8> pubkey;
+  sequence<u8> chaincode;
 };
 
 interface LostAppRecovery {
@@ -628,6 +651,17 @@ interface SignStreamStartResultState {
 
 [Enum]
 interface SignStreamStartResult {
+  Success();
+};
+
+[Enum]
+interface SweepSignStreamStartResultState {
+  Data(sequence<u8> response);
+  Result(SweepSignStreamStartResult value);
+};
+
+[Enum]
+interface SweepSignStreamStartResult {
   Success();
 };
 

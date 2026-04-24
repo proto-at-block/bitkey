@@ -21,7 +21,7 @@ database = { workspace = true }
 errors = { workspace = true }
 external_identifier = { workspace = true }
 migration = { workspace = true }
-repository = { workspace = true, features = ["account", "consent"] }
+repository = { workspace = true, features = ["account", "consent", "public_key"] }
 types = { workspace = true, features = [
   "account",
   "consent",

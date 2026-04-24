@@ -22,7 +22,6 @@ import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.SheetSize
 import build.wallet.statemachine.core.SheetSize.MIN40
-import build.wallet.statemachine.core.SheetTreatment
 import build.wallet.ui.compose.getScreenSize
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.render
@@ -39,7 +38,6 @@ fun Sheet(
 ) {
   Sheet(
     modifier = modifier,
-    treatment = model.treatment,
     size = model.size,
     sheetState = sheetState,
     onClosed = model.onClosed,
@@ -52,7 +50,6 @@ fun Sheet(
 @Composable
 fun Sheet(
   modifier: Modifier = Modifier,
-  treatment: SheetTreatment = SheetTreatment.STANDARD,
   size: SheetSize = SheetSize.DEFAULT,
   sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
   onClosed: () -> Unit,
@@ -63,10 +60,7 @@ fun Sheet(
   ) {
     SheetLayout(
       modifier = modifier,
-      containerColor = when (treatment) {
-        SheetTreatment.STANDARD -> WalletTheme.colors.background
-        SheetTreatment.INHERITANCE -> WalletTheme.colors.inheritanceSurface
-      },
+      containerColor = WalletTheme.colors.background,
       size = size,
       onClosed = onClosed,
       sheetState = sheetState,

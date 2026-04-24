@@ -9,8 +9,8 @@
 #define PILL_HEIGHT   36
 #define PILL_RADIUS   32
 #define TOP_MARGIN    32
-#define PILL_BG_COLOR 0x404040   // Grey (matches menu item circles)
-#define PILL_BG_OPA   LV_OPA_80  // Semi-transparent grey
+#define PILL_BG_COLOR 0x404040
+#define PILL_BG_OPA   LV_OPA_70
 
 // External image declaration
 extern const lv_img_dsc_t back_arrow;

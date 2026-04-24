@@ -37,6 +37,7 @@ import build.wallet.nfc.platform.RecoveryAuthorizeLostHwResult
 import build.wallet.nfc.platform.RotateAppAuthKeysCompositeResult
 import build.wallet.nfc.platform.RotateAppAuthKeysContinueParams
 import build.wallet.nfc.platform.SignChallengeAndSealSeksResult
+import build.wallet.nfc.platform.SweepSigningContext
 import build.wallet.nfc.platform.UpgradeAuthorizeW3Result
 import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysParams
 import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysResult
@@ -271,6 +272,18 @@ class BitkeyW1CommandsFake(
         .signPsbt(psbt)
         .mapError { NfcException.CommandError(cause = it) }
         .getOrThrow()
+    )
+  }
+
+  override suspend fun sweepTransaction(
+    session: NfcSession,
+    psbt: Psbt,
+    spendingKeyset: SpendingKeyset,
+    sweepContext: SweepSigningContext,
+    displayPreference: HwDisplayPreference?,
+  ): HardwareInteraction<Psbt> {
+    throw NfcException.CommandError(
+      message = "sweepTransaction is not supported on W1 hardware."
     )
   }
 

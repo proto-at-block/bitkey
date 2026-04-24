@@ -630,7 +630,7 @@ void key_manager_thread(void* UNUSED(args)) {
         break;
       }
       case IPC_PROTO_FINGERPRINT_RESET_FINALIZE_CMD: {
-        handle_fingerprint_reset_finalize(&message);
+        key_manager_task_port_handle_fingerprint_reset_finalize(&message);
         break;
       }
       case IPC_PROTO_PROVISION_APP_AUTH_PUBKEY_CMD: {
@@ -671,6 +671,14 @@ void key_manager_thread(void* UNUSED(args)) {
       }
       case IPC_PROTO_GET_TX_SIGNATURES_BATCH_CMD: {
         key_manager_task_handle_get_tx_signatures_batch(&message);
+        break;
+      }
+      case IPC_PROTO_SWEEP_SIGN_CMD: {
+        key_manager_task_handle_sweep_sign(&message);
+        break;
+      }
+      case IPC_PROTO_SWEEP_SIGN_STREAM_START_CMD: {
+        key_manager_task_handle_sweep_sign_stream_start(&message);
         break;
       }
       case IPC_KEY_MANAGER_UXC_SESSION_RESPONSE: {

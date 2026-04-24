@@ -18,6 +18,7 @@ use jwt_authorizer::IntoLayer;
 use partnerships::routes::RouteState;
 use repository::account::AccountRepository;
 use repository::consent::ConsentRepository;
+use repository::public_key::PublicKeyRepository;
 use serde_json::{json, Value};
 use server::test_utils::AuthenticatedRequest;
 use tower::ServiceExt;
@@ -47,7 +48,8 @@ async fn test_route_state(overrides: HashMap<String, String>) -> RouteState {
         .await;
     let account_service = AccountService::new(
         AccountRepository::new(conn.clone()),
-        ConsentRepository::new(conn),
+        ConsentRepository::new(conn.clone()),
+        PublicKeyRepository::new(conn),
         user_pool_service.clone(),
     );
     RouteState::from_secrets_manager(

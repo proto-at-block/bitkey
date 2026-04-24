@@ -1,11 +1,11 @@
 package build.wallet.ui.app.nfc
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.BlurredEdgeTreatment
@@ -25,8 +25,6 @@ import bitkey.ui.framework_public.generated.resources.ios_nfc_background
 import bitkey.ui.framework_public.generated.resources.ios_nfc_background_w1
 import bitkey.ui.framework_public.generated.resources.ios_nfc_tap
 import build.wallet.ui.components.button.Button
-import build.wallet.ui.components.video.VideoPlayer
-import build.wallet.ui.components.video.VideoScalingMode
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Treatment.Secondary
@@ -34,8 +32,6 @@ import build.wallet.ui.model.button.ButtonModel.Treatment.Translucent
 import build.wallet.ui.system.BackHandler
 import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
-import build.wallet.ui.tooling.LocalIsPreviewTheme
-import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
 
 internal const val ANDROID_NFC_PHONE_ASPECT_RATIO = 490f / 778f
@@ -48,8 +44,6 @@ internal const val ANDROID_NFC_V2_STATUS_TO_PHONE_SPACER_WEIGHT = 1f
 internal val ANDROID_NFC_V2_STATUS_BLOCK_OFFSET = 80.dp
 internal val ANDROID_NFC_TOOLBAR_HORIZONTAL_PADDING = 20.dp
 private val IOS_NFC_STATUS_ICON_TOP_PADDING = 32.dp
-private const val IOS_VIDEO_PLACEHOLDER_REVEAL_DELAY_MILLIS = 350
-private const val IOS_VIDEO_PLACEHOLDER_FADE_DURATION_MILLIS = 150
 
 /**
  * Generic iOS layout for NFC progress screens with gradient background.
@@ -64,9 +58,6 @@ fun NfcProgressScreenIosLayout(
   hardwareType: HardwareType = HardwareType.W3,
   backgroundColor: Color = Color.Black,
   backgroundPainter: Painter? = null,
-  backgroundVideoResourcePath: String? = null,
-  backgroundVideoIsLooping: Boolean = true,
-  backgroundVideoTopPadding: Dp = 0.dp,
   backgroundTopPadding: Dp = 200.dp,
   statusTopPadding: Dp = 112.dp,
   showDefaultHardwareBackground: Boolean = true,
@@ -74,17 +65,13 @@ fun NfcProgressScreenIosLayout(
 ) {
   val designSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
   val nfcBlue = WalletTheme.colors.nfcBlue.copy(alpha = 0.6f)
-  val showDesignSystemBackground =
-    designSystemV2Enabled || backgroundPainter != null || backgroundVideoResourcePath != null
+  val showDesignSystemBackground = designSystemV2Enabled || backgroundPainter != null
 
   NfcIosBackgroundLayout(
     modifier = modifier,
     hardwareType = hardwareType,
     backgroundColor = backgroundColor,
     backgroundPainter = backgroundPainter,
-    backgroundVideoResourcePath = backgroundVideoResourcePath,
-    backgroundVideoIsLooping = backgroundVideoIsLooping,
-    backgroundVideoTopPadding = backgroundVideoTopPadding,
     backgroundTopPadding = backgroundTopPadding,
     showDefaultHardwareBackground = showDefaultHardwareBackground
   ) {
@@ -160,22 +147,11 @@ internal fun NfcIosBackgroundLayout(
   hardwareType: HardwareType = HardwareType.W3,
   backgroundColor: Color = Color.Black,
   backgroundPainter: Painter? = null,
-  backgroundVideoResourcePath: String? = null,
-  backgroundVideoIsLooping: Boolean = true,
-  backgroundVideoTopPadding: Dp = 0.dp,
   backgroundTopPadding: Dp = 200.dp,
   showDefaultHardwareBackground: Boolean = true,
   content: @Composable BoxScope.() -> Unit,
 ) {
-  val isPreviewTheme = LocalIsPreviewTheme.current
-  val showDesignSystemBackground =
-    LocalDesignSystemUpdatesEnabled.current || backgroundPainter != null || backgroundVideoResourcePath != null
-  val effectiveBackgroundVideoResourcePath =
-    if (isPreviewTheme) {
-      null
-    } else {
-      backgroundVideoResourcePath
-    }
+  val showDesignSystemBackground = LocalDesignSystemUpdatesEnabled.current || backgroundPainter != null
   val backgroundModifier =
     if (showDesignSystemBackground) {
       modifier
@@ -194,47 +170,6 @@ internal fun NfcIosBackgroundLayout(
   if (showDesignSystemBackground) {
     Box(modifier = backgroundModifier) {
       when {
-        effectiveBackgroundVideoResourcePath != null -> {
-          val hasBackgroundPlaceholder = backgroundPainter != null
-          var showPlaceholder by remember(hasBackgroundPlaceholder, effectiveBackgroundVideoResourcePath) {
-            mutableStateOf(hasBackgroundPlaceholder)
-          }
-          LaunchedEffect(hasBackgroundPlaceholder, effectiveBackgroundVideoResourcePath) {
-            showPlaceholder = hasBackgroundPlaceholder
-            if (hasBackgroundPlaceholder) {
-              delay(IOS_VIDEO_PLACEHOLDER_REVEAL_DELAY_MILLIS.toLong())
-              showPlaceholder = false
-            }
-          }
-          val placeholderAlpha by animateFloatAsState(
-            targetValue = if (showPlaceholder) 1f else 0f,
-            animationSpec = tween(durationMillis = IOS_VIDEO_PLACEHOLDER_FADE_DURATION_MILLIS),
-            label = "iosVideoPlaceholderAlpha"
-          )
-          VideoPlayer(
-            modifier =
-              Modifier
-                .fillMaxSize()
-                .padding(top = backgroundVideoTopPadding),
-            resourcePath = effectiveBackgroundVideoResourcePath,
-            isLooping = backgroundVideoIsLooping,
-            backgroundColor = backgroundColor,
-            scalingMode = VideoScalingMode.CROP
-          )
-          backgroundPainter?.let { painter ->
-            Image(
-              painter = painter,
-              contentDescription = null,
-              contentScale = ContentScale.Crop,
-              modifier =
-                Modifier
-                  .fillMaxSize()
-                  .padding(top = backgroundVideoTopPadding)
-                  .alpha(placeholderAlpha)
-            )
-          }
-        }
-
         backgroundPainter != null -> {
           Image(
             painter = backgroundPainter,
@@ -413,4 +348,3 @@ fun NfcProgressScreenAndroidLayout(
     }
   }
 }
-

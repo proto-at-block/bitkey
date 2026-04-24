@@ -201,6 +201,7 @@ private class DarkStyleDictionaryIcons(
       Bitcoin -> Res.drawable.bitcoin_dark
       BitcoinConsolidation -> Res.drawable.bitcoin_consolidation_dark
       BitcoinBadged -> Res.drawable.bitcoin_badged_dark
+      InheritanceShowcase -> Res.drawable.inheritance_showcase_dark
       MoneyHomeHero -> Res.drawable.money_home_hero_dark
       LargeIconNetworkError -> Res.drawable.large_icon_network_error_dark
       SmallIconSettingsBadged -> Res.drawable.small_icon_settings_badged_dark

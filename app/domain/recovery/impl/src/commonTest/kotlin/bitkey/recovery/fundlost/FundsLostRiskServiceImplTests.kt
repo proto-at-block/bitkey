@@ -157,6 +157,30 @@ class FundsLostRiskServiceImplTests : FunSpec({
     }
   }
 
+  test("at risk when incomplete private wallet keybox is detected") {
+    cloudBackupHealthRepository.appKeyBackupStatus.value =
+      Healthy(ClockFake().now)
+    cloudBackupHealthRepository.eekBackupStatus.value =
+      EekBackupStatus.Healthy(ClockFake().now)
+    firmwareDataService.firmwareData.value = FirmwareDataUpToDateMock
+    notificationsService.criticalNotificationsStatus.value = Enabled
+    keysetRepairService.setStatus(
+      SpendingKeysetSyncStatus.IncompletePrivateWallet(
+        activeKeysetId = "active-keyset-id"
+      )
+    )
+
+    val service = service()
+
+    createBackgroundScope().launch {
+      service.executeWork()
+    }
+
+    service.riskLevel().test {
+      awaitUntil(FundsLostRiskLevel.AtRisk(AtRiskCause.ActiveSpendingKeysetMismatch))
+    }
+  }
+
   test("at risk when sms and email are missing") {
     cloudBackupHealthRepository.appKeyBackupStatus.value =
       Healthy(ClockFake().now)

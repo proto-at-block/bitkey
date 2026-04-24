@@ -16,6 +16,7 @@ typedef enum {
   SYSEVENT_TOUCH = (1 << 9),
   SYSEVENT_CAPTOUCH = (1 << 10),
   SYSEVENT_BIO_READY = (1 << 11),
+  SYSEVENT_FORCE_POWER_OFF_RESET = (1 << 12),
 } sysevent_t;
 
 void sysevent_init(void);

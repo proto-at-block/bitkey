@@ -94,7 +94,7 @@ fun TransferAmountScreenWithBannerPreview() {
           subtitle = null,
           leadingImage = CardModel.CardImage.StaticImage(SmallIconBitkey),
           content = null,
-          style = Outline
+          style = Outline()
         ),
         keypadModel =
           KeypadModel(
@@ -133,7 +133,7 @@ fun TransferAmountScreenWithSmartBarPreview() {
           subtitle = null,
           leadingImage = CardModel.CardImage.StaticImage(SmallIconBitkey),
           content = null,
-          style = Outline
+          style = Outline()
         ),
         keypadModel =
           KeypadModel(
@@ -175,7 +175,7 @@ fun TransferAmountScreenWithEqualOrMoreBannerPreview() {
           subtitle = null,
           leadingImage = null,
           content = null,
-          style = Outline,
+          style = Outline(),
           onClick = {}
         ),
         keypadModel =
@@ -250,7 +250,7 @@ fun TransferAmountScreenDesignSystemV2Preview() {
           subtitle = null,
           leadingImage = CardModel.CardImage.StaticImage(SmallIconBitkey),
           content = null,
-          style = Outline
+          style = Outline()
         ),
         keypadModel =
           KeypadModel(

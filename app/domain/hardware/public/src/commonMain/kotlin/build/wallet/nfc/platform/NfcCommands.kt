@@ -573,6 +573,37 @@ interface NfcCommands {
   ): HardwareInteraction<Psbt>
 
   /**
+   * Sweep-sign the given [psbt] with the hardware key derived at the OLD account
+   * index (W3 only). Used when moving UTXOs from a retired account to the
+   * current account's fresh receive address after an account-bumping recovery.
+   *
+   * The regular [signTransaction] strictly rejects any input whose account
+   * index differs from the device's current keyset. Callers that know they
+   * are signing an old-account sweep must use this method instead.
+   *
+   * Firmware enforces:
+   *   - [sweepContext.oldAccountIndex] differs from keyset.account_index
+   *   - every input's derivation_path[2] matches [sweepContext.oldAccountIndex]
+   *   - exactly one output whose scriptPubKey matches the firmware-derived
+   *     P2WSH scriptPubKey at current-keyset m/84'/coin'/current'/0/0
+   *
+   * A compromised app supplying wrong xpubs produces an on-chain-invalid
+   * signature — no funds can be moved incorrectly.
+   *
+   * @param spendingKeyset: The OLD keyset whose UTXOs are being swept. Used
+   *   only for the HW origin fingerprint (same as [signTransaction]).
+   * @param sweepContext: The OLD account index + OLD app xpub + OLD server
+   *   xpub at depth 3. Callers extract these from their stored keyset history.
+   */
+  suspend fun sweepTransaction(
+    session: NfcSession,
+    psbt: Psbt,
+    spendingKeyset: SpendingKeyset,
+    sweepContext: SweepSigningContext,
+    displayPreference: HwDisplayPreference? = null,
+  ): HardwareInteraction<Psbt>
+
+  /**
    * Start fingerprint enrollment at the index specified by [fingerprintHandle].
    *
    * Defaults to the 0 index, with no label. Up to 3 fingerprints are supported.

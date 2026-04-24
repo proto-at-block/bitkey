@@ -86,8 +86,7 @@ fun MoneyHomeScreen(
     CoachmarkIdentifier.PrivateWalletHomeCoachmark
   )
   val balanceCoachmarkIds = setOf(
-    CoachmarkIdentifier.Bip177Coachmark,
-    CoachmarkIdentifier.W3UpgradeCompleteCoachmark
+    CoachmarkIdentifier.Bip177Coachmark
   )
 
   val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current

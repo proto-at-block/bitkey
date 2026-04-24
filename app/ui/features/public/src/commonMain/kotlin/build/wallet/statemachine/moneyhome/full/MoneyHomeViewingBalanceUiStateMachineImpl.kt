@@ -56,7 +56,6 @@ import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceU
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint.BALANCE
 import build.wallet.statemachine.moneyhome.full.coachmarks.Bip177CoachmarkModel
 import build.wallet.statemachine.moneyhome.full.coachmarks.PrivateWalletHomeCoachmarkModel
-import build.wallet.statemachine.moneyhome.full.coachmarks.W3UpgradeCompleteCoachmarkModel
 import build.wallet.statemachine.partnerships.AddBitcoinBottomSheetDisplayState
 import build.wallet.statemachine.partnerships.AddBitcoinUiProps
 import build.wallet.statemachine.partnerships.AddBitcoinUiStateMachine
@@ -72,6 +71,7 @@ import build.wallet.statemachine.trustedcontact.view.ViewingInvitationProps
 import build.wallet.statemachine.trustedcontact.view.ViewingInvitationUiStateMachine
 import build.wallet.statemachine.trustedcontact.view.ViewingRecoveryContactProps
 import build.wallet.statemachine.trustedcontact.view.ViewingRecoveryContactUiStateMachine
+import build.wallet.statemachine.walletmigration.W3UpgradeCompleteSheetModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.button.ButtonModel
@@ -166,17 +166,12 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
       coachmarkDisplayed,
       isBip177Enabled,
       bitcoinDisplayUnit,
-      props.state.showW3UpgradeCompleteCoachmark,
       transactionsData != null
     ) {
       val requestedCoachmarks = mutableSetOf(
         CoachmarkIdentifier.Bip177Coachmark,
         CoachmarkIdentifier.PrivateWalletHomeCoachmark
-      ).apply {
-        if (props.state.showW3UpgradeCompleteCoachmark && transactionsData != null) {
-          add(CoachmarkIdentifier.W3UpgradeCompleteCoachmark)
-        }
-      }
+      )
 
       coachmarkService
         .coachmarksToDisplay(requestedCoachmarks)
@@ -377,22 +372,6 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
     onCoachmarkDisplayed: () -> Unit,
   ): CoachmarkModel? {
     return when {
-      props.state.showW3UpgradeCompleteCoachmark &&
-        coachmarksToDisplay.contains(CoachmarkIdentifier.W3UpgradeCompleteCoachmark) -> {
-        W3UpgradeCompleteCoachmarkModel(
-          onDismiss = {
-            props.setState(
-              props.state.copy(showW3UpgradeCompleteCoachmark = false)
-            )
-            scope.launch {
-              coachmarkService.markCoachmarkAsDisplayed(
-                coachmarkId = CoachmarkIdentifier.W3UpgradeCompleteCoachmark
-              )
-              onCoachmarkDisplayed()
-            }
-          }
-        )
-      }
       coachmarksToDisplay.contains(CoachmarkIdentifier.Bip177Coachmark) -> {
         Bip177CoachmarkModel(
           onDismiss = {
@@ -702,6 +681,10 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             }
           }
         )
+      }
+      W3UpgradeComplete -> {
+        val onDone = { props.setState(props.state.copy(bottomSheetDisplayState = null)) }
+        W3UpgradeCompleteSheetModel(onDone = onDone)
       }
       null -> null
     }

@@ -166,6 +166,9 @@ adpu_from_proto!(EekRestorationUnsealSymmetricKeyCmd);
 adpu_from_proto!(FullAccountCloudBackupRestorationCmd);
 adpu_from_proto!(FullAccountCloudBackupRestorationContinueCmd);
 adpu_from_proto!(ShowConfirmationScreenCmd);
+// Note: SweepSignCmd uses encode_proto_cmd() directly for proto continuation
+// support, same as SignTxRequestCmd.
+adpu_from_proto!(SweepSignStreamStartCmd);
 
 impl TryFrom<crate::fwpb::CoredumpGetCmd> for apdu::Command {
     type Error = EncodeError;

@@ -11,31 +11,40 @@ use crate::errors::CommandError;
 /// Inserts hardware-produced signatures into a PSBT and finalizes it.
 ///
 /// For each `InputSignatureTuple`, inserts the signature as a `partial_sig`
-/// on the corresponding PSBT input. Then finalizes the PSBT (converting
-/// `partial_sigs` → `final_script_witness`) so the transaction can be
-/// extracted and broadcast.
+/// on the corresponding PSBT input. Then attempts to finalize the PSBT
+/// (converting `partial_sigs` → `final_script_witness`) so the transaction
+/// can be extracted and broadcast.
 ///
-/// The PSBT passed in should already contain the app key's `partial_sig`
-/// (from BDK `wallet.sign()`). After inserting the hardware key's signatures,
-/// finalization is attempted via `miniscript::psbt::PsbtExt::finalize_mut`,
-/// which succeeds when the script's satisfaction policy is met (e.g. 2-of-3
-/// multisig in Bitkey's descriptor).
+/// # Finalization behavior
+///
+/// Whether finalization failure is surfaced depends on `allow_unfinalized`:
+///
+/// - `allow_unfinalized = false` (regular sends): the caller has already
+///   co-signed via BDK, so HW's signatures should complete the 2-of-3
+///   multisig. A finalization error here indicates a real problem
+///   (malformed signature, keypath mismatch, witness-script disagreement)
+///   and is surfaced to the caller so the user doesn't silently end up
+///   with a half-signed PSBT that fails at broadcast time.
+/// - `allow_unfinalized = true` (sweep flows): HW signs first, then the
+///   app + server apply their signatures later (see
+///   `SweepDataStateMachineImpl`). With only HW's sig present, finalization
+///   is expected to fail; the partial_sigs are preserved for downstream
+///   combiners.
 ///
 /// # Arguments
-/// * `psbt_base64` - Base64-encoded PSBT string (the app-signed PSBT)
+/// * `psbt_base64` - Base64-encoded PSBT string
 /// * `signatures` - Per-input signatures from the hardware (`sign_tx_response`)
-///
-/// # Returns
-/// The finalized PSBT as a base64 string, ready for `extractTx()` + broadcast.
+/// * `allow_unfinalized` - See finalization behavior above
 ///
 /// # Errors
 /// Returns `CommandError::InvalidArguments` if the PSBT cannot be parsed,
 /// a signature is malformed, or an input_index is out of bounds.
-/// Returns `CommandError::InvalidResponse` if PSBT finalization fails
-/// (e.g. insufficient signatures).
+/// Returns `CommandError::InvalidResponse` when `allow_unfinalized` is
+/// false and finalization fails.
 pub fn assemble_psbt_signatures(
     psbt_base64: String,
     signatures: Vec<InputSignatureTuple>,
+    allow_unfinalized: bool,
 ) -> Result<String, CommandError> {
     let mut psbt: PartiallySignedTransaction = psbt_base64
         .parse()
@@ -60,10 +69,10 @@ pub fn assemble_psbt_signatures(
             .insert(bitcoin::PublicKey::new(public_key), ecdsa_sig);
     }
 
-    // Finalize the PSBT: convert partial_sigs into final_script_witness.
-    // This requires 2-of-3 partial_sigs to be present (app key + hardware key).
-    psbt.finalize_mut(&Secp256k1::verification_only())
-        .map_err(|_| CommandError::InvalidResponse)?;
+    let finalize_result = psbt.finalize_mut(&Secp256k1::verification_only());
+    if !allow_unfinalized {
+        finalize_result.map_err(|_| CommandError::InvalidResponse)?;
+    }
 
     Ok(psbt.to_string())
 }
@@ -170,7 +179,7 @@ mod tests {
             signature: der_sig,
         }];
 
-        let result = assemble_psbt_signatures(base64, signatures).unwrap();
+        let result = assemble_psbt_signatures(base64, signatures, false).unwrap();
 
         // After finalization, partial_sigs are cleared and final_script_witness is set.
         let psbt: Psbt = result.parse().unwrap();
@@ -187,21 +196,36 @@ mod tests {
             signature: der_sig,
         }];
 
-        let result = assemble_psbt_signatures(base64, signatures);
+        let result = assemble_psbt_signatures(base64, signatures, false);
         assert!(result.is_err());
     }
 
     #[test]
     fn assemble_rejects_invalid_psbt() {
-        let result = assemble_psbt_signatures("not-a-psbt".to_string(), vec![]);
+        let result = assemble_psbt_signatures("not-a-psbt".to_string(), vec![], false);
         assert!(result.is_err());
     }
 
     #[test]
-    fn assemble_with_empty_signatures_fails_finalization() {
+    fn assemble_surfaces_finalization_failure_on_regular_sends() {
+        // Regular-send path (`allow_unfinalized = false`) must surface a
+        // finalization failure rather than silently returning a half-signed
+        // PSBT. With no HW signatures supplied, finalize_mut fails and the
+        // caller should see the error.
         let (base64, _, _) = make_signable_psbt();
-        // Finalization requires signatures, so empty list should fail.
-        let result = assemble_psbt_signatures(base64, vec![]);
-        assert!(result.is_err());
+        let result = assemble_psbt_signatures(base64, vec![], false);
+        assert!(matches!(result, Err(CommandError::InvalidResponse)));
+    }
+
+    #[test]
+    fn assemble_swallows_finalization_failure_on_sweeps() {
+        // Sweep path (`allow_unfinalized = true`): HW signs first, then the
+        // app + server apply their sigs later. The PSBT must round-trip with
+        // partial_sigs preserved so downstream combiners can finalize.
+        let (base64, _, _) = make_signable_psbt();
+        let result = assemble_psbt_signatures(base64, vec![], true).unwrap();
+        let psbt: Psbt = result.parse().unwrap();
+        assert!(psbt.inputs[0].final_script_witness.is_none());
+        assert!(psbt.inputs[0].partial_sigs.is_empty());
     }
 }

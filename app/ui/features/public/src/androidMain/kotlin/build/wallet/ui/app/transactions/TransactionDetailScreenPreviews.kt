@@ -18,7 +18,6 @@ import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
 import build.wallet.statemachine.transactions.TransactionDetailModel
 import build.wallet.statemachine.transactions.completeTransactionStepper
 import build.wallet.statemachine.transactions.processingTransactionStepper
-import build.wallet.statemachine.transactions.processingTransactionStepperDesignSystemV2
 import build.wallet.statemachine.transactions.submittedTransactionStepper
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.icon.IconBackgroundType
@@ -44,7 +43,7 @@ fun PendingReceiveTransactionDetailPreview() {
 @Composable
 fun PendingReceiveTransactionDetailDesignSystemV2Preview() {
   TransactionDetailPreview(
-    model = pendingReceiveTransactionDetailModel(useCircularPendingIndicator = true),
+    model = pendingReceiveTransactionDetailModel(),
     designSystemUpdatesEnabled = true
   )
 }
@@ -59,7 +58,7 @@ fun LateSendTransactionDetailPreview() {
 @Composable
 fun LateSendTransactionDetailDesignSystemV2Preview() {
   TransactionDetailPreview(
-    model = lateSendTransactionDetailModel(useCircularPendingIndicator = true),
+    model = lateSendTransactionDetailModel(),
     designSystemUpdatesEnabled = true
   )
 }
@@ -179,9 +178,7 @@ private fun TransactionDetailPreview(
   }
 }
 
-private fun pendingReceiveTransactionDetailModel(
-  useCircularPendingIndicator: Boolean = false,
-) =
+private fun pendingReceiveTransactionDetailModel() =
   TransactionDetailModel(
     feeBumpEnabled = false,
     formHeaderModel = bitcoinHeader(headline = "Transaction pending"),
@@ -191,7 +188,7 @@ private fun pendingReceiveTransactionDetailModel(
     onClose = {},
     onSpeedUpTransaction = {},
     content = immutableListOf(
-      if (useCircularPendingIndicator) processingTransactionStepperDesignSystemV2 else processingTransactionStepper,
+      processingTransactionStepper,
       FormMainContentModel.Divider,
       transactionIdDataList(),
       DataList(
@@ -206,9 +203,7 @@ private fun pendingReceiveTransactionDetailModel(
     )
   )
 
-private fun lateSendTransactionDetailModel(
-  useCircularPendingIndicator: Boolean = false,
-) =
+private fun lateSendTransactionDetailModel() =
   TransactionDetailModel(
     feeBumpEnabled = true,
     formHeaderModel = bitcoinHeader(headline = "Transaction delayed"),
@@ -218,7 +213,7 @@ private fun lateSendTransactionDetailModel(
     onClose = {},
     onSpeedUpTransaction = {},
     content = immutableListOf(
-      if (useCircularPendingIndicator) processingTransactionStepperDesignSystemV2 else processingTransactionStepper,
+      processingTransactionStepper,
       FormMainContentModel.Divider,
       DataList(
         items = immutableListOf(

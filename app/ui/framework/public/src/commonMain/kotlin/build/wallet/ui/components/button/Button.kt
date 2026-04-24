@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.statemachine.core.Icon
 import build.wallet.ui.components.icon.Icon
-import build.wallet.ui.components.loading.CircularLoadingBadge
+import build.wallet.ui.components.loading.LoadingBadge
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.loading.LoadingIndicator
 import build.wallet.ui.components.sheet.LocalSheetCloser
@@ -202,7 +202,7 @@ internal fun Button(
         exit = fadeOut()
       ) {
         if (isDesignSystemV2Enabled) {
-          CircularLoadingBadge(
+          LoadingBadge(
             modifier = Modifier.size(24.dp),
             color = style.iconColor
           )

@@ -17,7 +17,6 @@ import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.StepperIndicator.StepStyle.*
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
-import build.wallet.ui.components.loading.CircularLoadingBadgePainter
 import build.wallet.ui.components.loading.LoadingBadgePainter
 import build.wallet.ui.components.loading.LoadingIndicatorPainter
 import build.wallet.ui.model.icon.IconImage
@@ -60,19 +59,18 @@ fun StepperIndicator(model: FormMainContentModel.StepperIndicator) {
       is IconImage.UrlImage -> TODO("UrlImage is not currently supported")
       null -> null
       IconImage.LoadingBadge -> LoadingBadgePainter(color = circleColor)
-      IconImage.CircularLoadingBadge -> CircularLoadingBadgePainter(color = circleColor)
     }
 
     StepData(
       painter = painter,
       circleColor = circleColor,
       contentTint = when (step.icon) {
-        IconImage.LoadingBadge, IconImage.CircularLoadingBadge ->
+        IconImage.LoadingBadge ->
           if (LocalIsPreviewTheme.current) circleColor else null
         else -> circleColor
       },
       iconSize = when (step.icon) {
-        IconImage.LoadingBadge, IconImage.CircularLoadingBadge -> 14.dp
+        IconImage.LoadingBadge -> 14.dp
         else -> 16.dp
       }
     )

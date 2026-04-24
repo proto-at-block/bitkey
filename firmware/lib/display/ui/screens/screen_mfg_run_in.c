@@ -34,7 +34,9 @@
 // Layout configuration
 #define CHECK_BUTTON_SIZE          80  // Check button size (circular)
 #define CHECK_BUTTON_BOTTOM_MARGIN 40  // Bottom margin for check button
-#define PILL_BG_OPA                51  // Pill background opacity (20%)
+#define CHECK_ICON_ZOOM            LV_SCALE_NONE
+#define PILL_BG_COLOR              0x404040
+#define PILL_BG_OPA                LV_OPA_70
 #define HEADER_PROMPT_Y            64
 
 // Run-in test screen layout configuration
@@ -352,7 +354,7 @@ static void check_button_event_handler(lv_event_t* e) {
     check_button_held = false;
 
     if (button) {
-      lv_obj_set_style_bg_color(button, lv_color_white(), 0);
+      lv_obj_set_style_bg_color(button, lv_color_hex(PILL_BG_COLOR), 0);
       lv_obj_set_style_bg_opa(button, PILL_BG_OPA, 0);
 
       lv_obj_t* check_icon = lv_obj_get_child(button, 0);
@@ -423,7 +425,7 @@ static void setup_runin_start_screen(lv_obj_t* scr, const fwpb_display_show_scre
   lv_obj_set_size(check_button, CHECK_BUTTON_SIZE, CHECK_BUTTON_SIZE);
   lv_obj_align(check_button, LV_ALIGN_BOTTOM_MID, 0, -CHECK_BUTTON_BOTTOM_MARGIN);
   lv_obj_set_style_radius(check_button, LV_RADIUS_CIRCLE, 0);
-  lv_obj_set_style_bg_color(check_button, lv_color_white(), 0);
+  lv_obj_set_style_bg_color(check_button, lv_color_hex(PILL_BG_COLOR), 0);
   lv_obj_set_style_bg_opa(check_button, PILL_BG_OPA, 0);
   lv_obj_set_style_border_opa(check_button, LV_OPA_TRANSP, 0);
   lv_obj_set_style_pad_all(check_button, 0, 0);
@@ -440,6 +442,7 @@ static void setup_runin_start_screen(lv_obj_t* scr, const fwpb_display_show_scre
   if (check_icon) {
     lv_img_set_src(check_icon, &check);
     set_check_button_icon_color(check_icon, lv_color_white());
+    lv_img_set_zoom(check_icon, CHECK_ICON_ZOOM);
     lv_obj_center(check_icon);
   }
 

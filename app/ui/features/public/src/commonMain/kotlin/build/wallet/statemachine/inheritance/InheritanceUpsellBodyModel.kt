@@ -3,7 +3,6 @@ package build.wallet.statemachine.inheritance
 import build.wallet.analytics.events.screen.id.InheritanceEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.*
-import build.wallet.statemachine.core.form.BackgroundTreatment
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -44,7 +43,6 @@ data class InheritanceUpsellBodyModel(
         content = FormMainContentModel.Showcase.Content.IconContent(icon = Icon.InheritanceShowcase),
         title = "Bitkey Inheritance",
         body = LabelModel.StringModel("Safeguard the future of your bitcoin."),
-        treatment = FormMainContentModel.Showcase.Treatment.INHERITANCE
       )
     ),
     primaryButton = ButtonModel(
@@ -59,7 +57,6 @@ data class InheritanceUpsellBodyModel(
       treatment = ButtonModel.Treatment.Secondary,
       onClick = StandardClick(onClose)
     ),
-    backgroundTreatment = BackgroundTreatment.Inheritance,
     designSystemV2Model = FormDesignSystemV2Model(
       useDesignSystemV2ScreenLayout = true,
       mainContentList = immutableListOf(
@@ -67,7 +64,6 @@ data class InheritanceUpsellBodyModel(
           content = FormMainContentModel.Showcase.Content.IconContent(icon = Icon.InheritanceShowcase),
           title = null,
           body = null,
-          treatment = FormMainContentModel.Showcase.Treatment.INHERITANCE,
           fillAvailableSpace = false
         )
       ),
@@ -76,7 +72,7 @@ data class InheritanceUpsellBodyModel(
           header = FormHeaderModel(
             headline = "Bitkey Inheritance",
             subline = "Safeguard the future of your bitcoin.",
-            headlineLabelType = LabelType.Display2
+            headlineLabelType = LabelType.Display3
           )
         )
       )
@@ -91,7 +87,6 @@ fun InheritanceUpsellSheetModel(
     onGetStarted = onGetStarted,
     onClose = onClose
   ),
-  treatment = SheetTreatment.INHERITANCE,
   size = SheetSize.FULL,
   onClosed = onClose
 )

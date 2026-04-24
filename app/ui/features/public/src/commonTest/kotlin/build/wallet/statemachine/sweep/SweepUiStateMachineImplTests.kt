@@ -16,7 +16,10 @@ import build.wallet.bitkey.keybox.KeyboxW3Mock
 import build.wallet.bitkey.spending.PrivateSpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
+import build.wallet.nfc.platform.SweepSigningContext
+import build.wallet.nfc.platform.SweepSigningContextBuilder
 import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.recovery.sweep.SweepContext
 import build.wallet.recovery.sweep.SweepPsbt
@@ -81,12 +84,19 @@ class SweepUiStateMachineImplTests : FunSpec({
       GeneratingPsbtsData
     ) {}
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
+  val sweepSigningContextBuilder = object : SweepSigningContextBuilder {
+    override fun buildFor(
+      oldKeyset: SpendingKeyset,
+      currentAccountIndex: UInt,
+    ): SweepSigningContext? = null
+  }
   val sweepStateMachine = SweepUiStateMachineImpl(
     signTransactionNfcSessionUiStateMachine,
     moneyAmountUiStateMachine,
     fiatCurrencyPreferenceRepository,
     sweepDataStateMachine,
-    inAppBrowserNavigator
+    inAppBrowserNavigator,
+    sweepSigningContextBuilder
   )
   val props = SweepUiProps(
     account = FullAccountMock,

@@ -24,6 +24,17 @@ sealed class NfcException : Error() {
       override val message: String? = null,
       override val cause: Throwable? = null,
     ) : CanBeRetried()
+
+    /**
+     * The active NFC session was invalidated mid-transceive. On iOS this typically
+     * corresponds to the NFC coil hitting thermal throttling. Surfaced as a distinct
+     * type so FWUP can route it to the thermal cooldown screen; other callers treat
+     * it as a generic [CanBeRetried] failure.
+     */
+    class SessionInvalidated(
+      override val message: String? = null,
+      override val cause: Throwable? = null,
+    ) : CanBeRetried()
   }
 
   /** Indicates that the NFC connection timed out */

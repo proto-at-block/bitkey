@@ -87,7 +87,7 @@ mcu_qspi_config_t display_qspi_config = {.port = OCTOSPI1,
                                          .fifo_threshold = 8,  // FIFO threshold
                                          .cs_high_time = 1,    // 1 cycle CS high time
                                          .mode = MCU_QSPI_MODE_QUAD,
-                                         .sample_shifting = false};
+                                         .sample_shifting = true};
 
 display_config_t display_config = {.gfx_config =
                                      {

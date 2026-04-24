@@ -54,9 +54,9 @@ MoneyMovementFee: "FEE"
 MoneyMovementHold: "HOLD TO CONFIRM"
 MoneyMovementBTCSuffix: " BTC"
 MoneyMovementSatsPrefix: "₿"
-MoneyMovementConfirmed: "Confirmed"
+MoneyMovementConfirmed: "CONFIRMED"
 MoneyMovementOK: "OK"
-MoneyMovementDone: "Done"
+MoneyMovementDone: "DONE"
 MoneyMovementAddress: "ADDRESS"
 MoneyMovementHowToVerify: "HOW TO VERIFY"
 MoneyMovementVerifyInstructions: "Verify the address above against the version that the sender is using."
@@ -64,8 +64,8 @@ MoneyMovementVerifyInstructions: "Verify the address above against the version t
 # Confirmation hints
 ConfirmationHoldToConfirm: "HOLD TO CONFIRM"
 ConfirmationKeepHolding: "KEEP HOLDING"
-ConfirmationSigning: "Signing..."
-ConfirmationDone: "Done"
+ConfirmationSigning: "SIGNING..."
+ConfirmationDone: "DONE"
 ConfirmationApproved: "APPROVED"
 
 # Hold Cancel Widget
@@ -96,19 +96,19 @@ MenuTitle: "SETTINGS"
 PrivilegedActionHash: "HASH"
 PrivilegedActionVersion: "VERSION"
 PrivilegedActionUnknownError: "UNKNOWN ACTION"
-PrivilegedActionConfirmed: "Confirmed"
-PrivilegedActionWipeWarning: "This will erase all data"
+PrivilegedActionConfirmed: "CONFIRMED"
+PrivilegedActionWipeWarning: "Erase all data"
 PrivilegedActionConfirm: "Confirm action"
 
 # Fingerprint Removal Actions
 FingerprintRemoveAction: "Remove"
 
 # Firmware Update
-FirmwareUpdateInProgress: "Updating..."
+FirmwareUpdateInProgress: "UPDATING..."
 FirmwareUpdateTitle: "FIRMWARE UPDATE"
-FirmwareUpdateVersionUnknown: "Version Unknown"
-FirmwareUpdateVerifying: "Verifying..."
-FirmwareUpdateFailed: "Update failed"
+FirmwareUpdateVersionUnknown: "VERSION UNKNOWN"
+FirmwareUpdateVerifying: "VERIFYING..."
+FirmwareUpdateFailed: "UPDATE FAILED"
 
 # Fingerprint Menu
 FingerprintMenuTitle: "FINGERPRINTS"
@@ -151,5 +151,5 @@ InitiateWalletUpgrade: "START WALLET UPGRADE"
 SelfSendInfo: "Self-send funds to your wallet"
 
 # Error Screens
-ScanError: "Try again"
-LockedError: "Try again"
+ScanError: "TRY AGAIN"
+LockedError: "TRY AGAIN"

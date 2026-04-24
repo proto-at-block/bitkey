@@ -137,7 +137,6 @@ sealed class FormMainContentModel {
     val content: Content,
     val title: String? = null,
     val body: LabelModel? = null,
-    val treatment: Treatment = Treatment.DEFAULT,
     val fillAvailableSpace: Boolean = true,
   ) : FormMainContentModel() {
     sealed class Content {
@@ -178,14 +177,11 @@ sealed class FormMainContentModel {
       ) : Content() {
         enum class Image {
           BITKEY_TILT,
+          UPGRADE_W3,
         }
       }
     }
 
-    enum class Treatment {
-      DEFAULT,
-      INHERITANCE,
-    }
   }
 
   /**
