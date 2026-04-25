@@ -326,6 +326,7 @@ private fun AddressLabel(
       val addressString = when (address) {
         is LabelModel.StringModel -> address.string
         is LabelModel.StringWithStyledSubstringModel -> address.string
+        is LabelModel.ChunkedAddressModel -> address.string
         else -> {
           isAnimating = false
           return@LaunchedEffect
@@ -347,11 +348,10 @@ private fun AddressLabel(
         }.joinToString("")
 
         displayedAddress = when (address) {
-          is LabelModel.StringModel -> LabelModel.StringModel(randomized)
-          is LabelModel.StringWithStyledSubstringModel -> {
-            // Keep the styling structure but with randomized text
-            LabelModel.StringModel(randomized)
-          }
+          is LabelModel.StringModel -> address.copy(string = randomized)
+          is LabelModel.StringWithStyledSubstringModel ->
+            address.copy(string = randomized)
+          is LabelModel.ChunkedAddressModel -> address.copy(string = randomized)
           else -> address
         }
 

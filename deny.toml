@@ -20,6 +20,7 @@ ignore = [
     "RUSTSEC-2026-0097", # [W-17057] rand unsoundness with custom logger using rand::rng(); transitive dep
     "RUSTSEC-2026-0098", # rustls-webpki 0.101.7 URI name constraints; transitive dep via pre-1.0 BDK → rustls 0.21
     "RUSTSEC-2026-0099", # rustls-webpki 0.101.7 wildcard name constraints; transitive dep via pre-1.0 BDK → rustls 0.21
+    "RUSTSEC-2026-0104", # rustls-webpki CRL parsing panic (unreached; we don't use CRLs); transitive dep via pre-1.0 BDK → rustls 0.21 and bdk-ffi 2.2.0-alpha.0 → rustls 0.23
 ]
 
 

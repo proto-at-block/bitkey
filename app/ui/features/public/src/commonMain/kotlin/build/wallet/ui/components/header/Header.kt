@@ -95,7 +95,12 @@ fun Header(
     sublineLabelTreatment =
       when (theme) {
         Theme.DARK -> Unspecified
-        else -> sublineLabelTreatment
+        else -> when {
+          model.sublineTreatment == MONO &&
+            model.sublineModel is LabelModel.ChunkedAddressModel ->
+            Primary
+          else -> sublineLabelTreatment
+        }
       },
     bottomContent = model.bottomContent
   )

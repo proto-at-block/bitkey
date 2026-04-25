@@ -2,6 +2,7 @@ package build.wallet.statemachine.inheritance.claims.complete
 
 import build.wallet.analytics.events.screen.id.InheritanceEventTrackerScreenId
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.ui.model.StandardClick
@@ -27,7 +28,8 @@ internal data class InheritanceTransferSuccessScreenModel(
     header = FormHeaderModel(
       icon = Icon.LargeIconCheckFilled,
       headline = "Inheritance transferred",
-      subline = recipientAddress,
+      sublineModel = LabelModel.chunkedAddress(recipientAddress),
+      sublineTreatment = FormHeaderModel.SublineTreatment.MONO,
       alignment = FormHeaderModel.Alignment.LEADING
     ),
     toolbar = ToolbarModel(leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(onBack)),

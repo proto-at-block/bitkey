@@ -1876,13 +1876,19 @@ static fwpb_status raw_tx_request_confirmation(fwpb_wallet_rsp* rsp, uint32_t bt
 
   send_transaction_data_t tx_display = {0};
 
-  // Detect self-send (sweep/consolidation): all outputs belong to the wallet.
-  bool is_self_send = !tx_info->has_destination;
+  // Derive sweep state from the session — no parameter needed.
+  bool is_sweep = signing_session.sweep.active;
+
+  // Sweeps display as self-send even though the destination output may lack a derivation path
+  // (it's verified by scriptPubKey match against the current keyset's fresh receive address).
+  bool is_self_send = is_sweep || !tx_info->has_destination;
   tx_display.flow = is_self_send ? fwpb_money_movement_flow_MONEY_MOVEMENT_FLOW_SELF_SEND
                                  : fwpb_money_movement_flow_MONEY_MOVEMENT_FLOW_SEND;
 
-  // For self-send, display change amount (funds staying in wallet); otherwise send amount.
-  uint64_t display_amount = is_self_send ? tx_info->change_amount_sats : tx_info->send_amount_sats;
+  // Display the total value going to the wallet. The sweep output may or may not have a
+  // derivation path, so use whichever field holds the value.
+  uint64_t display_amount = is_self_send ? (tx_info->send_amount_sats + tx_info->change_amount_sats)
+                                         : tx_info->send_amount_sats;
   int ret =
     snprintf(tx_display.amount_sats, sizeof(tx_display.amount_sats), "%llu", display_amount);
   if (ret < 0 || ret >= (int)sizeof(tx_display.amount_sats)) {
@@ -2866,13 +2872,17 @@ static fwpb_status stream_tx_request_confirmation(fwpb_wallet_rsp* rsp) {
 
   send_transaction_data_t tx_display = {0};
 
-  // Detect self-send (sweep/consolidation): all outputs belong to the wallet.
-  bool is_self_send = !confirmation_data.display_info.has_destination;
+  // Detect self-send (consolidation): all outputs belong to the wallet.
+  // Sweeps display as self-send (destination is verified by SPK match, not derivation path).
+  bool is_sweep = stream_session.sweep.active;
+  bool is_self_send = is_sweep || !confirmation_data.display_info.has_destination;
   tx_display.flow = is_self_send ? fwpb_money_movement_flow_MONEY_MOVEMENT_FLOW_SELF_SEND
                                  : fwpb_money_movement_flow_MONEY_MOVEMENT_FLOW_SEND;
 
-  // For self-send, display change amount (funds staying in wallet); otherwise send amount.
-  uint64_t display_amount = is_self_send ? confirmation_data.display_info.change_amount_sats
+  // Display the total value going to the wallet. The sweep output may or may not have a
+  // derivation path, so use whichever field holds the value.
+  uint64_t display_amount = is_self_send ? (confirmation_data.display_info.send_amount_sats +
+                                            confirmation_data.display_info.change_amount_sats)
                                          : confirmation_data.display_info.send_amount_sats;
   int ret =
     snprintf(tx_display.amount_sats, sizeof(tx_display.amount_sats), "%llu", display_amount);

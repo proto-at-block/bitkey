@@ -31,6 +31,8 @@ import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.SmallIconInformationFilled
+import build.wallet.statemachine.core.LabelModel.ChunkedAddressModel
+import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.*
 import build.wallet.statemachine.core.test
@@ -254,6 +256,34 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         }
       }
     }
+  }
+
+  test("bitcoin transaction headers use the chunked address label model") {
+    pendingFormHeaderModel(
+      isLate = false,
+      transaction = pendingSentProps.transaction
+    ).sublineModel
+      .shouldNotBeNull()
+      .shouldBeTypeOf<ChunkedAddressModel>()
+      .string
+      .shouldBe(BitcoinTransactionSend.chunkedRecipientAddress())
+
+    confirmedFormHeaderModel(sentProps.transaction).sublineModel
+      .shouldNotBeNull()
+      .shouldBeTypeOf<ChunkedAddressModel>()
+      .string
+      .shouldBe(BitcoinTransactionSend.chunkedRecipientAddress())
+  }
+
+  test("partnership transaction headers keep a regular string model") {
+    pendingFormHeaderModel(
+      isLate = false,
+      transaction = partnershipPurchaseProps.transaction
+    ).sublineModel
+      .shouldNotBeNull()
+      .shouldBeTypeOf<StringModel>()
+      .string
+      .shouldBe("Arrival times and fees are estimates. Confirm details through ${FakePartnershipTransaction.partnerInfo.name}.")
   }
 
   test("received transactions returns correct model") {

@@ -3,6 +3,7 @@ package build.wallet.statemachine.utxo
 import build.wallet.analytics.events.screen.id.UtxoConsolidationEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.LEADING
@@ -37,7 +38,7 @@ data class UtxoConsolidationSpeedUpTransactionSentModel(
     header = FormHeaderModel(
       icon = Icon.LargeIconCheckFilled,
       headline = "Consolidation started",
-      subline = targetAddress,
+      sublineModel = LabelModel.chunkedAddress(targetAddress),
       sublineTreatment = FormHeaderModel.SublineTreatment.MONO,
       alignment = LEADING
     ),

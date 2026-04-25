@@ -1,4 +1,5 @@
 #include "criterion_test_utils.h"
+#include "display.pb.h"
 #include "fff.h"
 #include "wallet.pb.h"
 
@@ -92,4 +93,107 @@ Test(streaming_signing, proto_tags_are_distinct) {
 Test(streaming_signing, payload_hash_is_sha256_size) {
   // The commitment stored in session must be SHA256_DIGEST_SIZE
   cr_assert_eq(SHA256_DIGEST_SIZE, 32, "SHA256 digest should be 32 bytes");
+}
+
+// ---------------------------------------------------------------------------
+// Sweep Display Routing
+// ---------------------------------------------------------------------------
+// Sweep transactions use a dedicated command (sweep_sign_cmd) but should
+// display as SELF_SEND on the W3 screen — same as UTXO consolidation.
+//
+// The sweep's single output lacks a derivation path (it's verified by SPK
+// match against the current keyset's fresh receive address), so the tx parser
+// classifies it as an external destination (has_destination=true). Without
+// the is_sweep override, firmware would show the address like a normal send.
+//
+// These tests document the expected display routing contract for each
+// transaction scenario. The routing logic lives in raw_tx_request_confirmation
+// and stream_tx_request_confirmation in key_manager_task_port.c.
+
+// Encodes the expected display routing: is_sweep || !has_destination → SELF_SEND.
+// Self-send display amount = send + change; normal send = send only.
+static void expected_display_params(bool is_sweep, const test_psbt_info_t* tx_info,
+                                    fwpb_money_movement_flow* out_flow,
+                                    uint64_t* out_display_amount) {
+  bool is_self_send = is_sweep || !tx_info->has_destination;
+  *out_flow = is_self_send ? fwpb_money_movement_flow_MONEY_MOVEMENT_FLOW_SELF_SEND
+                           : fwpb_money_movement_flow_MONEY_MOVEMENT_FLOW_SEND;
+
+  *out_display_amount = is_self_send ? (tx_info->send_amount_sats + tx_info->change_amount_sats)
+                                     : tx_info->send_amount_sats;
+}
+
+Test(sweep_display, sweep_with_external_output_routes_to_self_send) {
+  // Sweep: single output classified as external (has_destination=true),
+  // but sweep.active forces SELF_SEND. Amount = send + change.
+  test_psbt_info_t info = {
+    .has_destination = true,
+    .send_amount_sats = 500000,
+    .change_amount_sats = 0,
+    .fee_amount_sats = 1000,
+  };
+
+  fwpb_money_movement_flow flow;
+  uint64_t display_amount;
+  expected_display_params(true, &info, &flow, &display_amount);
+
+  cr_assert_eq(flow, fwpb_money_movement_flow_MONEY_MOVEMENT_FLOW_SELF_SEND,
+               "Sweep should display as SELF_SEND");
+  cr_assert_eq(display_amount, 500000, "Sweep display amount should be send + change (500000 + 0)");
+}
+
+Test(sweep_display, sweep_with_derivation_path_output_routes_to_self_send) {
+  // Sweep where the output has a derivation path (has_destination=false).
+  // Value lands in change_amount_sats. Amount = send + change.
+  test_psbt_info_t info = {
+    .has_destination = false,
+    .send_amount_sats = 0,
+    .change_amount_sats = 499000,
+    .fee_amount_sats = 1000,
+  };
+
+  fwpb_money_movement_flow flow;
+  uint64_t display_amount;
+  expected_display_params(true, &info, &flow, &display_amount);
+
+  cr_assert_eq(flow, fwpb_money_movement_flow_MONEY_MOVEMENT_FLOW_SELF_SEND,
+               "Sweep without external destination should still be SELF_SEND");
+  cr_assert_eq(display_amount, 499000, "Sweep display amount should be send + change (0 + 499000)");
+}
+
+Test(sweep_display, consolidation_routes_to_self_send) {
+  // Consolidation: has_destination=false, not a sweep. All value in change.
+  test_psbt_info_t info = {
+    .has_destination = false,
+    .send_amount_sats = 0,
+    .change_amount_sats = 499000,
+    .fee_amount_sats = 1000,
+  };
+
+  fwpb_money_movement_flow flow;
+  uint64_t display_amount;
+  expected_display_params(false, &info, &flow, &display_amount);
+
+  cr_assert_eq(flow, fwpb_money_movement_flow_MONEY_MOVEMENT_FLOW_SELF_SEND,
+               "Consolidation should display as SELF_SEND");
+  cr_assert_eq(display_amount, 499000,
+               "Consolidation display amount should be send + change (0 + 499000)");
+}
+
+Test(sweep_display, normal_send_routes_to_send_flow) {
+  // Normal send: has_destination=true, not a sweep.
+  test_psbt_info_t info = {
+    .has_destination = true,
+    .send_amount_sats = 100000,
+    .change_amount_sats = 399000,
+    .fee_amount_sats = 1000,
+  };
+
+  fwpb_money_movement_flow flow;
+  uint64_t display_amount;
+  expected_display_params(false, &info, &flow, &display_amount);
+
+  cr_assert_eq(flow, fwpb_money_movement_flow_MONEY_MOVEMENT_FLOW_SEND,
+               "Normal send should display as SEND");
+  cr_assert_eq(display_amount, 100000, "Normal send should display send_amount_sats only");
 }

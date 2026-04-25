@@ -4,12 +4,14 @@ import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
 import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.StateMachineMock
+import build.wallet.statemachine.core.LabelModel.ChunkedAddressModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.transactions.TransactionDetails
 import build.wallet.statemachine.ui.awaitBody
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 
@@ -70,6 +72,11 @@ class TransferInitiatedUiStateMachineImplTests : FunSpec({
           items[0].title.shouldBe("Amount")
           items[1].title.shouldBe("Network fees")
         }
+        header.shouldNotBeNull().sublineModel
+          .shouldNotBeNull()
+          .shouldBeTypeOf<ChunkedAddressModel>()
+          .string
+          .shouldBe(regularProps.recipientAddress.chunkedAddress())
       }
     }
   }

@@ -18,6 +18,7 @@ data class ChooseAccountAccessModel(
   val buttons: List<ButtonModel>,
   val onLogoClick: () -> Unit,
   val legalNotice: LabelModel.LinkSubstringModel,
+  val showW3Video: Boolean = false,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? =
     EventTrackerScreenInfo(
       eventTrackerScreenId = GeneralEventTrackerScreenId.CHOOSE_ACCOUNT_ACCESS
@@ -29,6 +30,7 @@ data class ChooseAccountAccessModel(
     onMoreOptionsClick: () -> Unit,
     onTermsOfServiceClick: () -> Unit = {},
     onPrivacyNoticeClick: () -> Unit = {},
+    showW3Video: Boolean = false,
   ) : this(
     onLogoClick = onLogoClick,
     title = "Own your bitcoin",
@@ -56,7 +58,8 @@ data class ChooseAccountAccessModel(
     legalNotice = buildChooseAccountAccessLegalNotice(
       onTermsOfServiceClick = onTermsOfServiceClick,
       onPrivacyNoticeClick = onPrivacyNoticeClick
-    )
+    ),
+    showW3Video = showW3Video
   )
 
   @Composable

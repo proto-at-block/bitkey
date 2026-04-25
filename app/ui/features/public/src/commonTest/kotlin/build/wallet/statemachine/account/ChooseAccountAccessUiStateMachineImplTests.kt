@@ -11,6 +11,7 @@ import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.OrphanedKeyRecoveryFeatureFlag
 import build.wallet.feature.flags.PublicCustomerSupportFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
+import build.wallet.feature.flags.W3OnboardingFeatureFlag
 import build.wallet.feature.flags.WipeHardwareLoggedOutFeatureFlag
 import build.wallet.feature.setFlagValue
 import build.wallet.keybox.KeyboxDaoMock
@@ -52,6 +53,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
   val orphanedKeyRecoveryService = OrphanedKeyRecoveryServiceMock(turbines::create)
   val publicCustomerSupportFeatureFlag = PublicCustomerSupportFeatureFlag(featureFlagDao)
   val wipeHardwareLoggedOutFeatureFlag = WipeHardwareLoggedOutFeatureFlag(featureFlagDao)
+  val w3OnboardingFeatureFlag = W3OnboardingFeatureFlag(featureFlagDao)
   val wipingDeviceUiStateMachine = object : WipingDeviceUiStateMachine,
     ScreenStateMachineMock<WipingDeviceProps>(id = "wiping-device") {}
   val keyboxDao = KeyboxDaoMock(turbines::create)
@@ -82,6 +84,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
       feedbackUiStateMachine = feedbackUiStateMachine,
       publicCustomerSupportFeatureFlag = publicCustomerSupportFeatureFlag,
       wipeHardwareLoggedOutFeatureFlag = wipeHardwareLoggedOutFeatureFlag,
+      w3OnboardingFeatureFlag = w3OnboardingFeatureFlag,
       wipingDeviceUiStateMachine = wipingDeviceUiStateMachine,
       dateTimeFormatter = DateTimeFormatterMock(),
       timeZoneProvider = TimeZoneProviderMock(),

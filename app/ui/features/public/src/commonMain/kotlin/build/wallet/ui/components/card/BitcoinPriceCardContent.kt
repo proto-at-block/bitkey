@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import bitkey.ui.framework_public.generated.resources.*
 import build.wallet.pricechart.ChartRange
@@ -21,8 +22,11 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.moneyhome.card.CardModel.CardContent.BitcoinPrice
 import build.wallet.ui.components.icon.Icon
+import build.wallet.ui.components.label.AnimatedAmount
+import build.wallet.ui.components.label.AnimatedAmountAutoResizedLabel
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
+import build.wallet.ui.components.label.labelStyle
 import build.wallet.ui.components.label.loadingScrim
 import build.wallet.ui.components.layout.MeasureWithoutPlacement
 import build.wallet.ui.model.icon.IconSize.Accessory
@@ -198,12 +202,27 @@ private fun PriceAndValueChangeColumn(
         )
       }
 
-      Label(
-        model = LabelModel.StringModel(model.price),
-        type = priceLabelType,
-        treatment = LabelTreatment.Primary,
-        maxLines = 1
-      )
+      if (isDesignSystemV2Enabled && model.priceValue != null) {
+        AnimatedAmountAutoResizedLabel(
+          amount = AnimatedAmount(
+            text = model.price,
+            value = model.priceValue,
+            animationKey = model.priceAnimationKey
+          ),
+          type = priceLabelType,
+          treatment = LabelTreatment.Primary,
+          animate = true,
+          animationLabel = "BitcoinPriceCardPrice",
+          minTextSize = bitcoinPriceCardMinTextSize()
+        )
+      } else {
+        Label(
+          model = LabelModel.StringModel(model.price),
+          type = priceLabelType,
+          treatment = LabelTreatment.Primary,
+          maxLines = 1
+        )
+      }
     }
 
     Spacer(modifier = Modifier.height(2.dp))
@@ -249,4 +268,12 @@ private fun PriceAndValueChangeColumn(
       }
     }
   }
+}
+
+@Composable
+private fun bitcoinPriceCardMinTextSize(): TextUnit {
+  return WalletTheme.labelStyle(
+    type = LabelType.Body2Regular,
+    treatment = LabelTreatment.Primary
+  ).fontSize
 }

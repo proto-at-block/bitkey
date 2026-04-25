@@ -12,6 +12,7 @@ import build.wallet.crypto.PublicKey
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
+import build.wallet.feature.flags.W3PairingMinFirmwareVersionFeatureFlag
 import build.wallet.firmware.*
 import build.wallet.firmware.EnrolledFingerprints.Companion.FIRST_FINGERPRINT_INDEX
 import build.wallet.firmware.FingerprintEnrollmentStatus.*
@@ -19,11 +20,11 @@ import build.wallet.fwup.semverToInt
 import build.wallet.logging.logDebug
 import build.wallet.logging.logWarn
 import build.wallet.nfc.HardwareProvisionedAppKeyStatusDao
+import build.wallet.nfc.NfcException
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.platform.sealSymmetricKey
 import build.wallet.nfc.platform.signChallenge
-import build.wallet.nfc.platform.verifyHardwareType
 import build.wallet.nfc.transaction.PairingTransactionResponse.*
 import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.getOrElse
@@ -41,6 +42,7 @@ class PairingTransactionProviderImpl(
   private val accountConfigService: AccountConfigService,
   private val fingerprintResetMinFirmwareVersionFeatureFlag:
     FingerprintResetMinFirmwareVersionFeatureFlag,
+  private val w3PairingMinFirmwareVersionFeatureFlag: W3PairingMinFirmwareVersionFeatureFlag,
   private val hardwareProvisionedAppKeyStatusDao: HardwareProvisionedAppKeyStatusDao,
   private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
 ) : PairingTransactionProvider {
@@ -63,11 +65,22 @@ class PairingTransactionProviderImpl(
       session: NfcSession,
       commands: NfcCommands,
     ): PairingTransactionResponse {
-      // Verify hardware type FIRST, before any other commands, to fail fast if
+      val deviceInfo = commands.getDeviceInfo(session)
+      val hardwareType = deviceInfo.hardwareType()
+
+      // Verify hardware type FIRST, before any other pairing commands, to fail fast if
       // the wrong device is tapped (e.g., tapping W1 during W3 upgrade flow).
-      if (expectedHardwareType != null) {
-        commands.verifyHardwareType(session, expectedHardwareType)
+      if (expectedHardwareType != null && hardwareType != expectedHardwareType) {
+        throw NfcException.WrongHardwareType(
+          expected = expectedHardwareType,
+          actual = hardwareType
+        )
       }
+
+      requireSupportedW3PairingFirmware(
+        hardwareType = hardwareType,
+        firmwareVersion = deviceInfo.version
+      )
 
       return when (commands.getFingerprintEnrollmentStatus(session).status) {
         COMPLETE -> {
@@ -76,17 +89,17 @@ class PairingTransactionProviderImpl(
           unsealedSsek = sekGenerator.generate()
 
           val hwAuthKey = commands.getAuthenticationKey(session)
-          val deviceInfo = commands.getDeviceInfo(session)
           capturedDeviceInfo = deviceInfo
 
           FingerprintEnrolled(
-            appGlobalAuthKeyHwSignature = when (deviceInfo.hardwareType()) {
+            appGlobalAuthKeyHwSignature = when (hardwareType) {
               HardwareType.W1 -> AppGlobalAuthKeyHwSignature(
                 commands.signChallenge(session, appGlobalAuthPublicKey.value)
               )
               // W3: signature is obtained later via verifyKeysAndBuildDescriptor.
               // A placeholder is used here and replaced after verifyKeysAndBuildDescriptor completes.
-              HardwareType.W3 -> AppGlobalAuthKeyHwSignature(AppGlobalAuthKeyHwSignature.W3_ONBOARDING_PLACEHOLDER)
+              HardwareType.W3 ->
+                AppGlobalAuthKeyHwSignature(AppGlobalAuthKeyHwSignature.W3_ONBOARDING_PLACEHOLDER)
             },
             keyBundle = HwKeyBundle(
               localId = uuidGenerator.random(),
@@ -97,10 +110,10 @@ class PairingTransactionProviderImpl(
             sealedCsek = commands.sealSymmetricKey(session, unsealedCsek.key),
             sealedSsek = commands.sealSymmetricKey(session, unsealedSsek.key),
             serial = deviceInfo.serial,
-            hardwareType = deviceInfo.hardwareType()
+            hardwareType = hardwareType
           ).also {
             // W3: app auth key is provisioned during verifyKeysAndBuildDescriptor, not pairing.
-            if (deviceInfo.hardwareType() != HardwareType.W3) {
+            if (hardwareType != HardwareType.W3) {
               val minFirmwareVersion =
                 fingerprintResetMinFirmwareVersionFeatureFlag.flagValue().value.value
               val currentVersionInt = semverToInt(deviceInfo.version)
@@ -117,7 +130,7 @@ class PairingTransactionProviderImpl(
             // On successful enrollment: W3 shows confirmation (locks on dismiss only
             // when shouldLockHardware), W1 always locks.
             // Non-completion outcomes never reach this branch.
-            when (deviceInfo.hardwareType()) {
+            when (hardwareType) {
               HardwareType.W3 -> runCatching {
                 commands.showConfirmationScreen(session, lockOnDismiss = shouldLockHardware)
               }.onFailure {
@@ -142,9 +155,6 @@ class PairingTransactionProviderImpl(
             attestAndRecordSerial(session, commands)
           }
 
-          // Get device info to detect hardware type for flow selection
-          val deviceInfo = commands.getDeviceInfo(session)
-
           commands.startFingerprintEnrollment(
             session = session,
             fingerprintHandle = FingerprintHandle(
@@ -152,13 +162,11 @@ class PairingTransactionProviderImpl(
               label = FingerprintHandle.defaultLabel(FIRST_FINGERPRINT_INDEX)
             )
           )
-          FingerprintEnrollmentStarted(hardwareType = deviceInfo.hardwareType())
+          FingerprintEnrollmentStarted(hardwareType = hardwareType)
         }
 
         INCOMPLETE -> {
-          // Get device info to detect hardware type for flow selection
-          val deviceInfo = commands.getDeviceInfo(session)
-          FingerprintNotEnrolled(hardwareType = deviceInfo.hardwareType())
+          FingerprintNotEnrolled(hardwareType = hardwareType)
         }
         UNSPECIFIED -> error("Unexpected fingerprint enrollment state")
       }
@@ -183,6 +191,37 @@ class PairingTransactionProviderImpl(
         }
         else -> response
       }.also(onSuccess)
+    }
+  }
+
+  private fun requireSupportedW3PairingFirmware(
+    hardwareType: HardwareType,
+    firmwareVersion: String,
+  ) {
+    if (hardwareType != HardwareType.W3) {
+      return
+    }
+
+    val minFirmwareVersion = w3PairingMinFirmwareVersionFeatureFlag.flagValue().value.value.trim()
+    if (minFirmwareVersion.isEmpty()) {
+      return
+    }
+
+    val minFirmwareVersionInt = runCatching {
+      semverToInt(minFirmwareVersion)
+    }.getOrElse { error ->
+      logWarn {
+        "Ignoring invalid W3 pairing minimum firmware version flag: " +
+          "'$minFirmwareVersion'. Parse error: ${error.message}"
+      }
+      return
+    }
+
+    if (semverToInt(firmwareVersion) < minFirmwareVersionInt) {
+      throw NfcException.PairingFirmwareTooOld(
+        minimumVersion = minFirmwareVersion,
+        currentVersion = firmwareVersion
+      )
     }
   }
 

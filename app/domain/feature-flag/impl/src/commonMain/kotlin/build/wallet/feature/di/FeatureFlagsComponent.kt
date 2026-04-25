@@ -108,6 +108,11 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
+  fun w3PairingMinFirmwareVersionFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    W3PairingMinFirmwareVersionFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
   fun atRiskNotificationsFeatureFlag(featureFlagDao: FeatureFlagDao) =
     AtRiskNotificationsFeatureFlag(featureFlagDao)
 
@@ -198,11 +203,6 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
-  fun augurFeeComparisonLoggingFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    AugurFeeComparisonLoggingFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
   fun preBuiltPsbtFlowFeatureFlag(featureFlagDao: FeatureFlagDao) =
     PreBuiltPsbtFlowFeatureFlag(featureFlagDao)
 
@@ -263,6 +263,7 @@ interface FeatureFlagsComponent {
     fwupNfcBackgroundRetryStartupRevealDelayMsFeatureFlag:
       FwupNfcBackgroundRetryStartupRevealDelayMsFeatureFlag,
     fingerprintResetMinFirmwareVersionFeatureFlag: FingerprintResetMinFirmwareVersionFeatureFlag,
+    w3PairingMinFirmwareVersionFeatureFlag: W3PairingMinFirmwareVersionFeatureFlag,
     txVerificationFeatureFlag: TxVerificationFeatureFlag,
     atRiskNotificationsFeatureFlag: AtRiskNotificationsFeatureFlag,
     chaincodeDelegationFeatureFlag: ChaincodeDelegationFeatureFlag,
@@ -284,7 +285,6 @@ interface FeatureFlagsComponent {
     augurFeesEstimationFeatureFlag: AugurFeesEstimationFeatureFlag,
     keysetRepairFeatureFlag: KeysetRepairFeatureFlag,
     ageRangeVerificationFeatureFlag: AgeRangeVerificationFeatureFlag,
-    augurFeeComparisonLoggingFeatureFlag: AugurFeeComparisonLoggingFeatureFlag,
     preBuiltPsbtFlowFeatureFlag: PreBuiltPsbtFlowFeatureFlag,
     cloudBackupForceReuploadTimestampFeatureFlag: CloudBackupForceReuploadTimestampFeatureFlag,
     w3OnboardingFeatureFlag: W3OnboardingFeatureFlag,
@@ -303,6 +303,7 @@ interface FeatureFlagsComponent {
       mobileRealTimeMetricsFeatureFlag,
       usSmsFeatureFlag,
       fingerprintResetMinFirmwareVersionFeatureFlag,
+      w3PairingMinFirmwareVersionFeatureFlag,
       atRiskNotificationsFeatureFlag,
       chaincodeDelegationFeatureFlag,
       onboardingCompletionFailsafeFeatureFlag,
@@ -322,7 +323,6 @@ interface FeatureFlagsComponent {
       augurFeesEstimationFeatureFlag,
       keysetRepairFeatureFlag,
       ageRangeVerificationFeatureFlag,
-      augurFeeComparisonLoggingFeatureFlag,
       iosCloudKitBackupFeatureFlag,
       utxoMaxConsolidationCountFeatureFlag,
       sellBitcoinMinAmountFeatureFlag,

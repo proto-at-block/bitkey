@@ -20,13 +20,13 @@ actual fun AnimatedAmountAutoResizedLabel(
   animationLabel: String,
   minTextSize: TextUnit,
 ) {
-  AutoResizedLabel(
-    text = amount.text,
+  ComposeAnimatedAmountAutoResizedLabel(
+    amount = amount,
     modifier = modifier,
-    type = type,
+    style = build.wallet.ui.theme.WalletTheme.labelStyle(type, treatment, alignment, color),
     alignment = alignment,
-    treatment = treatment,
-    color = color,
-    allowFontScaling = allowFontScaling
+    allowFontScaling = allowFontScaling,
+    animate = animate,
+    minTextSize = minTextSize
   )
 }

@@ -28,6 +28,9 @@ import build.wallet.limit.MobilePayServiceMock
 import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.LabelModel.ChunkedAddressModel
+import build.wallet.statemachine.core.LabelModel.Color.ON60
+import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.ColorStyle
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
@@ -163,6 +166,28 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
     txVerificationServiceFake = txVerificationService,
     verificationFlag = verificationFlag
   )
+
+  test("send confirmation header uses alternating QR-style address colors") {
+    stateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      mobilePayService.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(props.sendAmount)
+
+      awaitBody<LoadingSuccessBodyModel>()
+
+      awaitBody<TransferConfirmationScreenModel> {
+        with(header.shouldNotBeNull()) {
+          headline.shouldBe("Send your transfer")
+          with(sublineModel.shouldNotBeNull().shouldBeTypeOf<ChunkedAddressModel>()) {
+            string.shouldBe(props.recipientAddress.chunkedAddress())
+            styledSubstrings.first().style.shouldBe(ColorStyle(ON60))
+          }
+        }
+      }
+    }
+  }
 
   test("[app & hw] successful signing syncs, broadcasts, calls onTransferInitiated") {
     val transactionPriority = FASTEST

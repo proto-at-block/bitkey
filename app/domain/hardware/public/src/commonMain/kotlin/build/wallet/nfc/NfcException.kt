@@ -152,6 +152,17 @@ sealed class NfcException : Error() {
       get() = "Expected $expected hardware but tapped $actual"
   }
 
+  /**
+   * The tapped hardware is running firmware that is too old to complete pairing.
+   */
+  class PairingFirmwareTooOld(
+    val minimumVersion: String,
+    val currentVersion: String,
+  ) : NfcException() {
+    override val message: String
+      get() = "Cannot pair hardware on firmware $currentVersion; requires $minimumVersion or later"
+  }
+
   @Suppress("unused")
   sealed class IOSOnly : NfcException() {
     /** Indicates that the data could not be translated into a [NFCISO7816APDU] package. */

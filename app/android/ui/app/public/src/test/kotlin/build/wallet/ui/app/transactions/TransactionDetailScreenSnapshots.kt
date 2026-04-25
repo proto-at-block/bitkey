@@ -5,6 +5,7 @@ import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.Bitcoin
 import build.wallet.statemachine.core.Icon.SmallIconCopy
+import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.LEADING
@@ -38,7 +39,7 @@ class TransactionDetailScreenSnapshots :
                   iconSize = Avatar
                 ),
                 headline = "Transaction pending",
-                sublineModel = StringModel("bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh"),
+                sublineModel = LabelModel.chunkedAddress("bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh"),
                 sublineTreatment = MONO,
                 alignment = LEADING
               ),
@@ -89,7 +90,7 @@ class TransactionDetailScreenSnapshots :
                   iconSize = Avatar
                 ),
                 headline = "Transaction pending",
-                sublineModel = StringModel("bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh"),
+                sublineModel = LabelModel.chunkedAddress("bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh"),
                 sublineTreatment = MONO,
                 alignment = LEADING
               ),
@@ -140,7 +141,7 @@ class TransactionDetailScreenSnapshots :
                   iconSize = Avatar
                 ),
                 headline = "Transaction delayed",
-                sublineModel = StringModel("bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh"),
+                sublineModel = LabelModel.chunkedAddress("bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh"),
                 sublineTreatment = MONO,
                 alignment = LEADING
               ),
@@ -234,7 +235,7 @@ class TransactionDetailScreenSnapshots :
                   iconSize = Avatar
                 ),
                 headline = "Transaction sent",
-                sublineModel = StringModel("bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh"),
+                sublineModel = LabelModel.chunkedAddress("bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh"),
                 sublineTreatment = MONO,
                 alignment = LEADING
               ),
@@ -306,7 +307,7 @@ class TransactionDetailScreenSnapshots :
                   iconSize = Avatar
                 ),
                 headline = "Transaction received",
-                sublineModel = StringModel("bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh"),
+                sublineModel = LabelModel.chunkedAddress("bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh"),
                 sublineTreatment = MONO,
                 alignment = LEADING
               ),
@@ -366,7 +367,7 @@ class TransactionDetailScreenSnapshots :
                   iconSize = Avatar
                 ),
                 headline = "UTXO Consolidation",
-                sublineModel = StringModel("bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh"),
+                sublineModel = LabelModel.chunkedAddress("bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh"),
                 sublineTreatment = MONO,
                 alignment = LEADING
               ),

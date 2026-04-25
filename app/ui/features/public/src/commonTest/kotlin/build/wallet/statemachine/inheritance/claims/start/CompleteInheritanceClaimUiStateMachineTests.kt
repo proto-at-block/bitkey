@@ -16,6 +16,7 @@ import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.exchange.ExchangeRateServiceFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
+import build.wallet.statemachine.core.LabelModel.ChunkedAddressModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.inheritance.claims.complete.*
 import build.wallet.statemachine.ui.awaitUntilBody
@@ -23,6 +24,8 @@ import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
+import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.types.shouldBeTypeOf
 
 class CompleteInheritanceClaimUiStateMachineTests : FunSpec({
   val inheritanceWallet = SpendingWalletFake()
@@ -73,6 +76,11 @@ class CompleteInheritanceClaimUiStateMachineTests : FunSpec({
         fees.shouldBeEqual("$1.00")
         netReceivePrimary.shouldBeEqual("$2.00")
         netReceiveSecondary.shouldBeEqual("20,000 sats")
+        header.shouldNotBeNull().sublineModel
+          .shouldNotBeNull()
+          .shouldBeTypeOf<ChunkedAddressModel>()
+          .string
+          .shouldBeEqual("fake")
         onTransfer()
       }
       awaitUntilBody<InheritanceTransferSuccessScreenModel> {
@@ -81,6 +89,11 @@ class CompleteInheritanceClaimUiStateMachineTests : FunSpec({
         fees.shouldBeEqual("$1.00")
         netReceivePrimary.shouldBeEqual("$2.00")
         netReceiveSecondary.shouldBeEqual("20,000 sats")
+        header.shouldNotBeNull().sublineModel
+          .shouldNotBeNull()
+          .shouldBeTypeOf<ChunkedAddressModel>()
+          .string
+          .shouldBeEqual("fake")
         onDone()
         exitCalls.awaitItem()
       }

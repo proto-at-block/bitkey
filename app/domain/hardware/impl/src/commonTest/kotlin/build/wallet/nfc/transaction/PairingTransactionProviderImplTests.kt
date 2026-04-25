@@ -19,7 +19,9 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.Secp256k1PublicKey
 import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.FeatureFlagValue
 import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
+import build.wallet.feature.flags.W3PairingMinFirmwareVersionFeatureFlag
 import build.wallet.firmware.EnrolledFingerprints.Companion.FIRST_FINGERPRINT_INDEX
 import build.wallet.firmware.FingerprintEnrollmentStatus
 import build.wallet.firmware.FingerprintHandle
@@ -54,6 +56,11 @@ class PairingTransactionProviderImplTests : FunSpec({
   val accountConfigService = AccountConfigServiceFake()
   val hardwareProvisionedAppKeyStatusDao = HardwareProvisionedAppKeyStatusDaoFake()
   val firmwareDeviceInfoDao = FirmwareDeviceInfoDaoFake()
+  val featureFlagDao = FeatureFlagDaoFake()
+  val fingerprintResetMinFirmwareVersionFeatureFlag =
+    FingerprintResetMinFirmwareVersionFeatureFlag(featureFlagDao)
+  val w3PairingMinFirmwareVersionFeatureFlag =
+    W3PairingMinFirmwareVersionFeatureFlag(featureFlagDao)
 
   appInstallationDao.appInstallation =
     AppInstallation(localId = "foo", hardwareSerialNumber = null)
@@ -67,9 +74,8 @@ class PairingTransactionProviderImplTests : FunSpec({
       appInstallationDao = appInstallationDao,
       hardwareAttestation = hardwareAttestation,
       accountConfigService = accountConfigService,
-      fingerprintResetMinFirmwareVersionFeatureFlag = FingerprintResetMinFirmwareVersionFeatureFlag(
-        FeatureFlagDaoFake()
-      ),
+      fingerprintResetMinFirmwareVersionFeatureFlag = fingerprintResetMinFirmwareVersionFeatureFlag,
+      w3PairingMinFirmwareVersionFeatureFlag = w3PairingMinFirmwareVersionFeatureFlag,
       hardwareProvisionedAppKeyStatusDao = hardwareProvisionedAppKeyStatusDao,
       firmwareDeviceInfoDao = firmwareDeviceInfoDao
     )
@@ -77,7 +83,18 @@ class PairingTransactionProviderImplTests : FunSpec({
   beforeTest {
     accountConfigService.reset()
     accountConfigService.setBitcoinNetworkType(BITCOIN)
+    nfcCommands.reset()
+    nfcCommands.deviceInfoResult = FirmwareDeviceInfoMock
+    uuid.reset()
+    csekDao.reset()
+    ssekDao.reset()
+    appInstallationDao.reset()
+    appInstallationDao.appInstallation =
+      AppInstallation(localId = "foo", hardwareSerialNumber = null)
+    hardwareProvisionedAppKeyStatusDao.reset()
     firmwareDeviceInfoDao.reset()
+    featureFlagDao.reset()
+    w3PairingMinFirmwareVersionFeatureFlag.reset()
   }
 
   test("cancel") {
@@ -183,6 +200,30 @@ class PairingTransactionProviderImplTests : FunSpec({
     nfcCommands.deviceInfoResult = FirmwareDeviceInfoMock
   }
 
+  test("W3 pairing fails when firmware is below default minimum") {
+    val w3DeviceInfo = FirmwareDeviceInfoMock.copy(
+      version = "1.1.9",
+      hwRevision = "w3a-core-evt"
+    )
+    nfcCommands.deviceInfoResult = w3DeviceInfo
+
+    val transaction = provider(
+      appGlobalAuthPublicKey = AppGlobalAuthPublicKeyMock,
+      onCancel = {},
+      onSuccess = {}
+    )
+
+    val exception = shouldThrow<NfcException.PairingFirmwareTooOld> {
+      transaction.session(nfcSession, nfcCommands)
+    }
+    exception.minimumVersion.shouldBe("1.2.0")
+    exception.currentVersion.shouldBe("1.1.9")
+
+    nfcCommands.getDeviceInfoCalls.awaitItem().shouldBe(w3DeviceInfo)
+
+    nfcCommands.deviceInfoResult = FirmwareDeviceInfoMock
+  }
+
   test("NOT_IN_PROGRESS starts enrollment with default Fingerprint 1 label") {
     nfcCommands.setEnrollmentStatus(FingerprintEnrollmentStatus.NOT_IN_PROGRESS)
 
@@ -244,15 +285,36 @@ class PairingTransactionProviderImplTests : FunSpec({
       .session(nfcSession, nfcCommands)
       .shouldBeTypeOf<PairingTransactionResponse.FingerprintEnrolled>()
 
-    // getDeviceInfo is called twice: once for verification, once for fingerprint status
     nfcCommands.getDeviceInfoCalls.awaitItem().shouldBe(w3DeviceInfo)
     nfcCommands.getAuthenticationKeyCalls.awaitItem()
-    nfcCommands.getDeviceInfoCalls.awaitItem().shouldBe(w3DeviceInfo)
 
     activationResult.hardwareType.shouldBe(HardwareType.W3)
 
     // Reset for other tests
     nfcCommands.deviceInfoResult = FirmwareDeviceInfoMock
+  }
+
+  test("W1 pairing ignores W3 minimum firmware version flag") {
+    w3PairingMinFirmwareVersionFeatureFlag.setFlagValue(FeatureFlagValue.StringFlag("9.9.9"))
+
+    val transaction = provider(
+      appGlobalAuthPublicKey = PublicKey<AppGlobalAuthKey>("6170702D617574682D64707562"),
+      onCancel = {},
+      onSuccess = {}
+    )
+
+    val activationResult =
+      transaction
+        .session(nfcSession, nfcCommands)
+        .also { transaction.onSuccess(it) }
+        .shouldBeTypeOf<PairingTransactionResponse.FingerprintEnrolled>()
+
+    nfcCommands.getAuthenticationKeyCalls.awaitItem()
+    nfcCommands.getDeviceInfoCalls.awaitItem().shouldBe(FirmwareDeviceInfoMock)
+    nfcCommands.provisionAppAuthKeyCalls.awaitItem()
+      .shouldBe(AppGlobalAuthPublicKeyMock.value.encodeUtf8())
+
+    activationResult.hardwareType.shouldBe(HardwareType.W1)
   }
 
   test("shouldLock is always false on the NfcTransaction") {

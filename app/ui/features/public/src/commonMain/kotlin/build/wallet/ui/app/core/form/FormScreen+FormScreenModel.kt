@@ -47,7 +47,6 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel
-import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.*
 import build.wallet.statemachine.core.form.FORM_DS_V2_WAITING_REVEAL_DURATION_MILLIS
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormDesignSystemV2Model
@@ -120,7 +119,6 @@ import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
 import kotlin.time.Duration.Companion.milliseconds
 
-private const val SLASHED_ZERO_FONT_FEATURE = "zero"
 private const val BITKEY_WAITING_VIDEO_CROP_SCALE = 2.17f
 
 internal data class ResolvedFormScreenModel(
@@ -925,28 +923,9 @@ private fun Explainer(statements: ImmutableList<Statement>) {
               append(body.string)
             }
             is StringWithStyledSubstringModel ->
-              buildAnnotatedString {
-                append(body.string)
-                body.styledSubstrings.forEach { styledSubstring ->
-                  addStyle(
-                    style =
-                      when (val substringStyle = styledSubstring.style) {
-                        is ColorStyle -> SpanStyle(color = substringStyle.color.toWalletTheme())
-                        is BoldStyle -> SpanStyle(fontWeight = FontWeight.W600)
-                        is FontFeatureStyle -> {
-                          val fontFeatureSettings = if (LocalDesignSystemUpdatesEnabled.current) {
-                            substringStyle.fontFeatureSettings.withSlashedZero()
-                          } else {
-                            substringStyle.fontFeatureSettings
-                          }
-                          SpanStyle(fontFeatureSettings = fontFeatureSettings)
-                        }
-                      },
-                    start = styledSubstring.range.first,
-                    end = styledSubstring.range.last + 1
-                  )
-                }
-              }
+              body.buildAnnotatedString()
+            is LabelModel.ChunkedAddressModel ->
+              body.buildAnnotatedString()
             is LabelModel.LinkSubstringModel -> body.buildAnnotatedString()
           },
         tint =
@@ -1212,10 +1191,3 @@ fun ButtonModel.toFooterButton() =
     size = Footer,
     onClick = onClick
   )
-
-private fun String.withSlashedZero(): String =
-  if (contains("zero")) {
-    this
-  } else {
-    "$this, $SLASHED_ZERO_FONT_FEATURE"
-  }

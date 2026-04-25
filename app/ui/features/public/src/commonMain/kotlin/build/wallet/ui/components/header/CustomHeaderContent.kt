@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.colorspace.ColorSpaces
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
@@ -212,16 +213,15 @@ private const val SCAN_CANVAS_WIDTH_DP = 120f
 private const val SCAN_CANVAS_HEIGHT_DP = 64f
 
 // Dot sizes in SVG-space pixels (matching fingerprint/firmware constants)
-private const val SCAN_DOT_SIZE_RESTING = 3f
-private const val SCAN_DOT_SIZE_FAR = 6f
-private const val SCAN_DOT_SIZE_ACTIVE = 10f
+private const val SCAN_DOT_SIZE_RESTING = 4f
+private const val SCAN_DOT_SIZE_ACTIVE = 8f
 
 // Animation timing (matching firmware)
 private const val SCAN_NUM_RINGS = 7
-private const val SCAN_RADIATE_CYCLE_MS = 1200
+private const val SCAN_RADIATE_CYCLE_MS = 1304
 private const val SCAN_RADIATE_GAP_RINGS = 2
 private const val SCAN_RADIATE_TOTAL_RINGS = SCAN_NUM_RINGS + SCAN_RADIATE_GAP_RINGS
-private const val SCAN_RADIATE_PEAK_COLOR_T = 220f / 255f
+private const val SCAN_RADIATE_PEAK_COLOR_T = 1f
 
 // Spoke-based dot selection: fixed angular positions (dx from pattern center x=111)
 // that form consistent radial lines across all rings.
@@ -284,20 +284,10 @@ private fun activateSpokeDots(
     if (bestI < 0) continue
     activated[bestI] = true
 
-    // Size alternation: even distance from center spoke = big, odd = small
-    val distFromCenter = if (s >= SCAN_NUM_SPOKES / 2) s - SCAN_NUM_SPOKES / 2 else SCAN_NUM_SPOKES / 2 - s
-    val spokeSize = if (distFromCenter % 2 == 0) SCAN_DOT_SIZE_ACTIVE else SCAN_DOT_SIZE_FAR
-
-    // Boost trail for center spokes: small dots get extra boost
-    val dx = abs(dots[bestI].first - SCAN_PATTERN_CENTER_X)
-    val boostAmount = if (distFromCenter % 2 != 0) 70f else 40f
-    val boost = (107f - dx) * boostAmount / 107f / 255f
-    val finalProximity = (proximity + boost).coerceAtMost(1f)
-
-    // Scale color intensity with dot size so smaller dots are dimmer
-    val colorScale = spokeSize / SCAN_DOT_SIZE_ACTIVE
-    dotSizes[bestI] = SCAN_DOT_SIZE_RESTING + (spokeSize - SCAN_DOT_SIZE_RESTING) * finalProximity
-    dotColorTs[bestI] = SCAN_RADIATE_PEAK_COLOR_T * colorScale * finalProximity
+    // Single continuous lerp: size and color sweep together from resting to
+    // full active via proximity.
+    dotSizes[bestI] = SCAN_DOT_SIZE_RESTING + (SCAN_DOT_SIZE_ACTIVE - SCAN_DOT_SIZE_RESTING) * proximity
+    dotColorTs[bestI] = SCAN_RADIATE_PEAK_COLOR_T * proximity
   }
 }
 
@@ -334,7 +324,7 @@ private fun ScanAnimation() {
   )
 
   val restingColor = when (theme) {
-    Theme.DARK -> Color(0xFF313131)
+    Theme.DARK -> Color(red = 0x40 / 255f, green = 0x40 / 255f, blue = 0x40 / 255f, alpha = 0.70f)
     else -> Color(0xFFD5D2CD)
   }
   val highlightColor = when (theme) {
@@ -379,15 +369,23 @@ private fun ScanAnimation() {
   }
 }
 
-/** Linear interpolation between two Colors. */
+/**
+ * Interpolate between two Colors in linear-light space (gamma-corrected) for
+ * perceptually cleaner transitions. Lerping sRGB channels directly produces
+ * muddy midpoints (e.g. grey → lime passes through olive); linear-light keeps
+ * the midpoint closer to a brightened hue of the endpoints.
+ */
 private fun lerp(from: Color, to: Color, t: Float): Color {
   val clamped = t.coerceIn(0f, 1f)
+  val linearFrom = from.convert(ColorSpaces.LinearExtendedSrgb)
+  val linearTo = to.convert(ColorSpaces.LinearExtendedSrgb)
   return Color(
-    red = from.red + (to.red - from.red) * clamped,
-    green = from.green + (to.green - from.green) * clamped,
-    blue = from.blue + (to.blue - from.blue) * clamped,
-    alpha = 1f
-  )
+    red = linearFrom.red + (linearTo.red - linearFrom.red) * clamped,
+    green = linearFrom.green + (linearTo.green - linearFrom.green) * clamped,
+    blue = linearFrom.blue + (linearTo.blue - linearFrom.blue) * clamped,
+    alpha = linearFrom.alpha + (linearTo.alpha - linearFrom.alpha) * clamped,
+    colorSpace = ColorSpaces.LinearExtendedSrgb
+  ).convert(ColorSpaces.Srgb)
 }
 
 private const val ASTERISK_WAVE_COUNT = 4

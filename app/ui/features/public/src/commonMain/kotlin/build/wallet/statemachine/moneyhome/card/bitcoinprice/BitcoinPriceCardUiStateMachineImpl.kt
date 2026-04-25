@@ -10,6 +10,8 @@ import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.pricechart.*
+import build.wallet.statemachine.money.amount.toAnimatedAmountAnimationKey
+import build.wallet.statemachine.money.amount.toAnimatedAmountValue
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.time.DateTimeFormatter
 import build.wallet.time.TimeZoneProvider
@@ -107,6 +109,8 @@ class BitcoinPriceCardUiStateMachineImpl(
       content = CardModel.CardContent.BitcoinPrice(
         data = data,
         price = price,
+        priceValue = priceMoney?.toAnimatedAmountValue(),
+        priceAnimationKey = priceMoney?.toAnimatedAmountAnimationKey() ?: 0L,
         priceChange = priceChange,
         priceDirection = priceDirection.value,
         lastUpdated = lastUpdated,

@@ -135,6 +135,8 @@ data class CardModel(
     data class BitcoinPrice(
       val isLoading: Boolean,
       val price: String,
+      val priceValue: Long? = null,
+      val priceAnimationKey: Long = 0L,
       val priceChange: String,
       val priceDirection: PriceDirection,
       val lastUpdated: String,

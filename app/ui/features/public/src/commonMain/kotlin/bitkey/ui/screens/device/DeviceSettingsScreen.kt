@@ -22,6 +22,8 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.collectIsEnabledAsState
+import build.wallet.feature.flags.W3OnboardingFeatureFlag
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareDeviceInfoDao
@@ -89,6 +91,7 @@ class DeviceSettingsScreenPresenter(
   private val clock: Clock,
   private val w3UpgradeUiStateMachine: W3UpgradeUiStateMachine,
   private val accountConfigService: AccountConfigService,
+  private val w3OnboardingFeatureFlag: W3OnboardingFeatureFlag,
 ) : ScreenPresenter<DeviceSettingsScreen> {
   @Suppress("CyclomaticComplexMethod")
   @Composable
@@ -125,6 +128,8 @@ class DeviceSettingsScreenPresenter(
     // hides immediately after a W3 upgrade completes (without needing an app restart).
     val accountConfig by remember { accountConfigService.activeOrDefaultConfig() }.collectAsState()
     val activeHardwareType = (accountConfig as? FullAccountConfig)?.hardwareType
+
+    val isW3OnboardingEnabled by w3OnboardingFeatureFlag.collectIsEnabledAsState()
 
     return when (val state = uiState) {
       is ViewingDeviceDataUiState -> {
@@ -194,7 +199,7 @@ class DeviceSettingsScreenPresenter(
             )
           },
           onWipeDevice = { uiState = WipingDeviceState },
-          onUpgradeDevice = if (activeHardwareType == HardwareType.W3) {
+          onUpgradeDevice = if (activeHardwareType == HardwareType.W3 || !isW3OnboardingEnabled) {
             null
           } else {
             { uiState = W3UpgradeUiState }

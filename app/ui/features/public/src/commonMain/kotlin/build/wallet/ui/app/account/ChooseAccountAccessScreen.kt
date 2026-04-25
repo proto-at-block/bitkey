@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
@@ -27,6 +28,8 @@ import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.button.buttonStyle
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
+import build.wallet.ui.components.video.VideoPlayer
+import build.wallet.ui.components.video.VideoScalingMode
 import build.wallet.ui.compose.resId
 import build.wallet.ui.model.button.ButtonModel.Size
 import build.wallet.ui.model.button.ButtonModel.Treatment.*
@@ -86,100 +89,172 @@ private fun ChooseAccountAccessDesignSystemV2Screen(
     }
   }
 
-  Column(
-    modifier = modifier
-      .fillMaxSize()
-      .background(backgroundColor)
-  ) {
+  if (model.showW3Video) {
     Box(
-      modifier = Modifier
-        .fillMaxWidth()
-        .statusBarsPadding()
+      modifier = modifier
+        .fillMaxSize()
+        .background(backgroundColor)
     ) {
-      Image(
-        modifier = Modifier
-          .resId("logo")
-          .align(Alignment.TopCenter)
-          .padding(top = 40.dp)
-          .size(48.dp)
-          .clickable(
-            indication = null,
-            interactionSource = remember { MutableInteractionSource() },
-            onClick = model.onLogoClick
-          ),
-        painter = painterResource(Res.drawable.bitkey_icon_mark),
-        contentDescription = "Bitkey Icon Mark",
-        colorFilter = ColorFilter.tint(contentTint)
+      VideoPlayer(
+        modifier = Modifier.matchParentSize(),
+        resourcePath = chooseAccountAccessHeroVideoResource(),
+        isLooping = true,
+        backgroundColor = backgroundColor,
+        scalingMode = VideoScalingMode.CROP
       )
-    }
 
-    Box(
-      modifier = Modifier
-        .fillMaxWidth()
-        .weight(1f)
-        .padding(vertical = 24.dp),
-      contentAlignment = Alignment.Center
-    ) {
-      Image(
+      Column(
         modifier = Modifier
-          .widthIn(max = 250.dp)
-          .aspectRatio(1f),
-        painter = painterResource(Res.drawable.bitkey_rotate_dark_poster),
-        contentDescription = null
-      )
-    }
-
-    Column(
-      modifier = Modifier
-        .fillMaxWidth()
-        .padding(bottom = 20.dp)
-        .padding(horizontal = 20.dp)
-        .navigationBarsPadding(),
-      verticalArrangement = Arrangement.Bottom
-    ) {
-      val setUpWalletBaseStyle = WalletTheme.buttonStyle(
-        treatment = Primary,
-        size = Size.Footer
-      )
-      val setUpWalletButtonStyle = setUpWalletBaseStyle.copy(
-        backgroundColor = contentTint,
-        textStyle = setUpWalletBaseStyle.textStyle.copy(
-          color = backgroundColor
-        ),
-        iconColor = backgroundColor
-      )
-      Button(
-        text = "Set up a new wallet",
-        style = setUpWalletButtonStyle,
-        onClick = { model.buttons.first().onClick() }
-      )
-      Spacer(modifier = Modifier.height(16.dp))
-      val moreOptionsBaseStyle = WalletTheme.buttonStyle(
-        treatment = Secondary,
-        size = Size.Footer
-      )
-      val moreOptionsButtonStyle = moreOptionsBaseStyle.copy(
-        backgroundColor = contentTint.copy(alpha = 0.12f),
-        textStyle = moreOptionsBaseStyle.textStyle.copy(color = contentTint),
-        iconColor = contentTint
-      )
-      Button(
-        text = "More options",
-        style = moreOptionsButtonStyle,
-        onClick = { model.buttons.last().onClick() }
-      )
-      Spacer(modifier = Modifier.height(16.dp))
-      Label(
-        text = legalNoticeText,
-        type = LabelType.Body4Mono,
-        alignment = TextAlign.Center,
-        treatment = LabelTreatment.Unspecified,
-        color = subtitleTint,
-        onClick = { index ->
-          legalNotice.linkedSubstrings.firstOrNull { index in it.range }?.onClick()
+          .fillMaxSize()
+          .zIndex(1f)
+      ) {
+        Box(
+          modifier = Modifier
+            .fillMaxWidth()
+            .systemBarsPadding()
+        ) {
+          Image(
+            modifier = Modifier
+              .resId("logo")
+              .align(Alignment.TopCenter)
+              .padding(top = 40.dp)
+              .size(48.dp)
+              .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() },
+                onClick = model.onLogoClick
+              ),
+            painter = painterResource(Res.drawable.bitkey_icon_mark),
+            contentDescription = "Bitkey Icon Mark",
+            colorFilter = ColorFilter.tint(contentTint)
+          )
         }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        ChooseAccountAccessDesignSystemV2Footer(
+          model = model,
+          legalNoticeText = legalNoticeText,
+          backgroundColor = backgroundColor,
+          contentTint = contentTint,
+          subtitleTint = subtitleTint
+        )
+      }
+    }
+  } else {
+    Column(
+      modifier = modifier
+        .fillMaxSize()
+        .background(backgroundColor)
+    ) {
+      Box(
+        modifier = Modifier
+          .fillMaxWidth()
+          .statusBarsPadding()
+      ) {
+        Image(
+          modifier = Modifier
+            .resId("logo")
+            .align(Alignment.TopCenter)
+            .padding(top = 40.dp)
+            .size(48.dp)
+            .clickable(
+              indication = null,
+              interactionSource = remember { MutableInteractionSource() },
+              onClick = model.onLogoClick
+            ),
+          painter = painterResource(Res.drawable.bitkey_icon_mark),
+          contentDescription = "Bitkey Icon Mark",
+          colorFilter = ColorFilter.tint(contentTint)
+        )
+      }
+
+      Box(
+        modifier = Modifier
+          .fillMaxWidth()
+          .weight(1f)
+          .padding(vertical = 24.dp),
+        contentAlignment = Alignment.Center
+      ) {
+        Image(
+          modifier = Modifier
+            .widthIn(max = 250.dp)
+            .aspectRatio(1f),
+          painter = painterResource(Res.drawable.bitkey_rotate_dark_poster),
+          contentDescription = null
+        )
+      }
+
+      ChooseAccountAccessDesignSystemV2Footer(
+        model = model,
+        legalNoticeText = legalNoticeText,
+        backgroundColor = backgroundColor,
+        contentTint = contentTint,
+        subtitleTint = subtitleTint
       )
     }
+  }
+}
+
+@Composable
+private fun ChooseAccountAccessDesignSystemV2Footer(
+  model: ChooseAccountAccessModel,
+  legalNoticeText: AnnotatedString,
+  backgroundColor: Color,
+  contentTint: Color,
+  subtitleTint: Color,
+) {
+  val legalNotice = model.legalNotice
+  Column(
+    modifier = Modifier
+      .fillMaxWidth()
+      .padding(bottom = 20.dp)
+      .padding(horizontal = 20.dp)
+      .navigationBarsPadding(),
+    verticalArrangement = Arrangement.Bottom
+  ) {
+    val setUpWalletBaseStyle = WalletTheme.buttonStyle(
+      treatment = Primary,
+      size = Size.Footer
+    )
+    val setUpWalletButtonStyle = setUpWalletBaseStyle.copy(
+      backgroundColor = contentTint,
+      textStyle = setUpWalletBaseStyle.textStyle.copy(
+        color = backgroundColor
+      ),
+      iconColor = backgroundColor
+    )
+    Button(
+      text = "Set up a new wallet",
+      style = setUpWalletButtonStyle,
+      onClick = { model.buttons.first().onClick() }
+    )
+    Spacer(modifier = Modifier.height(16.dp))
+    val moreOptionsBaseStyle = WalletTheme.buttonStyle(
+      treatment = Secondary,
+      size = Size.Footer
+    )
+    val moreOptionsButtonStyle = moreOptionsBaseStyle.copy(
+      backgroundColor = contentTint.copy(alpha = 0.12f),
+      textStyle = moreOptionsBaseStyle.textStyle.copy(color = contentTint),
+      iconColor = contentTint
+    )
+    Button(
+      text = "More options",
+      style = moreOptionsButtonStyle,
+      onClick = { model.buttons.last().onClick() }
+    )
+    Spacer(modifier = Modifier.height(16.dp))
+    Label(
+      text = legalNoticeText,
+      type = LabelType.Body4Mono,
+      alignment = TextAlign.Center,
+      treatment = LabelTreatment.Unspecified,
+      color = subtitleTint,
+      onClick = { index ->
+        legalNotice.linkedSubstrings.firstOrNull { index in it.range }?.onClick()
+      }
+    )
   }
 }
 

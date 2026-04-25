@@ -142,18 +142,30 @@ sealed interface LabelModel {
   }
 
   /**
+   * Model for a chunked address with alternating dimmed chunks.
+   *
+   * The unstyled chunks inherit the label's treatment so screens can opt into
+   * primary text without changing every other mono subline.
+   */
+  data class ChunkedAddressModel(
+    override val string: String,
+    val styledSubstrings: List<StringWithStyledSubstringModel.StyledSubstring>,
+  ) : LabelModel
+
+  /**
    * The color to be used for a styled substring.
    */
   companion object {
     /**
      * Creates a [LabelModel] for a chunked address with alternating colors.
-     * The address is split into 4-character groups separated by spaces.
-     * Odd-indexed chunks are colored [Color.ON60]; even-indexed chunks use the primary color.
+     * The address is normalized to remove whitespace, then split into 4-character groups separated by spaces.
+     * Odd-indexed chunks are colored [Color.ON60]; even-indexed chunks inherit the label's primary treatment.
      *
      * Uses explicit index ranges so duplicate chunks are styled correctly.
      */
     fun chunkedAddress(address: String): LabelModel {
-      val parts = address.chunked(4)
+      val normalizedAddress = address.filterNot(Char::isWhitespace)
+      val parts = normalizedAddress.chunked(4)
       val joined = parts.joinToString(" ")
       var offset = 0
       val styled = parts.mapIndexedNotNull { index, part ->
@@ -168,7 +180,7 @@ sealed interface LabelModel {
           null
         }
       }
-      return StringWithStyledSubstringModel(string = joined, styledSubstrings = styled)
+      return ChunkedAddressModel(string = joined, styledSubstrings = styled)
     }
   }
 

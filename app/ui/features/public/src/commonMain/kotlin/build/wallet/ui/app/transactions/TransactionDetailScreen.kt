@@ -244,7 +244,12 @@ private fun TransactionDetailHeader(
           },
           treatment = when (theme) {
             Theme.DARK -> Unspecified
-            Theme.LIGHT -> Secondary
+            Theme.LIGHT -> when {
+              headerModel.sublineTreatment == MONO &&
+                headerModel.sublineModel is LabelModel.ChunkedAddressModel ->
+                Primary
+              else -> Secondary
+            }
           },
           alignment = textAlignment,
           color = when (theme) {

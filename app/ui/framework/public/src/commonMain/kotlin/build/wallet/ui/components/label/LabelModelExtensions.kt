@@ -11,17 +11,22 @@ import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.FontFeatureStyle
 import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
+import build.wallet.ui.tokens.StyleDictionaryColors
 
 private const val SLASHED_ZERO_FONT_FEATURE = "zero"
 
 @Composable
 fun LabelModel.Color.toWalletTheme(): androidx.compose.ui.graphics.Color {
+  return toWalletTheme(colors = WalletTheme.colors)
+}
+
+private fun LabelModel.Color.toWalletTheme(colors: StyleDictionaryColors): androidx.compose.ui.graphics.Color {
   return when (this) {
-    LabelModel.Color.GREEN -> WalletTheme.colors.deviceLEDGreen
-    LabelModel.Color.BLUE -> WalletTheme.colors.deviceLEDBlue
-    LabelModel.Color.ON60 -> WalletTheme.colors.foreground60
-    LabelModel.Color.FOREGROUND -> WalletTheme.colors.foreground
-    LabelModel.Color.PRIMARY -> WalletTheme.colors.bitkeyPrimary
+    LabelModel.Color.GREEN -> colors.deviceLEDGreen
+    LabelModel.Color.BLUE -> colors.deviceLEDBlue
+    LabelModel.Color.ON60 -> colors.foreground60
+    LabelModel.Color.FOREGROUND -> colors.foreground
+    LabelModel.Color.PRIMARY -> colors.bitkeyPrimary
     LabelModel.Color.UNSPECIFIED -> Color.Unspecified
   }
 }
@@ -32,31 +37,25 @@ fun LabelModel.Color.toWalletTheme(): androidx.compose.ui.graphics.Color {
 @Composable
 fun LabelModel.buildAnnotatedString(): AnnotatedString {
   val model = this
+  val colors = WalletTheme.colors
+  val designSystemUpdatesEnabled = LocalDesignSystemUpdatesEnabled.current
   return buildAnnotatedString {
     append(string)
     when (model) {
       is LabelModel.StringModel -> Unit
       is LabelModel.CalloutModel -> Unit
       is LabelModel.StringWithStyledSubstringModel ->
-        model.styledSubstrings.forEach { styledSubstring ->
-          addStyle(
-            style =
-              when (val substringStyle = styledSubstring.style) {
-                is ColorStyle -> SpanStyle(color = substringStyle.color.toWalletTheme())
-                is BoldStyle -> SpanStyle(fontWeight = FontWeight.W600)
-                is FontFeatureStyle -> {
-                  val fontFeatureSettings = if (LocalDesignSystemUpdatesEnabled.current) {
-                    substringStyle.fontFeatureSettings.withSlashedZero()
-                  } else {
-                    substringStyle.fontFeatureSettings
-                  }
-                  SpanStyle(fontFeatureSettings = fontFeatureSettings)
-                }
-              },
-            start = styledSubstring.range.first,
-            end = styledSubstring.range.last + 1
-          )
-        }
+        addStyledSubstrings(
+          styledSubstrings = model.styledSubstrings,
+          colors = colors,
+          designSystemUpdatesEnabled = designSystemUpdatesEnabled
+        )
+      is LabelModel.ChunkedAddressModel ->
+        addStyledSubstrings(
+          styledSubstrings = model.styledSubstrings,
+          colors = colors,
+          designSystemUpdatesEnabled = designSystemUpdatesEnabled
+        )
       is LabelModel.LinkSubstringModel ->
         model.linkedSubstrings.forEach { linkedSubstring ->
           addLink(
@@ -76,6 +75,32 @@ fun LabelModel.buildAnnotatedString(): AnnotatedString {
           )
         }
     }
+  }
+}
+
+private fun AnnotatedString.Builder.addStyledSubstrings(
+  styledSubstrings: List<LabelModel.StringWithStyledSubstringModel.StyledSubstring>,
+  colors: StyleDictionaryColors,
+  designSystemUpdatesEnabled: Boolean,
+) {
+  styledSubstrings.forEach { styledSubstring ->
+    addStyle(
+      style =
+        when (val substringStyle = styledSubstring.style) {
+          is ColorStyle -> SpanStyle(color = substringStyle.color.toWalletTheme(colors))
+          is BoldStyle -> SpanStyle(fontWeight = FontWeight.W600)
+          is FontFeatureStyle -> {
+            val fontFeatureSettings = if (designSystemUpdatesEnabled) {
+              substringStyle.fontFeatureSettings.withSlashedZero()
+            } else {
+              substringStyle.fontFeatureSettings
+            }
+            SpanStyle(fontFeatureSettings = fontFeatureSettings)
+          }
+        },
+      start = styledSubstring.range.first,
+      end = styledSubstring.range.last + 1
+    )
   }
 }
 

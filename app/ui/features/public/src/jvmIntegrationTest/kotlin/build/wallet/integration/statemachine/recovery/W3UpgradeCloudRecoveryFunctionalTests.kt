@@ -15,6 +15,7 @@ import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.ProtectedCustomerFake
+import build.wallet.feature.setFlagValue
 import build.wallet.integration.statemachine.create.restoreButton
 import build.wallet.integration.statemachine.send.clickApprove
 import build.wallet.money.BitcoinMoney.Companion.sats
@@ -87,7 +88,7 @@ class W3UpgradeCloudRecoveryFunctionalTests : FunSpec({
       testTimeout = 240.seconds,
       turbineTimeout = 120.seconds
     ) {
-      navigateToW3Upgrade()
+      navigateToW3Upgrade(customerApp)
       advanceThroughIntroPhase()
       advanceThroughPairingPhase()
 
@@ -196,7 +197,7 @@ class W3UpgradeCloudRecoveryFunctionalTests : FunSpec({
       testTimeout = 240.seconds,
       turbineTimeout = 120.seconds
     ) {
-      navigateToW3Upgrade()
+      navigateToW3Upgrade(customerApp)
       advanceThroughIntroPhase()
       advanceThroughPairingPhase()
       advanceThroughAuthAndKeyRotation()
@@ -348,7 +349,8 @@ private suspend fun io.kotest.core.test.TestScope.launchLegacyRecoveringApp(
   return app
 }
 
-private suspend fun ReceiveTurbine<ScreenModel>.navigateToW3Upgrade() {
+private suspend fun ReceiveTurbine<ScreenModel>.navigateToW3Upgrade(app: AppTester) {
+  app.w3OnboardingFeatureFlag.setFlagValue(true)
   awaitUntilBody<MoneyHomeBodyModel>()
     .onSecurityHubTabClick()
   awaitUntilBody<SecurityHubBodyModel>()

@@ -7,6 +7,7 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.partnerships.PartnerInfo
 import build.wallet.statemachine.core.Icon.Bitcoin
 import build.wallet.statemachine.core.Icon.SmallIconInformationFilled
+import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.LEADING
@@ -64,7 +65,7 @@ data class TransferConfirmationScreenModel(
           FormHeaderModel(
             icon = Bitcoin,
             headline = "Send your transfer",
-            subline = recipientAddress.chunkedAddress(),
+            sublineModel = LabelModel.chunkedAddress(recipientAddress.address),
             sublineTreatment = FormHeaderModel.SublineTreatment.MONO,
             alignment = LEADING
           )
@@ -72,7 +73,7 @@ data class TransferConfirmationScreenModel(
           FormHeaderModel(
             icon = Bitcoin,
             headline = "Speed up your transfer to",
-            subline = recipientAddress.chunkedAddress(),
+            sublineModel = LabelModel.chunkedAddress(recipientAddress.address),
             sublineTreatment = FormHeaderModel.SublineTreatment.MONO,
             alignment = LEADING
           )
@@ -96,7 +97,7 @@ data class TransferConfirmationScreenModel(
           FormHeaderModel(
             icon = Bitcoin,
             headline = "Transaction summary",
-            subline = recipientAddress.chunkedAddress(),
+            sublineModel = LabelModel.chunkedAddress(recipientAddress.address),
             sublineTreatment = FormHeaderModel.SublineTreatment.MONO,
             alignment = LEADING
           )

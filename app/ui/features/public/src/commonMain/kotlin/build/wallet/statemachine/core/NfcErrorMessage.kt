@@ -50,6 +50,12 @@ data class NfcErrorMessage(
             }
           )
 
+        is NfcException.PairingFirmwareTooOld ->
+          NfcErrorMessage(
+            title = "Firmware update required",
+            description = "This Bitkey can't be paired until it's updated to firmware version ${exception.minimumVersion} or later."
+          )
+
         else ->
           NfcErrorMessage(
             title = "NFC Error",

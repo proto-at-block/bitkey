@@ -8,6 +8,7 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.partnerships.PartnershipTransactionType
 import build.wallet.statemachine.core.Icon.*
+import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -83,7 +84,7 @@ fun pendingFormHeaderModel(
 ) = FormHeaderModel(
   iconModel = transaction.icon(),
   headline = if (isLate) "Transaction delayed" else transaction.pendingTitle(),
-  sublineModel = StringModel(transaction.subtitle()),
+  sublineModel = transaction.subtitleModel(),
   sublineTreatment = transaction.sublineTreatment(),
   alignment = LEADING
 )
@@ -95,7 +96,7 @@ fun confirmedFormHeaderModel(transaction: Transaction) =
   FormHeaderModel(
     iconModel = transaction.icon(),
     headline = transaction.confirmedTitle(),
-    subline = transaction.subtitle(),
+    sublineModel = transaction.subtitleModel(),
     sublineTreatment = transaction.sublineTreatment(),
     alignment = LEADING
   )
@@ -144,10 +145,11 @@ private fun Transaction.icon(): IconModel =
     )
   }
 
-private fun Transaction.subtitle(): String =
+private fun Transaction.subtitleModel(): LabelModel =
   when (this) {
-    is Transaction.BitcoinWalletTransaction -> details.chunkedRecipientAddress()
-    is Transaction.PartnershipTransaction -> "Arrival times and fees are estimates. Confirm details through ${details.partnerInfo.name}."
+    is Transaction.BitcoinWalletTransaction -> LabelModel.chunkedAddress(details.chunkedRecipientAddress())
+    is Transaction.PartnershipTransaction ->
+      StringModel("Arrival times and fees are estimates. Confirm details through ${details.partnerInfo.name}.")
   }
 
 private fun Transaction.PartnershipTransaction.title() =

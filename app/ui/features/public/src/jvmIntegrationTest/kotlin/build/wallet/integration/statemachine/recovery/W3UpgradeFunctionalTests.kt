@@ -9,6 +9,7 @@ import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
+import build.wallet.feature.setFlagValue
 import build.wallet.integration.statemachine.send.clickApprove
 import build.wallet.money.BitcoinMoney.Companion.sats
 import build.wallet.statemachine.account.create.full.hardware.CompleteTwoTapBodyModel
@@ -55,7 +56,7 @@ class W3UpgradeFunctionalTests : FunSpec({
       testTimeout = 120.seconds,
       turbineTimeout = 60.seconds
     ) {
-      navigateToW3Upgrade()
+      navigateToW3Upgrade(app)
       advanceThroughIntroPhase()
       advanceThroughPairingPhase()
       advanceThroughAuthAndKeyRotation()
@@ -80,7 +81,7 @@ class W3UpgradeFunctionalTests : FunSpec({
       testTimeout = 120.seconds,
       turbineTimeout = 60.seconds
     ) {
-      navigateToW3Upgrade()
+      navigateToW3Upgrade(app)
       advanceThroughIntroPhase()
       advanceThroughPairingPhase()
       advanceThroughAuthAndKeyRotation()
@@ -113,7 +114,7 @@ class W3UpgradeFunctionalTests : FunSpec({
       testTimeout = 120.seconds,
       turbineTimeout = 60.seconds
     ) {
-      navigateToW3Upgrade()
+      navigateToW3Upgrade(app)
       advanceThroughIntroPhase()
       advanceThroughPairingPhase()
 
@@ -134,7 +135,7 @@ class W3UpgradeFunctionalTests : FunSpec({
     ) {
       awaitUntilBody<MoneyHomeBodyModel>()
 
-      navigateToW3Upgrade()
+      navigateToW3Upgrade(app)
       advanceThroughIntroPhase()
       advanceThroughPairingPhase()
       advanceThroughAuthAndKeyRotation()
@@ -159,7 +160,7 @@ class W3UpgradeFunctionalTests : FunSpec({
       testTimeout = 120.seconds,
       turbineTimeout = 60.seconds
     ) {
-      navigateToW3Upgrade()
+      navigateToW3Upgrade(app)
       advanceThroughIntroPhase()
       advanceThroughPairingPhase()
       advanceThroughAuthAndKeyRotation()
@@ -221,7 +222,7 @@ class W3UpgradeFunctionalTests : FunSpec({
       testTimeout = 120.seconds,
       turbineTimeout = 60.seconds
     ) {
-      navigateToW3Upgrade()
+      navigateToW3Upgrade(app)
       advanceThroughIntroPhase()
       advanceThroughPairingPhase()
       advanceThroughAuthAndKeyRotation()
@@ -268,7 +269,7 @@ class W3UpgradeFunctionalTests : FunSpec({
       testTimeout = 120.seconds,
       turbineTimeout = 60.seconds
     ) {
-      navigateToW3Upgrade()
+      navigateToW3Upgrade(app)
       advanceThroughIntroPhase()
       advanceThroughPairingPhase()
 
@@ -315,7 +316,8 @@ class W3UpgradeFunctionalTests : FunSpec({
 /**
  * Navigate from MoneyHome to the W3 upgrade entry point via SecurityHub -> Device Settings.
  */
-private suspend fun ReceiveTurbine<ScreenModel>.navigateToW3Upgrade() {
+private suspend fun ReceiveTurbine<ScreenModel>.navigateToW3Upgrade(app: AppTester) {
+  app.w3OnboardingFeatureFlag.setFlagValue(true)
   awaitUntilBody<MoneyHomeBodyModel>()
     .onSecurityHubTabClick()
   awaitUntilBody<SecurityHubBodyModel>()

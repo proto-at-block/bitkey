@@ -8,7 +8,7 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.Bitcoin
 import build.wallet.statemachine.core.Icon.SmallIconCopy
-import build.wallet.statemachine.core.LabelModel.StringModel
+import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.LEADING
 import build.wallet.statemachine.core.form.FormHeaderModel.SublineTreatment.MONO
@@ -444,7 +444,7 @@ private fun bitcoinHeader(headline: String) =
       iconSize = Avatar
     ),
     headline = headline,
-    sublineModel = StringModel(BITCOIN_ADDRESS),
+    sublineModel = LabelModel.chunkedAddress(BITCOIN_ADDRESS),
     sublineTreatment = MONO,
     alignment = LEADING
   )
@@ -456,7 +456,7 @@ private fun partnershipHeader(headline: String) =
       iconSize = Avatar
     ),
     headline = headline,
-    sublineModel = StringModel(PARTNERSHIP_SUBLINE),
+    sublineModel = LabelModel.StringModel(PARTNERSHIP_SUBLINE),
     alignment = LEADING
   )
 

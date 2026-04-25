@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,7 +15,9 @@ import androidx.compose.ui.Alignment.Companion.TopCenter
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -61,9 +64,12 @@ private val UpdateFirmwareCompactHeightThreshold = 680.dp
 private val UpdateFirmwareCompactHeaderSpacing = 24.dp
 private val UpdateFirmwareCompactButtonTopSpacing = 16.dp
 private val UpdateFirmwareCompactHeroCornerRadius = 24.dp
-private val UpdateFirmwareCompactHeroMinHeight = 220.dp
-private val UpdateFirmwareCompactHeroMaxHeight = 320.dp
+private val UpdateFirmwareCompactHeroMinHeight = 260.dp
+private val UpdateFirmwareCompactHeroMaxHeight = 380.dp
 private val UpdateFirmwareLegacyPairHeroOverscan = 200.dp
+private const val UPDATE_FIRMWARE_COMPACT_HERO_IMAGE_SCALE = 1.04f
+private val UpdateFirmwareCompactHeroImageOffset = 8.dp
+private const val UPDATE_FIRMWARE_COMPACT_HERO_FADE_START = 0.82f
 private const val FWUP_HERO_PLACEHOLDER_REVEAL_DELAY_MILLIS = 350
 private const val FWUP_HERO_PLACEHOLDER_FADE_DURATION_MILLIS = 150
 
@@ -204,7 +210,7 @@ private fun FwupInstructionsCompactDesignSystemV2Screen(
   maxHeight: Dp,
 ) {
   val scrollState = rememberScrollState()
-  val heroHeight = (maxHeight * 0.42f).coerceIn(
+  val heroHeight = (maxHeight * 0.5f).coerceIn(
     UpdateFirmwareCompactHeroMinHeight,
     UpdateFirmwareCompactHeroMaxHeight
   )
@@ -241,11 +247,10 @@ private fun FwupInstructionsCompactDesignSystemV2Screen(
           .height(heroHeight)
           .clip(RoundedCornerShape(UpdateFirmwareCompactHeroCornerRadius))
       ) {
-        FwupUpdateBackgroundMedia(
+        FwupCompactHeroBackground(
           modifier = Modifier.matchParentSize(),
           theme = theme,
-          hardwareType = model.hardwareType,
-          showVideoPlaceholder = fwupHeroVideoPlaceholderEnabled
+          hardwareType = model.hardwareType
         )
       }
     }
@@ -260,6 +265,47 @@ private fun FwupInstructionsCompactDesignSystemV2Screen(
     ) {
       Button(model.buttonModel)
     }
+  }
+}
+
+@Composable
+private fun FwupCompactHeroBackground(
+  modifier: Modifier = Modifier,
+  theme: Theme,
+  hardwareType: HardwareType,
+) {
+  Box(
+    modifier = modifier
+      .fillMaxSize()
+      .background(WalletTheme.colors.background)
+  ) {
+    FwupUpdateHeroPlatformImage(
+      modifier = Modifier
+        .fillMaxSize()
+        .offset(y = UpdateFirmwareCompactHeroImageOffset)
+        .graphicsLayer(
+          scaleX = UPDATE_FIRMWARE_COMPACT_HERO_IMAGE_SCALE,
+          scaleY = UPDATE_FIRMWARE_COMPACT_HERO_IMAGE_SCALE
+        ),
+      theme = theme,
+      hardwareType = hardwareType,
+      alpha = 1f,
+      contentScale = ContentScale.Crop
+    )
+
+    Box(
+      modifier = Modifier
+        .matchParentSize()
+        .background(
+          Brush.verticalGradient(
+            colorStops = arrayOf(
+              0f to Color.Transparent,
+              UPDATE_FIRMWARE_COMPACT_HERO_FADE_START to Color.Transparent,
+              1f to WalletTheme.colors.background
+            )
+          )
+        )
+    )
   }
 }
 
@@ -334,7 +380,7 @@ private fun FwupUpdateBackgroundMedia(
   Box(modifier = modifier) {
     if (hardwareType == HardwareType.W1) {
       FwupLegacyPairMedia(videoResourcePath = videoResourcePath)
-    } else if (!showVideoPlaceholder) {
+    } else if (videoResourcePath == null || !showVideoPlaceholder) {
       FwupUpdateBackgroundMediaWithoutPlaceholder(
         theme = theme,
         videoResourcePath = videoResourcePath,
@@ -343,7 +389,7 @@ private fun FwupUpdateBackgroundMedia(
       FwupUpdateBackgroundMediaWithPlaceholder(
         theme = theme,
         videoResourcePath = videoResourcePath,
-        placeholderAlpha = placeholderAlpha
+        placeholderAlpha = placeholderAlpha,
       )
     }
   }
@@ -391,10 +437,11 @@ private fun FwupUpdateBackgroundMediaWithoutPlaceholder(
       scalingMode = VideoScalingMode.CROP
     )
   } else {
-    Image(
-      painter = painterResource(updateFirmwareHeroImageResource(theme, HardwareType.W3)),
-      contentDescription = null,
+    FwupUpdateHeroPlatformImage(
       modifier = Modifier.fillMaxSize(),
+      theme = theme,
+      hardwareType = HardwareType.W3,
+      alpha = 1f,
       contentScale = ContentScale.Crop
     )
   }
@@ -417,23 +464,17 @@ private fun FwupUpdateBackgroundMediaWithPlaceholder(
   }
 
   Image(
-    painter = painterResource(
-      if (videoResourcePath != null) {
-        updateFirmwareHeroPlaceholderResource(theme, HardwareType.W3)
-      } else {
-        updateFirmwareHeroImageResource(theme, HardwareType.W3)
-      }
-    ),
+    painter = painterResource(updateFirmwareHeroPlaceholderResource(theme, HardwareType.W3)),
     contentDescription = null,
     modifier = Modifier
       .fillMaxSize()
-      .alpha(if (videoResourcePath != null) placeholderAlpha else 1f),
+      .alpha(placeholderAlpha),
     contentScale = ContentScale.Crop
   )
 }
 
 @Composable
-private fun updateFirmwareHeroImageResource(
+internal fun updateFirmwareHeroImageResource(
   theme: Theme,
   hardwareType: HardwareType,
 ): DrawableResource =

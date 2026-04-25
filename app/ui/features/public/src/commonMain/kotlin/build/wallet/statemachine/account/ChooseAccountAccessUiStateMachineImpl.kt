@@ -10,6 +10,7 @@ import build.wallet.emergencyexitkit.EmergencyExitKitDataProvider
 import build.wallet.feature.flags.OrphanedKeyRecoveryFeatureFlag
 import build.wallet.feature.flags.PublicCustomerSupportFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
+import build.wallet.feature.flags.W3OnboardingFeatureFlag
 import build.wallet.feature.flags.WipeHardwareLoggedOutFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.keybox.KeyboxDao
@@ -60,6 +61,7 @@ class ChooseAccountAccessUiStateMachineImpl(
   private val feedbackUiStateMachine: FeedbackUiStateMachine,
   private val publicCustomerSupportFeatureFlag: PublicCustomerSupportFeatureFlag,
   private val wipeHardwareLoggedOutFeatureFlag: WipeHardwareLoggedOutFeatureFlag,
+  private val w3OnboardingFeatureFlag: W3OnboardingFeatureFlag,
   private val wipingDeviceUiStateMachine: WipingDeviceUiStateMachine,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val dateTimeFormatter: DateTimeFormatter,
@@ -91,6 +93,10 @@ class ChooseAccountAccessUiStateMachineImpl(
 
     val customerSupportFlag by remember {
       publicCustomerSupportFeatureFlag.flagValue()
+    }.collectAsState()
+
+    val w3OnboardingFlag by remember {
+      w3OnboardingFeatureFlag.flagValue()
     }.collectAsState()
 
     LaunchedEffect(orphanedKeyRecoveryFlag.value) {
@@ -138,7 +144,8 @@ class ChooseAccountAccessUiStateMachineImpl(
           },
           onMoreOptionsClick = { state = ShowingAccountAccessMoreOptions },
           onTermsOfServiceClick = { state = ShowingLegalBrowser(TERMS_OF_SERVICE_URL) },
-          onPrivacyNoticeClick = { state = ShowingLegalBrowser(PRIVACY_NOTICE_URL) }
+          onPrivacyNoticeClick = { state = ShowingLegalBrowser(PRIVACY_NOTICE_URL) },
+          showW3Video = w3OnboardingFlag.value
         ).asRootFullScreen(
           alertModel = alert,
           theme = Theme.DARK

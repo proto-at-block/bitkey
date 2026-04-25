@@ -3,6 +3,7 @@ package build.wallet.statemachine.utxo
 import build.wallet.analytics.events.screen.id.UtxoConsolidationEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.Icon.Bitcoin
+import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.LEADING
@@ -41,7 +42,7 @@ data class UtxoConsolidationSpeedUpConfirmationModel(
         iconSize = Avatar
       ),
       headline = "Speed up your consolidation",
-      subline = recipientAddress,
+      sublineModel = LabelModel.chunkedAddress(recipientAddress),
       sublineTreatment = FormHeaderModel.SublineTreatment.MONO,
       alignment = LEADING
     ),
