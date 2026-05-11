@@ -105,16 +105,24 @@ class DeltaBundle:
 
 
 def load_patch_signing_key(image_type: str, version: str, product="w1a", base_directory=None) -> str:
-    # For w1a: If the version is less than 1.0.52, use the dev key; we created the prod delta patch
-    # signing key in 1.0.52.
+    key_type = image_type
+    if image_type == "mfgtest-prod":
+        key_type = "prod"
+    elif image_type.startswith("mfgtest-"):
+        key_type = "dev"
 
-    if semver.compare(version, "1.0.52") < 0 and product == "w1a":
-        image_type = "dev"
+    # Historical W1 delta bundles created before 1.0.52 used the dev patch
+    # signing key. Keep this path so local tooling can still verify old bundles;
+    # new delta release eligibility is enforced separately in tasks/fwup.py.
+    if semver.compare(version, "1.0.52") < 0 and product == "w1a" and key_type == "prod":
+        key_type = "dev"
 
-    if image_type == "prod":
-        # On Github Actions
+    if key_type == "prod":
+        # On GitHub Actions
         return os.environ["DELTA_PATCH_SIGNING_KEY_PROD"]
     else:
+        key_prefix = "w3a-core" if product == "w3a" else product
+
         if base_directory:
             directory = base_directory
         else:
@@ -125,15 +133,16 @@ def load_patch_signing_key(image_type: str, version: str, product="w1a", base_di
 
             # For multi-MCU products (w3a), use the core platform keys
             if product == "w3a":
-                directory = os.path.join(keys_dir, "w3a-core-" + image_type.lower())
-                key_prefix = "w3a-core"
+                directory = os.path.join(
+                    keys_dir, "w3a-core-" + key_type.lower())
             else:
-                directory = os.path.join(keys_dir, product.lower() + "-" + image_type.lower())
-                key_prefix = product
+                directory = os.path.join(
+                    keys_dir, product.lower() + "-" + key_type.lower())
 
         pem_path = os.path.join(
-            directory, f"{key_prefix}-patch-signing-key-{image_type}.1.priv.pem")
-        return open(pem_path, "r").read()
+            directory, f"{key_prefix}-patch-signing-key-{key_type}.1.priv.pem")
+        with open(pem_path, "r") as f:
+            return f.read()
 
 
 class FwupBundler:

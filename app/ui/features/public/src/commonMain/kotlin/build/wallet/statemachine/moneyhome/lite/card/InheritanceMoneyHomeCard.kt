@@ -9,7 +9,7 @@ fun InheritanceMoneyHomeCard(
   onIHaveABitkey: () -> Unit,
   onGetABitkey: () -> Unit,
 ) = CardModel(
-  heroImage = Icon.InheritancePlanHero,
+  heroImage = Icon.LiteMoneyHomeInheritanceHero,
   title =
     LabelModel.StringWithStyledSubstringModel.from(
       "Use your Bitkey to finish setting up your inheritance plan",

@@ -10,6 +10,7 @@ import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId
 import build.wallet.analytics.v1.Action.*
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
+import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
@@ -109,6 +110,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   )
 
   beforeTest {
+    accountConfigService.reset()
     hardwareUnlockInfoService.clear()
     featureFlagDao.reset()
     pairingTransactionProvider.reset()

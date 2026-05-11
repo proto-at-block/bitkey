@@ -8,4 +8,4 @@ import androidx.compose.runtime.compositionLocalOf
  * Default is false to preserve existing behavior.
  */
 @Suppress("CompositionLocalAllowlist")
-val LocalDesignSystemUpdatesEnabled = compositionLocalOf { false }
+val LocalDesignSystemUpdatesEnabled = compositionLocalOf { true }

@@ -7,6 +7,8 @@ import build.wallet.statemachine.moneyhome.card.CardModel
 fun FingerprintResetCardModel(
   title: String,
   subtitle: String? = null,
+  backgroundColor: CardModel.CardStyle.Gradient.BackgroundColor =
+    CardModel.CardStyle.Gradient.BackgroundColor.Default,
   onClick: () -> Unit,
 ) = CardModel(
   title = LabelModel.StringWithStyledSubstringModel.from(
@@ -20,7 +22,7 @@ fun FingerprintResetCardModel(
     ),
   content = null,
   style = CardModel.CardStyle.Gradient(
-    backgroundColor = CardModel.CardStyle.Gradient.BackgroundColor.Default
+    backgroundColor = backgroundColor
   ),
   onClick = onClick
 )

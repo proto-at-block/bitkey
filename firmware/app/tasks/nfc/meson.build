@@ -6,6 +6,7 @@ srcs = [
 incs = ['inc', mpu_regions_includes]
 deps = [
   hal_nfc_deps['embedded'],
+  nfc_control_deps['embedded'],
   rtos_dep,
   mcu_dep,
   ipc_dep,

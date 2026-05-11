@@ -149,16 +149,78 @@ class DeviceSettingsScreenPresenter(
         val replaceDeviceEnabled by remember(securityAndRecoveryStatus) {
           derivedStateOf { securityAndRecoveryStatus == Available }
         }
-        val goToRecovery = remember(replaceDeviceEnabled, appFunctionalityStatus) {
-          {
-            when {
-              replaceDeviceEnabled -> Router.route = Route.InitiateHardwareRecovery
-              else -> {
-                alertModel = AppFunctionalityStatusAlertModel(
-                  status = appFunctionalityStatus as AppFunctionalityStatus.LimitedFunctionality,
-                  onDismiss = { alertModel = null }
+        fun goToFwup(firmwareUpdateState: FirmwareData.FirmwareUpdateState.PendingUpdate) {
+          navigator.goTo(
+            screen = FwupScreen(
+              firmwareUpdateData = firmwareUpdateState,
+              onExit = { navigator.goTo(screen) }
+            )
+          )
+        }
+        fun goToManageFingerprints() {
+          navigator.goTo(
+            screen = ManagingFingerprintsScreen(
+              account = screen.account,
+              onFwUpRequired = {
+                uiState = ViewingDeviceDataUiState(
+                  showingPromptForFingerprintFwUpdate = true
+                )
+              },
+              entryPoint = EntryPoint.DEVICE_SETTINGS,
+              origin = screen
+            )
+          )
+        }
+
+        fun leaveDeviceSettings(action: DeviceSettingsExitAction) {
+          val currentState = uiState as? ViewingDeviceDataUiState ?: return
+          if (currentState.pendingExitAction != null) return
+
+          uiState =
+            currentState.copy(
+              showingPromptForFingerprintFwUpdate = false,
+              showingManageFingerprintsOptions = false,
+              showingAboutSheet = false,
+              showRealtimeMedia = false,
+              pendingExitAction = action
+            )
+        }
+
+        fun routeAndRestoreIfUnhandled(route: Route) {
+          Router.route = route
+          if (Router.route != null) {
+            uiState = ViewingDeviceDataUiState()
+          }
+        }
+
+        state.pendingExitAction?.let { action ->
+          LaunchedEffect(action) {
+            withFrameNanos { }
+            when (action) {
+              DeviceSettingsExitAction.Back -> goBack()
+              is DeviceSettingsExitAction.FirmwareUpdate -> goToFwup(action.firmwareUpdateState)
+              DeviceSettingsExitAction.ManageFingerprints -> goToManageFingerprints()
+              DeviceSettingsExitAction.ManageReplacement -> {
+                routeAndRestoreIfUnhandled(
+                  Route.NavigationDeeplink(
+                    screen = NavigationScreenId.NAVIGATION_SCREEN_ID_PAIR_DEVICE
+                  )
                 )
               }
+              DeviceSettingsExitAction.RecoverHardware -> {
+                if (replaceDeviceEnabled) {
+                  routeAndRestoreIfUnhandled(Route.InitiateHardwareRecovery)
+                } else {
+                  alertModel = AppFunctionalityStatusAlertModel(
+                    status = appFunctionalityStatus as AppFunctionalityStatus.LimitedFunctionality,
+                    onDismiss = { alertModel = null }
+                  )
+                  uiState = ViewingDeviceDataUiState()
+                }
+              }
+              DeviceSettingsExitAction.SyncMetadata -> uiState = TappingForFirmwareMetadataUiState
+              DeviceSettingsExitAction.UpgradeDevice -> uiState = W3UpgradeUiState
+              DeviceSettingsExitAction.WipeDevice -> uiState = WipingDeviceState
             }
           }
         }
@@ -166,43 +228,22 @@ class DeviceSettingsScreenPresenter(
           createAboutSheetModel(
             availability = availability,
             onDismiss = { uiState = ViewingDeviceDataUiState() },
-            onSyncDeviceInfo = { uiState = TappingForFirmwareMetadataUiState }
+            onSyncDeviceInfo = { leaveDeviceSettings(DeviceSettingsExitAction.SyncMetadata) }
           )
         } else {
           null
-        }
-
-        if (state.isLeavingScreen) {
-          LaunchedEffect(screen) {
-            withFrameNanos { }
-            goBack()
-          }
         }
 
         ViewingDeviceScreenModel(
           recovery = recovery,
           firmwareDeviceAvailability = availability,
           activeHardwareType = activeHardwareType,
-          goToFwup = {
-            navigator.goTo(
-              screen = FwupScreen(
-                firmwareUpdateData = it,
-                onExit = { navigator.goTo(screen) }
-              )
-            )
-          },
-          goToNfcMetadata = { uiState = TappingForFirmwareMetadataUiState },
-          goToRecovery = goToRecovery,
-          onManageReplacement = {
-            Router.route = Route.NavigationDeeplink(
-              screen = NavigationScreenId.NAVIGATION_SCREEN_ID_PAIR_DEVICE
-            )
-          },
-          onWipeDevice = { uiState = WipingDeviceState },
+          goToNfcMetadata = { leaveDeviceSettings(DeviceSettingsExitAction.SyncMetadata) },
+          onExitDeviceSettings = ::leaveDeviceSettings,
           onUpgradeDevice = if (activeHardwareType == HardwareType.W3 || !isW3OnboardingEnabled) {
             null
           } else {
-            { uiState = W3UpgradeUiState }
+            { leaveDeviceSettings(DeviceSettingsExitAction.UpgradeDevice) }
           },
           replaceDeviceEnabled = replaceDeviceEnabled,
           firmwareData = firmwareData,
@@ -218,16 +259,7 @@ class DeviceSettingsScreenPresenter(
             )
           },
           onBack = {
-            if (!state.isLeavingScreen) {
-              uiState =
-                state.copy(
-                  showingPromptForFingerprintFwUpdate = false,
-                  showingManageFingerprintsOptions = false,
-                  showingAboutSheet = false,
-                  showRealtimeMedia = false,
-                  isLeavingScreen = true
-                )
-            }
+            leaveDeviceSettings(DeviceSettingsExitAction.Back)
           }
         ).copy(
           alertModel = alertModel,
@@ -239,30 +271,16 @@ class DeviceSettingsScreenPresenter(
                   FirmwareData.FirmwareUpdateState.UpToDate -> {
                     uiState = ViewingDeviceDataUiState()
                   }
-                  is FirmwareData.FirmwareUpdateState.PendingUpdate -> navigator.goTo(
-                    screen = FwupScreen(
-                      firmwareUpdateData = fwupState,
-                      onExit = { navigator.goTo(screen) }
-                    )
-                  )
+                  is FirmwareData.FirmwareUpdateState.PendingUpdate -> {
+                    leaveDeviceSettings(DeviceSettingsExitAction.FirmwareUpdate(fwupState))
+                  }
                 }
               }
             )
             state.showingManageFingerprintsOptions -> ManageFingerprintsOptionsSheetModel(
               onDismiss = { uiState = ViewingDeviceDataUiState() },
               onEditFingerprints = {
-                navigator.goTo(
-                  screen = ManagingFingerprintsScreen(
-                    account = screen.account,
-                    onFwUpRequired = {
-                      uiState = ViewingDeviceDataUiState(
-                        showingPromptForFingerprintFwUpdate = true
-                      )
-                    },
-                    entryPoint = EntryPoint.DEVICE_SETTINGS,
-                    origin = screen
-                  )
-                )
+                leaveDeviceSettings(DeviceSettingsExitAction.ManageFingerprints)
               },
               onCannotUnlock = {
                 uiState = FingerprintResetUiState
@@ -403,11 +421,8 @@ class DeviceSettingsScreenPresenter(
     firmwareData: FirmwareData?,
     firmwareDeviceAvailability: FirmwareDeviceAvailability,
     activeHardwareType: HardwareType?,
-    goToFwup: (FirmwareData.FirmwareUpdateState.PendingUpdate) -> Unit,
     goToNfcMetadata: () -> Unit,
-    goToRecovery: () -> Unit,
-    onManageReplacement: () -> Unit,
-    onWipeDevice: () -> Unit,
+    onExitDeviceSettings: (DeviceSettingsExitAction) -> Unit,
     replaceDeviceEnabled: Boolean,
     showRealtimeMedia: Boolean,
     onManageFingerprints: () -> Unit,
@@ -492,13 +507,15 @@ class DeviceSettingsScreenPresenter(
           onUpdateVersion = when (val firmwareUpdateState = firmwareData?.firmwareUpdateState) {
             is FirmwareData.FirmwareUpdateState.UpToDate, null -> null
             is FirmwareData.FirmwareUpdateState.PendingUpdate -> {
-              { goToFwup(firmwareUpdateState) }
+              { onExitDeviceSettings(DeviceSettingsExitAction.FirmwareUpdate(firmwareUpdateState)) }
             }
           },
           onSyncDeviceInfo = goToNfcMetadata,
-          onReplaceDevice = goToRecovery,
-          onManageReplacement = onManageReplacement,
-          onWipeDevice = onWipeDevice,
+          onReplaceDevice = { onExitDeviceSettings(DeviceSettingsExitAction.RecoverHardware) },
+          onManageReplacement = {
+            onExitDeviceSettings(DeviceSettingsExitAction.ManageReplacement)
+          },
+          onWipeDevice = { onExitDeviceSettings(DeviceSettingsExitAction.WipeDevice) },
           onPairDevice = {
             Router.route = Route.NavigationDeeplink(
               screen = NavigationScreenId.NAVIGATION_SCREEN_ID_PAIR_DEVICE
@@ -570,7 +587,7 @@ private sealed interface DeviceSettingsUiState {
     val showingManageFingerprintsOptions: Boolean = false,
     val showingAboutSheet: Boolean = false,
     val showRealtimeMedia: Boolean = true,
-    val isLeavingScreen: Boolean = false,
+    val pendingExitAction: DeviceSettingsExitAction? = null,
   ) : DeviceSettingsUiState
 
   /**
@@ -592,6 +609,19 @@ private sealed interface DeviceSettingsUiState {
    * Showing the W3 upgrade flow
    */
   data object W3UpgradeUiState : DeviceSettingsUiState
+}
+
+private sealed interface DeviceSettingsExitAction {
+  data object Back : DeviceSettingsExitAction
+  data class FirmwareUpdate(
+    val firmwareUpdateState: FirmwareData.FirmwareUpdateState.PendingUpdate,
+  ) : DeviceSettingsExitAction
+  data object ManageFingerprints : DeviceSettingsExitAction
+  data object ManageReplacement : DeviceSettingsExitAction
+  data object RecoverHardware : DeviceSettingsExitAction
+  data object SyncMetadata : DeviceSettingsExitAction
+  data object UpgradeDevice : DeviceSettingsExitAction
+  data object WipeDevice : DeviceSettingsExitAction
 }
 
 private sealed interface EnrolledFingerprintResult {

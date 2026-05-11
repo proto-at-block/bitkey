@@ -5,8 +5,10 @@ import build.wallet.bitkey.relationships.Invitation
 import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.RenderContext
+import build.wallet.statemachine.recovery.socrec.recoveryContactDesignSystemV2Header
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 
@@ -66,7 +68,20 @@ data class ViewingInvitationBodyModel(
       size = ButtonModel.Size.Footer,
       onClick = StandardClick(onRemove)
     ),
-    renderContext = RenderContext.Sheet
+    renderContext = RenderContext.Sheet,
+    designSystemV2Model =
+      FormDesignSystemV2Model(
+        header =
+          recoveryContactDesignSystemV2Header(
+            headline = invitation.trustedContactAlias.alias,
+            subline = if (isExpired) {
+              "Your ${invitation.label} invite has expired."
+            } else {
+              "Your ${invitation.label} invite is pending."
+            },
+            alignment = FormHeaderModel.Alignment.CENTER
+          )
+      ).takeUnless { invitation.isBeneficiary }
   )
 
 /**
@@ -76,3 +91,6 @@ private val Invitation.label: String get() = when {
   TrustedContactRole.Beneficiary == roles.singleOrNull() -> "beneficiary"
   else -> "Recovery Contact"
 }
+
+private val Invitation.isBeneficiary: Boolean get() =
+  TrustedContactRole.Beneficiary == roles.singleOrNull()

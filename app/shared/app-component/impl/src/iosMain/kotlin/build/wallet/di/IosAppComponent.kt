@@ -25,6 +25,7 @@ import build.wallet.inappsecurity.BiometricPreference
 import build.wallet.logging.LogWriterContextStore
 import build.wallet.logging.LoggerInitializer
 import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.W3NfcCommands
 import build.wallet.nfc.platform.NfcSessionProvider
 import build.wallet.notifications.DeviceTokenManager
 import build.wallet.phonenumber.lib.PhoneNumberLibBindings
@@ -95,7 +96,7 @@ abstract class IosAppComponent internal constructor(
   @get:Provides val logWritersProvider: (LogWriterContextStore) -> List<LogWriter>,
   @get:Provides val messageSigner: MessageSigner,
   @get:Provides @get:Impl val nfcCommandsImpl: NfcCommands,
-  @get:Provides @get:W3 val nfcCommandsW3: NfcCommands,
+  @get:Provides @get:W3 val nfcCommandsW3: W3NfcCommands,
   @get:Provides val nfcSessionProvider: NfcSessionProvider,
   @get:Provides val pdfAnnotatorFactory: PdfAnnotatorFactory,
   @get:Provides val phoneNumberLibBindings: PhoneNumberLibBindings,
@@ -168,7 +169,7 @@ expect fun create(
   logWritersProvider: (LogWriterContextStore) -> List<LogWriter>,
   messageSigner: MessageSigner,
   nfcCommandsImpl: NfcCommands,
-  nfcCommandsW3: NfcCommands,
+  nfcCommandsW3: W3NfcCommands,
   nfcSessionProvider: NfcSessionProvider,
   pdfAnnotatorFactory: PdfAnnotatorFactory,
   phoneNumberLibBindings: PhoneNumberLibBindings,

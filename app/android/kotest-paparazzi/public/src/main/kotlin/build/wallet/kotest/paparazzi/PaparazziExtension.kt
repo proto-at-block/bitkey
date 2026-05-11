@@ -39,7 +39,7 @@ class PaparazziExtension(
   fun snapshot(
     onlyTheme: Theme? = null,
     deviceConfig: DeviceConfig? = null,
-    designSystemUpdatesEnabled: Boolean = false,
+    designSystemUpdatesEnabled: Boolean = true,
     content: @Composable () -> Unit,
   ) {
     deviceConfig?.let { paparazzi.unsafeUpdateConfig(it) }
@@ -68,7 +68,7 @@ class PaparazziExtension(
     length: Long = 1000,
     onlyTheme: Theme? = null,
     deviceConfig: DeviceConfig? = null,
-    designSystemUpdatesEnabled: Boolean = false,
+    designSystemUpdatesEnabled: Boolean = true,
     content: @Composable () -> Unit,
   ) {
     deviceConfig?.let { paparazzi.unsafeUpdateConfig(it) }

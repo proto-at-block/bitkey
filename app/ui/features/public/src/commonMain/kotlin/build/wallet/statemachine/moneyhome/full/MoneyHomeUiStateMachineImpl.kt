@@ -128,12 +128,13 @@ class MoneyHomeUiStateMachineImpl(
       socRecService.justCompletedRecovery()
     }.collectAsState(initial = false)
 
-    // Check if migration is in progress by calling resume()
-    var isMigrationInProgress by remember { mutableStateOf(false) }
+    var privateWalletMigrationResumeProgress by remember {
+      mutableStateOf<MigrationProgress?>(null)
+    }
     LaunchedEffect("check-migration-status") {
       migrationService.resume(MigrationType.PrivateWalletMigration)
         .onSuccess { progress ->
-          isMigrationInProgress = progress.isInProgress()
+          privateWalletMigrationResumeProgress = progress.takeIf { it.isInProgress() }
         }
     }
 
@@ -177,7 +178,7 @@ class MoneyHomeUiStateMachineImpl(
     var uiState: MoneyHomeUiState by remember(
       props.origin,
       justCompletingSocialRecovery,
-      isMigrationInProgress,
+      privateWalletMigrationResumeProgress,
       isW3UpgradeInProgress,
       isCompletingRecovery
     ) {
@@ -185,8 +186,8 @@ class MoneyHomeUiStateMachineImpl(
         MoneyHomeUiProps.Origin.Launch -> {
           // Navigate directly to hardware recovery when completing hardware recovery
           when {
-            isMigrationInProgress -> PrivateWalletMigrationUiState(
-              inProgress = true
+            privateWalletMigrationResumeProgress != null -> PrivateWalletMigrationUiState(
+              resumeProgress = privateWalletMigrationResumeProgress
             )
             isW3UpgradeInProgress -> W3UpgradeInProgressUiState
             justCompletingSocialRecovery && !hasAutoShownSocialRecoveryScreen -> {
@@ -436,7 +437,7 @@ class MoneyHomeUiStateMachineImpl(
           account = props.account as FullAccount,
           onMigrationComplete = { uiState = ViewingBalanceUiState() },
           onExit = { uiState = ViewingBalanceUiState() },
-          inProgress = state.inProgress
+          resumeProgress = state.resumeProgress
         )
       )
 
@@ -839,7 +840,7 @@ sealed interface MoneyHomeUiState {
    * Private wallet migration flow, presented modally from the coachmark
    */
   data class PrivateWalletMigrationUiState(
-    val inProgress: Boolean = false,
+    val resumeProgress: MigrationProgress? = null,
   ) : MoneyHomeUiState
 
   /**

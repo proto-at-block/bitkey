@@ -24,8 +24,9 @@ import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.ktor.result.HttpError.NetworkError
-import build.wallet.nfc.NfcCommandsMock
 import build.wallet.nfc.NfcSessionFake
+import build.wallet.nfc.W3NfcCommandsMock
+import build.wallet.firmware.FirmwareDeviceInfoMock
 import build.wallet.nfc.platform.ActionProofAction
 import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.LostAppRecoveryCompositeResult
@@ -100,7 +101,7 @@ class InitiatingLostAppRecoveryUiStateMachineImplTests : FunSpec({
 
   val ssekDao = SsekDaoFake()
   val descriptorBackupService = DescriptorBackupServiceFake()
-  val nfcCommandsMock = NfcCommandsMock(turbines::create)
+  val nfcCommandsMock = W3NfcCommandsMock(turbines::create)
   val lostAppAndCloudRecoveryService = LostAppAndCloudRecoveryServiceFake()
   val nfcConfirmableSessionUiStateMachine =
     NfcConfirmableSessionUiStateMachineMock(id = "nfc-confirmable-session")
@@ -167,6 +168,11 @@ class InitiatingLostAppRecoveryUiStateMachineImplTests : FunSpec({
   suspend fun ReceiveTurbine<ScreenModel>.advanceThroughAuthSteps(
     hardwareType: HardwareType = HardwareType.W1,
   ) {
+    nfcCommandsMock.deviceInfoResult = when (hardwareType) {
+      HardwareType.W1 -> FirmwareDeviceInfoMock
+      HardwareType.W3 -> FirmwareDeviceInfoMock.copy(hwRevision = "w3a-core-evt")
+    }
+
     awaitBody<RecoverYourAppKeyBodyModel> { onStartRecovery.shouldNotBeNull().invoke() }
     awaitBodyMock<NfcSessionUIStateMachineProps<*>>(id = "nfc-session") { // get hardware auth key
       shouldLock.shouldBeFalse()

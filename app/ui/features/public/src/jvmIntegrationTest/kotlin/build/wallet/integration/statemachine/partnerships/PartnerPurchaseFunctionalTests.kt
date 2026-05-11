@@ -55,7 +55,7 @@ class PartnerPurchaseFunctionalTests : FunSpec({
         }
 
         val body = sheetModel.body.shouldBeInstanceOf<FormBodyModel>()
-        assertEquals("Choose an amount", body.toolbar?.middleAccessory?.title)
+        assertEquals("Choose an amount", body.header?.headline ?: body.toolbar?.middleAccessory?.title)
 
         val items = body.mainContentList.first()
           .shouldBeTypeOf<FormMainContentModel.ListGroup>()

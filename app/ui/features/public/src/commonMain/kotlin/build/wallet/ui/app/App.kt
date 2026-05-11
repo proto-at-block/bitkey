@@ -35,7 +35,7 @@ import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationS
 import build.wallet.statemachine.send.signtransaction.SignTransactionNfcBodyModel
 import build.wallet.statemachine.settings.SettingsBodyModel
 import build.wallet.statemachine.settings.full.device.DeviceSettingsFormBodyModel
-import build.wallet.ui.components.card.supportsBitkeyDevice3DMedia
+
 import build.wallet.ui.components.screen.*
 import build.wallet.ui.compose.LocalHaptics
 import build.wallet.ui.model.UiModelContentScreen
@@ -356,35 +356,8 @@ private fun shouldSkipRealtimeSurfaceTransition(
   return isDesignSystemV2Enabled &&
     (
       fromBody is DeviceSettingsFormBodyModel ||
-        toBody is DeviceSettingsFormBodyModel ||
-        fromBody.hasInteractiveBitkeyWaitingSurface(isDesignSystemV2Enabled) ||
-        toBody.hasInteractiveBitkeyWaitingSurface(isDesignSystemV2Enabled)
+        toBody is DeviceSettingsFormBodyModel
     )
-}
-
-private fun BodyModel.hasInteractiveBitkeyWaitingSurface(
-  isDesignSystemV2Enabled: Boolean,
-): Boolean {
-  val formBody = this as? FormBodyModel ?: return false
-  val renderedMainContent =
-    if (isDesignSystemV2Enabled) {
-      formBody.designSystemV2Model?.mainContentList ?: formBody.mainContentList
-    } else {
-      formBody.mainContentList
-    }
-
-  return formBody.renderContext == build.wallet.statemachine.core.form.RenderContext.Screen &&
-    renderedMainContent.any { mainContent ->
-      mainContent.isInteractiveBitkeyWaitingSurface()
-    }
-}
-
-private fun FormMainContentModel.isInteractiveBitkeyWaitingSurface(): Boolean {
-  if (this !is FormMainContentModel.Showcase) return false
-  val videoContent = content as? FormMainContentModel.Showcase.Content.VideoContent ?: return false
-
-  return videoContent.video == FormMainContentModel.Showcase.Content.VideoContent.Video.BITKEY_WAITING_3D &&
-    supportsBitkeyDevice3DMedia(videoContent.hardwareType)
 }
 
 private fun ScreenPresentationStyle.isModalPresentationStyle(): Boolean {

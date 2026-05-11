@@ -1,20 +1,26 @@
+@file:Suppress("TooManyFunctions")
+
 package build.wallet.testing.ext
 
 import bitkey.account.HardwareType
-import kotlin.coroutines.cancellation.CancellationException
 import bitkey.auth.AuthTokenScope
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.app.AppGlobalAuthKey
+import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.signResult
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.nfc.FakeHwAuthKeypair
 import build.wallet.nfc.TransactionFn
+import build.wallet.nfc.platform.ActionProofAction
 import build.wallet.nfc.platform.HardwareInteraction
+import build.wallet.nfc.platform.requireW3
 import build.wallet.nfc.platform.signAccessToken
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrolled
+import build.wallet.statemachine.auth.ActionProofType
 import build.wallet.testing.AppTester
 import build.wallet.testing.fakeTransact
 import com.github.michaelbull.result.getOrThrow
@@ -23,6 +29,7 @@ import io.kotest.matchers.shouldBe
 import okio.ByteString
 import okio.ByteString.Companion.encodeUtf8
 import okio.ByteString.Companion.toByteString
+import kotlin.coroutines.cancellation.CancellationException
 
 suspend fun AppTester.getActiveHwAuthKey(): FakeHwAuthKeypair {
   return fakeHardwareKeyStore.getAuthKeypair()
@@ -105,6 +112,60 @@ suspend fun <T> AppTester.hardwareTransaction(
 
 suspend fun AppTester.assertActiveHardwareType(expected: HardwareType) {
   getActiveFullAccount().keybox.config.hardwareType.shouldBe(expected)
+}
+
+/**
+ * Builds a W3 hardware-signed action proof without driving the UI flow.
+ */
+suspend fun AppTester.buildW3HardwareActionProof(
+  actionProofType: ActionProofType,
+  appAuthKey: PublicKey<AppGlobalAuthKey>,
+  accountId: FullAccountId,
+): PrivilegedActionProof.HwSignedAction {
+  val signedPayload = actionProofService.buildAppSignedPayload(
+    action = actionProofType.action,
+    value = actionProofType.value,
+    extra = actionProofType.extra,
+    appAuthKey = appAuthKey,
+    accountId = accountId
+  ).getOrThrow()
+
+  val initialInteraction =
+    nfcTransactor.fakeTransact(hardwareType = HardwareType.W3) { session, commands ->
+      commands.requireW3(session).signActionProof(
+        session = session,
+        version = 1u,
+        action = ActionProofAction.from(actionProofType.action),
+        value = actionProofType.value,
+        bindings = signedPayload.bindings
+      )
+    }.getOrThrow()
+
+  val hwSignature =
+    when (initialInteraction) {
+      is HardwareInteraction.Completed -> initialInteraction.result
+      is HardwareInteraction.ConfirmWithEmulatedPrompt -> {
+        initialInteraction.approve.onSelect?.invoke()
+
+        nfcTransactor.fakeTransact(hardwareType = HardwareType.W3) { session, commands ->
+          when (val finalInteraction = initialInteraction.approve.fetchResult(session, commands)) {
+            is HardwareInteraction.Completed -> finalInteraction.result
+            else ->
+              error(
+                "Expected Completed after W3 confirmation, got ${finalInteraction::class.simpleName}"
+              )
+          }
+        }.getOrThrow()
+      }
+      else -> error("Unexpected interaction while signing action proof: ${initialInteraction::class.simpleName}")
+    }.lowercase()
+
+  val header = actionProofService.createActionProofHeader(
+    signatures = listOf(signedPayload.appSignature, hwSignature),
+    nonce = signedPayload.nonce
+  ).getOrThrow()
+
+  return PrivilegedActionProof.HwSignedAction(actionProof = header)
 }
 
 /**

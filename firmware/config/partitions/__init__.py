@@ -1,5 +1,4 @@
 import os
-from pipes import Template
 import yaml
 import jinja2
 
@@ -40,7 +39,7 @@ class LinkerGenerator:
         size = 0
         num_map = {'K': 1024, 'M': 1024*1000}
         if s.isdigit():
-            size = int(str)
+            size = int(s)
         else:
             if len(s) > 1:
                 size = float(s[:-1]) * \

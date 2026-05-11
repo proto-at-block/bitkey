@@ -21,9 +21,6 @@ fun NotificationPreferencesFormScreenDesignSystemV2Preview() {
         onUpdatesEmailToggle = {},
         formEditingState = NotificationPreferencesFormEditingState.Editing,
         onBack = {},
-        tosInfo = null,
-        ctaModel = null,
-        isDesignSystemV2Enabled = true,
         continueOnClick = {},
         onMoneyMovementLearnMore = {}
       )

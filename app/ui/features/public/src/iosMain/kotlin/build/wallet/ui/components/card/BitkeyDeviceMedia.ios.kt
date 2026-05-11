@@ -11,8 +11,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.viewinterop.UIKitInteropProperties
 import androidx.compose.ui.viewinterop.UIKitView
 import bitkey.account.HardwareType
-import build.wallet.statemachine.core.form.FORM_DS_V2_WAITING_REVEAL_DURATION_MILLIS
-import build.wallet.statemachine.core.form.FormDsV2WaitingRevealEasing
 import build.wallet.statemachine.core.form.FormMainContentModel.DeviceStatusCard
 import build.wallet.ui.components.video.VideoPlayer
 import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
@@ -21,18 +19,16 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.ObjCAction
 import kotlinx.cinterop.cValue
 import kotlinx.cinterop.useContents
-import platform.AVFoundation.*
-import platform.CoreGraphics.CGRectMake
 import platform.CoreGraphics.CGPointMake
+import platform.CoreGraphics.CGRectMake
 import platform.CoreGraphics.CGRectZero
 import platform.CoreGraphics.CGSizeMake
-import platform.CoreMedia.CMTimeMakeWithSeconds
-import platform.Foundation.NSString
 import platform.Foundation.NSBundle
 import platform.Foundation.NSNotification
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSRunLoop
 import platform.Foundation.NSRunLoopCommonModes
+import platform.Foundation.NSString
 import platform.Foundation.NSURL
 import platform.QuartzCore.CADisplayLink
 import platform.SceneKit.SCNCamera
@@ -48,6 +44,8 @@ import platform.SceneKit.SCNScene
 import platform.SceneKit.SCNVector3Make
 import platform.SceneKit.SCNView
 import platform.SceneKit.SCNWrapModeRepeat
+import platform.UIKit.UIApplicationDidBecomeActiveNotification
+import platform.UIKit.UIApplicationWillResignActiveNotification
 import platform.UIKit.UIColor
 import platform.UIKit.UIGestureRecognizer
 import platform.UIKit.UIGestureRecognizerDelegateProtocol
@@ -58,8 +56,6 @@ import platform.UIKit.UIGestureRecognizerStateEnded
 import platform.UIKit.UIGestureRecognizerStateFailed
 import platform.UIKit.UIPanGestureRecognizer
 import platform.UIKit.UITraitCollection
-import platform.UIKit.UIApplicationDidBecomeActiveNotification
-import platform.UIKit.UIApplicationWillResignActiveNotification
 import platform.UIKit.UIUserInterfaceStyle
 import platform.UIKit.UIView
 import platform.UIKit.drawInRect
@@ -70,10 +66,8 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.roundToInt
-import kotlin.math.sin
 
 private const val BITKEY_DEVICE_MODEL_NAME_W3_ROTATE = "Bitkey_W3_bitkeylogo"
-private const val BITKEY_DEVICE_MODEL_NAME_W3_WAITING = "Bitkey_W3_bitkeylogo"
 private const val BITKEY_DEVICE_MODEL_TYPE = "usdz"
 private const val BITKEY_DEVICE_HDRI_NAME = "W3_HDRI"
 private const val BITKEY_DEVICE_HDRI_TYPE = "hdr"
@@ -82,8 +76,7 @@ private const val BITKEY_DEVICE_INLAY_TEXTURE_NAME = "Bitkey_W3_bitkeylogo_inlay
 private const val BITKEY_DEVICE_INLAY_TEXTURE_TYPE = "png"
 private const val BITKEY_DEVICE_SERIAL_TEXT_FONT_POSTSCRIPT_NAME = "CashSansMono-Regular"
 private const val BITKEY_DEVICE_SCREEN_NODE_NAME = "Screen"
-private const val BITKEY_DEVICE_SCREEN_VIDEO_NAME = "bitkey_taptophoneinsert"
-private const val BITKEY_DEVICE_SCREEN_VIDEO_TYPE = "mp4"
+
 private const val BITKEY_DEVICE_ROTATION_RADIANS_PER_POINT = 0.0077f
 internal const val BITKEY_DEVICE_CAMERA_OFFSET_X = 0.0f
 internal const val BITKEY_DEVICE_CAMERA_OFFSET_Y = 0.0f
@@ -91,20 +84,14 @@ internal const val BITKEY_DEVICE_CAMERA_DISTANCE = 0.17f
 internal const val BITKEY_DEVICE_CAMERA_FIELD_OF_VIEW = 25.0f
 private const val BITKEY_DEVICE_CAMERA_NEAR_Z = 0.001
 private const val BITKEY_DEVICE_CAMERA_FAR_Z = 10.0
-private const val BITKEY_DEVICE_WAITING_PREFERRED_FRAMES_PER_SECOND = 60L
 private const val BITKEY_DEVICE_INTERACTION_PREFERRED_FRAMES_PER_SECOND = 120L
 internal const val BITKEY_DEVICE_MODEL_SCALE = 1.0f
-internal const val BITKEY_DEVICE_WAITING_MODEL_SCALE = 0.85f
 private const val BITKEY_DEVICE_INERTIA_ENABLED = true
 private const val BITKEY_DEVICE_INERTIA_VELOCITY_SCALE = 0.0072f
 private const val BITKEY_DEVICE_INERTIA_DAMPING = 5.0f
 private const val BITKEY_DEVICE_INERTIA_STOP_THRESHOLD = 0.02f
 private const val BITKEY_DEVICE_ROTATION_SNAP_RATE = 9.0f
 private const val BITKEY_DEVICE_ROTATION_SNAP_THRESHOLD = 0.002f
-internal const val BITKEY_DEVICE_WAITING_REST_TRANSLATION_Y = -0.0065f
-internal const val BITKEY_DEVICE_WAITING_INTRO_TARGET_TRANSLATION_Y = -0.002f
-private const val BITKEY_DEVICE_WAITING_BOB_AMPLITUDE_Y = 0.0011f
-private const val BITKEY_DEVICE_WAITING_BOB_PERIOD_SECONDS = 2.8f
 internal const val BITKEY_DEVICE_W3_ROTATE_TRANSLATION_Y = 0.0f
 internal const val BITKEY_DEVICE_HDRI_ROTATION_DEGREES = -94.0f
 internal const val BITKEY_DEVICE_HDRI_ELEVATION_DEGREES = 23.0f
@@ -155,135 +142,97 @@ internal actual fun BitkeyDeviceMedia(
   batteryPercentage: Int?,
   hardwareType: HardwareType,
   interactionState: BitkeyDeviceMediaInteractionState,
-  shouldPlayWaitingIntro: Boolean,
 ) {
-  when (content) {
-    DeviceStatusCard.VideoContent.BITKEY_ROTATE,
-    DeviceStatusCard.VideoContent.BITKEY_WAITING_3D,
-    -> {
-      val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
-      val supports3DMedia = supportsBitkeyDevice3DMedia(hardwareType)
-      val screenVideoResourcePath =
-        if (content == DeviceStatusCard.VideoContent.BITKEY_WAITING_3D) {
-          loadBitkeyDeviceScreenVideoPath()
-        } else {
-          null
-        }
-      val modelScene = remember(isDesignSystemV2Enabled, supports3DMedia, hardwareType, content) {
-        if (!isDesignSystemV2Enabled || !supports3DMedia) {
-          null
-        } else {
-          loadBitkeyDeviceScene(
-            content = content
-          )
-        }
-      }
-      val lightingEnvironmentUrl = remember(isDesignSystemV2Enabled) {
-        if (!isDesignSystemV2Enabled) {
-          null
-        } else {
-          loadBitkeyDeviceLightingEnvironmentUrl()
-        }
-      }
-      val sceneInteractionDelegate = remember(modelScene, content) {
-        modelScene?.let {
-          BitkeyDeviceSceneInteractionDelegate(
-            content = content
-          )
-        }
-      }
-      val debugSettings = BitkeyDeviceSceneDebugTuning.currentSettings()
-      val sceneBackgroundColor =
-        when {
-          content == DeviceStatusCard.VideoContent.BITKEY_WAITING_3D -> WalletTheme.colors.background
-          isDesignSystemV2Enabled -> WalletTheme.colors.secondary
-          else -> Color.Transparent
-        }
-
-      DisposableEffect(interactionState, sceneInteractionDelegate) {
-        interactionState.setDelegate(sceneInteractionDelegate)
-        onDispose {
-          interactionState.setDelegate(null)
-        }
-      }
-
-      if (modelScene == null) {
-        if (content == DeviceStatusCard.VideoContent.BITKEY_WAITING_3D) {
-          VideoPlayer(
-            modifier = modifier,
-            resourcePath = bitkeyDeviceVideoResource(content),
-            isLooping = false,
-            autoStart = true
-          )
-        } else {
-          Box(
-            modifier = modifier,
-            contentAlignment = Alignment.Center
-          ) {
-            VideoPlayer(
-              modifier = Modifier.size(BitkeyDeviceFallbackMediaSize),
-              resourcePath = bitkeyDeviceVideoResource(content),
-              isLooping = true,
-              autoStart = true
-            )
-          }
-        }
-      } else {
-        UIKitView(
-          factory = {
-            val sceneView =
-              createBitkeyDeviceSceneView(
-                scene = modelScene,
-                lightingEnvironmentUrl = lightingEnvironmentUrl,
-                debugSettings = debugSettings,
-                backgroundColor = sceneBackgroundColor
-              )
-            sceneInteractionDelegate?.updateScreenVideoResourcePath(screenVideoResourcePath)
-            sceneInteractionDelegate?.updateSerialNumber(serialNumber)
-            sceneInteractionDelegate?.updateBatteryPercentage(batteryPercentage)
-            sceneInteractionDelegate?.sceneView = sceneView
-            sceneInteractionDelegate?.updateDebugSettings(debugSettings)
-            BitkeyDeviceSceneContainerView(sceneView).apply {
-              applyBackgroundColor(
-                color = sceneBackgroundColor.toUIColor(),
-                useThemeBackgroundColor =
-                  isDesignSystemV2Enabled &&
-                    content == DeviceStatusCard.VideoContent.BITKEY_WAITING_3D,
-                useSecondaryThemeColor =
-                  isDesignSystemV2Enabled &&
-                    content != DeviceStatusCard.VideoContent.BITKEY_WAITING_3D
-              )
-            }
-          },
-          update = { containerView ->
-            containerView.applyBackgroundColor(
-              color = sceneBackgroundColor.toUIColor(),
-              useThemeBackgroundColor =
-                isDesignSystemV2Enabled &&
-                  content == DeviceStatusCard.VideoContent.BITKEY_WAITING_3D,
-              useSecondaryThemeColor =
-                isDesignSystemV2Enabled &&
-                  content != DeviceStatusCard.VideoContent.BITKEY_WAITING_3D
-            )
-            sceneInteractionDelegate?.updateWaitingIntroTrigger(shouldPlayWaitingIntro)
-            sceneInteractionDelegate?.updateSceneBackground(sceneBackgroundColor)
-            sceneInteractionDelegate?.updateScreenVideoResourcePath(screenVideoResourcePath)
-            sceneInteractionDelegate?.updateSerialNumber(serialNumber)
-            sceneInteractionDelegate?.updateBatteryPercentage(batteryPercentage)
-            sceneInteractionDelegate?.updateDebugSettings(debugSettings)
-          },
-          modifier = modifier,
-          onRelease = {
-            sceneInteractionDelegate?.stopMomentum()
-            sceneInteractionDelegate?.sceneView = null
-          },
-          properties = UIKitInteropProperties(
-            isInteractive = false,
-            isNativeAccessibilityEnabled = false
-          )
-        )
-      }
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val supports3DMedia = supportsBitkeyDevice3DMedia(hardwareType)
+  val modelScene = remember(isDesignSystemV2Enabled, supports3DMedia, hardwareType) {
+    if (!isDesignSystemV2Enabled || !supports3DMedia) {
+      null
+    } else {
+      loadBitkeyDeviceScene()
     }
+  }
+  val lightingEnvironmentUrl = remember(isDesignSystemV2Enabled) {
+    if (!isDesignSystemV2Enabled) {
+      null
+    } else {
+      loadBitkeyDeviceLightingEnvironmentUrl()
+    }
+  }
+  val sceneInteractionDelegate = remember(modelScene) {
+    modelScene?.let {
+      BitkeyDeviceSceneInteractionDelegate()
+    }
+  }
+  val debugSettings = BitkeyDeviceSceneDebugTuning.currentSettings()
+  val sceneBackgroundColor =
+    when {
+      isDesignSystemV2Enabled -> WalletTheme.colors.secondary
+      else -> Color.Transparent
+    }
+
+  DisposableEffect(interactionState, sceneInteractionDelegate) {
+    interactionState.setDelegate(sceneInteractionDelegate)
+    onDispose {
+      interactionState.setDelegate(null)
+    }
+  }
+
+  if (modelScene == null) {
+    Box(
+      modifier = modifier,
+      contentAlignment = Alignment.Center
+    ) {
+      VideoPlayer(
+        modifier = Modifier.size(BitkeyDeviceFallbackMediaSize),
+        resourcePath = bitkeyDeviceVideoResource(content),
+        isLooping = true,
+        autoStart = true
+      )
+    }
+  } else {
+    UIKitView(
+      factory = {
+        val sceneView =
+          createBitkeyDeviceSceneView(
+            scene = modelScene,
+            lightingEnvironmentUrl = lightingEnvironmentUrl,
+            debugSettings = debugSettings,
+            backgroundColor = sceneBackgroundColor
+          )
+        sceneInteractionDelegate?.updateSerialNumber(serialNumber)
+        sceneInteractionDelegate?.updateBatteryPercentage(batteryPercentage)
+        sceneInteractionDelegate?.sceneView = sceneView
+        sceneInteractionDelegate?.updateDebugSettings(debugSettings)
+        BitkeyDeviceSceneContainerView(sceneView).apply {
+          applyBackgroundColor(
+            color = sceneBackgroundColor.toUIColor(),
+            useThemeBackgroundColor = false,
+            useSecondaryThemeColor = isDesignSystemV2Enabled
+          )
+        }
+      },
+      update = { containerView ->
+        containerView.applyBackgroundColor(
+          color = sceneBackgroundColor.toUIColor(),
+          useThemeBackgroundColor = false,
+          useSecondaryThemeColor = isDesignSystemV2Enabled
+        )
+        sceneInteractionDelegate?.updateSceneBackground(sceneBackgroundColor)
+        sceneInteractionDelegate?.updateSerialNumber(serialNumber)
+        sceneInteractionDelegate?.updateBatteryPercentage(batteryPercentage)
+        sceneInteractionDelegate?.updateDebugSettings(debugSettings)
+      },
+      modifier = modifier,
+      onRelease = {
+        sceneInteractionDelegate?.stopMomentum()
+        sceneInteractionDelegate?.sceneView = null
+      },
+      properties = UIKitInteropProperties(
+        isInteractive = false,
+        isNativeAccessibilityEnabled = false
+      )
+    )
   }
 }
 
@@ -314,7 +263,7 @@ private fun createBitkeyDeviceSceneView(
     allowsCameraControl = false
     playing = false
     rendersContinuously = false
-    preferredFramesPerSecond = BITKEY_DEVICE_WAITING_PREFERRED_FRAMES_PER_SECOND
+    preferredFramesPerSecond = BITKEY_DEVICE_INTERACTION_PREFERRED_FRAMES_PER_SECOND
   }
 
 @OptIn(ExperimentalForeignApi::class)
@@ -369,14 +318,9 @@ private class BitkeyDeviceSceneContainerView(
 }
 
 @OptIn(ExperimentalForeignApi::class)
-private fun loadBitkeyDeviceScene(content: DeviceStatusCard.VideoContent): SCNScene? {
-  val modelName =
-    when (content) {
-      DeviceStatusCard.VideoContent.BITKEY_ROTATE -> BITKEY_DEVICE_MODEL_NAME_W3_ROTATE
-      DeviceStatusCard.VideoContent.BITKEY_WAITING_3D -> BITKEY_DEVICE_MODEL_NAME_W3_WAITING
-    }
+private fun loadBitkeyDeviceScene(): SCNScene? {
   val modelPath = NSBundle.mainBundle.pathForResource(
-    name = modelName,
+    name = BITKEY_DEVICE_MODEL_NAME_W3_ROTATE,
     ofType = BITKEY_DEVICE_MODEL_TYPE
   ) ?: return null
 
@@ -397,13 +341,6 @@ private fun loadBitkeyDeviceLightingEnvironmentUrl(): NSURL? {
 
   return NSURL.fileURLWithPath(environmentPath)
 }
-
-@OptIn(ExperimentalForeignApi::class)
-private fun loadBitkeyDeviceScreenVideoPath(): String? =
-  NSBundle.mainBundle.pathForResource(
-    name = BITKEY_DEVICE_SCREEN_VIDEO_NAME,
-    ofType = BITKEY_DEVICE_SCREEN_VIDEO_TYPE
-  )
 
 @OptIn(ExperimentalForeignApi::class)
 private fun loadBitkeyDeviceInlayTexturePath(): String? =
@@ -442,10 +379,6 @@ internal actual fun BitkeyDeviceMediaInteractionOverlay(
 
 internal actual fun supportsBitkeyDevice3DMedia(hardwareType: HardwareType): Boolean =
   hardwareType == HardwareType.W3
-
-@Composable
-internal actual fun supportsInteractiveBitkeyWaitingMedia(hardwareType: HardwareType): Boolean =
-  supportsBitkeyDevice3DMedia(hardwareType)
 
 @OptIn(ExperimentalForeignApi::class)
 private class BitkeyDeviceMediaInteractionOverlayView(
@@ -538,12 +471,9 @@ internal class BitkeyDeviceScenePanInteractionHandler(
 @OptIn(ExperimentalForeignApi::class)
 @Suppress("LargeClass")
 internal class BitkeyDeviceSceneInteractionDelegate(
-  private val content: DeviceStatusCard.VideoContent,
   private val lightingEnvironmentUrl: NSURL? = loadBitkeyDeviceLightingEnvironmentUrl(),
 ) : BitkeyDeviceMediaInteractionDelegate {
   private enum class RotationMotionMode {
-    INTRO,
-    IDLE,
     MOMENTUM,
     SNAP,
   }
@@ -558,8 +488,6 @@ internal class BitkeyDeviceSceneInteractionDelegate(
         releaseAppLifecycleObserver()
         removeScreenBatteryOverlayNode()
         restoreDefaultInlayMaterialContents()
-        restoreDefaultScreenMaterialContents()
-        releaseScreenVideoPlayer()
         inlayMaterial = null
         screenNode = null
         screenMaterial = null
@@ -576,13 +504,7 @@ internal class BitkeyDeviceSceneInteractionDelegate(
       configureCameraController()
       applySceneConfiguration()
       applyInlayMaterial()
-      applyScreenVideoMaterial()
       applyScreenBatteryOverlay()
-      if (shouldPlayWaitingIntro) {
-        startWaitingIntroIfNeeded()
-      } else {
-        startWaitingIdleMotionIfNeeded()
-      }
     }
 
   private var configuredScene: SCNScene? = null
@@ -630,15 +552,8 @@ internal class BitkeyDeviceSceneInteractionDelegate(
   private var batteryPercentage: Int? = null
   private var inlayMaterial: SCNMaterial? = null
   private var screenNode: SCNNode? = null
-  private var screenVideoResourcePath: String? = null
   private var screenMaterial: SCNMaterial? = null
   private var screenBatteryOverlayNode: SCNNode? = null
-  private var screenVideoPlayer: AVPlayer? = null
-  private var screenVideoPlaybackObserver: BitkeyDeviceScreenVideoPlaybackObserver? = null
-  private var screenVideoObservedItem: AVPlayerItem? = null
-  private var defaultScreenDiffuseContents: Any? = null
-  private var defaultScreenEmissionContents: Any? = null
-  private var hasCapturedDefaultScreenMaterialContents = false
   private var defaultInlayDiffuseContents: Any? = null
   private var hasCapturedDefaultInlayMaterialContents = false
   private var customInlaySerialNumber: String? = null
@@ -647,13 +562,6 @@ internal class BitkeyDeviceSceneInteractionDelegate(
   private var customScreenBatteryImage: platform.UIKit.UIImage? = null
   private var isApplicationActive = true
   private var isUserInteracting = false
-  private var shouldResumeScreenVideoPlayback = false
-  private var introElapsedSeconds = 0.0f
-  private var introStartRotationY = 0.0f
-  private var introStartTranslationY = 0.0f
-  private var bobElapsedSeconds = 0.0f
-  private var shouldPlayWaitingIntro = false
-  private var hasPlayedWaitingIntro = false
   private var rotationMotionMode: RotationMotionMode? = null
   private var momentumDisplayLink: CADisplayLink? = null
   private var appLifecycleObserver: BitkeyDeviceAppLifecycleObserver? = null
@@ -674,17 +582,7 @@ internal class BitkeyDeviceSceneInteractionDelegate(
     debugSettings = settings
     currentModelTranslationY = defaultModelTranslationY()
     applySceneConfiguration()
-    applyScreenVideoMaterial()
     applyScreenBatteryOverlay()
-  }
-
-  fun updateScreenVideoResourcePath(resourcePath: String?) {
-    if (screenVideoResourcePath != resourcePath) {
-      restoreDefaultScreenMaterialContents()
-      releaseScreenVideoPlayer()
-      screenVideoResourcePath = resourcePath
-    }
-    applyScreenVideoMaterial()
   }
 
   fun updateSerialNumber(serialNumber: String?) {
@@ -705,18 +603,6 @@ internal class BitkeyDeviceSceneInteractionDelegate(
     customScreenBatteryImage = null
     customScreenBatteryPercentage = null
     applyScreenBatteryOverlay()
-  }
-
-  fun updateWaitingIntroTrigger(shouldPlayWaitingIntro: Boolean) {
-    if (content != DeviceStatusCard.VideoContent.BITKEY_WAITING_3D) return
-    if (this.shouldPlayWaitingIntro == shouldPlayWaitingIntro) return
-
-    this.shouldPlayWaitingIntro = shouldPlayWaitingIntro
-    if (shouldPlayWaitingIntro) {
-      startWaitingIntroIfNeeded()
-    } else {
-      startWaitingIdleMotionIfNeeded()
-    }
   }
 
   override fun beginInteraction(
@@ -768,8 +654,6 @@ internal class BitkeyDeviceSceneInteractionDelegate(
 
   private fun stopAllAnimation() {
     angularVelocityY = 0.0f
-    introElapsedSeconds = 0.0f
-    bobElapsedSeconds = 0.0f
     rotationMotionMode = null
     momentumDisplayLink?.invalidate()
     momentumDisplayLink = null
@@ -779,34 +663,6 @@ internal class BitkeyDeviceSceneInteractionDelegate(
   private fun handleMomentumFrame(displayLink: CADisplayLink) {
     val dt = displayLink.duration.toFloat().takeIf { it > 0.0f } ?: (1.0f / 60.0f)
     when (rotationMotionMode) {
-      RotationMotionMode.INTRO -> {
-        introElapsedSeconds += dt
-        val introProgress =
-          (
-            introElapsedSeconds /
-              (FORM_DS_V2_WAITING_REVEAL_DURATION_MILLIS.toFloat() / 1000.0f)
-          ).coerceIn(0.0f, 1.0f)
-        val easedProgress = FormDsV2WaitingRevealEasing.transform(introProgress)
-        currentModelRotationY = lerp(introStartRotationY, PI.toFloat(), easedProgress)
-        currentModelTranslationY = lerp(
-          introStartTranslationY,
-          debugSettings.waitingIntroTargetTranslationY,
-          easedProgress
-        )
-        applyModelTransform()
-
-        if (introProgress >= 1.0f) {
-          currentModelRotationY = PI.toFloat()
-          currentModelTranslationY = debugSettings.waitingIntroTargetTranslationY
-          bobElapsedSeconds = 0.0f
-          applyModelTransform()
-          startIdleMotion()
-        }
-      }
-      RotationMotionMode.IDLE -> {
-        bobElapsedSeconds += dt
-        applyModelTransform()
-      }
       RotationMotionMode.MOMENTUM -> {
         currentModelRotationY += angularVelocityY * dt
         applyModelTransform()
@@ -927,51 +783,6 @@ internal class BitkeyDeviceSceneInteractionDelegate(
     )
   }
 
-  private fun applyScreenVideoMaterial() {
-    val material = screenMaterial ?: return
-    captureDefaultScreenMaterialContentsIfNeeded(material)
-
-    val videoResourcePath = screenVideoResourcePath ?: run {
-      restoreDefaultScreenMaterialContents()
-      return
-    }
-
-    if (screenVideoPlayer == null) {
-      val url = NSURL.fileURLWithPath(videoResourcePath)
-      val item = AVPlayerItem.playerItemWithURL(url)
-      val player =
-        AVPlayer().apply {
-          actionAtItemEnd = AVPlayerActionAtItemEndNone
-          automaticallyWaitsToMinimizeStalling = false
-          replaceCurrentItemWithPlayerItem(item)
-        }
-      val playbackObserver =
-        BitkeyDeviceScreenVideoPlaybackObserver {
-          restartScreenVideoPlayback()
-        }
-      NSNotificationCenter.defaultCenter.addObserver(
-        observer = playbackObserver,
-        selector = sel_registerName("handlePlaybackEnded:"),
-        name = AVPlayerItemDidPlayToEndTimeNotification,
-        `object` = item
-      )
-      if (isApplicationActive) {
-        player.play()
-      } else {
-        shouldResumeScreenVideoPlayback = true
-      }
-      screenVideoObservedItem = item
-      screenVideoPlaybackObserver = playbackObserver
-      screenVideoPlayer = player
-    }
-
-    material.diffuse.contents = debugSettings.screenDiffuseBrightness.toGrayscaleUIColor()
-    material.diffuse.contentsTransform = scnMatrix4IdentityValue()
-    material.emission.contents = screenVideoPlayer
-    material.emission.contentsTransform = scnMatrix4IdentityValue()
-    syncSceneViewRenderingState()
-  }
-
   private fun applyInlayMaterial() {
     val material = inlayMaterial ?: return
     captureDefaultInlayMaterialContentsIfNeeded(material)
@@ -1003,7 +814,7 @@ internal class BitkeyDeviceSceneInteractionDelegate(
       return
     }
     val activeBatteryPercentage =
-      batteryPercentage?.takeIf { content == DeviceStatusCard.VideoContent.BITKEY_ROTATE } ?: run {
+      batteryPercentage ?: run {
         removeScreenBatteryOverlayNode()
         return
       }
@@ -1051,24 +862,6 @@ internal class BitkeyDeviceSceneInteractionDelegate(
       }
   }
 
-  private fun captureDefaultScreenMaterialContentsIfNeeded(material: SCNMaterial) {
-    if (hasCapturedDefaultScreenMaterialContents) return
-
-    defaultScreenDiffuseContents = material.diffuse.contents
-    defaultScreenEmissionContents = material.emission.contents
-    hasCapturedDefaultScreenMaterialContents = true
-  }
-
-  private fun restoreDefaultScreenMaterialContents() {
-    val material = screenMaterial ?: return
-    if (!hasCapturedDefaultScreenMaterialContents) return
-
-    material.diffuse.contents = defaultScreenDiffuseContents
-    material.emission.contents = defaultScreenEmissionContents
-    material.diffuse.contentsTransform = scnMatrix4IdentityValue()
-    material.emission.contentsTransform = scnMatrix4IdentityValue()
-  }
-
   private fun captureDefaultInlayMaterialContentsIfNeeded(material: SCNMaterial) {
     if (hasCapturedDefaultInlayMaterialContents) return
 
@@ -1088,37 +881,7 @@ internal class BitkeyDeviceSceneInteractionDelegate(
     screenBatteryOverlayNode = null
   }
 
-  private fun releaseScreenVideoPlayer() {
-    screenVideoPlaybackObserver?.let { observer ->
-      NSNotificationCenter.defaultCenter.removeObserver(
-        observer = observer,
-        name = AVPlayerItemDidPlayToEndTimeNotification,
-        `object` = screenVideoObservedItem
-      )
-    }
-    screenVideoPlayer?.pause()
-    screenVideoPlayer?.replaceCurrentItemWithPlayerItem(null)
-    screenVideoObservedItem = null
-    screenVideoPlaybackObserver = null
-    screenVideoPlayer = null
-    shouldResumeScreenVideoPlayback = false
-    syncSceneViewRenderingState()
-  }
-
-  private fun restartScreenVideoPlayback() {
-    val player = screenVideoPlayer ?: return
-
-    player.seekToTime(CMTimeMakeWithSeconds(0.0, 1))
-    if (isApplicationActive) {
-      player.play()
-    } else {
-      shouldResumeScreenVideoPlayback = true
-    }
-  }
-
-  private fun createBitkeyDeviceSerialInlayImage(
-    serialNumber: String,
-  ): platform.UIKit.UIImage? {
+  private fun createBitkeyDeviceSerialInlayImage(serialNumber: String): platform.UIKit.UIImage? {
     val inlayTexturePath = loadBitkeyDeviceInlayTexturePath() ?: return null
     val baseImage = platform.UIKit.UIImage.imageWithContentsOfFile(inlayTexturePath) ?: return null
     val imageSize = baseImage.size
@@ -1134,7 +897,9 @@ internal class BitkeyDeviceSceneInteractionDelegate(
         (BITKEY_DEVICE_SERIAL_OVERLAY_RECT_BOTTOM - BITKEY_DEVICE_SERIAL_OVERLAY_RECT_TOP) * scale
       )
     val displaySerial = "SN:${serialNumber.trim()}"
-    val maxTextWidth = overlayRect.useContents { size.width } - (BITKEY_DEVICE_SERIAL_TEXT_PADDING_RIGHT * scale)
+    val maxTextWidth = overlayRect.useContents {
+      size.width
+    } - (BITKEY_DEVICE_SERIAL_TEXT_PADDING_RIGHT * scale)
     val textX = BITKEY_DEVICE_SERIAL_TEXT_LEFT * scale
 
     platform.UIKit.UIGraphicsBeginImageContextWithOptions(
@@ -1254,9 +1019,7 @@ internal class BitkeyDeviceSceneInteractionDelegate(
     }
   }
 
-  private fun bitkeyDeviceSerialTextAttributes(
-    textFontSize: Double,
-  ): Map<Any?, Any> {
+  private fun bitkeyDeviceSerialTextAttributes(textFontSize: Double): Map<Any?, Any> {
     val font =
       platform.UIKit.UIFont.fontWithName(
         fontName = BITKEY_DEVICE_SERIAL_TEXT_FONT_POSTSCRIPT_NAME,
@@ -1401,26 +1164,13 @@ internal class BitkeyDeviceSceneInteractionDelegate(
   }
 
   private fun applyModelTransform() {
-    val bobOffset =
-      if (
-        content == DeviceStatusCard.VideoContent.BITKEY_WAITING_3D &&
-        rotationMotionMode == RotationMotionMode.IDLE
-      ) {
-        waitingBobTranslationOffsetY(bobElapsedSeconds)
-      } else {
-        0.0f
-      }
     modelRootNode.eulerAngles = SCNVector3Make(0.0f, currentModelRotationY, 0.0f)
     modelRootNode.position = SCNVector3Make(
       0.0f,
-      currentModelTranslationY + bobOffset,
+      currentModelTranslationY,
       0.0f
     )
-    val modelScale = if (content == DeviceStatusCard.VideoContent.BITKEY_WAITING_3D) {
-      debugSettings.waitingModelScale
-    } else {
-      debugSettings.modelScale
-    }
+    val modelScale = debugSettings.modelScale
     modelRootNode.scale = SCNVector3Make(
       modelScale,
       modelScale,
@@ -1448,65 +1198,12 @@ internal class BitkeyDeviceSceneInteractionDelegate(
   }
 
   private fun startIdleMotion() {
-    if (content != DeviceStatusCard.VideoContent.BITKEY_WAITING_3D) {
-      stopAllAnimation()
-      return
-    }
-    angularVelocityY = 0.0f
-    rotationMotionMode = RotationMotionMode.IDLE
-    ensureDisplayLink()
-    syncSceneViewRenderingState()
+    stopAllAnimation()
   }
 
-  private fun startWaitingIdleMotionIfNeeded() {
-    if (content != DeviceStatusCard.VideoContent.BITKEY_WAITING_3D || sceneView == null) return
-    if (hasPlayedWaitingIntro || shouldPlayWaitingIntro) return
+  private fun defaultModelTranslationY(): Float = debugSettings.rotateTranslationY
 
-    angularVelocityY = 0.0f
-    currentModelRotationY = 0.0f
-    currentModelTranslationY = defaultModelTranslationY()
-    rotationMotionMode = RotationMotionMode.IDLE
-    applyModelTransform()
-    ensureDisplayLink()
-    syncSceneViewRenderingState()
-  }
-
-  private fun startWaitingIntroIfNeeded() {
-    if (!canStartWaitingIntro()) {
-      return
-    }
-
-    hasPlayedWaitingIntro = true
-    shouldPlayWaitingIntro = true
-    angularVelocityY = 0.0f
-    introElapsedSeconds = 0.0f
-    introStartRotationY = currentModelRotationY
-    introStartTranslationY =
-      currentModelTranslationY + waitingBobTranslationOffsetY(bobElapsedSeconds)
-    currentModelTranslationY = introStartTranslationY
-    rotationMotionMode = RotationMotionMode.INTRO
-    applyModelTransform()
-    ensureDisplayLink()
-    syncSceneViewRenderingState()
-  }
-
-  private fun canStartWaitingIntro(): Boolean =
-    content == DeviceStatusCard.VideoContent.BITKEY_WAITING_3D &&
-      !hasPlayedWaitingIntro &&
-      sceneView != null &&
-      shouldPlayWaitingIntro
-
-  private fun defaultModelTranslationY(): Float =
-    when (content) {
-      DeviceStatusCard.VideoContent.BITKEY_WAITING_3D -> debugSettings.waitingRestTranslationY
-      DeviceStatusCard.VideoContent.BITKEY_ROTATE -> debugSettings.rotateTranslationY
-    }
-
-  private fun defaultModelRotationY(): Float =
-    when (content) {
-      DeviceStatusCard.VideoContent.BITKEY_WAITING_3D -> 0.0f
-      DeviceStatusCard.VideoContent.BITKEY_ROTATE -> PI.toFloat()
-    }
+  private fun defaultModelRotationY(): Float = PI.toFloat()
 
   private fun normalizedModelEulerAngles() = SCNVector3Make(0.0f, 0.0f, 0.0f)
 
@@ -1534,12 +1231,7 @@ internal class BitkeyDeviceSceneInteractionDelegate(
           target = momentumHandler,
           selector = sel_registerName("handleMomentumFrame:")
         ).apply {
-          preferredFramesPerSecond =
-            if (content == DeviceStatusCard.VideoContent.BITKEY_WAITING_3D) {
-              BITKEY_DEVICE_WAITING_PREFERRED_FRAMES_PER_SECOND
-            } else {
-              BITKEY_DEVICE_INTERACTION_PREFERRED_FRAMES_PER_SECOND
-            }
+          preferredFramesPerSecond = BITKEY_DEVICE_INTERACTION_PREFERRED_FRAMES_PER_SECOND
           addToRunLoop(
             runloop = NSRunLoop.mainRunLoop,
             forMode = NSRunLoopCommonModes
@@ -1556,16 +1248,10 @@ internal class BitkeyDeviceSceneInteractionDelegate(
       BitkeyDeviceAppLifecycleObserver(
         onWillResignActive = {
           isApplicationActive = false
-          shouldResumeScreenVideoPlayback = screenVideoPlayer != null
-          screenVideoPlayer?.pause()
           syncSceneViewRenderingState()
         },
         onDidBecomeActive = {
           isApplicationActive = true
-          if (shouldResumeScreenVideoPlayback) {
-            screenVideoPlayer?.play()
-          }
-          shouldResumeScreenVideoPlayback = false
           syncSceneViewRenderingState()
         }
       )
@@ -1599,28 +1285,18 @@ internal class BitkeyDeviceSceneInteractionDelegate(
     }
     appLifecycleObserver = null
     isApplicationActive = true
-    shouldResumeScreenVideoPlayback = false
   }
 
   private fun syncSceneViewRenderingState() {
     val sceneView = sceneView ?: return
     val shouldContinuouslyRender =
       isApplicationActive &&
-        (
-          isUserInteracting ||
-            rotationMotionMode != null ||
-            screenVideoPlayer != null
-          )
+        (isUserInteracting || rotationMotionMode != null)
 
     momentumDisplayLink?.paused = !isApplicationActive
     sceneView.playing = shouldContinuouslyRender
     sceneView.rendersContinuously = shouldContinuouslyRender
-    sceneView.preferredFramesPerSecond =
-      if (content == DeviceStatusCard.VideoContent.BITKEY_WAITING_3D) {
-        BITKEY_DEVICE_WAITING_PREFERRED_FRAMES_PER_SECOND
-      } else {
-        BITKEY_DEVICE_INTERACTION_PREFERRED_FRAMES_PER_SECOND
-      }
+    sceneView.preferredFramesPerSecond = BITKEY_DEVICE_INTERACTION_PREFERRED_FRAMES_PER_SECOND
   }
 }
 
@@ -1644,19 +1320,6 @@ private fun Float.normalizeDegrees(): Float {
 
 private fun Float.toRadians(): Float = (this / 180.0f * PI).toFloat()
 
-private fun waitingRestTranslationY(): Float = BITKEY_DEVICE_WAITING_REST_TRANSLATION_Y
-
-private fun waitingBobTranslationOffsetY(bobElapsedSeconds: Float): Float {
-  val phase = (bobElapsedSeconds / BITKEY_DEVICE_WAITING_BOB_PERIOD_SECONDS) * (2.0f * PI.toFloat())
-  return sin(phase) * BITKEY_DEVICE_WAITING_BOB_AMPLITUDE_Y
-}
-
-private fun lerp(
-  startValue: Float,
-  endValue: Float,
-  progress: Float,
-): Float = startValue + (endValue - startValue) * progress
-
 private fun sceneSecondaryBackgroundColorForTraitCollection(
   traitCollection: UITraitCollection?,
 ): UIColor =
@@ -1670,16 +1333,6 @@ private fun sceneSecondaryBackgroundColorForTraitCollection(
   } else {
     UIColor.whiteColor
   }
-
-private fun Float.toGrayscaleUIColor(): UIColor {
-  val clampedValue = coerceIn(0.0f, 1.0f).toDouble()
-  return UIColor(
-    red = clampedValue,
-    green = clampedValue,
-    blue = clampedValue,
-    alpha = 1.0
-  )
-}
 
 private fun Color.toUIColor(): UIColor =
   UIColor(
@@ -1726,17 +1379,6 @@ private fun SCNNode.findDescendantNamed(name: String): SCNNode? {
     }
 
   return null
-}
-
-@OptIn(ExperimentalForeignApi::class)
-private class BitkeyDeviceScreenVideoPlaybackObserver(
-  private val onPlaybackEnded: () -> Unit,
-) : NSObject() {
-  @Suppress("UnusedParameter")
-  @ObjCAction
-  fun handlePlaybackEnded(notification: NSNotification) {
-    onPlaybackEnded()
-  }
 }
 
 @OptIn(ExperimentalForeignApi::class)

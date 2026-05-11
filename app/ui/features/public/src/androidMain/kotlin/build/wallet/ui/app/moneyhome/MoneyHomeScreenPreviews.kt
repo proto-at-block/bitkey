@@ -114,6 +114,7 @@ fun MoneyHomeScreenFull(
   isSellButtonEnabled: Boolean = false,
   useSatsForRecentActivity: Boolean = false,
   usePendingActivity: Boolean = false,
+  useLatePendingActivity: Boolean = false,
   securityHubBadged: Boolean = false,
   isLoading: Boolean = false,
   isLoadingTransactions: Boolean = false,
@@ -131,6 +132,7 @@ fun MoneyHomeScreenFull(
         transactionsModel = moneyHomeRecentActivityModel(
           useSatsForRecentActivity = useSatsForRecentActivity,
           usePendingActivity = usePendingActivity,
+          useLatePendingActivity = useLatePendingActivity,
           isLoadingTransactions = isLoadingTransactions,
           useSkeletonTransactions = useSkeletonTransactions
         ),
@@ -177,6 +179,7 @@ private fun moneyHomeBalanceModel(
 private fun moneyHomeRecentActivityModel(
   useSatsForRecentActivity: Boolean,
   usePendingActivity: Boolean,
+  useLatePendingActivity: Boolean,
   isLoadingTransactions: Boolean,
   useSkeletonTransactions: Boolean,
 ) = ListModel(
@@ -197,6 +200,7 @@ private fun moneyHomeRecentActivityModel(
           populatedRecentActivityItems(
             useSatsForRecentActivity = useSatsForRecentActivity,
             usePendingActivity = usePendingActivity,
+            useLatePendingActivity = useLatePendingActivity,
             isLoadingTransactions = isLoadingTransactions
           )
         }
@@ -207,6 +211,7 @@ private fun moneyHomeRecentActivityModel(
 private fun populatedRecentActivityItems(
   useSatsForRecentActivity: Boolean,
   usePendingActivity: Boolean,
+  useLatePendingActivity: Boolean,
   isLoadingTransactions: Boolean,
 ) = immutableListOf(
   TransactionItemModel(
@@ -215,8 +220,8 @@ private fun populatedRecentActivityItems(
     amount = "+ $11.36",
     amountEquivalent = if (useSatsForRecentActivity) "10,500 sats" else "0.000105 BTC",
     transactionType = Incoming,
-    isPending = usePendingActivity,
-    isLate = false,
+    isPending = usePendingActivity || useLatePendingActivity,
+    isLate = useLatePendingActivity,
     pendingBadgeType = BadgeType.Loading,
     isLoading = isLoadingTransactions,
     onClick = {}
@@ -380,6 +385,13 @@ fun MoneyHomeScreenFullWithBuyAndSellEnabled() {
 fun MoneyHomeScreenFullWithPendingActivity() {
   MoneyHomeScreenFull(
     usePendingActivity = true
+  )
+}
+
+@Composable
+fun MoneyHomeScreenFullWithLatePendingActivity() {
+  MoneyHomeScreenFull(
+    useLatePendingActivity = true
   )
 }
 

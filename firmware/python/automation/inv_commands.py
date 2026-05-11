@@ -15,57 +15,96 @@ import allure
 import pytest
 import sh
 from bitkey.walletfs import WalletFS
-from python.automation.conftest import PlatformConfig
-from python.bitkey import fw_version
+from bitkey import fw_version
 from tasks.lib.paths import BUILD_FWUP_BUNDLE_DIR
 
+from .conftest import PlatformConfig
+
 logging.getLogger("sh").setLevel(logging.WARNING)
+logger = logging.getLogger(__name__)
 
 
 class Inv:
     """Wrapper class for running ``invoke`` commands."""
 
-    @allure.step("Clean")
-    def clean(self, request: pytest.FixtureRequest | None = None) -> str:
-        """Deletes all build files.
+    def __init__(self, request: pytest.FixtureRequest, platform_config: PlatformConfig) -> None:
+        """Initializes the command instance.
 
         :param request: PyTest fixture request object for command-line arguments.
+        :param platform_config: Platform config instance.
+        :returns: ``None``
+        """
+        self.request: pytest.FixtureRequest = request
+        self.platform_config: PlatformConfig = platform_config
+
+    @allure.step("Clean")
+    def clean(self) -> str:
+        """Deletes all build files.
+
         :returns: output from ``invoke`` for the ``clean`` task.
         """
-        if request and request.config.option.skip_build:
+        if self.request and self.request.config.option.skip_build:
             return "skipped"
 
+        logger.info("Cleaning build files.")
         result: str = sh.inv.clean()
         return result
 
     @allure.step("Build")
-    def build(self, request: pytest.FixtureRequest | None = None) -> str:
-        """Builds default firmware for W1.
+    def build(self) -> str:
+        """Builds default firmware for the target MCUs of the device under test.
 
-        :param request: PyTest fixture request object for command-line arguments.
         :returns: output from ``invoke`` for the ``build`` task.
         """
-        if request and request.config.option.skip_build:
+        if self.request and self.request.config.option.skip_build:
             return "skipped"
 
-        result: str = sh.inv.build()
+        logger.info("Building firmware.")
+        result: str = ""
+        for name in self.platform_config.chips.keys():
+            logger.info(f"Building firmware for {name}")
+            result += sh.inv("build.platforms", "-p", f"{name}")
         return result
 
     @allure.step("Build Platforms")
-    def build_platforms(self, request: pytest.FixtureRequest | None = None) -> str:
+    def build_platforms(self) -> str:
         """Builds firmware for all platforms.
 
-        :param request: PyTest fixture request object for command-line arguments.
         :returns: output from ``invoke`` for the ``build.platforms`` task.
         """
-        if request and request.config.option.skip_build:
+        if self.request and self.request.config.option.skip_build:
             return "skipped"
 
+        logger.info("Building firmware for all platforms.")
         result: str = sh.inv("build.platforms")
         return result
 
-    @allure.step("Flash -e")
-    def flash(self, target: None | str = None, platform: None | str = None) -> str:
+    @allure.step("Erase")
+    def erase(self, platform: None | str = None) -> str:
+        """Erases a target MCU.
+
+        If ``platform`` is specified, then the specified platform is targetted
+        by the erase command; this is important when working with multi-platform
+        products.
+
+        :param platform: target platform to erase (default: w1).
+        :returns: output from the ``invoke`` for the erase task.
+        """
+        erase_cmd: str = "inv erase -f"
+        if platform:
+            erase_cmd = f"{erase_cmd} -p {platform}"
+
+        decoded_result: str = ""
+
+        logger.info("Erasing firmware.")
+        erase_result: bytes = subprocess.check_output(erase_cmd, shell=True)
+        decoded_result += erase_result.decode("utf-8")
+
+        logger.info(f"{decoded_result}")
+        return decoded_result
+
+    @allure.step("Flash")
+    def flash_mcu(self, target: None | str = None, platform: None | str = None) -> str:
         """Flashes an image to an MCU.
 
         If ``target`` is specified then the specified target image is
@@ -74,30 +113,33 @@ class Inv:
         working with multi-platform products.
 
         :param target: target image to flash to the device.
-        :parma platform: target platform to flash (default: w1).
+        :param platform: target platform to flash (default: w1).
         :returns: output from the ``invoke`` for the ``flash`` task.
         """
-        cmd = "inv flash -e -f"
+        flash_cmd: str = "inv flash -f --no-backup --no-bootloader"
         if target:
-            cmd = f"{cmd} -t {target}"
+            flash_cmd = f"{flash_cmd} -t {target}"
 
         if platform:
-            cmd = f"{cmd} -p {platform}"
+            flash_cmd = f"{flash_cmd} -p {platform}"
 
-        result: bytes = subprocess.check_output(cmd, shell=True)
-        decoded_result: str = result.decode("utf-8")
-        print(decoded_result)
+        decoded_result: str = ""
+
+        logger.info("Flashing firmware.")
+        flash_result: bytes = subprocess.check_output(flash_cmd, shell=True)
+        decoded_result += flash_result.decode("utf-8")
+
+        logger.info(f"{decoded_result}")
         return decoded_result
 
     @allure.step("Bundle")
-    def fwup_bundle(self, platform_config: PlatformConfig) -> str:
+    def fwup_bundle(self) -> str:
         """Generates a FWUP bundle for the product under test.
 
-        :param platform_config: platform configuration for the target under test.
         :returns: output from the ``fwup.bundle`` task.
         """
         result: str = ""
-        for chip_config in platform_config.chips.values():
+        for chip_config in self.platform_config.chips.values():
             partition: str | None = chip_config.partition
             if not partition:
                 continue
@@ -107,9 +149,9 @@ class Inv:
                 "-p",
                 partition,
                 "-i",
-                platform_config.type,
+                self.platform_config.type,
                 "-h",
-                platform_config.revision,
+                self.platform_config.revision,
             )
         return result
 
@@ -151,7 +193,8 @@ class Inv:
 
         :returns: output of the ``fs.backup`` command.
         """
-        result: Any = subprocess.check_output("inv fs.backup", shell=True, text=True)
+        result: Any = subprocess.check_output(
+            "inv fs.backup", shell=True, text=True)
         return result
 
     @allure.step("Restore Filesystem")
@@ -165,29 +208,50 @@ class Inv:
         return result
 
     @allure.step("Backup, Flash, and Recover")
-    def flash_with_filesystem_recovery(
-        self,
-        target: str | None = None,
-        request: pytest.FixtureRequest | None = None,
-    ) -> str:
+    def flash(self, targets: str | None | list[tuple[str, str]] = None) -> str:
         """Flashes a device under test, preserving the filesystem across flashing.
 
-        :param target: optional target image to flash to the MCU under test.
-        :param request: PyTest fixture request object for command-line arguments.
+        :param targets: optional target image to flash or list of ``(platform, target)``.
         :returns: output from invoking all the necessary task commands.
         """
-        if request and request.config.option.skip_flash:
+        if self.request and self.request.config.option.skip_flash:
             # User has specified to skip flashing.
             return "skipped"
 
-        # TODO(ESW-20951): Multi-MCU flashing support.
-        platform: str | None = None
-        result: str = self.backup_filesystem()
-        # re search output string for filename
-        fs_backup_file: str = re.search(
-            "saved as (.*).bin", result).group(1) + ".bin"
-        result += self.flash(target=target, platform=platform)
-        fs = WalletFS(fs_backup_file)
-        fs.remove_file("unlock-secret.bin")
-        result += self.restore_filesystem(fs_backup_file)
+        platforms_and_targets: list[tuple[None | str, str]] = []
+        if isinstance(targets, str):
+            platforms_and_targets.append((None, targets))
+        elif targets is None:
+            platforms_and_targets = list((c.name, c.target)
+                                         for c in self.platform_config.chips.values())
+        else:
+            platforms_and_targets = targets[:]
+
+        if not platforms_and_targets:
+            raise RuntimeError(f"Nothing to flash.")
+
+        persist_filesystem: bool = not self.request or not self.request.config.option.no_persist_filesystem
+
+        result: str = ""
+        for idx, (platform, target) in enumerate(platforms_and_targets):
+            if len(platforms_and_targets) > 1 and self.request.config.option.no_multiple_jlinks:
+                _ = input(f"Please switch J-Link to {platform} > ")
+
+            fs_backup_file: str = ""
+            if persist_filesystem:
+                # Backup the filesystem to persist across flashing.
+                backup_result: str = self.backup_filesystem()
+                result += backup_result
+                fs_backup_file = re.search(
+                    "saved as (.*).bin", backup_result).group(1) + ".bin"
+
+            result += self.erase(platform=platform)
+            result += self.flash_mcu(target=target, platform=platform)
+
+            if fs_backup_file:
+                # Restore the filesystem without the previous PIN binary (if present).
+                fs = WalletFS(fs_backup_file)
+                fs.remove_file("unlock-secret.bin")
+                result += self.restore_filesystem(fs_backup_file)
+
         return result

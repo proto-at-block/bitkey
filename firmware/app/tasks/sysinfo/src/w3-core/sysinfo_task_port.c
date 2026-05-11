@@ -17,6 +17,7 @@
 #include "power.h"
 #include "proto_helpers.h"
 #include "rtos.h"
+#include "secure_channel.h"
 #include "secure_channel_cert.h"
 #include "secutils.h"
 #include "sleep.h"
@@ -55,6 +56,13 @@ static SHARED_TASK_BSS bool host_peer_cert_requests_allowed = false;
  * device power off.
  */
 #define SYSINFO_POWER_OFF_POLL_MS (10)
+
+/**
+ * @brief Grace period after `power_set_retain(false)` for hardware to
+ * actually cut power. If we're still executing after this, something
+ * external is holding the rail up — reset rather than zombify.
+ */
+#define SYSINFO_POWER_OFF_GRACE_MS (100)
 
 /**
  * @brief Delay after wipe success before rebooting.
@@ -295,6 +303,8 @@ bool sysinfo_task_port_handle_message(ipc_ref_t* message) {
 }
 
 void sysinfo_task_handle_coproc_boot(ipc_ref_t* message) {
+  sysevent_clear(SYSEVENT_COPROC_BOOT);
+
   fwpb_uxc_msg_host* msg = uc_alloc_send_proto();
   ASSERT(msg != NULL);
 
@@ -495,6 +505,8 @@ static void _sysinfo_task_handle_coproc_boot_message(void* proto, void* UNUSED(c
 
   sysinfo_boot_status.auth_status = msg->auth_status;
 
+  secure_uart_channel_reset_session();
+  sysevent_set(SYSEVENT_COPROC_BOOT);
   ipc_send(sysinfo_port, &sysinfo_boot_status, sizeof(sysinfo_boot_status),
            IPC_SYSINFO_BOOT_STATUS);
   // Notify fwup task of UXC version.
@@ -510,37 +522,69 @@ static void _sysinfo_task_handle_coproc_metadata(void* proto, void* UNUSED(conte
 }
 
 void sysinfo_task_port_prepare_power_down(void) {
-  // Stop the power timer so it doesn't queue another power-off event while
-  // we're already in the screen-off state.
-  sleep_stop_power_timer();
-  sysevent_clear(SYSEVENT_FORCE_POWER_OFF_RESET);
+  // Latch the sleep subsystem so no event (NFC, captouch, UXC touch, charger
+  // transition, etc.) can re-arm the countdown timer once the shutdown
+  // sequence has begun. Idempotent — `power_system_down_callback` typically
+  // latched first on the timer-task side, so the latch is the steady-state
+  // signal on entry from the timer path. We deliberately do not bail on
+  // already-latched here: that would short-circuit the timer-initiated
+  // shutdown entirely (the callback latches before posting the IPC).
+  // Duplicate execution is benign — sequential dispatch + first-call resets
+  // the MCU; for the COPROC_BOOT bail path, re-entry via a follow-up
+  // `IPC_SYSINFO_POWER_OFF_REQUESTED` after `sleep_cancel_shutdown()` is
+  // the intended retry path.
+  sleep_begin_shutdown();
 
   UI_SHOW_EVENT(UI_EVENT_POWER_OFF);
 
   // If USB is plugged in, we cannot power off, so instead we turn off the
   // screen and poll until USB is un-plugged.
   if (power_is_plugged_in()) {
-    // We clear before polling to ensure the touch event came in after we
-    // started polling.
     rtos_thread_sleep(SYSINFO_POWER_OFF_TOUCH_DELAY_MS);
-    sysevent_clear(SYSEVENT_TOUCH | SYSEVENT_CAPTOUCH);
+    const sysevent_t touch_events = SYSEVENT_TOUCH | SYSEVENT_CAPTOUCH;
+    sysevent_clear(touch_events);
+
+    // If UXC reboots while sysinfo is parked here, the boot-status IPC cannot
+    // be handled to rekey UC. Return to the sysinfo loop so it can process the
+    // queued boot status and start IPC_KEY_MANAGER_UXC_SESSION_INIT.
+    const sysevent_t wake_events = touch_events | SYSEVENT_COPROC_BOOT;
 
     // If there is a touch event (captouch or screen) while USB is plugged
-    // in, or the display path wedges and requests recovery, we exit to reset.
-    while (power_is_plugged_in() &&
-           !sysevent_get(SYSEVENT_TOUCH | SYSEVENT_CAPTOUCH | SYSEVENT_FORCE_POWER_OFF_RESET)) {
+    // in, we exit to reset under the assumption that the user wants to
+    // use their device.
+    while (power_is_plugged_in() && !sysevent_get(wake_events)) {
       rtos_thread_sleep(SYSINFO_POWER_OFF_POLL_MS);
+    }
+
+    if (power_is_plugged_in() && sysevent_get(SYSEVENT_COPROC_BOOT)) {
+      LOGI("UXC booted during USB power-off wait");
+      // This isn't actually a shutdown — sysinfo bails so it can rekey UC.
+      // Clear the shutdown latch so the device can resume normal sleep/timer
+      // behavior; otherwise every future shutdown attempt would no-op via the
+      // latch and the device would never auto-sleep again.
+      sleep_cancel_shutdown();
+      return;
     }
   }
 
-  ipc_send_empty(sysinfo_port, IPC_SYSINFO_POWER_OFF);
+  // Call power_down directly rather than re-enqueuing onto sysinfo_port.
+  // Self-enqueueing would deadlock if the queue filled during the polling
+  // loop above (the only consumer is this same thread), and bounding the
+  // send only converts that into a deterministic reset — not a recovery —
+  // turning a routine USB-plugged shutdown into a reboot whenever NFC or
+  // coproc traffic accumulated while we were polling.
+  LOGI("Powering off");
+  sysinfo_task_port_power_down();
 }
 
 void sysinfo_task_port_power_down(void) {
   if (power_is_plugged_in()) {
     // If USB is plugged in, we cannot power down, so instead we just reset.
+    const mcu_reset_reason_t reason = sysevent_get(SYSEVENT_FORCE_POWER_OFF_RESET)
+                                        ? MCU_RESET_DISPLAY_WEDGE
+                                        : MCU_RESET_POWER_DOWN_USB_PLUGGED;
     coproc_power_assert_reset();
-    mcu_reset_with_reason(MCU_RESET_POWER_DOWN_USB_PLUGGED);
+    mcu_reset_with_reason(reason);
   } else {
     if (sysinfo_task_in_ship_state()) {
       // Disable LDO completely for ship state (packout mode).
@@ -550,6 +594,14 @@ void sysinfo_task_port_power_down(void) {
       power_set_ldo_low_power_mode();
     }
     power_set_retain(false);
+
+    // If control reaches here, the power-hold GPIO has been dropped but the
+    // MCU is still alive — some external source is keeping the rail up.
+    // Prefer a reset (with a recorded reason) over a zombie device with a
+    // dead UI.
+    rtos_thread_sleep(SYSINFO_POWER_OFF_GRACE_MS);
+    BITLOG_EVENT(power_off_failed, 0);
+    mcu_reset_with_reason(MCU_RESET_POWER_OFF_FAILED);
   }
 }
 

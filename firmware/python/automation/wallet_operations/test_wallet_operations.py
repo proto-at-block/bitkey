@@ -12,31 +12,29 @@ import wallet_pb2 as wallet_pb
 from bitkey.secure_channel import SecureChannel
 from bitkey.wallet import Wallet
 
-from python.automation.commander import CommanderHelper
-from python.automation.inv_commands import Inv
+from ..conftest import PlatformConfig
+from ..inv_commands import Inv
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
 
 class TestWalletOperations:
-    Inv_task = Inv()
-    Commander = CommanderHelper()
 
     @pytest.fixture(scope="class", autouse=True)
-    def setup(self, request: pytest.FixtureRequest) -> None:
+    def setup(self, request: pytest.FixtureRequest, platform_config: PlatformConfig) -> None:
         """Pre-test setup. Performed once.
 
         :param request: PyTest fixture request object for command-line arguments.
+        :param platform_config: target device platform configuration.
         :returns: ``None``
         """
         logger.info("Setup fixture")
-        logger.info("Clean, build, and flash")
-        self.Inv_task.clean(request=request)
-        self.Inv_task.build(request=request)
-        self.Inv_task.flash_with_filesystem_recovery(request=request)
-        if not request.config.option.skip_flash:
-            self.Commander.reset()
+
+        inv_task = Inv(request, platform_config)
+        inv_task.clean()
+        inv_task.build()
+        inv_task.flash()
 
     @allure.step("Sign Txn request")
     def test_derive_and_sign_sync(self, wallet: Wallet, secure_channel: SecureChannel) -> None:

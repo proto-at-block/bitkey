@@ -405,16 +405,14 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
       }
     }
 
-    test("push skip redirects to email when email not completed") {
+    test("push skip advances to transactions when email success has not emitted touchpoint data") {
       usSmsFeatureFlag.setFlagValue(false)
       telephonyCountryCodeProvider.mockCountryCode = "US"
-      // Email NOT completed
 
       val stateMachine = createStateMachine()
       stateMachine.test(props) {
         awaitUntilBodyMock<NotificationTouchpointInputAndVerificationProps> {
           touchpointType.shouldBe(NotificationTouchpointType.Email)
-          // Do NOT call simulateEmailCompleted() - email not stored
           onSuccess()
         }
 
@@ -426,10 +424,7 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
           TrackedAction(ACTION_APP_PUSH_NOTIFICATIONS_BITKEY_DISABLED)
         )
 
-        // Should redirect to email since email not completed
-        awaitUntilBodyMock<NotificationTouchpointInputAndVerificationProps> {
-          touchpointType.shouldBe(NotificationTouchpointType.Email)
-        }
+        awaitUntilBodyMock<NotificationPreferencesProps> {}
         cancelAndIgnoreRemainingEvents()
       }
     }

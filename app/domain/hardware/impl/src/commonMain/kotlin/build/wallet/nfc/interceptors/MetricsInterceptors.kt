@@ -28,12 +28,14 @@ import build.wallet.nfc.platform.ActionProofAction
 import build.wallet.nfc.platform.ConfirmationHandles
 import build.wallet.nfc.platform.ConfirmationResult
 import build.wallet.nfc.platform.CsekUnsealResult
+import build.wallet.nfc.platform.HardwareIdentityAwareNfcCommands
 import build.wallet.nfc.platform.HwDisplayPreference
 import build.wallet.nfc.platform.LostAppRecoveryContinueParams
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.platform.RotateAppAuthKeysContinueParams
 import build.wallet.nfc.platform.SweepSigningContext
 import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysParams
+import build.wallet.nfc.platform.W3NfcCommands
 import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -53,26 +55,32 @@ internal fun collectMetrics(
 ) = NfcTransactionInterceptor { next ->
   { session, commands ->
     datadogTracer.span(spanName = SPAN_NAME, resourceName = "nfcTransaction-${session.parameters.nfcFlowName}") {
-      next(
-        session,
-        MetricsNfcCommandsImpl(
+      val wrapped: NfcCommands = when (commands) {
+        is W3NfcCommands -> MetricsW3NfcCommands(
+          w3Commands = commands,
+          datadogRumMonitor = datadogRumMonitor,
+          datadogTracer = datadogTracer,
+          eventTracker = eventTracker
+        )
+        else -> MetricsNfcCommands(
           commands = commands,
           datadogRumMonitor = datadogRumMonitor,
           datadogTracer = datadogTracer,
           eventTracker = eventTracker
         )
-      )
+      }
+      next(session, wrapped)
     }
   }
 }
 
-private class MetricsNfcCommandsImpl(
-  private val commands: NfcCommands,
-  private val datadogRumMonitor: DatadogRumMonitor,
-  private val datadogTracer: DatadogTracer,
-  private val eventTracker: EventTracker,
-) : NfcCommands {
-  private suspend fun <T> measure(
+private open class MetricsNfcCommands(
+  protected val commands: NfcCommands,
+  protected val datadogRumMonitor: DatadogRumMonitor,
+  protected val datadogTracer: DatadogTracer,
+  protected val eventTracker: EventTracker,
+) : NfcCommands, HardwareIdentityAwareNfcCommands {
+  protected suspend fun <T> measure(
     action: String,
     block: suspend () -> T,
   ): T {
@@ -100,7 +108,9 @@ private class MetricsNfcCommandsImpl(
     mcuRole: McuRole,
     version: String,
     deferCommit: Boolean,
-  ) = measure("fwupStart") { commands.fwupStart(session, patchSize, fwupMode, mcuRole, version, deferCommit) }
+  ) = measure("fwupStart") {
+    commands.fwupStart(session, patchSize, fwupMode, mcuRole, version, deferCommit)
+  }
 
   override suspend fun fwupTransfer(
     session: NfcSession,
@@ -170,6 +180,12 @@ private class MetricsNfcCommandsImpl(
       }
 
       deviceInfo
+    }
+
+  override suspend fun resolvedDeviceInfo(session: NfcSession): FirmwareDeviceInfo =
+    measure("getDeviceInfo") {
+      (commands as? HardwareIdentityAwareNfcCommands)?.resolvedDeviceInfo(session)
+        ?: commands.getDeviceInfo(session)
     }
 
   override suspend fun getEvents(
@@ -264,7 +280,9 @@ private class MetricsNfcCommandsImpl(
     psbt: Psbt,
     spendingKeyset: SpendingKeyset,
     displayPreference: HwDisplayPreference?,
-  ) = commands.signTransaction(session, psbt, spendingKeyset, displayPreference)
+  ) = measure("signTransaction") {
+    commands.signTransaction(session, psbt, spendingKeyset, displayPreference)
+  }
 
   override suspend fun sweepTransaction(
     session: NfcSession,
@@ -287,119 +305,11 @@ private class MetricsNfcCommandsImpl(
   override suspend fun wipeDevice(session: NfcSession) =
     measure("wipeDevice") { commands.wipeDevice(session) }
 
-  override suspend fun signActionProof(
-    session: NfcSession,
-    version: UInt,
-    action: ActionProofAction,
-    value: String?,
-    bindings: String,
-  ) = measure("signActionProof") {
-    commands.signActionProof(session, version, action, value, bindings)
-  }
-
-  override suspend fun lostAppRecovery(
-    session: NfcSession,
-    sealedSsek: ByteString,
-    onSsekUnsealed: suspend (SymmetricKey) -> LostAppRecoveryContinueParams,
-  ) = measure("lostAppRecovery") {
-    commands.lostAppRecovery(session, sealedSsek, onSsekUnsealed)
-  }
-
-  override suspend fun signChallengeAndSealSeks(
-    session: NfcSession,
-    challenge: ByteString,
-    unsealedCsek: ByteString,
-    unsealedSsek: ByteString,
-  ) = measure("signChallengeAndSealSeks") {
-    commands.signChallengeAndSealSeks(session, challenge, unsealedCsek, unsealedSsek)
-  }
-
-  override suspend fun recoveryAuthorizeLostApp(
-    session: NfcSession,
-    sealedDdkData: SealedData?,
-    sealedSsekForDecryption: SealedData?,
-    descriptorBackupsBindings: String,
-    activateKeysetBindings: String,
-    actionProofVersion: UInt,
-  ) = measure("recoveryAuthorizeLostApp") {
-    commands.recoveryAuthorizeLostApp(
-      session,
-      sealedDdkData,
-      sealedSsekForDecryption,
-      descriptorBackupsBindings,
-      activateKeysetBindings,
-      actionProofVersion
-    )
-  }
-
-  override suspend fun recoveryAuthorizeLostHw(
-    session: NfcSession,
-    ddkPrivateKeyBytes: ByteString?,
-    descriptorBackupsBindings: String,
-    activateKeysetBindings: String,
-    actionProofVersion: UInt,
-  ) = measure("recoveryAuthorizeLostHw") {
-    commands.recoveryAuthorizeLostHw(
-      session,
-      ddkPrivateKeyBytes,
-      descriptorBackupsBindings,
-      activateKeysetBindings,
-      actionProofVersion
-    )
-  }
-
-  override suspend fun upgradeAuthorizeW3(
-    session: NfcSession,
-    ddkPrivateKeyBytes: ByteString,
-    sealedSsekForDecryption: SealedData?,
-    descriptorBackupsBindings: String,
-    activateKeysetBindings: String,
-    actionProofVersion: UInt,
-  ) = measure("upgradeAuthorizeW3") {
-    commands.upgradeAuthorizeW3(
-      session,
-      ddkPrivateKeyBytes,
-      sealedSsekForDecryption,
-      descriptorBackupsBindings,
-      activateKeysetBindings,
-      actionProofVersion
-    )
-  }
-
-  override suspend fun lostAppRecoverySignChallenge(
-    session: NfcSession,
-    challenge: ByteString,
-  ) = measure("lostAppRecoverySignChallenge") {
-    commands.lostAppRecoverySignChallenge(session, challenge)
-  }
-
-  override suspend fun rotateAppAuthKeys(
-    session: NfcSession,
-    params: RotateAppAuthKeysContinueParams,
-  ) = measure("rotateAppAuthKeys") {
-    commands.rotateAppAuthKeys(session, params)
-  }
-
-  override suspend fun upgradeRotateAppAuthKeys(
-    session: NfcSession,
-    params: UpgradeRotateAppAuthKeysParams,
-  ) = measure("upgradeRotateAppAuthKeys") {
-    commands.upgradeRotateAppAuthKeys(session, params)
-  }
-
   override suspend fun eekRestorationUnsealSymmetricKey(
     session: NfcSession,
     sealedKey: SealedData,
   ) = measure("eekRestorationUnsealSymmetricKey") {
     commands.eekRestorationUnsealSymmetricKey(session, sealedKey)
-  }
-
-  override suspend fun <T> fullAccountCloudBackupRestoration(
-    session: NfcSession,
-    sealedCseks: List<SealedData>,
-    onCsekUnsealed: suspend (CsekUnsealResult) -> T,
-  ) = measure("fullAccountCloudBackupRestoration") {
-    commands.fullAccountCloudBackupRestoration(session, sealedCseks, onCsekUnsealed)
   }
 
   override suspend fun getCert(
@@ -447,11 +357,127 @@ private class MetricsNfcCommandsImpl(
     measure("getConfirmationResult") {
       commands.getConfirmationResult(session, handles)
     }
+}
+
+private class MetricsW3NfcCommands(
+  private val w3Commands: W3NfcCommands,
+  datadogRumMonitor: DatadogRumMonitor,
+  datadogTracer: DatadogTracer,
+  eventTracker: EventTracker,
+) : MetricsNfcCommands(w3Commands, datadogRumMonitor, datadogTracer, eventTracker),
+  W3NfcCommands {
+  override suspend fun signActionProof(
+    session: NfcSession,
+    version: UInt,
+    action: ActionProofAction,
+    value: String?,
+    bindings: String,
+  ) = measure("signActionProof") {
+    w3Commands.signActionProof(session, version, action, value, bindings)
+  }
+
+  override suspend fun lostAppRecovery(
+    session: NfcSession,
+    sealedSsek: ByteString,
+    onSsekUnsealed: suspend (SymmetricKey) -> LostAppRecoveryContinueParams,
+  ) = measure("lostAppRecovery") {
+    w3Commands.lostAppRecovery(session, sealedSsek, onSsekUnsealed)
+  }
+
+  override suspend fun signChallengeAndSealSeks(
+    session: NfcSession,
+    challenge: ByteString,
+    unsealedCsek: ByteString,
+    unsealedSsek: ByteString,
+  ) = measure("signChallengeAndSealSeks") {
+    w3Commands.signChallengeAndSealSeks(session, challenge, unsealedCsek, unsealedSsek)
+  }
+
+  override suspend fun recoveryAuthorizeLostApp(
+    session: NfcSession,
+    sealedDdkData: SealedData?,
+    sealedSsekForDecryption: SealedData?,
+    descriptorBackupsBindings: String,
+    activateKeysetBindings: String,
+    actionProofVersion: UInt,
+  ) = measure("recoveryAuthorizeLostApp") {
+    w3Commands.recoveryAuthorizeLostApp(
+      session,
+      sealedDdkData,
+      sealedSsekForDecryption,
+      descriptorBackupsBindings,
+      activateKeysetBindings,
+      actionProofVersion
+    )
+  }
+
+  override suspend fun recoveryAuthorizeLostHw(
+    session: NfcSession,
+    ddkPrivateKeyBytes: ByteString?,
+    descriptorBackupsBindings: String,
+    activateKeysetBindings: String,
+    actionProofVersion: UInt,
+  ) = measure("recoveryAuthorizeLostHw") {
+    w3Commands.recoveryAuthorizeLostHw(
+      session,
+      ddkPrivateKeyBytes,
+      descriptorBackupsBindings,
+      activateKeysetBindings,
+      actionProofVersion
+    )
+  }
+
+  override suspend fun upgradeAuthorizeW3(
+    session: NfcSession,
+    ddkPrivateKeyBytes: ByteString,
+    sealedSsekForDecryption: SealedData?,
+    descriptorBackupsBindings: String,
+    activateKeysetBindings: String,
+    actionProofVersion: UInt,
+  ) = measure("upgradeAuthorizeW3") {
+    w3Commands.upgradeAuthorizeW3(
+      session,
+      ddkPrivateKeyBytes,
+      sealedSsekForDecryption,
+      descriptorBackupsBindings,
+      activateKeysetBindings,
+      actionProofVersion
+    )
+  }
+
+  override suspend fun lostAppRecoverySignChallenge(
+    session: NfcSession,
+    challenge: ByteString,
+  ) = measure("lostAppRecoverySignChallenge") {
+    w3Commands.lostAppRecoverySignChallenge(session, challenge)
+  }
+
+  override suspend fun rotateAppAuthKeys(
+    session: NfcSession,
+    params: RotateAppAuthKeysContinueParams,
+  ) = measure("rotateAppAuthKeys") {
+    w3Commands.rotateAppAuthKeys(session, params)
+  }
+
+  override suspend fun upgradeRotateAppAuthKeys(
+    session: NfcSession,
+    params: UpgradeRotateAppAuthKeysParams,
+  ) = measure("upgradeRotateAppAuthKeys") {
+    w3Commands.upgradeRotateAppAuthKeys(session, params)
+  }
+
+  override suspend fun <T> fullAccountCloudBackupRestoration(
+    session: NfcSession,
+    sealedCseks: List<SealedData>,
+    onCsekUnsealed: suspend (CsekUnsealResult) -> T,
+  ) = measure("fullAccountCloudBackupRestoration") {
+    w3Commands.fullAccountCloudBackupRestoration(session, sealedCseks, onCsekUnsealed)
+  }
 
   override suspend fun getAddress(
     session: NfcSession,
     addressIndex: UInt,
-  ) = measure("getAddress") { commands.getAddress(session, addressIndex) }
+  ) = measure("getAddress") { w3Commands.getAddress(session, addressIndex) }
 
   override suspend fun verifyKeysAndBuildDescriptor(
     session: NfcSession,
@@ -464,7 +490,7 @@ private class MetricsNfcCommandsImpl(
     wsmSignature: ByteString,
     accountIndex: UInt,
   ) = measure("verifyKeysAndBuildDescriptor") {
-    commands.verifyKeysAndBuildDescriptor(
+    w3Commands.verifyKeysAndBuildDescriptor(
       session,
       appSpendingKey,
       appSpendingKeyChaincode,

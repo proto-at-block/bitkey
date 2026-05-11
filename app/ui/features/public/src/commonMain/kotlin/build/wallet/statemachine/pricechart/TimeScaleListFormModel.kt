@@ -43,7 +43,7 @@ data class TimeScaleListFormModel(
                   model = IconModel(
                     icon = Icon.SmallIconCheckFilled,
                     iconSize = IconSize.Small,
-                    iconTint = IconTint.Primary
+                    iconTint = IconTint.InverseBackground
                   )
                 )
               } else {

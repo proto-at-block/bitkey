@@ -18,6 +18,7 @@ import build.wallet.f8e.partnerships.GetTransferPartnerListF8eClient
 import build.wallet.f8e.partnerships.GetTransferRedirectF8eClient
 import build.wallet.f8e.partnerships.RedirectUrlType
 import build.wallet.logging.logFailure
+import build.wallet.nfc.platform.requireW3
 import build.wallet.partnerships.PartnerInfo
 import build.wallet.partnerships.PartnershipTransactionType
 import build.wallet.partnerships.PartnershipTransactionsService
@@ -366,7 +367,7 @@ class AddressQrCodeUiStateMachineImpl(
           NfcSessionUIStateMachineProps(
             session = { session, commands ->
               // Call getAddress with the same index used to generate the displayed address
-              commands.getAddress(session, currentState.addressInfo.index)
+              commands.requireW3(session).getAddress(session, currentState.addressInfo.index)
             },
             onSuccess = {
               state = State.AddressLoadedUiState(

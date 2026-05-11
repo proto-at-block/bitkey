@@ -39,8 +39,10 @@ import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.home.full.HomeTab
+import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.CardListModel
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryCardModel
+import build.wallet.statemachine.recovery.hardware.fingerprintreset.FingerprintResetCardModel
 import build.wallet.ui.app.moneyhome.card.NewCard
 import build.wallet.ui.components.icon.Icon
 import build.wallet.ui.components.label.Label
@@ -1046,6 +1048,80 @@ val SnapshotHost.pendingRecommendationsWithCards
           subtitle = "2 days remaining",
           delayPeriodProgress = Progress.Half,
           delayPeriodRemainingSeconds = 0,
+          onClick = {}
+        )
+      )
+    )
+  )
+
+@Snapshot
+val SnapshotHost.pendingRecommendationsWithFingerprintResetCard
+  get() = SecurityHubBodyModel(
+    atRiskRecommendations = immutableListOf(),
+    recommendations = listOf(
+      BACKUP_MOBILE_KEY,
+      BACKUP_EAK,
+      ADD_FINGERPRINTS,
+      ADD_TRUSTED_CONTACTS,
+      ENABLE_CRITICAL_ALERTS,
+      ADD_BENEFICIARY,
+      SETUP_BIOMETRICS
+    ).toImmutableList(),
+    securityActions = listOf(
+      previewSecurityAction(
+        type = CRITICAL_ALERTS,
+        category = SecurityActionCategory.SECURITY,
+        ENABLE_CRITICAL_ALERTS,
+        state = SecurityActionState.HasRecommendationActions
+      ),
+      previewSecurityAction(
+        type = EEK_BACKUP,
+        category = SecurityActionCategory.SECURITY,
+        BACKUP_EAK,
+        state = SecurityActionState.HasRecommendationActions
+      ),
+      previewSecurityAction(
+        type = CRITICAL_ALERTS,
+        category = SecurityActionCategory.SECURITY,
+        ENABLE_CRITICAL_ALERTS,
+        state = SecurityActionState.HasRecommendationActions
+      )
+    ),
+    recoveryActions = listOf(
+      previewSecurityAction(
+        type = FINGERPRINTS,
+        category = SecurityActionCategory.SECURITY,
+        ADD_FINGERPRINTS,
+        state = SecurityActionState.HasRecommendationActions
+      ),
+      previewSecurityAction(
+        type = INHERITANCE,
+        category = SecurityActionCategory.SECURITY,
+        ADD_BENEFICIARY,
+        state = SecurityActionState.HasRecommendationActions
+      ),
+      previewSecurityAction(
+        type = APP_KEY_BACKUP,
+        category = SecurityActionCategory.SECURITY,
+        BACKUP_MOBILE_KEY,
+        state = SecurityActionState.HasRecommendationActions
+      ),
+      previewSecurityAction(
+        type = SOCIAL_RECOVERY,
+        category = SecurityActionCategory.SECURITY,
+        ADD_TRUSTED_CONTACTS,
+        state = SecurityActionState.HasRecommendationActions
+      )
+    ),
+    onRecommendationClick = {},
+    onSecurityActionClick = {},
+    onHomeTabClick = {},
+    cardsModel = CardListModel(
+      cards = immutableListOf(
+        FingerprintResetCardModel(
+          title = "Add a backup fingerprint",
+          subtitle = "Keep replacement options available",
+          backgroundColor = CardModel.CardStyle.Gradient.BackgroundColor.InverseBackground,
           onClick = {}
         )
       )

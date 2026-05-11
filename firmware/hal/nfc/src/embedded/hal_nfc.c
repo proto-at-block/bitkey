@@ -28,6 +28,11 @@ hal_nfc_priv_t hal_nfc_priv NFC_TASK_DATA = {
   .transfer_timeout_ms = 500,
 };
 
+// Stored in SHARED_TASK_DATA (not NFC_TASK_DATA) so that other tasks can call
+// hal_nfc_set_mode / hal_nfc_get_mode without an MPU fault.
+static volatile hal_nfc_mode_t hal_nfc_current_mode SHARED_TASK_DATA = HAL_NFC_MODE_NONE;
+static volatile hal_nfc_mode_t hal_nfc_next_mode SHARED_TASK_DATA = HAL_NFC_MODE_NONE;
+
 static void hal_nfc_i2c_init(void);
 static void hal_nfc_enter_mode(hal_nfc_mode_t mode);
 
@@ -41,9 +46,9 @@ void hal_nfc_init(hal_nfc_mode_t mode, rtos_timer_callback_t timer_callback) {
 #endif
 
   // Set state to all be the same.
-  hal_nfc_priv.current_mode = mode;
+  hal_nfc_current_mode = mode;
   hal_nfc_priv.prev_mode = HAL_NFC_MODE_NONE;
-  hal_nfc_priv.next_mode = mode;
+  hal_nfc_next_mode = mode;
 #if defined(PLATFORM_CFG_NFC_READER_MODE) && (PLATFORM_CFG_NFC_READER_MODE)
   hal_nfc_priv.card_detection_timeout_ms = 0;
 #endif
@@ -53,11 +58,11 @@ void hal_nfc_init(hal_nfc_mode_t mode, rtos_timer_callback_t timer_callback) {
 }
 
 void hal_nfc_set_mode(hal_nfc_mode_t mode) {
-  hal_nfc_priv.next_mode = mode;
+  hal_nfc_next_mode = mode;
 }
 
 hal_nfc_mode_t hal_nfc_get_mode(void) {
-  return hal_nfc_priv.current_mode;
+  return hal_nfc_current_mode;
 }
 
 void hal_nfc_wfi(void) {
@@ -71,9 +76,16 @@ void hal_nfc_handle_interrupts(void) {
 void hal_nfc_worker(hal_nfc_callback_t callback) {
   rfalNfcWorker();
 
-  // Update NFC mode is transitioning.
-  const hal_nfc_mode_t current_mode = hal_nfc_priv.current_mode;
-  const hal_nfc_mode_t next_mode = hal_nfc_priv.next_mode;
+  // Update NFC mode if transitioning.
+  //
+  // rfalNfcWorker() above processes any queued TX before we reach this check,
+  // so a pending response will have been pushed to the ST25 chip before the
+  // mode change reinitialises the RFAL state machine.  Callers that send a
+  // proto response and then call nfc_disable() rely on running at equal or
+  // lower RTOS priority than the NFC task so the NFC task preempts, queues the
+  // TX via rfalNfcDataExchangeStart, and returns before the caller resumes.
+  const hal_nfc_mode_t current_mode = hal_nfc_current_mode;
+  const hal_nfc_mode_t next_mode = hal_nfc_next_mode;
   if (current_mode != next_mode) {
     hal_nfc_enter_mode(next_mode);
   }
@@ -224,9 +236,9 @@ static void hal_nfc_enter_mode(hal_nfc_mode_t mode) {
       ASSERT(false);
   }
 
-  hal_nfc_priv.prev_mode = hal_nfc_priv.current_mode;
-  hal_nfc_priv.current_mode = mode;
-  hal_nfc_priv.next_mode = mode;
+  hal_nfc_priv.prev_mode = hal_nfc_current_mode;
+  hal_nfc_current_mode = mode;
+  hal_nfc_next_mode = mode;
 
   // Validate the configuration.
   err = rfalNfcDiscover(&hal_nfc_priv.discovery_cfg);

@@ -1,5 +1,6 @@
 package build.wallet.nfc.interceptors
 
+import bitkey.account.AccountConfigServiceFake
 import bitkey.account.HardwareType
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilderMock
 import build.wallet.bitcoin.wallet.SpendingWalletFake
@@ -46,6 +47,26 @@ class RejectDuringHardwareDelayNotifyInterceptorTests : FunSpec({
     fakeHardwareSpendingWalletProvider,
     fakeHardwareStatesDao
   )
+  val w3FakeHardwareKeyStore = FakeHardwareKeyStoreFake()
+  val w3FakeHardwareSpendingWalletProvider = FakeHardwareSpendingWalletProvider(
+    spendingWalletProvider = { Ok(SpendingWalletFake()) },
+    spendingWalletV2Provider = SpendingWalletV2ProviderMock(),
+    bdk2FeatureFlag = Bdk2FeatureFlag(featureFlagDao),
+    descriptorBuilder = BitcoinMultiSigDescriptorBuilderMock(),
+    fakeHardwareKeyStore = w3FakeHardwareKeyStore
+  )
+  val w3AccountConfigService = AccountConfigServiceFake().also {
+    kotlinx.coroutines.runBlocking { it.setHardwareType(HardwareType.W3) }
+  }
+  val w3NfcCommands = BitkeyW3CommandsFake(
+    w1CommandsFake = nfcCommands,
+    accountConfigService = w3AccountConfigService,
+    fakeHardwareKeyStore = w3FakeHardwareKeyStore,
+    fakeHardwareSpendingWalletProvider = w3FakeHardwareSpendingWalletProvider,
+    fakeHardwareStatesDao = fakeHardwareStatesDao,
+    messageSigner = messageSigner,
+    signatureUtils = signatureUtils
+  )
 
   val recoveryStatusService = RecoveryStatusServiceFake()
   // ClockFake defaults to someInstant; StillRecoveringHardwareRecoveryMock has
@@ -84,7 +105,7 @@ class RejectDuringHardwareDelayNotifyInterceptorTests : FunSpec({
     val effect: NfcEffect = { _, _ -> }
 
     shouldThrow<HardwareReplacementPendingError> {
-      interceptor.invoke(effect)(makeW3Session(), nfcCommands)
+      interceptor.invoke(effect)(makeW3Session(), w3NfcCommands)
     }
   }
 
@@ -96,7 +117,7 @@ class RejectDuringHardwareDelayNotifyInterceptorTests : FunSpec({
     var nextCalled = false
     val interceptor = rejectDuringHardwareDelayNotify(recoveryStatusService, clock)
     val effect: NfcEffect = { _, _ -> nextCalled = true }
-    interceptor.invoke(effect)(makeW3Session(), nfcCommands)
+    interceptor.invoke(effect)(makeW3Session(), w3NfcCommands)
 
     nextCalled shouldBe true
   }
@@ -111,7 +132,7 @@ class RejectDuringHardwareDelayNotifyInterceptorTests : FunSpec({
     var nextCalled = false
     val interceptor = rejectDuringHardwareDelayNotify(recoveryStatusService, clock)
     val effect: NfcEffect = { _, _ -> nextCalled = true }
-    interceptor.invoke(effect)(makeW3Session(), nfcCommands)
+    interceptor.invoke(effect)(makeW3Session(), w3NfcCommands)
 
     nextCalled shouldBe true
   }
@@ -125,7 +146,7 @@ class RejectDuringHardwareDelayNotifyInterceptorTests : FunSpec({
     var nextCalled = false
     val interceptor = rejectDuringHardwareDelayNotify(recoveryStatusService, clock)
     val effect: NfcEffect = { _, _ -> nextCalled = true }
-    interceptor.invoke(effect)(makeW3Session(skipLostHardwareCheck = true), nfcCommands)
+    interceptor.invoke(effect)(makeW3Session(skipLostHardwareCheck = true), w3NfcCommands)
 
     nextCalled shouldBe true
   }
@@ -137,7 +158,7 @@ class RejectDuringHardwareDelayNotifyInterceptorTests : FunSpec({
     var nextCalled = false
     val interceptor = rejectDuringHardwareDelayNotify(recoveryStatusService, clock)
     val effect: NfcEffect = { _, _ -> nextCalled = true }
-    interceptor.invoke(effect)(makeW3Session(), nfcCommands)
+    interceptor.invoke(effect)(makeW3Session(), w3NfcCommands)
 
     nextCalled shouldBe true
   }

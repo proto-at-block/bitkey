@@ -27,7 +27,6 @@ import build.wallet.statemachine.recovery.inprogress.waiting.cancelRecoveryAlert
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiProps
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiStateMachine
 import build.wallet.statemachine.root.RemainingRecoveryDelayWordsUpdateFrequency
-import build.wallet.time.DurationFormatter
 import kotlinx.datetime.Clock
 
 /**
@@ -47,7 +46,6 @@ data class RecoveryInProgressUiProps(
 class RecoveryInProgressUiStateMachineImpl(
   private val completingRecoveryUiStateMachine: CompletingRecoveryUiStateMachine,
   private val hardwareAuthUiStateMachine: HardwareAuthUiStateMachine,
-  private val durationFormatter: DurationFormatter,
   private val clock: Clock,
   private val eventTracker: EventTracker,
   private val recoveryNotificationVerificationUiStateMachine:
@@ -63,14 +61,9 @@ class RecoveryInProgressUiStateMachineImpl(
         var remainingDelayPeriod by remember {
           mutableStateOf(recoveryInProgressData.remainingDelayPeriod(clock))
         }
-        // Derive formatted delay period when the duration state is updated.
-        val remainingDelayInWords by remember(remainingDelayPeriod) {
-          derivedStateOf {
-            durationFormatter.formatWithWords(remainingDelayPeriod)
-          }
-        }
 
-        // Periodically update [remainingDelayPeriod] so that the formatted words update accordingly
+        // Periodically update [remainingDelayPeriod] so the timer display can move between
+        // duration units without forcing every-second state-machine updates.
         LaunchedEffect("update-delay-progress") {
           launchTicker(remainingRecoveryDelayWordsUpdateFrequency.value) {
             remainingDelayPeriod = recoveryInProgressData.remainingDelayPeriod(clock)
@@ -84,7 +77,6 @@ class RecoveryInProgressUiStateMachineImpl(
                 eventTracker.track(ACTION_APP_DELAY_NOTIFY_LOST_APP_TAPPED_STOP)
                 confirmingCancellation = true
               },
-              durationTitle = remainingDelayInWords,
               progress = recoveryInProgressData.delayPeriodProgress(clock),
               remainingDelayPeriod = remainingDelayPeriod,
               onExit = props.onExit
@@ -115,7 +107,6 @@ class RecoveryInProgressUiStateMachineImpl(
                 eventTracker.track(ACTION_APP_DELAY_NOTIFY_LOST_HARDWARE_TAPPED_STOP)
                 confirmingCancellation = true
               },
-              durationTitle = remainingDelayInWords,
               progress = recoveryInProgressData.delayPeriodProgress(clock),
               remainingDelayPeriod = remainingDelayPeriod,
               onExit = props.onExit ?: {} // TODO(W-3276): handle

@@ -33,7 +33,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define SYSINFO_WDOG_REFRESH_MS (1000)
+#define SYSINFO_WDOG_REFRESH_MS    (1000)
+#define SHIP_STATE_MIN_SHUTDOWN_MS (50)
 
 extern char active_slot[];
 extern power_config_t power_config;
@@ -67,11 +68,39 @@ static bool kv_mutex_unlock(void) {
 }
 
 static void power_system_down_callback(rtos_timer_handle_t UNUSED(timer)) {
+  // Latch the sleep subsystem before posting the IPC. The dispatch to
+  // `prepare_power_down` can be delayed by sysinfo-queue traffic, and any
+  // `sleep_refresh_power_timer()` that lands in the meantime (touch / NFC /
+  // auth) would otherwise re-arm the one-shot timer — exactly the re-arm
+  // window this hardening is trying to close. If the latch was already set
+  // (i.e., another path already initiated shutdown), bail — that path will
+  // drive the IPC and we'd only contribute to queue pressure here.
+  if (!sleep_begin_shutdown()) {
+    return;
+  }
+
   // Do not call prepare_power_down directly here — this callback runs in the
   // RTOS timer service task, and prepare_power_down blocks in a polling loop
   // which would starve all other timer callbacks (including the watchdog feeder).
   // Instead, send an IPC message so the sysinfo thread handles it.
-  ipc_send_empty(sysinfo_port, IPC_SYSINFO_POWER_OFF_REQUESTED);
+  //
+  // Use a bounded (not zero) timeout: `ipc_send_empty` would fall back to
+  // `IPC_TIMEOUT_MAX`, which re-introduces the exact starvation this function
+  // is trying to avoid. But a zero timeout converts ordinary transient
+  // backpressure on a 4-slot queue (e.g., concurrent NFC / coproc traffic)
+  // into a synthetic reset. 100 ms is short enough not to starve the
+  // watchdog feeder (which fires every ~1 s with multi-second wdog timeout)
+  // but long enough that real transient pressure clears. If the send still
+  // doesn't land, that's a stuck queue — reset with a named reason rather
+  // than wait for a watchdog reset with no recorded cause.
+  ipc_options_t opts = {
+    .timeout_ms = 100,
+    .take_ownership = false,
+  };
+  if (!ipc_send_opt(sysinfo_port, NULL, 0, IPC_SYSINFO_POWER_OFF_REQUESTED, opts)) {
+    BITLOG_EVENT(shutdown_ipc_send_failed, 0);
+    mcu_reset_with_reason(MCU_RESET_SHUTDOWN_IPC_FAILED);
+  }
 }
 
 static void wdog_feed_callback(rtos_timer_handle_t UNUSED(timer)) {
@@ -206,11 +235,14 @@ void handle_ship_state_cmd(ipc_ref_t* message) {
   sysinfo_task_priv.ship_state_active = true;
   LOGI("Ship mode set");
 
-  // Optionally trigger shutdown
+  // Optionally trigger shutdown. Floor the timer at SHIP_STATE_MIN_SHUTDOWN_MS
+  // so the RTOS timer has a non-zero period and the proto response has time
+  // to flush back to the host before power-down begins.
   if (cmd->msg.ship_state_cmd.shutdown_after) {
-    uint32_t timeout = cmd->msg.ship_state_cmd.shutdown_timeout_ms > 0
-                         ? cmd->msg.ship_state_cmd.shutdown_timeout_ms
-                         : 5000;
+    uint32_t timeout = cmd->msg.ship_state_cmd.shutdown_timeout_ms;
+    if (timeout < SHIP_STATE_MIN_SHUTDOWN_MS) {
+      timeout = SHIP_STATE_MIN_SHUTDOWN_MS;
+    }
     sleep_start_power_timer_with_timeout(timeout);
   }
 

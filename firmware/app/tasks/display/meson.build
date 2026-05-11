@@ -6,7 +6,7 @@ display_task_srcs = [
 display_task_lib = library('display-task',
   display_task_srcs,
   include_directories : ['inc', mpu_regions_includes],
-  dependencies : [bitlog_dep, display_driver_dep, rtos_dep, assert_dep, log_dep, sysevent_dep, uc_dep, display_ui_dep, protos_dep],
+  dependencies : [bitlog_dep, display_driver_dep, mcu_dep, rtos_dep, assert_dep, log_dep, sysevent_dep, uc_dep, display_ui_dep, protos_dep],
 )
 
 display_task_dep = declare_dependency(
@@ -17,7 +17,7 @@ display_task_dep = declare_dependency(
 display_task_mfgtest_lib = library('display-task-mfgtest',
   display_task_srcs,
   include_directories : ['inc', mpu_regions_includes],
-  dependencies : [bitlog_dep, display_driver_mfgtest_dep, rtos_dep, assert_dep, log_dep, sysevent_dep, uc_dep, display_ui_mfgtest_dep, protos_dep],
+  dependencies : [bitlog_dep, display_driver_mfgtest_dep, mcu_dep, rtos_dep, assert_dep, log_dep, sysevent_dep, uc_dep, display_ui_mfgtest_dep, protos_dep],
 )
 
 display_task_mfgtest_dep = declare_dependency(

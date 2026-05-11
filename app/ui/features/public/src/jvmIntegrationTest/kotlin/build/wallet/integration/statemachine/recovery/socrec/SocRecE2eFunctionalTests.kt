@@ -4,8 +4,9 @@ import bitkey.account.HardwareType
 import bitkey.ui.framework.test
 import bitkey.ui.screens.securityhub.SecurityHubBodyModel
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS
+import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2
+import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_SAVE_FINGERPRINT_INSTRUCTIONS
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
-import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.account.OnboardingSoftwareAccount
@@ -682,11 +683,10 @@ class SocRecE2eFunctionalTests : FunSpec({
       awaitUntilBody<DeviceSettingsFormBodyModel>().onReplaceDevice()
       awaitUntilBody<HardwareReplacementInstructionsModel>().onContinue()
       awaitUntilBody<NewDeviceReadyQuestionBodyModel>().clickPrimaryButton()
-      awaitUntilBody<PairNewHardwareBodyModel>(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
+      // V2 pairing flow: ActivationInstructionsV2 → NFC → fingerprint enrollment → NFC
+      awaitUntilBody<PairNewHardwareBodyModel>(HW_ACTIVATION_INSTRUCTIONS_V2)
         .clickPrimaryButton()
-      awaitUntilBody<PairNewHardwareBodyModel>(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
-        .clickPrimaryButton()
-      awaitUntilBody<PairNewHardwareBodyModel>(PairHardwareEventTrackerScreenId.HW_SAVE_FINGERPRINT_INSTRUCTIONS)
+      awaitUntilBody<PairNewHardwareBodyModel>(HW_SAVE_FINGERPRINT_INSTRUCTIONS)
         .clickPrimaryButton()
 
       // Complete D&N delay and wait for auth rotation
@@ -836,14 +836,23 @@ class SocRecE2eFunctionalTests : FunSpec({
       w3HardwareSeed = customerApp.w3FakeHardwareKeyStore.getSeed(),
       executeWorkers = false
     )
+    // The recovering app is fresh — set W3 hardware type so the W3 fake NFC
+    // commands route to the W3 key store during hardware verification and
+    // action proof signing.
+    recoveringApp.accountConfigService.setHardwareType(HardwareType.W3)
+
     recoveringApp.appUiStateMachine.test(
       props = Unit,
       turbineTimeout = 60.seconds
     ) {
       advanceToCloudRecovery().onRestore()
+      // W3: confirmable NFC for hardware verification during cloud restore
+      awaitW3ConfirmableNfcSession()
       screenDecideIfShouldRotate {
         clickSecondaryButton()
       }
+      // W3: confirmable NFC for action proof signing during auth key rotation
+      awaitW3ConfirmableNfcSession()
       awaitUntilBody<RotateAuthKeyScreens.Confirmation>()
         .onSelected()
       awaitUntilBody<MoneyHomeBodyModel>()
@@ -882,6 +891,12 @@ class SocRecE2eFunctionalTests : FunSpec({
     customerApp.awaitTcIsVerifiedAndBackedUp(relationshipId)
 
     val recoveredApp = shouldSucceedSocialRestore(customerApp, tcApp, PROTECTED_CUSTOMER_ALIAS)
+
+    // The recovered app was created fresh by shouldSucceedSocialRestore, so its
+    // accountConfigService doesn't have W3 hardware type set (only the original
+    // customerApp had it set during onboarding). Set it so that the W3 fake NFC
+    // commands route to W3 behavior during the subsequent D&N flow.
+    recoveredApp.accountConfigService.setHardwareType(HardwareType.W3)
 
     recoveredApp.fakeW3NfcCommands.wipeDevice()
     recoveredApp.appUiStateMachine.test(
@@ -1078,18 +1093,21 @@ private suspend fun TestScope.launchAppForModeWithoutWorkers(
   cloudStoreAccountRepository: CloudStoreAccountRepository? = null,
   cloudBackupStore: CloudBackupStore? = null,
   hardwareSeed: FakeHardwareKeyStore.Seed? = null,
+  w3HardwareSeed: FakeHardwareKeyStore.Seed? = null,
 ): AppTester =
   when (mode) {
     AppMode.Legacy -> launchLegacyWalletApp(
       cloudStoreAccountRepository = cloudStoreAccountRepository,
       cloudBackupStore = cloudBackupStore,
       hardwareSeed = hardwareSeed,
+      w3HardwareSeed = w3HardwareSeed,
       executeWorkers = false
     )
     AppMode.Private -> launchNewApp(
       cloudStoreAccountRepository = cloudStoreAccountRepository,
       cloudBackupStore = cloudBackupStore,
       hardwareSeed = hardwareSeed,
+      w3HardwareSeed = w3HardwareSeed,
       executeWorkers = false
     )
   }
@@ -1099,12 +1117,14 @@ private suspend fun TestScope.launchAppMatchingMode(
   cloudStoreAccountRepository: CloudStoreAccountRepository? = null,
   cloudBackupStore: CloudBackupStore? = null,
   hardwareSeed: FakeHardwareKeyStore.Seed? = null,
+  w3HardwareSeed: FakeHardwareKeyStore.Seed? = null,
 ): AppTester =
   if (referenceApp.appMode == AppMode.Private) {
     launchNewApp(
       cloudStoreAccountRepository = cloudStoreAccountRepository,
       cloudBackupStore = cloudBackupStore,
       hardwareSeed = hardwareSeed,
+      w3HardwareSeed = w3HardwareSeed,
       executeWorkers = false
     )
   } else {
@@ -1112,6 +1132,7 @@ private suspend fun TestScope.launchAppMatchingMode(
       cloudStoreAccountRepository = cloudStoreAccountRepository,
       cloudBackupStore = cloudBackupStore,
       hardwareSeed = hardwareSeed,
+      w3HardwareSeed = w3HardwareSeed,
       executeWorkers = false
     )
   }

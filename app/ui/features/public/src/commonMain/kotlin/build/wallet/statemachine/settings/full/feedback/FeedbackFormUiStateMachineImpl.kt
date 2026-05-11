@@ -1,6 +1,10 @@
 package build.wallet.statemachine.settings.full.feedback
 
 import androidx.compose.runtime.*
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.compose.collections.buildImmutableList
@@ -20,6 +24,7 @@ import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.list.*
 import build.wallet.ui.model.picker.ItemPickerModel
 import build.wallet.ui.model.switch.SwitchModel
+import build.wallet.ui.tokens.LabelType.Body4Mono
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.*
@@ -708,14 +713,29 @@ class FeedbackFormUiStateMachineImpl(
 
   @Composable
   private fun PrivacyPolicyDisclaimer(onClick: () -> Unit) =
-    FormMainContentModel.Button(
-      item =
-        ButtonModel(
-          text = "Your information will be collected and used in accordance with our Privacy Notice",
-          treatment = ButtonModel.Treatment.Tertiary,
-          size = ButtonModel.Size.FitContent,
-          onClick = StandardClick(onClick)
-        )
+    FormMainContentModel.AnnotatedText(
+      text =
+        buildAnnotatedString {
+          val text = "YOUR INFORMATION WILL BE COLLECTED AND USED IN ACCORDANCE WITH OUR PRIVACY NOTICE"
+          val linkedText = "PRIVACY NOTICE"
+          append(text)
+          val start = text.indexOf(linkedText)
+          addStyle(
+            style = SpanStyle(textDecoration = TextDecoration.Underline),
+            start = start,
+            end = start + linkedText.length
+          )
+        },
+      type = Body4Mono,
+      alignment = TextAlign.Start,
+      onClick = { index ->
+        val linkedText = "PRIVACY NOTICE"
+        val text = "YOUR INFORMATION WILL BE COLLECTED AND USED IN ACCORDANCE WITH OUR PRIVACY NOTICE"
+        val start = text.indexOf(linkedText)
+        if (index in start until start + linkedText.length) {
+          onClick()
+        }
+      }
     )
 
   enum class LearnMore {

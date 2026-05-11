@@ -123,6 +123,11 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
+  fun onboardingCanUseKeyboxKeysetsFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    OnboardingCanUseKeyboxKeysetsFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
   fun appUpdateModalFeatureFlag(featureFlagDao: FeatureFlagDao) =
     AppUpdateModalFeatureFlag(featureFlagDao)
 
@@ -267,6 +272,7 @@ interface FeatureFlagsComponent {
     txVerificationFeatureFlag: TxVerificationFeatureFlag,
     atRiskNotificationsFeatureFlag: AtRiskNotificationsFeatureFlag,
     chaincodeDelegationFeatureFlag: ChaincodeDelegationFeatureFlag,
+    onboardingCanUseKeyboxKeysetsFeatureFlag: OnboardingCanUseKeyboxKeysetsFeatureFlag,
     onboardingCompletionFailsafeFeatureFlag: OnboardingCompletionFailsafeFeatureFlag,
     appUpdateModalFeatureFlag: AppUpdateModalFeatureFlag,
     privateWalletMigrationFeatureFlag: PrivateWalletMigrationFeatureFlag,
@@ -306,6 +312,7 @@ interface FeatureFlagsComponent {
       w3PairingMinFirmwareVersionFeatureFlag,
       atRiskNotificationsFeatureFlag,
       chaincodeDelegationFeatureFlag,
+      onboardingCanUseKeyboxKeysetsFeatureFlag,
       onboardingCompletionFailsafeFeatureFlag,
       w3OnboardingFeatureFlag,
       w3MidUpgradeRecoveryGuardFeatureFlag,

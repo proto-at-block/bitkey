@@ -13,7 +13,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment.Companion.CenterHorizontally
 import androidx.compose.ui.Alignment.Companion.TopCenter
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -459,16 +458,16 @@ private fun FwupUpdateBackgroundMediaWithPlaceholder(
       resourcePath = videoResourcePath,
       isLooping = false,
       backgroundColor = WalletTheme.colors.background,
-      scalingMode = VideoScalingMode.CROP
+      scalingMode = VideoScalingMode.CROP,
+      allowSurfaceOnTopWorkaround = false
     )
   }
 
-  Image(
-    painter = painterResource(updateFirmwareHeroPlaceholderResource(theme, HardwareType.W3)),
-    contentDescription = null,
-    modifier = Modifier
-      .fillMaxSize()
-      .alpha(placeholderAlpha),
+  FwupUpdateHeroPlatformImage(
+    modifier = Modifier.fillMaxSize(),
+    theme = theme,
+    hardwareType = HardwareType.W3,
+    alpha = placeholderAlpha,
     contentScale = ContentScale.Crop
   )
 }
@@ -493,12 +492,6 @@ internal fun updateFirmwareHeroImageResource(
         Res.drawable.bitkey_update_light
       }
   }
-
-@Composable
-private fun updateFirmwareHeroPlaceholderResource(
-  theme: Theme,
-  hardwareType: HardwareType,
-) = updateFirmwareHeroImageResource(theme, hardwareType)
 
 private fun updateFirmwareToolbarModel(onClose: () -> Unit): ToolbarModel {
   return ToolbarModel(

@@ -64,10 +64,12 @@ private class FirmwareTelemetryInterceptor(
       val identifiers =
         TelemetryIdentifiers(
           serial = deviceInfo.serial,
-          version = deviceInfo.version,
+          version = info.firmwareVersion,
           swType = deviceInfo.swType,
           hwRevision = deviceInfo.hwRevision,
-          mcuInfo = "${info.mcuRole.name}:${info.mcuName.name}:${info.firmwareVersion}"
+          mcuInfo = "${info.mcuRole.name}:${info.mcuName.name}:${info.firmwareVersion}",
+          mcuRole = info.mcuRole,
+          activeSlot = info.activeSlot
         )
 
       getEvents(commands, session, info.mcuRole)?.let {

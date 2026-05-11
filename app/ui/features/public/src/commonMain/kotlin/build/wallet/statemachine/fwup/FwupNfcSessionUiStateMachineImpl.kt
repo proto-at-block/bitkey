@@ -40,6 +40,7 @@ import build.wallet.nfc.NfcAvailability.NotAvailable
 import build.wallet.nfc.NfcSession.RequirePairedHardware
 import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.detectedDeviceInfo
 import build.wallet.nfc.platform.toSessionFn
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.statemachine.core.ScreenModel
@@ -276,7 +277,8 @@ class FwupNfcSessionUiStateMachineImpl(
                       InNfcSessionUiState(
                         mcuUpdates = state.mcuUpdates,
                         currentMcuIndex = state.currentMcuIndex,
-                        fetchResult = emulatedPrompt.approve.fetchResult
+                        fetchResult = emulatedPrompt.approve.fetchResult,
+                        resolvedDeviceInfo = state.resolvedDeviceInfo
                       )
                     )
                   }
@@ -334,7 +336,8 @@ class FwupNfcSessionUiStateMachineImpl(
                 InNfcSessionUiState(
                   mcuUpdates = state.mcuUpdates,
                   currentMcuIndex = state.currentMcuIndex,
-                  fetchResult = state.fetchResult
+                  fetchResult = state.fetchResult,
+                  resolvedDeviceInfo = state.resolvedDeviceInfo
                 )
               )
             },
@@ -408,7 +411,8 @@ class FwupNfcSessionUiStateMachineImpl(
                 AwaitingConfirmationUiState(
                   mcuUpdates = state.mcuUpdates,
                   currentMcuIndex = state.currentMcuIndex,
-                  fetchResult = state.fetchResult
+                  fetchResult = state.fetchResult,
+                  resolvedDeviceInfo = state.resolvedDeviceInfo
                 )
               )
             },
@@ -595,13 +599,15 @@ class FwupNfcSessionUiStateMachineImpl(
         ConfirmationDeniedUiState(
           mcuUpdates = state.mcuUpdates,
           currentMcuIndex = state.currentMcuIndex,
-          fetchResult = continuation
+          fetchResult = continuation,
+          resolvedDeviceInfo = state.resolvedDeviceInfo
         )
       } else {
         ConfirmationPendingUiState(
           mcuUpdates = state.mcuUpdates,
           currentMcuIndex = state.currentMcuIndex,
-          fetchResult = continuation
+          fetchResult = continuation,
+          resolvedDeviceInfo = state.resolvedDeviceInfo
         )
       }
       setState(newState)
@@ -662,7 +668,8 @@ class FwupNfcSessionUiStateMachineImpl(
           AwaitingConfirmationUiState(
             mcuUpdates = state.mcuUpdates,
             currentMcuIndex = state.currentMcuIndex,
-            fetchResult = result.fetchResult
+            fetchResult = result.fetchResult,
+            resolvedDeviceInfo = result.resolvedDeviceInfo
           )
         )
       }
@@ -748,6 +755,7 @@ class FwupNfcSessionUiStateMachineImpl(
             NfcSession.Parameters(
               isHardwareFake = isHardwareFake,
               hardwareType = hardwareType,
+              resolvedDeviceInfoOverride = state.resolvedDeviceInfo,
               needsAuthentication = true,
               shouldLock = true,
               skipFirmwareTelemetry = true,
@@ -956,7 +964,10 @@ class FwupNfcSessionUiStateMachineImpl(
         is HardwareInteraction.Completed -> startResult.result
         is HardwareInteraction.RequiresConfirmation -> {
           // W3 two-tap flow: firmware requires user confirmation before continuing
-          return FwupTransactionResult.RequiresConfirmation(startResult.toSessionFn())
+          return FwupTransactionResult.RequiresConfirmation(
+            fetchResult = startResult.toSessionFn(),
+            resolvedDeviceInfo = commands.detectedDeviceInfo(session)
+          )
         }
         is HardwareInteraction.ConfirmWithEmulatedPrompt -> {
           // Fake hardware emulated prompt - show prompt selection UI
@@ -1226,6 +1237,7 @@ private sealed interface FwupNfcSessionUiState {
       override val mcuUpdates: ImmutableList<McuFwupData>,
       override val currentMcuIndex: Int = 0,
       val fetchResult: (suspend (NfcSession, NfcCommands) -> HardwareInteraction<Boolean>)? = null,
+      val resolvedDeviceInfo: FirmwareDeviceInfo? = null,
       val displayMode: DisplayMode = DisplayMode.Searching,
       val emulatedPrompt: HardwareInteraction.ConfirmWithEmulatedPrompt<Boolean>? = null,
     ) : InSessionUiState(mcuUpdates, currentMcuIndex) {
@@ -1268,6 +1280,7 @@ private sealed interface FwupNfcSessionUiState {
       override val mcuUpdates: ImmutableList<McuFwupData>,
       override val currentMcuIndex: Int = 0,
       val fetchResult: suspend (NfcSession, NfcCommands) -> HardwareInteraction<Boolean>,
+      val resolvedDeviceInfo: FirmwareDeviceInfo? = null,
     ) : InSessionUiState(mcuUpdates, currentMcuIndex)
 
     /**
@@ -1300,6 +1313,7 @@ private sealed interface FwupNfcSessionUiState {
       override val mcuUpdates: ImmutableList<McuFwupData>,
       override val currentMcuIndex: Int = 0,
       val fetchResult: suspend (NfcSession, NfcCommands) -> HardwareInteraction<Boolean>,
+      val resolvedDeviceInfo: FirmwareDeviceInfo? = null,
     ) : InSessionUiState(mcuUpdates, currentMcuIndex)
 
     /**
@@ -1310,6 +1324,7 @@ private sealed interface FwupNfcSessionUiState {
       override val mcuUpdates: ImmutableList<McuFwupData>,
       override val currentMcuIndex: Int = 0,
       val fetchResult: suspend (NfcSession, NfcCommands) -> HardwareInteraction<Boolean>,
+      val resolvedDeviceInfo: FirmwareDeviceInfo? = null,
     ) : InSessionUiState(mcuUpdates, currentMcuIndex)
   }
 
@@ -1367,6 +1382,7 @@ internal sealed interface FwupTransactionResult {
   /** W3 two-tap flow: fwupStart requires user confirmation on device before continuing. */
   data class RequiresConfirmation(
     val fetchResult: suspend (NfcSession, NfcCommands) -> HardwareInteraction<Boolean>,
+    val resolvedDeviceInfo: FirmwareDeviceInfo? = null,
   ) : FwupTransactionResult
 
   /** Fake hardware: fwupStart returned emulated prompt for user selection. */

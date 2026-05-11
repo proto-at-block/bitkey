@@ -1,6 +1,7 @@
 package build.wallet.ui.app.moneyhome
 
 import build.wallet.kotest.paparazzi.paparazziExtension
+import build.wallet.ui.theme.Theme
 import io.kotest.core.spec.style.FunSpec
 
 class MoneyHomeScreenSnapshots : FunSpec({
@@ -21,6 +22,24 @@ class MoneyHomeScreenSnapshots : FunSpec({
   test("MoneyHome Screen Full with design system v2 feature flag on and pending activity") {
     paparazzi.snapshot(designSystemUpdatesEnabled = true) {
       MoneyHomeScreenFullWithPendingActivity()
+    }
+  }
+
+  test("MoneyHome Screen Full with design system v2 feature flag on and late pending activity") {
+    paparazzi.snapshot(
+      onlyTheme = Theme.DARK,
+      designSystemUpdatesEnabled = true
+    ) {
+      MoneyHomeScreenFullWithLatePendingActivity()
+    }
+  }
+
+  test("MoneyHome Screen Full with design system v2 feature flag on and late pending activity light") {
+    paparazzi.snapshot(
+      onlyTheme = Theme.LIGHT,
+      designSystemUpdatesEnabled = true
+    ) {
+      MoneyHomeScreenFullWithLatePendingActivity()
     }
   }
 

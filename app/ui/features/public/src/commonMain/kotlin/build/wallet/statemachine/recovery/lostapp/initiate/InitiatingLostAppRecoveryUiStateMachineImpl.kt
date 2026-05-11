@@ -36,6 +36,7 @@ import build.wallet.nfc.platform.ActionProofAction
 import build.wallet.nfc.platform.LostAppRecoveryContinueParams
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.platform.lostAppRecoverySignChallenge
+import build.wallet.nfc.platform.requireW3
 import build.wallet.nfc.platform.signAccessToken
 import build.wallet.nfc.platform.signChallenge
 import build.wallet.nfc.platform.unsealSymmetricKey
@@ -454,7 +455,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
     nfcConfirmableSessionUiStateMachine.model(
       NfcConfirmableSessionUIStateMachineProps(
         session = { session, commands ->
-          commands.lostAppRecoverySignChallenge(session, currentState.authChallenge.challenge)
+          commands.requireW3(session).lostAppRecoverySignChallenge(session, currentState.authChallenge.challenge)
         },
         onSuccess = { signedChallenge ->
           onStateChange(
@@ -579,7 +580,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
             accountId = completedAuth.accountId
           ).getOrThrow()
 
-          commands.lostAppRecovery(
+          commands.requireW3(session).lostAppRecovery(
             session = session,
             sealedSsek = completedAuth.wrappedSsek,
             onSsekUnsealed = { unsealedSsek ->
@@ -703,7 +704,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
             accountId = currentState.completedAuth.accountId
           ).getOrThrow()
 
-          commands.signActionProof(
+          commands.requireW3(session).signActionProof(
             session = session,
             version = 1u,
             action = ActionProofAction.CANCEL_CONFLICTING_RECOVERY,

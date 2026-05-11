@@ -53,7 +53,7 @@ def setup():
     Inv_task.flash_with_filesystem_recovery()
     Commander.reset()
 
-def test_corrupted_firmware(setup: None, platform_config: PlatformConfig, fwup_image: FwupImage) -> None:
+def test_corrupted_firmware(setup: None, platform_config: PlatformConfig, images: FwupImage) -> None:
     """This test verifies that FWUP is rejected for corrupted firmware"""
     initial_version, active_slot = get_active_version()
     Inv_task.bump()
@@ -61,7 +61,7 @@ def test_corrupted_firmware(setup: None, platform_config: PlatformConfig, fwup_i
     Inv_task.build_platforms()
     Inv_task.fwup_bundle(platform_config)
 
-    corrupt_file(fwup_image.firmware)
+    corrupt_file(images.firmware)
     auth_with_pin()
     output = Inv_task.fwup_fwup()
     new_version, new_slot = get_active_version()
@@ -69,7 +69,7 @@ def test_corrupted_firmware(setup: None, platform_config: PlatformConfig, fwup_i
     assert active_slot == new_slot, "Slot changed when it shouldn't have"
     assert "rsp_status: SIGNATURE_INVALID" in output, "Expected SIGNATURE_INVALID to be in response output"
 
-def test_corrupted_signature(platform_config: PlatformConfig, fwup_image: FwupImage) -> None:
+def test_corrupted_signature(platform_config: PlatformConfig, images: FwupImage) -> None:
     """This test verifies that FWUP is rejected for corrupted signatures"""
     Commander.reset()
     initial_version, active_slot = get_active_version()
@@ -78,7 +78,7 @@ def test_corrupted_signature(platform_config: PlatformConfig, fwup_image: FwupIm
     Inv_task.build_platforms()
     Inv_task.fwup_bundle(platform_config)
 
-    corrupt_file(fwup_image.signature)
+    corrupt_file(images.signature)
     auth_with_pin()
     output = Inv_task.fwup_fwup()
     new_version, new_slot = get_active_version()

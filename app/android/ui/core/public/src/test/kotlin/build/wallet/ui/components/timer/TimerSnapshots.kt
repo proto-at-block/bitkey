@@ -14,4 +14,22 @@ class TimerSnapshots : FunSpec({
       TimerZeroProgressPreview()
     }
   }
+
+  test("timer final minute") {
+    paparazzi.snapshot {
+      TimerFinalMinutePreview()
+    }
+  }
+
+  test("timer almost final minute") {
+    paparazzi.snapshot {
+      TimerAlmostFinalMinutePreview()
+    }
+  }
+
+  test("timer minutes") {
+    paparazzi.snapshot {
+      TimerMinutesPreview()
+    }
+  }
 })

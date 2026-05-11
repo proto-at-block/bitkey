@@ -20,6 +20,7 @@ import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
 import build.wallet.f8e.onboarding.CreateFullAccountF8eClient
 import build.wallet.f8e.onboarding.CreatePrivateFullAccountF8eClient
 import build.wallet.feature.flags.ChaincodeDelegationFeatureFlag
+import build.wallet.feature.flags.OnboardingCanUseKeyboxKeysetsFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.keybox.KeyboxDao
 import build.wallet.notifications.DeviceTokenManager
@@ -52,6 +53,7 @@ class CreateFullAccountServiceImpl(
   private val notificationTouchpointF8eClient: NotificationTouchpointF8eClient,
   private val notificationTouchpointDao: NotificationTouchpointDao,
   private val chaincodeDelegationFeatureFlag: ChaincodeDelegationFeatureFlag,
+  private val onboardingCanUseKeyboxKeysetsFeatureFlag: OnboardingCanUseKeyboxKeysetsFeatureFlag,
 ) : CreateFullAccountService {
   override suspend fun createAccount(
     keyCrossDraft: WithAppKeysAndHardwareKeys,
@@ -112,7 +114,7 @@ class CreateFullAccountServiceImpl(
         appGlobalAuthKeyHwSignature = keyCrossDraft.appGlobalAuthKeyHwSignature,
         config = keyCrossDraft.config,
         keysets = listOf(spendingKeyset),
-        canUseKeyboxKeysets = true
+        canUseKeyboxKeysets = onboardingCanUseKeyboxKeysetsFeatureFlag.isEnabled()
       )
 
       // Get notification touchpoints in the event that this is an existing account

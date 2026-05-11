@@ -14,9 +14,10 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.partnerships.GetTransferPartnerListF8eClientMock
 import build.wallet.f8e.partnerships.GetTransferRedirectF8eClientMock
 import build.wallet.f8e.partnerships.RedirectUrlType
+import build.wallet.firmware.FirmwareDeviceInfoMock
 import build.wallet.ktor.result.HttpError
-import build.wallet.nfc.NfcCommandsMock
 import build.wallet.nfc.NfcSessionFake
+import build.wallet.nfc.W3NfcCommandsMock
 import build.wallet.partnerships.*
 import build.wallet.platform.clipboard.ClipItem.PlainText
 import build.wallet.platform.clipboard.ClipboardMock
@@ -79,7 +80,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
   val deepLinkHandler = DeepLinkHandlerMock(turbines::create)
   val haptics = HapticsMock()
   val eventTracker = EventTrackerMock(turbines::create)
-  val nfcCommands = NfcCommandsMock(turbines::create)
+  val nfcCommands = W3NfcCommandsMock(turbines::create)
   val nfcSession = NfcSessionFake()
   val nfcSessionUIStateMachine = NfcSessionUIStateMachineFake(
     nfcSession = nfcSession,
@@ -140,7 +141,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
       // Loading address and QR code (partners load in parallel)
       awaitBody<AddressQrCodeBodyModel> {
         with(content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()) {
-          addressDisplayString.string.shouldBe("...")
+          addressDisplayString.string.shouldBe("Loading...")
           qrCodeState.shouldBe(QrCodeState.Loading)
         }
       }
@@ -192,7 +193,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
       // Loading address and QR code (partners load in parallel)
       awaitBody<AddressQrCodeBodyModel> {
         with(content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()) {
-          addressDisplayString.string.shouldBe("...")
+          addressDisplayString.string.shouldBe("Loading...")
           qrCodeState.shouldBe(QrCodeState.Loading)
         }
       }
@@ -713,6 +714,8 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
   }
 
   test("W3 verify button triggers NFC and then shows QR code") {
+    nfcCommands.deviceInfoResult = FirmwareDeviceInfoMock.copy(hwRevision = "w3a-core-evt")
+
     stateMachine.test(props(account = FullAccountW3Mock)) {
       awaitPartnersLoaded(getTransferPartnerListF8eClient, eventTracker)
 

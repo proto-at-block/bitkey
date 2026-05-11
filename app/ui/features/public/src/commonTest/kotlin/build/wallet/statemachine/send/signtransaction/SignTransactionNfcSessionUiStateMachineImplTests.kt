@@ -1,5 +1,6 @@
 package build.wallet.statemachine.send.signtransaction
 
+import app.cash.turbine.Turbine
 import bitkey.account.HardwareType
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.bitcoin.transactions.Psbt
@@ -23,10 +24,16 @@ import build.wallet.f8e.recovery.LostHardwareServerRecoveryMock
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.feature.flags.NfcSessionRetryAttemptsFeatureFlag
+import build.wallet.firmware.FirmwareDeviceInfoMock
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.bitkey.keybox.FullAccountW3Mock
 import build.wallet.money.display.BitcoinDisplayPreferenceRepositoryFake
 import build.wallet.nfc.*
+import build.wallet.nfc.platform.ConfirmationHandlesFake
+import build.wallet.nfc.platform.ConfirmationResult
+import build.wallet.nfc.platform.HardwareInteraction
+import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.confirmationResultMapper
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.recovery.Recovery
@@ -47,7 +54,9 @@ import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.core.form.FormBodyModel
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.Result
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
@@ -74,6 +83,7 @@ class SignTransactionNfcSessionUiStateMachineImplTests : FunSpec({
     object : HardwareConfirmationUiStateMachine,
       ScreenStateMachineMock<HardwareConfirmationUiProps>("hardware-confirmation") {}
   val recoveryStatusService = RecoveryStatusServiceMock(turbine = turbines::create)
+  var customStateMachineIndex = 0
 
   val stateMachine =
     SignTransactionNfcSessionUiStateMachineImpl(
@@ -94,6 +104,30 @@ class SignTransactionNfcSessionUiStateMachineImplTests : FunSpec({
       bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryFake(),
       designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag
     )
+
+  fun createStateMachineWithTransactor(nfcTransactor: NfcTransactor): SignTransactionNfcSessionUiStateMachine {
+    val instanceIndex = customStateMachineIndex++
+    return SignTransactionNfcSessionUiStateMachineImpl(
+      enableNfcNavigator = EnableNfcNavigatorMock(),
+      eventTracker = eventTracker,
+      nfcReaderCapability = NfcReaderCapabilityMock(),
+      nfcTransactor = nfcTransactor,
+      deviceInfoProvider = deviceInfoProvider,
+      keyboxDao = keyboxDao,
+      signatureVerifier = SignatureVerifierMock(signatureVerifierTurbine),
+      nfcSessionRetryAttemptsFeatureFlag = nfcSessionRetryAttemptsFeatureFlag,
+      hardwareConfirmationUiStateMachine = hardwareConfirmationUiStateMachine,
+      inAppBrowserNavigator = InAppBrowserNavigatorMock { name ->
+        turbines.create("$name-$instanceIndex")
+      },
+      descriptorRepairUiStateMachine = object :
+        DescriptorRepairUiStateMachine,
+        ScreenStateMachineMock<DescriptorRepairUiProps>("descriptor-repair-$instanceIndex") {},
+      recoveryStatusService = recoveryStatusService,
+      bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryFake(),
+      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag
+    )
+  }
 
   val onBackCalls = turbines.create<Unit>("onBack calls")
   val onSuccessCalls = turbines.create<Psbt>("onSuccess calls")
@@ -298,6 +332,61 @@ class SignTransactionNfcSessionUiStateMachineImplTests : FunSpec({
       transactCalls.asyncNfcSigning.shouldBe(false)
 
       onErrorCalls.awaitItem()
+    }
+  }
+
+  test("W3 confirmation continuation carries resolved device info into second tap parameters") {
+    val w3ResolvedDeviceInfo =
+      FirmwareDeviceInfoMock.copy(hwRevision = "w3a-core-evt", serial = "w3-confirmation-serial")
+    val commands =
+      W3NfcCommandsMock(turbines::create).apply {
+        deviceInfoResult = w3ResolvedDeviceInfo
+        signTransactionResult = HardwareInteraction.RequiresConfirmation(
+          handles = ConfirmationHandlesFake,
+          mapResult = confirmationResultMapper { result ->
+            when (result) {
+              is ConfirmationResult.SignTx -> HardwareInteraction.Completed(PsbtMock)
+              else -> throw NfcException.CommandError("unexpected result: ${result::class.simpleName}")
+            }
+          }
+        )
+        confirmationResult = ConfirmationResult.SignTx(emptyList())
+      }
+    val executingTransactor =
+      RecordingExecutingNfcTransactor(
+        commandsPerCall = listOf(commands, commands),
+        turbineFactory = turbines::create
+      )
+
+    createStateMachineWithTransactor(executingTransactor).test(
+      props.copy(account = FullAccountW3Mock)
+    ) {
+      awaitBody<SignTransactionNfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+      }
+
+      val initialParams = executingTransactor.transactCalls.awaitItem()
+        .shouldBeTypeOf<NfcSession.Parameters>()
+      initialParams.nfcFlowName.shouldBe("sign-transaction")
+      initialParams.resolvedDeviceInfoOverride.shouldBeNull()
+
+      awaitBodyMock<HardwareConfirmationUiProps>(id = "hardware-confirmation") {
+        onConfirm()
+      }
+
+      awaitBody<SignTransactionNfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+      }
+
+      val continuationParams = executingTransactor.transactCalls.awaitItem()
+        .shouldBeTypeOf<NfcSession.Parameters>()
+      continuationParams.nfcFlowName.shouldBe("sign-transaction-confirmation")
+      continuationParams.resolvedDeviceInfoOverride.shouldBe(w3ResolvedDeviceInfo)
+
+      commands.signTransactionCalls.awaitItem().shouldBe(PsbtMock)
+      commands.getConfirmationResultCalls.awaitItem().shouldBe(ConfirmationHandlesFake)
+      onSuccessCalls.awaitItem().shouldBe(PsbtMock)
+      cancelAndIgnoreRemainingEvents()
     }
   }
 
@@ -549,3 +638,41 @@ class SignTransactionNfcSessionUiStateMachineImplTests : FunSpec({
     }
   }
 })
+
+private class RecordingExecutingNfcTransactor(
+  private val commandsPerCall: List<NfcCommands>,
+  turbineFactory: (String) -> Turbine<Any>,
+  private val sessionFactory: (NfcSession.Parameters, Int) -> NfcSession =
+    { parameters, _ -> SilentNfcSession(parameters) },
+) : NfcTransactor {
+  override var isTransacting: Boolean = false
+  val transactCalls = turbineFactory("executing transact calls")
+  private var transactCount = 0
+
+  override suspend fun <T> transact(
+    parameters: NfcSession.Parameters,
+    transaction: TransactionFn<T>,
+  ): Result<T, NfcException> {
+    isTransacting = true
+    transactCalls.add(parameters)
+    val callIndex = transactCount++
+    val commands = commandsPerCall.getOrElse(callIndex) { commandsPerCall.last() }
+    return try {
+      Ok(transaction(sessionFactory(parameters, callIndex), commands))
+    } catch (error: NfcException) {
+      Err(error)
+    } finally {
+      isTransacting = false
+    }
+  }
+}
+
+private class SilentNfcSession(
+  override val parameters: NfcSession.Parameters,
+) : NfcSession {
+  override var message: String? = null
+
+  override suspend fun transceive(buffer: List<UByte>): List<UByte> = emptyList()
+
+  override fun close() = Unit
+}

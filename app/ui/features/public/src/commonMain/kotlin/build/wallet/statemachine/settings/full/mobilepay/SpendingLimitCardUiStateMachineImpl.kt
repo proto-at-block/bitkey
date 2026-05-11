@@ -18,16 +18,17 @@ class SpendingLimitCardUiStateMachineImpl(
         timeZone = props.spendingLimit.timezone
       )
 
-    val spentAmountText =
-      (props.spendingLimit.amount - props.remainingAmount).let {
-        moneyDisplayFormatter.format(it)
-      }
+    val spentAmountText = moneyDisplayFormatter.format(props.spentAmount)
     val remainingAmountText = moneyDisplayFormatter.format(props.remainingAmount)
 
+    // Progress is computed in sats: a round-trip through fiat would not preserve spent=0.
+    val totalBitcoin = props.spentBitcoinAmount + props.remainingBitcoinAmount
     val progressPercentage =
-      with(props) {
-        (spendingLimit.amount - remainingAmount).fractionalUnitValue.floatValue() /
-          spendingLimit.amount.fractionalUnitValue.floatValue()
+      if (totalBitcoin.isZero) {
+        0f
+      } else {
+        props.spentBitcoinAmount.fractionalUnitValue.floatValue() /
+          totalBitcoin.fractionalUnitValue.floatValue()
       }
 
     return SpendingLimitCardModel(

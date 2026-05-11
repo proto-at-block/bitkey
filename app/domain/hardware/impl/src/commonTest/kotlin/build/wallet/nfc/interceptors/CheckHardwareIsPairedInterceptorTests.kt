@@ -1,5 +1,6 @@
 package build.wallet.nfc.interceptors
 
+import bitkey.account.AccountConfigServiceFake
 import bitkey.account.HardwareType
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilderMock
 import build.wallet.bitcoin.wallet.SpendingWalletFake
@@ -12,6 +13,7 @@ import build.wallet.feature.flags.Bdk2FeatureFlag
 import build.wallet.firmware.FirmwareDeviceInfoDaoFake
 import build.wallet.nfc.*
 import build.wallet.nfc.FakeFirmwareDeviceInfo
+import build.wallet.nfc.FakeW3FirmwareDeviceInfo
 import build.wallet.nfc.NfcException.UnpairedHardwareError
 import build.wallet.nfc.NfcSession.RequirePairedHardware.NotRequired
 import build.wallet.nfc.NfcSession.RequirePairedHardware.Required
@@ -45,6 +47,26 @@ class CheckHardwareIsPairedInterceptorTests : FunSpec({
     fakeHardwareKeyStore,
     fakeHardwareSpendingWalletProvider,
     fakeHardwareStatesDao
+  )
+  val w3FakeHardwareKeyStore = FakeHardwareKeyStoreFake()
+  val w3FakeHardwareSpendingWalletProvider = FakeHardwareSpendingWalletProvider(
+    spendingWalletProvider = { Ok(SpendingWalletFake()) },
+    spendingWalletV2Provider = SpendingWalletV2ProviderMock(),
+    bdk2FeatureFlag = Bdk2FeatureFlag(featureFlagDao),
+    descriptorBuilder = BitcoinMultiSigDescriptorBuilderMock(),
+    fakeHardwareKeyStore = w3FakeHardwareKeyStore
+  )
+  val w3AccountConfigService = AccountConfigServiceFake().also {
+    kotlinx.coroutines.runBlocking { it.setHardwareType(HardwareType.W3) }
+  }
+  val w3NfcCommands = BitkeyW3CommandsFake(
+    w1CommandsFake = nfcCommands,
+    accountConfigService = w3AccountConfigService,
+    fakeHardwareKeyStore = w3FakeHardwareKeyStore,
+    fakeHardwareSpendingWalletProvider = w3FakeHardwareSpendingWalletProvider,
+    fakeHardwareStatesDao = fakeHardwareStatesDao,
+    messageSigner = messageSigner,
+    signatureUtils = signatureUtils
   )
 
   val firmwareDeviceInfoDao = FirmwareDeviceInfoDaoFake()
@@ -167,8 +189,8 @@ class CheckHardwareIsPairedInterceptorTests : FunSpec({
   // --- W3 tests (serial-comparison path) ---
 
   test("W3 - validates hardware via serial match and succeeds") {
-    // Store the same serial that BitkeyW1CommandsFake.getDeviceInfo() returns
-    firmwareDeviceInfoDao.storedDeviceInfo = FakeFirmwareDeviceInfo
+    // Store the same serial that BitkeyW3CommandsFake.getDeviceInfo() returns
+    firmwareDeviceInfoDao.storedDeviceInfo = FakeW3FirmwareDeviceInfo
 
     var nextCalled = false
     val session = NfcSessionFake(
@@ -189,7 +211,7 @@ class CheckHardwareIsPairedInterceptorTests : FunSpec({
 
     val interceptor = validateHardwareIsPaired(firmwareDeviceInfoDao)
     val effect: NfcEffect = { _, _ -> nextCalled = true }
-    interceptor.invoke(effect)(session, nfcCommands)
+    interceptor.invoke(effect)(session, w3NfcCommands)
 
     nextCalled shouldBe true
   }
@@ -219,7 +241,7 @@ class CheckHardwareIsPairedInterceptorTests : FunSpec({
     val effect: NfcEffect = { _, _ -> }
 
     shouldThrow<UnpairedHardwareError> {
-      interceptor.invoke(effect)(session, nfcCommands)
+      interceptor.invoke(effect)(session, w3NfcCommands)
     }
   }
 
@@ -245,7 +267,7 @@ class CheckHardwareIsPairedInterceptorTests : FunSpec({
     val effect: NfcEffect = { _, _ -> }
 
     shouldThrow<UnpairedHardwareError> {
-      interceptor.invoke(effect)(session, nfcCommands)
+      interceptor.invoke(effect)(session, w3NfcCommands)
     }
   }
 
@@ -269,7 +291,7 @@ class CheckHardwareIsPairedInterceptorTests : FunSpec({
 
     val interceptor = validateHardwareIsPaired(firmwareDeviceInfoDao)
     val effect: NfcEffect = { _, _ -> nextCalled = true }
-    interceptor.invoke(effect)(session, nfcCommands)
+    interceptor.invoke(effect)(session, w3NfcCommands)
 
     nextCalled shouldBe true
   }

@@ -10,8 +10,8 @@ import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId.LOADI
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2
-import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_COMPLETE_TWO_TAP
+import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_SAVE_FINGERPRINT_INSTRUCTIONS
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.feature.setFlagValue
@@ -47,15 +47,12 @@ import build.wallet.testing.ext.testForHardwareHappyPaths
 import build.wallet.testing.ext.verifyPostOnboardingState
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import kotlin.time.Duration.Companion.seconds
 
 class CreateAndOnboardFullAccountFunctionalTests : FunSpec({
 
-  suspend fun AppTester.prepareApp(
-    coverageMode: HardwareCoverageMode,
-  ): AppTester {
+  suspend fun AppTester.prepareApp(coverageMode: HardwareCoverageMode): AppTester {
     return apply {
       // Set push notifications to authorized to enable us to successfully advance through
       // the notifications step in onboarding.
@@ -111,7 +108,6 @@ class CreateAndOnboardFullAccountFunctionalTests : FunSpec({
       screenIdExpectation = EMAIL_INPUT_ENTERING_EMAIL
     )
   }
-
 })
 
 private suspend inline fun <reified T : BodyModel> AppTester.testCloseAndReopenAppToOnboardingScreen(
@@ -307,10 +303,8 @@ internal suspend fun ReceiveTurbine<ScreenModel>.advanceThroughSmsScreensEnterAn
 private suspend fun ReceiveTurbine<ScreenModel>.completeNotificationPreferences(
   initialScreen: NotificationPreferenceFormBodyModel? = null,
 ) {
-  (initialScreen ?: awaitUntilBody<NotificationPreferenceFormBodyModel>()).run {
-    tosInfo?.onTermsAgreeToggle(true)
-    continueOnClick()
-  }
+  val screen = initialScreen ?: awaitUntilBody<NotificationPreferenceFormBodyModel>()
+  screen.continueOnClick()
 }
 
 private suspend fun ReceiveTurbine<ScreenModel>.awaitNextOnboardingNotificationBody(): BodyModel {

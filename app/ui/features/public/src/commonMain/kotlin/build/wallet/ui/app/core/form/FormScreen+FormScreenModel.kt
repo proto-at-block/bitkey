@@ -49,8 +49,9 @@ import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel
 import build.wallet.statemachine.core.form.FORM_DS_V2_WAITING_REVEAL_DURATION_MILLIS
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormDsV2WaitingRevealEasing
+import build.wallet.statemachine.core.form.FormDesignSystemV2Model
+
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.*
@@ -63,10 +64,7 @@ import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.button.OrderedButtonPair
 import build.wallet.ui.components.callout.Callout
 import build.wallet.ui.components.card.BitkeyDevice
-import build.wallet.ui.components.card.BitkeyDeviceMedia
-import build.wallet.ui.components.card.BitkeyDeviceMediaInteractionOverlay
-import build.wallet.ui.components.card.rememberBitkeyDeviceMediaInteractionState
-import build.wallet.ui.components.card.supportsInteractiveBitkeyWaitingMedia
+
 import build.wallet.ui.components.explainer.Explainer
 import build.wallet.ui.components.explainer.Statement
 import build.wallet.ui.components.fee.FeeOption
@@ -119,7 +117,6 @@ import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
 import kotlin.time.Duration.Companion.milliseconds
 
-private const val BITKEY_WAITING_VIDEO_CROP_SCALE = 2.17f
 
 internal data class ResolvedFormScreenModel(
   val designSystemV2Eyebrow: String?,
@@ -377,6 +374,7 @@ private fun ColumnScope.FormBodyMainContent(
       is Timer -> Timer(model = mainContent)
       is WebView -> WebView(mainContent.url)
       is Button -> Button(model = mainContent.item)
+      is AnnotatedText -> AnnotatedText(mainContent)
       is ListGroup -> ListGroup(model = mainContent.listGroupModel)
       is Loader -> FormLoader()
       is DotLoader ->
@@ -399,9 +397,7 @@ private fun ColumnScope.FormBodyMainContent(
           headlineLabelType = mainContent.header.headlineLabelType
         )
       is Showcase -> Showcase(
-        model = mainContent,
-        screenInstanceKey = model.key,
-        shouldPlayWaitingIntro = footerVisible
+        model = mainContent
       )
       is CircularTabRow -> CircularTabRow(model = mainContent.item)
       is Upsell -> mainContent.render(modifier = Modifier)
@@ -618,8 +614,6 @@ private fun AnimatedFooterContent(
 @Composable
 fun Showcase(
   model: Showcase,
-  screenInstanceKey: String = model.hashCode().toString(),
-  shouldPlayWaitingIntro: Boolean = false,
 ) {
   Column(
     modifier = Modifier
@@ -639,9 +633,7 @@ fun Showcase(
       }
       is Showcase.Content.VideoContent -> {
         ShowcaseVideoContent(
-          content = content,
-          screenInstanceKey = screenInstanceKey,
-          shouldPlayWaitingIntro = shouldPlayWaitingIntro
+          content = content
         )
       }
     }
@@ -693,117 +685,13 @@ private fun ShowcaseIconContent(
 @Composable
 private fun ShowcaseVideoContent(
   content: Showcase.Content.VideoContent,
-  screenInstanceKey: String,
-  shouldPlayWaitingIntro: Boolean,
 ) {
-  if (shouldRenderInteractiveWaitingVideo(content.video, content.hardwareType)) {
-    key(screenInstanceKey) {
-      InteractiveWaitingVideoContent(
-        hardwareType = content.hardwareType,
-        shouldPlayWaitingIntro = shouldPlayWaitingIntro
-      )
-    }
-    return
-  }
-
-  val isWaitingVideo = content.video == Showcase.Content.VideoContent.Video.BITKEY_WAITING_3D
   var videoHandler: VideoPlayerHandler? by remember(content.video) { mutableStateOf(null) }
   val videoVisible = rememberShowcaseVideoVisibility(
     video = content.video,
-    videoHandler = videoHandler,
-    shouldPlayWaitingIntro = shouldPlayWaitingIntro,
-    isWaitingVideo = isWaitingVideo
+    videoHandler = videoHandler
   )
 
-  FallbackShowcaseVideoContent(
-    video = content.video,
-    isLooping = content.video.looping,
-    isWaitingVideo = isWaitingVideo,
-    videoVisible = videoVisible,
-    onVideoPlayerReady = { handler -> videoHandler = handler }
-  )
-}
-
-@Composable
-private fun shouldRenderInteractiveWaitingVideo(
-  video: Showcase.Content.VideoContent.Video,
-  hardwareType: bitkey.account.HardwareType,
-): Boolean =
-  video == Showcase.Content.VideoContent.Video.BITKEY_WAITING_3D &&
-    supportsInteractiveBitkeyWaitingMedia(hardwareType)
-
-@Composable
-private fun InteractiveWaitingVideoContent(
-  hardwareType: bitkey.account.HardwareType,
-  shouldPlayWaitingIntro: Boolean,
-) {
-  val interactionState = rememberBitkeyDeviceMediaInteractionState()
-
-  Box(
-    modifier = Modifier
-      .fillMaxWidth()
-      .aspectRatio(1f)
-      .clipToBounds()
-  ) {
-    BitkeyDeviceMedia(
-      modifier = Modifier.matchParentSize(),
-      content = DeviceStatusCard.VideoContent.BITKEY_WAITING_3D,
-      hardwareType = hardwareType,
-      interactionState = interactionState,
-      shouldPlayWaitingIntro = shouldPlayWaitingIntro
-    )
-
-    if (interactionState.isEnabled) {
-      BitkeyDeviceMediaInteractionOverlay(
-        modifier = Modifier.matchParentSize(),
-        interactionState = interactionState
-      )
-    }
-  }
-}
-
-@Composable
-private fun rememberShowcaseVideoVisibility(
-  video: Showcase.Content.VideoContent.Video,
-  videoHandler: VideoPlayerHandler?,
-  shouldPlayWaitingIntro: Boolean,
-  isWaitingVideo: Boolean,
-): Boolean {
-  var videoVisible by remember(video) { mutableStateOf(false) }
-  var hasStartedPlayback by remember(video) { mutableStateOf(false) }
-
-  LaunchedEffect(video, videoHandler, shouldPlayWaitingIntro) {
-    val handler = videoHandler ?: return@LaunchedEffect
-    if (isWaitingVideo && !shouldPlayWaitingIntro && !hasStartedPlayback) {
-      videoVisible = false
-      return@LaunchedEffect
-    }
-    if (hasStartedPlayback) {
-      videoVisible = true
-      handler.play()
-      return@LaunchedEffect
-    }
-    videoVisible = false
-    if (!isWaitingVideo) {
-      // Hold the first frame back slightly so playback starts after the screen transition settles.
-      delay(200.milliseconds)
-    }
-    videoVisible = true
-    hasStartedPlayback = true
-    handler.play()
-  }
-
-  return videoVisible
-}
-
-@Composable
-private fun FallbackShowcaseVideoContent(
-  video: Showcase.Content.VideoContent.Video,
-  isLooping: Boolean,
-  isWaitingVideo: Boolean,
-  videoVisible: Boolean,
-  onVideoPlayerReady: (VideoPlayerHandler) -> Unit,
-) {
   Box(
     modifier = Modifier
       .fillMaxWidth()
@@ -816,21 +704,43 @@ private fun FallbackShowcaseVideoContent(
           .matchParentSize()
           .graphicsLayer {
             alpha = if (videoVisible) 1f else 0f
-            if (isWaitingVideo) {
-              scaleX = BITKEY_WAITING_VIDEO_CROP_SCALE
-              scaleY = BITKEY_WAITING_VIDEO_CROP_SCALE
-            }
           },
-      resourcePath = showcaseVideoResourcePath(video),
+      resourcePath = showcaseVideoResourcePath(content.video),
       backgroundColor = WalletTheme.colors.background,
       autoStart = false,
-      isLooping = isLooping,
+      isLooping = content.video.looping,
       startingPosition = VideoStartingPosition.START,
-      scalingMode = showcaseVideoScalingMode(video, isWaitingVideo),
-      allowSurfaceOnTopWorkaround = !isWaitingVideo,
-      videoPlayerCallback = onVideoPlayerReady
+      scalingMode = content.video.scalingMode,
+      allowSurfaceOnTopWorkaround = true,
+      videoPlayerCallback = { handler -> videoHandler = handler }
     )
   }
+}
+
+@Composable
+private fun rememberShowcaseVideoVisibility(
+  video: Showcase.Content.VideoContent.Video,
+  videoHandler: VideoPlayerHandler?,
+): Boolean {
+  var videoVisible by remember(video) { mutableStateOf(false) }
+  var hasStartedPlayback by remember(video) { mutableStateOf(false) }
+
+  LaunchedEffect(video, videoHandler) {
+    val handler = videoHandler ?: return@LaunchedEffect
+    if (hasStartedPlayback) {
+      videoVisible = true
+      handler.play()
+      return@LaunchedEffect
+    }
+    videoVisible = false
+    // Hold the first frame back slightly so playback starts after the screen transition settles.
+    delay(200.milliseconds)
+    videoVisible = true
+    hasStartedPlayback = true
+    handler.play()
+  }
+
+  return videoVisible
 }
 
 @Composable
@@ -848,17 +758,6 @@ private fun showcaseVideoResourcePath(video: Showcase.Content.VideoContent.Video
         Theme.DARK -> Res.getVideoResource("bitkey_rotate_dark")
       }
     }
-    Showcase.Content.VideoContent.Video.BITKEY_WAITING_3D -> Res.getVideoResource("bitkey_waiting_3d")
-  }
-
-private fun showcaseVideoScalingMode(
-  video: Showcase.Content.VideoContent.Video,
-  isWaitingVideo: Boolean,
-): VideoScalingMode =
-  if (isWaitingVideo) {
-    VideoScalingMode.FIT
-  } else {
-    video.scalingMode
   }
 
 @Composable
@@ -903,6 +802,8 @@ private fun Explainer(statements: ImmutableList<Statement>) {
       Statement(
         icon = item.leadingIcon,
         leadingIconSize = item.leadingIconSize,
+        leadingContentTopPadding = item.leadingContentTopPaddingDp.dp,
+        leadingContentSpacing = item.leadingContentSpacingDp.dp,
         leadingText = item.leadingText,
         leadingTextType = item.leadingTextType,
         leadingTextTreatment = item.leadingTextLabelTreatment,
@@ -980,6 +881,18 @@ private fun TextInput(model: TextInput) {
       model = model.fieldModel
     )
   }
+}
+
+@Composable
+private fun AnnotatedText(model: AnnotatedText) {
+  Label(
+    modifier = Modifier.fillMaxWidth(),
+    text = model.text,
+    type = model.type,
+    alignment = model.alignment,
+    treatment = model.treatment,
+    onClick = model.onClick
+  )
 }
 
 @Composable

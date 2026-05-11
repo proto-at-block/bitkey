@@ -425,7 +425,7 @@ private fun FormScreenDesignSystemV2TitleBlock(
     Label(
       modifier = Modifier
         .padding(top = FormScreenLargeTitleTopSpacing)
-        .alpha(1f - collapseProgress),
+        .alpha(formScreenExpandedTitleAlpha(collapseProgress)),
       text = it,
       type = LabelType.Body2Mono
     )
@@ -434,7 +434,7 @@ private fun FormScreenDesignSystemV2TitleBlock(
     Label(
       modifier = Modifier
         .padding(top = if (eyebrow != null) FormScreenEyebrowToTitleSpacing else FormScreenLargeTitleTopSpacing)
-        .alpha(1f - collapseProgress),
+        .alpha(formScreenExpandedTitleAlpha(collapseProgress)),
       text = it,
       type = LabelType.Display3
     )
@@ -496,7 +496,7 @@ private fun BoxScope.FormScreenDesignSystemToolbar(
                 end = FormScreenInlineTitleEndPadding
               )
               .align(Alignment.CenterStart)
-              .alpha(collapseProgress),
+              .alpha(formScreenInlineTitleAlpha(collapseProgress)),
             text = it,
             type = LabelType.Title2
           )
@@ -526,6 +526,13 @@ private fun BoxScope.FormScreenDesignSystemToolbar(
   }
 }
 
+private fun formScreenExpandedTitleAlpha(collapseProgress: Float): Float =
+  (1f - collapseProgress).coerceIn(0f, 1f)
+
+private fun formScreenInlineTitleAlpha(collapseProgress: Float): Float =
+  ((collapseProgress - FORM_SCREEN_INLINE_TITLE_FADE_START_PROGRESS) /
+    (1f - FORM_SCREEN_INLINE_TITLE_FADE_START_PROGRESS)).coerceIn(0f, 1f)
+
 private val FormScreenToolbarTopPadding = 8.dp
 private val FormScreenToolbarHeight = 48.dp
 private val FormScreenToolbarBottomPadding = 8.dp
@@ -539,5 +546,6 @@ private val FormScreenLargeTitleTopSpacing = 24.dp
 private val FormScreenEyebrowToTitleSpacing = 8.dp
 private val FormScreenInlineTitleStartPadding = 56.dp
 private val FormScreenInlineTitleEndPadding = 56.dp
+private const val FORM_SCREEN_INLINE_TITLE_FADE_START_PROGRESS = 0.95f
 private val FormScreenTitleCollapseRange = 120.dp
 private val FormScreenBottomContentPadding = 24.dp

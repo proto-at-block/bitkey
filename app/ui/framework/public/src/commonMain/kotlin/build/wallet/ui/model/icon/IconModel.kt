@@ -242,6 +242,7 @@ enum class IconTint {
   Primary,
   Foreground,
   Background,
+  InverseBackground,
   On60,
   On30,
   On10,

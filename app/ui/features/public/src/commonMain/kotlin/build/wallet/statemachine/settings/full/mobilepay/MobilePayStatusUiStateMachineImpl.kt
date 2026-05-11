@@ -112,17 +112,21 @@ class MobilePayStatusUiStateMachineImpl(
   private fun SpendingLimitCardModel(
     mobilePayData: MobilePayEnabledData,
   ): SpendingLimitCardModel? {
-    return if (mobilePayData.remainingFiatSpendingAmount != null && mobilePayData.activeSpendingLimit != null) {
-      spendingLimitCardUiStateMachine.model(
-        props =
-          SpendingLimitCardUiProps(
-            spendingLimit = mobilePayData.activeSpendingLimit!!,
-            remainingAmount = mobilePayData.remainingFiatSpendingAmount!!
-          )
-      )
-    } else {
-      null
-    }
+    val spendingLimit = mobilePayData.activeSpendingLimit ?: return null
+    val spentFiat = mobilePayData.spentFiatAmount ?: return null
+    val remainingFiat = mobilePayData.remainingFiatSpendingAmount ?: return null
+    val remainingBitcoin = mobilePayData.remainingBitcoinSpendingAmount ?: return null
+    val spentBitcoin = mobilePayData.spentBitcoinAmount ?: return null
+    return spendingLimitCardUiStateMachine.model(
+      props =
+        SpendingLimitCardUiProps(
+          spendingLimit = spendingLimit,
+          spentAmount = spentFiat,
+          remainingAmount = remainingFiat,
+          spentBitcoinAmount = spentBitcoin,
+          remainingBitcoinAmount = remainingBitcoin
+        )
+    )
   }
 
   @Composable

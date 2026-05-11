@@ -13,31 +13,29 @@ from bitkey.grant_protocol import MockServer, MockApp, GrantRequest
 from bitkey.secure_channel import SecureChannel
 from bitkey.wallet import Wallet
 
-from python.automation.commander import CommanderHelper
-from python.automation.inv_commands import Inv
+from ..conftest import PlatformConfig
+from ..inv_commands import Inv
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
 
 class TestClassGrantProtocol:
-    commander = CommanderHelper()
-    Inv_task = Inv()
 
     @pytest.fixture(scope="class", autouse=True)
-    def setup(self, request: pytest.FixtureRequest) -> None:
+    def setup(self, request: pytest.FixtureRequest, platform_config: PlatformConfig) -> None:
         """Pre-test setup. Performed once.
 
         :param request: PyTest fixture request object for command-line arguments.
+        :param platform_config: target device platform configuration.
         :returns: ``None``
         """
         logger.info("Setup fixture")
-        logger.info("Clean, build, and flash")
-        self.Inv_task.clean(request=request)
-        self.Inv_task.build(request=request)
-        self.Inv_task.flash_with_filesystem_recovery(request=request)
-        if not request.config.option.skip_flash:
-            self.commander.reset()
+
+        inv_task = Inv(request, platform_config)
+        inv_task.clean()
+        inv_task.build()
+        inv_task.flash()
 
     @pytest.mark.parametrize("check_grant", [True, False])
     def test_fingerprint_reset_flow(
@@ -69,7 +67,8 @@ class TestClassGrantProtocol:
         # First, provision the app auth pubkey to the device.
         logger.info("=== Provisioning App Auth Public Key ===")
         app_pubkey = app.get_compressed_public_key()
-        logger.info(f"App auth public key: {hexlify(app_pubkey).decode('ascii')}")
+        logger.info(
+            f"App auth public key: {hexlify(app_pubkey).decode('ascii')}")
 
         # Send the provisioning command using the wallet's proper API
         proto_rsp = wallet.provision_app_auth_pubkey(app_pubkey)
@@ -83,7 +82,8 @@ class TestClassGrantProtocol:
         logger.info(str(proto_rsp))
         assert proto_rsp.status == wallet_pb.SUCCESS
 
-        grant_request = GrantRequest.deserialize(proto_rsp.fingerprint_reset_request_rsp.grant_request)
+        grant_request = GrantRequest.deserialize(
+            proto_rsp.fingerprint_reset_request_rsp.grant_request)
         logger.info("Grant request:")
         logger.info(str(grant_request))
 
@@ -96,13 +96,14 @@ class TestClassGrantProtocol:
             BIP32_HARDENED_BIT = 0x80000000
 
             # Derive the auth key.
-            proto_rsp = wallet.derive(0, [87497287 | BIP32_HARDENED_BIT, 0 | BIP32_HARDENED_BIT])
-            assert proto_rsp.status == wallet_pb.status.SUCCESS, "Derive failed"
+            proto_rsp = wallet.derive(
+                0, [87497287 | BIP32_HARDENED_BIT, 0 | BIP32_HARDENED_BIT])
+            assert proto_rsp.derive_rsp.status == proto_rsp.derive_rsp.SUCCESS, "Derive failed"
 
             # Last 33 bytes are the the actual key.
             hw_auth_key = proto_rsp.derive_rsp.descriptor.bare_bip32_key[-33:]
             logger.info("Hw auth key:")
-            logger.info(hexlify(hw_auth_key).decode('ascii'))
+            logger.info(hexlify(hw_auth_key).decode("ascii"))
             assert len(hw_auth_key) == 33, "Hw auth key should be 33 bytes"
 
         # Server signs the grant (including app signature).
@@ -157,7 +158,8 @@ class TestClassGrantProtocol:
         logger.info("=== Initial App Auth Key Provisioning ===")
         # First provision the initial app auth key
         initial_pubkey = current_app.get_compressed_public_key()
-        logger.info(f"Initial app pubkey: {hexlify(initial_pubkey).decode('ascii')}")
+        logger.info(
+            f"Initial app pubkey: {hexlify(initial_pubkey).decode('ascii')}")
 
         proto_rsp = wallet.provision_app_auth_pubkey(initial_pubkey)
         assert proto_rsp.status == wallet_pb.SUCCESS, \
@@ -168,7 +170,6 @@ class TestClassGrantProtocol:
         logger.info("=== Replacing App Auth Key ===")
         new_pubkey = new_app.get_compressed_public_key()
         logger.info(f"New app pubkey: {hexlify(new_pubkey).decode('ascii')}")
-
 
         # Send new pubkey command (no signature needed anymore).
         proto_rsp = wallet.provision_app_auth_pubkey(new_pubkey)
@@ -182,16 +183,19 @@ class TestClassGrantProtocol:
         proto_rsp = wallet.fingerprint_reset_request()
         assert proto_rsp.status == wallet_pb.SUCCESS, "Fingerprint reset request failed with new key"
 
-        grant_request = GrantRequest.deserialize(proto_rsp.fingerprint_reset_request_rsp.grant_request)
+        grant_request = GrantRequest.deserialize(
+            proto_rsp.fingerprint_reset_request_rsp.grant_request)
         logger.info("Grant request created with new key provisioned")
 
         # New app signs the request with its key.
         app_signature = new_app.sign_grant_request(grant_request)
-        logger.info(f"New app signature: {hexlify(app_signature).decode('ascii')[:64]}...")
+        logger.info(
+            f"New app signature: {hexlify(app_signature).decode('ascii')[:64]}...")
 
         # Note: Old app signatures will no longer be accepted.
         logger.info("=== Verifying New Key Is Active ===")
-        logger.info("The old app key has been replaced and won't be accepted anymore")
+        logger.info(
+            "The old app key has been replaced and won't be accepted anymore")
 
         # Create server to complete the test.
         server = MockServer()
@@ -204,7 +208,8 @@ class TestClassGrantProtocol:
         )
 
         logger.info(f"Grant created with new app signature")
-        logger.info(f"Grant will be accepted because it uses the newly provisioned key")
+        logger.info(
+            f"Grant will be accepted because it uses the newly provisioned key")
 
 
 if __name__ == "__main__":

@@ -84,25 +84,44 @@ class PrivateWalletMigrationUiStateMachineImpl(
     val scope = rememberStableCoroutineScope()
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
 
-    // Check if migration is in progress by calling resume()
-    var isMigrationInProgress by remember { mutableStateOf(false) }
-    LaunchedEffect("check-migration-status") {
+    var resolvedResumeProgress by remember { mutableStateOf(props.resumeProgress) }
+    LaunchedEffect(props.resumeProgress) {
+      val resumeProgress = props.resumeProgress
+      resolvedResumeProgress = resumeProgress
+      if (resumeProgress != null) return@LaunchedEffect
+
       migrationService.resume(MigrationType.PrivateWalletMigration)
         .onSuccess { progress ->
-          isMigrationInProgress = progress.isInProgress()
+          resolvedResumeProgress = progress
         }
     }
+    val isMigrationInProgress = resolvedResumeProgress?.isInProgress() == true
+    val onBack = props.onExit.takeUnless { isMigrationInProgress }
 
     return when (val current = uiState) {
       is ShowingIntroduction -> {
         ScreenModel(
           body = PrivateWalletMigrationIntroBodyModel(
-            onBack = props.onExit.takeUnless { props.inProgress },
+            onBack = onBack,
             onContinue = {
-              if (props.inProgress) {
-                uiState = RefreshingAuthTokens
-              } else {
-                uiState = EstimatingFees
+              when (val progress = resolvedResumeProgress) {
+                is MigrationProgress.CloudBackup -> {
+                  scope.launch {
+                    uiState = cloudBackupUiState(props.account, progress)
+                  }
+                }
+                is MigrationProgress.LocalKeyboxActivation -> {
+                  uiState = Sweeping(
+                    keybox = progress.currentKeybox,
+                    migrationProgress = progress
+                  )
+                }
+                is MigrationProgress.Completed -> {
+                  uiState = Success
+                }
+                else -> {
+                  uiState = EstimatingFees
+                }
               }
             },
             onLearnHow = {
@@ -151,7 +170,7 @@ class PrivateWalletMigrationUiStateMachineImpl(
 
         ScreenModel(
           body = PrivateWalletMigrationIntroBodyModel(
-            onBack = props.onExit.takeUnless { props.inProgress },
+            onBack = onBack,
             onContinue = {},
             onLearnHow = {}
           ),
@@ -169,7 +188,7 @@ class PrivateWalletMigrationUiStateMachineImpl(
       is ShowingPendingTransactionsWarning -> {
         ScreenModel(
           body = PrivateWalletMigrationIntroBodyModel(
-            onBack = props.onExit.takeUnless { props.inProgress },
+            onBack = onBack,
             onContinue = {},
             onLearnHow = {}
           ),
@@ -186,7 +205,7 @@ class PrivateWalletMigrationUiStateMachineImpl(
       is ShowingUtxoConsolidationRequired -> {
         ScreenModel(
           body = PrivateWalletMigrationIntroBodyModel(
-            onBack = props.onExit.takeUnless { props.inProgress },
+            onBack = onBack,
             onContinue = {},
             onLearnHow = {}
           ),
@@ -212,7 +231,7 @@ class PrivateWalletMigrationUiStateMachineImpl(
 
         ScreenModel(
           body = PrivateWalletMigrationIntroBodyModel(
-            onBack = props.onExit.takeUnless { props.inProgress },
+            onBack = onBack,
             onContinue = {},
             onLearnHow = {}
           ),
@@ -234,7 +253,7 @@ class PrivateWalletMigrationUiStateMachineImpl(
       is ShowingInsufficientFundsWarning -> {
         ScreenModel(
           body = PrivateWalletMigrationIntroBodyModel(
-            onBack = props.onExit.takeUnless { props.inProgress },
+            onBack = onBack,
             onContinue = {},
             onLearnHow = {}
           ),
@@ -265,7 +284,7 @@ class PrivateWalletMigrationUiStateMachineImpl(
       is ShowingNetworkFeesInfo -> {
         ScreenModel(
           body = PrivateWalletMigrationIntroBodyModel(
-            onBack = props.onExit.takeUnless { props.inProgress },
+            onBack = onBack,
             onContinue = {},
             onLearnHow = {}
           ),
@@ -396,33 +415,19 @@ class PrivateWalletMigrationUiStateMachineImpl(
           }
 
           // Transition to the appropriate UI state based on the migration progress
-          when (currentState) {
+          val terminalState = currentState
+          when (terminalState) {
             is MigrationProgress.CloudBackup -> {
-              val cloudBackupState = currentState as MigrationProgress.CloudBackup
-              // Fetch the existing sealedCsek from the current cloud backup so the
-              // cloud backup flow can skip the NFC "seal CSEK" step when possible.
-              val existingSealedCsek = cloudBackupDao
-                .get(props.account.accountId.serverId)
-                .get()
-                ?.let { backup ->
-                  when (backup) {
-                    is CloudBackupV2 -> backup.fullAccountFields?.sealedHwEncryptionKey
-                    is CloudBackupV3 -> backup.fullAccountFields?.sealedHwEncryptionKey
-                    else -> null
-                  }
-                }
-              uiState = CloudBackup(
-                sealedCsek = existingSealedCsek,
-                keybox = cloudBackupState.currentKeybox,
-                migrationProgress = cloudBackupState
+              uiState = cloudBackupUiState(
+                account = props.account,
+                progress = terminalState
               )
             }
             is MigrationProgress.LocalKeyboxActivation -> {
               // Cloud backup was skipped, go directly to sweeping
-              val localKeyboxState = currentState as MigrationProgress.LocalKeyboxActivation
               uiState = Sweeping(
-                keybox = localKeyboxState.currentKeybox,
-                migrationProgress = localKeyboxState
+                keybox = terminalState.currentKeybox,
+                migrationProgress = terminalState
               )
             }
             is MigrationProgress.Completed -> {
@@ -561,6 +566,28 @@ class PrivateWalletMigrationUiStateMachineImpl(
         )
       }
     }
+  }
+
+  private suspend fun cloudBackupUiState(
+    account: FullAccount,
+    progress: MigrationProgress.CloudBackup,
+  ): PrivateWalletMigrationUiState {
+    val existingSealedCsek = cloudBackupDao
+      .get(account.accountId.serverId)
+      .get()
+      ?.let { backup ->
+        when (backup) {
+          is CloudBackupV2 -> backup.fullAccountFields?.sealedHwEncryptionKey
+          is CloudBackupV3 -> backup.fullAccountFields?.sealedHwEncryptionKey
+          else -> null
+        }
+      }
+
+    return CloudBackup(
+      sealedCsek = existingSealedCsek,
+      keybox = progress.currentKeybox,
+      migrationProgress = progress
+    )
   }
 }
 

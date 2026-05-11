@@ -1,5 +1,7 @@
 # Git LFS tracking for Android app snapshots
 app/android/**/snapshots/**/*.png filter=lfs diff=lfs merge=lfs -text
+app/android/app/src/main/res/raw/firmware_update_*.webm filter=lfs diff=lfs merge=lfs -text
+app/ios/Wallet/Resources/firmware_update_*.mov filter=lfs diff=lfs merge=lfs -text
 
 # SQL file syntax highlighting
 app/**/*.sq linguist-language=sql

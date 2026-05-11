@@ -5,6 +5,7 @@ import build.wallet.di.Fake
 import build.wallet.di.Impl
 import build.wallet.di.W3
 import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.W3NfcCommands
 import me.tatarka.inject.annotations.Provides
 import software.amazon.lastmile.kotlin.inject.anvil.ContributesTo
 
@@ -20,10 +21,10 @@ interface NfcCommandsComponent {
   ): @Impl NfcCommands = fake
 
   /**
-   * Bind W3 to the same fake implementation on JVM.
+   * Bind W3 fake implementation on JVM.
    */
   @Provides
   fun provideNfcCommandsW3(
-    @Fake fake: NfcCommands,
-  ): @W3 NfcCommands = fake
+    w3Fake: BitkeyW3CommandsFake,
+  ): @W3 W3NfcCommands = w3Fake
 }

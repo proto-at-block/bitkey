@@ -16,6 +16,7 @@ import build.wallet.ui.model.button.ButtonModel.Size.Floating
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Size.Regular
 import build.wallet.ui.model.button.ButtonModel.Size.Short
+import build.wallet.ui.model.button.ButtonModel.Size.ToolbarAccessory
 import build.wallet.ui.model.button.ButtonModel.Treatment.*
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
@@ -121,6 +122,7 @@ private fun ButtonModel.Treatment.backgroundColor(
 private fun ButtonModel.Size.toHeight(isDesignSystemV2Enabled: Boolean): Dp? =
   when (this) {
     Compact -> 32.dp
+    ToolbarAccessory -> 44.dp
     Floating -> 64.dp
     Footer, Regular -> if (isDesignSystemV2Enabled) 56.dp else 52.dp
     FitContent -> null
@@ -136,6 +138,7 @@ private fun ButtonModel.Size.toMinWidth(isTextButton: Boolean): Dp =
 private fun ButtonModel.Size.toVerticalPadding(): Dp =
   when (this) {
     Compact -> 4.dp
+    ToolbarAccessory -> 11.dp
     Floating -> 20.dp
     else -> 8.dp
   }
@@ -146,7 +149,7 @@ private fun ButtonModel.Size.toHorizontalPadding(isTextButton: Boolean): Dp =
   } else {
     when (this) {
       Regular, Footer, FitContent, Short -> 16.dp
-      Compact -> 12.dp
+      Compact, ToolbarAccessory -> 12.dp
       Floating -> 22.dp
     }
   }

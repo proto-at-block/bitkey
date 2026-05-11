@@ -47,6 +47,7 @@ import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
 import build.wallet.fwup.FirmwareDataService
 import build.wallet.fwup.semverToInt
 import build.wallet.ktor.result.HttpError
+import build.wallet.nfc.platform.requireW3
 import build.wallet.nfc.transaction.*
 import build.wallet.platform.random.UuidGenerator
 import build.wallet.recovery.CancelDelayNotifyRecoveryError
@@ -125,6 +126,11 @@ class RecoveryInProgressDataStateMachineImpl(
         calculateInitialState(props.recovery)
       )
     }
+
+    // Route recovery NFC from the hardware being tapped. During lost-hardware recovery,
+    // activeOrDefaultConfig() can describe the old hardware; during lost-app recovery,
+    // it can be only a default config. Neither is authoritative for the current device.
+    val useW3RecoveryFlow = isW3Hardware()
 
     return when (val dataState = state) {
       is WaitingForDelayPeriodState -> {
@@ -290,7 +296,7 @@ class RecoveryInProgressDataStateMachineImpl(
       }
 
       is AwaitingChallengeAndSeksSignedWithHardwareState -> {
-        if (isW3Hardware()) {
+        if (useW3RecoveryFlow) {
           // Generate CSEK/SSEK once and store in state so they survive recomposition.
           val csek = dataState.csek
           val ssek = dataState.ssek
@@ -566,15 +572,8 @@ class RecoveryInProgressDataStateMachineImpl(
             proof = dataState.activateKeysetProof
           )
             .onSuccess { signedKeysResponse ->
-              // Hardware descriptor validation is only needed for W3 hardware.
-              // We derive the hardware type from firmware device info (populated
-              // from earlier NFC taps) rather than accountConfigService, because
-              // on a fresh install (lost-app recovery) there's no active account
-              // and the default config would incorrectly fall back to W1.
-              val isW3 = firmwareDataService.firmwareData().value
-                .firmwareDeviceInfo?.hardwareType() == HardwareType.W3
               val hasPrivateWalletXpub = dataState.f8eSpendingKeyset.privateWalletRootXpub != null
-              state = if (isW3 && hasPrivateWalletXpub) {
+              state = if (useW3RecoveryFlow && hasPrivateWalletXpub) {
                 // W3 account requires signed keys for hardware descriptor validation
                 if (signedKeysResponse != null) {
                   BuildingHardwareDescriptorState(
@@ -1113,11 +1112,13 @@ class RecoveryInProgressDataStateMachineImpl(
                 return@LaunchedEffect
               }
 
-              val hasTrustedContacts = relationships.protectedCustomers.isNotEmpty() ||
-                relationships.endorsedTrustedContacts.isNotEmpty()
+              // DDK is only needed when the user acts as a TC for others
+              // (protectedCustomers). Having endorsedTrustedContacts (people
+              // who are TCs for ME) does not require my own DDK.
+              val needsDdkRestore = relationships.protectedCustomers.isNotEmpty()
 
               var sealedDdkData: SealedData? = null
-              if (hasTrustedContacts) {
+              if (needsDdkRestore) {
                 sealedDdkData = delegatedDecryptionKeyService
                   .getSealedDelegatedDecryptionKeyData(accountId = props.recovery.fullAccountId)
                   .getOrElse { ddkError ->
@@ -1167,7 +1168,8 @@ class RecoveryInProgressDataStateMachineImpl(
 
               val w3Bindings = prepareW3Bindings(
                 accountId = props.recovery.fullAccountId,
-                keysetId = dataState.f8eSpendingKeyset.keysetId
+                keysetId = dataState.f8eSpendingKeyset.keysetId,
+                useW3ActionProofs = useW3RecoveryFlow
               ).getOrElse {
                 state = FailedToRotateAuthState(cause = it)
                 return@LaunchedEffect
@@ -1208,7 +1210,8 @@ class RecoveryInProgressDataStateMachineImpl(
 
               val w3BindingsHw = prepareW3Bindings(
                 accountId = props.recovery.fullAccountId,
-                keysetId = dataState.f8eSpendingKeyset.keysetId
+                keysetId = dataState.f8eSpendingKeyset.keysetId,
+                useW3ActionProofs = useW3RecoveryFlow
               ).getOrElse {
                 state = FailedToRotateAuthState(cause = it)
                 return@LaunchedEffect
@@ -1233,11 +1236,11 @@ class RecoveryInProgressDataStateMachineImpl(
       }
 
       is AwaitingProofAndKeyTransferLostAppState -> {
-        if (isW3Hardware()) {
+        if (useW3RecoveryFlow) {
           AwaitingProofAndKeyTransferLostAppData(
             nfcSession = RecoveryNfcSession.Confirmable(
               session = { session, commands ->
-                commands.recoveryAuthorizeLostApp(
+                commands.requireW3(session).recoveryAuthorizeLostApp(
                   session = session,
                   sealedDdkData = dataState.sealedDdkData,
                   sealedSsekForDecryption = dataState.sealedSsekForDecryption,
@@ -1400,11 +1403,11 @@ class RecoveryInProgressDataStateMachineImpl(
       }
 
       is AwaitingProofAndKeyTransferLostHwState -> {
-        if (isW3Hardware()) {
+        if (useW3RecoveryFlow) {
           AwaitingProofAndKeyTransferLostHwData(
             nfcSession = RecoveryNfcSession.Confirmable(
               session = { session, commands ->
-                commands.recoveryAuthorizeLostHw(
+                commands.requireW3(session).recoveryAuthorizeLostHw(
                   session = session,
                   ddkPrivateKeyBytes = dataState.ddkKeypair?.privateKey?.bytes,
                   descriptorBackupsBindings = dataState.descriptorBackupsBindings!!,
@@ -1747,8 +1750,9 @@ class RecoveryInProgressDataStateMachineImpl(
   private suspend fun prepareW3Bindings(
     accountId: FullAccountId,
     keysetId: String,
+    useW3ActionProofs: Boolean,
   ): Result<W3ActionProofBindings?, Throwable> {
-    if (!isW3Hardware()) return Ok(null)
+    if (!useW3ActionProofs) return Ok(null)
     val dbNonce = actionProofService.generateNonce()
     val dbBindings = actionProofService.buildBindings(nonce = dbNonce, accountId = accountId)
       .getOrElse { return Err(Error(it)) }

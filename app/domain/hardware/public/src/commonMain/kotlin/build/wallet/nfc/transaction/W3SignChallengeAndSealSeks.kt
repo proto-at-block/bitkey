@@ -7,6 +7,7 @@ import build.wallet.cloud.backup.csek.*
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.platform.SignChallengeAndSealSeksResult
+import build.wallet.nfc.platform.requireW3
 import build.wallet.nfc.transaction.SignChallengeAndSealSeks.SignedChallengeAndSeks
 
 /**
@@ -29,7 +30,7 @@ class W3SignChallengeAndSealSeks(
   fun toConfirmable(): RecoveryNfcSession.Confirmable<SignChallengeAndSealSeksResult> {
     return RecoveryNfcSession.Confirmable(
       session = { session: NfcSession, commands: NfcCommands ->
-        commands.signChallengeAndSealSeks(
+        commands.requireW3(session).signChallengeAndSealSeks(
           session = session,
           challenge = challenge.asByteString(),
           unsealedCsek = csek.key.raw,

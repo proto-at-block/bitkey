@@ -155,6 +155,25 @@ void secure_uart_channel_init(secure_channel_type_t channel_type) {
   rtos_mutex_create(&secure_channel_ctx.lock);
 }
 
+void secure_uart_channel_reset_session(void) {
+  ASSERT(secure_channel_ctx.channel_type != SECURE_CHANNEL_NONE);
+
+  rtos_mutex_lock(&secure_channel_ctx.lock);
+  memzero(secure_channel_ctx.send_key_buf, sizeof(secure_channel_ctx.send_key_buf));
+  memzero(secure_channel_ctx.recv_key_buf, sizeof(secure_channel_ctx.recv_key_buf));
+  memzero(secure_channel_ctx.conf_key_buf, sizeof(secure_channel_ctx.conf_key_buf));
+  memzero(uxc_channel_local_state.privkey_buf, sizeof(uxc_channel_local_state.privkey_buf));
+  memzero(uxc_channel_local_state.pubkey_buf, sizeof(uxc_channel_local_state.pubkey_buf));
+  memzero(uxc_channel_local_state.peer_pubkey_buf, sizeof(uxc_channel_local_state.peer_pubkey_buf));
+  secure_channel_ctx.established = false;
+  uxc_channel_local_state.recv_sequence_number = 0;
+  uxc_channel_local_state.send_sequence_number = 0;
+  uxc_channel_local_state.have_keys = false;
+  uxc_channel_local_state.confirmed = false;
+  sysevent_clear(SYSEVENT_UXC_SECURE_COMMS_ESTABLISHED);
+  rtos_mutex_unlock(&secure_channel_ctx.lock);
+}
+
 bool secure_uart_channel_confirmed(void) {
   if (secure_channel_ctx.channel_type == SECURE_CHANNEL_NONE) {
     return false;

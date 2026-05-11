@@ -56,8 +56,10 @@ import build.wallet.logging.logFailure
 import build.wallet.logging.logInfo
 import build.wallet.nfc.NfcException
 import build.wallet.nfc.NfcSession
+import build.wallet.nfc.platform.detectedDeviceInfo
 import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.requireW3
 import build.wallet.nfc.platform.unsealSymmetricKey
 import build.wallet.nfc.transaction.ProvisionAppAuthKeyTransactionProvider
 import build.wallet.notifications.DeviceTokenManager
@@ -382,7 +384,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
           // Fetch device info for hardware-type branching only.
           // Don't persist metadata until after successful unseal/transfer
           // to ensure the tapped hardware is verified before updating paired metadata.
-          val deviceInfo = commands.getDeviceInfo(session)
+          val deviceInfo = commands.detectedDeviceInfo(session)
           val hardwareType = deviceInfo.hardwareType()
           // Capture for deferred persistence after successful unseal
           capturedDeviceInfo = deviceInfo
@@ -421,7 +423,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
             HardwareType.W3 -> {
               val sealedCseks = backupToSealedCsek.map { (_, sealedCsek) -> sealedCsek }
 
-              commands.fullAccountCloudBackupRestoration(
+              commands.requireW3(session).fullAccountCloudBackupRestoration(
                 session = session,
                 sealedCseks = sealedCseks
               ) { result ->

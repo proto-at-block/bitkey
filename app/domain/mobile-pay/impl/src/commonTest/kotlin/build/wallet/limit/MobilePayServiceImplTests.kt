@@ -91,7 +91,9 @@ class MobilePayServiceImplTests : FunSpec({
   val mobilePayDataEnabled = MobilePayEnabledData(
     activeSpendingLimit = mobilePayEnabled.activeSpendingLimit,
     remainingBitcoinSpendingAmount = BitcoinMoney.btc(1.0),
-    remainingFiatSpendingAmount = usd(300)
+    remainingFiatSpendingAmount = usd(100),
+    spentBitcoinAmount = BitcoinMoney.zero(),
+    spentFiatAmount = usd(0)
   )
 
   lateinit var mobilePayService: MobilePayServiceImpl
@@ -335,7 +337,8 @@ class MobilePayServiceImplTests : FunSpec({
             // limit of 100, converting it to BTC (300), then converting to euro (900).
             amount = eur(900)
           ),
-          remainingFiatSpendingAmount = eur(300)
+          remainingFiatSpendingAmount = eur(900),
+          spentFiatAmount = eur(0)
         )
       )
     }
@@ -346,17 +349,33 @@ class MobilePayServiceImplTests : FunSpec({
       mobilePayService.executeWork()
     }
     accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
-    mobilePayStatusProvider.status.value = mobilePayEnabled
+    val enabled = mobilePayEnabled.copy(
+      activeSpendingLimit = SpendingLimitMock(usd(dollars = 600.0)),
+      balance = mobilePayBalance.copy(
+        spent = BitcoinMoney.btc(0.5),
+        limit = SpendingLimitMock(usd(dollars = 600.0))
+      )
+    )
+    val enabledData = mobilePayDataEnabled.copy(
+      activeSpendingLimit = enabled.activeSpendingLimit,
+      spentBitcoinAmount = enabled.balance!!.spent,
+      spentFiatAmount = usd(dollars = 1.5),
+      remainingFiatSpendingAmount = usd(300)
+    )
+    mobilePayStatusProvider.status.value = enabled
 
     mobilePayService.mobilePayData.test {
-      awaitUntil(mobilePayDataEnabled)
+      awaitUntil(enabledData)
 
       // Update the exchange rate
       currencyConverter.conversionRate = 5.0
       // This exchange rate isn't used due to fakes, but changing it should trigger a recalculation.
       exchangeRateService.exchangeRates.value = listOf(USDtoBTC(0.05))
       awaitItem().shouldBe(
-        mobilePayDataEnabled.copy(remainingFiatSpendingAmount = usd(500))
+        enabledData.copy(
+          spentFiatAmount = usd(dollars = 2.5),
+          remainingFiatSpendingAmount = usd(500)
+        )
       )
     }
   }
@@ -384,7 +403,8 @@ class MobilePayServiceImplTests : FunSpec({
     accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
 
     currencyConverter.conversionRate = 3.0 // 1 btc == 3 dollars
-    val mobilePayEnabledWithSpentBtc = mobilePayEnabled.copy(
+    val mobilePayEnabledWithSpentBtc = MobilePayEnabled(
+      activeSpendingLimit = SpendingLimitMock(usd(dollars = 6.0)),
       balance = MobilePayBalance(
         spent = BitcoinMoney.btc(0.5), // spent $1.5
         available = BitcoinMoney.btc(1.5), // $4.5 available
@@ -398,7 +418,190 @@ class MobilePayServiceImplTests : FunSpec({
         MobilePayEnabledData(
           activeSpendingLimit = mobilePayEnabledWithSpentBtc.activeSpendingLimit,
           remainingBitcoinSpendingAmount = mobilePayEnabledWithSpentBtc.balance!!.available,
-          remainingFiatSpendingAmount = usd(dollars = 4.5)
+          remainingFiatSpendingAmount = usd(dollars = 4.5),
+          spentBitcoinAmount = mobilePayEnabledWithSpentBtc.balance!!.spent,
+          spentFiatAmount = usd(dollars = 1.5)
+        )
+      )
+    }
+  }
+
+  test("spent = 0 sats renders spentFiatAmount = 0 regardless of exchange rate") {
+    createBackgroundScope().launch {
+      mobilePayService.executeWork()
+    }
+    accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
+
+    currencyConverter.conversionRate = 7.123 // arbitrary non-integer rate
+    val enabled = mobilePayEnabled.copy(
+      activeSpendingLimit = SpendingLimitMock(usd(dollars = 6.0)),
+      balance = MobilePayBalance(
+        spent = BitcoinMoney.zero(),
+        available = BitcoinMoney.btc(1.0),
+        limit = SpendingLimitMock(usd(dollars = 6.0))
+      )
+    )
+    mobilePayStatusProvider.status.value = enabled
+
+    mobilePayService.mobilePayData.test {
+      awaitUntil(
+        MobilePayEnabledData(
+          activeSpendingLimit = enabled.activeSpendingLimit,
+          remainingBitcoinSpendingAmount = enabled.balance!!.available,
+          remainingFiatSpendingAmount = usd(dollars = 6.0),
+          spentBitcoinAmount = BitcoinMoney.zero(),
+          // 0 sats at any rate is $0 mechanically.
+          spentFiatAmount = usd(dollars = 0.0)
+        )
+      )
+    }
+  }
+
+  test("remainingFiatSpendingAmount uses the displayed limit when spent is zero and converted remaining exceeds it") {
+    createBackgroundScope().launch {
+      mobilePayService.executeWork()
+    }
+    accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
+
+    currencyConverter.conversionRate = 3.0
+    val enabled = mobilePayEnabled.copy(
+      activeSpendingLimit = SpendingLimitMock(usd(dollars = 6.0)),
+      balance = MobilePayBalance(
+        spent = BitcoinMoney.zero(),
+        available = BitcoinMoney.btc(3.0), // converts to $9, above the $6 limit
+        limit = SpendingLimitMock(usd(dollars = 6.0))
+      )
+    )
+    mobilePayStatusProvider.status.value = enabled
+
+    mobilePayService.mobilePayData.test {
+      awaitUntil(
+        MobilePayEnabledData(
+          activeSpendingLimit = enabled.activeSpendingLimit,
+          remainingBitcoinSpendingAmount = enabled.balance!!.available,
+          remainingFiatSpendingAmount = usd(dollars = 6.0),
+          spentBitcoinAmount = BitcoinMoney.zero(),
+          spentFiatAmount = usd(dollars = 0.0)
+        )
+      )
+    }
+  }
+
+  test("remainingFiatSpendingAmount uses the displayed limit when spent is zero and converted remaining is below it") {
+    createBackgroundScope().launch {
+      mobilePayService.executeWork()
+    }
+    accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
+
+    currencyConverter.conversionRate = 3.0
+    val enabled = mobilePayEnabled.copy(
+      activeSpendingLimit = SpendingLimitMock(usd(dollars = 6.0)),
+      balance = MobilePayBalance(
+        spent = BitcoinMoney.zero(),
+        available = BitcoinMoney.btc(1.0), // converts to $3, below the $6 limit
+        limit = SpendingLimitMock(usd(dollars = 6.0))
+      )
+    )
+    mobilePayStatusProvider.status.value = enabled
+
+    mobilePayService.mobilePayData.test {
+      awaitUntil(
+        MobilePayEnabledData(
+          activeSpendingLimit = enabled.activeSpendingLimit,
+          remainingBitcoinSpendingAmount = enabled.balance!!.available,
+          remainingFiatSpendingAmount = usd(dollars = 6.0),
+          spentBitcoinAmount = BitcoinMoney.zero(),
+          spentFiatAmount = usd(dollars = 0.0)
+        )
+      )
+    }
+  }
+
+  test("remainingFiatSpendingAmount is not clamped when spent is nonzero and converted remaining exceeds the limit") {
+    createBackgroundScope().launch {
+      mobilePayService.executeWork()
+    }
+    accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
+
+    currencyConverter.conversionRate = 3.0
+    val enabled = mobilePayEnabled.copy(
+      activeSpendingLimit = SpendingLimitMock(usd(dollars = 6.0)),
+      balance = MobilePayBalance(
+        spent = BitcoinMoney.btc(0.1),
+        available = BitcoinMoney.btc(3.0), // converts to $9, above the $6 limit
+        limit = SpendingLimitMock(usd(dollars = 6.0))
+      )
+    )
+    mobilePayStatusProvider.status.value = enabled
+
+    mobilePayService.mobilePayData.test {
+      awaitUntil(
+        MobilePayEnabledData(
+          activeSpendingLimit = enabled.activeSpendingLimit,
+          remainingBitcoinSpendingAmount = enabled.balance!!.available,
+          remainingFiatSpendingAmount = usd(dollars = 9.0),
+          spentBitcoinAmount = enabled.balance!!.spent,
+          spentFiatAmount = usd(dollars = 0.3)
+        )
+      )
+    }
+  }
+
+  test("spentFiatAmount is clamped at the displayed limit when converted spent exceeds it") {
+    createBackgroundScope().launch {
+      mobilePayService.executeWork()
+    }
+    accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
+
+    currencyConverter.conversionRate = 3.0
+    val enabled = mobilePayEnabled.copy(
+      activeSpendingLimit = SpendingLimitMock(usd(dollars = 6.0)),
+      balance = MobilePayBalance(
+        spent = BitcoinMoney.btc(3.0), // converts to $9, above the $6 limit
+        available = BitcoinMoney.zero(),
+        limit = SpendingLimitMock(usd(dollars = 6.0))
+      )
+    )
+    mobilePayStatusProvider.status.value = enabled
+
+    mobilePayService.mobilePayData.test {
+      awaitUntil(
+        MobilePayEnabledData(
+          activeSpendingLimit = enabled.activeSpendingLimit,
+          remainingBitcoinSpendingAmount = enabled.balance!!.available,
+          remainingFiatSpendingAmount = usd(dollars = 0.0),
+          spentBitcoinAmount = enabled.balance!!.spent,
+          spentFiatAmount = usd(dollars = 6.0) // clamped from $9 down to the $6 limit
+        )
+      )
+    }
+  }
+
+  test("spentFiatAmount is not clamped at equality with the limit") {
+    createBackgroundScope().launch {
+      mobilePayService.executeWork()
+    }
+    accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
+
+    currencyConverter.conversionRate = 3.0
+    val enabled = mobilePayEnabled.copy(
+      activeSpendingLimit = SpendingLimitMock(usd(dollars = 6.0)),
+      balance = MobilePayBalance(
+        spent = BitcoinMoney.btc(2.0), // converts to exactly $6
+        available = BitcoinMoney.zero(),
+        limit = SpendingLimitMock(usd(dollars = 6.0))
+      )
+    )
+    mobilePayStatusProvider.status.value = enabled
+
+    mobilePayService.mobilePayData.test {
+      awaitUntil(
+        MobilePayEnabledData(
+          activeSpendingLimit = enabled.activeSpendingLimit,
+          remainingBitcoinSpendingAmount = enabled.balance!!.available,
+          remainingFiatSpendingAmount = usd(dollars = 0.0),
+          spentBitcoinAmount = enabled.balance!!.spent,
+          spentFiatAmount = usd(dollars = 6.0)
         )
       )
     }

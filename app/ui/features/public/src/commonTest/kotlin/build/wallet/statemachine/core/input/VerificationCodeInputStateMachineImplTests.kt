@@ -71,12 +71,37 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
       awaitBody<FormBodyModel> {
         header.shouldNotBeNull().headline.shouldBe(props.title)
         with(mainContentList.first().shouldBeTypeOf<VerificationCodeInput>()) {
+          expectedCodeLength.shouldBe(props.expectedCodeLength)
           fieldModel.placeholderText.shouldBe("Verification code")
           fieldModel.value.shouldBeEmpty()
+          fieldModel.maxLength.shouldBeNull()
           primaryButton.shouldBeNull()
           resendCodeContent.shouldBeInstanceOf<Text>()
         }
       }
+    }
+  }
+
+  test("honors caller-provided verification code length") {
+    val customLengthProps = props.copy(expectedCodeLength = 8)
+
+    stateMachine.test(customLengthProps) {
+      awaitBody<FormBodyModel> {
+        with(mainContentList.first().shouldBeTypeOf<VerificationCodeInput>()) {
+          expectedCodeLength.shouldBe(customLengthProps.expectedCodeLength)
+          fieldModel.maxLength.shouldBeNull()
+          fieldModel.onValueChange("1".repeat(customLengthProps.expectedCodeLength + 2))
+        }
+      }
+
+      awaitBody<FormBodyModel> {
+        with(mainContentList.first().shouldBeTypeOf<VerificationCodeInput>()) {
+          expectedCodeLength.shouldBe(customLengthProps.expectedCodeLength)
+          fieldModel.value.shouldBe("1".repeat(customLengthProps.expectedCodeLength))
+        }
+      }
+
+      onCodeEnteredCalls.awaitItem()
     }
   }
 

@@ -14,9 +14,11 @@ import build.wallet.statemachine.inheritance.ManagingInheritanceTab
 import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.awaitUntilSheet
 import build.wallet.ui.model.list.ListItemAccessory.ButtonAccessory
+import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.types.shouldBeInstanceOf
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeout
 import kotlin.time.Duration.Companion.seconds
 
 class DeclineInheritanceClaimIntegrationTests : FunSpec({
@@ -24,11 +26,20 @@ class DeclineInheritanceClaimIntegrationTests : FunSpec({
   test("Benefactor declines pending claim when relationship has older canceled claim") {
     val apps = launchInheritanceApps()
     apps.advanceThroughClaimStart()
-    apps.benefactor.app.claimsRepository.syncServerClaims()
-
-    val pendingClaim = apps.benefactor.app.inheritanceService.pendingBenefactorClaim(
-      relationshipId = apps.relationshipId
-    ).shouldNotBeNull()
+    val pendingClaim: BenefactorClaim.PendingClaim = withTimeout(20.seconds) {
+      while (true) {
+        apps.benefactor.app.claimsRepository.syncServerClaims()
+        val claim = apps.benefactor.app.claimsRepository.fetchClaims()
+          .getOrThrow()
+          .benefactorClaims
+          .filterIsInstance<BenefactorClaim.PendingClaim>()
+          .firstOrNull { it.relationshipId == apps.relationshipId }
+        if (claim != null) return@withTimeout claim
+        delay(250)
+      }
+      @Suppress("UNREACHABLE_CODE")
+      error("unreachable")
+    }
 
     val olderCanceledClaim = BenefactorClaim.CanceledClaim(
       claimId = InheritanceClaimId("stale-canceled-claim-${pendingClaim.claimId.value}"),

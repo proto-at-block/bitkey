@@ -7,6 +7,7 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.SheetModel
@@ -27,6 +28,7 @@ fun VerificationCodeInputBodyModel(
   title: String,
   subtitle: String,
   value: String = "",
+  expectedCodeLength: Int,
   resendCodeContent: ResendCodeContent,
   explainerText: String?,
   errorOverlay: SheetModel? = null,
@@ -38,6 +40,7 @@ fun VerificationCodeInputBodyModel(
     title = title,
     subtitle = subtitle,
     value = value,
+    expectedCodeLength = expectedCodeLength,
     resendCodeContent = resendCodeContent,
     explainerText = explainerText,
     onValueChange = onValueChange,
@@ -53,6 +56,7 @@ data class VerificationCodeInputFormBodyModel(
   @Redacted
   val subtitle: String,
   val value: String,
+  val expectedCodeLength: Int,
   val resendCodeContent: ResendCodeContent,
   val explainerText: String?,
   val onValueChange: (String) -> Unit,
@@ -76,6 +80,7 @@ data class VerificationCodeInputFormBodyModel(
                 keyboardType = Number,
                 transformation = null
               ),
+            expectedCodeLength = expectedCodeLength,
             resendCodeContent = resendCodeContent
           )
         )
@@ -85,9 +90,11 @@ data class VerificationCodeInputFormBodyModel(
               items =
                 immutableListOf(
                   Statement(
-                    leadingIcon = Icon.SmallIconWarning,
+                    leadingIcon = Icon.SmallIconInformation,
+                    leadingContentTopPaddingDp = 2,
+                    leadingContentSpacingDp = 12,
                     title = null,
-                    body = explainerText
+                    body = StringModel(explainerText)
                   )
                 )
             )

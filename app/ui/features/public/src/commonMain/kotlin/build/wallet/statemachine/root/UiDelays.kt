@@ -62,9 +62,9 @@ value class BitkeyWordMarkAnimationDuration(val value: Duration = 500.millisecon
 value class AddressQrCodeLoadingDuration(val value: Duration = 500.milliseconds)
 
 /**
- * The frequency at which the remaining recovery delay formatted as readable words is updated.
- * Set to 1 minute because this is the minimum value that we can show, anything less than 1 minute
- * is shown as "Less than 1 minute".
+ * The frequency at which the remaining recovery delay model is refreshed.
+ * Set to 1 minute because the timer component owns its local seconds countdown once its model
+ * explicitly requests seconds.
  */
 @JvmInline
 value class RemainingRecoveryDelayWordsUpdateFrequency(val value: Duration = 1.minutes)

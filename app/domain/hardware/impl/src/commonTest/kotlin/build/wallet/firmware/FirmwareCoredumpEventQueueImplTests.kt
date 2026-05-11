@@ -1,6 +1,7 @@
 package build.wallet.firmware
 
 import build.wallet.database.BitkeyDatabaseProviderImpl
+import build.wallet.firmware.FirmwareMetadata.FirmwareSlot
 import build.wallet.sqldelight.inMemorySqlDriver
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.unwrap
@@ -53,6 +54,41 @@ class FirmwareCoredumpEventQueueImplTests : FunSpec({
     val item = items[0]
     queue.append(item).unwrap()
     queue.take(1).shouldBe(Ok(listOf(item)))
+  }
+
+  test("preserves W3 MCU identifiers") {
+    val item =
+      FirmwareCoredump(
+        "coredump".encodeUtf8(),
+        TelemetryIdentifiers(
+          serial = "W3A0000000000001",
+          version = "1.2.3",
+          swType = "app-a-dev",
+          hwRevision = "w3a-core-pdvt",
+          mcuInfo = "UXC:STM32U5:1.2.3",
+          mcuRole = McuRole.UXC,
+          activeSlot = FirmwareSlot.B
+        )
+      )
+
+    queue.append(item).unwrap()
+
+    queue.take(1).shouldBe(
+      Ok(
+        listOf(
+          FirmwareCoredump(
+            "coredump".encodeUtf8(),
+            TelemetryIdentifiers(
+              serial = "W3A0000000000001",
+              version = "1.2.3",
+              swType = "app-b-dev",
+              hwRevision = "w3a-uxc-pdvt",
+              mcuInfo = "UXC:STM32U5:1.2.3"
+            )
+          )
+        )
+      )
+    )
   }
 
   test("get all items") {

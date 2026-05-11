@@ -12,6 +12,7 @@ import build.wallet.bitkey.keybox.AppKeyBundleMock
 import build.wallet.bitkey.keybox.AppKeyBundleMock2
 import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.bitkey.keybox.Keybox
+import build.wallet.bitkey.keybox.withNewSpendingKeyset
 import build.wallet.bitkey.spending.PrivateSpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.database.BitkeyDatabaseProviderImpl
@@ -210,6 +211,21 @@ class KeyboxDaoImplTests : FunSpec({
     dao.getActiveOrOnboardingKeybox().shouldBe(Ok(null))
     dao.saveKeyboxAsActive(keybox)
     dao.getActiveOrOnboardingKeybox().shouldBe(Ok(keybox))
+  }
+
+  test("saving a replayed new spending keyset does not duplicate active keysets") {
+    val replayedKeybox = keybox1
+      .withNewSpendingKeyset(keyset2)
+      .withNewSpendingKeyset(keyset2)
+
+    dao.saveKeyboxAsActive(replayedKeybox)
+
+    val persisted = dao.getActiveOrOnboardingKeybox().get().shouldNotBeNull()
+    persisted.activeSpendingKeyset.shouldBe(keyset2)
+    persisted.keysets.shouldBe(listOf(keyset1, keyset2))
+    databaseProvider.database().spendingKeysetQueries.countSpendingKeysets()
+      .executeAsOne()
+      .shouldBe(2)
   }
 
   test("rotateKeyboxAuthKeys with newHwAuthPublicKey updates hw auth key in place") {

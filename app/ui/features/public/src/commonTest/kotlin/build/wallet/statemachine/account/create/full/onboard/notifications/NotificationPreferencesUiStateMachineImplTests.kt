@@ -2,6 +2,7 @@ package build.wallet.statemachine.account.create.full.onboard.notifications
 
 import bitkey.notifications.NotificationChannel
 import bitkey.notifications.NotificationPreferences
+import bitkey.notifications.NotificationsPreferencesCachedProvider
 import bitkey.notifications.NotificationsPreferencesCachedProviderMock
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.bitkey.f8e.FullAccountIdMock
@@ -9,9 +10,8 @@ import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.ActionProofHeader
 import build.wallet.f8e.auth.PrivilegedActionProof
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.FeatureFlagValue.BooleanFlag
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
+import build.wallet.ktor.result.HttpError
+import build.wallet.ktor.result.NetworkingError
 import build.wallet.platform.permissions.PermissionCheckerMock
 import build.wallet.platform.settings.SystemSettingsLauncherMock
 import build.wallet.platform.web.InAppBrowserNavigatorMock
@@ -19,25 +19,25 @@ import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.account.notifications.NotificationPermissionRequesterMock
 import build.wallet.statemachine.auth.HardwareAuthUiProps
 import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
-import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.notifications.NotificationPreferencesProps
 import build.wallet.statemachine.notifications.NotificationPreferencesUiStateMachineImpl
-import build.wallet.statemachine.notifications.shouldShowNotificationPreferencesOnboardingTos
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
-import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.list.ListItemAccessory
+import build.wallet.ui.model.switch.SwitchModel
+import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
-import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableStateFlow
 
 class NotificationPreferencesUiStateMachineImplTests : FunSpec({
   val hardwareAuthUiStateMachine =
@@ -48,8 +48,6 @@ class NotificationPreferencesUiStateMachineImplTests : FunSpec({
   val notificationPermissionRequester = NotificationPermissionRequesterMock(turbines::create)
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
   val eventTracker = EventTrackerMock(turbines::create)
-  val featureFlagDao = FeatureFlagDaoFake()
-  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(featureFlagDao)
 
   val stateMachine = NotificationPreferencesUiStateMachineImpl(
     permissionChecker = PermissionCheckerMock(),
@@ -58,15 +56,10 @@ class NotificationPreferencesUiStateMachineImplTests : FunSpec({
     notificationPermissionRequester = notificationPermissionRequester,
     inAppBrowserNavigator = inAppBrowserNavigator,
     eventTracker = eventTracker,
-    hardwareAuthUiStateMachine = hardwareAuthUiStateMachine,
-    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag
+    hardwareAuthUiStateMachine = hardwareAuthUiStateMachine
   )
 
   val onCompleteCalls = turbines.create<Unit>("onComplete")
-
-  beforeTest {
-    designSystemUpdatesFeatureFlag.setFlagValue(BooleanFlag(false))
-  }
 
   val props = NotificationPreferencesProps(
     accountId = FullAccountIdMock,
@@ -75,51 +68,8 @@ class NotificationPreferencesUiStateMachineImplTests : FunSpec({
     onComplete = { onCompleteCalls.add(Unit) }
   )
 
-  test("show tos if terms not accepted") {
-    stateMachine.testWithVirtualTime(props) {
-      // Try and hit "Continue" right away
-      awaitBody<FormBodyModel> {
-        ctaWarning.shouldBeNull()
-        primaryButton.shouldNotBeNull().onClick.shouldNotBeNull().invoke()
-      }
-
-      // Assert that we show some terms
-      awaitBody<FormBodyModel> {
-        ctaWarning.shouldNotBeNull().text.shouldBe("Agree to our Terms and Privacy Policy to continue.")
-
-        // Simulate tapping the ToS button
-        val tosListGroup = mainContentList[4].shouldBeInstanceOf<FormMainContentModel.ListGroup>()
-        tosListGroup.listGroupModel.items.first().trailingAccessory.shouldNotBeNull()
-          .shouldBeInstanceOf<ListItemAccessory.IconAccessory>().onClick.shouldNotBeNull().invoke()
-      }
-
-      // Terms warning should go away
-      awaitBody<FormBodyModel> {
-        ctaWarning.shouldBeNull()
-      }
-
-      // Icon should be filled
-      awaitBody<FormBodyModel> {
-        val tosListGroup = mainContentList[4].shouldBeInstanceOf<FormMainContentModel.ListGroup>()
-        tosListGroup.listGroupModel.items.first().trailingAccessory.shouldNotBeNull()
-          .shouldBeInstanceOf<ListItemAccessory.IconAccessory>()
-          .model.iconImage.shouldBe(IconImage.LocalImage(Icon.SmallIconCheckFilled))
-      }
-    }
-  }
-
   test("calls onComplete when done - onboarding skips action proof") {
     stateMachine.testWithVirtualTime(props) {
-      awaitBody<FormBodyModel> {
-        // Simulate tapping the ToS button
-        val tosListGroup = mainContentList[4].shouldBeInstanceOf<FormMainContentModel.ListGroup>()
-        tosListGroup.listGroupModel.items.first().trailingAccessory.shouldNotBeNull()
-          .shouldBeInstanceOf<ListItemAccessory.IconAccessory>().onClick.shouldNotBeNull().invoke()
-
-        ctaWarning.shouldBeNull()
-      }
-
-      // Re-render the screen with the TOS selected
       awaitBody<FormBodyModel> {
         // Tap Continue
         primaryButton.shouldNotBeNull().onClick.shouldNotBeNull().invoke()
@@ -128,32 +78,24 @@ class NotificationPreferencesUiStateMachineImplTests : FunSpec({
       // Transition to a loading state, where the primary button shows a loading spinner
       awaitBody<FormBodyModel> {
         primaryButton.shouldNotBeNull().isLoading.shouldBeTrue()
+
+        val transactionPushGroup =
+          mainContentList[1].shouldBeInstanceOf<FormMainContentModel.ListGroup>()
+        val transactionPushToggle =
+          transactionPushGroup.listGroupModel.items.first().trailingAccessory.shouldNotBeNull()
+            .shouldBeInstanceOf<ListItemAccessory.SwitchAccessory>()
+            .model
+            .shouldBeInstanceOf<SwitchModel>()
+        transactionPushToggle.enabled.shouldBeTrue()
+        transactionPushToggle.interactionsEnabled.shouldBeFalse()
       }
 
-      // Once more go back to the editing state
-      awaitBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().isLoading.shouldBeFalse()
-      }
       // Finally, onComplete is called.
       onCompleteCalls.awaitItem()
     }
   }
 
-  test("dsv2 onboarding skips the notification tos row") {
-    shouldShowNotificationPreferencesOnboardingTos(
-      source = NotificationPreferencesProps.Source.Onboarding,
-      isDesignSystemV2Enabled = true
-    ).shouldBeFalse()
-
-    shouldShowNotificationPreferencesOnboardingTos(
-      source = NotificationPreferencesProps.Source.Onboarding,
-      isDesignSystemV2Enabled = false
-    ).shouldBeTrue()
-  }
-
-  test("dsv2 enabled hides tos and allows continue without tos acceptance") {
-    designSystemUpdatesFeatureFlag.setFlagValue(BooleanFlag(true))
-
+  test("flow progresses to loading when primary button is clicked") {
     stateMachine.testWithVirtualTime(props) {
       awaitBody<FormBodyModel> {
         // TOS list group should not be present (only 4 content items instead of 5)
@@ -166,11 +108,6 @@ class NotificationPreferencesUiStateMachineImplTests : FunSpec({
       // Transition to loading
       awaitBody<FormBodyModel> {
         primaryButton.shouldNotBeNull().isLoading.shouldBeTrue()
-      }
-
-      // Back to editing after success
-      awaitBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().isLoading.shouldBeFalse()
       }
 
       onCompleteCalls.awaitItem()
@@ -193,8 +130,7 @@ class NotificationPreferencesUiStateMachineImplTests : FunSpec({
       notificationPermissionRequester = notificationPermissionRequester,
       inAppBrowserNavigator = inAppBrowserNavigator,
       eventTracker = eventTracker,
-      hardwareAuthUiStateMachine = hardwareAuthUiStateMachine,
-      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag
+      hardwareAuthUiStateMachine = hardwareAuthUiStateMachine
     )
 
     val settingsProps = NotificationPreferencesProps(
@@ -214,9 +150,12 @@ class NotificationPreferencesUiStateMachineImplTests : FunSpec({
       // Now in editing state with loaded preferences — disable the transaction push toggle
       // so that action proof is required (push is a security-reducing operation).
       awaitBody<FormBodyModel> {
-        val transactionPushGroup = mainContentList[1].shouldBeInstanceOf<FormMainContentModel.ListGroup>()
+        val transactionPushGroup =
+          mainContentList[1].shouldBeInstanceOf<FormMainContentModel.ListGroup>()
         transactionPushGroup.listGroupModel.items.first().trailingAccessory.shouldNotBeNull()
-          .shouldBeInstanceOf<ListItemAccessory.SwitchAccessory>().model.onCheckedChange.invoke(false)
+          .shouldBeInstanceOf<ListItemAccessory.SwitchAccessory>().model.onCheckedChange.invoke(
+            false
+          )
       }
 
       // Re-render after toggling push off — tap Continue to trigger action proof flow
@@ -245,11 +184,6 @@ class NotificationPreferencesUiStateMachineImplTests : FunSpec({
         primaryButton.shouldNotBeNull().isLoading.shouldBeTrue()
       }
 
-      // Back to editing after success
-      awaitBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().isLoading.shouldBeFalse()
-      }
-
       // No analytics event for disabling push (events are only fired when enabling channels)
 
       // onComplete is called
@@ -258,6 +192,178 @@ class NotificationPreferencesUiStateMachineImplTests : FunSpec({
       // Verify proof was passed through
       provider.lastUpdateProof.shouldNotBeNull()
         .shouldBeInstanceOf<PrivilegedActionProof.HwSignedAction>()
+    }
+  }
+
+  test("settings action proof submit keeps latest refreshed account security state") {
+    val currentPrefs = NotificationPreferences(
+      moneyMovement = setOf(NotificationChannel.Push),
+      productMarketing = emptySet(),
+      accountSecurity = setOf(NotificationChannel.Push)
+    )
+    val refreshedPrefs = currentPrefs.copy(accountSecurity = setOf(NotificationChannel.Email))
+    val provider = NotificationsPreferencesCachedProviderMock(
+      getNotificationPreferencesResult = Ok(currentPrefs)
+    )
+
+    val sm = NotificationPreferencesUiStateMachineImpl(
+      permissionChecker = PermissionCheckerMock(),
+      notificationsPreferencesCachedProvider = provider,
+      systemSettingsLauncher = SystemSettingsLauncherMock(),
+      notificationPermissionRequester = notificationPermissionRequester,
+      inAppBrowserNavigator = inAppBrowserNavigator,
+      eventTracker = eventTracker,
+      hardwareAuthUiStateMachine = hardwareAuthUiStateMachine
+    )
+
+    val settingsProps = NotificationPreferencesProps(
+      accountId = FullAccountIdMock,
+      source = NotificationPreferencesProps.Source.Settings,
+      onBack = {},
+      onComplete = { onCompleteCalls.add(Unit) },
+      fullAccount = FullAccountMock
+    )
+
+    sm.testWithVirtualTime(settingsProps) {
+      awaitBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull().isLoading.shouldBeTrue()
+      }
+
+      awaitBody<FormBodyModel> {
+        val transactionPushGroup =
+          mainContentList[1].shouldBeInstanceOf<FormMainContentModel.ListGroup>()
+        transactionPushGroup.listGroupModel.items.first().trailingAccessory.shouldNotBeNull()
+          .shouldBeInstanceOf<ListItemAccessory.SwitchAccessory>().model.onCheckedChange.invoke(
+            false
+          )
+      }
+
+      awaitBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull().onClick.shouldNotBeNull().invoke()
+      }
+
+      awaitBodyMock<HardwareAuthUiProps>(id = "hardware-auth") {
+        provider.notificationPreferences.value = Ok(refreshedPrefs)
+      }
+
+      awaitBodyMock<HardwareAuthUiProps>(id = "hardware-auth") {
+        onSuccess(
+          PrivilegedActionProof.HwSignedAction(
+            actionProof = ActionProofHeader(
+              signatures = listOf("0".repeat(130)),
+              nonce = null
+            )
+          )
+        )
+      }
+
+      awaitBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull().isLoading.shouldBeTrue()
+      }
+
+      onCompleteCalls.awaitItem()
+
+      provider.lastUpdatePreferences.shouldNotBeNull().apply {
+        moneyMovement.shouldBe(emptySet())
+        accountSecurity.shouldBe(refreshedPrefs.accountSecurity)
+      }
+    }
+  }
+
+  test("settings retry keeps latest account security refresh after failed submit") {
+    val cachedPrefs = NotificationPreferences(
+      moneyMovement = setOf(NotificationChannel.Push),
+      productMarketing = emptySet(),
+      accountSecurity = setOf(NotificationChannel.Push)
+    )
+    val refreshedPrefs = cachedPrefs.copy(accountSecurity = setOf(NotificationChannel.Email))
+    val updateResults =
+      Channel<com.github.michaelbull.result.Result<Unit, NetworkingError>>(capacity = 2)
+    val notificationPreferences =
+      MutableStateFlow<com.github.michaelbull.result.Result<NotificationPreferences, Error>?>(
+        Ok(cachedPrefs)
+      )
+    var lastUpdatePreferences: NotificationPreferences? = null
+
+    val provider = object : NotificationsPreferencesCachedProvider {
+      override suspend fun initialize() = Unit
+
+      override fun getNotificationsPreferences() = notificationPreferences
+
+      override suspend fun updateNotificationsPreferences(
+        accountId: build.wallet.bitkey.f8e.AccountId,
+        preferences: NotificationPreferences,
+        proof: PrivilegedActionProof?,
+      ): com.github.michaelbull.result.Result<Unit, NetworkingError> {
+        lastUpdatePreferences = preferences
+        return updateResults.receive()
+      }
+    }
+
+    val sm = NotificationPreferencesUiStateMachineImpl(
+      permissionChecker = PermissionCheckerMock(),
+      notificationsPreferencesCachedProvider = provider,
+      systemSettingsLauncher = SystemSettingsLauncherMock(),
+      notificationPermissionRequester = notificationPermissionRequester,
+      inAppBrowserNavigator = inAppBrowserNavigator,
+      eventTracker = eventTracker,
+      hardwareAuthUiStateMachine = hardwareAuthUiStateMachine
+    )
+
+    val settingsProps = NotificationPreferencesProps(
+      accountId = FullAccountIdMock,
+      source = NotificationPreferencesProps.Source.Settings,
+      onBack = {},
+      onComplete = { onCompleteCalls.add(Unit) }
+    )
+
+    sm.testWithVirtualTime(settingsProps) {
+      awaitBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull().isLoading.shouldBeTrue()
+      }
+
+      awaitBody<FormBodyModel> {
+        val updatesGroup = mainContentList[3].shouldBeInstanceOf<FormMainContentModel.ListGroup>()
+        updatesGroup.listGroupModel.items[1].trailingAccessory.shouldNotBeNull()
+          .shouldBeInstanceOf<ListItemAccessory.SwitchAccessory>()
+          .model
+          .onCheckedChange
+          .invoke(true)
+      }
+
+      awaitBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull().onClick.shouldNotBeNull().invoke()
+      }
+
+      awaitBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull().isLoading.shouldBeTrue()
+        notificationPreferences.value = Ok(refreshedPrefs)
+        updateResults.trySend(Err(HttpError.NetworkError(Exception("network-error"))))
+      }
+
+      awaitItem().bottomSheetModel.shouldNotBeNull().onClosed()
+
+      awaitBody<FormBodyModel> {
+        val updatesGroup = mainContentList[3].shouldBeInstanceOf<FormMainContentModel.ListGroup>()
+        updatesGroup.listGroupModel.items[1].trailingAccessory.shouldNotBeNull()
+          .shouldBeInstanceOf<ListItemAccessory.SwitchAccessory>()
+          .model
+          .checked
+          .shouldBeTrue()
+
+        primaryButton.shouldNotBeNull().onClick.shouldNotBeNull().invoke()
+      }
+
+      awaitBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull().isLoading.shouldBeTrue()
+        updateResults.trySend(Err(HttpError.NetworkError(Exception("network-error"))))
+      }
+
+      awaitItem().bottomSheetModel.shouldNotBeNull()
+
+      lastUpdatePreferences.shouldNotBeNull().accountSecurity.shouldBe(
+        refreshedPrefs.accountSecurity
+      )
     }
   }
 
@@ -277,8 +383,7 @@ class NotificationPreferencesUiStateMachineImplTests : FunSpec({
       notificationPermissionRequester = notificationPermissionRequester,
       inAppBrowserNavigator = inAppBrowserNavigator,
       eventTracker = eventTracker,
-      hardwareAuthUiStateMachine = hardwareAuthUiStateMachine,
-      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag
+      hardwareAuthUiStateMachine = hardwareAuthUiStateMachine
     )
 
     val settingsProps = NotificationPreferencesProps(
@@ -297,9 +402,12 @@ class NotificationPreferencesUiStateMachineImplTests : FunSpec({
 
       // Editing — disable transaction push so action proof is required on Continue
       awaitBody<FormBodyModel> {
-        val transactionPushGroup = mainContentList[1].shouldBeInstanceOf<FormMainContentModel.ListGroup>()
+        val transactionPushGroup =
+          mainContentList[1].shouldBeInstanceOf<FormMainContentModel.ListGroup>()
         transactionPushGroup.listGroupModel.items.first().trailingAccessory.shouldNotBeNull()
-          .shouldBeInstanceOf<ListItemAccessory.SwitchAccessory>().model.onCheckedChange.invoke(false)
+          .shouldBeInstanceOf<ListItemAccessory.SwitchAccessory>().model.onCheckedChange.invoke(
+            false
+          )
       }
 
       // Re-render after toggle — tap Continue
@@ -329,13 +437,7 @@ class NotificationPreferencesUiStateMachineImplTests : FunSpec({
     )
 
     stateMachine.testWithVirtualTime(onboardingWithAccountProps) {
-      awaitBody<FormBodyModel> {
-        // Simulate tapping the ToS button
-        val tosListGroup = mainContentList[4].shouldBeInstanceOf<FormMainContentModel.ListGroup>()
-        tosListGroup.listGroupModel.items.first().trailingAccessory.shouldNotBeNull()
-          .shouldBeInstanceOf<ListItemAccessory.IconAccessory>().onClick.shouldNotBeNull().invoke()
-      }
-
+      // tap continue button
       awaitBody<FormBodyModel> {
         primaryButton.shouldNotBeNull().onClick.shouldNotBeNull().invoke()
       }
@@ -345,9 +447,6 @@ class NotificationPreferencesUiStateMachineImplTests : FunSpec({
         primaryButton.shouldNotBeNull().isLoading.shouldBeTrue()
       }
 
-      awaitBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().isLoading.shouldBeFalse()
-      }
       onCompleteCalls.awaitItem()
     }
   }

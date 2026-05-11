@@ -1,5 +1,6 @@
 #include "fatal.h"
 #include "filesystem.h"
+#include "log.h"
 #include "mcu_reset.h"
 #include "memfault/components.h"
 #include "memfault/core/data_packetizer_source.h"
@@ -126,7 +127,9 @@ int memfault_platform_boot(void) {
   // around this, we grab our custom reset reason and record it as a trace event.
   //
   // NOTE: This must come after the rest of the memfault sdk is initialized.
-  MEMFAULT_TRACE_EVENT_WITH_STATUS(reset_reason, mcu_reset_get_reason());
+  const mcu_reset_reason_t boot_reset_reason = mcu_reset_get_reason();
+  LOGI("Boot reset reason: %u", (unsigned)boot_reset_reason);
+  MEMFAULT_TRACE_EVENT_WITH_STATUS(reset_reason, boot_reset_reason);
 
 #if MEMFAULT_DUMP_BUILD_AND_DEVICE_INFO
   memfault_build_info_dump();

@@ -96,6 +96,7 @@ data class ButtonModel(
   enum class Size {
     Regular,
     Compact,
+    ToolbarAccessory,
     Short,
     Footer,
     Floating,

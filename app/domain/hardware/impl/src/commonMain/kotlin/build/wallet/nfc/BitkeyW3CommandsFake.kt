@@ -26,10 +26,12 @@ import build.wallet.nfc.platform.ActionProofAction
 import build.wallet.nfc.platform.CsekUnsealResult
 import build.wallet.nfc.platform.EmulatedPromptOption
 import build.wallet.nfc.platform.HardwareInteraction
+import build.wallet.nfc.platform.HardwareIdentityAwareNfcCommands
 import build.wallet.nfc.platform.HwDisplayPreference
 import build.wallet.nfc.platform.LostAppRecoveryCompositeResult
 import build.wallet.nfc.platform.LostAppRecoveryContinueParams
 import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.W3NfcCommands
 import build.wallet.nfc.platform.RecoveryAuthorizeLostAppResult
 import build.wallet.nfc.platform.RecoveryAuthorizeLostHwResult
 import build.wallet.nfc.platform.RotateAppAuthKeysCompositeResult
@@ -72,7 +74,7 @@ class BitkeyW3CommandsFake(
   private val fakeHardwareStatesDao: FakeHardwareStatesDao,
   private val messageSigner: MessageSigner,
   private val signatureUtils: SignatureUtils,
-) : NfcCommands by w1CommandsFake {
+) : W3NfcCommands, HardwareIdentityAwareNfcCommands, NfcCommands by w1CommandsFake {
   /**
    * Creates a standard [HardwareInteraction.ConfirmWithEmulatedPrompt] with Approve/Deny options.
    * Most W3 fake commands follow this identical pattern — this eliminates the boilerplate.
@@ -407,6 +409,9 @@ class BitkeyW3CommandsFake(
           )
         }
     }
+
+  override suspend fun resolvedDeviceInfo(session: NfcSession): FirmwareDeviceInfo =
+    getDeviceInfo(session)
 
   /**
    * W3 hardware generates address from stored descriptor and displays it on screen.

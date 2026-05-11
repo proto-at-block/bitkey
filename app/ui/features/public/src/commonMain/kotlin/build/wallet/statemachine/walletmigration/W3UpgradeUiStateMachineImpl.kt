@@ -50,7 +50,14 @@ import build.wallet.logging.logError
 import build.wallet.logging.logFailure
 import build.wallet.logging.logWarn
 import build.wallet.nfc.NfcException
-import build.wallet.nfc.platform.*
+import build.wallet.nfc.platform.ActionProofAction
+import build.wallet.nfc.platform.detectedDeviceInfo
+import build.wallet.nfc.platform.RotateAppAuthKeysContinueParams
+import build.wallet.nfc.platform.UpgradeAuthorizeW3Result
+import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysParams
+import build.wallet.nfc.platform.requireW3
+import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysResult
+import build.wallet.nfc.platform.verifyHardwareType
 import build.wallet.nfc.transaction.PairingTransactionResponse
 import build.wallet.recovery.sweep.SweepContext
 import build.wallet.relationships.RelationshipsKeysRepository
@@ -693,8 +700,8 @@ class W3UpgradeUiStateMachineImpl(
             NfcConfirmableSessionUIStateMachineProps(
               session = { session, commands ->
                 commands.verifyHardwareType(session, expectedType = HardwareType.W3)
-                w3DeviceInfo = commands.getDeviceInfo(session)
-                commands.rotateAppAuthKeys(
+                w3DeviceInfo = commands.detectedDeviceInfo(session)
+                commands.requireW3(session).rotateAppAuthKeys(
                   session = session,
                   params = RotateAppAuthKeysContinueParams(
                     actionProofVersion = ACTION_PROOF_VERSION,
@@ -757,8 +764,8 @@ class W3UpgradeUiStateMachineImpl(
             NfcConfirmableSessionUIStateMachineProps(
               session = { session, commands ->
                 commands.verifyHardwareType(session, expectedType = HardwareType.W3)
-                w3DeviceInfo = commands.getDeviceInfo(session)
-                commands.upgradeRotateAppAuthKeys(
+                w3DeviceInfo = commands.detectedDeviceInfo(session)
+                commands.requireW3(session).upgradeRotateAppAuthKeys(
                   session = session,
                   params = UpgradeRotateAppAuthKeysParams(
                     accountId = props.account.accountId.serverId,
@@ -881,7 +888,7 @@ class W3UpgradeUiStateMachineImpl(
           NfcConfirmableSessionUIStateMachineProps(
             session = { session, commands ->
               commands.verifyHardwareType(session, expectedType = HardwareType.W3)
-              commands.upgradeAuthorizeW3(
+              commands.requireW3(session).upgradeAuthorizeW3(
                 session = session,
                 ddkPrivateKeyBytes = state.ddkPrivateKeyBytes,
                 sealedSsekForDecryption = state.migrationProgress.sealedSsekForDecryption,
@@ -1320,7 +1327,7 @@ class W3UpgradeUiStateMachineImpl(
             val networkMainnet =
               state.migrationProgress.currentKeybox.config.bitcoinNetworkType == BitcoinNetworkType.BITCOIN
 
-            val signature = commands.verifyKeysAndBuildDescriptor(
+            val signature = commands.requireW3(session).verifyKeysAndBuildDescriptor(
               session = session,
               appSpendingKey = appSpendingKey,
               appSpendingKeyChaincode = appSpendingKeyChaincode,

@@ -118,6 +118,15 @@ secure_channel_err_t secure_nfc_channel_decrypt(uint8_t* ciphertext, uint8_t* pl
 void secure_uart_channel_init(secure_channel_type_t channel_type);
 
 /**
+ * @brief Clear any established UART secure-channel session.
+ *
+ * Use this when the peer MCU is known to have rebooted. The next
+ * secure_uart_channel_public_key_init()/secure_uart_channel_establish() flow
+ * will create a fresh session.
+ */
+void secure_uart_channel_reset_session(void);
+
+/**
  * @brief Generate or retrieve the local X25519 public key.
  *
  * If keys have not been generated yet, generates a new X25519 keypair.

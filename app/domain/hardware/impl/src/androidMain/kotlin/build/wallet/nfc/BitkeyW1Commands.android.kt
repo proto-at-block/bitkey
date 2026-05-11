@@ -39,14 +39,10 @@ import build.wallet.grants.GrantRequest
 import build.wallet.logging.NFC_TAG
 import build.wallet.logging.logDebug
 import build.wallet.logging.logWarn
-import build.wallet.nfc.platform.ActionProofAction
 import build.wallet.nfc.platform.ConfirmationHandles
 import build.wallet.nfc.platform.ConfirmationResult
-import build.wallet.nfc.platform.CsekUnsealResult
 import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.HwDisplayPreference
-import build.wallet.nfc.platform.LostAppRecoveryCompositeResult
-import build.wallet.nfc.platform.LostAppRecoveryContinueParams
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.platform.RecoveryAuthorizeLostAppResult
 import build.wallet.nfc.platform.RecoveryAuthorizeLostHwResult
@@ -59,7 +55,6 @@ import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysParams
 import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysResult
 import build.wallet.nfc.platform.confirmationResultMapper
 import build.wallet.rust.firmware.*
-import kotlin.reflect.KClass
 import build.wallet.rust.firmware.FirmwareSlot.A
 import build.wallet.rust.firmware.FirmwareSlot.B
 import build.wallet.rust.firmware.SecureBootConfig
@@ -82,6 +77,7 @@ import build.wallet.rust.firmware.McuName as CoreMcuName
 import build.wallet.rust.firmware.McuRole as CoreMcuRole
 import build.wallet.rust.firmware.UnlockInfo as CoreUnlockInfo
 import build.wallet.rust.firmware.UnlockMethod as CoreUnlockMethod
+import kotlin.reflect.KClass
 
 @Suppress("LargeClass")
 @Impl
@@ -539,86 +535,6 @@ class BitkeyW1Commands(
     }
   }
 
-  override suspend fun signActionProof(
-    session: NfcSession,
-    version: UInt,
-    action: ActionProofAction,
-    value: String?,
-    bindings: String,
-  ): HardwareInteraction<String> {
-    throw NfcException.CommandError(
-      message = "signActionProof is not supported on W1 hardware. This is a W3-only feature."
-    )
-  }
-
-  override suspend fun lostAppRecovery(
-    session: NfcSession,
-    sealedSsek: ByteString,
-    onSsekUnsealed: suspend (SymmetricKey) -> LostAppRecoveryContinueParams,
-  ): HardwareInteraction<LostAppRecoveryCompositeResult> {
-    throw NfcException.CommandError(
-      message = "lostAppRecovery composite is not supported on W1 hardware. This is a W3-only feature."
-    )
-  }
-
-  override suspend fun signChallengeAndSealSeks(
-    session: NfcSession,
-    challenge: ByteString,
-    unsealedCsek: ByteString,
-    unsealedSsek: ByteString,
-  ): HardwareInteraction<SignChallengeAndSealSeksResult> {
-    throw NfcException.CommandError(
-      message = "signChallengeAndSealSeks is not supported on W1 hardware. This is a W3-only feature."
-    )
-  }
-
-  override suspend fun recoveryAuthorizeLostApp(
-    session: NfcSession,
-    sealedDdkData: SealedData?,
-    sealedSsekForDecryption: SealedData?,
-    descriptorBackupsBindings: String,
-    activateKeysetBindings: String,
-    actionProofVersion: UInt,
-  ): HardwareInteraction<RecoveryAuthorizeLostAppResult> {
-    throw NfcException.CommandError(
-      message = "recoveryAuthorizeLostApp is not supported on W1 hardware. This is a W3-only feature."
-    )
-  }
-
-  override suspend fun recoveryAuthorizeLostHw(
-    session: NfcSession,
-    ddkPrivateKeyBytes: ByteString?,
-    descriptorBackupsBindings: String,
-    activateKeysetBindings: String,
-    actionProofVersion: UInt,
-  ): HardwareInteraction<RecoveryAuthorizeLostHwResult> {
-    throw NfcException.CommandError(
-      message = "recoveryAuthorizeLostHw is not supported on W1 hardware. This is a W3-only feature."
-    )
-  }
-
-  override suspend fun upgradeAuthorizeW3(
-    session: NfcSession,
-    ddkPrivateKeyBytes: ByteString,
-    sealedSsekForDecryption: SealedData?,
-    descriptorBackupsBindings: String,
-    activateKeysetBindings: String,
-    actionProofVersion: UInt,
-  ): HardwareInteraction<UpgradeAuthorizeW3Result> {
-    throw NfcException.CommandError(
-      message = "upgradeAuthorizeW3 is not supported on W1 hardware. This is a W3-only feature."
-    )
-  }
-
-  override suspend fun lostAppRecoverySignChallenge(
-    session: NfcSession,
-    challenge: ByteString,
-  ): HardwareInteraction<String> {
-    throw NfcException.CommandError(
-      message = "lostAppRecoverySignChallenge is not supported on W1 hardware."
-    )
-  }
-
   @OptIn(PrivateData::class)
   override suspend fun eekRestorationUnsealSymmetricKey(
     session: NfcSession,
@@ -627,13 +543,6 @@ class BitkeyW1Commands(
     HardwareInteraction.Completed(
       SymmetricKeyImpl(unsealData(session, sealedKey))
     )
-
-  override suspend fun <T> fullAccountCloudBackupRestoration(
-    session: NfcSession,
-    sealedCseks: List<SealedData>,
-    onCsekUnsealed: suspend (CsekUnsealResult) -> T,
-  ): HardwareInteraction<T> =
-    error("fullAccountCloudBackupRestoration is a W3-only command. Use unsealSymmetricKey for W1.")
 
   override suspend fun getCert(
     session: NfcSession,
@@ -697,12 +606,11 @@ class BitkeyW1Commands(
         getResponse = { state: BooleanState.Data -> state.response },
         generateResult = { state: BooleanState.Result -> state.value }
       )
+    } catch (expected: NfcException.CommandErrorFileNotFound) {
+      // Newer firmware: grant was already consumed
+      return false
     } catch (e: NfcException.CommandError) {
-      // For either of these specific errors, the grant has likely already been used
-      return if (e.cause is CommandException.FileNotFound) {
-        // specific error from newer firmware
-        false
-      } else if (e.cause is CommandException.GeneralCommandException &&
+      return if (e.cause is CommandException.GeneralCommandException &&
         e.cause?.message == "command was unsuccessful: general error"
       ) {
         // fallback for older firmware
@@ -813,49 +721,6 @@ class BitkeyW1Commands(
         }
       }
     )
-
-  override suspend fun getAddress(
-    session: NfcSession,
-    addressIndex: UInt,
-  ): String {
-    throw NfcException.CommandError(
-      message = "getAddress is not supported on W1 hardware. This is a W3-only feature."
-    )
-  }
-
-  override suspend fun verifyKeysAndBuildDescriptor(
-    session: NfcSession,
-    appSpendingKey: ByteString,
-    appSpendingKeyChaincode: ByteString,
-    networkMainnet: Boolean,
-    appAuthKey: ByteString,
-    serverSpendingKey: ByteString,
-    serverSpendingKeyChaincode: ByteString,
-    wsmSignature: ByteString,
-    accountIndex: UInt,
-  ): String {
-    throw NfcException.CommandError(
-      message = "verifyKeysAndBuildDescriptor is not supported on W1 hardware. This is a W3-only feature."
-    )
-  }
-
-  override suspend fun rotateAppAuthKeys(
-    session: NfcSession,
-    params: RotateAppAuthKeysContinueParams,
-  ): HardwareInteraction<RotateAppAuthKeysCompositeResult> {
-    throw NfcException.CommandError(
-      message = "rotateAppAuthKeys is not supported on W1 hardware. This is a W3-only feature."
-    )
-  }
-
-  override suspend fun upgradeRotateAppAuthKeys(
-    session: NfcSession,
-    params: UpgradeRotateAppAuthKeysParams,
-  ): HardwareInteraction<UpgradeRotateAppAuthKeysResult> {
-    throw NfcException.CommandError(
-      message = "upgradeRotateAppAuthKeys is not supported on W1 hardware. This is a W3-only feature."
-    )
-  }
 }
 
 /**
@@ -912,33 +777,15 @@ internal suspend inline fun <
         is CommandException.InProgress -> throw NfcException.ConfirmationPending()
         is CommandException.UserDenied -> throw NfcException.UserDenied()
         is CommandException.Unauthenticated -> throw NfcException.CommandErrorUnauthenticated()
-        is CommandException.FeatureNotSupported -> throw NfcException.FeatureNotSupported()
         is CommandException.SealCsekResponseUnsealException -> throw NfcException.CommandErrorSealCsekResponseUnsealException()
+        is CommandException.FeatureNotSupported -> throw NfcException.FeatureNotSupported()
+        is CommandException.FileNotFound -> throw NfcException.CommandErrorFileNotFound()
         is CommandException.DescriptorNotLoaded -> throw NfcException.DescriptorNotLoaded()
         is CommandException.ConfirmationNotCompleted -> throw NfcException.ConfirmationNotCompleted()
         is CommandException -> throw NfcException.CommandError(cause = e)
         else -> throw e
       }
     }
-  }
-}
-
-private inline fun logNfcCommand(
-  isQuiet: Boolean,
-  message: () -> String,
-) {
-  if (!isQuiet) {
-    logDebug(tag = NFC_TAG, message = message)
-  }
-}
-
-private inline fun logNfcCommandWarn(
-  isQuiet: Boolean,
-  throwable: Throwable,
-  message: () -> String,
-) {
-  if (!isQuiet) {
-    logWarn(tag = NFC_TAG, throwable = throwable, message = message)
   }
 }
 
@@ -1051,8 +898,8 @@ private fun CoreEventFragment.toEventFragment() =
     remainingSize = remainingSize,
     mcuRole =
       when (mcuRole) {
-        CoreMcuRole.CORE -> build.wallet.firmware.McuRole.CORE
-        CoreMcuRole.UXC -> build.wallet.firmware.McuRole.UXC
+        CoreMcuRole.CORE -> McuRole.CORE
+        CoreMcuRole.UXC -> McuRole.UXC
         else -> null
       }
   )
@@ -1147,3 +994,22 @@ private fun CoreUnlockMethod.toUnlockMethod() =
     CoreUnlockMethod.BIOMETRICS -> UnlockMethod.BIOMETRICS
     CoreUnlockMethod.UNLOCK_SECRET -> UnlockMethod.UNLOCK_SECRET
   }
+
+private inline fun logNfcCommand(
+  isQuiet: Boolean,
+  message: () -> String,
+) {
+  if (!isQuiet) {
+    logDebug(tag = NFC_TAG, message = message)
+  }
+}
+
+private inline fun logNfcCommandWarn(
+  isQuiet: Boolean,
+  throwable: Throwable,
+  message: () -> String,
+) {
+  if (!isQuiet) {
+    logWarn(tag = NFC_TAG, throwable = throwable, message = message)
+  }
+}

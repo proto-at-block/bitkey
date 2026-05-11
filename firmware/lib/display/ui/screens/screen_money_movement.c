@@ -58,6 +58,7 @@
 // Header prompt cycle configuration
 #define STEP_DISPLAY_MS         6000
 #define HOLD_DISPLAY_MS         1500
+#define FIRST_HOLD_DISPLAY_MS   2500
 #define HEADER_FADE_DURATION_MS 160
 #define MENU_BUTTON_HOLD_OPA    LV_OPA_50
 
@@ -127,6 +128,7 @@ static header_prompt_mode_t pending_header_prompt_mode = HEADER_PROMPT_MODE_STEP
 static bool header_cycle_enabled = false;
 static bool check_button_held = false;
 static char step_indicator_text[32] = {0};
+static bool first_hold_display_pending = true;
 
 // Forward declarations
 static void check_button_event_handler(lv_event_t* e);
@@ -165,6 +167,43 @@ static void align_address_page_between_header_and_check_button(lv_obj_t* parent,
 static lv_obj_t* create_check_button(lv_obj_t* parent) {
   check_button_obj = approval_button_create(parent, check_button_event_handler);
   return check_button_obj;
+}
+
+// Insert thousands-separator commas into a numeric string (e.g. "1000000" → "1,000,000").
+static void format_with_commas(const char* num_str, char* out_buf, size_t out_size) {
+  if (out_size == 0) {
+    return;
+  }
+  if (!num_str) {
+    out_buf[0] = '\0';
+    return;
+  }
+
+  size_t len = strlen(num_str);
+  if (len == 0) {
+    out_buf[0] = '\0';
+    return;
+  }
+
+  size_t first_group = len % 3;
+  if (first_group == 0) {
+    first_group = 3;
+  }
+
+  size_t src = 0;
+  size_t dst = 0;
+  for (size_t i = 0; i < first_group && src < len && dst + 1 < out_size; i++) {
+    out_buf[dst++] = num_str[src++];
+  }
+
+  while (src < len && dst + 1 < out_size) {
+    out_buf[dst++] = ',';
+    for (size_t i = 0; i < 3 && src < len && dst + 1 < out_size; i++) {
+      out_buf[dst++] = num_str[src++];
+    }
+  }
+
+  out_buf[dst] = '\0';
 }
 
 // Format a sats string as BTC into out_buf (e.g. "150000" → "0.00150000 BTC").
@@ -337,10 +376,14 @@ static void create_amount_page(lv_obj_t* parent, const fwpb_display_params_money
     format_sats_as_btc(params->fee_sats, sizeof(params->fee_sats), fee_text, sizeof(fee_text),
                        btc_suffix);
   } else {
-    // Satoshi display (default): ₿ prefix + raw sats (BIP 177)
+    // Satoshi display (default): ₿ prefix + raw sats with thousands separators (BIP 177)
     const char* sats_prefix = langpack_get_string(LANGPACK_ID_MONEY_MOVEMENT_SATS_PREFIX);
-    snprintf(amount_text, sizeof(amount_text), "%s%s", sats_prefix, params->amount_sats);
-    snprintf(fee_text, sizeof(fee_text), "%s%s", sats_prefix, params->fee_sats);
+    char formatted_amount[48];
+    char formatted_fee[48];
+    format_with_commas(params->amount_sats, formatted_amount, sizeof(formatted_amount));
+    format_with_commas(params->fee_sats, formatted_fee, sizeof(formatted_fee));
+    snprintf(amount_text, sizeof(amount_text), "%s%s", sats_prefix, formatted_amount);
+    snprintf(fee_text, sizeof(fee_text), "%s%s", sats_prefix, formatted_fee);
   }
 
   // Amount section: label above value
@@ -630,8 +673,14 @@ static void restart_header_hint_cycle(void) {
     return;
   }
 
-  uint32_t initial_period =
-    (header_prompt_mode == HEADER_PROMPT_MODE_STEP) ? STEP_DISPLAY_MS : HOLD_DISPLAY_MS;
+  bool use_first_hold_period =
+    (header_prompt_mode == HEADER_PROMPT_MODE_HOLD_TO_CONFIRM) && first_hold_display_pending;
+  uint32_t initial_period = (header_prompt_mode == HEADER_PROMPT_MODE_STEP)
+                              ? STEP_DISPLAY_MS
+                              : (use_first_hold_period ? FIRST_HOLD_DISPLAY_MS : HOLD_DISPLAY_MS);
+  if (use_first_hold_period) {
+    first_hold_display_pending = false;
+  }
   header_hint_timer = lv_timer_create(header_hint_timer_cb, initial_period, NULL);
   if (header_hint_timer) {
     lv_timer_set_repeat_count(header_hint_timer, -1);
@@ -648,8 +697,14 @@ static void header_hint_timer_cb(lv_timer_t* timer) {
                                      ? HEADER_PROMPT_MODE_HOLD_TO_CONFIRM
                                      : HEADER_PROMPT_MODE_STEP;
   set_header_prompt_mode(next_mode, true);
-  lv_timer_set_period(
-    timer, next_mode == HEADER_PROMPT_MODE_HOLD_TO_CONFIRM ? HOLD_DISPLAY_MS : STEP_DISPLAY_MS);
+  bool use_first_hold_period =
+    (next_mode == HEADER_PROMPT_MODE_HOLD_TO_CONFIRM) && first_hold_display_pending;
+  lv_timer_set_period(timer, next_mode == HEADER_PROMPT_MODE_HOLD_TO_CONFIRM
+                               ? (use_first_hold_period ? FIRST_HOLD_DISPLAY_MS : HOLD_DISPLAY_MS)
+                               : STEP_DISPLAY_MS);
+  if (use_first_hold_period) {
+    first_hold_display_pending = false;
+  }
 }
 
 // Create scan page with same styling as screen_scan.c
@@ -724,8 +779,9 @@ static void update_step_indicator(int current, int total) {
   snprintf(step_indicator_text, sizeof(step_indicator_text), "%d OF %d", current + 1,
            content_pages);
   header_cycle_enabled = true;
+  first_hold_display_pending = true;
 
-  set_header_prompt_mode(HEADER_PROMPT_MODE_STEP, false);
+  set_header_prompt_mode(HEADER_PROMPT_MODE_HOLD_TO_CONFIRM, false);
 
   if (should_cycle_header_hint()) {
     restart_header_hint_cycle();
@@ -1019,6 +1075,7 @@ lv_obj_t* screen_money_movement_init(void* ctx) {
   }
   bool is_receive = params && params->flow == fwpb_money_movement_flow_MONEY_MOVEMENT_FLOW_RECEIVE;
   lv_coord_t header_height = is_receive ? RECEIVE_HEADER_HEIGHT : HEADER_HEIGHT;
+  first_hold_display_pending = true;
 
   screen = lv_obj_create(NULL);
   if (!screen) {
@@ -1354,6 +1411,27 @@ void screen_money_movement_snapshot_show_cancel_followup(void) {
 
   hold_cancel_options_t options = cancel_followup_options();
   hold_cancel_snapshot_show_followup(&cancel_modal, &options);
+}
+
+void screen_money_movement_snapshot_show_amount_page(void) {
+  if (!screen || !scroll_container ||
+      cached_params.flow == fwpb_money_movement_flow_MONEY_MOVEMENT_FLOW_RECEIVE) {
+    return;
+  }
+
+  int amount_page_index =
+    cached_params.flow == fwpb_money_movement_flow_MONEY_MOVEMENT_FLOW_SELF_SEND
+      ? 1
+      : address_display_get_page_count(&address_widget);
+  if (amount_page_index < 0 || amount_page_index >= num_pages ||
+      !page_containers[amount_page_index]) {
+    return;
+  }
+
+  if (lv_obj_get_child_cnt(page_containers[amount_page_index]) == 0) {
+    create_page_content(amount_page_index);
+  }
+  scroll_to_page(amount_page_index, false);
 }
 
 void screen_money_movement_snapshot_start_hold_progress(uint8_t percent) {

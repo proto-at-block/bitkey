@@ -6,9 +6,9 @@ import sys
 
 import wallet_pb2
 from bitkey.wallet import Wallet
-from python.automation.conftest import PlatformConfig
-from python.automation.commander import CommanderHelper
-from python.automation.inv_commands import Inv
+
+from ..conftest import PlatformConfig
+from ..inv_commands import Inv
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -16,22 +16,21 @@ logger.setLevel(logging.DEBUG)
 
 class TestClassAuthentication:
     """Test suite for wallet authentication tests."""
-    commander = CommanderHelper()
-    Inv_task = Inv()
 
     @pytest.fixture(scope="class", autouse=True)
-    def setup(self, request: pytest.FixtureRequest) -> None:
+    def setup(self, request: pytest.FixtureRequest, platform_config: PlatformConfig) -> None:
         """Pre-test setup. Performed once.
 
         :param request: PyTest fixture request object for command-line arguments.
+        :param platform_config: target device platform configuration.
         :returns: ``None``
         """
         logger.info("Authentication tests")
-        self.Inv_task.clean(request=request)
-        self.Inv_task.build(request=request)
-        self.Inv_task.flash_with_filesystem_recovery(request=request)
-        if not request.config.option.skip_flash:
-            self.commander.reset()
+
+        inv_task = Inv(request, platform_config)
+        inv_task.clean()
+        inv_task.build()
+        inv_task.flash()
 
     def test_authenticate(self, wallet: Wallet, platform_config: PlatformConfig) -> None:
         """This test verifies that PIN authentication is working.

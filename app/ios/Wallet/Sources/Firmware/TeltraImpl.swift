@@ -16,8 +16,8 @@ public final class TeltraImpl: Shared.Teltra {
                 identifiers: firmware.TelemetryIdentifiers(
                     serial: identifiers.serial,
                     version: identifiers.version,
-                    swType: identifiers.swType,
-                    hwRevision: identifiers.hwRevision
+                    swType: identifiers.hwRevisionWithSwType(),
+                    hwRevision: identifiers.memfaultHwRevision()
                 )
             ).map { $0.map { KotlinUByte(unsignedChar: $0) } }
         } catch {

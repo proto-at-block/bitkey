@@ -39,6 +39,7 @@ class RecoveryContactCardsUiStateMachineImpl(
             } else {
               "Pending"
             },
+            backgroundColor = CardModel.CardStyle.Gradient.BackgroundColor.InverseBackground,
             onClick = { props.onClick(it) }
           )
         },
@@ -49,6 +50,7 @@ class RecoveryContactCardsUiStateMachineImpl(
             contact = it,
             buttonText = "Failed",
             buttonTreatment = ButtonModel.Treatment.Warning,
+            backgroundColor = CardModel.CardStyle.Gradient.BackgroundColor.InverseBackground,
             onClick = { props.onClick(it) }
           )
         },
@@ -59,6 +61,7 @@ class RecoveryContactCardsUiStateMachineImpl(
             contact = it,
             buttonText = "Invalid",
             buttonTreatment = ButtonModel.Treatment.Warning,
+            backgroundColor = CardModel.CardStyle.Gradient.BackgroundColor.InverseBackground,
             onClick = { props.onClick(it) }
           )
         }

@@ -17,6 +17,9 @@ import build.wallet.nfc.NfcException
 import build.wallet.nfc.NfcException.CanBeRetried
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.*
+import build.wallet.nfc.platform.HardwareIdentityAwareNfcCommands
+import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.W3NfcCommands
 import okio.ByteString
 
 private const val MAX_NFC_COMMAND_RETRIES = 5
@@ -27,7 +30,13 @@ private const val IOS_TAG_RESPONSE_ERROR_MESSAGE = "Tag response error / no resp
  */
 internal fun retryCommands() =
   NfcTransactionInterceptor { next ->
-    { session, commands -> next(session, RetryingNfcCommandsImpl(commands)) }
+    { session, commands ->
+      val wrapped: NfcCommands = when (commands) {
+        is W3NfcCommands -> RetryingW3NfcCommands(commands)
+        else -> RetryingNfcCommands(commands)
+      }
+      next(session, wrapped)
+    }
   }
 
 /**
@@ -40,9 +49,9 @@ internal fun retryCommands() =
  * which download and delete data from the Bitkey hardware. Sending them multiple times,
  * without the caller knowing, would result in incorrect behaviour.
  */
-private class RetryingNfcCommandsImpl(
-  private val commands: NfcCommands,
-) : NfcCommands {
+private open class RetryingNfcCommands(
+  protected val commands: NfcCommands,
+) : NfcCommands, HardwareIdentityAwareNfcCommands {
   override suspend fun fwupStart(
     session: NfcSession,
     patchSize: UInt?,
@@ -93,7 +102,10 @@ private class RetryingNfcCommandsImpl(
     } else {
       // Do not retry fwupFinish for other errors - this command is not idempotent.
       // The firmware may have already applied the update, and retrying could cause undefined behavior
-      logWarn(tag = "NFC", throwable = e) { "fwupFinish TransceiveFailure - mode: ${fwupMode.name}" }
+      logWarn(
+        tag = "NFC",
+        throwable = e
+      ) { "fwupFinish TransceiveFailure - mode: ${fwupMode.name}" }
       throw e
     }
   } catch (e: NfcException) {
@@ -115,6 +127,12 @@ private class RetryingNfcCommandsImpl(
 
   override suspend fun getDeviceInfo(session: NfcSession) =
     retry { commands.getDeviceInfo(session) }
+
+  override suspend fun resolvedDeviceInfo(session: NfcSession): FirmwareDeviceInfo =
+    retry {
+      (commands as? HardwareIdentityAwareNfcCommands)?.resolvedDeviceInfo(session)
+        ?: commands.getDeviceInfo(session)
+    }
 
   override suspend fun getEvents(
     session: NfcSession,
@@ -224,136 +242,12 @@ private class RetryingNfcCommandsImpl(
   override suspend fun wipeDevice(session: NfcSession): HardwareInteraction<Boolean> =
     wrapHardwareInteraction(retry { commands.wipeDevice(session) })
 
-  override suspend fun signActionProof(
-    session: NfcSession,
-    version: UInt,
-    action: ActionProofAction,
-    value: String?,
-    bindings: String,
-  ): HardwareInteraction<String> =
-    wrapHardwareInteraction(
-      retry { commands.signActionProof(session, version, action, value, bindings) }
-    )
-
-  override suspend fun lostAppRecovery(
-    session: NfcSession,
-    sealedSsek: ByteString,
-    onSsekUnsealed: suspend (SymmetricKey) -> LostAppRecoveryContinueParams,
-  ): HardwareInteraction<LostAppRecoveryCompositeResult> =
-    wrapHardwareInteraction(
-      retry { commands.lostAppRecovery(session, sealedSsek, onSsekUnsealed) }
-    )
-
-  override suspend fun signChallengeAndSealSeks(
-    session: NfcSession,
-    challenge: ByteString,
-    unsealedCsek: ByteString,
-    unsealedSsek: ByteString,
-  ): HardwareInteraction<SignChallengeAndSealSeksResult> =
-    wrapHardwareInteraction(
-      retry { commands.signChallengeAndSealSeks(session, challenge, unsealedCsek, unsealedSsek) }
-    )
-
-  override suspend fun recoveryAuthorizeLostApp(
-    session: NfcSession,
-    sealedDdkData: SealedData?,
-    sealedSsekForDecryption: SealedData?,
-    descriptorBackupsBindings: String,
-    activateKeysetBindings: String,
-    actionProofVersion: UInt,
-  ): HardwareInteraction<RecoveryAuthorizeLostAppResult> =
-    wrapHardwareInteraction(
-      retry {
-        commands.recoveryAuthorizeLostApp(
-          session,
-          sealedDdkData,
-          sealedSsekForDecryption,
-          descriptorBackupsBindings,
-          activateKeysetBindings,
-          actionProofVersion
-        )
-      }
-    )
-
-  override suspend fun recoveryAuthorizeLostHw(
-    session: NfcSession,
-    ddkPrivateKeyBytes: ByteString?,
-    descriptorBackupsBindings: String,
-    activateKeysetBindings: String,
-    actionProofVersion: UInt,
-  ): HardwareInteraction<RecoveryAuthorizeLostHwResult> =
-    wrapHardwareInteraction(
-      retry {
-        commands.recoveryAuthorizeLostHw(
-          session,
-          ddkPrivateKeyBytes,
-          descriptorBackupsBindings,
-          activateKeysetBindings,
-          actionProofVersion
-        )
-      }
-    )
-
-  override suspend fun upgradeAuthorizeW3(
-    session: NfcSession,
-    ddkPrivateKeyBytes: ByteString,
-    sealedSsekForDecryption: SealedData?,
-    descriptorBackupsBindings: String,
-    activateKeysetBindings: String,
-    actionProofVersion: UInt,
-  ): HardwareInteraction<UpgradeAuthorizeW3Result> =
-    wrapHardwareInteraction(
-      retry {
-        commands.upgradeAuthorizeW3(
-          session,
-          ddkPrivateKeyBytes,
-          sealedSsekForDecryption,
-          descriptorBackupsBindings,
-          activateKeysetBindings,
-          actionProofVersion
-        )
-      }
-    )
-
-  override suspend fun lostAppRecoverySignChallenge(
-    session: NfcSession,
-    challenge: ByteString,
-  ): HardwareInteraction<String> =
-    wrapHardwareInteraction(
-      retry { commands.lostAppRecoverySignChallenge(session, challenge) }
-    )
-
-  override suspend fun rotateAppAuthKeys(
-    session: NfcSession,
-    params: RotateAppAuthKeysContinueParams,
-  ): HardwareInteraction<RotateAppAuthKeysCompositeResult> =
-    wrapHardwareInteraction(
-      retry { commands.rotateAppAuthKeys(session, params) }
-    )
-
-  override suspend fun upgradeRotateAppAuthKeys(
-    session: NfcSession,
-    params: UpgradeRotateAppAuthKeysParams,
-  ): HardwareInteraction<UpgradeRotateAppAuthKeysResult> =
-    wrapHardwareInteraction(
-      retry { commands.upgradeRotateAppAuthKeys(session, params) }
-    )
-
   override suspend fun eekRestorationUnsealSymmetricKey(
     session: NfcSession,
     sealedKey: SealedData,
   ): HardwareInteraction<SymmetricKey> =
     wrapHardwareInteraction(
       retry { commands.eekRestorationUnsealSymmetricKey(session, sealedKey) }
-    )
-
-  override suspend fun <T> fullAccountCloudBackupRestoration(
-    session: NfcSession,
-    sealedCseks: List<SealedData>,
-    onCsekUnsealed: suspend (CsekUnsealResult) -> T,
-  ): HardwareInteraction<T> =
-    wrapHardwareInteraction(
-      retry { commands.fullAccountCloudBackupRestoration(session, sealedCseks, onCsekUnsealed) }
     )
 
   override suspend fun getCert(
@@ -400,10 +294,181 @@ private class RetryingNfcCommandsImpl(
     handles: ConfirmationHandles,
   ): ConfirmationResult = retry { commands.getConfirmationResult(session, handles) }
 
+  /**
+   * Transforms a [HardwareInteraction] to ensure NFC callbacks use retry-wrapped commands.
+   *
+   * [HardwareInteraction.RequiresConfirmation] now carries pure data (handles + sync mapper)
+   * rather than a suspend callback, so no wrapping is needed — the state machine calls
+   * [NfcCommands.getConfirmationResult] directly, which is already covered by the
+   * retry interceptor wrapping the commands at the session level.
+   */
+  protected fun <T> wrapHardwareInteraction(
+    interaction: HardwareInteraction<T>,
+  ): HardwareInteraction<T> {
+    return when (interaction) {
+      is HardwareInteraction.Completed -> interaction
+      is HardwareInteraction.RequiresConfirmation -> {
+        // handles and mapResult are pure data — no suspend closure to re-wrap.
+        interaction
+      }
+      is HardwareInteraction.RequiresTransfer -> {
+        HardwareInteraction.RequiresTransfer { session, commands, onProgress ->
+          val retryingCommands = RetryingNfcCommands(commands)
+          retryingCommands.wrapHardwareInteraction(
+            interaction.transferAndFetch(session, retryingCommands, onProgress)
+          )
+        }
+      }
+      is HardwareInteraction.ConfirmWithEmulatedPrompt -> {
+        fun <T> wrapOption(option: EmulatedPromptOption<T>) =
+          EmulatedPromptOption(
+            fetchResult = { session, commands ->
+              val retryingCommands = RetryingNfcCommands(commands)
+              retryingCommands.wrapHardwareInteraction(option.fetchResult(session, retryingCommands))
+            },
+            onSelect = option.onSelect
+          )
+        HardwareInteraction.ConfirmWithEmulatedPrompt(
+          details = interaction.details,
+          approve = wrapOption(interaction.approve),
+          deny = wrapOption(interaction.deny)
+        )
+      }
+    }
+  }
+}
+
+private class RetryingW3NfcCommands(
+  private val w3Commands: W3NfcCommands,
+) : RetryingNfcCommands(w3Commands), W3NfcCommands {
+  override suspend fun signActionProof(
+    session: NfcSession,
+    version: UInt,
+    action: ActionProofAction,
+    value: String?,
+    bindings: String,
+  ): HardwareInteraction<String> =
+    wrapHardwareInteraction(
+      retry { w3Commands.signActionProof(session, version, action, value, bindings) }
+    )
+
+  override suspend fun lostAppRecovery(
+    session: NfcSession,
+    sealedSsek: ByteString,
+    onSsekUnsealed: suspend (SymmetricKey) -> LostAppRecoveryContinueParams,
+  ): HardwareInteraction<LostAppRecoveryCompositeResult> =
+    wrapHardwareInteraction(
+      retry { w3Commands.lostAppRecovery(session, sealedSsek, onSsekUnsealed) }
+    )
+
+  override suspend fun signChallengeAndSealSeks(
+    session: NfcSession,
+    challenge: ByteString,
+    unsealedCsek: ByteString,
+    unsealedSsek: ByteString,
+  ): HardwareInteraction<SignChallengeAndSealSeksResult> =
+    wrapHardwareInteraction(
+      retry { w3Commands.signChallengeAndSealSeks(session, challenge, unsealedCsek, unsealedSsek) }
+    )
+
+  override suspend fun recoveryAuthorizeLostApp(
+    session: NfcSession,
+    sealedDdkData: SealedData?,
+    sealedSsekForDecryption: SealedData?,
+    descriptorBackupsBindings: String,
+    activateKeysetBindings: String,
+    actionProofVersion: UInt,
+  ): HardwareInteraction<RecoveryAuthorizeLostAppResult> =
+    wrapHardwareInteraction(
+      retry {
+        w3Commands.recoveryAuthorizeLostApp(
+          session,
+          sealedDdkData,
+          sealedSsekForDecryption,
+          descriptorBackupsBindings,
+          activateKeysetBindings,
+          actionProofVersion
+        )
+      }
+    )
+
+  override suspend fun recoveryAuthorizeLostHw(
+    session: NfcSession,
+    ddkPrivateKeyBytes: ByteString?,
+    descriptorBackupsBindings: String,
+    activateKeysetBindings: String,
+    actionProofVersion: UInt,
+  ): HardwareInteraction<RecoveryAuthorizeLostHwResult> =
+    wrapHardwareInteraction(
+      retry {
+        w3Commands.recoveryAuthorizeLostHw(
+          session,
+          ddkPrivateKeyBytes,
+          descriptorBackupsBindings,
+          activateKeysetBindings,
+          actionProofVersion
+        )
+      }
+    )
+
+  override suspend fun upgradeAuthorizeW3(
+    session: NfcSession,
+    ddkPrivateKeyBytes: ByteString,
+    sealedSsekForDecryption: SealedData?,
+    descriptorBackupsBindings: String,
+    activateKeysetBindings: String,
+    actionProofVersion: UInt,
+  ): HardwareInteraction<UpgradeAuthorizeW3Result> =
+    wrapHardwareInteraction(
+      retry {
+        w3Commands.upgradeAuthorizeW3(
+          session,
+          ddkPrivateKeyBytes,
+          sealedSsekForDecryption,
+          descriptorBackupsBindings,
+          activateKeysetBindings,
+          actionProofVersion
+        )
+      }
+    )
+
+  override suspend fun lostAppRecoverySignChallenge(
+    session: NfcSession,
+    challenge: ByteString,
+  ): HardwareInteraction<String> =
+    wrapHardwareInteraction(
+      retry { w3Commands.lostAppRecoverySignChallenge(session, challenge) }
+    )
+
+  override suspend fun rotateAppAuthKeys(
+    session: NfcSession,
+    params: RotateAppAuthKeysContinueParams,
+  ): HardwareInteraction<RotateAppAuthKeysCompositeResult> =
+    wrapHardwareInteraction(
+      retry { w3Commands.rotateAppAuthKeys(session, params) }
+    )
+
+  override suspend fun upgradeRotateAppAuthKeys(
+    session: NfcSession,
+    params: UpgradeRotateAppAuthKeysParams,
+  ): HardwareInteraction<UpgradeRotateAppAuthKeysResult> =
+    wrapHardwareInteraction(
+      retry { w3Commands.upgradeRotateAppAuthKeys(session, params) }
+    )
+
+  override suspend fun <T> fullAccountCloudBackupRestoration(
+    session: NfcSession,
+    sealedCseks: List<SealedData>,
+    onCsekUnsealed: suspend (CsekUnsealResult) -> T,
+  ): HardwareInteraction<T> =
+    wrapHardwareInteraction(
+      retry { w3Commands.fullAccountCloudBackupRestoration(session, sealedCseks, onCsekUnsealed) }
+    )
+
   override suspend fun getAddress(
     session: NfcSession,
     addressIndex: UInt,
-  ): String = retry { commands.getAddress(session, addressIndex) }
+  ): String = retry { w3Commands.getAddress(session, addressIndex) }
 
   override suspend fun verifyKeysAndBuildDescriptor(
     session: NfcSession,
@@ -417,7 +482,7 @@ private class RetryingNfcCommandsImpl(
     accountIndex: UInt,
   ): String =
     retry {
-      commands.verifyKeysAndBuildDescriptor(
+      w3Commands.verifyKeysAndBuildDescriptor(
         session,
         appSpendingKey,
         appSpendingKeyChaincode,
@@ -429,48 +494,6 @@ private class RetryingNfcCommandsImpl(
         accountIndex
       )
     }
-
-  /**
-   * Transforms a [HardwareInteraction] to ensure NFC callbacks use retry-wrapped commands.
-   *
-   * [HardwareInteraction.RequiresConfirmation] now carries pure data (handles + sync mapper)
-   * rather than a suspend callback, so no wrapping is needed — the state machine calls
-   * [NfcCommands.getConfirmationResult] directly, which is already covered by the
-   * retry interceptor wrapping the commands at the session level.
-   */
-  private fun <T> wrapHardwareInteraction(
-    interaction: HardwareInteraction<T>,
-  ): HardwareInteraction<T> {
-    return when (interaction) {
-      is HardwareInteraction.Completed -> interaction
-      is HardwareInteraction.RequiresConfirmation -> {
-        // handles and mapResult are pure data — no suspend closure to re-wrap.
-        interaction
-      }
-      is HardwareInteraction.RequiresTransfer -> {
-        HardwareInteraction.RequiresTransfer { session, commands, onProgress ->
-          val retryingCommands = RetryingNfcCommandsImpl(commands)
-          retryingCommands.wrapHardwareInteraction(
-            interaction.transferAndFetch(session, retryingCommands, onProgress)
-          )
-        }
-      }
-      is HardwareInteraction.ConfirmWithEmulatedPrompt -> {
-        fun <T> wrapOption(option: EmulatedPromptOption<T>) = EmulatedPromptOption(
-          fetchResult = { session, commands ->
-            val retryingCommands = RetryingNfcCommandsImpl(commands)
-            retryingCommands.wrapHardwareInteraction(option.fetchResult(session, retryingCommands))
-          },
-          onSelect = option.onSelect
-        )
-        HardwareInteraction.ConfirmWithEmulatedPrompt(
-          details = interaction.details,
-          approve = wrapOption(interaction.approve),
-          deny = wrapOption(interaction.deny)
-        )
-      }
-    }
-  }
 }
 
 private inline fun <T> retry(block: () -> T): T {

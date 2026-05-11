@@ -122,17 +122,6 @@ class NfcCommandsFakeTests : FunSpec({
     }
   }
 
-  context("getAddress") {
-    test("W1 fake throws exception because getAddress is W3-only") {
-      shouldThrow<NfcException.CommandError> {
-        nfcCommands.getAddress(
-          session = sessionFake,
-          addressIndex = 0u
-        )
-      }
-    }
-  }
-
   context("W3 getAddress") {
     val accountConfigService = AccountConfigServiceFake().also {
       runBlocking { it.setHardwareType(HardwareType.W3) }

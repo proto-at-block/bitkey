@@ -133,15 +133,17 @@ class W3UpgradeCheckpointWriterImplTests : FunSpec({
   test("persistCreateNewKeysetCheckpoint rolls back all local writes when saving the new keybox fails") {
     seedExistingLocalState()
 
-    val conflictingKeyset = newKeyset(localId = FullAccountMock.keybox.activeSpendingKeyset.localId)
-    val conflictingKeybox = updatedKeybox(conflictingKeyset)
+    val newKeyset = newKeyset()
+    val invalidKeybox = updatedKeybox(newKeyset).copy(
+      keysets = listOf(newKeyset, newKeyset)
+    )
 
     writer.persistCreateNewKeysetCheckpoint(
       oldDeviceSerial = "new-old-device-serial",
       oldHardwareFingerprint = "new-old-hardware-fingerprint",
       newDeviceSerial = "new-device-serial",
-      newKeyset = conflictingKeyset,
-      updatedKeybox = conflictingKeybox,
+      newKeyset = newKeyset,
+      updatedKeybox = invalidKeybox,
       sealedSsekForDecryption = null
     ).shouldBeErrOfType<DbError>()
 

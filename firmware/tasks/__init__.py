@@ -4,6 +4,7 @@ import os
 import subprocess
 
 from invoke import Collection, Config, task
+from invoke.exceptions import UnexpectedExit
 
 from .lib.paths import *
 from .lib.config import get_default_platform, get_defaults, update_config
@@ -113,9 +114,14 @@ def puncover(c, platform=None, target=None):
         defaults = get_defaults()
         if platform in defaults:
             target = defaults[platform].get("target")
+    target = target or c.target
 
     mb = MesonBuild(c, platform=platform, target=target)
-    elf_path = mb.target_path(mb.target.elf)
+    try:
+        elf_path = mb.target_path(mb.target.elf)
+    except (AttributeError, FileNotFoundError, OSError, UnexpectedExit):
+        # AttributeError: mb.target is None; UnexpectedExit/OSError: meson introspect failed (build dir missing)
+        elf_path = None
 
     if not elf_path or not elf_path.exists():
         click.echo(click.style(

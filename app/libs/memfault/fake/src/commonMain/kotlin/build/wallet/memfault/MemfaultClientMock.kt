@@ -58,7 +58,12 @@ class MemfaultClientMock(
     softwareType: String,
     softwareVersion: String,
   ): Result<Unit, NetworkingError> {
-    uploadCoredumpCalls += deviceSerial
+    uploadCoredumpCalls += UploadCoredumpRequest(
+      deviceSerial = deviceSerial,
+      hardwareVersion = hardwareVersion,
+      softwareType = softwareType,
+      softwareVersion = softwareVersion
+    )
     return uploadCoredumpReturns[uploadCoredumpReturnsCount++]
   }
 
@@ -68,4 +73,11 @@ class MemfaultClientMock(
     queryForFwupBundleResult = Ok(QueryFwupBundleSuccess(null))
     downloadFwupBundleResult = null
   }
+
+  data class UploadCoredumpRequest(
+    val deviceSerial: String,
+    val hardwareVersion: String,
+    val softwareType: String,
+    val softwareVersion: String,
+  )
 }

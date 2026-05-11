@@ -16,13 +16,16 @@ import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
+import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.nfc.PromptSelectionFormBodyModel
 import build.wallet.statemachine.send.TransferConfirmationScreenModel
 import build.wallet.statemachine.send.TransferConfirmationScreenVariant
 import build.wallet.statemachine.send.TransferInitiatedBodyModel
 import build.wallet.statemachine.send.signtransaction.SignTransactionNfcBodyModel
 import build.wallet.statemachine.transactions.TransactionDetailModel
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationScreenModel
 import build.wallet.statemachine.ui.awaitUntilBody
+import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.utxo.UtxoConsolidationSpeedUpConfirmationModel
 import build.wallet.statemachine.utxo.UtxoConsolidationSpeedUpTransactionSentModel
 import build.wallet.testing.AppTester
@@ -296,18 +299,19 @@ private suspend fun TestContext.navigateToTransactionDetailsAndClickSpeedUp() {
  * Approves the W3 device confirmation prompt.
  */
 private suspend fun TestContext.approveW3DeviceConfirmation() {
-  awaitUntilBody<PromptSelectionFormBodyModel> {
-    onApprove()
-  }
+  awaitUntilScreenWithBody<BodyModel>(
+    matchingScreen = { it.bottomSheetModel?.body is PromptSelectionFormBodyModel }
+  ).let { (checkNotNull(it.bottomSheetModel).body as PromptSelectionFormBodyModel).onApprove() }
+  awaitUntilBody<HardwareConfirmationScreenModel> { onConfirm() }
 }
 
 /**
  * Denies the W3 device confirmation prompt.
  */
 private suspend fun TestContext.denyW3DeviceConfirmation() {
-  awaitUntilBody<PromptSelectionFormBodyModel> {
-    onDeny()
-  }
+  awaitUntilScreenWithBody<BodyModel>(
+    matchingScreen = { it.bottomSheetModel?.body is PromptSelectionFormBodyModel }
+  ).let { (checkNotNull(it.bottomSheetModel).body as PromptSelectionFormBodyModel).onDeny() }
 }
 
 /**

@@ -67,7 +67,7 @@ class MobilePayServiceImpl(
     coroutineScope {
       launch {
         // Keep our in-memory cache of mobile pay data up to date by subscribing to
-        // the mobile pay status repository
+        // the mobile pay status repository.
         accountService.accountStatus()
           .flatMapLatest { accountStatusResult ->
             val accountStatus = accountStatusResult.get()
@@ -210,17 +210,24 @@ class MobilePayServiceImpl(
     exchangeRates: List<ExchangeRate>,
   ) = when (this) {
     is MobilePayDisabled -> MobilePayDisabledData(mostRecentSpendingLimit)
-    is MobilePayEnabled -> MobilePayEnabledData(
-      activeSpendingLimit = convertSpendingLimitToCurrency(
+    is MobilePayEnabled -> {
+      val convertedLimit = convertSpendingLimitToCurrency(
         activeSpendingLimit,
         fiatCurrency,
         exchangeRates
-      ),
-      remainingBitcoinSpendingAmount = balance?.available,
-      remainingFiatSpendingAmount = balance?.available?.let {
-        remainingFiatSpendingAmount(it, fiatCurrency, exchangeRates)
-      }
-    )
+      )
+      MobilePayEnabledData(
+        activeSpendingLimit = convertedLimit,
+        remainingBitcoinSpendingAmount = balance?.available,
+        remainingFiatSpendingAmount = balance?.let {
+          remainingFiat(it, convertedLimit, fiatCurrency, exchangeRates)
+        },
+        spentBitcoinAmount = balance?.spent,
+        spentFiatAmount = balance?.spent?.let {
+          clampedSpentFiat(it, convertedLimit, fiatCurrency, exchangeRates)
+        }
+      )
+    }
   }
 
   /**
@@ -251,15 +258,34 @@ class MobilePayServiceImpl(
   }
 
   /**
-   * Calculates the remaining spending amount in the user's preferred currency.
+   * When nothing has been spent, returns the displayed limit so 0 sats remaining doesn't render as
+   * a converted-from-sats value that disagrees with the limit by a minor unit.
    */
-  private fun remainingFiatSpendingAmount(
-    remainingBitcoinMoney: BitcoinMoney,
+  private fun remainingFiat(
+    balance: MobilePayBalance,
+    convertedLimit: SpendingLimit?,
+    fiatCurrency: FiatCurrency,
+    exchangeRates: List<ExchangeRate>,
+  ): FiatMoney? =
+    if (balance.spent.isZero) {
+      convertedLimit?.amount
+    } else {
+      currencyConverter.convert(balance.available, fiatCurrency, exchangeRates) as FiatMoney?
+    }
+
+  /**
+   * Clamps the fiat-converted spent amount at [convertedLimit] so the displayed "spent" never
+   * exceeds the displayed limit when rate-drift would otherwise push it over.
+   */
+  private fun clampedSpentFiat(
+    spent: BitcoinMoney,
+    convertedLimit: SpendingLimit?,
     fiatCurrency: FiatCurrency,
     exchangeRates: List<ExchangeRate>,
   ): FiatMoney? {
-    return currencyConverter.convert(
-      remainingBitcoinMoney, fiatCurrency, exchangeRates
-    ) as FiatMoney?
+    val spentFiat = currencyConverter.convert(spent, fiatCurrency, exchangeRates) as FiatMoney?
+      ?: return null
+    val limitAmount = convertedLimit?.amount ?: return spentFiat
+    return if (spentFiat > limitAmount) limitAmount else spentFiat
   }
 }

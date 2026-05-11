@@ -58,6 +58,7 @@ private fun WalletTheme.applyTint(
     IconTint.Primary -> colors.bitkeyPrimary
     IconTint.Foreground -> colors.foreground
     IconTint.Background -> colors.background
+    IconTint.InverseBackground -> colors.inverseBackground
     IconTint.On60 -> colors.foreground60
     IconTint.On30 -> colors.foreground30
     IconTint.On10 -> colors.foreground10

@@ -89,6 +89,7 @@ data class CardModel(
     data class Gradient(val backgroundColor: BackgroundColor? = null) : CardStyle() {
       enum class BackgroundColor {
         Default,
+        InverseBackground,
       }
     }
 

@@ -73,6 +73,7 @@ static const char* get_privileged_action_title(
 #define CONFIRMED_DELAY_MS          2500
 #define STEP_DISPLAY_MS             6000
 #define HOLD_DISPLAY_MS             1500
+#define FIRST_HOLD_DISPLAY_MS       2500
 #define HEADER_FADE_DURATION_MS     160
 #define MENU_BUTTON_HOLD_OPA        LV_OPA_50
 
@@ -84,7 +85,8 @@ static const char* get_privileged_action_title(
 #define CONTENT_ACTION_NUDGE_Y      4
 #define CONTENT_STRING_NUDGE_Y      0
 #define CONTENT_LABEL_VALUE_SPACING 16
-#define CONFIRMED_LABEL_Y           60
+#define CONFIRMED_CHECKMARK_Y       -28
+#define CONFIRMED_LABEL_Y           28
 #define SCAN_TEXT_CONTAINER_PADDING 16
 #define SCAN_SCREEN_BRIGHTNESS      100
 
@@ -98,6 +100,7 @@ static const char* get_privileged_action_title(
 #define FONT_TITLE  (&cash_sans_mono_regular_24)
 #define FONT_TEXT   (&cash_sans_mono_regular_28)
 #define FONT_SCAN   (&cash_sans_mono_regular_36)
+#define FONT_STATUS (&cash_sans_mono_regular_30)
 
 // External image declarations
 extern const lv_img_dsc_t check;
@@ -144,6 +147,7 @@ static header_prompt_mode_t pending_header_prompt_mode = HEADER_PROMPT_MODE_STEP
 static bool header_cycle_enabled = false;
 static bool check_button_held = false;
 static char step_indicator_text[32] = {0};
+static bool first_hold_display_pending = true;
 
 // Cancel modal
 static hold_cancel_t cancel_modal;
@@ -411,8 +415,14 @@ static void restart_header_hint_cycle(void) {
     return;
   }
 
-  uint32_t initial_period =
-    (header_prompt_mode == HEADER_PROMPT_MODE_STEP) ? STEP_DISPLAY_MS : HOLD_DISPLAY_MS;
+  bool use_first_hold_period =
+    (header_prompt_mode == HEADER_PROMPT_MODE_HOLD_TO_CONFIRM) && first_hold_display_pending;
+  uint32_t initial_period = (header_prompt_mode == HEADER_PROMPT_MODE_STEP)
+                              ? STEP_DISPLAY_MS
+                              : (use_first_hold_period ? FIRST_HOLD_DISPLAY_MS : HOLD_DISPLAY_MS);
+  if (use_first_hold_period) {
+    first_hold_display_pending = false;
+  }
   header_hint_timer = lv_timer_create(header_hint_timer_cb, initial_period, NULL);
   if (header_hint_timer) {
     lv_timer_set_repeat_count(header_hint_timer, -1);
@@ -471,8 +481,14 @@ static void header_hint_timer_cb(lv_timer_t* timer) {
     set_header_prompt_mode(next_mode, true);
   }
 
-  lv_timer_set_period(
-    timer, next_mode == HEADER_PROMPT_MODE_HOLD_TO_CONFIRM ? HOLD_DISPLAY_MS : STEP_DISPLAY_MS);
+  bool use_first_hold_period =
+    (next_mode == HEADER_PROMPT_MODE_HOLD_TO_CONFIRM) && first_hold_display_pending;
+  lv_timer_set_period(timer, next_mode == HEADER_PROMPT_MODE_HOLD_TO_CONFIRM
+                               ? (use_first_hold_period ? FIRST_HOLD_DISPLAY_MS : HOLD_DISPLAY_MS)
+                               : STEP_DISPLAY_MS);
+  if (use_first_hold_period) {
+    first_hold_display_pending = false;
+  }
 }
 
 static lv_coord_t get_top_group_bottom_screen(void) {
@@ -708,7 +724,7 @@ static void show_confirmed_page(int next_page_index) {
     lv_img_set_src(confirmed_checkmark, &check);
     lv_obj_set_style_img_recolor(confirmed_checkmark, lv_color_white(), 0);
     lv_obj_set_style_img_recolor_opa(confirmed_checkmark, LV_OPA_COVER, 0);
-    lv_obj_align(confirmed_checkmark, LV_ALIGN_CENTER, 0, -20);
+    lv_obj_align(confirmed_checkmark, LV_ALIGN_CENTER, 0, CONFIRMED_CHECKMARK_Y);
   }
 
   confirmed_label = lv_label_create(screen);
@@ -716,7 +732,7 @@ static void show_confirmed_page(int next_page_index) {
     lv_label_set_text(confirmed_label,
                       langpack_get_string(LANGPACK_ID_PRIVILEGED_ACTION_CONFIRMED));
     lv_obj_set_style_text_color(confirmed_label, lv_color_white(), 0);
-    lv_obj_set_style_text_font(confirmed_label, FONT_TITLE, 0);
+    lv_obj_set_style_text_font(confirmed_label, FONT_STATUS, 0);
     lv_obj_align(confirmed_label, LV_ALIGN_CENTER, 0, CONFIRMED_LABEL_Y);
   }
 
@@ -826,8 +842,8 @@ static void update_step_indicator(int current, int total) {
     snprintf(step_indicator_text, sizeof(step_indicator_text), "%d OF %d", current + 1,
              content_pages);
   }
-  set_header_prompt_mode(
-    content_pages == 1 ? HEADER_PROMPT_MODE_HOLD_TO_CONFIRM : HEADER_PROMPT_MODE_STEP, false);
+  first_hold_display_pending = true;
+  set_header_prompt_mode(HEADER_PROMPT_MODE_HOLD_TO_CONFIRM, false);
 
   if (should_cycle_header_hint()) {
     restart_header_hint_cycle();
@@ -1036,6 +1052,7 @@ lv_obj_t* screen_privileged_action_init(void* ctx) {
   // Cache params
   memcpy(&cached_params, &params->params.privileged_action,
          sizeof(fwpb_display_params_privileged_action));
+  first_hold_display_pending = true;
 
   // Initialize address widget if needed
   memset(&address_widget, 0, sizeof(address_widget));

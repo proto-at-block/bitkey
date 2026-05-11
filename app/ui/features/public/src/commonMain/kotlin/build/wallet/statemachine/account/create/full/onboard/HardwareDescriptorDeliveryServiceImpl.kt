@@ -12,6 +12,7 @@ import build.wallet.ensureNotNull
 import build.wallet.f8e.onboarding.OnboardingF8eClient
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.requireW3
 import build.wallet.onboarding.HardwareDescriptorDeliveryService
 import build.wallet.statemachine.nfc.verifyPublicKeysOrLog
 import com.github.michaelbull.result.Result
@@ -91,7 +92,7 @@ class HardwareDescriptorDeliveryServiceImpl(
 
       // Step 3: Return the NFC session lambda
       val nfcSession: suspend (NfcSession, NfcCommands) -> String = { session, commands ->
-        commands.verifyKeysAndBuildDescriptor(
+        commands.requireW3(session).verifyKeysAndBuildDescriptor(
           session = session,
           appSpendingKey = appSpendingKey,
           appSpendingKeyChaincode = appSpendingKeyChaincode,

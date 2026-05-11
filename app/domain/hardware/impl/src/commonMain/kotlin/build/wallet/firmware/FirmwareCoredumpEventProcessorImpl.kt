@@ -16,8 +16,8 @@ class FirmwareCoredumpEventProcessorImpl(
         memfault.uploadCoredump(
           coredump.coredump,
           coredump.identifiers.serial,
-          coredump.identifiers.hwRevision,
-          coredump.identifiers.swType,
+          coredump.identifiers.memfaultHwRevision(),
+          coredump.identifiers.memfaultSoftwareType(),
           coredump.identifiers.version
         ).bind()
       }

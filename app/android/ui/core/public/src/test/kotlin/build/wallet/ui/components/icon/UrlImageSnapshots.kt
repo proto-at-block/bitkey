@@ -165,7 +165,7 @@ private fun IconWithBackgroundsAndTints() {
               color = IconBackgroundType.Square.Color.Information,
               cornerRadius = 12
             ),
-            iconTint = IconTint.Primary
+            iconTint = IconTint.Warning
           )
         )
         Label(text = "Square+Tint", type = LabelType.Body3Regular)

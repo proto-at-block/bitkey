@@ -131,6 +131,8 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
       transactionType = FwupTransactionType.StartFromBeginning(),
       onError = { error, _, _ -> onErrorCalls.add(error) }
     )
+  val w3ResolvedDeviceInfo =
+    FirmwareDeviceInfoMock.copy(hwRevision = "w3a-core-evt", serial = "w3-confirmation-serial")
 
   beforeTest {
     featureFlagDao.reset()
@@ -171,13 +173,13 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("legacy FWUP progress screens remain non-platform NFC screens") {
+  test("FWUP progress screens use platform NFC screens with design system v2") {
     nfcTransactor.transactResult = Ok(FwupTransactionResult.Completed)
 
     stateMachine.test(props) {
       awaitItem().apply {
-        platformNfcScreen.shouldBe(false)
-        presentationStyle.shouldBe(ScreenPresentationStyle.FullScreen)
+        platformNfcScreen.shouldBe(true)
+        presentationStyle.shouldBe(ScreenPresentationStyle.ModalFullScreen)
         themePreference.shouldBe(ThemePreference.Manual(Theme.DARK))
         body.shouldBeTypeOf<FwupNfcBodyModel>().status.shouldBeTypeOf<Searching>()
       }
@@ -540,7 +542,12 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
     val mockFetchResult: suspend (NfcSession, NfcCommands) -> HardwareInteraction<Boolean> =
       { _, _ -> HardwareInteraction.Completed(true) }
 
-    nfcTransactor.transactResult = Ok(FwupTransactionResult.RequiresConfirmation(mockFetchResult))
+    nfcTransactor.transactResult = Ok(
+      FwupTransactionResult.RequiresConfirmation(
+        fetchResult = mockFetchResult,
+        resolvedDeviceInfo = w3ResolvedDeviceInfo
+      )
+    )
     stateMachine.test(props) {
       awaitBody<FwupNfcBodyModel> {
         status.shouldBeTypeOf<Searching>()
@@ -549,6 +556,7 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
       val initialParams = nfcTransactor.transactCalls.awaitItem()
         .shouldBeTypeOf<NfcSession.Parameters>()
       initialParams.shouldLock.shouldBe(true)
+      initialParams.resolvedDeviceInfoOverride.shouldBeNull()
 
       // Verify the HardwareConfirmationUiStateMachine is shown (via BodyModelMock)
       awaitBodyMock<HardwareConfirmationUiProps>(id = "hardware-confirmation") {
@@ -567,7 +575,12 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
     val mockFetchResult: suspend (NfcSession, NfcCommands) -> HardwareInteraction<Boolean> =
       { _, _ -> HardwareInteraction.Completed(true) }
 
-    nfcTransactor.transactResult = Ok(FwupTransactionResult.RequiresConfirmation(mockFetchResult))
+    nfcTransactor.transactResult = Ok(
+      FwupTransactionResult.RequiresConfirmation(
+        fetchResult = mockFetchResult,
+        resolvedDeviceInfo = w3ResolvedDeviceInfo
+      )
+    )
     stateMachine.test(props) {
       awaitBody<FwupNfcBodyModel> {
         status.shouldBeTypeOf<Searching>()
@@ -576,6 +589,7 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
       val initialParams = nfcTransactor.transactCalls.awaitItem()
         .shouldBeTypeOf<NfcSession.Parameters>()
       initialParams.shouldLock.shouldBe(true)
+      initialParams.resolvedDeviceInfoOverride.shouldBeNull()
 
       // Get the confirmation screen and invoke onConfirm
       awaitBodyMock<HardwareConfirmationUiProps>(id = "hardware-confirmation") {
@@ -592,6 +606,7 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
         .shouldBeTypeOf<NfcSession.Parameters>()
       continuationParams.shouldLock.shouldBe(true)
       continuationParams.nfcFlowName.shouldBe("fwup-confirmation")
+      continuationParams.resolvedDeviceInfoOverride.shouldBe(w3ResolvedDeviceInfo)
 
       // The new transaction also completes (with RequiresConfirmation again since mock
       // is still set to that), emitting another confirmation screen
@@ -611,7 +626,12 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
     // Second transact (continuation): firmware completes successfully
     nfcTransactor.queueTransactResults(
       listOf(
-        Ok(FwupTransactionResult.RequiresConfirmation(mockFetchResult)),
+        Ok(
+          FwupTransactionResult.RequiresConfirmation(
+            fetchResult = mockFetchResult,
+            resolvedDeviceInfo = w3ResolvedDeviceInfo
+          )
+        ),
         Ok(FwupTransactionResult.Completed)
       )
     )
@@ -637,6 +657,7 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
         .shouldBeTypeOf<NfcSession.Parameters>()
       // Continuation sessions use the "fwup-confirmation" flow name
       continuationParams.nfcFlowName.shouldBe("fwup-confirmation")
+      continuationParams.resolvedDeviceInfoOverride.shouldBe(w3ResolvedDeviceInfo)
 
       // Continuation succeeds → success screen
       // Note: ACTION_APP_FWUP_MCU_UPDATE_COMPLETE is tracked inside the NFC transaction
@@ -657,7 +678,12 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
     val mockFetchResult: suspend (NfcSession, NfcCommands) -> HardwareInteraction<Boolean> =
       { _, _ -> HardwareInteraction.Completed(true) }
 
-    nfcTransactor.transactResult = Ok(FwupTransactionResult.RequiresConfirmation(mockFetchResult))
+    nfcTransactor.transactResult = Ok(
+      FwupTransactionResult.RequiresConfirmation(
+        fetchResult = mockFetchResult,
+        resolvedDeviceInfo = w3ResolvedDeviceInfo
+      )
+    )
     stateMachine.test(props) {
       awaitBody<FwupNfcBodyModel> {
         status.shouldBeTypeOf<Searching>()
@@ -688,7 +714,12 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
     // First tap returns RequiresConfirmation, second tap returns ConfirmationPending
     nfcTransactor.queueTransactResults(
       listOf(
-        Ok(FwupTransactionResult.RequiresConfirmation(mockFetchResult)),
+        Ok(
+          FwupTransactionResult.RequiresConfirmation(
+            fetchResult = mockFetchResult,
+            resolvedDeviceInfo = w3ResolvedDeviceInfo
+          )
+        ),
         Err(NfcException.ConfirmationPending())
       )
     )
@@ -728,7 +759,12 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
     // First tap returns RequiresConfirmation, second tap returns UserDenied
     nfcTransactor.queueTransactResults(
       listOf(
-        Ok(FwupTransactionResult.RequiresConfirmation(mockFetchResult)),
+        Ok(
+          FwupTransactionResult.RequiresConfirmation(
+            fetchResult = mockFetchResult,
+            resolvedDeviceInfo = w3ResolvedDeviceInfo
+          )
+        ),
         Err(NfcException.UserDenied())
       )
     )
@@ -768,7 +804,12 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
     // First tap returns RequiresConfirmation, second tap returns ConfirmationPending
     nfcTransactor.queueTransactResults(
       listOf(
-        Ok(FwupTransactionResult.RequiresConfirmation(mockFetchResult)),
+        Ok(
+          FwupTransactionResult.RequiresConfirmation(
+            fetchResult = mockFetchResult,
+            resolvedDeviceInfo = w3ResolvedDeviceInfo
+          )
+        ),
         Err(NfcException.ConfirmationPending())
       )
     )
@@ -810,7 +851,12 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
     // third tap (after restart) succeeds
     nfcTransactor.queueTransactResults(
       listOf(
-        Ok(FwupTransactionResult.RequiresConfirmation(mockFetchResult)),
+        Ok(
+          FwupTransactionResult.RequiresConfirmation(
+            fetchResult = mockFetchResult,
+            resolvedDeviceInfo = w3ResolvedDeviceInfo
+          )
+        ),
         Err(NfcException.UserDenied()),
         Ok(FwupTransactionResult.Completed)
       )

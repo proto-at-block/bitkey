@@ -1,11 +1,9 @@
-import io
 import os
 import tempfile
 from pathlib import Path
 from typing import Optional, Union
 
 import click
-import detools
 import semver
 import sh
 from bitkey import fw_version
@@ -22,15 +20,17 @@ from bitkey.key_manager import LocalKeyManager, PatchSigningKeys, SigningKeys
 from bitkey.meson import MesonBuild
 from bitkey.wallet import Wallet
 from bitkey_proto import wallet_pb2
-from Crypto.Hash import SHA256
-from Crypto.PublicKey import ECC
-from Crypto.Signature import DSS
 from invoke import Exit, task
 
 from .lib.paths import BUILD_FW_DIR, BUILD_FWUP_BUNDLE_DIR
 from .memfault import fetch_release, released_versions
 
-MIN_DELTA_VERSION = "1.0.44"
+# Only publish delta releases for source versions at or above this floor,
+# regardless of product.
+MIN_DELTA_RELEASE_FROM_VERSION = "1.2.0"
+
+# W1 firmware cannot apply delta updates from 1.0.44 or earlier.
+W1_MIN_DELTA_FROM_VERSION = "1.0.45"
 
 # Due to Memfault limitations around signals, we cannot have per-product
 # projects, so all products are namespaced under the `w1a` project.
@@ -65,10 +65,18 @@ def _fwup_valid_delta_update(product: str, start_version: str, end_version: str)
     :returns: ``True`` if delta update is possible, otherwise ``False``.
     """
     if product.lower().startswith("w1"):
-        if semver.compare(MIN_DELTA_VERSION, start_version) >= 0:
+        if semver.compare(start_version, W1_MIN_DELTA_FROM_VERSION) < 0:
             return False
 
     return semver.compare(start_version, end_version) < 0
+
+
+def _fwup_publishable_delta_update(product: str, start_version: str, end_version: str) -> bool:
+    """Returns whether this delta transition is eligible for publication."""
+    if semver.compare(start_version, MIN_DELTA_RELEASE_FROM_VERSION) < 0:
+        return False
+
+    return _fwup_valid_delta_update(product, start_version, end_version)
 
 
 def _fwup_memfault_revision_name(product: str, revision: str, image_type: str) -> str:
@@ -374,8 +382,16 @@ def bundle_delta(
     key_pem = load_patch_signing_key(image_type, from_version, product)
 
     bundler = FwupBundler(product, hardware_revision, image_type)
-    bundler.generate_delta(FwupDeltaInfo(from_version, to_version, from_dir,
-                           to_dir, from_image_type), bundle_dir, key_pem)
+    delta_info = FwupDeltaInfo(
+        from_version, to_version, from_dir, to_dir, from_image_type
+    )
+    delta_bundle = bundler.generate_delta(delta_info, bundle_dir, key_pem)
+    click.echo(f"Patch max size: {delta_bundle.max_size} bytes")
+
+    if not delta_bundle.valid:
+        click.echo(click.style(
+            f"✗ Patch invalid ({_delta_bundle_error(delta_bundle)})", fg="red"))
+        raise Exit(1)
 
 
 @task(
@@ -391,6 +407,7 @@ def bundle_delta(
         "from_version": "Single from_version to generate patch for (use with --from-dir)",
         "from_dir": "Local directory with from_version files (use with --from-version)",
         "output_dir": "Output directory to write patch files to",
+        "strict": "Fail if any generated delta is invalid",
     }
 )
 def delta_release_local(
@@ -406,6 +423,7 @@ def delta_release_local(
     from_dir: Optional[str] = None,
     output_dir: Optional[str] = None,
     product: str = "",
+    strict: bool = False,
 ) -> None:
     """Generate and upload delta releases using local files for to_version.
 
@@ -434,21 +452,30 @@ def delta_release_local(
         product, hw_revision, image_type)
     sw_types = _MEMFAULT_SW_TYPES
 
+    temp_output_dir = None
     if output_dir:
         output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
     else:
-        output_dir = tempfile.TemporaryDirectory()
-    click.echo(f"Will write patches to {output_dir.name}")
+        temp_output_dir = tempfile.TemporaryDirectory()
+        output_dir = Path(temp_output_dir.name)
+    click.echo(f"Will write patches to {output_dir}")
     click.echo(f"Using local to_version dir: {to_dir}")
 
     def generate_and_upload_patch(version, from_bundle):
         """Generate and upload a single delta patch."""
+        if not _fwup_valid_delta_update(product, version, to_version):
+            click.echo(
+                f"Skipping {version} - delta updates require a valid forward upgrade path"
+            )
+            return
+
         bundler = FwupBundler(product, hw_revision, image_type)
 
         key_pem = load_patch_signing_key(image_type, version, product)
         delta_bundle = bundler.generate_delta(
             FwupDeltaInfo(version, to_version, from_bundle,
-                          to_dir), output_dir.name, key_pem
+                          to_dir), str(output_dir), key_pem
         )
 
         click.echo(f"Patch max size: {delta_bundle.max_size}")
@@ -456,6 +483,11 @@ def delta_release_local(
         if delta_bundle.valid:
             if dont_upload:
                 click.echo("Skipping upload")
+            elif not _fwup_publishable_delta_update(product, version, to_version):
+                click.echo(
+                    f"Skipping upload for {version} - delta releases require from_version >= "
+                    f"{MIN_DELTA_RELEASE_FROM_VERSION} and < {to_version}"
+                )
             else:
                 for sw_type in sw_types:
                     sh.memfault(
@@ -481,8 +513,10 @@ def delta_release_local(
                     click.echo(
                         f"Uploaded {version} -> {to_version} {memfault_hw_revision} {sw_type}")
         else:
-            click.echo(
-                f"Can't release {version} -- patch invalid ({_delta_bundle_error(delta_bundle)})")
+            message = f"Can't release {version} -- patch invalid ({_delta_bundle_error(delta_bundle)})"
+            click.echo(message)
+            if strict:
+                raise Exit(1)
 
     if from_version and from_dir:
         click.echo(f"Using local from_version dir: {from_dir}")
@@ -490,23 +524,22 @@ def delta_release_local(
     else:
         versions = []
         for version in released_versions(c, _MEMFAULT_PROJECT_NAME, memfault_hw_revision, quiet=True):
-            if _fwup_valid_delta_update(product, version, to_version):
+            if _fwup_publishable_delta_update(product, version, to_version):
                 versions.append(version)
 
         for version in versions:
             for sw_type in sw_types:
                 fwup_bundle = fetch_release(
-                    c, version, memfault_hw_revision, sw_type, output_dir.name, project=_MEMFAULT_PROJECT_NAME)
+                    c, version, memfault_hw_revision, sw_type, str(output_dir), project=_MEMFAULT_PROJECT_NAME)
                 if not fwup_bundle:
-                    click.echo(f"Skipping {version} - not found on Memfault")
+                    click.echo(
+                        f"Skipping {version} - not found on Memfault")
                     continue
                 click.echo(
                     f"Downloaded {memfault_hw_revision} {sw_type} {version}")
                 generate_and_upload_patch(version, fwup_bundle)
 
     click.echo("Done")
-    if hasattr(output_dir, "cleanup"):
-        output_dir.cleanup()
 
 
 @task(
@@ -708,10 +741,13 @@ def verify_delta_release(
 
     sw_type = "Dev"
 
+    temp_output_dir = None
     if output_dir:
         output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
     else:
-        output_dir = tempfile.TemporaryDirectory()
+        temp_output_dir = tempfile.TemporaryDirectory()
+        output_dir = Path(temp_output_dir.name)
 
     memfault_hw_rev = _fwup_memfault_revision_name(
         product, hw_revision, image_type)
@@ -726,7 +762,7 @@ def verify_delta_release(
         click.echo(f"Using local from_version dir: {from_dir}")
     else:
         from_release = fetch_release(
-            c, from_version, memfault_hw_rev, sw_type, output_dir.name, project=_MEMFAULT_PROJECT_NAME)
+            c, from_version, memfault_hw_rev, sw_type, str(output_dir), project=_MEMFAULT_PROJECT_NAME)
         if not from_release:
             click.echo(
                 f"Could not fetch from_version {from_version} from Memfault (hw={memfault_hw_rev})")
@@ -739,7 +775,7 @@ def verify_delta_release(
         click.echo(f"Using local to_version dir: {to_dir}")
     else:
         to_release = fetch_release(
-            c, to_version, memfault_hw_rev, sw_type, output_dir.name, project=_MEMFAULT_PROJECT_NAME)
+            c, to_version, memfault_hw_rev, sw_type, str(output_dir), project=_MEMFAULT_PROJECT_NAME)
         if not to_release:
             click.echo(
                 f"Could not fetch to_version {to_version} from Memfault (hw={memfault_hw_rev})")
@@ -755,7 +791,8 @@ def verify_delta_release(
         from_version, to_version, from_release, to_release)
 
     click.echo("\nGenerating delta bundle...")
-    delta_bundle = bundler.generate_delta(delta_info, output_dir.name, key_pem)
+    delta_bundle = bundler.generate_delta(
+        delta_info, str(output_dir), key_pem)
     click.echo(f"Patch max size: {delta_bundle.max_size} bytes")
 
     if not delta_bundle.valid:
@@ -763,54 +800,50 @@ def verify_delta_release(
             f"✗ Patch invalid ({_delta_bundle_error(delta_bundle)})", fg="red"))
         return
 
-    try:
-        for binary_name in os.listdir(delta_info.from_dir):
-            a2b = f"-a-{image_type}.signed.bin" in binary_name
-            b2a = f"-b-{image_type}.signed.bin" in binary_name
-            if not a2b and not b2a:
-                continue
+    for binary_name in os.listdir(delta_info.from_dir):
+        a2b = f"-a-{image_type}.signed.bin" in binary_name
+        b2a = f"-b-{image_type}.signed.bin" in binary_name
+        if not a2b and not b2a:
+            continue
 
-            from_binary: Path = delta_info.from_dir / binary_name
-            from_slot: str = "a" if a2b else "b"
-            to_slot: str = "b" if a2b else "a"
-            to_binary: Path = delta_info.to_dir / \
-                binary_name.replace(f"-{from_slot}-", f"-{to_slot}-")
-            if bundler.is_multi_mcu:
-                patches = (
-                    delta_bundle.a2b_patches if a2b else delta_bundle.b2a_patches) or []
-                for patch in patches:
-                    basename = os.path.basename(patch.path)
-                    target_name = basename.replace(
-                        f"-{from_slot}-to-{to_slot}.signed.patch", "")
-                    if target_name in os.path.basename(from_binary):
-                        patch_file: Path = patch.path
-                        signature: Path = Path(os.path.dirname(patch.path)) / binary_name.replace(
-                            f"-{from_slot}-", f"-{to_slot}-").replace(".signed.bin", ".detached_signature")
-                        break
-                else:
-                    raise RuntimeError(
-                        f"No matching patch found for {from_binary}")
+        from_binary: Path = delta_info.from_dir / binary_name
+        from_slot: str = "a" if a2b else "b"
+        to_slot: str = "b" if a2b else "a"
+        to_binary: Path = delta_info.to_dir / \
+            binary_name.replace(f"-{from_slot}-", f"-{to_slot}-")
+        if bundler.is_multi_mcu:
+            patches = (
+                delta_bundle.a2b_patches if a2b else delta_bundle.b2a_patches) or []
+            for patch in patches:
+                basename = os.path.basename(patch.path)
+                target_name = basename.replace(
+                    f"-{from_slot}-to-{to_slot}.signed.patch", "")
+                if target_name in os.path.basename(from_binary):
+                    patch_file: Path = patch.path
+                    signature: Path = Path(os.path.dirname(patch.path)) / binary_name.replace(
+                        f"-{from_slot}-", f"-{to_slot}-").replace(".signed.bin", ".detached_signature")
+                    break
             else:
-                patch_file: Path = delta_bundle.a2b.path if a2b else delta_bundle.b2a.path
-                signature: Optional[Path] = None
+                raise RuntimeError(
+                    f"No matching patch found for {from_binary}")
+        else:
+            patch_file: Path = delta_bundle.a2b.path if a2b else delta_bundle.b2a.path
+            signature: Optional[Path] = None
 
-            to_version = delta_info.to_version
-            from_version = delta_info.from_version
-            click.echo(
-                f"{os.linesep}Verifying patch ({patch_file}) from {from_version} ({from_binary}) to {to_version} ({to_binary}) ({signature=})")
-            verify_delta(
-                c,
-                from_binary=from_binary,
-                patch_file=patch_file,
-                to_binary=to_binary,
-                image_type=image_type,
-                from_version=from_version,
-                product=product,
-                signature=signature,
-            )
-    finally:
-        if hasattr(output_dir, "cleanup"):
-            output_dir.cleanup()
+        to_version = delta_info.to_version
+        from_version = delta_info.from_version
+        click.echo(
+            f"{os.linesep}Verifying patch ({patch_file}) from {from_version} ({from_binary}) to {to_version} ({to_binary}) ({signature=})")
+        verify_delta(
+            c,
+            from_binary=from_binary,
+            patch_file=patch_file,
+            to_binary=to_binary,
+            image_type=image_type,
+            from_version=from_version,
+            product=product,
+            signature=signature,
+        )
 
 
 @task(
@@ -859,7 +892,7 @@ def delta_release(
     versions = set()
     for memfault_hw_revision in memfault_hw_revisions:
         for version in released_versions(c, _MEMFAULT_PROJECT_NAME, memfault_hw_revision, quiet=True):
-            if _fwup_valid_delta_update(product, version, to_version):
+            if _fwup_publishable_delta_update(product, version, to_version):
                 versions.add(version)
 
     # Dictionary of full releases. Maps memfault_hw_revision -> sw_type -> release.
@@ -949,4 +982,3 @@ def delta_release(
                         f"Can't release {version} -- patch invalid ({_delta_bundle_error(delta_bundle)})")
 
     click.echo("Done")
-    output_dir.cleanup()

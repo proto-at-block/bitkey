@@ -21,7 +21,9 @@ fun AppDelayNotifyInProgressScreen(
   FormScreen(
     modifier = modifier,
     onBack = model.onExit,
-    toolbarContent = { Toolbar(model.toolbar) },
+    toolbarContent = {
+      Toolbar(model.toolbar)
+    },
     headerContent = {
       Header(
         headline = model.header.headline,

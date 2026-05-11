@@ -22,6 +22,9 @@ import build.wallet.ui.compose.itemPickerTestTag
 import build.wallet.ui.compose.resId
 import build.wallet.ui.compose.resolveTestTag
 import build.wallet.ui.model.picker.ItemPickerModel
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
+import build.wallet.ui.theme.LocalTheme
+import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import kotlinx.collections.immutable.ImmutableList
@@ -35,6 +38,13 @@ fun <Option : Any> ItemPickerField(
   var isShowingItemPicker by remember {
     mutableStateOf(false)
   }
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val backgroundColor =
+    when {
+      !isDesignSystemV2Enabled -> WalletTheme.colors.foreground10
+      LocalTheme.current == Theme.LIGHT -> WalletTheme.colors.subtleBackground
+      else -> WalletTheme.colors.foreground10
+    }
 
   Row(
     modifier =
@@ -45,12 +55,16 @@ fun <Option : Any> ItemPickerField(
             itemPickerTestTag(model.titleSelector(model.selectedOption))
           )
         )
-        .clip(RoundedCornerShape(size = 32.dp))
+        .clip(
+          RoundedCornerShape(
+            size = if (isDesignSystemV2Enabled) 8.dp else 32.dp
+          )
+        )
         .defaultMinSize(
           minWidth = 280.dp, // Material3 default TextField minimum width
           minHeight = 56.dp // Material3 default TextField minimum height
         )
-        .background(color = WalletTheme.colors.foreground10)
+        .background(color = backgroundColor)
         .clickable {
           isShowingItemPicker = true
         },

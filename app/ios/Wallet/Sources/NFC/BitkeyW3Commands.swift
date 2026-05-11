@@ -13,7 +13,7 @@ private extension Data {
  * Provides overrides for W3 implementation of NFC Commands and delegates
  * to an existing implementation otherwise.
  */
-public final class BitkeyW3Commands: NfcCommands {
+public final class BitkeyW3Commands: W3NfcCommands {
 
     private let delegate: NfcCommands
 

@@ -5,7 +5,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import build.wallet.Progress
 import build.wallet.statemachine.recovery.inprogress.waiting.AppDelayNotifyInProgressBodyModel
 import build.wallet.ui.tooling.PreviewWalletTheme
-import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Duration.Companion.hours
 
 @Preview
 @Composable
@@ -15,9 +15,8 @@ fun AppDelayNotifyInProgressPreview() {
       model =
         AppDelayNotifyInProgressBodyModel(
           onStopRecovery = { },
-          durationTitle = "18 hours",
           progress = Progress.Half,
-          remainingDelayPeriod = 120.seconds,
+          remainingDelayPeriod = 18.hours,
           onExit = null
         )
     )

@@ -7,6 +7,7 @@ import bitkey.account.FullAccountConfig
 import bitkey.account.HardwareType
 import bitkey.account.LiteAccountConfig
 import bitkey.account.SoftwareAccountConfig
+import build.wallet.firmware.FirmwareDeviceInfo
 import bitkey.recovery.RecoveryStatusService
 import build.wallet.account.AccountService
 import build.wallet.account.getActiveOrOnboardingAccountOrNull
@@ -130,6 +131,12 @@ data class NfcSessionConfig(
    * can cancel an in-progress recovery rather than being blocked by the guard.
    */
   val skipLostHardwareCheck: Boolean = false,
+  /**
+   * Previously resolved device identity to reuse for this session instead of
+   * probing with an initial getDeviceInfo() call. Used for second-tap
+   * continuations in confirmable flows on real hardware.
+   */
+  val resolvedDeviceInfoOverride: FirmwareDeviceInfo? = null,
 )
 
 class NfcSessionUIStateMachineProps<T>(
@@ -345,6 +352,7 @@ class NfcSessionUIStateMachineImpl(
           parameters = NfcSession.Parameters(
             isHardwareFake = isHardwareFake,
             hardwareType = hardwareType,
+            resolvedDeviceInfoOverride = props.config.resolvedDeviceInfoOverride,
             needsAuthentication = props.needsAuthentication,
             shouldLock = props.shouldLock,
             requirePairedHardware = determineNfcHardwarePairingRequired(props.hardwareVerification),

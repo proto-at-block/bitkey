@@ -19,6 +19,7 @@ use hmac::{Hmac, Mac};
 use http::HeaderMap;
 use http::{header::CONTENT_TYPE, HeaderValue, Method, Request, StatusCode};
 use http_body_util::BodyExt as ExternalBodyExt;
+use instrumentation::middleware::HARDWARE_SERIAL_HEADER_NAME;
 use linear::routes::WebhookResponse;
 use mobile_pay::routes::{
     GetMobilePayResponse, MobilePaySetupRequest, MobilePaySetupResponse, SignTransactionData,
@@ -93,7 +94,6 @@ use transaction_verification::routes::{
     ProcessTransactionVerificationTokenRequest, ProcessTransactionVerificationTokenResponse,
     PutTransactionVerificationPolicyResponse,
 };
-use instrumentation::middleware::HARDWARE_SERIAL_HEADER_NAME;
 use types::account::entities::v2::SpendingKeysetInputV2;
 use types::account::entities::{DescriptorBackupsSet, Factor, HardwareType};
 use types::account::identifiers::{AccountId, KeysetId};
@@ -226,10 +226,8 @@ impl TestClient {
         if matches!(request, CreateAccountRequest::Full { .. }) {
             builder = builder.header(HARDWARE_SERIAL_HEADER_NAME, HardwareType::TEST_SERIAL_W1);
         }
-        let response: Response<CreateAccountResponse> = builder
-            .post(request)
-            .call(&self.router)
-            .await;
+        let response: Response<CreateAccountResponse> =
+            builder.post(request).call(&self.router).await;
         if let Some(r) = response.body.as_ref() {
             let account_id = r.account_id.clone();
             let pubkey = match request {
@@ -2146,9 +2144,20 @@ impl TestClient {
         account_id: &str,
         request: &SpendingKeysetInputV2,
     ) -> Response<CreateKeysetResponseV2> {
+        self.create_keyset_v2_with_headers(account_id, HeaderMap::new(), request)
+            .await
+    }
+
+    pub(crate) async fn create_keyset_v2_with_headers(
+        &self,
+        account_id: &str,
+        headers: HeaderMap,
+        request: &SpendingKeysetInputV2,
+    ) -> Response<CreateKeysetResponseV2> {
         let account_id = AccountId::from_str(account_id).expect("Account id not valid");
         Request::builder()
             .uri(format!("/api/v2/accounts/{account_id}/keysets"))
+            .with_headers(headers)
             .authenticated(&account_id, None, None)
             .post(request)
             .call(&self.router)

@@ -31,7 +31,6 @@ import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintre
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetUiStateMachineImpl.FingerprintResetUiState.DelayAndNotifyComplete.*
 import build.wallet.statemachine.settings.full.device.fingerprints.metrics.FingerprintResetCompleteMetricDefinition
 import build.wallet.statemachine.settings.full.device.fingerprints.metrics.FingerprintResetInitiateMetricDefinition
-import build.wallet.time.DurationFormatter
 import build.wallet.time.durationProgress
 import build.wallet.time.nonNegativeDurationBetween
 import com.github.michaelbull.result.get
@@ -50,7 +49,6 @@ import kotlin.time.Duration
 class FingerprintResetUiStateMachineImpl(
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val clock: Clock,
-  private val durationFormatter: DurationFormatter,
   private val fingerprintResetService: FingerprintResetService,
   private val remainingRecoveryDelayWordsUpdateFrequency:
     RemainingRecoveryDelayWordsUpdateFrequency,
@@ -276,9 +274,6 @@ class FingerprintResetUiStateMachineImpl(
     var remainingDelayPeriod by remember {
       mutableStateOf(nonNegativeDurationBetween(clock.now(), state.endTime))
     }
-    val formattedDuration by remember(remainingDelayPeriod) {
-      derivedStateOf { durationFormatter.formatWithWords(remainingDelayPeriod) }
-    }
     val progress by remember(remainingDelayPeriod) {
       derivedStateOf {
         durationProgress(
@@ -323,7 +318,6 @@ class FingerprintResetUiStateMachineImpl(
       completionToken = state.completionToken,
       cancellationToken = state.cancellationToken
     ).toScreenModel(
-      durationTitle = formattedDuration,
       progress = progress,
       remainingDelayPeriod = remainingDelayPeriod,
       onExit = props.onCancel,

@@ -192,7 +192,7 @@ suspend inline fun <reified T : BodyModel> ReceiveTurbine<ScreenModel>.awaitUnti
         matches
       }
     } catch (e: AssertionError) {
-      val previousModelsMessage = "Previous models: ${previousModels.map { it.toSimpleString() }}}"
+      val previousModelsMessage = "Previous models: ${previousModels.map { it.toSimpleString() }}"
       val message =
         if (id != null) {
           "Did not see expected ScreenModel(${T::class.simpleName} id=$id). $previousModelsMessage"
@@ -214,10 +214,10 @@ inline fun ScreenModel.toSimpleString(): String {
     append("ScreenModel(")
     append(body.toSimpleString())
     statusBannerModel?.let {
-      append(", statusBannerModel=${it::class.simpleName})")
+      append(", statusBannerModel=${it::class.simpleName}")
     }
     bottomSheetModel?.let {
-      append(", bottomSheetModel=${it::class.simpleName})")
+      append(", bottomSheetModel=${it::class.simpleName}")
     }
     append(")")
   }

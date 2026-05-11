@@ -10,13 +10,22 @@ use axum::{
 };
 use bdk_utils::bdk::{bitcoin::secp256k1::PublicKey, keys::DescriptorPublicKey};
 use errors::{ApiError, ErrorCode, RouteError};
-use instrumentation::middleware::HardwareSerialHeader;
+use experimentation::claims::ExperimentationClaims;
 use external_identifier::ExternalIdentifier;
+use feature_flags::{
+    flag::{evaluate_flag_value, Flag},
+    service::Service as FeatureFlagsService,
+};
 use http_server::middlewares::identifier_generator::IdentifierGenerator;
+use instrumentation::middleware::HardwareSerialHeader;
 use notification::clients::iterable::IterableClient;
-use recovery::repository::RecoveryRepository;
+use recovery::{
+    entities::{RecoveryStatus, RecoveryType},
+    repository::RecoveryRepository,
+};
 use repository::public_key::{KeyType, PublicKeyRepository};
 use serde::{Deserialize, Serialize};
+use time::{Duration, OffsetDateTime};
 use tracing::{error, instrument};
 use types::account::{
     bitcoin::to_wsm_bitcoin_network,
@@ -35,12 +44,19 @@ use utoipa::ToSchema;
 use wsm_rust_client::{SigningService, WsmClient};
 
 use crate::{
-    account_validation::{error::AccountValidationError, AccountValidation, AccountValidationRequest},
+    account_validation::{
+        error::AccountValidationError, AccountValidation, AccountValidationRequest,
+    },
     emit_keyset_created,
     metrics::PRIVATE_VALUE,
     routes::Config,
     upsert_account_iterable_user,
 };
+
+const PRIVATE_KEYSET_CREATION_BLOCKED: Flag<'_, bool> =
+    Flag::new("f8e-private-keyset-creation-blocked");
+
+const RECENT_RECOVERY_GRACE: Duration = Duration::minutes(30);
 
 #[derive(Deserialize, Serialize, Debug, ToSchema)]
 pub struct CreateAccountRequestV2 {
@@ -477,7 +493,13 @@ impl TryFrom<&Account> for CreateKeysetResponseV2 {
     }
 }
 
-#[instrument(skip(account_service))]
+#[instrument(skip(
+    account_service,
+    wsm_client,
+    recovery_repository,
+    feature_flags_service,
+    experimentation_claims,
+))]
 #[utoipa::path(
     post,
     path = "/api/v2/accounts/{account_id}/keysets",
@@ -494,6 +516,9 @@ pub async fn create_keyset_v2(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
     State(wsm_client): State<WsmClient>,
+    State(recovery_repository): State<RecoveryRepository>,
+    State(feature_flags_service): State<FeatureFlagsService>,
+    experimentation_claims: ExperimentationClaims,
     Json(request): Json<SpendingKeysetInputV2>,
 ) -> Result<Json<CreateKeysetResponseV2>, ApiError> {
     let account = account_service
@@ -526,15 +551,67 @@ pub async fn create_keyset_v2(
     }
 
     // Don't allow account to hop networks
-    account.active_spending_keyset().map_or(
-        Err(RouteError::NoActiveSpendKeyset),
-        |active_keyset| {
-            if active_keyset.network() != request.network.into() {
-                return Err(RouteError::InvalidNetworkForNewKeyset);
+    let active_keyset = account
+        .active_spending_keyset()
+        .ok_or(RouteError::NoActiveSpendKeyset)?;
+    if active_keyset.network() != request.network.into() {
+        return Err(RouteError::InvalidNetworkForNewKeyset.into());
+    }
+
+    // If the active keyset is legacy, the client is attempting the legacy -> private
+    // migration. Consult LaunchDarkly to decide whether this app version is allowed
+    // to perform the migration. Skip the check if the account just completed a D&N
+    // recovery (legitimate re-setup path).
+    if active_keyset.is_legacy() {
+        let since = OffsetDateTime::now_utc() - RECENT_RECOVERY_GRACE;
+        let recent_completed_recovery = recovery_repository
+            .fetch_by_status_since(
+                &account_id,
+                RecoveryType::DelayAndNotify,
+                RecoveryStatus::Complete,
+                since,
+            )
+            .await
+            .map_err(|e| {
+                error!("Failed to fetch recent D&N recovery: {e}");
+                ApiError::GenericInternalApplicationError(
+                    "Failed to check recovery state".to_string(),
+                )
+            })?;
+
+        if recent_completed_recovery.is_none() {
+            let context_key = experimentation_claims.account_context_key().map_err(|e| {
+                error!("Failed to build LaunchDarkly context: {e}");
+                ApiError::GenericInternalApplicationError(
+                    "Failed to evaluate feature flag".to_string(),
+                )
+            })?;
+            // Fail open on any LD error (flag missing, client not ready, wrong type, etc.)
+            // so a flag-config gap can't 500 the legacy -> private migration path.
+            let blocked = match evaluate_flag_value::<bool>(
+                &feature_flags_service,
+                PRIVATE_KEYSET_CREATION_BLOCKED.key,
+                &context_key,
+            ) {
+                Ok(v) => v,
+                Err(e) => {
+                    error!(
+                        "Failed to evaluate {}: {e}; defaulting to false",
+                        PRIVATE_KEYSET_CREATION_BLOCKED.key
+                    );
+                    false
+                }
+            };
+
+            if blocked {
+                return Err(ApiError::Specific {
+                    code: ErrorCode::AppUpgradeRequired,
+                    detail: Some("Update the Bitkey app to create a private keyset.".to_string()),
+                    field: None,
+                });
             }
-            Ok(())
-        },
-    )?;
+        }
+    }
 
     let spending_keyset_id = KeysetId::gen().map_err(RouteError::InvalidIdentifier)?;
     let key = wsm_client

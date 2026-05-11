@@ -289,6 +289,10 @@ void sysevent_set(const sysevent_t events) {
   sysevent_mask |= events;
 }
 
+void sysevent_clear(const sysevent_t events) {
+  sysevent_mask &= ~events;
+}
+
 Test(secure_channel_uart_test, accepts_only_supported_protocol_versions) {
   cr_assert_eq(secure_channel_protocol_version_supported(SECURE_CHANNEL_PROTOCOL_MIN_VERSION),
                true);
@@ -367,6 +371,43 @@ Test(secure_channel_uart_test, rotates_keys_across_success_and_failure_paths) {
 
   cr_assert(glitch_detected == false);
   cr_assert_eq(sysevent_mask, 0);
+}
+
+Test(secure_channel_uart_test, reset_session_invalidates_confirmed_uart_session) {
+  reset_test_state();
+  init_runtime();
+  secure_uart_channel_init(SECURE_UART_CHANNEL_CORE);
+
+  uint8_t peer_pubkey[EC_PUBKEY_SIZE_X25519];
+  memset(peer_pubkey, 0xa5, sizeof(peer_pubkey));
+
+  uint8_t first_pubkey[EC_PUBKEY_SIZE_X25519] = {0};
+  uint32_t first_pubkey_len = sizeof(first_pubkey);
+  cr_assert_eq(secure_uart_channel_public_key_init(first_pubkey, &first_pubkey_len),
+               SECURE_CHANNEL_OK);
+  cr_assert_eq(establish_and_confirm_session(peer_pubkey, sizeof(peer_pubkey)), SECURE_CHANNEL_OK);
+  cr_assert_eq(secure_uart_channel_confirmed(), true);
+  cr_assert(sysevent_mask & SYSEVENT_UXC_SECURE_COMMS_ESTABLISHED);
+
+  secure_uart_channel_reset_session();
+  cr_assert_eq(secure_uart_channel_confirmed(), false);
+  cr_assert_eq(sysevent_mask & SYSEVENT_UXC_SECURE_COMMS_ESTABLISHED, 0);
+
+  uint8_t plaintext[] = {0x10, 0x21, 0x32};
+  uint8_t ciphertext[sizeof(plaintext)] = {0};
+  uint8_t aad[] = {0x44, 0x55, 0x66, 0x77, 0x01, 0x00, 0x00, 0x00};
+  uint8_t nonce[AES_GCM_IV_LENGTH] = {0};
+  uint8_t mac[AES_GCM_TAG_LENGTH] = {0};
+  cr_assert_eq(secure_uart_channel_encrypt(plaintext, ciphertext, sizeof(plaintext), aad,
+                                           sizeof(aad), nonce, mac),
+               SECURE_FALSE);
+
+  uint8_t next_pubkey[EC_PUBKEY_SIZE_X25519] = {0};
+  uint32_t next_pubkey_len = sizeof(next_pubkey);
+  cr_assert_eq(secure_uart_channel_public_key_init(next_pubkey, &next_pubkey_len),
+               SECURE_CHANNEL_OK);
+  cr_assert_neq(memcmp(first_pubkey, next_pubkey, sizeof(first_pubkey)), 0,
+                "reset_session() must force the next handshake to use fresh keys");
 }
 
 Test(secure_channel_uart_test, rejects_ciphertext_replayed_after_session_reestablish) {

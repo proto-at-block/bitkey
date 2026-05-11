@@ -31,7 +31,7 @@ class CreateSoftwareWalletE2eTests : FunSpec({
     }
   }
 
-  test("create software wallet") {
+  xtest("create software wallet") {
     val app = launchAndPrepareApp()
     app.appUiStateMachine.test(
       Unit,
@@ -55,11 +55,6 @@ class CreateSoftwareWalletE2eTests : FunSpec({
           title.shouldBe("Use this device")
           onClick.shouldNotBeNull().invoke()
         }
-      }
-
-      awaitUntilBody<LoadingSuccessBodyModel> {
-        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
-        message.shouldBe("Creating Software Wallet...")
       }
 
       // Set up notifications

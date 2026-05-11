@@ -86,6 +86,7 @@ pub enum ErrorCode {
     TouchpointAlreadyActive,
     InvalidPhoneNumber,
     InvalidEmailAddress,
+    AppUpgradeRequired,
     // Onboarding & Recovery
     AppAuthPubkeyInUse,
     HwAuthPubkeyInUse,
@@ -132,6 +133,7 @@ impl From<ErrorCode> for ErrorCategory {
             | ErrorCode::AccountNotFound
             | ErrorCode::MaxTrustedContactsReached
             | ErrorCode::MaxProtectedCustomersReached
+            | ErrorCode::AppUpgradeRequired
             | ErrorCode::UnavailableForLegalReasons => ErrorCategory::InvalidRequestError,
         }
     }
@@ -154,6 +156,7 @@ impl From<ErrorCode> for StatusCode {
             | ErrorCode::RecoveryAuthPubkeyInUse
             | ErrorCode::InvalidPhoneNumber
             | ErrorCode::InvalidEmailAddress
+            | ErrorCode::AppUpgradeRequired
             | ErrorCode::InvitationRoleMismatch => StatusCode::BAD_REQUEST,
             ErrorCode::NotFound | ErrorCode::AccountNotFound => StatusCode::NOT_FOUND,
             ErrorCode::TouchpointAlreadyActive

@@ -48,12 +48,14 @@ internal class NfcTransactorImpl(
         isTransacting = true
         sessionProvider.get(parameters).use { nfcSession ->
           CompletableDeferred<T>().also { result ->
-            val effect: NfcEffect = { session, commands ->
-              result.complete(transaction(session, commands))
+            val commands = commandsProvider.forSession(parameters)
+
+            val effect: NfcEffect = { session, cmds ->
+              result.complete(transaction(session, cmds))
             }
 
             val chain = interceptors.fold(effect) { acc, interceptor -> interceptor(acc) }
-            chain(nfcSession, commandsProvider(parameters))
+            chain(nfcSession, commands)
           }.await()
         }
       }

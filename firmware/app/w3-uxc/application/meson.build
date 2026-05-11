@@ -121,6 +121,11 @@ foreach hardware : w3_uxc_hardware_configs.keys()
         depend_files : [
           files(
             meson.project_source_root()/'tasks/__init__.py',
+            meson.project_source_root()/'tasks/generate.py',
+            meson.project_source_root()/'tasks/lib/config.py',
+            meson.project_source_root()/'tasks/lib/paths.py',
+            meson.project_source_root()/'tasks/lib/platforms.py',
+            meson.project_source_root()/'python/bitkey/meson.py',
             meson.project_source_root()/'config/partitions/__init__.py',
             meson.project_source_root()/'config/partitions/w3a-uxc/memory.jinja.ld',
             meson.project_source_root()/'config/partitions/w3a-uxc/stm32u5xx.jinja.ld',

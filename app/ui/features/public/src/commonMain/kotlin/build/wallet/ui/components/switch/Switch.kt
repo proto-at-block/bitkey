@@ -19,6 +19,7 @@ fun Switch(
       onCheckedChange = onCheckedChange,
       modifier = modifier,
       enabled = enabled,
+      interactionsEnabled = interactionsEnabled,
       testTag = testTag
     )
   }
@@ -53,6 +54,7 @@ fun Switch(
   onCheckedChange: (Boolean) -> Unit,
   modifier: Modifier = Modifier,
   enabled: Boolean = true,
+  interactionsEnabled: Boolean = enabled,
   testTag: String? = null,
   checkedThumbColor: Color = WalletTheme.colors.primaryForeground,
   uncheckedThumbColor: Color = WalletTheme.colors.primaryForeground,
@@ -81,6 +83,7 @@ fun Switch(
     onCheckedChange = onCheckedChange,
     modifier = modifier,
     enabled = enabled,
+    interactionsEnabled = interactionsEnabled,
     testTag = testTag,
     checkedThumbColor = resolvedCheckedThumbColor,
     uncheckedThumbColor = uncheckedThumbColor,
@@ -98,6 +101,7 @@ internal expect fun PlatformSwitch(
   onCheckedChange: (Boolean) -> Unit,
   modifier: Modifier = Modifier,
   enabled: Boolean = true,
+  interactionsEnabled: Boolean = enabled,
   testTag: String? = null,
   checkedThumbColor: Color = WalletTheme.colors.primaryForeground,
   uncheckedThumbColor: Color = WalletTheme.colors.primaryForeground,

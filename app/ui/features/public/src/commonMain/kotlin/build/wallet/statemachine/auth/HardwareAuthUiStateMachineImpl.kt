@@ -13,6 +13,7 @@ import build.wallet.f8e.auth.PrivilegedActionProof.HwKeyProof
 import build.wallet.f8e.auth.PrivilegedActionProof.HwSignedAction
 import build.wallet.logging.logFailure
 import build.wallet.nfc.platform.ActionProofAction
+import build.wallet.nfc.platform.requireW3
 import build.wallet.nfc.platform.signAccessToken
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.nfc.*
@@ -123,7 +124,7 @@ class HardwareAuthUiStateMachineImpl(
         nfcConfirmableSessionUiStateMachine.model(
           NfcConfirmableSessionUIStateMachineProps(
             session = { session, commands ->
-              commands.signActionProof(
+              commands.requireW3(session).signActionProof(
                 session = session,
                 version = 1u,
                 action = ActionProofAction.from(type.action),

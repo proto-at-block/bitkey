@@ -20,7 +20,7 @@ import build.wallet.ui.theme.WalletTheme
  */
 fun PaparazziExtension.snapshotSheet(
   model: SheetModel,
-  designSystemUpdatesEnabled: Boolean = false,
+  designSystemUpdatesEnabled: Boolean = true,
 ) {
   snapshot(designSystemUpdatesEnabled = designSystemUpdatesEnabled) {
     Column(
@@ -48,7 +48,7 @@ fun PaparazziExtension.snapshotSheet(
  */
 fun PaparazziExtension.snapshotSheet(
   model: FormBodyModel,
-  designSystemUpdatesEnabled: Boolean = false,
+  designSystemUpdatesEnabled: Boolean = true,
 ) {
   snapshotSheet(
     model = model.asSheetModalScreen(onClosed = {}),

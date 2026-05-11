@@ -33,6 +33,7 @@ internal actual fun PlatformSwitch(
   onCheckedChange: (Boolean) -> Unit,
   modifier: Modifier,
   enabled: Boolean,
+  interactionsEnabled: Boolean,
   testTag: String?,
   checkedThumbColor: Color,
   uncheckedThumbColor: Color,
@@ -85,12 +86,12 @@ internal actual fun PlatformSwitch(
       .semantics {
         role = Role.Switch
         toggleableState = if (checked) ToggleableState.On else ToggleableState.Off
-        if (!enabled) {
+        if (!enabled || !interactionsEnabled) {
           disabled()
         }
       }
-      .pointerInput(enabled, checked, onCheckedChange) {
-        if (enabled) {
+      .pointerInput(interactionsEnabled, checked, onCheckedChange) {
+        if (interactionsEnabled) {
           detectTapGestures(
             onPress = {
               // Launch background job to show press after delay.

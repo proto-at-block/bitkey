@@ -50,6 +50,7 @@ fwup_task_libs += {
       mcu_dep,
       mempool_dep,
       metadata_dep,
+      nfc_control_deps['embedded'],
       perf_dep,
       proto_helpers_dep,
       rtos_dep,

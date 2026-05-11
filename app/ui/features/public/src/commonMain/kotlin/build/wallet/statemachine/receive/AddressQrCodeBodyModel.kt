@@ -30,6 +30,8 @@ data class AddressQrCodeBodyModel(
     data class QrCode(
       /** The formatted display string for the address */
       @Redacted val addressDisplayString: LabelModel,
+      /** When true, the address is still showing a loading placeholder instead of a real value. */
+      val isAddressLoadingPlaceholder: Boolean,
       /** QR code state for handling loading, success, and error states */
       @Redacted val qrCodeState: QrCodeState,
       val partners: ImmutableList<PartnerInfo>,
@@ -60,7 +62,8 @@ data class AddressQrCodeBodyModel(
         isRefreshing: Boolean = false,
       ) : this(
         addressDisplayString = address?.let { LabelModel.chunkedAddress(it) }
-          ?: LabelModel.StringModel("..."),
+          ?: LabelModel.StringModel("Loading..."),
+        isAddressLoadingPlaceholder = address == null,
         qrCodeState = qrCodeState,
         partners = partners,
         onPartnerClick = onPartnerClick,

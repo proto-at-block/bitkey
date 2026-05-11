@@ -9,9 +9,7 @@ import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.layout.Divider
-import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconBackgroundType.Transient
-import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconSize.Small
 import build.wallet.ui.model.icon.IconTint
@@ -50,14 +48,13 @@ fun SettingsListComponent(
           else -> LabelTreatment.Primary
         },
         leadingAccessory = ListItemAccessory.IconAccessory(
-          model = IconModel(
-            icon = item.icon,
+          model = item.icon.copy(
             iconSize = if (isDesignSystemV2Enabled) IconSize.Accessory else Small,
             iconBackgroundType = Transient,
             iconTint = when {
               !item.isEnabled -> IconTint.On10
               item.treatment == ListItemTreatment.DESTRUCTIVE -> IconTint.Destructive
-              else -> null
+              else -> item.icon.iconTint
             }
           )
         ),

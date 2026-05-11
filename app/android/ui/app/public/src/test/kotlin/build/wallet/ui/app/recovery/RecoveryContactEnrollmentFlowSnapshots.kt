@@ -11,6 +11,7 @@ import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.statemachine.core.input.NameInputBodyModel
 import build.wallet.statemachine.recovery.socrec.add.SaveContactBodyModel
 import build.wallet.statemachine.recovery.socrec.add.ShareInviteBodyModel
+import build.wallet.statemachine.recovery.socrec.add.TosInfo
 import build.wallet.statemachine.recovery.socrec.list.full.TrustedContactsListBodyModel
 import build.wallet.ui.app.core.form.FormScreen
 import build.wallet.ui.model.StandardClick
@@ -71,6 +72,24 @@ class RecoveryContactEnrollmentFlowSnapshots : FunSpec({
           onSave = {},
           onBackPressed = {},
           tosInfo = null
+        )
+      )
+    }
+  }
+
+  test("Recovery Contact Enrollment save beneficiary with tos agreed and design system v2 feature flag on") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      FormScreen(
+        SaveContactBodyModel(
+          trustedContactName = "Ryan",
+          isBeneficiary = true,
+          onSave = {},
+          onBackPressed = {},
+          tosInfo = TosInfo(
+            termsAgree = true,
+            onTermsAgreeToggle = {},
+            tosLink = {}
+          )
         )
       )
     }

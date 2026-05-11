@@ -114,6 +114,13 @@ fun LoadingBadgePainter(color: Color? = null): Painter {
   // Apply the given color to the lottie animation
   val dynamicProperties = rememberLottieDynamicProperties(color) {
     color?.takeIf { it.isSpecified }?.let { tintColor ->
+      shapeLayer("Shape Layer 1") {
+        stroke {
+          colorFilter {
+            ColorFilter.tint(tintColor.copy(alpha = tintColor.alpha * LOADING_BADGE_TRACK_ALPHA))
+          }
+        }
+      }
       shapeLayer("Shape Layer 2") {
         stroke {
           colorFilter { ColorFilter.tint(tintColor) }
@@ -134,3 +141,5 @@ fun LoadingBadgePainter(color: Color? = null): Painter {
     dynamicProperties = dynamicProperties
   )
 }
+
+private const val LOADING_BADGE_TRACK_ALPHA = 0.1f

@@ -21,6 +21,12 @@ if [ "$PKG_CMD" = "yum" ]; then
   AWS_CLI_PACKAGE_NAME=aws-cli
 fi
 $PKG_CMD install -y $AWS_CLI_PACKAGE_NAME
+
+# Mitigate CVE-2026-31431 (Copy Fail): local privilege escalation via authencesn.
+# Blacklist the vulnerable module until Amazon ships a patched AL2 kernel.
+# WSM does not use AF_ALG sockets; all crypto runs in userspace (ring) or Nitro Enclave.
+echo "blacklist authencesn" > /etc/modprobe.d/cve-2026-31431.conf
+modprobe -r authencesn 2>/dev/null || true
 wget -O ddinstall.sh https://s3.amazonaws.com/dd-agent/scripts/install_script_agent7.sh
 export AWS_DEFAULT_REGION=${region}
 export DD_API_KEY=$(aws ssm get-parameter --name /shared/datadog/api-key --with-decryption --query 'Parameter.Value' --output text)

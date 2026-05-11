@@ -1,8 +1,10 @@
 package build.wallet.firmware
 
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.firmware.FirmwareMetadata.FirmwareSlot
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.memfault.MemfaultClientMock
+import build.wallet.memfault.MemfaultClientMock.UploadCoredumpRequest
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.unwrap
@@ -30,8 +32,50 @@ class FirmwareCoredumpEventProcessorImplTests : FunSpec({
 
     firmwareCoredumpSender.processBatch(listOf(coredump1, coredump2)).unwrap()
 
-    memfaultClient.uploadCoredumpCalls.awaitItem().shouldBe(coredump1.identifiers.serial)
-    memfaultClient.uploadCoredumpCalls.awaitItem().shouldBe(coredump2.identifiers.serial)
+    memfaultClient.uploadCoredumpCalls.awaitItem().shouldBe(
+      UploadCoredumpRequest(
+        deviceSerial = coredump1.identifiers.serial,
+        hardwareVersion = coredump1.identifiers.hwRevision,
+        softwareType = coredump1.identifiers.swType,
+        softwareVersion = coredump1.identifiers.version
+      )
+    )
+    memfaultClient.uploadCoredumpCalls.awaitItem().shouldBe(
+      UploadCoredumpRequest(
+        deviceSerial = coredump2.identifiers.serial,
+        hardwareVersion = coredump2.identifiers.hwRevision,
+        softwareType = coredump2.identifiers.swType,
+        softwareVersion = coredump2.identifiers.version
+      )
+    )
+  }
+
+  test("uses scoped W3 MCU identifiers") {
+    memfaultClient.uploadCoredumpReturns = listOf(Ok(Unit))
+    val coredump =
+      FirmwareCoredump(
+        ByteString.EMPTY,
+        TelemetryIdentifiers(
+          serial = "W3A0000000000001",
+          version = "1.2.3",
+          swType = "app-a-dev",
+          hwRevision = "w3a-core-pdvt",
+          mcuInfo = "UXC:STM32U5:1.2.3",
+          mcuRole = McuRole.UXC,
+          activeSlot = FirmwareSlot.B
+        )
+      )
+
+    firmwareCoredumpSender.processBatch(listOf(coredump)).unwrap()
+
+    memfaultClient.uploadCoredumpCalls.awaitItem().shouldBe(
+      UploadCoredumpRequest(
+        deviceSerial = "W3A0000000000001",
+        hardwareVersion = "w3a-uxc-pdvt",
+        softwareType = "app-b-dev",
+        softwareVersion = "1.2.3"
+      )
+    )
   }
 
   test("failure on first upload propagates") {
@@ -40,7 +84,14 @@ class FirmwareCoredumpEventProcessorImplTests : FunSpec({
 
     firmwareCoredumpSender.processBatch(listOf(coredump1, coredump2)).shouldBe(error)
 
-    memfaultClient.uploadCoredumpCalls.awaitItem().shouldBe(coredump1.identifiers.serial)
+    memfaultClient.uploadCoredumpCalls.awaitItem().shouldBe(
+      UploadCoredumpRequest(
+        deviceSerial = coredump1.identifiers.serial,
+        hardwareVersion = coredump1.identifiers.hwRevision,
+        softwareType = coredump1.identifiers.swType,
+        softwareVersion = coredump1.identifiers.version
+      )
+    )
   }
 
   test("failure on second upload propagates") {
@@ -49,7 +100,21 @@ class FirmwareCoredumpEventProcessorImplTests : FunSpec({
 
     firmwareCoredumpSender.processBatch(listOf(coredump1, coredump2)).shouldBe(error)
 
-    memfaultClient.uploadCoredumpCalls.awaitItem().shouldBe(coredump1.identifiers.serial)
-    memfaultClient.uploadCoredumpCalls.awaitItem().shouldBe(coredump2.identifiers.serial)
+    memfaultClient.uploadCoredumpCalls.awaitItem().shouldBe(
+      UploadCoredumpRequest(
+        deviceSerial = coredump1.identifiers.serial,
+        hardwareVersion = coredump1.identifiers.hwRevision,
+        softwareType = coredump1.identifiers.swType,
+        softwareVersion = coredump1.identifiers.version
+      )
+    )
+    memfaultClient.uploadCoredumpCalls.awaitItem().shouldBe(
+      UploadCoredumpRequest(
+        deviceSerial = coredump2.identifiers.serial,
+        hardwareVersion = coredump2.identifiers.hwRevision,
+        softwareType = coredump2.identifiers.swType,
+        softwareVersion = coredump2.identifiers.version
+      )
+    )
   }
 })

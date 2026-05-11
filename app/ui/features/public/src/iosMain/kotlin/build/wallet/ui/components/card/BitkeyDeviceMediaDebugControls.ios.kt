@@ -16,10 +16,7 @@ internal data class BitkeyDeviceSceneDebugSettings(
   val cameraDistance: Float,
   val cameraFieldOfView: Float,
   val modelScale: Float,
-  val waitingModelScale: Float,
   val rotateTranslationY: Float,
-  val waitingRestTranslationY: Float,
-  val waitingIntroTargetTranslationY: Float,
   val screenDiffuseBrightness: Float,
 )
 
@@ -39,10 +36,7 @@ internal object BitkeyDeviceSceneDebugTuning {
       cameraDistance = BITKEY_DEVICE_CAMERA_DISTANCE,
       cameraFieldOfView = BITKEY_DEVICE_CAMERA_FIELD_OF_VIEW,
       modelScale = BITKEY_DEVICE_MODEL_SCALE,
-      waitingModelScale = BITKEY_DEVICE_WAITING_MODEL_SCALE,
       rotateTranslationY = BITKEY_DEVICE_W3_ROTATE_TRANSLATION_Y,
-      waitingRestTranslationY = BITKEY_DEVICE_WAITING_REST_TRANSLATION_Y,
-      waitingIntroTargetTranslationY = BITKEY_DEVICE_WAITING_INTRO_TARGET_TRANSLATION_Y,
       screenDiffuseBrightness = BITKEY_DEVICE_SCREEN_DIFFUSE_BRIGHTNESS
     )
 }

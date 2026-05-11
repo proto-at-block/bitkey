@@ -96,8 +96,7 @@ class W3UpgradeCloudRecoveryFunctionalTests : FunSpec({
         .onContinue()
       awaitUntilBody<W3UpgradeNewHardwareAuthRotationInstructionsBodyModel>()
         .onContinue()
-      approveW3Confirmation()
-      approveW3Confirmation()
+      approveW3ConfirmableNfc()
 
       awaitUntilScreenWithBody<BodyModel>(
         matchingScreen = { screen ->
@@ -121,6 +120,10 @@ class W3UpgradeCloudRecoveryFunctionalTests : FunSpec({
 
     customerApp.snapshotCloudRecoveryBackup(ProtectedCustomerFake)
       .shouldBe(fixture.preUpgradeCloudBackup)
+
+    // Simulate the recovering app starting fresh without a connected cloud
+    // account; it will reconnect via the restore-from-cloud flow.
+    customerApp.cloudStoreAccountRepository.clear().getOrThrow()
 
     val cloudStoreAccountRepository = customerApp.cloudStoreAccountRepository
     val cloudBackupStore = customerApp.cloudBackupStore
@@ -202,8 +205,16 @@ class W3UpgradeCloudRecoveryFunctionalTests : FunSpec({
       advanceThroughPairingPhase()
       advanceThroughAuthAndKeyRotation()
 
-      awaitUntilBody<BodyModel>(
-        matching = { it is CloudSignInModelFake || it is SaveBackupInstructionsBodyModel }
+      // The new cloud-backup-health feature uploads the W3 backup silently
+      // between auth rotation and old-hardware instructions; wait for a
+      // post-backup screen as a checkpoint before force-exiting.
+      awaitUntilScreenWithBody<BodyModel>(
+        matchingScreen = {
+          it.body is CloudSignInModelFake ||
+            (it.body as? SaveBackupInstructionsBodyModel)?.isLoading == false ||
+            it.body is W3UpgradeOldHardwareInstructionsBodyModel ||
+            it.bottomSheetModel?.body is W3UpgradeCompleteSheetBodyModel
+        }
       )
 
       customerApp.closeForUninstall()
@@ -217,8 +228,24 @@ class W3UpgradeCloudRecoveryFunctionalTests : FunSpec({
     val abandonedKeysetId =
       (abandonedDescriptorBackupIds - fixture.preUpgradeCloudBackup.keysetIds).single()
 
+    // The W3 upgrade flow auto-uploaded an updated cloud backup mid-flight.
+    // To exercise the "missing historical descriptor backup" recovery path,
+    // simulate a state where that upload never reached the cloud by overwriting
+    // it back to the pre-upgrade backup. The recovering app must then
+    // reconcile the abandoned descriptor backup from the server.
+    customerApp.cloudBackupService.writeBackup(
+      accountId = fixture.accountId,
+      cloudStoreAccount = ProtectedCustomerFake,
+      backup = fixture.preUpgradeCloudBackupObject,
+      requireAuthRefresh = false
+    ).getOrThrow()
+
     customerApp.snapshotCloudRecoveryBackup(ProtectedCustomerFake)
       .shouldBe(fixture.preUpgradeCloudBackup)
+
+    // Simulate the recovering app starting fresh without a connected cloud
+    // account; it will reconnect via the restore-from-cloud flow.
+    customerApp.cloudStoreAccountRepository.clear().getOrThrow()
 
     val cloudStoreAccountRepository = customerApp.cloudStoreAccountRepository
     val cloudBackupStore = customerApp.cloudBackupStore
@@ -300,6 +327,7 @@ private data class W3CloudRecoveryFixture(
   val tcRelationshipId: String,
   val preUpgradeHwAuthPublicKey: HwAuthPublicKey,
   val preUpgradeCloudBackup: CloudRecoveryBackupSnapshot,
+  val preUpgradeCloudBackupObject: build.wallet.cloud.backup.CloudBackup,
 )
 
 private suspend fun io.kotest.core.test.TestScope.prepareW3CloudRecoveryFixture(): W3CloudRecoveryFixture {
@@ -324,10 +352,9 @@ private suspend fun io.kotest.core.test.TestScope.prepareW3CloudRecoveryFixture(
     accountId = customerApp.getActiveFullAccount().accountId,
     tcRelationshipId = invite.invitation.relationshipId,
     preUpgradeHwAuthPublicKey = customerApp.getActiveHwAuthKey().publicKey,
-    preUpgradeCloudBackup = customerApp.snapshotCloudRecoveryBackup(ProtectedCustomerFake)
-  ).also {
-    customerApp.cloudStoreAccountRepository.clear().getOrThrow()
-  }
+    preUpgradeCloudBackup = customerApp.snapshotCloudRecoveryBackup(ProtectedCustomerFake),
+    preUpgradeCloudBackupObject = customerApp.readCloudBackup(ProtectedCustomerFake).shouldNotBeNull()
+  )
 }
 
 private suspend fun io.kotest.core.test.TestScope.launchLegacyRecoveringApp(
@@ -381,19 +408,15 @@ private suspend fun ReceiveTurbine<ScreenModel>.advanceThroughAuthAndKeyRotation
     .onContinue()
   awaitUntilBody<W3UpgradeNewHardwareAuthRotationInstructionsBodyModel>()
     .onContinue()
-  approveW3Confirmation()
-  approveW3Confirmation()
-  approveW3Confirmation()
-  approveW3Confirmation()
+  approveW3ConfirmableNfc()
+  approveW3ConfirmableNfc()
 }
 
 private suspend fun ReceiveTurbine<ScreenModel>.advanceThroughResumedAuthAndKeyRotation() {
   awaitUntilBody<W3UpgradeNewHardwareAuthRotationInstructionsBodyModel>()
     .onContinue()
-  approveW3Confirmation()
-  approveW3Confirmation()
-  approveW3Confirmation()
-  approveW3Confirmation()
+  approveW3ConfirmableNfc()
+  approveW3ConfirmableNfc()
 }
 
 private suspend fun ReceiveTurbine<ScreenModel>.advanceThroughCloudBackup(
@@ -402,7 +425,7 @@ private suspend fun ReceiveTurbine<ScreenModel>.advanceThroughCloudBackup(
   awaitUntilBody<BodyModel>(
     matching = {
       it is CloudSignInModelFake ||
-        it is SaveBackupInstructionsBodyModel ||
+        (it is SaveBackupInstructionsBodyModel && !it.isLoading) ||
         it is W3UpgradeOldHardwareInstructionsBodyModel
     }
   ).let { body ->
@@ -413,8 +436,9 @@ private suspend fun ReceiveTurbine<ScreenModel>.advanceThroughCloudBackup(
       }
       is SaveBackupInstructionsBodyModel -> {
         body.onBackupClick()
-        awaitUntilBody<CloudSignInModelFake>()
-          .signInSuccess(cloudStoreAccount)
+        // The fixture onboards with `cloudStoreAccountForBackup` set, so the
+        // upgrade flow finds a signed-in cloud account and skips
+        // CloudSignInModelFake; the next state machine step takes over directly.
         return null
       }
       is W3UpgradeOldHardwareInstructionsBodyModel -> return body
@@ -480,7 +504,7 @@ private suspend fun ReceiveTurbine<ScreenModel>.restoreFromCloudToResumedW3Intro
   return intro
 }
 
-private suspend fun ReceiveTurbine<ScreenModel>.approveW3Confirmation() {
+private suspend fun ReceiveTurbine<ScreenModel>.approveW3ConfirmableNfc() {
   awaitUntilScreenWithBody<BodyModel>(
     matchingScreen = { screen ->
       screen.body is HardwareConfirmationScreenModel ||
@@ -488,11 +512,14 @@ private suspend fun ReceiveTurbine<ScreenModel>.approveW3Confirmation() {
     }
   ).let { screen ->
     when {
-      screen.body is HardwareConfirmationScreenModel -> {
-        (screen.body as HardwareConfirmationScreenModel).onConfirm()
-      }
       screen.bottomSheetModel?.body is PromptSelectionFormBodyModel -> {
         (checkNotNull(screen.bottomSheetModel).body as PromptSelectionFormBodyModel).clickApprove()
+        awaitUntilBody<HardwareConfirmationScreenModel> {
+          onConfirm()
+        }
+      }
+      screen.body is HardwareConfirmationScreenModel -> {
+        (screen.body as HardwareConfirmationScreenModel).onConfirm()
       }
     }
   }

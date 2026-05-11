@@ -34,8 +34,10 @@ import build.wallet.statemachine.walletmigration.*
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchLegacyWalletApp
 import build.wallet.testing.ext.addSomeFunds
+import build.wallet.testing.ext.decryptCloudBackupKeys
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.returnFundsToTreasury
+import build.wallet.testing.ext.verifyCanUseKeyboxKeysets
 import build.wallet.testing.ext.waitForFunds
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
@@ -49,7 +51,8 @@ class W3UpgradeFunctionalTests : FunSpec({
 
   test("W3 upgrade happy path - zero balance") {
     val app = launchLegacyWalletApp()
-    app.onboardFullAccountWithFakeHardware()
+    app.onboardFullAccountWithFakeHardware(cloudStoreAccountForBackup = CloudStoreAccount1Fake)
+
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -71,10 +74,11 @@ class W3UpgradeFunctionalTests : FunSpec({
     app.verifyPostW3UpgradeState()
   }
 
-  test("W3 upgrade happy path - sweep real funds") {
+  test("W3 upgrade repairs legacy canUseKeyboxKeysets state") {
     val app = launchLegacyWalletApp()
-    app.onboardFullAccountWithFakeHardware()
-    app.addSomeFunds(sats(10_000L))
+    app.onboardingCanUseKeyboxKeysetsFeatureFlag.setFlagValue(false)
+    app.onboardFullAccountWithFakeHardware(cloudStoreAccountForBackup = CloudStoreAccount1Fake)
+    app.verifyCanUseKeyboxKeysets(false)
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -87,9 +91,36 @@ class W3UpgradeFunctionalTests : FunSpec({
       advanceThroughAuthAndKeyRotation()
       advanceThroughCloudBackup()
 
+      dismissW3UpgradeCompleteSheet()
+
+      cancelAndIgnoreRemainingEvents()
+    }
+
+    app.verifyPostW3UpgradeState()
+    app.decryptCloudBackupKeys(CloudStoreAccount1Fake).keysets.size.shouldBe(2)
+  }
+
+  test("W3 upgrade happy path - sweep real funds") {
+    val app = launchLegacyWalletApp()
+    app.onboardFullAccountWithFakeHardware(cloudStoreAccountForBackup = CloudStoreAccount1Fake)
+    app.addSomeFunds(sats(10_000L))
+
+
+    app.appUiStateMachine.test(
+      props = Unit,
+      testTimeout = 120.seconds,
+      turbineTimeout = 60.seconds
+    ) {
+      navigateToW3Upgrade(app)
+      advanceThroughIntroPhase()
+      advanceThroughPairingPhase()
+      advanceThroughAuthAndKeyRotation()
+      val backupResult = advanceThroughCloudBackup()
+
       // Has funds - sweep flow
-      awaitUntilBody<W3UpgradeOldHardwareInstructionsBodyModel>()
-        .onContinue()
+      val oldHardwareInstructions = (backupResult.body as? W3UpgradeOldHardwareInstructionsBodyModel)
+        ?: awaitUntilBody<W3UpgradeOldHardwareInstructionsBodyModel>()
+      oldHardwareInstructions.onContinue()
       awaitUntilBody<TransferConfirmationScreenModel>()
         .clickPrimaryButton()
       awaitUntilBody<TransferInitiatedBodyModel>()
@@ -107,7 +138,8 @@ class W3UpgradeFunctionalTests : FunSpec({
 
   test("W3 upgrade - force exit during pre-keyset auth rotation returns to Money Home") {
     var app = launchLegacyWalletApp()
-    app.onboardFullAccountWithFakeHardware()
+    app.onboardFullAccountWithFakeHardware(cloudStoreAccountForBackup = CloudStoreAccount1Fake)
+
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -127,6 +159,7 @@ class W3UpgradeFunctionalTests : FunSpec({
     // Relaunch before the point of no return: keyset creation has not happened yet,
     // so there is no persisted migration to auto-resume.
     app = app.relaunchApp()
+
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -153,7 +186,8 @@ class W3UpgradeFunctionalTests : FunSpec({
 
   test("W3 upgrade - force exit during cloud backup resumes (zero balance)") {
     var app = launchLegacyWalletApp()
-    app.onboardFullAccountWithFakeHardware()
+    app.onboardFullAccountWithFakeHardware(cloudStoreAccountForBackup = CloudStoreAccount1Fake)
+
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -180,20 +214,19 @@ class W3UpgradeFunctionalTests : FunSpec({
       turbineTimeout = 60.seconds
     ) {
       // Force-exit after triggering cloud backup is racy for zero balance:
-      // backup may or may not have persisted. Handle both resume paths.
+      // backup may or may not have persisted, and on resume the upgrade may have
+      // fully completed and cleaned up the sheet entirely. Handle every path.
       val screen = awaitUntilScreenWithBody<BodyModel>(
         matchingScreen = {
           it.body is CloudSignInModelFake ||
-            it.body is SaveBackupInstructionsBodyModel ||
-            it.bottomSheetModel?.body is W3UpgradeCompleteSheetBodyModel
+            (it.body as? SaveBackupInstructionsBodyModel)?.isLoading == false ||
+            it.bottomSheetModel?.body is W3UpgradeCompleteSheetBodyModel ||
+            it.body is MoneyHomeBodyModel
         }
       )
       when {
         screen.body is SaveBackupInstructionsBodyModel -> {
           (screen.body as SaveBackupInstructionsBodyModel).onBackupClick()
-          awaitUntilBody<CloudSignInModelFake>()
-            .signInSuccess(CloudStoreAccount1Fake)
-          // Cloud backup re-done on resume; still need to reach complete
           dismissW3UpgradeCompleteSheet()
         }
         screen.body is CloudSignInModelFake -> {
@@ -204,6 +237,7 @@ class W3UpgradeFunctionalTests : FunSpec({
           // Backup already completed before exit; resume landed past cloud backup
           dismissW3UpgradeCompleteSheet()
         }
+        // Plain MoneyHome means the upgrade fully completed and cleaned up.
       }
 
       cancelAndIgnoreRemainingEvents()
@@ -214,8 +248,9 @@ class W3UpgradeFunctionalTests : FunSpec({
 
   test("W3 upgrade - force exit after cloud backup resumes at sweep with funds") {
     var app = launchLegacyWalletApp()
-    app.onboardFullAccountWithFakeHardware()
+    app.onboardFullAccountWithFakeHardware(cloudStoreAccountForBackup = CloudStoreAccount1Fake)
     app.addSomeFunds(sats(10_000L))
+
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -226,10 +261,12 @@ class W3UpgradeFunctionalTests : FunSpec({
       advanceThroughIntroPhase()
       advanceThroughPairingPhase()
       advanceThroughAuthAndKeyRotation()
-      advanceThroughCloudBackup()
+      val backupResult = advanceThroughCloudBackup()
 
       // Wait for the sweep instructions to confirm backup completed, then force exit
-      awaitUntilBody<W3UpgradeOldHardwareInstructionsBodyModel>()
+      if (backupResult.body !is W3UpgradeOldHardwareInstructionsBodyModel) {
+        awaitUntilBody<W3UpgradeOldHardwareInstructionsBodyModel>()
+      }
 
       cancelAndIgnoreRemainingEvents()
     }
@@ -262,7 +299,8 @@ class W3UpgradeFunctionalTests : FunSpec({
 
   test("W3 upgrade - force exit after auth rotation resumes at rotate spending keys nfc tap") {
     var app = launchLegacyWalletApp()
-    app.onboardFullAccountWithFakeHardware()
+    app.onboardFullAccountWithFakeHardware(cloudStoreAccountForBackup = CloudStoreAccount1Fake)
+
 
     app.appUiStateMachine.test(
       props = Unit,
@@ -278,12 +316,11 @@ class W3UpgradeFunctionalTests : FunSpec({
         .onContinue()
       awaitUntilBody<W3UpgradeNewHardwareAuthRotationInstructionsBodyModel>()
         .onContinue()
-      approveW3Confirmation() // auth rotation: emulated prompt
-      approveW3Confirmation() // auth rotation: tap-to-confirm
+      approveW3ConfirmableNfc() // auth rotation
 
       // Rotate spending keyset tap starts — wait for its first confirmation screen,
       // proving we're past auth rotation, then force exit.
-      approveW3Confirmation() // composite auth: emulated prompt
+      approveW3PromptSelectionAndAwaitHardwareConfirmation() // composite auth
 
       cancelAndIgnoreRemainingEvents()
     }
@@ -298,8 +335,7 @@ class W3UpgradeFunctionalTests : FunSpec({
     ) {
       // Resume rewinds to the spending keyset composite tap (PreparingUpgradeAuthorization),
       // NOT back to auth rotation — auth keys are already rotated.
-      approveW3Confirmation() // composite auth: emulated prompt
-      approveW3Confirmation() // composite auth: tap-to-confirm
+      approveW3ConfirmableNfc() // composite auth
 
       advanceThroughCloudBackup()
 
@@ -368,39 +404,43 @@ private suspend fun ReceiveTurbine<ScreenModel>.advanceThroughAuthAndKeyRotation
   //   2. HardwareConfirmationScreenModel (tap-to-confirm)
   awaitUntilBody<W3UpgradeNewHardwareAuthRotationInstructionsBodyModel>()
     .onContinue()
-  approveW3Confirmation() // emulated prompt
-  approveW3Confirmation() // tap-to-confirm
+  approveW3ConfirmableNfc()
 
   // Composite W3 authorization tap (confirmable): descriptor backups + keyset activation + DDK
-  approveW3Confirmation() // emulated prompt
-  approveW3Confirmation() // tap-to-confirm
+  approveW3ConfirmableNfc()
 
   // Hardware descriptor provisioning (nfcSessionUIStateMachine, not confirmable — no UI prompt)
 }
 
 /**
- * Advance through the cloud backup step.
- * On first run with sealedCsek present, SaveBackupInstructions may be skipped.
- * On resume after relaunch, sealedCsek may be null so SaveBackupInstructions is shown.
- * This helper handles both cases.
+ * Advance through the cloud backup step. Returns the consumed [ScreenModel] so callers
+ * can chain into the next step without re-awaiting an emission they may not get.
+ *
+ * Handles both first-run and resume-after-relaunch paths: when sealedCsek is present
+ * SaveBackupInstructions may be skipped, and on resume sealedCsek may be null so the
+ * instructions screen is shown. When the wallet was onboarded with a saved cloud
+ * account, the upgrade flow updates the existing backup silently and skips both
+ * CloudSignInModelFake and SaveBackupInstructionsBodyModel — flow advances directly
+ * to the next post-backup screen (W3UpgradeOldHardwareInstructionsBodyModel for funded
+ * wallets, MoneyHome with W3UpgradeCompleteSheetBodyModel for zero-balance).
  */
 private suspend fun ReceiveTurbine<ScreenModel>.advanceThroughCloudBackup(
   cloudStoreAccount: CloudStoreAccount = CloudStoreAccount1Fake,
-) {
-  // CloudSignInModelFake extends BodyModel (not FormBodyModel), while
-  // SaveBackupInstructionsBodyModel extends FormBodyModel. Await either.
-  awaitUntilBody<BodyModel>(
-    matching = { it is CloudSignInModelFake || it is SaveBackupInstructionsBodyModel }
-  ).let { body ->
-    when (body) {
-      is CloudSignInModelFake -> body.signInSuccess(cloudStoreAccount)
-      is SaveBackupInstructionsBodyModel -> {
-        body.onBackupClick()
-        awaitUntilBody<CloudSignInModelFake>()
-          .signInSuccess(cloudStoreAccount)
-      }
+): ScreenModel {
+  val screen = awaitUntilScreenWithBody<BodyModel>(
+    matchingScreen = {
+      it.body is CloudSignInModelFake ||
+        (it.body as? SaveBackupInstructionsBodyModel)?.isLoading == false ||
+        it.body is W3UpgradeOldHardwareInstructionsBodyModel ||
+        it.bottomSheetModel?.body is W3UpgradeCompleteSheetBodyModel
     }
+  )
+  when (val body = screen.body) {
+    is CloudSignInModelFake -> body.signInSuccess(cloudStoreAccount)
+    is SaveBackupInstructionsBodyModel -> body.onBackupClick()
+    else -> Unit // already past cloud backup; caller handles via returned screen
   }
+  return screen
 }
 
 private suspend fun ReceiveTurbine<ScreenModel>.dismissW3UpgradeCompleteSheet() {
@@ -419,7 +459,7 @@ private suspend fun ReceiveTurbine<ScreenModel>.dismissW3UpgradeCompleteSheet() 
  * Approve a W3 device confirmation prompt. Handles both [HardwareConfirmationScreenModel]
  * (real confirmation flow) and [PromptSelectionFormBodyModel] (emulated prompt flow).
  */
-private suspend fun ReceiveTurbine<ScreenModel>.approveW3Confirmation() {
+private suspend fun ReceiveTurbine<ScreenModel>.approveW3ConfirmableNfc() {
   awaitUntilScreenWithBody<BodyModel>(
     matchingScreen = { screen ->
       screen.body is HardwareConfirmationScreenModel ||
@@ -427,14 +467,29 @@ private suspend fun ReceiveTurbine<ScreenModel>.approveW3Confirmation() {
     }
   ).let { screen ->
     when {
+      screen.bottomSheetModel?.body is PromptSelectionFormBodyModel -> {
+        (checkNotNull(screen.bottomSheetModel).body as PromptSelectionFormBodyModel).clickApprove()
+        awaitUntilBody<HardwareConfirmationScreenModel> {
+          onConfirm()
+        }
+      }
       screen.body is HardwareConfirmationScreenModel -> {
         (screen.body as HardwareConfirmationScreenModel).onConfirm()
       }
-      screen.bottomSheetModel?.body is PromptSelectionFormBodyModel -> {
-        (checkNotNull(screen.bottomSheetModel).body as PromptSelectionFormBodyModel).clickApprove()
-      }
     }
   }
+}
+
+private suspend fun ReceiveTurbine<ScreenModel>.approveW3PromptSelectionAndAwaitHardwareConfirmation() {
+  awaitUntilScreenWithBody<BodyModel>(
+    matchingScreen = { screen ->
+      screen.bottomSheetModel?.body is PromptSelectionFormBodyModel
+    }
+  ).let { screen ->
+    (checkNotNull(screen.bottomSheetModel).body as PromptSelectionFormBodyModel).clickApprove()
+  }
+
+  awaitUntilBody<HardwareConfirmationScreenModel>()
 }
 
 /**

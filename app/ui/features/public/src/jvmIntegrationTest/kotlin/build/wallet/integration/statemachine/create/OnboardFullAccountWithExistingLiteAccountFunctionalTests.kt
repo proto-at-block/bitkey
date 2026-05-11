@@ -9,6 +9,7 @@ import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
+import build.wallet.feature.setFlagValue
 import build.wallet.onboarding.OnboardingKeyboxStep
 import build.wallet.platform.permissions.PermissionStatus
 import build.wallet.statemachine.cloud.CloudSignInModelFake
@@ -62,6 +63,7 @@ class OnboardFullAccountWithExistingLiteAccountFunctionalTests : FunSpec({
     onboardApp.pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
       PermissionStatus.Authorized
     )
+    onboardApp.w3OnboardingFeatureFlag.setFlagValue(false)
 
     // Step 3: Attempt to onboard a full account - should encounter the lite account backup
     onboardApp.appUiStateMachine.test(

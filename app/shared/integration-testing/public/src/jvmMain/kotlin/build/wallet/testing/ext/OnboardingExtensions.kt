@@ -11,7 +11,10 @@ import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.cloud.store.WritableCloudStoreAccountRepository
 import build.wallet.email.Email
 import build.wallet.f8e.F8eEnvironment.Staging
+import build.wallet.f8e.auth.PrivilegedActionProof
+import build.wallet.nfc.platform.requireW3
 import build.wallet.onboarding.CreateFullAccountContext
+import build.wallet.statemachine.auth.ActionProofType
 import build.wallet.testing.AppTester
 import build.wallet.testing.fakeTransact
 import com.github.michaelbull.result.getOrThrow
@@ -101,7 +104,7 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
   // derive addresses and sign transactions.
   if (resolvedHardwareType == HardwareType.W3) {
     nfcTransactor.fakeTransact(hardwareType = HardwareType.W3) { session, commands ->
-      commands.verifyKeysAndBuildDescriptor(
+      commands.requireW3(session).verifyKeysAndBuildDescriptor(
         session = session,
         appSpendingKey = "00".repeat(33).decodeHex(),
         appSpendingKeyChaincode = "00".repeat(32).decodeHex(),
@@ -130,10 +133,29 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
       touchpointId = addedTouchpoint.touchpointId,
       verificationCode = "123456" // This code always works for Test Accounts
     ).mapError { it.error }.getOrThrow()
+
+    val activationProof: PrivilegedActionProof? =
+      if (resolvedHardwareType == HardwareType.W3) {
+        val emailTouchpoint = addedTouchpoint as? NotificationTouchpoint.EmailTouchpoint
+          ?: error("Expected email touchpoint during onboarding")
+
+        buildW3HardwareActionProof(
+          actionProofType = ActionProofType.SetRecoveryEmail(
+            email = emailTouchpoint.value.value,
+            touchpointId = emailTouchpoint.touchpointId
+          ),
+          appAuthKey = appKeys.appKeyBundle.authKey,
+          accountId = account.accountId
+        )
+      } else {
+        null
+      }
+
     notificationTouchpointF8eClient.activateTouchpoint(
       f8eEnvironment = initialF8eEnvironment,
       accountId = account.accountId,
-      touchpointId = addedTouchpoint.touchpointId
+      touchpointId = addedTouchpoint.touchpointId,
+      proof = activationProof
     ).getOrThrow()
   }
 

@@ -9,9 +9,10 @@
 #include "uc.h"
 #include "uxc.pb.h"
 #ifdef EMBEDDED_BUILD
+#include "coproc_power.h"
 #include "ipc.h"
 #include "onboarding.h"
-#include "power.h"
+#include "sleep.h"
 #include "sysevent.h"
 #endif
 
@@ -20,41 +21,25 @@
 #include <stdio.h>
 #include <string.h>
 
-bool display_controller_update_power_off_send_failures(const fwpb_display_command* cmd,
-                                                       bool is_plugged_in, uint8_t* failure_count) {
+static void display_controller_handle_uxc_send_result(bool success);
+
+bool display_controller_update_uxc_send_failures(bool send_success, uint8_t* failure_count) {
   if (failure_count == NULL) {
     return false;
   }
 
-  if ((cmd == NULL) || (cmd->which_command != fwpb_display_command_show_screen_tag) ||
-      (cmd->command.show_screen.which_params != fwpb_display_show_screen_power_off_tag) ||
-      !is_plugged_in) {
+  if (send_success) {
     *failure_count = 0;
     return false;
   }
 
-  if (*failure_count >= DISPLAY_POWER_OFF_RESET_THRESHOLD) {
+  if (*failure_count >= DISPLAY_UXC_RESET_FAILURE_THRESHOLD) {
     return false;
   }
 
   (*failure_count)++;
-  return *failure_count == DISPLAY_POWER_OFF_RESET_THRESHOLD;
+  return *failure_count == DISPLAY_UXC_RESET_FAILURE_THRESHOLD;
 }
-
-#ifdef EMBEDDED_BUILD
-static SHARED_TASK_BSS uint8_t s_power_off_send_failures = 0;
-
-static void display_controller_reset_power_off_send_failures(void) {
-  s_power_off_send_failures = 0;
-}
-
-static bool display_controller_track_power_off_send_failure(const fwpb_display_command* cmd) {
-  return display_controller_update_power_off_send_failures(cmd, power_is_plugged_in(),
-                                                           &s_power_off_send_failures);
-}
-#else
-static void display_controller_reset_power_off_send_failures(void) {}
-#endif
 
 #ifndef EMBEDDED_BUILD
 // External functions and stub types for simulation
@@ -90,22 +75,13 @@ static fwpb_display_result display_controller_send_command(const fwpb_display_co
   // Display transitions are latency-sensitive and can come in bursts during
   // rapid UI navigation, so request an immediate ACK from the UXC.
   bool success = uc_send_immediate(msg);
+  display_controller_handle_uxc_send_result(success);
 
   if (!success) {
-    if (display_controller_track_power_off_send_failure(cmd)) {
-      LOGW("Reset MCUs: pwr-off disp send fail");
-      sysevent_set(SYSEVENT_FORCE_POWER_OFF_RESET);
-    }
-    if (cmd->which_command == fwpb_display_command_show_screen_tag) {
-      LOGE("Display cmd fail: command=%u show_screen=%u", (unsigned)cmd->which_command,
-           (unsigned)cmd->command.show_screen.which_params);
-    } else {
-      LOGE("Display cmd fail: command=%u", (unsigned)cmd->which_command);
-    }
+    LOGE("Display cmd fail: %d", cmd->command.show_screen.which_params);
     return fwpb_display_result_DISPLAY_RESULT_ERROR;
   }
 
-  display_controller_reset_power_off_send_failures();
   refresh_auth();
   return fwpb_display_result_DISPLAY_RESULT_SUCCESS;
 #else
@@ -120,6 +96,10 @@ static void unlock_device(void);
 static void mark_device_locked(void);
 static void enter_flow(flow_id_t flow, const void* entry_data, bool clear_nav_stack);
 static void handle_flow_action_result(flow_action_result_t result);
+static flow_id_t initial_root_flow(void);
+static void set_initial_flow(void);
+static void enter_initial_flow(void);
+static void show_ready_screen(void);
 static void refresh_screen(void);
 static bool display_controller_menu_item_visible(fwpb_display_menu_item item);
 
@@ -131,6 +111,26 @@ display_controller_t UI_TASK_DATA controller = {
   .show_screen.which_params = fwpb_display_show_screen_onboarding_tag,
   .nav_stack_depth = 0,
 };
+
+#ifdef EMBEDDED_BUILD
+static SHARED_TASK_BSS uint8_t s_uxc_send_failures = 0;
+
+static void display_controller_handle_uxc_send_result(bool success) {
+  if (success || controller.current_flow == FLOW_FIRMWARE_UPDATE) {
+    (void)display_controller_update_uxc_send_failures(true, &s_uxc_send_failures);
+    return;
+  }
+
+  if (display_controller_update_uxc_send_failures(false, &s_uxc_send_failures)) {
+    LOGW("Reset UXC: display send fail");
+    coproc_power_reset();
+  }
+}
+#else
+static void display_controller_handle_uxc_send_result(bool success) {
+  (void)success;
+}
+#endif
 
 // Display flags sent with every show_screen command
 static SHARED_TASK_DATA uint32_t s_display_flags = fwpb_display_flag_DISPLAY_FLAG_ROTATE_180;
@@ -432,7 +432,6 @@ void display_controller_init(void) {
   controller.scan_confirm_on_enter = false;
   controller.scan_confirm_cancel_returns_to_onboarding = false;
   battery_rescale_init(&controller.battery_rescale_state);
-  display_controller_reset_power_off_send_failures();
   // Initialize brightness to default (will be updated via UI_EVENT_SET_DEVICE_INFO)
   controller.show_screen.brightness_percent = 80;
 
@@ -441,22 +440,7 @@ void display_controller_init(void) {
   sysevent_wait(SYSEVENT_FILESYSTEM_READY, true);
 #endif
 
-#ifdef MFGTEST
-  // In MFG test mode, always start locked regardless of onboarding status
-  const bool start_onboarding = false;
-#else
-  const bool start_onboarding = (onboarding_complete() != SECURE_TRUE);
-#endif
-
-  if (start_onboarding) {
-    controller.is_locked = false;
-    controller.current_flow = FLOW_ONBOARDING;
-    controller.show_screen.which_params = fwpb_display_show_screen_onboarding_tag;
-  } else {
-    controller.is_locked = true;
-    controller.current_flow = FLOW_LOCKED;
-    controller.show_screen.which_params = fwpb_display_show_screen_locked_tag;
-  }
+  set_initial_flow();
 }
 
 void display_controller_tick(void) {
@@ -479,8 +463,7 @@ void display_controller_show_initial_screen(void) {
     return;
   }
 
-  controller.initial_screen_shown = true;
-  refresh_screen();
+  show_ready_screen();
 }
 
 void display_controller_handle_ui_event(ui_event_type_t event, const void* data, uint32_t len) {
@@ -536,8 +519,7 @@ void display_controller_handle_ui_event(ui_event_type_t event, const void* data,
         // If the UXC was ready before device info arrived, show the
         // initial screen now that we have the correct brightness.
         if (controller.uxc_ready && !controller.initial_screen_shown) {
-          controller.initial_screen_shown = true;
-          refresh_screen();
+          show_ready_screen();
         }
       }
       break;
@@ -740,6 +722,34 @@ static void lock_device(void) {
   enter_flow(FLOW_LOCKED, NULL, true);  // clear nav stack
 }
 
+static flow_id_t initial_root_flow(void) {
+#ifdef MFGTEST
+  // In MFG test mode, always start locked regardless of onboarding status.
+  return FLOW_LOCKED;
+#else
+  return (onboarding_complete() != SECURE_TRUE) ? FLOW_ONBOARDING : FLOW_LOCKED;
+#endif
+}
+
+static void set_initial_flow(void) {
+  const flow_id_t flow = initial_root_flow();
+
+  controller.is_locked = (flow == FLOW_LOCKED);
+  controller.current_flow = flow;
+  controller.show_screen.which_params = (flow == FLOW_ONBOARDING)
+                                          ? fwpb_display_show_screen_onboarding_tag
+                                          : fwpb_display_show_screen_locked_tag;
+}
+
+static void enter_initial_flow(void) {
+  if (initial_root_flow() == FLOW_ONBOARDING) {
+    controller.is_locked = false;
+    enter_flow(FLOW_ONBOARDING, NULL, true);
+  } else {
+    lock_device();
+  }
+}
+
 static void mark_device_locked(void) {
   controller.is_locked = true;
 
@@ -756,6 +766,20 @@ static void mark_device_locked(void) {
 
   controller.nav.menu.selected_item = fwpb_display_menu_item_DISPLAY_MENU_ITEM_LOCK_DEVICE;
   controller.nav.fingerprint_menu.selected_item = 0;
+}
+
+static void show_ready_screen(void) {
+  controller.initial_screen_shown = true;
+
+  if (power_off_screen_active()) {
+#ifdef EMBEDDED_BUILD
+    sleep_start_power_timer();
+#endif
+    enter_initial_flow();
+    return;
+  }
+
+  refresh_screen();
 }
 
 static void unlock_device(void) {

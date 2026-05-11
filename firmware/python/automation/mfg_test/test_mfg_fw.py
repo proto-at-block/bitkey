@@ -14,9 +14,9 @@ from bitkey_proto import wallet_pb2 as wallet_pb
 from bitkey.comms import NFCTransaction, WalletComms
 from bitkey.wallet import Wallet
 
-from python.automation.commander import CommanderHelper
-from python.automation.inv_commands import Inv
 from ..conftest import PlatformConfig
+from ..inv_commands import Inv
+from .. import util
 
 # Device capacitive touch port identifier.
 _CAP_TOUCH_PORT: str = "PORT_B"
@@ -38,8 +38,6 @@ logger.setLevel(logging.DEBUG)
 
 
 class TestClassMfgFW:
-    Inv_task = Inv()
-    commander = CommanderHelper()
 
     @pytest.fixture(scope="class", autouse=True)
     def setup(self, platform_config: PlatformConfig, request: pytest.FixtureRequest) -> None:
@@ -50,16 +48,22 @@ class TestClassMfgFW:
         :param request: PyTest fixture request object for command-line arguments.
         :returns: ``None``
         """
-        # TODO(ESW-20951): Update with target-specific flashing for manufacturing images.
-        # E.g. w3a-core-pdvt-app-a-mfgtest-dev, w3a-uxc-pdvt-app-a-mfgtest-dev, w1a-evt-app-a-mfgtest-dev
-        test_target = f"{platform_config.product}-{platform_config.revision}-app-a-mfgtest-{platform_config.type}"
+        manufacturing_images: list[tuple[str, str]] = []
+        for chip_config in platform_config.chips.values():
+            target: str = util.convert_target_app_name(
+                chip_config.target,
+                platform_config.type,
+                platform_config.revision,
+                "mfgtest"
+            )
+            manufacturing_images.append((chip_config.name, target))
+
         logger.info("Setup fixture")
-        logger.info("Clean, build, and flash A slot")
-        self.Inv_task.clean(request=request)
-        self.Inv_task.build_platforms(request=request)
-        self.Inv_task.flash_with_filesystem_recovery(target=test_target, request=request)
-        if not request.config.option.skip_flash:
-            self.commander.reset()
+
+        self.inv_task = Inv(request, platform_config)
+        self.inv_task.clean()
+        self.inv_task.build()
+        self.inv_task.flash(targets=manufacturing_images)
 
     def _drain_logs(self, wallet: Wallet) -> list[bitlog.BitlogEvent]:
         """Drains bitlogs from a Wallet device.
@@ -161,8 +165,10 @@ class TestClassMfgFW:
         :param wallet: Wallet instance for the device under test.
         :returns: ``None``
         """
-        action_value: int = mfgtest_pb.mfgtest_gpio_cmd.mfgtest_gpio_action.Value('READ')
-        port_value: int = mfgtest_pb.mfgtest_gpio_cmd.mfgtest_gpio_port.Value(_CAP_TOUCH_PORT)
+        action_value: int = mfgtest_pb.mfgtest_gpio_cmd.mfgtest_gpio_action.Value(
+            'READ')
+        port_value: int = mfgtest_pb.mfgtest_gpio_cmd.mfgtest_gpio_port.Value(
+            _CAP_TOUCH_PORT)
 
         rsp = wallet.mfgtest_gpio(action_value, port_value, _CAP_TOUCH_PIN)
         logger.info(rsp)
@@ -207,7 +213,8 @@ class TestClassMfgFW:
         # TODO(ESW-20955): Update this with new FWUP fixture.
         initial_version, active_slot = self.get_active_version(wallet=wallet)
         logger.info(
-            "Starting with version: %s, with activeSlot %s" % (initial_version, active_slot)
+            "Starting with version: %s, with activeSlot %s" % (
+                initial_version, active_slot)
         )
         assert active_slot == 1, "Expected to start active on SLOT_A"
 
@@ -224,20 +231,18 @@ class TestClassMfgFW:
         """
         # TODO(ESW-20955): Update this with new FWUP fixtures.
         logger.info("Bump, and build A & B slot")
-        self.Inv_task.bump()
-        self.Inv_task.clean()
-        self.Inv_task.build_platforms()
+        self.inv_task.bump()
+        self.inv_task.clean()
+        self.inv_task.build_platforms()
 
         logger.info("Bundle and FWUP")
-        self.Inv_task.fwup_bundle(platform_config)
-        self.Inv_task.fwup_fwup()
-
-        logger.info("Resetting Wallet")
-        self.commander.reset()
+        self.inv_task.fwup_bundle(platform_config)
+        self.inv_task.fwup_fwup()
 
         new_version, active_slot = self.get_active_version(wallet=wallet)
         logger.info(
-            "Current version: %s, with activeSlot %s" % (new_version, active_slot)
+            "Current version: %s, with activeSlot %s" % (
+                new_version, active_slot)
         )
         return new_version, active_slot
 
@@ -248,13 +253,11 @@ class TestClassMfgFW:
         :param platform_config: platform configuration for the device under test.
         :returns: ``None``
         """
-        self.Inv_task.build_platforms()
-        logger.info("Bundle and FWUP")
-        self.Inv_task.fwup_bundle(platform_config)
-        self.Inv_task.fwup_fwup()
+        self.inv_task.build_platforms()
 
-        logger.info("Resetting Wallet")
-        self.commander.reset()
+        logger.info("Bundle and FWUP")
+        self.inv_task.fwup_bundle(platform_config)
+        self.inv_task.fwup_fwup()
 
     @allure.step("Get version from Metadata response")
     def get_active_version(self, wallet: Wallet) -> tuple[int, int]:

@@ -59,3 +59,5 @@ MEMFAULT_TRACE_REASON_DEFINE(display_brightness_err)
 
 // Sleep coordination
 MEMFAULT_TRACE_REASON_DEFINE(sleep_prep_timeout)
+MEMFAULT_TRACE_REASON_DEFINE(shutdown_ipc_send_failed)
+MEMFAULT_TRACE_REASON_DEFINE(power_off_failed)

@@ -14,6 +14,10 @@ class DelegatedDecryptionKeyServiceMock(
   var uploadResult: Result<Unit, Error> = Ok(Unit),
   val uploadCalls: Turbine<Unit>? = null,
 ) : DelegatedDecryptionKeyService {
+  var getSealedDelegatedDecryptionKeyDataResult: Result<SealedData, Error> =
+    Ok("sealed-data".encodeBase64().decodeBase64()!!)
+  var getSealedDelegatedDecryptionKeyDataCalls = 0
+
   override suspend fun uploadSealedDelegatedDecryptionKeyData(
     fullAccountId: FullAccountId,
     sealedData: SealedData,
@@ -25,12 +29,19 @@ class DelegatedDecryptionKeyServiceMock(
   override suspend fun getSealedDelegatedDecryptionKeyData(
     accountId: AccountId,
   ): Result<SealedData, Error> {
-    return Ok("sealed-data".encodeBase64().decodeBase64()!!)
+    getSealedDelegatedDecryptionKeyDataCalls += 1
+    return getSealedDelegatedDecryptionKeyDataResult
   }
 
   override suspend fun restoreDelegatedDecryptionKey(
     unsealedData: ByteString,
   ): Result<Unit, RelationshipsKeyError> {
     return Ok(Unit)
+  }
+
+  fun reset() {
+    uploadResult = Ok(Unit)
+    getSealedDelegatedDecryptionKeyDataResult = Ok("sealed-data".encodeBase64().decodeBase64()!!)
+    getSealedDelegatedDecryptionKeyDataCalls = 0
   }
 }

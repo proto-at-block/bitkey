@@ -10,9 +10,12 @@ import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
+import build.wallet.feature.setFlagValue
 import build.wallet.statemachine.account.AccountAccessMoreOptionsFormBodyModel
 import build.wallet.statemachine.account.ChooseAccountAccessModel
+import build.wallet.statemachine.account.create.full.hardware.CompleteTwoTapBodyModel
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
+import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.cloud.CloudSignInModelFake
 import build.wallet.statemachine.cloud.SaveBackupInstructionsBodyModel
 import build.wallet.statemachine.core.ScreenModel
@@ -33,6 +36,7 @@ import build.wallet.statemachine.recovery.sweep.ZeroBalancePromptBodyModel
 import build.wallet.statemachine.recovery.verification.ChooseRecoveryNotificationVerificationMethodModel
 import build.wallet.statemachine.settings.full.device.DeviceSettingsFormBodyModel
 import build.wallet.statemachine.ui.awaitUntilBody
+import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.robots.clickBitkeyDevice
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
@@ -278,12 +282,27 @@ private suspend fun StateMachineTester<Unit, ScreenModel>.initiateLostHardwareRe
     .clickPrimaryButton()
   awaitUntilBody<NewDeviceReadyQuestionBodyModel>()
     .clickPrimaryButton()
-  awaitUntilBody<PairNewHardwareBodyModel>(HW_ACTIVATION_INSTRUCTIONS)
+  awaitUntilBody<PairNewHardwareBodyModel>(matching = { !it.primaryButton.isLoading })
     .clickPrimaryButton()
-  awaitUntilBody<PairNewHardwareBodyModel>(HW_PAIR_INSTRUCTIONS)
-    .clickPrimaryButton()
-  awaitUntilBody<PairNewHardwareBodyModel>(HW_SAVE_FINGERPRINT_INSTRUCTIONS)
-    .clickPrimaryButton()
+
+  when (
+    val nextBody = awaitUntilScreenWithBody<BodyModel>(
+      matchingBody = { it is PairNewHardwareBodyModel || it is CompleteTwoTapBodyModel }
+    ).body
+  ) {
+    is CompleteTwoTapBodyModel -> {
+      nextBody.clickPrimaryButton()
+    }
+
+    is PairNewHardwareBodyModel -> {
+      nextBody.clickPrimaryButton()
+
+      if (nextBody.eventTrackerScreenInfo?.eventTrackerScreenId == HW_PAIR_INSTRUCTIONS) {
+        awaitUntilBody<PairNewHardwareBodyModel>(HW_SAVE_FINGERPRINT_INSTRUCTIONS)
+          .clickPrimaryButton()
+      }
+    }
+  }
   if (cancelOtherRecovery) {
     awaitUntilBody<RecoveryConflictBodyModel>(
       LOST_APP_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_PROMPT
@@ -419,6 +438,7 @@ private suspend fun TestScope.testWithTwoApps(
     isUsingSocRecFakes = isUsingSocRecFakes,
     executeWorkers = executeWorkers
   )
+  lostHwApp.w3OnboardingFeatureFlag.setFlagValue(false)
   lostHwApp.onboardFullAccountWithFakeHardware(true, delayNotifyDuration = 2.seconds)
   val fakeHardwareSeed = lostHwApp.fakeNfcCommands.fakeHardwareKeyStore.getSeed()
   lostHwApp.deleteBackupsFromFakeCloud(FullAccountIdMock)
@@ -430,6 +450,7 @@ private suspend fun TestScope.testWithTwoApps(
     hardwareSeed = fakeHardwareSeed,
     executeWorkers = executeWorkers
   )
+  lostAppApp.w3OnboardingFeatureFlag.setFlagValue(false)
 
   turbineScope(timeout = 30.seconds) {
     val lostAppAppTester =

@@ -4,7 +4,10 @@ import bitkey.account.AccountConfigServiceFake
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.SIGN_TRANSACTION
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.firmware.FirmwareDeviceInfoMock
+import build.wallet.nfc.NfcCommandsMock
 import build.wallet.nfc.NfcException
+import build.wallet.nfc.NfcSessionFake
 import build.wallet.nfc.platform.ConfirmationHandlesFake
 import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.statemachine.ScreenStateMachineMock
@@ -14,8 +17,10 @@ import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationU
 import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
+import build.wallet.statemachine.ui.awaitUntilBodyMock
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.nulls.shouldBeNull
 
 class NfcConfirmableSessionUiStateMachineImplTests : FunSpec({
 
@@ -283,6 +288,57 @@ class NfcConfirmableSessionUiStateMachineImplTests : FunSpec({
 
       awaitBody<HardwareConfirmationResultBodyModel> {
         headline.shouldBe("Custom denied headline")
+      }
+    }
+  }
+
+  // Device Info Threading Tests
+
+  test("second tap receives resolvedDeviceInfoOverride captured from first tap") {
+    val commands = NfcCommandsMock(turbines::create)
+    val fakeSession = NfcSessionFake()
+
+    // Use a session that returns RequiresConfirmation so the two-tap flow triggers
+    val props = NfcConfirmableSessionUIStateMachineProps<Boolean>(
+      session = { _, _ -> mockRequiresConfirmation },
+      onSuccess = { onSuccessCalls.add(it) },
+      onCancel = { onCancelCalls.add(Unit) },
+      onError = { error ->
+        onErrorCalls.add(error)
+        true
+      },
+      screenPresentationStyle = ScreenPresentationStyle.Modal,
+      eventTrackerContext = SIGN_TRANSACTION
+    )
+
+    stateMachine.test(props) {
+      // First tap: get the NFC session props
+      awaitBodyMock<NfcSessionUIStateMachineProps<*>>(id = "nfc-session") {
+        // First tap should not have resolvedDeviceInfoOverride
+        config.resolvedDeviceInfoOverride.shouldBeNull()
+
+        // Simulate what the real NfcSessionUIStateMachine does: run the session lambda
+        // to trigger device info capture, then report the result via onSuccess.
+        @Suppress("UNCHECKED_CAST")
+        val sessionFn = session as suspend (build.wallet.nfc.NfcSession, build.wallet.nfc.platform.NfcCommands) -> Any?
+        val result = sessionFn(fakeSession, commands)
+
+        @Suppress("UNCHECKED_CAST")
+        val typedOnSuccess = onSuccess as suspend (Any?) -> Unit
+        typedOnSuccess(result)
+      }
+
+      // User sees confirmation screen and confirms.
+      // Use awaitUntilBodyMock because calling sessionFn above sets
+      // capturedDeviceInfo (Compose state), which can trigger an intermediate
+      // nfc-session recomposition before the uiState change to AwaitingConfirmation.
+      awaitUntilBodyMock<HardwareConfirmationUiProps>(id = "hardware-confirmation") {
+        onConfirm()
+      }
+
+      // Second tap: should now have the captured device info from the first tap
+      awaitBodyMock<NfcSessionUIStateMachineProps<*>>(id = "nfc-session") {
+        config.resolvedDeviceInfoOverride.shouldBe(FirmwareDeviceInfoMock)
       }
     }
   }

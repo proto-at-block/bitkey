@@ -16,9 +16,9 @@ import build.wallet.nfc.platform.ConfirmationHandles
 import build.wallet.nfc.platform.ConfirmationHandlesFake
 import build.wallet.nfc.platform.ConfirmationResult
 import build.wallet.nfc.platform.HardwareInteraction
-import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.platform.SweepSigningContext
 import build.wallet.nfc.platform.SweepXpub
+import build.wallet.nfc.platform.W3NfcCommands
 import build.wallet.nfc.platform.confirmationResultMapper
 import build.wallet.nfc.platform.toSessionFn
 import okio.ByteString.Companion.toByteString
@@ -239,8 +239,8 @@ class SignTransactionW3IntegrationTests : FunSpec({
 
   context("RequiresConfirmation toSessionFn wiring") {
     // Stub NfcCommands that returns a controlled ConfirmationResult for second tap
-    fun makeStubCommands(confirmationResult: ConfirmationResult): NfcCommands =
-      object : NfcCommands by w3CommandsFake {
+    fun makeStubCommands(confirmationResult: ConfirmationResult): W3NfcCommands =
+      object : W3NfcCommands by w3CommandsFake {
         override suspend fun getConfirmationResult(
           session: NfcSession,
           handles: ConfirmationHandles,
@@ -315,7 +315,7 @@ class SignTransactionW3IntegrationTests : FunSpec({
         }
       )
       val session = NfcSessionFake.invoke()
-      val capturingCommands = object : NfcCommands by w3CommandsFake {
+      val capturingCommands = object : W3NfcCommands by w3CommandsFake {
         override suspend fun getConfirmationResult(
           session: NfcSession,
           handles: ConfirmationHandles,

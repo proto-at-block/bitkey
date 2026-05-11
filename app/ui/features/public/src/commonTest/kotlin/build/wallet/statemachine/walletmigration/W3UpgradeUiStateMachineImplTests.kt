@@ -61,9 +61,9 @@ import build.wallet.firmware.FirmwareDeviceInfoMock
 import build.wallet.keybox.keys.AppKeysGeneratorMock
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.USD
-import build.wallet.nfc.NfcCommandsMock
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.NfcSessionFake
+import build.wallet.nfc.W3NfcCommandsMock
 import build.wallet.nfc.platform.RotateAppAuthKeysCompositeResult
 import build.wallet.nfc.platform.UpgradeAuthorizeW3Result
 import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysResult
@@ -445,7 +445,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
   test("auth rotation confirmable tap persists W3 FirmwareDeviceInfo") {
     val w3DeviceInfo = FirmwareDeviceInfoMock.copy(hwRevision = "w3a-evt", serial = "w3-serial")
     // Raw turbines avoid auto-validation of getDeviceInfo calls triggered by verifyHardwareType
-    val nfcCommandsMock = NfcCommandsMock { Turbine(name = it) }
+    val nfcCommandsMock = W3NfcCommandsMock { Turbine(name = it) }
     nfcCommandsMock.deviceInfoResult = w3DeviceInfo
 
     val authRotationProgress = MigrationProgress.AuthKeyRotation(
@@ -2307,7 +2307,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
 
   test("cloud-restored auth rotation uses rotateAppAuthKeys and skips upgradeRotateAppAuthKeys") {
     val w3DeviceInfo = FirmwareDeviceInfoMock.copy(hwRevision = "w3a-evt", serial = "w3-serial")
-    val nfcCommandsMock = NfcCommandsMock { Turbine(name = it) }
+    val nfcCommandsMock = W3NfcCommandsMock { Turbine(name = it) }
     nfcCommandsMock.deviceInfoResult = w3DeviceInfo
     migrationService.resumeResult = Ok(resumedFromCloudBackupAuthRotationProgress())
 

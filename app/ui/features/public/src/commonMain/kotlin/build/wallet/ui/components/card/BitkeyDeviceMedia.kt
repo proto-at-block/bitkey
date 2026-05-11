@@ -122,7 +122,6 @@ internal expect fun BitkeyDeviceMedia(
   batteryPercentage: Int? = null,
   hardwareType: HardwareType = HardwareType.W3,
   interactionState: BitkeyDeviceMediaInteractionState,
-  shouldPlayWaitingIntro: Boolean = false,
 )
 
 @Composable
@@ -132,9 +131,6 @@ internal expect fun BitkeyDeviceMediaInteractionOverlay(
 )
 
 internal expect fun supportsBitkeyDevice3DMedia(hardwareType: HardwareType): Boolean
-
-@Composable
-internal expect fun supportsInteractiveBitkeyWaitingMedia(hardwareType: HardwareType): Boolean
 
 @Composable
 internal fun legacyBitkeyDeviceCardBackgroundColor(): Color =
@@ -151,5 +147,4 @@ internal fun bitkeyDeviceVideoResource(content: DeviceStatusCard.VideoContent): 
         Theme.LIGHT -> Res.getVideoResource("bitkey_rotate")
         Theme.DARK -> Res.getVideoResource("bitkey_rotate_dark")
       }
-    DeviceStatusCard.VideoContent.BITKEY_WAITING_3D -> Res.getVideoResource("bitkey_waiting_3d")
   }

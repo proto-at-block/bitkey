@@ -205,6 +205,29 @@ class MoneyHomeUiStateMachineImplTests : FunSpec({
     }
   }
 
+  test("launch auto-routes to private wallet migration with resume progress") {
+    val privateWalletProgress = MigrationProgress.LocalKeyboxActivation(
+      type = MigrationType.PrivateWalletMigration,
+      currentKeybox = FullAccountMock.keybox,
+      newKeyset = FullAccountMock.keybox.activeSpendingKeyset
+    )
+    resumeOverride = { type ->
+      Ok(
+        when (type) {
+          MigrationType.PrivateWalletMigration -> privateWalletProgress
+          MigrationType.W3Upgrade -> MigrationProgress.NotStarted(type)
+        }
+      )
+    }
+
+    stateMachine.test(props) {
+      awaitUntilBodyMock<PrivateWalletMigrationUiProps>(id = "private-wallet-migration") {
+        account.shouldBe(FullAccountMock)
+        resumeProgress.shouldBe(privateWalletProgress)
+      }
+    }
+  }
+
   test("launch auto-routes to W3 upgrade when cloud restore persisted a W3 placeholder") {
     resumeOverride = { type ->
       Ok(

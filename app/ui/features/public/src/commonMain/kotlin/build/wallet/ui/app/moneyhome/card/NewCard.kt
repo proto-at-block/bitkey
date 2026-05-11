@@ -24,12 +24,15 @@ import build.wallet.ui.components.progress.CircularProgressIndicator
 import build.wallet.ui.compose.scalingClickable
 import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconBackgroundType.Transient
+import build.wallet.ui.model.icon.IconImage.LocalImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconSize.Accessory
 import build.wallet.ui.model.icon.IconSize.Small
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
+import build.wallet.ui.theme.LocalTheme
+import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 
@@ -44,7 +47,14 @@ fun NewCard(
   modifier: Modifier = Modifier,
   model: CardModel,
 ) {
-  val cornerRadius = if (LocalDesignSystemUpdatesEnabled.current) 8.dp else 16.dp
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val theme = LocalTheme.current
+  val cornerRadius = if (isDesignSystemV2Enabled) 8.dp else 16.dp
+  val isInverseBackgroundDsv2Card =
+    isDesignSystemV2Enabled &&
+      model.style is CardModel.CardStyle.Gradient &&
+      model.style.backgroundColor == CardModel.CardStyle.Gradient.BackgroundColor.InverseBackground
+
   Card(
     modifier = modifier.scalingClickable(enabled = model.onClick != null) {
       model.onClick?.invoke()
@@ -53,6 +63,10 @@ fun NewCard(
       shape = RoundedCornerShape(cornerRadius),
       ambientColor = Color.Black.copy(.1f)
     ),
+    backgroundColor = when {
+      isInverseBackgroundDsv2Card && theme == Theme.DARK -> WalletTheme.colors.subtleBackground
+      else -> WalletTheme.colors.containerBackground
+    },
     cornerRadius = cornerRadius,
     paddingValues = PaddingValues(vertical = 16.dp, horizontal = 14.dp),
     borderWidth = 0.dp
@@ -61,7 +75,10 @@ fun NewCard(
       verticalAlignment = Alignment.CenterVertically
     ) {
       model.leadingImage?.let {
-        CardImage(it)
+        CardImage(
+          model = it,
+          style = model.style
+        )
         Spacer(modifier = Modifier.width(12.dp))
       }
       Column(
@@ -107,25 +124,45 @@ fun NewCard(
 }
 
 @Composable
-private fun CardImage(model: CardModel.CardImage) {
+private fun CardImage(
+  model: CardModel.CardImage,
+  style: CardModel.CardStyle,
+) {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val theme = LocalTheme.current
+
   when (model) {
-    is CardModel.CardImage.StaticImage ->
+    is CardModel.CardImage.StaticImage -> {
+      val icon =
+        when (model.icon) {
+          Icon.MediumIconTrustedContact -> Icon.SmallIconShieldPerson
+          else -> model.icon
+        }
+      val isInverseBackgroundDsv2Card =
+        isDesignSystemV2Enabled &&
+          style is CardModel.CardStyle.Gradient &&
+          style.backgroundColor == CardModel.CardStyle.Gradient.BackgroundColor.InverseBackground
+
       IconImage(
-        model = IconModel(
-          // This is a workaround for the TrustedContact icon to support both cards
-          // TODO: Remove this workaround when the Security Hub FF flag is removed
-          icon = when (model.icon) {
-            Icon.MediumIconTrustedContact -> Icon.SmallIconShieldPerson
-            else -> model.icon
+        iconImage = LocalImage(icon),
+        size = Small,
+        color = when {
+          isInverseBackgroundDsv2Card && theme == Theme.DARK -> WalletTheme.colors.subtleBackground
+          else -> Color.Unspecified
+        },
+        tint = when {
+          isInverseBackgroundDsv2Card && theme == Theme.DARK -> null
+          else -> IconTint.White
+        },
+        background = IconBackgroundType.Circle(
+          color = when {
+            isInverseBackgroundDsv2Card -> IconBackgroundType.Circle.CircleColor.InverseBackground
+            else -> IconBackgroundType.Circle.CircleColor.BitkeyPrimary
           },
-          iconSize = Small,
-          iconTint = IconTint.White,
-          iconBackgroundType = IconBackgroundType.Circle(
-            color = IconBackgroundType.Circle.CircleColor.BitkeyPrimary,
-            circleSize = IconSize.Large
-          )
+          circleSize = IconSize.Large
         )
       )
+    }
 
     is CardModel.CardImage.DynamicImage.HardwareReplacementStatusProgress ->
       Box(

@@ -24,6 +24,7 @@ enum class Icon {
   CloudBackupEmergencyExitKit,
   CloudBackupMobileKey,
   InheritanceShowcase,
+  LiteMoneyHomeInheritanceHero,
   InheritancePlanHero,
   LargeIconAdd,
   LargeIconConsolidationFilled,

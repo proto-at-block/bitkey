@@ -44,6 +44,7 @@ typedef enum {
 #define IDLE_HINT_DELAY_MS          2000
 #define STEP_DISPLAY_MS             6000
 #define HOLD_DISPLAY_MS             1500
+#define FIRST_HOLD_DISPLAY_MS       2500
 #define HEADER_FADE_DURATION_MS     160
 #define MENU_BUTTON_HOLD_OPA        LV_OPA_50
 
@@ -97,6 +98,7 @@ static lv_timer_t* header_hint_timer = NULL;
 static header_prompt_mode_t header_prompt_mode = HEADER_PROMPT_MODE_STEP;
 static header_prompt_mode_t pending_header_prompt_mode = HEADER_PROMPT_MODE_STEP;
 static bool check_button_held = false;
+static bool first_hold_display_pending = true;
 
 // In progress page elements
 static lv_obj_t* progress_message = NULL;
@@ -396,7 +398,16 @@ static void restart_header_hint_cycle(void) {
     return;
   }
 
-  header_hint_timer = lv_timer_create(header_hint_timer_cb, HOLD_DISPLAY_MS, NULL);
+  bool use_first_hold_period =
+    (header_prompt_mode == HEADER_PROMPT_MODE_HOLD_TO_CONFIRM) && first_hold_display_pending;
+  uint32_t initial_period = (header_prompt_mode == HEADER_PROMPT_MODE_STEP)
+                              ? STEP_DISPLAY_MS
+                              : (use_first_hold_period ? FIRST_HOLD_DISPLAY_MS : HOLD_DISPLAY_MS);
+  if (use_first_hold_period) {
+    first_hold_display_pending = false;
+  }
+
+  header_hint_timer = lv_timer_create(header_hint_timer_cb, initial_period, NULL);
   if (header_hint_timer) {
     lv_timer_set_repeat_count(header_hint_timer, -1);
   }
@@ -432,8 +443,14 @@ static void header_hint_timer_cb(lv_timer_t* timer) {
   lv_anim_set_path_cb(&crossfade, lv_anim_path_ease_in_out);
   lv_anim_start(&crossfade);
 
-  lv_timer_set_period(
-    timer, next_mode == HEADER_PROMPT_MODE_HOLD_TO_CONFIRM ? HOLD_DISPLAY_MS : STEP_DISPLAY_MS);
+  bool use_first_hold_period =
+    (next_mode == HEADER_PROMPT_MODE_HOLD_TO_CONFIRM) && first_hold_display_pending;
+  lv_timer_set_period(timer, next_mode == HEADER_PROMPT_MODE_HOLD_TO_CONFIRM
+                               ? (use_first_hold_period ? FIRST_HOLD_DISPLAY_MS : HOLD_DISPLAY_MS)
+                               : STEP_DISPLAY_MS);
+  if (use_first_hold_period) {
+    first_hold_display_pending = false;
+  }
 }
 
 static void update_step_indicator_default(void) {
@@ -620,6 +637,7 @@ lv_obj_t* screen_firmware_update_init(void* ctx) {
   pending_header_prompt_mode = HEADER_PROMPT_MODE_STEP;
   check_button_held = false;
   hold_completed = false;
+  first_hold_display_pending = true;
 
   // Create screen
   screen = lv_obj_create(NULL);

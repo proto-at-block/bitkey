@@ -1,5 +1,6 @@
 package build.wallet.ui.components.explainer
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
 import build.wallet.ui.components.icon.Icon
@@ -27,6 +29,8 @@ fun Statement(
   body: String? = null,
   icon: Icon?,
   leadingIconSize: IconSize = IconSize.Small,
+  leadingContentTopPadding: Dp = 0.dp,
+  leadingContentSpacing: Dp = 16.dp,
   leadingText: String? = null,
   leadingTextType: LabelType = LabelType.Body2MonoCaps,
   leadingTextTreatment: LabelTreatment? = null,
@@ -42,6 +46,8 @@ fun Statement(
     body = body?.let { AnnotatedString(it) },
     icon = icon,
     leadingIconSize = leadingIconSize,
+    leadingContentTopPadding = leadingContentTopPadding,
+    leadingContentSpacing = leadingContentSpacing,
     leadingText = leadingText,
     leadingTextType = leadingTextType,
     leadingTextTreatment = leadingTextTreatment,
@@ -60,6 +66,8 @@ fun Statement(
   body: AnnotatedString?,
   icon: Icon?,
   leadingIconSize: IconSize = IconSize.Small,
+  leadingContentTopPadding: Dp = 0.dp,
+  leadingContentSpacing: Dp = 16.dp,
   leadingText: String? = null,
   leadingTextType: LabelType = LabelType.Body2MonoCaps,
   leadingTextTreatment: LabelTreatment? = null,
@@ -73,25 +81,28 @@ fun Statement(
   Statement(
     modifier = modifier,
     leadingContent = {
-      when {
-        leadingText != null ->
-          Label(
-            text = leadingText,
-            type = leadingTextType,
-            treatment = leadingTextTreatment ?: LabelTreatment.Unspecified,
-            color = if (leadingTextTreatment == null) tint else Color.Unspecified
-          )
-        icon != null ->
-          Icon(
-            icon = icon,
-            size = leadingIconSize,
-            color = tint
-          )
+      Box(modifier = Modifier.padding(top = leadingContentTopPadding)) {
+        when {
+          leadingText != null ->
+            Label(
+              text = leadingText,
+              type = leadingTextType,
+              treatment = leadingTextTreatment ?: LabelTreatment.Unspecified,
+              color = if (leadingTextTreatment == null) tint else Color.Unspecified
+            )
+          icon != null ->
+            Icon(
+              icon = icon,
+              size = leadingIconSize,
+              color = tint
+            )
+        }
       }
     },
     hasTitle = title != null,
     hasBody = body != null,
     hasLeadingContent = icon != null || leadingText != null,
+    leadingContentSpacing = leadingContentSpacing,
     titleContent = {
       title?.let {
         Label(
@@ -128,6 +139,7 @@ private fun Statement(
   hasLeadingContent: Boolean,
   hasTitle: Boolean,
   hasBody: Boolean,
+  leadingContentSpacing: Dp = 16.dp,
 ) {
   Row(
     modifier =
@@ -137,7 +149,7 @@ private fun Statement(
   ) {
     leadingContent()
     if (hasLeadingContent) {
-      Spacer(Modifier.width(16.dp))
+      Spacer(Modifier.width(leadingContentSpacing))
     }
     Column {
       titleContent()

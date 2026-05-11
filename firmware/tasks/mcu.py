@@ -152,8 +152,10 @@ def flash(c, target=None, image=None, platform=None, erase=False, force=False, n
     "target": "Target application to debug with gdb",
     "platform": "Target platform to debug",
     "jlink": "J-Link serial number to use",
+    "gdb_port": "GDB server TCP port to use; SWO and telnet use the next two ports",
+    "kill_existing": "Kill existing J-Link processes before starting the debugger",
 })
-def debug(c, target=None, platform=None, jlink=None):
+def debug(c, target=None, platform=None, jlink=None, gdb_port=2331, kill_existing=True):
     """Debug firmware using gdb"""
     platform = platform or c.platform
     if not target:
@@ -164,7 +166,12 @@ def debug(c, target=None, platform=None, jlink=None):
         click.echo(click.style(f"Using J-Link with S/N: {jlink}", fg='green'))
 
     mb = MesonBuild(c, target=target, platform=platform)
-    with JLinkGdbServer(mb.platform["jlink_gdb_chip"], jlink_serial=jlink) as gdb:
+    with JLinkGdbServer(
+        mb.platform["jlink_gdb_chip"],
+        jlink_serial=jlink,
+        gdb_port=gdb_port,
+        kill_existing=kill_existing,
+    ) as gdb:
         command = gdb.debug_command(mb.target_path(mb.target.elf))
         c.run(' '.join(command), pty=True)
 

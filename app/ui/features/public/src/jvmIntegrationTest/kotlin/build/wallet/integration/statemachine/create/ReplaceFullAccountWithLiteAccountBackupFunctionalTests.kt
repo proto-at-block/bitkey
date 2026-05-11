@@ -9,6 +9,7 @@ import build.wallet.bitkey.relationships.ProtectedCustomerAlias
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.store.CloudStoreAccountFake
+import build.wallet.feature.setFlagValue
 import build.wallet.onboarding.OnboardingKeyboxStep
 import build.wallet.platform.permissions.PermissionStatus
 import build.wallet.relationships.syncAndVerifyRelationships
@@ -62,6 +63,7 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
     onboardApp.pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
       PermissionStatus.Authorized
     )
+    onboardApp.w3OnboardingFeatureFlag.setFlagValue(false)
 
     onboardApp.appUiStateMachine.test(
       props = Unit,
@@ -106,6 +108,7 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
       cloudStoreAccountRepository = liteApp.cloudStoreAccountRepository,
       cloudBackupStore = liteApp.cloudBackupStore
     )
+    onboardApp.w3OnboardingFeatureFlag.setFlagValue(false)
 
     // Sanity check that the cloud backup is available to the app that will now go through onboarding.
     onboardApp.cloudBackupStore.keys(CloudStoreAccountFake.CloudStoreAccount1Fake)
@@ -154,6 +157,7 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
     onboardApp.pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
       PermissionStatus.Authorized
     )
+    onboardApp.w3OnboardingFeatureFlag.setFlagValue(false)
     onboardApp.appUiStateMachine.test(
       props = Unit,
       testTimeout = 60.seconds,

@@ -33,6 +33,7 @@ private class LightStyleDictionaryIcons : StyleDictionaryIcons {
       CloudBackupEmergencyExitKit -> Res.drawable.cloud_backup_emergency_access_kit
       CloudBackupMobileKey -> Res.drawable.cloud_backup_mobile_key
       InheritanceShowcase -> Res.drawable.inheritance_showcase
+      LiteMoneyHomeInheritanceHero -> Res.drawable.lite_money_home_inheritance_hero
       InheritancePlanHero -> Res.drawable.inheritance_plan_hero
       LargeIconAdd -> Res.drawable.large_icon_add
       LargeIconConsolidationFilled -> Res.drawable.large_icon_consolidation_filled
@@ -202,6 +203,7 @@ private class DarkStyleDictionaryIcons(
       BitcoinConsolidation -> Res.drawable.bitcoin_consolidation_dark
       BitcoinBadged -> Res.drawable.bitcoin_badged_dark
       InheritanceShowcase -> Res.drawable.inheritance_showcase_dark
+      LiteMoneyHomeInheritanceHero -> Res.drawable.lite_money_home_inheritance_hero_dark
       MoneyHomeHero -> Res.drawable.money_home_hero_dark
       LargeIconNetworkError -> Res.drawable.large_icon_network_error_dark
       SmallIconSettingsBadged -> Res.drawable.small_icon_settings_badged_dark

@@ -10,6 +10,7 @@ import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock2
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.db.DbError
 import build.wallet.encrypt.Secp256k1PublicKey
@@ -29,6 +30,7 @@ import build.wallet.recovery.RecoveryStatusServiceMock
 import build.wallet.router.Route
 import build.wallet.router.Router
 import build.wallet.statemachine.ScreenStateMachineMock
+import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
@@ -39,20 +41,25 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineFake
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
+import build.wallet.statemachine.settings.full.device.DeviceSettingsFormBodyModel
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsScreen
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetProps
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetUiStateMachine
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceProps
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
-import build.wallet.statemachine.ui.awaitBodyMock
+import build.wallet.statemachine.ui.awaitUntilBody
+import build.wallet.statemachine.ui.awaitUntilBodyMock
 import build.wallet.statemachine.walletmigration.W3UpgradeUiProps
 import build.wallet.statemachine.walletmigration.W3UpgradeUiStateMachine
 import build.wallet.time.ClockFake
 import build.wallet.time.DateTimeFormatterMock
 import build.wallet.time.DurationFormatterFake
 import build.wallet.time.TimeZoneProviderMock
+import build.wallet.ui.model.icon.IconImage
+import build.wallet.ui.model.list.ListItemTreatment
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
+import build.wallet.ui.tokens.market.MarketIcons
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import io.kotest.core.spec.style.FunSpec
@@ -124,6 +131,7 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
     clock.reset()
     featureFlagDao.reset()
     nfcCommandsMock.reset()
+    Router.reset()
   }
 
   test("metadata is appropriately formatted with update") {
@@ -171,7 +179,7 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
       }
 
       // Syncing info via NFC
-      awaitBodyMock<NfcSessionUIStateMachineProps<Result<Unit, DbError>>> {
+      awaitUntilBodyMock<NfcSessionUIStateMachineProps<Result<Unit, DbError>>> {
         hardwareVerification.shouldBe(NotRequired)
 
         // Verify getDeviceInfo was called
@@ -185,6 +193,31 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
 
       // Back to device settings
       awaitBody<FormBodyModel>()
+    }
+  }
+
+  test("sync device info from about sheet") {
+    presenter.test(screen) { navigator ->
+      awaitBody<FormBodyModel> {
+        mainContentList[1]
+          .shouldBeInstanceOf<SettingsList>()
+          .itemWithTitle("About")
+          .onClick
+          .shouldNotBeNull()
+          .invoke()
+      }
+
+      awaitItem().bottomSheetModel.shouldNotBeNull()
+        .body.shouldBeInstanceOf<FormBodyModel>()
+        .secondaryButton.shouldNotBeNull()
+        .onClick()
+
+      awaitUntilBodyMock<NfcSessionUIStateMachineProps<Result<Unit, DbError>>> {
+        hardwareVerification.shouldBe(NotRequired)
+
+        nfcCommandsMock.getDeviceInfoCalls.awaitItem().shouldBe(FirmwareDeviceInfoMock)
+        nfcCommandsMock.getAuthenticationKeyCalls.awaitItem()
+      }
     }
   }
 
@@ -307,20 +340,45 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
 
   test("lost or stolen device") {
     w3OnboardingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    val routeCalls = turbines.create<Route>("router routes")
+    Router.onRouteChange { route ->
+      routeCalls.add(route)
+      route == Route.InitiateHardwareRecovery
+    }
+
     presenter.test(screen) { navigator ->
       awaitBody<FormBodyModel> {
         mainContentList[1].apply {
           shouldBeInstanceOf<SettingsList>()
-            .items[4].apply {
-            title.shouldBe("Replace device")
-            onClick.shouldNotBeNull().invoke()
-          }
+            .itemWithTitle("Replace device")
+            .onClick
+            .shouldNotBeNull()
+            .invoke()
         }
       }
 
       // Note: In the new pattern, lost hardware recovery would trigger a navigation event
       // For now, this is handled via Router.route rather than Navigator
-      Router.route.shouldBe(Route.InitiateHardwareRecovery)
+      awaitUntilBody<FormBodyModel>()
+      routeCalls.awaitUntil(Route.InitiateHardwareRecovery)
+    }
+  }
+
+  test("unhandled lost hardware recovery route restores device settings") {
+    w3OnboardingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+
+    presenter.test(screen) { navigator ->
+      awaitBody<DeviceSettingsFormBodyModel> {
+        onReplaceDevice()
+      }
+
+      val restoredBody = awaitUntilBody<DeviceSettingsFormBodyModel>(
+        matching = { Router.route == Route.InitiateHardwareRecovery && it.showRealtimeMedia }
+      )
+      restoredBody.onBack()
+
+      awaitUntilBody<FormBodyModel>()
+      navigator.exitCalls.awaitItem().shouldBe(Unit)
     }
   }
 
@@ -336,7 +394,7 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
           .invoke()
       }
 
-      awaitBody<FormBodyModel>()
+      awaitUntilBody<FormBodyModel>()
       navigator.exitCalls.awaitItem().shouldBe(Unit)
     }
   }
@@ -350,6 +408,28 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
             middleAccessory.shouldBeNull()
             leadingAccessory.shouldBeInstanceOf<IconAccessory>()
           }
+        }
+      }
+    }
+  }
+
+  test("device settings orders replace before destructive wipe") {
+    presenter.test(screen) { _ ->
+      awaitBody<FormBodyModel> {
+        val items = mainContentList[1].shouldBeInstanceOf<SettingsList>().items
+
+        items.map { it.title }.shouldBe(
+          listOf("About", "Fingerprints", "Replace device", "Upgrade device", "Wipe device")
+        )
+
+        items[2].apply {
+          icon.iconImage.shouldBe(IconImage.MarketIconImage(MarketIcons.BitkeyWallet))
+          treatment.shouldBe(ListItemTreatment.PRIMARY)
+        }
+
+        items[4].apply {
+          icon.iconImage.shouldBe(IconImage.LocalImage(Icon.SmallIconBitkeyReset))
+          treatment.shouldBe(ListItemTreatment.DESTRUCTIVE)
         }
       }
     }
@@ -376,8 +456,10 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
         }
       }
 
+      awaitUntilBody<FormBodyModel>()
+
       // Going to firmware update screen
-      val fwupScreen = navigator.goToCalls.awaitItem().shouldBeTypeOf<FwupScreen>()
+      val fwupScreen = navigator.goToCalls.awaitUntil<FwupScreen>()
       fwupScreen.onExit.shouldNotBeNull().invoke()
 
       // Back to device settings
@@ -390,14 +472,11 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
     w3OnboardingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     presenter.test(screen) { navigator ->
       awaitBody<FormBodyModel> {
-        // Replace device is in the SettingsList at index 1, item index 3
-        mainContentList[1].apply {
-          shouldBeInstanceOf<SettingsList>()
-          items[4].apply {
-            title.shouldBe("Replace device")
-            isEnabled.shouldBeTrue()
-          }
-        }
+        mainContentList[1]
+          .shouldBeInstanceOf<SettingsList>()
+          .itemWithTitle("Replace device")
+          .isEnabled
+          .shouldBeTrue()
       }
 
       appFunctionalityService.status.emit(
@@ -407,14 +486,30 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
       )
 
       awaitBody<FormBodyModel> {
-        mainContentList[1].apply {
-          shouldBeInstanceOf<SettingsList>()
-          items[4].apply {
-            title.shouldBe("Replace device")
-            isEnabled.shouldBeFalse()
-          }
-        }
+        mainContentList[1]
+          .shouldBeInstanceOf<SettingsList>()
+          .itemWithTitle("Replace device")
+          .isEnabled
+          .shouldBeFalse()
       }
+    }
+  }
+
+  test("replace device limited functionality alert returns to device settings") {
+    appFunctionalityService.status.emit(
+      AppFunctionalityStatus.LimitedFunctionality(
+        cause = F8eUnreachable(Instant.DISTANT_PAST)
+      )
+    )
+
+    presenter.test(screen) { navigator ->
+      awaitBody<DeviceSettingsFormBodyModel> {
+        onReplaceDevice()
+      }
+
+      awaitUntil { it.alertModel != null }
+        .body
+        .shouldBeInstanceOf<DeviceSettingsFormBodyModel>()
     }
   }
 
@@ -435,7 +530,8 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
         }
 
       // Going to manage fingerprints
-      navigator.goToCalls.awaitItem().shouldBeTypeOf<ManagingFingerprintsScreen>()
+      awaitUntilBody<FormBodyModel>()
+      navigator.goToCalls.awaitUntil<ManagingFingerprintsScreen>()
     }
   }
 
@@ -502,7 +598,8 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
         }
 
       // Going to manage fingerprints
-      val managingScreen = navigator.goToCalls.awaitItem().shouldBeTypeOf<ManagingFingerprintsScreen>()
+      awaitUntilBody<FormBodyModel>()
+      val managingScreen = navigator.goToCalls.awaitUntil<ManagingFingerprintsScreen>()
       managingScreen.onFwUpRequired()
 
       // Device settings screen should be showing with a bottom sheet modal
@@ -520,7 +617,8 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
       }
 
       // Going to firmware update screen
-      val fwupScreen = navigator.goToCalls.awaitItem().shouldBeTypeOf<FwupScreen>()
+      awaitUntilBody<FormBodyModel>()
+      val fwupScreen = navigator.goToCalls.awaitUntil<FwupScreen>()
       fwupScreen.onExit.shouldNotBeNull().invoke()
 
       // Back to device settings
@@ -532,16 +630,17 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
 
   test("tap on reset device") {
     presenter.test(screen) { navigator ->
-      // Tap the Wipe Device button (index 2 in SettingsList)
+      // Tap the Wipe Device button after the non-destructive options.
       awaitBody<FormBodyModel> {
-        mainContentList[1].apply {
-          shouldBeInstanceOf<SettingsList>()
-          items[2].onClick!!()
-        }
+        mainContentList[1]
+          .shouldBeInstanceOf<SettingsList>()
+          .itemWithTitle("Wipe device")
+          .onClick!!
+          .invoke()
       }
 
       // Going to manage reset device
-      awaitBodyMock<WipingDeviceProps> {
+      awaitUntilBodyMock<WipingDeviceProps> {
         onBack()
       }
 
@@ -923,19 +1022,18 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
   test("W3 upgrade completion navigates to Money Home with post-upgrade origin") {
     w3OnboardingFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     presenter.test(screen) { navigator ->
-      // Tap the Upgrade device button (index 3 in SettingsList, after About, Fingerprints, Wipe device)
+      // Tap the Upgrade device button after the replacement row.
       awaitBody<FormBodyModel> {
-        mainContentList[1].apply {
-          shouldBeInstanceOf<SettingsList>()
-            .items[3].apply {
-            title.shouldBe("Upgrade device")
-            onClick.shouldNotBeNull().invoke()
-          }
-        }
+        mainContentList[1]
+          .shouldBeInstanceOf<SettingsList>()
+          .itemWithTitle("Upgrade device")
+          .onClick
+          .shouldNotBeNull()
+          .invoke()
       }
 
       // W3 upgrade state machine is shown - invoke onUpgradeComplete callback
-      awaitBodyMock<W3UpgradeUiProps> {
+      awaitUntilBodyMock<W3UpgradeUiProps> {
         onUpgradeComplete(FullAccountMock)
       }
 
@@ -991,3 +1089,6 @@ private fun Data.verifyMetadataData(
   this.title.shouldBe(title)
   this.sideText.shouldBe(sideText)
 }
+
+private fun SettingsList.itemWithTitle(title: String): SettingsList.SettingsListItem =
+  items.first { it.title == title }

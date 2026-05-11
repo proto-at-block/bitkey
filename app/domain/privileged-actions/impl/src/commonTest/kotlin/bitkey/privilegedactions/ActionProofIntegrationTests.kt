@@ -16,7 +16,7 @@ import build.wallet.nfc.NfcSessionFake
 import build.wallet.nfc.platform.ActionProofAction
 import build.wallet.nfc.platform.EmulatedPromptOption
 import build.wallet.nfc.platform.HardwareInteraction
-import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.W3NfcCommands
 import com.github.michaelbull.result.getOrElse
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
@@ -500,7 +500,7 @@ class ActionProofIntegrationTests : FunSpec({
  */
 private class FakeSigningNfcCommands(
   failOnFirstAttempt: Boolean = false,
-) : NfcCommands by build.wallet.nfc.NfcCommandsMock({ name ->
+) : W3NfcCommands by build.wallet.nfc.W3NfcCommandsMock({ name ->
     app.cash.turbine.Turbine(name = name)
   }) {
   private var shouldFail = failOnFirstAttempt

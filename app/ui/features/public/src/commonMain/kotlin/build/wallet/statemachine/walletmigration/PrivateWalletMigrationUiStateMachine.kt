@@ -3,6 +3,7 @@ package build.wallet.statemachine.walletmigration
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
+import build.wallet.wallet.migration.MigrationProgress
 
 /**
  * State machine for private wallet migration flow.
@@ -31,7 +32,9 @@ data class PrivateWalletMigrationUiProps(
    */
   val onExit: () -> Unit,
   /**
-   * Whether the migration flow was started while in-progress.
+   * Progress to resume from when the flow was opened for an in-progress migration.
+   *
+   * Null means the state machine should resolve any resumable progress itself.
    */
-  val inProgress: Boolean = false,
+  val resumeProgress: MigrationProgress? = null,
 )

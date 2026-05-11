@@ -5,14 +5,17 @@ import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId.MON
 import build.wallet.money.BitcoinMoney.Companion.sats
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
+import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.nfc.PromptSelectionFormBodyModel
 import build.wallet.statemachine.send.BitcoinRecipientAddressScreenModel
 import build.wallet.statemachine.send.TransferAmountBodyModel
 import build.wallet.statemachine.send.TransferConfirmationScreenModel
 import build.wallet.statemachine.send.TransferInitiatedBodyModel
 import build.wallet.statemachine.send.fee.FeeOptionsBodyModel
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationScreenModel
 import build.wallet.statemachine.send.signtransaction.SignTransactionNfcBodyModel
 import build.wallet.statemachine.ui.awaitUntilBody
+import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.robots.*
 import build.wallet.testing.ext.*
 import build.wallet.testing.shouldBeOk
@@ -180,15 +183,13 @@ class SendE2EFunctionalTests : FunSpec({
       }
 
       // W3 Two-Tap Flow:
-      // 1. First tap shows transferring status
-      awaitUntilBody<SignTransactionNfcBodyModel>(
-        matching = { it.status is SignTransactionNfcBodyModel.Status.Transferring }
-      )
+      // 1. Prompt selection (APPROVE/DENY) appears as bottom sheet over NFC screen
+      awaitUntilScreenWithBody<BodyModel>(
+        matchingScreen = { it.bottomSheetModel?.body is PromptSelectionFormBodyModel }
+      ).let { (checkNotNull(it.bottomSheetModel).body as PromptSelectionFormBodyModel).onApprove() }
 
-      // 2. Prompt selection (APPROVE/DENY) appears after transfer
-      awaitUntilBody<PromptSelectionFormBodyModel> {
-        clickApprove()
-      }
+      // 2. Hardware confirmation screen
+      awaitUntilBody<HardwareConfirmationScreenModel> { onConfirm() }
 
       // 3. Second tap starts - shows searching/in-progress
       awaitUntilBody<SignTransactionNfcBodyModel>(

@@ -94,8 +94,8 @@ static bool render_address_label(address_display_t* widget, lv_obj_t* parent, co
   return true;
 }
 
-static lv_color_t address_group_color(int group_index) {
-  return (group_index % 2 == 0) ? lv_color_white() : lv_color_hex(COLOR_GROUP_SECONDARY);
+static lv_color_t address_group_color(int line, int group_in_line) {
+  return ((line + group_in_line) % 2 == 0) ? lv_color_white() : lv_color_hex(COLOR_GROUP_SECONDARY);
 }
 
 // Helper to render address characters with ellipses.
@@ -129,8 +129,7 @@ static void render_address_content(address_display_t* widget, lv_obj_t* parent, 
 
     int y_pos = address_top_y + (line * LINE_HEIGHT);
     int x_pos = start_x + (group_in_line * (CHARS_PER_GROUP * CHAR_WIDTH + GROUP_SPACING));
-    int group_index = char_index / CHARS_PER_GROUP;
-    lv_color_t group_color = address_group_color(group_index);
+    lv_color_t group_color = address_group_color(line, group_in_line);
 
     for (int i = 0; i < CHARS_PER_GROUP && char_index < addr_len; i++) {
       if (show_end_ellipsis && char_index >= start_offset + effective_chars) {
@@ -283,8 +282,7 @@ void address_display_create_full(lv_obj_t* parent, address_display_t* widget) {
   while (char_index < addr_len) {
     int y_pos = line * LINE_HEIGHT;
     int x_pos = start_x + (group_in_line * (CHARS_PER_GROUP * CHAR_WIDTH + GROUP_SPACING));
-    int group_index = char_index / CHARS_PER_GROUP;
-    lv_color_t group_color = address_group_color(group_index);
+    lv_color_t group_color = address_group_color(line, group_in_line);
 
     for (int i = 0; i < CHARS_PER_GROUP && char_index < addr_len; i++) {
       char char_str[2] = {address[char_index], '\0'};

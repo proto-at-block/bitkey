@@ -1,6 +1,7 @@
 package build.wallet.ui.app.recovery
 
 import build.wallet.bitkey.factor.PhysicalFactor.App
+import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.statemachine.recovery.inprogress.DelayAndNotifyNewKeyReady
 import build.wallet.ui.app.core.form.FormScreen
@@ -14,6 +15,32 @@ class AppDelayNotifyNewKeyReadyFormScreenSnapshots : FunSpec({
       FormScreen(
         DelayAndNotifyNewKeyReady(
           factorToRecover = App,
+          onCompleteRecovery = {},
+          onStopRecovery = {},
+          onExit = null
+        )
+      )
+    }
+  }
+
+  test("new key ready screen with design system v2 feature flag on") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      FormScreen(
+        DelayAndNotifyNewKeyReady(
+          factorToRecover = App,
+          onCompleteRecovery = {},
+          onStopRecovery = {},
+          onExit = null
+        )
+      )
+    }
+  }
+
+  test("replacement device ready screen with design system v2 feature flag on") {
+    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+      FormScreen(
+        DelayAndNotifyNewKeyReady(
+          factorToRecover = Hardware,
           onCompleteRecovery = {},
           onStopRecovery = {},
           onExit = null

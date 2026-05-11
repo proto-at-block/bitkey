@@ -21,6 +21,8 @@ from bitkey.secure_channel import SecureChannel
 from bitkey.wallet import Wallet
 from tasks.lib.paths import PLATFORM_FILE
 
+from .util import convert_target_app_name
+
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
@@ -65,12 +67,16 @@ def pytest_addoption(parser: pytest.Parser) -> None:
                      action="store", help="target platform under test")
     parser.addoption("-E", "--environment", default="dev", choices=("dev",),
                      help="firmware build environment")
-    parser.addoption("-B", "--build", default="dvt", choices=("dvt",),
+    parser.addoption("-B", "--build", default="dvt", choices=("dvt", "pdvt", "evt"),
                      help="firmware build configuration")
     parser.addoption("--skip-flash", default=False, action="store_true",
                      help="skip firmware flashing")
     parser.addoption("--skip-build", default=False, action="store_true",
                      help="skip firmware building")
+    parser.addoption("--no-persist-filesystem", default=False, action="store_true",
+                     help="do not persist filesystem across flashing")
+    parser.addoption("--no-multiple-jlinks", default=False, action="store_true",
+                     help="for multi MCU flashing, indicates user must manually switch their J-Link")
 
 
 @pytest.fixture(scope="session")
@@ -84,8 +90,11 @@ def platform_config(request: pytest.FixtureRequest) -> Generator[PlatformConfig,
     with open(PLATFORM_FILE, "r") as config_file:
         _config = yaml.safe_load(config_file)
 
-    platform = request.config.option.platform
-    matching: dict[str, dict[str, Any]] = {k: v for k, v in _config.items() if k.startswith(platform)}
+    platform: str = request.config.option.platform
+    env: str = request.config.option.environment
+    build: str = request.config.option.build
+    matching: dict[str, dict[str, Any]] = {
+        k: v for k, v in _config.items() if k.startswith(platform)}
 
     # Generate a mapping of chip names using their canonical names (e.g.
     # `w3-core`) to their configuration.
@@ -94,10 +103,15 @@ def platform_config(request: pytest.FixtureRequest) -> Generator[PlatformConfig,
         chip_name: str | None = config.get("jlink_gdb_chip")
         partition: str | None = config.get("partitions")
         target: str | None = config.get("target")
-        chips[canonical_name] = ChipConfig(canonical_name, target, chip_name, partition)
 
-    env = request.config.option.environment
-    build = request.config.option.build
+        canonical_target: str | None
+        if target:
+            canonical_target = convert_target_app_name(target, env, build)
+        else:
+            canonical_target = None
+
+        chips[canonical_name] = ChipConfig(
+            canonical_name, canonical_target, chip_name, partition)
 
     # We use `platform` as the product here (e.g. `w3`), which is passed in the
     # configuration. The actual individual platforms that make up a product are
@@ -128,11 +142,13 @@ def gdb_capture(
                 break
         else:
             if not chip_configs:
-                raise RuntimeError(f"No chips found for {platform_config.product=}")
+                raise RuntimeError(
+                    f"No chips found for {platform_config.product=}")
 
             mcu_name = "w1"
             chip_name = chip_configs[0].chip_name
-            logger.warning(f"No EFR32 target chip found, defaulting to: {chip_name=}, {mcu_name=}")
+            logger.warning(
+                f"No EFR32 target chip found, defaulting to: {chip_name=}, {mcu_name=}")
 
     breakpoints = request.node.get_closest_marker("breakpoints")
     with JLinkGdbServer(chip_name) as gdb:

@@ -12,12 +12,13 @@ import build.wallet.statemachine.core.form.FormMainContentModel.Timer
 import build.wallet.ui.app.recovery.AppDelayNotifyInProgressScreen
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.button.ButtonModel.Size.Compact
-import build.wallet.ui.model.button.ButtonModel.Treatment.TertiaryDestructive
+import build.wallet.ui.model.button.ButtonModel.Size.ToolbarAccessory
+import build.wallet.ui.model.button.ButtonModel.Treatment.SecondaryDestructive
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.ButtonAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 
 /**
  * Model to represent the screen in which the user is waiting for their
@@ -30,7 +31,6 @@ data class AppDelayNotifyInProgressBodyModel(
   val cancelWarningText: String = "If you didn’t authorize this replacement, press “Cancel recovery” above.",
   val cancelText: String = "Cancel recovery",
   val onStopRecovery: () -> Unit,
-  val durationTitle: String,
   val progress: Progress,
   val remainingDelayPeriod: Duration,
   val onExit: (() -> Unit)?,
@@ -46,8 +46,8 @@ data class AppDelayNotifyInProgressBodyModel(
     trailingAccessory = ButtonAccessory(
       model = ButtonModel(
         text = cancelText,
-        treatment = TertiaryDestructive,
-        size = Compact,
+        treatment = SecondaryDestructive,
+        size = ToolbarAccessory,
         onClick = StandardClick { onStopRecovery() }
       )
     )
@@ -66,11 +66,16 @@ data class AppDelayNotifyInProgressBodyModel(
     }
   )
   val timerModel = Timer(
-    title = durationTitle,
+    title = "",
     subtitle = "remaining",
     timerProgress = progress,
     direction = CounterClockwise,
-    timerRemainingSeconds = remainingDelayPeriod.inWholeSeconds
+    timerRemainingSeconds = remainingDelayPeriod.inWholeSeconds,
+    display = Timer.Display.RemainingDuration(
+      duration = remainingDelayPeriod,
+      enableLocalSecondsTick = remainingDelayPeriod < FinalMinuteSecondsTickThreshold
+    ),
+    style = Timer.Style.FOREGROUND
   )
 
   @Composable
@@ -78,3 +83,5 @@ data class AppDelayNotifyInProgressBodyModel(
     AppDelayNotifyInProgressScreen(modifier, model = this)
   }
 }
+
+private val FinalMinuteSecondsTickThreshold = 2.minutes

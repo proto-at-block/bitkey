@@ -117,6 +117,7 @@ fun AddressQrCodeScreen(
                     onCopyClick = content.onCopyClick,
                     copied = copied,
                     address = content.addressDisplayString,
+                    isLoadingPlaceholder = content.isAddressLoadingPlaceholder,
                     isRefreshing = content.isRefreshing,
                     onVerifyClick = content.onVerifyClick
                   )
@@ -127,6 +128,7 @@ fun AddressQrCodeScreen(
                     onCopyClick = content.onCopyClick,
                     copied = copied,
                     address = content.addressDisplayString,
+                    isLoadingPlaceholder = content.isAddressLoadingPlaceholder,
                     isRefreshing = content.isRefreshing,
                     onVerifyClick = content.onVerifyClick
                   )
@@ -300,6 +302,7 @@ private fun QrCodeError(modifier: Modifier = Modifier) {
 private fun AddressLabel(
   modifier: Modifier = Modifier,
   address: LabelModel,
+  isLoadingPlaceholder: Boolean = false,
   isRefreshing: Boolean = false,
   textAlign: TextAlign = TextAlign.Center,
 ) {
@@ -333,8 +336,8 @@ private fun AddressLabel(
         }
       }
 
-      // Skip animation if address is just the loading placeholder "..."
-      if (addressString == "...") {
+      // Skip animation if address is just the loading placeholder.
+      if (isLoadingPlaceholder) {
         isAnimating = false
         return@LaunchedEffect
       }
@@ -371,7 +374,7 @@ private fun AddressLabel(
   Label(
     modifier = modifier,
     model = displayedAddress,
-    type = LabelType.Body2Mono,
+    type = if (isLoadingPlaceholder) LabelType.Body3Mono else LabelType.Body2Mono,
     alignment = textAlign,
     treatment = LabelTreatment.Primary
   )
@@ -457,6 +460,7 @@ private fun ExpandableAddressSection(
   onCopyClick: () -> Unit,
   copied: Boolean,
   address: LabelModel,
+  isLoadingPlaceholder: Boolean,
   isRefreshing: Boolean,
   onVerifyClick: (() -> Unit)? = null,
 ) {
@@ -510,6 +514,7 @@ private fun ExpandableAddressSection(
           .clickable(onClick = onCopyClick)
           .padding(bottom = 16.dp),
         address = address,
+        isLoadingPlaceholder = isLoadingPlaceholder,
         isRefreshing = isRefreshing,
         textAlign = TextAlign.Start
       )
@@ -525,6 +530,7 @@ private fun StaticAddressSection(
   onCopyClick: () -> Unit,
   copied: Boolean,
   address: LabelModel,
+  isLoadingPlaceholder: Boolean,
   isRefreshing: Boolean,
   onVerifyClick: (() -> Unit)? = null,
 ) {
@@ -554,6 +560,7 @@ private fun StaticAddressSection(
         .clickable(onClick = onCopyClick)
         .padding(bottom = 16.dp),
       address = address,
+      isLoadingPlaceholder = isLoadingPlaceholder,
       isRefreshing = isRefreshing,
       textAlign = TextAlign.Start
     )

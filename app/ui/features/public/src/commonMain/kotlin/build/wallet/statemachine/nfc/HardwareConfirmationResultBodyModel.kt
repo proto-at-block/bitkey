@@ -4,6 +4,7 @@ import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconModel
@@ -50,5 +51,16 @@ data class HardwareConfirmationResultBodyModel(
       treatment = ButtonModel.Treatment.Primary,
       size = ButtonModel.Size.Footer,
       onClick = onAcknowledge
+    ),
+    designSystemV2Model = FormDesignSystemV2Model(
+      header = FormHeaderModel(
+        iconModel = IconModel(
+          icon = Icon.LargeIconWarningFilled,
+          iconSize = IconSize.XLarge,
+          iconTint = IconTint.Foreground
+        ),
+        headline = headline,
+        sublineModel = LabelModel.StringModel(subline)
+      )
     )
   )

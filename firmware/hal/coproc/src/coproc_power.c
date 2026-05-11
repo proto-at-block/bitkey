@@ -27,6 +27,7 @@ void coproc_power_off(void) {
 
 void coproc_power_reset(void) {
   coproc_power_assert_reset();
+  rtos_thread_sleep(1);
   coproc_power_deassert_reset();
 }
 

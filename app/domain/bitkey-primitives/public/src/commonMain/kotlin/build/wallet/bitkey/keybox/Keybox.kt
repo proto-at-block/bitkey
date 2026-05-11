@@ -55,8 +55,14 @@ data class Keybox(
 /**
  * Copy the current keybox, inserting a new spending keyset as active.
  */
-fun Keybox.withNewSpendingKeyset(spendingKeyset: SpendingKeyset) =
-  copy(
-    keysets = keysets + spendingKeyset,
+fun Keybox.withNewSpendingKeyset(spendingKeyset: SpendingKeyset): Keybox {
+  val keysetsWithoutReplacement = keysets.filterNot { keyset ->
+    keyset.localId == spendingKeyset.localId ||
+      keyset.f8eSpendingKeyset.keysetId == spendingKeyset.f8eSpendingKeyset.keysetId
+  }
+
+  return copy(
+    keysets = keysetsWithoutReplacement + spendingKeyset,
     activeSpendingKeyset = spendingKeyset
   )
+}

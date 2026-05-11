@@ -14,6 +14,8 @@ fun TrustedContactCardModel(
   buttonText: String,
   onClick: () -> Unit,
   buttonTreatment: ButtonModel.Treatment = ButtonModel.Treatment.Primary,
+  backgroundColor: CardModel.CardStyle.Gradient.BackgroundColor =
+    CardModel.CardStyle.Gradient.BackgroundColor.Default,
 ) = CardModel(
   leadingImage = CardModel.CardImage.StaticImage(Icon.MediumIconTrustedContact),
   title =
@@ -35,6 +37,6 @@ fun TrustedContactCardModel(
   onClick = onClick,
   content = null,
   style = CardModel.CardStyle.Gradient(
-    backgroundColor = CardModel.CardStyle.Gradient.BackgroundColor.Default
+    backgroundColor = backgroundColor
   )
 )

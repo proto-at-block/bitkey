@@ -6,8 +6,10 @@ import shlex
 import psutil
 import certifi
 import pathlib
+import socket
 import subprocess
 import tempfile
+import time
 from typing import List
 
 from tasks.lib.paths import BUILD_FW_DIR, CONFIG_FILE
@@ -37,6 +39,8 @@ class JLinkGdbServer:
         gdb_client_path: str | None = None,
         jlink_serial: str | None = None,
         jlink_exe_path: str | None = None,
+        gdb_port: int = 2331,
+        kill_existing: bool = True,
     ) -> None:
         self.chip: str = chip
         self.gdb_config: str | None = gdb_config
@@ -44,19 +48,37 @@ class JLinkGdbServer:
         self.gdb_client: str = gdb_client_path or "arm-none-eabi-gdb"
         self.jlink_exe: str = jlink_exe_path or "JLinkExe"
         self.jlink_serial: str | None = jlink_serial
+        self.gdb_port: int = int(gdb_port)
+        self.kill_existing: bool = kill_existing
+        if not 1 <= self.gdb_port <= 65533:
+            raise click.ClickException(
+                "gdb_port must be between 1 and 65533; SWO and telnet use the next two ports"
+            )
+        if self.gdb_config and self.gdb_port != 2331:
+            raise click.ClickException(
+                "Custom gdb_port is not supported with a static gdb_config"
+            )
 
     def __enter__(self):
-        # Kill dangling JLink processes. They can cause flashing to fail.
-        self._kill_jlink_processes()
+        if self.kill_existing:
+            # Kill dangling JLink processes. They can cause flashing to fail.
+            self._kill_jlink_processes()
 
-        # Build command with optional J-Link selection
-        base_command = f"{self.gdb_server} -nogui -device {self.chip} -if SWD"
+        self._check_ports_available()
+
+        base_command = (
+            f"{self.gdb_server} -nogui -device {self.chip} -if SWD "
+            f"-port {self.gdb_port} "
+            f"-swoport {self.gdb_port + 1} "
+            f"-telnetport {self.gdb_port + 2}"
+        )
         if self.jlink_serial:
             base_command += f" -select usb={self.jlink_serial}"
 
         server_command = shlex.split(base_command)
         self.server_process = subprocess.Popen(server_command, start_new_session=True,
                                                stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        self._check_server_started()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -67,6 +89,22 @@ class JLinkGdbServer:
             if 'JLink' in p.name():
                 p.terminate()
                 p.wait()
+
+    def _check_ports_available(self):
+        host, _ = self._gdb_server_endpoint()
+        for port in range(self.gdb_port, self.gdb_port + 3):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                if s.connect_ex((host, port)) == 0:
+                    raise click.ClickException(
+                        f"Port {port} is already in use; choose a different --gdb-port"
+                    )
+
+    def _check_server_started(self):
+        time.sleep(0.5)
+        if self.server_process.poll() is not None:
+            raise click.ClickException(
+                "JLinkGDBServer exited before GDB could connect; check the J-Link serial and ports"
+            )
 
     def _parse_gdb_err(self, err: str) -> str:
         """Parses the error from a gdb stderr output.

@@ -7,10 +7,11 @@ import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
-import build.wallet.statemachine.notifications.TosInfo
+import build.wallet.statemachine.recovery.socrec.recoveryContactDesignSystemV2Header
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
@@ -27,6 +28,73 @@ import build.wallet.ui.model.list.ListItemTreatment
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import dev.zacsweers.redacted.annotations.Redacted
+
+private fun beneficiaryTosContent(
+  tosInfo: TosInfo?,
+  termsError: Boolean,
+  emphasizedForDesignSystemV2: Boolean,
+) = immutableListOfNotNull(
+  FormMainContentModel.Spacer(),
+  FormMainContentModel.Callout(
+    item = CalloutModel(
+      leadingIcon = Icon.SmallIconWarningFilled,
+      title = "Please accept the inheritance terms and conditions",
+      treatment = CalloutModel.Treatment.Warning
+    )
+  ).takeIf { termsError && !(tosInfo?.termsAgree ?: false) },
+  tosInfo?.let { ti ->
+    ListGroup(
+      listGroupModel =
+        ListGroupModel(
+          items =
+            immutableListOf(
+              ListItemModel(
+                title = "TOS",
+                titleLabel = LabelModel.LinkSubstringModel.from(
+                  substringToOnClick = mapOf(
+                    Pair(
+                      first = "inheritance terms and conditions",
+                      second = { ti.tosLink() }
+                    )
+                  ),
+                  string = "By clicking continue I agree to the inheritance terms and conditions",
+                  underline = emphasizedForDesignSystemV2,
+                  bold = false,
+                  color = if (emphasizedForDesignSystemV2) LabelModel.Color.UNSPECIFIED else LabelModel.Color.PRIMARY
+                ),
+                treatment = ListItemTreatment.PRIMARY,
+                leadingAccessory = IconAccessory(
+                  onClick = { ti.onTermsAgreeToggle(!ti.termsAgree) },
+                  model = IconModel(
+                    icon = if (ti.termsAgree) {
+                      Icon.SmallIconCheckFilled
+                    } else {
+                      Icon.SmallIconCircleStroked
+                    },
+                    iconSize = IconSize.Regular,
+                    iconTint = if (ti.termsAgree) {
+                      if (emphasizedForDesignSystemV2) build.wallet.ui.model.icon.IconTint.Foreground else Primary
+                    } else {
+                      On30
+                    }
+                  )
+                )
+              )
+            ),
+          style = ListGroupStyle.DIVIDER
+        )
+    )
+  }
+)
+
+/**
+ * Data model for terms of service interactions.
+ */
+data class TosInfo(
+  val termsAgree: Boolean,
+  val onTermsAgreeToggle: (Boolean) -> Unit,
+  val tosLink: () -> Unit,
+)
 
 /**
  * Prompt the user to save their trusted contact with bitkey.
@@ -72,61 +140,40 @@ data class SaveContactBodyModel(
       headline = if (isBeneficiary) "Save beneficiary" else "Save $trustedContactName as a Recovery Contact",
       subline = "Adding a " + (if (isBeneficiary) "beneficiary" else "Recovery Contact") + " requires you to tap your Bitkey device since it impacts the security of your wallet."
     ),
-    mainContentList = immutableListOfNotNull(
-      FormMainContentModel.Spacer(),
-      FormMainContentModel.Callout(
-        item = CalloutModel(
-          leadingIcon = Icon.SmallIconWarningFilled,
-          title = "Please accept the inheritance terms and conditions",
-          treatment = CalloutModel.Treatment.Warning
-        )
-      ).takeIf { termsError && !(tosInfo?.termsAgree ?: false) },
-      tosInfo?.let { ti ->
-        ListGroup(
-          listGroupModel =
-            ListGroupModel(
-              items =
-                immutableListOf(
-                  ListItemModel(
-                    title = "TOS",
-                    titleLabel = LabelModel.LinkSubstringModel.from(
-                      substringToOnClick = mapOf(
-                        Pair(
-                          first = "inheritance terms and conditions",
-                          second = { ti.tosLink() }
-                        )
-                      ),
-                      string = "By clicking continue I agree to the inheritance terms and conditions",
-                      underline = false,
-                      bold = false
-                    ),
-                    treatment = ListItemTreatment.PRIMARY,
-                    leadingAccessory = IconAccessory(
-                      onClick = { ti.onTermsAgreeToggle(!ti.termsAgree) },
-                      model = IconModel(
-                        icon = if (ti.termsAgree) {
-                          Icon.SmallIconCheckFilled
-                        } else {
-                          Icon.SmallIconCircleStroked
-                        },
-                        iconSize = IconSize.Regular,
-                        iconTint = if (ti.termsAgree) {
-                          Primary
-                        } else {
-                          On30
-                        }
-                      )
-                    )
-                  )
-                ),
-              style = ListGroupStyle.DIVIDER
-            )
-        )
-      }
+    mainContentList = beneficiaryTosContent(
+      tosInfo = tosInfo,
+      termsError = termsError,
+      emphasizedForDesignSystemV2 = false
     ).takeIf { isBeneficiary } ?: emptyImmutableList(),
     primaryButton = BitkeyInteractionButtonModel(
       text = "Save " + if (isBeneficiary) "Beneficiary" else "Recovery Contact",
       size = ButtonModel.Size.Footer,
       onClick = StandardClick(onSave)
-    )
+    ),
+    designSystemV2Model = if (isBeneficiary) {
+      FormDesignSystemV2Model(
+        header = FormHeaderModel(
+          iconModel = IconModel(
+            icon = Icon.LargeIconShieldPerson,
+            iconSize = IconSize.Avatar,
+            iconTint = build.wallet.ui.model.icon.IconTint.Foreground
+          ),
+          headline = "Save beneficiary",
+          subline = "Adding a beneficiary requires you to tap your Bitkey device since it impacts the security of your wallet."
+        ),
+        mainContentList = beneficiaryTosContent(
+          tosInfo = tosInfo,
+          termsError = termsError,
+          emphasizedForDesignSystemV2 = true
+        )
+      )
+    } else {
+      FormDesignSystemV2Model(
+        header =
+          recoveryContactDesignSystemV2Header(
+            headline = "Save $trustedContactName as a Recovery Contact",
+            subline = "Adding a Recovery Contact requires you to tap your Bitkey device since it impacts the security of your wallet."
+          )
+      )
+    }
   )

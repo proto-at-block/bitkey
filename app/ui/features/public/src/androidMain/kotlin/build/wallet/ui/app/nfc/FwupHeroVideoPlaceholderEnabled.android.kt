@@ -1,3 +1,3 @@
 package build.wallet.ui.app.nfc
 
-internal actual val fwupHeroVideoPlaceholderEnabled: Boolean = false
+internal actual val fwupHeroVideoPlaceholderEnabled: Boolean = true

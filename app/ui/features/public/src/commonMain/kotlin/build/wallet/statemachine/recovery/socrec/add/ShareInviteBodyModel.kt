@@ -3,7 +3,9 @@ package build.wallet.statemachine.recovery.socrec.add
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
+import build.wallet.statemachine.recovery.socrec.recoveryContactDesignSystemV2Header
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
@@ -55,5 +57,16 @@ data class ShareInviteBodyModel(
       leadingIcon = Icon.SmallIconShare,
       size = ButtonModel.Size.Footer,
       onClick = StandardClick(onShareComplete)
-    )
+    ),
+    designSystemV2Model =
+      FormDesignSystemV2Model(
+        header =
+          recoveryContactDesignSystemV2Header(
+            headline = "Finally, invite $trustedContactName to be your Recovery Contact",
+            subline =
+              """
+              To accept the invite, they’ll need to download the Bitkey app and enter your invite code.
+              """.trimIndent()
+          )
+      ).takeUnless { isBeneficiary }
   )

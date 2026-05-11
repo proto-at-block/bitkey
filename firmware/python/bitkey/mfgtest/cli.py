@@ -272,7 +272,7 @@ class W1Controller(Controller):
 
 
 @cli.command()
-@click.argument("port", type=click.Choice(["a", "b", "c", "d"], case_sensitive=False), required=True)
+@click.argument("port", type=click.Choice(["a", "b", "c", "d", "e", "f", "g"], case_sensitive=False), required=True)
 @click.argument("pin", type=int, required=True)
 @click.argument("state", type=click.Choice(["on", "off"],
                                            case_sensitive=False), required=True)

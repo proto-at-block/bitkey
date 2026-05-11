@@ -123,30 +123,37 @@ static void setup(void) {
 
 TestSuite(display_controller, .init = setup);
 
-Test(display_controller, power_off_send_failure_threshold_is_one_shot_and_resets) {
-  fwpb_display_command power_off_cmd = {0};
-  power_off_cmd.which_command = fwpb_display_command_show_screen_tag;
-  power_off_cmd.command.show_screen.which_params = fwpb_display_show_screen_power_off_tag;
-
+Test(display_controller, uxc_send_failure_threshold_is_one_shot_and_resets_on_success) {
   uint8_t failure_count = 0;
 
-  for (uint8_t i = 0; i < DISPLAY_POWER_OFF_RESET_THRESHOLD - 1; i++) {
-    cr_assert(
-      !display_controller_update_power_off_send_failures(&power_off_cmd, true, &failure_count));
+  for (uint8_t i = 0; i < DISPLAY_UXC_RESET_FAILURE_THRESHOLD - 1; i++) {
+    cr_assert(!display_controller_update_uxc_send_failures(false, &failure_count));
   }
 
-  cr_assert_eq(DISPLAY_POWER_OFF_RESET_THRESHOLD - 1, failure_count);
-  cr_assert(
-    display_controller_update_power_off_send_failures(&power_off_cmd, true, &failure_count));
-  cr_assert_eq(DISPLAY_POWER_OFF_RESET_THRESHOLD, failure_count);
+  cr_assert_eq(DISPLAY_UXC_RESET_FAILURE_THRESHOLD - 1, failure_count);
+  cr_assert(display_controller_update_uxc_send_failures(false, &failure_count));
+  cr_assert_eq(DISPLAY_UXC_RESET_FAILURE_THRESHOLD, failure_count);
 
-  cr_assert(
-    !display_controller_update_power_off_send_failures(&power_off_cmd, true, &failure_count));
-  cr_assert_eq(DISPLAY_POWER_OFF_RESET_THRESHOLD, failure_count);
+  cr_assert(!display_controller_update_uxc_send_failures(false, &failure_count));
+  cr_assert_eq(DISPLAY_UXC_RESET_FAILURE_THRESHOLD, failure_count);
 
-  cr_assert(
-    !display_controller_update_power_off_send_failures(&power_off_cmd, false, &failure_count));
+  cr_assert(!display_controller_update_uxc_send_failures(true, &failure_count));
   cr_assert_eq(0, failure_count);
+}
+
+Test(display_controller, display_ready_from_power_off_wakes_locked_screen) {
+  stub_onboarding_complete = SECURE_TRUE;
+  boot_controller();
+
+  display_controller_handle_ui_event(UI_EVENT_POWER_OFF, NULL, 0);
+  cr_assert_eq(last_command.which_command, fwpb_display_command_show_screen_tag);
+  cr_assert_eq(last_command.command.show_screen.which_params,
+               fwpb_display_show_screen_power_off_tag);
+
+  display_controller_show_initial_screen();
+
+  cr_assert_eq(last_command.which_command, fwpb_display_command_show_screen_tag);
+  cr_assert_eq(last_command.command.show_screen.which_params, fwpb_display_show_screen_locked_tag);
 }
 
 Test(display_controller, onboarding_root_menu_hides_post_onboarding_items) {

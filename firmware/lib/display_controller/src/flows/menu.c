@@ -136,10 +136,12 @@ flow_action_result_t display_controller_menu_on_action(
         controller->nav.money_movement.flow = fwpb_money_movement_flow_MONEY_MOVEMENT_FLOW_SEND;
         memset(&controller->nav.money_movement.send_data, 0,
                sizeof(controller->nav.money_movement.send_data));
-        strncpy(controller->nav.money_movement.send_data.amount_sats, ".00250000",
+        strncpy(controller->nav.money_movement.send_data.amount_sats, "250000",
                 sizeof(controller->nav.money_movement.send_data.amount_sats) - 1);
-        strncpy(controller->nav.money_movement.send_data.fee_sats, ".00000450",
+        strncpy(controller->nav.money_movement.send_data.fee_sats, "450",
                 sizeof(controller->nav.money_movement.send_data.fee_sats) - 1);
+        controller->nav.money_movement.send_data.btc_display_unit =
+          fwpb_display_btc_unit_DISPLAY_BTC_UNIT_BITCOIN;
         strncpy(controller->nav.money_movement.send_data.address,
                 "tb1qpa39yw443tn27kvs68gpztf7tvvmnzh5xjp5jdwdqlf73jls6tpsmxy5rx",
                 sizeof(controller->nav.money_movement.send_data.address) - 1);

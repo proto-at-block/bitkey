@@ -10,6 +10,7 @@
 #include "log.h"
 #include "mcu_reset.h"
 #include "metadata.h"
+#include "nfc_control.h"
 #include "onboarding.h"
 #include "proto_helpers.h"
 #include "rtos_thread.h"
@@ -26,8 +27,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#define FWUP_SUCCESS_DISPLAY_MS (2000)
-#define FWUP_UI_YIELD_MS        (100)
+#define FWUP_SUCCESS_DISPLAY_MS  (2000)
+#define FWUP_UI_YIELD_MS         (100)
+#define FWUP_NFC_DISABLE_TIMEOUT (30000)
 
 static void _handle_fwup_start(void* proto, void* UNUSED(context));
 static void _handle_fwup_transfer(void* proto, void* UNUSED(context));
@@ -56,6 +58,10 @@ static user_confirmed_version_t SHARED_TASK_BSS user_confirmed_version = {0};
 // Cleared when the second fwup_finish_rsp arrives with the real result, or as a
 // fallback when UXC reboots and reports its version (in case the result message is lost).
 static SHARED_TASK_BSS bool awaiting_coproc_delta_result = false;
+
+// NFC disable token held while UXC is applying a delta patch.  Acquired when
+// awaiting_coproc_delta_result is set, released when it is cleared.
+static SHARED_TASK_DATA nfc_disable_token_t coproc_delta_nfc_token = NFC_CONTROL_INVALID_TOKEN;
 
 // True when an atomic commit is in progress — Core has sent fwup_commit_sig_cmd
 // to UXC and is waiting for the ACK before committing its own signature.
@@ -389,6 +395,8 @@ NO_OPTIMIZE void fwup_task_handle_coproc_fwup_finish(ipc_ref_t* message) {
     // This is the second fwup_finish_rsp after UXC applied the delta patch.
     // Don't send to host (they already received WILL_APPLY_PATCH).
     awaiting_coproc_delta_result = false;
+    nfc_enable(coproc_delta_nfc_token);
+    coproc_delta_nfc_token = NFC_CONTROL_INVALID_TOKEN;
     bool success = (rsp_status == fwpb_fwup_finish_rsp_fwup_finish_rsp_status_SUCCESS);
     LOGI("Delta rsp %d", rsp_status);
     fwup_coproc_finish_ui(success);
@@ -405,6 +413,13 @@ NO_OPTIMIZE void fwup_task_handle_coproc_fwup_finish(ipc_ref_t* message) {
     // UXC is applying a delta patch — switch display to "Verifying..." and
     // wait for the second fwup_finish_rsp with the actual result.
     UI_SHOW_EVENT(UI_EVENT_FWUP_VERIFYING);
+    // Yield to let the UI task push the display update and the NFC task
+    // start transmitting the response before the call to disable NFC.
+    rtos_thread_sleep(FWUP_UI_YIELD_MS);
+
+    // Disable NFC on Core while UXC is patching to prevent a new NFC session
+    // from interfering.  Re-enabled when the result (or version fallback) arrives.
+    coproc_delta_nfc_token = nfc_disable(FWUP_NFC_DISABLE_TIMEOUT);
     awaiting_coproc_delta_result = true;
     return;
   }
@@ -797,6 +812,8 @@ void fwup_task_handle_coproc_version(ipc_ref_t* message) {
   // TODO(W-16671): Improve by gating UXC boot on verified image report to Core.
   if (awaiting_coproc_delta_result) {
     awaiting_coproc_delta_result = false;
+    nfc_enable(coproc_delta_nfc_token);
+    coproc_delta_nfc_token = NFC_CONTROL_INVALID_TOKEN;
 
     bool success = true;
     fwup_coproc_version_t* version_msg = (fwup_coproc_version_t*)message->object;

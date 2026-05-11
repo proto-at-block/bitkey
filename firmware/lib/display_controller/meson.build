@@ -42,8 +42,10 @@ c_args = []
 if embedded_build
   deps += [
     bio_dep,
+    coproc_dep,
     hal_nfc_deps['embedded'],
     ipc_dep,
+    nfc_control_deps['embedded'],
     onboarding_dep,
     power_dep,
     ui_messaging_dep,

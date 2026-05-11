@@ -97,6 +97,17 @@ void hal_nfc_init(hal_nfc_mode_t mode, rtos_timer_callback_t timer_callback);
  * @brief Re-configures the RFAL for the specified NFC mode.
  *
  * @param mode  NFC mode.
+ *
+ * The change is deferred: @p mode is latched and applied at the start
+ * of the next hal_nfc_worker() cycle, after rfalNfcWorker() has had a
+ * chance to push any queued TX to the NFC chip.
+ *
+ * @note Callers that send a proto response and then change modes must
+ * ensure the NFC task has had a chance to queue the response (via
+ * rfalNfcDataExchangeStart) before this is called. In practice this is
+ * guaranteed when the calling task runs at equal or lower RTOS priority
+ * than the NFC task, because the NFC task preempts after the
+ * proto-response semaphore is given and queues the TX before yielding.
  */
 void hal_nfc_set_mode(hal_nfc_mode_t mode);
 

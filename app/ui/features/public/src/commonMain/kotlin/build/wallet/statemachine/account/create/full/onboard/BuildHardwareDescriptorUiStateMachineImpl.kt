@@ -12,6 +12,7 @@ import build.wallet.feature.isEnabled
 import build.wallet.keybox.KeyboxDao
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.requireW3
 import build.wallet.onboarding.HardwareDescriptorDeliveryService
 import build.wallet.onboarding.OnboardingCompletionService
 import build.wallet.statemachine.core.LoadingBodyModel
@@ -90,7 +91,7 @@ class BuildHardwareDescriptorUiStateMachineImpl(
         nfcSessionUIStateMachine.model(
           NfcSessionUIStateMachineProps(
             session = { session, commands ->
-              currentState.nfcSession(session, commands)
+              currentState.nfcSession(session, commands.requireW3(session))
             },
             onSuccess = { signature ->
               coroutineBinding {

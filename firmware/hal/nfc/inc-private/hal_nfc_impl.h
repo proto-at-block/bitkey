@@ -102,14 +102,6 @@ typedef struct {
 #endif
 
   /**
-   * @brief Current active NFC mode.
-   *
-   * @details When the NFC worker runs, this will be updated to `next_mode` if
-   * they are not equal.
-   */
-  hal_nfc_mode_t current_mode;
-
-  /**
    * @brief Previous NFC mode.
    *
    * @details When the current NFC mode changes, this is updated to its
@@ -117,13 +109,10 @@ typedef struct {
    */
   hal_nfc_mode_t prev_mode;
 
-  /**
-   * @brief Next NFC mode to enter.
-   *
-   * @details When the NFC worker runs, the current mode will be updated to the
-   * next mode.
-   */
-  hal_nfc_mode_t next_mode;
+  // NOTE: current_mode and next_mode are stored as standalone
+  // SHARED_TASK_DATA variables in hal_nfc.c so that tasks other than
+  // the NFC task can call hal_nfc_set_mode / hal_nfc_get_mode without
+  // an MPU fault.
 
   /**
    * @brief Pointer to the last buffer of received data over NFC.

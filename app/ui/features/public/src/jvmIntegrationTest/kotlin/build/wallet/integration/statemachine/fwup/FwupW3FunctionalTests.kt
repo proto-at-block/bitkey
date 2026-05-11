@@ -24,6 +24,7 @@ import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.nfc.FwupInstructionsBodyModel
 import build.wallet.statemachine.nfc.PromptSelectionFormBodyModel
 import build.wallet.statemachine.ui.awaitUntilBody
+import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
@@ -180,14 +181,18 @@ private suspend fun TestContext.awaitNfcSearching() {
  * W3 hardware requires on-device confirmation for each MCU update.
  */
 private suspend fun TestContext.approveW3DeviceConfirmation() {
-  awaitUntilBody<PromptSelectionFormBodyModel> {
-    onApprove()
+  awaitUntilScreenWithBody<FwupNfcBodyModel>(
+    matchingScreen = { it.bottomSheetModel?.body is PromptSelectionFormBodyModel }
+  ).let { screen ->
+    (checkNotNull(screen.bottomSheetModel).body as PromptSelectionFormBodyModel).onApprove()
   }
 }
 
 private suspend fun TestContext.denyW3DeviceConfirmation() {
-  awaitUntilBody<PromptSelectionFormBodyModel> {
-    onDeny()
+  awaitUntilScreenWithBody<FwupNfcBodyModel>(
+    matchingScreen = { it.bottomSheetModel?.body is PromptSelectionFormBodyModel }
+  ).let { screen ->
+    (checkNotNull(screen.bottomSheetModel).body as PromptSelectionFormBodyModel).onDeny()
   }
 }
 

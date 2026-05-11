@@ -62,7 +62,7 @@ data class FormHeaderModel(
       IconModel(
         icon = icon,
         iconSize = IconSize.Avatar,
-        iconTint = IconTint.Primary
+        iconTint = IconTint.InverseBackground
       )
     },
     headline = headline,
@@ -86,7 +86,7 @@ data class FormHeaderModel(
       IconModel(
         icon = icon,
         iconSize = IconSize.Avatar,
-        iconTint = IconTint.Primary
+        iconTint = IconTint.InverseBackground
       )
     },
     headline = headline,

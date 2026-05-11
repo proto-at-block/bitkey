@@ -6,6 +6,7 @@ import bitkey.f8e.privilegedactions.ConfigureDelayDurationF8eClient
 import bitkey.metrics.MetricTrackerService
 import bitkey.notifications.NotificationsPreferencesCachedProvider
 import bitkey.onboarding.CreateLiteAccountService
+import bitkey.privilegedactions.ActionProofService
 import bitkey.privilegedactions.FingerprintResetService
 import bitkey.recovery.DescriptorBackupService
 import bitkey.recovery.RecoveryStatusService
@@ -95,6 +96,7 @@ import kotlinx.coroutines.CoroutineScope
  */
 interface JvmAppComponent {
   val accountService: AccountService
+  val actionProofService: ActionProofService
   val appInstallationDao: AppInstallationDao
   val jsonSerializer: JsonSerializer
   val accountConfigService: AccountConfigService
@@ -194,6 +196,7 @@ interface JvmAppComponent {
   val descriptorBackupService: DescriptorBackupService
   val onboardingKeyboxSealedSsekDao: OnboardingKeyboxSealedSsekDao
   val chaincodeDelegationFeatureFlag: ChaincodeDelegationFeatureFlag
+  val onboardingCanUseKeyboxKeysetsFeatureFlag: OnboardingCanUseKeyboxKeysetsFeatureFlag
   val privateWalletMigrationFeatureFlag: PrivateWalletMigrationFeatureFlag
   val balanceThresholdFeatureFlag: PrivateWalletMigrationBalanceThresholdFeatureFlag
   val privateWalletMigrationDao: PrivateWalletMigrationDao

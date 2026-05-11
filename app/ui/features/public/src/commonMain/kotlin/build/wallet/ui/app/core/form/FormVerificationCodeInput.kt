@@ -17,22 +17,34 @@ import build.wallet.ui.components.label.LabelTreatment.Secondary
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.button.ButtonModel.Treatment.Tertiary
+import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.tokens.LabelType
 
 @Composable
 fun VerificationCodeInput(model: VerificationCodeInput) {
+  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+
   Column {
-    TextField(
-      modifier = Modifier.fillMaxWidth(),
-      model = model.fieldModel,
-      testTag = "verification-code-input-field"
-    )
+    if (isDesignSystemV2Enabled) {
+      SegmentedVerificationCodeInput(
+        modifier = Modifier.fillMaxWidth(),
+        model = model.fieldModel,
+        expectedCodeLength = model.expectedCodeLength,
+        testTag = "verification-code-input-field"
+      )
+    } else {
+      TextField(
+        modifier = Modifier.fillMaxWidth(),
+        model = model.fieldModel,
+        testTag = "verification-code-input-field"
+      )
+    }
     Spacer(modifier = Modifier.height(24.dp))
     when (val resendCodeContent = model.resendCodeContent) {
       is Text ->
         Label(
           text = resendCodeContent.value,
-          type = LabelType.Body3Regular,
+          type = if (isDesignSystemV2Enabled) LabelType.Body3Mono else LabelType.Body3Regular,
           treatment = Secondary
         )
       is Button ->

@@ -63,7 +63,7 @@ def svd(c):
                     with open(CONFIG_DIR.joinpath(svd_file), 'wb') as f:
                         f.write(zip_ref.read(zip_file.filename))
 
-        if Path(svd_file).exists:
+        if CONFIG_DIR.joinpath(svd_file).exists():
             print("SVD file download complete")
         else:
             print("SVD file download failed")

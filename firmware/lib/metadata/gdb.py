@@ -50,9 +50,9 @@ class PrintMetadataCmd(gdb.Command):
 
     def invoke(self, arg, from_tty):
         if arg == 'a' or arg == "app":
-            metadata_addr = self.get_uin32_symbol_addr('app_metadata_a_page')
+            metadata_addr = self.get_uin32_symbol_addr('app_a_metadata_page')
             self.print_metadata(metadata_addr, "Application (A)")
-            metadata_addr = self.get_uin32_symbol_addr('app_metadata_b_page')
+            metadata_addr = self.get_uin32_symbol_addr('app_b_metadata_page')
             self.print_metadata(metadata_addr, "Application (B)")
         elif arg == 'b' or arg == "bl":
             metadata_addr = self.get_uin32_symbol_addr('bl_metadata_page')

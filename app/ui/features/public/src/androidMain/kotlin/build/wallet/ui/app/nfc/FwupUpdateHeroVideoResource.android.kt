@@ -25,7 +25,12 @@ internal actual fun fwupUpdateHeroVideoResource(
   return Res.getVideoResource(
     when (hardwareType) {
       HardwareType.W1 -> "pair"
-      HardwareType.W3 -> return null
+      HardwareType.W3 ->
+        if (theme == Theme.DARK) {
+          "firmware_update_dark"
+        } else {
+          "firmware_update_light"
+        }
     }
   )
 }

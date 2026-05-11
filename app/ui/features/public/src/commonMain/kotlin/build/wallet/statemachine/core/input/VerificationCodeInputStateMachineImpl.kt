@@ -71,6 +71,7 @@ class VerificationCodeInputStateMachineImpl(
       title = props.title,
       subtitle = props.subtitle,
       value = enteredCode,
+      expectedCodeLength = props.expectedCodeLength,
       resendCodeContent = state.resendCodeState.content,
       explainerText =
         when (props.notificationTouchpoint) {

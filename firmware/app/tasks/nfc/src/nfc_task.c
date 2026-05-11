@@ -6,6 +6,7 @@
 #include "hal_nfc.h"
 #include "log.h"
 #include "mempool.h"
+#include "nfc_control.h"
 #include "rtos.h"
 #include "secutils.h"
 #include "sysevent.h"
@@ -87,11 +88,14 @@ NO_OPTIMIZE void nfc_thread(void* UNUSED(args)) {
 
   for (;;) {
     rtos_semaphore_take(&nfc_priv.rfal_sem, nfc_priv.delay_ms);
+    nfc_control_poll();
     hal_nfc_worker(&route_nfc_message);
   }
 }
 
 void nfc_task_create(void) {
+  nfc_control_init();
+
   nfc_priv.thread_handle = rtos_thread_create(nfc_thread, NULL, RTOS_THREAD_PRIORITY_HIGH, 2048);
   ASSERT(nfc_priv.thread_handle);
 

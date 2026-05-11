@@ -48,7 +48,7 @@ data class FiatCurrencyListFormModel(
                           IconModel(
                             icon = Icon.SmallIconCheckFilled,
                             iconSize = IconSize.Small,
-                            iconTint = IconTint.Primary
+                            iconTint = IconTint.InverseBackground
                           )
                       )
                     } else {

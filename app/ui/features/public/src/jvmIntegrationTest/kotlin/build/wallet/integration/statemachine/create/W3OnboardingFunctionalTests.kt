@@ -42,6 +42,7 @@ class W3OnboardingFunctionalTests : FunSpec({
         PermissionStatus.Authorized
       )
       accountConfigService.setHardwareType(HardwareType.W3).getOrThrow()
+      w3OnboardingFeatureFlag.setFlagValue(true)
     }
   }
 
@@ -98,6 +99,9 @@ class W3OnboardingFunctionalTests : FunSpec({
       val app = launchNewApp()
       app.prepareApp()
       app.usSmsFeatureFlag.setFlagValue(false) // SMS hidden
+      app.pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
+        PermissionStatus.NotDetermined
+      )
 
       app.appUiStateMachine.test(
         Unit,
@@ -109,8 +113,7 @@ class W3OnboardingFunctionalTests : FunSpec({
 
         advanceThroughEmailScreensEnterAndVerify(hardwareType = HardwareType.W3)
 
-        // Push is already authorized in the mock so should skip directly to transactions
-        awaitUntilBody<NotificationPreferenceFormBodyModel>()
+        awaitUntilBody<RecoveryNotificationsSetupFormBodyModel>()
 
         cancelAndIgnoreRemainingEvents()
       }

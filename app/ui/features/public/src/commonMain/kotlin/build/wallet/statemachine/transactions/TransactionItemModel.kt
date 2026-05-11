@@ -65,7 +65,7 @@ private fun TransactionType.iconModel(
 ): IconModel =
   IconModel(
     iconImage = iconImage(isPending, isLate),
-    iconSize = iconSize(isLate),
+    iconSize = iconSize(isLate, isPending),
     iconBackgroundType = IconBackgroundType.Square(
       size = IconSize.Custom(48),
       color = IconBackgroundType.Square.Color.Transparent,
@@ -81,15 +81,16 @@ private fun TransactionType.iconImage(
 ): IconImage =
   when {
     this is UtxoConsolidation && !isPending -> IconImage.LocalImage(Icon.BitcoinConsolidation)
-    isLate -> IconImage.LocalImage(Icon.BitcoinBadged)
+    isLate || isPending -> IconImage.LocalImage(Icon.BitcoinBadged)
     else -> IconImage.LocalImage(Icon.Bitcoin)
   }
 
 private fun TransactionType.iconSize(
   isLate: Boolean,
+  isPending: Boolean,
 ): IconSize =
   when {
-    isLate || this is UtxoConsolidation -> IconSize.Custom(48)
+    isLate || isPending || this is UtxoConsolidation -> IconSize.Custom(48)
     else -> IconSize.Custom(44)
   }
 

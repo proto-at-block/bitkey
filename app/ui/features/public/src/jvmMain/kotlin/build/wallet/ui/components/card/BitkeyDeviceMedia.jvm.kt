@@ -17,7 +17,6 @@ internal actual fun BitkeyDeviceMedia(
   batteryPercentage: Int?,
   hardwareType: HardwareType,
   interactionState: BitkeyDeviceMediaInteractionState,
-  shouldPlayWaitingIntro: Boolean,
 ) {
   Box(
     modifier = modifier,
@@ -27,7 +26,7 @@ internal actual fun BitkeyDeviceMedia(
       modifier = Modifier.size(BitkeyDeviceFallbackMediaSize),
       resourcePath = bitkeyDeviceVideoResource(content),
       backgroundColor = legacyBitkeyDeviceCardBackgroundColor(),
-      isLooping = content == DeviceStatusCard.VideoContent.BITKEY_ROTATE,
+      isLooping = true,
       autoStart = true
     )
   }
@@ -40,7 +39,3 @@ internal actual fun BitkeyDeviceMediaInteractionOverlay(
 ) = Unit
 
 internal actual fun supportsBitkeyDevice3DMedia(hardwareType: HardwareType): Boolean = false
-
-@Composable
-internal actual fun supportsInteractiveBitkeyWaitingMedia(hardwareType: HardwareType): Boolean =
-  false

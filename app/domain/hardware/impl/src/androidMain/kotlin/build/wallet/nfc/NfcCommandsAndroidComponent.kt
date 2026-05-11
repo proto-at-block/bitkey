@@ -5,6 +5,7 @@ import build.wallet.di.Impl
 import build.wallet.di.W3
 import build.wallet.encrypt.SignatureUtils
 import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.W3NfcCommands
 import me.tatarka.inject.annotations.Provides
 import software.amazon.lastmile.kotlin.inject.anvil.ContributesTo
 
@@ -17,5 +18,5 @@ interface NfcCommandsAndroidComponent {
   fun provideNfcCommandsW3(
     @Impl w1Impl: NfcCommands,
     signatureUtils: SignatureUtils,
-  ): @W3 NfcCommands = BitkeyW3Commands(w1Impl, signatureUtils)
+  ): @W3 W3NfcCommands = BitkeyW3Commands(w1Impl, signatureUtils)
 }

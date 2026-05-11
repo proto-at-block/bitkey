@@ -17,6 +17,7 @@ import build.wallet.nfc.platform.ConfirmationHandles
 import build.wallet.nfc.platform.ConfirmationResult
 import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.W3NfcCommands
 import build.wallet.rust.firmware.*
 import build.wallet.toByteString
 import build.wallet.toUByteList
@@ -48,7 +49,7 @@ import build.wallet.rust.firmware.UpgradeRotateAppAuthKeysResultState as FfiUpgr
 class BitkeyW3Commands(
   private val delegate: NfcCommands,
   private val signatureUtils: SignatureUtils,
-) : NfcCommands by delegate {
+) : W3NfcCommands, NfcCommands by delegate {
   /**
    * Generate and display a bitcoin address on the W3 hardware device.
    *

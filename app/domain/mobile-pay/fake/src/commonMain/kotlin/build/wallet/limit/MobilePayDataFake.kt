@@ -1,17 +1,18 @@
 package build.wallet.limit
 
-import build.wallet.limit.MobilePayData.MobilePayDisabledData
-import build.wallet.limit.MobilePayData.MobilePayEnabledData
+import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 
 val MobilePayDisabledDataMock =
-  MobilePayDisabledData(
+  MobilePayData.MobilePayDisabledData(
     mostRecentSpendingLimit = SpendingLimitMock
   )
 
 val MobilePayEnabledDataMock =
-  MobilePayEnabledData(
+  MobilePayData.MobilePayEnabledData(
     activeSpendingLimit = SpendingLimitMock,
     remainingBitcoinSpendingAmount = MobilePayBalanceMock.available,
-    remainingFiatSpendingAmount = FiatMoney.usd(100)
+    remainingFiatSpendingAmount = FiatMoney.usd(100),
+    spentBitcoinAmount = BitcoinMoney.zero(),
+    spentFiatAmount = FiatMoney.usd(0)
   )

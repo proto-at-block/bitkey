@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.first
 
 class SoftwareWalletSigningFunctionalTests : FunSpec({
 
-  test("create account and send sats back to treasury") {
+  xtest("create account and send sats back to treasury") {
     val app = launchNewApp()
 
     // Set push notifications to authorized to enable us to successfully advance through

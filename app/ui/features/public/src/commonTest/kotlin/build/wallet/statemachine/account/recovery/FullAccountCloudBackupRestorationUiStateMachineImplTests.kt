@@ -33,8 +33,8 @@ import build.wallet.f8e.auth.AuthF8eClientMock
 import build.wallet.firmware.FirmwareDeviceInfoMock
 import build.wallet.ktor.result.HttpError
 import build.wallet.ktor.test.HttpResponseMock
-import build.wallet.nfc.NfcCommandsMock
 import build.wallet.nfc.NfcSessionFake
+import build.wallet.nfc.W3NfcCommandsMock
 import build.wallet.statemachine.recovery.cloud.RecommendTapOtherBitkeyModel
 import io.ktor.http.HttpStatusCode
 import build.wallet.feature.FeatureFlagDaoFake
@@ -718,7 +718,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
             awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
               id = nfcConfirmableSessionUiStateMachine.id
             ) {
-              val w3Commands = NfcCommandsMock(turbine = { name ->
+              val w3Commands = W3NfcCommandsMock(turbine = { name ->
                 app.cash.turbine.Turbine(name = name)
               }).apply {
                 deviceInfoResult = FirmwareDeviceInfoMock.copy(hwRevision = "w3a-core-evt")
@@ -753,7 +753,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
               // Run session with W3 hardware so capturedDeviceInfo is populated,
               // then simulate the "no CSEK matched" signal the real firmware
               // command layer emits when every candidate is exhausted.
-              val w3Commands = NfcCommandsMock(turbine = { name ->
+              val w3Commands = W3NfcCommandsMock(turbine = { name ->
                 app.cash.turbine.Turbine(name = name)
               }).apply {
                 deviceInfoResult = FirmwareDeviceInfoMock.copy(hwRevision = "w3a-core-evt")
@@ -788,7 +788,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
             awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
               id = nfcConfirmableSessionUiStateMachine.id
             ) {
-              val w3Commands = NfcCommandsMock(turbine = { name ->
+              val w3Commands = W3NfcCommandsMock(turbine = { name ->
                 app.cash.turbine.Turbine(name = name)
               }).apply {
                 deviceInfoResult = FirmwareDeviceInfoMock.copy(hwRevision = "w3a-core-evt")
@@ -818,7 +818,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
             awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
               id = nfcConfirmableSessionUiStateMachine.id
             ) {
-              val w3Commands = NfcCommandsMock(turbine = { name ->
+              val w3Commands = W3NfcCommandsMock(turbine = { name ->
                 app.cash.turbine.Turbine(name = name)
               }).apply {
                 deviceInfoResult = FirmwareDeviceInfoMock.copy(hwRevision = "w3a-core-evt")
@@ -848,7 +848,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
             awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
               id = nfcConfirmableSessionUiStateMachine.id
             ) {
-              val w3Commands = NfcCommandsMock(turbine = { name ->
+              val w3Commands = W3NfcCommandsMock(turbine = { name ->
                 app.cash.turbine.Turbine(name = name)
               }).apply {
                 deviceInfoResult = FirmwareDeviceInfoMock.copy(hwRevision = "w3a-core-evt")
@@ -883,7 +883,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
             awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
               id = nfcConfirmableSessionUiStateMachine.id
             ) {
-              val w3Commands = NfcCommandsMock(turbine = { name ->
+              val w3Commands = W3NfcCommandsMock(turbine = { name ->
                 app.cash.turbine.Turbine(name = name)
               }).apply {
                 deviceInfoResult = FirmwareDeviceInfoMock.copy(hwRevision = "w3a-core-evt")
@@ -925,7 +925,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
             awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<Pair<Csek, CloudBackup>>>(
               id = nfcConfirmableSessionUiStateMachine.id
             ) {
-              val w3Commands = NfcCommandsMock(turbine = { name ->
+              val w3Commands = W3NfcCommandsMock(turbine = { name ->
                 app.cash.turbine.Turbine(name = name)
               }).apply {
                 deviceInfoResult = FirmwareDeviceInfoMock.copy(hwRevision = "w3a-core-evt")

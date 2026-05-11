@@ -10,8 +10,6 @@ import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.PrivilegedActionProof
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
-import build.wallet.feature.collectIsEnabledAsState
 import build.wallet.platform.permissions.Permission
 import build.wallet.platform.permissions.PermissionChecker
 import build.wallet.platform.permissions.PermissionStatus
@@ -23,7 +21,6 @@ import build.wallet.statemachine.auth.HardwareAuthUiProps
 import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.platform.permissions.NotificationPermissionRequester
-import build.wallet.ui.model.label.CallToActionModel
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.launch
@@ -37,18 +34,10 @@ class NotificationPreferencesUiStateMachineImpl(
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val eventTracker: EventTracker,
   private val hardwareAuthUiStateMachine: HardwareAuthUiStateMachine,
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : NotificationPreferencesUiStateMachine {
   @Composable
   @Suppress("CyclomaticComplexMethod")
   override fun model(props: NotificationPreferencesProps): ScreenModel {
-    val isDesignSystemV2Enabled by designSystemUpdatesFeatureFlag.collectIsEnabledAsState()
-    val shouldShowOnboardingTos = remember(props.source, isDesignSystemV2Enabled) {
-      shouldShowNotificationPreferencesOnboardingTos(
-        source = props.source,
-        isDesignSystemV2Enabled = isDesignSystemV2Enabled
-      )
-    }
     val shouldLoadSavedPreferences = props.source == NotificationPreferencesProps.Source.Settings
 
     var uiState: UiState by remember {
@@ -65,9 +54,6 @@ class NotificationPreferencesUiStateMachineImpl(
     var transactionPush by remember { mutableStateOf(false) }
     var updatesPush by remember { mutableStateOf(false) }
     var updatesEmail by remember { mutableStateOf(false) }
-    var termsAgree by remember(props.source, shouldShowOnboardingTos) {
-      mutableStateOf(!shouldShowOnboardingTos)
-    }
     var currentPreferences by remember {
       mutableStateOf(
         NotificationPreferences(
@@ -78,6 +64,15 @@ class NotificationPreferencesUiStateMachineImpl(
       )
     }
 
+    fun currentDraftPreferences(basePreferences: NotificationPreferences): NotificationPreferences =
+      basePreferences.copy(
+        moneyMovement = setOfNotNull(NotificationChannel.Push.takeIf { transactionPush }),
+        productMarketing = setOfNotNull(
+          NotificationChannel.Push.takeIf { updatesPush },
+          NotificationChannel.Email.takeIf { updatesEmail }
+        )
+      )
+
     LaunchedEffect("load-push-and-preferences-state") {
       // If we're coming from settings, load user's settings from the server
       if (shouldLoadSavedPreferences) {
@@ -87,12 +82,15 @@ class NotificationPreferencesUiStateMachineImpl(
           // data set for the UI.
           .collect {
             it?.onSuccess { prefs ->
-              // Ignore any refresh emission (e.g. the server-backed value arriving after
-              // the cache hit) while hardware action-proof signing is in progress.
-              // Letting it through would overwrite currentPreferences and the toggle
-              // states, causing either a stale payload to be submitted on success or
-              // the user's in-progress edits to be lost on cancel.
-              if (uiState is UiState.SigningActionProof) return@onSuccess
+              // Preserve the user's in-flight draft while submit or hardware auth is running,
+              // but keep the latest confirmed server state so post-auth sends and retries do
+              // not resend stale untouched fields.
+              if (uiState is UiState.MainViewState.Submitting ||
+                uiState is UiState.SigningActionProof
+              ) {
+                currentPreferences = prefs
+                return@onSuccess
+              }
 
               currentPreferences = prefs
               transactionPush = prefs.moneyMovement.contains(NotificationChannel.Push)
@@ -123,10 +121,10 @@ class NotificationPreferencesUiStateMachineImpl(
       }
 
       is UiState.SigningActionProof -> {
-        val state = uiState as UiState.SigningActionProof
         val fullAccount = requireNotNull(props.fullAccount) {
           "fullAccount is required for action proof signing during preference updates"
         }
+        val latestPreferences = currentDraftPreferences(currentPreferences)
         hardwareAuthUiStateMachine.model(
           props = HardwareAuthUiProps(
             account = fullAccount,
@@ -135,11 +133,11 @@ class NotificationPreferencesUiStateMachineImpl(
             actionDescription = "Updating notification preferences",
             screenPresentationStyle = ScreenPresentationStyle.Modal,
             onSuccess = { proof ->
-              uiState = UiState.MainViewState.Loading
+              uiState = UiState.MainViewState.Submitting
               scope.launch {
                 sendNotificationPreferences(
                   props = props,
-                  notificationPreferences = state.preferences,
+                  notificationPreferences = latestPreferences,
                   proof = proof,
                   setUiState = { uiState = it }
                 )
@@ -151,7 +149,7 @@ class NotificationPreferencesUiStateMachineImpl(
       }
 
       is UiState.MainViewState -> {
-        // If the user requests push toggle and they haven't explicitly denied it yet, we show the
+        // If the user requests push toggle, and they haven't explicitly denied it yet, we show the
         // system request and hold a reference to the operation they were attempting when the popup
         // was shown. If granted, we continue with the operation (specifically, flipping the toggle).
         // If the request was previously denied, the user needs to open settings. We show a dialog for that,
@@ -196,10 +194,9 @@ class NotificationPreferencesUiStateMachineImpl(
 
         val formEditingState: NotificationPreferencesFormEditingState =
           when (uiState as UiState.MainViewState) {
-            is UiState.MainViewState.Editing,
-            is UiState.MainViewState.DidNotSelectToS,
-            -> NotificationPreferencesFormEditingState.Editing
+            is UiState.MainViewState.Editing -> NotificationPreferencesFormEditingState.Editing
             UiState.MainViewState.Loading -> NotificationPreferencesFormEditingState.Loading
+            UiState.MainViewState.Submitting -> NotificationPreferencesFormEditingState.Submitting
             is UiState.MainViewState.EditingWithOverlay,
             is UiState.MainViewState.NetworkError,
             -> NotificationPreferencesFormEditingState.Overlay
@@ -209,18 +206,6 @@ class NotificationPreferencesUiStateMachineImpl(
           transactionPush = transactionPush,
           updatesPush = updatesPush,
           updatesEmail = updatesEmail,
-          tosInfo = TosInfo(
-            termsAgree = termsAgree,
-            onTermsAgreeToggle = {
-              if (!termsAgree && uiState is UiState.MainViewState.DidNotSelectToS) {
-                uiState = UiState.MainViewState.Editing
-              }
-
-              termsAgree = it
-            },
-            tosLink = { uiState = UiState.BrowserViewState.TosView },
-            privacyLink = { uiState = UiState.BrowserViewState.PrivacyView }
-          ).takeIf { shouldShowOnboardingTos },
           onTransactionPushToggle = { active ->
             onPushToggle(active) { transactionPush = active }
           },
@@ -230,52 +215,33 @@ class NotificationPreferencesUiStateMachineImpl(
           onUpdatesEmailToggle = { updatesEmail = it },
           formEditingState = formEditingState,
           onBack = props.onBack,
-          isDesignSystemV2Enabled = isDesignSystemV2Enabled,
-          ctaModel = when (uiState) {
-            is UiState.MainViewState.DidNotSelectToS -> CallToActionModel(
-              text = "Agree to our Terms and Privacy Policy to continue.",
-              treatment = CallToActionModel.Treatment.WARNING
-            )
-            else -> null
-          },
           continueOnClick = {
-            if (shouldShowOnboardingTos && !termsAgree) {
-              uiState = UiState.MainViewState.DidNotSelectToS
-            } else {
-              val np = currentPreferences.copy(
-                moneyMovement = setOfNotNull(NotificationChannel.Push.takeIf { transactionPush }),
-                productMarketing = setOfNotNull(
-                  NotificationChannel.Push.takeIf { updatesPush },
-                  NotificationChannel.Email.takeIf { updatesEmail }
-                )
-              )
+            val np = currentDraftPreferences(currentPreferences)
 
-              val fullAccount = props.fullAccount
-              val pushIsBeingDisabled = currentPreferences.isPushBeingDisabledBy(np)
-              if (fullAccount != null &&
-                props.source == NotificationPreferencesProps.Source.Settings &&
-                pushIsBeingDisabled
-              ) {
-                // Settings flow: push is being disabled — require hardware action proof
-                // before updating preferences.
-                uiState = UiState.SigningActionProof(
-                  preferences = np,
-                  currentPreferences = currentPreferences
+            val fullAccount = props.fullAccount
+            val pushIsBeingDisabled = currentPreferences.isPushBeingDisabledBy(np)
+            if (fullAccount != null &&
+              props.source == NotificationPreferencesProps.Source.Settings &&
+              pushIsBeingDisabled
+            ) {
+              // Settings flow: push is being disabled — require hardware action proof
+              // before updating preferences.
+              uiState = UiState.SigningActionProof
+            } else {
+              // Onboarding flow, or a change that does not require hardware auth
+              uiState = UiState.MainViewState.Submitting
+              scope.launch {
+                sendNotificationPreferences(
+                  props = props,
+                  notificationPreferences = np,
+                  setUiState = { uiState = it }
                 )
-              } else {
-                // Onboarding flow, or a change that does not require hardware auth
-                uiState = UiState.MainViewState.Loading
-                scope.launch {
-                  sendNotificationPreferences(
-                    props = props,
-                    notificationPreferences = np,
-                    setUiState = { uiState = it }
-                  )
-                }
               }
             }
           },
-          onMoneyMovementLearnMore = { uiState = UiState.BrowserViewState.MoneyMovementLearnMoreView }
+          onMoneyMovementLearnMore = {
+            uiState = UiState.BrowserViewState.MoneyMovementLearnMoreView
+          }
         ).asRootScreen(
           alertModel = openSettingsForPushAlertModel(
             pushEnabled = false,
@@ -288,7 +254,7 @@ class NotificationPreferencesUiStateMachineImpl(
             uiState is UiState.MainViewState.EditingWithOverlay.OpenSettings
           },
           bottomSheetModel = (uiState as? UiState.MainViewState.NetworkError)?.let { errorState ->
-            NetworkingErrorSheetModel(
+            networkingErrorSheetModel(
               onClose = errorState.onClose,
               networkingError = errorState.networkingError
             )
@@ -299,6 +265,25 @@ class NotificationPreferencesUiStateMachineImpl(
   }
 
   /**
+   * Show user a basic error message when there's a networking issue.
+   * Closing the error will do different things depending on state:
+   *
+   * On loading, we go back to settings. Onboarding doesn't load.
+   * On saving, the screen will revert to editing and the user can try again.
+   */
+  private fun networkingErrorSheetModel(
+    onClose: () -> Unit,
+    networkingError: Error,
+  ) = SheetModel(
+    size = SheetSize.MIN40,
+    body = NetworkingErrorSheetBodyModel(
+      onClose = onClose,
+      networkingError = networkingError
+    ),
+    onClosed = onClose
+  )
+
+  /**
    * Open external browser links
    */
   private fun openBrowser(
@@ -306,30 +291,6 @@ class NotificationPreferencesUiStateMachineImpl(
     setUiState: (UiState) -> Unit,
   ): ScreenModel =
     when (browserState) {
-      UiState.BrowserViewState.PrivacyView -> {
-        InAppBrowserModel(
-          open = {
-            inAppBrowserNavigator.open(
-              url = "https://bitkey.world/en-US/legal/privacy-notice",
-              onClose = {
-                setUiState(UiState.MainViewState.Editing)
-              }
-            )
-          }
-        ).asModalScreen()
-      }
-      UiState.BrowserViewState.TosView -> {
-        InAppBrowserModel(
-          open = {
-            inAppBrowserNavigator.open(
-              url = "https://bitkey.world/en-US/legal/terms-of-service",
-              onClose = {
-                setUiState(UiState.MainViewState.Editing)
-              }
-            )
-          }
-        ).asModalScreen()
-      }
       UiState.BrowserViewState.MoneyMovementLearnMoreView -> {
         InAppBrowserModel(
           open = {
@@ -368,7 +329,6 @@ class NotificationPreferencesUiStateMachineImpl(
           else -> {}
         }
       }
-      setUiState(UiState.MainViewState.Editing)
       props.onComplete()
     }.onFailure { error ->
       setUiState(
@@ -385,16 +345,18 @@ class NotificationPreferencesUiStateMachineImpl(
      * Hardware authorization (action proof signing) is in progress.
      * Delegates to [HardwareAuthUiStateMachine] for the full NFC signing flow.
      */
-    data class SigningActionProof(
-      val preferences: NotificationPreferences,
-      val currentPreferences: NotificationPreferences,
-    ) : UiState
+    data object SigningActionProof : UiState
 
     sealed interface MainViewState : UiState {
       /**
        * Loading preferences from the server. Only needed for settings. Onboarding should have these defaulted.
        */
       data object Loading : MainViewState
+
+      /**
+       * Preferences are being submitted. Keep current toggle visuals stable while the save completes.
+       */
+      data object Submitting : MainViewState
 
       data object Editing : MainViewState
 
@@ -408,11 +370,6 @@ class NotificationPreferencesUiStateMachineImpl(
       }
 
       /**
-       * User attempted to continue without accepting ToS
-       */
-      data object DidNotSelectToS : MainViewState
-
-      /**
        * Network error. If on load, back action returns user to settings. If on save, return to editing
        * and user can try again.
        */
@@ -421,19 +378,10 @@ class NotificationPreferencesUiStateMachineImpl(
     }
 
     sealed interface BrowserViewState : UiState {
-      data object TosView : BrowserViewState
-
-      data object PrivacyView : BrowserViewState
-
       data object MoneyMovementLearnMoreView : BrowserViewState
     }
   }
 }
-
-internal fun shouldShowNotificationPreferencesOnboardingTos(
-  source: NotificationPreferencesProps.Source,
-  isDesignSystemV2Enabled: Boolean,
-): Boolean = source == NotificationPreferencesProps.Source.Onboarding && !isDesignSystemV2Enabled
 
 /**
  * Returns true if any push notification channel that is currently enabled in [this]

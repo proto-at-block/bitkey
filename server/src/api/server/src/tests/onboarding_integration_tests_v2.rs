@@ -16,7 +16,8 @@ use onboarding::{
 };
 use recovery::entities::{RecoveryDestination, RecoveryStatus};
 use rstest::rstest;
-use time::Duration;
+use std::collections::HashMap;
+use time::{Duration, OffsetDateTime};
 use types::{
     account::{
         bitcoin::Network as AccountNetwork,
@@ -32,7 +33,8 @@ use types::{
 };
 
 use crate::tests::{
-    gen_services,
+    experimentation_integration_tests::DEFAULT_EXPERIMENTATION_HEADERS,
+    gen_services, gen_services_with_overrides,
     lib::{
         create_email_touchpoint, create_full_account, create_full_account_v2, create_lite_account,
         create_new_authkeys, create_onboarded_w3_account, create_pubkey,
@@ -41,6 +43,7 @@ use crate::tests::{
     requests::{axum::TestClient, Response},
     TestContext,
 };
+use crate::GenServiceOverrides;
 use account::service::tests::TestAuthenticationKeys;
 
 #[tokio::test]
@@ -1635,4 +1638,204 @@ async fn w3_update_descriptor_backups_post_onboarding_rejects_keyclaims() {
         StatusCode::FORBIDDEN,
         "W3 post-onboarding descriptor backup with KeyClaims should be rejected"
     );
+}
+
+// ---- `f8e-private-keyset-creation-blocked` gate on create_keyset_v2 ----
+
+const PRIVATE_KEYSET_CREATION_BLOCKED_FLAG: &str = "f8e-private-keyset-creation-blocked";
+
+fn flag_override(value: bool) -> HashMap<String, String> {
+    let mut overrides = HashMap::new();
+    overrides.insert(
+        PRIVATE_KEYSET_CREATION_BLOCKED_FLAG.to_string(),
+        value.to_string(),
+    );
+    overrides
+}
+
+async fn seed_completed_dn_recovery(
+    services: &crate::Services,
+    context: &mut TestContext,
+    account_id: types::account::identifiers::AccountId,
+    completed_at: OffsetDateTime,
+) {
+    let keys = create_new_authkeys(context);
+    let mut recovery = generate_delay_and_notify_recovery(
+        account_id,
+        RecoveryDestination {
+            source_auth_keys_id: types::account::identifiers::AuthKeysId::gen().unwrap(),
+            app_auth_pubkey: keys.app.public_key,
+            hardware_auth_pubkey: keys.hw.public_key,
+            recovery_auth_pubkey: Some(keys.recovery.public_key),
+            hardware_type: HardwareType::default(),
+        },
+        completed_at,
+        RecoveryStatus::Complete,
+        Factor::Hw,
+    );
+    recovery.updated_at = completed_at;
+    services.recovery_service.create(&recovery).await.unwrap();
+}
+
+#[tokio::test]
+async fn create_keyset_v2_gate_allows_when_flag_off() {
+    let overrides = GenServiceOverrides::new().feature_flags(flag_override(false));
+    let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let account = create_full_account(
+        &mut context,
+        &bootstrap.services,
+        AccountNetwork::BitcoinSignet,
+        None,
+    )
+    .await;
+
+    let response = client
+        .create_keyset_v2_with_headers(
+            &account.id.to_string(),
+            DEFAULT_EXPERIMENTATION_HEADERS.clone(),
+            &SpendingKeysetInputV2 {
+                network: Network::Signet,
+                app_pub: create_pubkey(),
+                hardware_pub: create_pubkey(),
+            },
+        )
+        .await;
+    assert_eq!(response.status_code, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn create_keyset_v2_gate_blocks_legacy_when_flag_on() {
+    let overrides = GenServiceOverrides::new().feature_flags(flag_override(true));
+    let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let account = create_full_account(
+        &mut context,
+        &bootstrap.services,
+        AccountNetwork::BitcoinSignet,
+        None,
+    )
+    .await;
+
+    let response = client
+        .create_keyset_v2_with_headers(
+            &account.id.to_string(),
+            DEFAULT_EXPERIMENTATION_HEADERS.clone(),
+            &SpendingKeysetInputV2 {
+                network: Network::Signet,
+                app_pub: create_pubkey(),
+                hardware_pub: create_pubkey(),
+            },
+        )
+        .await;
+    assert_eq!(response.status_code, StatusCode::BAD_REQUEST);
+    assert!(
+        response.body_string.contains("APP_UPGRADE_REQUIRED"),
+        "expected APP_UPGRADE_REQUIRED in body, got: {}",
+        response.body_string
+    );
+}
+
+#[tokio::test]
+async fn create_keyset_v2_gate_skipped_for_private_active_keyset() {
+    // Flag is on, but the account's active keyset is already private — gate is skipped.
+    let overrides = GenServiceOverrides::new().feature_flags(flag_override(true));
+    let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let account = create_full_account_v2(
+        &mut context,
+        &bootstrap.services,
+        types::account::bitcoin::Network::BitcoinSignet,
+        None,
+    )
+    .await;
+
+    let response = client
+        .create_keyset_v2_with_headers(
+            &account.id.to_string(),
+            DEFAULT_EXPERIMENTATION_HEADERS.clone(),
+            &SpendingKeysetInputV2 {
+                network: Network::Signet,
+                app_pub: create_pubkey(),
+                hardware_pub: create_pubkey(),
+            },
+        )
+        .await;
+    assert_eq!(response.status_code, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn create_keyset_v2_gate_bypassed_by_recent_recovery() {
+    let overrides = GenServiceOverrides::new().feature_flags(flag_override(true));
+    let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let account = create_full_account(
+        &mut context,
+        &bootstrap.services,
+        AccountNetwork::BitcoinSignet,
+        None,
+    )
+    .await;
+
+    seed_completed_dn_recovery(
+        &bootstrap.services,
+        &mut context,
+        account.id.clone(),
+        OffsetDateTime::now_utc() - Duration::minutes(5),
+    )
+    .await;
+
+    let response = client
+        .create_keyset_v2_with_headers(
+            &account.id.to_string(),
+            DEFAULT_EXPERIMENTATION_HEADERS.clone(),
+            &SpendingKeysetInputV2 {
+                network: Network::Signet,
+                app_pub: create_pubkey(),
+                hardware_pub: create_pubkey(),
+            },
+        )
+        .await;
+    assert_eq!(response.status_code, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn create_keyset_v2_gate_blocks_when_recovery_outside_grace_window() {
+    let overrides = GenServiceOverrides::new().feature_flags(flag_override(true));
+    let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let account = create_full_account(
+        &mut context,
+        &bootstrap.services,
+        AccountNetwork::BitcoinSignet,
+        None,
+    )
+    .await;
+
+    seed_completed_dn_recovery(
+        &bootstrap.services,
+        &mut context,
+        account.id.clone(),
+        OffsetDateTime::now_utc() - Duration::minutes(45),
+    )
+    .await;
+
+    let response = client
+        .create_keyset_v2_with_headers(
+            &account.id.to_string(),
+            DEFAULT_EXPERIMENTATION_HEADERS.clone(),
+            &SpendingKeysetInputV2 {
+                network: Network::Signet,
+                app_pub: create_pubkey(),
+                hardware_pub: create_pubkey(),
+            },
+        )
+        .await;
+    assert_eq!(response.status_code, StatusCode::BAD_REQUEST);
+    assert!(response.body_string.contains("APP_UPGRADE_REQUIRED"));
 }

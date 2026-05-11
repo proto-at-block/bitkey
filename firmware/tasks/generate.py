@@ -1,6 +1,8 @@
 import pprint
 
+import click
 from invoke import task
+from invoke.exceptions import UnexpectedExit
 
 from bitkey.meson import MesonBuild
 from bitkey.metadata import Metadata
@@ -25,8 +27,17 @@ def meta(c, target=None, generate=False, build_type="dev", fw_image_type="", inp
         target = target if target else c.target
 
         # Find the actual file associated with this target.
-        input = MesonBuild(c, target=target).target.bin
-        assert input, f"Could not find {target}"
+        try:
+            mb = MesonBuild(c, target=target)
+            input = mb.target_path(mb.target.bin)
+        except (AttributeError, FileNotFoundError, OSError, UnexpectedExit):
+            # AttributeError: mb.target is None; UnexpectedExit/OSError: meson introspect failed (build dir missing)
+            input = None
+
+        if input is None or not input.exists():
+            raise click.ClickException(
+                f"Could not locate binary for target '{target}'. Please build first."
+            )
 
     m = Metadata(input)
 

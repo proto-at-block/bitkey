@@ -11,10 +11,14 @@ import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
+import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.nfc.PromptSelectionFormBodyModel
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationScreenModel
 import build.wallet.statemachine.send.signtransaction.SignTransactionNfcBodyModel
 import build.wallet.statemachine.settings.SettingsBodyModel
 import build.wallet.statemachine.ui.awaitUntilBody
+import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.ui.awaitUntilSheet
 import build.wallet.statemachine.utxo.TapAndHoldToConsolidateUtxosBodyModel
 import build.wallet.statemachine.utxo.UtxoConsolidationConfirmationModel
 import build.wallet.statemachine.utxo.UtxoConsolidationTransactionSentModel
@@ -61,8 +65,8 @@ class UtxoConsolidationUiFunctionalTests : FunSpec({
             onContinue()
           }
 
-          // Tap & Hold sheet
-          awaitUntilBody<TapAndHoldToConsolidateUtxosBodyModel> {
+          // Tap & Hold sheet (rendered as bottom sheet over confirmation)
+          awaitUntilSheet<TapAndHoldToConsolidateUtxosBodyModel> {
             onConsolidate()
           }
 
@@ -129,8 +133,8 @@ class UtxoConsolidationUiFunctionalTests : FunSpec({
             onContinue()
           }
 
-          // Tap & Hold sheet
-          awaitUntilBody<TapAndHoldToConsolidateUtxosBodyModel> {
+          // Tap & Hold sheet (rendered as bottom sheet over confirmation)
+          awaitUntilSheet<TapAndHoldToConsolidateUtxosBodyModel> {
             onConsolidate()
           }
 
@@ -202,8 +206,8 @@ class UtxoConsolidationUiFunctionalTests : FunSpec({
             onContinue()
           }
 
-          // Tap & Hold sheet
-          awaitUntilBody<TapAndHoldToConsolidateUtxosBodyModel> {
+          // Tap & Hold sheet (rendered as bottom sheet over confirmation)
+          awaitUntilSheet<TapAndHoldToConsolidateUtxosBodyModel> {
             onConsolidate()
           }
 
@@ -262,13 +266,13 @@ private suspend fun TestContext.navigateToUtxoConsolidation() {
   awaitUntilBody<SettingsBodyModel>(
     matching = {
       it.sectionModels.any { section ->
-        section.rowModels.any { row -> row.title == "Consolidate UTXOs" }
+        section.rowModels.any { row -> row.title == "UTXO Consolidation" }
       }
     }
   ) {
     val consolidationRow = sectionModels
       .flatMap { it.rowModels }
-      .first { it.title == "Consolidate UTXOs" }
+      .first { it.title == "UTXO Consolidation" }
     consolidationRow.onClick()
   }
 }
@@ -277,18 +281,19 @@ private suspend fun TestContext.navigateToUtxoConsolidation() {
  * Approves the W3 device confirmation prompt.
  */
 private suspend fun TestContext.approveW3DeviceConfirmation() {
-  awaitUntilBody<PromptSelectionFormBodyModel> {
-    onApprove()
-  }
+  awaitUntilScreenWithBody<BodyModel>(
+    matchingScreen = { it.bottomSheetModel?.body is PromptSelectionFormBodyModel }
+  ).let { (checkNotNull(it.bottomSheetModel).body as PromptSelectionFormBodyModel).onApprove() }
+  awaitUntilBody<HardwareConfirmationScreenModel> { onConfirm() }
 }
 
 /**
  * Denies the W3 device confirmation prompt.
  */
 private suspend fun TestContext.denyW3DeviceConfirmation() {
-  awaitUntilBody<PromptSelectionFormBodyModel> {
-    onDeny()
-  }
+  awaitUntilScreenWithBody<BodyModel>(
+    matchingScreen = { it.bottomSheetModel?.body is PromptSelectionFormBodyModel }
+  ).let { (checkNotNull(it.bottomSheetModel).body as PromptSelectionFormBodyModel).onDeny() }
 }
 
 /**

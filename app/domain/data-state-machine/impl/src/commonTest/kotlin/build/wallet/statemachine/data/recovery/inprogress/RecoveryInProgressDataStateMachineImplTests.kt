@@ -46,8 +46,8 @@ import build.wallet.firmware.SecureBootConfig
 import build.wallet.fwup.FirmwareData
 import build.wallet.fwup.FirmwareDataServiceFake
 import build.wallet.ktor.result.HttpError
-import build.wallet.nfc.NfcCommandsMock
 import build.wallet.nfc.NfcSessionFake
+import build.wallet.nfc.W3NfcCommandsMock
 import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.platform.RecoveryAuthorizeLostHwResult
@@ -103,7 +103,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
   val fingerprintResetMinFirmwareVersionFeatureFlag = FingerprintResetMinFirmwareVersionFeatureFlag(
     featureFlagDao = FeatureFlagDaoFake()
   )
-  val nfcCommandsMock = NfcCommandsMock(turbines::create)
+  val nfcCommandsMock = W3NfcCommandsMock(turbines::create)
   val firmwareDataService = FirmwareDataServiceFake()
   val fakeChallenge = SignedChallenge.HardwareSignedChallenge(
     challenge = DelayNotifyRecoveryChallengeFake,
@@ -155,6 +155,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     firmwareDataService.reset()
     authTokensService.reset()
     actionProofService.reset()
+    delegatedDecryptionKeyService.reset()
     // Set up tokens so PreparingProofAndKeyTransferState can refresh
     authTokensService.setTokens(
       accountId = StillRecoveringInitiatedRecoveryMock.fullAccountId,
@@ -1583,6 +1584,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       firmwareDeviceInfo = w3DeviceInfo,
       firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
     )
+    nfcCommandsMock.deviceInfoResult = w3DeviceInfo
     descriptorBackupService.getNextAccountIndexResult = Ok(1u)
     delayNotifyService.createSpendingKeysetResult = com.github.michaelbull.result.Ok(F8eSpendingKeysetPrivateWalletMock)
     // activateSpendingKeyset returns signed keys for W3
@@ -1727,6 +1729,101 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     }
   }
 
+  test("lost app recovery does not fetch DDK for only endorsed trusted contacts") {
+    val recovery = recovery()
+    delay(delayDuration)
+    delegatedDecryptionKeyService.getSealedDelegatedDecryptionKeyDataResult =
+      Err(Error("DDK should not be fetched without protected customers"))
+
+    stateMachine.test(
+      props = props(recovery),
+      turbineTimeout = 10.seconds
+    ) {
+      awaitItem().let {
+        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
+        it.startComplete()
+      }
+
+      awaitItem().let {
+        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+        it.nfcTransaction.onSuccess(
+          SignedChallengeAndSeks(
+            signedChallenge = fakeChallenge,
+            csek = CsekFake,
+            ssek = SsekFake,
+            sealedCsek = SealedCsekFake,
+            sealedSsek = SealedSsekFake
+          )
+        )
+      }
+
+      awaitItem().shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
+      awaitItem().shouldBeTypeOf<PreparingProofAndKeyTransferData>()
+      awaitItem().shouldBeTypeOf<AwaitingProofAndKeyTransferLostAppData>()
+
+      delegatedDecryptionKeyService.getSealedDelegatedDecryptionKeyDataCalls.shouldBe(0)
+
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("lost hardware recovery uses replacement telemetry over configured W3 account") {
+    val recovery = hardwareRecovery()
+    delay(delayDuration)
+
+    accountConfigService.setHardwareType(HardwareType.W3)
+    firmwareDataService.firmwareData.value = FirmwareData(
+      firmwareDeviceInfo = createFirmwareDeviceInfo("2.0.0", hwRevision = "w1a-dvt"),
+      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
+    )
+
+    stateMachine.test(
+      props = props(recovery),
+      turbineTimeout = 10.seconds
+    ) {
+      awaitItem().let {
+        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
+        it.startComplete()
+      }
+
+      awaitItem().let {
+        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+        it.nfcSession.shouldBeTypeOf<RecoveryNfcSession.Standard<*>>()
+      }
+
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("lost app recovery uses hardware telemetry over configured W3 default") {
+    val recovery = recovery()
+    delay(delayDuration)
+
+    accountConfigService.setHardwareType(HardwareType.W3)
+    firmwareDataService.firmwareData.value = FirmwareData(
+      firmwareDeviceInfo = createFirmwareDeviceInfo("2.0.0", hwRevision = "w1a-dvt"),
+      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
+    )
+
+    stateMachine.test(
+      props = props(recovery),
+      turbineTimeout = 10.seconds
+    ) {
+      awaitItem().let {
+        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
+        it.startComplete()
+      }
+
+      awaitItem().let {
+        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+        it.nfcSession.shouldBeTypeOf<RecoveryNfcSession.Standard<*>>()
+      }
+
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
   test("hardware descriptor validation fails and retries") {
     val recovery = hardwareRecovery()
     val w3DeviceInfo = createFirmwareDeviceInfo("2.0.0", hwRevision = "w3a-core-evt")
@@ -1737,6 +1834,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       firmwareDeviceInfo = w3DeviceInfo,
       firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
     )
+    nfcCommandsMock.deviceInfoResult = w3DeviceInfo
     descriptorBackupService.getNextAccountIndexResult = Ok(1u)
     delayNotifyService.createSpendingKeysetResult = com.github.michaelbull.result.Ok(F8eSpendingKeysetPrivateWalletMock)
     // activateSpendingKeyset returns signed keys for W3
@@ -1813,6 +1911,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       firmwareDeviceInfo = w3DeviceInfo,
       firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
     )
+    nfcCommandsMock.deviceInfoResult = w3DeviceInfo
     descriptorBackupService.getNextAccountIndexResult = Ok(1u)
     delayNotifyService.createSpendingKeysetResult = com.github.michaelbull.result.Ok(F8eSpendingKeysetPrivateWalletMock)
     // activateSpendingKeyset returns null (no signed keys) - should fail for W3
@@ -1877,6 +1976,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       firmwareDeviceInfo = w3DeviceInfo,
       firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
     )
+    nfcCommandsMock.deviceInfoResult = w3DeviceInfo
     descriptorBackupService.getNextAccountIndexResult = Ok(1u)
     stateMachine.test(
       props = props(recovery),
@@ -1906,6 +2006,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       firmwareDeviceInfo = w3DeviceInfo,
       firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
     )
+    nfcCommandsMock.deviceInfoResult = w3DeviceInfo
     descriptorBackupService.getNextAccountIndexResult = Ok(1u)
     delayNotifyService.createSpendingKeysetResult = com.github.michaelbull.result.Ok(F8eSpendingKeysetPrivateWalletMock)
 
@@ -1950,6 +2051,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       firmwareDeviceInfo = w3DeviceInfo,
       firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate
     )
+    nfcCommandsMock.deviceInfoResult = w3DeviceInfo
     descriptorBackupService.getNextAccountIndexResult = Ok(1u)
     delayNotifyService.createSpendingKeysetResult = com.github.michaelbull.result.Ok(F8eSpendingKeysetPrivateWalletMock)
     delayNotifyService.activateSpendingKeysetResult = com.github.michaelbull.result.Ok(SignedKeysetVerificationResponseMock)

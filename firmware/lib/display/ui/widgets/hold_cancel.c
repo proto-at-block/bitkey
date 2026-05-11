@@ -166,7 +166,8 @@ void hold_cancel_show_with_options(hold_cancel_t* modal, hold_cancel_complete_cb
   // Create HOLD label at top (hidden initially, shown while holding)
   modal->hold_label = lv_label_create(modal->overlay);
   if (modal->hold_label) {
-    lv_label_set_text(modal->hold_label, langpack_get_string(LANGPACK_ID_HOLD_CANCEL_HOLD));
+    lv_label_set_text(modal->hold_label,
+                      langpack_get_string(LANGPACK_ID_CONFIRMATION_KEEP_HOLDING));
     lv_obj_set_style_text_color(modal->hold_label, lv_color_hex(ICON_COLOR_RED), 0);
     lv_obj_set_style_text_font(modal->hold_label, FONT_HOLD, 0);
     lv_obj_set_style_text_align(modal->hold_label, LV_TEXT_ALIGN_CENTER, 0);

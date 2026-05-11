@@ -61,16 +61,34 @@ fun CoachmarkLabel(model: CoachmarkLabelModel) {
       }
     }
   } else {
+    val backgroundColor =
+      when (model.treatment) {
+        CoachmarkLabelTreatment.Light ->
+          if (isDesignSystemV2Enabled) {
+            WalletTheme.colors.inverseBackground
+          } else {
+            WalletTheme.colors.newCoachmarkLightBackground
+          }
+        CoachmarkLabelTreatment.Dark -> WalletTheme.colors.bitkeyPrimary
+        CoachmarkLabelTreatment.Disabled -> WalletTheme.colors.subtleBackground
+      }
+    val textColor =
+      when (model.treatment) {
+        CoachmarkLabelTreatment.Light ->
+          if (isDesignSystemV2Enabled) {
+            WalletTheme.colors.background
+          } else {
+            WalletTheme.colors.newCoachmarkLightText
+          }
+        CoachmarkLabelTreatment.Dark -> WalletTheme.colors.primaryForeground
+        CoachmarkLabelTreatment.Disabled -> WalletTheme.colors.foreground10
+      }
+
     Box(
       modifier = Modifier
         .clip(CircleShape)
-        .background(
-          when (model.treatment) {
-            CoachmarkLabelTreatment.Light -> WalletTheme.colors.newCoachmarkLightBackground
-            CoachmarkLabelTreatment.Dark -> WalletTheme.colors.bitkeyPrimary
-            CoachmarkLabelTreatment.Disabled -> WalletTheme.colors.subtleBackground
-          }
-        ).padding(horizontal = 8.dp, vertical = 3.dp)
+        .background(backgroundColor)
+        .padding(horizontal = 8.dp, vertical = 3.dp)
     ) {
       Label(
         text = model.text,
@@ -79,12 +97,7 @@ fun CoachmarkLabel(model: CoachmarkLabelModel) {
           lineHeight = 18.sp,
           fontFamily = FontFamily(Font(Res.font.inter_semibold)),
           fontWeight = FontWeight(600),
-          color =
-            when (model.treatment) {
-              CoachmarkLabelTreatment.Light -> WalletTheme.colors.newCoachmarkLightText
-              CoachmarkLabelTreatment.Dark -> WalletTheme.colors.primaryForeground
-              CoachmarkLabelTreatment.Disabled -> WalletTheme.colors.foreground10
-            },
+          color = textColor,
           textAlign = TextAlign.Center
         )
       )

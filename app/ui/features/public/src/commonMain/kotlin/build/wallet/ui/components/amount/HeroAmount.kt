@@ -14,7 +14,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
@@ -151,8 +153,8 @@ internal fun HeroAmountContainer(
     verticalArrangement = Arrangement.spacedBy((-4).dp),
     horizontalAlignment = horizontalAlignment,
     topContent = { topContent() },
-    bottomContent = contextLine?.let {
-      {
+    bottomContent = {
+      if (contextLine != null) {
         HeroAmountBottom(
           contextLine = contextLine,
           contextLineTreatment = contextLineTreatment,
@@ -160,6 +162,19 @@ internal fun HeroAmountContainer(
           centerWhenDesignSystemV2 = centerWhenDesignSystemV2,
           onSwapClick = onSwapClick,
           isLoading = isLoading
+        )
+      } else {
+        Spacer(
+          Modifier.height(
+            heroAmountBottomHeight(
+              contextLineTreatment =
+                if (disabled) {
+                  LabelTreatment.Disabled
+                } else {
+                  contextLineTreatment
+                }
+            )
+          )
         )
       }
     },
@@ -175,7 +190,7 @@ internal fun HeroAmountContainer(
 
 @Composable
 internal fun HeroAmountBottom(
-  contextLine: String?,
+  contextLine: String,
   contextLineTreatment: LabelTreatment = LabelTreatment.Secondary,
   disabled: Boolean = false,
   centerWhenDesignSystemV2: Boolean = false,
@@ -214,7 +229,7 @@ internal fun HeroAmountBottom(
         }
         AutoResizedLabel(
           modifier = Modifier.hideWhenLoading(isLoading),
-          text = contextLine.orEmpty(),
+          text = contextLine,
           type = LabelType.Body1Medium,
           treatment =
             if (disabled) {
@@ -246,6 +261,19 @@ internal fun HeroAmountBottom(
       }
     }
   }
+}
+
+@Composable
+private fun heroAmountBottomHeight(
+  contextLineTreatment: LabelTreatment,
+): Dp {
+  val contextLineHeight = with(LocalDensity.current) {
+    WalletTheme.labelStyle(
+      type = LabelType.Body1Medium,
+      treatment = contextLineTreatment
+    ).lineHeight.toDp()
+  }
+  return 2.dp + maxOf(contextLineHeight, 20.dp)
 }
 
 @Composable

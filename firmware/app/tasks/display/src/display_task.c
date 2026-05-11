@@ -7,6 +7,7 @@
 #include "display_send.h"
 #include "log.h"
 #include "mcu_gpio.h"
+#include "mcu_reset.h"
 #include "printf.h"
 #include "rtos.h"
 #include "rtos_queue.h"
@@ -16,6 +17,8 @@
 #include "uc_route.h"
 #include "ui.h"
 #include "uxc.pb.h"
+
+#define UXC_SEND_FAILURE_RESET_THRESHOLD 2u
 
 #define DISPLAY_TASK_STACK_SIZE 8192
 #define DISPLAY_TASK_PRIORITY   RTOS_THREAD_PRIORITY_NORMAL
@@ -92,6 +95,7 @@ static bool display_send_queue_msg_impl(const display_send_msg_t* msg) {
 static void display_send_thread(void* UNUSED(args)) {
   // Wait for power to be ready before processing messages
   sysevent_wait(SYSEVENT_POWER_READY, true);
+  uint8_t send_failures = 0;
 
   // Register the queue implementation with lib/display
   display_send_register(display_send_queue_msg_impl);
@@ -109,11 +113,20 @@ static void display_send_thread(void* UNUSED(args)) {
       fwpb_uxc_msg_device* proto = uc_alloc_send_proto();
       if (proto) {
         msg.handler(proto, msg.payload);
+        bool success;
         if (msg.flags & DISPLAY_SEND_FLAG_IMMEDIATE) {
-          uc_send_immediate(proto);
+          success = uc_send_immediate(proto);
         } else {
-          uc_send(proto);
+          success = uc_send(proto);
         }
+
+        if (success) {
+          send_failures = 0;
+        } else if (++send_failures >= UXC_SEND_FAILURE_RESET_THRESHOLD) {
+          LOGW("Reset UXC: %u send failures", send_failures);
+          mcu_reset_with_reason(MCU_RESET_SOFTWARE);
+        }
+
         // Signal completion if caller provided a flag
         if (msg.sent) {
           *msg.sent = true;

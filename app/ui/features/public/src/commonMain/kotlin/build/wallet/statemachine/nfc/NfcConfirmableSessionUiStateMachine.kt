@@ -11,12 +11,14 @@ import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.nfc.NfcException
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.EmulatedPromptOption
 import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.platform.NfcProgressCallback
+import build.wallet.nfc.platform.detectedDeviceInfo
 import build.wallet.nfc.platform.toSessionFn
 import build.wallet.nfc.transaction.NfcTransaction
 import build.wallet.statemachine.core.*
@@ -233,12 +235,18 @@ class NfcConfirmableSessionUiStateMachineImpl(
     var uiState: NfcConfirmableSessionUiState<T> by remember {
       mutableStateOf(InNfcSession(null))
     }
+    // Hoisted to parent scope so it survives across state transitions (InNfcSession →
+    // AwaitingConfirmation → InNfcSession). A branch-local remember would be disposed
+    // when the composable leaves composition during the confirmation UI hop.
+    var capturedDeviceInfo by remember { mutableStateOf<FirmwareDeviceInfo?>(null) }
 
     return when (val currentState = uiState) {
       is InNfcSession -> inNfcSessionModel(
         currentState = currentState,
         props = props,
-        onStateChange = { uiState = it }
+        onStateChange = { uiState = it },
+        capturedDeviceInfo = capturedDeviceInfo,
+        onDeviceInfoCaptured = { capturedDeviceInfo = it }
       )
       is AwaitingConfirmation -> awaitingConfirmationModel(
         currentState = currentState,
@@ -262,6 +270,8 @@ class NfcConfirmableSessionUiStateMachineImpl(
     currentState: InNfcSession<T>,
     props: NfcConfirmableSessionUIStateMachineProps<T>,
     onStateChange: (NfcConfirmableSessionUiState<T>) -> Unit,
+    capturedDeviceInfo: FirmwareDeviceInfo?,
+    onDeviceInfoCaptured: (FirmwareDeviceInfo) -> Unit,
   ): ScreenModel {
     val continuation = currentState.fetchResult
     // Wrap the session lambda to resolve any RequiresTransfer within the active
@@ -280,6 +290,10 @@ class NfcConfirmableSessionUiStateMachineImpl(
           }
           interaction = interaction.transferAndFetch(session, commands, NfcProgressCallback {})
         }
+        // Capture device info from first tap for second-tap reuse
+        if (continuation == null) {
+          onDeviceInfoCaptured(commands.detectedDeviceInfo(session))
+        }
         interaction
       }
     val wrappedConfig = props.config.copy(
@@ -289,7 +303,10 @@ class NfcConfirmableSessionUiStateMachineImpl(
       // Only show the device confirmation screen on the second tap (when fetching the
       // confirmation result). On the first tap the device is entering confirmation-pending
       // state and hasn't been approved yet.
-      showDeviceConfirmation = if (continuation != null) props.config.showDeviceConfirmation else false
+      showDeviceConfirmation = if (continuation != null) props.config.showDeviceConfirmation else false,
+      // Thread captured device info so the second tap reuses the resolved identity
+      // instead of probing with a redundant getDeviceInfo() call.
+      resolvedDeviceInfoOverride = continuation?.let { capturedDeviceInfo }
     )
     val scope = rememberStableCoroutineScope()
     val nfcModel = nfcSessionUIStateMachine.model(

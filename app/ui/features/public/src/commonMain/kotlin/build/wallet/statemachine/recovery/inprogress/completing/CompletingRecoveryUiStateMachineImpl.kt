@@ -29,6 +29,7 @@ import build.wallet.crypto.WsmVerifier
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
+import build.wallet.nfc.platform.requireW3
 import build.wallet.nfc.transaction.RecoveryNfcSession
 import build.wallet.recovery.LocalRecoveryAttemptProgress
 import build.wallet.recovery.LocalRecoveryAttemptProgress.CompletedRecovery
@@ -351,7 +352,7 @@ class CompletingRecoveryUiStateMachineImpl(
                 // Determine network
                 val networkMainnet = data.networkType == BitcoinNetworkType.BITCOIN
 
-                val signature = commands.verifyKeysAndBuildDescriptor(
+                val signature = commands.requireW3(session).verifyKeysAndBuildDescriptor(
                   session = session,
                   appSpendingKey = appSpendingKey,
                   appSpendingKeyChaincode = appSpendingKeyChaincode,

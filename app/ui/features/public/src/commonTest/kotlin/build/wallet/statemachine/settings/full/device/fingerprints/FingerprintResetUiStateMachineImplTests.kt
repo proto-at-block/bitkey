@@ -28,6 +28,7 @@ import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachineTester
+import build.wallet.statemachine.core.form.FormMainContentModel.Timer.Display.RemainingDuration
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
@@ -40,7 +41,6 @@ import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.awaitSheet
 import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.time.ClockFake
-import build.wallet.time.DurationFormatterFake
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -90,7 +90,6 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
   val stateMachine = FingerprintResetUiStateMachineImpl(
     nfcSessionUIStateMachine = nfcSessionUiStateMachine,
     clock = clock,
-    durationFormatter = DurationFormatterFake(),
     fingerprintResetService = fingerprintResetService,
     remainingRecoveryDelayWordsUpdateFrequency = RemainingRecoveryDelayWordsUpdateFrequency(1.milliseconds),
     enrollingFingerprintUiStateMachine = enrollingFingerprintUiStateMachine,
@@ -225,7 +224,9 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
         header.shouldNotBeNull()
           .headline.shouldBe("Fingerprint reset in progress...")
 
-        durationTitle.shouldBe("3d")
+        timerModel.display
+          .shouldBeInstanceOf<RemainingDuration>()
+          .duration.shouldBe(3.days)
       }
     }
   }

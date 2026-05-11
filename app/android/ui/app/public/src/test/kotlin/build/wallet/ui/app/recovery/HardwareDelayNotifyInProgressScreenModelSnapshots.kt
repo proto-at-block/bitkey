@@ -1,5 +1,6 @@
 package build.wallet.ui.app.recovery
 
+import app.cash.paparazzi.DeviceConfig
 import build.wallet.asProgress
 import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.statemachine.recovery.inprogress.waiting.HardwareDelayNotifyInProgressScreenModel
@@ -16,7 +17,21 @@ class HardwareDelayNotifyInProgressScreenModelSnapshots : FunSpec({
       FormScreen(
         HardwareDelayNotifyInProgressScreenModel(
           onCancelRecovery = {},
-          durationTitle = "2 days",
+          progress = 0.3f.asProgress().getOrThrow(),
+          remainingDelayPeriod = 2.days,
+          onExit = {}
+        )
+      )
+    }
+  }
+
+  test("hardware delay notify verification in progress screen on small device") {
+    paparazzi.snapshot(
+      deviceConfig = DeviceConfig.NEXUS_4
+    ) {
+      FormScreen(
+        HardwareDelayNotifyInProgressScreenModel(
+          onCancelRecovery = {},
           progress = 0.3f.asProgress().getOrThrow(),
           remainingDelayPeriod = 2.days,
           onExit = {}

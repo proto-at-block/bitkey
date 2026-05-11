@@ -29,7 +29,7 @@ fun CustomElectrumServerScreen(
     ),
     designSystemV2Title = "Custom Electrum Server",
     designSystemV2Scrollable = false,
-    designSystemV2MainContentAlignment = FormScreenContentVerticalAlignment.Bottom,
+    designSystemV2MainContentAlignment = FormScreenContentVerticalAlignment.Top,
     mainContent = {
       SwitchCard(model = model.switchCardModel)
 

@@ -7,8 +7,10 @@ import build.wallet.bitkey.relationships.UnendorsedTrustedContact
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.RenderContext
+import build.wallet.statemachine.recovery.socrec.recoveryContactDesignSystemV2Header
 import build.wallet.ui.model.SheetClosingClick
 import build.wallet.ui.model.button.ButtonModel
 
@@ -28,7 +30,8 @@ fun ViewingTrustedContactSheetModel(
   subline = "If you ever get a new phone, ${contact.trustedContactAlias.alias} can help verify you so you can regain access to your wallet.",
   removeButtonText = "Remove Recovery Contact",
   onRemove = onRemove,
-  onClosed = onClosed
+  onClosed = onClosed,
+  useDesignSystemV2RecoveryContactIcon = !contact.isBeneficiary
 )
 
 /**
@@ -50,7 +53,8 @@ fun ViewingTamperedContactSheetModel(
     else -> "Remove contact"
   },
   onRemove = onRemove,
-  onClosed = onClosed
+  onClosed = onClosed,
+  useDesignSystemV2RecoveryContactIcon = !contact.isBeneficiary
 )
 
 /**
@@ -72,7 +76,8 @@ fun ViewingFailedContactSheetModel(
     else -> "Remove contact"
   },
   onRemove = onRemove,
-  onClosed = onClosed
+  onClosed = onClosed,
+  useDesignSystemV2RecoveryContactIcon = !contact.isBeneficiary
 )
 
 /**
@@ -98,13 +103,15 @@ fun ViewingRecoveryContactSheetModel(
   removeButtonText: String,
   onRemove: () -> Unit,
   onClosed: () -> Unit,
+  useDesignSystemV2RecoveryContactIcon: Boolean,
 ) = SheetModel(
   body = ViewingRecoveryContactSheetBodyModel(
     headline = headline,
     subline = subline,
     removeButtonText = removeButtonText,
     onRemove = onRemove,
-    onClosed = onClosed
+    onClosed = onClosed,
+    useDesignSystemV2RecoveryContactIcon = useDesignSystemV2RecoveryContactIcon
   ),
   onClosed = onClosed
 )
@@ -115,6 +122,7 @@ private data class ViewingRecoveryContactSheetBodyModel(
   val removeButtonText: String,
   val onRemove: () -> Unit,
   val onClosed: () -> Unit,
+  val useDesignSystemV2RecoveryContactIcon: Boolean,
 ) : FormBodyModel(
     id = SocialRecoveryEventTrackerScreenId.TC_MANAGEMENT_DETAIL_SHEET,
     onBack = onClosed,
@@ -134,5 +142,17 @@ private data class ViewingRecoveryContactSheetBodyModel(
         size = ButtonModel.Size.Footer,
         onClick = SheetClosingClick(onRemove)
       ),
-    renderContext = RenderContext.Sheet
+    renderContext = RenderContext.Sheet,
+    designSystemV2Model =
+      FormDesignSystemV2Model(
+        header =
+          recoveryContactDesignSystemV2Header(
+            headline = headline,
+            subline = subline,
+            alignment = FormHeaderModel.Alignment.CENTER
+          )
+      ).takeIf { useDesignSystemV2RecoveryContactIcon }
   )
+
+private val TrustedContact.isBeneficiary: Boolean get() =
+  TrustedContactRole.Beneficiary == roles.singleOrNull()

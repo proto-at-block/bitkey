@@ -120,7 +120,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
                 prefillValue = (state.touchpointPrefill as? PhoneNumberTouchpoint)?.value
                   ?: (storedTouchpoint as? PhoneNumberTouchpoint)?.value,
                 subline = if (props.onLearnMore == null && props.entryPoint is OnboardingAndRecovery) {
-                  "We'll only use this phone number to notify you of wallet recovery attempts and privacy updates, nothing else."
+                  "We'll only use this phone number to notify you of wallet recovery attempts, inheritance, and privacy updates, nothing else."
                 } else {
                   null
                 },
@@ -178,7 +178,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
                 previousEmail = (state.touchpointPrefill as? EmailTouchpoint)?.value
                   ?: (storedTouchpoint as? EmailTouchpoint)?.value,
                 subline = if (props.onLearnMore == null && props.entryPoint is OnboardingAndRecovery) {
-                  "We'll only use this email to notify you of wallet recovery attempts and privacy updates, nothing else."
+                  "We'll only use this email to notify you of wallet recovery attempts, inheritance, and privacy updates, nothing else."
                 } else {
                   null
                 },
@@ -679,4 +679,3 @@ private fun criticalAlertsSublineWithLearnMore(onLearnMore: () -> Unit): LabelMo
     bold = false,
     color = LabelModel.Color.PRIMARY
   )
-

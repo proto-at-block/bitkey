@@ -43,7 +43,7 @@ internal fun bitcoinDisplayUnitSelectionSheetModel(
           model = IconModel(
             icon = Icon.SmallIconCheckFilled,
             iconSize = IconSize.Small,
-            iconTint = IconTint.Primary
+            iconTint = IconTint.InverseBackground
           )
         )
       } else {
@@ -55,7 +55,6 @@ internal fun bitcoinDisplayUnitSelectionSheetModel(
   return SheetModel(
     body = BitcoinDisplayUnitSelectionBodyModel(
       items = items,
-      selectedUnit = selectedUnit,
       isBip177Enabled = isBip177Enabled,
       onSelectUnit = onSelectUnit
     ),
@@ -66,7 +65,6 @@ internal fun bitcoinDisplayUnitSelectionSheetModel(
 
 data class BitcoinDisplayUnitSelectionBodyModel(
   val items: ImmutableList<ListItemModel>,
-  val selectedUnit: BitcoinDisplayUnit,
   val isBip177Enabled: Boolean,
   val onSelectUnit: (BitcoinDisplayUnit) -> Unit,
 ) : FormBodyModel(
@@ -132,7 +130,7 @@ private fun bitcoinDisplayUnitSnapshotModel(
           model = IconModel(
             icon = Icon.SmallIconCheckFilled,
             iconSize = IconSize.Small,
-            iconTint = IconTint.Primary
+            iconTint = IconTint.InverseBackground
           )
         )
       } else {
@@ -140,7 +138,6 @@ private fun bitcoinDisplayUnitSnapshotModel(
       }
     )
   }.toImmutableList(),
-  selectedUnit = selectedUnit,
   isBip177Enabled = isBip177Enabled,
   onSelectUnit = {}
 )

@@ -10,6 +10,7 @@ import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.Bip177FeatureFlag
+import build.wallet.feature.setFlagValue
 import build.wallet.inappsecurity.HideBalancePreferenceFake
 import build.wallet.money.currency.FiatCurrenciesServiceFake
 import build.wallet.money.currency.GBP
@@ -74,6 +75,7 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
   val props = AppearancePreferenceProps(onBack = { onBackCalls += Unit })
 
   beforeTest {
+    bip177FeatureFlag.setFlagValue(true)
     bitcoinDisplayPreferenceRepository.clear()
     fiatCurrencyPreferenceRepository.clear()
     currencyConverter.reset()
@@ -234,11 +236,11 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
 
       awaitBody<AppearancePreferenceBodyModel> {
         selectedSection.shouldBe(AppearanceSection.CURRENCY)
+        bitcoinDisplayPreferenceString.shouldBe("₿")
         onBitcoinDisplayPreferenceClick()
       }
 
       awaitUntilSheet<BitcoinDisplayUnitSelectionBodyModel> {
-        selectedUnit.shouldBe(BitcoinDisplayUnit.Satoshi)
         onSelectUnit(BitcoinDisplayUnit.Bitcoin)
       }
 

@@ -6,6 +6,7 @@ cognito_users = [
   "bkosciarz@block.xyz",
   "angus@block.xyz",
   "jm@block.xyz",
-  "calebjohnston@block.xyz"
+  "calebjohnston@block.xyz",
+  "hjz@block.xyz"
 ]
 w3_uxc_imported_key_id = "mrk-8b01c6706e9e4e6d97d7a063ecb5a2a2"

@@ -13,14 +13,17 @@ import build.wallet.nfc.NfcSession
 import build.wallet.nfc.NfcSession.RequirePairedHardware
 import build.wallet.nfc.haptics.NfcHaptics
 import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.actualHardwareType
+import build.wallet.nfc.platform.detectedDeviceInfo
+import build.wallet.nfc.platform.requireW3
 import build.wallet.recovery.Recovery
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
-import kotlinx.datetime.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.datetime.Clock
 
 /**
  * Sets the message to "Success" upon a successful transaction.
@@ -90,10 +93,10 @@ internal fun showConfirmation() =
       val result = next(session, commands)
       if (
         session.parameters.showDeviceConfirmation &&
-        session.parameters.hardwareType == HardwareType.W3
+        commands.actualHardwareType(session) == HardwareType.W3
       ) {
         runCatching {
-          commands.showConfirmationScreen(
+          commands.requireW3(session).showConfirmationScreen(
             session = session,
             lockOnDismiss = session.parameters.shouldLock
           )
@@ -130,7 +133,7 @@ private suspend fun maybeLockDevice(
   commands: NfcCommands,
 ) {
   // Don't lock on W3 since W3 taps require confirmation, and the user can lock W3 themselves.
-  if (session.parameters.shouldLock && session.parameters.hardwareType != HardwareType.W3) {
+  if (session.parameters.shouldLock && commands.actualHardwareType(session) != HardwareType.W3) {
     commands.lockDevice(session)
   }
 }
@@ -147,46 +150,46 @@ private suspend fun maybeLockDevice(
  *
  * @param firmwareDeviceInfoDao DAO used for the W3 serial comparison path.
  */
-internal fun validateHardwareIsPaired(firmwareDeviceInfoDao: FirmwareDeviceInfoDao) =
-  NfcTransactionInterceptor { next ->
-    { session, commands ->
-      val requiresPairedHardware = session.parameters.requirePairedHardware
-      if (requiresPairedHardware is RequirePairedHardware.Required) {
-        when (session.parameters.hardwareType) {
-          HardwareType.W3 -> {
-            // Compare serial from the tapped device against the stored paired serial.
-            // This runs before collectFirmwareTelemetry, so the DAO still holds the
-            // previously-paired device's serial (not the just-tapped device's).
-            val expectedSerial = firmwareDeviceInfoDao.getDeviceInfo().get()?.serial
-            val actualSerial = commands.getDeviceInfo(session).serial
-            if (expectedSerial == null || actualSerial != expectedSerial) {
-              throw NfcException.UnpairedHardwareError()
-            }
+internal fun validateHardwareIsPaired(
+  firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
+) = NfcTransactionInterceptor { next ->
+  { session, commands ->
+    val requiresPairedHardware = session.parameters.requirePairedHardware
+    if (requiresPairedHardware is RequirePairedHardware.Required) {
+      when (commands.actualHardwareType(session)) {
+        HardwareType.W3 -> {
+          // Compare serial from the tapped device against the stored paired serial.
+          // This runs before collectFirmwareTelemetry, so the DAO still holds the
+          // previously-paired device's serial (not the just-tapped device's).
+          // Use getDeviceInfo (live hardware read) rather than detectedDeviceInfo
+          // (which returns the cached/overridden identity from a prior tap).
+          val expectedSerial = firmwareDeviceInfoDao.getDeviceInfo().get()?.serial
+          val actualSerial = commands.getDeviceInfo(session).serial
+          if (expectedSerial == null || actualSerial != expectedSerial) {
+            throw NfcException.UnpairedHardwareError()
           }
-          HardwareType.W1 -> {
-            // W1 / unknown: sign a random challenge and verify the signature.
-            val challenge = requiresPairedHardware.challenge
-            val signature = try {
-              commands.signChallenge(session, challenge)
-            } catch (e: FeatureNotSupported) {
-              throw NfcException.UnpairedHardwareError(cause = e)
-            }
+        }
+        HardwareType.W1 -> {
+          // W1 / unknown: sign a random challenge and verify the signature.
+          val challenge = requiresPairedHardware.challenge
+          val signature = try {
+            commands.signChallenge(session, challenge)
+          } catch (e: FeatureNotSupported) {
+            throw NfcException.UnpairedHardwareError(cause = e)
+          }
 
-            val challengeSuccessful =
-              requiresPairedHardware.checkHardwareIsPaired(signature, challenge)
-            if (!challengeSuccessful) {
-              throw NfcException.UnpairedHardwareError()
-            }
-          }
-          null -> {
-            // no-op
+          val challengeSuccessful =
+            requiresPairedHardware.checkHardwareIsPaired(signature, challenge)
+          if (!challengeSuccessful) {
+            throw NfcException.UnpairedHardwareError()
           }
         }
       }
-
-      next(session, commands)
     }
+
+    next(session, commands)
   }
+}
 
 /**
  * Rejects W3 NFC taps during a hardware-factor Delay+Notify waiting period by throwing
@@ -204,7 +207,7 @@ internal fun rejectDuringHardwareDelayNotify(
   { session, commands ->
     if (
       !session.parameters.skipLostHardwareCheck &&
-      session.parameters.hardwareType == HardwareType.W3 &&
+      commands.actualHardwareType(session) == HardwareType.W3 &&
       isHardwareDelayNotifyPending(recoveryStatusService, clock)
     ) {
       throw NfcException.HardwareReplacementPendingError()

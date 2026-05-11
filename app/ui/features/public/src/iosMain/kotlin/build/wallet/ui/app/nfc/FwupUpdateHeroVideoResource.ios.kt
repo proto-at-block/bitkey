@@ -26,7 +26,12 @@ internal actual fun fwupUpdateHeroVideoResource(
   return Res.getVideoResource(
     when (hardwareType) {
       HardwareType.W1 -> "pair"
-      HardwareType.W3 -> return null
+      HardwareType.W3 ->
+        if (theme == Theme.DARK) {
+          "firmware_update_dark"
+        } else {
+          "firmware_update_light"
+        }
     }
   )
 }
@@ -141,10 +146,14 @@ private fun FwupUpdateHeroIosStillImage(
     },
     modifier = modifier,
     update = { imageView ->
-      imageView.imageName = if (theme == Theme.DARK) "fwup_update_ios_dark" else "fwup_update_ios_light"
+      val nextImageName = if (theme == Theme.DARK) "fwup_update_ios_dark" else "fwup_update_ios_light"
+      if (imageView.imageName != nextImageName) {
+        imageView.imageName = nextImageName
+        imageView.updateImage()
+      }
       imageView.currentContentScale = contentScale
-      imageView.updateImage()
       imageView.alpha = alpha.toDouble()
+      imageView.setNeedsLayout()
     },
     properties = UIKitInteropProperties(
       isInteractive = false,

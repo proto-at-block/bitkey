@@ -10,17 +10,17 @@ import build.wallet.statemachine.core.form.FormMainContentModel.Timer
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
-import build.wallet.ui.model.button.ButtonModel.Size.Regular
+import build.wallet.ui.model.button.ButtonModel.Size.ToolbarAccessory
 import build.wallet.ui.model.button.ButtonModel.Treatment.Secondary
-import build.wallet.ui.model.button.ButtonModel.Treatment.TertiaryDestructive
+import build.wallet.ui.model.button.ButtonModel.Treatment.SecondaryDestructive
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.ButtonAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 
 data class HardwareDelayNotifyInProgressScreenModel(
   val onCancelRecovery: () -> Unit,
-  val durationTitle: String,
   val progress: Progress,
   val remainingDelayPeriod: Duration,
   val onExit: () -> Unit,
@@ -32,9 +32,9 @@ data class HardwareDelayNotifyInProgressScreenModel(
       trailingAccessory = ButtonAccessory(
         ButtonModel(
           text = "Cancel recovery",
-          treatment = TertiaryDestructive,
+          treatment = SecondaryDestructive,
           onClick = StandardClick { onCancelRecovery() },
-          size = Regular
+          size = ToolbarAccessory
         )
       )
     ),
@@ -48,11 +48,16 @@ data class HardwareDelayNotifyInProgressScreenModel(
     ),
     mainContentList = immutableListOf(
       Timer(
-        title = durationTitle,
+        title = "",
         subtitle = "remaining",
         timerProgress = progress,
         direction = CounterClockwise,
-        timerRemainingSeconds = remainingDelayPeriod.inWholeSeconds
+        timerRemainingSeconds = remainingDelayPeriod.inWholeSeconds,
+        display = Timer.Display.RemainingDuration(
+          duration = remainingDelayPeriod,
+          enableLocalSecondsTick = remainingDelayPeriod < FinalMinuteSecondsTickThreshold
+        ),
+        style = Timer.Style.FOREGROUND
       )
     ),
     primaryButton = null,
@@ -63,3 +68,5 @@ data class HardwareDelayNotifyInProgressScreenModel(
       onClick = StandardClick { onExit() }
     )
   )
+
+private val FinalMinuteSecondsTickThreshold = 2.minutes

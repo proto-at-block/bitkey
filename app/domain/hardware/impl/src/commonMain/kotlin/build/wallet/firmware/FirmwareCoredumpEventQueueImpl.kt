@@ -18,9 +18,9 @@ class FirmwareCoredumpEventQueueImpl(
       firmwareCoredumpsQueries.append(
         coredump = item.coredump.toByteArray(),
         serial = item.identifiers.serial,
-        swType = item.identifiers.swType,
+        swType = item.identifiers.memfaultSoftwareType(),
         swVersion = item.identifiers.version,
-        hwVersion = item.identifiers.hwRevision,
+        hwVersion = item.identifiers.memfaultHwRevision(),
         mcuInfo = item.identifiers.mcuInfo
       )
     }

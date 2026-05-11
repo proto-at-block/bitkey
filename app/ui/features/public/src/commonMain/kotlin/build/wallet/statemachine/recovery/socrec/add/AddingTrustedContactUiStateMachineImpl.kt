@@ -26,7 +26,6 @@ import build.wallet.statemachine.auth.HardwareAuthUiProps
 import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.input.NameInputBodyModel
-import build.wallet.statemachine.notifications.TosInfo
 import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiStateMachineImpl.State.*
 import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsProps
@@ -249,7 +248,6 @@ class AddingTrustedContactUiStateMachineImpl(
                 onClose = {}
               )
             },
-            privacyLink = {},
             onTermsAgreeToggle = { isChecked ->
               state = SaveWithBitkeyRequestState(
                 tcName = current.tcName,

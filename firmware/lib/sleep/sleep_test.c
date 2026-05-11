@@ -176,6 +176,101 @@ Test(sleep_test, inhibit_restarts_from_current_time, .init = init) {
   cr_assert(power_down_called);
 }
 
+Test(sleep_test, begin_shutdown_returns_first_call, .init = init) {
+  cr_assert_eq(sleep_is_shutting_down(), false);
+
+  // First call latches and returns true
+  cr_assert(sleep_begin_shutdown());
+  cr_assert(sleep_is_shutting_down());
+
+  // Subsequent calls return false
+  cr_assert_eq(sleep_begin_shutdown(), false);
+  cr_assert_eq(sleep_begin_shutdown(), false);
+}
+
+Test(sleep_test, begin_shutdown_stops_armed_timer, .init = init) {
+  sleep_start_power_timer();
+  cr_assert(g_timer->handle.active);
+
+  sleep_begin_shutdown();
+
+  // Timer has been stopped as part of latching shutdown.
+  cr_assert_eq(g_timer->handle.active, false);
+}
+
+Test(sleep_test, refresh_is_noop_after_shutdown_latch, .init = init) {
+  sleep_start_power_timer();
+  advance_time_ms(10000);
+
+  sleep_begin_shutdown();
+  cr_assert_eq(g_timer->handle.active, false);
+
+  // Any later refresh (captouch, NFC, UXC touch, charger transition, etc.)
+  // must not re-arm the timer.
+  sleep_refresh_power_timer();
+  cr_assert_eq(g_timer->handle.active, false,
+               "refresh must not restart the timer after shutdown latch");
+}
+
+Test(sleep_test, start_is_noop_after_shutdown_latch, .init = init) {
+  sleep_begin_shutdown();
+
+  sleep_start_power_timer();
+  cr_assert_eq(g_timer->handle.active, false, "start must not arm the timer after shutdown latch");
+
+  sleep_start_power_timer_with_timeout(1000);
+  cr_assert_eq(g_timer->handle.active, false,
+               "start_with_timeout must not arm the timer after shutdown latch");
+}
+
+Test(sleep_test, inhibit_is_noop_after_shutdown_latch, .init = init) {
+  sleep_start_power_timer();
+  sleep_begin_shutdown();
+
+  // inhibit/clear_inhibit/charger-extension after the latch must not arm or
+  // modify the timer.
+  sleep_inhibit(30000);
+  cr_assert_eq(g_timer->handle.active, false);
+
+  sleep_clear_inhibit();
+  cr_assert_eq(g_timer->handle.active, false);
+
+  sleep_set_charger_extension(30000);
+  cr_assert_eq(g_timer->handle.active, false);
+}
+
+Test(sleep_test, cancel_shutdown_clears_latch, .init = init) {
+  sleep_begin_shutdown();
+  cr_assert(sleep_is_shutting_down());
+
+  sleep_cancel_shutdown();
+  cr_assert_eq(sleep_is_shutting_down(), false);
+
+  // After cancel, mutators are no longer no-ops — caller can resume normal
+  // sleep operation by restarting the timer.
+  sleep_start_power_timer();
+  cr_assert(g_timer->handle.active);
+}
+
+// Guards the very bug that motivated this hardening: a one-shot timer fires,
+// `timer_running` stays stale, and a later event re-arms the timer so the
+// shutdown appears to "complete" on a second expiration.
+Test(sleep_test, timer_cannot_re_arm_after_shutdown_begins, .init = init) {
+  sleep_start_power_timer();
+
+  // Timer fires.
+  advance_time_ms(POWER_TIMEOUT_MS + 1);
+  cr_assert(power_down_called);
+
+  // Imagine the callback called sleep_begin_shutdown() (the production path).
+  sleep_begin_shutdown();
+
+  // Any downstream code that calls refresh (captouch, NFC, UXC touch, etc.)
+  // must NOT re-arm the timer.
+  sleep_refresh_power_timer();
+  cr_assert_eq(g_timer->handle.active, false);
+}
+
 Test(sleep_test, charger_extension, .init = init) {
   // Extension without timer running doesn't start it
   sleep_set_charger_extension(30000);

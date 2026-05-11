@@ -28,7 +28,9 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
     MobilePayData.MobilePayEnabledData(
       activeSpendingLimit = activeSpendingLimit,
       remainingBitcoinSpendingAmount = MobilePayBalanceMock.available,
-      remainingFiatSpendingAmount = FiatMoney.usd(100)
+      remainingFiatSpendingAmount = FiatMoney.usd(100),
+      spentBitcoinAmount = MobilePayBalanceMock.spent,
+      spentFiatAmount = FiatMoney.usd(0)
     )
 
   fun mobilePayDisabledData(mostRecentSpendingLimit: SpendingLimit?) =

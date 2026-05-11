@@ -73,8 +73,8 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
           .model
           .also { model ->
             model.badge.shouldBe(BadgeType.Loading)
-            model.iconImage.shouldBe(IconImage.LocalImage(build.wallet.statemachine.core.Icon.Bitcoin))
-            model.iconSize.shouldBe(IconSize.Custom(44))
+            model.iconImage.shouldBe(IconImage.LocalImage(build.wallet.statemachine.core.Icon.BitcoinBadged))
+            model.iconSize.shouldBe(IconSize.Custom(48))
           }
       }
 

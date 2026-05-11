@@ -20,9 +20,11 @@ import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.keybox.withNewSpendingKeyset
-import build.wallet.bitkey.spending.HwSpendingPublicKeyMock
 import build.wallet.bitkey.spending.PrivateSpendingKeysetMock
+import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
+import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.cloud.backup.csek.SealedSsekFake
 import build.wallet.cloud.backup.csek.SekGeneratorMock
 import build.wallet.cloud.backup.csek.SsekFake
@@ -55,6 +57,7 @@ import build.wallet.statemachine.recovery.sweep.SweepUiStateMachine
 import build.wallet.statemachine.send.NetworkFeesInfoSheetModel
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.utxo.UtxoConsolidationProps
 import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachine
 import build.wallet.wallet.migration.MigrationError
@@ -195,8 +198,27 @@ class PrivateWalletMigrationUiStateMachineImplTests : FunSpec({
     )
   }
 
+  fun updatedPrivateKeybox() =
+    FullAccountMock.keybox.withNewSpendingKeyset(PrivateSpendingKeysetMock)
+
+  fun localKeyboxActivationProgress(updatedKeybox: Keybox) =
+    MigrationProgress.LocalKeyboxActivation(
+      type = MigrationType.PrivateWalletMigration,
+      currentKeybox = updatedKeybox,
+      newKeyset = PrivateSpendingKeysetMock
+    )
+
+  fun cloudBackupProgress(updatedKeybox: Keybox) =
+    MigrationProgress.CloudBackup(
+      type = MigrationType.PrivateWalletMigration,
+      currentKeybox = updatedKeybox,
+      newKeyset = PrivateSpendingKeysetMock
+    )
+
   beforeTest {
     migrationService.reset()
+    cloudBackupDao.reset()
+    accountService.reset()
     utxoMaxConsolidationCountFeatureFlag.setFlagValue(FeatureFlagValue.DoubleFlag(150.0))
   }
 
@@ -584,19 +606,68 @@ class PrivateWalletMigrationUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("Resuming migration skips fee estimate") {
-    val propsWithInProgress = props.copy(inProgress = true)
+  test("resumed LocalKeyboxActivation shows intro before continuing to sweep") {
+    val updatedKeybox = updatedPrivateKeybox()
+    val resumeProgress = localKeyboxActivationProgress(updatedKeybox)
 
-    stateMachine.test(propsWithInProgress) {
+    stateMachine.test(props.copy(resumeProgress = resumeProgress)) {
       awaitBody<PrivateWalletMigrationIntroBodyModel> {
         onBack.shouldBe(null)
         onContinue()
       }
 
-      awaitBodyMock<RefreshAuthTokensProps> {
-        fullAccountId.shouldBe(FullAccountMock.accountId)
-        appAuthKey.shouldBe(FullAccountMock.keybox.activeAppKeyBundle.authKey)
+      awaitBodyMock<SweepUiProps>(id = "sweep") {
+        account.keybox.shouldBe(updatedKeybox)
+        sweepContext.shouldBe(build.wallet.recovery.sweep.SweepContext.PrivateWalletMigration)
       }
+      migrationService.proceedCalls.shouldBeEmpty()
+    }
+  }
+
+  test("manual entry resolves resumed LocalKeyboxActivation before continuing to sweep") {
+    val updatedKeybox = updatedPrivateKeybox()
+    val resumeProgress = localKeyboxActivationProgress(updatedKeybox)
+    migrationService.resumeResult = Ok(resumeProgress)
+
+    stateMachine.test(props) {
+      awaitUntilBody<PrivateWalletMigrationIntroBodyModel>(
+        matching = { it.onBack == null }
+      ) {
+        onContinue()
+      }
+
+      awaitBodyMock<SweepUiProps>(id = "sweep") {
+        account.keybox.shouldBe(updatedKeybox)
+        sweepContext.shouldBe(build.wallet.recovery.sweep.SweepContext.PrivateWalletMigration)
+      }
+      migrationService.resumeCalls.shouldBe(listOf(MigrationType.PrivateWalletMigration))
+      migrationService.proceedCalls.shouldBeEmpty()
+    }
+  }
+
+  test("resumed CloudBackup shows intro before continuing to cloud backup and sweep") {
+    val updatedKeybox = updatedPrivateKeybox()
+    val resumeProgress = cloudBackupProgress(updatedKeybox)
+    val sweepProgress = localKeyboxActivationProgress(updatedKeybox)
+    cloudBackupDao.set(FullAccountMock.accountId.serverId, CloudBackupV2WithFullAccountMock)
+    migrationService.proceedResult = Ok(sweepProgress)
+
+    stateMachine.test(props.copy(resumeProgress = resumeProgress)) {
+      awaitBody<PrivateWalletMigrationIntroBodyModel> {
+        onBack.shouldBe(null)
+        onContinue()
+      }
+
+      awaitBodyMock<FullAccountCloudSignInAndBackupProps>(id = "full-account-cloud-sign-in-and-backup") {
+        sealedCsek.shouldBe(SealedCsekFake)
+        keybox.shouldBe(updatedKeybox)
+        onBackupSaved()
+      }
+
+      awaitBodyMock<SweepUiProps>(id = "sweep") {
+        account.keybox.shouldBe(updatedKeybox)
+      }
+      migrationService.proceedCalls.shouldBe(listOf(resumeProgress))
     }
   }
 
@@ -831,48 +902,18 @@ class PrivateWalletMigrationUiStateMachineImplTests : FunSpec({
   }
 
   test("error screen hides cancel button when migration in progress") {
-    // Set migration as in progress via resumeResult
-    migrationService.resumeResult = Ok(
-      MigrationProgress.CreateNewKeyset.PrivateWalletMigration(
-        currentKeybox = FullAccountMock.keybox,
-        newHwSpendingKey = HwSpendingPublicKeyMock,
-        hwProofOfPossession = HwFactorProofOfPossession("proof"),
-        ssek = SsekFake,
-        sealedSsek = SealedSsekFake
-      )
-    )
-    // Make proceed fail
+    val updatedKeybox = updatedPrivateKeybox()
+    val resumeProgress = cloudBackupProgress(updatedKeybox)
     migrationService.proceedResult = Err(MigrationError.ServerKeysetCreationFailed(RuntimeException("test error")))
 
-    val propsWithInProgress = props.copy(inProgress = true)
-
-    stateMachine.test(propsWithInProgress) {
+    stateMachine.test(props.copy(resumeProgress = resumeProgress)) {
       awaitBody<PrivateWalletMigrationIntroBodyModel> {
         onContinue()
       }
 
-      awaitBodyMock<RefreshAuthTokensProps> {
-        onSuccess(AccountAuthTokensMock)
+      awaitBodyMock<FullAccountCloudSignInAndBackupProps>(id = "full-account-cloud-sign-in-and-backup") {
+        onBackupSaved()
       }
-
-      awaitBodyMock<NfcSessionUIStateMachineProps<KeysetInitiationNfcResult>>(
-        id = "nfc-session"
-      ) {
-        val sessionResult = KeysetInitiationNfcResult(
-          proofOfPossession = HwFactorProofOfPossession("proof"),
-          newHwKeys = HwKeyBundle(
-            localId = "test-uuid",
-            spendingKey = HwSpendingPublicKey(DescriptorPublicKeyMock(identifier = "hardware-dpub-0")),
-            authKey = HwAuthPublicKey(HwAuthSecp256k1PublicKeyMock.pubKey),
-            networkType = FullAccountMock.keybox.config.bitcoinNetworkType
-          ),
-          sealedSsek = SealedSsekFake,
-          ssek = SsekFake
-        )
-        onSuccess(sessionResult)
-      }
-
-      awaitBody<LoadingSuccessBodyModel>()
 
       awaitBody<FormBodyModel> {
         header?.headline.shouldBe("Migration Error")

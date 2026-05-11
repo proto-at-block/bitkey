@@ -2,6 +2,8 @@ package build.wallet.statemachine.core.form
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.style.TextAlign
 import bitkey.account.HardwareType
 import build.wallet.Progress
 import build.wallet.compose.collections.emptyImmutableList
@@ -29,8 +31,11 @@ import build.wallet.ui.model.list.ListItemTreatment
 import build.wallet.ui.model.picker.ItemPickerModel
 import build.wallet.ui.model.tab.CircularTabRowModel
 import build.wallet.ui.tokens.LabelType
+import build.wallet.ui.tokens.market.MarketIcon
 import dev.zacsweers.redacted.annotations.Redacted
 import kotlinx.collections.immutable.ImmutableList
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 sealed class FormMainContentModel {
   /**
@@ -65,7 +70,6 @@ sealed class FormMainContentModel {
 
     enum class VideoContent {
       BITKEY_ROTATE,
-      BITKEY_WAITING_3D,
     }
   }
 
@@ -78,11 +82,39 @@ sealed class FormMainContentModel {
   ) : FormMainContentModel() {
     data class SettingsListItem(
       val title: String,
-      val icon: Icon,
+      val icon: IconModel,
       val isEnabled: Boolean = true,
       val treatment: ListItemTreatment = ListItemTreatment.PRIMARY,
       val onClick: (() -> Unit)?,
-    )
+    ) {
+      constructor(
+        title: String,
+        icon: Icon,
+        isEnabled: Boolean = true,
+        treatment: ListItemTreatment = ListItemTreatment.PRIMARY,
+        onClick: (() -> Unit)?,
+      ) : this(
+          title = title,
+          icon = IconModel(icon = icon, iconSize = IconSize.Small),
+          isEnabled = isEnabled,
+          treatment = treatment,
+          onClick = onClick
+        )
+
+      constructor(
+        title: String,
+        icon: MarketIcon,
+        isEnabled: Boolean = true,
+        treatment: ListItemTreatment = ListItemTreatment.PRIMARY,
+        onClick: (() -> Unit)?,
+      ) : this(
+          title = title,
+          icon = IconModel(icon = icon, iconSize = IconSize.Small),
+          isEnabled = isEnabled,
+          treatment = treatment,
+          onClick = onClick
+        )
+    }
   }
 
   /**
@@ -95,6 +127,8 @@ sealed class FormMainContentModel {
     data class Statement(
       val leadingIcon: Icon? = null,
       val leadingIconSize: IconSize = IconSize.Small,
+      val leadingContentTopPaddingDp: Int = 0,
+      val leadingContentSpacingDp: Int = 16,
       val leadingText: String? = null,
       val leadingTextType: LabelType = LabelType.Body2MonoCaps,
       val leadingTextLabelTreatment: LabelTreatment? = null,
@@ -159,16 +193,11 @@ sealed class FormMainContentModel {
         enum class Video {
           BITKEY_WIPE,
           BITKEY_ROTATE,
-          BITKEY_WAITING_3D,
           ;
 
           open val looping: Boolean = false
 
           open val scalingMode: VideoScalingMode = VideoScalingMode.FIT
-            get() = when (this) {
-              BITKEY_WAITING_3D -> VideoScalingMode.CROP
-              else -> field
-            }
         }
       }
 
@@ -309,6 +338,7 @@ sealed class FormMainContentModel {
    */
   data class VerificationCodeInput(
     val fieldModel: TextFieldModel,
+    val expectedCodeLength: Int,
     val resendCodeContent: ResendCodeContent,
   ) : FormMainContentModel() {
     sealed interface ResendCodeContent {
@@ -389,7 +419,28 @@ sealed class FormMainContentModel {
     val timerProgress: Progress,
     val direction: TimerDirection,
     val timerRemainingSeconds: Long,
-  ) : FormMainContentModel()
+    val display: Display = Display.Text(title = title, subtitle = subtitle),
+    val style: Style = Style.PRIMARY,
+  ) : FormMainContentModel() {
+    sealed interface Display {
+      data class Text(
+        val title: String,
+        val subtitle: String,
+      ) : Display
+
+      data class RemainingDuration(
+        val duration: Duration,
+        val enableLocalSecondsTick: Boolean,
+        val showSecondsBelow: Duration = 60.seconds,
+        val subtitle: String = "remaining",
+      ) : Display
+    }
+
+    enum class Style {
+      PRIMARY,
+      FOREGROUND,
+    }
+  }
 
   /**
    * Used to embed a Web View within a form
@@ -411,6 +462,14 @@ sealed class FormMainContentModel {
    */
   data class Button(
     val item: ButtonModel,
+  ) : FormMainContentModel()
+
+  data class AnnotatedText(
+    val text: AnnotatedString,
+    val type: LabelType = LabelType.Body2Regular,
+    val treatment: LabelTreatment = LabelTreatment.Primary,
+    val alignment: TextAlign = TextAlign.Start,
+    val onClick: ((Int) -> Unit)? = null,
   ) : FormMainContentModel()
 
   /**

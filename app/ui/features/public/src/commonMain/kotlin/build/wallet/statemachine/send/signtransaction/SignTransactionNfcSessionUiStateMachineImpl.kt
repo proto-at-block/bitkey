@@ -23,6 +23,7 @@ import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.feature.flags.NfcSessionRetryAttemptsFeatureFlag
 import build.wallet.feature.intValue
 import build.wallet.feature.collectIsEnabledAsState
+import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.keybox.KeyboxDao
 import build.wallet.logging.logDebug
 import build.wallet.logging.logWarn
@@ -36,6 +37,7 @@ import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.HwDisplayPreference
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.platform.NfcProgressCallback
+import build.wallet.nfc.platform.detectedDeviceInfo
 import build.wallet.nfc.platform.toSessionFn
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.device.DevicePlatform
@@ -230,7 +232,12 @@ class SignTransactionNfcSessionUiStateMachineImpl(
                 onApprove = {
                   scope.launch {
                     emulatedPrompt.approve.onSelect?.invoke()
-                    setState(AwaitingConfirmationUiState(fetchResult = emulatedPrompt.approve.fetchResult))
+                    setState(
+                      AwaitingConfirmationUiState(
+                        fetchResult = emulatedPrompt.approve.fetchResult,
+                        resolvedDeviceInfo = state.resolvedDeviceInfo
+                      )
+                    )
                   }
                 },
                 onDeny = {
@@ -277,7 +284,8 @@ class SignTransactionNfcSessionUiStateMachineImpl(
               // to start a new NFC session for the continuation
               setState(
                 InNfcSessionUiState(
-                  fetchResult = state.fetchResult
+                  fetchResult = state.fetchResult,
+                  resolvedDeviceInfo = state.resolvedDeviceInfo
                 )
               )
             },
@@ -315,9 +323,19 @@ class SignTransactionNfcSessionUiStateMachineImpl(
         // W3 two-tap flow: User tapped before approving/denying on device
         val bodyModel = props.pendingBodyModel?.invoke {
           // On acknowledge, return to awaiting confirmation to retry
-          setState(AwaitingConfirmationUiState(fetchResult = state.fetchResult))
+          setState(
+            AwaitingConfirmationUiState(
+              fetchResult = state.fetchResult,
+              resolvedDeviceInfo = state.resolvedDeviceInfo
+            )
+          )
         } ?: defaultPendingBodyModel {
-          setState(AwaitingConfirmationUiState(fetchResult = state.fetchResult))
+          setState(
+            AwaitingConfirmationUiState(
+              fetchResult = state.fetchResult,
+              resolvedDeviceInfo = state.resolvedDeviceInfo
+            )
+          )
         }
         ScreenModel(body = bodyModel, presentationStyle = ScreenPresentationStyle.Modal)
       }
@@ -408,6 +426,7 @@ class SignTransactionNfcSessionUiStateMachineImpl(
   private fun handleNfcTransactionFailure(
     error: NfcException,
     continuation: (suspend (NfcSession, NfcCommands) -> HardwareInteraction<Psbt>)?,
+    resolvedDeviceInfo: FirmwareDeviceInfo?,
     props: SignTransactionNfcSessionUiProps,
     setState: (Any) -> Unit,
   ) {
@@ -418,8 +437,22 @@ class SignTransactionNfcSessionUiStateMachineImpl(
         setState(DeliveringDescriptorUiState)
       }
       is NfcException.UserDenied,
-      is NfcException.ConfirmationNotCompleted -> handleUserDeniedOrConfirmationPending(error, continuation, props, setState, isDenied = true)
-      is NfcException.ConfirmationPending -> handleUserDeniedOrConfirmationPending(error, continuation, props, setState, isDenied = false)
+      is NfcException.ConfirmationNotCompleted -> handleUserDeniedOrConfirmationPending(
+        error = error,
+        continuation = continuation,
+        resolvedDeviceInfo = resolvedDeviceInfo,
+        props = props,
+        setState = setState,
+        isDenied = true
+      )
+      is NfcException.ConfirmationPending -> handleUserDeniedOrConfirmationPending(
+        error = error,
+        continuation = continuation,
+        resolvedDeviceInfo = resolvedDeviceInfo,
+        props = props,
+        setState = setState,
+        isDenied = false
+      )
       else -> handleGenericError(error, props, setState)
     }
   }
@@ -427,15 +460,22 @@ class SignTransactionNfcSessionUiStateMachineImpl(
   private fun handleUserDeniedOrConfirmationPending(
     error: NfcException,
     continuation: (suspend (NfcSession, NfcCommands) -> HardwareInteraction<Psbt>)?,
+    resolvedDeviceInfo: FirmwareDeviceInfo?,
     props: SignTransactionNfcSessionUiProps,
     setState: (Any) -> Unit,
     isDenied: Boolean,
   ) {
     if (continuation != null) {
       val state = if (isDenied) {
-        ConfirmationDeniedUiState(fetchResult = continuation)
+        ConfirmationDeniedUiState(
+          fetchResult = continuation,
+          resolvedDeviceInfo = resolvedDeviceInfo
+        )
       } else {
-        ConfirmationPendingUiState(fetchResult = continuation)
+        ConfirmationPendingUiState(
+          fetchResult = continuation,
+          resolvedDeviceInfo = resolvedDeviceInfo
+        )
       }
       setState(state)
     } else {
@@ -464,7 +504,12 @@ class SignTransactionNfcSessionUiStateMachineImpl(
     when (result) {
       is SignTransactionResult.Completed -> setState(SuccessUiState(result.signedPsbt))
       is SignTransactionResult.RequiresConfirmation -> {
-        setState(AwaitingConfirmationUiState(fetchResult = result.fetchResult))
+        setState(
+          AwaitingConfirmationUiState(
+            fetchResult = result.fetchResult,
+            resolvedDeviceInfo = result.resolvedDeviceInfo
+          )
+        )
       }
       is SignTransactionResult.RequiresEmulatedPrompt -> {
         setState(InNfcSessionUiState(emulatedPrompt = result.emulatedPrompt))
@@ -520,6 +565,7 @@ class SignTransactionNfcSessionUiStateMachineImpl(
             NfcSession.Parameters(
               isHardwareFake = isHardwareFake,
               hardwareType = hardwareType,
+              resolvedDeviceInfoOverride = state.resolvedDeviceInfo,
               needsAuthentication = true,
               shouldLock = true,
               skipFirmwareTelemetry = props.skipFirmwareTelemetry,
@@ -592,7 +638,13 @@ class SignTransactionNfcSessionUiStateMachineImpl(
             }
           }
         ).onFailure { error ->
-          handleNfcTransactionFailure(error, continuation, props, setState)
+          handleNfcTransactionFailure(
+            error = error,
+            continuation = continuation,
+            resolvedDeviceInfo = state.resolvedDeviceInfo,
+            props = props,
+            setState = setState
+          )
         }.onSuccess { result ->
           handleNfcTransactionSuccess(result, setState)
         }
@@ -657,7 +709,10 @@ class SignTransactionNfcSessionUiStateMachineImpl(
         // After transfer, should be RequiresConfirmation or ConfirmWithEmulatedPrompt
         when (nextInteraction) {
           is HardwareInteraction.RequiresConfirmation -> {
-            SignTransactionResult.RequiresConfirmation(nextInteraction.toSessionFn())
+            SignTransactionResult.RequiresConfirmation(
+              fetchResult = nextInteraction.toSessionFn(),
+              resolvedDeviceInfo = commands.detectedDeviceInfo(session)
+            )
           }
           is HardwareInteraction.ConfirmWithEmulatedPrompt -> {
             SignTransactionResult.RequiresEmulatedPrompt(nextInteraction)
@@ -674,7 +729,10 @@ class SignTransactionNfcSessionUiStateMachineImpl(
 
       is HardwareInteraction.RequiresConfirmation -> {
         // Direct confirmation (shouldn't happen for signTransaction but handle it)
-        SignTransactionResult.RequiresConfirmation(interaction.toSessionFn())
+        SignTransactionResult.RequiresConfirmation(
+          fetchResult = interaction.toSessionFn(),
+          resolvedDeviceInfo = commands.detectedDeviceInfo(session)
+        )
       }
 
       is HardwareInteraction.ConfirmWithEmulatedPrompt -> {
@@ -803,6 +861,7 @@ private sealed interface SignTransactionNfcSessionUiState {
           NfcCommands,
         ) -> HardwareInteraction<Psbt>
       )? = null,
+      val resolvedDeviceInfo: FirmwareDeviceInfo? = null,
       val emulatedPrompt: HardwareInteraction.ConfirmWithEmulatedPrompt<Psbt>? = null,
     ) : InSessionUiState {
       enum class DisplayMode {
@@ -828,6 +887,7 @@ private sealed interface SignTransactionNfcSessionUiState {
         NfcSession,
         NfcCommands,
       ) -> HardwareInteraction<Psbt>,
+      val resolvedDeviceInfo: FirmwareDeviceInfo? = null,
     ) : InSessionUiState
 
     /**
@@ -853,6 +913,7 @@ private sealed interface SignTransactionNfcSessionUiState {
         NfcSession,
         NfcCommands,
       ) -> HardwareInteraction<Psbt>,
+      val resolvedDeviceInfo: FirmwareDeviceInfo? = null,
     ) : InSessionUiState
 
     /**
@@ -864,6 +925,7 @@ private sealed interface SignTransactionNfcSessionUiState {
         NfcSession,
         NfcCommands,
       ) -> HardwareInteraction<Psbt>,
+      val resolvedDeviceInfo: FirmwareDeviceInfo? = null,
     ) : InSessionUiState
   }
 }
@@ -893,6 +955,7 @@ private sealed interface SignTransactionResult {
       NfcSession,
       NfcCommands,
     ) -> HardwareInteraction<Psbt>,
+    val resolvedDeviceInfo: FirmwareDeviceInfo? = null,
   ) : SignTransactionResult
 
   /**

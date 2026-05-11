@@ -16,6 +16,7 @@ import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.CashAppFeePromotionFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.logging.logError
+import build.wallet.nfc.platform.requireW3
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.money.exchange.ExchangeRateService
@@ -189,7 +190,7 @@ class PartnershipsPurchaseQuotesUiStateMachineImpl(
         nfcSessionUIStateMachine.model(
           NfcSessionUIStateMachineProps(
             session = { session, commands ->
-              commands.getAddress(session, currentState.addressInfo.index)
+              commands.requireW3(session).getAddress(session, currentState.addressInfo.index)
             },
             onSuccess = { nfcAddress ->
               val expectedAddress = currentState.addressInfo.address.address

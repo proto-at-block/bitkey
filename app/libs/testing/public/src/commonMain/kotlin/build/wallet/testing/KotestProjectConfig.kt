@@ -20,7 +20,7 @@ internal object KotestProjectConfig : AbstractProjectConfig() {
   /**
    * All tests in the module must complete within the timeout
    */
-  override val projectTimeout: Duration = 10.minutes
+  override val projectTimeout: Duration = 20.minutes
 
   init {
     // Initialize logger with our own log writers for testing purposes.

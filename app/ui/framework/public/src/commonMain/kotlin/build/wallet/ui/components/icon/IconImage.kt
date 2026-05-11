@@ -258,20 +258,48 @@ private fun BoxScope.IconBadge(
   styleColor: Color,
 ) {
   when (badge) {
-    BadgeType.Loading -> LoadingBadge(
-      modifier = Modifier.padding(bottom = 5.dp, end = 5.dp)
-        .size(IconSize.XSmall.dp)
-        .align(Alignment.BottomEnd)
-    )
-    BadgeType.Error -> Image(
-      modifier = Modifier.padding(bottom = 4.dp, end = 4.dp)
-        .align(Alignment.BottomEnd),
-      painter = Icon.WarningBadge.painter(),
-      contentDescription = null,
-      colorFilter = if (styleColor != Color.Unspecified) ColorFilter.tint(styleColor) else null
-    )
-    null -> {}
+    BadgeType.Loading -> {
+      BadgeBackground()
+      LoadingBadge(
+        modifier = Modifier.padding(bottom = 5.dp, end = 5.dp)
+          .size(IconSize.XSmall.dp)
+          .align(Alignment.BottomEnd)
+      )
+    }
+    BadgeType.Error -> {
+      BadgeBackground()
+      Image(
+        modifier = Modifier.padding(bottom = 3.dp, end = 3.dp)
+          .size(16.dp)
+          .align(Alignment.BottomEnd),
+        painter = Icon.WarningBadge.painter(),
+        contentDescription = null,
+        colorFilter = ColorFilter.tint(
+          if (styleColor != Color.Unspecified) {
+            styleColor
+          } else {
+            WalletTheme.colors.foreground
+          }
+        )
+      )
+    }
+    null -> Unit
   }
+}
+
+@Composable
+private fun BoxScope.BadgeBackground() {
+  val backgroundColor = when (LocalTheme.current) {
+    Theme.LIGHT -> WalletTheme.colors.background
+    Theme.DARK -> WalletTheme.colors.primaryIconBackground
+  }
+
+  Box(
+    modifier = Modifier.padding(bottom = 1.dp, end = 1.dp)
+      .size(IconSize.Accessory.dp)
+      .align(Alignment.BottomEnd)
+      .background(backgroundColor, CircleShape)
+  )
 }
 
 private fun IconAlignmentInBackground.toAlignment(): Alignment =

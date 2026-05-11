@@ -25,11 +25,12 @@ import okio.ByteString
 import okio.ByteString.Companion.decodeHex
 import okio.ByteString.Companion.encodeUtf8
 
-class NfcCommandsMock(
+open class NfcCommandsMock(
   turbine: ((String) -> Turbine<Any>),
-) : NfcCommands {
+) : NfcCommands, HardwareIdentityAwareNfcCommands {
   val signTransactionCalls = turbine.invoke("SignTransaction calls")
   val sweepTransactionCalls = turbine.invoke("SweepTransaction calls")
+  val getConfirmationResultCalls = turbine.invoke("GetConfirmationResult calls")
   val cancelFingerprintEnrollmentCalls = turbine.invoke("CancelFingerprintEnrollment calls")
   val getEnrolledFingerprintsCalls = turbine.invoke("GetEnrolledFingerprints calls")
   val deleteFingerprintCalls = turbine.invoke("DeleteFingerprint calls")
@@ -81,6 +82,18 @@ class NfcCommandsMock(
       appAuthKeySignature = "0".repeat(128)
     )
   )
+  private val defaultSignTransactionResult = HardwareInteraction.Completed(
+    Psbt(
+      id = "psbt-id",
+      base64 = "some-base-64",
+      fee = Fee(amount = BitcoinMoney.sats(10_000)),
+      vsize = 10000,
+      numOfInputs = 1,
+      amountSats = 10000UL
+    )
+  )
+  private val defaultConfirmationResult: ConfirmationResult =
+    ConfirmationResult.WipeDevice(success = true)
 
   private var enrollmentResult = defaultEnrollmentResult
   private var enrolledFingerprints = defaultEnrolledFingerprints
@@ -88,6 +101,8 @@ class NfcCommandsMock(
   private var provideGrantResult = defaultProvideGrantResult
   private var startFingerprintEnrollmentResult = defaultStartFingerprintEnrollmentResult
   private var deleteFingerprintResult = defaultDeleteFingerprintResult
+  var signTransactionResult: HardwareInteraction<Psbt> = defaultSignTransactionResult
+  var confirmationResult: ConfirmationResult = defaultConfirmationResult
   var shouldInvokeLostAppRecoveryContinue = false
   var lostAppRecoveryUnsealedSsek: SymmetricKey = SymmetricKeyImpl("unsealed-ssek".encodeUtf8())
   var lostAppRecoveryResult: HardwareInteraction<LostAppRecoveryCompositeResult> =
@@ -141,6 +156,9 @@ class NfcCommandsMock(
     deviceInfoResult.also {
       getDeviceInfoCalls.add(it)
     }
+
+  override suspend fun resolvedDeviceInfo(session: NfcSession): FirmwareDeviceInfo =
+    deviceInfoResult
 
   override suspend fun getEvents(
     session: NfcSession,
@@ -225,16 +243,7 @@ class NfcCommandsMock(
     psbt: Psbt,
     spendingKeyset: SpendingKeyset,
     displayPreference: HwDisplayPreference?,
-  ) = HardwareInteraction.Completed(
-    Psbt(
-      id = "psbt-id",
-      base64 = "some-base-64",
-      fee = Fee(amount = BitcoinMoney.sats(10_000)),
-      vsize = 10000,
-      numOfInputs = 1,
-      amountSats = 10000UL
-    ).also { signTransactionCalls.add(psbt) }
-  )
+  ) = signTransactionResult.also { signTransactionCalls.add(psbt) }
 
   override suspend fun sweepTransaction(
     session: NfcSession,
@@ -311,14 +320,14 @@ class NfcCommandsMock(
   override suspend fun getConfirmationResult(
     session: NfcSession,
     handles: ConfirmationHandles,
-  ): ConfirmationResult = ConfirmationResult.WipeDevice(success = true)
+  ): ConfirmationResult = confirmationResult.also { getConfirmationResultCalls.add(handles) }
 
-  override suspend fun getAddress(
+  suspend fun getAddress(
     session: NfcSession,
     addressIndex: UInt,
   ): String = "bc1q_mock_$addressIndex"
 
-  override suspend fun verifyKeysAndBuildDescriptor(
+  suspend fun verifyKeysAndBuildDescriptor(
     session: NfcSession,
     appSpendingKey: ByteString,
     appSpendingKeyChaincode: ByteString,
@@ -330,7 +339,7 @@ class NfcCommandsMock(
     accountIndex: UInt,
   ): String = "mock-app-auth-key-hw-signature"
 
-  override suspend fun signActionProof(
+  suspend fun signActionProof(
     session: NfcSession,
     version: UInt,
     action: ActionProofAction,
@@ -353,14 +362,14 @@ class NfcCommandsMock(
   var fullAccountCloudBackupRestorationResult: CsekUnsealResult =
     CsekUnsealResult(index = 0, unsealedCsek = SymmetricKeyImpl("mock-unsealed-csek".encodeUtf8()))
 
-  override suspend fun <T> fullAccountCloudBackupRestoration(
+  suspend fun <T> fullAccountCloudBackupRestoration(
     session: NfcSession,
     sealedCseks: List<SealedData>,
     onCsekUnsealed: suspend (CsekUnsealResult) -> T,
   ): HardwareInteraction<T> =
     HardwareInteraction.Completed(onCsekUnsealed(fullAccountCloudBackupRestorationResult))
 
-  override suspend fun lostAppRecovery(
+  suspend fun lostAppRecovery(
     session: NfcSession,
     sealedSsek: ByteString,
     onSsekUnsealed: suspend (SymmetricKey) -> LostAppRecoveryContinueParams,
@@ -382,7 +391,7 @@ class NfcCommandsMock(
       )
     )
 
-  override suspend fun signChallengeAndSealSeks(
+  suspend fun signChallengeAndSealSeks(
     session: NfcSession,
     challenge: ByteString,
     unsealedCsek: ByteString,
@@ -403,7 +412,7 @@ class NfcCommandsMock(
       )
     )
 
-  override suspend fun recoveryAuthorizeLostApp(
+  suspend fun recoveryAuthorizeLostApp(
     session: NfcSession,
     sealedDdkData: SealedData?,
     sealedSsekForDecryption: SealedData?,
@@ -425,7 +434,7 @@ class NfcCommandsMock(
       )
     )
 
-  override suspend fun recoveryAuthorizeLostHw(
+  suspend fun recoveryAuthorizeLostHw(
     session: NfcSession,
     ddkPrivateKeyBytes: ByteString?,
     descriptorBackupsBindings: String,
@@ -446,7 +455,7 @@ class NfcCommandsMock(
       )
     )
 
-  override suspend fun upgradeAuthorizeW3(
+  suspend fun upgradeAuthorizeW3(
     session: NfcSession,
     ddkPrivateKeyBytes: ByteString,
     sealedSsekForDecryption: SealedData?,
@@ -458,7 +467,7 @@ class NfcCommandsMock(
     return upgradeAuthorizeW3Result
   }
 
-  override suspend fun lostAppRecoverySignChallenge(
+  suspend fun lostAppRecoverySignChallenge(
     session: NfcSession,
     challenge: ByteString,
   ): HardwareInteraction<String> = HardwareInteraction.Completed("signed-challenge-of-$challenge")
@@ -473,7 +482,7 @@ class NfcCommandsMock(
       )
     )
 
-  override suspend fun rotateAppAuthKeys(
+  suspend fun rotateAppAuthKeys(
     session: NfcSession,
     params: RotateAppAuthKeysContinueParams,
   ): HardwareInteraction<RotateAppAuthKeysCompositeResult> {
@@ -490,7 +499,7 @@ class NfcCommandsMock(
       )
     )
 
-  override suspend fun upgradeRotateAppAuthKeys(
+  suspend fun upgradeRotateAppAuthKeys(
     session: NfcSession,
     params: UpgradeRotateAppAuthKeysParams,
   ): HardwareInteraction<UpgradeRotateAppAuthKeysResult> {
@@ -529,12 +538,19 @@ class NfcCommandsMock(
     provideGrantResult = defaultProvideGrantResult
     startFingerprintEnrollmentResult = defaultStartFingerprintEnrollmentResult
     deleteFingerprintResult = defaultDeleteFingerprintResult
+    signTransactionResult = defaultSignTransactionResult
+    confirmationResult = defaultConfirmationResult
     shouldInvokeLostAppRecoveryContinue = false
     lostAppRecoveryUnsealedSsek = SymmetricKeyImpl("unsealed-ssek".encodeUtf8())
     lostAppRecoveryResult = defaultLostAppRecoveryResult
     authenticationKeyResult = HwAuthSecp256k1PublicKeyMock
+    deviceInfoResult = FirmwareDeviceInfoMock
   }
 }
+
+class W3NfcCommandsMock(
+  turbine: ((String) -> Turbine<Any>),
+) : NfcCommandsMock(turbine), W3NfcCommands
 
 private fun spendingPublicKey(index: Int) =
   HwSpendingPublicKey(DescriptorPublicKeyMock(identifier = "hardware-dpub-$index"))

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 
 /**
@@ -85,3 +86,42 @@ uint32_t sleep_get_configured_timeout(void);
  * sleep_inhibit().
  */
 void sleep_start_power_timer_with_timeout(uint32_t timeout_ms);
+
+/**
+ * @brief Latch the sleep subsystem into a "shutting down" state.
+ *
+ * Once latched, all subsequent start/refresh/inhibit/charger-extension calls
+ * become no-ops so that the countdown timer cannot be re-armed by any event
+ * after the shutdown sequence has begun. Also stops any currently armed
+ * timer and clears the `timer_running` bookkeeping that the one-shot timer
+ * callback otherwise leaves stale.
+ *
+ * Intended to be called from the power-timer callback and from any other
+ * entry point that commits to powering the device off.
+ *
+ * @return true if this call transitioned into the shutdown state, false if
+ *         it was already latched (i.e., shutdown is already in progress).
+ *         Callers should treat `false` as "someone else already started the
+ *         shutdown sequence; bail out of yours" to avoid double-issuing the
+ *         shutdown IPCs/UI events.
+ */
+bool sleep_begin_shutdown(void);
+
+/**
+ * @brief Query whether the shutdown latch has been set.
+ */
+bool sleep_is_shutting_down(void);
+
+/**
+ * @brief Clear the shutdown latch set by `sleep_begin_shutdown`.
+ *
+ * Used when a shutdown sequence determines mid-flow that it shouldn't
+ * proceed — e.g., the UXC reboots during the USB-plugged power-off polling
+ * loop and sysinfo bails so it can rekey the secure channel. Without this,
+ * the latch would remain set indefinitely and the sleep timer could never
+ * be re-engaged.
+ *
+ * The caller is responsible for restarting the sleep timer if appropriate;
+ * this only clears the latch state.
+ */
+void sleep_cancel_shutdown(void);

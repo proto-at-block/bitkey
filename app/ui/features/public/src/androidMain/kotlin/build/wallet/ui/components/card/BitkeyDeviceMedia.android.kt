@@ -9,18 +9,15 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
-import android.media.MediaPlayer
 import android.view.MotionEvent
 import android.view.VelocityTracker
 import android.view.View.INVISIBLE
 import android.view.View.VISIBLE
 import android.view.ViewConfiguration
-import android.view.animation.PathInterpolator
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -43,9 +40,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import bitkey.account.HardwareType
-import build.wallet.statemachine.core.form.FORM_DS_V2_WAITING_REVEAL_DELAY_MILLIS
-import build.wallet.statemachine.core.form.FORM_DS_V2_WAITING_REVEAL_DURATION_MILLIS
-import build.wallet.statemachine.core.form.FormDsV2WaitingRevealEasing
 import build.wallet.statemachine.core.form.FormMainContentModel.DeviceStatusCard
 import build.wallet.ui.components.video.VideoPlayer
 import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
@@ -57,7 +51,6 @@ import io.github.sceneview.Scene
 import io.github.sceneview.SceneView
 import io.github.sceneview.environment.Environment
 import io.github.sceneview.loaders.MaterialLoader
-import io.github.sceneview.material.VideoMaterial
 import io.github.sceneview.math.Position
 import io.github.sceneview.math.Rotation
 import io.github.sceneview.math.Size
@@ -74,7 +67,6 @@ import io.github.sceneview.rememberScene
 import io.github.sceneview.rememberView
 import io.github.sceneview.safeDestroyMaterialInstance
 import io.github.sceneview.texture.ImageTexture
-import kotlinx.coroutines.delay
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.exp
@@ -87,7 +79,7 @@ private const val BITKEY_DEVICE_INLAY_NODE_NAME = "Inlay"
 private const val BITKEY_DEVICE_INLAY_TEXTURE_ASSET_LOCATION = "bitkey-device/Bitkey_W3_bitkeylogo_inlay.png"
 private const val BITKEY_DEVICE_SERIAL_TEXT_FONT_ASSET_LOCATION =
   "composeResources/bitkey.ui.framework_public.generated.resources/font/cash_sans_mono_regular.otf"
-private const val BITKEY_DEVICE_SCREEN_VIDEO_RESOURCE_NAME = "bitkey_taptophoneinsert"
+
 private const val BITKEY_DEVICE_ROTATION_DEGREES_PER_POINT = 0.441f
 private const val BITKEY_DEVICE_INERTIA_VELOCITY_SCALE = 0.4125f
 private const val BITKEY_DEVICE_INERTIA_DAMPING = 5.0f
@@ -101,13 +93,7 @@ private const val BITKEY_DEVICE_CAMERA_OFFSET_Y = 0.0f
 private const val BITKEY_DEVICE_CAMERA_DISTANCE = 1.4f
 private const val BITKEY_DEVICE_CAMERA_TARGET_OFFSET_Y = 0.0f
 private const val BITKEY_DEVICE_MODEL_SCALE = 1.0f
-private const val BITKEY_DEVICE_WAITING_MODEL_SCALE = 0.85f
-private const val BITKEY_DEVICE_WAITING_REST_TRANSLATION_Y = -0.0535f
-private const val BITKEY_DEVICE_WAITING_INTRO_TARGET_TRANSLATION_Y = -0.0165f
-private const val BITKEY_DEVICE_WAITING_INTRO_DURATION_MILLIS = 800
-private const val BITKEY_DEVICE_WAITING_BUTTON_REVEAL_GAP_MILLIS = 120
-private const val BITKEY_DEVICE_WAITING_BOB_AMPLITUDE_Y = 0.0091f
-private const val BITKEY_DEVICE_WAITING_BOB_PERIOD_SECONDS = 2.8f
+
 private const val BITKEY_DEVICE_HDRI_INTENSITY_MULTIPLIER = 3.0f
 private const val BITKEY_DEVICE_HDRI_ROTATION_DEGREES = -94.0f
 private const val BITKEY_DEVICE_HDRI_ELEVATION_DEGREES = 23.0f
@@ -197,8 +183,6 @@ private object BitkeyDeviceSharedFilamentResources {
 }
 
 private enum class RotationMotionMode {
-  INTRO,
-  IDLE,
   MOMENTUM,
   SNAP,
 }
@@ -217,39 +201,23 @@ internal actual fun BitkeyDeviceMedia(
   batteryPercentage: Int?,
   hardwareType: HardwareType,
   interactionState: BitkeyDeviceMediaInteractionState,
-  shouldPlayWaitingIntro: Boolean,
 ) {
-  val isWaitingContent = content == DeviceStatusCard.VideoContent.BITKEY_WAITING_3D
-  val isInteractiveScene = content == DeviceStatusCard.VideoContent.BITKEY_ROTATE ||
-    content == DeviceStatusCard.VideoContent.BITKEY_WAITING_3D
   val shouldRenderRealtimeScene = LocalDesignSystemUpdatesEnabled.current &&
     supportsBitkeyDevice3DMedia(hardwareType) &&
     !LocalInspectionMode.current
 
   if (!shouldRenderRealtimeScene) {
-    when (content) {
-      DeviceStatusCard.VideoContent.BITKEY_ROTATE -> {
-        Box(
-          modifier = modifier,
-          contentAlignment = Alignment.Center
-        ) {
-          VideoPlayer(
-            modifier = Modifier.size(BitkeyDeviceFallbackMediaSize),
-            resourcePath = bitkeyDeviceVideoResource(content),
-            backgroundColor = legacyBitkeyDeviceCardBackgroundColor(),
-            isLooping = true,
-            autoStart = true
-          )
-        }
-      }
-      DeviceStatusCard.VideoContent.BITKEY_WAITING_3D -> {
-        VideoPlayer(
-          modifier = modifier,
-          resourcePath = bitkeyDeviceVideoResource(content),
-          isLooping = false,
-          autoStart = true
-        )
-      }
+    Box(
+      modifier = modifier,
+      contentAlignment = Alignment.Center
+    ) {
+      VideoPlayer(
+        modifier = Modifier.size(BitkeyDeviceFallbackMediaSize),
+        resourcePath = bitkeyDeviceVideoResource(content),
+        backgroundColor = legacyBitkeyDeviceCardBackgroundColor(),
+        isLooping = true,
+        autoStart = true
+      )
     }
     return
   }
@@ -267,9 +235,6 @@ internal actual fun BitkeyDeviceMedia(
   }
   val touchSlop = remember(composeView) {
     ViewConfiguration.get(composeView.context).scaledTouchSlop.toFloat()
-  }
-  val waitingEntranceInterpolator = remember {
-    PathInterpolator(0.0f, 0.0f, 0.2f, 1.0f)
   }
   val engine = remember { BitkeyDeviceSharedFilamentResources.engine }
   val view = rememberView(engine)
@@ -312,24 +277,8 @@ internal actual fun BitkeyDeviceMedia(
         )
       }
   }
-  val screenVideoResourceId = remember(androidContext, isWaitingContent) {
-    if (isWaitingContent) {
-      bitkeyDeviceScreenVideoResourceId(androidContext)
-    } else {
-      0
-    }
-  }
-  val screenVideoMaterial = remember(engine, materialLoader, screenVideoResourceId) {
-    screenVideoResourceId.takeIf { it != 0 }?.let {
-      VideoMaterial(
-        engine = engine,
-        materialLoader = materialLoader
-      )
-    }
-  }
   val screenBatteryOverlayNode = remember(materialLoader, androidContext, modelNode, content, batteryPercentage) {
     batteryPercentage
-      ?.takeIf { content == DeviceStatusCard.VideoContent.BITKEY_ROTATE }
       ?.let { normalizedBatteryPercentage ->
         modelNode.renderableNodes.getOrNull(BITKEY_DEVICE_SCREEN_NODE_NAME)?.let {
             screenRenderableNode ->
@@ -341,17 +290,6 @@ internal actual fun BitkeyDeviceMedia(
         }
       }
   }
-  val screenVideoPlayer = remember(androidContext, screenVideoResourceId, screenVideoMaterial) {
-    if (screenVideoResourceId == 0 || screenVideoMaterial == null) {
-      null
-    } else {
-      MediaPlayer.create(androidContext, screenVideoResourceId)?.apply {
-        isLooping = true
-        setVolume(0f, 0f)
-        setSurface(screenVideoMaterial.surface)
-      }
-    }
-  }
   val childNodes = listOf(modelNode)
   val indirectLight = requireNotNull(environment.indirectLight) {
     "Bitkey device HDR environment did not produce indirect light."
@@ -359,9 +297,6 @@ internal actual fun BitkeyDeviceMedia(
   val baseHdriIntensity = BitkeyDeviceSharedFilamentResources.baseHdriIntensity(androidContext)
   var currentModelRotationY by remember(content) {
     mutableFloatStateOf(DEFAULT_ROTATION_DEGREES)
-  }
-  var currentModelTranslationY by remember(content) {
-    mutableFloatStateOf(defaultTranslationY(content))
   }
   var angularVelocityY by remember { mutableFloatStateOf(0.0f) }
   var snapTargetRotationY by remember { mutableFloatStateOf(0.0f) }
@@ -372,29 +307,13 @@ internal actual fun BitkeyDeviceMedia(
   var lastTouchX by remember { mutableFloatStateOf(0.0f) }
   var totalDragDeltaX by remember { mutableFloatStateOf(0.0f) }
   var gestureIntent by remember { mutableStateOf<RotationGestureIntent?>(null) }
-  var introElapsedSeconds by remember { mutableFloatStateOf(0.0f) }
-  var introStartRotationY by remember { mutableFloatStateOf(0.0f) }
-  var introStartTranslationY by remember { mutableFloatStateOf(0.0f) }
-  var bobElapsedSeconds by remember { mutableFloatStateOf(0.0f) }
-  var hasPlayedWaitingIntro by remember(content) { mutableStateOf(false) }
-  var hasPlayedWaitingSceneEntrance by remember(content) { mutableStateOf(false) }
   var sceneView by remember { mutableStateOf<SceneView?>(null) }
   val latestSceneView by rememberUpdatedState(sceneView)
-  val latestScreenVideoPlayer by rememberUpdatedState(screenVideoPlayer)
 
   fun applyModelTransform() {
-    val bobOffset = if (isWaitingContent && rotationMotionMode == RotationMotionMode.IDLE) {
-      waitingBobTranslationOffsetY(bobElapsedSeconds)
-    } else {
-      0.0f
-    }
-
     modelNode.rotation = Rotation(y = currentModelRotationY.normalizeDegrees())
-    modelNode.position = Position(y = currentModelTranslationY + bobOffset)
-    when (content) {
-      DeviceStatusCard.VideoContent.BITKEY_WAITING_3D -> modelNode.setScale(BITKEY_DEVICE_WAITING_MODEL_SCALE)
-      DeviceStatusCard.VideoContent.BITKEY_ROTATE -> modelNode.setScale(BITKEY_DEVICE_MODEL_SCALE)
-    }
+    modelNode.position = Position()
+    modelNode.setScale(BITKEY_DEVICE_MODEL_SCALE)
   }
 
   fun startSnapToRotation(targetRotationY: Float) {
@@ -405,8 +324,6 @@ internal actual fun BitkeyDeviceMedia(
 
   fun stopAllAnimation() {
     angularVelocityY = 0.0f
-    introElapsedSeconds = 0.0f
-    bobElapsedSeconds = 0.0f
     rotationMotionMode = null
   }
 
@@ -450,168 +367,32 @@ internal actual fun BitkeyDeviceMedia(
     }
   }
 
-  fun prepareWaitingSceneEntrance(sceneView: SceneView) {
-    if (!isWaitingContent) return
-
-    sceneView.animate().cancel()
-    if (hasPlayedWaitingSceneEntrance) {
-      sceneView.alpha = 1.0f
-      sceneView.translationY = 0.0f
-    } else {
-      sceneView.alpha = 0.0f
-      sceneView.translationY = 0.0f
-    }
-  }
-
-  fun startWaitingSceneEntranceIfNeeded() {
-    if (!isWaitingContent) return
-    val activeSceneView = sceneView ?: return
-
-    activeSceneView.animate().cancel()
-    if (hasPlayedWaitingSceneEntrance) {
-      activeSceneView.alpha = 1.0f
-      activeSceneView.translationY = 0.0f
-      return
-    }
-
-    activeSceneView.alpha = 0.0f
-    activeSceneView.translationY = 0.0f
-    activeSceneView.animate()
-      .alpha(1.0f)
-      .setDuration(FORM_DS_V2_WAITING_REVEAL_DURATION_MILLIS.toLong())
-      .setInterpolator(waitingEntranceInterpolator)
-      .withEndAction {
-        hasPlayedWaitingSceneEntrance = true
-      }.start()
-  }
-
   fun startIdleMotion() {
-    if (!isWaitingContent) {
-      stopAllAnimation()
-      lastFrameNanos = 0L
-      return
-    }
-
-    angularVelocityY = 0.0f
-    rotationMotionMode = RotationMotionMode.IDLE
+    stopAllAnimation()
     lastFrameNanos = 0L
-  }
-
-  fun startWaitingIdleMotionIfNeeded() {
-    if (!isWaitingContent || sceneView == null) return
-    if (hasPlayedWaitingIntro || shouldPlayWaitingIntro) return
-
-    angularVelocityY = 0.0f
-    currentModelRotationY = 0.0f
-    currentModelTranslationY = defaultTranslationY(content)
-    bobElapsedSeconds = 0.0f
-    rotationMotionMode = RotationMotionMode.IDLE
-    lastFrameNanos = 0L
-    applyModelTransform()
-  }
-
-  fun startWaitingIntro() {
-    if (!isWaitingContent || sceneView == null) return
-    if (hasPlayedWaitingIntro) return
-
-    hasPlayedWaitingIntro = true
-    angularVelocityY = 0.0f
-    introElapsedSeconds = 0.0f
-    introStartRotationY = currentModelRotationY
-    introStartTranslationY = currentModelTranslationY + waitingBobTranslationOffsetY(bobElapsedSeconds)
-    currentModelTranslationY = introStartTranslationY
-    rotationMotionMode = RotationMotionMode.INTRO
-    lastFrameNanos = 0L
-    applyModelTransform()
   }
 
   val sceneModifier = modifier.then(
-    if (isInteractiveScene) {
-      Modifier
-        .motionEventSpy { motionEvent ->
-          when (motionEvent.actionMasked) {
-            MotionEvent.ACTION_UP,
-            MotionEvent.ACTION_CANCEL,
-            ->
-              updateGestureInterception(
-                disallowIntercept = false,
-                deferViewParentUpdate = true
-              )
-          }
-        }.pointerInteropFilter(
-          requestDisallowInterceptTouchEvent = requestDisallowInterceptTouchEvent,
-          onTouchEvent = { false }
-        )
-    } else {
-      Modifier
-    }
+    Modifier
+      .motionEventSpy { motionEvent ->
+        when (motionEvent.actionMasked) {
+          MotionEvent.ACTION_UP,
+          MotionEvent.ACTION_CANCEL,
+          ->
+            updateGestureInterception(
+              disallowIntercept = false,
+              deferViewParentUpdate = true
+            )
+        }
+      }.pointerInteropFilter(
+        requestDisallowInterceptTouchEvent = requestDisallowInterceptTouchEvent,
+        onTouchEvent = { false }
+      )
   )
-
-  LaunchedEffect(content, sceneView) {
-    if (!isWaitingContent) return@LaunchedEffect
-
-    startWaitingSceneEntranceIfNeeded()
-  }
-
-  LaunchedEffect(content, shouldPlayWaitingIntro, sceneView) {
-    if (!isWaitingContent) return@LaunchedEffect
-
-    if (shouldPlayWaitingIntro) {
-      startWaitingIntro()
-    } else {
-      startWaitingIdleMotionIfNeeded()
-      delay(waitingIntroStartDelayMillis())
-      startWaitingIntro()
-    }
-  }
 
   DisposableEffect(velocityTracker) {
     onDispose {
       velocityTracker.recycle()
-    }
-  }
-
-  DisposableEffect(modelNode, screenVideoMaterial, screenVideoPlayer, lifecycleOwner) {
-    val screenRenderableNode = modelNode.renderableNodes.getOrNull(BITKEY_DEVICE_SCREEN_NODE_NAME)
-    val originalScreenMaterialInstance = screenRenderableNode?.materialInstance
-
-    if (screenRenderableNode != null && screenVideoMaterial != null) {
-      screenRenderableNode.materialInstance = screenVideoMaterial.instance
-    }
-
-    val observer = LifecycleEventObserver { _, event ->
-      when (event) {
-        Lifecycle.Event.ON_START,
-        Lifecycle.Event.ON_RESUME,
-        -> latestScreenVideoPlayer?.start()
-        Lifecycle.Event.ON_PAUSE,
-        Lifecycle.Event.ON_STOP,
-        Lifecycle.Event.ON_DESTROY,
-        -> latestScreenVideoPlayer?.pause()
-        else -> Unit
-      }
-    }
-    lifecycleOwner.lifecycle.addObserver(observer)
-
-    if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-      screenVideoPlayer?.start()
-    }
-
-    onDispose {
-      lifecycleOwner.lifecycle.removeObserver(observer)
-      if (screenRenderableNode != null && originalScreenMaterialInstance != null) {
-        screenRenderableNode.materialInstance = originalScreenMaterialInstance
-      }
-      try {
-        screenVideoPlayer?.pause()
-      } catch (_: IllegalStateException) {
-        // MediaPlayer can already be torn down when this scene disposes during navigation.
-      }
-      screenVideoPlayer?.release()
-      screenVideoMaterial?.let { videoMaterial ->
-        engine.safeDestroyMaterialInstance(videoMaterial.instance)
-        videoMaterial.destroy()
-      }
     }
   }
 
@@ -714,10 +495,6 @@ internal actual fun BitkeyDeviceMedia(
     cameraManipulator = null,
     onGestureListener = null,
     onTouchEvent = { motionEvent, _ ->
-      if (!isInteractiveScene) {
-        return@Scene false
-      }
-
       when (motionEvent.actionMasked) {
         MotionEvent.ACTION_DOWN -> {
           updateGestureInterception(disallowIntercept = false)
@@ -796,7 +573,6 @@ internal actual fun BitkeyDeviceMedia(
           ) {
             rotationMotionMode = RotationMotionMode.MOMENTUM
           } else if (
-            !isWaitingContent &&
             abs(totalDragDeltaX * BITKEY_DEVICE_ROTATION_DEGREES_PER_POINT) >=
             BITKEY_DEVICE_DIRECTIONAL_SNAP_THRESHOLD_DEGREES
           ) {
@@ -828,7 +604,6 @@ internal actual fun BitkeyDeviceMedia(
 
           velocityTracker.clear()
           if (
-            !isWaitingContent &&
             abs(totalDragDeltaX * BITKEY_DEVICE_ROTATION_DEGREES_PER_POINT) >=
             BITKEY_DEVICE_DIRECTIONAL_SNAP_THRESHOLD_DEGREES
           ) {
@@ -849,11 +624,6 @@ internal actual fun BitkeyDeviceMedia(
     onViewCreated = {
       sceneView = this
       updateSceneVisibility(this)
-      if (isWaitingContent) {
-        prepareWaitingSceneEntrance(this)
-        startWaitingIdleMotionIfNeeded()
-        if (shouldPlayWaitingIntro) startWaitingIntro()
-      }
     },
     onViewUpdated = {
       sceneView = this
@@ -861,37 +631,6 @@ internal actual fun BitkeyDeviceMedia(
     },
     onFrame = { frameTimeNanos ->
       when (rotationMotionMode) {
-        RotationMotionMode.INTRO -> {
-          val dt = frameDeltaSeconds(frameTimeNanos, lastFrameNanos)
-          lastFrameNanos = frameTimeNanos
-          introElapsedSeconds += dt
-          val introProgress = (
-            introElapsedSeconds /
-              (BITKEY_DEVICE_WAITING_INTRO_DURATION_MILLIS.toFloat() / 1000.0f)
-          ).coerceIn(0.0f, 1.0f)
-          val easedProgress = FormDsV2WaitingRevealEasing.transform(introProgress)
-          currentModelRotationY = lerp(introStartRotationY, 180.0f, easedProgress)
-          currentModelTranslationY = lerp(
-            introStartTranslationY,
-            BITKEY_DEVICE_WAITING_INTRO_TARGET_TRANSLATION_Y,
-            easedProgress
-          )
-          applyModelTransform()
-
-          if (introProgress >= 1.0f) {
-            currentModelRotationY = 180.0f
-            currentModelTranslationY = BITKEY_DEVICE_WAITING_INTRO_TARGET_TRANSLATION_Y
-            bobElapsedSeconds = 0.0f
-            applyModelTransform()
-            startIdleMotion()
-          }
-        }
-        RotationMotionMode.IDLE -> {
-          val dt = frameDeltaSeconds(frameTimeNanos, lastFrameNanos)
-          lastFrameNanos = frameTimeNanos
-          bobElapsedSeconds += dt
-          applyModelTransform()
-        }
         RotationMotionMode.MOMENTUM -> {
           val dt = frameDeltaSeconds(frameTimeNanos, lastFrameNanos)
           lastFrameNanos = frameTimeNanos
@@ -932,21 +671,6 @@ internal actual fun BitkeyDeviceMediaInteractionOverlay(
 
 internal actual fun supportsBitkeyDevice3DMedia(hardwareType: HardwareType): Boolean =
   hardwareType == HardwareType.W3
-
-@Composable
-internal actual fun supportsInteractiveBitkeyWaitingMedia(hardwareType: HardwareType): Boolean =
-  supportsBitkeyDevice3DMedia(hardwareType)
-
-private fun defaultTranslationY(content: DeviceStatusCard.VideoContent): Float =
-  when (content) {
-    DeviceStatusCard.VideoContent.BITKEY_ROTATE -> 0.0f
-    DeviceStatusCard.VideoContent.BITKEY_WAITING_3D -> BITKEY_DEVICE_WAITING_REST_TRANSLATION_Y
-  }
-
-private fun waitingBobTranslationOffsetY(bobElapsedSeconds: Float): Float {
-  val phase = (bobElapsedSeconds / BITKEY_DEVICE_WAITING_BOB_PERIOD_SECONDS) * (2.0f * Math.PI.toFloat())
-  return sin(phase) * BITKEY_DEVICE_WAITING_BOB_AMPLITUDE_Y
-}
 
 private fun frameDeltaSeconds(
   frameTimeNanos: Long,
@@ -1068,27 +792,6 @@ private fun hdriRotationMatrix(
     pitchCosine * yawSine, -pitchSine, pitchCosine * yawCosine
   )
 }
-
-private fun waitingIntroStartDelayMillis(): Long =
-  (
-    FORM_DS_V2_WAITING_REVEAL_DELAY_MILLIS -
-      BITKEY_DEVICE_WAITING_INTRO_DURATION_MILLIS -
-      BITKEY_DEVICE_WAITING_BUTTON_REVEAL_GAP_MILLIS
-  ).coerceAtLeast(0).toLong()
-
-@Suppress("DiscouragedApi")
-private fun bitkeyDeviceScreenVideoResourceId(context: Context): Int =
-  context.resources.getIdentifier(
-    BITKEY_DEVICE_SCREEN_VIDEO_RESOURCE_NAME,
-    "raw",
-    context.packageName
-  )
-
-private fun lerp(
-  startValue: Float,
-  endValue: Float,
-  fraction: Float,
-): Float = startValue + (endValue - startValue) * fraction
 
 private fun Float.toRadians(): Float = (this / 180.0f * Math.PI).toFloat()
 

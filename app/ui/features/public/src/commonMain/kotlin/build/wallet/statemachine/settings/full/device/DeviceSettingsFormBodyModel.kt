@@ -19,6 +19,7 @@ import build.wallet.ui.model.list.ListItemTreatment
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
+import build.wallet.ui.tokens.market.MarketIcons
 
 /**
  * Creates a [FormBodyModel] to display the device settings screen
@@ -156,12 +157,16 @@ data class DeviceSettingsFormBodyModel(
           } else {
             null
           },
-          SettingsList.SettingsListItem(
-            title = "Wipe device",
-            icon = Icon.SmallIconBitkeyReset,
-            isEnabled = !emptyState,
-            onClick = onWipeDevice
-          ),
+          if (replacementPending == null) {
+            SettingsList.SettingsListItem(
+              title = "Replace device",
+              icon = MarketIcons.BitkeyWallet,
+              isEnabled = replaceDeviceEnabled,
+              onClick = onReplaceDevice
+            )
+          } else {
+            null
+          },
           if (onUpgradeDevice != null && replacementPending == null) {
             SettingsList.SettingsListItem(
               title = "Upgrade device",
@@ -172,17 +177,13 @@ data class DeviceSettingsFormBodyModel(
           } else {
             null
           },
-          if (replacementPending == null) {
-            SettingsList.SettingsListItem(
-              title = "Replace device",
-              icon = Icon.SmallIconBitkey,
-              treatment = ListItemTreatment.DESTRUCTIVE,
-              isEnabled = replaceDeviceEnabled,
-              onClick = onReplaceDevice
-            )
-          } else {
-            null
-          }
+          SettingsList.SettingsListItem(
+            title = "Wipe device",
+            icon = Icon.SmallIconBitkeyReset,
+            treatment = ListItemTreatment.DESTRUCTIVE,
+            isEnabled = !emptyState,
+            onClick = onWipeDevice
+          )
         )
       )
     ),

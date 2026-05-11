@@ -265,8 +265,9 @@ class PairingTransactionProviderImplTests : FunSpec({
     exception.expected.shouldBe(HardwareType.W3)
     exception.actual.shouldBe(HardwareType.W1)
 
-    // getDeviceInfo is called for verification
     nfcCommands.getDeviceInfoCalls.awaitItem().shouldBe(FirmwareDeviceInfoMock)
+    nfcCommands.getAuthenticationKeyCalls.expectNoEvents()
+    nfcCommands.provisionAppAuthKeyCalls.expectNoEvents()
   }
 
   test("expectedHardwareType W3 succeeds when W3 device is tapped") {

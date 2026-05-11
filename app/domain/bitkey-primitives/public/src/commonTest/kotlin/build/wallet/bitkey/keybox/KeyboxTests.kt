@@ -120,4 +120,46 @@ class KeyboxTests : FunSpec({
     val keybox = createKeybox(activeSpendingKeyset = privateKeyset)
     keybox.activeSpendingKeyset.f8eSpendingKeyset.isPrivateWallet.shouldBe(true)
   }
+
+  test("withNewSpendingKeyset replaces an existing keyset with the same local ID") {
+    val original = createSpendingKeyset(
+      localId = "private-keyset",
+      f8eKeysetId = "original-f8e-keyset-id",
+      privateWalletRootXpub = "original-xpub"
+    )
+    val replacement = createSpendingKeyset(
+      localId = original.localId,
+      f8eKeysetId = "replacement-f8e-keyset-id",
+      privateWalletRootXpub = "replacement-xpub"
+    )
+
+    val keybox = createKeybox(
+      activeSpendingKeyset = SpendingKeysetMock,
+      keysets = listOf(SpendingKeysetMock, original)
+    ).withNewSpendingKeyset(replacement)
+
+    keybox.activeSpendingKeyset.shouldBe(replacement)
+    keybox.keysets.shouldBe(listOf(SpendingKeysetMock, replacement))
+  }
+
+  test("withNewSpendingKeyset replaces an existing keyset with the same F8e keyset ID") {
+    val original = createSpendingKeyset(
+      localId = "original-local-id",
+      f8eKeysetId = "private-f8e-keyset-id",
+      privateWalletRootXpub = "original-xpub"
+    )
+    val replacement = createSpendingKeyset(
+      localId = "replacement-local-id",
+      f8eKeysetId = original.f8eSpendingKeyset.keysetId,
+      privateWalletRootXpub = "replacement-xpub"
+    )
+
+    val keybox = createKeybox(
+      activeSpendingKeyset = SpendingKeysetMock,
+      keysets = listOf(SpendingKeysetMock, original)
+    ).withNewSpendingKeyset(replacement)
+
+    keybox.activeSpendingKeyset.shouldBe(replacement)
+    keybox.keysets.shouldBe(listOf(SpendingKeysetMock, replacement))
+  }
 })

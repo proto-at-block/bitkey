@@ -6,11 +6,10 @@
 
 #include <string.h>
 
-#define FINGERPRINT_SLOT_COUNT            3
-#define DISPLAY_POWER_OFF_RESET_THRESHOLD 5u
+#define FINGERPRINT_SLOT_COUNT              3
+#define DISPLAY_UXC_RESET_FAILURE_THRESHOLD 2u
 
-bool display_controller_update_power_off_send_failures(const fwpb_display_command* cmd,
-                                                       bool is_plugged_in, uint8_t* failure_count);
+bool display_controller_update_uxc_send_failures(bool send_success, uint8_t* failure_count);
 
 // Display controller context
 typedef struct display_controller_t {

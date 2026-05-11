@@ -60,6 +60,26 @@ typedef enum {
   MCU_RESET_SOFTWARE,
 
   /**
+   * @brief Shutdown IPC to sysinfo task could not be queued within timeout
+   * (sysinfo task unresponsive or queue full). Reset instead of leaving the
+   * timer service task blocked and the device in a half-shutdown state.
+   */
+  MCU_RESET_SHUTDOWN_IPC_FAILED,
+
+  /**
+   * @brief `power_set_retain(false)` was called to cut power, but the MCU is
+   * still executing afterwards. Something else is holding the rail up; reset
+   * so the device doesn't zombify with a terminal power-off UI.
+   */
+  MCU_RESET_POWER_OFF_FAILED,
+
+  /**
+   * @brief Display path wedged during USB-plugged power off (repeated
+   * display send failures). Both MCUs are reset to resync state.
+   */
+  MCU_RESET_DISPLAY_WEDGE,
+
+  /**
    * @brief Unused (reset value is capped to `uint8_t`).
    */
   MCU_RESET_MAX = 255,

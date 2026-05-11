@@ -5,6 +5,7 @@
 #ifdef EMBEDDED_BUILD
 #include "confirmation_manager.h"
 #include "ipc.h"
+#include "nfc_control.h"
 #endif
 
 #include "auth.h"
@@ -21,6 +22,17 @@
 #define HANDOFF_PHASE_SIGNING 1
 
 #define SIGNING_DURATION_TICKS MS_TO_DISPLAY_TICKS(3000)
+
+// Per-input signing cost is ~100-200ms (BIP32 derivation + ECDSA + flash I/O).
+// With the 200-UTXO limit, worst case is ~40s; 120s provides headroom.
+#define SIGNING_NFC_DISABLE_TIMEOUT (120000)
+
+#ifdef EMBEDDED_BUILD
+// NFC disable token held during the send confirmation + signing flow.
+// Acquired when the flow enters for a send, released when the handoff
+// timer transitions to the scan screen (or on flow exit as a safety net).
+static nfc_disable_token_t send_nfc_token = NFC_CONTROL_INVALID_TOKEN;
+#endif
 
 // Populate screen parameters with transaction data
 static void update_screen_params(display_controller_t* controller) {
@@ -86,6 +98,10 @@ void display_controller_money_movement_on_enter(display_controller_t* controller
 }
 
 void display_controller_money_movement_on_exit(display_controller_t* controller) {
+#ifdef EMBEDDED_BUILD
+  nfc_enable(send_nfc_token);
+  send_nfc_token = NFC_CONTROL_INVALID_TOKEN;
+#endif
   // Clean up transaction data
   memset(&controller->nav.money_movement, 0, sizeof(controller->nav.money_movement));
 }
@@ -123,8 +139,14 @@ flow_action_result_t display_controller_money_movement_on_tick(display_controlle
   // confirmation expiry guard above (which fires on HANDOFF_PHASE_NORMAL)
   // does not kick the user out while they are tapping their phone.
   if (controller->nav.money_movement.handoff_phase == HANDOFF_PHASE_SIGNING) {
-    display_controller_tick_handoff_to_scan(controller,
-                                            &controller->nav.money_movement.handoff_timer);
+    if (display_controller_tick_handoff_to_scan(controller,
+                                                &controller->nav.money_movement.handoff_timer)) {
+#ifdef EMBEDDED_BUILD
+      // Scan screen shown — re-enable NFC so the phone can retrieve signatures.
+      nfc_enable(send_nfc_token);
+      send_nfc_token = NFC_CONTROL_INVALID_TOKEN;
+#endif
+    }
   }
 
   return flow_result_handled();
@@ -156,15 +178,16 @@ flow_action_result_t display_controller_money_movement_on_action(
                        confirmation_manager_get_type() == CONFIRMATION_TYPE_SIGN_TRANSACTION;
     if (should_sign) {
       confirmation_manager_approve();
-      ipc_send_empty(key_manager_port, IPC_KEY_MANAGER_SIGN_DEFERRED);
+      send_nfc_token = nfc_disable(SIGNING_NFC_DISABLE_TIMEOUT);
     }
 #else
     bool should_sign = !is_receive;
 #endif
 
     if (should_sign) {
-      // Stay in flow and show the localized loading confirmation screen.
-      // The tick handler drives: Signing (3s) → Scan.
+      // Set up the loading screen and handoff timer before waking the
+      // key_manager — it runs at higher priority and could preempt
+      // immediately after ipc_send_empty.
       memset(&controller->show_screen.params, 0, sizeof(controller->show_screen.params));
       controller->show_screen.params.confirmation.mode =
         fwpb_display_params_confirmation_display_params_confirmation_mode_DISPLAY_PARAMS_CONFIRMATION_MODE_LOADING;
@@ -174,6 +197,9 @@ flow_action_result_t display_controller_money_movement_on_action(
                                      TRANSITION_DURATION_STANDARD);
       controller->nav.money_movement.handoff_phase = HANDOFF_PHASE_SIGNING;
       controller->nav.money_movement.handoff_timer = SIGNING_DURATION_TICKS;
+#ifdef EMBEDDED_BUILD
+      ipc_send_empty(key_manager_port, IPC_KEY_MANAGER_SIGN_DEFERRED);
+#endif
       return flow_result_handled();
     }
 

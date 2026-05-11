@@ -164,6 +164,7 @@ class NotificationPreferencesSetupUiStateMachineImpl(
               // Email is always the first screen — no back button
               onClose = null,
               onSuccess = {
+                emailState = Completed
                 when {
                   shouldShowSmsItem -> state = EnteringAndVerifyingPhoneNumberUiState
                   pushItemModel.state == Completed -> advanceToTransactions()
@@ -193,6 +194,7 @@ class NotificationPreferencesSetupUiStateMachineImpl(
               // ← back from SMS returns to email
               onClose = { state = EnteringAndVerifyingEmailUiState },
               onSuccess = {
+                smsState = Completed
                 if (pushItemModel.state == Completed) {
                   advanceToTransactions()
                 } else {

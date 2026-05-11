@@ -28,6 +28,7 @@ import build.wallet.logging.logFailure
 import build.wallet.logging.logWarn
 import build.wallet.nfc.platform.ActionProofAction
 import build.wallet.nfc.platform.RotateAppAuthKeysContinueParams
+import build.wallet.nfc.platform.requireW3
 import build.wallet.nfc.transaction.ProvisionAppAuthKeyTransactionProvider
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.auth.ActionProofType
@@ -487,7 +488,7 @@ class RotateAuthKeyUIStateMachineImpl(
     return nfcConfirmableSessionUiStateMachine.model(
       NfcConfirmableSessionUIStateMachineProps(
         session = { session, commands ->
-          commands.rotateAppAuthKeys(
+          commands.requireW3(session).rotateAppAuthKeys(
             session = session,
             params = RotateAppAuthKeysContinueParams(
               actionProofVersion = ACTION_PROOF_VERSION,
