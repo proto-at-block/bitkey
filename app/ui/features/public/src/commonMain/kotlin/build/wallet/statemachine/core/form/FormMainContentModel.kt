@@ -203,10 +203,18 @@ sealed class FormMainContentModel {
 
       data class ImageContent(
         val image: Image,
+        val scale: Float = 1f,
       ) : Content() {
+        init {
+          require(scale > 0f) {
+            "ImageContent scale must be greater than 0."
+          }
+        }
+
         enum class Image {
           BITKEY_TILT,
           UPGRADE_W3,
+          UPGRADE_W3_UP_DOWN,
         }
       }
     }

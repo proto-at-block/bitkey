@@ -333,7 +333,10 @@ enum Action {
     /** [App] Auth key rotation succeeded during W3 upgrade */
     ACTION_APP_W3_UPGRADE_AUTH_ROTATED = 95;
 
-    // Next tag is 96
+    /** [App] Customer has seen the W3 upgrade blocker coachmark */
+    ACTION_APP_COACHMARK_VIEWED_W3_UPGRADE_BLOCKER = 96;
+
+    // Next tag is 97
 }
 
 message PlatformInfo {

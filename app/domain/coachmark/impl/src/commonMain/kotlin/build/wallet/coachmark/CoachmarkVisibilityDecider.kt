@@ -3,8 +3,12 @@ package build.wallet.coachmark
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.PrivateWalletMigrationFeatureFlag
-// import build.wallet.feature.isEnabled  // unused while PrivateWalletHomeCoachmark is hard-coded off
+import build.wallet.feature.flags.W3UpgradeBlockerFeatureFlag
+import build.wallet.feature.isEnabled
+import build.wallet.onboarding.OnboardingCompletionService
+import com.github.michaelbull.result.getOr
 import kotlinx.datetime.Clock
+import kotlin.time.Duration.Companion.days
 
 /**
  * Maps coachmark identifiers to feature flags. This allows them to be turned on
@@ -20,7 +24,17 @@ class CoachmarkVisibilityDecider(
   private val bip177CoachmarkPolicy: Bip177CoachmarkPolicy,
   @Suppress("unused") // retained for DI wiring; will be used again when PrivateWalletHomeCoachmark is re-enabled
   private val privateWalletMigrationFeatureFlag: PrivateWalletMigrationFeatureFlag,
+  private val w3UpgradeBlockerFeatureFlag: W3UpgradeBlockerFeatureFlag,
+  private val onboardingCompletionService: OnboardingCompletionService,
 ) {
+  companion object {
+    /**
+     * Minimum time since onboarding completion before showing the W3 upgrade blocker.
+     * Matches the inheritance upsell delay so users aren't overwhelmed right after setup.
+     */
+    internal val W3_UPGRADE_BLOCKER_ONBOARDING_DELAY = 14.days
+  }
+
   /**
    * Returns whether a coachmark is eligible to be created based on feature flags.
    * Used before inserting so we don't start expiration timers prematurely.
@@ -31,6 +45,8 @@ class CoachmarkVisibilityDecider(
       // Hard-coded off: showing the coachmark after cloud recovery causes private wallet
       // migration to fail if the user signs out other devices. Will re-enable after fix.
       CoachmarkIdentifier.PrivateWalletHomeCoachmark -> false
+      CoachmarkIdentifier.W3UpgradeBlockerCoachmark ->
+        w3UpgradeBlockerFeatureFlag.isEnabled() && hasEnoughTimeSinceOnboarding()
       else -> true
     }
 
@@ -44,6 +60,8 @@ class CoachmarkVisibilityDecider(
       CoachmarkIdentifier.Bip177Coachmark -> bip177CoachmarkPolicy.shouldShow()
       // Hard-coded off: see shouldCreate comment above.
       CoachmarkIdentifier.PrivateWalletHomeCoachmark -> false
+      CoachmarkIdentifier.W3UpgradeBlockerCoachmark ->
+        w3UpgradeBlockerFeatureFlag.isEnabled() && hasEnoughTimeSinceOnboarding()
       else -> {
         // Not all coachmarks have associated feature flags
         true
@@ -52,5 +70,15 @@ class CoachmarkVisibilityDecider(
     val notExpired = coachmark.expiration?.let { it > clock.now() } ?: true
 
     return notExpired && !coachmark.viewed && featureFlagged
+  }
+
+  /**
+   * Returns true if enough time has passed since onboarding, or if the user is an existing user
+   * without a recorded onboarding timestamp (show immediately for pre-existing users).
+   */
+  private suspend fun hasEnoughTimeSinceOnboarding(): Boolean {
+    val completionTimestamp = onboardingCompletionService.getCompletionTimestamp().getOr(null)
+      ?: return true // No timestamp means existing user — show immediately
+    return clock.now() - completionTimestamp >= W3_UPGRADE_BLOCKER_ONBOARDING_DELAY
   }
 }

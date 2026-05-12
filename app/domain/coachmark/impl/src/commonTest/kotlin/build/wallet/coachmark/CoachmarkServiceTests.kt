@@ -12,6 +12,7 @@ import build.wallet.feature.FeatureFlagValue
 import build.wallet.feature.flags.Bip177FeatureFlag
 import build.wallet.feature.flags.CoachmarksGlobalFeatureFlag
 import build.wallet.feature.flags.PrivateWalletMigrationFeatureFlag
+import build.wallet.feature.flags.W3UpgradeBlockerFeatureFlag
 import build.wallet.money.display.BitcoinDisplayPreferenceRepositoryFake
 import build.wallet.money.display.BitcoinDisplayUnit
 import build.wallet.onboarding.OnboardingCompletionServiceFake
@@ -34,6 +35,7 @@ class CoachmarkServiceTests :
     val coachmarksGlobalFlag = CoachmarksGlobalFeatureFlag(featureFlagDao)
     val bip177FeatureFlag = Bip177FeatureFlag(featureFlagDao)
     val privateWalletMigrationFeatureFlag = PrivateWalletMigrationFeatureFlag(featureFlagDao)
+    val w3UpgradeBlockerFeatureFlag = W3UpgradeBlockerFeatureFlag(featureFlagDao)
     val bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryFake()
     val bip177CoachmarkEligibilityDao = Bip177CoachmarkEligibilityDaoFake()
     val onboardingCompletionService = OnboardingCompletionServiceFake()
@@ -51,7 +53,9 @@ class CoachmarkServiceTests :
         bip177CoachmarkEligibilityDao = eligibilityDao,
         onboardingCompletionService = onboardingCompletionService
       ),
-      privateWalletMigrationFeatureFlag = privateWalletMigrationFeatureFlag
+      privateWalletMigrationFeatureFlag = privateWalletMigrationFeatureFlag,
+      w3UpgradeBlockerFeatureFlag = w3UpgradeBlockerFeatureFlag,
+      onboardingCompletionService = onboardingCompletionService
     )
 
     beforeTest {

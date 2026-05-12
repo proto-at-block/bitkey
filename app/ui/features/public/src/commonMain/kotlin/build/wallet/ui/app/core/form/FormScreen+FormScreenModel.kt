@@ -39,6 +39,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import bitkey.ui.features_public.generated.resources.Res as FeaturesRes
+import bitkey.ui.features_public.generated.resources.upgradew3updown
 import bitkey.ui.framework_public.generated.resources.Res
 import bitkey.ui.framework_public.generated.resources.bitkey_tilt_dark
 import bitkey.ui.framework_public.generated.resources.bitkey_tilt_light
@@ -653,15 +655,35 @@ private fun ShowcaseImageContent(content: Showcase.Content.ImageContent) {
         }
       Showcase.Content.ImageContent.Image.UPGRADE_W3 ->
         Res.drawable.upgrade_w3
+      Showcase.Content.ImageContent.Image.UPGRADE_W3_UP_DOWN ->
+        FeaturesRes.drawable.upgradew3updown
     }
   )
 
-  Image(
-    modifier = Modifier.fillMaxWidth(),
-    painter = painter,
-    contentDescription = null,
-    contentScale = ContentScale.FillWidth
-  )
+  val aspectRatio = with(painter.intrinsicSize) {
+    val hasFiniteDimensions = width.isFinite() && height.isFinite()
+    val hasPositiveDimensions = width > 0f && height > 0f
+
+    if (hasFiniteDimensions && hasPositiveDimensions) {
+      width / height
+    } else {
+      1f
+    }
+  }
+
+  BoxWithConstraints(
+    modifier = Modifier.fillMaxWidth()
+  ) {
+    Image(
+      modifier = Modifier
+        .requiredWidth(maxWidth * content.scale)
+        .aspectRatio(aspectRatio)
+        .align(Alignment.Center),
+      painter = painter,
+      contentDescription = null,
+      contentScale = ContentScale.Fit
+    )
+  }
 }
 
 @Composable

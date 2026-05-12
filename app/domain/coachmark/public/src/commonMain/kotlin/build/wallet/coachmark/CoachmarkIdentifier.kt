@@ -39,4 +39,8 @@ enum class CoachmarkIdentifier(
     id = "address_verification_education_coachmark",
     action = Action.ACTION_APP_COACHMARK_VIEWED_ADDRESS_VERIFICATION_EDUCATION
   ),
+  W3UpgradeBlockerCoachmark(
+    id = "w3_upgrade_blocker_coachmark",
+    action = Action.ACTION_APP_COACHMARK_VIEWED_W3_UPGRADE_BLOCKER
+  ),
 }
