@@ -106,7 +106,7 @@ class TransferAmountScreenSnapshots : FunSpec({
   }
 
   test("transfer amount entry screen - no entry with design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       TransferAmountScreen(
         model = TransferAmountBodyModel(
           onBack = {},
@@ -133,7 +133,7 @@ class TransferAmountScreenSnapshots : FunSpec({
   }
 
   test("sell amount entry screen - below minimum with design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       TransferAmountScreen(
         model = TransferAmountBodyModel(
           onBack = {},
@@ -161,7 +161,7 @@ class TransferAmountScreenSnapshots : FunSpec({
   }
 
   test("sell amount entry screen - above maximum with design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       TransferAmountScreen(
         model = TransferAmountBodyModel(
           onBack = {},
@@ -189,7 +189,7 @@ class TransferAmountScreenSnapshots : FunSpec({
   }
 
   test("sell amount entry screen - exceeds balance with design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       TransferAmountScreen(
         model = TransferAmountBodyModel(
           onBack = {},
@@ -218,7 +218,7 @@ class TransferAmountScreenSnapshots : FunSpec({
   }
 
   test("transfer amount entry screen - insufficient funds with design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       TransferAmountScreen(
         model = TransferAmountBodyModel(
           onBack = {},

@@ -10,7 +10,7 @@ class ActivationInstructionsV2ScreenSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
   test("activation instructions v2 screen") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       PairNewHardwareScreen(
         model =
           ActivationInstructionsV2BodyModel(
@@ -24,7 +24,7 @@ class ActivationInstructionsV2ScreenSnapshots : FunSpec({
   }
 
   test("activation instructions v2 screen - loading") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       PairNewHardwareScreen(
         model =
           ActivationInstructionsV2BodyModel(

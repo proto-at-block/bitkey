@@ -32,6 +32,13 @@ PyYAML = "^6.0.1"
 memfault-cli = "1.6.0"
 pyelftools = "0.32"
 
+# Tokenized-log decoder (`bitkey.log_decoder` / `bitkey.log_tokens` /
+# `tasks.log`) deps. cbor2 is a transitive dep of mflt-compact-log but pin
+# explicitly so imports succeed even if mflt-compact-log's own version
+# pinning shifts.
+mflt-compact-log = "0.2.1"
+cbor2 = "*"
+
 puncover = "0.3.4"
 jinja2 = "3.0.0"
 

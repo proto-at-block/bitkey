@@ -25,17 +25,4 @@ class HardwareConfirmationResultScreenSnapshots : FunSpec({
     }
   }
 
-  test("confirmation result screen with design system v2 feature flag on") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
-      FormScreen(
-        model = HardwareConfirmationResultBodyModel(
-          headline = "Review transaction on Bitkey",
-          subline = "Before sending, use your Bitkey device to review the transaction details.",
-          buttonText = "Got it",
-          onAcknowledge = {},
-          eventTrackerScreenId = NfcEventTrackerScreenId.NFC_CONFIRMATION_PENDING
-        )
-      )
-    }
-  }
 })

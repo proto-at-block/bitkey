@@ -71,7 +71,7 @@ data class ManagingInheritanceBodyModel(
           item = CalloutModel(
             title = "Beneficiary not active",
             subtitle = LabelModel.StringModel("Your contact must accept the invite to be an active beneficiary."),
-            leadingIcon = Icon.SmallIconInformationFilled,
+            leadingIcon = Icon.SmallIconInformation,
             treatment = CalloutModel.Treatment.Information
           )
         ).takeIf {

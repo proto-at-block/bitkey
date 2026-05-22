@@ -27,7 +27,6 @@ import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.system.BackHandler
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 
@@ -68,8 +67,7 @@ fun FormScreen(
   }
 
   val isDesignSystemV2Screen =
-    LocalDesignSystemUpdatesEnabled.current &&
-      (designSystemV2UseLayout || designSystemV2Eyebrow != null || designSystemV2Title != null)
+    designSystemV2UseLayout || designSystemV2Eyebrow != null || designSystemV2Title != null
 
   if (isDesignSystemV2Screen) {
     require(designSystemV2Title == null || toolbarModel?.middleAccessory == null) {

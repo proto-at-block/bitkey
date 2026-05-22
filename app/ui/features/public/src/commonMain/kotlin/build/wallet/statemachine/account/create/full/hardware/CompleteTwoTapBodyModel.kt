@@ -76,17 +76,6 @@ data class CompleteTwoTapBodyModel(
       subline = "Finish the steps on your device before continuing.",
       headlineLabelType = LabelType.Display2
     ),
-    mainContentList = immutableListOf(
-      FormMainContentModel.Spacer(),
-      FormMainContentModel.Showcase(
-        content = FormMainContentModel.Showcase.Content.IconContent(
-          icon = Icon.NfcTwoTap,
-          widthDp = 125,
-          heightDp = 172
-        )
-      ),
-      FormMainContentModel.Spacer()
-    ),
     primaryButton = ButtonModel(
       text = "Yes, continue",
       onClick = StandardClick(onContinue),

@@ -22,7 +22,6 @@ import build.wallet.ui.model.icon.IconSize.Regular
 import build.wallet.ui.model.icon.IconTint.On30
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.switch.SwitchCardModel
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.tokens.LabelType
 
 @Composable
@@ -30,7 +29,7 @@ fun SwitchCard(
   model: SwitchCardModel,
   modifier: Modifier = Modifier,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
 
   if (isDesignSystemV2Enabled) {
     Column(

@@ -18,6 +18,7 @@ class BdkWalletSyncerV2Fake(
 
   var syncDelay: Duration = ZERO
   var syncResult: Result<Unit, BdkError> = Ok(Unit)
+  var onSync: suspend (Wallet) -> Unit = {}
 
   override suspend fun sync(
     bdkWallet: Wallet,
@@ -26,11 +27,15 @@ class BdkWalletSyncerV2Fake(
   ): Result<Unit, BdkError> {
     syncCalls.add(bdkWallet)
     delay(syncDelay)
+    if (syncResult.isOk) {
+      onSync(bdkWallet)
+    }
     return syncResult
   }
 
   fun reset() {
     syncDelay = ZERO
     syncResult = Ok(Unit)
+    onSync = {}
   }
 }

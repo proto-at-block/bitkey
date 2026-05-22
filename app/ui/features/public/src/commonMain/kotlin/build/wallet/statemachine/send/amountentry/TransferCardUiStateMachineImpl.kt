@@ -11,8 +11,6 @@ import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.coroutines.scopes.mapAsStateFlow
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.limit.DailySpendingLimitStatus.RequiresHardware
 import build.wallet.limit.MobilePayService
 import build.wallet.statemachine.core.Icon.SmallIconBitkey
@@ -28,14 +26,11 @@ import build.wallet.statemachine.send.TransferAmountUiState.ValidAmountEnteredUi
 class TransferCardUiStateMachineImpl(
   private val appFunctionalityService: AppFunctionalityService,
   private val mobilePayService: MobilePayService,
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : TransferCardUiStateMachine {
   @Composable
   override fun model(props: TransferCardUiProps): CardModel? {
     val scope = rememberStableCoroutineScope()
-    val isDesignSystemV2Enabled by remember {
-      designSystemUpdatesFeatureFlag.flagValue().mapAsStateFlow(scope) { it.isEnabled() }
-    }.collectAsState(initial = designSystemUpdatesFeatureFlag.isEnabled())
+    val isDesignSystemV2Enabled = true
 
     if (isDesignSystemV2Enabled) {
       return when (props.transferAmountState) {

@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.typography.font.cashSansFontFamily
 import build.wallet.ui.typography.font.cashSansMonoFontFamily
 import build.wallet.ui.typography.font.foundersGroteskFontFamily
@@ -282,7 +281,6 @@ fun LabelType.style(baseStyle: TextStyle) =
 
 /**
  * New design system style tokens using Cash Sans fonts.
- * Use this when the DesignSystemUpdatesFeatureFlag is enabled.
  * Uses Regular weight throughout (Cash Sans Regular).
  */
 @Composable
@@ -547,12 +545,12 @@ fun LabelType.styleV2(baseStyle: TextStyle) =
   }
 
 /**
- * Returns the appropriate style based on the DesignSystemUpdatesFeatureFlag.
+ * Returns the appropriate style for the current design system.
  * Automatically switches between [style] (V1/Inter) and [styleV2] (V2/Cash Sans).
  */
 @Composable
 fun LabelType.currentStyle(baseStyle: TextStyle): TextStyle {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   return if (isDesignSystemV2Enabled) {
     val textStyle = styleV2(baseStyle)
     textStyle.copy(fontFeatureSettings = textStyle.fontFeatureSettings.withSlashedZero())
@@ -563,7 +561,7 @@ fun LabelType.currentStyle(baseStyle: TextStyle): TextStyle {
 
 @Composable
 fun LabelType.isAllCapsInCurrentDesignSystem(): Boolean {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   return this == LabelType.Body2MonoCaps ||
     (
       isDesignSystemV2Enabled &&

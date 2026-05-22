@@ -9,7 +9,7 @@ class W3UpgradeOldHardwareAuthRotationInstructionsSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
   test("W3 upgrade old hardware auth rotation instructions screen") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       FormScreen(
         W3UpgradeOldHardwareAuthRotationInstructionsBodyModel(
           onBack = {},

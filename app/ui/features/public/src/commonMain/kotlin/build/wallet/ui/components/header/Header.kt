@@ -22,7 +22,6 @@ import build.wallet.ui.components.label.LabelTreatment.*
 import build.wallet.ui.components.label.buildAnnotatedString
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.icon.IconModel
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.tokens.LabelType
@@ -37,8 +36,7 @@ fun Header(
 ) {
   val resolvedIconModel =
     resolveLegacyHeaderWarningIconModelForDesignSystemV2(
-      iconModel = model.iconModel,
-      designSystemUpdatesEnabled = LocalDesignSystemUpdatesEnabled.current
+      iconModel = model.iconModel
     )
 
   Header(

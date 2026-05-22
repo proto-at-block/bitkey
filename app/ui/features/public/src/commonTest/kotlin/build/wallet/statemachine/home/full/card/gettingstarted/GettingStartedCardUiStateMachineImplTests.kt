@@ -410,7 +410,7 @@ private fun CardModel.expectTaskModelWithEnabled(
           Incomplete ->
             when (task.id) {
               EnableSpendingLimit -> SmallIconMobileLimit
-              AddBitcoin -> SmallIconPlusStroked
+              AddBitcoin -> SmallIconPlus
             }
         }
       )

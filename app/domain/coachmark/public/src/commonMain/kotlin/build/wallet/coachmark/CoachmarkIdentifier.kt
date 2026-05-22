@@ -15,6 +15,10 @@ enum class CoachmarkIdentifier(
   val action: Action,
   val expiration: Duration? = null,
 ) {
+  Unknown(
+    id = "__unknown_coachmark__",
+    action = Action.ACTION_UNSPECIFIED
+  ),
   SecurityHubSettingsCoachmark(
     id = "security_hub_settings_coachmark",
     action = Action.ACTION_APP_COACHMARK_VIEWED_SECURITY_HUB_SETTINGS,
@@ -43,4 +47,13 @@ enum class CoachmarkIdentifier(
     id = "w3_upgrade_blocker_coachmark",
     action = Action.ACTION_APP_COACHMARK_VIEWED_W3_UPGRADE_BLOCKER
   ),
+  ;
+
+  companion object {
+    private val byStableId = entries.associateBy { it.id }
+    private val byEnumName = entries.associateBy { it.name }
+
+    fun fromDatabaseValue(databaseValue: String): CoachmarkIdentifier =
+      byStableId[databaseValue] ?: byEnumName[databaseValue] ?: Unknown
+  }
 }

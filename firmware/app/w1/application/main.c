@@ -2,6 +2,10 @@
 #include "bio.h"
 #include "exti.h"
 
+#if defined(LOG_TOKENIZED) && !defined(DISABLE_PRINTF)
+#include "log_uart.h"
+#endif
+
 // These are here instead of in sysinfo.c because propagating cflags to dependencies
 // in Meson is hard (impossible?).
 USED char _sysinfo_software_type[SYSINFO_SOFTWARE_TYPE_MAX_LENGTH] = SYSINFO_SOFTWARE_TYPE;
@@ -26,6 +30,11 @@ NO_OPTIMIZE int main(void) {
 
   led_init();
   serial_init();
+#if defined(LOG_TOKENIZED) && !defined(DISABLE_PRINTF)
+  // Banner the GNU/Memfault build ID so the host log decoder can verify the
+  // connected firmware matches the user-supplied ELF.
+  log_uart_emit_build_id();
+#endif
   sysevent_init();
 
 #ifdef CONFIG_PROD

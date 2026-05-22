@@ -15,7 +15,6 @@ import androidx.compose.ui.unit.Density
 import bitkey.ui.screens.securityhub.SecurityHubBodyModel
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId
-import build.wallet.feature.FeatureFlagValue
 import build.wallet.platform.device.DeviceInfo
 import build.wallet.platform.haptics.Haptics
 import build.wallet.platform.sensor.Accelerometer
@@ -44,7 +43,6 @@ import build.wallet.ui.tokens.backgroundColor
 import cafe.adriel.voyager.core.stack.StackEvent.*
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.transitions.ScreenTransitionContent
-import kotlinx.coroutines.flow.StateFlow
 import cafe.adriel.voyager.core.screen.Screen as VoyagerScreen
 
 /**
@@ -57,7 +55,6 @@ fun App(
   accelerometer: Accelerometer?,
   themePreferenceService: ThemePreferenceService?,
   haptics: Haptics?,
-  designSystemUpdatesEnabled: StateFlow<FeatureFlagValue.BooleanFlag>? = null,
 ) {
   var previousPresentationStyle by remember {
     mutableStateOf(model.presentationStyle)
@@ -78,28 +75,25 @@ fun App(
   val appTheme by themePreferenceService?.theme()?.collectAsState(initial = currentSystemTheme)
     ?: remember { mutableStateOf(currentSystemTheme) }
 
-  // Collect the design system updates flag, defaulting to false
-  val isDesignSystemV2Enabled by designSystemUpdatesEnabled?.collectAsState()
-    ?: remember { mutableStateOf(FeatureFlagValue.BooleanFlag(false)) }
+  val isDesignSystemV2Enabled = true
 
   CompositionLocalProvider(
     LocalDeviceInfo provides deviceInfo,
     LocalAccelerometer provides accelerometer,
     LocalTheme provides appTheme,
-    LocalHaptics provides haptics,
-    LocalDesignSystemUpdatesEnabled provides isDesignSystemV2Enabled.value
+    LocalHaptics provides haptics
   ) {
     WalletTheme {
       val backdropTheme =
         effectiveTheme(appTheme = appTheme, screenThemePreference = model.themePreference)
       val rootBackgroundColor = if (usesBlackFullscreenBackground(
           bodyModel = model.body,
-          isDesignSystemV2Enabled = isDesignSystemV2Enabled.value
+          isDesignSystemV2Enabled = isDesignSystemV2Enabled
         )
       ) {
         Color.Black
       } else {
-        backdropTheme.backgroundColor(designSystemUpdatesEnabled = isDesignSystemV2Enabled.value)
+        backdropTheme.backgroundColor()
       }
       Box(
         modifier = Modifier
@@ -215,7 +209,7 @@ private fun BitkeyTransition(
   // of the screen. This is passed to the animation retrieval functions which returns the appropriate
   // animation
   val density = LocalDensity.current
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
 
   val transitionSpec: AnimatedContentTransitionScope<VoyagerScreen>.() -> ContentTransform = {
     val fromModel = (initialState as UiModelContentScreen).model

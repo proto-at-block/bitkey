@@ -1,7 +1,7 @@
 package build.wallet.ui.theme
 
 import com.github.michaelbull.result.Result
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.Flow
 
 interface ThemePreferenceDao {
   /**
@@ -18,7 +18,7 @@ interface ThemePreferenceDao {
   /**
    * Returns a flow of the user's current theme preference.
    */
-  fun themePreference(): StateFlow<ThemePreference?>
+  fun themePreference(): Flow<ThemePreference?>
 
   /**
    * Clears the user's theme preference.

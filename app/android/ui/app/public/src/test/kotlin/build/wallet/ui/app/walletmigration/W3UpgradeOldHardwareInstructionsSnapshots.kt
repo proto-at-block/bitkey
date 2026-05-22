@@ -9,7 +9,7 @@ class W3UpgradeOldHardwareInstructionsSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
   test("W3 upgrade old hardware instructions screen") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       FormScreen(
         W3UpgradeOldHardwareInstructionsBodyModel(
           onBack = {},
@@ -19,14 +19,4 @@ class W3UpgradeOldHardwareInstructionsSnapshots : FunSpec({
     }
   }
 
-  test("W3 upgrade old hardware instructions screen with design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
-      FormScreen(
-        W3UpgradeOldHardwareInstructionsBodyModel(
-          onBack = {},
-          onContinue = {}
-        )
-      )
-    }
-  }
 })

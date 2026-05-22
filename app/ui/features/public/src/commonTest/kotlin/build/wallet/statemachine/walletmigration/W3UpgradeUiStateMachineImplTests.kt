@@ -49,6 +49,7 @@ import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
 import build.wallet.cloud.backup.health.CloudBackupStatus
 import build.wallet.cloud.backup.health.EekBackupStatus
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.device.wipe.DeviceWipeEligibilityServiceFake
 import build.wallet.encrypt.WsmVerifierMock
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.auth.PrivilegedActionProof
@@ -59,6 +60,7 @@ import build.wallet.feature.flags.UtxoMaxConsolidationCountFeatureFlag
 import build.wallet.firmware.FirmwareDeviceInfoDaoFake
 import build.wallet.firmware.FirmwareDeviceInfoMock
 import build.wallet.keybox.keys.AppKeysGeneratorMock
+import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.USD
 import build.wallet.nfc.NfcSession
@@ -150,6 +152,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
   val appKeysGenerator = AppKeysGeneratorMock()
   val chaincodeExtractor = ChaincodeExtractorFake()
   val bitcoinWalletService = BitcoinWalletServiceFake()
+  val deviceWipeEligibilityService = DeviceWipeEligibilityServiceFake()
   val utxoConsolidationUiStateMachine =
     object : UtxoConsolidationUiStateMachine,
       ScreenStateMachineMock<UtxoConsolidationProps>("utxo-consolidation") {}
@@ -184,6 +187,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
         ScreenStateMachineMock<RepairAppKeyBackupProps>(
           "repair-cloud-backup"
         ) {},
+      deviceWipeEligibilityService = deviceWipeEligibilityService,
       eventTracker = eventTracker
     )
 
@@ -314,6 +318,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
     appKeysGenerator.recoveryAuthKeyResult = Ok(AppRecoveryAuthPublicKeyMock2)
     chaincodeExtractor.reset()
     bitcoinWalletService.reset()
+    deviceWipeEligibilityService.reset()
     // Default to no unconfirmed UTXOs so existing tests pass through pending tx check
     bitcoinWalletService.transactionsData.value = TransactionsDataMock
     utxoMaxConsolidationCountFeatureFlag.setFlagValue(FeatureFlagValue.DoubleFlag(150.0))
@@ -672,6 +677,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
           sweepContext.shouldBeInstanceOf<build.wallet.recovery.sweep.SweepContext.W3Upgrade>()
         w3Context.replacedHardwareFingerprint.shouldBe("e5ff120e")
       }
+      deviceWipeEligibilityService.hasW3UpgradeSweepAttemptedResult = Ok(true)
       sweepProps.onSuccess()
       onUpgradeCompleteCalls.awaitItem()
       cancelAndIgnoreRemainingEvents()
@@ -957,10 +963,13 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
         // Must use the persisted old W1 fingerprint, NOT the keybox's current fingerprint
         w3Context.replacedHardwareFingerprint.shouldBe("old-w1-fingerprint")
       }
+      deviceWipeEligibilityService.hasW3UpgradeSweepAttemptedResult = Ok(true)
       sweepProps.onSuccess()
       onUpgradeCompleteCalls.awaitItem()
       cancelAndIgnoreRemainingEvents()
     }
+
+    deviceWipeEligibilityService.recordW3UpgradeSweepNotRequiredCalls.shouldBe(0)
   }
 
   // -- Intro phase tests --
@@ -1311,7 +1320,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
 
   // -- CheckingForFunds tests --
 
-  test("insufficient funds skips sweep and completes") {
+  test("insufficient funds records sweep not required before skipping sweep and completing") {
     val localKeyboxActivation = MigrationProgress.LocalKeyboxActivation(
       type = MigrationType.W3Upgrade,
       currentKeybox = provisionedKeybox(),
@@ -1328,6 +1337,57 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       onUpgradeCompleteCalls.awaitItem()
       cancelAndIgnoreRemainingEvents()
     }
+
+    deviceWipeEligibilityService.recordW3UpgradeSweepNotRequiredCalls.shouldBe(1)
+  }
+
+  test("insufficient funds fails closed when sweep not-required checkpoint cannot be recorded") {
+    val localKeyboxActivation = MigrationProgress.LocalKeyboxActivation(
+      type = MigrationType.W3Upgrade,
+      currentKeybox = provisionedKeybox(),
+      newKeyset = w3UpgradeKeyset()
+    )
+    migrationService.resumeResult = Ok(localKeyboxActivation)
+    migrationService.savedOldHardwareFingerprint = "old-fingerprint"
+    migrationService.estimateMigrationFeesResult = Err(MigrationError.InsufficientFundsForMigration)
+    migrationService.proceedResult = Ok(MigrationProgress.Completed(MigrationType.W3Upgrade))
+    deviceWipeEligibilityService.recordW3UpgradeSweepNotRequiredResult =
+      Err(Error("not-required persistence failed"))
+    accountService.setActiveAccount(FullAccountMock)
+
+    stateMachine.test(props) {
+      awaitUntilBody<FormBodyModel>(id = WalletMigrationEventTrackerScreenId.W3_UPGRADE_ERROR)
+    }
+
+    deviceWipeEligibilityService.recordW3UpgradeSweepNotRequiredCalls.shouldBe(1)
+    migrationService.proceedCalls.shouldBe(emptyList())
+  }
+
+  test("sweep completion without attempted broadcast records sweep not required before completing") {
+    val localKeyboxActivation = MigrationProgress.LocalKeyboxActivation(
+      type = MigrationType.W3Upgrade,
+      currentKeybox = provisionedKeybox(),
+      newKeyset = w3UpgradeKeyset()
+    )
+    migrationService.resumeResult = Ok(localKeyboxActivation)
+    migrationService.savedOldHardwareFingerprint = "old-fingerprint"
+    migrationService.estimateMigrationFeesResult = Ok(BitcoinMoney.sats(1000))
+    migrationService.proceedResult = Ok(MigrationProgress.Completed(MigrationType.W3Upgrade))
+    accountService.setActiveAccount(FullAccountMock)
+
+    stateMachine.test(props) {
+      awaitUntilBody<W3UpgradeOldHardwareInstructionsBodyModel> {
+        onContinue()
+      }
+      val sweepProps = awaitUntilBodyMock<SweepUiProps>(id = "sweep") {
+        hasAttemptedSweep.shouldBe(false)
+      }
+      sweepProps.onSuccess()
+      onUpgradeCompleteCalls.awaitItem()
+      cancelAndIgnoreRemainingEvents()
+    }
+
+    deviceWipeEligibilityService.recordW3UpgradeSweepNotRequiredCalls.shouldBe(1)
   }
 
   test("completion shows loading state while returning to money home") {

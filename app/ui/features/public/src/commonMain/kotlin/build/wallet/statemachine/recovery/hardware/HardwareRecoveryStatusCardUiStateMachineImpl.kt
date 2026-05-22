@@ -2,12 +2,16 @@ package build.wallet.statemachine.recovery.hardware
 
 import androidx.compose.runtime.*
 import bitkey.recovery.RecoveryStatusService
+import build.wallet.LoadableValue
+import build.wallet.LoadableValue.InitialLoading
+import build.wallet.LoadableValue.LoadedValue
 import build.wallet.Progress
 import build.wallet.coroutines.flow.launchTicker
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.recovery.ServerRecovery
 import build.wallet.recovery.Recovery.StillRecovering.ServerDependentRecovery.InitiatedRecovery
+import build.wallet.recovery.Recovery.Loading
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.root.RemainingRecoveryDelayWordsUpdateFrequency
 import build.wallet.time.DurationFormatter
@@ -26,12 +30,16 @@ class HardwareRecoveryStatusCardUiStateMachineImpl(
     RemainingRecoveryDelayWordsUpdateFrequency,
 ) : HardwareRecoveryStatusCardUiStateMachine {
   @Composable
-  override fun model(props: HardwareRecoveryStatusCardUiProps): CardModel? {
+  override fun model(props: HardwareRecoveryStatusCardUiProps): LoadableValue<CardModel?> {
     val recovery by remember {
       recoveryStatusService.status
     }.collectAsState()
 
-    return when (recovery) {
+    if (recovery is Loading) {
+      return InitialLoading
+    }
+
+    val card = when (recovery) {
       is InitiatedRecovery -> {
         val initiatedRecovery = recovery as InitiatedRecovery
         val remainingDelayPeriod = initiatedRecovery.serverRecovery.remainingDelayPeriod(clock)
@@ -85,6 +93,8 @@ class HardwareRecoveryStatusCardUiStateMachineImpl(
 
       else -> null
     }
+
+    return LoadedValue(card)
   }
 
   private fun ServerRecovery.remainingDelayPeriod(clock: Clock): Duration =

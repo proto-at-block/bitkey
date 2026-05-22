@@ -30,6 +30,7 @@ import build.wallet.chaincode.delegation.ChaincodeExtractorFake
 import build.wallet.cloud.backup.csek.SsekDaoFake
 import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.device.wipe.DeviceWipeEligibilityServiceFake
 import build.wallet.encrypt.WsmVerifierMock
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.recovery.SignedKeysetVerificationResponseMock
@@ -92,6 +93,7 @@ class W3UpgradeUiStateMachineImplHardwareTypeTests : FunSpec({
 
   val chaincodeExtractor = ChaincodeExtractorFake()
   val bitcoinWalletService = BitcoinWalletServiceFake()
+  val deviceWipeEligibilityService = DeviceWipeEligibilityServiceFake()
   val utxoConsolidationUiStateMachine =
     object : UtxoConsolidationUiStateMachine,
       ScreenStateMachineMock<UtxoConsolidationProps>("utxo-consolidation") {}
@@ -188,6 +190,7 @@ class W3UpgradeUiStateMachineImplHardwareTypeTests : FunSpec({
         ScreenStateMachineMock<build.wallet.statemachine.cloud.health.RepairAppKeyBackupProps>(
           "repair-cloud-backup"
         ) {},
+      deviceWipeEligibilityService = deviceWipeEligibilityService,
       eventTracker = noopEventTracker
     )
 
@@ -213,6 +216,7 @@ class W3UpgradeUiStateMachineImplHardwareTypeTests : FunSpec({
       scope = Global
     ).shouldBe(Ok(Unit))
     bitcoinWalletService.reset()
+    deviceWipeEligibilityService.reset()
     bitcoinWalletService.transactionsData.value = TransactionsDataMock
     cloudBackupHealthRepository.reset()
   }

@@ -64,7 +64,7 @@ class CoachmarkDaoImpl(
             viewed = it.viewed,
             expiration = it.expiration
           )
-        }
+        }.filterNot { it.id == CoachmarkIdentifier.Unknown }
       }
 
   override suspend fun resetCoachmarks(): Result<Unit, DbError> =

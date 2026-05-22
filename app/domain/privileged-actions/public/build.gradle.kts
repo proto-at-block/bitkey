@@ -18,7 +18,7 @@ kotlin {
         api(projects.libs.ktorClientPublic)
         api(projects.libs.timePublic)
         api(projects.rust.actionProofFfi)
-        implementation(projects.libs.stdlibPublic)
+        api(projects.libs.stdlibPublic)
       }
     }
   }

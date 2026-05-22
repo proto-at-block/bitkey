@@ -25,7 +25,6 @@ fun KeypadNoDecimalPreview() {
 @Composable
 fun KeypadWithDecimalDesignSystemV2Preview() {
   PreviewWalletTheme(
-    designSystemUpdatesEnabled = true,
     backgroundColor = lightStyleDictionaryColors.subtleBackground
   ) {
     Keypad(showDecimal = true, onButtonPress = {})

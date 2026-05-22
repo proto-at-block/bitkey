@@ -44,7 +44,7 @@ class NfcScreenSnapshots : FunSpec({
   }
 
   test("NFC searching Android DSV2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       CompositionLocalProvider(LocalDeviceInfo provides androidDeviceInfo) {
         NfcScreen(
           model = NfcBodyModel(
@@ -59,13 +59,13 @@ class NfcScreenSnapshots : FunSpec({
   }
 
   test("NFC help Android DSV2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       NfcHelpBodyModel(onBack = {}).render(Modifier)
     }
   }
 
   test("NFC connected Android DSV2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       CompositionLocalProvider(LocalDeviceInfo provides androidDeviceInfo) {
         NfcScreen(
           model = NfcBodyModel(
@@ -80,7 +80,7 @@ class NfcScreenSnapshots : FunSpec({
   }
 
   test("NFC connected with spinner Android DSV2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       CompositionLocalProvider(LocalDeviceInfo provides androidDeviceInfo) {
         NfcScreen(
           model = NfcBodyModel(
@@ -95,7 +95,7 @@ class NfcScreenSnapshots : FunSpec({
   }
 
   test("NFC success Android DSV2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       CompositionLocalProvider(LocalDeviceInfo provides androidDeviceInfo) {
         NfcScreen(
           model = NfcBodyModel(

@@ -13,39 +13,25 @@ class MoneyHomeScreenSnapshots : FunSpec({
     }
   }
 
-  test("MoneyHome Screen Full with design system v2 feature flag on") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
-      MoneyHomeScreenFullNewWalletGettingStartedNoActivity()
-    }
-  }
-
-  test("MoneyHome Screen Full with design system v2 feature flag on and pending activity") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+  test("MoneyHome Screen Full and pending activity") {
+    paparazzi.snapshot {
       MoneyHomeScreenFullWithPendingActivity()
     }
   }
 
-  test("MoneyHome Screen Full with design system v2 feature flag on and late pending activity") {
+  test("MoneyHome Screen Full and late pending activity") {
     paparazzi.snapshot(
-      onlyTheme = Theme.DARK,
-      designSystemUpdatesEnabled = true
+      onlyTheme = Theme.DARK
     ) {
       MoneyHomeScreenFullWithLatePendingActivity()
     }
   }
 
-  test("MoneyHome Screen Full with design system v2 feature flag on and late pending activity light") {
+  test("MoneyHome Screen Full and late pending activity light") {
     paparazzi.snapshot(
-      onlyTheme = Theme.LIGHT,
-      designSystemUpdatesEnabled = true
+      onlyTheme = Theme.LIGHT
     ) {
       MoneyHomeScreenFullWithLatePendingActivity()
-    }
-  }
-
-  test("MoneyHome Screen Full with Sell Button") {
-    paparazzi.snapshot {
-      MoneyHomeScreenFull(showSellButton = true)
     }
   }
 
@@ -76,18 +62,6 @@ class MoneyHomeScreenSnapshots : FunSpec({
   test("MoneyHome Screen Full with skeleton transactions") {
     paparazzi.snapshot {
       MoneyHomeScreenFull(useSkeletonTransactions = true)
-    }
-  }
-
-  test("MoneyHome Screen Lite with protecting wallets") {
-    paparazzi.snapshot {
-      MoneyHomeScreenLite()
-    }
-  }
-
-  test("MoneyHome Screen Lite without protecting wallets") {
-    paparazzi.snapshot {
-      MoneyHomeScreenLiteWithoutProtectedCustomers()
     }
   }
 

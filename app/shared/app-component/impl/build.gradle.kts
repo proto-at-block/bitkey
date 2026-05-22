@@ -20,6 +20,7 @@ kotlin {
         api(projects.domain.coachmarkImpl)
         api(projects.domain.dataStateMachineImpl)
         api(projects.domain.debugImpl)
+        api(projects.domain.deviceWipeImpl)
         api(projects.domain.emergencyExitKitImpl)
         api(projects.domain.f8eClientImpl)
         api(projects.domain.featureFlagImpl)

@@ -20,7 +20,6 @@ import build.wallet.ui.components.list.ListHeader
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 
@@ -33,12 +32,7 @@ fun TransactionList(
   Column(
     modifier = modifier.background(WalletTheme.colors.background)
   ) {
-    val headerType =
-      if (LocalDesignSystemUpdatesEnabled.current) {
-        LabelType.Body3Mono
-      } else {
-        LabelType.Title2
-      }
+    val headerType = LabelType.Body3Mono
 
     model.headerText?.let {
       ListHeader(
@@ -65,7 +59,7 @@ fun TransactionList(
 
 @Composable
 private fun EmptyTransactionState() {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val primaryLabelType = if (isDesignSystemV2Enabled) {
     LabelType.Body2Regular
   } else {

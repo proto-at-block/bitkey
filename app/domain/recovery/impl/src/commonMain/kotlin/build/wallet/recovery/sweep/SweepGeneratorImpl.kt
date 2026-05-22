@@ -84,6 +84,7 @@ class SweepGeneratorImpl(
       // Find the list of keysets we can sign for and determine their signature plans
       val signableKeysets = keysets
         .filter { it.f8eSpendingKeyset.keysetId != keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId }
+        .filter { it.matchesSweepContext(sweepContext) }
         .mapNotNull { keyset ->
           val isHwSignable = isHardwareSignable(hardwareMasterKeyFingerprint, keyset, sweepContext)
           val isAppSignable = isAppSignable(keyset).getOrElse { false }
@@ -145,10 +146,18 @@ class SweepGeneratorImpl(
     // During W3 upgrade, only the replaced device's fingerprint determines HW signability —
     // the new W3 hardware is not relevant for signing old keysets.
     return when (sweepContext) {
+      is SweepContext.InactiveHardware -> keysetFingerprint == sweepContext.hardwareFingerprint
       is SweepContext.W3Upgrade -> keysetFingerprint == sweepContext.replacedHardwareFingerprint
       else -> hardwareMasterKeyFingerprint == keysetFingerprint
     }
   }
+
+  private fun SpendingKeyset.matchesSweepContext(sweepContext: SweepContext): Boolean =
+    when (sweepContext) {
+      is SweepContext.InactiveHardware ->
+        hardwareKey.key.origin.fingerprint == sweepContext.hardwareFingerprint
+      else -> true
+    }
 
   private suspend fun buildPsbt(
     signableKeyset: SignableKeyset,

@@ -61,7 +61,6 @@ import build.wallet.ui.model.list.ListGroupStyle.THREE_COLUMN_KEYPAD_ITEM
 import build.wallet.ui.model.list.ListItemAccessory.CircularIconAccessory
 import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
 import build.wallet.ui.model.list.ListItemModel
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import kotlinx.coroutines.Job
@@ -127,11 +126,6 @@ private fun FixedColumnKeypadListGroup(
   model: ListGroupModel,
   columnCount: Int,
 ) {
-  if (!LocalDesignSystemUpdatesEnabled.current) {
-    FixedColumnCardListGroup(model, columnCount = columnCount)
-    return
-  }
-
   LazyVerticalGrid(
     columns = GridCells.Fixed(count = columnCount),
     modifier = Modifier.heightIn(max = 512.dp)

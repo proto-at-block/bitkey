@@ -3,6 +3,7 @@ package bitkey.privilegedactions
 import bitkey.f8e.fingerprintreset.FingerprintResetRequest
 import bitkey.f8e.fingerprintreset.FingerprintResetResponse
 import bitkey.f8e.privilegedactions.PrivilegedActionInstance
+import build.wallet.LoadableValue
 import build.wallet.db.DbError
 import build.wallet.grants.Grant
 import build.wallet.grants.GrantRequest
@@ -51,6 +52,11 @@ interface FingerprintResetService :
    * action).
    */
   val fingerprintResetAction: StateFlow<PrivilegedActionInstance?>
+
+  /**
+   * Observe whether the current pending fingerprint reset action refresh has completed.
+   */
+  val fingerprintResetActionSyncState: StateFlow<LoadableValue<Unit>>
 
   /**
    * Get the current pending fingerprint reset grant, if any exists.

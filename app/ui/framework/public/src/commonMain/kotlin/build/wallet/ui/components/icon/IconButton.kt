@@ -26,7 +26,6 @@ import build.wallet.ui.model.icon.IconButtonModel
 import build.wallet.ui.model.icon.IconImage.LocalImage
 import build.wallet.ui.model.icon.IconImage.MarketIconImage
 import build.wallet.ui.model.icon.IconModel
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import kotlinx.coroutines.launch
@@ -206,7 +205,7 @@ fun IconButton(
     }
 
     text?.let {
-      val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+      val isDesignSystemV2Enabled = true
       val labelType = if (isDesignSystemV2Enabled) LabelType.Body3Mono else LabelType.Title3
 
       Spacer(Modifier.height(8.dp))

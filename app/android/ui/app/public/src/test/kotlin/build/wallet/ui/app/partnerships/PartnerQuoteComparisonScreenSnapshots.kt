@@ -66,8 +66,7 @@ class PartnerQuoteComparisonScreenSnapshots : FunSpec({
 
   test("purchase partner quotes comparison screen design system v2 light") {
     paparazzi.snapshot(
-      onlyTheme = Theme.LIGHT,
-      designSystemUpdatesEnabled = true
+      onlyTheme = Theme.LIGHT
     ) {
       FormScreen(
         model = purchaseQuotesScreenModel()
@@ -77,8 +76,7 @@ class PartnerQuoteComparisonScreenSnapshots : FunSpec({
 
   test("sell partner quotes comparison screen design system v2 light") {
     paparazzi.snapshot(
-      onlyTheme = Theme.LIGHT,
-      designSystemUpdatesEnabled = true
+      onlyTheme = Theme.LIGHT
     ) {
       FormScreen(
         model = sellQuotesScreenModel()
@@ -88,8 +86,7 @@ class PartnerQuoteComparisonScreenSnapshots : FunSpec({
 
   test("purchase partner quotes comparison screen design system v2 light with cash app promo") {
     paparazzi.snapshot(
-      onlyTheme = Theme.LIGHT,
-      designSystemUpdatesEnabled = true
+      onlyTheme = Theme.LIGHT
     ) {
       FormScreen(
         model = purchaseQuotesScreenModel(includeCashAppPromo = true)
@@ -99,8 +96,7 @@ class PartnerQuoteComparisonScreenSnapshots : FunSpec({
 
   test("purchase partner quotes comparison screen design system v2 dark with cash app promo") {
     paparazzi.snapshot(
-      onlyTheme = Theme.DARK,
-      designSystemUpdatesEnabled = true
+      onlyTheme = Theme.DARK
     ) {
       FormScreen(
         model = purchaseQuotesScreenModel(includeCashAppPromo = true)
@@ -196,7 +192,7 @@ private fun cashAppPromoExplainer() =
       IconButtonModel(
         iconModel =
           IconModel(
-            icon = Icon.SmallIconInformationFilled,
+            icon = Icon.SmallIconInformation,
             iconSize = IconSize.Accessory,
             iconTint = IconTint.On30
           ),

@@ -15,7 +15,6 @@ import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.FeatureFlagValue
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.feature.flags.W3OnboardingFeatureFlag
 import build.wallet.firmware.HardwareUnlockInfoServiceFake
 import build.wallet.firmware.UnlockMethod
@@ -63,7 +62,6 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
 
   val featureFlagDao = FeatureFlagDaoFake()
   val w3OnboardingFeatureFlag = W3OnboardingFeatureFlag(featureFlagDao)
-  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(featureFlagDao)
   val accountConfigService = AccountConfigServiceFake()
 
   fun createStateMachine() =
@@ -75,7 +73,6 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
       hardwareUnlockInfoService = hardwareUnlockInfoService,
       w3OnboardingFeatureFlag = w3OnboardingFeatureFlag,
       accountConfigService = accountConfigService,
-      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag
     )
 
   val stateMachine = createStateMachine()

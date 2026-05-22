@@ -30,7 +30,7 @@ import build.wallet.platform.haptics.HapticsMock
 import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.Icon.SmallIconInformationFilled
+import build.wallet.statemachine.core.Icon.SmallIconInformation
 import build.wallet.statemachine.core.LabelModel.ChunkedAddressModel
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -693,7 +693,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
               ?.iconModel
               ?.iconImage
               .shouldBeTypeOf<IconImage.LocalImage>()
-              .icon.shouldBe(SmallIconInformationFilled)
+              .icon.shouldBe(SmallIconInformation)
           }
         }
 
@@ -727,7 +727,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
               ?.iconModel
               ?.iconImage
               .shouldBeTypeOf<IconImage.LocalImage>()
-              .icon.shouldBe(SmallIconInformationFilled)
+              .icon.shouldBe(SmallIconInformation)
             items[0]
               .explainer
               ?.iconButton

@@ -20,9 +20,8 @@ import build.wallet.ui.theme.WalletTheme
  */
 fun PaparazziExtension.snapshotSheet(
   model: SheetModel,
-  designSystemUpdatesEnabled: Boolean = true,
 ) {
-  snapshot(designSystemUpdatesEnabled = designSystemUpdatesEnabled) {
+  snapshot {
     Column(
       Modifier
         .fillMaxSize()
@@ -48,10 +47,8 @@ fun PaparazziExtension.snapshotSheet(
  */
 fun PaparazziExtension.snapshotSheet(
   model: FormBodyModel,
-  designSystemUpdatesEnabled: Boolean = true,
 ) {
   snapshotSheet(
-    model = model.asSheetModalScreen(onClosed = {}),
-    designSystemUpdatesEnabled = designSystemUpdatesEnabled
+    model = model.asSheetModalScreen(onClosed = {})
   )
 }

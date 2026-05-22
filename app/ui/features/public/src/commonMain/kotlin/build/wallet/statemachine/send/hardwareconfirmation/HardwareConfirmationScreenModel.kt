@@ -73,17 +73,6 @@ data class HardwareConfirmationScreenModel(
       subline = content.body,
       headlineLabelType = LabelType.Display2
     ),
-    mainContentList = immutableListOf(
-      FormMainContentModel.Spacer(),
-      FormMainContentModel.Showcase(
-        content = FormMainContentModel.Showcase.Content.IconContent(
-          icon = Icon.NfcTwoTap,
-          widthDp = 125,
-          heightDp = 172
-        )
-      ),
-      FormMainContentModel.Spacer()
-    ),
     primaryButton = ButtonModel(
       text = content.confirmButtonText,
       treatment = ButtonModel.Treatment.BitkeyInteraction,

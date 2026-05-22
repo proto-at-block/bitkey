@@ -8,8 +8,6 @@ import build.wallet.bitcoin.invoice.PaymentDataParser.PaymentDataParserError
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.collectIsEnabledAsState
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.platform.app.AppSessionManager
 import build.wallet.platform.clipboard.Clipboard
 import build.wallet.statemachine.core.BodyModel
@@ -27,7 +25,6 @@ class BitcoinAddressRecipientUiStateMachineImpl(
   private val bitcoinWalletService: BitcoinWalletService,
   private val clipboard: Clipboard,
   private val appSessionManager: AppSessionManager,
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : BitcoinAddressRecipientUiStateMachine {
   @Composable
   override fun model(props: BitcoinAddressRecipientUiProps): BodyModel {
@@ -43,7 +40,7 @@ class BitcoinAddressRecipientUiStateMachineImpl(
     }
 
     val wallet by remember { bitcoinWalletService.spendingWallet() }.collectAsState()
-    val isDesignSystemV2Enabled by designSystemUpdatesFeatureFlag.collectIsEnabledAsState()
+    val isDesignSystemV2Enabled = true
 
     // Re-read clipboard on each foreground resume so the paste button stays current
     // after the user app-switches to copy an address. Polls the foreground boolean

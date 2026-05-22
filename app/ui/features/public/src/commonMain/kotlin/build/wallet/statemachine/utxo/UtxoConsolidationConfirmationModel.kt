@@ -74,7 +74,7 @@ data class UtxoConsolidationConfirmationModel(
             title = "Consolidation time",
             onTitle = onConsolidationTimeClick,
             titleIcon = IconModel(
-              icon = Icon.SmallIconInformationFilled,
+              icon = Icon.SmallIconInformation,
               iconSize = IconSize.XSmall,
               iconTint = IconTint.On30
             ),
@@ -97,7 +97,7 @@ data class UtxoConsolidationConfirmationModel(
             title = "Consolidation cost",
             onTitle = onConsolidationCostClick,
             titleIcon = IconModel(
-              icon = Icon.SmallIconInformationFilled,
+              icon = Icon.SmallIconInformation,
               iconSize = IconSize.XSmall,
               iconTint = IconTint.On30
             ),

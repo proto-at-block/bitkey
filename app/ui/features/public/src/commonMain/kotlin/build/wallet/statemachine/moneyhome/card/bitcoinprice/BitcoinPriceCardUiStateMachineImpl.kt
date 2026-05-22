@@ -1,6 +1,9 @@
 package build.wallet.statemachine.moneyhome.card.bitcoinprice
 
 import androidx.compose.runtime.*
+import build.wallet.availability.AppFunctionalityStatus
+import build.wallet.availability.F8eUnreachable
+import build.wallet.availability.InternetUnreachable
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
@@ -39,9 +42,7 @@ class BitcoinPriceCardUiStateMachineImpl(
   private val currencyConverter: CurrencyConverter,
   private val chartRangePreference: ChartRangePreference,
 ) : BitcoinPriceCardUiStateMachine {
-  private val isLoadingFlow = MutableStateFlow(true)
   private val dataFlow = MutableStateFlow<ImmutableList<DataPoint>>(emptyImmutableList())
-  private val priceDirection = mutableStateOf(PriceDirection.STABLE)
   private val fiatCurrencyFlow = fiatCurrencyPreferenceRepository.fiatCurrencyPreference
   private val lastUpdatedFlow =
     fiatCurrencyFlow
@@ -67,12 +68,12 @@ class BitcoinPriceCardUiStateMachineImpl(
       val start = data.firstOrNull()?.y ?: return@combine null
       val diffPercent = (end - start) / start * 100
       val diffDecimal = BigDecimal.fromDouble(diffPercent, DecimalMode.US_CURRENCY)
-      priceDirection.value = PriceDirection.from(diffDecimal)
-      isLoadingFlow.update { false }
-      "${diffDecimal.abs().toPlainString()}% ${timeScale.getPriceChangeLabel().lowercase()}"
+      PriceChangeModel(
+        text = "${diffDecimal.abs().toPlainString()}% ${timeScale.getPriceChangeLabel().lowercase()}",
+        direction = PriceDirection.from(diffDecimal)
+      )
     }
-      .filterNotNull()
-      .stateIn(appScope, SharingStarted.WhileSubscribed(), "0% today")
+      .stateIn(appScope, SharingStarted.WhileSubscribed(), null)
 
   @Composable
   override fun model(props: BitcoinPriceCardUiProps): CardModel? {
@@ -81,22 +82,30 @@ class BitcoinPriceCardUiStateMachineImpl(
       return null
     }
     val data by dataFlow.collectAsState()
-    val isLoading by isLoadingFlow.collectAsState()
     val fiatCurrency by fiatCurrencyFlow.collectAsState()
     val lastUpdated by lastUpdatedFlow.collectAsState()
     val priceMoney by priceMoneyFlow.collectAsState()
+    val priceChangeModel by priceChangeFlow.collectAsState()
     val price by remember {
       derivedStateOf {
         priceMoney?.let(moneyDisplayFormatter::format).orEmpty()
       }
     }
     val chartHistory by chartRangePreference.selectedRange.collectAsState()
-    val priceChange by priceChangeFlow.collectAsState()
-    LaunchedEffect(priceMoney, fiatCurrency, chartHistory, chartRangePreference.selectedRange.value) {
+    val isLoading by remember(priceMoney, data, props.appFunctionalityStatus) {
+      derivedStateOf {
+        priceMoney == null ||
+          data.isEmpty() ||
+          props.appFunctionalityStatus.shouldShowLoadingBitcoinPriceState()
+      }
+    }
+    LaunchedEffect(priceMoney, fiatCurrency, chartHistory, chartRangePreference.selectedRange.value, props.accountId) {
       if (priceMoney != null) {
         chartDataFetcherService.getChartData(
           range = chartRangePreference.selectedRange.value,
-          maxPricePoints = SPARKLINE_MAX_POINTS
+          maxPricePoints = SPARKLINE_MAX_POINTS,
+          accountId = props.accountId,
+          f8eEnvironment = props.f8eEnvironment
         ).onSuccess { chartData ->
           val list = chartData.toImmutableList()
           dataFlow.update { list }
@@ -111,8 +120,8 @@ class BitcoinPriceCardUiStateMachineImpl(
         price = price,
         priceValue = priceMoney?.toAnimatedAmountValue(),
         priceAnimationKey = priceMoney?.toAnimatedAmountAnimationKey() ?: 0L,
-        priceChange = priceChange,
-        priceDirection = priceDirection.value,
+        priceChange = priceChangeModel?.text ?: "0% today",
+        priceDirection = priceChangeModel?.direction ?: PriceDirection.STABLE,
         lastUpdated = lastUpdated,
         isLoading = isLoading
       ),
@@ -127,4 +136,14 @@ class BitcoinPriceCardUiStateMachineImpl(
       ChartRange.WEEK, ChartRange.MONTH, ChartRange.YEAR, ChartRange.ALL -> getString(this.diffLabel)
     }
   }
+}
+
+private data class PriceChangeModel(
+  val text: String,
+  val direction: PriceDirection,
+)
+
+private fun AppFunctionalityStatus.shouldShowLoadingBitcoinPriceState(): Boolean {
+  return this is AppFunctionalityStatus.LimitedFunctionality &&
+    (cause is InternetUnreachable || cause is F8eUnreachable)
 }

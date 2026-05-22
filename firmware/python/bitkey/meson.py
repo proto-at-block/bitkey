@@ -72,6 +72,8 @@ class BuildOptions:
         self._build_dir = build_dir
         self.options = """option('disable_printf', type : 'boolean', value : false)
 option('config_prod', type : 'boolean', value : false)
+option('log_tokenized', type : 'boolean', value : true,
+  description : 'Emit tokenized binary log frames on UART instead of formatted ASCII (Memfault Compact Logs)')
 option(
   'chip_id',
   type : 'string',
@@ -93,7 +95,7 @@ option(
             raise RuntimeError("chip_id must contain only hex characters")
         return chip_id.lower()
 
-    def configure(self, build_variant) -> str:
+    def configure(self, build_variant, log_tokenized: bool = True) -> str:
         chip_id = self._normalized_chip_id()
 
         if build_variant == BuildVariant.DEV:
@@ -101,9 +103,17 @@ option(
         else:
             opts = "-Ddisable_printf=true -Dconfig_prod=true"
 
+        # `log_tokenized` is a project-wide option because it changes the
+        # macro expansion in every TU that includes log.h. Mfgtest variants
+        # need plain ASCII over UART (factory tooling has no ELF), so callers
+        # building mfgtest targets pass log_tokenized=False — this triggers a
+        # full meson rebuild of the shared library .o files without
+        # LOG_TOKENIZED defined, so no log_uart_emit_compact references end
+        # up baked into the mfgtest binaries.
         opts = " ".join(
             [
                 opts,
+                f"-Dlog_tokenized={'true' if log_tokenized else 'false'}",
                 f"-Dchip_id={shlex.quote(chip_id)}",
             ]
         )
@@ -183,17 +193,30 @@ class MesonBuild:
         dev_targets = self.filter_targets(targets, BuildVariant.DEV)
         prod_targets = self.filter_targets(targets, BuildVariant.PROD)
 
+        # Mfgtest images are classified DEV (printf enabled) but must emit
+        # plain ASCII so factory tooling without ELFs can read the UART.
+        # Split them out as their own build pass with log_tokenized=false so
+        # shared libraries rebuild without LOG_TOKENIZED — otherwise the .o
+        # cache from a non-mfgtest dev build leaves log_uart_emit_compact
+        # calls linked into the mfgtest binary.
+        mfgtest_targets = [t for t in dev_targets if "mfgtest" in t]
+        dev_targets = [t for t in dev_targets if "mfgtest" not in t]
+
         platform_config = self._platforms.all[self._platform]
 
-        # Build dev and prod firmware separately, since they require
-        # different global options.
+        # Build each (variant, log_tokenized) combo separately, since they
+        # require different project-wide options.
 
         if dev_targets:
-            self._build_options.configure(BuildVariant.DEV)
+            self._build_options.configure(BuildVariant.DEV, log_tokenized=True)
             self._build_firmware(dev_targets, platform_config, verbose, all_targets)
 
+        if mfgtest_targets:
+            self._build_options.configure(BuildVariant.DEV, log_tokenized=False)
+            self._build_firmware(mfgtest_targets, platform_config, verbose, all_targets)
+
         if prod_targets:
-            self._build_options.configure(BuildVariant.PROD)
+            self._build_options.configure(BuildVariant.PROD, log_tokenized=False)
             self._build_firmware(prod_targets, platform_config, verbose, all_targets)
 
     def _build_firmware(self, targets, platform_config, verbose, all_targets=False):

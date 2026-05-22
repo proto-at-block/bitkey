@@ -32,7 +32,7 @@ class CriticalAlertsSettingsScreenSnapshots : FunSpec({
   )
 
   test("critical alerts settings dsv2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       RecoveryChannelsSettingsFormBodyModel(
         source = Source.Settings,
         missingRecoveryMethods = listOf(

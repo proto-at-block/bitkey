@@ -43,7 +43,7 @@ fun WalletTheme.iconStyle(
           } else {
             Color.Unspecified
           }
-        is UrlImage, IconImage.Loader -> color
+        is UrlImage -> color
         IconImage.LoadingBadge -> Color.Unspecified
       }
   )
@@ -84,8 +84,6 @@ internal fun Icon.canApplyTint(): Boolean {
     Icon.MediumIconTrustedContact,
     Icon.MoneyHomeHero,
     Icon.Bitcoin,
-    Icon.BitkeyDeviceRaised,
-    Icon.BitkeyDeviceRaisedSmall,
     Icon.BitkeyDevice3D,
     Icon.BitkeyFrontLit,
     Icon.SmallIconCheckboxSelected,
@@ -93,8 +91,7 @@ internal fun Icon.canApplyTint(): Boolean {
     Icon.BitkeyLogo,
     Icon.BitcoinConsolidation,
     Icon.BitcoinBadged,
-    Icon.LargeIconWarning,
-    Icon.NfcTwoTap,
+    Icon.LargeIconWarning
     -> false
 
     else -> true

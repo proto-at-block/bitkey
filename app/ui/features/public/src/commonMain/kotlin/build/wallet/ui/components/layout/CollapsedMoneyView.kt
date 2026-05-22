@@ -14,7 +14,6 @@ import bitkey.ui.framework_public.generated.resources.Res
 import bitkey.ui.framework_public.generated.resources.hidden_hero_asterisk
 import build.wallet.ui.components.label.shimmer
 import build.wallet.ui.compose.thenIf
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import org.jetbrains.compose.resources.painterResource
@@ -33,7 +32,7 @@ fun CollapsedMoneyView(
   shimmer: Boolean = true,
 ) {
   val shouldUseDsv2LightModeTint =
-    LocalDesignSystemUpdatesEnabled.current && LocalTheme.current == Theme.LIGHT
+    LocalTheme.current == Theme.LIGHT
 
   Image(
     painter = painterResource(Res.drawable.hidden_hero_asterisk),

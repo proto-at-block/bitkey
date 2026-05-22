@@ -21,7 +21,6 @@ import build.wallet.statemachine.fwup.FwupNfcBodyModel.Status.*
 import build.wallet.ui.app.LocalDeviceInfo
 import build.wallet.ui.model.ComposeModel
 import build.wallet.ui.system.KeepScreenOn
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
@@ -37,7 +36,7 @@ fun FwupNfcScreen(
 ) {
   KeepScreenOn()
   val devicePlatform = LocalDeviceInfo.current.devicePlatform
-  val designSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val designSystemV2Enabled = true
 
   when {
     devicePlatform == DevicePlatform.IOS -> {
@@ -58,7 +57,7 @@ internal fun FwupNfcScreenInternalIos(
   modifier: Modifier = Modifier,
   backgroundPainter: Painter? = null,
 ) {
-  val designSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val designSystemV2Enabled = true
 
   if (!model.showNativeSheetOnIos) {
     FwupSystemThemedContent(followIosSystemTheme = designSystemV2Enabled) {
@@ -244,7 +243,7 @@ internal fun FwupNfcScreenInternalV2(
 
 @Composable
 private fun FwupNfcStatusIndicator(status: FwupNfcBodyModel.Status) {
-  val designSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val designSystemV2Enabled = true
   NfcProgressStatusIndicator(
     statusState = FwupNfcStatusState(status)
   ) { currentStatus ->
@@ -371,8 +370,7 @@ data class FwupNfcSnapshotModel(
   @Composable
   override fun render(modifier: Modifier) {
     CompositionLocalProvider(
-      LocalDeviceInfo provides deviceInfo,
-      LocalDesignSystemUpdatesEnabled provides true
+      LocalDeviceInfo provides deviceInfo
     ) {
       FwupNfcScreen(
         modifier = modifier,

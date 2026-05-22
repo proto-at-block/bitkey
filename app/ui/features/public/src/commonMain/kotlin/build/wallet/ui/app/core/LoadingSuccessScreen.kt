@@ -26,7 +26,6 @@ import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.loading.DesignSystemDotIndicator
 import build.wallet.ui.components.loading.rememberShuffledDotLoadingIcon
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.tokens.LabelType
@@ -40,7 +39,7 @@ fun LoadingSuccessScreen(
   model: LoadingSuccessBodyModel,
 ) {
   val currentTheme = LocalTheme.current
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val painter = if (isDesignSystemV2Enabled) {
     null
   } else {

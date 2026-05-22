@@ -55,7 +55,7 @@ internal fun PreviewEmailVerificationCodeInputFormScreen() {
 @Preview(name = "Verification Code Input (Design System V2)")
 @Composable
 internal fun PreviewVerificationCodeInputFormScreenDesignSystemV2() {
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     Box(
       modifier = Modifier
         .fillMaxSize()

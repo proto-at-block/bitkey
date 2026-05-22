@@ -24,7 +24,7 @@ internal fun StepIndicator() {
           StepperIndicator.Step(
             style = PENDING,
             label = "Processing",
-            icon = IconImage.Loader
+            icon = IconImage.LoadingBadge
           ),
           StepperIndicator.Step(
             style = UPCOMING,

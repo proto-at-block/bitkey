@@ -58,6 +58,7 @@ typedef struct {
   bool plugged_in;                // USB plugged status at test start
   uint32_t captouch_events;       // Phantom capacitive touch events
   uint32_t display_touch_events;  // Phantom display touch events
+  uint32_t nfc_touch_events;      // Phantom display touches on NFC screen
   uint32_t fingerprint_events;    // Phantom fingerprint events
   bool finger_down;               // `True` if finger is currently down on fingerprint sensor
   uint32_t countdown_value;       // Current countdown value (5..1)
@@ -72,6 +73,10 @@ typedef struct {
 } runin_context_t;
 
 static UI_TASK_DATA runin_context_t runin_ctx = {0};
+
+#ifdef EMBEDDED_BUILD
+static SHARED_TASK_BSS mfgtest_runin_complete_internal_t runin_complete_results = {0};
+#endif
 
 static void show_countdown(display_controller_t* controller);
 static void refresh_runin_charge_state(display_controller_t* controller);
@@ -506,7 +511,7 @@ flow_action_result_t display_controller_mfg_on_tick(display_controller_t* contro
 
 #ifdef EMBEDDED_BUILD
       // Send completion results to mfgtest_task via IPC (raw telemetry, no pass/fail)
-      mfgtest_runin_complete_internal_t results = {
+      runin_complete_results = (mfgtest_runin_complete_internal_t){
         .loop_count = runin_ctx.loop_count,
         .initial_soc = runin_ctx.initial_soc,
         .elapsed_ms = total_elapsed,
@@ -514,12 +519,14 @@ flow_action_result_t display_controller_mfg_on_tick(display_controller_t* contro
         .button_events = 0,  // No buttons on W3
         .captouch_events = runin_ctx.captouch_events,
         .touch_events = runin_ctx.display_touch_events,
+        .touch_events_on_nfc_screen = runin_ctx.nfc_touch_events,
         .fingerprint_events = runin_ctx.fingerprint_events,
         .phase1_duration_ms = runin_ctx.phase1_duration_ms,
         .phase2_duration_ms = runin_ctx.phase2_duration_ms,
         .phase3_duration_ms = runin_ctx.phase3_duration_ms,
       };
-      ipc_send(mfgtest_port, &results, sizeof(results), IPC_MFGTEST_RUNIN_COMPLETE_INTERNAL);
+      ipc_send(mfgtest_port, &runin_complete_results, sizeof(runin_complete_results),
+               IPC_MFGTEST_RUNIN_COMPLETE_INTERNAL);
 #endif
     }
 
@@ -656,8 +663,12 @@ flow_action_result_t display_controller_mfg_on_event(display_controller_t* contr
       // Count phantom display touch events after countdown completes
       if ((runin_ctx.state >= RUNIN_STATE_STATUS) && (runin_ctx.state != RUNIN_STATE_COMPLETE)) {
         runin_ctx.display_touch_events++;
-        LOGI("[MFG] Phantom touch event (total: %lu)",
-             (unsigned long)runin_ctx.display_touch_events);
+        if (runin_ctx.state == RUNIN_STATE_NFC) {
+          runin_ctx.nfc_touch_events++;
+        }
+        LOGI("[MFG] Phantom touch event (total: %lu, nfc_screen: %lu)",
+             (unsigned long)runin_ctx.display_touch_events,
+             (unsigned long)runin_ctx.nfc_touch_events);
       } else if (controller->touch_test.active) {
         if (data && (len == sizeof(ui_event_touch_t))) {
           const ui_event_touch_t* touch_event = (const ui_event_touch_t*)data;

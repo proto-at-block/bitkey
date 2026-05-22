@@ -30,7 +30,7 @@ fun CompleteTwoTapScreenPreview() {
 @Preview(name = "Complete Two Tap (Design System V2)")
 @Composable
 fun CompleteTwoTapScreenPreviewDesignSystemV2() {
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     Box(
       modifier = Modifier
         .fillMaxSize()

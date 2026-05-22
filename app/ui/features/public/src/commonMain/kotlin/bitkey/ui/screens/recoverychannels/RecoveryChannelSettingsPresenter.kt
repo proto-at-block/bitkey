@@ -16,8 +16,6 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.PrivilegedActionProof
-import build.wallet.feature.collectIsEnabledAsState
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.feature.flags.UsSmsFeatureFlag
 import build.wallet.notifications.NotificationTouchpointData
 import build.wallet.notifications.NotificationTouchpointService
@@ -66,7 +64,6 @@ class RecoveryChannelSettingsScreenPresenter(
   private val notificationPermissionRequester: NotificationPermissionRequester,
   private val uiErrorHintsProvider: UiErrorHintsProvider,
   private val notificationTouchpointService: NotificationTouchpointService,
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
   private val usSmsFeatureFlag: UsSmsFeatureFlag,
 ) : ScreenPresenter<RecoveryChannelSettingsScreen> {
   @Composable
@@ -76,7 +73,7 @@ class RecoveryChannelSettingsScreenPresenter(
   ): ScreenModel {
     val smsErrorHint by remember { uiErrorHintsProvider.errorHintFlow(UiErrorHintKey.Phone) }
       .collectAsState()
-    val isDesignSystemV2Enabled by designSystemUpdatesFeatureFlag.collectIsEnabledAsState()
+    val isDesignSystemV2Enabled = true
 
     val notificationTouchpointData by remember {
       notificationTouchpointService.notificationTouchpointData()

@@ -17,6 +17,7 @@ import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod
 import build.wallet.catchingResult
 import build.wallet.coroutines.flow.launchTicker
+import build.wallet.logging.LogLevel.Warn
 import build.wallet.logging.logFailure
 import build.wallet.logging.logWarn
 import build.wallet.money.BitcoinMoney
@@ -51,9 +52,11 @@ class SpendingWalletV2Impl(
   private val unspentOutputsState = MutableStateFlow<List<BdkUtxo>?>(null)
 
   override suspend fun initializeBalanceAndTransactions() {
-    getBalance().onSuccess { balanceState.value = it }
-    getTransactions().onSuccess { transactionsState.value = it }
-    getUnspentOutputs().onSuccess { unspentOutputsState.value = it }
+    if (!hasCompletedInitialSync()) {
+      return
+    }
+
+    loadBalanceAndTransactionsBestEffort()
   }
 
   override suspend fun sync(): Result<Unit, Error> {
@@ -67,17 +70,11 @@ class SpendingWalletV2Impl(
           .mapError { SpendingWalletV2Error.SyncFailed(it) }
           .bind()
 
-        getTransactions()
-          .bind()
-          .also { transactionsState.value = it }
+        if (!hasCompletedInitialSync()) {
+          return@coroutineBinding
+        }
 
-        getBalance()
-          .bind()
-          .also { balanceState.value = it }
-
-        getUnspentOutputs()
-          .bind()
-          .also { unspentOutputsState.value = it }
+        loadBalanceAndTransactions().bind()
       }
     }
   }
@@ -275,6 +272,32 @@ class SpendingWalletV2Impl(
           transform = { false }
         ).map { true }
         .bind()
+    }
+
+  private fun hasCompletedInitialSync(): Boolean =
+    catchingResult { bdkWallet.latestCheckpoint().height > 0u }
+      .logFailure(logLevel = Warn) { "BDK2 checkpoint retrieval failed" }
+      .getOr(false)
+
+  private suspend fun loadBalanceAndTransactionsBestEffort() {
+    getBalance().onSuccess { balanceState.value = it }
+    getTransactions().onSuccess { transactionsState.value = it }
+    getUnspentOutputs().onSuccess { unspentOutputsState.value = it }
+  }
+
+  private suspend fun loadBalanceAndTransactions(): Result<Unit, Error> =
+    coroutineBinding {
+      getTransactions()
+        .bind()
+        .also { transactionsState.value = it }
+
+      getBalance()
+        .bind()
+        .also { balanceState.value = it }
+
+      getUnspentOutputs()
+        .bind()
+        .also { unspentOutputsState.value = it }
     }
 
   private fun getBalance(): Result<BitcoinBalance, Error> {

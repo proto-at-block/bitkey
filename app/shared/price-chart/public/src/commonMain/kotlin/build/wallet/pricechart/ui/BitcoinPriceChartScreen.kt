@@ -32,8 +32,8 @@ import build.wallet.ui.components.label.loadingScrim
 import build.wallet.ui.components.layout.MeasureWithoutPlacement
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.icon.IconImage.MarketIconImage
+import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.market.MarketIcons
@@ -41,7 +41,7 @@ import org.jetbrains.compose.resources.vectorResource
 
 @Composable
 internal fun BitcoinPriceChartScreen(model: BitcoinPriceDetailsBodyModel) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val showChart = model.data.isNotEmpty() && (!model.isLoading || model.preservePreviousChartWhileLoading)
   SelectedPointDetails(
     isLoading = model.isLoading,
@@ -116,7 +116,7 @@ private fun SelectedPointDetails(
   fiatCurrencyCode: String?,
   data: SelectedPointData.BtcPrice?,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val shouldAnimateSelectedAmount = isDesignSystemV2Enabled && data?.isUserSelected != true
   val chartLoadingColor = if (isDesignSystemV2Enabled) WalletTheme.colors.subtleBackground else null
   val showPrimaryValueLoadingScrim = isLoading && data == null
@@ -245,8 +245,10 @@ private fun SelectedPointDetails(
         contentAlignment = Alignment.Center
       ) {
         IconImage(
-          iconImage = MarketIconImage(MarketIcons.Bitcoin),
-          size = IconSize.Regular,
+          model = IconModel(
+            iconImage = MarketIconImage(MarketIcons.Bitcoin),
+            iconSize = IconSize.Regular
+          ),
           color = WalletTheme.colors.background
         )
       }

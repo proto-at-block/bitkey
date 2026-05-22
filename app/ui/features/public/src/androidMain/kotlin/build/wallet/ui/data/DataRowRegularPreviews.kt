@@ -56,7 +56,7 @@ private fun DataRowWithExplainerAndIconButtonPreview() {
           showTopDivider = true,
           iconButton = IconButtonModel(
             iconModel = IconModel(
-              icon = build.wallet.statemachine.core.Icon.SmallIconInformationFilled,
+              icon = build.wallet.statemachine.core.Icon.SmallIconInformation,
               iconSize = IconSize.Accessory,
               iconBackgroundType = IconBackgroundType.Circle(
                 circleSize = IconSize.Accessory

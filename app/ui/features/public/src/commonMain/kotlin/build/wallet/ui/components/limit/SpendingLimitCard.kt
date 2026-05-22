@@ -12,7 +12,6 @@ import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment.Secondary
 import build.wallet.ui.components.progress.LinearProgressIndicator
 import build.wallet.ui.model.icon.IconSize.Regular
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.tokens.LabelType
 import build.wallet.statemachine.core.Icon as WalletIcon
 
@@ -44,7 +43,7 @@ fun SpendingLimitCard(
   spentText: String,
   remainingText: String,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
 
   if (isDesignSystemV2Enabled) {
     SpendingLimitCardContent(

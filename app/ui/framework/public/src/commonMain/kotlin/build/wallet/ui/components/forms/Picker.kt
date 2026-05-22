@@ -22,7 +22,6 @@ import build.wallet.ui.compose.itemPickerTestTag
 import build.wallet.ui.compose.resId
 import build.wallet.ui.compose.resolveTestTag
 import build.wallet.ui.model.picker.ItemPickerModel
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
@@ -38,7 +37,7 @@ fun <Option : Any> ItemPickerField(
   var isShowingItemPicker by remember {
     mutableStateOf(false)
   }
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val backgroundColor =
     when {
       !isDesignSystemV2Enabled -> WalletTheme.colors.foreground10

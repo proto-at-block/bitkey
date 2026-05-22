@@ -19,8 +19,6 @@ import build.wallet.bitcoin.transactions.TransactionsDataMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -37,7 +35,6 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeInstanceOf
 
 class FeeSelectionUiStateMachineImplTests : FunSpec({
   val bitcoinTransactionFeeEstimator =
@@ -47,14 +44,12 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
   val bitcoinTransactionBaseCalculator = BitcoinTransactionBaseCalculatorMock(BitcoinMoney.zero())
   val bitcoinWalletService = BitcoinWalletServiceFake()
   val accountService = AccountServiceFake()
-  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(FeatureFlagDaoFake())
   val feeEstimationErrorUiStateMachine = FeeEstimationErrorUiStateMachineImpl()
 
   val stateMachine =
     FeeSelectionUiStateMachineImpl(
       bitcoinTransactionFeeEstimator = bitcoinTransactionFeeEstimator,
       transactionPriorityPreference = transactionPriorityPreference,
-      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
       feeOptionListUiStateMachine = feeOptionListUiStateMachine,
       transactionBaseCalculator = bitcoinTransactionBaseCalculator,
       bitcoinWalletService = bitcoinWalletService,
@@ -106,7 +101,7 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
         header.shouldNotBeNull().headline.shouldBe("Select a transfer speed")
         primaryButton.shouldNotBeNull().text.shouldBe("Continue")
 
-        with(mainContentList.first().shouldBeInstanceOf<FeeOptionList>()) {
+        with(mainContentList.filterIsInstance<FeeOptionList>().first()) {
           options.size.shouldBe(3)
           options[0].verifyFeeOption(
             selected = false
@@ -143,7 +138,7 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       awaitBody<FormBodyModel> {
-        with(mainContentList.first().shouldBeInstanceOf<FeeOptionList>()) {
+        with(mainContentList.filterIsInstance<FeeOptionList>().first()) {
           options[0].verifyFeeOption(
             selected = true
           )
@@ -173,7 +168,7 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       awaitBody<FormBodyModel> {
-        with(mainContentList.first().shouldBeInstanceOf<FeeOptionList>()) {
+        with(mainContentList.filterIsInstance<FeeOptionList>().first()) {
           options[0].verifyFeeOption(
             selected = true
           )
@@ -199,7 +194,7 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       awaitBody<FormBodyModel> {
-        with(mainContentList.first().shouldBeInstanceOf<FeeOptionList>()) {
+        with(mainContentList.filterIsInstance<FeeOptionList>().first()) {
           options[0].verifyFeeOption(
             selected = false
           )
@@ -255,7 +250,7 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       awaitBody<FormBodyModel> {
-        with(mainContentList.first().shouldBeInstanceOf<FeeOptionList>()) {
+        with(mainContentList.filterIsInstance<FeeOptionList>().first()) {
           options[0].verifyFeeOption(selected = true)
           options[1].verifyFeeOption(selected = false)
           options[2].verifyFeeOption(selected = false)
@@ -293,7 +288,7 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
       )
     ) {
       awaitBody<FormBodyModel> {
-        with(mainContentList.first().shouldBeInstanceOf<FeeOptionList>()) {
+        with(mainContentList.filterIsInstance<FeeOptionList>().first()) {
           options[0].verifyFeeOption(selected = true)
           options[1].verifyFeeOption(selected = false)
           options[2].verifyFeeOption(selected = false)
@@ -403,7 +398,7 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
         header.shouldNotBeNull().headline.shouldBe("Select a transfer speed")
         primaryButton.shouldNotBeNull().text.shouldBe("Continue")
 
-        with(mainContentList.first().shouldBeInstanceOf<FeeOptionList>()) {
+        with(mainContentList.filterIsInstance<FeeOptionList>().first()) {
           options.size.shouldBe(3)
           clickPrimaryButton()
         }

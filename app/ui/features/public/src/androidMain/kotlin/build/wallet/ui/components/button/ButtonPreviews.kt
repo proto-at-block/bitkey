@@ -37,7 +37,6 @@ fun RegularButtonsWithIconEnabled() {
 fun RegularButtonsWithIconEnabledDesignSystem() {
   PreviewWalletTheme(
     backgroundColor = lightStyleDictionaryColorsDesignSystemUpdates.background,
-    designSystemUpdatesEnabled = true
   ) {
     AllButtonsForSizeAndIcon(
       size = Regular,
@@ -53,7 +52,6 @@ fun RegularButtonsWithIconEnabledDesignSystemDark() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
-    designSystemUpdatesEnabled = true
   ) {
     AllButtonsForSizeAndIcon(
       size = Regular,
@@ -68,7 +66,6 @@ fun RegularButtonsWithIconEnabledDesignSystemDark() {
 fun BitkeyInteractionButtonDesignSystemPreview() {
   PreviewWalletTheme(
     backgroundColor = lightStyleDictionaryColorsDesignSystemUpdates.background,
-    designSystemUpdatesEnabled = true
   ) {
     BitkeyInteractionButtonPreview()
   }
@@ -80,7 +77,6 @@ fun BitkeyInteractionButtonDesignSystemDarkPreview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
-    designSystemUpdatesEnabled = true
   ) {
     BitkeyInteractionButtonPreview()
   }

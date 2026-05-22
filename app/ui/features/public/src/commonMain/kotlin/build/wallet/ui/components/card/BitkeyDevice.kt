@@ -12,7 +12,6 @@ import androidx.compose.ui.zIndex
 import build.wallet.statemachine.core.form.FormMainContentModel.DeviceStatusCard
 import build.wallet.ui.components.callout.Callout
 import build.wallet.ui.components.icon.IconImage
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import kotlinx.coroutines.delay
 
@@ -23,7 +22,7 @@ fun BitkeyDevice(
 ) {
   var mediaAlpha by remember { mutableStateOf(0.0f) }
   val mediaInteractionState = rememberBitkeyDeviceMediaInteractionState()
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val bitkeyDeviceCardCornerRadius = if (isDesignSystemV2Enabled) 12.dp else 24.dp
   val supports3DMedia = supportsBitkeyDevice3DMedia(model.hardwareType)
   val useFallbackVideoSurfaceTreatment =

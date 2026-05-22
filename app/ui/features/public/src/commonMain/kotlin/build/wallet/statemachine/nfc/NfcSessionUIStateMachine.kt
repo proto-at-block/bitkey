@@ -7,7 +7,6 @@ import bitkey.account.FullAccountConfig
 import bitkey.account.HardwareType
 import bitkey.account.LiteAccountConfig
 import bitkey.account.SoftwareAccountConfig
-import build.wallet.firmware.FirmwareDeviceInfo
 import bitkey.recovery.RecoveryStatusService
 import build.wallet.account.AccountService
 import build.wallet.account.getActiveOrOnboardingAccountOrNull
@@ -25,11 +24,10 @@ import build.wallet.encrypt.Secp256k1PublicKey
 import build.wallet.encrypt.SignatureVerifier
 import build.wallet.encrypt.verifyEcdsaResult
 import build.wallet.feature.flags.AsyncNfcSigningFeatureFlag
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.feature.flags.NfcSessionRetryAttemptsFeatureFlag
 import build.wallet.feature.intValue
 import build.wallet.feature.isEnabled
-import build.wallet.feature.collectIsEnabledAsState
+import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.logging.logInfo
 import build.wallet.logging.logWarn
 import build.wallet.nfc.NfcAvailability.Available.Disabled
@@ -40,6 +38,7 @@ import build.wallet.nfc.NfcReaderCapability
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.NfcSession.RequirePairedHardware
 import build.wallet.nfc.NfcSession.RequirePairedHardware.NotRequired
+import build.wallet.nfc.NfcTransactionEvent
 import build.wallet.nfc.NfcTransactor
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.transaction.NfcTransaction
@@ -54,11 +53,7 @@ import build.wallet.statemachine.nfc.NfcSessionUIState.InSession.*
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
 import build.wallet.statemachine.platform.nfc.EnableNfcNavigator
 import build.wallet.statemachine.settings.showDebugMenu
-import build.wallet.ui.theme.Theme
-import build.wallet.ui.theme.ThemePreference
 import com.github.michaelbull.result.get
-import com.github.michaelbull.result.onFailure
-import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import okio.ByteString
@@ -285,7 +280,6 @@ class NfcSessionUIStateMachineImpl(
   private val recoveryStatusService: RecoveryStatusService,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val nfcSessionRetryAttemptsFeatureFlag: NfcSessionRetryAttemptsFeatureFlag,
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : NfcSessionUIStateMachine {
   /**
    * Text shown under the progress spinner (on Android) or on the iOS NFC Sheet when performing
@@ -297,7 +291,7 @@ class NfcSessionUIStateMachineImpl(
   @Composable
   @Suppress("CyclomaticComplexMethod")
   override fun model(props: NfcSessionUIStateMachineProps<*>): ScreenModel {
-    val designSystemV2Enabled by designSystemUpdatesFeatureFlag.collectIsEnabledAsState()
+    val designSystemV2Enabled = true
     val devicePlatform = remember { deviceInfoProvider.getDeviceInfo().devicePlatform }
     val accountConfig = remember { accountConfigService.activeOrDefaultConfig().value }
     val isHardwareFake = remember {
@@ -348,7 +342,13 @@ class NfcSessionUIStateMachineImpl(
           designSystemV2Enabled = designSystemV2Enabled,
           devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform
         )
-        nfcTransactor.transact(
+
+        // Side effects in onEvent run for every event upstream of conflation, so
+        // analytics and terminal handoff can't be dropped. The returned Flow is
+        // already conflated by transactEvents, so the UI mutations in collect{}
+        // only see the latest pending event — a rapid Connected->Disconnected
+        // burst won't flicker through every intermediate frame.
+        nfcTransactor.transactEvents(
           parameters = NfcSession.Parameters(
             isHardwareFake = isHardwareFake,
             hardwareType = hardwareType,
@@ -357,57 +357,62 @@ class NfcSessionUIStateMachineImpl(
             shouldLock = props.shouldLock,
             requirePairedHardware = determineNfcHardwarePairingRequired(props.hardwareVerification),
             skipFirmwareTelemetry = props.skipFirmwareTelemetry,
-            onTagConnected = { session ->
-              if (newState is InSession) {
-                props.onConnected()
-                if (props.shouldShowLongRunningOperation) {
-                  session?.message = longRunningOperationText
-                }
-                newState = Communicating
-              }
-            },
-            onTagDisconnected = {
-              // NB: This is only called on Android.
-              if (newState is InSession && newState !is Success) {
-                newState = Searching
-              }
-            },
-            onSessionCanceled = {
-              if (newState is InSession) {
-                sessionCanceledByPlatform = true
-                props.onCancel()
-              }
-            },
             asyncNfcSigning = asyncNfcSigningFeatureFlag.isEnabled(),
             nfcFlowName = props.eventTrackerContext.name,
             maxNfcRetryAttempts = nfcSessionRetryAttemptsFeatureFlag.intValue(),
             showDeviceConfirmation = props.showDeviceConfirmation,
             skipLostHardwareCheck = props.skipLostHardwareCheck
           ),
-          transaction = props.session
-        ).onSuccess { result ->
-          if (newState !is InSession) return@onSuccess
-          newState = Success
-          delay(
-            NfcSuccessScreenDuration(
-              devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
-              isHardwareFake = isHardwareFake
-            )
-          )
-          // Must be cast to satisfy compiler type resolution
-          @Suppress("USELESS_CAST")
-          (props.onSuccess as suspend (Any?) -> Unit).invoke(result)
-        }.onFailure { error ->
-          if (newState !is InSession) return@onFailure
-          when (error) {
-            is NfcException.IOSOnly.UserCancellation ->
-              if (!sessionCanceledByPlatform) {
+          transaction = props.session,
+          onEvent = { event ->
+            if (newState !is InSession) return@transactEvents
+            when (event) {
+              is NfcTransactionEvent.TagConnected -> {
+                props.onConnected()
+                if (props.shouldShowLongRunningOperation) {
+                  event.session?.message = longRunningOperationText
+                }
+              }
+              NfcTransactionEvent.SessionCanceled -> {
+                sessionCanceledByPlatform = true
                 props.onCancel()
               }
-            else -> {
-              val handled = props.onError(error)
-              if (!handled) {
-                newState = Error(error)
+              is NfcTransactionEvent.Failed ->
+                if (event.error is NfcException.IOSOnly.UserCancellation &&
+                  !sessionCanceledByPlatform
+                ) {
+                  props.onCancel()
+                }
+              NfcTransactionEvent.TagDisconnected,
+              is NfcTransactionEvent.Succeeded<*>,
+              -> Unit
+            }
+          }
+        ).collect { event ->
+          if (newState !is InSession) return@collect
+          when (event) {
+            is NfcTransactionEvent.TagConnected -> newState = Communicating
+            NfcTransactionEvent.TagDisconnected -> {
+              // NB: This is only called on Android.
+              if (newState !is Success) newState = Searching
+            }
+            NfcTransactionEvent.SessionCanceled -> Unit
+            is NfcTransactionEvent.Succeeded<*> -> {
+              newState = Success
+              delay(
+                NfcSuccessScreenDuration(
+                  devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
+                  isHardwareFake = isHardwareFake
+                )
+              )
+              // Must be cast to satisfy compiler type resolution
+              @Suppress("USELESS_CAST")
+              (props.onSuccess as suspend (Any?) -> Unit).invoke(event.result)
+            }
+            is NfcTransactionEvent.Failed -> {
+              if (event.error !is NfcException.IOSOnly.UserCancellation) {
+                val handled = props.onError(event.error)
+                if (!handled) newState = Error(event.error)
               }
             }
           }

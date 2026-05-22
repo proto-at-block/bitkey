@@ -39,7 +39,6 @@ fun NfcScreenSearchingIosDsv2Preview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
-    designSystemUpdatesEnabled = true
   ) {
     NfcScreenInternalIos(
       model =
@@ -58,7 +57,6 @@ fun NfcScreenSearchingAndroidDsv2Preview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
-    designSystemUpdatesEnabled = true
   ) {
     NfcScreenInternalV2(
       model =
@@ -78,7 +76,6 @@ fun NfcHelpScreenAndroidDsv2Preview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
-    designSystemUpdatesEnabled = true
   ) {
     NfcHelpBodyModel(onBack = {}).render(Modifier)
   }
@@ -111,7 +108,6 @@ fun NfcScreenConnectedIosDsv2Preview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
-    designSystemUpdatesEnabled = true
   ) {
     NfcScreenInternalIos(
       model =
@@ -130,7 +126,6 @@ fun NfcScreenConnectedAndroidDsv2Preview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
-    designSystemUpdatesEnabled = true
   ) {
     NfcScreenInternalV2(
       model =
@@ -171,7 +166,6 @@ fun NfcScreenConnectedWithSpinnerIosDsv2Preview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
-    designSystemUpdatesEnabled = true
   ) {
     NfcScreenInternalIos(
       model =
@@ -190,7 +184,6 @@ fun NfcScreenConnectedWithSpinnerAndroidDsv2Preview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
-    designSystemUpdatesEnabled = true
   ) {
     NfcScreenInternalV2(
       model =
@@ -231,7 +224,6 @@ fun NfcScreenSuccessIosDsv2Preview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
-    designSystemUpdatesEnabled = true
   ) {
     NfcScreenInternalIos(
       model =
@@ -250,7 +242,6 @@ fun NfcScreenSuccessAndroidDsv2Preview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
-    designSystemUpdatesEnabled = true
   ) {
     NfcScreenInternalV2(
       model =

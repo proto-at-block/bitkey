@@ -39,7 +39,7 @@ class CloudFormScreenSnapshots : FunSpec({
   }
 
   test("cloud sign in instructions screen with design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       FormScreen(
         SaveBackupInstructionsBodyModel(
           onBackupClick = {},
@@ -53,7 +53,7 @@ class CloudFormScreenSnapshots : FunSpec({
   }
 
   test("cloud sign in failed screen with design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       FormScreen(
         model =
           CloudSignInFailedScreenModel(

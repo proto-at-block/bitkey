@@ -13,7 +13,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
 import build.wallet.ui.components.icon.IconImage
-import build.wallet.ui.components.icon.IconStyle
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.compose.thenIf
@@ -22,7 +21,6 @@ import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.status.BannerStyle
 import build.wallet.ui.model.status.StatusBannerModel
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.tokens.LabelType
@@ -103,7 +101,7 @@ private fun StatusBannerModel.colors(): StatusBannerColors {
   return statusBannerColors(
     style = style,
     theme = LocalTheme.current,
-    isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+    isDesignSystemV2Enabled = true
   )
 }
 
@@ -141,12 +139,11 @@ fun StatusBanner(
       model.onClick?.let {
         IconImage(
           modifier = Modifier.padding(start = 4.dp),
-          model =
-            IconModel(
-              iconImage = IconImage.LocalImage(Icon.SmallIconInformationFilled),
-              iconSize = IconSize.XSmall
-            ),
-          style = IconStyle(color = bannerColors.contentColor)
+          model = IconModel(
+            iconImage = IconImage.LocalImage(Icon.SmallIconInformation),
+            iconSize = IconSize.XSmall
+          ),
+          color = bannerColors.contentColor
         )
       }
     }

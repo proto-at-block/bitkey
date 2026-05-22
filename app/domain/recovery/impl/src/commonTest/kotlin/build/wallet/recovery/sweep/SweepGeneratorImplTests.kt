@@ -1079,6 +1079,42 @@ class SweepGeneratorImplTests : FunSpec({
     wallets.getValue(lostHwKeyset1.localId).syncCalls.awaitItem()
   }
 
+  test("inactive hardware sweep only includes keysets matching supplied hardware fingerprint") {
+    val unrelatedHwKeyset = lostBothKeyset.copy(
+      f8eSpendingKeyset = F8eSpendingKeyset(
+        keysetId = "unrelated-hw-keyset-server",
+        spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-unrelated")),
+        privateWalletRootXpub = null
+      ),
+      hardwareKey = HwSpendingPublicKey(
+        DescriptorPublicKeyMock("hw-dpub-unrelated", fingerprint = "baadf00d")
+      )
+    )
+    appPrivateKeyDao.appSpendingKeys[unrelatedHwKeyset.appKey] = AppSpendingPrivateKey(
+      ExtendedPrivateKey(unrelatedHwKeyset.appKey.key.xpub, "mnemonic")
+    )
+    val keybox = activeKeybox.copy(
+      keysets = listOf(activeKeyset, oldW1Keyset, unrelatedHwKeyset)
+    )
+
+    wallets.getValue(activeKeyset.localId).createPsbtResult = Ok(psbtMock)
+    wallets.getValue(lostHwKeyset1.localId).createPsbtResult = Ok(psbtMock)
+    wallets.getValue(lostBothKeyset.localId).createPsbtResult = Ok(psbtMock)
+
+    val result = sweepGenerator.generateSweep(
+      keybox,
+      sweepContext = SweepContext.InactiveHardware(hardwareFingerprint = "cafebabe")
+    ).shouldBeOkOfType<List<SweepPsbt>>()
+
+    result.shouldHaveSize(1)
+    result.single().sourceKeyset.f8eSpendingKeyset.keysetId.shouldBe("old-w1-keyset-server")
+    result.single().signaturePlan.shouldBe(SweepSignaturePlan.AppAndHardware)
+
+    processorMock.processBatchCalls.awaitItem()
+    wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(lostHwKeyset1.localId).syncCalls.awaitItem()
+  }
+
   test("skips descriptor backup check when context is Estimate for private wallet") {
     // Set descriptor backup check to fail - this should NOT be reached during Estimate
     descriptorBackupService.checkBackupForPrivateKeysetResult = Err(IllegalStateException("Backup not found"))

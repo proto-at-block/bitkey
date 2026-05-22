@@ -4,9 +4,6 @@ import app.cash.turbine.plusAssign
 import build.wallet.bitcoin.export.ExportTransactionsServiceMock
 import build.wallet.bitcoin.export.ExportWatchingDescriptorServiceMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.platform.sharing.SharingManagerFake
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormMainContentModel
@@ -32,12 +29,10 @@ import io.kotest.matchers.types.shouldBeTypeOf
 class ExportToolsUiStateMachineImplTests : FunSpec({
   val exportWatchingDescriptorService = ExportWatchingDescriptorServiceMock()
   val exportTransactionsService = ExportTransactionsServiceMock()
-  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(FeatureFlagDaoFake())
   val stateMachine = ExportToolsUiStateMachineImpl(
     sharingManager = SharingManagerFake(),
     exportWatchingDescriptorService = exportWatchingDescriptorService,
     exportTransactionsService = exportTransactionsService,
-    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag
   )
   val onBackCalls = turbines.create<Unit>("onBack calls")
 
@@ -48,7 +43,6 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
   beforeTest {
     exportWatchingDescriptorService.reset()
     exportTransactionsService.reset()
-    designSystemUpdatesFeatureFlag.setFlagValue(false)
   }
 
   test("test resting state") {
@@ -74,7 +68,7 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
                 .iconImage
                 .shouldBeTypeOf<IconImage.LocalImage>()
                 .icon
-            }.shouldBe(listOf(Icon.SmallIconDownload, Icon.SmallIconDownload))
+            }.shouldBe(listOf(Icon.SmallIconDocument, Icon.SmallIconDocument))
           }
 
           primaryButton.shouldBeNull()
@@ -84,7 +78,6 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
   }
 
   test("uses document icon when design system v2 is enabled") {
-    designSystemUpdatesFeatureFlag.setFlagValue(true)
     stateMachine.test(props) {
       awaitBody<ExportToolsSelectionModel> {
         mainContentList[0].shouldBeTypeOf<FormMainContentModel.ListGroup> {

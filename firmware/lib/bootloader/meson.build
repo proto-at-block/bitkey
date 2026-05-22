@@ -47,7 +47,8 @@ foreach bootloader_platform : bootloader_platform_configs.keys()
   bootloader_bl_libs += {
     bootloader_platform : library('bootloader-' + bootloader_platform,
       srcs + bootloader_config['sources'],
-      c_args : bootloader_config['compile_args'],
+      # LOG_FORCE_RAW: bootloaders don't link log_uart_dep — see lib/log/inc/log.h.
+      c_args : bootloader_config['compile_args'] + ['-DLOG_FORCE_RAW=1'],
       include_directories : incs + ['inc-private'],
       dependencies: bl_deps + bootloader_config['dependencies'],
     )

@@ -81,7 +81,7 @@ class TrustedContactsListFormScreenSnapshots : FunSpec({
   }
 
   test("Recovery Contacts list with design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       FormScreen(
         trustedContactsListBodyModel(
           contacts =
@@ -115,7 +115,7 @@ class TrustedContactsListFormScreenSnapshots : FunSpec({
   }
 
   test("Recovery Contacts list empty with design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       FormScreen(
         trustedContactsListBodyModel()
       )

@@ -20,7 +20,6 @@ import build.wallet.coroutines.scopes.mapAsStateFlow
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.Bip177FeatureFlag
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.fwup.FirmwareData
 import build.wallet.fwup.FirmwareDataService
@@ -117,7 +116,6 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val partnerTransferLinkUiStateMachine: PartnerTransferLinkUiStateMachine,
   private val migrationService: MigrationService,
   private val bip177FeatureFlag: Bip177FeatureFlag,
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
   private val bitcoinDisplayPreferenceRepository: BitcoinDisplayPreferenceRepository,
 ) : MoneyHomeViewingBalanceUiStateMachine {
   @Composable
@@ -153,9 +151,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
     val isBip177Enabled by remember {
       bip177FeatureFlag.flagValue().map { it.isEnabled() }
     }.collectAsState(initial = bip177FeatureFlag.isEnabled())
-    val isDesignSystemV2Enabled by remember {
-      designSystemUpdatesFeatureFlag.flagValue().map { it.isEnabled() }
-    }.collectAsState(initial = designSystemUpdatesFeatureFlag.isEnabled())
+    val isDesignSystemV2Enabled = true
     val bitcoinDisplayUnit by bitcoinDisplayPreferenceRepository.bitcoinDisplayUnit.collectAsState()
 
     var coachmarksToDisplay by remember { mutableStateOf(listOf<CoachmarkIdentifier>()) }
@@ -212,6 +208,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
           balanceModel = createBalanceModel(transactionsData),
           cardsModel = MoneyHomeCardsModel(
             props = props,
+            appFunctionalityStatus = appFunctionalityStatus,
             onShowAlert = { alertModel = it },
             onDismissAlert = { alertModel = null }
           ),
@@ -469,6 +466,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   @Composable
   private fun MoneyHomeCardsModel(
     props: MoneyHomeViewingBalanceUiProps,
+    appFunctionalityStatus: AppFunctionalityStatus,
     onShowAlert: (ButtonAlertModel) -> Unit,
     onDismissAlert: () -> Unit,
   ): CardListModel {
@@ -512,6 +510,8 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
           ),
           bitcoinPriceCardUiProps = BitcoinPriceCardUiProps(
             accountId = props.account.accountId,
+            f8eEnvironment = props.account.config.f8eEnvironment,
+            appFunctionalityStatus = appFunctionalityStatus,
             onOpenPriceChart = { props.setState(ShowingPriceChartUiState()) }
           ),
           inheritanceCardUiProps = inheritanceCardUiProps(props)

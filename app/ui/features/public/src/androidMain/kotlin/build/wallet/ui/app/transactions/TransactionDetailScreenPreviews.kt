@@ -44,7 +44,6 @@ fun PendingReceiveTransactionDetailPreview() {
 fun PendingReceiveTransactionDetailDesignSystemV2Preview() {
   TransactionDetailPreview(
     model = pendingReceiveTransactionDetailModel(),
-    designSystemUpdatesEnabled = true
   )
 }
 
@@ -59,7 +58,6 @@ fun LateSendTransactionDetailPreview() {
 fun LateSendTransactionDetailDesignSystemV2Preview() {
   TransactionDetailPreview(
     model = lateSendTransactionDetailModel(),
-    designSystemUpdatesEnabled = true
   )
 }
 
@@ -74,7 +72,6 @@ fun SentTransactionDetailPreview() {
 fun SentTransactionDetailDesignSystemV2Preview() {
   TransactionDetailPreview(
     model = sentTransactionDetailModel(),
-    designSystemUpdatesEnabled = true
   )
 }
 
@@ -89,7 +86,6 @@ fun ReceivedTransactionDetailPreview() {
 fun ReceivedTransactionDetailDesignSystemV2Preview() {
   TransactionDetailPreview(
     model = receivedTransactionDetailModel(),
-    designSystemUpdatesEnabled = true
   )
 }
 
@@ -104,7 +100,6 @@ fun UtxoConsolidationTransactionDetailPreview() {
 fun UtxoConsolidationTransactionDetailDesignSystemV2Preview() {
   TransactionDetailPreview(
     model = utxoConsolidationTransactionDetailModel(),
-    designSystemUpdatesEnabled = true
   )
 }
 
@@ -119,7 +114,6 @@ fun PendingPartnershipTransactionDetailPreview() {
 fun PendingPartnershipTransactionDetailDesignSystemV2Preview() {
   TransactionDetailPreview(
     model = pendingPartnershipTransactionDetailModel(),
-    designSystemUpdatesEnabled = true
   )
 }
 
@@ -134,7 +128,6 @@ fun PendingPartnershipSaleTransactionDetailPreview() {
 fun PendingPartnershipSaleTransactionDetailDesignSystemV2Preview() {
   TransactionDetailPreview(
     model = pendingPartnershipSaleTransactionDetailModel(),
-    designSystemUpdatesEnabled = true
   )
 }
 
@@ -149,7 +142,6 @@ fun ConfirmedPartnershipTransactionDetailPreview() {
 fun ConfirmedPartnershipTransactionDetailDesignSystemV2Preview() {
   TransactionDetailPreview(
     model = confirmedPartnershipTransactionDetailModel(),
-    designSystemUpdatesEnabled = true
   )
 }
 
@@ -164,16 +156,14 @@ fun ConfirmedPartnershipPurchaseTransactionDetailPreview() {
 fun ConfirmedPartnershipPurchaseTransactionDetailDesignSystemV2Preview() {
   TransactionDetailPreview(
     model = confirmedPartnershipPurchaseTransactionDetailModel(),
-    designSystemUpdatesEnabled = true
   )
 }
 
 @Composable
 private fun TransactionDetailPreview(
   model: TransactionDetailModel,
-  designSystemUpdatesEnabled: Boolean = false,
 ) {
-  PreviewWalletTheme(designSystemUpdatesEnabled = designSystemUpdatesEnabled) {
+  PreviewWalletTheme {
     TransactionDetailScreen(model = model)
   }
 }
@@ -231,7 +221,7 @@ private fun lateSendTransactionDetailModel() =
               showTopDivider = true,
               iconButton = IconButtonModel(
                 iconModel = IconModel(
-                  icon = Icon.SmallIconInformationFilled,
+                  icon = Icon.SmallIconInformation,
                   iconSize = IconSize.Accessory,
                   iconBackgroundType = IconBackgroundType.Circle(
                     circleSize = IconSize.Accessory

@@ -22,7 +22,7 @@ fun CloudBackupHealthStatusGood() {
 @Preview
 @Composable
 fun CloudBackupHealthStatusGoodDesignSystemV2() {
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     CloudBackupHealthStatusCard(
       model =
         CloudBackupHealthStatusCardModelForPreview.copy(
@@ -52,7 +52,7 @@ fun CloudBackupHealthStatusError() {
 @Preview
 @Composable
 fun CloudBackupHealthStatusErrorDesignSystemV2() {
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     CloudBackupHealthStatusCard(
       model = CloudBackupHealthStatusCardModelForPreview.copy(
         toolbarModel = null,
@@ -81,7 +81,7 @@ fun CloudBackupHealthStatusEEKGood() {
 @Preview
 @Composable
 fun CloudBackupHealthStatusEEKGoodDesignSystemV2() {
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     CloudBackupHealthStatusCard(
       model =
         CloudBackupHealthStatusCardEekModelForPreview.copy(
@@ -110,7 +110,7 @@ fun CloudBackupHealthStatusEEKError() {
 @Preview
 @Composable
 fun CloudBackupHealthStatusEEKErrorDesignSystemV2() {
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     CloudBackupHealthStatusCard(
       model =
         CloudBackupHealthStatusCardEekModelForPreview.copy(

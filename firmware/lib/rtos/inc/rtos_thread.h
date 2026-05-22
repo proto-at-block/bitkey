@@ -77,4 +77,4 @@ bool rtos_in_isr(void);
 
 #define rtos_thread_enter_critical taskENTER_CRITICAL
 #define rtos_thread_exit_critical  taskEXIT_CRITICAL
-#define rtos_thread_yield          taskYIELD
+void rtos_thread_yield(void);

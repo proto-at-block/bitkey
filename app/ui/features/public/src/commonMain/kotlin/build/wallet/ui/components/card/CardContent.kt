@@ -10,7 +10,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
-import build.wallet.statemachine.core.Icon.BitkeyDeviceRaisedSmall
+import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.TimerDirection.CounterClockwise
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.CardModel.CardContent.BitcoinPrice
@@ -153,7 +153,7 @@ private fun CardImage(model: CardModel.CardImage) {
           indicatorColor = WalletTheme.colors.containerHighlightForeground,
           strokeWidth = 3.dp
         )
-        Icon(icon = BitkeyDeviceRaisedSmall, size = Small)
+        Icon(icon = Icon.SmallIconBitkey, size = Small)
       }
   }
 }

@@ -45,7 +45,6 @@ import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.system.BackHandler
 import build.wallet.ui.system.KeepScreenOn
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
@@ -58,7 +57,7 @@ fun TransactionDetailScreen(
 ) {
   val title = model.formHeaderModel.headline
   val content: @Composable (Modifier) -> Unit =
-    if (!LocalDesignSystemUpdatesEnabled.current || title == null) {
+    if (title == null) {
       { screenModifier ->
         FormScreen(model = model, modifier = screenModifier)
       }

@@ -34,7 +34,9 @@ import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.awaitUntilBodyMock
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 
 class FullAccountUiStateMachineImplTests : FunSpec({
 
@@ -152,6 +154,35 @@ class FullAccountUiStateMachineImplTests : FunSpec({
         account.shouldBe(FullAccountMock)
         isComingFromOnboarding.shouldBe(false)
       }
+    }
+  }
+
+  test("Sheet interstitial shown over home when coming from existing account and not onboarding") {
+    biometricAuthService.isBiometricAuthRequiredFlow.value = false
+    interstitialUiStateMachine.shouldShowSheetInterstitial = true
+
+    stateMachine.test(
+      props = FullAccountUiProps(
+        account = FullAccountMock,
+        isNewlyCreatedAccount = false
+      )
+    ) {
+      val screenModel = awaitItem()
+
+      screenModel.body
+        .shouldBeInstanceOf<BodyModelMock<HomeUiProps>>()
+        .latestProps
+        .account
+        .shouldBe(FullAccountMock)
+
+      val sheetProps = screenModel.bottomSheetModel
+        .shouldNotBeNull()
+        .body
+        .shouldBeInstanceOf<BodyModelMock<InterstitialUiProps>>()
+        .latestProps
+
+      sheetProps.account.shouldBe(FullAccountMock)
+      sheetProps.isComingFromOnboarding.shouldBe(false)
     }
   }
 

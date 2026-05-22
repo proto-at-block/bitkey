@@ -9,6 +9,6 @@ class InheritanceUpsellSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
   test("inheritance upsell sheet") {
-    paparazzi.snapshotSheet(InheritanceUpsellSheetModel({}, {}), designSystemUpdatesEnabled = true)
+    paparazzi.snapshotSheet(InheritanceUpsellSheetModel({}, {}))
   }
 })

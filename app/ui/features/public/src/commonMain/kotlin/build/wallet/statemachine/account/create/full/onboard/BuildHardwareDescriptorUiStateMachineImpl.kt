@@ -7,8 +7,6 @@ import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.keybox.KeyboxDao
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
@@ -33,14 +31,10 @@ class BuildHardwareDescriptorUiStateMachineImpl(
   private val cloudBackupHealthRepository: CloudBackupHealthRepository,
   private val keyboxDao: KeyboxDao,
   private val onboardingCompletionService: OnboardingCompletionService,
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : BuildHardwareDescriptorUiStateMachine {
   @Composable
   override fun model(props: BuildHardwareDescriptorUiProps): ScreenModel {
     var state: State by remember { mutableStateOf(State.CompletingOnboarding) }
-    val isDesignSystemV2Enabled by remember {
-      designSystemUpdatesFeatureFlag.flagValue().map { it.isEnabled() }
-    }.collectAsState(initial = designSystemUpdatesFeatureFlag.isEnabled())
 
     return when (val currentState = state) {
       is State.CompletingOnboarding -> {
@@ -66,25 +60,16 @@ class BuildHardwareDescriptorUiStateMachineImpl(
       }
 
       is State.ShowingIntroScreen -> {
-        if (isDesignSystemV2Enabled) {
-          ScreenModel(
-            body = BuildHardwareDescriptorIntroV2BodyModel(
-              onTapBitkey = {
-                state = State.TappingHardware(nfcSession = currentState.nfcSession)
-              },
-              onBack = props.onBack
-            ),
-            presentationStyle = ScreenPresentationStyle.RootFullScreen,
-            themePreference = ThemePreference.System
-          )
-        } else {
-          BuildHardwareDescriptorIntroBodyModel(
+        ScreenModel(
+          body = BuildHardwareDescriptorIntroBodyModel(
             onTapBitkey = {
               state = State.TappingHardware(nfcSession = currentState.nfcSession)
             },
             onBack = props.onBack
-          ).asRootScreen()
-        }
+          ),
+          presentationStyle = ScreenPresentationStyle.RootFullScreen,
+          themePreference = ThemePreference.System
+        )
       }
 
       is State.TappingHardware -> {

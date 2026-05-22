@@ -40,7 +40,7 @@ fun MobilePayStatusScreenEnabledPreview() {
 @Preview
 @Composable
 fun MobilePayStatusScreenEnabledWithDialogPreviewAndRevamp() {
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     MobilePayStatusScreen(
       model = MobilePayStatusModel(
         onBack = {},
@@ -77,7 +77,7 @@ fun MobilePayStatusScreenEnabledWithDialogPreviewAndRevamp() {
 @Preview
 @Composable
 fun MobilePayStatusScreenEnabledDesignSystemV2Preview() {
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     MobilePayStatusScreen(
       model = MobilePayStatusModel(
         onBack = {},
@@ -106,7 +106,7 @@ fun MobilePayStatusScreenEnabledDesignSystemV2Preview() {
 @Preview
 @Composable
 fun MobilePayStatusScreenDisabledDesignSystemV2Preview() {
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     MobilePayStatusScreen(
       model = MobilePayStatusModel(
         onBack = {},

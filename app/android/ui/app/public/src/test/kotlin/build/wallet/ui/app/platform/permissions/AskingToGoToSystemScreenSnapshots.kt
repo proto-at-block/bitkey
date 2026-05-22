@@ -13,7 +13,7 @@ class AskingToGoToSystemScreenSnapshots : FunSpec({
   }
 
   test("AskingToGoToSystemScreen design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       PreviewAskingToGoToSystemScreen()
     }
   }

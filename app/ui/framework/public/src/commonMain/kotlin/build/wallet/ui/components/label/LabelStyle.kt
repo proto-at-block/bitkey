@@ -24,7 +24,6 @@ import build.wallet.ui.components.label.LabelTreatment.Strikethrough
 import build.wallet.ui.components.label.LabelTreatment.Tertiary
 import build.wallet.ui.components.label.LabelTreatment.Unspecified
 import build.wallet.ui.components.label.LabelTreatment.Warning
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.LabelType.Body3Mono
@@ -78,7 +77,7 @@ fun WalletTheme.textStyle(
       else -> None
     }
 
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val baseFont =
     TextStyle(
       fontFamily = if (isDesignSystemV2Enabled) cashSansFontFamily else interFontFamily,
@@ -107,7 +106,7 @@ fun buttonTextStyle(
   underline: Boolean,
   textColor: Color,
 ): TextStyle {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val baseFont =
     TextStyle(
       fontFamily = if (isDesignSystemV2Enabled) cashSansFontFamily else interFontFamily,

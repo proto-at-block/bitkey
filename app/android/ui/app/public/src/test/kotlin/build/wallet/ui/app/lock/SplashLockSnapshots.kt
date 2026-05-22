@@ -27,7 +27,7 @@ class SplashLockSnapshots : FunSpec({
   }
 
   test("Splash Lock Screen dsv2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       SplashLockScreen(
         model = SplashLockModel(
           unlockButtonModel = ButtonModel(

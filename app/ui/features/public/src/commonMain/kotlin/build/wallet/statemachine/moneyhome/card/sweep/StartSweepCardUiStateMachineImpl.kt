@@ -32,7 +32,7 @@ class StartSweepCardUiStateMachineImpl(
             subtitle = LabelModel.StringModel("Transfer funds now"),
             treatment = Treatment.Warning,
             useMonochromeStyleInDesignSystemV2 = true,
-            leadingIcon = Icon.SmallIconInformationFilled,
+            leadingIcon = Icon.SmallIconInformation,
             trailingIcon = Icon.SmallIconArrowRight,
             onClick = StandardClick(props.onStartSweepClicked)
           )

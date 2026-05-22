@@ -9,7 +9,6 @@ import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.BoldStyle
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.ColorStyle
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.FontFeatureStyle
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.StyleDictionaryColors
 
@@ -38,7 +37,6 @@ private fun LabelModel.Color.toWalletTheme(colors: StyleDictionaryColors): andro
 fun LabelModel.buildAnnotatedString(): AnnotatedString {
   val model = this
   val colors = WalletTheme.colors
-  val designSystemUpdatesEnabled = LocalDesignSystemUpdatesEnabled.current
   return buildAnnotatedString {
     append(string)
     when (model) {
@@ -48,13 +46,11 @@ fun LabelModel.buildAnnotatedString(): AnnotatedString {
         addStyledSubstrings(
           styledSubstrings = model.styledSubstrings,
           colors = colors,
-          designSystemUpdatesEnabled = designSystemUpdatesEnabled
         )
       is LabelModel.ChunkedAddressModel ->
         addStyledSubstrings(
           styledSubstrings = model.styledSubstrings,
           colors = colors,
-          designSystemUpdatesEnabled = designSystemUpdatesEnabled
         )
       is LabelModel.LinkSubstringModel ->
         model.linkedSubstrings.forEach { linkedSubstring ->
@@ -81,7 +77,6 @@ fun LabelModel.buildAnnotatedString(): AnnotatedString {
 private fun AnnotatedString.Builder.addStyledSubstrings(
   styledSubstrings: List<LabelModel.StringWithStyledSubstringModel.StyledSubstring>,
   colors: StyleDictionaryColors,
-  designSystemUpdatesEnabled: Boolean,
 ) {
   styledSubstrings.forEach { styledSubstring ->
     addStyle(
@@ -89,14 +84,8 @@ private fun AnnotatedString.Builder.addStyledSubstrings(
         when (val substringStyle = styledSubstring.style) {
           is ColorStyle -> SpanStyle(color = substringStyle.color.toWalletTheme(colors))
           is BoldStyle -> SpanStyle(fontWeight = FontWeight.W600)
-          is FontFeatureStyle -> {
-            val fontFeatureSettings = if (designSystemUpdatesEnabled) {
-              substringStyle.fontFeatureSettings.withSlashedZero()
-            } else {
-              substringStyle.fontFeatureSettings
-            }
-            SpanStyle(fontFeatureSettings = fontFeatureSettings)
-          }
+          is FontFeatureStyle ->
+            SpanStyle(fontFeatureSettings = substringStyle.fontFeatureSettings.withSlashedZero())
         },
       start = styledSubstring.range.first,
       end = styledSubstring.range.last + 1

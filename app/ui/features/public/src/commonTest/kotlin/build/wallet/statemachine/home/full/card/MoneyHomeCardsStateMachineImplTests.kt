@@ -1,6 +1,8 @@
 package build.wallet.statemachine.home.full.card
 
 import build.wallet.bitkey.f8e.FullAccountIdMock
+import build.wallet.availability.AppFunctionalityStatus
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.test
@@ -67,6 +69,8 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
       ),
       bitcoinPriceCardUiProps = BitcoinPriceCardUiProps(
         accountId = FullAccountIdMock,
+        f8eEnvironment = FullAccountMock.config.f8eEnvironment,
+        appFunctionalityStatus = AppFunctionalityStatus.FullFunctionality,
         onOpenPriceChart = {}
       ),
       inheritanceCardUiProps = InheritanceCardUiProps(

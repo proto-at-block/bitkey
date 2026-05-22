@@ -15,7 +15,6 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tooling.LocalIsPreviewTheme
 import build.wallet.ui.tokens.LabelType
@@ -115,7 +114,7 @@ private fun AndroidAnimatedAmountLabel(
   val context = LocalContext.current
   val density = LocalDensity.current
   val style = WalletTheme.labelStyle(type, treatment, alignment, color)
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
 
   val typeface = remember(type, style.fontWeight, isDesignSystemV2Enabled) {
     val assetPath = resolveFontAssetPath(type, style.fontWeight, isDesignSystemV2Enabled)

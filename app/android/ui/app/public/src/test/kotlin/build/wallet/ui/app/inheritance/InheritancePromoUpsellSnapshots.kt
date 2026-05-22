@@ -11,7 +11,7 @@ class InheritancePromoUpsellSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
   test("inheritance promo model") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       PromoCodeUpsellBodyModel(
         onBack = {},
         promoCode = PromotionCode("INHERITANCE-30-X5B4"),
@@ -25,7 +25,7 @@ class InheritancePromoUpsellSnapshots : FunSpec({
   }
 
   test("inheritance promo model - scrollable") {
-    paparazzi.snapshot(deviceConfig = DeviceConfig.NEXUS_4, designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot(deviceConfig = DeviceConfig.NEXUS_4) {
       PromoCodeUpsellBodyModel(
         onBack = {},
         promoCode = PromotionCode("INHERITANCE-30-X5B4"),

@@ -15,7 +15,6 @@ import build.wallet.ui.components.limit.SpendingLimitCard
 import build.wallet.ui.components.switch.SwitchCard
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 
 @Composable
 fun MobilePayStatusScreen(
@@ -40,9 +39,6 @@ fun MobilePayStatusScreen(
     designSystemV2MainContentAlignment = FormScreenContentVerticalAlignment.Top,
     mainContent = {
       SwitchCard(model = model.switchCardModel)
-      if (!LocalDesignSystemUpdatesEnabled.current) {
-        Spacer(modifier = Modifier.height(24.dp))
-      }
       model.spendingLimitCardModel?.let { cardModel ->
         SpendingLimitCard(
           modifier = Modifier.fillMaxWidth(),

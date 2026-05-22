@@ -20,15 +20,4 @@ class W3UpgradeDeviceReadySnapshots : FunSpec({
     }
   }
 
-  test("W3 upgrade device ready screen with design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
-      FormScreen(
-        W3UpgradeDeviceReadyBodyModel(
-          onBack = {},
-          onYes = {},
-          onNo = {}
-        )
-      )
-    }
-  }
 })

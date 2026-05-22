@@ -8,6 +8,7 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
+import build.wallet.bitkey.f8e.AccountId
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.FiatCurrency
@@ -348,6 +349,8 @@ private class FakeChartDataFetcherService : ChartDataFetcherService {
   override suspend fun getChartData(
     range: ChartRange,
     maxPricePoints: Int?,
+    accountId: AccountId?,
+    f8eEnvironment: build.wallet.f8e.F8eEnvironment?,
   ) = Ok(exchangeRates)
 }
 

@@ -19,7 +19,6 @@ import build.wallet.ui.model.button.ButtonModel.Size.Short
 import build.wallet.ui.model.button.ButtonModel.Size.ToolbarAccessory
 import build.wallet.ui.model.button.ButtonModel.Treatment.*
 import build.wallet.ui.model.icon.IconSize
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.theme.WalletTheme.colors
 import build.wallet.ui.tokens.LabelType
@@ -56,7 +55,7 @@ fun WalletTheme.buttonStyle(
   cornerRadius: Dp = 16.dp,
   enabled: Boolean = true,
 ): ButtonStyle {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val effectiveCornerRadius = if (isDesignSystemV2Enabled) 80.dp else cornerRadius
   val isTextButton = treatment.isTextButton()
   val labelType = treatment.textLabelType(isDesignSystemV2Enabled)

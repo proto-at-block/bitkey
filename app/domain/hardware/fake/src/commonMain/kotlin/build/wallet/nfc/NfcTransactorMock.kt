@@ -15,6 +15,14 @@ class NfcTransactorMock(
   var transactResult: Result<Any, NfcException> = Err(NfcException.UnknownError())
 
   /**
+   * Optional hook invoked synchronously at the start of [transact] (after the call is
+   * recorded but before any pause gate or result resolution). Tests use this to drive
+   * platform NFC callbacks — e.g. `parameters.onTagConnected(null)` — so that
+   * lifecycle events can be observed via [NfcTransactor.transactEvents].
+   */
+  var onTransactStarted: ((NfcSession.Parameters) -> Unit)? = null
+
+  /**
    * Queue of results to return for consecutive [transact] calls.
    * When non-empty, each call consumes and returns the first result from the queue.
    * When empty, falls back to [transactResult].
@@ -48,6 +56,8 @@ class NfcTransactorMock(
     isTransacting = true
     transactCalls.add(parameters)
     return try {
+      onTransactStarted?.invoke(parameters)
+
       transactPauseGates.firstOrNull()?.let { gate ->
         transactPauseGates.removeAt(0)
         gate.await()
@@ -67,6 +77,7 @@ class NfcTransactorMock(
 
   fun reset() {
     transactResult = Err(NfcException.UnknownError())
+    onTransactStarted = null
     transactResultQueue.clear()
     transactPauseGates.forEach { it.cancel() }
     transactPauseGates.clear()

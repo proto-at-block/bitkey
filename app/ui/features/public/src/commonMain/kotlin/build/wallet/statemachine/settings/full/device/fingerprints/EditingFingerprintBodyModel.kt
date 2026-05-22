@@ -73,7 +73,7 @@ data class EditingFingerprintBodyModel(
         item = CalloutModel(
           title = "At least one fingerprint is required",
           subtitle = StringModel("Add another fingerprint to delete"),
-          leadingIcon = Icon.SmallIconInformationFilled,
+          leadingIcon = Icon.SmallIconInformation,
           treatment = CalloutModel.Treatment.Information
         )
       ).takeIf { attemptToDeleteLastFingerprint }

@@ -12,14 +12,13 @@ import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 
 @Composable
 fun CloudBackupHealthDashboardScreen(
   modifier: Modifier = Modifier,
   model: CloudBackupHealthDashboardBodyModel,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
 
   FormScreen(
     modifier = modifier,

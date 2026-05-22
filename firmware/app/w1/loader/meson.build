@@ -63,7 +63,7 @@ foreach hardware : w1_hardware_configs.keys()
         f'-Wl,-Map=@prog@.map,--cref',
         f'-T' + ldscript.full_path(),
       ],
-      c_args : build_env_args,
+      c_args : build_env_args + ['-DLOG_FORCE_RAW=1'],
       include_directories : includes,
       dependencies : [bl_deps, hardware_deps, build_env_deps]
     )

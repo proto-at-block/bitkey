@@ -14,6 +14,14 @@ sealed interface SweepContext {
   data object InactiveWallet : SweepContext
 
   /**
+   * Sweeping from inactive keysets that belong to one historical hardware device.
+   *
+   * Special handling: only keysets matching [hardwareFingerprint] are included. Matching keysets
+   * can use hardware signing because the customer still has the historical device in hand.
+   */
+  data class InactiveHardware(val hardwareFingerprint: String) : SweepContext
+
+  /**
    * Sweeping as part of private wallet migration.
    * Special handling: skips server signing, uses App + Hardware only.
    */

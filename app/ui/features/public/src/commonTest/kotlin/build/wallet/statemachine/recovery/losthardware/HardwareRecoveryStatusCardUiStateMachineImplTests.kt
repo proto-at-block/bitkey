@@ -1,11 +1,13 @@
 package build.wallet.statemachine.recovery.losthardware
 
 import app.cash.turbine.plusAssign
+import build.wallet.LoadableValue.InitialLoading
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.recovery.LostHardwareServerRecoveryMock
+import build.wallet.recovery.Recovery.Loading
 import build.wallet.recovery.Recovery.StillRecovering.ServerDependentRecovery.InitiatedRecovery
 import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.RotatedAuthKeys
 import build.wallet.recovery.RecoveryStatusServiceMock
@@ -18,11 +20,13 @@ import build.wallet.statemachine.ui.matchers.shouldHaveSubtitle
 import build.wallet.statemachine.ui.matchers.shouldHaveTitle
 import build.wallet.statemachine.ui.matchers.shouldNotHaveSubtitle
 import build.wallet.statemachine.ui.robots.click
+import build.wallet.testing.shouldBeLoaded
 import build.wallet.time.ClockFake
 import build.wallet.time.DurationFormatterFake
 import build.wallet.time.someInstant
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.datetime.Instant
 import okio.ByteString.Companion.encodeUtf8
@@ -51,7 +55,15 @@ class HardwareRecoveryStatusCardUiStateMachineImplTests : FunSpec({
   test("null when no recovery") {
     recoveryStatusService.reset()
     stateMachine.test(props) {
-      awaitItem().shouldBeNull()
+      awaitItem().shouldBeLoaded().shouldBeNull()
+    }
+  }
+
+  test("not loaded while recovery status is still loading") {
+    recoveryStatusService.recoveryStatus.value = Loading
+
+    stateMachine.test(props) {
+      awaitItem().shouldBe(InitialLoading)
     }
   }
 
@@ -70,7 +82,7 @@ class HardwareRecoveryStatusCardUiStateMachineImplTests : FunSpec({
       originalAppGlobalAuthKey = AppGlobalAuthPublicKeyMock
     )
     stateMachine.test(props) {
-      awaitItem().shouldBeNull()
+      awaitItem().shouldBeLoaded().shouldBeNull()
     }
   }
 
@@ -94,7 +106,8 @@ class HardwareRecoveryStatusCardUiStateMachineImplTests : FunSpec({
     recoveryStatusService.recoveryStatus.value = initiatedRecovery
 
     stateMachine.test(props) {
-      awaitItem().shouldBeTypeOf<CardModel>()
+      awaitItem().shouldBeLoaded()
+        .shouldBeTypeOf<CardModel>()
         .shouldHaveTitle("Replacement Ready")
         .shouldNotHaveSubtitle()
         .click()
@@ -121,7 +134,8 @@ class HardwareRecoveryStatusCardUiStateMachineImplTests : FunSpec({
     recoveryStatusService.recoveryStatus.value = initiatedRecovery
 
     stateMachine.test(props) {
-      awaitItem().shouldBeTypeOf<CardModel>()
+      awaitItem().shouldBeLoaded()
+        .shouldBeTypeOf<CardModel>()
         .shouldHaveTitle("Replacement pending...")
         .shouldHaveSubtitle("5d")
         .click()

@@ -101,7 +101,7 @@ private fun GettingStartedTask.taskPresentation(): GettingStartedTaskPresentatio
     AddBitcoin ->
       GettingStartedTaskPresentation(
         title = "Add bitcoin",
-        listIcon = SmallIconPlusStroked,
+        listIcon = SmallIconPlus,
         tileIcon = DotCoins,
         tileId = GettingStartedTileModel.Id.AddBitcoin
       )

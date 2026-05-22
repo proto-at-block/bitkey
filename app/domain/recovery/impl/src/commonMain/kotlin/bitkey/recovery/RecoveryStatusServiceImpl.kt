@@ -167,7 +167,5 @@ class RecoveryStatusServiceImpl(
     }
   }
 
-  override suspend fun clear(): Result<Unit, Error> {
-    return recoveryDao.clear()
-  }
+  override suspend fun clear(): Result<Unit, Error> = recoveryDao.clear()
 }

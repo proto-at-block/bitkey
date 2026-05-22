@@ -74,6 +74,12 @@ class SweepServiceImpl(
     sweepContext: SweepContext,
   ): Result<Sweep?, Error> = prepareSweepInternal(keybox, sweepContext, SweepGenerationContext.Real)
 
+  override suspend fun estimateSweepToActiveKeyset(
+    keybox: Keybox,
+    sweepContext: SweepContext,
+  ): Result<Sweep, SweepService.SweepError> =
+    estimatePreparedSweep(keybox, sweepContext)
+
   override suspend fun estimateSweepWithMockDestination(
     keybox: Keybox,
     sweepContext: SweepContext,
@@ -92,11 +98,19 @@ class SweepServiceImpl(
         keysets = keybox.keysets + fakeDestinationKeyset
       )
 
-      val sweep = prepareSweepInternal(mockKeybox, sweepContext, SweepGenerationContext.Estimate)
+      estimatePreparedSweep(mockKeybox, sweepContext).bind()
+    }
+
+  private suspend fun estimatePreparedSweep(
+    keybox: Keybox,
+    sweepContext: SweepContext,
+  ): Result<Sweep, SweepService.SweepError> =
+    coroutineBinding {
+      val sweep = prepareSweepInternal(keybox, sweepContext, SweepGenerationContext.Estimate)
         .mapError { SweepGenerationFailed(it) }
         .bind()
 
-      // If sweep is null, there are no funds to sweep (either zero balance or fees exceed balance)
+      // If sweep is null, there are no funds to sweep (either zero balance or fees exceed balance).
       sweep ?: Err(NoFundsToSweep).bind()
     }
 

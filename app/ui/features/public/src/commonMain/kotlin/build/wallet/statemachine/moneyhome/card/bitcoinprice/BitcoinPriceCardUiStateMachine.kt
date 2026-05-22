@@ -1,6 +1,8 @@
 package build.wallet.statemachine.moneyhome.card.bitcoinprice
 
+import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.bitkey.f8e.AccountId
+import build.wallet.f8e.F8eEnvironment
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.moneyhome.card.CardModel
 
@@ -12,5 +14,7 @@ interface BitcoinPriceCardUiStateMachine : StateMachine<BitcoinPriceCardUiProps,
 
 data class BitcoinPriceCardUiProps(
   val accountId: AccountId,
+  val f8eEnvironment: F8eEnvironment,
+  val appFunctionalityStatus: AppFunctionalityStatus,
   val onOpenPriceChart: () -> Unit,
 )

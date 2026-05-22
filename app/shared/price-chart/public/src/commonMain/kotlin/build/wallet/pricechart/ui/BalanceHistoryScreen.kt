@@ -44,7 +44,6 @@ import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.LabelType.Body3Regular
@@ -55,7 +54,7 @@ import build.wallet.ui.tokens.LabelType.Title2
  */
 @Composable
 internal fun BalanceHistoryScreen(model: BitcoinPriceDetailsBodyModel) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val showChart = model.data.isNotEmpty() && (!model.isLoading || model.preservePreviousChartWhileLoading)
   val showDataRow = model.isLoading || model.data.isNotEmpty()
   if (showDataRow) {
@@ -123,7 +122,7 @@ private fun EmptyWalletMessage(
   onBuy: () -> Unit,
   onTransfer: () -> Unit,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
 
   Column(
     modifier = Modifier
@@ -197,7 +196,7 @@ private fun SelectedPointDetails(
   data: SelectedPointData.Balance?,
   modifier: Modifier = Modifier,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val shouldAnimateSelectedAmount = isDesignSystemV2Enabled && data?.isUserSelected != true
   val chartLoadingColor = if (isDesignSystemV2Enabled) WalletTheme.colors.subtleBackground else null
   val showPrimaryValueLoadingScrim = isLoading

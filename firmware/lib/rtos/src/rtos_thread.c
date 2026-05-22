@@ -148,6 +148,17 @@ void rtos_thread_sleep_until(uint32_t* last_wake_time_ms, const uint32_t period_
   *last_wake_time_ms = TICKS2MS(last_wake_ticks);
 }
 
+void rtos_thread_yield(void) {
+#if defined(EMBEDDED_BUILD) && (configENABLE_MPU == 1) && (configUSE_MPU_WRAPPERS_V1 == 1)
+#ifndef portSVC_YIELD
+#error "portSVC_YIELD must be defined for embedded MPU v1 yield"
+#endif
+  __asm volatile("svc %0 \n" ::"i"(portSVC_YIELD) : "memory");
+#else
+  taskYIELD();
+#endif
+}
+
 /* rtos_thread_systime should only be used with hal_thread_* / rtos calls as it _will_ wrap at
  * UINT32_MAX, which is handled by freertos */
 uint32_t rtos_thread_systime(void) {

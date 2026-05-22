@@ -87,7 +87,7 @@ internal fun selectPartnerPurchaseQuoteModel(
                 showTopDivider = true,
                 iconButton = IconButtonModel(
                   iconModel = IconModel(
-                    icon = Icon.SmallIconInformationFilled,
+                    icon = Icon.SmallIconInformation,
                     iconSize = IconSize.Accessory,
                     iconTint = IconTint.On30
                   ),

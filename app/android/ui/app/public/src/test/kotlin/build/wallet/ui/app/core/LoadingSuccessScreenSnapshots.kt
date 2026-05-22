@@ -59,7 +59,7 @@ class LoadingSuccessScreenSnapshots : FunSpec({
   }
 
   test("loading state with design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       LoadingSuccessScreen(
         model =
           LoadingSuccessBodyModel(
@@ -71,7 +71,7 @@ class LoadingSuccessScreenSnapshots : FunSpec({
   }
 
   test("success state with design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       LoadingSuccessScreen(
         model =
           LoadingSuccessBodyModel(

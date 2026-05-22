@@ -76,7 +76,7 @@ fun RecoveryContactsListPopulatedPreview() {
 @Preview(name = "Recovery Contacts Empty (Design System V2)")
 @Composable
 fun RecoveryContactsListEmptyPreviewDesignSystemV2() {
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     RecoveryContactsListPreviewContent(
       model = previewTrustedContactsListBodyModel()
     )
@@ -86,7 +86,7 @@ fun RecoveryContactsListEmptyPreviewDesignSystemV2() {
 @Preview(name = "Recovery Contacts Populated (Design System V2)")
 @Composable
 fun RecoveryContactsListPopulatedPreviewDesignSystemV2() {
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     RecoveryContactsListPreviewContent(
       model =
         previewTrustedContactsListBodyModel(

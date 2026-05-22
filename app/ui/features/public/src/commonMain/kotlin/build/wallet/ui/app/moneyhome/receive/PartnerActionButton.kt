@@ -20,7 +20,6 @@ import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.market.MarketIcons
@@ -106,7 +105,7 @@ fun PartnerActionButton(
   fallbackIcon: Icon = Icon.Bitcoin,
   isLoading: Boolean = false,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
 
   PartnerActionButton(
     iconModel = IconModel(
@@ -139,7 +138,7 @@ fun ActionButton(
   modifier: Modifier = Modifier,
   iconTint: IconTint? = IconTint.Foreground,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
 
   PartnerActionButton(
     iconModel = actionButtonIconModel(

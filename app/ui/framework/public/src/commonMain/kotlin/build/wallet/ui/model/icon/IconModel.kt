@@ -42,9 +42,6 @@ sealed class IconImage {
     val fallbackIcon: Icon,
   ) : IconImage()
 
-  /** Represents a loading indicator */
-  data object Loader : IconImage()
-
   /** Represents a circular loading badge */
   data object LoadingBadge : IconImage()
 }

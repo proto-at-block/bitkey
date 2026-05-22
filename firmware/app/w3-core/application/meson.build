@@ -124,7 +124,12 @@ foreach hardware : w3_core_hardware_configs.keys()
 
       base_deps = common_deps + [fwup_platform_dep, ui_task_display_dep]
       mfgtest_base_deps = common_deps + [fwup_platform_dep, ui_task_display_mfgtest_dep]
-      dev_variant_deps = base_deps + dev_tools_deps
+      # log_uart_dep is the tokenized UART transport — only linked into dev.
+      # Mfgtest reconfigures the build with -Dlog_tokenized=false (see
+      # bitkey/meson.py) so the macro path falls back to legacy printf and
+      # nothing in the build references log_uart_emit_*. Prod uses
+      # log_noprintf_dep + project-wide DISABLE_PRINTF.
+      dev_variant_deps = base_deps + dev_tools_deps + [log_uart_dep]
       mfgtest_variant_deps = mfgtest_base_deps + dev_tools_deps
       prod_variant_deps = base_deps + [log_noprintf_dep]
 

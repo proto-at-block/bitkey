@@ -39,6 +39,8 @@ import build.wallet.recovery.Recovery.StillRecovering.ServerDependentRecovery.In
 import build.wallet.router.Route
 import build.wallet.router.Router
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.SheetModel
+import build.wallet.statemachine.core.SheetSize
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.statemachine.fwup.FwupScreen
@@ -53,6 +55,8 @@ import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFinge
 import build.wallet.statemachine.settings.full.device.fingerprints.PromptingForFingerprintFwUpSheetModel
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetProps
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetUiStateMachine
+import build.wallet.statemachine.settings.full.device.wipedevice.ScanDeviceToWipeSheetBodyModel
+import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceInitialStep
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceProps
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceUiStateMachine
 import build.wallet.statemachine.status.AppFunctionalityStatusAlertModel
@@ -176,6 +180,17 @@ class DeviceSettingsScreenPresenter(
           val currentState = uiState as? ViewingDeviceDataUiState ?: return
           if (currentState.pendingExitAction != null) return
 
+          if (action == DeviceSettingsExitAction.WipeDevice) {
+            uiState =
+              currentState.copy(
+                showingPromptForFingerprintFwUpdate = false,
+                showingManageFingerprintsOptions = false,
+                showingAboutSheet = false,
+                showingWipeDeviceScanSheet = true
+              )
+            return
+          }
+
           uiState =
             currentState.copy(
               showingPromptForFingerprintFwUpdate = false,
@@ -220,7 +235,7 @@ class DeviceSettingsScreenPresenter(
               }
               DeviceSettingsExitAction.SyncMetadata -> uiState = TappingForFirmwareMetadataUiState
               DeviceSettingsExitAction.UpgradeDevice -> uiState = W3UpgradeUiState
-              DeviceSettingsExitAction.WipeDevice -> uiState = WipingDeviceState
+              DeviceSettingsExitAction.WipeDevice -> uiState = WipingDeviceState()
             }
           }
         }
@@ -292,6 +307,22 @@ class DeviceSettingsScreenPresenter(
               fingerprintResetEnabled = isFingerprintResetEnabled
             )
             state.showingAboutSheet -> aboutSheetModel
+            state.showingWipeDeviceScanSheet -> SheetModel(
+              size = SheetSize.DEFAULT,
+              onClosed = {
+                uiState = state.copy(showingWipeDeviceScanSheet = false)
+              },
+              body = ScanDeviceToWipeSheetBodyModel(
+                onBack = {
+                  uiState = state.copy(showingWipeDeviceScanSheet = false)
+                },
+                onScanToContinue = {
+                  uiState = WipingDeviceState(
+                    initialStep = WipingDeviceInitialStep.ScanDevice
+                  )
+                }
+              )
+            )
             else -> null
           }
         )
@@ -329,7 +360,8 @@ class DeviceSettingsScreenPresenter(
             onSuccess = {
               navigator.exit()
             },
-            fullAccount = screen.account
+            fullAccount = screen.account,
+            initialStep = state.initialStep
           )
         )
       }
@@ -586,6 +618,7 @@ private sealed interface DeviceSettingsUiState {
     val showingPromptForFingerprintFwUpdate: Boolean = false,
     val showingManageFingerprintsOptions: Boolean = false,
     val showingAboutSheet: Boolean = false,
+    val showingWipeDeviceScanSheet: Boolean = false,
     val showRealtimeMedia: Boolean = true,
     val pendingExitAction: DeviceSettingsExitAction? = null,
   ) : DeviceSettingsUiState
@@ -598,7 +631,9 @@ private sealed interface DeviceSettingsUiState {
   /**
    * Wiping the device
    */
-  data object WipingDeviceState : DeviceSettingsUiState
+  data class WipingDeviceState(
+    val initialStep: WipingDeviceInitialStep = WipingDeviceInitialStep.Intro,
+  ) : DeviceSettingsUiState
 
   /**
    * Showing the fingerprint reset flow

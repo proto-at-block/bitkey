@@ -17,7 +17,7 @@ class SignTransactionNfcScreenSnapshots : FunSpec({
   )
 
   test("sign transaction nfc ready dsv2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       CompositionLocalProvider(LocalDeviceInfo provides androidDeviceInfo) {
         SignTransactionNfcScreen(
           model =
@@ -32,7 +32,7 @@ class SignTransactionNfcScreenSnapshots : FunSpec({
   }
 
   test("sign transaction nfc keep holding dsv2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       CompositionLocalProvider(LocalDeviceInfo provides androidDeviceInfo) {
         SignTransactionNfcScreen(
           model =

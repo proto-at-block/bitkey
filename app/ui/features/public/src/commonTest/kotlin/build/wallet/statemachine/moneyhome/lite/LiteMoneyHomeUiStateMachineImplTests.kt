@@ -5,8 +5,6 @@ import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.bitkey.relationships.ProtectedCustomerFake
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoMock
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.recovery.socrec.SocRecServiceFake
 import build.wallet.router.Router
@@ -43,8 +41,7 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
     helpingWithRecoveryUiStateMachine = object : HelpingWithRecoveryUiStateMachine,
       ScreenStateMachineMock<HelpingWithRecoveryUiProps>(
         "helping-with-recovery"
-      ) {},
-    designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(FeatureFlagDaoMock())
+      ) {}
   )
 
   val propsOnSettingsCalls = turbines.create<Unit>("props onSettings call")

@@ -1,2 +1,0 @@
-modules: [bitkey-software, hwsec-require-review]
-include_ancestors: false

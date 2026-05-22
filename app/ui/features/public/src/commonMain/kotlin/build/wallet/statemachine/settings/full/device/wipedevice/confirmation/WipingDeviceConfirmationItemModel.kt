@@ -1,7 +1,7 @@
 package build.wallet.statemachine.settings.full.device.wipedevice.confirmation
 
 /**
- * Model for a line item in the [WipingDeviceConfirmationModel]
+ * Model for a line item in the [WipingDeviceConfirmationBodyModel].
  */
 data class WipingDeviceConfirmationItemModel(
   val state: WipingDeviceConfirmationState,

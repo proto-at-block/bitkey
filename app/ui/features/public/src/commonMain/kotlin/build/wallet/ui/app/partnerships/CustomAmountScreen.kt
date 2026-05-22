@@ -22,7 +22,6 @@ import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.keypad.Keypad
 import build.wallet.ui.components.toolbar.AmountEntryToolbar
 import build.wallet.ui.components.toolbar.amountEntryBackgroundColor
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.tokens.LabelType
 
 @Composable
@@ -31,7 +30,7 @@ fun CustomAmountScreen(
   model: CustomAmountBodyModel,
 ) {
   val horizontalPadding = 20.dp
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   var lastKeypadFeedback by remember { mutableStateOf<AmountEntryKeypadFeedback?>(null) }
   var keypadPressCount by remember { mutableIntStateOf(0) }
   val feedbackForKeypadButton = { keypadButton: KeypadButton ->

@@ -14,7 +14,7 @@ class ToastModelTests : FunSpec({
     val sensitiveTitle = "Secret user data 12345"
     val model = ToastModel(
       leadingIcon = IconModel(
-        icon = Icon.SmallIconInformationFilled,
+        icon = Icon.SmallIconInformation,
         iconSize = IconSize.Small,
         iconTint = IconTint.Primary
       ),

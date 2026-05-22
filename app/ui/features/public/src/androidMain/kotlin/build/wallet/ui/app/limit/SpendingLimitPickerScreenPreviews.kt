@@ -71,7 +71,6 @@ fun PreviewSpendingLimitPickerScreenWithValueKeypad() {
 @Composable
 fun PreviewSpendingLimitPickerScreenWithValueKeypadDesignSystemV2() {
   PreviewWalletTheme(
-    designSystemUpdatesEnabled = true,
     backgroundColor = lightStyleDictionaryColors.subtleBackground
   ) {
     SpendingLimitPickerScreen(

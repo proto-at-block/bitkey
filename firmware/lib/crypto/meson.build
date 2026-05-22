@@ -169,7 +169,10 @@ foreach crypto_platform : crypto_platform_configs.keys()
     crypto_platform : library('crypto-bl-' + crypto_platform,
       srcs + crypto_config['sources'],
       include_directories : ['inc', 'inc-private', 'src'],
-      c_args : ['-DIMAGE_TYPE_BOOTLOADER=1'],
+      # LOG_FORCE_RAW: bootloaders never link log_uart_dep, so any LOG* call
+      # must take the legacy printf path instead of log_uart_emit_compact().
+      # See lib/log/inc/log.h.
+      c_args : ['-DIMAGE_TYPE_BOOTLOADER=1', '-DLOG_FORCE_RAW=1'],
       dependencies : deps + bl_dependencies,
     )
   }

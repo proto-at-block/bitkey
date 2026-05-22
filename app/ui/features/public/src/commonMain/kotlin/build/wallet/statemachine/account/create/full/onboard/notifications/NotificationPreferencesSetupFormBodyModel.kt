@@ -46,7 +46,7 @@ data class NotificationPreferencesSetupFormBodyModel(
                         IconAccessory(
                           model =
                             IconModel(
-                              iconImage = LocalImage(state.icon(SmallIconPushNotification)),
+                              iconImage = LocalImage(state.icon(SmallIconNotification)),
                               iconTint = state.iconTint(),
                               iconSize = build.wallet.ui.model.icon.IconSize.Small
                             )

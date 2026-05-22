@@ -1,8 +1,11 @@
 package build.wallet.integration.statemachine.export
 
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.*
+import build.wallet.bitcoin.export.ExportTransactionRow
 import build.wallet.bitcoin.export.ExportTransactionRow.ExportTransactionType.*
 import build.wallet.bitcoin.export.ExportTransactionsAsCsvSerializerImpl
+import build.wallet.bitcoin.transactions.BitcoinTransaction
+import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
 import build.wallet.money.BitcoinMoney.Companion.btc
@@ -24,10 +27,15 @@ import build.wallet.statemachine.recovery.sweep.SweepSuccessScreenBodyModel
 import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.robots.awaitLoadingScreen
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
+import build.wallet.testing.AppTester
 import build.wallet.testing.ext.*
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.getOrThrow
+import io.kotest.assertions.nondeterministic.eventually
+import io.kotest.assertions.nondeterministic.eventuallyConfig
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldContainAll
+import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
@@ -36,7 +44,10 @@ import kotlin.time.Duration.Companion.seconds
 
 class ExportTransactionsFunctionalTests : FunSpec({
 
-  testForLegacyAndPrivateWallet("e2e – export external, internal, and consolidation transactions") { app ->
+  testForLegacyAndPrivateWallet(
+    name = "e2e – export external, internal, and consolidation transactions",
+    isIsolatedTest = true
+  ) { app ->
     app.onboardFullAccountWithFakeHardware(delayNotifyDuration = 5.seconds)
 
     // Make two incoming transactions
@@ -51,12 +62,23 @@ class ExportTransactionsFunctionalTests : FunSpec({
     // External transaction by sending back to treasury.
     app.returnFundsToTreasury()
     app.waitForFunds { it.confirmed == zero() }
+    app.waitForConfirmedTransactions(
+      count = 4,
+      requiredTxids = setOf(
+        fundingTransaction1.tx.id,
+        fundingTransaction2.tx.id,
+        consolidationTransactionDetail.broadcastDetail.transactionId
+      )
+    )
 
-    val service = app.exportTransactionsService
-
-    val csvString = service.export().shouldBeOk().data.utf8()
-    val deserializedRowsToAssert =
-      ExportTransactionsAsCsvSerializerImpl().fromCsvString(value = csvString).shouldBeOk()
+    val deserializedRowsToAssert = app.exportRowsUntil(
+      count = 4,
+      requiredTxids = setOf(
+        fundingTransaction1.tx.id,
+        fundingTransaction2.tx.id,
+        consolidationTransactionDetail.broadcastDetail.transactionId
+      )
+    )
     // We should have:
     // (1) 2 receive transactions
     // (2) 1 consolidation transaction
@@ -95,7 +117,10 @@ class ExportTransactionsFunctionalTests : FunSpec({
     }
   }
 
-  testForLegacyAndPrivateWallet("e2e - export transactions including inactive keysets") { app ->
+  testForLegacyAndPrivateWallet(
+    name = "e2e - export transactions including inactive keysets",
+    isIsolatedTest = true
+  ) { app ->
     app.onboardFullAccountWithFakeHardware()
 
     // Make two incoming transactions
@@ -159,22 +184,37 @@ class ExportTransactionsFunctionalTests : FunSpec({
       awaitUntilBody<MoneyHomeBodyModel>()
       app.awaitNoActiveRecovery()
 
-      app.waitForFunds()
-      app.mineBlock()
-
       cancelAndIgnoreRemainingEvents()
     }
 
-    val wallet = app.getActiveWallet()
-    wallet.sync()
-    val sweepTransaction = wallet.transactions().first().first()
+    val sweepTransaction = app.waitForActiveWalletTransactions(count = 1).single()
+    if (sweepTransaction.confirmationStatus !is Confirmed) {
+      app.mineBlock(txid = sweepTransaction.id)
+    }
+    app.waitForConfirmedTransactions(
+      count = 1,
+      requiredTxids = setOf(sweepTransaction.id)
+    )
+
     val newWalletTransaction = app.addSomeFunds(amount = initialFundingAmount)
+    app.waitForConfirmedTransactions(
+      count = 2,
+      requiredTxids = setOf(
+        sweepTransaction.id,
+        newWalletTransaction.tx.id
+      )
+    )
 
-    val service = app.exportTransactionsService
-    val csvString = service.export().shouldBeOk().data.utf8()
-
-    val deserializedRowsToAssert =
-      ExportTransactionsAsCsvSerializerImpl().fromCsvString(value = csvString).shouldBeOk()
+    val deserializedRowsToAssert = app.exportRowsUntil(
+      count = 5,
+      requiredTxids = setOf(
+        newWalletTransaction.tx.id,
+        sweepTransaction.id,
+        consolidationTransactionDetail.broadcastDetail.transactionId,
+        fundingTransaction2.tx.id,
+        fundingTransaction1.tx.id
+      )
+    )
     // We should have:
     // (1) 1 receive transaction on our new wallet
     // (2) 1 sweep transaction (collapsed from 1 "outgoing" from our old wallet, and 1 "incoming" to our new wallet)
@@ -248,3 +288,66 @@ class ExportTransactionsFunctionalTests : FunSpec({
     dataList.count().shouldBe(1)
   }
 })
+
+private suspend fun AppTester.waitForConfirmedTransactions(
+  count: Int,
+  requiredTxids: Set<String>,
+): List<BitcoinTransaction> {
+  return waitForActiveWalletTransactions(
+    count = count,
+    requiredTxids = requiredTxids,
+    filter = { it.confirmationStatus is Confirmed }
+  )
+}
+
+private suspend fun AppTester.waitForActiveWalletTransactions(
+  count: Int,
+  requiredTxids: Set<String> = emptySet(),
+  filter: (BitcoinTransaction) -> Boolean = { true },
+): List<BitcoinTransaction> {
+  lateinit var transactions: List<BitcoinTransaction>
+
+  eventually(
+    eventuallyConfig {
+      duration = 60.seconds
+      interval = 1.seconds
+      initialDelay = 1.seconds
+    }
+  ) {
+    val wallet = getActiveWallet()
+    wallet.sync().shouldBeOk()
+    transactions = wallet.transactions()
+      .first()
+      .filter(filter)
+
+    transactions.shouldHaveSize(count)
+    transactions.map { it.id }.shouldContainAll(requiredTxids)
+  }
+
+  return transactions
+}
+
+private suspend fun AppTester.exportRowsUntil(
+  count: Int,
+  requiredTxids: Set<String>,
+): List<ExportTransactionRow> {
+  lateinit var rows: List<ExportTransactionRow>
+
+  eventually(
+    eventuallyConfig {
+      duration = 60.seconds
+      interval = 1.seconds
+      initialDelay = 1.seconds
+    }
+  ) {
+    val csvString = exportTransactionsService.export().shouldBeOk().data.utf8()
+    rows = ExportTransactionsAsCsvSerializerImpl()
+      .fromCsvString(value = csvString)
+      .shouldBeOk()
+
+    rows.shouldHaveSize(count)
+    rows.map { it.txid.value }.shouldContainAll(requiredTxids)
+  }
+
+  return rows
+}

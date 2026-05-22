@@ -1,4 +1,4 @@
-@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+@file:OptIn(ExperimentalForeignApi::class)
 
 package build.wallet.ui.components.switch
 
@@ -28,6 +28,8 @@ import androidx.compose.ui.viewinterop.UIKitView
 import build.wallet.ui.compose.resId
 import build.wallet.ui.compose.resolveTestTag
 import build.wallet.ui.compose.switchTestTag
+import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.ObjCAction
 import kotlinx.cinterop.cValue
 import platform.CoreGraphics.CGRectGetHeight
 import platform.CoreGraphics.CGRectGetWidth
@@ -35,14 +37,17 @@ import platform.CoreGraphics.CGRectMake
 import platform.CoreGraphics.CGRectZero
 import platform.UIKit.UIColor
 import platform.UIKit.UIControlEventValueChanged
+import platform.UIKit.UIDevice
 import platform.UIKit.UISwitch
 import platform.UIKit.UIView
 import platform.darwin.NSObject
 import platform.darwin.sel_registerName
 
 private val IosSwitchOuterWidth = 64.dp
-private val IosSwitchInteropWidth = 64.dp
-private val IosSwitchInteropHeight = 38.dp
+// Keep the Compose layout footprint stable, but give UIKit's switch renderer
+// room for iOS 26 Liquid Glass press highlights that extend beyond its rest bounds.
+private val IosSwitchInteropWidth = 76.dp
+private val IosSwitchInteropHeight = 56.dp
 private val IosSwitchHeight = 48.dp
 
 @Composable
@@ -71,15 +76,6 @@ internal actual fun PlatformSwitch(
     }
   }
 
-  // Defer UIKitView creation by a few frames so the Compose canvas (including the
-  // card background) renders first. Once the card is drawn, the interop container
-  // backgrounds (set to the matching color) blend seamlessly.
-  var interopReady by remember { mutableStateOf(false) }
-  LaunchedEffect(Unit) {
-    repeat(3) { withFrameNanos {} }
-    interopReady = true
-  }
-
   LaunchedEffect(pendingNativeState, checked) {
     if (pendingNativeState != null && pendingNativeState != checked) {
       // Give the state holder one frame to accept the native toggle. If it doesn't,
@@ -104,52 +100,50 @@ internal actual fun PlatformSwitch(
       .size(width = IosSwitchOuterWidth, height = IosSwitchHeight),
     contentAlignment = Alignment.Center
   ) {
-    if (interopReady) {
-      UIKitView(
-        modifier = Modifier.size(width = IosSwitchInteropWidth, height = IosSwitchInteropHeight),
-        factory = {
-          NativeSwitchHost(
-            callbackTarget = callbackTarget,
-            interopBackgroundColor = interopBackgroundColor
-          )
-        },
-        update = { hostView ->
-          val nativeSwitch = hostView.nativeSwitch
-          if (pendingNativeState == checked) {
-            pendingNativeState = null
-          }
-
-          hostView.updateAppearance(
-            enabled = enabled,
-            checked = checked,
-            checkedThumbColor = checkedThumbColor,
-            uncheckedThumbColor = uncheckedThumbColor,
-            checkedTrackColor = checkedTrackColor,
-            uncheckedTrackColor = uncheckedTrackColor,
-            disabledThumbColor = disabledThumbColor,
-            disabledTrackColor = disabledTrackColor,
-            interopBackgroundColor = interopBackgroundColor
-          )
-
-          nativeSwitch.enabled = enabled
-          nativeSwitch.userInteractionEnabled = interactionsEnabled
-          if (pendingNativeState == null && nativeSwitch.on != checked) {
-            nativeSwitch.setOn(checked, animated = false)
-          }
-        },
-        properties = UIKitInteropProperties(
-          interactionMode = UIKitInteropInteractionMode.NonCooperative,
-          isNativeAccessibilityEnabled = false
+    UIKitView(
+      modifier = Modifier.size(width = IosSwitchInteropWidth, height = IosSwitchInteropHeight),
+      factory = {
+        NativeSwitchHost(
+          callbackTarget = callbackTarget,
+          interopBackgroundColor = interopBackgroundColor
         )
+      },
+      update = { hostView ->
+        val nativeSwitch = hostView.nativeSwitch
+        if (pendingNativeState == checked) {
+          pendingNativeState = null
+        }
+
+        hostView.updateAppearance(
+          enabled = enabled,
+          checked = checked,
+          checkedThumbColor = checkedThumbColor,
+          uncheckedThumbColor = uncheckedThumbColor,
+          checkedTrackColor = checkedTrackColor,
+          uncheckedTrackColor = uncheckedTrackColor,
+          disabledThumbColor = disabledThumbColor,
+          disabledTrackColor = disabledTrackColor,
+          interopBackgroundColor = interopBackgroundColor
+        )
+
+        nativeSwitch.enabled = enabled
+        nativeSwitch.userInteractionEnabled = interactionsEnabled
+        if (pendingNativeState == null && nativeSwitch.on != checked) {
+          nativeSwitch.setOn(checked, animated = false)
+        }
+      },
+      properties = UIKitInteropProperties(
+        interactionMode = UIKitInteropInteractionMode.Cooperative(),
+        isNativeAccessibilityEnabled = false
       )
-    }
+    )
   }
 }
 
 private class SwitchValueChangedTarget(
   private val onValueChanged: (Boolean) -> Unit,
 ) : NSObject() {
-  @kotlinx.cinterop.ObjCAction
+  @ObjCAction
   fun onValueChanged(sender: UISwitch) {
     onValueChanged(sender.on)
   }
@@ -161,7 +155,11 @@ private class NativeSwitchHost(
 ) : UIView(frame = cValue { CGRectZero }) {
   private var lastAppearance: SwitchAppearance? = null
   private var lastInteropBackgroundColor: Color = interopBackgroundColor
-  private var hiddenHierarchyAlphaSnapshot: List<ViewAlphaSnapshot> = emptyList()
+  private val usesLiquidGlassSwitchRendering = UIDevice.currentDevice.systemVersion
+    .substringBefore(".")
+    .toIntOrNull()
+    ?.let { it >= 26 }
+    ?: false
 
   val nativeSwitch = UISwitch().apply {
     addTarget(
@@ -171,6 +169,7 @@ private class NativeSwitchHost(
     )
     opaque = false
     backgroundColor = UIColor.clearColor
+    clipsToBounds = false
     sizeToFit()
   }
 
@@ -184,24 +183,7 @@ private class NativeSwitchHost(
   override fun didMoveToSuperview() {
     super.didMoveToSuperview()
     if (superview != null) {
-      restoreHierarchyAlpha()
       applyInteropBackground(lastInteropBackgroundColor.toUIColor())
-    }
-  }
-
-  override fun didMoveToWindow() {
-    super.didMoveToWindow()
-    if (window == null) {
-      hideHierarchy()
-    } else {
-      restoreHierarchyAlpha()
-    }
-  }
-
-  override fun willMoveToSuperview(newSuperview: UIView?) {
-    super.willMoveToSuperview(newSuperview)
-    if (newSuperview == null) {
-      hideHierarchy()
     }
   }
 
@@ -240,11 +222,13 @@ private class NativeSwitchHost(
     val appearance = SwitchAppearance(
       onTrackColor = if (enabled) checkedTrackColor else disabledTrackColor,
       offTrackColor = if (enabled) uncheckedTrackColor else disabledTrackColor,
-      thumbColor = when {
-        !enabled -> disabledThumbColor
-        checked -> checkedThumbColor
-        else -> uncheckedThumbColor
-      }
+      thumbColor =
+        when {
+          !enabled -> if (usesLiquidGlassSwitchRendering) null else disabledThumbColor
+          checked -> checkedThumbColor
+          usesLiquidGlassSwitchRendering -> null
+          else -> uncheckedThumbColor
+        }
     )
 
     if (appearance == lastAppearance) {
@@ -253,7 +237,7 @@ private class NativeSwitchHost(
 
     nativeSwitch.onTintColor = appearance.onTrackColor.toUIColor()
     nativeSwitch.tintColor = appearance.offTrackColor.toUIColor()
-    nativeSwitch.thumbTintColor = appearance.thumbColor.toUIColor()
+    nativeSwitch.thumbTintColor = appearance.thumbColor?.toUIColor()
 
     lastAppearance = appearance
   }
@@ -265,44 +249,16 @@ private class NativeSwitchHost(
     repeat(4) {
       current?.backgroundColor = uiColor
       current?.opaque = false
+      current?.clipsToBounds = false
       current = current?.superview
     }
-  }
-
-  private fun hideHierarchy() {
-    if (hiddenHierarchyAlphaSnapshot.isEmpty()) {
-      hiddenHierarchyAlphaSnapshot = buildList {
-        add(ViewAlphaSnapshot(view = this@NativeSwitchHost, alpha = this@NativeSwitchHost.alpha))
-        var current: UIView? = superview
-        repeat(4) {
-          current?.let { add(ViewAlphaSnapshot(view = it, alpha = it.alpha)) }
-          current = current?.superview
-        }
-      }
-    }
-
-    hiddenHierarchyAlphaSnapshot.forEach { snapshot ->
-      snapshot.view.alpha = 0.0
-    }
-  }
-
-  private fun restoreHierarchyAlpha() {
-    hiddenHierarchyAlphaSnapshot.forEach { snapshot ->
-      snapshot.view.alpha = snapshot.alpha
-    }
-    hiddenHierarchyAlphaSnapshot = emptyList()
   }
 }
 
 private data class SwitchAppearance(
   val onTrackColor: Color,
   val offTrackColor: Color,
-  val thumbColor: Color,
-)
-
-private data class ViewAlphaSnapshot(
-  val view: UIView,
-  val alpha: Double,
+  val thumbColor: Color?,
 )
 
 private fun Color.toUIColor(): UIColor =

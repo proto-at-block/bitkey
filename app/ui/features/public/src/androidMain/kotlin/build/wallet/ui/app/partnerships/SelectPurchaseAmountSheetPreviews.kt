@@ -23,7 +23,6 @@ import build.wallet.ui.tooling.PreviewWalletTheme
 fun SelectPurchaseAmountSheetDesignSystemV2Preview() {
   PreviewWalletTheme(
     modifier = Modifier.fillMaxSize(),
-    designSystemUpdatesEnabled = true,
     backgroundColor = lightStyleDictionaryColors.subtleBackground
   ) {
     Column(

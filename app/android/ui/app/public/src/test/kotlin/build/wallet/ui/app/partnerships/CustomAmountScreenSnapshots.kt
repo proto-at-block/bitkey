@@ -91,7 +91,7 @@ class CustomAmountScreenSnapshots : FunSpec({
   }
 
   test("custom amount entry screen - valid entry with design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       CustomAmountScreen(
         model = CustomAmountBodyModel(
           onBack = {},

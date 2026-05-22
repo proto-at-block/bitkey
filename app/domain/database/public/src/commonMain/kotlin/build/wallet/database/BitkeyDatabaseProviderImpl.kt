@@ -339,7 +339,7 @@ class BitkeyDatabaseProviderImpl(
         updatedAdapter = InstantAsIso8601ColumnAdapter
       ),
       coachmarkEntityAdapter = CoachmarkEntity.Adapter(
-        idAdapter = EnumColumnAdapter(),
+        idAdapter = CoachmarkIdentifierColumnAdapter,
         expirationAdapter = InstantAsEpochMillisecondsColumnAdapter
       ),
       softwareKeyboxEntityAdapter = SoftwareKeyboxEntity.Adapter(

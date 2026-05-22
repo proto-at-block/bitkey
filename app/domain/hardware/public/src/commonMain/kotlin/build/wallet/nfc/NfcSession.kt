@@ -56,8 +56,8 @@ interface NfcSession : AutoCloseable {
     val skipLostHardwareCheck: Boolean = false,
     val showDeviceConfirmation: Boolean = false,
     val maxNfcRetryAttempts: Int = 3,
-    onTagConnected: (NfcSession?) -> Unit,
-    onTagDisconnected: () -> Unit,
+    onTagConnected: (NfcSession?) -> Unit = {},
+    onTagDisconnected: () -> Unit = {},
     onSessionCanceled: () -> Unit = {},
   ) {
     val onTagConnectedObservers = mutableListOf(onTagConnected)

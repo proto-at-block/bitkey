@@ -8,7 +8,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.tooling.PreviewWalletTheme
 
 @Preview
@@ -41,7 +40,7 @@ fun TabBarWithHomeAndSecurityHubBadgedPreview() {
 
 @Composable
 fun TabBarWithHomeAndSecurityHub() {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   TabBar(selectedIndex = 0, tabCount = 2) {
     if (isDesignSystemV2Enabled) {
       Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
@@ -77,7 +76,7 @@ fun TabBarWithHomeAndSecurityHub() {
 
 @Composable
 fun TabBarWithHomeAndSecurityHubBadged() {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   TabBar(selectedIndex = 0, tabCount = 2) {
     if (isDesignSystemV2Enabled) {
       Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
@@ -115,14 +114,14 @@ fun TabBarWithHomeAndSecurityHubBadged() {
 
 @Composable
 fun TabBarWithHomeAndSecurityHubDesignSystem() {
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     TabBarWithHomeAndSecurityHub()
   }
 }
 
 @Composable
 fun TabBarWithHomeAndSecurityHubBadgedDesignSystem() {
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     TabBarWithHomeAndSecurityHubBadged()
   }
 }

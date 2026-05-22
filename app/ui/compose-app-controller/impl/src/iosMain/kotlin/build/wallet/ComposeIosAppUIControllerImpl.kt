@@ -7,7 +7,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.window.ComposeUIViewController
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.haptics.Haptics
 import build.wallet.platform.sensor.Accelerometer
@@ -28,7 +27,6 @@ class ComposeIosAppUIControllerImpl(
   private val accelerometer: Accelerometer,
   private val themePreferenceService: ThemePreferenceService,
   private val haptics: Haptics,
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : ComposeIosAppUIController {
   @OptIn(ExperimentalForeignApi::class)
   override val viewController: UIViewController = ComposeUIViewController {
@@ -57,8 +55,7 @@ class ComposeIosAppUIControllerImpl(
       deviceInfo = deviceInfo,
       accelerometer = accelerometer,
       themePreferenceService = themePreferenceService,
-      haptics = haptics,
-      designSystemUpdatesEnabled = designSystemUpdatesFeatureFlag.flagValue()
+      haptics = haptics
     )
   }.also {
     // We set the background color to black to avoid white flashes on black screens

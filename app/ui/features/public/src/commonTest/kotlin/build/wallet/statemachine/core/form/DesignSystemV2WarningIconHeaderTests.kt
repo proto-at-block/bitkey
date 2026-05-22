@@ -15,8 +15,7 @@ class DesignSystemV2WarningIconHeaderTests : FunSpec({
   test("replaces legacy large warning header icon with dsv2 warning treatment") {
     val iconModel =
       resolveLegacyHeaderWarningIconModelForDesignSystemV2(
-        iconModel = FormHeaderModel(icon = Icon.LargeIconWarningFilled, headline = "Legacy headline").iconModel,
-        designSystemUpdatesEnabled = true
+        iconModel = FormHeaderModel(icon = Icon.LargeIconWarningFilled, headline = "Legacy headline").iconModel
       ).shouldNotBeNull()
 
     iconModel.iconImage.shouldBe(IconImage.MarketIconImage(MarketIcons.CriticalBadgeAlert))
@@ -38,8 +37,7 @@ class DesignSystemV2WarningIconHeaderTests : FunSpec({
     )
 
     resolveLegacyHeaderWarningIconModelForDesignSystemV2(
-      iconModel = iconModel,
-      designSystemUpdatesEnabled = true
+      iconModel = iconModel
     ).shouldBe(iconModel)
   }
 })

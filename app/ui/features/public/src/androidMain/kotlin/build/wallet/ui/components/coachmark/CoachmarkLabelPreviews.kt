@@ -24,7 +24,7 @@ internal fun CoachmarkLabelPreview() {
 @Preview(name = "Coachmark Label DSV2")
 @Composable
 internal fun CoachmarkLabelDesignSystemV2Preview() {
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     CoachmarkLabelPreviewContent()
   }
 }

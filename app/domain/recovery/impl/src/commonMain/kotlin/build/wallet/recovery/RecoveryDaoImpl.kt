@@ -248,6 +248,7 @@ class RecoveryDaoImpl(
     return databaseProvider.database()
       .awaitTransaction {
         recoveryQueries.clearLocalRecoveryAttempt()
+        w3UpgradeMigrationQueries.clearSweepTransactions()
         w3UpgradeMigrationQueries.clear()
         saveKeyboxAsActive(keyboxToActivate)
       }

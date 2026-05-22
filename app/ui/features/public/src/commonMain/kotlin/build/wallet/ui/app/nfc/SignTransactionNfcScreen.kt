@@ -23,7 +23,6 @@ import build.wallet.statemachine.send.signtransaction.SignTransactionNfcBodyMode
 import build.wallet.ui.app.LocalDeviceInfo
 import build.wallet.ui.model.ComposeModel
 import build.wallet.ui.system.KeepScreenOn
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tooling.PreviewWalletTheme
 import build.wallet.ui.tokens.LabelType
@@ -37,7 +36,7 @@ fun SignTransactionNfcScreen(
 ) {
   KeepScreenOn()
   val devicePlatform = LocalDeviceInfo.current.devicePlatform
-  val designSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val designSystemV2Enabled = true
 
   when {
     devicePlatform == DevicePlatform.IOS -> {
@@ -57,7 +56,7 @@ internal fun SignTransactionNfcScreenInternalIos(
   model: SignTransactionNfcBodyModel,
   modifier: Modifier = Modifier,
 ) {
-  val designSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val designSystemV2Enabled = true
 
   if (model.shouldUseCustomBackgroundLayout()) {
     FwupSystemThemedContent(followIosSystemTheme = designSystemV2Enabled) {
@@ -399,12 +398,9 @@ data class SignTransactionNfcSnapshotModel(
 ) : ComposeModel {
   @Composable
   override fun render(modifier: Modifier) {
-    PreviewWalletTheme(
-      designSystemUpdatesEnabled = true
-    ) {
+    PreviewWalletTheme {
       CompositionLocalProvider(
-        LocalDeviceInfo provides deviceInfo,
-        LocalDesignSystemUpdatesEnabled provides true
+        LocalDeviceInfo provides deviceInfo
       ) {
         SignTransactionNfcScreen(
           modifier = modifier,

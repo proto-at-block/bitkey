@@ -138,7 +138,7 @@ data class RecoveryChannelsSettingsFormBodyModel(
                   ),
                   createListItem(
                     itemModel = pushItem,
-                    icon = if (isDesignSystemV2Enabled) DotNotifyPush else SmallIconPushNotification,
+                    icon = if (isDesignSystemV2Enabled) DotNotifyPush else SmallIconNotification,
                     isDesignSystemV2Enabled = isDesignSystemV2Enabled,
                     title = "Push notifications",
                     secondaryText = when (pushItem.enabled) {
@@ -271,7 +271,7 @@ private data class PushToggleFormBodyModel(
 ) : FormBodyModel(
     id = NotificationsEventTrackerScreenId.RECOVERY_CHANNELS_SETTINGS_PUSH_TOGGLE_SHEET,
     header = createSheetFormHeader(
-      icon = SmallIconPushNotification,
+      icon = SmallIconNotification,
       headline = "Edit push notifications ${if (source == Source.InheritanceStartClaim) "alerts" else "recovery"}"
     ),
     onBack = onCancel,

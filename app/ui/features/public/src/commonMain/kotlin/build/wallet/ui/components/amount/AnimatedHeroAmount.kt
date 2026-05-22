@@ -44,7 +44,6 @@ import build.wallet.ui.components.label.LabelTreatment.Primary
 import build.wallet.ui.components.label.labelStyle
 import build.wallet.ui.components.label.loadingScrim
 import build.wallet.ui.components.layout.MeasureWithoutPlacement
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import kotlinx.coroutines.delay
@@ -76,7 +75,7 @@ fun AnimatedHeroAmount(
   onSwapClick: (() -> Unit)? = null,
   isLoading: Boolean = false,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val shouldUseStartAlignment =
     isDesignSystemV2Enabled && !centerWhenDesignSystemV2
   val primaryTreatment = if (disabled) Disabled else Primary

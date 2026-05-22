@@ -18,8 +18,8 @@ class CalloutSnapshots : FunSpec({
     }
   }
 
-  test("callouts with design system v2 feature flag on") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+  test("callouts with theme background") {
+    paparazzi.snapshot {
       CalloutList(useThemeBackground = true)
     }
   }

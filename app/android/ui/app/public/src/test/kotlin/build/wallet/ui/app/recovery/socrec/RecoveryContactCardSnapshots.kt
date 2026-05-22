@@ -18,7 +18,7 @@ class RecoveryContactCardSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
   test("Pending recovery contact card with inverse background and design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       Box(
         modifier = Modifier
           .fillMaxWidth()

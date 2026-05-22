@@ -1,11 +1,9 @@
 package build.wallet.ui.app.core
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.tooling.preview.Preview
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.LoadingSuccessBodyModel.State.Success
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.tooling.PreviewWalletTheme
 
 @Preview
@@ -26,8 +24,7 @@ fun LoadingSuccessPreviewLoading() {
 @Composable
 fun LoadingSuccessPreviewLoadingDesignSystemV2() {
   PreviewWalletTheme {
-    CompositionLocalProvider(LocalDesignSystemUpdatesEnabled provides true) {
-      LoadingSuccessScreen(
+    LoadingSuccessScreen(
         model =
           LoadingSuccessBodyModel(
             message = "Syncing backup data",
@@ -35,7 +32,6 @@ fun LoadingSuccessPreviewLoadingDesignSystemV2() {
             id = null
           )
       )
-    }
   }
 }
 
@@ -58,8 +54,7 @@ fun LoadingSuccessPreviewSuccess() {
 @Composable
 fun LoadingSuccessPreviewSuccessDesignSystemV2() {
   PreviewWalletTheme {
-    CompositionLocalProvider(LocalDesignSystemUpdatesEnabled provides true) {
-      LoadingSuccessScreen(
+    LoadingSuccessScreen(
         model =
           LoadingSuccessBodyModel(
             message = "Backup synced",
@@ -67,6 +62,5 @@ fun LoadingSuccessPreviewSuccessDesignSystemV2() {
             id = null
           )
       )
-    }
   }
 }

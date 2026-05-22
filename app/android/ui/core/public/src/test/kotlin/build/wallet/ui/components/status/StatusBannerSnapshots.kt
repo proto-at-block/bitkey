@@ -9,26 +9,14 @@ import io.kotest.core.spec.style.FunSpec
 class StatusBannerSnapshots : FunSpec({
   val paparazzi = paparazziExtension(DeviceConfig.PIXEL_6)
 
-  test("warning status banner with design system v2 feature flag off") {
+  test("warning status banner") {
     paparazzi.snapshot {
       StatusBanner(model = warningStatusBannerModel())
     }
   }
 
-  test("destructive status banner with design system v2 feature flag off") {
+  test("destructive status banner") {
     paparazzi.snapshot {
-      StatusBanner(model = destructiveStatusBannerModel())
-    }
-  }
-
-  test("warning status banner with design system v2 feature flag on") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
-      StatusBanner(model = warningStatusBannerModel())
-    }
-  }
-
-  test("destructive status banner with design system v2 feature flag on") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
       StatusBanner(model = destructiveStatusBannerModel())
     }
   }

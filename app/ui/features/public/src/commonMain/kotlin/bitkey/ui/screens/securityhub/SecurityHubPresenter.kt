@@ -17,6 +17,9 @@ import bitkey.ui.screens.recovery.KeysetRepairScreen
 import bitkey.ui.screens.recoverychannels.RecoveryChannelSettingsScreen
 import bitkey.ui.screens.securityhub.education.SecurityHubEducationScreen
 import bitkey.ui.sheets.ViewInvitationSheet
+import build.wallet.LoadableValue
+import build.wallet.LoadableValue.InitialLoading
+import build.wallet.LoadableValue.LoadedValue
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.AppFunctionalityStatus
@@ -28,11 +31,10 @@ import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.fwup.FirmwareData
 import build.wallet.fwup.FirmwareDataService
+import build.wallet.isLoaded
 import build.wallet.navigation.v1.NavigationScreenId
 import build.wallet.nfc.transaction.ProvisionAppAuthKeyTransactionProvider
 import build.wallet.platform.haptics.Haptics
@@ -67,7 +69,6 @@ import build.wallet.statemachine.status.BannerType.OfflineStatus
 import build.wallet.statemachine.status.HomeStatusBannerUiProps
 import build.wallet.statemachine.status.HomeStatusBannerUiStateMachine
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 // TODO remove dependency on full account when children no longer need it
@@ -90,7 +91,6 @@ class SecurityHubPresenter(
   private val fingerprintResetAvailabilityService: FingerprintResetAvailabilityService,
   private val provisionAppAuthKeyTransactionProvider: ProvisionAppAuthKeyTransactionProvider,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : ScreenPresenter<SecurityHubScreen> {
   @Composable
   override fun model(
@@ -106,9 +106,11 @@ class SecurityHubPresenter(
       uiState = SecurityHubUiState.FingerprintResetState
     }
 
-    val securityActionsWithRecommendations = remember {
+    val securityActionsWithRecommendationsOrNull = remember {
       securityActionsService.securityActionsWithRecommendations
-    }.collectAsState().value ?: EmptySecurityActionsWithRecommendations
+    }.collectAsState().value
+    val securityActionsWithRecommendations =
+      securityActionsWithRecommendationsOrNull ?: EmptySecurityActionsWithRecommendations
 
     val isFingerprintResetEnabled by remember {
       fingerprintResetAvailabilityService.isAvailable()
@@ -139,7 +141,7 @@ class SecurityHubPresenter(
       )
     )
 
-    val fingerprintResetStatusCard = fingerprintResetStatusCardUiStateMachine.model(
+    val fingerprintResetStatusCardModel = fingerprintResetStatusCardUiStateMachine.model(
       props = FingerprintResetStatusCardUiProps(
         account = screen.account,
         onClick = { _ ->
@@ -151,67 +153,71 @@ class SecurityHubPresenter(
     val functionalityStatus by remember {
       appFunctionalityService.status
     }.collectAsState()
-    val isDesignSystemV2Enabled by remember {
-      designSystemUpdatesFeatureFlag.flagValue().map { it.isEnabled() }
-    }.collectAsState(initial = designSystemUpdatesFeatureFlag.isEnabled())
+    val isDesignSystemV2Enabled = true
+
+    val hardwareRecoveryStatusCardModel = hardwareRecoveryStatusCardUiStateMachine.model(
+      HardwareRecoveryStatusCardUiProps(
+        account = screen.account,
+        onClick = {
+          Router.route = Route.NavigationDeeplink(
+            screen = NavigationScreenId.NAVIGATION_SCREEN_ID_PAIR_DEVICE
+          )
+        }
+      )
+    )
+
+    val recoveryContactCardsModel = recoveryContactCardsUiStateMachine.model(
+      RecoveryContactCardsUiProps(
+        onClick = {
+          when (it) {
+            is EndorsedTrustedContact -> {
+              navigator.goTo(
+                TrustedContactManagementScreen(
+                  account = screen.account,
+                  onExit = { navigator.goTo(screen) }
+                )
+              )
+            }
+            is Invitation -> navigator.showSheet(
+              ViewInvitationSheet(
+                account = screen.account,
+                invitation = it,
+                origin = screen
+              )
+            )
+            is UnendorsedTrustedContact -> {
+              navigator.goTo(
+                TrustedContactManagementScreen(
+                  account = screen.account,
+                  onExit = { navigator.goTo(screen) }
+                )
+              )
+            }
+          }
+        }
+      )
+    )
 
     val cardsModel = CardListModel(
       cards = buildImmutableList {
-        // Add hardware recovery status card
-        hardwareRecoveryStatusCardUiStateMachine.model(
-          HardwareRecoveryStatusCardUiProps(
-            account = screen.account,
-            onClick = {
-              Router.route = Route.NavigationDeeplink(
-                screen = NavigationScreenId.NAVIGATION_SCREEN_ID_PAIR_DEVICE
-              )
-            }
-          )
-        ).also { add(it) }
-
-        // Add Fingerprint reset status card
-        fingerprintResetStatusCard
-          ?.let { add(it) }
-
-        // Add TC invitation cards
-        recoveryContactCardsUiStateMachine.model(
-          RecoveryContactCardsUiProps(
-            onClick = {
-              when (it) {
-                is EndorsedTrustedContact -> {
-                  navigator.goTo(
-                    TrustedContactManagementScreen(
-                      account = screen.account,
-                      onExit = { navigator.goTo(screen) }
-                    )
-                  )
-                }
-                is Invitation -> navigator.showSheet(
-                  ViewInvitationSheet(
-                    account = screen.account,
-                    invitation = it,
-                    origin = screen
-                  )
-                )
-                is UnendorsedTrustedContact -> {
-                  navigator.goTo(
-                    TrustedContactManagementScreen(
-                      account = screen.account,
-                      onExit = { navigator.goTo(screen) }
-                    )
-                  )
-                }
-              }
-            }
-          )
-        ).forEach(::add)
-      }.filterNotNull().toImmutableList()
+        hardwareRecoveryStatusCardModel.loadedValueOrNull()?.let { add(it) }
+        fingerprintResetStatusCardModel.loadedValueOrNull()?.let { add(it) }
+        recoveryContactCardsModel.loadedValueOrNull()?.forEach(::add)
+      }.toImmutableList()
     )
 
     // Mark all recommendations as viewed when Security Hub is entered
     LaunchedEffect("mark-all-recommendations-viewed") {
       securityActionsService.markAllRecommendationsViewed()
     }
+
+    val shouldShowAllSetState = securityActionsWithRecommendationsOrNull.shouldShowAllSetState(
+      functionalityStatus = functionalityStatus,
+      isHardwareRecoveryStatusCardLoaded = hardwareRecoveryStatusCardModel.isLoaded(),
+      isFingerprintResetStatusCardLoaded = fingerprintResetStatusCardModel.isLoaded(),
+      areRecoveryContactCardsLoaded = recoveryContactCardsModel.isLoaded(),
+      cardsModel = cardsModel
+    )
 
     return when (uiState) {
       is SecurityHubUiState.ViewingSecurityHub -> {
@@ -221,6 +227,7 @@ class SecurityHubPresenter(
             atRiskRecommendations = securityActionsWithRecommendations.atRiskRecommendations.toImmutableList(),
             recommendations = securityActionsWithRecommendations.recommendations.toImmutableList(),
             cardsModel = cardsModel,
+            showAllSetState = shouldShowAllSetState,
             securityActions = securityActionsWithRecommendations.securityActions,
             recoveryActions = securityActionsWithRecommendations.recoveryActions,
             onRecommendationClick = { recommendation ->
@@ -340,6 +347,28 @@ class SecurityHubPresenter(
     }
   }
 }
+
+private fun <T> LoadableValue<T>.loadedValueOrNull(): T? =
+  when (this) {
+    InitialLoading -> null
+    is LoadedValue -> value
+  }
+
+private fun SecurityActionsWithRecommendations?.shouldShowAllSetState(
+  functionalityStatus: AppFunctionalityStatus,
+  isHardwareRecoveryStatusCardLoaded: Boolean,
+  isFingerprintResetStatusCardLoaded: Boolean,
+  areRecoveryContactCardsLoaded: Boolean,
+  cardsModel: CardListModel,
+): Boolean =
+  this != null &&
+    functionalityStatus !is AppFunctionalityStatus.LimitedFunctionality &&
+    isHardwareRecoveryStatusCardLoaded &&
+    isFingerprintResetStatusCardLoaded &&
+    areRecoveryContactCardsLoaded &&
+    atRiskRecommendations.isEmpty() &&
+    recommendations.isEmpty() &&
+    cardsModel.cards.isEmpty()
 
 private fun SecurityActionRecommendation.shouldShowEducation(): Boolean {
   return hasEducation

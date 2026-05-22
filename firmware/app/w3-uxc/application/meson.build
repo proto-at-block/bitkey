@@ -107,6 +107,11 @@ foreach hardware : w3_uxc_hardware_configs.keys()
 
       base_variant_deps = base_deps + [fwup_platform_dep]
 
+      # log_uart_dep is the tokenized UART transport — only linked into dev.
+      # Mfgtest reconfigures the build with -Dlog_tokenized=false (see
+      # bitkey/meson.py) so the macro path falls back to legacy printf and
+      # nothing in the build references log_uart_emit_*. Prod uses
+      # log_noprintf_dep + project-wide DISABLE_PRINTF.
       if build_env == 'prod'
         deps = base_variant_deps + display_deps + touch_deps + [log_noprintf_dep, opt_deps['prod']]
       elif build_env == 'mfgtest-prod'
@@ -114,7 +119,7 @@ foreach hardware : w3_uxc_hardware_configs.keys()
       elif build_env == 'mfgtest-dev'
         deps = base_variant_deps + display_mfgtest_deps + touch_mfgtest_deps + dev_tools_deps + [opt_deps['dev']]
       else
-        deps = base_variant_deps + display_deps + touch_deps + dev_tools_deps + [opt_deps['dev']]
+        deps = base_variant_deps + display_deps + touch_deps + dev_tools_deps + [log_uart_dep, opt_deps['dev']]
       endif
 
       ldscript = custom_target(ldscript_name,

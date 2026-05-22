@@ -23,7 +23,6 @@ import build.wallet.encrypt.SignatureVerifierMock.VerifyEcdsaCall
 import build.wallet.f8e.recovery.LostHardwareServerRecoveryMock
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.AsyncNfcSigningFeatureFlag
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.feature.flags.NfcSessionRetryAttemptsFeatureFlag
 import build.wallet.feature.setFlagValue
 import build.wallet.nfc.NfcAvailability
@@ -68,7 +67,6 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
   val signatureVerifier = SignatureVerifierMock(signatureVerifyCalls)
   val accountService = AccountServiceFake()
   val nfcSessionRetryAttemptsFeatureFlag = NfcSessionRetryAttemptsFeatureFlag(FeatureFlagDaoFake())
-  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(FeatureFlagDaoFake())
   val recoveryStatusService = RecoveryStatusServiceMock(turbine = turbines::create)
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
 
@@ -83,7 +81,6 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
     accountService = accountService,
     inAppBrowserNavigator = inAppBrowserNavigator,
     nfcSessionRetryAttemptsFeatureFlag = nfcSessionRetryAttemptsFeatureFlag,
-    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
     recoveryStatusService = recoveryStatusService,
     appVariant = AppVariant.Customer
   )
@@ -94,10 +91,11 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
   fun createProps(
     requirePairedHardware: HardwareVerification = NotRequired,
     shouldShowLongRunningOperation: Boolean = false,
+    onConnected: () -> Unit = {},
     onError: (NfcException) -> Boolean = { false },
   ) = NfcSessionUIStateMachineProps<Unit>(
     session = { _, _ -> },
-    onConnected = {},
+    onConnected = onConnected,
     onSuccess = { onSuccessCalls.add(Unit) },
     onCancel = { onCancelCalls.add(Unit) },
     onInauthenticHardware = { _ -> },
@@ -142,6 +140,37 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
     }
   }
 
+  test("tag connected event is preserved when transaction succeeds immediately") {
+    // Drive an onTagConnected callback before transact() returns Ok. Because
+    // transactEvents() emits ordered events via an UNLIMITED buffer, the
+    // TagConnected event must reach the collector even though the terminal
+    // Succeeded event arrives back-to-back. With the prior CONFLATED bridge,
+    // the TagConnected could be dropped by a closely-following terminal emit.
+    val connectedCalls = turbines.create<Unit>("onConnected calls")
+    val propsWithConnected = createProps(onConnected = { connectedCalls.add(Unit) })
+    nfcTransactor.transactResult = Ok(Unit)
+    nfcTransactor.onTransactStarted = { parameters ->
+      parameters.onTagConnected(null)
+    }
+
+    stateMachine.test(propsWithConnected) {
+      awaitBody<NfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+      }
+
+      nfcTransactor.transactCalls.awaitItem()
+      connectedCalls.awaitItem()
+      onSuccessCalls.awaitItem()
+
+      // After conflation, the UI may collapse Connected straight to Success.
+      // What matters is that onConnected fired (asserted above) and the final
+      // state is Success — i.e. the TagConnected event was observed end-to-end.
+      awaitBody<NfcBodyModel> {
+        status.shouldBeTypeOf<Success>()
+      }
+    }
+  }
+
   test("platform session cancellation immediately invokes onCancel") {
     nfcTransactor.pauseNextTransact()
 
@@ -154,6 +183,33 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
       parameters.onSessionCanceled()
 
       onCancelCalls.awaitItem()
+    }
+  }
+
+  test("platform cancel followed by UserCancellation error only invokes onCancel once") {
+    // Real iOS ordering: the platform fires onSessionCanceled first, then transact()
+    // returns Err(UserCancellation). Pause transact() so we can invoke onSessionCanceled
+    // before it returns, mirroring production timing. Whether onCancel ends up being
+    // dispatched by the bridge collector (if it drains the queued event) or by the
+    // onFailure fallback (if the collector is torn down before it drains), it must
+    // fire exactly once — never zero or two.
+    val gate = nfcTransactor.pauseNextTransact()
+    nfcTransactor.transactResult = Err(NfcException.IOSOnly.UserCancellation())
+
+    stateMachine.test(props) {
+      awaitBody<NfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+      }
+
+      val parameters = nfcTransactor.transactCalls.awaitItem().shouldBeTypeOf<Parameters>()
+      parameters.onSessionCanceled()
+
+      // Let transact() return UserCancellation after the cancel event is queued.
+      gate.complete(Unit)
+
+      onCancelCalls.awaitItem()
+      // If onCancel fired twice, turbine teardown would flag an unconsumed event.
+      // If it fired zero times, the awaitItem above would time out.
     }
   }
 
@@ -207,19 +263,6 @@ class NfcSessionUIStateMachineImplTests : FunSpec({
         val openedUrl = inAppBrowserNavigator.onOpenCalls.awaitItem()
         openedUrl.shouldBe(TROUBLESHOOTING_URL)
       }
-    }
-  }
-
-  test("searching screen hides NFC help when DSV2 is disabled") {
-    nfcTransactor.pauseNextTransact()
-
-    stateMachine.test(props) {
-      awaitBody<NfcBodyModel> {
-        onHelpClick.shouldBeNull()
-        text.shouldBe("Hold your Bitkey to the back of your phone")
-        status.shouldBeTypeOf<Searching>()
-      }
-      nfcTransactor.transactCalls.awaitItem()
     }
   }
 

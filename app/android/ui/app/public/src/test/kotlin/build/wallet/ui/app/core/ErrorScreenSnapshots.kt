@@ -23,7 +23,7 @@ class ErrorScreenSnapshots : FunSpec({
   }
 
   test("error with subline screen - design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       FormScreen(errorWithSublineModel)
     }
   }

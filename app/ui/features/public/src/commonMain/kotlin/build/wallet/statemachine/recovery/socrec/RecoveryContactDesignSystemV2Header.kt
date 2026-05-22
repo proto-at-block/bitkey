@@ -12,7 +12,7 @@ internal fun recoveryContactDesignSystemV2Header(
   alignment: FormHeaderModel.Alignment = FormHeaderModel.Alignment.LEADING,
 ) = FormHeaderModel(
   iconModel = IconModel(
-    icon = Icon.DotRecoveryContact2,
+    icon = Icon.DotRecoveryContact,
     iconSize = IconSize.Avatar,
     iconTint = IconTint.InverseBackground
   ),

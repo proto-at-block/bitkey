@@ -16,6 +16,7 @@ internal data class ChartDataState(
   val intervals: Int,
   val pathSize: Float,
   val chartRange: ChartRange,
+  val valuePaddingFraction: Float = 0f,
 ) {
   private val yMin: Double
   private val yMax: Double
@@ -58,6 +59,11 @@ internal data class ChartDataState(
     if (yCeil > yMax + intervalValue) {
       yCeil -= intervalValue
       yFloor -= intervalValue
+    }
+    if (valuePaddingFraction > 0f) {
+      val padding = (yCeil - yFloor) * valuePaddingFraction
+      yFloor -= padding
+      yCeil += padding
     }
     range = yCeil - yFloor
   }

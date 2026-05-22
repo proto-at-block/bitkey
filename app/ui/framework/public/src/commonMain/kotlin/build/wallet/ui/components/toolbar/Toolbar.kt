@@ -34,7 +34,6 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.ButtonAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.model.toolbar.ToolbarModel.HeroContent
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import org.jetbrains.compose.resources.DrawableResource
@@ -85,7 +84,7 @@ fun Toolbar(
 
 @Composable
 fun ToolbarAccessory(model: ToolbarAccessoryModel) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
 
   when (model) {
     is ButtonAccessory -> Button(model.model)
@@ -141,7 +140,7 @@ fun Toolbar(
   backgroundDrawable: DrawableResource? = null,
 ) {
   val screenSize = getScreenSize()
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current && showDesignSystemChrome
+  val isDesignSystemV2Enabled = showDesignSystemChrome
 
   Box(
     modifier = Modifier

@@ -19,7 +19,6 @@ import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.AppUpdateModalFeatureFlag
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.logging.logInfo
 import build.wallet.mapResult
 import build.wallet.onboarding.CreateFullAccountContext
@@ -79,7 +78,6 @@ class AppUiStateMachineImpl(
   private val splashScreenDelay: SplashScreenDelay,
   private val welcomeToBitkeyScreenDuration: WelcomeToBitkeyScreenDuration,
   private val deviceInfoProvider: DeviceInfoProvider,
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
   private val appUpdateModalFeatureFlag: AppUpdateModalFeatureFlag,
   private val appStoreUrlProvider: AppStoreUrlProvider,
   private val deepLinkHandler: DeepLinkHandler,
@@ -339,9 +337,7 @@ class AppUiStateMachineImpl(
       )
     }
 
-    val isDesignSystemV2Enabled by remember {
-      designSystemUpdatesFeatureFlag.flagValue().map { it.value }
-    }.collectAsState(initial = designSystemUpdatesFeatureFlag.flagValue().value.value)
+    val isDesignSystemV2Enabled = true
 
     // On iOS with real hardware, NFC screens are hidden and the previous screen is
     // preserved because the system CoreNFC sheet is shown natively. With fake hardware

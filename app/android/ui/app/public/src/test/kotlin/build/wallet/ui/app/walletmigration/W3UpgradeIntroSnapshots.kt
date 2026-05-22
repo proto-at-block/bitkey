@@ -19,14 +19,4 @@ class W3UpgradeIntroSnapshots : FunSpec({
     }
   }
 
-  test("W3 upgrade intro screen with design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
-      FormScreen(
-        W3UpgradeIntroBodyModel(
-          onBack = {},
-          onContinue = {}
-        )
-      )
-    }
-  }
 })

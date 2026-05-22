@@ -27,7 +27,6 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.FeatureFlagValue.BooleanFlag
 import build.wallet.feature.flags.AppUpdateModalFeatureFlag
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.device.DevicePlatform
@@ -110,7 +109,6 @@ class AppUiStateMachineImplTests : FunSpec({
   val appStoreUrlProvider = AppStoreUrlProviderMock()
 
   val appUpdateModalFeatureFlag = AppUpdateModalFeatureFlag(FeatureFlagDaoFake())
-  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(FeatureFlagDaoFake())
 
   val logWriter = LogWriterMock()
 
@@ -125,7 +123,6 @@ class AppUiStateMachineImplTests : FunSpec({
     loadAppService.reset()
     loadAppService.appState.value = AppState.NoActiveAccount
     appUpdateModalFeatureFlag.setFlagValue(BooleanFlag(false))
-    designSystemUpdatesFeatureFlag.setFlagValue(BooleanFlag(false))
     deepLinkHandler.reset()
     appStoreUrlProvider.reset()
     stateMachine =
@@ -150,7 +147,6 @@ class AppUiStateMachineImplTests : FunSpec({
         splashScreenDelay = SplashScreenDelay(10.milliseconds),
         welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
         deviceInfoProvider = DeviceInfoProviderMock(),
-        designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
         appUpdateModalFeatureFlag = appUpdateModalFeatureFlag,
         appStoreUrlProvider = appStoreUrlProvider,
         deepLinkHandler = deepLinkHandler
@@ -444,7 +440,6 @@ class AppUiStateMachineImplTests : FunSpec({
       splashScreenDelay = SplashScreenDelay(10.milliseconds),
       welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
       deviceInfoProvider = DeviceInfoProviderMock(),
-      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
       appUpdateModalFeatureFlag = appUpdateModalFeatureFlag,
       appStoreUrlProvider = appStoreUrlProvider,
       deepLinkHandler = deepLinkHandler
@@ -497,7 +492,6 @@ class AppUiStateMachineImplTests : FunSpec({
       splashScreenDelay = SplashScreenDelay(10.milliseconds),
       welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
       deviceInfoProvider = DeviceInfoProviderMock(),
-      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
       appUpdateModalFeatureFlag = appUpdateModalFeatureFlag,
       appStoreUrlProvider = appStoreUrlProvider,
       deepLinkHandler = deepLinkHandler
@@ -562,7 +556,6 @@ class AppUiStateMachineImplTests : FunSpec({
       splashScreenDelay = SplashScreenDelay(10.milliseconds),
       welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
       deviceInfoProvider = DeviceInfoProviderMock(),
-      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
       appUpdateModalFeatureFlag = appUpdateModalFeatureFlag,
       appStoreUrlProvider = appStoreUrlProvider,
       deepLinkHandler = deepLinkHandler
@@ -589,64 +582,7 @@ class AppUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("legacy iOS keeps previous screen for platform NFC models when DSV2 is disabled") {
-    val deviceInfoProvider = DeviceInfoProviderMock().apply {
-      devicePlatformValue = DevicePlatform.IOS
-    }
-    val localEventTracker = EventTrackerMock { name ->
-      turbines.create("$name legacy ios platform nfc")
-    }
-    val homeUiStateMachine = ToggleablePlatformNfcHomeUiStateMachine()
-    loadAppService.appState.value = HasActiveSoftwareAccount(
-      account = SoftwareAccountMock
-    )
-
-    stateMachine = AppUiStateMachineImpl(
-      appVariant = AppVariant.Development,
-      navigatorPresenter = navigatorPresenter,
-      eventTracker = localEventTracker,
-      homeUiStateMachine = homeUiStateMachine,
-      liteHomeUiStateMachine = object : LiteHomeUiStateMachine,
-        ScreenStateMachineMock<LiteHomeUiProps>(id = "lite-home") {},
-      fullAccountUiStateMachine = fullAccountUiStateMachine,
-      createAccountUiStateMachine = createAccountUiStateMachine,
-      noActiveAccountUiStateMachine = noActiveAccountUiStateMachine,
-      loadAppService = loadAppService,
-      createLiteAccountUiStateMachine = createLiteAccountUiStateMachine,
-      liteAccountCloudBackupRestorationUiStateMachine = liteAccountCloudBackupRestorationUiStateMachine,
-      appWorkerExecutor = appWorkerExecutor,
-      accountService = AccountServiceFake(),
-      datadogRumMonitor = datadogRumMonitor,
-      splashScreenDelay = SplashScreenDelay(10.milliseconds),
-      welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
-      deviceInfoProvider = deviceInfoProvider,
-      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
-      appUpdateModalFeatureFlag = appUpdateModalFeatureFlag,
-      appStoreUrlProvider = appStoreUrlProvider,
-      deepLinkHandler = deepLinkHandler
-    )
-
-    stateMachine.test(Unit) {
-      awaitBody<SplashBodyModel>()
-      localEventTracker.eventCalls.awaitItem().shouldBe(
-        TrackedAction(ACTION_APP_SCREEN_IMPRESSION, GeneralEventTrackerScreenId.SPLASH_SCREEN)
-      )
-
-      awaitBodyMock<HomeUiProps> {
-        account.shouldBe(SoftwareAccountMock)
-      }
-
-      homeUiStateMachine.shouldShowPlatformNfcScreen = true
-
-      awaitItemMaybe(timeout = 100.milliseconds).shouldBe(null)
-
-      appWorkerExecutor.executeAllCalls.awaitItem()
-      cancelAndIgnoreRemainingEvents()
-    }
-  }
-
   test("DSV2 iOS keeps previous screen for generic platform NFC models using the native sheet") {
-    designSystemUpdatesFeatureFlag.setFlagValue(BooleanFlag(true))
 
     val deviceInfoProvider = DeviceInfoProviderMock().apply {
       devicePlatformValue = DevicePlatform.IOS
@@ -678,7 +614,6 @@ class AppUiStateMachineImplTests : FunSpec({
       splashScreenDelay = SplashScreenDelay(10.milliseconds),
       welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
       deviceInfoProvider = deviceInfoProvider,
-      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
       appUpdateModalFeatureFlag = appUpdateModalFeatureFlag,
       appStoreUrlProvider = appStoreUrlProvider,
       deepLinkHandler = deepLinkHandler
@@ -704,7 +639,6 @@ class AppUiStateMachineImplTests : FunSpec({
   }
 
   test("DSV2 iOS replaces the current screen for generic platform NFC models using a custom background") {
-    designSystemUpdatesFeatureFlag.setFlagValue(BooleanFlag(true))
 
     val deviceInfoProvider = DeviceInfoProviderMock().apply {
       devicePlatformValue = DevicePlatform.IOS
@@ -736,7 +670,6 @@ class AppUiStateMachineImplTests : FunSpec({
       splashScreenDelay = SplashScreenDelay(10.milliseconds),
       welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
       deviceInfoProvider = deviceInfoProvider,
-      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
       appUpdateModalFeatureFlag = appUpdateModalFeatureFlag,
       appStoreUrlProvider = appStoreUrlProvider,
       deepLinkHandler = deepLinkHandler
@@ -764,7 +697,6 @@ class AppUiStateMachineImplTests : FunSpec({
   }
 
   test("DSV2 iOS replaces the current screen for FWUP platform NFC models") {
-    designSystemUpdatesFeatureFlag.setFlagValue(BooleanFlag(true))
 
     val deviceInfoProvider = DeviceInfoProviderMock().apply {
       devicePlatformValue = DevicePlatform.IOS
@@ -796,7 +728,6 @@ class AppUiStateMachineImplTests : FunSpec({
       splashScreenDelay = SplashScreenDelay(10.milliseconds),
       welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
       deviceInfoProvider = deviceInfoProvider,
-      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
       appUpdateModalFeatureFlag = appUpdateModalFeatureFlag,
       appStoreUrlProvider = appStoreUrlProvider,
       deepLinkHandler = deepLinkHandler
@@ -824,7 +755,6 @@ class AppUiStateMachineImplTests : FunSpec({
   }
 
   test("DSV2 iOS shows FWUP success instead of resurfacing the previous continuation screen") {
-    designSystemUpdatesFeatureFlag.setFlagValue(BooleanFlag(true))
 
     val deviceInfoProvider = DeviceInfoProviderMock().apply {
       devicePlatformValue = DevicePlatform.IOS
@@ -856,7 +786,6 @@ class AppUiStateMachineImplTests : FunSpec({
       splashScreenDelay = SplashScreenDelay(10.milliseconds),
       welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
       deviceInfoProvider = deviceInfoProvider,
-      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
       appUpdateModalFeatureFlag = appUpdateModalFeatureFlag,
       appStoreUrlProvider = appStoreUrlProvider,
       deepLinkHandler = deepLinkHandler
@@ -899,7 +828,6 @@ class AppUiStateMachineImplTests : FunSpec({
   }
 
   test("DSV2 iOS keeps previous screen for sign transaction models using the native sheet") {
-    designSystemUpdatesFeatureFlag.setFlagValue(BooleanFlag(true))
 
     val deviceInfoProvider = DeviceInfoProviderMock().apply {
       devicePlatformValue = DevicePlatform.IOS
@@ -931,7 +859,6 @@ class AppUiStateMachineImplTests : FunSpec({
       splashScreenDelay = SplashScreenDelay(10.milliseconds),
       welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
       deviceInfoProvider = deviceInfoProvider,
-      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
       appUpdateModalFeatureFlag = appUpdateModalFeatureFlag,
       appStoreUrlProvider = appStoreUrlProvider,
       deepLinkHandler = deepLinkHandler
@@ -957,7 +884,6 @@ class AppUiStateMachineImplTests : FunSpec({
   }
 
   test("DSV2 iOS still replaces the current screen for sign transaction models that keep custom background") {
-    designSystemUpdatesFeatureFlag.setFlagValue(BooleanFlag(true))
 
     val deviceInfoProvider = DeviceInfoProviderMock().apply {
       devicePlatformValue = DevicePlatform.IOS
@@ -989,7 +915,6 @@ class AppUiStateMachineImplTests : FunSpec({
       splashScreenDelay = SplashScreenDelay(10.milliseconds),
       welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
       deviceInfoProvider = deviceInfoProvider,
-      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
       appUpdateModalFeatureFlag = appUpdateModalFeatureFlag,
       appStoreUrlProvider = appStoreUrlProvider,
       deepLinkHandler = deepLinkHandler
@@ -1044,7 +969,6 @@ class AppUiStateMachineImplTests : FunSpec({
       splashScreenDelay = SplashScreenDelay(10.milliseconds),
       welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
       deviceInfoProvider = DeviceInfoProviderMock(),
-      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
       appUpdateModalFeatureFlag = appUpdateModalFeatureFlag,
       appStoreUrlProvider = appStoreUrlProvider,
       deepLinkHandler = deepLinkHandler
@@ -1078,63 +1002,6 @@ class AppUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("legacy iOS still replaces the current screen for sign transaction models when DSV2 is disabled") {
-    val deviceInfoProvider = DeviceInfoProviderMock().apply {
-      devicePlatformValue = DevicePlatform.IOS
-    }
-    val localEventTracker = EventTrackerMock { name ->
-      turbines.create("$name legacy ios sign transaction native sheet")
-    }
-    val homeUiStateMachine = ToggleableSignTransactionHomeUiStateMachine(showNativeSheetOnIos = true)
-    loadAppService.appState.value = HasActiveSoftwareAccount(
-      account = SoftwareAccountMock
-    )
-
-    stateMachine = AppUiStateMachineImpl(
-      appVariant = AppVariant.Development,
-      navigatorPresenter = navigatorPresenter,
-      eventTracker = localEventTracker,
-      homeUiStateMachine = homeUiStateMachine,
-      liteHomeUiStateMachine = object : LiteHomeUiStateMachine,
-        ScreenStateMachineMock<LiteHomeUiProps>(id = "lite-home") {},
-      fullAccountUiStateMachine = fullAccountUiStateMachine,
-      createAccountUiStateMachine = createAccountUiStateMachine,
-      noActiveAccountUiStateMachine = noActiveAccountUiStateMachine,
-      loadAppService = loadAppService,
-      createLiteAccountUiStateMachine = createLiteAccountUiStateMachine,
-      liteAccountCloudBackupRestorationUiStateMachine = liteAccountCloudBackupRestorationUiStateMachine,
-      appWorkerExecutor = appWorkerExecutor,
-      accountService = AccountServiceFake(),
-      datadogRumMonitor = datadogRumMonitor,
-      splashScreenDelay = SplashScreenDelay(10.milliseconds),
-      welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
-      deviceInfoProvider = deviceInfoProvider,
-      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
-      appUpdateModalFeatureFlag = appUpdateModalFeatureFlag,
-      appStoreUrlProvider = appStoreUrlProvider,
-      deepLinkHandler = deepLinkHandler
-    )
-
-    stateMachine.test(Unit) {
-      awaitBody<SplashBodyModel>()
-      localEventTracker.eventCalls.awaitItem().shouldBe(
-        TrackedAction(ACTION_APP_SCREEN_IMPRESSION, GeneralEventTrackerScreenId.SPLASH_SCREEN)
-      )
-
-      awaitBodyMock<HomeUiProps> {
-        account.shouldBe(SoftwareAccountMock)
-      }
-
-      homeUiStateMachine.shouldShowPlatformNfcScreen = true
-
-      awaitUntilBody<SignTransactionNfcBodyModel> {
-        status.shouldBe(SignTransactionNfcBodyModel.Status.Searching)
-      }
-
-      appWorkerExecutor.executeAllCalls.awaitItem()
-      cancelAndIgnoreRemainingEvents()
-    }
-  }
 })
 
 private class ToggleablePlatformNfcHomeUiStateMachine(

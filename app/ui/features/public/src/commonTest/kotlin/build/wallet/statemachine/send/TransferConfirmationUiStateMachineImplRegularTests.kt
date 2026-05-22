@@ -20,8 +20,6 @@ import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.FeatureFlagValue.BooleanFlag
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.feature.flags.TxVerificationFeatureFlag
 import build.wallet.limit.DailySpendingLimitStatus
 import build.wallet.limit.MobilePayServiceMock
@@ -118,7 +116,6 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
   val appFunctionalityService = AppFunctionalityServiceFake()
   val txVerificationService = TxVerificationServiceFake()
   val verificationFlag = TxVerificationFeatureFlag(FeatureFlagDaoFake())
-  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(FeatureFlagDaoFake())
   val accountConfigService = AccountConfigServiceFake()
 
   // Initialize the TransferConfirmationUiStateMachineImpl with all dependencies
@@ -133,7 +130,6 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
     accountConfigService = accountConfigService,
     txVerificationService = txVerificationService,
     txVerificationFeatureFlag = verificationFlag,
-    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag
   )
 
   // Reset mocks before each test
@@ -216,7 +212,7 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
         )
         header.shouldNotBeNull().headline.shouldBe("Send your transfer")
 
-        mainContentList[0].shouldBeTypeOf<FormMainContentModel.Divider>()
+        mainContentList[0].shouldBeTypeOf<FormMainContentModel.Spacer>()
 
         // Correct title
         mainContentList[1]
@@ -298,7 +294,6 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
   }
 
   test("design system enabled removes top divider and uses borderless data containers") {
-    designSystemUpdatesFeatureFlag.setFlagValue(BooleanFlag(true))
 
     stateMachine.test(props) {
       awaitBody<LoadingSuccessBodyModel> {

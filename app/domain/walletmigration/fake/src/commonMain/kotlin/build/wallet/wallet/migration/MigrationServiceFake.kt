@@ -40,6 +40,7 @@ class MigrationServiceFake : MigrationService {
   var resumeCalls = mutableListOf<MigrationType>()
   var proceedCalls = mutableListOf<MigrationProgress>()
   var clearMigrationCalls = mutableListOf<MigrationType>()
+  var estimateMigrationFeesCalls = mutableListOf<Pair<FullAccount, String?>>()
   var isW3UpgradeInProgressResult: Boolean = false
   var isW3UpgradeInProgressCalls = 0
 
@@ -69,6 +70,7 @@ class MigrationServiceFake : MigrationService {
     account: FullAccount,
     oldHardwareFingerprint: String?,
   ): Result<BitcoinMoney, MigrationError> {
+    estimateMigrationFeesCalls.add(account to oldHardwareFingerprint)
     return if (estimateMigrationFeesResults.isNotEmpty()) {
       estimateMigrationFeesResults.removeFirst()
     } else {
@@ -103,6 +105,7 @@ class MigrationServiceFake : MigrationService {
     resumeCalls.clear()
     proceedCalls.clear()
     clearMigrationCalls.clear()
+    estimateMigrationFeesCalls.clear()
     isW3UpgradeInProgressResult = false
     isW3UpgradeInProgressCalls = 0
     savedOldHardwareFingerprint = null

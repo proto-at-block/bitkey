@@ -100,7 +100,8 @@ mcu_efr32xg24_bl_lib = library('mcu-efr32xg24-bl',
   mcu_srcs,
   gecko_sdk_srcs,
   bl_srcs,
-  c_args : ['-DIMAGE_TYPE_BOOTLOADER=1'],
+  # LOG_FORCE_RAW: bootloaders don't link log_uart_dep — see lib/log/inc/log.h.
+  c_args : ['-DIMAGE_TYPE_BOOTLOADER=1', '-DLOG_FORCE_RAW=1'],
   include_directories : private_includes,
   dependencies : deps,
 )

@@ -52,6 +52,9 @@ sealed class NfcException : Error() {
   /** Indicates that the command required the device to first be unlocked and it wasn't */
   class CommandErrorUnauthenticated : NfcException()
 
+  /** Indicates that the tapped device has already been wiped or has not completed setup. */
+  class DeviceAlreadyWipedOrNotSetUp : NfcException()
+
   /** Indicates unsealing the csek failed, likely due to using the wrong device. */
   class CommandErrorSealCsekResponseUnsealException : NfcException()
 

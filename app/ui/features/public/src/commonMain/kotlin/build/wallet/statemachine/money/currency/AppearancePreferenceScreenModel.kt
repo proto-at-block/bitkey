@@ -33,6 +33,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import bitkey.ui.Snapshot
+import bitkey.ui.SnapshotHost
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.AppearanceEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
@@ -41,11 +43,9 @@ import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.ui.app.core.form.MoneyHomeHero
 import build.wallet.ui.components.card.Card
-import build.wallet.ui.components.header.Header
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.layout.Divider
-import build.wallet.ui.components.list.ListGroup
 import build.wallet.ui.components.list.ListItem
 import build.wallet.ui.components.tab.CircularTabRow
 import build.wallet.ui.components.toolbar.Toolbar
@@ -60,7 +60,6 @@ import build.wallet.ui.model.switch.SwitchModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.system.BackHandler
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
@@ -99,76 +98,7 @@ class AppearancePreferenceBodyModel(
 
   @Composable
   override fun render(modifier: Modifier) {
-    if (LocalDesignSystemUpdatesEnabled.current) {
-      AppearancePreferenceScreenDesignSystem(modifier = modifier)
-    } else {
-      AppearancePreferenceScreenLegacy(modifier = modifier)
-    }
-  }
-
-  @Composable
-  private fun AppearancePreferenceScreenLegacy(modifier: Modifier = Modifier) {
-    Column(
-      modifier = modifier
-        .background(WalletTheme.colors.background)
-        .fillMaxSize()
-        .padding(horizontal = 16.dp)
-        .verticalScroll(rememberScrollState())
-    ) {
-      Toolbar(
-        modifier = Modifier.fillMaxWidth(),
-        model = toolbar
-      )
-
-      Header(
-        model = header,
-        modifier = Modifier.fillMaxWidth()
-      )
-
-      Spacer(modifier = Modifier.height(16.dp))
-
-      MoneyHomeHero(
-        model = moneyHomeHero,
-        selectedSection = selectedSection,
-        isDarkMode = LocalTheme.current == Theme.DARK,
-        isPriceGraphEnabled = isBitcoinPriceCardEnabled
-      )
-
-      Spacer(modifier = Modifier.height(16.dp))
-
-      CircularTabRow(
-        items = AppearanceSection.entries.map { stringResource(it.label) }.toImmutableList(),
-        selectedItemIndex = selectedSection.ordinal,
-        onClick = { index -> onSectionSelected(AppearanceSection.entries[index]) },
-        backgroundColor = WalletTheme.colors.subtleBackground
-      )
-
-      Spacer(modifier = Modifier.height(16.dp))
-
-      AnimatedContent(
-        targetState = selectedSection,
-        transitionSpec = {
-          fadeIn(tween(200, delayMillis = 90))
-            .togetherWith(fadeOut(tween(90)))
-        }
-      ) { section ->
-        Column(
-          modifier = Modifier.fillMaxWidth(),
-          verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-          appearanceSectionModels(section).forEachIndexed { index, listGroupModel ->
-            ListGroup(
-              model = listGroupModel,
-              modifier = Modifier.fillMaxWidth()
-            )
-
-            if (section == AppearanceSection.CURRENCY && index < appearanceSectionModels(section).lastIndex) {
-              Spacer(modifier = Modifier.height(8.dp))
-            }
-          }
-        }
-      }
-    }
+    AppearancePreferenceScreenDesignSystem(modifier = modifier)
   }
 
   @Composable
@@ -545,6 +475,43 @@ private fun privacySectionContent(
     )
   )
 }
+
+@Snapshot
+val SnapshotHost.appearancePreferenceCurrencySelectedPriceGraphOn
+  get() = appearancePreferenceSnapshotModel(
+    selectedSection = AppearanceSection.CURRENCY,
+    isBitcoinPriceCardEnabled = true
+  )
+
+@Snapshot
+val SnapshotHost.appearancePreferencePrivacySelectedHideBalanceOn
+  get() = appearancePreferenceSnapshotModel(
+    selectedSection = AppearanceSection.PRIVACY,
+    isHideBalanceEnabled = true
+  )
+
+private fun appearancePreferenceSnapshotModel(
+  selectedSection: AppearanceSection,
+  isBitcoinPriceCardEnabled: Boolean = false,
+  isHideBalanceEnabled: Boolean = false,
+) = AppearancePreferenceBodyModel(
+  onBack = {},
+  moneyHomeHero = FormMainContentModel.MoneyHomeHero("$0", "0 sats"),
+  selectedSection = selectedSection,
+  onSectionSelected = {},
+  themePreferenceString = "System",
+  onThemePreferenceClick = {},
+  fiatCurrencyPreferenceString = "USD",
+  onFiatCurrencyPreferenceClick = {},
+  bitcoinDisplayPreferenceString = "sats",
+  isBitcoinPriceCardEnabled = isBitcoinPriceCardEnabled,
+  defaultTimeScalePreferenceString = "1D",
+  onDefaultTimeScalePreferenceClick = {},
+  isHideBalanceEnabled = isHideBalanceEnabled,
+  onEnableHideBalanceChanged = {},
+  onBitcoinDisplayPreferenceClick = {},
+  onBitcoinPriceCardPreferenceClick = {}
+)
 
 private val APPEARANCE_TOP_PADDING: Dp = 8.dp
 private val APPEARANCE_HORIZONTAL_PADDING: Dp = 20.dp

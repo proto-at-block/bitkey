@@ -1,7 +1,13 @@
 package build.wallet.ui.components.card
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
@@ -10,18 +16,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import bitkey.ui.framework_public.generated.resources.*
 import build.wallet.pricechart.ChartRange
 import build.wallet.pricechart.ui.PriceChart
-import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.moneyhome.card.CardModel.CardContent.BitcoinPrice
-import build.wallet.ui.components.icon.Icon
 import build.wallet.ui.components.label.AnimatedAmount
 import build.wallet.ui.components.label.AnimatedAmountAutoResizedLabel
 import build.wallet.ui.components.label.Label
@@ -29,164 +33,192 @@ import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.label.labelStyle
 import build.wallet.ui.components.label.loadingScrim
 import build.wallet.ui.components.layout.MeasureWithoutPlacement
-import build.wallet.ui.model.icon.IconSize.Accessory
-import build.wallet.ui.model.icon.IconSize.Subtract
-import build.wallet.ui.model.icon.IconTint
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.resources.vectorResource
+import kotlin.math.PI
+import kotlin.math.sin
+
+private const val SPARKLINE_PLACEHOLDER_POINT_COUNT = 24
+private const val SPARKLINE_PLACEHOLDER_CYCLES = 1.75
+private const val SPARKLINE_PLACEHOLDER_AMPLITUDE_FRACTION = 0.16f
 
 @Composable
 internal fun BitcoinPriceContent(model: BitcoinPrice) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
-
   Column(
     modifier = Modifier
-      .padding(bottom = if (isDesignSystemV2Enabled) 0.dp else 16.dp)
       .fillMaxWidth()
   ) {
-    val sparklineWidthModifier = if (isDesignSystemV2Enabled) {
-      Modifier.weight(0.27f, fill = false)
-    } else {
-      Modifier.weight(0.4f, fill = false)
-    }
-
-    if (!isDesignSystemV2Enabled) {
-      // title + updated at timestamp
-      Row(verticalAlignment = Alignment.Top) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-          Image(
-            painter = painterResource(Res.drawable.bitcoin_orange),
-            contentDescription = null,
-            modifier = Modifier.size(Accessory.value.dp)
-          )
-
-          Spacer(modifier = Modifier.width(4.dp))
-
-          Label(
-            text = stringResource(Res.string.bitcoin_price_card_title),
-            type = LabelType.Body3Bold,
-            treatment = LabelTreatment.Unspecified,
-            color = WalletTheme.colors.bitcoinPrimary
-          )
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        Row(
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          Box(
-            modifier = Modifier
-              .padding(2.dp)
-              .weight(1f, fill = false),
-            contentAlignment = Alignment.CenterStart
-          ) {
-            Label(
-              model = LabelModel.StringModel(model.lastUpdated),
-              type = LabelType.Body4Regular,
-              treatment = LabelTreatment.SecondaryDark,
-              alignment = TextAlign.End
-            )
-          }
-
-          Spacer(modifier = Modifier.requiredSize(1.dp))
-
-          Icon(
-            icon = Icon.SmallIconCaretRight,
-            size = Subtract,
-            tint = IconTint.On30
-          )
-        }
-      }
-    }
     Row(
       modifier = Modifier.fillMaxWidth(),
-      verticalAlignment = if (isDesignSystemV2Enabled) Alignment.CenterVertically else Alignment.Bottom,
+      verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.SpaceBetween
     ) {
       // bitcoin price + value change
-      PriceAndValueChangeColumn(
-        model = model,
-        isDesignSystemV2Enabled = isDesignSystemV2Enabled
-      )
+      PriceAndValueChangeColumn(model = model)
 
       Spacer(modifier = Modifier.weight(0.1f, fill = false))
 
       // price chart
-      Box(
-        contentAlignment = Alignment.Center,
+      BitcoinPriceSparkline(
+        model = model,
         modifier = Modifier
-          .then(sparklineWidthModifier)
-          .height(if (isDesignSystemV2Enabled) 60.dp else 70.dp)
-          .padding(top = if (isDesignSystemV2Enabled) 0.dp else 16.dp, end = 6.dp)
-      ) {
-        val placeholderAlpha by animateFloatAsState(
-          label = "placeholder-visibility",
-          targetValue = if (model.data.isEmpty()) 1f else 0f
-        )
-        val sparklineAlpha by animateFloatAsState(
-          label = "sparkline-visibility",
-          targetValue = if (model.data.isEmpty()) 0f else 1f
-        )
-        Image(
-          imageVector = vectorResource(Res.drawable.sparkline_placeholder),
-          contentDescription = null,
-          modifier = Modifier
-            .fillMaxSize()
-            .padding(vertical = 8.dp)
-            .alpha(placeholderAlpha)
-        )
-
-        if (model.data.isNotEmpty()) {
-          PriceChart(
-            dataPoints = model.data,
-            range = ChartRange.DAY,
-            colorSparkLine = if (isDesignSystemV2Enabled) {
-              WalletTheme.colors.foreground
-            } else {
-              WalletTheme.colors.foreground.copy(alpha = 0.1f)
-            },
-            sparkLineMode = true,
-            showSparkLineEndPoint = !isDesignSystemV2Enabled,
-            lineCornerRadius = if (isDesignSystemV2Enabled) 12.dp else 6.dp,
-            yAxisIntervals = 10,
-            modifier = Modifier
-              .fillMaxSize()
-              .graphicsLayer(
-                alpha = sparklineAlpha,
-                clip = false,
-                compositingStrategy = CompositingStrategy.ModulateAlpha
-              )
-          )
-        }
-      }
+          .weight(0.27f, fill = false)
+          .height(60.dp)
+          .padding(end = 6.dp)
+      )
     }
+  }
+}
+
+@Composable
+private fun BitcoinPriceSparkline(
+  model: BitcoinPrice,
+  modifier: Modifier = Modifier,
+) {
+  val showSparklinePlaceholder = model.data.isEmpty() || model.isLoading
+  val placeholderSparklineColor = WalletTheme.colors.foreground10
+  val placeholderAlpha by animateFloatAsState(
+    targetValue = if (showSparklinePlaceholder) 1f else 0f,
+    animationSpec = tween(durationMillis = 220),
+    label = "sparkline-placeholder-alpha"
+  )
+  val sparklineAlpha by animateFloatAsState(
+    targetValue = if (showSparklinePlaceholder || model.data.isEmpty()) 0f else 1f,
+    animationSpec = tween(durationMillis = 220),
+    label = "sparkline-alpha"
+  )
+  val placeholderPhase = rememberSparklinePlaceholderPhase(
+    enabled = showSparklinePlaceholder || placeholderAlpha > 0.001f
+  )
+
+  Box(
+    contentAlignment = Alignment.Center,
+    modifier = modifier
+  ) {
+    if (placeholderAlpha > 0.001f) {
+      SparklinePlaceholder(
+        phase = placeholderPhase,
+        color = placeholderSparklineColor,
+        modifier = Modifier
+          .fillMaxSize()
+          .alpha(placeholderAlpha)
+      )
+    }
+
+    if (model.data.isNotEmpty()) {
+      PriceChart(
+        dataPoints = model.data,
+        range = ChartRange.DAY,
+        animateDataTransition = !showSparklinePlaceholder,
+        colorSparkLine = WalletTheme.colors.foreground,
+        sparkLineMode = true,
+        showSparkLineEndPoint = false,
+        lineCornerRadius = 12.dp,
+        yAxisIntervals = 10,
+        modifier = Modifier
+          .fillMaxSize()
+          .alpha(sparklineAlpha)
+      )
+    }
+  }
+}
+
+@Composable
+private fun rememberSparklinePlaceholderPhase(enabled: Boolean): Float {
+  if (!enabled) {
+    return 0f
+  }
+
+  return rememberInfiniteTransition(label = "sparkline-placeholder")
+    .animateFloat(
+      initialValue = 0f,
+      targetValue = (2 * PI).toFloat(),
+      animationSpec = infiniteRepeatable(
+        animation = tween(
+          durationMillis = 7200,
+          easing = LinearEasing
+        ),
+        repeatMode = RepeatMode.Restart
+      ),
+      label = "sparkline-placeholder-phase"
+    )
+    .value
+}
+
+@Composable
+private fun SparklinePlaceholder(
+  phase: Float,
+  color: androidx.compose.ui.graphics.Color,
+  modifier: Modifier = Modifier,
+) {
+  val path = remember { Path() }
+
+  Canvas(modifier = modifier) {
+    if (size.width <= 0f || size.height <= 0f) return@Canvas
+
+    val points = List(SPARKLINE_PLACEHOLDER_POINT_COUNT) { index ->
+      val progress = index.toFloat() / (SPARKLINE_PLACEHOLDER_POINT_COUNT - 1)
+      val angle = (progress * SPARKLINE_PLACEHOLDER_CYCLES * 2 * PI) + phase
+      val x = progress * size.width
+      val y = (size.height / 2f) -
+        (sin(angle).toFloat() * size.height * SPARKLINE_PLACEHOLDER_AMPLITUDE_FRACTION)
+      x to y
+    }
+
+    path.rewind()
+    val firstPoint = points.first()
+    path.moveTo(firstPoint.first, firstPoint.second)
+
+    for (targetIndex in 1 until points.lastIndex) {
+      val startPoint = points[targetIndex - 1]
+      val targetPoint = points[targetIndex]
+      path.quadraticTo(
+        x1 = startPoint.first,
+        y1 = startPoint.second,
+        x2 = (startPoint.first + targetPoint.first) / 2f,
+        y2 = (startPoint.second + targetPoint.second) / 2f
+      )
+    }
+
+    val penultimatePoint = points[points.lastIndex - 1]
+    val finalPoint = points.last()
+    path.quadraticTo(
+      x1 = penultimatePoint.first,
+      y1 = penultimatePoint.second,
+      x2 = finalPoint.first,
+      y2 = finalPoint.second
+    )
+
+    drawPath(
+      path = path,
+      color = color,
+      style = androidx.compose.ui.graphics.drawscope.Stroke(
+        width = 3.dp.toPx(),
+        cap = StrokeCap.Round,
+        join = StrokeJoin.Round
+      )
+    )
   }
 }
 
 @Composable
 private fun PriceAndValueChangeColumn(
   model: BitcoinPrice,
-  isDesignSystemV2Enabled: Boolean,
 ) {
   Column(
     modifier = Modifier
       .wrapContentSize(),
     verticalArrangement = Arrangement.Bottom
   ) {
-    if (isDesignSystemV2Enabled) {
-      Label(
-        text = stringResource(Res.string.bitcoin_price_card_title),
-        type = LabelType.Body2Regular,
-        treatment = LabelTreatment.Primary
-      )
-    }
+    Label(
+      text = stringResource(Res.string.bitcoin_price_card_title),
+      type = LabelType.Body3Mono,
+      treatment = LabelTreatment.Secondary
+    )
 
-    val priceLabelType = if (isDesignSystemV2Enabled) LabelType.Body1Regular else LabelType.Body1Bold
+    val priceLabelType = LabelType.Body1Regular
 
     Box(
       modifier = Modifier
@@ -202,7 +234,7 @@ private fun PriceAndValueChangeColumn(
         )
       }
 
-      if (isDesignSystemV2Enabled && model.priceValue != null) {
+      if (model.priceValue != null) {
         AnimatedAmountAutoResizedLabel(
           amount = AnimatedAmount(
             text = model.price,

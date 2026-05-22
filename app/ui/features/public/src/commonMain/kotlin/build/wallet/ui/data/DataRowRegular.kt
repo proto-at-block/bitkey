@@ -26,7 +26,6 @@ import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.icon.*
 import build.wallet.ui.model.icon.IconSize.Accessory
 import build.wallet.ui.model.icon.IconSize.Small
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
@@ -42,7 +41,7 @@ internal fun DataRowRegular(
   contentHorizontalPadding: Dp = 16.dp,
   useContainedDesignSystemV2Typography: Boolean = false,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val endIconColor = model.endIconColor(isDesignSystemV2Enabled)
   val endIconSize = model.endIconSize(isDesignSystemV2Enabled)
   val trailingAccessoryOpticalOffset = model.trailingAccessoryOpticalOffset(isDesignSystemV2Enabled)
@@ -110,13 +109,7 @@ internal fun DataRowRegular(
         model.titleIcon?.let { titleIcon ->
           IconImage(
             modifier = Modifier.padding(start = 4.dp),
-            model = titleIcon,
-            style =
-              WalletTheme.iconStyle(
-                icon = titleIcon.iconImage,
-                color = Color.Unspecified,
-                tint = titleIcon.iconTint
-              )
+            model = titleIcon
           )
         }
       }
@@ -324,11 +317,7 @@ internal fun DataRowRegular(
   helperContent: (@Composable () -> Unit)?,
 ) {
   val lineColor =
-    if (LocalDesignSystemUpdatesEnabled.current) {
-      if (LocalTheme.current == Theme.DARK) WalletTheme.colors.foreground30 else WalletTheme.colors.foreground10
-    } else {
-      Color.Black.copy(alpha = 0.05F)
-    }
+    if (LocalTheme.current == Theme.DARK) WalletTheme.colors.foreground30 else WalletTheme.colors.foreground10
 
   Column(
     modifier = modifier

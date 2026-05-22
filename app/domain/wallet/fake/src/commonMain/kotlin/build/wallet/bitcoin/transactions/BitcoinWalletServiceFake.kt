@@ -6,19 +6,24 @@ import build.wallet.time.someInstant
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 
 class BitcoinWalletServiceFake : BitcoinWalletService {
+  private val defaultBroadcastTransactionId: (Psbt) -> String = { it.id }
+
   val transactionsData = MutableStateFlow<TransactionsData?>(null)
   var spendingWallet = MutableStateFlow<SpendingWallet?>(null)
+  var syncResult: Result<Unit, Error> = Ok(Unit)
 
   override fun spendingWallet() = spendingWallet
 
   override suspend fun sync(): Result<Unit, Error> {
-    spendingWallet.value?.sync()
-    return Ok(Unit)
+    return syncResult.onSuccess {
+      spendingWallet.value?.sync()
+    }
   }
 
   override fun transactionsData() = transactionsData
@@ -33,6 +38,7 @@ class BitcoinWalletServiceFake : BitcoinWalletService {
 
   val broadcastedPsbts = MutableStateFlow<List<Psbt>>(emptyList())
   var broadcastError: Error? = null
+  var broadcastTransactionId: (Psbt) -> String = defaultBroadcastTransactionId
 
   override suspend fun broadcast(
     psbt: Psbt,
@@ -42,7 +48,7 @@ class BitcoinWalletServiceFake : BitcoinWalletService {
     return broadcastError?.let { Err(it) } ?: Ok(
       BroadcastDetail(
         broadcastTime = someInstant,
-        transactionId = "txid-fake"
+        transactionId = broadcastTransactionId(psbt)
       )
     )
   }
@@ -65,8 +71,10 @@ class BitcoinWalletServiceFake : BitcoinWalletService {
   fun reset() {
     transactionsData.value = null
     broadcastError = null
+    broadcastTransactionId = defaultBroadcastTransactionId
     broadcastedPsbts.value = emptyList()
     spendingWallet.value = null
+    syncResult = Ok(Unit)
     createPsbtsForSendAmountResult = null
   }
 }

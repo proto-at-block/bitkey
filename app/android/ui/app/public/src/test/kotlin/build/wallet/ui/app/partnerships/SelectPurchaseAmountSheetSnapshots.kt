@@ -22,7 +22,7 @@ class SelectPurchaseAmountSheetSnapshots : FunSpec({
   val paparazzi = paparazziExtension(maxPercentDifference = 0.1)
 
   test("select purchase amount sheet - design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       Column(
         Modifier
           .fillMaxSize()

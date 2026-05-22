@@ -19,8 +19,10 @@ kotlin {
 
     commonTest {
       dependencies {
+        implementation(projects.domain.accountFake)
         implementation(projects.domain.featureFlagFake)
         implementation(projects.domain.analyticsFake)
+        implementation(projects.domain.bitkeyPrimitivesFake)
         implementation(projects.libs.sqldelightTesting)
         implementation(projects.libs.testingPublic)
         implementation(projects.libs.timeFake)

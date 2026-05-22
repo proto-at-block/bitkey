@@ -24,29 +24,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import build.wallet.compose.collections.immutableListOf
-import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.settings.SettingsBodyModel
-import build.wallet.ui.app.core.form.FormScreen
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.layout.Divider
-import build.wallet.ui.components.list.ListGroup
 import build.wallet.ui.components.list.ListItem
 import build.wallet.ui.components.toolbar.Toolbar
-import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconBackgroundType.Transient
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconSize.Small
 import build.wallet.ui.model.icon.IconTint
-import build.wallet.ui.model.list.ListGroupModel
-import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
-import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.system.BackHandler
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 
@@ -55,78 +46,9 @@ fun SettingsScreen(
   modifier: Modifier = Modifier,
   model: SettingsBodyModel,
 ) {
-  if (LocalDesignSystemUpdatesEnabled.current) {
-    SettingsScreenDesignSystem(
-      modifier = modifier,
-      model = model
-    )
-  } else {
-    SettingsScreenLegacy(
-      modifier = modifier,
-      model = model
-    )
-  }
-}
-
-@Composable
-private fun SettingsScreenLegacy(
-  modifier: Modifier = Modifier,
-  model: SettingsBodyModel,
-) {
-  FormScreen(
+  SettingsScreenDesignSystem(
     modifier = modifier,
-    onBack = model.onBack,
-    toolbarContent = {
-      Toolbar(model = model.toolbarModel)
-    },
-    headerContent = {
-      model.onSecurityHubCoachmarkClick?.let { onSecurityHubCoachmarkClick ->
-        ListGroup(
-          modifier = Modifier.background(color = WalletTheme.colors.secondary),
-          model = ListGroupModel(
-            style = ListGroupStyle.CARD_ITEM,
-            items = immutableListOf(
-              ListItemModel(
-                title = "Looking for something?",
-                secondaryText = "Your Security & Recovery settings now live in the new Security Hub.",
-                leadingAccessory = ListItemAccessory.IconAccessory(
-                  model = IconModel(
-                    icon = Icon.SmallIconShield,
-                    iconSize = Small,
-                    iconTint = IconTint.White,
-                    iconBackgroundType = IconBackgroundType.Circle(
-                      color = IconBackgroundType.Circle.CircleColor.BitkeyPrimary,
-                      circleSize = IconSize.Large
-                    )
-                  )
-                ),
-                trailingAccessory = ListItemAccessory.IconAccessory(
-                  model = IconModel(
-                    icon = Icon.SmallIconArrowRight,
-                    iconSize = Small,
-                    iconBackgroundType = Transient,
-                    iconTint = IconTint.On30
-                  ),
-                  testTag = "settings-security-hub-coachmark-link",
-                  onClick = onSecurityHubCoachmarkClick
-                ),
-                onClick = onSecurityHubCoachmarkClick
-              )
-            )
-          )
-        )
-      }
-    },
-    mainContent = {
-      Column(verticalArrangement = Arrangement.spacedBy(32.dp)) {
-        for (sectionModel in model.sectionModels) {
-          SettingsSection(
-            model = sectionModel,
-            isDesignSystemV2Enabled = false
-          )
-        }
-      }
-    }
+    model = model
   )
 }
 

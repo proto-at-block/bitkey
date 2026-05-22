@@ -33,7 +33,14 @@ CREATE TABLE w3UpgradeMigrationEntity(
   preRotationHwAuthPublicKey TEXT AS HwAuthPublicKey,
   tcEndorsementsRegenerated INTEGER AS Boolean NOT NULL DEFAULT 0,
   resumedFromCloudBackup INTEGER AS Boolean NOT NULL DEFAULT 0,
-  sealedSsekForDecryption BLOB AS SealedSsek
+  sealedSsekForDecryption BLOB AS SealedSsek,
+  oldW1SweepStatus TEXT NOT NULL DEFAULT 'UNKNOWN',
+  oldW1WipeReminderDismissed INTEGER AS Boolean NOT NULL DEFAULT 0
+);
+
+CREATE TABLE w3UpgradeSweepTransactionEntity(
+  txid TEXT NOT NULL PRIMARY KEY,
+  broadcastTime TEXT
 );
 
 getState:
@@ -98,6 +105,26 @@ setSweepCompleted:
 UPDATE w3UpgradeMigrationEntity
 SET sweepCompleted = 1
 WHERE rowId = 0;
+
+setOldW1SweepStatus:
+INSERT INTO w3UpgradeMigrationEntity(rowId, oldW1SweepStatus)
+VALUES (0, ?)
+ON CONFLICT(rowId) DO UPDATE SET oldW1SweepStatus = excluded.oldW1SweepStatus;
+
+setOldW1WipeReminderDismissed:
+INSERT INTO w3UpgradeMigrationEntity(rowId, oldW1WipeReminderDismissed)
+VALUES (0, 1)
+ON CONFLICT(rowId) DO UPDATE SET oldW1WipeReminderDismissed = 1;
+
+getSweepTransactions:
+SELECT * FROM w3UpgradeSweepTransactionEntity;
+
+insertSweepTransaction:
+INSERT INTO w3UpgradeSweepTransactionEntity(txid, broadcastTime)
+VALUES (?, ?);
+
+clearSweepTransactions:
+DELETE FROM w3UpgradeSweepTransactionEntity;
 
 setDdkBackedUp:
 UPDATE w3UpgradeMigrationEntity

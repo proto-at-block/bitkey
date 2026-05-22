@@ -10,8 +10,6 @@ import build.wallet.analytics.v1.Action
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.collectIsEnabledAsState
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.feature.flags.UsSmsFeatureFlag
 import build.wallet.notifications.NotificationTouchpointData
@@ -62,14 +60,13 @@ class RecoveryChannelSettingsUiStateMachineImpl(
   private val notificationPermissionRequester: NotificationPermissionRequester,
   private val uiErrorHintsProvider: UiErrorHintsProvider,
   private val notificationTouchpointService: NotificationTouchpointService,
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
   private val usSmsFeatureFlag: UsSmsFeatureFlag,
 ) : RecoveryChannelSettingsUiStateMachine {
   @Composable
   override fun model(props: RecoveryChannelSettingsProps): ScreenModel {
     val scope = rememberStableCoroutineScope()
     val smsErrorHint = uiErrorHintsProvider.errorHintFlow(UiErrorHintKey.Phone).collectAsState()
-    val isDesignSystemV2Enabled by designSystemUpdatesFeatureFlag.collectIsEnabledAsState()
+    val isDesignSystemV2Enabled = true
     val notificationTouchpointData = remember {
       notificationTouchpointService.notificationTouchpointData()
     }.collectAsState(null).value

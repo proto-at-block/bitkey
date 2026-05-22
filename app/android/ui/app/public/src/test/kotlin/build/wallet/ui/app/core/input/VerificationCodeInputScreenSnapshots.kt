@@ -50,7 +50,7 @@ class VerificationCodeInputScreenSnapshots : FunSpec({
   }
 
   test("verification input screen with resend countdown text - design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       FormScreen(
         model =
           VerificationCodeInputBodyModel(
@@ -69,7 +69,7 @@ class VerificationCodeInputScreenSnapshots : FunSpec({
   }
 
   test("verification input screen with resend button - design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       FormScreen(
         model =
           VerificationCodeInputBodyModel(
@@ -88,7 +88,7 @@ class VerificationCodeInputScreenSnapshots : FunSpec({
   }
 
   test("verification input screen with explainer - design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       FormScreen(
         model =
           VerificationCodeInputBodyModel(
@@ -107,7 +107,7 @@ class VerificationCodeInputScreenSnapshots : FunSpec({
   }
 
   test("verification input screen with four digit code - design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       FormScreen(
         model =
           VerificationCodeInputBodyModel(

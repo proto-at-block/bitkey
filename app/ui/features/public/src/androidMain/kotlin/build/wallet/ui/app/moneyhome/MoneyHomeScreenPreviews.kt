@@ -42,7 +42,6 @@ import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
 import build.wallet.ui.model.list.ListItemSideTextTint
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.tokens.market.MarketIcons
 import build.wallet.ui.tooling.PreviewWalletTheme
@@ -51,14 +50,12 @@ import build.wallet.ui.tooling.PreviewWalletTheme
 @Composable
 fun MoneyHomeScreenFullPreview(
   hideBalance: Boolean = false,
-  largeBalance: Boolean = false,
-  showSellButton: Boolean = false,
+  largeBalance: Boolean = false
 ) {
   PreviewWalletTheme {
     MoneyHomeScreenFull(
       hideBalance = hideBalance,
-      largeBalance = largeBalance,
-      showSellButton = showSellButton
+      largeBalance = largeBalance
     )
   }
 }
@@ -66,9 +63,7 @@ fun MoneyHomeScreenFullPreview(
 @Preview(name = "Money Home DSV2 Light")
 @Composable
 fun MoneyHomeScreenFullDesignSystemV2PreviewLight() {
-  PreviewWalletTheme(
-    designSystemUpdatesEnabled = true
-  ) {
+  PreviewWalletTheme {
     MoneyHomeScreenFullNewWalletGettingStartedNoActivity()
   }
 }
@@ -78,7 +73,6 @@ fun MoneyHomeScreenFullDesignSystemV2PreviewLight() {
 fun MoneyHomeScreenFullDesignSystemV2PreviewDark() {
   PreviewWalletTheme(
     theme = Theme.DARK,
-    designSystemUpdatesEnabled = true
   ) {
     MoneyHomeScreenFullNewWalletGettingStartedNoActivity()
   }
@@ -87,9 +81,7 @@ fun MoneyHomeScreenFullDesignSystemV2PreviewDark() {
 @Preview(name = "Money Home Pending Activity DSV2 Light")
 @Composable
 fun MoneyHomeScreenFullPendingActivityDesignSystemV2PreviewLight() {
-  PreviewWalletTheme(
-    designSystemUpdatesEnabled = true
-  ) {
+  PreviewWalletTheme {
     MoneyHomeScreenFullWithPendingActivity()
   }
 }
@@ -99,7 +91,6 @@ fun MoneyHomeScreenFullPendingActivityDesignSystemV2PreviewLight() {
 fun MoneyHomeScreenFullPendingActivityDesignSystemV2PreviewDark() {
   PreviewWalletTheme(
     theme = Theme.DARK,
-    designSystemUpdatesEnabled = true
   ) {
     MoneyHomeScreenFullWithPendingActivity()
   }
@@ -109,7 +100,6 @@ fun MoneyHomeScreenFullPendingActivityDesignSystemV2PreviewDark() {
 fun MoneyHomeScreenFull(
   hideBalance: Boolean = false,
   largeBalance: Boolean = false,
-  showSellButton: Boolean = false,
   isBuyButtonEnabled: Boolean = false,
   isSellButtonEnabled: Boolean = false,
   useSatsForRecentActivity: Boolean = false,
@@ -120,7 +110,7 @@ fun MoneyHomeScreenFull(
   isLoadingTransactions: Boolean = false,
   useSkeletonTransactions: Boolean = false,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   MoneyHomeScreen(
     model =
       MoneyHomeBodyModel(
@@ -145,7 +135,6 @@ fun MoneyHomeScreenFull(
           ),
         coachmark = null,
         buttonsModel = moneyMovementButtonsModel(
-          showSellButton = showSellButton,
           isBuyButtonEnabled = isBuyButtonEnabled,
           isSellButtonEnabled = isSellButtonEnabled
         ),
@@ -315,7 +304,6 @@ private fun previewPartnerTransactionItemModel(
 }
 
 private fun moneyMovementButtonsModel(
-  showSellButton: Boolean,
   isBuyButtonEnabled: Boolean,
   isSellButtonEnabled: Boolean,
 ) = MoneyHomeButtonsModel.MoneyMovementButtonsModel(
@@ -324,14 +312,10 @@ private fun moneyMovementButtonsModel(
       enabled = isBuyButtonEnabled,
       onClick = {}
     ),
-  sellButton = if (showSellButton) {
-    MoneyHomeButtonsModel.MoneyMovementButtonsModel.Button(
-      enabled = isSellButtonEnabled,
-      onClick = {}
-    )
-  } else {
-    null
-  },
+  sellButton = MoneyHomeButtonsModel.MoneyMovementButtonsModel.Button(
+    enabled = isSellButtonEnabled,
+    onClick = {}
+  ),
   sendButton =
     MoneyHomeButtonsModel.MoneyMovementButtonsModel.Button(
       enabled = true,
@@ -374,7 +358,6 @@ fun MoneyHomeScreenFullWithBuyAndSellEnabledPreview() {
 @Composable
 fun MoneyHomeScreenFullWithBuyAndSellEnabled() {
   MoneyHomeScreenFull(
-    showSellButton = true,
     isBuyButtonEnabled = true,
     isSellButtonEnabled = true,
     useSatsForRecentActivity = true
@@ -403,29 +386,18 @@ fun MoneyHomeScreenLitePreview() {
   }
 }
 
-@Preview(name = "Money Home Lite DSV2 Light")
+@Preview(name = "Money Home Lite Dark")
 @Composable
-fun MoneyHomeScreenLiteDesignSystemV2PreviewLight() {
-  PreviewWalletTheme(
-    designSystemUpdatesEnabled = true
-  ) {
-    MoneyHomeScreenLite(isDesignSystemV2Enabled = true)
-  }
-}
-
-@Preview(name = "Money Home Lite DSV2 Dark")
-@Composable
-fun MoneyHomeScreenLiteDesignSystemV2PreviewDark() {
+fun MoneyHomeScreenLitePreviewDark() {
   PreviewWalletTheme(
     theme = Theme.DARK,
-    designSystemUpdatesEnabled = true
   ) {
-    MoneyHomeScreenLite(isDesignSystemV2Enabled = true)
+    MoneyHomeScreenLite()
   }
 }
 
 @Composable
-fun MoneyHomeScreenLite(isDesignSystemV2Enabled: Boolean = false) {
+fun MoneyHomeScreenLite() {
   LiteMoneyHomeScreen(
     model =
       LiteMoneyHomeBodyModel(
@@ -442,7 +414,6 @@ fun MoneyHomeScreenLite(isDesignSystemV2Enabled: Boolean = false) {
         onBuyOwnBitkeyClick = {},
         onAcceptInviteClick = {},
         onIHaveABitkeyClick = {},
-        isDesignSystemV2Enabled = isDesignSystemV2Enabled
       )
   )
 }
@@ -456,7 +427,7 @@ fun MoneyHomeScreenLiteWithoutProtectedCustomersPreview() {
 }
 
 @Composable
-fun MoneyHomeScreenLiteWithoutProtectedCustomers(isDesignSystemV2Enabled: Boolean = false) {
+fun MoneyHomeScreenLiteWithoutProtectedCustomers() {
   LiteMoneyHomeScreen(
     model =
       LiteMoneyHomeBodyModel(
@@ -467,7 +438,6 @@ fun MoneyHomeScreenLiteWithoutProtectedCustomers(isDesignSystemV2Enabled: Boolea
         onBuyOwnBitkeyClick = {},
         onAcceptInviteClick = {},
         onIHaveABitkeyClick = {},
-        isDesignSystemV2Enabled = isDesignSystemV2Enabled
       )
   )
 }
@@ -482,7 +452,7 @@ fun MoneyHomeScreenFullNewWalletGettingStartedNoActivityPreview() {
 
 @Composable
 fun MoneyHomeScreenFullNewWalletGettingStartedNoActivity() {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   MoneyHomeScreen(
     model =
       MoneyHomeBodyModel(

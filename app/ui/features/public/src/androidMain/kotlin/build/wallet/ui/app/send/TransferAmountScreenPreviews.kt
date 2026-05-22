@@ -196,7 +196,6 @@ fun TransferAmountScreenWithEqualOrMoreBannerPreview() {
 @Composable
 fun TransferAmountScreenNoEntryDesignSystemV2Preview() {
   PreviewWalletTheme(
-    designSystemUpdatesEnabled = true,
     backgroundColor = lightStyleDictionaryColors.subtleBackground
   ) {
     TransferAmountScreen(
@@ -228,7 +227,6 @@ fun TransferAmountScreenNoEntryDesignSystemV2Preview() {
 @Composable
 fun TransferAmountScreenDesignSystemV2Preview() {
   PreviewWalletTheme(
-    designSystemUpdatesEnabled = true,
     backgroundColor = lightStyleDictionaryColors.subtleBackground
   ) {
     TransferAmountScreen(

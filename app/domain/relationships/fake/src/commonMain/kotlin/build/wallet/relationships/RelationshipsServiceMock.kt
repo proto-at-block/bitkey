@@ -40,7 +40,7 @@ class RelationshipsServiceMock(
   }
 
   var relationshipsFlow =
-    MutableStateFlow(
+    MutableStateFlow<Relationships?>(
       RelationshipsFake
     )
 
@@ -49,7 +49,7 @@ class RelationshipsServiceMock(
   override suspend fun getRelationshipsWithoutSyncing(
     accountId: AccountId,
   ): Result<Relationships, Error> {
-    return Ok(relationshipsFlow.value)
+    return Ok(relationshipsFlow.value ?: Relationships.EMPTY)
   }
 
   val removeRelationshipWithoutSyncingCalls = turbine("removeRelationshipWithoutSyncing calls")

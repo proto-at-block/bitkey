@@ -31,6 +31,7 @@ import build.wallet.router.Route
 import build.wallet.router.Router
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
@@ -45,6 +46,7 @@ import build.wallet.statemachine.settings.full.device.DeviceSettingsFormBodyMode
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsScreen
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetProps
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetUiStateMachine
+import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceInitialStep
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceProps
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
@@ -207,7 +209,8 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
           .invoke()
       }
 
-      awaitItem().bottomSheetModel.shouldNotBeNull()
+      awaitUntil { it.bottomSheetModel != null }
+        .bottomSheetModel.shouldNotBeNull()
         .body.shouldBeInstanceOf<FormBodyModel>()
         .secondaryButton.shouldNotBeNull()
         .onClick()
@@ -218,6 +221,8 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
         nfcCommandsMock.getDeviceInfoCalls.awaitItem().shouldBe(FirmwareDeviceInfoMock)
         nfcCommandsMock.getAuthenticationKeyCalls.awaitItem()
       }
+
+      awaitItem().bottomSheetModel.shouldNotBeNull()
     }
   }
 
@@ -628,7 +633,7 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
     }
   }
 
-  test("tap on reset device") {
+  test("tap on reset device shows scan sheet") {
     presenter.test(screen) { navigator ->
       // Tap the Wipe Device button after the non-destructive options.
       awaitBody<FormBodyModel> {
@@ -639,8 +644,59 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
           .invoke()
       }
 
-      // Going to manage reset device
+      awaitItem().bottomSheetModel.shouldNotBeNull()
+        .shouldBeInstanceOf<SheetModel>()
+        .body.shouldBeInstanceOf<FormBodyModel>()
+        .apply {
+          header.shouldNotBeNull().apply {
+            headline.shouldBe("Permanently wipe your device")
+            sublineModel.shouldNotBeNull().string
+              .shouldBe("Start by scanning the device you want to wipe.")
+          }
+          primaryButton.shouldNotBeNull().text.shouldBe("Scan to continue")
+          secondaryButton.shouldNotBeNull().text.shouldBe("Cancel")
+        }
+    }
+  }
+
+  test("tap on reset device scan sheet cancel returns to device settings") {
+    presenter.test(screen) { navigator ->
+      awaitBody<FormBodyModel> {
+        mainContentList[1]
+          .shouldBeInstanceOf<SettingsList>()
+          .itemWithTitle("Wipe device")
+          .onClick!!
+          .invoke()
+      }
+
+      awaitItem().bottomSheetModel.shouldNotBeNull()
+        .body.shouldBeInstanceOf<FormBodyModel>()
+        .secondaryButton.shouldNotBeNull()
+        .onClick()
+
+      awaitUntil { it.bottomSheetModel == null }
+        .body.shouldBeInstanceOf<FormBodyModel>()
+    }
+  }
+
+  test("tap on reset device scan sheet starts wipe flow at scan step") {
+    presenter.test(screen) { navigator ->
+      awaitBody<FormBodyModel> {
+        mainContentList[1]
+          .shouldBeInstanceOf<SettingsList>()
+          .itemWithTitle("Wipe device")
+          .onClick!!
+          .invoke()
+      }
+
+      awaitItem().bottomSheetModel.shouldNotBeNull()
+        .body.shouldBeInstanceOf<FormBodyModel>()
+        .primaryButton.shouldNotBeNull()
+        .onClick()
+
       awaitUntilBodyMock<WipingDeviceProps> {
+        initialStep.shouldBe(WipingDeviceInitialStep.ScanDevice)
+        fullAccount.shouldBe(screen.account)
         onBack()
       }
 

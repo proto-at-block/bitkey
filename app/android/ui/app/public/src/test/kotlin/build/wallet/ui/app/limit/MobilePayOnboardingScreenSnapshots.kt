@@ -21,17 +21,4 @@ class MobilePayOnboardingScreenSnapshots : FunSpec({
     )
   }
 
-  test("Mobile pay onboarding sheet model screen with design system v2 feature flag on") {
-    paparazzi.snapshotSheet(
-      model = MobilePayOnboardingScreenModel(
-        onContinue = {},
-        onSetUpLater = {},
-        onClosed = {},
-        headerHeadline = "Transfer without hardware",
-        headerSubline = "Spend up to a set daily limit without your Bitkey device.",
-        primaryButtonString = "Got it"
-      ),
-      designSystemUpdatesEnabled = true
-    )
-  }
 })

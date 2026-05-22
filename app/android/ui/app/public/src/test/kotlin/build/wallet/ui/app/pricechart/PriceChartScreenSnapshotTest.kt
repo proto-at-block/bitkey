@@ -110,29 +110,6 @@ class PriceChartScreenSnapshotTest : FunSpec({
     }
   }
 
-  test("Bitcoin Price chart - empty with design system v2 feature flag on") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
-      Screen(
-        model = ScreenModel(
-          body =
-            BitcoinPriceDetailsBodyModel(
-              data = emptyImmutableList(),
-              type = ChartType.BALANCE,
-              isLoading = false,
-              fiatCurrencyCode = "USD",
-              selectedPointData = SelectedPointData.Balance(
-                isUserSelected = false,
-                primaryFiatText = "$80.00",
-                secondaryFiatText = "+10.00% Past day",
-                primaryBtcText = "500 sats",
-                secondaryBtcText = "+30.00% Past day"
-              )
-            )
-        )
-      )
-    }
-  }
-
   test("Bitcoin Price chart - your balance with selection") {
     paparazzi.snapshot {
       val data = chartData.map {
@@ -250,58 +227,8 @@ class PriceChartScreenSnapshotTest : FunSpec({
     }
   }
 
-  test("Bitcoin Price chart - with selection and design system v2 feature flag on") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
-      Screen(
-        model = ScreenModel(
-          body =
-            BitcoinPriceDetailsBodyModel(
-              data = chartData,
-              selectedPointData = SelectedPointData.BtcPrice(
-                isUserSelected = false,
-                primaryText = "$80.00",
-                secondaryText = "10.00%",
-                secondaryTimePeriodText = "Past year",
-                direction = PriceDirection.UP
-              ),
-              selectedPointTimestamp = "Yesterday 12:31am",
-              selectedPoint = chartData[chartData.lastIndex / 3],
-              isLoading = false
-            )
-        )
-      )
-    }
-  }
-
-  test("Bitcoin Price chart - your balance with selection and design system v2 feature flag on") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
-      val data = chartData.map {
-        BalanceAt(Instant.fromEpochMilliseconds(it.x), it.y, it.y)
-      }.toImmutableList()
-      Screen(
-        model = ScreenModel(
-          body =
-            BitcoinPriceDetailsBodyModel(
-              data = data,
-              type = ChartType.BALANCE,
-              isLoading = false,
-              fiatCurrencyCode = "USD",
-              selectedPoint = data[data.size / 2],
-              selectedPointData = SelectedPointData.Balance(
-                isUserSelected = false,
-                primaryFiatText = "$80.00",
-                secondaryFiatText = "+10.00% Past day",
-                primaryBtcText = "500 sats",
-                secondaryBtcText = "+30.00% Past day"
-              )
-            )
-        )
-      )
-    }
-  }
-
-  test("Bitcoin Price chart - your balance loading with design system v2 feature flag on") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+  test("Bitcoin Price chart - your balance loading") {
+    paparazzi.snapshot {
       val data = chartData.map {
         BalanceAt(Instant.fromEpochMilliseconds(it.x), it.y, it.y)
       }.toImmutableList()
@@ -327,8 +254,8 @@ class PriceChartScreenSnapshotTest : FunSpec({
     }
   }
 
-  test("Bitcoin Price chart - month selection and design system v2 feature flag on") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+  test("Bitcoin Price chart - month selection") {
+    paparazzi.snapshot {
       val monthData = generateChartData(12)
       Screen(
         model = ScreenModel(

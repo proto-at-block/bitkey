@@ -1,5 +1,3 @@
-@file:Suppress("TooManyFunctions")
-
 package build.wallet.ui.components.icon
 
 import androidx.compose.foundation.Image
@@ -20,16 +18,13 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
 import build.wallet.ui.components.loading.LoadingBadge
-import build.wallet.ui.components.loading.LoadingIndicator
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.icon.*
 import build.wallet.ui.model.icon.IconBackgroundType.*
 import build.wallet.ui.model.icon.IconImage.*
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
-import build.wallet.ui.tokens.market.DesignSystemIconMapping
 import build.wallet.ui.tokens.painter
 import org.jetbrains.compose.resources.painterResource
 
@@ -43,23 +38,16 @@ fun Icon(
   opacity: Float? = null,
   text: String? = null,
 ) {
-  val style =
-    WalletTheme.iconStyle(
-      icon = LocalImage(icon),
-      color = color,
-      tint = tint
-    )
   IconImage(
     modifier = modifier,
-    model =
-      IconModel(
-        LocalImage(icon),
-        iconSize = size,
-        iconAlignmentInBackground = IconAlignmentInBackground.Center,
-        text = text,
-        iconOpacity = opacity
-      ),
-    style = style
+    model = IconModel(
+      icon = icon,
+      iconSize = size,
+      iconTint = tint,
+      iconOpacity = opacity
+    ),
+    color = color,
+    text = text
   )
 }
 
@@ -70,77 +58,21 @@ fun IconImage(
   color: Color = Color.Unspecified,
   text: String? = null,
 ) {
-  with(model) {
-    IconImage(
-      modifier = modifier,
-      iconImage = iconImage,
-      size = iconSize,
-      background = iconBackgroundType,
-      color = color,
-      tint = iconTint,
-      opacity = iconOpacity,
-      text = text,
-      iconAlignmentInBackground = iconAlignmentInBackground,
-      badgeType = model.badge
-    )
-  }
-}
-
-@Composable
-fun IconImage(
-  modifier: Modifier = Modifier,
-  iconImage: IconImage,
-  size: IconSize,
-  background: IconBackgroundType = Transient,
-  iconAlignmentInBackground: IconAlignmentInBackground = IconAlignmentInBackground.Center,
-  color: Color = Color.Unspecified,
-  tint: IconTint? = null,
-  opacity: Float? = null,
-  text: String? = null,
-  badgeType: BadgeType? = null,
-) {
-  val style =
-    WalletTheme.iconStyle(
-      icon = iconImage,
-      color = color,
-      tint = tint
-    )
-  IconImage(
-    modifier = modifier,
-    model =
-      IconModel(
-        iconImage = iconImage,
-        iconBackgroundType = background,
-        iconSize = size,
-        text = text,
-        iconOpacity = opacity,
-        iconAlignmentInBackground = iconAlignmentInBackground,
-        badge = badgeType
-      ),
-    style = style
+  val style = WalletTheme.iconStyle(
+    icon = model.iconImage,
+    color = color,
+    tint = model.iconTint
   )
-}
-
-@Composable
-fun IconImage(
-  model: IconModel,
-  modifier: Modifier = Modifier,
-  style: IconStyle,
-) {
   Box(
-    modifier =
-      modifier
-        .background(
-          foreground10 = WalletTheme.colors.foreground10,
-          primary = WalletTheme.colors.bitkeyPrimary,
-          type = model.iconBackgroundType
-        ).thenIf(model.iconBackgroundType is Circle || model.iconBackgroundType is Square) {
-          Modifier.size(model.totalSize.dp)
-        },
+    modifier = modifier
+      .iconBackground(model.iconBackgroundType)
+      .thenIf(model.iconBackgroundType !is Transient) {
+        Modifier.size(model.totalSize.dp)
+      },
     contentAlignment = model.iconAlignmentInBackground.toAlignment()
   ) {
     Box {
-      IconImageContent(model = model, style = style)
+      IconImageContent(model = model, style = style, text = text)
       IconBadge(badge = model.badge, styleColor = style.color)
     }
   }
@@ -150,107 +82,47 @@ fun IconImage(
 private fun IconImageContent(
   model: IconModel,
   style: IconStyle,
+  text: String?,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
-  val badgeColor = if (style.color != Color.Unspecified) style.color else WalletTheme.colors.foreground
+  val tint = style.color.tintOrNull()
+  val alpha = model.iconOpacity ?: 1f
+  val contentDescription = text ?: model.text
 
   when (val image = model.iconImage) {
-    is LocalImage -> LocalIconImage(
-      image = image,
-      model = model,
-      style = style,
-      isDesignSystemV2Enabled = isDesignSystemV2Enabled
+    is LocalImage -> Image(
+      modifier = Modifier.size(model.iconSize.dp).alpha(alpha),
+      painter = image.icon.painter(),
+      contentDescription = contentDescription,
+      colorFilter = tint
     )
-    is DrawableResourceImage -> DrawableResourceIconImage(
-      image = image,
-      model = model,
-      style = style
+    is DrawableResourceImage -> Image(
+      modifier = Modifier.size(model.iconSize.dp).alpha(alpha),
+      painter = painterResource(image.resource),
+      contentDescription = contentDescription,
+      colorFilter = tint
     )
-    is MarketIconImage -> MarketIconImageContent(
-      image = image,
-      model = model,
-      style = style
+    is MarketIconImage -> Image(
+      modifier = Modifier.size(model.iconSize.dp).alpha(alpha),
+      painter = painterResource(image.icon.resource),
+      contentDescription = contentDescription,
+      colorFilter = if (image.icon.multiColor) null else tint
     )
     is UrlImage -> UrlImage(
       image = image,
       iconSize = model.iconSize,
       imageAlpha = model.iconOpacity,
-      contentDescription = model.text,
+      contentDescription = contentDescription,
       imageTint = if (style.color != Color.Unspecified) style.color else null
     )
-    is IconImage.Loader -> LoadingIndicator(
-      modifier = Modifier.size(model.iconSize.dp),
-      color = style.color
-    )
-    IconImage.LoadingBadge -> LoadingBadge(
-      modifier = Modifier.size(model.iconSize.dp).alpha(model.iconOpacity ?: 1f),
-      color = badgeColor
+    LoadingBadge -> LoadingBadge(
+      modifier = Modifier.size(model.iconSize.dp).alpha(alpha),
+      color = if (style.color != Color.Unspecified) style.color else WalletTheme.colors.foreground
     )
   }
 }
 
-@Composable
-private fun DrawableResourceIconImage(
-  image: DrawableResourceImage,
-  model: IconModel,
-  style: IconStyle,
-) {
-  Image(
-    modifier = Modifier.size(model.iconSize.dp).alpha(model.iconOpacity ?: 1f),
-    painter = painterResource(image.resource),
-    contentDescription = model.text,
-    colorFilter = if (style.color != Color.Unspecified) ColorFilter.tint(style.color) else null
-  )
-}
-
-@Composable
-private fun LocalIconImage(
-  image: LocalImage,
-  model: IconModel,
-  style: IconStyle,
-  isDesignSystemV2Enabled: Boolean,
-) {
-  val marketIcon = if (isDesignSystemV2Enabled) {
-    DesignSystemIconMapping.getMarketIcon(image.icon)
-  } else {
-    null
-  }
-
-  if (marketIcon != null) {
-    val iconSize = if (isDesignSystemV2Enabled && isMoneyMovementIcon(image.icon)) {
-      IconSize.Regular.value
-    } else {
-      model.iconSize.value
-    }
-    Image(
-      modifier = Modifier.size(iconSize.dp).alpha(model.iconOpacity ?: 1f),
-      painter = painterResource(marketIcon.resource),
-      contentDescription = model.text,
-      colorFilter = marketIcon.colorFilter(style.color)
-    )
-  } else {
-    Image(
-      modifier = Modifier.size(model.iconSize.dp).alpha(model.iconOpacity ?: 1f),
-      painter = image.icon.painter(),
-      contentDescription = model.text,
-      colorFilter = if (style.color != Color.Unspecified) ColorFilter.tint(style.color) else null
-    )
-  }
-}
-
-@Composable
-private fun MarketIconImageContent(
-  image: MarketIconImage,
-  model: IconModel,
-  style: IconStyle,
-) {
-  Image(
-    modifier = Modifier.size(model.iconSize.dp).alpha(model.iconOpacity ?: 1f),
-    painter = painterResource(image.icon.resource),
-    contentDescription = model.text,
-    colorFilter = image.icon.colorFilter(style.color)
-  )
-}
+private fun Color.tintOrNull(): ColorFilter? =
+  if (this != Color.Unspecified) ColorFilter.tint(this) else null
 
 @Composable
 private fun BoxScope.IconBadge(
@@ -315,88 +187,45 @@ private fun IconAlignmentInBackground.toAlignment(): Alignment =
     IconAlignmentInBackground.BottomEnd -> Alignment.BottomEnd
   }
 
-private fun build.wallet.ui.tokens.market.MarketIcon.colorFilter(color: Color): ColorFilter? =
-  if (color != Color.Unspecified && !multiColor) {
-    ColorFilter.tint(color)
-  } else {
-    null
-  }
-
-private fun Modifier.background(
-  foreground10: Color,
-  primary: Color,
-  type: IconBackgroundType,
-): Modifier =
+private fun Modifier.iconBackground(type: IconBackgroundType): Modifier =
   composed {
     when (type) {
-      Transient ->
-        this
-
-      is Circle ->
-        this.then(
-          background(
-            color =
-              when (type.color) {
-                Circle.CircleColor.Foreground10 -> {
-                  val useSecondaryForCircleForeground10 =
-                    LocalDesignSystemUpdatesEnabled.current &&
-                      runCatching { LocalTheme.current == Theme.LIGHT }.getOrDefault(false)
-
-                  if (useSecondaryForCircleForeground10) {
-                    WalletTheme.colors.secondary
-                  } else {
-                    foreground10
-                  }
-                }
-                Circle.CircleColor.SubtleBackground -> WalletTheme.colors.subtleBackground
-                Circle.CircleColor.PrimaryBackground20 -> primary.copy(alpha = .2f)
-                Circle.CircleColor.InverseBackground -> WalletTheme.colors.inverseBackground
-                Circle.CircleColor.TranslucentBlack -> Color.Black.copy(alpha = .1f)
-                Circle.CircleColor.TranslucentWhite -> Color.White.copy(alpha = .2f)
-                Circle.CircleColor.Information -> WalletTheme.colors.calloutInformationTrailingIconBackground.copy(alpha = .25f)
-                Circle.CircleColor.InheritanceSurface -> WalletTheme.colors.inheritanceSurface
-                Circle.CircleColor.Dark -> WalletTheme.colors.accentDarkBackground
-                Circle.CircleColor.Primary -> WalletTheme.colors.primaryIconBackground
-                Circle.CircleColor.Hero -> {
-                  if (runCatching { LocalTheme.current == Theme.LIGHT }.getOrDefault(false)) {
-                    WalletTheme.colors.inverseBackground
-                  } else {
-                    WalletTheme.colors.primaryIconBackground
-                  }
-                }
-                Circle.CircleColor.BitkeyPrimary -> WalletTheme.colors.bitkeyPrimary
-                Circle.CircleColor.TransparentForeground -> WalletTheme.colors.foreground.copy(alpha = .2f)
-                Circle.CircleColor.Secondary -> WalletTheme.colors.secondary
-              },
-            shape = CircleShape
-          )
-        )
-      is Square ->
-        this.then(
-          background(
-            when (type.color) {
-              Square.Color.Default -> WalletTheme.colors.calloutDefaultTrailingIconBackground
-              Square.Color.Information -> WalletTheme.colors.calloutInformationTrailingIconBackground
-              Square.Color.Success -> WalletTheme.colors.calloutSuccessTrailingIconBackground
-              Square.Color.Warning -> WalletTheme.colors.calloutWarningTrailingIconBackground
-              Square.Color.Danger -> WalletTheme.colors.danger
-              Square.Color.InverseBackground -> WalletTheme.colors.inverseBackground
-              Square.Color.White -> WalletTheme.colors.subtleBackground
-              Square.Color.Transparent -> Color.Transparent
-            },
-            shape = RoundedCornerShape(type.cornerRadius)
-          )
-        )
+      Transient -> this
+      is Circle -> background(type.color.toComposeColor(), CircleShape)
+      is Square -> background(type.color.toComposeColor(), RoundedCornerShape(type.cornerRadius))
     }
   }
 
-/**
- * Returns true if the icon is a money movement icon (buy, sell, send, receive)
- * that should use 24dp size when the design system V2 feature flag is enabled.
- */
-private fun isMoneyMovementIcon(icon: Icon): Boolean {
-  return icon == Icon.LargeIconAdd ||
-    icon == Icon.LargeIconMinus ||
-    icon == Icon.LargeIconSend ||
-    icon == Icon.LargeIconReceive
-}
+@Composable
+private fun Circle.CircleColor.toComposeColor(): Color =
+  when (this) {
+    Circle.CircleColor.Foreground10 ->
+      if (LocalTheme.current == Theme.LIGHT) WalletTheme.colors.secondary else WalletTheme.colors.foreground10
+    Circle.CircleColor.SubtleBackground -> WalletTheme.colors.subtleBackground
+    Circle.CircleColor.PrimaryBackground20 -> WalletTheme.colors.bitkeyPrimary.copy(alpha = .2f)
+    Circle.CircleColor.InverseBackground -> WalletTheme.colors.inverseBackground
+    Circle.CircleColor.TranslucentBlack -> Color.Black.copy(alpha = .1f)
+    Circle.CircleColor.TranslucentWhite -> Color.White.copy(alpha = .2f)
+    Circle.CircleColor.Information -> WalletTheme.colors.calloutInformationTrailingIconBackground.copy(alpha = .25f)
+    Circle.CircleColor.InheritanceSurface -> WalletTheme.colors.inheritanceSurface
+    Circle.CircleColor.Dark -> WalletTheme.colors.accentDarkBackground
+    Circle.CircleColor.Primary -> WalletTheme.colors.primaryIconBackground
+    Circle.CircleColor.Hero ->
+      if (LocalTheme.current == Theme.LIGHT) WalletTheme.colors.inverseBackground else WalletTheme.colors.primaryIconBackground
+    Circle.CircleColor.BitkeyPrimary -> WalletTheme.colors.bitkeyPrimary
+    Circle.CircleColor.TransparentForeground -> WalletTheme.colors.foreground.copy(alpha = .2f)
+    Circle.CircleColor.Secondary -> WalletTheme.colors.secondary
+  }
+
+@Composable
+private fun Square.Color.toComposeColor(): Color =
+  when (this) {
+    Square.Color.Default -> WalletTheme.colors.calloutDefaultTrailingIconBackground
+    Square.Color.Information -> WalletTheme.colors.calloutInformationTrailingIconBackground
+    Square.Color.Success -> WalletTheme.colors.calloutSuccessTrailingIconBackground
+    Square.Color.Warning -> WalletTheme.colors.calloutWarningTrailingIconBackground
+    Square.Color.Danger -> WalletTheme.colors.danger
+    Square.Color.InverseBackground -> WalletTheme.colors.inverseBackground
+    Square.Color.White -> WalletTheme.colors.subtleBackground
+    Square.Color.Transparent -> Color.Transparent
+  }

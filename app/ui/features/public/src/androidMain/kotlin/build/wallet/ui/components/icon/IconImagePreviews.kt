@@ -55,11 +55,12 @@ internal fun IconImageWithAlphaPreview() {
 @Composable
 internal fun IconImageFromUrlPreview() {
   IconImage(
-    iconImage =
-      IconImage.UrlImage(
+    model = IconModel(
+      iconImage = IconImage.UrlImage(
         url = "https://upload.wikimedia.org/wikipedia/commons/c/c5/Square_Cash_app_logo.svg",
         fallbackIcon = Icon.Bitcoin
       ),
-    size = IconSize.Small
+      iconSize = IconSize.Small
+    )
   )
 }

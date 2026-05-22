@@ -545,7 +545,7 @@ private fun CenterIconContent(
     IconImage(
       model = IconModel(
         iconImage = IconImage.LocalImage(icon),
-        iconSize = IconSize.XLarge,
+        iconSize = IconSize.Custom(66),
         iconTint = IconTint.Background
       )
     )

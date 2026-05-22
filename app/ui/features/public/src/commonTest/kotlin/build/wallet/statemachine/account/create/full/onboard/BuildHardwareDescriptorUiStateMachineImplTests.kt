@@ -1,19 +1,16 @@
 package build.wallet.statemachine.account.create.full.onboard
 
 import app.cash.turbine.plusAssign
-import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.BUILD_HARDWARE_DESCRIPTOR_INTRO
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.LOADING_ONBOARDING_STEP
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.onboarding.HardwareDescriptorDeliveryServiceFake
 import build.wallet.onboarding.OnboardingCompletionServiceFake
+import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
@@ -21,7 +18,6 @@ import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
-import build.wallet.statemachine.ui.clickPrimaryButton
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -32,8 +28,6 @@ class BuildHardwareDescriptorUiStateMachineImplTests : FunSpec({
   val onboardingCompletionService = OnboardingCompletionServiceFake()
   val cloudBackupHealthRepository = CloudBackupHealthRepositoryMock(turbines::create)
   val keyboxDao = KeyboxDaoMock(turbines::create)
-  val featureFlagDao = FeatureFlagDaoFake()
-  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(featureFlagDao)
 
   val nfcSessionUIStateMachine = object :
     NfcSessionUIStateMachine,
@@ -47,7 +41,6 @@ class BuildHardwareDescriptorUiStateMachineImplTests : FunSpec({
     cloudBackupHealthRepository = cloudBackupHealthRepository,
     keyboxDao = keyboxDao,
     onboardingCompletionService = onboardingCompletionService,
-    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
   )
 
   val onBack = turbines.create<Unit>("onBack")
@@ -64,7 +57,6 @@ class BuildHardwareDescriptorUiStateMachineImplTests : FunSpec({
   beforeTest {
     hardwareDescriptorDeliveryService.reset()
     onboardingCompletionService.reset()
-    featureFlagDao.reset()
   }
 
   test("completes onboarding and shows intro screen") {
@@ -75,8 +67,8 @@ class BuildHardwareDescriptorUiStateMachineImplTests : FunSpec({
         message.shouldBe("Completing onboarding")
       }
 
-      awaitUntilBody<FormBodyModel>(id = BUILD_HARDWARE_DESCRIPTOR_INTRO) {
-        primaryButton?.text.shouldBe("Continue")
+      awaitUntilBody<PairNewHardwareBodyModel> {
+        primaryButton.text.shouldBe("Continue")
       }
 
       // Assert after awaiting the intro screen, since recordFallbackCompletion()
@@ -101,8 +93,8 @@ class BuildHardwareDescriptorUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitUntilBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
 
-      awaitBody<FormBodyModel>(id = BUILD_HARDWARE_DESCRIPTOR_INTRO) {
-        clickPrimaryButton()
+      awaitBody<PairNewHardwareBodyModel> {
+        primaryButton.onClick()
       }
 
       awaitBodyMock<NfcSessionUIStateMachineProps<*>> {
@@ -121,15 +113,15 @@ class BuildHardwareDescriptorUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitUntilBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
 
-      awaitBody<FormBodyModel>(id = BUILD_HARDWARE_DESCRIPTOR_INTRO) {
-        clickPrimaryButton()
+      awaitBody<PairNewHardwareBodyModel> {
+        primaryButton.onClick()
       }
 
       awaitBodyMock<NfcSessionUIStateMachineProps<*>> {
         onCancel()
       }
 
-      awaitBody<FormBodyModel>(id = BUILD_HARDWARE_DESCRIPTOR_INTRO)
+      awaitBody<PairNewHardwareBodyModel>()
     }
   }
 })

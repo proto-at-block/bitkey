@@ -10,6 +10,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import bitkey.f8e.privilegedactions.AuthorizationStrategy
 import bitkey.privilegedactions.FingerprintResetService
+import build.wallet.LoadableValue
+import build.wallet.LoadableValue.InitialLoading
+import build.wallet.LoadableValue.LoadedValue
 import build.wallet.coroutines.flow.launchTicker
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
@@ -29,20 +32,28 @@ class FingerprintResetStatusCardUiStateMachineImpl(
     RemainingRecoveryDelayWordsUpdateFrequency,
 ) : FingerprintResetStatusCardUiStateMachine {
   @Composable
-  override fun model(props: FingerprintResetStatusCardUiProps): CardModel? {
+  override fun model(props: FingerprintResetStatusCardUiProps): LoadableValue<CardModel?> {
+    var isRefreshing by remember(props.account) {
+      mutableStateOf(true)
+    }
+
     LaunchedEffect(props.account) {
+      isRefreshing = true
       fingerprintResetService.getLatestFingerprintResetAction()
         .onFailure { error ->
           logError { "Failed to fetch fingerprint reset action for card: $error" }
         }
+      isRefreshing = false
     }
 
     val pendingAction by fingerprintResetService.fingerprintResetAction.collectAsState()
+    val fingerprintResetActionSyncState by fingerprintResetService
+      .fingerprintResetActionSyncState
+      .collectAsState()
 
-    return pendingAction?.let { action ->
+    val card = pendingAction?.let { action ->
       val delayAndNotifyStrategy =
-        action.authorizationStrategy as? AuthorizationStrategy.DelayAndNotify
-          ?: return@let null // Should not happen for fingerprint reset
+        action.authorizationStrategy as? AuthorizationStrategy.DelayAndNotify ?: return@let null
 
       val actualEndTime = delayAndNotifyStrategy.delayEndTime
 
@@ -84,6 +95,12 @@ class FingerprintResetStatusCardUiStateMachineImpl(
         backgroundColor = CardModel.CardStyle.Gradient.BackgroundColor.InverseBackground,
         onClick = { props.onClick(action.id) }
       )
+    }
+
+    return when {
+      isRefreshing -> InitialLoading
+      fingerprintResetActionSyncState == InitialLoading -> InitialLoading
+      else -> LoadedValue(card)
     }
   }
 

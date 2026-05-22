@@ -10,7 +10,7 @@ import build.wallet.ui.tooling.PreviewWalletTheme
 @Preview(name = "Notification Preferences (Design System V2)")
 @Composable
 fun NotificationPreferencesFormScreenDesignSystemV2Preview() {
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     FormScreen(
       model = NotificationPreferenceFormBodyModel(
         transactionPush = false,

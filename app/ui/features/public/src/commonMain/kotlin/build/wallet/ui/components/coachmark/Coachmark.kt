@@ -27,7 +27,6 @@ import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.list.CoachmarkLabelModel
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
@@ -47,7 +46,7 @@ fun Coachmark(
   model: CoachmarkModel,
   offset: Offset,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val density = LocalDensity.current
   val coachmarkShape = RoundedCornerShape(if (isDesignSystemV2Enabled) 8.dp else 20.dp)
   val coachmarkColors = coachmarkColors()
@@ -188,7 +187,7 @@ private data class CoachmarkColors(
 
 @Composable
 private fun coachmarkColors(): CoachmarkColors {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val useDarkPaletteOnLightDsv2 =
     isDesignSystemV2Enabled && LocalTheme.current == Theme.LIGHT
   val contentColors = if (useDarkPaletteOnLightDsv2) darkStyleDictionaryColors else WalletTheme.colors

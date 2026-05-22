@@ -17,7 +17,6 @@ import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Contain
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.compose.thenIf
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
@@ -27,7 +26,7 @@ fun DataGroup(
   modifier: Modifier = Modifier,
   rows: DataList,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val lineColor =
     if (isDesignSystemV2Enabled && LocalTheme.current == Theme.DARK) {
       WalletTheme.colors.foreground30

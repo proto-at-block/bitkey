@@ -62,4 +62,69 @@ class CoachmarkDaoImplTests :
         .isEmpty()
         .shouldBe(true)
     }
+
+    test("getAllCoachmarks ignores unknown persisted ids") {
+      dao.getAllCoachmarks()
+      sqlDriver.factory.sqlDriver!!
+        .execute(
+          null,
+          """
+          INSERT INTO coachmarkEntity(id, viewed, expiration)
+          VALUES ('totally_removed_coachmark', 0, NULL)
+          """.trimIndent(),
+          0
+        )
+
+      dao.getAllCoachmarks().value.shouldBe(emptyList())
+    }
+
+    test("getAllCoachmarks decodes legacy enum-name rows") {
+      dao.getAllCoachmarks()
+      sqlDriver.factory.sqlDriver!!
+        .execute(
+          null,
+          """
+          INSERT INTO coachmarkEntity(id, viewed, expiration)
+          VALUES ('PrivateWalletHomeCoachmark', 0, NULL)
+          """.trimIndent(),
+          0
+        )
+
+      dao.getAllCoachmarks().value.shouldBe(
+        listOf(
+          Coachmark(
+            id = CoachmarkIdentifier.PrivateWalletHomeCoachmark,
+            viewed = false,
+            expiration = null
+          )
+        )
+      )
+    }
+
+    test("legacy enum-name rows can be fetched and marked viewed") {
+      dao.getAllCoachmarks()
+      sqlDriver.factory.sqlDriver!!
+        .execute(
+          null,
+          """
+          INSERT INTO coachmarkEntity(id, viewed, expiration)
+          VALUES ('PrivateWalletHomeCoachmark', 0, NULL)
+          """.trimIndent(),
+          0
+        )
+
+      dao
+        .getCoachmark(CoachmarkIdentifier.PrivateWalletHomeCoachmark)
+        .value
+        ?.viewed
+        .shouldBe(false)
+
+      dao.setViewed(CoachmarkIdentifier.PrivateWalletHomeCoachmark)
+
+      dao
+        .getCoachmark(CoachmarkIdentifier.PrivateWalletHomeCoachmark)
+        .value
+        ?.viewed
+        .shouldBe(true)
+    }
   })

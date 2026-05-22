@@ -9,7 +9,7 @@ class FwupNextComponentReadySnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
   test("fwup next component ready dsv2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       FwupNextComponentReadyModel(
         completedIndex = 1,
         totalMcus = 2,

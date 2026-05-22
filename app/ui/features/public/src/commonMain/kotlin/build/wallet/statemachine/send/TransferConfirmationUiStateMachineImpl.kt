@@ -27,10 +27,8 @@ import build.wallet.coroutines.scopes.mapAsStateFlow
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.ensureNotNull
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.feature.flags.TxVerificationFeatureFlag
 import build.wallet.feature.isEnabled
-import build.wallet.feature.collectIsEnabledAsState
 import build.wallet.limit.DailySpendingLimitStatus
 import build.wallet.limit.MobilePayData
 import build.wallet.limit.MobilePayService
@@ -75,12 +73,10 @@ class TransferConfirmationUiStateMachineImpl(
   private val accountConfigService: bitkey.account.AccountConfigService,
   private val txVerificationService: TxVerificationService,
   private val txVerificationFeatureFlag: TxVerificationFeatureFlag,
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : TransferConfirmationUiStateMachine {
   @Composable
   override fun model(props: TransferConfirmationUiProps): ScreenModel {
     val scope = rememberStableCoroutineScope()
-    val isDesignSystemV2Enabled by designSystemUpdatesFeatureFlag.collectIsEnabledAsState()
 
     var uiState: TransferConfirmationUiState by remember {
       mutableStateOf(CreatingAppSignedPsbtUiState)
@@ -322,7 +318,6 @@ class TransferConfirmationUiStateMachineImpl(
           props = props,
           state = state,
           isW3 = isW3,
-          isDesignSystemV2Enabled = isDesignSystemV2Enabled,
           selectedPriority = selectedPriority,
           requiredSigner = requiredSigner,
           onConfirm = {
@@ -624,7 +619,6 @@ class TransferConfirmationUiStateMachineImpl(
     selectedPriority: EstimatedTransactionPriority,
     requiredSigner: SigningFactor,
     isW3: Boolean,
-    isDesignSystemV2Enabled: Boolean,
     onConfirm: () -> Unit,
     onNetworkFees: () -> Unit,
     onArrivalTime: (() -> Unit)?,
@@ -665,8 +659,7 @@ class TransferConfirmationUiStateMachineImpl(
       } else {
         onArrivalTime
       },
-      requiresHardwareReview = isW3 && requiresHardware,
-      useDesignSystemV2Layout = isDesignSystemV2Enabled
+      requiresHardwareReview = isW3 && requiresHardware
     ).asModalFullScreen(
       bottomSheetModel = when (state.sheetState) {
         InfoSheet -> SheetModel(

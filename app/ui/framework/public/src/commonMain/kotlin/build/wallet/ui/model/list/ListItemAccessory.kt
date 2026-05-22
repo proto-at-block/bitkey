@@ -92,6 +92,13 @@ sealed interface ListItemAccessory {
     val isChecked: Boolean,
   ) : ListItemAccessory
 
+  data class CheckboxAccessory(
+    val isChecked: Boolean,
+    val onClick: () -> Unit,
+    val isEnabled: Boolean = true,
+    val testTag: String? = null,
+  ) : ListItemAccessory
+
   /**
    * Common accessories.
    */

@@ -33,7 +33,7 @@ class CloudBackupHealthStatusCardSnapshots : FunSpec({
   }
 
   test("backup health good with design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       CloudBackupHealthStatusCard(
         model =
           CloudBackupHealthStatusCardModelForPreview.copy(
@@ -45,7 +45,7 @@ class CloudBackupHealthStatusCardSnapshots : FunSpec({
   }
 
   test("backup health error with design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       CloudBackupHealthStatusCard(
         model = CloudBackupHealthStatusCardModelForPreview.copy(
           toolbarModel = null,
@@ -82,7 +82,7 @@ class CloudBackupHealthStatusCardSnapshots : FunSpec({
   }
 
   test("EEK good with design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       CloudBackupHealthStatusCard(
         model =
           CloudBackupHealthStatusCardEekModelForPreview.copy(
@@ -93,7 +93,7 @@ class CloudBackupHealthStatusCardSnapshots : FunSpec({
   }
 
   test("EEK error with design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       CloudBackupHealthStatusCard(
         model =
           CloudBackupHealthStatusCardEekModelForPreview.copy(

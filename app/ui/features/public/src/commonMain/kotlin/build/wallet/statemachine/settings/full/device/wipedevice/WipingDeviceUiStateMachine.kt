@@ -1,7 +1,7 @@
 package build.wallet.statemachine.settings.full.device.wipedevice
 
-import bitkey.account.HardwareType
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.device.wipe.InactiveHardwareDevice
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 
@@ -14,15 +14,21 @@ data class WipingDeviceProps(
   val onBack: () -> Unit,
   val onSuccess: () -> Unit,
   val fullAccount: FullAccount?,
+  val initialStep: WipingDeviceInitialStep = WipingDeviceInitialStep.Intro,
   /**
    * Context for the wipe operation.
    *
    * [WipeContext.Default] follows the normal flow with intro/confirmation screens.
-   * [WipeContext.W3UpgradeOldDevice] skips intro/confirmation since we already know
-   * the old device has no funds and should be wiped.
+   * [WipeContext.InactiveDevice] can skip the intro; confirmation still validates the
+   * tapped inactive device before wiping.
    */
   val wipeContext: WipeContext = WipeContext.Default,
 )
+
+enum class WipingDeviceInitialStep {
+  Intro,
+  ScanDevice,
+}
 
 /**
  * Context describing why a device wipe is being performed.
@@ -32,19 +38,16 @@ sealed interface WipeContext {
   data object Default : WipeContext
 
   /**
-   * Wiping the old hardware device after a W3 upgrade.
+   * Wiping a hardware device that was previously paired with this wallet.
    *
-   * Skips intro and confirmation screens since:
-   * - Funds have already been swept to the new wallet
-   * - The old device serial is known and enforced
+   * Skips the intro screen since:
+   * - The inactive device has no sweepable funds
+   * - For the W3-upgrade old W1, any required sweep confirmation checks have passed
    *
-   * @param oldHardwareType The hardware type of the old device (used to select the correct
-   *   NFC commands, especially important for fake hardware).
-   * @param oldSerial The serial number of the old device. The NFC session will verify that
-   *   the tapped device matches this serial before wiping.
+   * The confirmation screen is still shown so the final NFC tap can validate the
+   * tapped inactive device before wiping.
    */
-  data class W3UpgradeOldDevice(
-    val oldHardwareType: HardwareType,
-    val oldSerial: String? = null,
+  data class InactiveDevice(
+    val device: InactiveHardwareDevice,
   ) : WipeContext
 }

@@ -13,7 +13,6 @@ import androidx.compose.ui.viewinterop.UIKitView
 import bitkey.account.HardwareType
 import build.wallet.statemachine.core.form.FormMainContentModel.DeviceStatusCard
 import build.wallet.ui.components.video.VideoPlayer
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.ObjCAction
@@ -143,7 +142,7 @@ internal actual fun BitkeyDeviceMedia(
   hardwareType: HardwareType,
   interactionState: BitkeyDeviceMediaInteractionState,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val supports3DMedia = supportsBitkeyDevice3DMedia(hardwareType)
   val modelScene = remember(isDesignSystemV2Enabled, supports3DMedia, hardwareType) {
     if (!isDesignSystemV2Enabled || !supports3DMedia) {

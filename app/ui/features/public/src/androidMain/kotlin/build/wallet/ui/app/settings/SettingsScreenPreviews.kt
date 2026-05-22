@@ -88,7 +88,7 @@ fun SettingsScreen(
 @Preview
 @Composable
 fun SettingsScreenAllItemsEnabledDesignSystemPreview() {
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     SettingsScreen(allItemsEnabled = true)
   }
 }

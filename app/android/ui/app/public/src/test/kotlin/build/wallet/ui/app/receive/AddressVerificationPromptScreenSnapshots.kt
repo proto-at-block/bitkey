@@ -19,7 +19,7 @@ class AddressVerificationPromptScreenSnapshots : FunSpec({
   }
 
   test("address verification prompt screen - design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       AddressVerificationPromptBodyModel(
         onBack = {},
         onVerify = {},

@@ -8,16 +8,15 @@ import bitkey.account.HardwareType
 import bitkey.firmware.HardwareUnlockInfoService
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.compose.collections.buildImmutableList
+import build.wallet.device.wipe.DeviceWipeEligibilityService
+import build.wallet.device.wipe.InactiveDeviceWipeValidationError
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.logging.logDebug
+import build.wallet.logging.logWarn
 import build.wallet.nfc.NfcException
 import build.wallet.statemachine.core.*
-import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.nfc.ConfirmationHandlerOverride
 import build.wallet.statemachine.nfc.ConfirmationResultContent
 import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
@@ -25,18 +24,11 @@ import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification
 import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationContent
 import build.wallet.statemachine.settings.full.device.wipedevice.WipeContext
-import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceEventTrackerScreenId
 import build.wallet.statemachine.settings.full.device.wipedevice.confirmation.WipingDeviceConfirmationUiState.ConfirmationScreen
 import build.wallet.statemachine.settings.full.device.wipedevice.confirmation.WipingDeviceConfirmationUiState.WipingDevice
-import build.wallet.ui.model.StandardClick
-import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.callout.CalloutModel
-import build.wallet.ui.model.icon.IconModel
-import build.wallet.ui.model.icon.IconSize
-import build.wallet.ui.model.list.*
-import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
-import build.wallet.ui.model.toolbar.ToolbarModel
+import com.github.michaelbull.result.fold
 import com.github.michaelbull.result.get
+import com.github.michaelbull.result.onFailure
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.firstOrNull
@@ -47,24 +39,23 @@ class WipingDeviceConfirmationUiStateMachineImpl(
   private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
   private val hardwareUnlockInfoService: HardwareUnlockInfoService,
   private val accountConfigService: AccountConfigService,
+  private val deviceWipeEligibilityService: DeviceWipeEligibilityService,
 ) : WipingDeviceConfirmationUiStateMachine {
-  private val confirmationMessages = arrayOf(
-    "This device can no longer be used to access the funds in my Bitkey wallet.",
-    "This device can no longer be used to recover access to my Bitkey wallet if I lose my phone."
+  private val wipeConfirmationMessages = arrayOf(
+    "Wiping disconnects this device from your Bitkey wallet.",
+    "This device will no longer access the funds in your wallet.",
+    "This device will no longer help recover your wallet.",
+    "After the wipe is complete, you can safely give away or dispose of this device."
   )
 
   @Composable
   override fun model(props: WipingDeviceConfirmationProps): ScreenModel {
+    val confirmationMessages = wipeConfirmationMessages
     var uiState: WipingDeviceConfirmationUiState by remember(props.wipeContext) {
-      mutableStateOf(
-        when (props.wipeContext) {
-          is WipeContext.W3UpgradeOldDevice -> WipingDevice
-          is WipeContext.Default -> ConfirmationScreen()
-        }
-      )
+      mutableStateOf(ConfirmationScreen())
     }
     // List to manage the states of the checkboxes
-    var confirmationMessageStates by remember {
+    var confirmationMessageStates by remember(props.wipeContext) {
       mutableStateOf<ImmutableList<WipingDeviceConfirmationState>>(
         List(confirmationMessages.size) {
           WipingDeviceConfirmationState.NotCompleted
@@ -78,22 +69,10 @@ class WipingDeviceConfirmationUiStateMachineImpl(
           it is WipingDeviceConfirmationState.Completed
         }
 
-        if (allMessagesChecked && !state.isShowingScanAndWipeSheet) {
-          uiState = state.copy(
-            isShowingConfirmationWarning = false
-          )
-        }
-
-        val onConfirmWipeDevice: () -> Unit = if (allMessagesChecked) {
-          {
+        val onConfirmWipeDevice: () -> Unit = {
+          if (allMessagesChecked) {
             uiState = state.copy(
               isShowingScanAndWipeSheet = true
-            )
-          }
-        } else {
-          {
-            uiState = state.copy(
-              isShowingConfirmationWarning = true
             )
           }
         }
@@ -115,7 +94,7 @@ class WipingDeviceConfirmationUiStateMachineImpl(
               }
             )
           }.toImmutableList(),
-          isShowingConfirmationWarning = state.isShowingConfirmationWarning,
+          isConfirmEnabled = allMessagesChecked,
           bottomSheetModel =
             if (state.isShowingScanAndWipeSheet) {
               ScanAndWipeConfirmationSheet(
@@ -135,10 +114,7 @@ class WipingDeviceConfirmationUiStateMachineImpl(
           fullAccount = props.fullAccount,
           onSuccess = props.onWipeDevice,
           onCancel = {
-            when (props.wipeContext) {
-              is WipeContext.W3UpgradeOldDevice -> props.onBack()
-              is WipeContext.Default -> uiState = ConfirmationScreen()
-            }
+            uiState = ConfirmationScreen()
           },
           isDevicePaired = props.isDevicePaired,
           wipeContext = props.wipeContext
@@ -152,80 +128,17 @@ class WipingDeviceConfirmationUiStateMachineImpl(
     onBack: () -> Unit,
     onConfirmWipeDevice: () -> Unit,
     messageItemModels: ImmutableList<WipingDeviceConfirmationItemModel>,
-    isShowingConfirmationWarning: Boolean,
+    isConfirmEnabled: Boolean,
     bottomSheetModel: SheetModel? = null,
   ): ScreenModel {
-    val mainContentList = buildImmutableList {
-      add(
-        FormMainContentModel.ListGroup(
-          listGroupModel = ListGroupModel(
-            items = messageItemModels.map { itemModel ->
-              createListItem(
-                itemModel = itemModel,
-                title = itemModel.title
-              )
-            }.toImmutableList(),
-            style = ListGroupStyle.DIVIDER
-          )
-        )
-      )
-      if (isShowingConfirmationWarning) {
-        add(
-          FormMainContentModel.Callout(
-            item = CalloutModel(
-              title = "To wipe your device, please confirm and acknowledge the messages above.",
-              subtitle = null,
-              treatment = CalloutModel.Treatment.Warning
-            )
-          )
-        )
-      }
-    }
-
     return ScreenModel(
       body = WipingDeviceConfirmationBodyModel(
         onBack = onBack,
         onConfirmWipeDevice = onConfirmWipeDevice,
-        mainContentList = mainContentList
+        messageItemModels = messageItemModels,
+        isConfirmEnabled = isConfirmEnabled
       ),
       bottomSheetModel = bottomSheetModel
-    )
-  }
-
-  private data class WipingDeviceConfirmationBodyModel(
-    override val onBack: () -> Unit,
-    override val mainContentList: ImmutableList<FormMainContentModel>,
-    val onConfirmWipeDevice: () -> Unit,
-  ) : FormBodyModel(
-      id = WipingDeviceEventTrackerScreenId.RESET_DEVICE_CONFIRMATION,
-      onBack = onBack,
-      toolbar = ToolbarModel(
-        leadingAccessory = ToolbarAccessoryModel.IconAccessory.BackAccessory(onBack)
-      ),
-      header = FormHeaderModel(
-        headline = "Confirm to continue",
-        subline = "I understand that:"
-      ),
-      mainContentList = mainContentList,
-      primaryButton = ButtonModel(
-        text = "Wipe device",
-        isEnabled = true,
-        size = ButtonModel.Size.Footer,
-        treatment = ButtonModel.Treatment.Secondary,
-        onClick = StandardClick(onConfirmWipeDevice)
-      )
-    )
-
-  private fun createListItem(
-    itemModel: WipingDeviceConfirmationItemModel,
-    title: String,
-  ) = with(itemModel) {
-    ListItemModel(
-      leadingAccessory = state.leadingAccessory(
-        onClick = onClick
-      ),
-      title = title,
-      treatment = ListItemTreatment.PRIMARY
     )
   }
 
@@ -256,27 +169,32 @@ class WipingDeviceConfirmationUiStateMachineImpl(
       accountConfigService.activeOrDefaultConfig()
     }.collectAsState()
     val hardwareType = fullAccount?.config?.hardwareType
-      ?: when (defaultConfig) {
-        is FullAccountConfig -> (defaultConfig as FullAccountConfig).hardwareType
+      ?: when (val config = defaultConfig) {
+        is FullAccountConfig -> config.hardwareType
         // Fail-safe to W3 behavior when hardware type is unknown.
-        is DefaultAccountConfig -> (defaultConfig as DefaultAccountConfig).hardwareType ?: HardwareType.W3
+        is DefaultAccountConfig -> config.hardwareType ?: HardwareType.W3
         else -> HardwareType.W3
       }
-    val isW3 = hardwareType == HardwareType.W3
+    val bitcoinNetworkType = fullAccount?.config?.bitcoinNetworkType
+      ?: defaultConfig.bitcoinNetworkType
 
     val (hardwareTypeOverride, hardwareVerification, needsAuth) =
       resolveWipeConfig(wipeContext, isDevicePaired)
+    val isW3 = (hardwareTypeOverride ?: hardwareType) == HardwareType.W3
     return nfcConfirmableSessionUiStateMachine.model(
       NfcConfirmableSessionUIStateMachineProps(
         session = { session, commands ->
-          // For W3 upgrade, verify the tapped device is the old device before wiping
-          if (wipeContext is WipeContext.W3UpgradeOldDevice && wipeContext.oldSerial != null) {
-            val deviceInfo = commands.getDeviceInfo(session)
-            if (deviceInfo.serial != wipeContext.oldSerial) {
-              throw NfcException.CommandError(
-                "Wrong device: expected serial ${wipeContext.oldSerial} but got ${deviceInfo.serial}"
-              )
-            }
+          if (wipeContext is WipeContext.InactiveDevice) {
+            deviceWipeEligibilityService.validateInactiveDeviceForWipe(
+              account = fullAccount,
+              session = session,
+              commands = commands,
+              expectedDevice = wipeContext.device,
+              bitcoinNetworkType = bitcoinNetworkType
+            ).fold(
+              success = {},
+              failure = { throw it.toNfcException() }
+            )
           }
           commands.wipeDevice(session)
         },
@@ -289,6 +207,10 @@ class WipingDeviceConfirmationUiStateMachineImpl(
               firmwareDeviceInfoDao.clear()
               hardwareUnlockInfoService.clear()
             }
+            recordW3UpgradeOldW1WipedIfApplicable(
+              fullAccount = fullAccount,
+              wipeContext = wipeContext
+            )
             onSuccess()
           } else {
             onCancel()
@@ -309,6 +231,7 @@ class WipingDeviceConfirmationUiStateMachineImpl(
         // W1: Skip second tap (legacy behavior - firmware wipes immediately).
         // W3: Use full two-tap flow (firmware requires on-device confirmation).
         hardwareTypeOverride = hardwareTypeOverride,
+        skipFirmwareTelemetry = wipeContext is WipeContext.InactiveDevice,
         onRequiresConfirmation = if (isW3) {
           null // Use default two-tap behavior
         } else {
@@ -325,7 +248,37 @@ class WipingDeviceConfirmationUiStateMachineImpl(
       )
     )
   }
+
+  private suspend fun recordW3UpgradeOldW1WipedIfApplicable(
+    fullAccount: FullAccount?,
+    wipeContext: WipeContext,
+  ) {
+    val account = fullAccount ?: return
+    val device = (wipeContext as? WipeContext.InactiveDevice)?.device ?: return
+
+    deviceWipeEligibilityService
+      .recordW3UpgradeOldW1WipedIfApplicable(account, device)
+      .onFailure { error ->
+        logWarn(throwable = error) { "Failed to record old-W1 wipe completion" }
+      }
+  }
 }
+
+private fun InactiveDeviceWipeValidationError.toNfcException(): NfcException =
+  when (this) {
+    InactiveDeviceWipeValidationError.DeviceLocked ->
+      NfcException.CommandErrorUnauthenticated()
+    InactiveDeviceWipeValidationError.FeatureDisabled ->
+      NfcException.CommandError("Inactive device wipe is disabled")
+    InactiveDeviceWipeValidationError.WrongDevice ->
+      NfcException.CommandError("Wrong inactive device tapped")
+    InactiveDeviceWipeValidationError.MissingBitcoinNetworkType ->
+      NfcException.CommandError("Unable to verify inactive device without account network")
+    InactiveDeviceWipeValidationError.DeviceCheckFailed ->
+      NfcException.CommandError("Unable to verify inactive device")
+    InactiveDeviceWipeValidationError.OldDeviceSweepPendingConfirmation ->
+      NfcException.CommandError("Inactive device transfer still confirming")
+  }
 
 private data class WipeDeviceConfig(
   val hardwareTypeOverride: HardwareType?,
@@ -338,10 +291,10 @@ private fun resolveWipeConfig(
   isDevicePaired: Boolean,
 ): WipeDeviceConfig =
   when (wipeContext) {
-    is WipeContext.W3UpgradeOldDevice -> WipeDeviceConfig(
-      hardwareTypeOverride = wipeContext.oldHardwareType,
+    is WipeContext.InactiveDevice -> WipeDeviceConfig(
+      hardwareTypeOverride = wipeContext.device.hardwareType,
       hardwareVerification = HardwareVerification.NotRequired,
-      needsAuth = false
+      needsAuth = true
     )
     is WipeContext.Default -> WipeDeviceConfig(
       hardwareTypeOverride = null,
@@ -354,33 +307,11 @@ private fun resolveWipeConfig(
     )
   }
 
-private fun WipingDeviceConfirmationState.leadingAccessory(
-  onClick: () -> Unit,
-): ListItemAccessory =
-  when (this) {
-    WipingDeviceConfirmationState.NotCompleted -> ListItemAccessory.IconAccessory(
-      model = IconModel(
-        icon = Icon.SmallIconCheckbox,
-        iconSize = IconSize.Small
-      ),
-      onClick = onClick
-    )
-
-    WipingDeviceConfirmationState.Completed -> ListItemAccessory.IconAccessory(
-      model = IconModel(
-        icon = Icon.SmallIconCheckboxSelected,
-        iconSize = IconSize.Small
-      ),
-      onClick = onClick
-    )
-  }
-
 private sealed interface WipingDeviceConfirmationUiState {
   /**
    * Viewing the wipe device intro screen
    */
   data class ConfirmationScreen(
-    val isShowingConfirmationWarning: Boolean = false,
     val isShowingScanAndWipeSheet: Boolean = false,
   ) : WipingDeviceConfirmationUiState
 

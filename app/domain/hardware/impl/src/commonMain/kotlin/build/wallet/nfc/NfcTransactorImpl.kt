@@ -10,7 +10,7 @@ import build.wallet.nfc.interceptors.NfcTransactionInterceptor
 import build.wallet.nfc.platform.NfcSessionProvider
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.mapEither
+import com.github.michaelbull.result.mapError
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -46,28 +46,23 @@ internal class NfcTransactorImpl(
     return catchingResult {
       nfcTransactionLock.withLock {
         isTransacting = true
-        sessionProvider.get(parameters).use { nfcSession ->
-          CompletableDeferred<T>().also { result ->
-            val commands = commandsProvider.forSession(parameters)
+        try {
+          sessionProvider.get(parameters).use { nfcSession ->
+            CompletableDeferred<T>().also { result ->
+              val commands = commandsProvider.forSession(parameters)
 
-            val effect: NfcEffect = { session, cmds ->
-              result.complete(transaction(session, cmds))
-            }
+              val effect: NfcEffect = { session, cmds ->
+                result.complete(transaction(session, cmds))
+              }
 
-            val chain = interceptors.fold(effect) { acc, interceptor -> interceptor(acc) }
-            chain(nfcSession, commands)
-          }.await()
+              val chain = interceptors.fold(effect) { acc, interceptor -> interceptor(acc) }
+              chain(nfcSession, commands)
+            }.await()
+          }
+        } finally {
+          isTransacting = false
         }
       }
-    }.mapEither(
-      success = {
-        isTransacting = false
-        it
-      },
-      failure = {
-        isTransacting = false
-        it.asNfcException()
-      }
-    )
+    }.mapError { it.asNfcException() }
   }
 }

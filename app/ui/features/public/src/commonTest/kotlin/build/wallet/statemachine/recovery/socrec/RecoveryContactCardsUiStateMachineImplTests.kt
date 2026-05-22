@@ -2,6 +2,7 @@ package build.wallet.statemachine.recovery.socrec
 
 import app.cash.turbine.plusAssign
 import bitkey.relationships.Relationships
+import build.wallet.LoadableValue.InitialLoading
 import build.wallet.bitkey.relationships.BeneficiaryInvitationFake
 import build.wallet.bitkey.relationships.InvitationFake
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState
@@ -9,11 +10,13 @@ import build.wallet.bitkey.relationships.UnendorsedTrustedContactFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.relationships.RelationshipsServiceMock
 import build.wallet.statemachine.core.test
+import build.wallet.testing.shouldBeLoaded
 import build.wallet.time.ClockFake
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.should
 import kotlinx.datetime.Instant.Companion.DISTANT_FUTURE
 import kotlinx.datetime.Instant.Companion.DISTANT_PAST
@@ -44,7 +47,19 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
 
   test("no invitations produces no cards") {
     recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
-      awaitItem().shouldBeEmpty()
+      awaitItem().shouldBeLoaded().shouldBeEmpty()
+    }
+  }
+
+  test("waits for relationships cache to load before loading") {
+    relationshipsService.relationships.value = null
+
+    recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
+      awaitItem().shouldBe(InitialLoading)
+
+      relationshipsService.relationships.value = relationships
+
+      awaitItem().shouldBeLoaded().shouldBeEmpty()
     }
   }
 
@@ -53,9 +68,9 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
       invitations = listOf(InvitationFake)
     )
     recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
-      awaitItem().let {
-        it.size.shouldBeEqual(1)
-        it.first().let { cardModel ->
+      awaitItem().shouldBeLoaded().let { cards ->
+        cards.size.shouldBeEqual(1)
+        cards.first().let { cardModel ->
           cardModel.title.shouldNotBeNull().string.shouldBeEqual("trustedContactAlias fake")
           cardModel.onClick.shouldNotBeNull().invoke()
         }
@@ -69,10 +84,16 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
       invitations = listOf(InvitationFake.copy(expiresAt = DISTANT_FUTURE))
     )
     recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
-      awaitItem().let {
-        it.size.shouldBeEqual(1)
-        it.first().let { cardModel ->
+      awaitItem().shouldBeLoaded().let { cards ->
+        cards.size.shouldBeEqual(1)
+        cards.first().let { cardModel ->
           cardModel.trailingButton.shouldNotBeNull().text.shouldBeEqual("Pending")
+          cardModel.style.shouldBeEqual(
+            build.wallet.statemachine.moneyhome.card.CardModel.CardStyle.Gradient(
+              backgroundColor =
+                build.wallet.statemachine.moneyhome.card.CardModel.CardStyle.Gradient.BackgroundColor.InverseBackground
+            )
+          )
         }
       }
     }
@@ -84,10 +105,16 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
     )
 
     recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
-      awaitItem().let {
-        it.size.shouldBeEqual(1)
-        it.first().let { cardModel ->
+      awaitItem().shouldBeLoaded().let { cards ->
+        cards.size.shouldBeEqual(1)
+        cards.first().let { cardModel ->
           cardModel.trailingButton.shouldNotBeNull().text.shouldBeEqual("Expired")
+          cardModel.style.shouldBeEqual(
+            build.wallet.statemachine.moneyhome.card.CardModel.CardStyle.Gradient(
+              backgroundColor =
+                build.wallet.statemachine.moneyhome.card.CardModel.CardStyle.Gradient.BackgroundColor.Default
+            )
+          )
         }
       }
     }
@@ -103,7 +130,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
     )
 
     recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
-      awaitItem().size.shouldBeEqual(2)
+      awaitItem().shouldBeLoaded().size.shouldBeEqual(2)
     }
   }
 
@@ -116,7 +143,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
       )
     )
     recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
-      awaitItem().should { cards ->
+      awaitItem().shouldBeLoaded().should { cards ->
         cards.size.shouldBeEqual(1)
         cards.first().let { cardModel ->
           cardModel.title.shouldNotBeNull().string.shouldBeEqual("someContact")
@@ -136,7 +163,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
     )
 
     recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
-      awaitItem().should { cards ->
+      awaitItem().shouldBeLoaded().should { cards ->
         cards.size.shouldBeEqual(1)
         cards.first().let { cardModel ->
           cardModel.title.shouldNotBeNull().string.shouldBeEqual("someContact")
@@ -156,7 +183,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
     )
 
     recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
-      awaitItem().should { cards ->
+      awaitItem().shouldBeLoaded().should { cards ->
         cards.size.shouldBeEqual(1)
         cards.first().let { cardModel ->
           cardModel.title.shouldNotBeNull().string.shouldBeEqual("someContact")
@@ -179,7 +206,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
     )
 
     recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
-      awaitItem().shouldBeEmpty()
+      awaitItem().shouldBeLoaded().shouldBeEmpty()
     }
   }
 
@@ -191,7 +218,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
       )
     )
     recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
-      awaitItem().size.shouldBeEqual(0)
+      awaitItem().shouldBeLoaded().size.shouldBeEqual(0)
     }
   }
 })

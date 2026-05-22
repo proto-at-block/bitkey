@@ -9,7 +9,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
@@ -21,7 +20,7 @@ fun Divider(
   thickness: Dp = 1.dp,
 ) {
   val resolvedColor =
-    color ?: if (LocalDesignSystemUpdatesEnabled.current && LocalTheme.current == Theme.DARK) {
+    color ?: if (LocalTheme.current == Theme.DARK) {
       WalletTheme.colors.foreground30
     } else {
       WalletTheme.colors.foreground10

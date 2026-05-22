@@ -3,12 +3,20 @@ config_dir = '../../../config/'
 mcu_dir = '../../../mcu/'
 lib_rtos_dir = '../../../lib/rtos/'
 
+freertos_port_c = custom_target('freertos_port_c',
+  input: [
+    src_dir/'portable/GCC/ARM_CM33_NTZ/non_secure/port.c',
+    lib_rtos_dir/'src/ports/port.c.patch',
+  ],
+  output: 'port.c',
+  command: ['patch', '-F0', '-o', '@OUTPUT@', '@INPUT0@', '@INPUT1@'],
+)
+
 # Common ARM CM33 configuration for embedded platforms
 arm_cm33_config = {
   'embedded' : true,
   'sources' : [
-    #src_dir/'portable/GCC/ARM_CM33_NTZ/non_secure/port.c', # replaced by a local diff in lib_rtos_dir
-    lib_rtos_dir/'src/ports/port.c',
+    freertos_port_c,
     src_dir/'portable/GCC/ARM_CM33_NTZ/non_secure/portasm.c',
     # src_dir/'portable/GCC/ARM_CM33/secure/secure_context_port.c',
     # src_dir/'portable/GCC/ARM_CM33/secure/secure_context.c',

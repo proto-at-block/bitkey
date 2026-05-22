@@ -546,7 +546,7 @@ class TransactionDetailsUiStateMachineImpl(
               showTopDivider = true,
               iconButton = IconButtonModel(
                 iconModel = IconModel(
-                  icon = Icon.SmallIconInformationFilled,
+                  icon = Icon.SmallIconInformation,
                   iconSize = IconSize.Accessory,
                   iconBackgroundType = IconBackgroundType.Circle(
                     circleSize = IconSize.Accessory

@@ -10,7 +10,7 @@ class TextFieldDesignSystemV2Snapshots : FunSpec({
   val paparazzi = paparazziExtension(DeviceConfig.PIXEL_6)
 
   test("no text and no focus") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       TextField(
         placeholderText = "Email Address",
         value = TextFieldValue(""),

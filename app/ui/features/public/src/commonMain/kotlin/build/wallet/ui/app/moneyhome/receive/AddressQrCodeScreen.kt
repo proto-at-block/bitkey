@@ -53,7 +53,6 @@ import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.system.BackHandler
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.market.MarketIcons
@@ -95,7 +94,7 @@ fun AddressQrCodeScreen(
           ) {
             when (val content = model.content) {
               is QrCode -> {
-                val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+                val isDesignSystemV2Enabled = true
                 var isAddressExpanded by remember(content.addressDisplayString) {
                   mutableStateOf(false)
                 }
@@ -215,7 +214,7 @@ private fun QrCodeWithAddressCard(
   onCopyClick: () -> Unit = {},
   qrCodeState: QrCodeState,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val cardBackgroundColor = if (isDesignSystemV2Enabled) {
     WalletTheme.colors.subtleBackground
   } else {
@@ -251,7 +250,7 @@ private fun QrCodeWithAddressCard(
         is QrCodeState.Success -> {
           QrCode(
             matrix = qrCodeState.matrix,
-            centerIcon = Icon.BitcoinB,
+            centerIcon = Icon.SmallIconBitcoinStroked,
             backgroundColor = cardBackgroundColor
           )
         }

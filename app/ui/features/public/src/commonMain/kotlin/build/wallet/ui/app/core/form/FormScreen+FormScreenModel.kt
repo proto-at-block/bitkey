@@ -106,7 +106,6 @@ import build.wallet.ui.model.label.CallToActionModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.model.video.VideoStartingPosition
 import build.wallet.ui.system.KeepScreenOn
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.tokens.market.MarketIcons
@@ -142,7 +141,7 @@ fun FormScreen(
   model: FormBodyModel,
   modifier: Modifier = Modifier,
 ) {
-  val resolvedModel = resolveFormScreenModel(model, LocalDesignSystemUpdatesEnabled.current)
+  val resolvedModel = resolveFormScreenModel(model)
   val footerVisible = rememberFooterVisible(model.key, resolvedModel.footerRevealDelayMillis)
 
   if (model.keepScreenOn) {
@@ -226,14 +225,8 @@ private fun FormScreenContent(
 
 internal fun resolveFormScreenModel(
   model: FormBodyModel,
-  designSystemUpdatesEnabled: Boolean,
 ): ResolvedFormScreenModel {
-  val designSystemV2Model =
-    if (designSystemUpdatesEnabled) {
-      model.designSystemV2Model
-    } else {
-      null
-    }
+  val designSystemV2Model = model.designSystemV2Model
   val headerModel = resolveHeaderModel(model, designSystemV2Model)
 
   return ResolvedFormScreenModel(
@@ -340,7 +333,7 @@ private fun rememberFooterVisible(
 
 @Composable
 internal fun ColumnScope.FormBodyMainContent(model: FormBodyModel) {
-  val resolvedModel = resolveFormScreenModel(model, LocalDesignSystemUpdatesEnabled.current)
+  val resolvedModel = resolveFormScreenModel(model)
   val footerVisible = rememberFooterVisible(model.key, resolvedModel.footerRevealDelayMillis)
 
   FormBodyMainContent(
@@ -356,7 +349,7 @@ private fun ColumnScope.FormBodyMainContent(
   resolvedModel: ResolvedFormScreenModel,
   footerVisible: Boolean,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   resolvedModel.mainContentList.forEachIndexed { index, mainContent ->
     when (mainContent) {
       is Spacer ->
@@ -433,7 +426,7 @@ private fun ColumnScope.FormBodyMainContent(
 
 @Composable
 internal fun FooterContent(model: FormBodyModel) {
-  val resolvedModel = resolveFormScreenModel(model, LocalDesignSystemUpdatesEnabled.current)
+  val resolvedModel = resolveFormScreenModel(model)
 
   FooterContent(
     model = model,
@@ -768,12 +761,6 @@ private fun rememberShowcaseVideoVisibility(
 @Composable
 private fun showcaseVideoResourcePath(video: Showcase.Content.VideoContent.Video): String =
   when (video) {
-    Showcase.Content.VideoContent.Video.BITKEY_WIPE -> {
-      when (LocalTheme.current) {
-        Theme.LIGHT -> Res.getVideoResource("bitkey_wipe")
-        Theme.DARK -> Res.getVideoResource("bitkey_wipe_dark")
-      }
-    }
     Showcase.Content.VideoContent.Video.BITKEY_ROTATE -> {
       when (LocalTheme.current) {
         Theme.LIGHT -> Res.getVideoResource("bitkey_rotate")

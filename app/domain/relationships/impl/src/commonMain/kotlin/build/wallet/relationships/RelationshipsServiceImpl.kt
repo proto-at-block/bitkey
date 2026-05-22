@@ -288,8 +288,8 @@ class RelationshipsServiceImpl(
     accountId: AccountId,
     appAuthKey: PublicKey<AppGlobalAuthKey>?,
     hwAuthPublicKey: HwAuthPublicKey?,
-  ): Result<Relationships, Error> =
-    coroutineBinding {
+  ): Result<Relationships, Error> {
+    val result = coroutineBinding {
       // Fetch latest relationships from f8e
       val relationships = relationshipsF8eClient()
         .getRelationships(
@@ -309,6 +309,8 @@ class RelationshipsServiceImpl(
 
       verifiedRelationships
     }
+    return result
+  }
 
   /**
    * Returns a copy of the given relationships with the trusted contacts verified using [account]'s

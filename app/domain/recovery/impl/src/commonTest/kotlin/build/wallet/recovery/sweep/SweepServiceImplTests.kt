@@ -262,4 +262,35 @@ class SweepServiceImplTests : FunSpec({
     result.shouldBeErrOfType<SweepGenerationFailed>()
       .cause.shouldBe(error)
   }
+
+  test("estimateSweepToActiveKeyset returns sweep when inactive keyset funds are available") {
+    accountService.setActiveAccount(FullAccountMock)
+    sweepGenerator.generateSweepResult = Ok(listOf(sweep1, sweep2))
+
+    val result = service().estimateSweepToActiveKeyset(KeyboxMock)
+
+    val sweep = result.shouldBeOk()
+    sweep.unsignedPsbts.shouldContainExactly(sweep1, sweep2)
+    sweep.totalFeeAmount.shouldNotBeNull()
+  }
+
+  test("estimateSweepToActiveKeyset returns NoFundsToSweep when inactive keysets have no funds") {
+    accountService.setActiveAccount(FullAccountMock)
+    sweepGenerator.generateSweepResult = Ok(emptyList())
+
+    val result = service().estimateSweepToActiveKeyset(KeyboxMock)
+
+    result.shouldBeErrOfType<NoFundsToSweep>()
+  }
+
+  test("estimateSweepToActiveKeyset returns SweepGenerationFailed if sweep generation fails") {
+    accountService.setActiveAccount(FullAccountMock)
+    val error = SweepGeneratorError.FailedToListKeysets
+    sweepGenerator.generateSweepResult = Err(error)
+
+    val result = service().estimateSweepToActiveKeyset(KeyboxMock)
+
+    result.shouldBeErrOfType<SweepGenerationFailed>()
+      .cause.shouldBe(error)
+  }
 })

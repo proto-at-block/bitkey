@@ -37,7 +37,8 @@ secure_engine_dep = declare_dependency(
 
 secure_engine_bl_lib = library('secure-engine-bl',
   srcs,
-  c_args : features + ['-DSECURE_ENGINE_BOOTLOADER'],
+  # LOG_FORCE_RAW: bootloaders don't link log_uart_dep — see lib/log/inc/log.h.
+  c_args : features + ['-DSECURE_ENGINE_BOOTLOADER', '-DLOG_FORCE_RAW=1'],
   include_directories : [secure_engine_includes, bl_includes, 'src', se_manager_includes],
   dependencies : bl_deps,
 )

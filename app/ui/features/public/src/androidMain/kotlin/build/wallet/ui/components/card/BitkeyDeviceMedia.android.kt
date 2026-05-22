@@ -42,7 +42,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import bitkey.account.HardwareType
 import build.wallet.statemachine.core.form.FormMainContentModel.DeviceStatusCard
 import build.wallet.ui.components.video.VideoPlayer
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import com.google.android.filament.Engine
 import com.google.android.filament.MaterialInstance
 import com.google.android.filament.Texture
@@ -202,9 +201,9 @@ internal actual fun BitkeyDeviceMedia(
   hardwareType: HardwareType,
   interactionState: BitkeyDeviceMediaInteractionState,
 ) {
-  val shouldRenderRealtimeScene = LocalDesignSystemUpdatesEnabled.current &&
+  val shouldRenderRealtimeScene =
     supportsBitkeyDevice3DMedia(hardwareType) &&
-    !LocalInspectionMode.current
+      !LocalInspectionMode.current
 
   if (!shouldRenderRealtimeScene) {
     Box(

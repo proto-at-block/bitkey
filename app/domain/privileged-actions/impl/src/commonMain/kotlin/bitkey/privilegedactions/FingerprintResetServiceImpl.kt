@@ -8,6 +8,9 @@ import bitkey.f8e.privilegedactions.AuthorizationStrategyType
 import bitkey.f8e.privilegedactions.PrivilegedActionInstance
 import bitkey.f8e.privilegedactions.PrivilegedActionType
 import bitkey.firmware.HardwareUnlockInfoService
+import build.wallet.LoadableValue
+import build.wallet.LoadableValue.InitialLoading
+import build.wallet.LoadableValue.LoadedValue
 import build.wallet.account.AccountService
 import build.wallet.account.getAccount
 import build.wallet.auth.AppAuthKeyMessageSigner
@@ -26,6 +29,7 @@ import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.datetime.Clock
 import okio.ByteString
 import okio.ByteString.Companion.decodeBase64
@@ -46,6 +50,7 @@ class FingerprintResetServiceImpl(
   private val messageSigner: AppAuthKeyMessageSigner,
 ) : FingerprintResetService, FingerprintResetSyncWorker {
   private val fingerprintResetActionCache = MutableStateFlow<PrivilegedActionInstance?>(null)
+  private val fingerprintResetActionSyncStateCache = MutableStateFlow<LoadableValue<Unit>>(InitialLoading)
 
   override val runStrategy: Set<RunStrategy> = setOf(RunStrategy.Startup())
   override val timeout: TimeoutStrategy = TimeoutStrategy.Always(30.seconds)
@@ -57,6 +62,8 @@ class FingerprintResetServiceImpl(
   }
 
   override val fingerprintResetAction = fingerprintResetActionCache
+  override val fingerprintResetActionSyncState: StateFlow<LoadableValue<Unit>> =
+    fingerprintResetActionSyncStateCache
 
   /**
    * Create a fingerprint reset privileged action using a GrantRequest
@@ -111,7 +118,10 @@ class FingerprintResetServiceImpl(
         createAction(request)
       }
       .also { result ->
-        result.onSuccess { instance -> fingerprintResetActionCache.value = instance }
+        result.onSuccess { instance ->
+          fingerprintResetActionCache.value = instance
+          fingerprintResetActionSyncStateCache.value = LoadedValue(Unit)
+        }
       }
   }
 
@@ -148,6 +158,7 @@ class FingerprintResetServiceImpl(
       // Clear the cached action after completing the fingerprint reset - we can only fetch the
       // grant once, so as soon as that completes successfully, we reset the cache.
       fingerprintResetActionCache.value = null
+      fingerprintResetActionSyncStateCache.value = LoadedValue(Unit)
 
       val grant = try {
         val serializedRequest = fingerprintResetResponse.serializedRequest.decodeBase64()
@@ -203,6 +214,7 @@ class FingerprintResetServiceImpl(
           .bind()
 
         fingerprintResetActionCache.value = null
+        fingerprintResetActionSyncStateCache.value = LoadedValue(Unit)
       } else {
         // No persisted grant, proceed with server cancellation
         val account = accountService.getAccount<FullAccount>()
@@ -218,10 +230,13 @@ class FingerprintResetServiceImpl(
         }.bind()
 
         fingerprintResetActionCache.value = null
+        fingerprintResetActionSyncStateCache.value = LoadedValue(Unit)
       }
     }
 
   override suspend fun getLatestFingerprintResetAction(): Result<PrivilegedActionInstance?, PrivilegedActionError> {
+    fingerprintResetActionSyncStateCache.value = InitialLoading
+
     return getPrivilegedActionsByType(PrivilegedActionType.RESET_FINGERPRINT)
       .flatMap { actions ->
         // There should be at most one pending action for fingerprint reset
@@ -233,8 +248,13 @@ class FingerprintResetServiceImpl(
       }
       .also { result ->
         result.mapBoth(
-          success = { instance -> fingerprintResetActionCache.value = instance },
-          failure = {}
+          success = { instance ->
+            fingerprintResetActionCache.value = instance
+            fingerprintResetActionSyncStateCache.value = LoadedValue(Unit)
+          },
+          failure = {
+            fingerprintResetActionSyncStateCache.value = LoadedValue(Unit)
+          }
         )
       }
   }

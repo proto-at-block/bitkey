@@ -13,7 +13,6 @@ import build.wallet.ui.tooling.PreviewWalletTheme
 fun ActivationInstructionsV2ScreenLightPreview() {
   PreviewWalletTheme(
     theme = Theme.LIGHT,
-    designSystemUpdatesEnabled = true
   ) {
     PairNewHardwareScreen(
       model = activationInstructionsV2PreviewModel()
@@ -26,7 +25,6 @@ fun ActivationInstructionsV2ScreenLightPreview() {
 fun ActivationInstructionsV2ScreenDarkPreview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
-    designSystemUpdatesEnabled = true
   ) {
     PairNewHardwareScreen(
       model = activationInstructionsV2PreviewModel()
@@ -39,7 +37,6 @@ fun ActivationInstructionsV2ScreenDarkPreview() {
 fun ActivationInstructionsV2ScreenDebugPreview() {
   PreviewWalletTheme(
     theme = Theme.LIGHT,
-    designSystemUpdatesEnabled = true
   ) {
     PairNewHardwareScreen(
       model = activationInstructionsV2PreviewModel(),

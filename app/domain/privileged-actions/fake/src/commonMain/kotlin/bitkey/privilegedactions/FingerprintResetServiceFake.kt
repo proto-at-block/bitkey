@@ -5,6 +5,9 @@ import bitkey.f8e.privilegedactions.AuthorizationStrategy
 import bitkey.f8e.privilegedactions.AuthorizationStrategyType
 import bitkey.f8e.privilegedactions.PrivilegedActionInstance
 import bitkey.f8e.privilegedactions.PrivilegedActionType
+import build.wallet.LoadableValue
+import build.wallet.LoadableValue.InitialLoading
+import build.wallet.LoadableValue.LoadedValue
 import build.wallet.account.AccountService
 import build.wallet.account.AccountServiceFake
 import build.wallet.db.DbError
@@ -16,6 +19,7 @@ import com.github.michaelbull.result.map
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.time.Duration.Companion.days
@@ -29,6 +33,7 @@ class FingerprintResetServiceFake(
   val clearEnrolledFingerprintsCalls = mutableListOf<Unit>()
   val deleteFingerprintResetGrantCalls = mutableListOf<Unit>()
   private val _fingerprintResetAction = MutableStateFlow<PrivilegedActionInstance?>(null)
+  private val _fingerprintResetActionSyncState = MutableStateFlow<LoadableValue<Unit>>(InitialLoading)
   private val _pendingGrant = MutableStateFlow<Grant?>(null)
 
   var completeFingerprintResetAndGetGrantResult: Result<Grant, PrivilegedActionError> = Ok(
@@ -48,12 +53,16 @@ class FingerprintResetServiceFake(
   var deleteFingerprintResetGrantResult: Result<Unit, DbError> = Ok(Unit)
 
   override val fingerprintResetAction = _fingerprintResetAction
+  override val fingerprintResetActionSyncState: StateFlow<LoadableValue<Unit>> = _fingerprintResetActionSyncState
 
   override suspend fun createFingerprintResetPrivilegedAction(
     grantRequest: GrantRequest,
   ): Result<PrivilegedActionInstance, PrivilegedActionError> {
     val result = Ok(createDefaultPrivilegedActionInstance())
-    result.onSuccess { _fingerprintResetAction.value = it }
+    result.onSuccess {
+      _fingerprintResetAction.value = it
+      _fingerprintResetActionSyncState.value = LoadedValue(Unit)
+    }
     return result
   }
 
@@ -64,6 +73,7 @@ class FingerprintResetServiceFake(
     return completeFingerprintResetAndGetGrantResult.also { result ->
       result.onSuccess { grant ->
         _fingerprintResetAction.value = null
+        _fingerprintResetActionSyncState.value = LoadedValue(Unit)
         _pendingGrant.value = grant
       }
     }
@@ -73,13 +83,19 @@ class FingerprintResetServiceFake(
     cancellationToken: String,
   ): Result<Unit, PrivilegedActionError> {
     _fingerprintResetAction.value = null
+    _fingerprintResetActionSyncState.value = LoadedValue(Unit)
     _pendingGrant.value = null
     return Ok(Unit)
   }
 
   override suspend fun getLatestFingerprintResetAction(): Result<PrivilegedActionInstance?, PrivilegedActionError> {
+    _fingerprintResetActionSyncState.value = InitialLoading
+
     return getLatestFingerprintResetActionResult.also { result ->
-      result.onSuccess { _fingerprintResetAction.value = it }
+      result.onSuccess {
+        _fingerprintResetAction.value = it
+      }
+      _fingerprintResetActionSyncState.value = LoadedValue(Unit)
     }
   }
 
@@ -100,6 +116,7 @@ class FingerprintResetServiceFake(
     )
     getLatestFingerprintResetActionResult = Ok(pendingAction)
     _fingerprintResetAction.value = pendingAction
+    _fingerprintResetActionSyncState.value = LoadedValue(Unit)
   }
 
   /**
@@ -114,6 +131,7 @@ class FingerprintResetServiceFake(
    */
   fun reset() {
     _fingerprintResetAction.value = null
+    _fingerprintResetActionSyncState.value = InitialLoading
     _pendingGrant.value = null
     getLatestFingerprintResetActionResult = Ok(null)
 

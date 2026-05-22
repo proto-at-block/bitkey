@@ -6,7 +6,6 @@ import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId
 import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.statemachine.core.BodyModel
-import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.moneyhome.BaseMoneyHomeBodyModel
 import build.wallet.statemachine.moneyhome.MoneyHomeButtonsModel
 import build.wallet.statemachine.moneyhome.card.CardListModel
@@ -42,7 +41,6 @@ data class LiteMoneyHomeBodyModel(
     onBuyOwnBitkeyClick: () -> Unit,
     onAcceptInviteClick: () -> Unit,
     onIHaveABitkeyClick: () -> Unit,
-    isDesignSystemV2Enabled: Boolean = false,
   ) : this(
     cardsModel = CardListModel(
       cards = listOfNotNull(
@@ -65,22 +63,15 @@ data class LiteMoneyHomeBodyModel(
     trailingToolbarAccessoryModel =
       ToolbarAccessoryModel.IconAccessory(
         model = IconButtonModel(
-          iconModel = if (isDesignSystemV2Enabled) {
-            IconModel(
-              icon = MarketIcons.EllipsisHorizontal,
-              iconSize = IconSize.HeaderToolbar,
-              iconBackgroundType = IconBackgroundType.Circle(
-                circleSize = IconSize.Regular,
-                color = IconBackgroundType.Circle.CircleColor.SubtleBackground
-              ),
-              iconTint = IconTint.Foreground
-            )
-          } else {
-            IconModel(
-              icon = Icon.SmallIconSettings,
-              iconSize = IconSize.HeaderToolbar
-            )
-          },
+          iconModel = IconModel(
+            icon = MarketIcons.EllipsisHorizontal,
+            iconSize = IconSize.HeaderToolbar,
+            iconBackgroundType = IconBackgroundType.Circle(
+              circleSize = IconSize.Regular,
+              color = IconBackgroundType.Circle.CircleColor.SubtleBackground
+            ),
+            iconTint = IconTint.Foreground
+          ),
           testTag = "lite-money-home-settings",
           onClick = StandardClick(onSettings)
         )

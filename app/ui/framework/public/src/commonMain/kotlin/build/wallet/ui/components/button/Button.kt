@@ -33,7 +33,6 @@ import build.wallet.ui.model.button.ButtonModel.Size
 import build.wallet.ui.model.button.ButtonModel.Size.Regular
 import build.wallet.ui.model.button.ButtonModel.Treatment
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import kotlinx.coroutines.launch
 
@@ -161,7 +160,7 @@ internal fun Button(
   onClick: () -> Unit,
   content: @Composable () -> Unit,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   Box(
     modifier =
       modifier

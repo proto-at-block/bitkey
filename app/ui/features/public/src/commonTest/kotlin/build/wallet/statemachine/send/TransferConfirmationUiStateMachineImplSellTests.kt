@@ -17,7 +17,6 @@ import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.feature.flags.TxVerificationFeatureFlag
 import build.wallet.limit.MobilePayServiceMock
 import build.wallet.money.BitcoinMoney
@@ -110,7 +109,6 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
   val appFunctionalityService = AppFunctionalityServiceFake()
   val txVerificationService = TxVerificationServiceFake()
   val verificationFlag = TxVerificationFeatureFlag(FeatureFlagDaoFake())
-  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(FeatureFlagDaoFake())
   val accountConfigService = AccountConfigServiceFake()
 
   val stateMachine = TransferConfirmationUiStateMachineImpl(
@@ -124,7 +122,6 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
     accountConfigService = accountConfigService,
     txVerificationService = txVerificationService,
     txVerificationFeatureFlag = verificationFlag,
-    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag
   )
 
   // Reset mocks before each test
@@ -184,7 +181,7 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
         )
         header.shouldNotBeNull().headline.shouldBe("Confirm test-partner-name sale")
 
-        mainContentList[0].shouldBeTypeOf<FormMainContentModel.Divider>()
+        mainContentList[0].shouldBeTypeOf<FormMainContentModel.Spacer>()
 
         // Correct title, no fee selection enabled
         mainContentList[1]
@@ -216,7 +213,7 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
               onTitle.shouldNotBeNull()
               titleIcon.shouldNotBeNull()
                 .iconImage
-                .shouldBe(IconImage.LocalImage(Icon.SmallIconInformationFilled))
+                .shouldBe(IconImage.LocalImage(Icon.SmallIconInformation))
               sideText.shouldBe("$2.00")
               secondarySideText.shouldBe("4,791 sats")
             }

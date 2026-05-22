@@ -77,8 +77,8 @@ class RecoveryContactEnrollmentFlowSnapshots : FunSpec({
     }
   }
 
-  test("Recovery Contact Enrollment save beneficiary with tos agreed and design system v2 feature flag on") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+  test("Recovery Contact Enrollment save beneficiary with tos agreed") {
+    paparazzi.snapshot {
       FormScreen(
         SaveContactBodyModel(
           trustedContactName = "Ryan",

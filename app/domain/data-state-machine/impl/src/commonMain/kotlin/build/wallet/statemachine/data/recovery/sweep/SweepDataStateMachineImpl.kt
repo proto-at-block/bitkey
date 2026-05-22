@@ -4,12 +4,12 @@ import androidx.compose.runtime.*
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.Companion.sweepPriority
 import build.wallet.bitcoin.transactions.Psbt
+import build.wallet.device.wipe.DeviceWipeEligibilityService
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.mobilepay.MobilePaySigningF8eClient
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.logging.logFailure
-import build.wallet.mapUnit
 import build.wallet.recovery.sweep.Sweep
 import build.wallet.recovery.sweep.SweepContext
 import build.wallet.recovery.sweep.SweepPsbt
@@ -27,6 +27,7 @@ class SweepDataStateMachineImpl(
   private val mobilePaySigningF8eClient: MobilePaySigningF8eClient,
   private val appSpendingWalletProvider: AppSpendingWalletProvider,
   private val bitcoinWalletService: BitcoinWalletService,
+  private val deviceWipeEligibilityService: DeviceWipeEligibilityService,
   private val minimumLoadingDuration: MinimumLoadingDuration,
 ) : SweepDataStateMachine {
   private sealed interface State {
@@ -168,12 +169,23 @@ class SweepDataStateMachineImpl(
       is SignAndBroadcastState -> {
         LaunchedEffect("sign-and-broadcast") {
           props.onAttemptSweep()
-          signAndBroadcastPsbts(props, state)
-            .onSuccess {
-              sweepService.markSweepHandled()
-              sweepState = SweepSuccessState(state.sweep)
+          val broadcastTxids = signAndBroadcastPsbts(props, state)
+            .fold(
+              success = { it },
+              failure = {
+                sweepState = SweepFailedState(it)
+                return@LaunchedEffect
+              }
+            )
+
+          recordActualW3UpgradeSweepTxidsIfNeeded(props, broadcastTxids)
+            .onFailure {
+              sweepState = SweepFailedState(it)
+              return@LaunchedEffect
             }
-            .onFailure { sweepState = SweepFailedState(it) }
+
+          sweepService.markSweepHandled()
+          sweepState = SweepSuccessState(state.sweep)
         }
         SigningAndBroadcastingSweepsData
       }
@@ -206,6 +218,18 @@ class SweepDataStateMachineImpl(
     }
   }
 
+  private suspend fun recordActualW3UpgradeSweepTxidsIfNeeded(
+    props: SweepDataProps,
+    broadcastTxids: Set<String>,
+  ): Result<Unit, Error> {
+    if (props.sweepContext !is SweepContext.W3Upgrade) {
+      return Ok(Unit)
+    }
+
+    return deviceWipeEligibilityService.recordW3UpgradeSweepTxids(broadcastTxids)
+      .logFailure { "Failed to record W3 upgrade broadcast txids" }
+  }
+
   private fun mergeHwSignedPsbts(
     allPsbts: Set<SweepPsbt>,
     hwSignedPsbts: Set<Psbt>,
@@ -222,15 +246,15 @@ class SweepDataStateMachineImpl(
   private suspend fun signAndBroadcastPsbts(
     props: SweepDataProps,
     state: SignAndBroadcastState,
-  ): Result<Unit, Throwable> =
+  ): Result<Set<String>, Throwable> =
     Ok(state.allPsbts)
       .mapAll { signAndBroadcastPsbt(props, it) }
-      .mapUnit()
+      .map { it.toSet() }
 
   private suspend fun signAndBroadcastPsbt(
     props: SweepDataProps,
     sweepPsbt: SweepPsbt,
-  ): Result<Unit, Throwable> =
+  ): Result<String, Throwable> =
     coroutineBinding {
       // Apply app signature if required
       val appSignedPsbt = if (sweepPsbt.signaturePlan.requiresAppSignature) {
@@ -260,12 +284,14 @@ class SweepDataStateMachineImpl(
       }
 
       // Broadcast the fully signed PSBT
-      bitcoinWalletService
+      val broadcastDetail = bitcoinWalletService
         .broadcast(
           psbt = fullySignedPsbt,
           estimatedTransactionPriority = sweepPriority()
         )
         .logFailure { "Error broadcasting sweep transaction." }
         .bind()
+
+      broadcastDetail.transactionId
     }
 }

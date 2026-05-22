@@ -32,7 +32,6 @@ fun YourBalanceEmptyStateDesignSystemV2LightPreview() {
   PreviewWalletTheme(
     theme = Theme.LIGHT,
     backgroundColor = lightStyleDictionaryColorsDesignSystemUpdates.background,
-    designSystemUpdatesEnabled = true
   ) {
     BitcoinPriceDetailsBodyModel(
       type = ChartType.BALANCE,

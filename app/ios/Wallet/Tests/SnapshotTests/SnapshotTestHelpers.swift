@@ -2,6 +2,7 @@ import PDFKit
 import Shared
 import SnapshotTesting
 import SwiftUI
+import UIKit
 import XCTest
 
 @testable import Wallet
@@ -18,6 +19,9 @@ extension XCTestCase {
         precision: Float = 0.9992,
         perceptualPrecision: Float = 0.98
     ) {
+        let snapshotWindow = ensureKeyWindowForSnapshot()
+        defer { snapshotWindow?.isHidden = true }
+
         // From app root, sourceFileUrl = "ios/Wallet/Tests/SnapshotTests/SnapshotTestHelpers.swift"
         let sourceFileUrl = URL(fileURLWithPath: "\(#file)", isDirectory: false)
         let snapshotDirectory = sourceFileUrl
@@ -44,6 +48,26 @@ extension XCTestCase {
         )
 
         XCTAssertNil(iPhoneSEResult)
+    }
+
+    private func ensureKeyWindowForSnapshot() -> UIWindow? {
+        let windowScene = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first
+
+        if windowScene?.windows.contains(where: { $0.isKeyWindow }) == true {
+            return nil
+        }
+
+        let window = UIWindow(
+            frame: CGRect(
+                origin: .zero,
+                size: ViewImageConfig.iPhoneSe.size ?? CGSize(width: 320, height: 568)
+            )
+        )
+        window.windowScene = windowScene
+        window.makeKeyAndVisible()
+        return window
     }
 
     func assertBitkeySnapshot(

@@ -39,7 +39,6 @@ import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.system.BackHandler
 import build.wallet.ui.system.KeepScreenOn
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
@@ -61,7 +60,7 @@ fun PairNewHardwareScreen(
   }
 
   var videoView: VideoPlayerHandler? by remember { mutableStateOf(null) }
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val showsHeroImage = isDesignSystemV2Enabled && model.heroImageContent != null
 
   var videoAlpha: Float by remember { mutableStateOf(0.0f) }

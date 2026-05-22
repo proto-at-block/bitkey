@@ -247,6 +247,9 @@ message mfgtest_runin_get_data_rsp {
 
   // Duration of Phase 3 (charge to 90% SOC) in milliseconds.
   uint32 phase3_duration_ms = 14;
+
+  // Number of phantom touch events while the NFC tap screen was active.
+  uint32 phantom_touch_events_on_nfc_screen = 15;
 }
 
 // Button event data for manufacturing tests

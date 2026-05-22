@@ -10,8 +10,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 class SweepServiceMock : SweepService {
   var prepareSweepResult: Result<Sweep?, Error> = Ok(null)
+  var estimateSweepToActiveKeysetResult: Result<Sweep, SweepError> =
+    Err(NoFundsToSweep)
   var estimateSweepWithMockDestinationResult: Result<Sweep, SweepError> =
     Err(NoFundsToSweep)
+  var estimateSweepToActiveKeysetHandler: ((SweepContext) -> Result<Sweep, SweepError>)? = null
+
+  val estimateSweepToActiveKeysetCalls = mutableListOf<SweepContext>()
 
   override val sweepRequired = MutableStateFlow(false)
 
@@ -35,9 +40,21 @@ class SweepServiceMock : SweepService {
     return estimateSweepWithMockDestinationResult
   }
 
+  override suspend fun estimateSweepToActiveKeyset(
+    keybox: Keybox,
+    sweepContext: SweepContext,
+  ): Result<Sweep, SweepError> {
+    estimateSweepToActiveKeysetCalls.add(sweepContext)
+    return estimateSweepToActiveKeysetHandler?.invoke(sweepContext)
+      ?: estimateSweepToActiveKeysetResult
+  }
+
   fun reset() {
     prepareSweepResult = Ok(null)
+    estimateSweepToActiveKeysetResult = Err(NoFundsToSweep)
     estimateSweepWithMockDestinationResult = Err(NoFundsToSweep)
+    estimateSweepToActiveKeysetHandler = null
+    estimateSweepToActiveKeysetCalls.clear()
     sweepRequired.value = false
   }
 }

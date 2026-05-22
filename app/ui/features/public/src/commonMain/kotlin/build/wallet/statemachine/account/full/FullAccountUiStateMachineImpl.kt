@@ -2,6 +2,7 @@ package build.wallet.statemachine.account.full
 
 import androidx.compose.runtime.*
 import bitkey.recovery.RecoveryStatusService
+import bitkey.ui.statemachine.interstitial.InterstitialUiModel
 import bitkey.ui.statemachine.interstitial.InterstitialUiProps
 import bitkey.ui.statemachine.interstitial.InterstitialUiStateMachine
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
@@ -103,16 +104,26 @@ class FullAccountUiStateMachineImpl(
       )
     )
 
-    return biometricPromptUiStateMachine.model(
+    biometricPromptUiStateMachine.model(
       props = BiometricPromptProps(
         shouldPromptForAuth = shouldPromptForAuth
       )
-    ) ?: interstitialUiStateMachine.model(
-      props = InterstitialUiProps(
-        account = account,
-        isComingFromOnboarding = isNewlyCreatedAccount
+    )?.let { return it }
+
+    return when (
+      val interstitialUiModel = interstitialUiStateMachine.model(
+        props = InterstitialUiProps(
+          account = account,
+          isComingFromOnboarding = isNewlyCreatedAccount
+        )
       )
-    ) ?: homeScreenModel
+    ) {
+      is InterstitialUiModel.Screen -> interstitialUiModel.screenModel
+      is InterstitialUiModel.Sheet -> homeScreenModel.copy(
+        bottomSheetModel = interstitialUiModel.sheetModel
+      )
+      null -> homeScreenModel
+    }
   }
 
   @Composable

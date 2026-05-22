@@ -19,7 +19,6 @@ import build.wallet.ui.model.callout.CalloutModel
 import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 
@@ -32,14 +31,10 @@ import build.wallet.ui.tokens.LabelType
 fun Callout(model: CalloutModel) {
   val style = model.calloutStyle()
   val useMonochromeStyle =
-    LocalDesignSystemUpdatesEnabled.current && model.useMonochromeStyleInDesignSystemV2
-  val cornerRadius = if (LocalDesignSystemUpdatesEnabled.current) 8.dp else 16.dp
+    model.useMonochromeStyleInDesignSystemV2
+  val cornerRadius = 8.dp
   val leadingIcon =
-    if (LocalDesignSystemUpdatesEnabled.current) {
-      model.leadingIconOverrideInDesignSystemV2 ?: model.leadingIcon
-    } else {
-      model.leadingIcon
-    }
+    model.leadingIconOverrideInDesignSystemV2 ?: model.leadingIcon
 
   // Track the alignment of the leading icon, which varies based on the number of text lines in the
   // subtitle.
@@ -190,7 +185,7 @@ data class CalloutStyle(
 @ReadOnlyComposable
 private fun CalloutModel.calloutStyle() =
   when {
-    LocalDesignSystemUpdatesEnabled.current && useMonochromeStyleInDesignSystemV2 -> CalloutStyle(
+    useMonochromeStyleInDesignSystemV2 -> CalloutStyle(
       titleColor = WalletTheme.colors.foreground,
       subtitleColor = WalletTheme.colors.foreground60,
       backgroundColor = WalletTheme.colors.secondary,
@@ -205,12 +200,7 @@ private fun CalloutModel.calloutStyle() =
     -> CalloutStyle(
       titleColor = WalletTheme.colors.calloutDefaultTitle,
       subtitleColor = WalletTheme.colors.calloutDefaultSubtitle,
-      backgroundColor =
-        if (LocalDesignSystemUpdatesEnabled.current) {
-          WalletTheme.colors.secondary
-        } else {
-          WalletTheme.colors.subtleBackground
-        },
+      backgroundColor = WalletTheme.colors.secondary,
       leadingIconColor = WalletTheme.colors.calloutDefaultTitle,
       trailingIconColor = WalletTheme.colors.calloutDefaultTrailingIcon,
       trailingIconBackgroundColor = WalletTheme.colors.calloutDefaultTrailingIconBackground

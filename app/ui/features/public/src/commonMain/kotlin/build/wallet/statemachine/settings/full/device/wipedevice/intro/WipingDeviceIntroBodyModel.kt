@@ -30,7 +30,7 @@ data class WipingDeviceIntroBodyModel(
     primaryButton = ButtonModel(
       text = "Wipe device",
       size = ButtonModel.Size.Footer,
-      treatment = ButtonModel.Treatment.Secondary,
+      treatment = ButtonModel.Treatment.Primary,
       onClick = StandardClick { onWipeDevice() }
     )
   )

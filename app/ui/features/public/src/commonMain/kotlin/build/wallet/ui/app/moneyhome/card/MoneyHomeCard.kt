@@ -53,7 +53,6 @@ import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
@@ -75,7 +74,7 @@ fun MoneyHomeCard(
   modifier: Modifier = Modifier,
   model: CardModel,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val isDarkTheme = LocalTheme.current == Theme.DARK
 
   AnimatedMoneyHomeCardContainer(
@@ -146,7 +145,8 @@ fun MoneyHomeCard(
             modifier = cardModifier,
             backgroundColor = when (style.backgroundColor) {
               Gradient.BackgroundColor.Default -> WalletTheme.colors.calloutInformationBackground
-              else -> WalletTheme.colors.containerBackgroundHighlight
+              Gradient.BackgroundColor.InverseBackground -> WalletTheme.colors.containerBackgroundHighlight
+              null -> WalletTheme.colors.containerBackgroundHighlight
             }
           ) {
             CardContent(
@@ -288,7 +288,7 @@ private fun GettingStartedTile(
 ) {
   val interactionSource = remember { MutableInteractionSource() }
   val isClickable = task.onClick != null
-  val cornerRadius = if (LocalDesignSystemUpdatesEnabled.current) 8.dp else 16.dp
+  val cornerRadius = 8.dp
 
   Box(
     modifier = Modifier

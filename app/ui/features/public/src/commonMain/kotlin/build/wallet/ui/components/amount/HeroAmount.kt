@@ -35,7 +35,6 @@ import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconSize.Small
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.market.MarketIcons
@@ -67,7 +66,7 @@ fun HeroAmount(
   isLoading: Boolean = false,
   animateValueChanges: Boolean = false,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   HeroAmountContainer(
     modifier = modifier,
     topContent = {
@@ -143,7 +142,7 @@ internal fun HeroAmountContainer(
   isLoading: Boolean,
   topContent: @Composable () -> Unit,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val shouldUseStartAlignment = isDesignSystemV2Enabled && !centerWhenDesignSystemV2
   val horizontalAlignment = if (shouldUseStartAlignment) Alignment.Start else Alignment.CenterHorizontally
 
@@ -197,7 +196,7 @@ internal fun HeroAmountBottom(
   onSwapClick: (() -> Unit)? = null,
   isLoading: Boolean = false,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val shouldUseStartAlignment = isDesignSystemV2Enabled && !centerWhenDesignSystemV2
   val columnAlignment = if (shouldUseStartAlignment) Alignment.Start else Alignment.CenterHorizontally
   val rowArrangement = if (shouldUseStartAlignment) Arrangement.Start else Arrangement.Center

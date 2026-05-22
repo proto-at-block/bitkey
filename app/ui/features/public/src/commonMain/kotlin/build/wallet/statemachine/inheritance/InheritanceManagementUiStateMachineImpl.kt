@@ -8,8 +8,6 @@ import build.wallet.bitkey.relationships.*
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.inheritance.*
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.core.*
@@ -55,16 +53,13 @@ class InheritanceManagementUiStateMachineImpl(
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val inheritanceCardUiStateMachine: InheritanceCardUiStateMachine,
   private val sendUiStateMachine: SendUiStateMachine,
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : InheritanceManagementUiStateMachine {
   @Suppress("CyclomaticComplexMethod")
   @Composable
   override fun model(props: InheritanceManagementUiProps): ScreenModel {
     var uiState: UiState by remember { mutableStateOf(UiState.ManagingInheritance()) }
     var selectedTab by remember { mutableStateOf(props.selectedTab) }
-    val isDesignSystemV2Enabled by remember {
-      designSystemUpdatesFeatureFlag.flagValue().map { it.isEnabled() }
-    }.collectAsState(initial = designSystemUpdatesFeatureFlag.isEnabled())
+    val isDesignSystemV2Enabled = true
 
     val benefactorStates =
       inheritanceService.benefactorClaimState.collectAsState(emptyImmutableList())

@@ -41,7 +41,6 @@ import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.alert.AlertModel
 import build.wallet.ui.model.render
 import build.wallet.ui.model.toast.ToastModel
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.WalletTheme
 import kotlinx.coroutines.delay
@@ -93,7 +92,7 @@ fun Screen(
           label = "status-banner-alpha"
         )
 
-        val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+        val isDesignSystemV2Enabled = true
         val borderRadius by animateDpAsState(
           targetValue = statusBannerBorderRadius(
             statusBannerVisible = statusBannerVisible,

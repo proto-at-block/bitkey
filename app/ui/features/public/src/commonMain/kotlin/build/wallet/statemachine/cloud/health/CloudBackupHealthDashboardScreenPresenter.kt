@@ -303,7 +303,7 @@ class CloudBackupHealthDashboardScreenPresenter(
       )
     ),
     headerModel = FormHeaderModel(
-      iconModel = headerIconModel(Icon.CloudBackupEmergencyExitKit),
+      iconModel = headerIconModel(Icon.SmallIconRecovery),
       headline = "Emergency Exit Kit",
       subline = "Ensures you still have access to your wallet if you can’t access the Bitkey App.",
       alignment = FormHeaderModel.Alignment.CENTER,

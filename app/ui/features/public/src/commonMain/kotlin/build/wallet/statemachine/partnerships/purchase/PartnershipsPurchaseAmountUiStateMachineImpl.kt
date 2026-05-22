@@ -7,8 +7,6 @@ import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.logging.logError
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -35,13 +33,10 @@ class PartnershipsPurchaseAmountUiStateMachineImpl(
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val partnershipPurchaseService: PartnershipPurchaseService,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : PartnershipsPurchaseAmountUiStateMachine {
   @Composable
   override fun model(props: PartnershipsPurchaseAmountUiProps): SheetModel {
-    val isDesignSystemV2Enabled by remember {
-      designSystemUpdatesFeatureFlag.flagValue().map { it.isEnabled() }
-    }.collectAsState(initial = designSystemUpdatesFeatureFlag.isEnabled())
+    val isDesignSystemV2Enabled = true
 
     var state: State by remember {
       mutableStateOf(State.Loading(preSelectedAmount = props.selectedAmount))

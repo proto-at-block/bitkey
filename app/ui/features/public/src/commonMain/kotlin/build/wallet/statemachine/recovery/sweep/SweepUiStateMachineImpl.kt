@@ -230,10 +230,10 @@ class SweepUiStateMachineImpl(
               presentationStyle = props.presentationStyle
             )
           }
-          is SweepContext.Recovery, SweepContext.InactiveWallet -> {
+          is SweepContext.Recovery, SweepContext.InactiveWallet, is SweepContext.InactiveHardware -> {
             val promptContext = when (props.sweepContext) {
               is SweepContext.Recovery -> SweepFundsPromptContext.Recovery(props.sweepContext.recoveredFactor)
-              is SweepContext.InactiveWallet -> SweepFundsPromptContext.InactiveWallet
+              is SweepContext.InactiveWallet, is SweepContext.InactiveHardware -> SweepFundsPromptContext.InactiveWallet
               is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> error("Migration should use TransferConfirmationScreenModel")
             }
 

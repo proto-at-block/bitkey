@@ -19,10 +19,8 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.SignatureVerifier
 import build.wallet.encrypt.verifyEcdsaResult
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.feature.flags.NfcSessionRetryAttemptsFeatureFlag
 import build.wallet.feature.intValue
-import build.wallet.feature.collectIsEnabledAsState
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.keybox.KeyboxDao
 import build.wallet.logging.logDebug
@@ -68,8 +66,6 @@ import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.ThemePreference
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOrElse
-import com.github.michaelbull.result.onFailure
-import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import okio.ByteString.Companion.toByteString
@@ -91,7 +87,6 @@ class SignTransactionNfcSessionUiStateMachineImpl(
   private val descriptorRepairUiStateMachine: DescriptorRepairUiStateMachine,
   private val recoveryStatusService: RecoveryStatusService,
   private val bitcoinDisplayPreferenceRepository: BitcoinDisplayPreferenceRepository,
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : SignTransactionNfcSessionUiStateMachine {
   private val secureRandom = SecureRandom()
 
@@ -152,7 +147,7 @@ class SignTransactionNfcSessionUiStateMachineImpl(
     devicePlatform: DevicePlatform,
     setState: (Any) -> Unit,
   ): ScreenModel {
-    val designSystemV2Enabled by designSystemUpdatesFeatureFlag.collectIsEnabledAsState()
+    val designSystemV2Enabled = true
     return when (state) {
       is InNfcSessionUiState -> {
         // Track progress separately from state to avoid closure capture issues in LaunchedEffect
@@ -559,8 +554,10 @@ class SignTransactionNfcSessionUiStateMachineImpl(
       } else {
         keyboxDao.activeKeybox().first().value?.activeHwKeyBundle?.authKey?.pubKey
       }
+      // Sign-transaction does not handle SessionCanceled explicitly; platform
+      // cancellation surfaces as a Failed terminal event.
       nfcTransactor
-        .transact(
+        .transactEvents(
           parameters =
             NfcSession.Parameters(
               isHardwareFake = isHardwareFake,
@@ -570,17 +567,6 @@ class SignTransactionNfcSessionUiStateMachineImpl(
               shouldLock = true,
               skipFirmwareTelemetry = props.skipFirmwareTelemetry,
               nfcFlowName = if (continuation != null) "sign-transaction-confirmation" else "sign-transaction",
-              onTagConnected = { session ->
-                eventTracker.track(EventTrackerScreenInfo(NFC_DETECTED, props.eventTrackerContext))
-                // Start in Signing (indeterminate progress) — for W1 this is the
-                // final visual state before success. For W3, the first progress
-                // callback will transition to Transferring (determinate progress).
-                session?.message = "This can take up to 1 minute…"
-                setState(state.copy(displayMode = InNfcSessionUiState.DisplayMode.Signing))
-              },
-              onTagDisconnected = {
-                setState(state.copy(displayMode = InNfcSessionUiState.DisplayMode.LostConnection))
-              },
               requirePairedHardware = if (props.skipPairingCheck) {
                 logWarn { "skipPairingCheck=true, using NotRequired for pairing" }
                 RequirePairedHardware.NotRequired
@@ -636,17 +622,49 @@ class SignTransactionNfcSessionUiStateMachineImpl(
                 onProgress = onProgress
               )
             }
+          },
+          onEvent = { event ->
+            // Per-event side effects (analytics, NfcSession mutations, terminal
+            // handoff) run upstream of conflation. Sign-transaction doesn't wire
+            // SessionCanceled; cancellation surfaces as a Failed event.
+            when (event) {
+              is NfcTransactionEvent.TagConnected -> {
+                eventTracker.track(EventTrackerScreenInfo(NFC_DETECTED, props.eventTrackerContext))
+                event.session?.message = "This can take up to 1 minute…"
+              }
+              is NfcTransactionEvent.Succeeded<*> -> {
+                @Suppress("UNCHECKED_CAST")
+                handleNfcTransactionSuccess(event.result as SignTransactionResult, setState)
+              }
+              is NfcTransactionEvent.Failed ->
+                handleNfcTransactionFailure(
+                  error = event.error,
+                  continuation = continuation,
+                  resolvedDeviceInfo = state.resolvedDeviceInfo,
+                  props = props,
+                  setState = setState
+                )
+              NfcTransactionEvent.TagDisconnected,
+              NfcTransactionEvent.SessionCanceled,
+              -> Unit
+            }
           }
-        ).onFailure { error ->
-          handleNfcTransactionFailure(
-            error = error,
-            continuation = continuation,
-            resolvedDeviceInfo = state.resolvedDeviceInfo,
-            props = props,
-            setState = setState
-          )
-        }.onSuccess { result ->
-          handleNfcTransactionSuccess(result, setState)
+        ).collect { event ->
+          // UI state mutation — Flow is already conflated by transactEvents.
+          when (event) {
+            is NfcTransactionEvent.TagConnected -> {
+              // Start in Signing (indeterminate progress) — for W1 this is the
+              // final visual state before success. For W3, the first progress
+              // callback will transition to Transferring (determinate progress).
+              setState(state.copy(displayMode = InNfcSessionUiState.DisplayMode.Signing))
+            }
+            NfcTransactionEvent.TagDisconnected ->
+              setState(state.copy(displayMode = InNfcSessionUiState.DisplayMode.LostConnection))
+            NfcTransactionEvent.SessionCanceled,
+            is NfcTransactionEvent.Succeeded<*>,
+            is NfcTransactionEvent.Failed,
+            -> Unit
+          }
         }
     }
   }

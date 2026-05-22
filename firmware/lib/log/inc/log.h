@@ -29,6 +29,16 @@ void _log(log_level_t level, const char* colour, const char* file, int line, con
 #ifdef EMBEDDED_BUILD
 #include "memfault/core/log.h"
 
+// Manufacturing-test builds always emit raw ASCII over UART — factory stations
+// don't have ELFs to decode tokenized frames against.
+#if defined(MFGTEST) && !defined(LOG_FORCE_RAW)
+#define LOG_FORCE_RAW 1
+#endif
+
+#if defined(LOG_TOKENIZED) && !defined(DISABLE_PRINTF) && !defined(LOG_FORCE_RAW)
+#include "log_uart.h"
+#endif
+
 #define _TRANSLATE_LOG_LEVEL(level)                                                 \
   ({                                                                                \
     eMemfaultPlatformLogLevel memfault_level = kMemfaultPlatformLogLevel_NumLevels; \
@@ -55,12 +65,58 @@ void _log(log_level_t level, const char* colour, const char* file, int line, con
 #define __log(level, colour, ...) _log(level, colour, __VA_ARGS__)
 #endif
 
+// `_LOG` always feeds Memfault's compact log RAM ring (so cloud upload still
+// works regardless of UART path). The UART transport is selected at compile
+// time:
+//   - LOG_TOKENIZED defined: emit a binary tokenized frame (small, fast).
+//   - otherwise:             emit the legacy formatted ASCII line.
+//
+// A translation unit can opt out of tokenization by defining `LOG_FORCE_RAW`
+// before including this header, which forces every LOG* call in that TU onto
+// the formatted ASCII path. Use this for panic/early-boot/mfgtest code where a
+// missing token DB would lose information.
+//
+// IMPORTANT: on the tokenized path, `__VA_ARGS__` is evaluated by both the
+// Memfault save and the UART emit. Avoid passing expressions with side
+// effects (mutex acquires, counter increments, single-shot getters) — they
+// will run twice. Pre-compute into a local instead.
+#if defined(LOG_TOKENIZED) && !defined(DISABLE_PRINTF) && !defined(LOG_FORCE_RAW)
+// `MEMFAULT_LOG_FMT_ELF_SECTION_ENTRY` declares a function-local static
+// `_memfault_log_fmt_ptr`, so its address must be taken from the same scope it
+// is declared in. We therefore inline the contents of `MEMFAULT_COMPACT_LOG_SAVE`
+// here so that both the Memfault save (RAM ring) and `log_uart_emit_compact`
+// (UART) reference the same token offset and only one entry is emitted per
+// call site.
+//
+// The Memfault save runs unconditionally (matches pre-tokenization behavior:
+// the cloud-upload RAM ring captures every level for crash diagnostics). The
+// UART emit honors the runtime `log_get_level()` filter so `log_set_level()`
+// can quiet the UART for sensitive flows, mirroring the pre-tokenization
+// `_log()` semantics.
+#define _LOG_TOKENIZED_BODY(level, memfault_level, format, ...)                       \
+  MEMFAULT_LOGGING_RUN_COMPILE_TIME_CHECKS(format, ##__VA_ARGS__);                    \
+  MEMFAULT_LOG_FMT_ELF_SECTION_ENTRY(format, ##__VA_ARGS__);                          \
+  memfault_compact_log_save(memfault_level, MEMFAULT_LOG_FMT_ELF_SECTION_ENTRY_PTR,   \
+                            MFLT_GET_COMPRESSED_LOG_FMT(__VA_ARGS__), ##__VA_ARGS__); \
+  if ((level) >= log_get_level()) {                                                   \
+    log_uart_emit_compact(memfault_level, MEMFAULT_LOG_FMT_ELF_SECTION_ENTRY_PTR,     \
+                          MFLT_GET_COMPRESSED_LOG_FMT(__VA_ARGS__), ##__VA_ARGS__);   \
+  }
+
+#define _LOG(level, colour, ...)                                            \
+  do {                                                                      \
+    eMemfaultPlatformLogLevel memfault_level = _TRANSLATE_LOG_LEVEL(level); \
+    _LOG_TOKENIZED_BODY(level, memfault_level, __VA_ARGS__);                \
+    (void)colour;                                                           \
+  } while (0)
+#else
 #define _LOG(level, colour, ...)                                            \
   do {                                                                      \
     eMemfaultPlatformLogLevel memfault_level = _TRANSLATE_LOG_LEVEL(level); \
     MEMFAULT_COMPACT_LOG_SAVE(memfault_level, __VA_ARGS__);                 \
     __log(level, colour, __FILENAME__, __LINE__, __VA_ARGS__);              \
   } while (0)
+#endif
 
 #else
 
@@ -77,6 +133,38 @@ log_level_t log_get_level(void);
 #define LOGD(...) _LOG(LOG_DEBUG, LOG_FORMAT(DEBUG), __VA_ARGS__)
 #define LOGW(...) _LOG(LOG_WARN, LOG_FORMAT(WARN), __VA_ARGS__)
 #define LOGE(...) _LOG(LOG_ERROR, LOG_FORMAT(ERROR), __VA_ARGS__)
+
+// Per-call escape hatch: emit a raw (un-tokenized) UART log frame regardless of
+// the build-wide tokenization setting. The host decoder renders these as plain
+// text without consulting the ELF token database. Use sparingly — for panics,
+// pre-RTOS boot, mfgtest, and other situations where a missing token DB would
+// be unacceptable. To force every LOG* call in a TU onto the raw path, define
+// `LOG_FORCE_RAW` before including this header.
+#if defined(DISABLE_PRINTF)
+#define _LOG_RAW(level, colour_tok, ...) ((void)0)
+#elif defined(EMBEDDED_BUILD) && defined(LOG_TOKENIZED)
+// Honor `log_set_level()` on the raw UART path too, matching both the
+// tokenized compact-log path (_LOG_TOKENIZED_BODY) and the legacy `_log()`
+// fallback. Without this gate, raising the threshold via log_set_level()
+// silences LOGI/LOGD but raw frames would still go out on the wire.
+#define _LOG_RAW(level, colour_tok, ...)                                                   \
+  do {                                                                                     \
+    if ((level) >= log_get_level()) {                                                      \
+      log_uart_emit_raw(_TRANSLATE_LOG_LEVEL(level), __FILENAME__, __LINE__, __VA_ARGS__); \
+    }                                                                                      \
+  } while (0)
+#else
+// Legacy ASCII fallback: pick the colour matching the level so LOGE_RAW stays
+// red, LOGW_RAW yellow, etc. (otherwise everything would render in INFO green).
+// `_log()` honors `g_level` internally.
+#define _LOG_RAW(level, colour_tok, ...) \
+  _log(level, LOG_FORMAT(colour_tok), __FILENAME__, __LINE__, __VA_ARGS__)
+#endif
+
+#define LOGI_RAW(...) _LOG_RAW(LOG_INFO, INFO, __VA_ARGS__)
+#define LOGD_RAW(...) _LOG_RAW(LOG_DEBUG, DEBUG, __VA_ARGS__)
+#define LOGW_RAW(...) _LOG_RAW(LOG_WARN, WARN, __VA_ARGS__)
+#define LOGE_RAW(...) _LOG_RAW(LOG_ERROR, ERROR, __VA_ARGS__)
 
 #ifdef EMBEDDED_BUILD
 // Assert with a custom error message.

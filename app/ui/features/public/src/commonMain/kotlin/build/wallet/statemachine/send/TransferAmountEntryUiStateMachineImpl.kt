@@ -11,8 +11,6 @@ import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.coroutines.scopes.mapAsStateFlow
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.Money
@@ -37,7 +35,6 @@ class TransferAmountEntryUiStateMachineImpl(
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val bitcoinWalletService: BitcoinWalletService,
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
   private val transferCardUiStateMachine: TransferCardUiStateMachine,
   private val appFunctionalityService: AppFunctionalityService,
 ) : TransferAmountEntryUiStateMachine {
@@ -61,9 +58,7 @@ class TransferAmountEntryUiStateMachineImpl(
       }
     val isSellFlow = flow is TransferAmountEntryUiProps.Flow.Sell
     val scope = rememberStableCoroutineScope()
-    val isDesignSystemV2Enabled by remember {
-      designSystemUpdatesFeatureFlag.flagValue().mapAsStateFlow(scope) { it.isEnabled() }
-    }.collectAsState(initial = designSystemUpdatesFeatureFlag.isEnabled())
+    val isDesignSystemV2Enabled = true
     val fiatCurrency by remember { fiatCurrencyPreferenceRepository.fiatCurrencyPreference }
       .collectAsState()
 

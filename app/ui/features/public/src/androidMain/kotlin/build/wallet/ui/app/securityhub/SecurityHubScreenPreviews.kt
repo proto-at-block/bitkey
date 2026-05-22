@@ -25,7 +25,6 @@ fun SecurityHubDesignSystemV2PreviewDark() {
 private fun SecurityHubPreview(theme: Theme) {
   PreviewWalletTheme(
     theme = theme,
-    designSystemUpdatesEnabled = true
   ) {
     val model = SnapshotHost.pendingRecommendations
     model.copy(

@@ -15,7 +15,6 @@ import build.wallet.ui.model.icon.IconSize.Small
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemTreatment
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 
@@ -24,7 +23,7 @@ fun SettingsListComponent(
   model: FormMainContentModel.SettingsList,
   modifier: Modifier = Modifier,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
 
   Column(modifier = modifier) {
     // Header

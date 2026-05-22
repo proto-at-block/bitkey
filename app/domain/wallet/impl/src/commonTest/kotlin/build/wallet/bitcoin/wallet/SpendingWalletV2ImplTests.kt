@@ -1,11 +1,13 @@
 package build.wallet.bitcoin.wallet
 
+import app.cash.turbine.test
 import build.wallet.bdk.bindings.BdkError
 import build.wallet.bdk.bindings.BdkOutPointMock
 import build.wallet.bdk.bindings.BdkScriptMock
 import build.wallet.bdk.bindings.BdkUtxoMock
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.address.BitcoinAddress
+import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.bdk.BdkTransactionMapperV2
 import build.wallet.bitcoin.bdk.BdkWalletSyncerV2Fake
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimatorMock
@@ -15,14 +17,23 @@ import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod
+import build.wallet.coroutines.turbine.awaitNoEvents
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
 import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.testing.shouldBeErrOfType
+import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Err
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.floats.shouldBeNaN
 import io.kotest.matchers.shouldBe
+import uniffi.bdk.Amount
+import uniffi.bdk.Balance
+import uniffi.bdk.BlockHash
+import uniffi.bdk.BlockId
+import uniffi.bdk.CanonicalTx
+import uniffi.bdk.LocalOutput
 import uniffi.bdk.NoPointer
 import uniffi.bdk.Persister
 import uniffi.bdk.Wallet as BdkV2Wallet
@@ -65,6 +76,99 @@ class SpendingWalletV2ImplTests : FunSpec({
     appSessionManager.reset()
     bitcoinFeeRateEstimator.reset()
     walletSyncer.reset()
+  }
+
+  test("sync publishes after first BDK2 sync") {
+    val bdkWallet = InitializationTestWallet(checkpointHeight = 0u)
+    walletSyncer.onSync = {
+      bdkWallet.checkpointHeight = 1u
+    }
+    val wallet = buildWallet(bdkWallet)
+
+    wallet.balance().test {
+      val balanceTurbine = this
+      wallet.transactions().test {
+        val transactionsTurbine = this
+        wallet.unspentOutputs().test {
+          val unspentOutputsTurbine = this
+
+          wallet.sync().shouldBeOk()
+
+          walletSyncer.syncCalls.awaitItem()
+          balanceTurbine.awaitItem().shouldBe(BitcoinBalance.ZeroBalance)
+          transactionsTurbine.awaitItem().shouldBeEmpty()
+          unspentOutputsTurbine.awaitItem().shouldBeEmpty()
+        }
+      }
+    }
+  }
+
+  test("Balance and transaction initialization waits before first BDK2 sync") {
+    val wallet = buildWallet(InitializationTestWallet(checkpointHeight = 0u))
+
+    wallet.balance().test {
+      val balanceTurbine = this
+      wallet.transactions().test {
+        val transactionsTurbine = this
+        wallet.unspentOutputs().test {
+          val unspentOutputsTurbine = this
+
+          wallet.initializeBalanceAndTransactions()
+
+          balanceTurbine.awaitNoEvents()
+          transactionsTurbine.awaitNoEvents()
+          unspentOutputsTurbine.awaitNoEvents()
+          walletSyncer.syncCalls.awaitNoEvents()
+        }
+      }
+    }
+  }
+
+  test("Balance and transaction initialization publishes cached data after first BDK2 sync") {
+    val wallet = buildWallet(InitializationTestWallet(checkpointHeight = 1u))
+
+    wallet.balance().test {
+      val balanceTurbine = this
+      wallet.transactions().test {
+        val transactionsTurbine = this
+        wallet.unspentOutputs().test {
+          val unspentOutputsTurbine = this
+
+          wallet.initializeBalanceAndTransactions()
+
+          balanceTurbine.awaitItem().shouldBe(BitcoinBalance.ZeroBalance)
+          transactionsTurbine.awaitItem().shouldBeEmpty()
+          unspentOutputsTurbine.awaitItem().shouldBeEmpty()
+          walletSyncer.syncCalls.awaitNoEvents()
+        }
+      }
+    }
+  }
+
+  test("Balance and transaction initialization remains best-effort when transaction loading fails") {
+    val wallet = buildWallet(
+      InitializationTestWallet(
+        checkpointHeight = 1u,
+        transactionsError = RuntimeException("transactions failed")
+      )
+    )
+
+    wallet.balance().test {
+      val balanceTurbine = this
+      wallet.transactions().test {
+        val transactionsTurbine = this
+        wallet.unspentOutputs().test {
+          val unspentOutputsTurbine = this
+
+          wallet.initializeBalanceAndTransactions()
+
+          balanceTurbine.awaitItem().shouldBe(BitcoinBalance.ZeroBalance)
+          unspentOutputsTurbine.awaitItem().shouldBeEmpty()
+          transactionsTurbine.awaitNoEvents()
+          walletSyncer.syncCalls.awaitNoEvents()
+        }
+      }
+    }
   }
 
   test("createSignedPsbt returns InvalidFeeRate for FeeBump with zero fee rate") {
@@ -202,11 +306,16 @@ class SpendingWalletV2ImplTests : FunSpec({
   }
 
   test("sync returns SyncFailed when syncer fails") {
+    val bdkWallet = InitializationTestWallet(checkpointHeight = 0u)
     walletSyncer.syncResult = Err(syncFailure)
-    val wallet = buildWallet()
+    walletSyncer.onSync = {
+      bdkWallet.checkpointHeight = 1u
+    }
+    val wallet = buildWallet(bdkWallet)
     val result = wallet.sync()
 
     walletSyncer.syncCalls.awaitItem()
+    bdkWallet.checkpointHeight.shouldBe(0u)
     result.shouldBeErrOfType<SpendingWalletV2Error.SyncFailed>()
       .cause
       .shouldBe(syncFailure)
@@ -371,3 +480,31 @@ class SpendingWalletV2ImplTests : FunSpec({
     result.shouldBeErrOfType<BdkError>()
   }
 })
+
+private class InitializationTestWallet(
+  var checkpointHeight: UInt,
+  val transactionsError: Throwable? = null,
+) : BdkV2Wallet(NoPointer) {
+  override fun latestCheckpoint(): BlockId =
+    BlockId(
+      height = checkpointHeight,
+      hash = BlockHash(NoPointer)
+    )
+
+  override fun balance(): Balance =
+    Balance(
+      immature = Amount.fromSat(0uL),
+      trustedPending = Amount.fromSat(0uL),
+      untrustedPending = Amount.fromSat(0uL),
+      confirmed = Amount.fromSat(0uL),
+      trustedSpendable = Amount.fromSat(0uL),
+      total = Amount.fromSat(0uL)
+    )
+
+  override fun transactions(): List<CanonicalTx> {
+    transactionsError?.let { throw it }
+    return emptyList()
+  }
+
+  override fun listUnspent(): List<LocalOutput> = emptyList()
+}

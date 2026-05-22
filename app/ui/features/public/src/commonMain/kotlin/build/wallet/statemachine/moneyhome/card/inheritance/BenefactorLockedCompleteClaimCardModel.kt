@@ -21,7 +21,7 @@ internal fun BenefactorLockedCompleteClaimCardModel(
       treatment = Treatment.Danger,
       useMonochromeStyleInDesignSystemV2 = true,
       leadingIconOverrideInDesignSystemV2 = Icon.SmallIconShieldPerson,
-      leadingIcon = Icon.SmallIconInformationFilled,
+      leadingIcon = Icon.SmallIconInformation,
       trailingIcon = Icon.SmallIconArrowRight,
       onClick = onClick
     )

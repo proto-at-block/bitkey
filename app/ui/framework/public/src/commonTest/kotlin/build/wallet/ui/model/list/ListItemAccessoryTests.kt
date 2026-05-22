@@ -2,6 +2,7 @@ package build.wallet.ui.model.list
 
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 
 class ListItemAccessoryTests : FunSpec({
   test("Contact Avatar uses string initials") {
@@ -55,5 +56,16 @@ class ListItemAccessoryTests : FunSpec({
     )
 
     accessory.text.shouldBe("?")
+  }
+
+  test("disabled checkbox accessory is not enabled") {
+    val disabledAccessory =
+      ListItemAccessory.CheckboxAccessory(
+        isChecked = false,
+        onClick = {}
+      ).disable()
+        .shouldBeInstanceOf<ListItemAccessory.CheckboxAccessory>()
+
+    disabledAccessory.isEnabled.shouldBe(false)
   }
 })

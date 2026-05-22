@@ -116,7 +116,7 @@ fun Modifier.loadingScrim(
       .drawWithContent {
         drawContent()
         drawIntoCanvas {
-          val radius = 32.dp.toPx()
+          val radius = 12.dp.toPx()
           val cornerRadius = CornerRadius(radius, radius)
 
           // Draw mask background

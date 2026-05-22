@@ -36,6 +36,7 @@ import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.crypto.PublicKey
 import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.crypto.WsmVerifier
+import build.wallet.device.wipe.DeviceWipeEligibilityService
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.ensureNotNull
@@ -119,6 +120,7 @@ class W3UpgradeUiStateMachineImpl(
   private val utxoMaxConsolidationCountFeatureFlag: UtxoMaxConsolidationCountFeatureFlag,
   private val cloudBackupHealthRepository: CloudBackupHealthRepository,
   private val repairCloudBackupStateMachine: RepairCloudBackupStateMachine,
+  private val deviceWipeEligibilityService: DeviceWipeEligibilityService,
   private val eventTracker: EventTracker,
 ) : W3UpgradeUiStateMachine {
   @Composable
@@ -1093,8 +1095,10 @@ class W3UpgradeUiStateMachineImpl(
             .onFailure { error ->
               when (error) {
                 is MigrationError.InsufficientFundsForMigration -> {
-                  // No funds to sweep — skip sweep entirely
-                  onStateChange(proceedAfterSweepPhase(state.migrationProgress))
+                  // No funds to sweep. Check persisted sweep state before recording
+                  // a no-sweep-required checkpoint, because a resumed flow may already
+                  // have recorded a broadcast sweep.
+                  onStateChange(completeSweepPhase(state.migrationProgress))
                 }
                 else -> {
                   // Fee estimation failed (transient) — block and show error
@@ -1129,23 +1133,38 @@ class W3UpgradeUiStateMachineImpl(
         )
       }
       is W3UpgradeUiState.Sweeping -> {
-        sweepUiStateMachine.model(
-          SweepUiProps(
-            account = FullAccount(state.keybox.fullAccountId, state.keybox),
-            sweepContext = SweepContext.W3Upgrade(
-              replacedHardwareFingerprint = state.oldHardwareFingerprint
-            ),
-            presentationStyle = ScreenPresentationStyle.Modal,
-            onExit = null,
-            onSuccess = {
-              scope.launch {
-                onStateChange(proceedAfterSweepPhase(state.migrationProgress))
-              }
-            },
-            hasAttemptedSweep = false,
-            onAttemptSweep = {}
+        var persistedHasAttemptedSweep by remember(state) {
+          mutableStateOf<Boolean?>(null)
+        }
+        LaunchedEffect(state) {
+          deviceWipeEligibilityService.hasW3UpgradeSweepAttempted()
+            .onSuccess { persistedHasAttemptedSweep = it }
+            .onFailure { onStateChange(W3UpgradeUiState.Error) }
+        }
+
+        when (val hasAttemptedSweep = persistedHasAttemptedSweep) {
+          null -> w3LoadingScreenModel(
+            "Checking sweep status...",
+            WalletMigrationEventTrackerScreenId.W3_UPGRADE_CHECKING_FOR_FUNDS
           )
-        )
+          else -> sweepUiStateMachine.model(
+            SweepUiProps(
+              account = FullAccount(state.keybox.fullAccountId, state.keybox),
+              sweepContext = SweepContext.W3Upgrade(
+                replacedHardwareFingerprint = state.oldHardwareFingerprint
+              ),
+              presentationStyle = ScreenPresentationStyle.Modal,
+              onExit = null,
+              onSuccess = {
+                scope.launch {
+                  onStateChange(completeSweepPhase(state.migrationProgress))
+                }
+              },
+              hasAttemptedSweep = hasAttemptedSweep,
+              onAttemptSweep = {}
+            )
+          )
+        }
       }
       else -> error("Unexpected state in BackupAndSweepPhaseModel: $state")
     }
@@ -1274,6 +1293,29 @@ class W3UpgradeUiStateMachineImpl(
           else -> W3UpgradeUiState.Error
         }
       } ?: W3UpgradeUiState.Error
+  }
+
+  private suspend fun completeSweepPhase(
+    migrationProgress: MigrationProgress.LocalKeyboxActivation?,
+  ): W3UpgradeUiState {
+    val hasPersistedSweepAttempt = deviceWipeEligibilityService.hasW3UpgradeSweepAttempted()
+      .getOrElse { return W3UpgradeUiState.Error }
+
+    return if (hasPersistedSweepAttempt) {
+      proceedAfterSweepPhase(migrationProgress)
+    } else {
+      recordW3UpgradeSweepNotRequiredAndProceed(migrationProgress)
+    }
+  }
+
+  private suspend fun recordW3UpgradeSweepNotRequiredAndProceed(
+    migrationProgress: MigrationProgress.LocalKeyboxActivation?,
+  ): W3UpgradeUiState {
+    deviceWipeEligibilityService.recordW3UpgradeSweepNotRequired()
+      .logFailure { "Failed to record W3 upgrade old-W1 sweep as not required" }
+      .onFailure { return W3UpgradeUiState.Error }
+
+    return proceedAfterSweepPhase(migrationProgress)
   }
 
   /**

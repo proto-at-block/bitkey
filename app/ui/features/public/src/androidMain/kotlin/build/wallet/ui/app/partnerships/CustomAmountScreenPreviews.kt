@@ -67,7 +67,6 @@ fun CustomAmountScreenValidEntryPreview() {
 @Composable
 fun CustomAmountScreenValidEntryDesignSystemV2Preview() {
   PreviewWalletTheme(
-    designSystemUpdatesEnabled = true,
     backgroundColor = lightStyleDictionaryColors.subtleBackground
   ) {
     CustomAmountScreen(

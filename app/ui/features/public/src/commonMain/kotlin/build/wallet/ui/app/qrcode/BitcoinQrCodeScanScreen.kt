@@ -27,7 +27,6 @@ import build.wallet.ui.model.icon.*
 import build.wallet.ui.model.icon.IconButtonModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.system.BackHandler
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.market.MarketIcons
@@ -113,7 +112,7 @@ fun QrCodeScanViewFinder() {
 
 @Composable
 fun QrCodeScanWidgets(model: QrCodeScanBodyModel) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
 
   BoxWithConstraints(
     modifier =

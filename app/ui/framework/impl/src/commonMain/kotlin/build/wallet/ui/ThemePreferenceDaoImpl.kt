@@ -12,10 +12,14 @@ import com.github.michaelbull.result.Result
 import com.russhwolf.settings.ExperimentalSettingsApi
 import com.russhwolf.settings.coroutines.SuspendSettings
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 @BitkeyInject(AppScope::class)
 @OptIn(ExperimentalSettingsApi::class)
@@ -30,46 +34,52 @@ class ThemePreferenceDaoImpl(
     const val THEME_PREFERENCE_STORE_NAME = "THEME_PREFERENCE_STORE"
   }
 
+  private val lock = Mutex()
+  private val themePreferenceFlow = MutableStateFlow<ThemePreference>(ThemePreference.System)
+  private val initialThemePreference = coroutineScope.async(start = CoroutineStart.LAZY) {
+    refreshFromStore()
+  }
+
   private suspend fun getStore(): SuspendSettings =
     keyValueStoreFactory.getOrCreate(THEME_PREFERENCE_STORE_NAME)
-
-  private val themePreferenceFlow = MutableStateFlow<ThemePreference>(ThemePreference.System)
-
-  init {
-    coroutineScope.launch {
-      val store = getStore()
-      val storedTheme = store.getString(THEME_PREFERENCE_KEY, THEME_SYSTEM)
-      val parsedTheme = parseThemePreference(storedTheme)
-      themePreferenceFlow.update { parsedTheme }
-    }
-  }
 
   override suspend fun setThemePreference(themePreference: ThemePreference): Result<Unit, Error> {
     val themePreferenceString = when (themePreference) {
       ThemePreference.System -> THEME_SYSTEM
       is ThemePreference.Manual -> "$THEME_MANUAL_PREFIX${themePreference.value}"
     }
-    val store = getStore()
-    store.putString(THEME_PREFERENCE_KEY, themePreferenceString)
-    val parsedTheme = parseThemePreference(themePreferenceString)
-    themePreferenceFlow.update { parsedTheme }
+    lock.withLock {
+      val store = getStore()
+      store.putString(THEME_PREFERENCE_KEY, themePreferenceString)
+      themePreferenceFlow.value = themePreference
+    }
     return Ok(Unit)
   }
 
   override suspend fun getThemePreference(): Result<ThemePreference, Error> {
-    val store = getStore()
-    val themeStr = store.getString(THEME_PREFERENCE_KEY, THEME_SYSTEM)
-    return Ok(parseThemePreference(themeStr))
+    return Ok(refreshFromStore())
   }
 
-  override fun themePreference(): StateFlow<ThemePreference?> = themePreferenceFlow
+  override fun themePreference(): Flow<ThemePreference?> = flow {
+    initialThemePreference.await()
+    emitAll(themePreferenceFlow)
+  }
 
   override suspend fun clearThemePreference(): Result<Unit, Error> {
-    val store = getStore()
-    store.remove(THEME_PREFERENCE_KEY)
-    themePreferenceFlow.update { ThemePreference.System }
+    lock.withLock {
+      val store = getStore()
+      store.remove(THEME_PREFERENCE_KEY)
+      themePreferenceFlow.value = ThemePreference.System
+    }
     return Ok(Unit)
   }
+
+  private suspend fun refreshFromStore(): ThemePreference =
+    lock.withLock {
+      val store = getStore()
+      val themeStr = store.getString(THEME_PREFERENCE_KEY, THEME_SYSTEM)
+      parseThemePreference(themeStr).also { themePreferenceFlow.value = it }
+    }
 
   private fun parseThemePreference(themeStr: String?): ThemePreference =
     when {

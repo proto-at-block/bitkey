@@ -1,10 +1,10 @@
 package build.wallet.statemachine.moneyhome
 
 import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.Icon.LargeIconAdd
+import build.wallet.statemachine.core.Icon.SmallIconPlus
 import build.wallet.statemachine.core.Icon.LargeIconMinus
-import build.wallet.statemachine.core.Icon.LargeIconReceive
-import build.wallet.statemachine.core.Icon.LargeIconSend
+import build.wallet.statemachine.core.Icon.SmallIconArrowDown
+import build.wallet.statemachine.core.Icon.SmallIconArrowUp
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconBackgroundType
@@ -19,28 +19,20 @@ import build.wallet.ui.model.icon.IconTint
  */
 sealed interface MoneyHomeButtonsModel {
   /**
-   * A set of 3 buttons - Send, Receive, Add - displayed as fixed size circular icon buttons
+   * A set of 4 buttons - Send, Receive, Buy, Sell - displayed as fixed size circular icon buttons
    */
   data class MoneyMovementButtonsModel(
     private val addButton: Button,
-    private val sellButton: Button? = null,
+    private val sellButton: Button,
     private val sendButton: Button,
     private val receiveButton: Button,
   ) : MoneyHomeButtonsModel {
-    val buttons: List<IconButtonModel> = if (sellButton != null) {
-      listOf(
-        MoneyMovementIconModel("Buy", LargeIconAdd, addButton),
-        MoneyMovementIconModel("Sell", LargeIconMinus, sellButton),
-        MoneyMovementIconModel("Send", LargeIconSend, sendButton),
-        MoneyMovementIconModel("Receive", LargeIconReceive, receiveButton)
-      )
-    } else {
-      listOf(
-        MoneyMovementIconModel("Send", LargeIconSend, sendButton),
-        MoneyMovementIconModel("Receive", LargeIconReceive, receiveButton),
-        MoneyMovementIconModel("Add", LargeIconAdd, addButton)
-      )
-    }
+    val buttons: List<IconButtonModel> = listOf(
+      MoneyMovementIconModel("Buy", SmallIconPlus, addButton),
+      MoneyMovementIconModel("Sell", LargeIconMinus, sellButton),
+      MoneyMovementIconModel("Send", SmallIconArrowUp, sendButton),
+      MoneyMovementIconModel("Receive", SmallIconArrowDown, receiveButton)
+    )
 
     data class Button(
       val enabled: Boolean,
@@ -76,7 +68,7 @@ fun MoneyMovementIconModel(
   iconModel =
     IconModel(
       IconImage.LocalImage(icon),
-      iconSize = IconSize.AvatarLarge,
+      iconSize = IconSize.Regular,
       iconBackgroundType = IconBackgroundType.Circle(
         circleSize = IconSize.AvatarLarge,
         color = IconBackgroundType.Circle.CircleColor.Secondary

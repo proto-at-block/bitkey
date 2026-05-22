@@ -30,7 +30,6 @@ import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Treatment.Secondary
 import build.wallet.ui.model.button.ButtonModel.Treatment.Translucent
 import build.wallet.ui.system.BackHandler
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import org.jetbrains.compose.resources.painterResource
 
@@ -63,7 +62,7 @@ fun NfcProgressScreenIosLayout(
   showDefaultHardwareBackground: Boolean = true,
   statusContent: @Composable ColumnScope.() -> Unit,
 ) {
-  val designSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val designSystemV2Enabled = true
   val nfcBlue = WalletTheme.colors.nfcBlue.copy(alpha = 0.6f)
   val showDesignSystemBackground = designSystemV2Enabled || backgroundPainter != null
 
@@ -151,7 +150,7 @@ internal fun NfcIosBackgroundLayout(
   showDefaultHardwareBackground: Boolean = true,
   content: @Composable BoxScope.() -> Unit,
 ) {
-  val showDesignSystemBackground = LocalDesignSystemUpdatesEnabled.current || backgroundPainter != null
+  val showDesignSystemBackground = true
   val backgroundModifier =
     if (showDesignSystemBackground) {
       modifier

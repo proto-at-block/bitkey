@@ -6,7 +6,7 @@ import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.partnerships.PartnerInfo
 import build.wallet.statemachine.core.Icon.Bitcoin
-import build.wallet.statemachine.core.Icon.SmallIconInformationFilled
+import build.wallet.statemachine.core.Icon.SmallIconInformation
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -53,7 +53,6 @@ data class TransferConfirmationScreenModel(
   val requiresHardware: Boolean,
   val confirmButtonEnabled: Boolean,
   val requiresHardwareReview: Boolean,
-  val useDesignSystemV2Layout: Boolean = false,
   val onConfirmClick: () -> Unit,
   val onNetworkFeesClick: () -> Unit,
   val onArrivalTimeClick: (() -> Unit)?,
@@ -108,7 +107,6 @@ data class TransferConfirmationScreenModel(
     },
     mainContentList = transactionDetails.toFormContent(
       variant = variant,
-      useDesignSystemV2Layout = useDesignSystemV2Layout,
       onNetworkFeesClick = onNetworkFeesClick,
       onArrivalTimeClick = onArrivalTimeClick
     ),
@@ -149,25 +147,12 @@ data class FeeSelectionSheetModel(
 
 private fun TransactionDetailsModel.toFormContent(
   variant: TransferConfirmationScreenVariant,
-  useDesignSystemV2Layout: Boolean,
   onNetworkFeesClick: (() -> Unit)? = null,
   onArrivalTimeClick: (() -> Unit)?,
 ): ImmutableList<FormMainContentModel> {
-  val dataListContainerStyle = if (useDesignSystemV2Layout) {
-    DataList.ContainerStyle.BORDERLESS
-  } else {
-    DataList.ContainerStyle.DEFAULT
-  }
-  val leftTitleTextType = if (useDesignSystemV2Layout) {
-    DataList.Data.TitleTextType.BODY2REGULAR
-  } else {
-    DataList.Data.TitleTextType.REGULAR
-  }
-  val rowSideTextType = if (useDesignSystemV2Layout) {
-    DataList.Data.SideTextType.BODY2REGULAR
-  } else {
-    DataList.Data.SideTextType.MEDIUM
-  }
+  val dataListContainerStyle = DataList.ContainerStyle.BORDERLESS
+  val leftTitleTextType = DataList.Data.TitleTextType.BODY2REGULAR
+  val rowSideTextType = DataList.Data.SideTextType.BODY2REGULAR
 
   val mainItems: ImmutableList<DataList.Data> =
     when (transactionDetailModelType) {
@@ -186,7 +171,7 @@ private fun TransactionDetailsModel.toFormContent(
             onTitle = onNetworkFeesClick,
             titleIcon =
               IconModel(
-                icon = SmallIconInformationFilled,
+                icon = SmallIconInformation,
                 iconSize = IconSize.XSmall,
                 iconTint = IconTint.On30
               ),
@@ -224,11 +209,7 @@ private fun TransactionDetailsModel.toFormContent(
     }
 
   return buildImmutableList {
-    if (useDesignSystemV2Layout) {
-      add(Spacer())
-    } else {
-      add(Divider)
-    }
+    add(Spacer())
     add(
       DataList(
         items = immutableListOf(
@@ -252,23 +233,11 @@ private fun TransactionDetailsModel.toFormContent(
         items = mainItems,
         total = DataList.Data(
           title = "Total",
-          titleTextType = if (useDesignSystemV2Layout) {
-            DataList.Data.TitleTextType.BODY1REGULAR
-          } else {
-            DataList.Data.TitleTextType.REGULAR
-          },
+          titleTextType = DataList.Data.TitleTextType.BODY1REGULAR,
           sideText = transactionDetailModelType.totalAmountPrimaryText,
-          sideTextType = if (useDesignSystemV2Layout) {
-            DataList.Data.SideTextType.BODY1REGULAR
-          } else {
-            DataList.Data.SideTextType.BODY2BOLD
-          },
+          sideTextType = DataList.Data.SideTextType.BODY1REGULAR,
           secondarySideText = transactionDetailModelType.totalAmountSecondaryText,
-          secondarySideTextType = if (useDesignSystemV2Layout) {
-            DataList.Data.SideTextType.BODY2REGULAR
-          } else {
-            DataList.Data.SideTextType.REGULAR
-          }
+          secondarySideTextType = DataList.Data.SideTextType.BODY2REGULAR
         ),
         containerStyle = dataListContainerStyle
       )

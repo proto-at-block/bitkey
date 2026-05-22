@@ -1,13 +1,12 @@
 package build.wallet.statemachine.settings.full.device.wipedevice
 
 import androidx.compose.runtime.*
-import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.SuccessBodyModel
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceUiState.*
-import build.wallet.statemachine.settings.full.device.wipedevice.complete.WipingDeviceSuccessProps
-import build.wallet.statemachine.settings.full.device.wipedevice.complete.WipingDeviceSuccessUiStateMachine
 import build.wallet.statemachine.settings.full.device.wipedevice.confirmation.WipingDeviceConfirmationProps
 import build.wallet.statemachine.settings.full.device.wipedevice.confirmation.WipingDeviceConfirmationUiStateMachine
 import build.wallet.statemachine.settings.full.device.wipedevice.intro.WipingDeviceIntroProps
@@ -20,40 +19,27 @@ class WipingDeviceUiStateMachineImpl(
   private val wipingDeviceIntroUiStateMachine: WipingDeviceIntroUiStateMachine,
   private val wipingDeviceConfirmationUiStateMachine: WipingDeviceConfirmationUiStateMachine,
   private val wipingDeviceProgressUiStateMachine: WipingDeviceProgressUiStateMachine,
-  private val wipingDeviceSuccessUiStateMachine: WipingDeviceSuccessUiStateMachine,
 ) : WipingDeviceUiStateMachine {
   @Composable
   override fun model(props: WipingDeviceProps): ScreenModel {
-    var uiState: WipingDeviceUiState by remember(props.wipeContext) {
+    var uiState: WipingDeviceUiState by remember(props.wipeContext, props.initialStep) {
       mutableStateOf(
-        when (props.wipeContext) {
-          is WipeContext.W3UpgradeOldDevice -> {
-            // Skip intro and confirmation screens — go directly to the wipe confirmation
-            // with the old device's hardware type.
-            WipingDeviceConfirmationUiState(
-              isDevicePaired = false,
-              wipeContext = props.wipeContext
-            )
-          }
-          is WipeContext.Default -> {
-            WipingDeviceIntroUiState(
-              isShowingScanToContinueSheet = false
-            )
-          }
-        }
+        props.initialUiState()
       )
     }
 
     return when (val state = uiState) {
-      is WipingDeviceIntroUiState -> {
+      WipingDeviceIntroUiState -> {
         wipingDeviceIntroUiStateMachine.model(
           WipingDeviceIntroProps(
             onBack = props.onBack,
             onUnwindToMoneyHome = props.onSuccess,
-            onDeviceConfirmed = { isDevicePaired ->
-              uiState = WipingDeviceConfirmationUiState(isDevicePaired)
+            onDeviceConfirmed = { isDevicePaired, wipeContext ->
+              uiState = WipingDeviceConfirmationUiState(isDevicePaired, wipeContext)
             },
-            fullAccount = props.fullAccount
+            fullAccount = props.fullAccount,
+            initialStep = props.initialStep,
+            wipeContext = props.wipeContext
           )
         )
       }
@@ -63,8 +49,11 @@ class WipingDeviceUiStateMachineImpl(
           WipingDeviceConfirmationProps(
             onBack = {
               when (props.wipeContext) {
-                is WipeContext.W3UpgradeOldDevice -> props.onBack()
-                is WipeContext.Default -> uiState = WipingDeviceIntroUiState()
+                is WipeContext.InactiveDevice -> props.onBack()
+                WipeContext.Default -> when (props.initialStep) {
+                  WipingDeviceInitialStep.Intro -> uiState = WipingDeviceIntroUiState
+                  WipingDeviceInitialStep.ScanDevice -> props.onBack()
+                }
               }
             },
             onWipeDevice = {
@@ -77,7 +66,7 @@ class WipingDeviceUiStateMachineImpl(
         )
       }
 
-      is WipingDeviceProgressUiState -> {
+      WipingDeviceProgressUiState -> {
         wipingDeviceProgressUiStateMachine.model(
           WipingDeviceProgressProps {
             uiState = WipingDeviceSuccessUiState
@@ -85,24 +74,41 @@ class WipingDeviceUiStateMachineImpl(
         )
       }
 
-      is WipingDeviceSuccessUiState -> {
-        wipingDeviceSuccessUiStateMachine.model(
-          WipingDeviceSuccessProps(onDone = props.onSuccess)
-        )
+      WipingDeviceSuccessUiState -> {
+        SuccessBodyModel(
+          id = WipingDeviceEventTrackerScreenId.RESET_DEVICE_SUCCESS,
+          title = "Your Bitkey device is now wiped",
+          message = "Your device has been wiped and can now be safely discarded or passed on.",
+          primaryButtonModel = ButtonDataModel(text = "Done", onClick = props.onSuccess)
+        ).asModalScreen()
       }
     }
   }
+
+  private fun WipingDeviceProps.initialUiState(): WipingDeviceUiState =
+    when (val context = wipeContext) {
+      is WipeContext.InactiveDevice ->
+        when (initialStep) {
+          WipingDeviceInitialStep.ScanDevice -> WipingDeviceIntroUiState
+          WipingDeviceInitialStep.Intro -> {
+            // Skip intro and go directly to the wipe confirmation checklist with the inactive
+            // device's hardware type.
+            WipingDeviceConfirmationUiState(
+              isDevicePaired = false,
+              wipeContext = context
+            )
+          }
+        }
+
+      WipeContext.Default -> WipingDeviceIntroUiState
+    }
 }
 
 private sealed interface WipingDeviceUiState {
   /**
    * Viewing the wipe device intro screen
    */
-  data class WipingDeviceIntroUiState(
-    val isShowingScanToContinueSheet: Boolean = false,
-    val isShowingTransferFundsSheet: Boolean = false,
-    val balance: BitcoinBalance? = null,
-  ) : WipingDeviceUiState
+  data object WipingDeviceIntroUiState : WipingDeviceUiState
 
   /**
    * Viewing the wipe device confirmation screen

@@ -177,28 +177,6 @@ def debug(c, target=None, platform=None, jlink=None, gdb_port=2331, kill_existin
 
 
 @task(help={
-    "port": "Serial port to monitor (overrides config)",
-})
-def monitor(c, port=None):
-    """Monitor serial debug output using screen"""
-    if not check_config():
-        exit(1)
-
-    # Use provided port or fall back to config
-    monitor_port = port or (
-        c.monitor_port if hasattr(c, 'monitor_port') else None)
-
-    if monitor_port is None:
-        click.echo(
-            "'monitor_port' not set in invoke.json config and no --port argument provided")
-        exit(1)
-
-    c.run("clear")
-    c.run(
-        f"python3 -m serial.tools.miniterm --raw --eol CR --encoding ascii {monitor_port} 115200 | tee monitor.log")
-
-
-@task(help={
     "verbose": "Print security keys and config",
 })
 def secinfo(c, verbose=False):

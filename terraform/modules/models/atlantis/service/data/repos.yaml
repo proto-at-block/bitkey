@@ -4,9 +4,14 @@ repos:
     # We can't use `mergeable` here yet because atlantis doesn't play nice with gh rulesets that require apply for merge
     # See https://github.com/runatlantis/atlantis/issues/4116
     apply_requirements: [approved]
-    allow_custom_workflows: true
+    allow_custom_workflows: false
     allowed_overrides:
       - workflow
+    allowed_workflows:
+      - terragrunt
+      - firmware-signer-development
+      - firmware-signer-staging
+      - firmware-signer-production
     workflow: terragrunt
 workflows:
   terragrunt:

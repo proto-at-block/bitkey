@@ -15,7 +15,6 @@ import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoMock
 import build.wallet.feature.flags.Bip177FeatureFlag
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.fwup.FirmwareDataServiceFake
 import build.wallet.home.GettingStartedTaskDaoMock
 import build.wallet.inappsecurity.MoneyHomeHiddenStatusProviderFake
@@ -75,7 +74,6 @@ class MoneyHomeViewingBalanceUiStateMachineImplTests : FunSpec({
   val migrationService = MigrationServiceFake()
   val featureFlagDao = FeatureFlagDaoMock()
   val bip177FeatureFlag = Bip177FeatureFlag(featureFlagDao)
-  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(featureFlagDao)
   val bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryFake()
 
   val setStateCalls = turbines.create<MoneyHomeUiState>("setState calls")
@@ -127,7 +125,6 @@ class MoneyHomeViewingBalanceUiStateMachineImplTests : FunSpec({
       ScreenStateMachineMock<PartnerTransferLinkProps>("partner-transfer-link") {},
     migrationService = migrationService,
     bip177FeatureFlag = bip177FeatureFlag,
-    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
     bitcoinDisplayPreferenceRepository = bitcoinDisplayPreferenceRepository
   )
 

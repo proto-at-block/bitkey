@@ -2,11 +2,11 @@
     "module-identifier": "org.bouncycastle:bcutil-jdk18on",
     "components": [
         {
-            "version": "1.80",
+            "version": "1.80.2",
             "variants": [
                 {
                     "artifacts": {
-                        "bcutil-jdk18on-1.80.jar": "22eca687f7955411f456af33e6ea8e68fc73cd80cb8b32aa5f7a8b1827d7c678"
+                        "bcutil-jdk18on-1.80.2.jar": "bc78d32d7ffb141ee27e4fb77df04259d842c899e7e8eaf912f990d7253bd3b4"
                     }
                 }
             ],

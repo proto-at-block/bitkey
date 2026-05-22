@@ -5,7 +5,6 @@ import build.wallet.bitcoin.invoice.PaymentDataParserMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.money.FiatMoney
 import build.wallet.onboarding.OnboardingCompletionServiceFake
 import build.wallet.platform.clipboard.ClipboardMock
@@ -90,7 +89,6 @@ class MoneyHomeUiStateMachineImplTests : FunSpec({
     }
   }
   val featureFlagDao = FeatureFlagDaoFake()
-  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(featureFlagDao)
 
   fun createStateMachine(
     migrationService: MigrationService = defaultMigrationService,
@@ -139,7 +137,6 @@ class MoneyHomeUiStateMachineImplTests : FunSpec({
     partnershipsPurchaseQuotesUiStateMachine = object : PartnershipsPurchaseQuotesUiStateMachine,
       ScreenStateMachineMock<PartnershipsPurchaseQuotesUiProps>("purchase-quotes") {},
     deepLinkHandler = DeepLinkHandlerMock(turbines::create),
-    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
     w3UpgradeUiStateMachine = w3UpgradeUiStateMachine
   )
 
@@ -159,7 +156,6 @@ class MoneyHomeUiStateMachineImplTests : FunSpec({
     baseMigrationService.reset()
     resumeOverride = null
     featureFlagDao.reset()
-    designSystemUpdatesFeatureFlag.reset()
   }
 
   test("backing out of custom amount returns to money home without reopening buy sheet") {

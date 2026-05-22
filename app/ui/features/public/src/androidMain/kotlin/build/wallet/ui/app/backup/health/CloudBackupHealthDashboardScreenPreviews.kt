@@ -28,7 +28,7 @@ fun CloudBackupHealthDashboardScreenPreview() {
 @Preview
 @Composable
 fun CloudBackupHealthDashboardScreenDesignSystemV2Preview() {
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     CloudBackupHealthDashboardScreen(
       model =
         CloudBackupHealthDashboardBodyModel(

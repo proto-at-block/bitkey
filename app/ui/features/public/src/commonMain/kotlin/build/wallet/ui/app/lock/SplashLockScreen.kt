@@ -67,7 +67,7 @@ fun SplashLockScreen(
         size = IconSize.XLarge,
         color = lockupTint
       )
-      Spacer(modifier = Modifier.height(20.dp))
+      Spacer(modifier = Modifier.height(8.dp))
       Label(
         text = "Locked",
         type = LabelType.Body3Mono,

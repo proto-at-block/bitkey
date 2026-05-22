@@ -148,8 +148,7 @@ private data class ViewingRecoveryContactSheetBodyModel(
         header =
           recoveryContactDesignSystemV2Header(
             headline = headline,
-            subline = subline,
-            alignment = FormHeaderModel.Alignment.CENTER
+            subline = subline
           )
       ).takeIf { useDesignSystemV2RecoveryContactIcon }
   )

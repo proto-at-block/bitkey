@@ -30,9 +30,7 @@ fun TransactionListPreview() {
 @Preview(name = "DS V2 Empty Transaction List Light")
 @Composable
 fun EmptyTransactionListPreviewDesignSystemV2Light() {
-  PreviewWalletTheme(
-    designSystemUpdatesEnabled = true
-  ) {
+  PreviewWalletTheme {
     TransactionList(
       model = emptyTransactionListModel()
     )
@@ -44,7 +42,6 @@ fun EmptyTransactionListPreviewDesignSystemV2Light() {
 fun EmptyTransactionListPreviewDesignSystemV2Dark() {
   PreviewWalletTheme(
     theme = Theme.DARK,
-    designSystemUpdatesEnabled = true
   ) {
     TransactionList(
       model = emptyTransactionListModel()

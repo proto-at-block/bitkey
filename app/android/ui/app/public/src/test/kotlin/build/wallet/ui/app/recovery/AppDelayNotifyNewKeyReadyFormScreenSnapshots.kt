@@ -23,21 +23,8 @@ class AppDelayNotifyNewKeyReadyFormScreenSnapshots : FunSpec({
     }
   }
 
-  test("new key ready screen with design system v2 feature flag on") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
-      FormScreen(
-        DelayAndNotifyNewKeyReady(
-          factorToRecover = App,
-          onCompleteRecovery = {},
-          onStopRecovery = {},
-          onExit = null
-        )
-      )
-    }
-  }
-
-  test("replacement device ready screen with design system v2 feature flag on") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+  test("replacement device ready screen") {
+    paparazzi.snapshot {
       FormScreen(
         DelayAndNotifyNewKeyReady(
           factorToRecover = Hardware,

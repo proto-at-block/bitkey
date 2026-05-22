@@ -12,7 +12,6 @@ import build.wallet.ui.components.label.LabelTreatment.Secondary
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupModel.HeaderTreatment.PRIMARY
 import build.wallet.ui.model.list.ListGroupModel.HeaderTreatment.SECONDARY
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.tokens.LabelType
 
 @Composable
@@ -21,7 +20,7 @@ fun ListSectionHeader(
   title: String,
   treatment: ListGroupModel.HeaderTreatment,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   Box(modifier = modifier.fillMaxWidth()) {
     Label(
       modifier =

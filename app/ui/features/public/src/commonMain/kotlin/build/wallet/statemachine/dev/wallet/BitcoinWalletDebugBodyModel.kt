@@ -73,4 +73,4 @@ internal data class UtxoRowModel(
 )
 
 private val TnxConfirmedIcon = IconModel(icon = SmallIconCheck, iconSize = IconSize.Small)
-private val TnxPendingIcon = IconModel(iconImage = IconImage.Loader, iconSize = IconSize.Small)
+private val TnxPendingIcon = IconModel(iconImage = IconImage.LoadingBadge, iconSize = IconSize.Small)

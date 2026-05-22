@@ -127,5 +127,6 @@ fun ListItemAccessory.disable(): ListItemAccessory {
     is CircularIconAccessory -> this
     is ContactAvatarAccessory -> this
     is CheckAccessory -> this
+    is CheckboxAccessory -> copy(onClick = {}, isEnabled = false)
   }
 }

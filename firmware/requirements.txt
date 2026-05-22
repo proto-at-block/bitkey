@@ -16,6 +16,7 @@ plotly==5.19.0
 pandas==2.2.1
 prettytable==3.10.0
 memfault-cli==1.6.0
+mflt-compact-log==0.2.1
 
 # LVGL Asset Generation
 pypng==0.20220715.0

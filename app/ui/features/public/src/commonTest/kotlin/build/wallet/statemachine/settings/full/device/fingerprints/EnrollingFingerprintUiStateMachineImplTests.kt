@@ -8,7 +8,6 @@ import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FingerprintEnrollmentStatus
 import build.wallet.firmware.FingerprintHandle
@@ -45,7 +44,6 @@ class EnrollingFingerprintUiStateMachineImplTests : FunSpec({
       "nfc fingerprints"
     ) {}
   val clock = ClockFake()
-  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(FeatureFlagDaoFake())
   val stateMachine = EnrollingFingerprintUiStateMachineImpl(
     nfcSessionUIStateMachine = nfcSessionUIStateMachine,
     fingerprintNfcCommands = FingerprintNfcCommandsImpl(),
@@ -57,7 +55,6 @@ class EnrollingFingerprintUiStateMachineImplTests : FunSpec({
         clock = clock
       )
     ),
-    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag
   )
 
   val onCancelCalls = turbines.create<Unit>("on cancel calls")

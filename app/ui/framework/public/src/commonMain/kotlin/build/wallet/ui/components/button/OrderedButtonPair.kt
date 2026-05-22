@@ -7,7 +7,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 
 @Composable
 fun OrderedButtonPair(
@@ -17,7 +16,7 @@ fun OrderedButtonPair(
   modifier: Modifier = Modifier,
   renderButton: @Composable (ButtonModel) -> Unit = { Button(model = it) },
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val topButton = if (isDesignSystemV2Enabled) primary else secondary
   val bottomButton = if (isDesignSystemV2Enabled) secondary else primary
 

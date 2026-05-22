@@ -26,8 +26,7 @@ class W3UpgradeCompleteSnapshots : FunSpec({
       model = W3UpgradeCompleteSheetBodyModel(
         onBack = {},
         onDone = {}
-      ),
-      designSystemUpdatesEnabled = true
+      )
     )
   }
 })

@@ -18,9 +18,4 @@ class SettingsScreenSnapshots : FunSpec({
     }
   }
 
-  test("settings screen with design system v2 feature flag on") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
-      SettingsScreen()
-    }
-  }
 })

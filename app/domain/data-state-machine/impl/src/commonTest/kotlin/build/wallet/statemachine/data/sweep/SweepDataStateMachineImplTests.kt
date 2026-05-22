@@ -14,6 +14,7 @@ import build.wallet.bitkey.spending.PrivateSpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.device.wipe.DeviceWipeEligibilityServiceFake
 import build.wallet.f8e.mobilepay.MobilePaySigningF8eClientMock
 import build.wallet.f8e.mobilepay.isServerSignedWithKeyset
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
@@ -61,14 +62,16 @@ class SweepDataStateMachineImplTests : FunSpec({
       ): Result<SpendingWallet, Throwable> {
         TODO("Software wallet does not support sweeps yet")
       }
-    }
+  }
   val bitcoinWalletService = BitcoinWalletServiceFake()
+  val deviceWipeEligibilityService = DeviceWipeEligibilityServiceFake()
   val stateMachine =
     SweepDataStateMachineImpl(
       sweepService,
       serverSigner,
       appSpendingWalletProvider,
       bitcoinWalletService,
+      deviceWipeEligibilityService,
       MinimumLoadingDuration(Duration.ZERO)
     )
 
@@ -76,6 +79,7 @@ class SweepDataStateMachineImplTests : FunSpec({
     sweepService.reset()
     serverSigner.reset()
     bitcoinWalletService.reset()
+    deviceWipeEligibilityService.reset()
 
     // Remove spending wallet turbines.
     // We reuse the same keyset mocks for each test. The id of those keysets are used as
@@ -397,6 +401,161 @@ class SweepDataStateMachineImplTests : FunSpec({
 
     successCount.shouldBe(1)
     sweepService.sweepRequired.value.shouldBe(false)
+    deviceWipeEligibilityService.recordW3UpgradeSweepNotRequiredCalls.shouldBe(0)
+  }
+
+  test("w3 upgrade attempted sweep with no remaining funds does not overwrite tracked sweep status") {
+    sweepService.prepareSweepResult = Ok(null)
+    sweepService.sweepRequired.value = true
+
+    stateMachine.test(
+      SweepDataProps(
+        hasAttemptedSweep = true,
+        onAttemptSweep = {},
+        keybox = KeyboxMock,
+        sweepContext = SweepContext.W3Upgrade(replacedHardwareFingerprint = "old-fingerprint"),
+        onSuccess = {}
+      )
+    ) {
+      awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()
+      awaitItem().shouldBeTypeOf<SweepCompleteNoData>()
+    }
+
+    deviceWipeEligibilityService.recordW3UpgradeSweepNotRequiredCalls.shouldBe(0)
+    sweepService.sweepRequired.value.shouldBe(false)
+  }
+
+  test("w3 upgrade records broadcast txids after successful sweep") {
+    val expectedSweepPsbts = listOf(
+      SweepPsbt(
+        PsbtMock.copyId("w3-sweep-1"),
+        SweepSignaturePlan.AppAndHardware,
+        SpendingKeysetMock,
+        "bc1qtest"
+      ),
+      SweepPsbt(
+        PsbtMock.copyId("w3-sweep-2"),
+        SweepSignaturePlan.AppAndHardware,
+        PrivateSpendingKeysetMock,
+        "bc1qtest"
+      )
+    )
+    sweepService.prepareSweepResult = Ok(
+      Sweep(unsignedPsbts = expectedSweepPsbts.toSet())
+    )
+
+    stateMachine.testWithVirtualTime(
+      SweepDataProps(
+        hasAttemptedSweep = false,
+        onAttemptSweep = {},
+        keybox = KeyboxMock,
+        sweepContext = SweepContext.W3Upgrade(replacedHardwareFingerprint = "old-fingerprint"),
+        onSuccess = {}
+      )
+    ) {
+      awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()
+      awaitItem().shouldBeTypeOf<PsbtsGeneratedData>()
+        .startSweep()
+
+      awaitItem().shouldBeTypeOf<AwaitingHardwareSignedSweepsData>()
+        .addHwSignedSweeps(expectedSweepPsbts.map { it.psbt }.toSet())
+
+      awaitItem().shouldBeTypeOf<SigningAndBroadcastingSweepsData>()
+
+      awaitItem().shouldBeTypeOf<SweepCompleteData>()
+    }
+
+    bitcoinWalletService.broadcastedPsbts.value
+      .map { it.id }
+      .shouldContainOnly("w3-sweep-1", "w3-sweep-2")
+    deviceWipeEligibilityService.recordW3UpgradeSweepTxidsCalls
+      .single()
+      .shouldBe(setOf("w3-sweep-1", "w3-sweep-2"))
+  }
+
+  test("w3 upgrade records actual broadcast txids instead of prepared psbt ids") {
+    val expectedSweepPsbts = listOf(
+      SweepPsbt(
+        PsbtMock.copyId("prepared-txid"),
+        SweepSignaturePlan.AppAndHardware,
+        SpendingKeysetMock,
+        "bc1qtest"
+      )
+    )
+    sweepService.prepareSweepResult = Ok(
+      Sweep(unsignedPsbts = expectedSweepPsbts.toSet())
+    )
+    bitcoinWalletService.broadcastTransactionId = { psbt -> "broadcast-${psbt.id}" }
+
+    stateMachine.testWithVirtualTime(
+      SweepDataProps(
+        hasAttemptedSweep = false,
+        onAttemptSweep = {},
+        keybox = KeyboxMock,
+        sweepContext = SweepContext.W3Upgrade(replacedHardwareFingerprint = "old-fingerprint"),
+        onSuccess = {}
+      )
+    ) {
+      awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()
+      awaitItem().shouldBeTypeOf<PsbtsGeneratedData>()
+        .startSweep()
+
+      awaitItem().shouldBeTypeOf<AwaitingHardwareSignedSweepsData>()
+        .addHwSignedSweeps(expectedSweepPsbts.map { it.psbt }.toSet())
+
+      awaitItem().shouldBeTypeOf<SigningAndBroadcastingSweepsData>()
+      awaitItem().shouldBeTypeOf<SweepCompleteData>()
+    }
+
+    bitcoinWalletService.broadcastedPsbts.value.single().id.shouldBe("prepared-txid")
+    deviceWipeEligibilityService.recordW3UpgradeSweepTxidsCalls
+      .single()
+      .shouldBe(setOf("broadcast-prepared-txid"))
+  }
+
+  test("w3 upgrade txid persistence failure after broadcast fails without blocking broadcast") {
+    val expectedSweepPsbts = listOf(
+      SweepPsbt(
+        PsbtMock.copyId("w3-sweep"),
+        SweepSignaturePlan.AppAndServer,
+        SpendingKeysetMock,
+        "bc1qtest"
+      )
+    )
+    sweepService.prepareSweepResult = Ok(
+      Sweep(unsignedPsbts = expectedSweepPsbts.toSet())
+    )
+    sweepService.sweepRequired.value = true
+    deviceWipeEligibilityService.recordW3UpgradeSweepTxidsResult =
+      Err(Error("txid persistence failed"))
+    var sweepAttemptCounter = 0
+
+    stateMachine.testWithVirtualTime(
+      SweepDataProps(
+        hasAttemptedSweep = false,
+        onAttemptSweep = { sweepAttemptCounter++ },
+        keybox = KeyboxMock,
+        sweepContext = SweepContext.W3Upgrade(replacedHardwareFingerprint = "old-fingerprint"),
+        onSuccess = {}
+      )
+    ) {
+      awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()
+      awaitItem().shouldBeTypeOf<PsbtsGeneratedData>()
+        .startSweep()
+
+      awaitItem().shouldBeTypeOf<SigningAndBroadcastingSweepsData>()
+      val sweepFailedData = awaitItem().shouldBeTypeOf<SweepFailedData>()
+      sweepFailedData.cause.message.shouldContain("txid persistence failed")
+
+      deviceWipeEligibilityService.recordW3UpgradeSweepTxidsCalls.single()
+        .shouldBe(setOf("w3-sweep"))
+      val walletForKeyset = spendingWallets[SpendingKeysetMock.localId].shouldNotBeNull()
+      walletForKeyset.signPsbtCalls.awaitItem().shouldBe(expectedSweepPsbts.single().psbt)
+      serverSigner.signWithSpecificKeysetCalls.awaitItem()
+      bitcoinWalletService.broadcastedPsbts.value.single().id.shouldBe("w3-sweep")
+      sweepAttemptCounter.shouldBe(1)
+      sweepService.sweepRequired.value.shouldBe(true)
+    }
   }
 
   test("recovery progress set immediately when sweep starts") {
@@ -592,6 +751,7 @@ class SweepDataStateMachineImplTests : FunSpec({
       serverSigner,
       brokenWalletProvider,
       bitcoinWalletService,
+      deviceWipeEligibilityService,
       MinimumLoadingDuration(Duration.ZERO)
     )
 

@@ -5,7 +5,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import build.wallet.ui.model.switch.SwitchModel
 import build.wallet.ui.theme.LocalContainerBackgroundColor
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 
 @Composable
@@ -63,7 +62,7 @@ fun Switch(
   disabledThumbColor: Color = WalletTheme.colors.foreground30,
   disabledTrackColor: Color = WalletTheme.colors.foreground10,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val interopBackgroundColor = LocalContainerBackgroundColor.current ?: WalletTheme.colors.background
   val resolvedCheckedThumbColor =
     if (isDesignSystemV2Enabled && checkedThumbColor == WalletTheme.colors.primaryForeground) {

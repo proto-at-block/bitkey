@@ -20,10 +20,8 @@ import build.wallet.analytics.v1.Action.ACTION_HW_ONBOARDING_OPEN
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.collectIsEnabledAsState
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
-import build.wallet.feature.flags.W3OnboardingFeatureFlag
 import build.wallet.feature.isEnabled
+import build.wallet.feature.flags.W3OnboardingFeatureFlag
 import build.wallet.firmware.UnlockInfo
 import build.wallet.logging.*
 import build.wallet.nfc.NfcException
@@ -62,12 +60,11 @@ class PairNewHardwareUiStateMachineImpl(
   private val hardwareUnlockInfoService: HardwareUnlockInfoService,
   private val w3OnboardingFeatureFlag: W3OnboardingFeatureFlag,
   private val accountConfigService: AccountConfigService,
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : PairNewHardwareUiStateMachine {
   @Composable
   override fun model(props: PairNewHardwareProps): ScreenModel {
     val scope = rememberStableCoroutineScope()
-    val isDesignSystemV2Enabled by designSystemUpdatesFeatureFlag.collectIsEnabledAsState()
+    val isDesignSystemV2Enabled = true
     // W3Upgrade context always forces W3 onboarding, regardless of feature flag.
     val isW3Flow = props.pairingContext is PairingContext.W3Upgrade || w3OnboardingFeatureFlag.isEnabled()
     // Only override hardware type for fake hardware — real hardware auto-detects from firmware.

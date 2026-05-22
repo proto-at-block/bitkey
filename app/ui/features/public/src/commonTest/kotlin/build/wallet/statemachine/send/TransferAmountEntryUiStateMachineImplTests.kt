@@ -2,16 +2,11 @@ package build.wallet.statemachine.send
 
 import app.cash.turbine.plusAssign
 import build.wallet.availability.AppFunctionalityServiceFake
-import build.wallet.availability.AppFunctionalityStatus.LimitedFunctionality
-import build.wallet.availability.F8eUnreachable
 import build.wallet.bitcoin.balance.BitcoinBalanceFake
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.transactions.TransactionsDataMock
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.limit.DailySpendingLimitStatus
 import build.wallet.limit.MobilePayServiceMock
 import build.wallet.money.BitcoinMoney
@@ -35,8 +30,6 @@ import build.wallet.statemachine.send.amountentry.TransferCardUiProps
 import build.wallet.statemachine.send.amountentry.TransferCardUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.matchers.shouldBeDisabled
-import build.wallet.statemachine.ui.matchers.shouldHaveText
-import build.wallet.statemachine.ui.robots.click
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.model.button.ButtonModel
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
@@ -46,7 +39,6 @@ import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeInstanceOf
 
 class TransferAmountEntryUiStateMachineImplTests : FunSpec({
   val conversionRate = 3.3333
@@ -81,7 +73,6 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
         null
       ) {}
   val mobilePayService = MobilePayServiceMock(turbines::create)
-  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(FeatureFlagDaoFake())
   val appFunctionalityService = AppFunctionalityServiceFake()
 
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
@@ -92,7 +83,6 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
     moneyDisplayFormatter = MoneyDisplayFormatterFake,
     fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
     bitcoinWalletService = bitcoinWalletService,
-    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag,
     transferCardUiStateMachine = transferCardUiStateMachine,
     appFunctionalityService = appFunctionalityService
   )
@@ -116,7 +106,6 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
     )
 
   beforeTest {
-    designSystemUpdatesFeatureFlag.setFlagValue(false)
     mobilePayService.reset()
     appFunctionalityService.reset()
     mobilePayService.status = DailySpendingLimitStatus.MobilePayAvailable
@@ -417,7 +406,6 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
 
   context("Send Max is Available") {
     test("Should show smart bar and keep amount hero enabled if spending above balance") {
-      designSystemUpdatesFeatureFlag.setFlagValue(true)
       val primaryAmountAboveBalance = balancePrimaryAmount + FiatMoney.usd(0.1)
       val secondaryAmountAboveBalance = BitcoinMoney(
         currency = BTC,
@@ -633,27 +621,6 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
 
       transferCardUiStateMachine.props.transferAmountState
         .shouldBe(TransferAmountUiState.InvalidAmountEnteredUiState.InvalidAmountEqualOrAboveBalanceUiState)
-    }
-  }
-
-  test("legacy hardware unavailable banner callback shows explanatory bottom sheet") {
-    appFunctionalityService.status.value = LimitedFunctionality(F8eUnreachable(lastReachableTime = null))
-
-    stateMachine.test(props) {
-      awaitBody<TransferAmountBodyModel>()
-
-      transferCardUiStateMachine.props.onHardwareRequiredClick()
-
-      val hardwareRequiredSheet =
-        awaitItem().bottomSheetModel.shouldNotBeNull().body.shouldBeInstanceOf<FormBodyModel>()
-      hardwareRequiredSheet.header.shouldNotBeNull().headline.shouldBe("Bitkey Services Unavailable")
-      hardwareRequiredSheet.header.shouldNotBeNull().sublineModel.shouldNotBeNull().string.shouldBe(
-        "Fiat exchange rates are unavailable and your Bitkey device is required for all transactions."
-      )
-      hardwareRequiredSheet.primaryButton.shouldHaveText("Got it")
-      hardwareRequiredSheet.primaryButton.click()
-
-      awaitItem().bottomSheetModel.shouldBeNull()
     }
   }
 

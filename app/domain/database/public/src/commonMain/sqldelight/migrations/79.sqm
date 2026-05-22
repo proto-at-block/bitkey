@@ -1,0 +1,10 @@
+ALTER TABLE w3UpgradeMigrationEntity ADD COLUMN oldW1SweepStatus TEXT NOT NULL DEFAULT 'UNKNOWN';
+
+ALTER TABLE w3UpgradeMigrationEntity ADD COLUMN oldW1WipeReminderDismissed INTEGER NOT NULL DEFAULT 0;
+
+CREATE TABLE w3UpgradeSweepTransactionEntity(
+  txid TEXT NOT NULL PRIMARY KEY,
+  broadcastTime TEXT
+);
+
+PRAGMA foreign_key_check;

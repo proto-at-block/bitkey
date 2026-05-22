@@ -1,6 +1,5 @@
 package bitkey.ui.screens.securityhub
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement.SpaceBetween
@@ -10,16 +9,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
@@ -39,8 +33,8 @@ import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.home.full.HomeTab
-import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.CardListModel
+import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryCardModel
 import build.wallet.statemachine.recovery.hardware.fingerprintreset.FingerprintResetCardModel
 import build.wallet.ui.app.moneyhome.card.NewCard
@@ -61,7 +55,6 @@ import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.market.MarketIcons
@@ -69,9 +62,6 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
 
 private val DestructiveRed = Color(0xffca0000)
 private val WarningOrange = Color(0xffbf46e38)
@@ -100,6 +90,7 @@ data class SecurityHubBodyModel(
   val atRiskRecommendations: ImmutableList<SecurityActionRecommendation>,
   val recommendations: ImmutableList<SecurityActionRecommendation>,
   val cardsModel: CardListModel,
+  val showAllSetState: Boolean = false,
   val securityActions: List<SecurityAction> = emptyList(),
   val recoveryActions: List<SecurityAction> = emptyList(),
   val onRecommendationClick: (SecurityActionRecommendation) -> Unit,
@@ -114,8 +105,8 @@ data class SecurityHubBodyModel(
   @Composable
   override fun render(modifier: Modifier) {
     val localDensity = LocalDensity.current
-    val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
     val scrollState = rememberScrollState()
+    val shouldRenderAllSetPill = showAllSetState
     var tabBarHeightDp by remember {
       mutableStateOf(0.dp)
     }
@@ -138,34 +129,31 @@ data class SecurityHubBodyModel(
         modifier = Modifier
           .fillMaxSize()
           .verticalScroll(scrollState)
-          .thenIf(isDesignSystemV2Enabled) {
-            Modifier.padding(top = SECURITY_HUB_TOOLBAR_RESERVED_HEIGHT + SECURITY_HUB_CONTENT_TOP_PADDING)
-          }
+          .padding(top = SECURITY_HUB_TOOLBAR_RESERVED_HEIGHT + SECURITY_HUB_CONTENT_TOP_PADDING)
       ) {
         SecurityHubHeaderSection(
           isOffline = isOffline,
           atRiskRecommendations = atRiskRecommendations,
           recommendations = recommendations,
           cardsModel = cardsModel,
-          onRecommendationClick = onRecommendationClick,
-          showTitle = !isDesignSystemV2Enabled
+          showAllSetState = showAllSetState,
+          onRecommendationClick = onRecommendationClick
         )
 
         SecurityHubActionsSection(
           securityActions = securityActions.toImmutableList(),
           recoveryActions = recoveryActions.toImmutableList(),
           onSecurityActionClick = onSecurityActionClick,
+          reduceTopSpacingForAllSetPill = shouldRenderAllSetPill,
           tabBarHeightDp = tabBarHeightDp
         )
       }
 
-      if (isDesignSystemV2Enabled) {
-        SecurityHubTopToolbar(
-          modifier = Modifier.align(Alignment.TopCenter),
-          title = "Security Hub",
-          trailingToolbarAccessoryModel = trailingToolbarAccessoryModel
-        )
-      }
+      SecurityHubTopToolbar(
+        modifier = Modifier.align(Alignment.TopCenter),
+        title = "Security Hub",
+        trailingToolbarAccessoryModel = trailingToolbarAccessoryModel
+      )
 
       val tabs = listOf(
         HomeTab.MoneyHome(
@@ -191,26 +179,16 @@ data class SecurityHubBodyModel(
         selectedIndex = selectedIndex,
         tabCount = tabs.size
       ) {
-        if (isDesignSystemV2Enabled) {
-          tabs.forEachIndexed { index, tab ->
-            Box(
-              modifier = Modifier.weight(1f),
-              contentAlignment = Alignment.Center
-            ) {
-              Tab(
-                selected = tab.selected,
-                onClick = tab.onSelected,
-                icon = tab.icon,
-                modifier = Modifier.offset(x = if (index == 0) 3.dp else (-3).dp)
-              )
-            }
-          }
-        } else {
-          tabs.forEach { tab ->
+        tabs.forEachIndexed { index, tab ->
+          Box(
+            modifier = Modifier.weight(1f),
+            contentAlignment = Alignment.Center
+          ) {
             Tab(
               selected = tab.selected,
               onClick = tab.onSelected,
-              icon = tab.icon
+              icon = tab.icon,
+              modifier = Modifier.offset(x = if (index == 0) 3.dp else (-3).dp)
             )
           }
         }
@@ -225,27 +203,15 @@ private fun SecurityHubHeaderSection(
   atRiskRecommendations: ImmutableList<SecurityActionRecommendation>,
   recommendations: ImmutableList<SecurityActionRecommendation>,
   cardsModel: CardListModel,
+  showAllSetState: Boolean,
   onRecommendationClick: (SecurityActionRecommendation) -> Unit,
-  showTitle: Boolean,
 ) {
-  val isDesignSystemUpdatesEnabled = LocalDesignSystemUpdatesEnabled.current
-
   Column(
     modifier = Modifier.fillMaxWidth()
       .background(color = screenBackgroundColor(isOffline))
       .padding(horizontal = 20.dp)
   ) {
-    if (showTitle) {
-      Spacer(modifier = Modifier.height(8.dp))
-      Label(
-        model = LabelModel.StringModel("Security Hub"),
-        style = WalletTheme.labelStyle(LabelType.Title1, textColor = WalletTheme.colors.foreground)
-      )
-    }
-
     if (!isOffline) {
-      Spacer(modifier = Modifier.height(if (showTitle) 20.dp else 0.dp))
-
       if (atRiskRecommendations.isNotEmpty()) {
         RecommendationList(
           modifier = Modifier.fillMaxWidth(),
@@ -259,7 +225,7 @@ private fun SecurityHubHeaderSection(
 
       // TODO W-11412 filter this in the service, not in the UI
       if (atRiskRecommendations.isEmpty()) {
-        cardsModel.cards.map {
+        cardsModel.cards.forEach {
           NewCard(model = it)
           Spacer(modifier = Modifier.height(8.dp))
         }
@@ -268,21 +234,27 @@ private fun SecurityHubHeaderSection(
           Spacer(modifier = Modifier.height(12.dp))
         }
 
-        if (recommendations.isNotEmpty() || cardsModel.cards.isEmpty()) {
-          RecommendationList(
-            modifier = Modifier.fillMaxWidth(),
-            recommendations = recommendations,
-            onRecommendationClick = onRecommendationClick,
-            type = RecommendationType.Recommended
-          )
+        when {
+          recommendations.isNotEmpty() -> {
+            RecommendationList(
+              modifier = Modifier.fillMaxWidth(),
+              recommendations = recommendations,
+              onRecommendationClick = onRecommendationClick,
+              type = RecommendationType.Recommended
+            )
+          }
+          showAllSetState -> {
+            RecommendationList(
+              modifier = Modifier.fillMaxWidth(),
+              recommendations = immutableListOf(),
+              onRecommendationClick = onRecommendationClick,
+              type = RecommendationType.Recommended
+            )
+          }
         }
       }
 
-      Spacer(
-        modifier = Modifier.height(
-          if (isDesignSystemUpdatesEnabled) 16.dp else 32.dp
-        )
-      )
+      Spacer(modifier = Modifier.height(16.dp))
     }
   }
 }
@@ -361,6 +333,7 @@ private fun SecurityHubActionsSection(
   securityActions: ImmutableList<SecurityAction>,
   recoveryActions: ImmutableList<SecurityAction>,
   onSecurityActionClick: (SecurityAction) -> Unit,
+  reduceTopSpacingForAllSetPill: Boolean,
   tabBarHeightDp: Dp,
 ) {
   if (securityActions.isEmpty() && recoveryActions.isEmpty()) return
@@ -369,7 +342,11 @@ private fun SecurityHubActionsSection(
     modifier = Modifier.background(WalletTheme.colors.background)
       .padding(horizontal = 20.dp)
   ) {
-    Spacer(modifier = Modifier.height(32.dp))
+    Spacer(
+      modifier = Modifier.height(
+        if (reduceTopSpacingForAllSetPill) 8.dp else 32.dp
+      )
+    )
 
     if (securityActions.isNotEmpty()) {
       HubActionSection(
@@ -397,10 +374,8 @@ private fun SecurityHubActionsSection(
 private fun screenBackgroundColor(isOffline: Boolean): Color =
   if (isOffline) {
     WalletTheme.colors.background
-  } else if (LocalDesignSystemUpdatesEnabled.current) {
-    WalletTheme.colors.background
   } else {
-    WalletTheme.colors.secondary
+    WalletTheme.colors.background
   }
 
 /**
@@ -427,68 +402,29 @@ private fun RecommendationList(
   recommendations: ImmutableList<SecurityActionRecommendation>,
   onRecommendationClick: (SecurityActionRecommendation) -> Unit,
 ) {
-  val isDesignSystemUpdatesEnabled = LocalDesignSystemUpdatesEnabled.current
-  val useContainer = !isDesignSystemUpdatesEnabled
-  val recommendationBackgroundColor = if (isDesignSystemUpdatesEnabled) {
-    WalletTheme.colors.secondary
-  } else {
-    WalletTheme.colors.background
-  }
-  val recommendationListModifier = if (useContainer) {
-    modifier.shadow(
-      elevation = 2.dp,
-      shape = RoundedCornerShape(16.dp),
-      ambientColor = Color.Black.copy(.1f)
-    ).background(
-      color = recommendationBackgroundColor,
-      shape = RoundedCornerShape(16.dp)
-    )
-  } else {
-    modifier
-  }
   Column(
-    modifier = recommendationListModifier
+    modifier = modifier
   ) {
     RecommendationHeader(
-      modifier = if (useContainer) {
-        Modifier.padding(vertical = 20.dp, horizontal = 12.dp)
-      } else {
-        Modifier.padding(top = 8.dp, bottom = 8.dp)
-      },
+      modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
       numberOfRecommendations = recommendations.size,
       type = type
     )
     if (recommendations.isNotEmpty()) {
-      if (useContainer) {
-        Divider(modifier = Modifier.fillMaxWidth(), thickness = 2.dp)
-      }
       recommendations.mapIndexed { index, recommendation ->
         Column(
-          modifier = if (useContainer) {
-            Modifier.padding(horizontal = 16.dp)
-          } else {
-            Modifier
-          }
+          modifier = Modifier
         ) {
           RecommendationRow(
             recommendation = recommendation,
             recommendationIndex = index + 1,
             onRecommendationClick = onRecommendationClick
           )
-          if (useContainer) {
-            if (index != recommendations.lastIndex) {
-              Divider(modifier = Modifier.fillMaxWidth())
-            }
-          } else {
-            Divider(
-              modifier = Modifier.fillMaxWidth(),
-              color = WalletTheme.colors.subtleBackground
-            )
-          }
+          Divider(
+            modifier = Modifier.fillMaxWidth(),
+            color = WalletTheme.colors.subtleBackground
+          )
         }
-      }
-      if (useContainer) {
-        Spacer(Modifier.height(10.dp))
       }
     }
   }
@@ -500,7 +436,6 @@ private fun RecommendationHeader(
   numberOfRecommendations: Int,
   type: RecommendationType,
 ) {
-  val isDesignSystemUpdatesEnabled = LocalDesignSystemUpdatesEnabled.current
   val text = when (type) {
     RecommendationType.Critical -> "Wallet at risk"
     RecommendationType.Recommended -> when (numberOfRecommendations) {
@@ -509,18 +444,40 @@ private fun RecommendationHeader(
       else -> "$numberOfRecommendations recommended actions"
     }
   }
+  val shouldRenderAllSetPill =
+    type == RecommendationType.Recommended &&
+      numberOfRecommendations == 0
 
-  Row(
-    modifier = modifier,
-    verticalAlignment = CenterVertically
-  ) {
-    RecommendationStateIndicator(numberOfRecommendations, type)
-    Spacer(modifier = Modifier.width(12.dp))
-    Label(
-      text = text,
-      type = if (isDesignSystemUpdatesEnabled) LabelType.Body3Mono else LabelType.Title2,
-      treatment = if (isDesignSystemUpdatesEnabled) LabelTreatment.Secondary else LabelTreatment.Primary
-    )
+  Box(modifier = modifier) {
+    if (shouldRenderAllSetPill) {
+      Row(
+        modifier = Modifier
+          .background(
+            color = WalletTheme.colors.subtleBackground,
+            shape = RoundedCornerShape(100.dp)
+          )
+          .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = CenterVertically
+      ) {
+        RecommendationStatusDot(numberOfRecommendations, type)
+        Spacer(modifier = Modifier.width(12.dp))
+        Label(
+          text = text,
+          type = LabelType.Body3Mono,
+          color = WalletTheme.colors.foreground60
+        )
+      }
+    } else {
+      Row(verticalAlignment = CenterVertically) {
+        RecommendationStatusDot(numberOfRecommendations, type)
+        Spacer(modifier = Modifier.width(12.dp))
+        Label(
+          text = text,
+          type = LabelType.Body3Mono,
+          treatment = LabelTreatment.Secondary
+        )
+      }
+    }
   }
 }
 
@@ -530,137 +487,53 @@ fun RecommendationRow(
   recommendationIndex: Int,
   onRecommendationClick: (SecurityActionRecommendation) -> Unit,
 ) {
-  val isDesignSystemUpdatesEnabled = LocalDesignSystemUpdatesEnabled.current
-
   Row(
-    modifier = Modifier.padding(
-      vertical = if (isDesignSystemUpdatesEnabled) 16.dp else 20.dp
-    )
+    modifier = Modifier.padding(vertical = 16.dp)
       .scalingClickable {
         onRecommendationClick(recommendation)
       },
     verticalAlignment = CenterVertically
   ) {
-    if (!isDesignSystemUpdatesEnabled) {
-      Spacer(modifier = Modifier.width(6.dp))
-    }
-    if (isDesignSystemUpdatesEnabled) {
-      Label(
-        text = "[$recommendationIndex]",
-        type = LabelType.Body3Mono,
-        color = WalletTheme.colors.foreground
-      )
-    } else {
-      Icon(
-        icon = recommendation.icon(),
-        size = IconSize.Small,
-        color = WalletTheme.colors.foreground
-      )
-    }
+    Label(
+      text = "[$recommendationIndex]",
+      type = LabelType.Body3Mono,
+      color = WalletTheme.colors.foreground
+    )
     Spacer(modifier = Modifier.width(12.dp))
     Label(
       modifier = Modifier.weight(1.0f),
       text = stringResource(recommendation.title()),
       color = WalletTheme.colors.foreground,
-      type = if (isDesignSystemUpdatesEnabled) LabelType.Body3Mono else LabelType.Body2Medium,
+      type = LabelType.Body3Mono,
       overflow = TextOverflow.Ellipsis
     )
     Icon(
       icon = Icon.SmallIconCaretRight,
-      size = if (isDesignSystemUpdatesEnabled) IconSize.Accessory else IconSize.Small,
+      size = IconSize.Accessory,
       color = WalletTheme.colors.foreground30
     )
   }
 }
 
 @Composable
-private fun RecommendationStateIndicator(
+private fun RecommendationStatusDot(
   numberOfRecommendations: Int,
   type: RecommendationType,
 ) {
-  val isDesignSystemUpdatesEnabled = LocalDesignSystemUpdatesEnabled.current
-  val color = WalletTheme.colors.secondary
-
-  val warningColor = when (type) {
-    RecommendationType.Critical -> DestructiveRed
-    RecommendationType.Recommended -> WarningOrange
-  }
-
-  if (isDesignSystemUpdatesEnabled && numberOfRecommendations > 0) {
-    Box(
-      modifier = Modifier
-        .size(10.dp)
-        .background(
-          color = warningColor,
-          shape = CircleShape
-        )
-    )
-    return
-  }
-
-  Box(modifier = Modifier.size(44.dp)) {
-    if (numberOfRecommendations == 0) {
-      Canvas(modifier = Modifier.fillMaxSize()) {
-        val canvasWidth = size.width
-        drawCircle(
-          color = SuccessGreen,
-          style = Stroke(4.dp.toPx()),
-          radius = canvasWidth / 2
-        )
-      }
-
-      Icon(
-        modifier = Modifier.align(Center),
-        icon = Icon.LargeIconCheckFilled,
-        size = IconSize.Regular,
-        color = SuccessGreen
-      )
-    } else {
-      Canvas(modifier = Modifier.fillMaxSize()) {
-        // the spacing of the centers of each circle, in degrees
-        val recommendationCircleSpacingInDegrees = 6.dp.toPx().toInt()
-        // the start of the circle in degrees (12 o'clock position)
-        val circleStartInDegrees = 270
-        // the size of the recommendation circle radius in pixels
-        val recommendationCircleRadius = 2.5.dp.toPx()
-
-        // Draw a circle for each recommendation, translating its value in degrees into x,y coordinates
-        // We start at 270 degrees (the top of the circle) and go clockwise for each recommendation
-        for (
-        angleDegrees in
-        circleStartInDegrees..circleStartInDegrees + (numberOfRecommendations * recommendationCircleSpacingInDegrees)
-          step recommendationCircleSpacingInDegrees
-        ) {
-          // convert degree value to radians and convert that value to x,y coordinates
-          val angleRadians = angleDegrees / 180.0 * PI
-          val x = center.x + (size.width / 2) * cos(angleRadians).toFloat()
-          val y = center.y + (size.width / 2) * sin(angleRadians).toFloat()
-          drawCircle(
-            color = warningColor,
-            radius = recommendationCircleRadius,
-            center = Offset(x, y)
-          )
-        }
-
-        // Draw the arc that represents the remainder of the circle after recommendation circles are drawn
-        // We start at 270 degrees and go counterclockwise to the end of the circle
-        drawArc(
-          color = color,
-          startAngle = circleStartInDegrees.toFloat(),
-          sweepAngle = -(360f - ((numberOfRecommendations + 1) * recommendationCircleSpacingInDegrees)),
-          useCenter = false,
-          style = Stroke(5.dp.toPx(), cap = StrokeCap.Round)
-        )
-      }
-
-      Icon(
-        modifier = Modifier.align(Center),
-        icon = Icon.LargeIconWarningFilled,
-        size = IconSize.Regular,
-        color = warningColor
-      )
+  val color = if (numberOfRecommendations == 0) {
+    SuccessGreen
+  } else {
+    when (type) {
+      RecommendationType.Critical -> DestructiveRed
+      RecommendationType.Recommended -> WarningOrange
     }
   }
+
+  Box(
+    modifier = Modifier
+      .size(10.dp)
+      .background(color = color, shape = CircleShape)
+  )
 }
 
 @Composable
@@ -669,13 +542,11 @@ private fun HubActionSection(
   actions: ImmutableList<SecurityAction>,
   onTileClick: (SecurityAction) -> Unit,
 ) {
-  val isDesignSystemUpdatesEnabled = LocalDesignSystemUpdatesEnabled.current
-
   Column {
     Label(
       model = LabelModel.StringModel(sectionTitle),
-      type = if (isDesignSystemUpdatesEnabled) LabelType.Body3Mono else LabelType.Title2,
-      treatment = if (isDesignSystemUpdatesEnabled) LabelTreatment.Secondary else LabelTreatment.Primary
+      type = LabelType.Body3Mono,
+      treatment = LabelTreatment.Secondary
     )
 
     Spacer(modifier = Modifier.height(10.dp))
@@ -745,8 +616,6 @@ private fun ActionTile(
   action: SecurityAction,
   onClick: (SecurityAction) -> Unit,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
-  val cornerRadius = if (isDesignSystemV2Enabled) 8.dp else 16.dp
   Box(
     modifier = modifier.fillMaxWidth()
       .height(116.dp)
@@ -757,7 +626,7 @@ private fun ActionTile(
       }
       .background(
         color = WalletTheme.colors.secondary,
-        shape = RoundedCornerShape(cornerRadius)
+        shape = RoundedCornerShape(8.dp)
       )
       .thenIf(action.state() == SecurityActionState.Disabled) {
         Modifier.alpha(0.3f)
@@ -766,21 +635,19 @@ private fun ActionTile(
     Row(
       modifier = Modifier.fillMaxWidth()
         .padding(12.dp),
-      verticalAlignment = if (isDesignSystemV2Enabled) Alignment.Top else CenterVertically,
+      verticalAlignment = Alignment.Top,
       horizontalArrangement = SpaceBetween
     ) {
-      val actionIcon = action.icon(isDesignSystemV2Enabled)
+      val actionIcon = action.icon()
       Icon(
         icon = actionIcon,
-        size = actionIcon.iconSize(isDesignSystemV2Enabled),
+        size = IconSize.Regular,
         tint = actionIcon.iconTint()
       )
 
       Box(
         modifier = Modifier
-          .thenIf(isDesignSystemV2Enabled) {
-            Modifier.offset(y = 4.dp)
-          }
+          .offset(y = 4.dp)
           .background(
             color = action.statusColor(),
             shape = CircleShape
@@ -794,7 +661,7 @@ private fun ActionTile(
         .padding(12.dp),
       text = stringResource(action.title()),
       style = WalletTheme.labelStyle(
-        if (isDesignSystemV2Enabled) LabelType.Body2Regular else LabelType.Body2Medium
+        LabelType.Body2Regular
       )
     )
   }
@@ -814,40 +681,18 @@ private fun SecurityAction.title(): StringResource =
     KEYSET_SYNC -> Res.string.keyset_sync_action_title
   }
 
-private fun SecurityAction.icon(isDesignSystemV2Enabled: Boolean): Icon =
-  if (isDesignSystemV2Enabled) {
-    when (this.type()) {
-      BIOMETRIC -> Icon.DotSecurity
-      CRITICAL_ALERTS -> Icon.DotCriticalAlerts2
-      EEK_BACKUP -> Icon.DotEmergency
-      FINGERPRINTS -> Icon.DotFingerprint
-      INHERITANCE -> Icon.SmallIconInheritance
-      APP_KEY_BACKUP -> Icon.DotCloudBackup
-      SOCIAL_RECOVERY -> Icon.DotRecoveryContact2
-      HARDWARE_DEVICE -> Icon.DotBitkey
-      TRANSACTION_VERIFICATION -> Icon.SmallIconShieldCheck
-      KEYSET_SYNC -> Icon.SmallIconWarning
-    }
-  } else {
-    when (this.type()) {
-      BIOMETRIC -> Icon.SmallIconLock
-      CRITICAL_ALERTS -> Icon.SmallIconAnnouncement
-      EEK_BACKUP -> Icon.SmallIconRecovery
-      FINGERPRINTS -> Icon.SmallIconFingerprint
-      INHERITANCE -> Icon.SmallIconInheritance
-      APP_KEY_BACKUP -> Icon.SmallIconCloud
-      SOCIAL_RECOVERY -> Icon.SmallIconShieldPerson
-      HARDWARE_DEVICE -> Icon.SmallIconBitkey
-      TRANSACTION_VERIFICATION -> Icon.SmallIconShieldCheck
-      KEYSET_SYNC -> Icon.SmallIconWarning
-    }
-  }
-
-private fun Icon.iconSize(isDesignSystemV2Enabled: Boolean): IconSize =
-  if (isDesignSystemV2Enabled || isDotIcon()) {
-    IconSize.Regular
-  } else {
-    IconSize.Small
+private fun SecurityAction.icon(): Icon =
+  when (this.type()) {
+    BIOMETRIC -> Icon.DotSecurity
+    CRITICAL_ALERTS -> Icon.DotCriticalAlerts
+    EEK_BACKUP -> Icon.DotEmergency
+    FINGERPRINTS -> Icon.DotFingerprint
+    INHERITANCE -> Icon.SmallIconInheritance
+    APP_KEY_BACKUP -> Icon.DotCloudBackup
+    SOCIAL_RECOVERY -> Icon.DotRecoveryContact
+    HARDWARE_DEVICE -> Icon.DotBitkey
+    TRANSACTION_VERIFICATION -> Icon.SmallIconShieldCheck
+    KEYSET_SYNC -> Icon.SmallIconWarning
   }
 
 private fun Icon.iconTint(): IconTint? =
@@ -1211,6 +1056,7 @@ val SnapshotHost.completedRecommendations
     atRiskRecommendations = immutableListOf(),
     recommendations = immutableListOf(),
     cardsModel = CardListModel(cards = immutableListOf()),
+    showAllSetState = true,
     securityActions = listOf(
       previewSecurityAction(
         type = CRITICAL_ALERTS,

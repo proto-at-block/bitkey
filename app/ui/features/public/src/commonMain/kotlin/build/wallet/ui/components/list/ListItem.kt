@@ -34,7 +34,6 @@ import build.wallet.ui.model.list.*
 import build.wallet.ui.model.list.ListItemAccessoryAlignment.CENTER
 import build.wallet.ui.model.list.ListItemAccessoryAlignment.TOP
 import build.wallet.ui.model.list.ListItemTreatment.*
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 
@@ -51,7 +50,7 @@ fun ListItem(
   collapseContent: Boolean = false,
 ) {
   with(model) {
-    val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+    val isDesignSystemV2Enabled = true
     val sideTextValue: AnnotatedString? = model.sideText()
     val secondarySideTextValue: AnnotatedString? = model.secondarySideText()
     val resolvedTitleType = (

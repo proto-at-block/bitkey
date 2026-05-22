@@ -183,7 +183,7 @@ onboard:
 
 # Generate Xcode project (for both device and simulator targets)
 xcodegen:
-  cd ios/ && xcodegen
+  cd ios/ && bin/xcodegen
   just reconstruct-ios-package-resolved-file
 
 [private]

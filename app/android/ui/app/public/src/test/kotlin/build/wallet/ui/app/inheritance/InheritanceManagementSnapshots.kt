@@ -54,29 +54,6 @@ class InheritanceManagementSnapshots : FunSpec({
     onManageClick = {}
   )
 
-  test("inheritance management - inheritance tab - empty") {
-    paparazzi.snapshot {
-      ManagingInheritanceBodyModel(
-        onBack = {},
-        isDesignSystemV2Enabled = false,
-        onLearnMore = {},
-        onInviteClick = StandardClick {},
-        onTabRowClick = {},
-        onAcceptInvitation = {},
-        selectedTab = ManagingInheritanceTab.Inheritance,
-        hasPendingBeneficiaries = false,
-        beneficiaries = BeneficiaryListModel(
-          beneficiaries = immutableListOf(),
-          onManageClick = {}
-        ),
-        benefactors = BenefactorListModel(
-          benefactors = emptyImmutableList(),
-          onManageClick = {}
-        )
-      ).render(modifier = Modifier)
-    }
-  }
-
   test("inheritance management - inheritance tab - accepted") {
     paparazzi.snapshot {
       ManagingInheritanceBodyModel(
@@ -90,29 +67,6 @@ class InheritanceManagementSnapshots : FunSpec({
         hasPendingBeneficiaries = true,
         benefactors = benefactors,
         beneficiaries = beneficiaries
-      ).render(modifier = Modifier)
-    }
-  }
-
-  test("inheritance management - beneficiaries tab - empty") {
-    paparazzi.snapshot {
-      ManagingInheritanceBodyModel(
-        onBack = {},
-        isDesignSystemV2Enabled = false,
-        onLearnMore = {},
-        onInviteClick = StandardClick {},
-        onTabRowClick = {},
-        onAcceptInvitation = {},
-        selectedTab = ManagingInheritanceTab.Beneficiaries,
-        hasPendingBeneficiaries = false,
-        beneficiaries = BeneficiaryListModel(
-          beneficiaries = immutableListOf(),
-          onManageClick = {}
-        ),
-        benefactors = BenefactorListModel(
-          benefactors = emptyImmutableList(),
-          onManageClick = {}
-        )
       ).render(modifier = Modifier)
     }
   }
@@ -151,8 +105,8 @@ class InheritanceManagementSnapshots : FunSpec({
     }
   }
 
-  test("inheritance management - inheritance tab - empty with design system v2 feature flag on") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+  test("inheritance management - inheritance tab - empty") {
+    paparazzi.snapshot {
       ManagingInheritanceBodyModel(
         onBack = {},
         isDesignSystemV2Enabled = true,
@@ -174,8 +128,8 @@ class InheritanceManagementSnapshots : FunSpec({
     }
   }
 
-  test("inheritance management - beneficiaries tab - empty with design system v2 feature flag on") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+  test("inheritance management - beneficiaries tab - empty") {
+    paparazzi.snapshot {
       ManagingInheritanceBodyModel(
         onBack = {},
         isDesignSystemV2Enabled = true,
@@ -197,8 +151,8 @@ class InheritanceManagementSnapshots : FunSpec({
     }
   }
 
-  test("inheritance management - inheritance tab - claim callout with design system v2 feature flag on") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+  test("inheritance management - inheritance tab - claim callout") {
+    paparazzi.snapshot {
       ManagingInheritanceBodyModel(
         onBack = {},
         isDesignSystemV2Enabled = true,

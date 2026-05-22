@@ -30,7 +30,6 @@ import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconSize.Accessory
 import build.wallet.ui.model.icon.IconSize.Small
 import build.wallet.ui.model.icon.IconTint
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
@@ -47,7 +46,7 @@ fun NewCard(
   modifier: Modifier = Modifier,
   model: CardModel,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val theme = LocalTheme.current
   val cornerRadius = if (isDesignSystemV2Enabled) 8.dp else 16.dp
   val isInverseBackgroundDsv2Card =
@@ -128,7 +127,7 @@ private fun CardImage(
   model: CardModel.CardImage,
   style: CardModel.CardStyle,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val theme = LocalTheme.current
 
   when (model) {
@@ -144,23 +143,25 @@ private fun CardImage(
           style.backgroundColor == CardModel.CardStyle.Gradient.BackgroundColor.InverseBackground
 
       IconImage(
-        iconImage = LocalImage(icon),
-        size = Small,
+        model = IconModel(
+          iconImage = LocalImage(icon),
+          iconSize = Small,
+          iconTint = when {
+            isInverseBackgroundDsv2Card && theme == Theme.DARK -> null
+            else -> IconTint.White
+          },
+          iconBackgroundType = IconBackgroundType.Circle(
+            color = when {
+              isInverseBackgroundDsv2Card -> IconBackgroundType.Circle.CircleColor.InverseBackground
+              else -> IconBackgroundType.Circle.CircleColor.BitkeyPrimary
+            },
+            circleSize = IconSize.Large
+          )
+        ),
         color = when {
           isInverseBackgroundDsv2Card && theme == Theme.DARK -> WalletTheme.colors.subtleBackground
           else -> Color.Unspecified
-        },
-        tint = when {
-          isInverseBackgroundDsv2Card && theme == Theme.DARK -> null
-          else -> IconTint.White
-        },
-        background = IconBackgroundType.Circle(
-          color = when {
-            isInverseBackgroundDsv2Card -> IconBackgroundType.Circle.CircleColor.InverseBackground
-            else -> IconBackgroundType.Circle.CircleColor.BitkeyPrimary
-          },
-          circleSize = IconSize.Large
-        )
+        }
       )
     }
 

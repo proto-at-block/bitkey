@@ -229,7 +229,7 @@ fun PreviewMoneyHomeCardInactiveWallet() {
             subtitle = LabelModel.StringModel("Transfer funds now"),
             treatment = CalloutModel.Treatment.Warning,
             useMonochromeStyleInDesignSystemV2 = true,
-            leadingIcon = Icon.SmallIconInformationFilled,
+            leadingIcon = Icon.SmallIconInformation,
             trailingIcon = Icon.SmallIconArrowRight,
             onClick = StandardClick {}
           )

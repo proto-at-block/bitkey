@@ -24,7 +24,6 @@ class TransferConfirmationScreenSnapshots : FunSpec({
         requiresHardware = true,
         confirmButtonEnabled = true,
         requiresHardwareConfirmation = false,
-        useDesignSystemV2Layout = false
       )
     }
   }
@@ -36,19 +35,6 @@ class TransferConfirmationScreenSnapshots : FunSpec({
         requiresHardware = false,
         confirmButtonEnabled = true,
         requiresHardwareConfirmation = false,
-        useDesignSystemV2Layout = false
-      )
-    }
-  }
-
-  test("transfer confirmation screen - hardware not required, confirmation enabled - design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
-      TransferConfirmationScreen(
-        variant = TransferConfirmationScreenVariant.Regular,
-        requiresHardware = false,
-        confirmButtonEnabled = true,
-        requiresHardwareConfirmation = false,
-        useDesignSystemV2Layout = true
       )
     }
   }
@@ -60,7 +46,6 @@ class TransferConfirmationScreenSnapshots : FunSpec({
         requiresHardware = true,
         confirmButtonEnabled = false,
         requiresHardwareConfirmation = false,
-        useDesignSystemV2Layout = false
       )
     }
   }
@@ -72,7 +57,6 @@ class TransferConfirmationScreenSnapshots : FunSpec({
         requiresHardware = false,
         confirmButtonEnabled = false,
         requiresHardwareConfirmation = false,
-        useDesignSystemV2Layout = false
       )
     }
   }
@@ -84,7 +68,6 @@ class TransferConfirmationScreenSnapshots : FunSpec({
         requiresHardware = false,
         confirmButtonEnabled = false,
         requiresHardwareConfirmation = false,
-        useDesignSystemV2Layout = false
       )
     }
   }
@@ -103,7 +86,6 @@ class TransferConfirmationScreenSnapshots : FunSpec({
         requiresHardware = true,
         confirmButtonEnabled = true,
         requiresHardwareConfirmation = true,
-        useDesignSystemV2Layout = false
       )
     }
   }
@@ -115,7 +97,6 @@ class TransferConfirmationScreenSnapshots : FunSpec({
         requiresHardware = true,
         confirmButtonEnabled = true,
         requiresHardwareConfirmation = false,
-        useDesignSystemV2Layout = false
       )
     }
   }
@@ -127,7 +108,6 @@ class TransferConfirmationScreenSnapshots : FunSpec({
         requiresHardware = true,
         confirmButtonEnabled = true,
         requiresHardwareConfirmation = true,
-        useDesignSystemV2Layout = false
       )
     }
   }
@@ -139,7 +119,6 @@ private fun TransferConfirmationScreen(
   requiresHardware: Boolean,
   confirmButtonEnabled: Boolean,
   requiresHardwareConfirmation: Boolean,
-  useDesignSystemV2Layout: Boolean,
 ) {
   FormScreen(
     model = TransferConfirmationScreenModel(
@@ -187,7 +166,6 @@ private fun TransferConfirmationScreen(
       ),
       requiresHardware = requiresHardware,
       confirmButtonEnabled = confirmButtonEnabled,
-      useDesignSystemV2Layout = useDesignSystemV2Layout,
       onConfirmClick = {},
       onNetworkFeesClick = {},
       onArrivalTimeClick = when (variant) {

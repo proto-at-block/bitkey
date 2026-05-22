@@ -9,7 +9,7 @@ class InheritanceInviteSetupSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
   test("inheritance invite setup") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       InheritanceInviteSetupBodyModel(
         onBack = {},
         onContinue = {},

@@ -13,7 +13,6 @@ import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.feature.flags.W3OnboardingFeatureFlag
 import build.wallet.feature.setFlagValue
 import build.wallet.firmware.HardwareUnlockInfoServiceFake
@@ -70,7 +69,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
 
   val featureFlagDao = FeatureFlagDaoFake()
   val w3OnboardingFeatureFlag = W3OnboardingFeatureFlag(featureFlagDao)
-  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(featureFlagDao)
   val accountConfigService = AccountConfigServiceFake()
 
   fun createStateMachine() =
@@ -82,7 +80,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
       hardwareUnlockInfoService = hardwareUnlockInfoService,
       w3OnboardingFeatureFlag = w3OnboardingFeatureFlag,
       accountConfigService = accountConfigService,
-      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag
     )
 
   val onSuccessCalls = turbines.create<FingerprintEnrolled>("on success calls")
@@ -266,7 +263,7 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
 
       // Should show "Finished on your device?" screen
       awaitItem().apply {
-        themePreference.shouldBe(ThemePreference.Manual(Theme.DARK))
+        themePreference.shouldBe(ThemePreference.System)
         body.shouldBeInstanceOf<CompleteTwoTapBodyModel>().apply {
           eventTrackerScreenInfo.shouldNotBeNull()
             .eventTrackerScreenId

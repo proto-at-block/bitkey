@@ -24,7 +24,7 @@ class ButtonLoadingSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
   test("loading buttons dsv2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       Box(
         modifier =
           Modifier

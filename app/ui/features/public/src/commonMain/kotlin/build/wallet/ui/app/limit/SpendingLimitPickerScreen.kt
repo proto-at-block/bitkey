@@ -15,7 +15,6 @@ import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.keypad.Keypad
 import build.wallet.ui.components.toolbar.AmountEntryToolbar
 import build.wallet.ui.components.toolbar.amountEntryBackgroundColor
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.tokens.LabelType
 
 @Composable
@@ -24,7 +23,7 @@ fun SpendingLimitPickerScreen(
   model: SpendingLimitPickerModel,
 ) {
   val horizontalPadding = 20.dp
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   FormScreen(
     modifier = modifier,
     onBack = model.onBack,

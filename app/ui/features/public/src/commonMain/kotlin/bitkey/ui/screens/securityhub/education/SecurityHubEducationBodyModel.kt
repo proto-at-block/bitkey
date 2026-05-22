@@ -88,8 +88,8 @@ private fun SecurityActionType.securityHubIcon(): Icon {
   return when (this) {
     SecurityActionType.EEK_BACKUP -> Icon.DotEmergency
     SecurityActionType.FINGERPRINTS -> Icon.DotFingerprintsMultiple
-    SecurityActionType.SOCIAL_RECOVERY -> Icon.DotRecoveryContact2
-    SecurityActionType.CRITICAL_ALERTS -> Icon.DotCriticalAlerts2
+    SecurityActionType.SOCIAL_RECOVERY -> Icon.DotRecoveryContact
+    SecurityActionType.CRITICAL_ALERTS -> Icon.DotCriticalAlerts
     SecurityActionType.TRANSACTION_VERIFICATION -> Icon.DotAddressVerification
     else -> error("Unsupported action type: $this")
   }

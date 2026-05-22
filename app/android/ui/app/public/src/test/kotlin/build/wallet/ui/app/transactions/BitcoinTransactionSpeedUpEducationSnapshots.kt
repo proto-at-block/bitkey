@@ -6,9 +6,9 @@ import io.kotest.core.spec.style.FunSpec
 class BitcoinTransactionSpeedUpEducationSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
-  test("speed up transaction education dsv2") {
+  test("speed up transaction education") {
     paparazzi.snapshot {
-      BitcoinTransactionSpeedUpEducationDesignSystemV2Preview()
+      BitcoinTransactionSpeedUpEducationPreview()
     }
   }
 })

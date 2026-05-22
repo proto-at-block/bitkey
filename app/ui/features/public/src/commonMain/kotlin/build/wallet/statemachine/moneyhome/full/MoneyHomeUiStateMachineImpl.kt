@@ -16,8 +16,6 @@ import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.fwup.FirmwareData
 import build.wallet.money.FiatMoney
 import build.wallet.onboarding.OnboardingCompletionService
@@ -119,7 +117,6 @@ class MoneyHomeUiStateMachineImpl(
   private val clock: Clock,
   private val partnershipsPurchaseQuotesUiStateMachine: PartnershipsPurchaseQuotesUiStateMachine,
   private val deepLinkHandler: DeepLinkHandler,
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : MoneyHomeUiStateMachine {
   @Suppress("CyclomaticComplexMethod")
   @Composable
@@ -165,9 +162,7 @@ class MoneyHomeUiStateMachineImpl(
       }
     }
 
-    val isDesignSystemV2Enabled by remember {
-      designSystemUpdatesFeatureFlag.flagValue().map { it.isEnabled() }
-    }.collectAsState(initial = designSystemUpdatesFeatureFlag.isEnabled())
+    val isDesignSystemV2Enabled = true
 
     LaunchedEffect("mark-onboarding-completed") {
       // Ensure onboarding is recorded for users who completed it before

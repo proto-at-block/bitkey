@@ -21,7 +21,6 @@ import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
 import build.wallet.ui.components.icon.Icon
 import build.wallet.ui.model.icon.IconSize
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 
 @Composable
@@ -31,7 +30,7 @@ fun TabBar(
   tabCount: Int,
   tabs: @Composable RowScope.() -> Unit,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val gradientBackground = WalletTheme.colors.background
   val bottomInset = if (isDesignSystemV2Enabled) {
     WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()

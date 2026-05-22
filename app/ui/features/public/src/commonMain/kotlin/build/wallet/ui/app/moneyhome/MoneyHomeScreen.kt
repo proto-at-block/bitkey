@@ -47,7 +47,6 @@ import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconButtonModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import kotlinx.collections.immutable.ImmutableList
@@ -89,7 +88,7 @@ fun MoneyHomeScreen(
     CoachmarkIdentifier.Bip177Coachmark
   )
 
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val listHorizontalAlignment = if (isDesignSystemV2Enabled) Alignment.Start else Alignment.CenterHorizontally
   val collapseProgress by remember(listState, collapseRangePx) {
     derivedStateOf {
@@ -434,7 +433,7 @@ fun LiteMoneyHomeScreen(
   model: LiteMoneyHomeBodyModel,
 ) {
   val listState = rememberLazyListState()
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   Column(
     modifier = modifier
       .background(WalletTheme.colors.background)
@@ -541,7 +540,7 @@ private fun MoneyHomeButtons(model: MoneyHomeButtonsModel) {
         val interButtonSpacing = chunkedWidth / 12
         // Button size is equal to the width of the chunk minus the padding on each side
         val buttonSize = chunkedWidth - (interButtonSpacing * 2)
-        val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+        val isDesignSystemV2Enabled = true
         val buttons = if (isDesignSystemV2Enabled && buttonSize >= 80.dp) {
           model.buttons.map { it.withCircleSize(IconSize.Custom(80)) }
         } else {

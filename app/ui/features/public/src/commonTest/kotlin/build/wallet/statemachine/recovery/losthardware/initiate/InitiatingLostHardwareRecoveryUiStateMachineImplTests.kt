@@ -17,7 +17,6 @@ import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.cloud.backup.csek.SealedSsekFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.nfc.transaction.PairingTransactionResponse
 import build.wallet.recovery.LostHardwareRecoveryServiceFake
 import build.wallet.statemachine.ScreenStateMachineMock
@@ -76,7 +75,6 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   val onFoundHardwareCalls = turbines.create<Unit>("on found hardware calls")
 
   val eventTracker = EventTrackerMock(turbines::create)
-  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(FeatureFlagDaoFake())
 
   val lostHardwareRecoveryService = LostHardwareRecoveryServiceFake()
   val stateMachine = InitiatingLostHardwareRecoveryUiStateMachineImpl(
@@ -86,7 +84,6 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
     hardwarePresenceUiStateMachine = hardwarePresenceUiStateMachine,
     lostHardwareRecoveryService = lostHardwareRecoveryService,
     minimumLoadingDuration = MinimumLoadingDuration(0.milliseconds),
-    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag
   )
 
   val props = InitiatingLostHardwareRecoveryProps(

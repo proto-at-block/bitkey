@@ -238,11 +238,6 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
-  fun designSystemUpdatesFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    DesignSystemUpdatesFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
   fun vaultsFeatureFlag(featureFlagDao: FeatureFlagDao) = VaultsFeatureFlag(featureFlagDao)
 
   @Provides
@@ -254,6 +249,11 @@ interface FeatureFlagsComponent {
   @SingleIn(AppScope::class)
   fun wipeHardwareLoggedOutFeatureFlag(featureFlagDao: FeatureFlagDao) =
     WipeHardwareLoggedOutFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun wipeOldW1DeviceFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    WipeOldW1DeviceFeatureFlag(featureFlagDao)
 
   @Provides
   fun featureFlags(
@@ -302,10 +302,10 @@ interface FeatureFlagsComponent {
     w3MidUpgradeRecoveryGuardFeatureFlag: W3MidUpgradeRecoveryGuardFeatureFlag,
     w3UpgradeBlockerFeatureFlag: W3UpgradeBlockerFeatureFlag,
     iosCloudKitBackupFeatureFlag: IosCloudKitBackupFeatureFlag,
-    designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
     vaultsFeatureFlag: VaultsFeatureFlag,
     defaultBitcoinDisplayUnitFeatureFlag: DefaultBitcoinDisplayUnitFeatureFlag,
     wipeHardwareLoggedOutFeatureFlag: WipeHardwareLoggedOutFeatureFlag,
+    wipeOldW1DeviceFeatureFlag: WipeOldW1DeviceFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
       bdk2FeatureFlag,
@@ -351,10 +351,10 @@ interface FeatureFlagsComponent {
       bip177FeatureFlag,
       cloudBackupHealthLoggingFeatureFlag,
       cloudBackupForceReuploadTimestampFeatureFlag,
-      designSystemUpdatesFeatureFlag,
       vaultsFeatureFlag,
       defaultBitcoinDisplayUnitFeatureFlag,
-      wipeHardwareLoggedOutFeatureFlag
+      wipeHardwareLoggedOutFeatureFlag,
+      wipeOldW1DeviceFeatureFlag
     )
   }
 }

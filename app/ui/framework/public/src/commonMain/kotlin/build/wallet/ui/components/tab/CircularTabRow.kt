@@ -1,6 +1,5 @@
 package build.wallet.ui.components.tab
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -21,7 +20,6 @@ import androidx.compose.ui.unit.dp
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.model.tab.CircularTabRowModel
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import kotlinx.collections.immutable.ImmutableList
@@ -54,7 +52,7 @@ fun CircularTabRow(
   backgroundColor: Color = WalletTheme.colors.subtleBackground,
   indicatorColor: Color = WalletTheme.colors.background,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val effectiveBackgroundColor = if (isDesignSystemV2Enabled) {
     WalletTheme.colors.subtleBackground
   } else {
@@ -125,13 +123,7 @@ private fun CircularTabItem(
   modifier: Modifier = Modifier,
 ) {
   val colors = WalletTheme.colors
-  val targetTextColor = remember(isSelected, colors) {
-    if (isSelected) colors.foreground else colors.foreground60
-  }
-  val tabTextColor: Color by animateColorAsState(
-    targetValue = targetTextColor,
-    animationSpec = tween(easing = EaseInOut)
-  )
+  val tabTextColor = if (isSelected) colors.foreground else colors.foreground60
   val tabTextType = remember(isSelected) {
     if (isSelected) LabelType.Body3Bold else LabelType.Body3Medium
   }

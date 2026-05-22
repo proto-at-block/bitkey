@@ -5,8 +5,6 @@ import build.wallet.bitcoin.export.ExportTransactionsService
 import build.wallet.bitcoin.export.ExportWatchingDescriptorService
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.collectIsEnabledAsState
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.logging.logFailure
 import build.wallet.platform.data.MimeType
 import build.wallet.platform.sharing.SharingManager
@@ -21,19 +19,16 @@ class ExportToolsUiStateMachineImpl(
   private val sharingManager: SharingManager,
   private val exportWatchingDescriptorService: ExportWatchingDescriptorService,
   private val exportTransactionsService: ExportTransactionsService,
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : ExportToolsUiStateMachine {
   @Composable
   override fun model(props: ExportToolsUiProps): ScreenModel {
     var sheetState: SheetState? by remember { mutableStateOf(null) }
-    val isDesignSystemV2Enabled by designSystemUpdatesFeatureFlag.collectIsEnabledAsState()
 
     return ScreenModel(
       body = ExportToolsSelectionModel(
         onBack = props.onBack,
         onExportDescriptorClick = { sheetState = WalletDescriptor },
-        onExportTransactionHistoryClick = { sheetState = TransactionHistory },
-        isDesignSystemV2Enabled = isDesignSystemV2Enabled
+        onExportTransactionHistoryClick = { sheetState = TransactionHistory }
       ),
       bottomSheetModel = when (sheetState) {
         TransactionHistoryLoading -> {

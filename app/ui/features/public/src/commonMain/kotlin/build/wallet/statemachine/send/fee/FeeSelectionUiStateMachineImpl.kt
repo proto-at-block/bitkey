@@ -19,8 +19,6 @@ import build.wallet.bitcoin.transactions.getTransactionData
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
-import build.wallet.feature.collectIsEnabledAsState
 import build.wallet.logging.logError
 import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.core.BodyModel
@@ -44,7 +42,6 @@ import kotlinx.coroutines.flow.first
 class FeeSelectionUiStateMachineImpl(
   private val bitcoinTransactionFeeEstimator: BitcoinTransactionFeeEstimator,
   private val transactionPriorityPreference: TransactionPriorityPreference,
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
   private val feeOptionListUiStateMachine: FeeOptionListUiStateMachine,
   private val transactionBaseCalculator: BitcoinTransactionBaseCalculator,
   private val bitcoinWalletService: BitcoinWalletService,
@@ -187,8 +184,6 @@ class FeeSelectionUiStateMachineImpl(
     state: SelectingFeeUiState,
     onFeeSelected: (EstimatedTransactionPriority) -> Unit,
   ): BodyModel {
-    val isDesignSystemV2Enabled by designSystemUpdatesFeatureFlag.collectIsEnabledAsState()
-
     val options = feeOptionListUiStateMachine.model(
       props = FeeOptionListProps(
         transactionBaseAmount = state.transactionBaseAmount,
@@ -204,7 +199,6 @@ class FeeSelectionUiStateMachineImpl(
     return FeeOptionsBodyModel(
       title = "Select a transfer speed",
       feeOptions = options,
-      useDesignSystemV2Layout = isDesignSystemV2Enabled,
       primaryButton =
         ButtonModel(
           text = "Continue",

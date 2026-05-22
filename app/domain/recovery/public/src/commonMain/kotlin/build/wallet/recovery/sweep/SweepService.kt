@@ -38,6 +38,25 @@ interface SweepService {
   ): Result<Sweep?, Error>
 
   /**
+   * Estimates sweep fees for funds moving from inactive keysets to the active keyset.
+   *
+   * Unlike [estimateSweepWithMockDestination], this uses the real active keyset as the
+   * destination, so funds already swept into the active wallet are not counted as sweepable
+   * source funds.
+   *
+   * Returns the sweep details including fees, transfer amount, and PSBTs, or an error if:
+   * - The sweep preparation fails
+   * - There are no funds to sweep (zero balance) - [SweepError.NoFundsToSweep]
+   * - Fees would exceed the available balance - [SweepError.NoFundsToSweep]
+   *
+   * @param keybox The keybox containing the active keyset to sweep to
+   */
+  suspend fun estimateSweepToActiveKeyset(
+    keybox: Keybox,
+    sweepContext: SweepContext = SweepContext.InactiveWallet,
+  ): Result<Sweep, SweepError>
+
+  /**
    * Estimates sweep fees by creating a mock destination keyset to force the sweep generator
    * to treat the currently active keyset as a source that needs to be swept.
    *

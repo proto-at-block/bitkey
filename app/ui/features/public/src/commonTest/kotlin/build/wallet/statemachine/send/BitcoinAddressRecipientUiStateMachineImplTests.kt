@@ -12,7 +12,6 @@ import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.platform.clipboard.ClipItem.PlainText
 import build.wallet.platform.clipboard.ClipboardMock
@@ -51,7 +50,6 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
   val clipboardMock = ClipboardMock()
   val appSessionManager = AppSessionManagerFake()
   val featureFlagDao = FeatureFlagDaoFake()
-  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(featureFlagDao)
 
   val stateMachine = BitcoinAddressRecipientUiStateMachineImpl(
     paymentDataParser = paymentParser,
@@ -59,7 +57,6 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
     bitcoinWalletService = bitcoinWalletService,
     clipboard = clipboardMock,
     appSessionManager = appSessionManager,
-    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag
   )
 
   val onBackCalls = turbines.create<Unit>("on back calls")

@@ -18,9 +18,7 @@ import build.wallet.statemachine.core.form.FormMainContentModel.StepperIndicator
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.loading.LoadingBadgePainter
-import build.wallet.ui.components.loading.LoadingIndicatorPainter
 import build.wallet.ui.model.icon.IconImage
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.market.painter
@@ -30,7 +28,7 @@ import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun StepperIndicator(model: FormMainContentModel.StepperIndicator) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val highlightedStepColor =
     if (isDesignSystemV2Enabled) {
       WalletTheme.colors.inverseBackground
@@ -52,7 +50,6 @@ fun StepperIndicator(model: FormMainContentModel.StepperIndicator) {
     }
 
     val painter = when (step.icon) {
-      IconImage.Loader -> LoadingIndicatorPainter(circleColor)
       is IconImage.DrawableResourceImage -> painterResource(step.icon.resource)
       is IconImage.LocalImage -> step.icon.icon.painter()
       is IconImage.MarketIconImage -> step.icon.icon.painter()

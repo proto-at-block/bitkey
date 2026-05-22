@@ -1,9 +1,6 @@
 package build.wallet.statemachine.partnerships
 
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
@@ -34,13 +31,11 @@ class PartnershipsPurchaseAmountUiStateMachineImplTests : FunSpec({
     turbines.create<Pair<FiatMoney, FiatMoney>>("on select custom amount calls")
   val onExitCalls = turbines.create<Unit>("on exit calls")
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
-  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(FeatureFlagDaoFake())
 
   val stateMachine = PartnershipsPurchaseAmountUiStateMachineImpl(
     moneyDisplayFormatter = MoneyDisplayFormatterFake,
     partnershipPurchaseService = partnershipPurchaseService,
     fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
-    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag
   )
 
   fun props(selectedAmount: FiatMoney? = null) =
@@ -54,7 +49,6 @@ class PartnershipsPurchaseAmountUiStateMachineImplTests : FunSpec({
   beforeTest {
     partnershipPurchaseService.reset()
     fiatCurrencyPreferenceRepository.reset()
-    designSystemUpdatesFeatureFlag.setFlagValue(false)
   }
 
   test("no partnerships purchase options") {
@@ -76,8 +70,9 @@ class PartnershipsPurchaseAmountUiStateMachineImplTests : FunSpec({
       awaitLoader()
 
       // show purchase amounts
-      awaitSheet<FormBodyModel> {
-        toolbar?.middleAccessory?.title.shouldBe("Choose an amount")
+      awaitSheet<SelectPurchaseAmountBodyModel> {
+        header?.headline.shouldBe("Choose an amount")
+        toolbar.shouldBeNull()
         val items = mainContentList[0].shouldBeTypeOf<ListGroup>().listGroupModel.items
         items[0].title.shouldBe("$10")
         items[0].selected.shouldBe(false)
@@ -96,7 +91,7 @@ class PartnershipsPurchaseAmountUiStateMachineImplTests : FunSpec({
         items[3].onClick.shouldNotBeNull().invoke()
       }
 
-      awaitSheet<FormBodyModel> {
+      awaitSheet<SelectPurchaseAmountBodyModel> {
         val items = mainContentList[0].shouldBeTypeOf<ListGroup>().listGroupModel.items
         items[3].title.shouldBe("$100")
         items[3].selected.shouldBe(false)
@@ -105,7 +100,7 @@ class PartnershipsPurchaseAmountUiStateMachineImplTests : FunSpec({
         items[4].onClick.shouldNotBeNull().invoke()
       }
 
-      awaitSheet<FormBodyModel> {
+      awaitSheet<SelectPurchaseAmountBodyModel> {
         val items = mainContentList[0].shouldBeTypeOf<ListGroup>().listGroupModel.items
         items[4].title.shouldBe("$200")
         items[4].selected.shouldBe(true)
@@ -118,7 +113,7 @@ class PartnershipsPurchaseAmountUiStateMachineImplTests : FunSpec({
       // load purchase amounts
       awaitLoader()
 
-      awaitSheet<FormBodyModel> {
+      awaitSheet<SelectPurchaseAmountBodyModel> {
         // tap next with default selection ($100)
         primaryButton?.onClick.shouldNotBeNull().invoke()
       }
@@ -137,7 +132,8 @@ class PartnershipsPurchaseAmountUiStateMachineImplTests : FunSpec({
       // show purchase amounts with selected amount
       awaitSheet<SelectPurchaseAmountBodyModel> {
         this.selectedAmount.shouldBe(selectedAmount)
-        toolbar?.middleAccessory?.title.shouldBe("Choose an amount")
+        header?.headline.shouldBe("Choose an amount")
+        toolbar.shouldBeNull()
         primaryButton?.isEnabled.shouldBe(true)
       }
     }
@@ -148,7 +144,7 @@ class PartnershipsPurchaseAmountUiStateMachineImplTests : FunSpec({
       // load purchase amounts
       awaitLoader()
 
-      awaitSheet<FormBodyModel> {
+      awaitSheet<SelectPurchaseAmountBodyModel> {
         val items = mainContentList[0].shouldBeTypeOf<ListGroup>().listGroupModel.items
         items[5].title.shouldBe("...")
         items[5].onClick.shouldNotBeNull().invoke()
@@ -165,7 +161,8 @@ class PartnershipsPurchaseAmountUiStateMachineImplTests : FunSpec({
       awaitLoader()
 
       awaitSheet<SelectPurchaseAmountBodyModel> {
-        toolbar?.middleAccessory?.title.shouldBe("Choose an amount")
+        header?.headline.shouldBe("Choose an amount")
+        toolbar.shouldBeNull()
         // tap back button
         onBack.shouldNotBeNull().invoke()
       }
@@ -176,7 +173,6 @@ class PartnershipsPurchaseAmountUiStateMachineImplTests : FunSpec({
   }
 
   test("dsv2 purchase options show header and keypad style") {
-    designSystemUpdatesFeatureFlag.setFlagValue(true)
 
     stateMachine.test(props()) {
       awaitLoader()

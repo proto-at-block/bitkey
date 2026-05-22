@@ -17,12 +17,11 @@ import build.wallet.ui.components.label.LabelTreatment.Secondary
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.button.ButtonModel.Treatment.Tertiary
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.tokens.LabelType
 
 @Composable
 fun VerificationCodeInput(model: VerificationCodeInput) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
 
   Column {
     if (isDesignSystemV2Enabled) {

@@ -13,22 +13,9 @@ class CoachmarkSnapshots : FunSpec({
     }
   }
 
-  test("private wallet home coachmark with design system v2 feature flag on") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
-      PrivateWalletHomeCoachmarkPreview()
-    }
-  }
-
   test("bip177 coachmark") {
     paparazzi.snapshot {
       Bip177CoachmarkPreview()
     }
   }
-
-  test("bip177 coachmark with design system v2 feature flag on") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
-      Bip177CoachmarkPreview()
-    }
-  }
-
 })

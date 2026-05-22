@@ -191,7 +191,6 @@ sealed class FormMainContentModel {
         val hardwareType: HardwareType = HardwareType.W3,
       ) : Content() {
         enum class Video {
-          BITKEY_WIPE,
           BITKEY_ROTATE,
           ;
 

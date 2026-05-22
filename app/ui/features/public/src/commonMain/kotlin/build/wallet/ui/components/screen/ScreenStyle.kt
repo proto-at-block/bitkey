@@ -81,7 +81,7 @@ internal fun screenStyle(
   hasStatusBanner: Boolean = false,
 ): ScreenStyle {
   val theme = LocalTheme.current
-  val isDesignSystemV2Enabled = build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val usesDesignSystemV2AmountEntryBackground =
     isDesignSystemV2Enabled && isAmountEntryBodyModel(bodyModel)
   val amountEntryBackgroundColor =

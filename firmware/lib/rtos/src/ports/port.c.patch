@@ -1,11 +1,21 @@
---- port.c.orig	2023-10-11 16:28:05
-+++ port.c	2023-10-11 16:28:05
+--- upstream/FreeRTOS/portable/GCC/ARM_CM33_NTZ/non_secure/port.c
++++ build/FreeRTOS/port.c
 @@ -1,3 +1,4 @@
 +// clang-format off
  /*
-  * FreeRTOS Kernel <DEVELOPMENT BRANCH>
+  * FreeRTOS Kernel V10.6.2
   * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
-@@ -413,12 +414,20 @@
+@@ -50,6 +51,9 @@
+ 
+ #undef MPU_WRAPPERS_INCLUDED_FROM_API_FILE
+ 
++#define portSTRINGIFY_HELPER( x )    #x
++#define portSTRINGIFY( x )           portSTRINGIFY_HELPER( x )
++
+ /**
+  * The FreeRTOS Cortex M33 port can be configured to run on the Secure Side only
+  * i.e. the processor boots as secure and never jumps to the non-secure side.
+@@ -404,12 +405,20 @@
  /**
   * @brief Enter critical section.
   */
@@ -28,10 +38,10 @@
  
  /**
   * @brief SysTick handler.
-@@ -483,7 +492,11 @@
-  *
-  * @return pdTRUE if the calling task is privileged, pdFALSE otherwise.
-  */
+@@ -467,7 +476,11 @@
+      *
+      * @return pdTRUE if the calling task is privileged, pdFALSE otherwise.
+      */
 +#if( configALLOW_UNPRIVILEGED_CRITICAL_SECTIONS == 1 )
 +    BaseType_t xPortIsTaskPrivileged( void ) FREERTOS_SYSTEM_CALL;
 +#else
@@ -40,7 +50,7 @@
  
  #endif /* configENABLE_MPU == 1 */
  /*-----------------------------------------------------------*/
-@@ -960,6 +973,31 @@
+@@ -945,6 +958,31 @@
  
  void vPortEnterCritical( void ) /* PRIVILEGED_FUNCTION */
  {
@@ -72,7 +82,7 @@
      portDISABLE_INTERRUPTS();
      ulCriticalNesting++;
  
-@@ -967,11 +1005,37 @@
+@@ -952,11 +990,37 @@
       * completely within the specified behaviour for the architecture. */
      __asm volatile ( "dsb" ::: "memory" );
      __asm volatile ( "isb" );
@@ -110,7 +120,7 @@
      configASSERT( ulCriticalNesting );
      ulCriticalNesting--;
  
-@@ -979,6 +1043,7 @@
+@@ -964,6 +1028,7 @@
      {
          portENABLE_INTERRUPTS();
      }
@@ -118,3 +128,33 @@
  }
  /*-----------------------------------------------------------*/
  
+@@ -1084,6 +1149,17 @@
+             break;
+ 
+         #if ( ( configENABLE_MPU == 1 ) && ( configUSE_MPU_WRAPPERS_V1 == 1 ) )
++            case portSVC_YIELD:
++
++                /* Set a PendSV to request a context switch. */
++                portNVIC_INT_CTRL_REG = portNVIC_PENDSVSET_BIT;
++
++                /* Barriers are normally not required but do ensure the code is
++                 * completely within the specified behaviour for the architecture. */
++                __asm volatile ( "dsb" ::: "memory" );
++                __asm volatile ( "isb" );
++                break;
++
+             case portSVC_RAISE_PRIVILEGE:
+ 
+                 /* Only raise the privilege, if the svc was raised from any of
+@@ -1240,9 +1316,9 @@
+ 
+ #if ( ( configENABLE_MPU == 1 ) && ( configUSE_MPU_WRAPPERS_V1 == 0 ) )
+ 
+-    void vRequestSystemCallExit( void ) /* __attribute__( ( naked ) ) PRIVILEGED_FUNCTION */
++    void vRequestSystemCallExit( void ) __attribute__( ( naked ) ) PRIVILEGED_FUNCTION
+     {
+-        __asm volatile ( "svc %0 \n" ::"i" ( portSVC_SYSTEM_CALL_EXIT ) : "memory" );
++        __asm volatile ( "svc #" portSTRINGIFY( portSVC_SYSTEM_CALL_EXIT ) "\n" ::: "memory" );
+     }
+ 
+ #endif /* ( configENABLE_MPU == 1 ) && ( configUSE_MPU_WRAPPERS_V1 == 0 ) */

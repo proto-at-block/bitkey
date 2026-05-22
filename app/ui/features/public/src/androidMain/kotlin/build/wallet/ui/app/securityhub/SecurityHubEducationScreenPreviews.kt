@@ -22,7 +22,6 @@ fun EmergencyExitKitSecurityHubEducationPreview() {
 fun EmergencyExitKitSecurityHubEducationDesignSystemV2Preview() {
   SecurityHubEducationPreview(
     actionType = SecurityActionType.EEK_BACKUP,
-    designSystemUpdatesEnabled = true
   )
 }
 
@@ -39,7 +38,6 @@ fun MultipleFingerprintsSecurityHubEducationPreview() {
 fun MultipleFingerprintsSecurityHubEducationDesignSystemV2Preview() {
   SecurityHubEducationPreview(
     actionType = SecurityActionType.FINGERPRINTS,
-    designSystemUpdatesEnabled = true
   )
 }
 
@@ -56,7 +54,6 @@ fun RecoveryContactsSecurityHubEducationPreview() {
 fun RecoveryContactsSecurityHubEducationDesignSystemV2Preview() {
   SecurityHubEducationPreview(
     actionType = SecurityActionType.SOCIAL_RECOVERY,
-    designSystemUpdatesEnabled = true
   )
 }
 
@@ -73,7 +70,6 @@ fun CriticalAlertsSecurityHubEducationPreview() {
 fun CriticalAlertsSecurityHubEducationDesignSystemV2Preview() {
   SecurityHubEducationPreview(
     actionType = SecurityActionType.CRITICAL_ALERTS,
-    designSystemUpdatesEnabled = true
   )
 }
 
@@ -90,16 +86,14 @@ fun TransactionVerificationSecurityHubEducationPreview() {
 fun TransactionVerificationSecurityHubEducationDesignSystemV2Preview() {
   SecurityHubEducationPreview(
     actionType = SecurityActionType.TRANSACTION_VERIFICATION,
-    designSystemUpdatesEnabled = true
   )
 }
 
 @Composable
 private fun SecurityHubEducationPreview(
   actionType: SecurityActionType,
-  designSystemUpdatesEnabled: Boolean = false,
 ) {
-  PreviewWalletTheme(designSystemUpdatesEnabled = designSystemUpdatesEnabled) {
+  PreviewWalletTheme {
     SecurityHubEducationBodyModel(
       actionType = actionType,
       onBack = {},

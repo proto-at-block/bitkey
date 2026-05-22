@@ -8,8 +8,7 @@ class IconStyleTests : FunSpec({
   test("dot icons still support tint") {
     Icon.DotSecurity.canApplyTint() shouldBe true
     Icon.DotRecoveryContact.canApplyTint() shouldBe true
-    Icon.DotRecoveryContact2.canApplyTint() shouldBe true
-    Icon.DotCriticalAlerts2.canApplyTint() shouldBe true
+    Icon.DotCriticalAlerts.canApplyTint() shouldBe true
     Icon.DotIconsSearch.canApplyTint() shouldBe true
   }
 

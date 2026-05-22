@@ -47,7 +47,9 @@ class W3UpgradeDaoFake : W3UpgradeDao {
       preRotationHwAuthPublicKey = null,
       tcEndorsementsRegenerated = false,
       sealedSsekForDecryption = null,
-      resumedFromCloudBackup = false
+      resumedFromCloudBackup = false,
+      oldW1SweepStatus = "UNKNOWN",
+      oldW1WipeReminderDismissed = false
     )
 
   override fun currentState(): Flow<Result<W3UpgradeMigrationEntity?, DbError>> {

@@ -28,7 +28,7 @@ class BitcoinRecipientAddressScreenSnapshots : FunSpec({
   }
 
   test("bitcoin recipient address screen - with entry, design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       BitcoinRecipientAddressWithEntryScreenPreview()
     }
   }

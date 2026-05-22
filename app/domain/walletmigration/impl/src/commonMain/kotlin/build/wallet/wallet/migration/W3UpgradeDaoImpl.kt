@@ -199,6 +199,7 @@ class W3UpgradeDaoImpl(
     return databaseProvider.database()
       .w3UpgradeMigrationQueries
       .awaitTransaction {
+        clearSweepTransactions()
         clear()
       }
   }

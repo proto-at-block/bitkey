@@ -22,18 +22,14 @@ import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchLegacyWalletApp
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.*
-import build.wallet.testing.shouldBeOk
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.test.TestScope
-import io.kotest.matchers.booleans.shouldBeFalse
-import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
-import kotlinx.coroutines.flow.first
 import kotlin.time.Duration.Companion.seconds
 
 class InheritanceClaimE2eTests : FunSpec({
@@ -577,15 +573,8 @@ private suspend fun TestScope.completeInheritanceClaim(apps: InheritanceTestApps
     cancelAndIgnoreRemainingEvents()
   }
 
-  apps.beneficiary.app.getActiveWallet().run {
-    sync().shouldBeOk()
-    balance().first().total.value.isZero().shouldBeFalse()
-  }
-
-  apps.benefactor.app.getActiveWallet().run {
-    sync().shouldBeOk()
-    balance().first().total.value.isZero().shouldBeTrue()
-  }
+  apps.beneficiary.app.waitForFunds { it.total.isPositive }
+  apps.benefactor.app.waitForFunds { it.total.value.isZero() }
 
   apps.beneficiary.app.returnFundsToTreasury()
 }

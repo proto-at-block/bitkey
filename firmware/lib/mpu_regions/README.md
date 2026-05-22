@@ -44,7 +44,7 @@ Our SoC provides 16 configurable MPU regions. The FreeRTOS MPU implementation us
 | 3 | privileged RW (kernel data) | **privileged_sram_start**<br />**privileged_sram_end** |
 | 4 | unprivileged task-only RW, privileged RW | task stack |
 
-The setup of these regions can be found under [port.c](https://github.com/FreeRTOS/FreeRTOS-Kernel/blob/5a9d7c8388c32ff0bc530cd713f32e15c3e38d52/portable/GCC/ARM_CM33_NTZ/non_secure/port.c) where function *prvSetupMPU* contains the first 4 regions and function *vPortStoreTaskMPUSettings* has the task stack region and also configures the task-specific permissions. This leaves us with 11 regions for the task-specific permissions implementation. How these regions are used and how many regions each task needs can be found in [mpu_regions.c](src/mpu_regions.c).
+The setup of these regions can be found under [port.c](https://github.com/FreeRTOS/FreeRTOS-Kernel/blob/18ed8886fe3eed9dbe433a82cdc62ce5dc0315eb/portable/GCC/ARM_CM33_NTZ/non_secure/port.c) where function *prvSetupMPU* contains the first 4 regions and function *vPortStoreTaskMPUSettings* has the task stack region and also configures the task-specific permissions. This leaves us with 11 regions for the task-specific permissions implementation. How these regions are used and how many regions each task needs can be found in [mpu_regions.c](src/mpu_regions.c).
 
 It is also important to note that every MPU region must be 32-byte aligned in address and size, and also cannot overlap with any other existing region.
 
@@ -120,7 +120,7 @@ The best way to see what variables are in each section is to view the app's `.Ma
 
 ### Our FreeRTOS delta
 
-We modify the [port.c](https://github.com/FreeRTOS/FreeRTOS-Kernel/blob/5a9d7c8388c32ff0bc530cd713f32e15c3e38d52/portable/GCC/ARM_CM33_NTZ/non_secure/port.c) file that ships with FreeRTOS. Our version can be found [here](../rtos/src/ports/port.c) and has some important changes. These changes are so that we can, when needed, run system calls from an unprivileged context.
+We patch the [port.c](https://github.com/FreeRTOS/FreeRTOS-Kernel/blob/18ed8886fe3eed9dbe433a82cdc62ce5dc0315eb/portable/GCC/ARM_CM33_NTZ/non_secure/port.c) file that ships with FreeRTOS. Our patch can be found [here](../rtos/src/ports/port.c.patch) and is applied to a build-directory copy. These changes are so that we can, when needed, run system calls from an unprivileged context.
 We mark the following functions as *FREERTOS_SYSTEM_CALL* rather than the original *PRIVILEGED_FUNCTION*
 
     vPortEnterCritical
@@ -129,7 +129,7 @@ We mark the following functions as *FREERTOS_SYSTEM_CALL* rather than the origin
 
 It is important to note that `vPortSVCHandler_C` is used to temporarily elevate privileges. By default `mpu_wrappers_v1` allows for elevating privileges. This function will only elevate privileges if the SVC was raised from a function in the `freertos_system_calls` section.
 
-Since [port.c](https://github.com/FreeRTOS/FreeRTOS-Kernel/blob/5a9d7c8388c32ff0bc530cd713f32e15c3e38d52/portable/GCC/ARM_CM33_NTZ/non_secure/port.c) is under continuous development, we pin the FreeRTOS version to ensure we have no build conflicts. If we want to move to a newer FreeRTOS version, it is important to ensure that we apply our needed changes to the latest [port.c](https://github.com/FreeRTOS/FreeRTOS-Kernel/blob/5a9d7c8388c32ff0bc530cd713f32e15c3e38d52/portable/GCC/ARM_CM33_NTZ/non_secure/port.c) file.
+Since [port.c](https://github.com/FreeRTOS/FreeRTOS-Kernel/blob/18ed8886fe3eed9dbe433a82cdc62ce5dc0315eb/portable/GCC/ARM_CM33_NTZ/non_secure/port.c) is under continuous development, we pin the FreeRTOS version to ensure we have no build conflicts. If we want to move to a newer FreeRTOS version, it is important to ensure that we apply our needed changes to the latest [port.c](https://github.com/FreeRTOS/FreeRTOS-Kernel/blob/18ed8886fe3eed9dbe433a82cdc62ce5dc0315eb/portable/GCC/ARM_CM33_NTZ/non_secure/port.c) file.
 
 Here is some relevant FreeRTOS forum discussion that describes the workarounds we use:
 - [Privilege escalation from outside of the kernel](https://forums.freertos.org/t/xportraiseprivilege-and-vportresetprivilege-from-outside-kernel/17925/2)

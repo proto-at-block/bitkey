@@ -31,7 +31,6 @@ import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
@@ -45,8 +44,8 @@ fun PendingClaimContent(
 ) {
   val theme = LocalTheme.current
   val useMonochromeStyle =
-    LocalDesignSystemUpdatesEnabled.current && model.useMonochromeStyleInDesignSystemV2
-  val cornerRadius = if (LocalDesignSystemUpdatesEnabled.current) 8.dp else 16.dp
+    model.useMonochromeStyleInDesignSystemV2
+  val cornerRadius = 8.dp
   Box(
     modifier = modifier
       .fillMaxWidth()

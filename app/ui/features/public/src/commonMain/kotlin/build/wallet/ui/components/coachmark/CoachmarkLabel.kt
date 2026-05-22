@@ -21,7 +21,6 @@ import build.wallet.ui.components.label.Label
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.coachmark.CoachmarkLabelTreatment
 import build.wallet.ui.model.list.CoachmarkLabelModel
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
@@ -34,7 +33,7 @@ import org.jetbrains.compose.resources.Font
  */
 @Composable
 fun CoachmarkLabel(model: CoachmarkLabelModel) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val useDesignSystemV2DarkTreatment =
     isDesignSystemV2Enabled && model.treatment == CoachmarkLabelTreatment.Dark
 

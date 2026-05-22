@@ -17,92 +17,64 @@ import androidx.compose.ui.unit.dp
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment.Secondary
 import build.wallet.ui.model.toolbar.ToolbarModel
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 
 @Composable
 internal fun amountEntryBackgroundColor(): Color =
-  if (LocalDesignSystemUpdatesEnabled.current) {
-    WalletTheme.colors.subtleBackground
-  } else {
-    WalletTheme.colors.background
-  }
+  WalletTheme.colors.subtleBackground
 
 @Composable
 internal fun AmountEntryToolbar(
   model: ToolbarModel,
   modifier: Modifier = Modifier,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
   val backgroundColor = amountEntryBackgroundColor()
 
-  if (isDesignSystemV2Enabled) {
-    Column(
+  Column(
+    modifier = Modifier
+      .fillMaxWidth()
+  ) {
+    Box(
       modifier = Modifier
         .fillMaxWidth()
+        .defaultMinSize(
+          minHeight = AmountEntryToolbarTopPadding +
+            AmountEntryToolbarHeight +
+            AmountEntryToolbarBottomPadding
+        )
+        .background(backgroundColor)
     ) {
       Box(
         modifier = Modifier
           .fillMaxWidth()
-          .defaultMinSize(
-            minHeight = AmountEntryToolbarTopPadding +
-              AmountEntryToolbarHeight +
-              AmountEntryToolbarBottomPadding
+          .padding(
+            top = AmountEntryToolbarTopPadding,
+            bottom = AmountEntryToolbarBottomPadding
           )
-          .background(backgroundColor)
       ) {
-        Box(
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(
-              top = AmountEntryToolbarTopPadding,
-              bottom = AmountEntryToolbarBottomPadding
-            )
-        ) {
-          AmountEntryToolbarContent(
-            modifier = modifier,
-            model = model,
-            isDesignSystemV2Enabled = true
-          )
-        }
-      }
-      Box(
-        modifier = Modifier
-          .fillMaxWidth()
-          .height(AmountEntryToolbarBottomGradientHeight)
-          .background(
-            brush =
-              Brush.verticalGradient(
-                colors =
-                  listOf(
-                    backgroundColor,
-                    backgroundColor.copy(alpha = 0.65f),
-                    Color.Transparent
-                  )
-              )
-          )
-      )
-    }
-  } else {
-    Toolbar(
-      modifier = modifier,
-      leadingContent = {
-        model.leadingAccessory?.let {
-          ToolbarAccessory(it)
-        }
-      },
-      middleContent = {
-        AmountEntryToolbarMiddleContent(
+        AmountEntryToolbarContent(
+          modifier = modifier,
           model = model,
-          isDesignSystemV2Enabled = false
+          isDesignSystemV2Enabled = true
         )
-      },
-      trailingContent = {
-        model.trailingAccessory?.let {
-          ToolbarAccessory(it)
-        }
       }
+    }
+    Box(
+      modifier = Modifier
+        .fillMaxWidth()
+        .height(AmountEntryToolbarBottomGradientHeight)
+        .background(
+          brush =
+            Brush.verticalGradient(
+              colors =
+                listOf(
+                  backgroundColor,
+                  backgroundColor.copy(alpha = 0.65f),
+                  Color.Transparent
+                )
+            )
+        )
     )
   }
 }

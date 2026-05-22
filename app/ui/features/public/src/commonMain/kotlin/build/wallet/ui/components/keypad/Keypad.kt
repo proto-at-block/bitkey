@@ -43,7 +43,6 @@ import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.compose.LocalHaptics
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.market.MarketIcons
@@ -155,7 +154,7 @@ private fun RowScope.KeypadButton(
   onClick: (KeypadButton) -> Unit,
   hapticsEffectForButtonPress: (KeypadButton) -> HapticsEffect?,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val interactionSource = remember { MutableInteractionSource() }
   var isVisuallyPressed by remember { mutableStateOf(false) }
   var releaseVisualPressJob by remember { mutableStateOf<Job?>(null) }
@@ -233,7 +232,7 @@ private fun KeypadButtonContent(
   button: KeypadButton,
   isPressed: Boolean,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val surfaceScale by animateFloatAsState(
     targetValue =
       if (isDesignSystemV2Enabled && isPressed) {
@@ -386,10 +385,7 @@ private fun DeleteIcon(
           iconSize = IconSize.Keypad
         )
       },
-    style =
-      IconStyle(
-        color = color
-      )
+    color = color
   )
 }
 

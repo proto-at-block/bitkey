@@ -249,7 +249,7 @@ data class SweepFundsPromptBodyModel(
             onTitle = onShowNetworkFeesInfo,
             titleIcon =
               IconModel(
-                icon = Icon.SmallIconInformationFilled,
+                icon = Icon.SmallIconInformation,
                 iconSize = IconSize.XSmall,
                 iconTint = IconTint.On30
               ),

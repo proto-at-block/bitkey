@@ -776,7 +776,7 @@ static void update_step_indicator(int current, int total) {
   }
 
   lv_obj_clear_flag(header_title, LV_OBJ_FLAG_HIDDEN);
-  snprintf(step_indicator_text, sizeof(step_indicator_text), "%d OF %d", current + 1,
+  snprintf(step_indicator_text, sizeof(step_indicator_text), "CONFIRM %d OF %d", current + 1,
            content_pages);
   header_cycle_enabled = true;
   first_hold_display_pending = true;

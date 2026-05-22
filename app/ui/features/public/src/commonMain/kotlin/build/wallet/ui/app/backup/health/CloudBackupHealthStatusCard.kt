@@ -3,7 +3,6 @@ package build.wallet.ui.app.backup.health
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,12 +11,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
@@ -28,17 +25,13 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.SmallIconCheckFilled
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.ui.components.button.Button
-import build.wallet.ui.components.card.Card
-import build.wallet.ui.components.header.Header
 import build.wallet.ui.components.icon.IconButton
 import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment.Secondary
 import build.wallet.ui.components.label.buildAnnotatedString
 import build.wallet.ui.components.layout.Divider
-import build.wallet.ui.components.list.ListItem
 import build.wallet.ui.components.sheet.LocalSheetCloser
-import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.compose.resId
 import build.wallet.ui.compose.scalingClickable
 import build.wallet.ui.model.SheetClosingClick
@@ -52,7 +45,6 @@ import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.market.MarketIcons
@@ -61,52 +53,7 @@ import build.wallet.ui.model.button.ButtonModel.Treatment.Primary as ButtonPrima
 
 @Composable
 fun CloudBackupHealthStatusCard(model: CloudBackupHealthStatusCardModel) {
-  if (LocalDesignSystemUpdatesEnabled.current) {
-    CloudBackupHealthStatusCardDesignSystemV2(model)
-  } else {
-    CloudBackupHealthStatusCardLegacy(model)
-  }
-}
-
-@Composable
-private fun CloudBackupHealthStatusCardLegacy(model: CloudBackupHealthStatusCardModel) {
-  val isProblemWithBackup = model.backupStatusActionButton != null
-  Card(
-    horizontalAlignment = Alignment.CenterHorizontally,
-    paddingValues = PaddingValues(0.dp)
-  ) {
-    model.toolbarModel?.let {
-      Toolbar(
-        it,
-        modifier =
-          Modifier.padding(PaddingValues(0.dp, 20.dp, 20.dp, 0.dp))
-      )
-    }
-    Header(
-      model = model.headerModel,
-      modifier = Modifier.padding(PaddingValues(20.dp, 0.dp, 20.dp, 0.dp))
-    )
-
-    Spacer(Modifier.height(20.dp))
-    Column(
-      modifier = if (isProblemWithBackup) {
-        Modifier
-          .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
-          .background(WalletTheme.colors.secondary)
-      } else {
-        Modifier
-      }.padding(horizontal = 20.dp)
-    ) {
-      if (!isProblemWithBackup) {
-        Divider()
-      }
-      ListItem(model = model.backupStatus)
-      model.backupStatusActionButton?.let {
-        Button(it)
-        Spacer(Modifier.height(20.dp))
-      }
-    }
-  }
+  CloudBackupHealthStatusCardDesignSystemV2(model)
 }
 
 @Composable
@@ -364,7 +311,7 @@ val CloudBackupHealthStatusCardEekModelForPreview =
     headerModel =
       FormHeaderModel(
         iconModel = IconModel(
-          icon = Icon.CloudBackupEmergencyExitKit,
+          icon = Icon.SmallIconRecovery,
           iconSize = IconSize.Large,
           iconTint = IconTint.Primary,
           iconBackgroundType = IconBackgroundType.Circle(

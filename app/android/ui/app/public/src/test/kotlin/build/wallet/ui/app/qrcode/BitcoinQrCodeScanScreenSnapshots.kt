@@ -40,7 +40,7 @@ class BitcoinQrCodeScanScreenSnapshots : FunSpec({
   }
 
   test("Bitcoin Scan Screen with valid address in clipboard and design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       QrCodeScanViewFinder()
       QrCodeScanWidgets(
         model =

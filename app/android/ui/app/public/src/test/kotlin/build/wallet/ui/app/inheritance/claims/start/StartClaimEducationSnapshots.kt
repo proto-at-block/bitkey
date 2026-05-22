@@ -9,7 +9,7 @@ class StartClaimEducationSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
   test("start claim education") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       StartClaimEducationBodyModel(
         onBack = {},
         onContinue = {}

@@ -78,57 +78,6 @@ class TransactionDetailScreenSnapshots :
       }
     }
 
-    test("pending receive transaction detail with design system v2 feature flag on") {
-      paparazzi.snapshot(designSystemUpdatesEnabled = true) {
-        FormScreen(
-          model =
-            TransactionDetailModel(
-              feeBumpEnabled = false,
-              formHeaderModel = FormHeaderModel(
-                iconModel = IconModel(
-                  icon = Bitcoin,
-                  iconSize = Avatar
-                ),
-                headline = "Transaction pending",
-                sublineModel = LabelModel.chunkedAddress("bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh"),
-                sublineTreatment = MONO,
-                alignment = LEADING
-              ),
-              isLoading = false,
-              viewTransactionText = "View transaction",
-              onViewTransaction = {},
-              onClose = {},
-              onSpeedUpTransaction = {},
-              content =
-                immutableListOf(
-                  processingTransactionStepper,
-                  FormMainContentModel.Divider,
-                  DataList(
-                    items = immutableListOf(
-                      Data(
-                        title = "Transaction ID",
-                        sideText = "c4f5...67be",
-                        onClick = {},
-                        endIcon = SmallIconCopy
-                      )
-                    )
-                  ),
-                  DataList(
-                    items = immutableListOf(
-                      Data(
-                        title = "Amount",
-                        sideText = "$5.08",
-                        sideTextType = Data.SideTextType.BODY2BOLD,
-                        secondarySideText = "12,759 sats"
-                      )
-                    )
-                  )
-                )
-            )
-        )
-      }
-    }
-
     test("late send transaction detail") {
       paparazzi.snapshot {
         FormScreen(
@@ -171,7 +120,7 @@ class TransactionDetailScreenSnapshots :
                               subtitle = "You can speed up this transaction by increasing the network fee.",
                               iconButton = IconButtonModel(
                                 iconModel = IconModel(
-                                  icon = Icon.SmallIconInformationFilled,
+                                  icon = Icon.SmallIconInformation,
                                   iconSize = IconSize.XSmall,
                                   iconBackgroundType = IconBackgroundType.Circle(
                                     circleSize = IconSize.XSmall

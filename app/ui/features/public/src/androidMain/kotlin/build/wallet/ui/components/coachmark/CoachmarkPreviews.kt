@@ -24,7 +24,7 @@ fun PrivateWalletHomeCoachmarkPreview() {
 @Preview(name = "Private Wallet Home Coachmark DSV2")
 @Composable
 fun PrivateWalletHomeCoachmarkDesignSystemV2Preview() {
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     Coachmark(
       model = PrivateWalletHomeCoachmarkModel(
         onDismiss = {},
@@ -49,7 +49,7 @@ fun Bip177CoachmarkPreview() {
 @Preview(name = "BIP177 Coachmark DSV2")
 @Composable
 fun Bip177CoachmarkDesignSystemV2Preview() {
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     Coachmark(
       model = Bip177CoachmarkModel(onDismiss = {}),
       offset = Offset(0f, 0f)

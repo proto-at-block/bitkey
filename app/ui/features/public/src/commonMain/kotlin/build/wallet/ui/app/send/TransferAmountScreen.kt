@@ -63,7 +63,6 @@ import build.wallet.ui.components.toolbar.rememberConditionally
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.currentStyle
@@ -111,7 +110,7 @@ fun TransferAmountScreen(
   model: TransferAmountBodyModel,
 ) {
   val horizontalPadding = 20.dp
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val backgroundColor = amountEntryBackgroundColor()
   val shouldTriggerInsufficientFundsFeedback =
     isDesignSystemV2Enabled && model.shouldTriggerContextualErrorFeedback
@@ -423,7 +422,7 @@ private fun AnimatedAmountSwap(
   val secondaryStyle = LabelType.Body1Medium.currentStyle(TextStyle.Default)
   val density = LocalDensity.current
   val textMeasurer = rememberTextMeasurer()
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val primaryLineHeightDp = with(density) { primaryStyle.lineHeight.toDp() }
   val secondaryLineHeightDp = with(density) { secondaryStyle.lineHeight.toDp() }
   val bottomBaseOffsetPx = with(density) {
@@ -702,7 +701,7 @@ private fun SmartBar(
           )
     ) {
       bannerModel?.let {
-        val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+        val isDesignSystemV2Enabled = true
         Card(
           modifier = Modifier.fillMaxHeight(),
           verticalArrangement = Center

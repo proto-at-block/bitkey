@@ -73,7 +73,7 @@ class FwupNfcSnapshots : FunSpec({
     }
   }
   test("fwup nfc ready to update dsv2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       CompositionLocalProvider(LocalDeviceInfo provides androidDeviceInfo) {
         FwupNfcScreen(
           model =
@@ -88,7 +88,7 @@ class FwupNfcSnapshots : FunSpec({
   }
 
   test("fwup nfc progress with some progress dsv2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       CompositionLocalProvider(LocalDeviceInfo provides androidDeviceInfo) {
         FwupNfcScreen(
           model =

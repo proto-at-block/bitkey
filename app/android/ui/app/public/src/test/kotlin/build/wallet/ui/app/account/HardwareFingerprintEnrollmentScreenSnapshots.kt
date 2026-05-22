@@ -15,13 +15,13 @@ class HardwareFingerprintEnrollmentScreenSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
   test("hardware fingerprint enrollment instructions screen") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       FingerprintEnrollmentScreen()
     }
   }
 
   test("hardware fingerprint enrollment instructions screen - with troubleshooting button") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       FingerprintEnrollmentScreen(
         headline = "Set up your fingerprint",
         troubleshootingButton = ButtonModel(
@@ -34,25 +34,6 @@ class HardwareFingerprintEnrollmentScreenSnapshots : FunSpec({
     }
   }
 
-  test("hardware fingerprint enrollment instructions screen with design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
-      FingerprintEnrollmentScreen()
-    }
-  }
-
-  test("hardware fingerprint enrollment instructions screen - with troubleshooting button with design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
-      FingerprintEnrollmentScreen(
-        headline = "Set up your fingerprint",
-        troubleshootingButton = ButtonModel(
-          text = "Having trouble?",
-          treatment = ButtonModel.Treatment.TertiaryNoUnderlineWhite,
-          onClick = StandardClick {},
-          size = ButtonModel.Size.Footer
-        )
-      )
-    }
-  }
 })
 
 @Composable

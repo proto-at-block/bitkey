@@ -20,6 +20,7 @@ import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.mapNotNull
+import kotlin.time.Duration.Companion.seconds
 
 class WalletUtxoFunctionalTests : FunSpec({
 
@@ -32,7 +33,7 @@ class WalletUtxoFunctionalTests : FunSpec({
   testForBdk1AndBdk2("no utxos in empty wallet") { app ->
     app.onboardFullAccountWithFakeHardware()
 
-    app.utxos().test {
+    app.utxos().test(timeout = 60.seconds) {
       awaitItem().should { utxos ->
         utxos.confirmed.shouldBeEmpty()
         utxos.unconfirmed.shouldBeEmpty()
@@ -47,7 +48,7 @@ class WalletUtxoFunctionalTests : FunSpec({
   ) { app ->
     app.onboardFullAccountWithFakeHardware()
 
-    app.utxos().test {
+    app.utxos().test(timeout = 60.seconds) {
       awaitItem().all.shouldBeEmpty()
 
       // Add confirmed utxo

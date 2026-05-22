@@ -44,6 +44,7 @@ messages:
         - uint32_t button_events
         - uint32_t captouch_events
         - uint32_t touch_events
+        - uint32_t touch_events_on_nfc_screen
         - uint32_t fingerprint_events
         - uint32_t phase1_duration_ms
         - uint32_t phase2_duration_ms

@@ -145,6 +145,7 @@ class NfcConfirmableSessionUIStateMachineProps<T>(
     confirmationResultContent: ConfirmationResultContent = ConfirmationResultContent(),
     hardwareTypeOverride: HardwareType? = null,
     showDeviceConfirmation: Boolean = false,
+    skipFirmwareTelemetry: Boolean = false,
   ) : this(
     session = session,
     onSuccess = onSuccess,
@@ -164,7 +165,8 @@ class NfcConfirmableSessionUIStateMachineProps<T>(
       shouldShowLongRunningOperation = shouldShowLongRunningOperation,
       showNativeSheetOnIos = showNativeSheetOnIos,
       hardwareTypeOverride = hardwareTypeOverride,
-      showDeviceConfirmation = showDeviceConfirmation
+      showDeviceConfirmation = showDeviceConfirmation,
+      skipFirmwareTelemetry = skipFirmwareTelemetry
     ),
     confirmationContent = confirmationContent,
     onRequiresConfirmation = onRequiresConfirmation,

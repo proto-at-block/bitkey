@@ -18,8 +18,8 @@ data class WipingDeviceConfirmationProps(
   val fullAccount: FullAccount?,
   /**
    * Context for the wipe operation.
-   * When [WipeContext.W3UpgradeOldDevice], skips confirmation checkboxes and uses the old
-   * hardware type for NFC commands.
+   * When [WipeContext.InactiveDevice], uses that device's NFC behavior
+   * with inactive-device identity revalidation.
    */
   val wipeContext: WipeContext = WipeContext.Default,
 )

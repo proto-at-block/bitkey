@@ -16,20 +16,18 @@ class WarningHeaderDesignSystemV2Snapshots : FunSpec({
 
   test("private wallet migration pending transactions warning - design system v2") {
     paparazzi.snapshotSheet(
-      model = PrivateWalletMigrationPendingTransactionsWarningSheetModel(onBack = {}, onGotIt = {}),
-      designSystemUpdatesEnabled = true
+      model = PrivateWalletMigrationPendingTransactionsWarningSheetModel(onBack = {}, onGotIt = {})
     )
   }
 
   test("w3 upgrade pending transactions warning - design system v2") {
     paparazzi.snapshotSheet(
-      model = W3UpgradePendingTransactionsWarningSheetModel(onBack = {}, onGotIt = {}),
-      designSystemUpdatesEnabled = true
+      model = W3UpgradePendingTransactionsWarningSheetModel(onBack = {}, onGotIt = {})
     )
   }
 
   test("multiple transactions warning - design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       FormScreen(
         model =
           multipleTransactionsWarningScreenModel(

@@ -36,7 +36,7 @@ class HardwareConfirmationHelpScreenSnapshots : FunSpec({
   }
 
   test("send hardware confirmation help screen - design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       FormScreen(
         model = HardwareConfirmationHelpBodyModel(
           onBack = {},
@@ -60,7 +60,7 @@ class HardwareConfirmationHelpScreenSnapshots : FunSpec({
   }
 
   test("send transaction hardware confirmation screen - design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       FormScreen(
         model = HardwareConfirmationScreenModel(
           onBack = {},
@@ -87,7 +87,7 @@ class HardwareConfirmationHelpScreenSnapshots : FunSpec({
   }
 
   test("consolidate utxos hardware confirmation screen - design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       FormScreen(
         model = HardwareConfirmationScreenModel(
           onBack = {},
@@ -101,7 +101,7 @@ class HardwareConfirmationHelpScreenSnapshots : FunSpec({
   }
 
   test("send transaction hardware confirmation screen with destination address - design system v2") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       FormScreen(
         model = HardwareConfirmationScreenModel(
           onBack = {},

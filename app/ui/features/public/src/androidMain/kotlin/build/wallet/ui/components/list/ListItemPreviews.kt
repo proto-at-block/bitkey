@@ -82,7 +82,7 @@ internal fun ListItemWithSpecialTrailingAccessoryPreview() {
       trailingAccessory = build.wallet.ui.model.list.ListItemAccessory.drillIcon(),
       specialTrailingAccessory = build.wallet.ui.model.list.ListItemAccessory.IconAccessory(
         model = IconModel(
-          icon = Icon.SmallIconInformationFilled,
+          icon = Icon.SmallIconInformation,
           iconSize = Small,
           iconTint = IconTint.Warning
         )
@@ -110,7 +110,7 @@ internal fun ListItemWithNewCoachmark() {
       trailingAccessory = build.wallet.ui.model.list.ListItemAccessory.drillIcon(),
       specialTrailingAccessory = build.wallet.ui.model.list.ListItemAccessory.IconAccessory(
         model = IconModel(
-          icon = Icon.SmallIconInformationFilled,
+          icon = Icon.SmallIconInformation,
           iconSize = Small,
           iconTint = IconTint.Warning
         )

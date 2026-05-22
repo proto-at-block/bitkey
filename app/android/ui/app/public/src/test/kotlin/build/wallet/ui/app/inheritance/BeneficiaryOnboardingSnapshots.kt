@@ -9,7 +9,7 @@ class BeneficiaryOnboardingSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
   test("beneficiary onboarding") {
-    paparazzi.snapshot(designSystemUpdatesEnabled = true) {
+    paparazzi.snapshot {
       BeneficiaryOnboardingBodyModel(
         onBack = {},
         onContinue = {},

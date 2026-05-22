@@ -29,7 +29,7 @@ fun CalloutPreviews() {
 @Preview
 @Composable
 fun CalloutPreviewsDesignSystemV2() {
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     CalloutList(useThemeBackground = true)
   }
 }

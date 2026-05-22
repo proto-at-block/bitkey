@@ -59,7 +59,8 @@ mcu_stm32u5xx_dep = declare_dependency(
 
 mcu_stm32u5xx_bl_lib = library('mcu-stm32u5xx-bl',
   mcu_srcs,
-  c_args : ['-DIMAGE_TYPE_BOOTLOADER=1'],
+  # LOG_FORCE_RAW: bootloaders don't link log_uart_dep — see lib/log/inc/log.h.
+  c_args : ['-DIMAGE_TYPE_BOOTLOADER=1', '-DLOG_FORCE_RAW=1'],
   include_directories : private_includes,
   dependencies : deps,
 )

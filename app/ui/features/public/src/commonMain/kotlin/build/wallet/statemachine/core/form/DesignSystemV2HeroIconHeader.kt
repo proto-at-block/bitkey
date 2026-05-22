@@ -49,10 +49,9 @@ internal fun designSystemV2WarningIconHeader(
 
 internal fun resolveLegacyHeaderWarningIconModelForDesignSystemV2(
   iconModel: IconModel?,
-  designSystemUpdatesEnabled: Boolean,
 ): IconModel? =
   when {
-    designSystemUpdatesEnabled && iconModel.isLegacyWarningHeaderIcon() -> {
+    iconModel.isLegacyWarningHeaderIcon() -> {
       designSystemV2WarningIconModel()
     }
     else -> iconModel

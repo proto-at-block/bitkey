@@ -17,7 +17,6 @@ import build.wallet.ui.compose.datePickerTestTag
 import build.wallet.ui.compose.resId
 import build.wallet.ui.compose.resolveTestTag
 import build.wallet.ui.model.datetime.DatePickerModel
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
@@ -32,7 +31,7 @@ fun DatePickerField(
   var isShowingDatePicker by remember {
     mutableStateOf(false)
   }
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val backgroundColor =
     when {
       !isDesignSystemV2Enabled -> WalletTheme.colors.foreground10

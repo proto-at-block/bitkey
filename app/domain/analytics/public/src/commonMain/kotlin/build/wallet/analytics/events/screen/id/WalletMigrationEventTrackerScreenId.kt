@@ -52,6 +52,9 @@ enum class WalletMigrationEventTrackerScreenId : EventTrackerScreenId {
   /** Interstitial blocker promoting W3 hardware upgrade */
   W3_UPGRADE_BLOCKER,
 
+  /** Interstitial reminder to wipe the old W1 after W3 upgrade */
+  W3_UPGRADE_OLD_DEVICE_WIPE_READY,
+
   /** Screen asking if user has new device ready */
   W3_UPGRADE_DEVICE_READY,
 

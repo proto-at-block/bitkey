@@ -53,7 +53,6 @@ fun IconModel.testTagDescriptor(): String =
     is IconImage.DrawableResourceImage -> "drawable-resource"
     is IconImage.MarketIconImage -> iconImage.icon.toString()
     is IconImage.UrlImage -> iconImage.fallbackIcon.name
-    IconImage.Loader -> "loader"
     IconImage.LoadingBadge -> "loading-badge"
   }
 

@@ -16,7 +16,6 @@ import build.wallet.ui.tooling.PreviewWalletTheme
 fun FwupInstructionsLightPreview() {
   PreviewWalletTheme(
     theme = Theme.LIGHT,
-    designSystemUpdatesEnabled = true
   ) {
     fwupInstructionsPreviewModel().render(Modifier)
   }
@@ -27,7 +26,6 @@ fun FwupInstructionsLightPreview() {
 fun FwupInstructionsDarkPreview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
-    designSystemUpdatesEnabled = true
   ) {
     fwupInstructionsPreviewModel().render(Modifier)
   }

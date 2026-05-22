@@ -5,11 +5,14 @@ import bitkey.f8e.privilegedactions.AuthorizationStrategy
 import bitkey.f8e.privilegedactions.AuthorizationStrategyType
 import bitkey.f8e.privilegedactions.PrivilegedActionInstance
 import bitkey.f8e.privilegedactions.PrivilegedActionType
+import bitkey.privilegedactions.PrivilegedActionError
 import bitkey.privilegedactions.FingerprintResetF8eClientFake
 import bitkey.privilegedactions.FingerprintResetServiceFake
+import build.wallet.LoadableValue.InitialLoading
+import build.wallet.LoadableValue.LoadedValue
 import build.wallet.account.AccountServiceFake
 import build.wallet.bitkey.keybox.FullAccountMock
-import build.wallet.coroutines.turbine.awaitUntilNotNull
+import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.card.CardModel
@@ -17,7 +20,9 @@ import build.wallet.statemachine.root.RemainingRecoveryDelayWordsUpdateFrequency
 import build.wallet.statemachine.ui.matchers.shouldHaveSubtitle
 import build.wallet.statemachine.ui.matchers.shouldHaveTitle
 import build.wallet.statemachine.ui.robots.click
+import build.wallet.testing.shouldBeLoaded
 import build.wallet.time.ClockFake
+import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
@@ -62,7 +67,46 @@ class FingerprintResetStatusCardUiStateMachineImplTests : FunSpec({
     fingerprintResetService.getLatestFingerprintResetActionResult = Ok(null)
 
     stateMachine.test(props) {
-      awaitItem().shouldBeNull()
+      awaitItem().shouldBe(InitialLoading)
+      awaitItem().shouldBeLoaded().shouldBeNull()
+    }
+  }
+
+  test("resets the loaded state when a cached null action is refreshed") {
+    fingerprintResetService.getLatestFingerprintResetActionResult = Ok(null)
+
+    stateMachine.test(props) {
+      awaitItem().shouldBe(InitialLoading)
+      awaitItem().shouldBeLoaded().shouldBeNull()
+    }
+
+    stateMachine.test(props) {
+      awaitItem().shouldBe(InitialLoading)
+      awaitItem().shouldBeLoaded().shouldBeNull()
+    }
+  }
+
+  test("returns null when loading fingerprint reset action fails without cached action") {
+    fingerprintResetService.getLatestFingerprintResetActionResult =
+      Err(PrivilegedActionError.ServerError(Throwable("network error")))
+
+    stateMachine.test(props) {
+      awaitItem().shouldBe(InitialLoading)
+      awaitItem().shouldBeLoaded().shouldBeNull()
+    }
+  }
+
+  test("returns cached fingerprint reset card when refresh fails") {
+    fingerprintResetService.setupPendingFingerprintReset()
+    fingerprintResetService.getLatestFingerprintResetActionResult =
+      Err(PrivilegedActionError.ServerError(Throwable("network error")))
+
+    stateMachine.test(props) {
+      awaitItem().shouldBe(InitialLoading)
+      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel>().apply {
+        shouldHaveTitle("Fingerprint reset in progress")
+        shouldHaveSubtitle("6 days remaining...")
+      }
     }
   }
 
@@ -83,7 +127,8 @@ class FingerprintResetStatusCardUiStateMachineImplTests : FunSpec({
     fingerprintResetService.getLatestFingerprintResetActionResult = Ok(completedAction)
 
     stateMachine.test(props) {
-      awaitItem().shouldBeNull()
+      awaitItem().shouldBe(InitialLoading)
+      awaitItem().shouldBeLoaded().shouldBeNull()
     }
   }
 
@@ -103,7 +148,8 @@ class FingerprintResetStatusCardUiStateMachineImplTests : FunSpec({
     fingerprintResetService.getLatestFingerprintResetActionResult = Ok(activeAction)
 
     stateMachine.test(props) {
-      awaitUntilNotNull().shouldBeTypeOf<CardModel>().apply {
+      awaitItem().shouldBe(InitialLoading)
+      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel>().apply {
         shouldHaveTitle("Fingerprint reset in progress")
         shouldHaveSubtitle("3 days remaining...")
         click()
@@ -129,7 +175,8 @@ class FingerprintResetStatusCardUiStateMachineImplTests : FunSpec({
     fingerprintResetService.getLatestFingerprintResetActionResult = Ok(activeAction)
 
     stateMachine.test(props) {
-      awaitUntilNotNull().shouldBeTypeOf<CardModel>().apply {
+      awaitItem()
+      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel>().apply {
         shouldHaveTitle("Fingerprint reset in progress")
         shouldHaveSubtitle("5 hours remaining...")
       }
@@ -152,7 +199,8 @@ class FingerprintResetStatusCardUiStateMachineImplTests : FunSpec({
     fingerprintResetService.getLatestFingerprintResetActionResult = Ok(activeAction)
 
     stateMachine.test(props) {
-      awaitUntilNotNull().shouldBeTypeOf<CardModel>().apply {
+      awaitItem()
+      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel>().apply {
         shouldHaveTitle("Fingerprint reset in progress")
         shouldHaveSubtitle("45 minutes remaining...")
       }
@@ -175,7 +223,8 @@ class FingerprintResetStatusCardUiStateMachineImplTests : FunSpec({
     fingerprintResetService.getLatestFingerprintResetActionResult = Ok(activeAction)
 
     stateMachine.test(props) {
-      awaitUntilNotNull().shouldBeTypeOf<CardModel>().apply {
+      awaitItem()
+      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel>().apply {
         shouldHaveTitle("Fingerprint reset in progress")
         shouldHaveSubtitle("Less than 1 minute remaining...")
       }
@@ -198,7 +247,8 @@ class FingerprintResetStatusCardUiStateMachineImplTests : FunSpec({
     fingerprintResetService.getLatestFingerprintResetActionResult = Ok(activeAction)
 
     stateMachine.test(props) {
-      awaitUntilNotNull().shouldBeTypeOf<CardModel>().apply {
+      awaitItem()
+      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel>().apply {
         shouldHaveTitle("Fingerprint reset in progress")
         shouldHaveSubtitle("1 day remaining...")
       }
@@ -221,7 +271,8 @@ class FingerprintResetStatusCardUiStateMachineImplTests : FunSpec({
     fingerprintResetService.getLatestFingerprintResetActionResult = Ok(activeAction)
 
     stateMachine.test(props) {
-      awaitUntilNotNull().shouldBeTypeOf<CardModel>().apply {
+      awaitItem()
+      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel>().apply {
         shouldHaveTitle("Fingerprint reset in progress")
         shouldHaveSubtitle("1 hour remaining...")
       }
@@ -244,7 +295,8 @@ class FingerprintResetStatusCardUiStateMachineImplTests : FunSpec({
     fingerprintResetService.getLatestFingerprintResetActionResult = Ok(activeAction)
 
     stateMachine.test(props) {
-      awaitUntilNotNull().shouldBeTypeOf<CardModel>().apply {
+      awaitItem()
+      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel>().apply {
         shouldHaveTitle("Fingerprint reset in progress")
         shouldHaveSubtitle("1 minute remaining...")
       }
@@ -267,8 +319,8 @@ class FingerprintResetStatusCardUiStateMachineImplTests : FunSpec({
     fingerprintResetService.getLatestFingerprintResetActionResult = Ok(activeAction)
 
     stateMachine.test(props) {
-      // Initially should show the card
-      awaitUntilNotNull().shouldBeTypeOf<CardModel>().apply {
+      awaitItem()
+      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel>().apply {
         shouldHaveTitle("Fingerprint reset in progress")
         shouldHaveSubtitle("Less than 1 minute remaining...")
       }
@@ -277,7 +329,7 @@ class FingerprintResetStatusCardUiStateMachineImplTests : FunSpec({
       clock.advanceBy(200.milliseconds)
 
       // Card should disappear
-      awaitItem().shouldBeNull()
+      awaitItem().shouldBeLoaded().shouldBeNull()
     }
   }
 
@@ -298,7 +350,8 @@ class FingerprintResetStatusCardUiStateMachineImplTests : FunSpec({
     fingerprintResetService.getLatestFingerprintResetActionResult = Ok(activeAction)
 
     stateMachine.test(props) {
-      awaitUntilNotNull().shouldBeTypeOf<CardModel>().apply {
+      awaitItem()
+      awaitUntil { it is LoadedValue && it.value != null }.shouldBeLoaded().shouldBeTypeOf<CardModel>().apply {
         click()
       }
 

@@ -31,6 +31,8 @@ secutils_dep = declare_dependency(
 
 secutils_bl_lib = library('secutils-bl',
   srcs + bl_srcs,
+  # LOG_FORCE_RAW: bootloaders don't link log_uart_dep — see lib/log/inc/log.h.
+  c_args : ['-DLOG_FORCE_RAW=1'],
   include_directories : [includes, private_includes],
   dependencies : bl_deps,
 )

@@ -11,9 +11,9 @@ from .lib.config import get_default_platform, get_defaults, update_config
 from bitkey import fw_version
 
 from . import (build, install, generate, fwup, lfs,
-               release, test, memfault, status, snapshot)
+               release, test, memfault, status, snapshot, log)
 
-from .mcu import (chipinfo, erase, flash, debug, monitor, secinfo)
+from .mcu import (chipinfo, erase, flash, debug, secinfo)
 from .simulator import ui_sim
 
 # This hack is needed for pyinvoke version >=2.1.1
@@ -158,7 +158,6 @@ ns.add_task(chipinfo)
 ns.add_task(erase)
 ns.add_task(flash)
 ns.add_task(debug)
-ns.add_task(monitor)
 ns.add_task(secinfo)
 ns.add_task(ui_sim)
 
@@ -173,6 +172,13 @@ ns.add_collection(memfault)
 ns.add_collection(status)
 ns.add_collection(release)
 ns.add_collection(snapshot)
+ns.add_collection(log)
+
+# Also expose `log.monitor` as a bare `inv monitor` at the top level — it's
+# the most common entry point and replaces the legacy miniterm-based
+# `inv monitor`. Keep the namespaced form so existing muscle memory and any
+# scripts still pointing at `inv log.monitor` keep working.
+ns.add_task(ns.collections["log"].tasks["monitor"], name="monitor")
 
 # Configure every task to act as a shell command (will print colours, allow interactive CLI)
 config = Config(

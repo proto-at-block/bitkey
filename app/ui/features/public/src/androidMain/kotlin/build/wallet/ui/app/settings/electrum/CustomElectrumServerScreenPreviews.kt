@@ -72,7 +72,7 @@ fun CustomElectrumServerScreenEnabledWithDisablingDialogPreview() {
 @Preview
 @Composable
 fun CustomElectrumServerScreenEnabledDesignSystemV2Preview() {
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     CustomElectrumServerScreen(
       model = CustomElectrumServerBodyModel(
         onBack = {},
@@ -93,7 +93,7 @@ fun CustomElectrumServerScreenEnabledDesignSystemV2Preview() {
 @Preview
 @Composable
 fun CustomElectrumServerScreenDisabledDesignSystemV2Preview() {
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     CustomElectrumServerScreen(
       model = CustomElectrumServerBodyModel(
         onBack = {},

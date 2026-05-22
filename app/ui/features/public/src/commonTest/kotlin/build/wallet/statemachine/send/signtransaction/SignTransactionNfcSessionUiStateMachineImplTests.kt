@@ -22,7 +22,6 @@ import build.wallet.encrypt.SignatureVerifierMock
 import build.wallet.encrypt.SignatureVerifierMock.VerifyEcdsaCall
 import build.wallet.f8e.recovery.LostHardwareServerRecoveryMock
 import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.feature.flags.NfcSessionRetryAttemptsFeatureFlag
 import build.wallet.firmware.FirmwareDeviceInfoMock
 import build.wallet.keybox.KeyboxDaoMock
@@ -78,7 +77,6 @@ class SignTransactionNfcSessionUiStateMachineImplTests : FunSpec({
   val keyboxDao = KeyboxDaoMock(turbines::create)
   val signatureVerifierTurbine = turbines.create<VerifyEcdsaCall>("verifyEcdsa calls")
   val nfcSessionRetryAttemptsFeatureFlag = NfcSessionRetryAttemptsFeatureFlag(FeatureFlagDaoFake())
-  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(FeatureFlagDaoFake())
   val hardwareConfirmationUiStateMachine =
     object : HardwareConfirmationUiStateMachine,
       ScreenStateMachineMock<HardwareConfirmationUiProps>("hardware-confirmation") {}
@@ -102,7 +100,6 @@ class SignTransactionNfcSessionUiStateMachineImplTests : FunSpec({
         ScreenStateMachineMock<DescriptorRepairUiProps>("descriptor-repair") {},
       recoveryStatusService = recoveryStatusService,
       bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryFake(),
-      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag
     )
 
   fun createStateMachineWithTransactor(nfcTransactor: NfcTransactor): SignTransactionNfcSessionUiStateMachine {
@@ -125,7 +122,6 @@ class SignTransactionNfcSessionUiStateMachineImplTests : FunSpec({
         ScreenStateMachineMock<DescriptorRepairUiProps>("descriptor-repair-$instanceIndex") {},
       recoveryStatusService = recoveryStatusService,
       bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryFake(),
-      designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag
     )
   }
 

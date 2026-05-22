@@ -10,14 +10,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.min
 import build.wallet.ui.components.loading.LoadingBadge
 import build.wallet.ui.components.loading.LoadingIndicator
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 
 private const val LOADING_INDICATOR_SIZE_RATIO = 0.25f // Loading indicator is 1/4 of QR code size
 
 @Composable
 fun QrCodeLoader(modifier: Modifier = Modifier) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
 
   BoxWithConstraints {
     // Use the most narrow constraint available.

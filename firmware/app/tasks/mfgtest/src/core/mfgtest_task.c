@@ -362,6 +362,7 @@ void handle_runin_get_data_cmd(ipc_ref_t* message) {
     rsp->duration_ms = mfgtest_priv.runin_results.elapsed_ms;
     rsp->phantom_button_events = mfgtest_priv.runin_results.button_events;
     rsp->phantom_touch_events = mfgtest_priv.runin_results.touch_events;
+    rsp->phantom_touch_events_on_nfc_screen = mfgtest_priv.runin_results.touch_events_on_nfc_screen;
     rsp->phantom_captouch_events = mfgtest_priv.runin_results.captouch_events;
     rsp->phantom_fingerprint_events = mfgtest_priv.runin_results.fingerprint_events;
 
@@ -654,16 +655,18 @@ static void handle_runin_complete_internal(ipc_ref_t* message) {
 
   LOGI(
     "[MfgTest] Run-in complete: loops=%lu initial_soc=%lu%% duration=%lums usb=%s "
-    "phase_ms(%lu/%lu/%lu) phantom(btn=%lu touch=%lu fp=%lu)",
-    (unsigned long)results->loop_count,             //
-    (unsigned long)results->initial_soc,            //
-    (unsigned long)results->elapsed_ms,             //
-    results->plugged_in ? "plugged" : "unplugged",  //
-    (unsigned long)results->phase1_duration_ms,     //
-    (unsigned long)results->phase2_duration_ms,     //
-    (unsigned long)results->phase3_duration_ms,     //
-    (unsigned long)results->button_events,          //
-    (unsigned long)results->touch_events,           //
+    "phase_ms(%lu/%lu/%lu) phantom(btn=%lu touch=%lu nfc_touch=%lu captouch=%lu fp=%lu)",
+    (unsigned long)results->loop_count,                  //
+    (unsigned long)results->initial_soc,                 //
+    (unsigned long)results->elapsed_ms,                  //
+    results->plugged_in ? "plugged" : "unplugged",       //
+    (unsigned long)results->phase1_duration_ms,          //
+    (unsigned long)results->phase2_duration_ms,          //
+    (unsigned long)results->phase3_duration_ms,          //
+    (unsigned long)results->button_events,               //
+    (unsigned long)results->touch_events,                //
+    (unsigned long)results->touch_events_on_nfc_screen,  //
+    (unsigned long)results->captouch_events,             //
     (unsigned long)results->fingerprint_events);
 
   // Store results for get_data command

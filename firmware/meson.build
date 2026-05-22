@@ -19,6 +19,11 @@ if get_option('config_prod')
   message('Production config')
 endif
 
+if get_option('log_tokenized')
+  add_project_arguments('-DLOG_TOKENIZED=1', language: 'c')
+  message('Tokenized UART logging enabled (compact log frames)')
+endif
+
 fs = import('fs')
 
 system = meson.get_external_property('system', build_machine.system())
@@ -114,6 +119,10 @@ subdir('lib/rtos')
 subdir('lib/secutils')
 subdir('hal/secure-engine')
 subdir('hal/memfault/memfault-log')
+# hal/serial provides the UART transport used by the tokenized log path. It is
+# pulled in before lib/log so log_uart_lib can depend on serial_dep (log_lib
+# itself does not).
+subdir('hal/serial')
 subdir('lib/log')
 subdir('hal/led')
 subdir('lib/protobuf')
@@ -172,7 +181,6 @@ subdir('lib/mpu_regions')
 subdir('lib/wca')
 subdir('lib/temperature')
 subdir('lib/animation')
-subdir('hal/serial')
 subdir('hal/exti')
 subdir('hal/nfc')
 subdir('lib/nfc-control')

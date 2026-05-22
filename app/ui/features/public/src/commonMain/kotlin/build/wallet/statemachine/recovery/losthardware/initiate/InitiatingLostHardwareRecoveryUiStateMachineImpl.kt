@@ -20,8 +20,6 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 
 
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
-import build.wallet.feature.collectIsEnabledAsState
 import build.wallet.recovery.CancelDelayNotifyRecoveryError
 import build.wallet.recovery.LostHardwareRecoveryService
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareProps
@@ -59,12 +57,11 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
   private val hardwarePresenceUiStateMachine: HardwarePresenceUiStateMachine,
   private val lostHardwareRecoveryService: LostHardwareRecoveryService,
   private val minimumLoadingDuration: MinimumLoadingDuration,
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : InitiatingLostHardwareRecoveryUiStateMachine {
   @Composable
   override fun model(props: InitiatingLostHardwareRecoveryProps): ScreenModel {
     var state: UiState by remember { mutableStateOf(GeneratingNewAppKeys) }
-    val isDesignSystemV2Enabled by designSystemUpdatesFeatureFlag.collectIsEnabledAsState()
+    val isDesignSystemV2Enabled = true
 
     return when (val currentState = state) {
       is AskingNewHardwareReadyQuestionState -> NewDeviceReadyQuestionModel(

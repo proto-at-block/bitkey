@@ -44,7 +44,6 @@ import build.wallet.ui.model.input.TextFieldModel.Capitalization
 import build.wallet.ui.model.input.TextFieldModel.KeyboardType.*
 import build.wallet.ui.model.input.TextFieldModel.TextTransformation.INVITE_CODE
 import build.wallet.ui.model.input.TextFieldModel.TextTransformation.PASSWORD
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
@@ -284,7 +283,7 @@ fun TextFieldWithCharacteristic(
   visualTransformation: VisualTransformation,
   onValueChange: (TextFieldValue) -> Unit,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val shape =
     RoundedCornerShape(
       size = if (isDesignSystemV2Enabled) 8.dp else 32.dp

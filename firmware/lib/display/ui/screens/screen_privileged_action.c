@@ -839,7 +839,7 @@ static void update_step_indicator(int current, int total) {
   if (content_pages == 1) {
     step_indicator_text[0] = '\0';
   } else {
-    snprintf(step_indicator_text, sizeof(step_indicator_text), "%d OF %d", current + 1,
+    snprintf(step_indicator_text, sizeof(step_indicator_text), "CONFIRM %d OF %d", current + 1,
              content_pages);
   }
   first_hold_display_pending = true;

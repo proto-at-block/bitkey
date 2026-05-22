@@ -28,7 +28,7 @@ fun HardwareConfirmationScreenPreview() {
 @Preview(name = "Hardware Confirmation (Design System V2)")
 @Composable
 fun HardwareConfirmationScreenPreviewDesignSystemV2() {
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     Box(
       modifier = Modifier
         .fillMaxSize()
@@ -59,7 +59,7 @@ fun HardwareConfirmationCanceledScreenPreview() {
 @Preview(name = "Hardware Confirmation Canceled (Design System V2)")
 @Composable
 fun HardwareConfirmationCanceledScreenPreviewDesignSystemV2() {
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     Box(
       modifier = Modifier
         .fillMaxSize()

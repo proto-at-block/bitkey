@@ -6,6 +6,9 @@ import bitkey.securitycenter.SecurityActionRecommendation.*
 import bitkey.ui.framework.test
 import bitkey.ui.screens.recovery.KeysetRepairScreen
 import bitkey.ui.screens.securityhub.education.SecurityHubEducationScreen
+import build.wallet.LoadableValue
+import build.wallet.LoadableValue.InitialLoading
+import build.wallet.LoadableValue.LoadedValue
 import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.availability.FunctionalityFeatureStates
 import build.wallet.bitkey.keybox.FullAccountMock
@@ -14,7 +17,6 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.database.SecurityInteractionStatus
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.FeatureFlagValue
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
 import build.wallet.feature.flags.FingerprintResetMinFirmwareVersionFeatureFlag
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FingerprintHandle
@@ -57,6 +59,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 
 class SecurityHubPresenterTests : FunSpec({
@@ -68,7 +71,6 @@ class SecurityHubPresenterTests : FunSpec({
   firmwareDataService.pendingUpdate = FirmwareDataPendingUpdateMock
 
   val featureFlagDao = FeatureFlagDaoFake()
-  val designSystemUpdatesFeatureFlag = DesignSystemUpdatesFeatureFlag(featureFlagDao)
 
   val fingerprintResetMinFirmwareVersionFeatureFlag = FingerprintResetMinFirmwareVersionFeatureFlag(featureFlagDao)
 
@@ -89,30 +91,35 @@ class SecurityHubPresenterTests : FunSpec({
       id = "nfc-session"
     ) {}
 
+  val recoveryContactCardsUiStateMachine = object : RecoveryContactCardsUiStateMachine,
+    StateMachineMock<RecoveryContactCardsUiProps, LoadableValue<ImmutableList<CardModel>>>(
+      initialModel = LoadedValue(immutableListOf())
+    ) {}
+
+  val hardwareRecoveryStatusCardUiStateMachine = object : HardwareRecoveryStatusCardUiStateMachine,
+    StateMachineMock<HardwareRecoveryStatusCardUiProps, LoadableValue<CardModel?>>(
+      initialModel = LoadedValue(null)
+    ) {}
+
+  val fingerprintResetStatusCardUiStateMachine = object : FingerprintResetStatusCardUiStateMachine,
+    StateMachineMock<FingerprintResetStatusCardUiProps, LoadableValue<CardModel?>>(
+      initialModel = LoadedValue(null)
+    ) {}
+
   val presenter = SecurityHubPresenter(
     securityActionsService = securityActionsService,
     homeStatusBannerUiStateMachine = object : HomeStatusBannerUiStateMachine,
       StateMachineMock<HomeStatusBannerUiProps, StatusBannerModel?>(initialModel = null) {},
     firmwareDataService = firmwareDataService,
-    recoveryContactCardsUiStateMachine = object : RecoveryContactCardsUiStateMachine,
-      StateMachineMock<RecoveryContactCardsUiProps, ImmutableList<CardModel>>(
-        initialModel = immutableListOf()
-      ) {},
-    hardwareRecoveryStatusCardUiStateMachine = object : HardwareRecoveryStatusCardUiStateMachine,
-      StateMachineMock<HardwareRecoveryStatusCardUiProps, CardModel?>(
-        initialModel = null
-      ) {},
-    fingerprintResetStatusCardUiStateMachine = object : FingerprintResetStatusCardUiStateMachine,
-      StateMachineMock<FingerprintResetStatusCardUiProps, CardModel?>(
-        initialModel = null
-      ) {},
+    recoveryContactCardsUiStateMachine = recoveryContactCardsUiStateMachine,
+    hardwareRecoveryStatusCardUiStateMachine = hardwareRecoveryStatusCardUiStateMachine,
+    fingerprintResetStatusCardUiStateMachine = fingerprintResetStatusCardUiStateMachine,
     fingerprintResetUiStateMachine = fingerprintResetUiStateMachine,
     appFunctionalityService = AppFunctionalityServiceFake(),
     haptics = haptics,
     fingerprintResetAvailabilityService = fingerprintResetAvailabilityService,
     provisionAppAuthKeyTransactionProvider = provisionAppAuthKeyTransactionProvider,
     nfcSessionUIStateMachine = nfcSessionUIStateMachine,
-    designSystemUpdatesFeatureFlag = designSystemUpdatesFeatureFlag
   )
 
   suspend fun setupFingerprintResetMinFirmwareVersion(minFirmwareVersion: String = "1.0.98") {
@@ -146,6 +153,20 @@ class SecurityHubPresenterTests : FunSpec({
     securityActionsService.actions += action
   }
 
+  fun setSecurityActionsSnapshot(snapshot: SecurityActionsWithRecommendations?) {
+    (securityActionsService.securityActionsWithRecommendations as MutableStateFlow).value = snapshot
+  }
+
+  fun syncFakeServiceState() {
+    setSecurityActionsSnapshot(
+      SecurityActionsWithRecommendations(
+        securityActions = securityActionsService.actions.filter { it.category() == SecurityActionCategory.SECURITY },
+        recoveryActions = securityActionsService.actions.filter { it.category() == SecurityActionCategory.RECOVERY },
+        recommendations = securityActionsService.recommendations
+      )
+    )
+  }
+
   fun createSecurityHubScreen() =
     SecurityHubScreen(
       account = FullAccountMock
@@ -166,8 +187,12 @@ class SecurityHubPresenterTests : FunSpec({
 
   beforeTest {
     securityActionsService.clear()
+    syncFakeServiceState()
     Router.route = null
     featureFlagDao.reset()
+    recoveryContactCardsUiStateMachine.reset()
+    hardwareRecoveryStatusCardUiStateMachine.reset()
+    fingerprintResetStatusCardUiStateMachine.reset()
   }
 
   test("clicking firmware update navigates to the correct route") {
@@ -176,6 +201,82 @@ class SecurityHubPresenterTests : FunSpec({
         onRecommendationClick(UPDATE_FIRMWARE)
       }
       it.goToCalls.awaitItem().shouldBeTypeOf<FwupScreen>()
+    }
+  }
+
+  test("all-set waits for security actions to initialize before showing") {
+    setSecurityActionsSnapshot(null)
+
+    presenter.test(createSecurityHubScreen()) {
+      awaitBody<SecurityHubBodyModel> {
+        showAllSetState.shouldBeFalse()
+      }
+
+      syncFakeServiceState()
+
+      awaitBody<SecurityHubBodyModel> {
+        showAllSetState.shouldBeTrue()
+      }
+    }
+  }
+
+  test("all-set waits for recovery contact cards to initialize before showing") {
+    recoveryContactCardsUiStateMachine.emitModel(
+      InitialLoading
+    )
+
+    presenter.test(createSecurityHubScreen()) {
+      awaitBody<SecurityHubBodyModel> {
+        showAllSetState.shouldBeFalse()
+      }
+
+      recoveryContactCardsUiStateMachine.emitModel(
+        LoadedValue(immutableListOf())
+      )
+
+      awaitBody<SecurityHubBodyModel> {
+        showAllSetState.shouldBeTrue()
+      }
+    }
+  }
+
+  test("all-set waits for fingerprint reset card to initialize before showing") {
+    fingerprintResetStatusCardUiStateMachine.emitModel(
+      InitialLoading
+    )
+
+    presenter.test(createSecurityHubScreen()) {
+      awaitBody<SecurityHubBodyModel> {
+        showAllSetState.shouldBeFalse()
+      }
+
+      fingerprintResetStatusCardUiStateMachine.emitModel(
+        LoadedValue(null)
+      )
+
+      awaitBody<SecurityHubBodyModel> {
+        showAllSetState.shouldBeTrue()
+      }
+    }
+  }
+
+  test("all-set waits for hardware recovery card to initialize before showing") {
+    hardwareRecoveryStatusCardUiStateMachine.emitModel(
+      InitialLoading
+    )
+
+    presenter.test(createSecurityHubScreen()) {
+      awaitBody<SecurityHubBodyModel> {
+        showAllSetState.shouldBeFalse()
+      }
+
+      hardwareRecoveryStatusCardUiStateMachine.emitModel(
+        LoadedValue(null)
+      )
+
+      awaitBody<SecurityHubBodyModel> {
+        showAllSetState.shouldBeTrue()
+      }
     }
   }
 

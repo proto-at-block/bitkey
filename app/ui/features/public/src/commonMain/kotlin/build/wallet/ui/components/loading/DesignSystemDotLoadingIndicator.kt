@@ -15,6 +15,7 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconImage.DrawableResourceImage
 import build.wallet.ui.model.icon.IconImage.LocalImage
+import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize.XLarge
 import build.wallet.ui.model.icon.IconTint.Foreground
 import build.wallet.ui.tooling.LocalIsPreviewTheme
@@ -30,9 +31,11 @@ fun DesignSystemDotIndicator(
   Crossfade(targetState = icon, label = "design-system-dot-indicator") { currentIcon ->
     WalletIconImage(
       modifier = modifier,
-      iconImage = currentIcon,
-      size = XLarge,
-      tint = Foreground
+      model = IconModel(
+        iconImage = currentIcon,
+        iconSize = XLarge,
+        iconTint = Foreground
+      )
     )
   }
 }
@@ -104,7 +107,7 @@ private val designSystemDotIcons =
     Icon.DotCloudBackup,
     Icon.DotCoins,
     Icon.DotCommunication,
-    Icon.DotCriticalAlerts2,
+    Icon.DotCriticalAlerts,
     Icon.DotDevelopers,
     Icon.DotEmergency,
     Icon.DotEmptyState,
@@ -121,7 +124,7 @@ private val designSystemDotIcons =
     Icon.DotNotifySms,
     Icon.DotPair,
     Icon.DotPrivacy,
-    Icon.DotRecoveryContact2,
+    Icon.DotRecoveryContact,
     Icon.DotSecurity,
     Icon.DotServer,
     Icon.DotTakes,

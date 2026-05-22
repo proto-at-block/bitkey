@@ -15,8 +15,6 @@ import build.wallet.cloud.backup.csek.Sek
 import build.wallet.cloud.backup.csek.SsekDao
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.DesignSystemUpdatesFeatureFlag
-import build.wallet.feature.collectIsEnabledAsState
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.nfc.platform.signAccessToken
 import build.wallet.nfc.platform.unsealSymmetricKey
@@ -67,7 +65,6 @@ class SpendingKeysetRepairScreenPresenter(
   private val sweepService: SweepService,
   private val ssekDao: SsekDao,
   private val refreshAuthTokensUiStateMachine: RefreshAuthTokensUiStateMachine,
-  private val designSystemUpdatesFeatureFlag: DesignSystemUpdatesFeatureFlag,
 ) : ScreenPresenter<KeysetRepairScreen> {
   @Composable
   override fun model(
@@ -75,7 +72,7 @@ class SpendingKeysetRepairScreenPresenter(
     screen: KeysetRepairScreen,
   ): ScreenModel {
     var uiState: State by remember { mutableStateOf(State.CheckingPrivateKeysets) }
-    val isDesignSystemV2Enabled by designSystemUpdatesFeatureFlag.collectIsEnabledAsState()
+    val isDesignSystemV2Enabled = true
 
     return when (val currentState = uiState) {
       is State.CheckingPrivateKeysets -> {

@@ -78,8 +78,7 @@ data class ViewingInvitationBodyModel(
               "Your ${invitation.label} invite has expired."
             } else {
               "Your ${invitation.label} invite is pending."
-            },
-            alignment = FormHeaderModel.Alignment.CENTER
+            }
           )
       ).takeUnless { invitation.isBeneficiary }
   )

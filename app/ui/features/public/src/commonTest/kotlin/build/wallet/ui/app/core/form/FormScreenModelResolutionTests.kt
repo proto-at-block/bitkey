@@ -15,8 +15,7 @@ class FormScreenModelResolutionTests : FunSpec({
       model = TestFormBodyModel(
         header = FormHeaderModel(headline = "Legacy headline"),
         designSystemV2Model = FormDesignSystemV2Model(header = null)
-      ),
-      designSystemUpdatesEnabled = true
+      )
     )
 
     resolvedModel.headerModel?.headline.shouldBe("Legacy headline")
@@ -30,8 +29,7 @@ class FormScreenModelResolutionTests : FunSpec({
           header = null,
           useLegacyHeaderFallback = false
         )
-      ),
-      designSystemUpdatesEnabled = true
+      )
     )
 
     resolvedModel.headerModel.shouldBeNull()
@@ -46,8 +44,7 @@ class FormScreenModelResolutionTests : FunSpec({
           toolbar = null,
           useLegacyToolbarFallback = false
         )
-      ),
-      designSystemUpdatesEnabled = true
+      )
     )
 
     resolvedModel.toolbarModel.shouldBeNull()
@@ -62,8 +59,7 @@ class FormScreenModelResolutionTests : FunSpec({
           secondaryButton = null,
           useLegacySecondaryButtonFallback = false
         )
-      ),
-      designSystemUpdatesEnabled = true
+      )
     )
 
     resolvedModel.secondaryButton.shouldBeNull()
@@ -78,8 +74,7 @@ class FormScreenModelResolutionTests : FunSpec({
           primaryButton = null,
           useLegacyPrimaryButtonFallback = false
         )
-      ),
-      designSystemUpdatesEnabled = true
+      )
     )
 
     resolvedModel.primaryButton.shouldBeNull()
@@ -94,8 +89,7 @@ class FormScreenModelResolutionTests : FunSpec({
           scrollable = false,
           mainContentVerticalAlignment = FormDesignSystemV2Model.MainContentVerticalAlignment.CENTER
         )
-      ),
-      designSystemUpdatesEnabled = true
+      )
     )
 
     resolvedModel.designSystemV2UseLayout.shouldBe(true)
@@ -103,26 +97,6 @@ class FormScreenModelResolutionTests : FunSpec({
     resolvedModel.designSystemV2MainContentAlignment.shouldBe(FormScreenContentVerticalAlignment.Center)
   }
 
-  test("ignores dsv2 model when design system updates are disabled") {
-    val resolvedModel = resolveFormScreenModel(
-      model = TestFormBodyModel(
-        header = FormHeaderModel(headline = "Legacy headline"),
-        toolbar = TestToolbarModel,
-        designSystemV2Model = FormDesignSystemV2Model(
-          title = "Bitkey Device",
-          toolbar = null,
-          useLegacyHeaderFallback = false,
-          useDesignSystemV2ScreenLayout = true
-        )
-      ),
-      designSystemUpdatesEnabled = false
-    )
-
-    resolvedModel.designSystemV2Title.shouldBeNull()
-    resolvedModel.designSystemV2UseLayout.shouldBe(false)
-    resolvedModel.headerModel?.headline.shouldBe("Legacy headline")
-    resolvedModel.toolbarModel.shouldBe(TestToolbarModel)
-  }
 })
 
 private data class TestFormBodyModel(

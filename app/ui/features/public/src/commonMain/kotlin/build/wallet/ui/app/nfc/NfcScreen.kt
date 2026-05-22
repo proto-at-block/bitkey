@@ -53,7 +53,6 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.system.BackHandler
 import build.wallet.ui.system.KeepScreenOn
 import build.wallet.ui.system.isBlurSupported
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import io.github.alexzhirkevich.compottie.LottieCompositionSpec
@@ -68,7 +67,7 @@ fun NfcScreen(
 ) {
   KeepScreenOn()
   val devicePlatform = LocalDeviceInfo.current.devicePlatform
-  val designSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val designSystemV2Enabled = true
 
   when {
     devicePlatform == DevicePlatform.IOS && designSystemV2Enabled -> {
@@ -235,7 +234,7 @@ internal fun NfcScreenInternalIos(
   model: NfcBodyModel,
   modifier: Modifier = Modifier,
 ) {
-  val designSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val designSystemV2Enabled = true
 
   model.status.whenInProgress { onCancel ->
     BackHandler {
@@ -347,7 +346,7 @@ private inline fun NfcBodyModel.Status.whenInProgress(onBack: (() -> Unit) -> Un
 @Composable
 private fun NfcStatusIcon(status: NfcBodyModel.Status) {
   val density = LocalDensity.current.density
-  val designSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val designSystemV2Enabled = true
 
   Box(
     contentAlignment = Center,

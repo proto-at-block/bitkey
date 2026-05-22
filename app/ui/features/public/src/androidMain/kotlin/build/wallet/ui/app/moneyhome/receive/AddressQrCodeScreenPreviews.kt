@@ -79,7 +79,7 @@ fun AddressQrCodeScreenPreviewWithPartner() {
 @Composable
 fun AddressQrCodeScreenPreviewDesignSystemV2() {
   val address = "bc1q42lja79elem0anu8q8s3h2n687re9jax556pcc"
-  PreviewWalletTheme(designSystemUpdatesEnabled = true) {
+  PreviewWalletTheme {
     AddressQrCodeScreen(
       model = AddressQrCodeBodyModel(
         onBack = {},

@@ -32,7 +32,6 @@ import build.wallet.pricechart.ChartRange
 import build.wallet.pricechart.DataPoint
 import build.wallet.time.truncateTo
 import build.wallet.ui.compose.thenIf
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tooling.LocalIsPreviewTheme
 import kotlinx.collections.immutable.ImmutableList
@@ -65,6 +64,7 @@ private class WrappedPath(
  * @param useMidpointInterpolation Whether to interpolate line segments using midpoint smoothing.
  * @param showSparkLineEndPoint Whether to show the dot at the end of the sparkline.
  * @param lineCornerRadius Corner radius used to smooth line bends.
+ * @param animateDataTransition Whether to morph between old and new data sets.
  */
 @Composable
 @Suppress("detekt:CyclomaticComplexMethod")
@@ -84,13 +84,21 @@ fun PriceChart(
   useMidpointInterpolation: Boolean = sparkLineMode,
   showSparkLineEndPoint: Boolean = true,
   lineCornerRadius: Dp = if (sparkLineMode) 6.dp else 0.dp,
+  sparklineValuePaddingFraction: Float = 0f,
+  animateDataTransition: Boolean = useMidpointInterpolation && !sparkLineMode,
   modifier: Modifier = Modifier,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
-  val shouldAnimateDataTransition = useMidpointInterpolation && !sparkLineMode
+  val isDesignSystemV2Enabled = true
+  val shouldAnimateDataTransition = animateDataTransition
   val transitionProgress = remember { Animatable(1f) }
   var transitionStartData by remember { mutableStateOf(dataPoints) }
   var transitionEndData by remember { mutableStateOf(dataPoints) }
+  var transitionStartValuePaddingFraction by remember {
+    mutableFloatStateOf(sparklineValuePaddingFraction)
+  }
+  var transitionEndValuePaddingFraction by remember {
+    mutableFloatStateOf(sparklineValuePaddingFraction)
+  }
   val isMorphing by remember(shouldAnimateDataTransition) {
     derivedStateOf {
       shouldAnimateDataTransition && transitionProgress.value < 1f
@@ -103,10 +111,12 @@ fun PriceChart(
   val updatedDataPoints by rememberUpdatedState(dataPoints)
   val updatedOnDisplayedPointSelected by rememberUpdatedState(onDisplayedPointSelected)
 
-  LaunchedEffect(dataPoints, shouldAnimateDataTransition) {
+  LaunchedEffect(dataPoints, shouldAnimateDataTransition, sparklineValuePaddingFraction) {
     if (!shouldAnimateDataTransition || dataPoints.isEmpty()) {
       transitionStartData = dataPoints
       transitionEndData = dataPoints
+      transitionStartValuePaddingFraction = sparklineValuePaddingFraction
+      transitionEndValuePaddingFraction = sparklineValuePaddingFraction
       transitionProgress.snapTo(1f)
       return@LaunchedEffect
     }
@@ -120,23 +130,41 @@ fun PriceChart(
     } else {
       transitionEndData
     }
+    val currentDisplayedValuePaddingFraction = if (transitionProgress.value < 1f) {
+      lerp(
+        transitionStartValuePaddingFraction,
+        transitionEndValuePaddingFraction,
+        transitionProgress.value
+      )
+    } else {
+      transitionEndValuePaddingFraction
+    }
 
     if (transitionEndData.isEmpty()) {
       transitionStartData = dataPoints
       transitionEndData = dataPoints
+      transitionStartValuePaddingFraction = sparklineValuePaddingFraction
+      transitionEndValuePaddingFraction = sparklineValuePaddingFraction
       transitionProgress.snapTo(1f)
       return@LaunchedEffect
     }
 
-    if (haveSamePoints(currentDisplayedData, dataPoints)) {
+    if (
+      haveSamePoints(currentDisplayedData, dataPoints) &&
+      abs(currentDisplayedValuePaddingFraction - sparklineValuePaddingFraction) < 0.001f
+    ) {
       transitionStartData = dataPoints
       transitionEndData = dataPoints
+      transitionStartValuePaddingFraction = sparklineValuePaddingFraction
+      transitionEndValuePaddingFraction = sparklineValuePaddingFraction
       transitionProgress.snapTo(1f)
       return@LaunchedEffect
     }
 
     transitionStartData = currentDisplayedData
     transitionEndData = dataPoints
+    transitionStartValuePaddingFraction = currentDisplayedValuePaddingFraction
+    transitionEndValuePaddingFraction = sparklineValuePaddingFraction
     transitionProgress.snapTo(0f)
     transitionProgress.animateTo(
       targetValue = 1f,
@@ -156,13 +184,20 @@ fun PriceChart(
   }
 
   // The vertical chart intervals for y-axis labels and lines
-  val chartDataState by remember {
+  val chartDataState by remember(
+    dataPoints,
+    yAxisIntervals,
+    pathSize,
+    range,
+    sparklineValuePaddingFraction
+  ) {
     derivedStateOf {
       ChartDataState(
         data = updatedDataPoints,
         intervals = yAxisIntervals,
         pathSize = pathSize,
-        chartRange = range
+        chartRange = range,
+        valuePaddingFraction = sparklineValuePaddingFraction
       )
     }
   }
@@ -244,14 +279,10 @@ fun PriceChart(
     } else {
       chartElementColor
     }
-    val backgroundPathColorTarget by remember {
-      derivedStateOf {
-        when {
-          sparkLineMode -> colorSparkLine
-          selectedPoint == null -> colorPrimary
-          else -> inactivePathColor
-        }
-      }
+    val backgroundPathColorTarget = when {
+      sparkLineMode -> colorSparkLine
+      selectedPoint == null -> colorPrimary
+      else -> inactivePathColor
     }
     val backgroundPathColor by animateColorAsState(
       targetValue = backgroundPathColorTarget,
@@ -267,7 +298,9 @@ fun PriceChart(
       pathSize,
       yAxisIntervals,
       range,
-      useMidpointInterpolation
+      useMidpointInterpolation,
+      transitionStartValuePaddingFraction,
+      transitionEndValuePaddingFraction
     ) {
       derivedStateOf {
         if (!isMorphing || transitionStartData.isEmpty() || transitionEndData.isEmpty()) {
@@ -282,6 +315,8 @@ fun PriceChart(
             pathSize = pathSize,
             yAxisIntervals = yAxisIntervals,
             chartRange = range,
+            startValuePaddingFraction = transitionStartValuePaddingFraction,
+            endValuePaddingFraction = transitionEndValuePaddingFraction,
             useMidpointInterpolation = useMidpointInterpolation
           )
         }
@@ -613,7 +648,7 @@ fun PriceChart(
           if (currentMorphPath != null) {
             drawPath(
               path = currentMorphPath,
-              color = colorPrimary,
+              color = if (sparkLineMode) backgroundPathColor else colorPrimary,
               style = priceLineStroke
             )
           } else {
@@ -790,6 +825,8 @@ private fun createMorphPath(
   pathSize: Float,
   yAxisIntervals: Int,
   chartRange: ChartRange,
+  startValuePaddingFraction: Float,
+  endValuePaddingFraction: Float,
   useMidpointInterpolation: Boolean,
 ): Path {
   val clampedProgress = progress.coerceIn(0f, 1f)
@@ -797,13 +834,15 @@ private fun createMorphPath(
     data = startData,
     intervals = yAxisIntervals,
     pathSize = pathSize,
-    chartRange = chartRange
+    chartRange = chartRange,
+    valuePaddingFraction = startValuePaddingFraction
   )
   val endChartState = ChartDataState(
     data = endData,
     intervals = yAxisIntervals,
     pathSize = pathSize,
-    chartRange = chartRange
+    chartRange = chartRange,
+    valuePaddingFraction = endValuePaddingFraction
   )
   val sampleCount = maxOf(startData.size, endData.size).coerceAtLeast(2)
   val blendedOffsets = List(sampleCount) { index ->

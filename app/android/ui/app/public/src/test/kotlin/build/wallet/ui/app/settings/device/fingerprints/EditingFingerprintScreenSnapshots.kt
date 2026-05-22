@@ -55,8 +55,7 @@ class EditingFingerprintScreenSnapshots : FunSpec({
           onBackPressed = {},
           isExistingFingerprint = true,
           attemptToDeleteLastFingerprint = false
-        ),
-      designSystemUpdatesEnabled = true
+        )
     )
   }
 
@@ -73,8 +72,7 @@ class EditingFingerprintScreenSnapshots : FunSpec({
           onBackPressed = {},
           isExistingFingerprint = false,
           attemptToDeleteLastFingerprint = false
-        ),
-      designSystemUpdatesEnabled = true
+        )
     )
   }
 

@@ -49,7 +49,6 @@ internal fun FwupNfcSearchingAndroidDsv2Preview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
-    designSystemUpdatesEnabled = true
   ) {
     FwupNfcScreenInternalV2(
       model =
@@ -74,7 +73,6 @@ internal fun FwupNfcSearchingIosPreview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
-    designSystemUpdatesEnabled = true
   ) {
     FwupNfcScreenInternalIos(
       backgroundPainter = fwupIosPreviewBackgroundPainter(),
@@ -139,7 +137,6 @@ internal fun FwupNfcProgressAndroidDsv2Preview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
-    designSystemUpdatesEnabled = true
   ) {
     FwupNfcScreenInternalV2(
       model =
@@ -164,7 +161,6 @@ internal fun FwupNfcProgressIosPreview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
-    designSystemUpdatesEnabled = true
   ) {
     FwupNfcScreenInternalIos(
       backgroundPainter = fwupIosPreviewBackgroundPainter(),
@@ -199,7 +195,6 @@ internal fun FwupNfcLostConnectionAndroidDsv2Preview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
-    designSystemUpdatesEnabled = true
   ) {
     FwupNfcScreenInternalV2(
       model =
@@ -233,7 +228,6 @@ internal fun FwupNfcSuccessAndroidDsv2Preview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
-    designSystemUpdatesEnabled = true
   ) {
     FwupNfcScreenInternalV2(
       model =

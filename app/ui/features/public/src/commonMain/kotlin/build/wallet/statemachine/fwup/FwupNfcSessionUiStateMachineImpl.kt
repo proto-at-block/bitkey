@@ -61,11 +61,8 @@ import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationC
 import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationUiProps
 import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationUiStateMachine
 import build.wallet.toUByteList
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOrElse
-import com.github.michaelbull.result.onFailure
-import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -195,7 +192,7 @@ class FwupNfcSessionUiStateMachineImpl(
     getCurrentState: () -> FwupNfcSessionUiState,
     setState: (FwupNfcSessionUiState) -> Unit,
   ): ScreenModel {
-    val designSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+    val designSystemV2Enabled = true
     return when (state) {
       is InNfcSessionUiState -> {
         // NfcTransactionEffect stays alive for the entire InNfcSessionUiState,
@@ -749,8 +746,11 @@ class FwupNfcSessionUiStateMachineImpl(
         devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform
       )
       val hwPubKey = keyboxDao.activeKeybox().first().value?.activeHwKeyBundle?.authKey?.pubKey
+
+      // FWUP does not handle SessionCanceled explicitly; platform cancellation
+      // surfaces as an NfcException terminal event.
       nfcTransactor
-        .transact(
+        .transactEvents(
           parameters =
             NfcSession.Parameters(
               isHardwareFake = isHardwareFake,
@@ -760,29 +760,6 @@ class FwupNfcSessionUiStateMachineImpl(
               shouldLock = true,
               skipFirmwareTelemetry = true,
               nfcFlowName = if (continuation != null) "fwup-confirmation" else "fwup",
-              onTagConnected = {
-                when (val currentState = getCurrentState()) {
-                  is InNfcSessionUiState -> {
-                    eventTracker.track(EventTrackerScreenInfo(NFC_DETECTED, FWUP))
-                    setState(
-                      currentState.copy(displayMode = InNfcSessionUiState.DisplayMode.Updating)
-                    )
-                  }
-                  else -> Unit
-                }
-              },
-              onTagDisconnected = {
-                when (val currentState = getCurrentState()) {
-                  is InNfcSessionUiState -> {
-                    setState(
-                      currentState.copy(
-                        displayMode = InNfcSessionUiState.DisplayMode.LostConnection
-                      )
-                    )
-                  }
-                  else -> Unit
-                }
-              },
               requirePairedHardware = hwPubKey?.let {
                 RequirePairedHardware.Required(
                   challenge = secureRandom.nextBytes(32).toByteString(),
@@ -838,11 +815,55 @@ class FwupNfcSessionUiStateMachineImpl(
                 }
               )
             }
+          },
+          onEvent = { event ->
+            // Per-event side effects (analytics, terminal handoff) — runs for
+            // every event upstream of conflation. FWUP doesn't wire
+            // SessionCanceled; cancellation surfaces as a Failed event.
+            when (event) {
+              is NfcTransactionEvent.TagConnected ->
+                eventTracker.track(EventTrackerScreenInfo(NFC_DETECTED, FWUP))
+              is NfcTransactionEvent.Succeeded<*> -> {
+                @Suppress("UNCHECKED_CAST")
+                handleNfcTransactionSuccess(
+                  event.result as FwupTransactionResult,
+                  state,
+                  props,
+                  setProgress,
+                  setState
+                )
+              }
+              is NfcTransactionEvent.Failed ->
+                handleNfcTransactionFailure(event.error, state, continuation, props, setState)
+              NfcTransactionEvent.TagDisconnected,
+              NfcTransactionEvent.SessionCanceled,
+              -> Unit
+            }
           }
-        ).onFailure { error ->
-          handleNfcTransactionFailure(error, state, continuation, props, setState)
-        }.onSuccess { result ->
-          handleNfcTransactionSuccess(result, state, props, setProgress, setState)
+        ).collect { event ->
+          // UI state mutation — Flow is already conflated by transactEvents.
+          when (event) {
+            is NfcTransactionEvent.TagConnected -> {
+              when (val currentState = getCurrentState()) {
+                is InNfcSessionUiState ->
+                  setState(currentState.copy(displayMode = InNfcSessionUiState.DisplayMode.Updating))
+                else -> Unit
+              }
+            }
+            NfcTransactionEvent.TagDisconnected -> {
+              when (val currentState = getCurrentState()) {
+                is InNfcSessionUiState ->
+                  setState(
+                    currentState.copy(displayMode = InNfcSessionUiState.DisplayMode.LostConnection)
+                  )
+                else -> Unit
+              }
+            }
+            NfcTransactionEvent.SessionCanceled,
+            is NfcTransactionEvent.Succeeded<*>,
+            is NfcTransactionEvent.Failed,
+            -> Unit
+          }
         }
     }
   }

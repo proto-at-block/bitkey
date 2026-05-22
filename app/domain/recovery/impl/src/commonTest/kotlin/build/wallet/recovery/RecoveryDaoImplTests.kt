@@ -35,8 +35,10 @@ import build.wallet.sqldelight.inMemorySqlDriver
 import build.wallet.testing.shouldBeOkOfType
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.shouldBe
+import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 import okio.ByteString.Companion.encodeUtf8
 
 class RecoveryDaoImplTests : FunSpec({
@@ -363,17 +365,31 @@ class RecoveryDaoImplTests : FunSpec({
           originalAppGlobalAuthKey
         )
 
-        databaseProvider.database().w3UpgradeMigrationQueries.saveHardwareKey(keyset.hardwareKey)
-        databaseProvider.database().w3UpgradeMigrationQueries.getState().executeAsOneOrNull()
+        val database = databaseProvider.database()
+        val w3UpgradeMigrationQueries = database.w3UpgradeMigrationQueries
+        w3UpgradeMigrationQueries.saveHardwareKey(keyset.hardwareKey)
+        w3UpgradeMigrationQueries.insertSweepTransaction(
+          txid = "w3-sweep-txid-1",
+          broadcastTime = "2026-05-21T00:00:00Z"
+        )
+        w3UpgradeMigrationQueries.insertSweepTransaction(
+          txid = "w3-sweep-txid-2",
+          broadcastTime = null
+        )
+        w3UpgradeMigrationQueries.getState().executeAsOneOrNull()
           .shouldNotBeNull()
+        w3UpgradeMigrationQueries.getSweepTransactions().executeAsList()
+          .shouldHaveSize(2)
 
         setProgressCompletedRecovery(dao)
 
-        databaseProvider.database().recoveryQueries.getLocalRecovery().executeAsOneOrNull()
+        database.recoveryQueries.getLocalRecovery().executeAsOneOrNull()
           .shouldBe(null)
-        databaseProvider.database().w3UpgradeMigrationQueries.getState().executeAsOneOrNull()
+        w3UpgradeMigrationQueries.getState().executeAsOneOrNull()
           .shouldBe(null)
-        databaseProvider.database().fullAccountQueries.getActiveFullAccount().executeAsOneOrNull()
+        w3UpgradeMigrationQueries.getSweepTransactions().executeAsList()
+          .shouldBeEmpty()
+        database.fullAccountQueries.getActiveFullAccount().executeAsOneOrNull()
           ?.accountId.shouldBe(KeyboxMock.fullAccountId)
       }
 

@@ -25,7 +25,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import build.wallet.ui.theme.LocalDesignSystemUpdatesEnabled
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
@@ -43,7 +42,7 @@ actual fun TabBarPill(
   tabCount: Int,
   tabs: @Composable RowScope.() -> Unit,
 ) {
-  val isDesignSystemV2Enabled = LocalDesignSystemUpdatesEnabled.current
+  val isDesignSystemV2Enabled = true
   val theme = LocalTheme.current
   val pillWidth = if (isDesignSystemV2Enabled) 160.dp else 130.dp
   val pillHeight = 60.dp
