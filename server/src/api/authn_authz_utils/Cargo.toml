@@ -1,0 +1,15 @@
+[package]
+edition = { workspace = true }
+name = "authn_authz_utils"
+publish = { workspace = true }
+version = "0.1.0"
+
+[dependencies]
+http = { workspace = true }
+jsonwebtoken = "9.2.0"
+
+# path dependencies
+types = { workspace = true, features = ["account", "authn_authz", "privileged_action"] }
+
+[lints]
+workspace = true

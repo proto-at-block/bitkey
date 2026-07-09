@@ -9,6 +9,7 @@ import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
+import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
@@ -37,12 +38,12 @@ data class AskingIfHasHardwareBodyModel(
           items = immutableListOf(
             ListItemModel(
               title = "Yes, I have a Bitkey",
-              trailingAccessory = build.wallet.ui.model.list.ListItemAccessory.CheckAccessory(isYesChecked),
+              trailingAccessory = ListItemAccessory.CheckboxAccessory(isYesChecked, onClick = onYes),
               onClick = onYes
             ),
             ListItemModel(
               title = "No, I don't have a Bitkey",
-              trailingAccessory = build.wallet.ui.model.list.ListItemAccessory.CheckAccessory(isNoChecked),
+              trailingAccessory = ListItemAccessory.CheckboxAccessory(isNoChecked, onClick = onNo),
               onClick = onNo
             )
           ),

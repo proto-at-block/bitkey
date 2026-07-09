@@ -23,18 +23,4 @@ class CompleteTwoTapScreenSnapshots : FunSpec({
     }
   }
 
-  test("complete two tap screen - design system v2") {
-    paparazzi.snapshot {
-      FormScreen(
-        model =
-          CompleteTwoTapBodyModel(
-            onBack = {},
-            onContinue = {},
-            onHelpClick = {},
-            eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION,
-            isHardwareFake = true
-          )
-      )
-    }
-  }
 })

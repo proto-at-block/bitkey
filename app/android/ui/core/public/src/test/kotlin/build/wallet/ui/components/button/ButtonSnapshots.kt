@@ -20,12 +20,6 @@ class ButtonSnapshots : FunSpec(
       }
     }
 
-    test("buttons - regular size, with icon, enabled (design system v2)") {
-      paparazzi.snapshot {
-        RegularButtonsWithIconEnabledDesignSystemDark()
-      }
-    }
-
     test("button - regular size, without icon, enabled") {
       paparazzi.snapshot {
         RegularButtonsWithoutIconEnabled()

@@ -8,8 +8,10 @@ members = [
   "src/api/account",
   "src/api/analytics",
   "src/api/authn_authz",
+  "src/api/authn_authz_utils",
   "src/api/bdk_utils",
   "src/api/chain_indexer",
+  "src/api/clients_common",
   "src/api/comms_verification",
   "src/api/customer_feedback",
   "src/api/database",
@@ -84,6 +86,7 @@ bdk_wallet = { version = "=2.2.0" }
 config = { version = "=0.15.18", features = ["toml"] }
 crypto = { path = "../core/crypto" }
 ctrlc = "3.4.4"
+device-attestation = { path = "../core/device-attestation" }
 derive_builder = "=0.20.2"
 dyn-clone = "1.0.17"
 futures = "0.3.30"
@@ -145,8 +148,10 @@ wsm-grant = { path = "../core/wsm-grant" }
 account = { path = "src/api/account" }
 analytics = { path = "src/api/analytics" }
 authn_authz = { path = "src/api/authn_authz" }
+authn_authz_utils = { path = "src/api/authn_authz_utils" }
 bdk_utils = { path = "src/api/bdk_utils" }
 chain_indexer = { path = "src/api/chain_indexer" }
+clients_common = { path = "src/api/clients_common" }
 comms_verification = { path = "src/api/comms_verification" }
 customer_feedback = { path = "src/api/customer_feedback" }
 database = { path = "src/api/database" }

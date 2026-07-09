@@ -1,6 +1,7 @@
 package build.wallet.debug.cloud
 
 import build.wallet.bitkey.f8e.AccountId
+import com.github.michaelbull.result.Result
 
 /**
  * Currently used primarily for debugging purposes through debug menu available
@@ -14,16 +15,16 @@ interface CloudBackupDeleter {
    * (in Android case).
    * @param accountId if null, it will delete all.
    */
-  suspend fun delete(accountId: AccountId?)
+  suspend fun delete(accountId: AccountId?): Result<Unit, Error>
 
   /**
    * Deletes all cloud backups and their local mirror state for the active cloud account.
    */
-  suspend fun deleteAllBackups()
+  suspend fun deleteAllBackups(): Result<Unit, Error>
 
   /**
    * Deletes cloud backups only in the selected remote backup store, then clears cached cloud
    * account state (same behavior as other debug deletion operations).
    */
-  suspend fun deleteBackupsIn(type: CloudBackupStoreType)
+  suspend fun deleteBackupsIn(type: CloudBackupStoreType): Result<Unit, Error>
 }

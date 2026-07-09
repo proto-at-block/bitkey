@@ -32,7 +32,7 @@ import com.github.michaelbull.result.get
 @Composable
 internal fun FwupNfcSearchingPreview() {
   PreviewWalletTheme {
-    FwupNfcScreenInternal(
+    FwupNfcScreenInternalAndroid(
       model =
         FwupNfcBodyModel(
           onCancel = {},
@@ -43,14 +43,14 @@ internal fun FwupNfcSearchingPreview() {
   }
 }
 
-@Preview(name = "FWUP NFC Android DSV2 Ready")
+@Preview(name = "FWUP NFC Android Ready")
 @Composable
-internal fun FwupNfcSearchingAndroidDsv2Preview() {
+internal fun FwupNfcSearchingAndroidPreview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
   ) {
-    FwupNfcScreenInternalV2(
+    FwupNfcScreenInternalAndroid(
       model =
         FwupNfcBodyModel(
           onCancel = {},
@@ -62,7 +62,7 @@ internal fun FwupNfcSearchingAndroidDsv2Preview() {
 }
 
 @Preview(
-  name = "FWUP NFC iOS DSV2 Ready",
+  name = "FWUP NFC iOS Ready",
   widthDp = 390,
   heightDp = 844,
   showBackground = true,
@@ -120,7 +120,7 @@ internal fun FwupNfcIosBackgroundAssetPreview() {
 @Composable
 internal fun FwupNfcProgressPreview() {
   PreviewWalletTheme {
-    FwupNfcScreenInternal(
+    FwupNfcScreenInternalAndroid(
       model =
         FwupNfcBodyModel(
           onCancel = {},
@@ -131,14 +131,14 @@ internal fun FwupNfcProgressPreview() {
   }
 }
 
-@Preview(name = "FWUP NFC Android DSV2 Updating")
+@Preview(name = "FWUP NFC Android Updating")
 @Composable
-internal fun FwupNfcProgressAndroidDsv2Preview() {
+internal fun FwupNfcProgressAndroidPreview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
   ) {
-    FwupNfcScreenInternalV2(
+    FwupNfcScreenInternalAndroid(
       model =
         FwupNfcBodyModel(
           onCancel = {},
@@ -150,7 +150,7 @@ internal fun FwupNfcProgressAndroidDsv2Preview() {
 }
 
 @Preview(
-  name = "FWUP NFC iOS DSV2 Updating",
+  name = "FWUP NFC iOS Updating",
   widthDp = 390,
   heightDp = 844,
   showBackground = true,
@@ -178,7 +178,7 @@ internal fun FwupNfcProgressIosPreview() {
 @Composable
 internal fun FwupNfcLostConnectionPreview() {
   PreviewWalletTheme {
-    FwupNfcScreenInternal(
+    FwupNfcScreenInternalAndroid(
       model =
         FwupNfcBodyModel(
           onCancel = {},
@@ -189,14 +189,14 @@ internal fun FwupNfcLostConnectionPreview() {
   }
 }
 
-@Preview(name = "FWUP NFC Android DSV2 Lost Connection")
+@Preview(name = "FWUP NFC Android Lost Connection")
 @Composable
-internal fun FwupNfcLostConnectionAndroidDsv2Preview() {
+internal fun FwupNfcLostConnectionAndroidPreview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
   ) {
-    FwupNfcScreenInternalV2(
+    FwupNfcScreenInternalAndroid(
       model =
         FwupNfcBodyModel(
           onCancel = {},
@@ -211,7 +211,7 @@ internal fun FwupNfcLostConnectionAndroidDsv2Preview() {
 @Composable
 internal fun FwupNfcSuccessPreview() {
   PreviewWalletTheme {
-    FwupNfcScreenInternal(
+    FwupNfcScreenInternalAndroid(
       model =
         FwupNfcBodyModel(
           onCancel = null,
@@ -222,14 +222,14 @@ internal fun FwupNfcSuccessPreview() {
   }
 }
 
-@Preview(name = "FWUP NFC Android DSV2 Success")
+@Preview(name = "FWUP NFC Android Success")
 @Composable
-internal fun FwupNfcSuccessAndroidDsv2Preview() {
+internal fun FwupNfcSuccessAndroidPreview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
   ) {
-    FwupNfcScreenInternalV2(
+    FwupNfcScreenInternalAndroid(
       model =
         FwupNfcBodyModel(
           onCancel = null,

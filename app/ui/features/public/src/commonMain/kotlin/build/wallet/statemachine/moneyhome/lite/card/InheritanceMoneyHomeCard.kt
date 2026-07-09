@@ -30,7 +30,7 @@ fun InheritanceMoneyHomeCard(
     requiresBitkeyInteraction = false,
     treatment = ButtonModel.Treatment.Secondary,
     size = ButtonModel.Size.Footer,
-    leadingIcon = Icon.SmallIconArrowUpRight,
+    leadingIcon = Icon.ArrowUpRight,
     onClick = onGetABitkey
   )
 )

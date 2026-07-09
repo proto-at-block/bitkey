@@ -79,21 +79,21 @@ data class CardModel(
   }
 
   /** The style of the card */
-  sealed class CardStyle {
-    data object Plain : CardStyle()
+  sealed interface CardStyle {
+    data object Plain : CardStyle
 
     data class Outline(
       val surfaceTreatment: SurfaceTreatment = SurfaceTreatment.ContainerBackground,
-    ) : CardStyle()
+    ) : CardStyle
 
-    data class Gradient(val backgroundColor: BackgroundColor? = null) : CardStyle() {
+    data class Gradient(val backgroundColor: BackgroundColor? = null) : CardStyle {
       enum class BackgroundColor {
         Default,
         InverseBackground,
       }
     }
 
-    data class Callout(val model: CalloutModel) : CardStyle()
+    data class Callout(val model: CalloutModel) : CardStyle
   }
 
   enum class SurfaceTreatment {
@@ -151,7 +151,7 @@ data class CardModel(
       val timeRemaining: Duration,
       val progress: Progress,
       val onClick: (() -> Unit)?,
-      val useMonochromeStyleInDesignSystemV2: Boolean = false,
+      val useMonochromeStyle: Boolean = false,
       override val key: String = "pending-claim",
     ) : CardContent, ComposeModel {
       @Composable

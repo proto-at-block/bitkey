@@ -20,6 +20,7 @@
 
 extern "C" {
 #include "attributes.h"
+#include "ecc.h"
 #include "fff.h"
 #include "grant_protocol.h"
 #include "grant_protocol_storage_impl.h"
@@ -99,15 +100,20 @@ void detect_glitch(void) {}
 uint32_t rtos_event_group_get_bits(rtos_event_group_t* UNUSED(g)) { return 0; }
 bool bd_error_str(char* UNUSED(s), const size_t UNUSED(n), const int UNUSED(e)) { return true; }
 
-/* Intercept _ipc_send via --wrap linker flag.  The real _ipc_send calls
- * get_port_obj() which ASSERTs on uninitialized IPC ports (exit(9876)).
- * The grant-protocol fuzzer only exercises verification logic; IPC sends
- * (perform_action → ipc_send_empty) are no-ops in the fuzz context.
- * Requires -Wl,--wrap=_ipc_send in link_args (see meson.build). */
-bool __wrap__ipc_send(uint32_t port, void* ref, void* options) {
+/* grant_protocol.c is compiled for this fuzz target with _ipc_send renamed to
+ * this harness function. The real _ipc_send expects initialized IPC ports; the
+ * grant-protocol fuzzer only exercises verification logic, so sends are no-ops
+ * in the fuzz context. */
+bool grant_fuzz_ipc_send(ipc_port_t port, ipc_ref_t* ref, ipc_options_t options) {
   (void)port; (void)ref; (void)options;
   return true;
 }
+
+/* Anti-glitch timing hooks require secutils initialization in firmware. They
+ * are not part of the grant verification behavior being fuzzed, so make them
+ * no-ops in the harness. */
+void grant_fuzz_secure_glitch_random_delay(void) {}
+void grant_fuzz_secure_glitch_detect(void) {}
 
 /* --- Thread / filesystem / bio / unlock stubs --------------------------------
  * These symbols are pulled in transitively via ipc_dep → onboarding_dep
@@ -149,6 +155,7 @@ void unlock_wipe_state(void) {}
 
 /* Use test (non-production) WIK key so grant_protocol_init can proceed. */
 static const bool kInit = []() -> bool {
+  crypto_ecc_secp256k1_init();
   grant_protocol_init(/* is_production= */ false);
   return true;
 }();

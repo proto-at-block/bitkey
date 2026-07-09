@@ -1,9 +1,11 @@
 package build.wallet.statemachine.recovery.conflict.model
 
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.RenderContext
+import build.wallet.statemachine.recovery.RecoverySegment
 
 fun ClearingLocalRecoveryFailedSheetModel(
   onClose: () -> Unit,
@@ -25,6 +27,11 @@ fun ClearingLocalRecoveryFailedSheetModel(
           text = "Back",
           onClick = onClose
         ),
+      errorData = ErrorData(
+        segment = RecoverySegment.DelayAndNotify,
+        actionDescription = "Clearing local recovery state",
+        cause = IllegalStateException("Failed to clear local recovery state")
+      ),
       eventTrackerScreenId = null,
       renderContext = RenderContext.Sheet
     )

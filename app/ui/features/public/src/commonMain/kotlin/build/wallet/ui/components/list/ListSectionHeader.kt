@@ -20,16 +20,15 @@ fun ListSectionHeader(
   title: String,
   treatment: ListGroupModel.HeaderTreatment,
 ) {
-  val isDesignSystemV2Enabled = true
   Box(modifier = modifier.fillMaxWidth()) {
     Label(
       modifier =
         Modifier.padding(
           top = 8.dp
-        ),
+      ),
       text = title,
       type = when (treatment) {
-        SECONDARY -> if (isDesignSystemV2Enabled) LabelType.Body3Mono else LabelType.Title3
+        SECONDARY -> LabelType.Body3Mono
         PRIMARY -> LabelType.Title2
       },
       treatment = when (treatment) {

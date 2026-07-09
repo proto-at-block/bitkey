@@ -24,17 +24,17 @@ data class HardwareReplacementInstructionsModel(
       FormMainContentModel.Explainer(
         immutableListOf(
           FormMainContentModel.Explainer.Statement(
-            leadingIcon = Icon.SmallIconClock,
+            leadingIcon = Icon.Clock,
             title = "7-day security waiting period",
             body = "During this time, you’ll get regular alerts about the recovery. No action is needed; they are to keep you informed and aware."
           ),
           FormMainContentModel.Explainer.Statement(
-            leadingIcon = Icon.SmallIconMinusStroked,
+            leadingIcon = Icon.MinusStroked,
             title = "Cancel anytime",
             body = "You can cancel this process anytime, and return to using your existing Bitkey device if you find it later."
           ),
           FormMainContentModel.Explainer.Statement(
-            leadingIcon = Icon.SmallIconBitcoinStroked,
+            leadingIcon = Icon.BitcoinStroked,
             title = "Small network fee required",
             body = "To recover your key, you’ll need to initiate an on-chain transaction to complete the process."
           )

@@ -9,7 +9,7 @@ interface HardwareUnlockInfoService {
   suspend fun replaceAllUnlockInfo(unlockInfoList: List<UnlockInfo>)
 
   /** Count of [UnlockInfo] with type of [UnlockMethod] . */
-  suspend fun countUnlockInfo(unlockMethod: UnlockMethod): Flow<Int>
+  fun countUnlockInfo(unlockMethod: UnlockMethod): Flow<Int>
 
   /** Clear all [UnlockInfo] */
   suspend fun clear()

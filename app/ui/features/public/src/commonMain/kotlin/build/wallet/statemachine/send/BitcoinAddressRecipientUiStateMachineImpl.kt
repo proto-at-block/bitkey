@@ -40,7 +40,6 @@ class BitcoinAddressRecipientUiStateMachineImpl(
     }
 
     val wallet by remember { bitcoinWalletService.spendingWallet() }.collectAsState()
-    val isDesignSystemV2Enabled = true
 
     // Re-read clipboard on each foreground resume so the paste button stays current
     // after the user app-switches to copy an address. Polls the foreground boolean
@@ -156,7 +155,7 @@ class BitcoinAddressRecipientUiStateMachineImpl(
       },
       showSelfSendWarningWithRedirect = bitcoinAddressResult == BitcoinAddressResult.SelfSend,
       onGoToUtxoConsolidation = props.onGoToUtxoConsolidation,
-      isDesignSystemV2Enabled = isDesignSystemV2Enabled
+      showToolbarIcons = props.showToolbarIcons
     )
   }
 

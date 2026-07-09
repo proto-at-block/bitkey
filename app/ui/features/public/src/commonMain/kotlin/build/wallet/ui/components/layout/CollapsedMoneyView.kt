@@ -18,7 +18,7 @@ import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import org.jetbrains.compose.resources.painterResource
 
-private val dsv2LightModeHiddenMoneyTint = Color(0xFFC4C3C0)
+private val lightModeHiddenMoneyTint = Color(0xFFC4C3C0)
 
 /**
  * Displays a redacted label with shimmering effect.
@@ -31,7 +31,7 @@ fun CollapsedMoneyView(
   modifier: Modifier = Modifier,
   shimmer: Boolean = true,
 ) {
-  val shouldUseDsv2LightModeTint =
+  val shouldUseLightModeHiddenMoneyTint =
     LocalTheme.current == Theme.LIGHT
 
   Image(
@@ -39,8 +39,8 @@ fun CollapsedMoneyView(
     contentDescription = "value is hidden",
     contentScale = ContentScale.FillHeight,
     alignment = Alignment.Center,
-    colorFilter = if (shouldUseDsv2LightModeTint) {
-      ColorFilter.tint(dsv2LightModeHiddenMoneyTint)
+    colorFilter = if (shouldUseLightModeHiddenMoneyTint) {
+      ColorFilter.tint(lightModeHiddenMoneyTint)
     } else {
       null
     },

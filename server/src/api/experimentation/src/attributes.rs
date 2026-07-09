@@ -6,6 +6,7 @@ use regex::Regex;
 use crate::claims::ExperimentationClaims;
 
 const APPLICATION_VERSION_ATTRIBUTE_NAME: &str = "application_version";
+const FIRMWARE_VERSION_ATTRIBUTE_NAME: &str = "firmware_version";
 const OS_TYPE_ATTRIBUTE_NAME: &str = "os_type";
 const OS_VERSION_ATTRIBUTE_NAME: &str = "os_version";
 const APP_INSTALLATION_ID_ATTRIBUTE_NAME: &str = "app_installation_id";
@@ -39,6 +40,9 @@ impl ToLaunchDarklyAttributes for ExperimentationClaims {
                 );
             }
         }
+        if let Some(firmware_version) = &self.firmware_version {
+            attributes.insert(FIRMWARE_VERSION_ATTRIBUTE_NAME, firmware_version.to_owned());
+        }
         if let Some(os_type) = &self.os_type {
             attributes.insert(OS_TYPE_ATTRIBUTE_NAME, os_type.to_owned());
         }
@@ -71,6 +75,7 @@ mod tests {
                 account_id: None,
                 app_installation_id: None,
                 app_version: Some(v.app_version.to_string()),
+                firmware_version: None,
                 os_type: None,
                 os_version: None,
                 device_region: None,
@@ -114,6 +119,7 @@ mod tests {
             account_id: None,
             app_installation_id: None,
             app_version: None,
+            firmware_version: None,
             os_type: None,
             os_version: None,
             device_region: None,
@@ -133,6 +139,7 @@ mod tests {
             account_id: None,
             app_installation_id: None,
             app_version: None,
+            firmware_version: None,
             os_type: None,
             os_version: None,
             device_region: None,
@@ -141,5 +148,42 @@ mod tests {
 
         let attributes = claims.to_attributes();
         assert_eq!(attributes.get("hardware_type"), None);
+    }
+
+    #[tokio::test]
+    async fn test_firmware_version_attribute() {
+        let claims = ExperimentationClaims {
+            account_id: None,
+            app_installation_id: None,
+            app_version: None,
+            firmware_version: Some("1.0.99".to_string()),
+            os_type: None,
+            os_version: None,
+            device_region: None,
+            hardware_type: None,
+        };
+
+        let attributes = claims.to_attributes();
+        assert_eq!(
+            attributes.get("firmware_version").map(|s| s.as_str()),
+            Some("1.0.99")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_firmware_version_attribute_absent_when_none() {
+        let claims = ExperimentationClaims {
+            account_id: None,
+            app_installation_id: None,
+            app_version: None,
+            firmware_version: None,
+            os_type: None,
+            os_version: None,
+            device_region: None,
+            hardware_type: None,
+        };
+
+        let attributes = claims.to_attributes();
+        assert_eq!(attributes.get("firmware_version"), None);
     }
 }

@@ -77,7 +77,7 @@ data class VerificationThresholdPickerModel(
           model = ButtonModel(
             text = "Confirm",
             onClick = StandardClick { onConfirmClick() },
-            leadingIcon = Icon.SmallIconBitkey,
+            leadingIcon = Icon.Bitkey,
             treatment = ButtonModel.Treatment.BitkeyInteraction,
             size = ButtonModel.Size.Footer,
             isEnabled = !model.primaryAmount.isZero

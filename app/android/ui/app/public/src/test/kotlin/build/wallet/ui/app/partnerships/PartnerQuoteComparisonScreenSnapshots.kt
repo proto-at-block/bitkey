@@ -64,7 +64,7 @@ class PartnerQuoteComparisonScreenSnapshots : FunSpec({
     }
   }
 
-  test("purchase partner quotes comparison screen design system v2 light") {
+  test("purchase partner quotes comparison screen light") {
     paparazzi.snapshot(
       onlyTheme = Theme.LIGHT
     ) {
@@ -74,7 +74,7 @@ class PartnerQuoteComparisonScreenSnapshots : FunSpec({
     }
   }
 
-  test("sell partner quotes comparison screen design system v2 light") {
+  test("sell partner quotes comparison screen light") {
     paparazzi.snapshot(
       onlyTheme = Theme.LIGHT
     ) {
@@ -84,7 +84,7 @@ class PartnerQuoteComparisonScreenSnapshots : FunSpec({
     }
   }
 
-  test("purchase partner quotes comparison screen design system v2 light with cash app promo") {
+  test("purchase partner quotes comparison screen light with cash app promo") {
     paparazzi.snapshot(
       onlyTheme = Theme.LIGHT
     ) {
@@ -94,7 +94,7 @@ class PartnerQuoteComparisonScreenSnapshots : FunSpec({
     }
   }
 
-  test("purchase partner quotes comparison screen design system v2 dark with cash app promo") {
+  test("purchase partner quotes comparison screen dark with cash app promo") {
     paparazzi.snapshot(
       onlyTheme = Theme.DARK
     ) {
@@ -186,13 +186,13 @@ private fun quoteItem(
 
 private fun cashAppPromoExplainer() =
   ListItemExplainer(
-    title = "No fees, no spread · Ends 4/29",
+    title = "No fees, no spread · Through 12/31",
     showTopDivider = true,
     iconButton =
       IconButtonModel(
         iconModel =
           IconModel(
-            icon = Icon.SmallIconInformation,
+            icon = Icon.Information,
             iconSize = IconSize.Accessory,
             iconTint = IconTint.On30
           ),

@@ -26,7 +26,7 @@ fun AllBannersPreview() {
           BannerTreatment.entries.forEach { treatment ->
             Banner(
               text = "${size.name} ${treatment.name}",
-              leadingIcon = Icon.SmallIconBitkey.takeIf { showLeadingIcon },
+              leadingIcon = Icon.Bitkey.takeIf { showLeadingIcon },
               treatment = treatment,
               size = size
             )

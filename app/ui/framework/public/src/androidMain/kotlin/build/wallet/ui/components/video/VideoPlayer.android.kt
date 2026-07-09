@@ -1,20 +1,31 @@
 package build.wallet.ui.components.video
 
+import android.graphics.Outline
+import android.graphics.Path
 import android.graphics.drawable.ColorDrawable
 import android.media.MediaPlayer
 import android.net.Uri
 import android.view.Gravity
+import android.view.View
+import android.view.ViewOutlineProvider
 import android.widget.FrameLayout
 import android.widget.VideoView
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import build.wallet.logging.*
+import build.wallet.logging.logError
 import build.wallet.ui.model.video.VideoStartingPosition
 import build.wallet.ui.model.video.VideoStartingPosition.END
 import build.wallet.ui.model.video.VideoStartingPosition.START
@@ -30,13 +41,40 @@ actual fun VideoPlayer(
   autoStart: Boolean,
   startingPosition: VideoStartingPosition,
   scalingMode: VideoScalingMode,
+  topCornerRadius: Dp,
   allowSurfaceOnTopWorkaround: Boolean,
   videoPlayerCallback: (VideoPlayerHandler) -> Unit,
 ) {
-  // Store the video and pause position to be able to resume after the
-  // app is backgrounded / foregrounded
+  SurfaceVideoPlayer(
+    modifier = modifier,
+    resourcePath = resourcePath,
+    isLooping = isLooping,
+    backgroundColor = backgroundColor,
+    autoStart = autoStart,
+    startingPosition = startingPosition,
+    scalingMode = scalingMode,
+    topCornerRadius = topCornerRadius,
+    allowSurfaceOnTopWorkaround = allowSurfaceOnTopWorkaround,
+    videoPlayerCallback = videoPlayerCallback
+  )
+}
+
+@Composable
+private fun SurfaceVideoPlayer(
+  modifier: Modifier = Modifier,
+  resourcePath: String,
+  isLooping: Boolean,
+  backgroundColor: Color,
+  autoStart: Boolean,
+  startingPosition: VideoStartingPosition,
+  scalingMode: VideoScalingMode,
+  topCornerRadius: Dp,
+  allowSurfaceOnTopWorkaround: Boolean,
+  videoPlayerCallback: (VideoPlayerHandler) -> Unit,
+) {
   var videoView: VideoView? by remember { mutableStateOf(null) }
   var videoPausedPosition: Int? by remember { mutableStateOf(null) }
+  val topCornerRadiusPx = with(LocalDensity.current) { topCornerRadius.toPx() }
 
   val useSurfaceOnTopWorkaround = allowSurfaceOnTopWorkaround && backgroundColor != Color.Black
 
@@ -49,6 +87,7 @@ actual fun VideoPlayer(
         if (backgroundColor != Color.Black) {
           setBackgroundColor(backgroundColor.toArgb())
         }
+        updateTopCornerOutline(topCornerRadiusPx)
         addView(
           VideoView(context).apply {
             if (useSurfaceOnTopWorkaround) {
@@ -65,11 +104,10 @@ actual fun VideoPlayer(
       }
     },
     update = { container ->
+      container.updateTopCornerOutline(topCornerRadiusPx)
       val video = container.getChildAt(0) as VideoView
       video.apply {
-        setVideoURI(
-          Uri.parse("android.resource://${context.packageName}/$resourcePath")
-        )
+        setVideoURI(Uri.parse("android.resource://${context.packageName}/$resourcePath"))
         setOnPreparedListener { mediaPlayer ->
           mediaPlayer.isLooping = isLooping
           mediaPlayer.setVolume(0f, 0f)
@@ -78,7 +116,7 @@ actual fun VideoPlayer(
             END -> mediaPlayer.seekTo(duration)
           }
           mediaPlayer.setOnVideoSizeChangedListener { _, width, height ->
-            updateVideoLayout(
+            updateSurfaceVideoLayout(
               container = container,
               videoView = video,
               scalingMode = scalingMode,
@@ -86,7 +124,7 @@ actual fun VideoPlayer(
               videoHeight = height
             )
           }
-          updateVideoLayout(
+          updateSurfaceVideoLayout(
             container = container,
             videoView = video,
             scalingMode = scalingMode,
@@ -114,7 +152,7 @@ actual fun VideoPlayer(
         }
         videoView = this
         videoPlayerCallback(
-          object : VideoPlayerHandler() {
+          object : VideoPlayerHandler {
             override fun play() {
               videoView?.start()
             }
@@ -132,9 +170,7 @@ actual fun VideoPlayer(
     }
   )
 
-  // Set up listener for app lifecycle events to pause / resume the video
   val lifecycleOwner = LocalLifecycleOwner.current
-
   DisposableEffect(lifecycleOwner) {
     val observer = LifecycleEventObserver { _, event ->
       if (event == Lifecycle.Event.ON_PAUSE) {
@@ -158,7 +194,46 @@ actual fun VideoPlayer(
   }
 }
 
-private fun updateVideoLayout(
+private fun View.updateTopCornerOutline(topCornerRadiusPx: Float) {
+  outlineProvider =
+    object : ViewOutlineProvider() {
+      override fun getOutline(
+        view: View,
+        outline: Outline,
+      ) {
+        if (topCornerRadiusPx <= 0f || view.width == 0 || view.height == 0) {
+          outline.setRect(0, 0, view.width, view.height)
+          return
+        }
+
+        outline.setConvexPath(
+          Path().apply {
+            addRoundRect(
+              0f,
+              0f,
+              view.width.toFloat(),
+              view.height.toFloat(),
+              floatArrayOf(
+                topCornerRadiusPx,
+                topCornerRadiusPx,
+                topCornerRadiusPx,
+                topCornerRadiusPx,
+                0f,
+                0f,
+                0f,
+                0f
+              ),
+              Path.Direction.CW
+            )
+          }
+        )
+      }
+    }
+  clipToOutline = topCornerRadiusPx > 0f
+  invalidateOutline()
+}
+
+private fun updateSurfaceVideoLayout(
   container: FrameLayout,
   videoView: VideoView,
   scalingMode: VideoScalingMode,
@@ -179,7 +254,7 @@ private fun updateVideoLayout(
 
   if (containerWidth == 0 || containerHeight == 0) {
     container.post {
-      updateVideoLayout(
+      updateSurfaceVideoLayout(
         container = container,
         videoView = videoView,
         scalingMode = scalingMode,

@@ -1,5 +1,6 @@
 package build.wallet.statemachine.walletmigration
 
+import app.cash.turbine.ReceiveTurbine
 import app.cash.turbine.Turbine
 import bitkey.account.HardwareType
 import bitkey.auth.AuthTokenScope.Global
@@ -86,6 +87,7 @@ import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiStateMac
 import build.wallet.statemachine.cloud.health.RepairAppKeyBackupProps
 import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachine
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
+import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
@@ -117,6 +119,8 @@ import kotlinx.collections.immutable.persistentListOf
 import okio.ByteString.Companion.encodeUtf8
 
 @OptIn(PrivateData::class)
+// Large end-to-end coverage for the W3 upgrade flow; splitting would hurt cohesion.
+@Suppress("LargeClass")
 class W3UpgradeUiStateMachineImplTests : FunSpec({
   val pairNewHardwareUiStateMachine =
     object : PairNewHardwareUiStateMachine,
@@ -216,6 +220,15 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
     serial = "new-device-serial",
     hardwareType = HardwareType.W3
   )
+
+  suspend fun ReceiveTurbine<ScreenModel>.pairNewHardwareFromIntro() {
+    awaitUntilBody<W3UpgradeIntroBodyModel> { onContinue() }
+    cloudBackupHealthRepository.performSyncCalls.awaitItem()
+    awaitUntilBody<W3UpgradeDeviceReadyBodyModel> { onYes() }
+    awaitUntilBodyMock<PairNewHardwareProps>(id = "pair-new-hardware") {}
+      .request.shouldBeTypeOf<PairNewHardwareProps.Request.Ready>()
+      .onSuccess(fingerprintEnrolled)
+  }
 
   fun w3UpgradeKeyset(): SpendingKeyset =
     SpendingKeysetMock.copy(
@@ -410,7 +423,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
           .onSuccess(HwFactorProofOfPossession("w1-proof"))
       }
       awaitUntilBody<W3UpgradeNewHardwareAuthRotationInstructionsBodyModel> {
-        designSystemV2Model?.eyebrow.shouldBe("Step 3 of 4")
+        formScreenTitle?.eyebrow.shouldBe("Step 3 of 4")
         onContinue()
       }
       awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<UpgradeRotateAppAuthKeysResult>>(id = "nfc-confirmable") {
@@ -771,7 +784,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> {
-        designSystemV2Model?.eyebrow.shouldBe("Step 1 of 4")
+        formScreenTitle?.eyebrow.shouldBe("Step 1 of 4")
       }
     }
   }
@@ -786,7 +799,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       }
       cloudBackupHealthRepository.performSyncCalls.awaitItem() // onContinue
       awaitUntilBody<W3UpgradeDeviceReadyBodyModel> {
-        designSystemV2Model?.eyebrow.shouldBe("Step 1 of 4")
+        formScreenTitle?.eyebrow.shouldBe("Step 1 of 4")
       }
     }
 
@@ -804,7 +817,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitUntilBody<W3UpgradeOldHardwareAuthRotationInstructionsBodyModel> {
-        designSystemV2Model?.eyebrow.shouldBe("Step 2 of 4")
+        formScreenTitle?.eyebrow.shouldBe("Step 2 of 4")
       }
     }
 
@@ -1121,6 +1134,86 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       // CreatingKeyset: SSEK not found → error
       awaitUntilBody<FormBodyModel>(id = WalletMigrationEventTrackerScreenId.W3_UPGRADE_ERROR)
     }
+  }
+
+  test("pairing success checks availability of hardware auth key before old hardware authorization") {
+    migrationService.resumeResult = Ok(MigrationProgress.NotStarted(MigrationType.W3Upgrade))
+    firmwareDeviceInfoDao.setDeviceInfo(FirmwareDeviceInfoMock.copy(serial = "old-device-serial"))
+
+    stateMachine.test(props) {
+      pairNewHardwareFromIntro()
+      awaitUntilBody<W3UpgradeOldHardwareAuthRotationInstructionsBodyModel>()
+    }
+
+    migrationService.hardwareAuthKeyAvailabilityCalls.shouldBe(
+      listOf(FullAccountMock to HwKeyBundleMock.authKey)
+    )
+    migrationService.proceedCalls.shouldBe(emptyList())
+  }
+
+  test("cloud-restored pairing checks availability of hardware auth key before keyset creation") {
+    migrationService.resumeResult = Ok(
+      MigrationProgress.NotStarted(
+        type = MigrationType.W3Upgrade,
+        resumedFromCloudBackup = true
+      )
+    )
+    firmwareDeviceInfoDao.setDeviceInfo(FirmwareDeviceInfoMock.copy(serial = "old-device-serial"))
+    ssekDao.set(SealedSsekFake, SsekFake)
+    migrationService.proceedResult = Ok(
+      MigrationProgress.AuthKeyRotation(
+        type = MigrationType.W3Upgrade,
+        currentKeybox = FullAccountMock.keybox,
+        newKeyset = w3UpgradeKeyset(),
+        resumedFromCloudBackup = true
+      )
+    )
+
+    stateMachine.test(props) {
+      pairNewHardwareFromIntro()
+      awaitUntilBody<W3UpgradeNewHardwareAuthRotationInstructionsBodyModel>()
+    }
+
+    migrationService.hardwareAuthKeyAvailabilityCalls.shouldBe(
+      listOf(FullAccountMock to HwKeyBundleMock.authKey)
+    )
+    migrationService.proceedCalls.single()
+      .shouldBeInstanceOf<MigrationProgress.CreateNewKeyset.W3Upgrade>()
+  }
+
+  test("hardware auth key already in use blocks before keyset creation") {
+    migrationService.resumeResult = Ok(MigrationProgress.NotStarted(MigrationType.W3Upgrade))
+    migrationService.hardwareAuthKeyAvailabilityResult =
+      Err(MigrationError.HardwareAuthKeyAlreadyInUse())
+    firmwareDeviceInfoDao.setDeviceInfo(FirmwareDeviceInfoMock.copy(serial = "old-device-serial"))
+
+    stateMachine.test(props) {
+      pairNewHardwareFromIntro()
+      awaitUntilBody<FormBodyModel>(
+        id = WalletMigrationEventTrackerScreenId.W3_UPGRADE_HARDWARE_AUTH_KEY_IN_USE_ERROR
+      ) {
+        header?.headline.shouldBe("This Bitkey device cannot be used")
+      }
+    }
+
+    migrationService.hardwareAuthKeyAvailabilityCalls.shouldBe(
+      listOf(FullAccountMock to HwKeyBundleMock.authKey)
+    )
+    migrationService.proceedCalls.shouldBe(emptyList())
+  }
+
+  test("hardware auth key availability check transient failure uses generic upgrade error") {
+    migrationService.resumeResult = Ok(MigrationProgress.NotStarted(MigrationType.W3Upgrade))
+    migrationService.hardwareAuthKeyAvailabilityResult =
+      Err(MigrationError.HardwareAuthKeyAvailabilityCheckFailed(Exception("transient")))
+    firmwareDeviceInfoDao.setDeviceInfo(FirmwareDeviceInfoMock.copy(serial = "old-device-serial"))
+
+    stateMachine.test(props) {
+      pairNewHardwareFromIntro()
+      awaitUntilBody<FormBodyModel>(id = WalletMigrationEventTrackerScreenId.W3_UPGRADE_ERROR)
+    }
+
+    migrationService.proceedCalls.shouldBe(emptyList())
   }
 
   test("creating keyset shows error when migration proceed fails during auto-loop") {
@@ -1442,7 +1535,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitUntilScreenWithBody<W3UpgradeOldHardwareAuthRotationInstructionsBodyModel>(
-        matchingBody = { it.designSystemV2Model?.eyebrow == "Step 2 of 4" }
+        matchingBody = { it.formScreenTitle?.eyebrow == "Step 2 of 4" }
       ) {
         body.shouldBeInstanceOf<W3UpgradeOldHardwareAuthRotationInstructionsBodyModel>()
           .onContinue()
@@ -1467,7 +1560,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
       }
 
       awaitUntilScreenWithBody<W3UpgradeOldHardwareAuthRotationInstructionsBodyModel>(
-        matchingBody = { it.designSystemV2Model?.eyebrow == "Step 2 of 4" }
+        matchingBody = { it.formScreenTitle?.eyebrow == "Step 2 of 4" }
       )
     }
   }
@@ -1533,7 +1626,7 @@ class W3UpgradeUiStateMachineImplTests : FunSpec({
 
       // After backup saved, it proceeds and loads the fingerprint for sweep
       awaitUntilBody<W3UpgradeOldHardwareInstructionsBodyModel> {
-        designSystemV2Model?.eyebrow.shouldBe("Step 4 of 4")
+        formScreenTitle?.eyebrow.shouldBe("Step 4 of 4")
         onContinue()
       }
       // Assert the sweep props carry the persisted old-device fingerprint
@@ -2423,13 +2516,21 @@ private val noopEventTracker = object : EventTracker {
   override fun track(
     action: Action,
     context: EventTrackerContext?,
-  ) {}
+  ) {
+    // No-op tracker: events are intentionally ignored.
+  }
 
-  override fun track(eventTrackerCountInfo: EventTrackerCountInfo) {}
+  override fun track(eventTrackerCountInfo: EventTrackerCountInfo) {
+    // No-op tracker: events are intentionally ignored.
+  }
 
-  override fun track(eventTrackerScreenInfo: EventTrackerScreenInfo) {}
+  override fun track(eventTrackerScreenInfo: EventTrackerScreenInfo) {
+    // No-op tracker: events are intentionally ignored.
+  }
 
-  override fun track(eventTrackerFingerprintScanStatsInfo: EventTrackerFingerprintScanStatsInfo) {}
+  override fun track(eventTrackerFingerprintScanStatsInfo: EventTrackerFingerprintScanStatsInfo) {
+    // No-op tracker: events are intentionally ignored.
+  }
 }
 
 private fun recordingEventTracker(actions: MutableList<Action>) =
@@ -2441,11 +2542,17 @@ private fun recordingEventTracker(actions: MutableList<Action>) =
       actions += action
     }
 
-    override fun track(eventTrackerCountInfo: EventTrackerCountInfo) {}
+    override fun track(eventTrackerCountInfo: EventTrackerCountInfo) {
+      // Only Action events are recorded in these tests.
+    }
 
-    override fun track(eventTrackerScreenInfo: EventTrackerScreenInfo) {}
+    override fun track(eventTrackerScreenInfo: EventTrackerScreenInfo) {
+      // Only Action events are recorded in these tests.
+    }
 
-    override fun track(eventTrackerFingerprintScanStatsInfo: EventTrackerFingerprintScanStatsInfo) {}
+    override fun track(eventTrackerFingerprintScanStatsInfo: EventTrackerFingerprintScanStatsInfo) {
+      // Only Action events are recorded in these tests.
+    }
   }
 
 private fun w3NfcSessionFake() =

@@ -13,6 +13,7 @@ impl Service {
             input.spending_keyset,
             input.auth_key_id,
             input.auth_keys,
+            input.hardware_verification_required,
         );
         self.account_repo
             .persist(&full_account.clone().into())

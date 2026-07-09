@@ -279,12 +279,8 @@ fun LabelType.style(baseStyle: TextStyle) =
     )
   }
 
-/**
- * New design system style tokens using Cash Sans fonts.
- * Uses Regular weight throughout (Cash Sans Regular).
- */
 @Composable
-fun LabelType.styleV2(baseStyle: TextStyle) =
+private fun LabelType.currentStyleDefinition(baseStyle: TextStyle) =
   when (this) {
     LabelType.Header1 ->
       baseStyle.copy(
@@ -427,7 +423,7 @@ fun LabelType.styleV2(baseStyle: TextStyle) =
         fontFamily = cashSansFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
-        lineHeight = 22.sp,
+        lineHeight = 20.sp,
         letterSpacing = (-0.2).sp
       )
     LabelType.Body3Medium ->
@@ -435,7 +431,7 @@ fun LabelType.styleV2(baseStyle: TextStyle) =
         fontFamily = cashSansFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
-        lineHeight = 22.sp,
+        lineHeight = 20.sp,
         letterSpacing = (-0.2).sp
       )
     LabelType.Body3Bold ->
@@ -443,7 +439,7 @@ fun LabelType.styleV2(baseStyle: TextStyle) =
         fontFamily = cashSansFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
-        lineHeight = 22.sp,
+        lineHeight = 20.sp,
         letterSpacing = (-0.2).sp
       )
     LabelType.Body3Link ->
@@ -451,7 +447,7 @@ fun LabelType.styleV2(baseStyle: TextStyle) =
         fontFamily = cashSansFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
-        lineHeight = 22.sp,
+        lineHeight = 20.sp,
         letterSpacing = (-0.2).sp
       )
     LabelType.Body3Mono ->
@@ -459,7 +455,7 @@ fun LabelType.styleV2(baseStyle: TextStyle) =
         fontFamily = cashSansMonoFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
-        lineHeight = 22.sp,
+        lineHeight = 20.sp,
         letterSpacing = (0.5).sp
       )
     LabelType.Body4Regular ->
@@ -544,33 +540,18 @@ fun LabelType.styleV2(baseStyle: TextStyle) =
       )
   }
 
-/**
- * Returns the appropriate style for the current design system.
- * Automatically switches between [style] (V1/Inter) and [styleV2] (V2/Cash Sans).
- */
 @Composable
 fun LabelType.currentStyle(baseStyle: TextStyle): TextStyle {
-  val isDesignSystemV2Enabled = true
-  return if (isDesignSystemV2Enabled) {
-    val textStyle = styleV2(baseStyle)
-    textStyle.copy(fontFeatureSettings = textStyle.fontFeatureSettings.withSlashedZero())
-  } else {
-    style(baseStyle)
-  }
+  val textStyle = currentStyleDefinition(baseStyle)
+  return textStyle.copy(fontFeatureSettings = textStyle.fontFeatureSettings.withSlashedZero())
 }
 
 @Composable
-fun LabelType.isAllCapsInCurrentDesignSystem(): Boolean {
-  val isDesignSystemV2Enabled = true
+fun LabelType.shouldRenderAllCaps(): Boolean {
   return this == LabelType.Body2MonoCaps ||
-    (
-      isDesignSystemV2Enabled &&
-        (
-          this == LabelType.Body1Mono ||
-            this == LabelType.Body3Mono ||
-            this == LabelType.Body4Mono
-        )
-    )
+    this == LabelType.Body1Mono ||
+    this == LabelType.Body3Mono ||
+    this == LabelType.Body4Mono
 }
 
 private fun String?.withSlashedZero(): String =

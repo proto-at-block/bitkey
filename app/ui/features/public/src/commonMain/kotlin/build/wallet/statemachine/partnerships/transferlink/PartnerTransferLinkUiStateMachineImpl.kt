@@ -148,6 +148,11 @@ class PartnerTransferLinkUiStateMachineImpl(
         eventTrackerScreenId = PARTNER_TRANSFER_REDIRECT_ERROR,
         onBack = props.onExit,
         title = "We couldn’t redirect you back to ${props.request.partner}.",
+        errorData = ErrorData(
+          segment = PartnershipsSegment,
+          actionDescription = "Redirecting to partner transfer app",
+          cause = IllegalStateException("Failed to redirect to ${props.request.partner}")
+        ),
         primaryButton = ButtonDataModel(
           text = "Got it",
           onClick = props.onExit

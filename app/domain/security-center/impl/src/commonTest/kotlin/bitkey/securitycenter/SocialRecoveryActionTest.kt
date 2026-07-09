@@ -4,6 +4,8 @@ import bitkey.relationships.Relationships
 import build.wallet.availability.FunctionalityFeatureStates
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
 import build.wallet.bitkey.relationships.EndorsedTrustedContactFake1
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.FAILED
+import build.wallet.bitkey.relationships.UnendorsedTrustedContactFake
 import build.wallet.compose.collections.emptyImmutableList
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -32,6 +34,21 @@ class SocialRecoveryActionTest : FunSpec({
     val tcMissingAction = SocialRecoveryAction(relationships, Available)
     tcMissingAction.getRecommendations() shouldBe listOf(SecurityActionRecommendation.ADD_TRUSTED_CONTACTS)
     tcMissingAction.category() shouldBe SecurityActionCategory.RECOVERY
+  }
+
+  test("Test SocialRecoveryAction with failed unendorsed trusted contact") {
+    val relationships = Relationships(
+      invitations = emptyList(),
+      endorsedTrustedContacts = emptyList(),
+      unendorsedTrustedContacts = listOf(
+        UnendorsedTrustedContactFake.copy(authenticationState = FAILED)
+      ),
+      protectedCustomers = emptyImmutableList()
+    )
+
+    val action = SocialRecoveryAction(relationships, Available)
+    action.getRecommendations().shouldBeEmpty()
+    action.state() shouldBe SecurityActionState.HasRecommendationActions
   }
 
   test("Test SocialRecoveryAction with disabled feature") {

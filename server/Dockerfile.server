@@ -34,6 +34,7 @@ FROM toolchain AS planner
 WORKDIR /usr/src/server
 COPY --from=vendor . .
 COPY --from=core . ../core
+COPY --from=silabs-certs . ../firmware/config/keys/silabs-certs
 COPY --from=source . .
 RUN cargo --locked chef prepare --bin server --recipe-path recipe.json
 
@@ -45,6 +46,7 @@ ARG SCCACHE_S3_KEY_PREFIX
 WORKDIR /usr/src/server
 COPY --from=vendor . .
 COPY --from=core . ../core
+COPY --from=silabs-certs . ../firmware/config/keys/silabs-certs
 COPY --from=planner /usr/src/server/recipe.json recipe.json
 RUN --mount=type=secret,id=AWS_ACCESS_KEY_ID --mount=type=secret,id=AWS_SECRET_ACCESS_KEY --mount=type=secret,id=AWS_SESSION_TOKEN <<EOF
 if [ "$ENABLE_SCCACHE" == "1" ]; then

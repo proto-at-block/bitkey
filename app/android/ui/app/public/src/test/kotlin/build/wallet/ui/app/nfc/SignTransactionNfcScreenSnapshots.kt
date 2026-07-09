@@ -16,13 +16,14 @@ class SignTransactionNfcScreenSnapshots : FunSpec({
     isEmulator = true
   )
 
-  test("sign transaction nfc ready dsv2") {
+  test("sign transaction nfc ready") {
     paparazzi.snapshot {
       CompositionLocalProvider(LocalDeviceInfo provides androidDeviceInfo) {
         SignTransactionNfcScreen(
           model =
             SignTransactionNfcBodyModel(
               onCancel = {},
+              onHelpClick = {},
               status = SignTransactionNfcBodyModel.Status.Searching,
               eventTrackerScreenInfo = null
             )
@@ -31,13 +32,14 @@ class SignTransactionNfcScreenSnapshots : FunSpec({
     }
   }
 
-  test("sign transaction nfc keep holding dsv2") {
+  test("sign transaction nfc keep holding") {
     paparazzi.snapshot {
       CompositionLocalProvider(LocalDeviceInfo provides androidDeviceInfo) {
         SignTransactionNfcScreen(
           model =
             SignTransactionNfcBodyModel(
               onCancel = {},
+              onHelpClick = {},
               status = SignTransactionNfcBodyModel.Status.Signing,
               eventTrackerScreenInfo = null
             )

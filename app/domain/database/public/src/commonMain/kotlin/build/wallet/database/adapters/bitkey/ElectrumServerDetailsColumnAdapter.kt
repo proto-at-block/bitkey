@@ -12,8 +12,8 @@ internal object ElectrumServerDetailsColumnAdapter : ColumnAdapter<ElectrumServe
     return when (parts.size) {
       1, 2 ->
         ElectrumServerDetails(
-          host = parts.firstOrNull() ?: "",
-          port = parts.lastOrNull() ?: ""
+          host = parts.firstOrNull().orEmpty(),
+          port = parts.lastOrNull().orEmpty()
         )
       else -> ElectrumServerDetails(parts[0], parts[1], parts[2])
     }

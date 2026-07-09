@@ -6,9 +6,8 @@ import okio.ByteString
 
 class BytesTests : FunSpec({
   val unsignedBytesList: List<UByte> = (0..255).map { it.toUByte() }
-  val signedBytesArray: Array<Byte> = (0..255).map { it.toByte() }.toTypedArray()
 
-  val byteArray = signedBytesArray.toByteArray()
+  val byteArray = (0..255).map { it.toByte() }.toByteArray()
   val byteString = ByteString.of(*byteArray)
 
   val emptyUnsignedBytesList: List<UByte> = emptyList()

@@ -52,9 +52,9 @@ internal fun PreviewEmailVerificationCodeInputFormScreen() {
   }
 }
 
-@Preview(name = "Verification Code Input (Design System V2)")
+@Preview(name = "Verification Code Input")
 @Composable
-internal fun PreviewVerificationCodeInputFormScreenDesignSystemV2() {
+internal fun PreviewFilledVerificationCodeInputFormScreen() {
   PreviewWalletTheme {
     Box(
       modifier = Modifier

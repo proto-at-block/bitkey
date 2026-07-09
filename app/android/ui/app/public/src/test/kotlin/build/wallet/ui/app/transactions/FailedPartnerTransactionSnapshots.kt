@@ -43,7 +43,7 @@ class FailedPartnerTransactionSnapshots : FunSpec({
           buttonModel = ButtonModel(
             text = "Go to Partner",
             treatment = ButtonModel.Treatment.Primary,
-            leadingIcon = Icon.SmallIconArrowUpRight,
+            leadingIcon = Icon.ArrowUpRight,
             size = ButtonModel.Size.Footer,
             onClick = StandardClick {}
           ),

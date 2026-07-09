@@ -248,7 +248,7 @@ internal fun PreviewMobilePaySheetScreen() {
       header =
         FormHeaderModel(
           iconModel = IconModel(
-            icon = Icon.SmallIconPhone,
+            icon = Icon.Phone,
             iconSize = IconSize.Large,
             iconTint = IconTint.Primary,
             iconBackgroundType = IconBackgroundType.Circle(
@@ -475,7 +475,7 @@ fun CalloutPreview() {
             item = CalloutModel(
               title = "At least one fingerprint is required",
               subtitle = StringModel("Add another fingerprint to delete"),
-              leadingIcon = Icon.SmallIconInformation,
+              leadingIcon = Icon.Information,
               treatment = CalloutModel.Treatment.Information
             )
           )

@@ -163,6 +163,8 @@ adpu_from_proto!(RecoveryAuthorizeLostAppCmd);
 adpu_from_proto!(RecoveryAuthorizeLostHwCmd);
 adpu_from_proto!(UpgradeAuthorizeW3Cmd);
 adpu_from_proto!(EekRestorationUnsealSymmetricKeyCmd);
+adpu_from_proto!(KeysetRepairUnsealSymmetricKeyCmd);
+adpu_from_proto!(KeysetRepairRotateHwKeyCmd);
 adpu_from_proto!(FullAccountCloudBackupRestorationCmd);
 adpu_from_proto!(FullAccountCloudBackupRestorationContinueCmd);
 adpu_from_proto!(ShowConfirmationScreenCmd);

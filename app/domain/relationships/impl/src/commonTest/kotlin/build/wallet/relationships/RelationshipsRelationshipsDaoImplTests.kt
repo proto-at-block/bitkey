@@ -29,7 +29,7 @@ class RelationshipsRelationshipsDaoImplTests : FunSpec({
       invitations =
         listOf(
           Invitation(
-            relationshipId = "c",
+            id = RelationshipId("c"),
             trustedContactAlias = TrustedContactAlias("Dad"),
             code = "dadToken",
             codeBitLength = 10,
@@ -37,7 +37,7 @@ class RelationshipsRelationshipsDaoImplTests : FunSpec({
             roles = setOf(TrustedContactRole.SocialRecoveryContact)
           ),
           Invitation(
-            relationshipId = "d",
+            id = RelationshipId("d"),
             trustedContactAlias = TrustedContactAlias("Bro"),
             code = "broToken",
             codeBitLength = 10,
@@ -45,7 +45,7 @@ class RelationshipsRelationshipsDaoImplTests : FunSpec({
             roles = setOf(TrustedContactRole.SocialRecoveryContact)
           ),
           Invitation(
-            relationshipId = "f",
+            id = RelationshipId("f"),
             trustedContactAlias = TrustedContactAlias("Gramps"),
             code = "grampsToken",
             codeBitLength = 10,
@@ -56,14 +56,14 @@ class RelationshipsRelationshipsDaoImplTests : FunSpec({
       endorsedTrustedContacts =
         listOf(
           EndorsedTrustedContact(
-            relationshipId = "a",
+            id = RelationshipId("a"),
             trustedContactAlias = TrustedContactAlias("Mom"),
             authenticationState = AWAITING_VERIFY,
             keyCertificate = TrustedContactKeyCertificateFake.copy(delegatedDecryptionKey = momKey),
             roles = setOf(TrustedContactRole.SocialRecoveryContact)
           ),
           EndorsedTrustedContact(
-            relationshipId = "b",
+            id = RelationshipId("b"),
             trustedContactAlias = TrustedContactAlias("Sis"),
             authenticationState = AWAITING_VERIFY,
             keyCertificate = TrustedContactKeyCertificateFake2.copy(delegatedDecryptionKey = sisKey),
@@ -73,12 +73,12 @@ class RelationshipsRelationshipsDaoImplTests : FunSpec({
       protectedCustomers =
         immutableListOf(
           ProtectedCustomer(
-            relationshipId = "d",
+            id = RelationshipId("d"),
             alias = ProtectedCustomerAlias("Aunt"),
             roles = setOf(TrustedContactRole.SocialRecoveryContact)
           ),
           ProtectedCustomer(
-            relationshipId = "e",
+            id = RelationshipId("e"),
             alias = ProtectedCustomerAlias("Uncle"),
             roles = setOf(TrustedContactRole.SocialRecoveryContact)
           )
@@ -86,7 +86,7 @@ class RelationshipsRelationshipsDaoImplTests : FunSpec({
       unendorsedTrustedContacts =
         listOf(
           UnendorsedTrustedContact(
-            relationshipId = "g",
+            id = RelationshipId("g"),
             trustedContactAlias = TrustedContactAlias("Cousin"),
             enrollmentPakeKey =
               PublicKey("cousinEnrollmentKey"),
@@ -120,7 +120,7 @@ class RelationshipsRelationshipsDaoImplTests : FunSpec({
     val newKey = PublicKey<DelegatedDecryptionKey>("newKey")
     val newEndorsedTrustedContact =
       EndorsedTrustedContact(
-        relationshipId = invitationToAccept.relationshipId,
+        id = invitationToAccept.id,
         trustedContactAlias = invitationToAccept.trustedContactAlias,
         authenticationState = AWAITING_VERIFY,
         keyCertificate = TrustedContactKeyCertificateFake.copy(delegatedDecryptionKey = newKey),
@@ -161,7 +161,7 @@ class RelationshipsRelationshipsDaoImplTests : FunSpec({
     )
 
     dao.setUnendorsedTrustedContactAuthenticationState(
-      endorsedTc.relationshipId,
+      endorsedTc.id.value,
       VERIFIED
     )
     // The authentication state should have changed after setting the state directly.

@@ -35,11 +35,11 @@ interface OrphanedKeyDetectionService {
 /**
  * Represents the state of orphaned key detection in the iOS Keychain.
  */
-sealed class OrphanedKeysState {
+sealed interface OrphanedKeysState {
   /**
    * No orphaned keys detected. Either active keybox exists or keychain is empty.
    */
-  data object NoOrphanedKeys : OrphanedKeysState()
+  data object NoOrphanedKeys : OrphanedKeysState
 
   /**
    * Orphaned keys found in keychain without corresponding active keybox.
@@ -48,5 +48,5 @@ sealed class OrphanedKeysState {
    */
   data class OrphanedKeysFound(
     val entries: List<KeychainScanner.KeychainEntry>,
-  ) : OrphanedKeysState()
+  ) : OrphanedKeysState
 }

@@ -27,6 +27,7 @@ data class FwupInstructionsBodyModel(
   val headerModel: FormHeaderModel,
   val buttonModel: ButtonModel,
   val hardwareType: HardwareType,
+  val onHelpClick: (() -> Unit)? = null,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo?,
 ) : BodyModel() {
   constructor(
@@ -35,32 +36,12 @@ data class FwupInstructionsBodyModel(
     buttonText: String,
     onButtonClick: () -> Unit,
     hardwareType: HardwareType,
+    onHelpClick: (() -> Unit)? = null,
     eventTrackerScreenId: EventTrackerScreenId?,
     eventTrackerContext: EventTrackerContext? = null,
   ) : this(
     onBack = onClose,
-    toolbarModel =
-      ToolbarModel(
-        leadingAccessory =
-          ToolbarAccessoryModel.IconAccessory(
-            model =
-              IconButtonModel(
-                iconModel =
-                  IconModel(
-                    icon = Icon.SmallIconX,
-                    iconSize = IconSize.Accessory,
-                    iconBackgroundType =
-                      IconBackgroundType.Circle(
-                        circleSize = IconSize.Regular,
-                        color = IconBackgroundType.Circle.CircleColor.TranslucentWhite
-                      ),
-                    iconTint = IconTint.OnTranslucent
-                  ),
-                testTag = "fwup-instructions-close",
-                onClick = StandardClick(onClose)
-              )
-          )
-      ),
+    toolbarModel = fwupInstructionsToolbarModel(onClose = onClose, onHelpClick = onHelpClick),
     headerModel = headerModel,
     buttonModel =
       BitkeyInteractionButtonModel(
@@ -69,6 +50,7 @@ data class FwupInstructionsBodyModel(
         onClick = StandardClick(onButtonClick)
       ),
     hardwareType = hardwareType,
+    onHelpClick = onHelpClick,
     eventTrackerScreenInfo =
       eventTrackerScreenId?.let {
         EventTrackerScreenInfo(
@@ -83,3 +65,49 @@ data class FwupInstructionsBodyModel(
     FwupInstructionsScreen(modifier, model = this)
   }
 }
+
+private fun fwupInstructionsToolbarModel(
+  onClose: () -> Unit,
+  onHelpClick: (() -> Unit)?,
+) = ToolbarModel(
+  leadingAccessory =
+    ToolbarAccessoryModel.IconAccessory(
+      model =
+        IconButtonModel(
+          iconModel =
+            IconModel(
+              icon = Icon.X,
+              iconSize = IconSize.Accessory,
+              iconBackgroundType =
+                IconBackgroundType.Circle(
+                  circleSize = IconSize.Regular,
+                  color = IconBackgroundType.Circle.CircleColor.TranslucentWhite
+                ),
+              iconTint = IconTint.OnTranslucent
+            ),
+          testTag = "fwup-instructions-close",
+          onClick = StandardClick(onClose)
+        )
+    ),
+  trailingAccessory =
+    onHelpClick?.let {
+      ToolbarAccessoryModel.IconAccessory(
+        model =
+          IconButtonModel(
+            iconModel =
+              IconModel(
+                icon = Icon.Question,
+                iconSize = IconSize.Accessory,
+                iconBackgroundType =
+                  IconBackgroundType.Circle(
+                    circleSize = IconSize.Regular,
+                    color = IconBackgroundType.Circle.CircleColor.TranslucentWhite
+                  ),
+                iconTint = IconTint.OnTranslucent
+              ),
+            testTag = "fwup-instructions-help",
+            onClick = StandardClick(it)
+          )
+      )
+    }
+)

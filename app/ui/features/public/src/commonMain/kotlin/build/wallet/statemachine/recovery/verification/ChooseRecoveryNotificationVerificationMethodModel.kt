@@ -42,7 +42,7 @@ data class ChooseRecoveryNotificationVerificationMethodModel(
               ListItemModel(
                 leadingAccessory = ListItemAccessory.IconAccessory(
                   model = IconModel(
-                    iconImage = IconImage.LocalImage(Icon.SmallIconMessage),
+                    iconImage = IconImage.LocalImage(Icon.Message),
                     iconSize = IconSize.Small
                   )
                 ),
@@ -55,7 +55,7 @@ data class ChooseRecoveryNotificationVerificationMethodModel(
               ListItemModel(
                 leadingAccessory = ListItemAccessory.IconAccessory(
                   model = IconModel(
-                    iconImage = IconImage.LocalImage(Icon.SmallIconEmail),
+                    iconImage = IconImage.LocalImage(Icon.Email),
                     iconSize = IconSize.Small
                   )
                 ),

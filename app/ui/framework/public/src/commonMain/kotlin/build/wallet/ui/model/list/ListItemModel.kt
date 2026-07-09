@@ -18,6 +18,7 @@ data class ListItemModel(
   val titleAlignment: ListItemTitleAlignment = ListItemTitleAlignment.LEFT,
   val listItemTitleBackgroundTreatment: ListItemTitleBackgroundTreatment? = null,
   val secondaryText: String? = null,
+  val secondaryTextTint: ListItemSideTextTint = ListItemSideTextTint.SECONDARY,
   val sideText: String? = null,
   val secondarySideText: String? = null,
   val leadingAccessoryAlignment: ListItemAccessoryAlignment = CENTER,
@@ -126,7 +127,6 @@ fun ListItemAccessory.disable(): ListItemAccessory {
     is CircularCharacterAccessory -> this
     is CircularIconAccessory -> this
     is ContactAvatarAccessory -> this
-    is CheckAccessory -> this
     is CheckboxAccessory -> copy(onClick = {}, isEnabled = false)
   }
 }

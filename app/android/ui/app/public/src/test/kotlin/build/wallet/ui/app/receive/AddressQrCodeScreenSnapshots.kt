@@ -48,7 +48,7 @@ class AddressQrCodeScreenSnapshots : FunSpec({
                   QrCodeModel(data = "bitcoin:$address").data.toQrMatrix().value
                 }
               ),
-              copyButtonIcon = Icon.SmallIconCopy,
+              copyButtonIcon = Icon.Copy,
               copyButtonLabelText = "Copy",
               onCopyClick = {},
               onPartnerClick = {},
@@ -74,7 +74,7 @@ class AddressQrCodeScreenSnapshots : FunSpec({
                   QrCodeModel(data = "bitcoin:$address").data.toQrMatrix().value
                 }
               ),
-              copyButtonIcon = Icon.SmallIconCopy,
+              copyButtonIcon = Icon.Copy,
               copyButtonLabelText = "Copy",
               onCopyClick = {},
               onShareClick = {},
@@ -120,65 +120,12 @@ class AddressQrCodeScreenSnapshots : FunSpec({
                   QrCodeModel(data = "bitcoin:$address").data.toQrMatrix().value
                 }
               ),
-              copyButtonIcon = Icon.SmallIconCopy,
+              copyButtonIcon = Icon.Copy,
               copyButtonLabelText = "Copy",
               onCopyClick = {},
               onPartnerClick = {},
               onShareClick = {},
               onVerifyClick = {}
-            )
-        )
-      )
-    }
-  }
-
-  test("qr code screen w3 with verify button - design system v2") {
-    paparazzi.snapshot {
-      val address = "bc1q42lja79elem0anu8q8s3h2n687re9jax556pcc"
-      AddressQrCodeScreen(
-        model = AddressQrCodeBodyModel(
-          onBack = {},
-          onRefreshClick = {},
-          content =
-            AddressQrCodeBodyModel.Content.QrCode(
-              address = address,
-              qrCodeState = QrCodeState.Success(
-                runBlocking {
-                  QrCodeModel(data = "bitcoin:$address").data.toQrMatrix().value
-                }
-              ),
-              copyButtonIcon = Icon.SmallIconCopy,
-              copyButtonLabelText = "Copy",
-              onCopyClick = {},
-              onPartnerClick = {},
-              onShareClick = {},
-              onVerifyClick = {}
-            )
-        )
-      )
-    }
-  }
-
-  test("qr code screen - design system v2") {
-    paparazzi.snapshot {
-      val address = "bc1q42lja79elem0anu8q8s3h2n687re9jax556pcc"
-      AddressQrCodeScreen(
-        model = AddressQrCodeBodyModel(
-          onBack = {},
-          onRefreshClick = {},
-          content =
-            AddressQrCodeBodyModel.Content.QrCode(
-              address = address,
-              qrCodeState = QrCodeState.Success(
-                runBlocking {
-                  QrCodeModel(data = "bitcoin:$address").data.toQrMatrix().value
-                }
-              ),
-              copyButtonIcon = Icon.SmallIconCopy,
-              copyButtonLabelText = "Copy",
-              onCopyClick = {},
-              onPartnerClick = {},
-              onShareClick = {}
             )
         )
       )
@@ -195,28 +142,7 @@ class AddressQrCodeScreenSnapshots : FunSpec({
             AddressQrCodeBodyModel.Content.QrCode(
               address = null,
               qrCodeState = QrCodeState.Loading,
-              copyButtonIcon = Icon.SmallIconCopy,
-              copyButtonLabelText = "Copy",
-              onCopyClick = {},
-              onPartnerClick = {},
-              onShareClick = {}
-            )
-        )
-      )
-    }
-  }
-
-  test("qr code screen loading - design system v2") {
-    paparazzi.snapshot {
-      AddressQrCodeScreen(
-        model = AddressQrCodeBodyModel(
-          onBack = {},
-          onRefreshClick = {},
-          content =
-            AddressQrCodeBodyModel.Content.QrCode(
-              address = null,
-              qrCodeState = QrCodeState.Loading,
-              copyButtonIcon = Icon.SmallIconCopy,
+              copyButtonIcon = Icon.Copy,
               copyButtonLabelText = "Copy",
               onCopyClick = {},
               onPartnerClick = {},
@@ -243,22 +169,6 @@ class AddressQrCodeScreenSnapshots : FunSpec({
     }
   }
 
-  test("qr code screen with error - design system v2") {
-    paparazzi.snapshot {
-      AddressQrCodeScreen(
-        model = AddressQrCodeBodyModel(
-          onBack = {},
-          onRefreshClick = {},
-          content =
-            AddressQrCodeBodyModel.Content.Error(
-              title = "We couldn’t create an address",
-              subline = "We are looking into this. Please try again later."
-            )
-        )
-      )
-    }
-  }
-
   test("qr code screen with qr error") {
     paparazzi.snapshot {
       val address = "bc1q42lja79elem0anu8q8s3h2n687re9jax556pcc"
@@ -270,7 +180,7 @@ class AddressQrCodeScreenSnapshots : FunSpec({
             AddressQrCodeBodyModel.Content.QrCode(
               address = address,
               qrCodeState = QrCodeState.Error,
-              copyButtonIcon = Icon.SmallIconCopy,
+              copyButtonIcon = Icon.Copy,
               copyButtonLabelText = "Copy",
               onCopyClick = {},
               onPartnerClick = {},

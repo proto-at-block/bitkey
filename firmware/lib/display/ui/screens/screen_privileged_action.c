@@ -17,7 +17,7 @@
 #include <string.h>
 
 // SAP combined action display name lookup via langpack. Keep in sync with sap_action_t.
-#define SAP_ACTION_DISPLAY_COUNT 32
+#define SAP_ACTION_DISPLAY_COUNT 34
 
 static const langpack_string_id_t sap_action_langpack_ids[SAP_ACTION_DISPLAY_COUNT] = {
   LANGPACK_ID_SAP_SET_SPEND_WITHOUT_HARDWARE,
@@ -52,6 +52,8 @@ static const langpack_string_id_t sap_action_langpack_ids[SAP_ACTION_DISPLAY_COU
   LANGPACK_ID_INITIATE_WALLET_UPGRADE,
   LANGPACK_ID_SAP_REMOVE_RECOVERY_CUSTOMER,
   LANGPACK_ID_SAP_REMOVE_BENEFACTOR,
+  LANGPACK_ID_KEYSET_REPAIR_UNSEAL,
+  LANGPACK_ID_KEYSET_REPAIR_ROTATE,
 };
 
 static const char* get_privileged_action_title(

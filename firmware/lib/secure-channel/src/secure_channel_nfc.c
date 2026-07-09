@@ -74,6 +74,7 @@ secure_channel_err_t secure_nfc_channel_establish(
     .acl = SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PRIVATE_KEY,
   };
   if (!generate_key(&our_privkey)) {
+    MFLOGE("SC NFC gen privkey fail");
     ret = SECURE_CHANNEL_FAILED_TO_DERIVE_KEY;
     goto out;
   }
@@ -87,6 +88,7 @@ secure_channel_err_t secure_nfc_channel_establish(
     .acl = SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PUBLIC_KEY,
   };
   if (!export_pubkey(&our_privkey, &our_pubkey)) {
+    MFLOGE("SC NFC export pubkey fail");
     ret = SECURE_CHANNEL_FAILED_TO_DERIVE_KEY;
     goto out;
   }
@@ -96,11 +98,17 @@ secure_channel_err_t secure_nfc_channel_establish(
   ret = secure_channel_establish_impl(&secure_channel_ctx, pk_host, pk_host_len, &our_privkey,
                                       &our_pubkey, exchange_sig, exchange_sig_len);
   if (ret != SECURE_CHANNEL_OK) {
+    MFLOGE("SC NFC establish_impl ret=%d", (int)ret);
     goto out_unlock;
   }
 
   ret = secure_channel_compute_confirmation(
     SECURE_NFC_CHANNEL_CORE, &secure_channel_ctx.session_conf_key, key_confirmation_tag);
+  if (ret != SECURE_CHANNEL_OK) {
+    MFLOGE("SC NFC compute_confirm ret=%d", (int)ret);
+  } else {
+    MFLOGI("SC NFC established");
+  }
 
 out_unlock:
   rtos_mutex_unlock(&secure_channel_ctx.lock);

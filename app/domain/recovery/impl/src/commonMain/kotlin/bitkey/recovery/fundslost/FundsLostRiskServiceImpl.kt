@@ -55,6 +55,7 @@ class FundsLostRiskServiceImpl(
 
       if (
         keysetSyncStatus is SpendingKeysetSyncStatus.Mismatch ||
+        keysetSyncStatus is SpendingKeysetSyncStatus.IncompleteKeysetList ||
         keysetSyncStatus is SpendingKeysetSyncStatus.IncompletePrivateWallet
       ) {
         FundsLostRiskLevel.AtRisk(

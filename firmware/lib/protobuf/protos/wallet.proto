@@ -1147,6 +1147,8 @@ message get_confirmation_result_rsp {
     full_account_cloud_backup_restoration_rsp full_account_cloud_backup_restoration_result = 15;
     upgrade_authorize_w3_rsp upgrade_authorize_w3_result = 16;
     upgrade_rotate_app_auth_keys_rsp upgrade_rotate_app_auth_keys_rsp = 17;
+    keyset_repair_unseal_symmetric_key_rsp keyset_repair_unseal_symmetric_key_result = 18;
+    keyset_repair_rotate_hw_key_rsp keyset_repair_rotate_hw_key_result = 19;
   }
 }
 
@@ -1318,6 +1320,38 @@ message eek_restoration_unseal_symmetric_key_cmd {
 // Returned in get_confirmation_result_rsp after user confirms EEK key unsealing.
 message eek_restoration_unseal_symmetric_key_rsp {
   bytes unsealed_key = 1 [(nanopb).max_size = 32];
+}
+
+// Unseals a sealed symmetric key during stale-keyset-repair (post-cloud-restore)
+// with user confirmation. Same shape as EEK restoration unseal but with a
+// repair-specific on-device prompt.
+// Returns CONFIRMATION_PENDING + handles via the global status (no dedicated rsp);
+// the unsealed key is delivered through get_confirmation_result_rsp.
+message keyset_repair_unseal_symmetric_key_cmd {
+  sealed_data sealed_key = 1;
+}
+
+// Returned in get_confirmation_result_rsp after user confirms keyset-repair key unsealing.
+message keyset_repair_unseal_symmetric_key_rsp {
+  bytes unsealed_key = 1 [(nanopb).max_size = 32];
+}
+
+// Composite stale-keyset-repair command: derives the next HW spending key and
+// signs sha256(access token) as hardware proof-of-possession in a single
+// confirmable tap. Both operations are sensitive on their own; bundling preserves
+// the security boundary by requiring exactly one user confirmation for both.
+//
+// Returns CONFIRMATION_PENDING + handles; result via get_confirmation_result_rsp.
+message keyset_repair_rotate_hw_key_cmd {
+  bytes access_token_hash = 1 [(nanopb).max_size = 32];
+  uint32 next_account_index = 2;
+  btc_network network = 3;
+}
+
+// Returned in get_confirmation_result_rsp after user confirms keyset-repair rotate.
+message keyset_repair_rotate_hw_key_rsp {
+  key_descriptor spending_key_descriptor = 1;
+  bytes access_token_signature = 2 [(nanopb).max_size = 64];
 }
 
 // Confirms the user's intent to decrypt full account cloud backups.
@@ -1763,6 +1797,8 @@ message wallet_cmd {
     sweep_sign_cmd sweep_sign_cmd = 99;
     sweep_sign_stream_start_cmd sweep_sign_stream_start_cmd = 100;
     mfgtest_unlock_device_cmd mfgtest_unlock_device_cmd = 101;
+    keyset_repair_unseal_symmetric_key_cmd keyset_repair_unseal_symmetric_key_cmd = 102;
+    keyset_repair_rotate_hw_key_cmd keyset_repair_rotate_hw_key_cmd = 103;
   }
   reserved 2, 5, 14, 21, 22, 23, 24; // The deprecated old cryptography stack (key bundle, etc.)
   reserved 30, 31, 34;  // The never used create_root_key, list_recent_root_keys, and sign_hash operations
@@ -1868,11 +1904,14 @@ message wallet_rsp {
     sweep_sign_rsp sweep_sign_rsp = 99;
     sweep_sign_stream_start_rsp sweep_sign_stream_start_rsp = 100;
     mfgtest_unlock_device_rsp mfgtest_unlock_device_rsp = 101;
+    // Fields 102, 103 intentionally skipped: keyset_repair_unseal_symmetric_key_cmd and
+    // keyset_repair_rotate_hw_key_cmd use CONFIRMATION_PENDING global status with
+    // response_handle/confirmation_handle (no dedicated rsp msg).
   }
   reserved 2, 5, 14, 21, 22, 23, 24; // The deprecated old cryptography stack (key bundle, etc.)
   reserved 30, 31, 34;  // The never used create_root_key, list_recent_root_keys, and sign_hash operations
   reserved 49;  // was derive_public_key_and_sign_rsp (removed, never implemented in firmware)
-  reserved 82, 85, 89, 90, 91, 96;  // sign_stream_finalize, lost_app_recovery_cmd, sign_challenge_and_seal_seks, recovery_authorize_lost_app/hw, upgrade_authorize_w3 have no dedicated rsp; use CONFIRMATION_PENDING global status
+  reserved 82, 85, 89, 90, 91, 96, 102, 103;  // sign_stream_finalize, lost_app_recovery_cmd, sign_challenge_and_seal_seks, recovery_authorize_lost_app/hw, upgrade_authorize_w3, keyset_repair_*, have no dedicated rsp; use CONFIRMATION_PENDING global status
 
   bytes response_handle = 9996 [(nanopb).max_size = 32];
   bytes confirmation_handle = 9997 [(nanopb).max_size = 32];

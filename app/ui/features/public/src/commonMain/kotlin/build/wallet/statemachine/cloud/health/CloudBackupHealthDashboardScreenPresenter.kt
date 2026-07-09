@@ -215,7 +215,6 @@ class CloudBackupHealthDashboardScreenPresenter(
   ) = CloudBackupHealthStatusCardModel(
     toolbarModel = null,
     headerModel = FormHeaderModel(
-      iconModel = headerIconModel(Icon.CloudBackupMobileKey),
       headline = "App Key Backup",
       subline = "Encrypted backup of your App Key for easy access when you get a new phone.",
       alignment = FormHeaderModel.Alignment.CENTER,
@@ -253,19 +252,17 @@ class CloudBackupHealthDashboardScreenPresenter(
             iconTint = when (status) {
               is AppKeyBackupStatus.Healthy -> IconTint.Primary
               is AppKeyBackupStatus.ProblemWithBackup -> IconTint.Foreground
-              else ->
-                IconTint.Primary
             }
           )
       )
     ),
-    designSystemV2StatusText = when (status) {
+    statusTextOverride = when (status) {
       is AppKeyBackupStatus.Healthy -> "Successfully backed up"
       AppKeyBackupStatus.ProblemWithBackup.NoCloudAccess -> "Problem with $cloudStoreName account access"
       is AppKeyBackupStatus.ProblemWithBackup.BackupMissing -> "No backup found"
       else -> "Problem with backup"
     },
-    designSystemV2StatusTone = when (status) {
+    statusToneOverride = when (status) {
       is AppKeyBackupStatus.Healthy -> CloudBackupHealthStatusTone.SUCCESS
       is AppKeyBackupStatus.ProblemWithBackup.BackupMissing -> CloudBackupHealthStatusTone.DANGER
       else -> CloudBackupHealthStatusTone.WARNING
@@ -293,7 +290,7 @@ class CloudBackupHealthDashboardScreenPresenter(
       trailingAccessory = IconAccessory(
         model = IconButtonModel(
           iconModel = IconModel(
-            icon = Icon.SmallIconShare,
+            icon = Icon.Share,
             iconSize = IconSize.Small,
             iconBackgroundType = IconBackgroundType.Transient
           ),
@@ -303,7 +300,6 @@ class CloudBackupHealthDashboardScreenPresenter(
       )
     ),
     headerModel = FormHeaderModel(
-      iconModel = headerIconModel(Icon.SmallIconRecovery),
       headline = "Emergency Exit Kit",
       subline = "Ensures you still have access to your wallet if you can’t access the Bitkey App.",
       alignment = FormHeaderModel.Alignment.CENTER,
@@ -341,12 +337,12 @@ class CloudBackupHealthDashboardScreenPresenter(
           )
       )
     ),
-    designSystemV2StatusText = when (status) {
+    statusTextOverride = when (status) {
       is EekBackupStatus.Healthy -> "Successfully backed up"
       is EekBackupStatus.ProblemWithBackup.BackupMissing -> "No backup found"
       else -> "Problem with backup"
     },
-    designSystemV2StatusTone = when (status) {
+    statusToneOverride = when (status) {
       is EekBackupStatus.Healthy -> CloudBackupHealthStatusTone.SUCCESS
       is EekBackupStatus.ProblemWithBackup.BackupMissing -> CloudBackupHealthStatusTone.DANGER
       else -> CloudBackupHealthStatusTone.WARNING
@@ -361,17 +357,6 @@ class CloudBackupHealthDashboardScreenPresenter(
     },
     type = CloudBackupHealthStatusCardType.EEK_BACKUP
   )
-
-  private fun headerIconModel(icon: Icon) =
-    IconModel(
-      icon = icon,
-      iconSize = IconSize.Large,
-      iconTint = IconTint.Primary,
-      iconBackgroundType = IconBackgroundType.Circle(
-        circleSize = IconSize.Avatar,
-        color = IconBackgroundType.Circle.CircleColor.Primary
-      )
-    )
 
   /**
    * Determine exact [State] based on current state of [AppKeyBackupStatus] and [EekBackupStatus]

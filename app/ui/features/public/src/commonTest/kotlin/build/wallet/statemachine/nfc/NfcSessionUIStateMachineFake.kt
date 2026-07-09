@@ -32,15 +32,11 @@ class NfcSessionUIStateMachineFake(
     // Launch the session in the composition scope
     // This executes immediately and synchronously in test dispatcher
     scope.launch {
-      try {
-        val result = props.session(nfcSession, nfcCommands)
-        // Cast to suppress type issues with star projection
-        @Suppress("UNCHECKED_CAST")
-        (props.onSuccess as suspend (Any?) -> Unit).invoke(result)
-      } catch (e: Exception) {
-        // If there's an error in the session, the test should handle it
-        throw e
-      }
+      // If there's an error in the session, it propagates and the test should handle it
+      val result = props.session(nfcSession, nfcCommands)
+      // Cast to suppress type issues with star projection
+      @Suppress("UNCHECKED_CAST")
+      (props.onSuccess as suspend (Any?) -> Unit).invoke(result)
     }
 
     return ScreenModel(

@@ -4,7 +4,6 @@ import build.wallet.analytics.events.screen.id.WalletMigrationEventTrackerScreen
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
@@ -30,17 +29,16 @@ data class W3UpgradeIntroBodyModel(
         )
       )
     },
-    header = FormHeaderModel(
-      headline = "Upgrade to the new Bitkey",
+    formScreenTitle = w3UpgradeInstructionScreenTitle(
+      title = "Upgrade to the new Bitkey"
+    ),
+    formScreenLayout = w3UpgradeInstructionLayout(),
+    headerToMainContentSpacing = W3_UPGRADE_INSTRUCTION_HEADER_TO_MAIN_CONTENT_SPACING,
+    header = w3UpgradeInstructionHeader(
       subline = "This process replaces your current Bitkey with a new device."
     ),
     mainContentList = immutableListOf(
       introInstructionListGroup()
-    ),
-    designSystemV2Model = w3UpgradeInstructionDesignSystemV2Model(
-      title = "Upgrade to the new Bitkey",
-      subline = "This process replaces your current Bitkey with a new device.",
-      mainContentList = immutableListOf(introInstructionListGroupDesignSystemV2())
     ),
     primaryButton = ButtonModel(
       text = "Continue",
@@ -56,34 +54,15 @@ private fun introInstructionListGroup() =
     listGroupModel = ListGroupModel(
       style = ListGroupStyle.NONE,
       items = immutableListOf(
-        w3UpgradeLegacyInstructionListItem(
+        w3UpgradeInstructionListItem(
           title = "Confirm with your new Bitkey",
           secondaryText = "You'll need to pair the new Bitkey hardware device before you can start the upgrade process.",
-          icon = Icon.SmallIconBitkey
+          icon = Icon.Bitkey
         ),
-        w3UpgradeLegacyInstructionListItem(
+        w3UpgradeInstructionListItem(
           title = "Small network fee required",
           secondaryText = "To upgrade your key, you'll need to initiate an on-chain transaction to complete the process.",
-          icon = Icon.SmallIconBitcoinStroked
-        )
-      )
-    )
-  )
-
-private fun introInstructionListGroupDesignSystemV2() =
-  FormMainContentModel.ListGroup(
-    listGroupModel = ListGroupModel(
-      style = ListGroupStyle.NONE,
-      items = immutableListOf(
-        w3UpgradeDesignSystemV2InstructionListItem(
-          title = "Confirm with your new Bitkey",
-          secondaryText = "You'll need to pair the new Bitkey hardware device before you can start the upgrade process.",
-          icon = Icon.SmallIconBitkey
-        ),
-        w3UpgradeDesignSystemV2InstructionListItem(
-          title = "Small network fee required",
-          secondaryText = "To upgrade your key, you'll need to initiate an on-chain transaction to complete the process.",
-          icon = Icon.SmallIconBitcoinStroked
+          icon = Icon.BitcoinStroked
         )
       )
     )

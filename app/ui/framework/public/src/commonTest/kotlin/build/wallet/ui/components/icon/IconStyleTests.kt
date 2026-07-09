@@ -13,7 +13,6 @@ class IconStyleTests : FunSpec({
   }
 
   test("standard local icons still support tint") {
-    Icon.SmallIconShield.canApplyTint() shouldBe true
-    Icon.SmallIconSettings.canApplyTint() shouldBe true
+    Icon.Shield.canApplyTint() shouldBe true
   }
 })

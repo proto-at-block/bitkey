@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.desktop:desktop-jvm",
+    "components": [
+        {
+            "version": "1.9.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "desktop-jvm-1.9.1.jar": "c229c52c95b4c4d73984c88f40f8475c07d13d2908d34df029e424b6ba1a99b2"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

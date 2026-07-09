@@ -1,0 +1,4 @@
+# Blox workstation configuration for the wallet repo.
+# memory may be tuned based on BKW-88 spike findings.
+memory: 32Gi
+kvm: true

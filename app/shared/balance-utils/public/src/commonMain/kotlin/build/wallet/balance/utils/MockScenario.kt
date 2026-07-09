@@ -1,5 +1,7 @@
 package build.wallet.balance.utils
 
+import build.wallet.catchingResult
+import com.github.michaelbull.result.get
 import kotlinx.datetime.Instant
 import kotlin.random.Random
 
@@ -79,7 +81,7 @@ data class MockConfiguration(
       } ?: return null
       val dataQuality = DataQuality.entries.find { it.name == parts[2] } ?: return null
       val seed = parts[3].toLongOrNull() ?: return null
-      val timestamp = runCatching { kotlinx.datetime.Instant.parse(parts[4]) }.getOrNull() ?: return null
+      val timestamp = catchingResult { kotlinx.datetime.Instant.parse(parts[4]) }.get() ?: return null
 
       return MockConfiguration(priceScenario, transactionScenario, dataQuality, seed, timestamp)
     }

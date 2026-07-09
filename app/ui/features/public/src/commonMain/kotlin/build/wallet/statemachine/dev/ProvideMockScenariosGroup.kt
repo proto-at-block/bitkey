@@ -5,7 +5,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import build.wallet.balance.utils.DataQuality
 import build.wallet.balance.utils.MockConfiguration
@@ -13,6 +12,7 @@ import build.wallet.balance.utils.MockPriceScenario
 import build.wallet.balance.utils.MockScenarioService
 import build.wallet.balance.utils.MockTransactionScenario
 import build.wallet.compose.collections.buildImmutableList
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
@@ -28,7 +28,7 @@ fun ProvideMockPriceScenariosGroup(
   onConfigurationChanged: () -> Unit,
   refreshTrigger: Int,
 ): ListGroupModel? {
-  val coroutineScope = rememberCoroutineScope()
+  val coroutineScope = rememberStableCoroutineScope()
   var currentPriceScenario by remember { mutableStateOf<MockPriceScenario?>(null) }
 
   LaunchedEffect(refreshTrigger) {
@@ -82,7 +82,7 @@ fun ProvideMockTransactionScenariosGroup(
   onConfigurationChanged: () -> Unit,
   refreshTrigger: Int,
 ): ListGroupModel? {
-  val coroutineScope = rememberCoroutineScope()
+  val coroutineScope = rememberStableCoroutineScope()
   var currentTransactionScenario by remember { mutableStateOf<MockTransactionScenario?>(null) }
 
   LaunchedEffect(refreshTrigger) {
@@ -137,7 +137,6 @@ fun ProvideMockChartDataControlsGroup(
   onSeedCopied: (String) -> Unit,
   refreshTrigger: Int,
 ): ListGroupModel? {
-  val coroutineScope = rememberCoroutineScope()
   var currentConfig by remember { mutableStateOf<MockConfiguration?>(null) }
 
   LaunchedEffect(refreshTrigger) {
@@ -181,7 +180,7 @@ fun ProvideMockDataQualityGroup(
   onConfigurationChanged: () -> Unit,
   refreshTrigger: Int,
 ): ListGroupModel? {
-  val coroutineScope = rememberCoroutineScope()
+  val coroutineScope = rememberStableCoroutineScope()
   var currentPriceScenario by remember { mutableStateOf<MockPriceScenario?>(null) }
   var currentDataQuality by remember { mutableStateOf<DataQuality?>(null) }
 

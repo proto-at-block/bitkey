@@ -45,4 +45,25 @@ class DefaultAccountConfigMigrationTests : FunSpec({
       }
     }
   }
+
+  context("Migration 80: Add fakeCloudStore to defaultAccountConfigEntity") {
+    test("Data survives migration, and fakeCloudStore is false by default") {
+      usingDatabaseWithFixtures(81) {
+        table("defaultAccountConfigEntity") {
+          rowAt(0) {
+            valueShouldBe("rowId", "1")
+            valueShouldBe("bitcoinNetworkType", "bitcoinNetworkType-val")
+            valueShouldBe("fakeHardware", "1")
+            valueShouldBe("f8eEnvironment", "f8eEnvironment-val")
+            valueShouldBe("isTestAccount", "1")
+            valueShouldBe("isUsingSocRecFakes", "1")
+            valueShouldBe("fakeCloudStore", "0")
+            valueShouldBe("delayNotifyDuration", "delayNotifyDuration-val")
+            valueShouldBe("skipCloudBackupOnboarding", "0")
+            valueShouldBe("skipNotificationsOnboarding", "0")
+          }
+        }
+      }
+    }
+  }
 })

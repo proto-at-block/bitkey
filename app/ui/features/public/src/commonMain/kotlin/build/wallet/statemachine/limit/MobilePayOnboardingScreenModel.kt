@@ -3,7 +3,6 @@ package build.wallet.statemachine.limit
 import build.wallet.analytics.events.screen.id.MobilePayEventTrackerScreenId
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.ui.model.SheetClosingClick
@@ -27,12 +26,12 @@ data class MobilePayOnboardingScreenModel(
     toolbar = null,
     header = FormHeaderModel(
       iconModel = IconModel(
-        icon = Icon.SmallIconPhone,
+        icon = Icon.DotCoins,
         iconSize = IconSize.Large,
-        iconTint = IconTint.Primary,
+        iconTint = IconTint.Background,
         iconBackgroundType = IconBackgroundType.Circle(
           circleSize = IconSize.Avatar,
-          color = IconBackgroundType.Circle.CircleColor.PrimaryBackground20
+          color = IconBackgroundType.Circle.CircleColor.InverseBackground
         ),
         iconTopSpacing = 0
       ),
@@ -51,22 +50,5 @@ data class MobilePayOnboardingScreenModel(
       treatment = ButtonModel.Treatment.Secondary,
       onClick = SheetClosingClick(onSetUpLater)
     ),
-    renderContext = RenderContext.Sheet,
-    designSystemV2Model = FormDesignSystemV2Model(
-      header = FormHeaderModel(
-        iconModel = IconModel(
-          icon = Icon.DotCoins,
-          iconSize = IconSize.Large,
-          iconTint = IconTint.Background,
-          iconBackgroundType = IconBackgroundType.Circle(
-            circleSize = IconSize.Avatar,
-            color = IconBackgroundType.Circle.CircleColor.InverseBackground
-          ),
-          iconTopSpacing = 0
-        ),
-        headline = headerHeadline,
-        alignment = FormHeaderModel.Alignment.LEADING,
-        subline = headerSubline
-      )
-    )
+    renderContext = RenderContext.Sheet
   )

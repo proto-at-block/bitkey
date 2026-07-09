@@ -394,7 +394,7 @@ class DeviceWipeEligibilityServiceImpl(
     val network = bitcoinNetworkType
       ?: return Err(InactiveDeviceWipeValidationError.MissingBitcoinNetworkType)
     val hardwareFingerprint = try {
-      commands.getInitialSpendingKey(session, network)
+      commands.getInitialSpendingPublicKey(session, network)
         .key
         .origin
         .fingerprint

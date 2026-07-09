@@ -74,10 +74,10 @@ class MetricTrackerDao(
     return databaseProvider.database().awaitTransactionWithResult {
       // Get existing metric, if one exists
       val existingMetric = mobileMetricsQueries.getByMetricName(trackedMetric.name.name)
-        .executeAsOneOrNull()?.let {
+        .executeAsOneOrNull()?.let { row ->
           TrackedMetric(
-            name = MetricName(it.metricName),
-            variant = it.variant
+            name = MetricName(row.metricName),
+            variant = row.variant
           )
         }
 
@@ -103,10 +103,10 @@ class MetricTrackerDao(
     return databaseProvider.database().awaitTransaction {
       // Get existing metric, if one exists
       val existingMetric = mobileMetricsQueries.getByMetricName(metricName.name)
-        .executeAsOneOrNull()?.let {
+        .executeAsOneOrNull()?.let { row ->
           TrackedMetric(
-            name = MetricName(it.metricName),
-            variant = it.variant
+            name = MetricName(row.metricName),
+            variant = row.variant
           )
         }
 
@@ -129,10 +129,10 @@ class MetricTrackerDao(
     return databaseProvider.database().awaitTransactionWithResult {
       // Get existing metric, if one exists
       val existingMetric = mobileMetricsQueries.getByMetricName(metricName.name)
-        .executeAsOneOrNull()?.let {
+        .executeAsOneOrNull()?.let { row ->
           TrackedMetric(
-            name = MetricName(it.metricName),
-            variant = it.variant
+            name = MetricName(row.metricName),
+            variant = row.variant
           )
         }
 

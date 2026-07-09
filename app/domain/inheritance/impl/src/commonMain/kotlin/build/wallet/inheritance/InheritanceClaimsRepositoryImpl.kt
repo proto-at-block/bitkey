@@ -107,7 +107,6 @@ class InheritanceClaimsRepositoryImpl(
       is BenefactorClaim -> updateClaim(claim, { it.benefactorClaims }) { state, updatedClaims ->
         state.copy(benefactorClaims = updatedClaims)
       }
-      else -> claimsState.value
     }
   }
 

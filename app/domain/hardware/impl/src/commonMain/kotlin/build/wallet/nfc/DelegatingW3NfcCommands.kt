@@ -129,6 +129,11 @@ internal abstract class DelegatingW3NfcCommands : W3NfcCommands {
     network: BitcoinNetworkType,
   ) = delegatedCommands(session).getInitialSpendingKey(session, network)
 
+  override suspend fun getInitialSpendingPublicKey(
+    session: NfcSession,
+    network: BitcoinNetworkType,
+  ) = delegatedCommands(session).getInitialSpendingPublicKey(session, network)
+
   override suspend fun getNextSpendingKey(
     session: NfcSession,
     existingDescriptorPublicKeys: List<HwSpendingPublicKey>,
@@ -170,11 +175,13 @@ internal abstract class DelegatingW3NfcCommands : W3NfcCommands {
     psbt: Psbt,
     spendingKeyset: SpendingKeyset,
     displayPreference: HwDisplayPreference?,
+    allowUnfinalized: Boolean,
   ) = delegatedCommands(session).signTransaction(
     session = session,
     psbt = psbt,
     spendingKeyset = spendingKeyset,
-    displayPreference = displayPreference
+    displayPreference = displayPreference,
+    allowUnfinalized = allowUnfinalized
   )
 
   override suspend fun sweepTransaction(
@@ -205,6 +212,16 @@ internal abstract class DelegatingW3NfcCommands : W3NfcCommands {
     session: NfcSession,
     sealedKey: SealedData,
   ) = delegatedCommands(session).eekRestorationUnsealSymmetricKey(session, sealedKey)
+
+  override suspend fun keysetRepairUnsealSymmetricKey(
+    session: NfcSession,
+    sealedKey: SealedData,
+  ) = delegatedCommands(session).keysetRepairUnsealSymmetricKey(session, sealedKey)
+
+  override suspend fun keysetRepairRotateHwKey(
+    session: NfcSession,
+    params: KeysetRepairRotateHwKeyParams,
+  ) = delegatedCommands(session).keysetRepairRotateHwKey(session, params)
 
   override suspend fun getCert(
     session: NfcSession,

@@ -4,7 +4,6 @@ import build.wallet.analytics.events.screen.id.SendEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.Icon.SmallIconScan
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
@@ -22,11 +21,11 @@ import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.input.TextFieldModel.KeyboardType.Default
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
-import build.wallet.ui.tokens.market.MarketIcons
 import dev.zacsweers.redacted.annotations.Redacted
 
 /**
@@ -52,32 +51,31 @@ data class BitcoinRecipientAddressScreenModel(
   val onPasteButtonClick: () -> Unit,
   val showSelfSendWarningWithRedirect: Boolean,
   val onGoToUtxoConsolidation: () -> Unit,
-  val isDesignSystemV2Enabled: Boolean = false,
+  val showToolbarIcons: Boolean = true,
 ) : FormBodyModel(
     onBack = onBack,
     toolbar = ToolbarModel(
-      leadingAccessory = CloseAccessory(onClick = onBack),
+      leadingAccessory = if (showToolbarIcons) {
+        CloseAccessory(onClick = onBack)
+      } else {
+        hiddenToolbarIconAccessory(icon = Icon.X)
+      },
       middleAccessory = ToolbarMiddleAccessoryModel(title = "Recipient"),
-      trailingAccessory = IconAccessory(
-        model = IconButtonModel(
-          iconModel =
-            if (isDesignSystemV2Enabled) {
-              IconModel(
-                icon = MarketIcons.ScanQrCode,
-                iconSize = IconSize.Accessory,
-                iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Regular)
-              )
-            } else {
-              IconModel(
-                icon = SmallIconScan,
-                iconSize = IconSize.Accessory,
-                iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Regular)
-              )
-            },
-          testTag = "send-recipient-scan-qr",
-          onClick = StandardClick(onScanQrCodeClick)
+      trailingAccessory = if (showToolbarIcons) {
+        IconAccessory(
+          model = IconButtonModel(
+            iconModel = IconModel(
+              icon = Icon.ScanQrCode,
+              iconSize = IconSize.Accessory,
+              iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Regular)
+            ),
+            testTag = "send-recipient-scan-qr",
+            onClick = StandardClick(onScanQrCodeClick)
+          )
         )
-      )
+      } else {
+        hiddenToolbarIconAccessory(icon = Icon.ScanQrCode)
+      }
     ),
     header = null,
     mainContentList = immutableListOfNotNull(
@@ -92,7 +90,7 @@ data class BitcoinRecipientAddressScreenModel(
         trailingButtonModel = if (showPasteButton) {
           ButtonModel(
             text = "Paste",
-            leadingIcon = if (isDesignSystemV2Enabled) Icon.SmallIconCopy else Icon.SmallIconClipboard,
+            leadingIcon = Icon.Copy,
             treatment = Secondary,
             size = Compact,
             onClick = StandardClick { onPasteButtonClick() }
@@ -141,3 +139,24 @@ data class BitcoinRecipientAddressScreenModel(
     id = SendEventTrackerScreenId.SEND_ADDRESS_ENTRY,
     eventTrackerShouldTrack = false
   )
+
+private fun hiddenToolbarIconAccessory(icon: Icon): ToolbarAccessoryModel =
+  hiddenToolbarIconAccessory(
+    IconModel(
+      icon = icon,
+      iconSize = HIDDEN_TOOLBAR_ICON_SIZE,
+      iconBackgroundType = IconBackgroundType.Transient,
+      iconOpacity = 0f
+    )
+  )
+
+private fun hiddenToolbarIconAccessory(iconModel: IconModel): ToolbarAccessoryModel =
+  IconAccessory(
+    model = IconButtonModel(
+      iconModel = iconModel,
+      enabled = false,
+      onClick = StandardClick {}
+    )
+  )
+
+private val HIDDEN_TOOLBAR_ICON_SIZE = IconSize.Custom(44)

@@ -162,8 +162,6 @@ class MoneyHomeUiStateMachineImpl(
       }
     }
 
-    val isDesignSystemV2Enabled = true
-
     LaunchedEffect("mark-onboarding-completed") {
       // Ensure onboarding is recorded for users who completed it before
       // this feature was introduced
@@ -238,8 +236,7 @@ class MoneyHomeUiStateMachineImpl(
           },
           onPurchaseAmountConfirmed = { amount ->
             uiState = ViewingPartnerPurchaseQuotesUiState(amount)
-          },
-          isDesignSystemV2Enabled = isDesignSystemV2Enabled
+          }
         )
       )
 
@@ -712,7 +709,7 @@ sealed interface MoneyHomeUiState {
       data object PromptingForFwUpUiState : BottomSheetDisplayState
 
       /**
-       * Showing the DSV2 W3 upgrade completion sheet over Money Home.
+       * Showing the W3 upgrade completion sheet over Money Home.
        */
       data object W3UpgradeComplete : BottomSheetDisplayState
     }

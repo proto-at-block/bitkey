@@ -26,6 +26,7 @@ data class SignTransactionNfcBodyModel(
   val status: Status,
   val hardwareType: HardwareType = HardwareType.W3,
   val showNativeSheetOnIos: Boolean = false,
+  val onHelpClick: (() -> Unit)? = null,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo?,
 ) : BodyModel() {
   @Composable

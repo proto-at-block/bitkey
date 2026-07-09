@@ -108,7 +108,6 @@ class FileManagerImpl(
   override suspend fun mkdirs(path: String): FileManagerResult<Boolean> {
     return catchingResult {
       withContext(Dispatchers.IO) {
-        val filePath = (fileDirectoryProvider.filesDir().join(path)).toPath()
         File(path).mkdirs()
       }
     }

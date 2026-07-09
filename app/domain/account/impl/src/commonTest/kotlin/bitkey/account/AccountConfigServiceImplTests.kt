@@ -175,6 +175,40 @@ class AccountConfigServiceImplTests : FunSpec({
     }
   }
 
+  test("defaultConfig - set cloud store fake") {
+    val service = service(Team)
+    service.defaultConfig().test {
+      val initial = awaitItem() // fallback
+
+      service.setIsCloudStoreFake(true)
+      awaitItem().shouldBe(
+        initial.copy(isCloudStoreFake = true)
+      )
+
+      service.setIsCloudStoreFake(false)
+      awaitItem().shouldBe(
+        initial.copy(isCloudStoreFake = false)
+      )
+    }
+  }
+
+  test("defaultConfig - disabling test account clears fake cloud store") {
+    val service = service(Team)
+    service.defaultConfig().test {
+      val initial = awaitItem() // fallback
+
+      service.setIsCloudStoreFake(true)
+      awaitItem().shouldBe(
+        initial.copy(isCloudStoreFake = true)
+      )
+
+      service.setIsTestAccount(false)
+      awaitItem().shouldBe(
+        initial.copy(isTestAccount = false, isCloudStoreFake = false)
+      )
+    }
+  }
+
   test("defaultConfig - set test account") {
     val service = service(Team)
     service.defaultConfig().test {
@@ -248,6 +282,7 @@ class AccountConfigServiceImplTests : FunSpec({
 
     shouldThrow<IllegalStateException> { service.setBitcoinNetworkType(REGTEST) }
     shouldThrow<IllegalStateException> { service.setIsHardwareFake(true) }
+    shouldThrow<IllegalStateException> { service.setIsCloudStoreFake(true) }
     shouldThrow<IllegalStateException> { service.setIsTestAccount(true) }
     shouldThrow<IllegalStateException> { service.setUsingSocRecFakes(true) }
     shouldThrow<IllegalStateException> { service.setF8eEnvironment(F8eEnvironment.Local) }

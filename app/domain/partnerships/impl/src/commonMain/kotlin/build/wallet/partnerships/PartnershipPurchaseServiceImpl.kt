@@ -69,14 +69,14 @@ class PartnershipPurchaseServiceImpl(
     address: String?,
   ): Result<PurchaseRedirectInfo, Throwable> =
     coroutineBinding {
-      val address = address?.let { BitcoinAddress(it) }
+      val destinationAddress = address?.let { BitcoinAddress(it) }
         ?: bitcoinAddressService.generateAddress().bind()
       val account = accountService.getAccount<FullAccount>().bind()
 
       val redirectInfo = getPurchaseRedirectF8eClient
         .purchaseRedirect(
           fullAccountId = account.accountId,
-          address = address,
+          address = destinationAddress,
           f8eEnvironment = account.config.f8eEnvironment,
           fiatAmount = purchaseAmount,
           partner = quote.partnerInfo.partnerId.value,

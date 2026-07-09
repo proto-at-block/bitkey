@@ -179,18 +179,22 @@ class RelationshipsCryptoFake(
 
       // Ensure at least one key matches a trusted key
       ensure(
-        keyCertificate in validCertificates || (
-          signatureVerifier!!.verifyEcdsaResult(
-            signature = keyCertificate.appAuthGlobalKeyHwSignature.value,
-            publicKey = hwEndorsementKey.pubKey,
-            message = keyCertificate.appGlobalAuthPublicKey.value.encodeUtf8()
-          ).mapError { RelationshipsCryptoError.KeyCertificateVerificationFailed(it) }.bind() ||
-            !signatureVerifier.verifyEcdsaResult(
-              signature = keyCertificate.trustedContactIdentityKeyAppSignature.value,
-              publicKey = appEndorsementKey.toSecp256k1PublicKey(),
-              message = keyCertificate.delegatedDecryptionKey.value.encodeUtf8()
-            ).mapError { RelationshipsCryptoError.KeyCertificateVerificationFailed(it) }.bind()
-        )
+        keyCertificate in validCertificates ||
+          run {
+            val verifier = checkNotNull(signatureVerifier) {
+              "signatureVerifier is required to verify key certificates"
+            }
+            verifier.verifyEcdsaResult(
+              signature = keyCertificate.appAuthGlobalKeyHwSignature.value,
+              publicKey = hwEndorsementKey.pubKey,
+              message = keyCertificate.appGlobalAuthPublicKey.value.encodeUtf8()
+            ).mapError { RelationshipsCryptoError.KeyCertificateVerificationFailed(it) }.bind() ||
+              !verifier.verifyEcdsaResult(
+                signature = keyCertificate.trustedContactIdentityKeyAppSignature.value,
+                publicKey = appEndorsementKey.toSecp256k1PublicKey(),
+                message = keyCertificate.delegatedDecryptionKey.value.encodeUtf8()
+              ).mapError { RelationshipsCryptoError.KeyCertificateVerificationFailed(it) }.bind()
+          }
       ) {
         RelationshipsCryptoError.KeyCertificateVerificationFailed(
           IllegalArgumentException("Key certificate verification failed")
@@ -208,7 +212,9 @@ class RelationshipsCryptoFake(
     appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
   ): Result<TrustedContactKeyCertificate, RelationshipsCryptoError> =
     coroutineBinding {
-      val appAuthPrivateKey = appPrivateKeyDao!!
+      val appAuthPrivateKey = checkNotNull(appPrivateKeyDao) {
+        "appPrivateKeyDao is required to generate key certificates"
+      }
         .getAsymmetricPrivateKey(appGlobalAuthKey)
         .mapError(::ErrorGettingPrivateKey)
         .toErrorIfNull { RelationshipsCryptoError.PrivateKeyMissing }
@@ -723,7 +729,10 @@ class RelationshipsCryptoFake(
   fun sign(
     privateKey: Secp256k1PrivateKey,
     message: ByteString,
-  ): ByteString = messageSigner!!.sign(message, privateKey).decodeHex()
+  ): ByteString =
+    checkNotNull(messageSigner) { "messageSigner is required to sign" }
+      .sign(message, privateKey)
+      .decodeHex()
 
   fun generateKeyPair(): Pair<Secp256k1PrivateKey, Secp256k1PublicKey> {
     // x ⭠ ℤ_q
@@ -744,7 +753,9 @@ class RelationshipsCryptoFake(
       publicKey = pubKey.toPublicKey(),
       privateKey = privKey.toPrivateKey()
     ).also {
-      appPrivateKeyDao!!.storeAppKeyPair(it)
+      checkNotNull(appPrivateKeyDao) {
+        "appPrivateKeyDao is required to generate app auth keypairs"
+      }.storeAppKeyPair(it)
     }
   }
 

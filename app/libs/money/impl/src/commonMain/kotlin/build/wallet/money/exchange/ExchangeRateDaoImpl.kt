@@ -51,9 +51,9 @@ class ExchangeRateDaoImpl(
       .awaitTransaction {
         val existingRates = exchangeRateQueries.allExchangeRates().executeAsList()
         val existingRate =
-          existingRates.find {
-            it.fromCurrency == exchangeRate.fromCurrency &&
-              it.toCurrency == exchangeRate.toCurrency
+          existingRates.find { existing ->
+            existing.fromCurrency == exchangeRate.fromCurrency &&
+              existing.toCurrency == exchangeRate.toCurrency
           }
         if (existingRate == null) {
           exchangeRateQueries.insertExchangeRate(

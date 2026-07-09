@@ -203,6 +203,7 @@ mod tests {
             )
             .unwrap(),
             "integrity_sig".to_string(),
+            None,
         );
 
         let wallet = VerificationWalletProvider::Private(PrivateKeysetWalletProvider::new(keyset))

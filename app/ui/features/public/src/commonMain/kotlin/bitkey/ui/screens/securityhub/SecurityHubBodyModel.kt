@@ -1,5 +1,9 @@
+@file:Suppress("TooManyFunctions")
+
 package bitkey.ui.screens.securityhub
 
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement.SpaceBetween
@@ -12,8 +16,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
@@ -29,6 +37,7 @@ import build.wallet.Progress
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.platform.haptics.Haptics
+import build.wallet.platform.haptics.HapticsEffect
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
@@ -57,22 +66,28 @@ import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tokens.market.MarketIcons
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
+import kotlin.time.Duration.Companion.seconds
 
 private val DestructiveRed = Color(0xffca0000)
 private val WarningOrange = Color(0xffbf46e38)
 private val SuccessGreen = Color(0xff3aba5a)
 private val DisabledGrey = Color(0xffc6c6c6)
+private const val ALL_SET_REVEAL_ACTIVATION_THRESHOLD_FRACTION = 0.6f
+private const val ALL_SET_REVEAL_MIN_ACTIVATION_THRESHOLD_PX = 36f
+private const val ALL_SET_REVEAL_MAX_ACTIVATION_THRESHOLD_PX = 72f
+private const val ALL_SET_REVEAL_MIN_RESISTANCE_FACTOR = 0.56f
+private const val ALL_SET_REVEAL_MAX_RESISTANCE_FACTOR = 0.88f
 
 internal fun securityHubToolbarAccessoryModel(onClick: () -> Unit = {}) =
   ToolbarAccessoryModel.IconAccessory(
     model = IconButtonModel(
       iconModel = IconModel(
-        icon = MarketIcons.EllipsisHorizontal,
+        icon = Icon.EllipsisHorizontal,
         iconSize = IconSize.HeaderToolbar,
         iconBackgroundType = IconBackgroundType.Circle(
           circleSize = IconSize.Regular,
@@ -91,8 +106,12 @@ data class SecurityHubBodyModel(
   val recommendations: ImmutableList<SecurityActionRecommendation>,
   val cardsModel: CardListModel,
   val showAllSetState: Boolean = false,
+  val foregroundSessionGeneration: Int = 0,
   val securityActions: List<SecurityAction> = emptyList(),
   val recoveryActions: List<SecurityAction> = emptyList(),
+  val autoHideAllSetPillAfterDelay: Boolean = false,
+  val hideAllSetPillOnEntry: Boolean = false,
+  val onAllSetPillAutoHidden: () -> Boolean = { false },
   val onRecommendationClick: (SecurityActionRecommendation) -> Unit,
   val onSecurityActionClick: (SecurityAction) -> Unit,
   val onHomeTabClick: () -> Unit,
@@ -102,20 +121,182 @@ data class SecurityHubBodyModel(
     eventTrackerScreenId = SecurityHubEventTrackerScreenId.SECURITY_HUB_SCREEN
   ),
 ) : BodyModel() {
+  @Suppress("CyclomaticComplexMethod")
   @Composable
   override fun render(modifier: Modifier) {
     val localDensity = LocalDensity.current
     val scrollState = rememberScrollState()
-    val shouldRenderAllSetPill = showAllSetState
+    val contentTopPaddingDp = SECURITY_HUB_TOOLBAR_RESERVED_HEIGHT + SECURITY_HUB_CONTENT_TOP_PADDING
+    val shouldRenderAllSetPill =
+      showAllSetState &&
+        !isOffline
+    var allSetHeaderHeightPx by remember { mutableIntStateOf(0) }
+    var allSetBaseContentHeightPx by remember { mutableIntStateOf(0) }
+    var hasAppliedInitialAllSetScroll by remember(hideAllSetPillOnEntry, shouldRenderAllSetPill) {
+      mutableStateOf(!hideAllSetPillOnEntry)
+    }
+    var hasHandledAutoHideAllSetPill by remember(
+      foregroundSessionGeneration,
+      autoHideAllSetPillAfterDelay,
+      shouldRenderAllSetPill
+    ) {
+      mutableStateOf(false)
+    }
+    var viewportHeightPx by remember {
+      mutableIntStateOf(0)
+    }
     var tabBarHeightDp by remember {
       mutableStateOf(0.dp)
     }
+
     Box(
       modifier = modifier.fillMaxSize()
+        .onGloballyPositioned { coordinates ->
+          viewportHeightPx = coordinates.size.height
+        }
         .background(
           color = screenBackgroundColor(isOffline)
         )
     ) {
+      val contentTopPaddingPx = with(localDensity) { contentTopPaddingDp.roundToPx() }
+      val allSetScrollTargetPx = minOf(allSetHeaderHeightPx, scrollState.maxValue)
+      val allSetRevealActivationThresholdPx = remember(allSetScrollTargetPx) {
+        calculateAllSetPillRevealActivationThresholdPx(allSetScrollTargetPx)
+      }
+      var remainingAllSetRevealActivationPullPx by remember(
+        shouldRenderAllSetPill,
+        allSetScrollTargetPx
+      ) {
+        mutableFloatStateOf(allSetRevealActivationThresholdPx)
+      }
+      val allSetRevealResistanceConnection = remember(
+        shouldRenderAllSetPill,
+        allSetScrollTargetPx,
+        allSetRevealActivationThresholdPx
+      ) {
+        object : NestedScrollConnection {
+          override fun onPreScroll(
+            available: Offset,
+            source: NestedScrollSource,
+          ): Offset {
+            if (
+              source != NestedScrollSource.UserInput ||
+              !shouldApplyAllSetPillRevealResistance(
+                shouldRenderAllSetPill = shouldRenderAllSetPill,
+                allSetScrollTargetPx = allSetScrollTargetPx,
+                scrollValue = scrollState.value,
+                availableScrollDeltaY = available.y
+              )
+            ) {
+              return Offset.Zero
+            }
+
+            val revealResistanceResult = calculateAllSetPillRevealResistanceResult(
+              availableScrollDeltaY = available.y,
+              remainingActivationPullPx = remainingAllSetRevealActivationPullPx,
+              scrollValue = scrollState.value,
+              allSetScrollTargetPx = allSetScrollTargetPx
+            )
+            remainingAllSetRevealActivationPullPx =
+              revealResistanceResult.remainingActivationPullPx
+
+            return Offset(
+              x = 0f,
+              y = revealResistanceResult.consumedScrollY
+            )
+          }
+        }
+      }
+      var hasSeenHiddenAllSetPill by remember(shouldRenderAllSetPill, allSetScrollTargetPx) {
+        mutableStateOf(false)
+      }
+      val allSetScrollAllowanceDp = remember(
+        shouldRenderAllSetPill,
+        viewportHeightPx,
+        contentTopPaddingPx,
+        allSetHeaderHeightPx,
+        allSetBaseContentHeightPx
+      ) {
+        if (
+          !shouldRenderAllSetPill ||
+          viewportHeightPx == 0 ||
+          allSetHeaderHeightPx == 0
+        ) {
+          0.dp
+        } else {
+          with(localDensity) {
+            (
+              viewportHeightPx + allSetHeaderHeightPx - contentTopPaddingPx - allSetBaseContentHeightPx
+            ).coerceAtLeast(0).toDp()
+          }
+        }
+      }
+
+      LaunchedEffect(
+        foregroundSessionGeneration,
+        shouldRenderAllSetPill,
+        hideAllSetPillOnEntry,
+        autoHideAllSetPillAfterDelay,
+        allSetScrollTargetPx
+      ) {
+        if (!shouldRenderAllSetPill || allSetScrollTargetPx == 0) return@LaunchedEffect
+
+        if (hideAllSetPillOnEntry && !hasAppliedInitialAllSetScroll) {
+          if (shouldScrollToHideAllSetPillOnEntry(scrollState.value, allSetScrollTargetPx)) {
+            scrollState.scrollTo(allSetScrollTargetPx)
+          }
+          hasAppliedInitialAllSetScroll = true
+          return@LaunchedEffect
+        }
+
+        if (autoHideAllSetPillAfterDelay && !hasHandledAutoHideAllSetPill) {
+          if (isAllSetPillHidden(scrollState.value, allSetScrollTargetPx)) {
+            if (onAllSetPillAutoHidden()) {
+              hasHandledAutoHideAllSetPill = true
+            }
+            return@LaunchedEffect
+          }
+
+          delay(4.seconds)
+          if (shouldAnimateAllSetPillAutoHide(scrollState.value, allSetScrollTargetPx)) {
+            scrollState.animateScrollTo(
+              value = allSetScrollTargetPx,
+              animationSpec = tween(
+                durationMillis = 650,
+                easing = LinearOutSlowInEasing
+              )
+            )
+          }
+          if (scrollState.value >= allSetScrollTargetPx && onAllSetPillAutoHidden()) {
+            hasHandledAutoHideAllSetPill = true
+          }
+        }
+      }
+
+      LaunchedEffect(
+        shouldRenderAllSetPill,
+        allSetScrollTargetPx,
+        scrollState.value
+      ) {
+        if (isAllSetPillHidden(scrollState.value, allSetScrollTargetPx)) {
+          remainingAllSetRevealActivationPullPx = allSetRevealActivationThresholdPx
+          hasSeenHiddenAllSetPill = true
+          return@LaunchedEffect
+        }
+
+        if (
+          shouldTriggerAllSetPillRevealHaptic(
+            shouldRenderAllSetPill = shouldRenderAllSetPill,
+            allSetScrollTargetPx = allSetScrollTargetPx,
+            scrollValue = scrollState.value,
+            hasSeenHiddenAllSetPill = hasSeenHiddenAllSetPill
+          )
+        ) {
+          hasSeenHiddenAllSetPill = false
+          haptics?.vibrate(HapticsEffect.Selection)
+        }
+      }
+
       // Small background to cover the bottom of the screen so the overscroll on iOS is the
       // background color
       Box(
@@ -128,30 +309,58 @@ data class SecurityHubBodyModel(
       Column(
         modifier = Modifier
           .fillMaxSize()
+          .thenIf(
+            hideAllSetPillOnEntry &&
+              !hasAppliedInitialAllSetScroll &&
+              (allSetScrollTargetPx == 0 || scrollState.value < allSetScrollTargetPx)
+          ) {
+            Modifier.alpha(0f)
+          }
+          .thenIf(shouldRenderAllSetPill) {
+            Modifier.nestedScroll(allSetRevealResistanceConnection)
+          }
           .verticalScroll(scrollState)
-          .padding(top = SECURITY_HUB_TOOLBAR_RESERVED_HEIGHT + SECURITY_HUB_CONTENT_TOP_PADDING)
+          .padding(top = contentTopPaddingDp)
       ) {
-        SecurityHubHeaderSection(
-          isOffline = isOffline,
-          atRiskRecommendations = atRiskRecommendations,
-          recommendations = recommendations,
-          cardsModel = cardsModel,
-          showAllSetState = showAllSetState,
-          onRecommendationClick = onRecommendationClick
-        )
+        Column(
+          modifier = Modifier
+            .fillMaxWidth()
+            .thenIf(shouldRenderAllSetPill) {
+              Modifier.onGloballyPositioned { coordinates ->
+                allSetBaseContentHeightPx = coordinates.size.height
+              }
+            }
+        ) {
+          SecurityHubHeaderSection(
+            modifier = Modifier.thenIf(shouldRenderAllSetPill) {
+              Modifier.onGloballyPositioned { coordinates ->
+                allSetHeaderHeightPx = coordinates.size.height
+              }
+            },
+            isOffline = isOffline,
+            atRiskRecommendations = atRiskRecommendations,
+            recommendations = recommendations,
+            cardsModel = cardsModel,
+            showAllSetState = showAllSetState,
+            onRecommendationClick = onRecommendationClick
+          )
 
-        SecurityHubActionsSection(
-          securityActions = securityActions.toImmutableList(),
-          recoveryActions = recoveryActions.toImmutableList(),
-          onSecurityActionClick = onSecurityActionClick,
-          reduceTopSpacingForAllSetPill = shouldRenderAllSetPill,
-          tabBarHeightDp = tabBarHeightDp
-        )
+          SecurityHubActionsSection(
+            securityActions = securityActions.toImmutableList(),
+            recoveryActions = recoveryActions.toImmutableList(),
+            onSecurityActionClick = onSecurityActionClick,
+            reduceTopSpacingForAllSetPill = shouldRenderAllSetPill,
+            tabBarHeightDp = tabBarHeightDp
+          )
+        }
+
+        if (shouldRenderAllSetPill && allSetScrollAllowanceDp > 0.dp) {
+          Spacer(modifier = Modifier.height(allSetScrollAllowanceDp))
+        }
       }
 
       SecurityHubTopToolbar(
         modifier = Modifier.align(Alignment.TopCenter),
-        title = "Security Hub",
         trailingToolbarAccessoryModel = trailingToolbarAccessoryModel
       )
 
@@ -199,6 +408,7 @@ data class SecurityHubBodyModel(
 
 @Composable
 private fun SecurityHubHeaderSection(
+  modifier: Modifier = Modifier,
   isOffline: Boolean,
   atRiskRecommendations: ImmutableList<SecurityActionRecommendation>,
   recommendations: ImmutableList<SecurityActionRecommendation>,
@@ -207,7 +417,7 @@ private fun SecurityHubHeaderSection(
   onRecommendationClick: (SecurityActionRecommendation) -> Unit,
 ) {
   Column(
-    modifier = Modifier.fillMaxWidth()
+    modifier = modifier.fillMaxWidth()
       .background(color = screenBackgroundColor(isOffline))
       .padding(horizontal = 20.dp)
   ) {
@@ -262,7 +472,6 @@ private fun SecurityHubHeaderSection(
 @Composable
 private fun SecurityHubTopToolbar(
   modifier: Modifier = Modifier,
-  title: String,
   trailingToolbarAccessoryModel: ToolbarAccessoryModel,
 ) {
   Box(
@@ -293,7 +502,7 @@ private fun SecurityHubTopToolbar(
       ) {
         Label(
           modifier = Modifier.align(Alignment.CenterStart),
-          text = title,
+          text = "Security Hub",
           style = WalletTheme.labelStyle(
             LabelType.Title2,
             textColor = WalletTheme.colors.foreground
@@ -508,7 +717,7 @@ fun RecommendationRow(
       overflow = TextOverflow.Ellipsis
     )
     Icon(
-      icon = Icon.SmallIconCaretRight,
+      icon = Icon.CaretRight,
       size = IconSize.Accessory,
       color = WalletTheme.colors.foreground30
     )
@@ -535,6 +744,110 @@ private fun RecommendationStatusDot(
       .background(color = color, shape = CircleShape)
   )
 }
+
+internal fun isAllSetPillHidden(
+  scrollValue: Int,
+  allSetScrollTargetPx: Int,
+): Boolean = allSetScrollTargetPx > 0 && scrollValue >= allSetScrollTargetPx
+
+internal fun shouldScrollToHideAllSetPillOnEntry(
+  scrollValue: Int,
+  allSetScrollTargetPx: Int,
+): Boolean = allSetScrollTargetPx > 0 && scrollValue < allSetScrollTargetPx
+
+internal fun calculateAllSetPillRevealActivationThresholdPx(
+  allSetScrollTargetPx: Int,
+): Float =
+  (allSetScrollTargetPx * ALL_SET_REVEAL_ACTIVATION_THRESHOLD_FRACTION)
+    .coerceIn(
+      ALL_SET_REVEAL_MIN_ACTIVATION_THRESHOLD_PX,
+      ALL_SET_REVEAL_MAX_ACTIVATION_THRESHOLD_PX
+    )
+
+internal fun shouldApplyAllSetPillRevealResistance(
+  shouldRenderAllSetPill: Boolean,
+  allSetScrollTargetPx: Int,
+  scrollValue: Int,
+  availableScrollDeltaY: Float,
+): Boolean =
+  shouldRenderAllSetPill &&
+    allSetScrollTargetPx > 0 &&
+    scrollValue in 1..allSetScrollTargetPx &&
+    availableScrollDeltaY > 0f
+
+internal data class AllSetPillRevealResistanceResult(
+  val consumedScrollY: Float,
+  val remainingActivationPullPx: Float,
+)
+
+internal fun calculateAllSetPillRevealResistanceResult(
+  availableScrollDeltaY: Float,
+  remainingActivationPullPx: Float,
+  scrollValue: Int,
+  allSetScrollTargetPx: Int,
+): AllSetPillRevealResistanceResult {
+  val activationConsumption = minOf(
+    availableScrollDeltaY.coerceAtLeast(0f),
+    remainingActivationPullPx.coerceAtLeast(0f)
+  )
+  val remainingScrollDeltaY = availableScrollDeltaY - activationConsumption
+  val frictionConsumption = if (remainingScrollDeltaY > 0f) {
+    calculateAllSetPillRevealResistanceConsumption(
+      availableScrollDeltaY = remainingScrollDeltaY,
+      scrollValue = scrollValue,
+      allSetScrollTargetPx = allSetScrollTargetPx
+    )
+  } else {
+    0f
+  }
+
+  return AllSetPillRevealResistanceResult(
+    consumedScrollY = activationConsumption + frictionConsumption,
+    remainingActivationPullPx = (remainingActivationPullPx - activationConsumption).coerceAtLeast(0f)
+  )
+}
+
+internal fun calculateAllSetPillRevealResistanceConsumption(
+  availableScrollDeltaY: Float,
+  scrollValue: Int,
+  allSetScrollTargetPx: Int,
+): Float =
+  availableScrollDeltaY * calculateAllSetPillRevealResistanceFactor(
+    scrollValue = scrollValue,
+    allSetScrollTargetPx = allSetScrollTargetPx
+  )
+
+internal fun calculateAllSetPillRevealResistanceFactor(
+  scrollValue: Int,
+  allSetScrollTargetPx: Int,
+): Float {
+  if (allSetScrollTargetPx <= 0) return ALL_SET_REVEAL_MIN_RESISTANCE_FACTOR
+
+  val hiddenProgress =
+    (scrollValue.toFloat() / allSetScrollTargetPx.toFloat()).coerceIn(0f, 1f)
+
+  return ALL_SET_REVEAL_MIN_RESISTANCE_FACTOR +
+    (
+      ALL_SET_REVEAL_MAX_RESISTANCE_FACTOR -
+        ALL_SET_REVEAL_MIN_RESISTANCE_FACTOR
+    ) * hiddenProgress
+}
+
+internal fun shouldAnimateAllSetPillAutoHide(
+  scrollValue: Int,
+  allSetScrollTargetPx: Int,
+): Boolean = allSetScrollTargetPx > 0 && scrollValue < allSetScrollTargetPx
+
+internal fun shouldTriggerAllSetPillRevealHaptic(
+  shouldRenderAllSetPill: Boolean,
+  allSetScrollTargetPx: Int,
+  scrollValue: Int,
+  hasSeenHiddenAllSetPill: Boolean,
+): Boolean =
+  shouldRenderAllSetPill &&
+    allSetScrollTargetPx > 0 &&
+    hasSeenHiddenAllSetPill &&
+    scrollValue == 0
 
 @Composable
 private fun HubActionSection(
@@ -638,11 +951,9 @@ private fun ActionTile(
       verticalAlignment = Alignment.Top,
       horizontalArrangement = SpaceBetween
     ) {
-      val actionIcon = action.icon()
       Icon(
-        icon = actionIcon,
-        size = IconSize.Regular,
-        tint = actionIcon.iconTint()
+        icon = action.icon(),
+        size = IconSize.Regular
       )
 
       Box(
@@ -687,22 +998,13 @@ private fun SecurityAction.icon(): Icon =
     CRITICAL_ALERTS -> Icon.DotCriticalAlerts
     EEK_BACKUP -> Icon.DotEmergency
     FINGERPRINTS -> Icon.DotFingerprint
-    INHERITANCE -> Icon.SmallIconInheritance
+    INHERITANCE -> Icon.DotInheritance
     APP_KEY_BACKUP -> Icon.DotCloudBackup
     SOCIAL_RECOVERY -> Icon.DotRecoveryContact
     HARDWARE_DEVICE -> Icon.DotBitkey
-    TRANSACTION_VERIFICATION -> Icon.SmallIconShieldCheck
+    TRANSACTION_VERIFICATION -> Icon.ShieldCheck
     KEYSET_SYNC -> Icon.SmallIconWarning
   }
-
-private fun Icon.iconTint(): IconTint? =
-  if (isDotIcon()) {
-    null
-  } else {
-    IconTint.On60
-  }
-
-private fun Icon.isDotIcon(): Boolean = name.startsWith("Dot")
 
 private fun SecurityAction.statusColor(): Color =
   when (state()) {
@@ -739,24 +1041,6 @@ private fun SecurityActionRecommendation.title(): StringResource =
     PAIR_HARDWARE_DEVICE -> Res.string.pair_device_recommendation_title
     ENABLE_TRANSACTION_VERIFICATION -> Res.string.transaction_verification_recommendation_title
     REPAIR_KEYSET_MISMATCH -> Res.string.repair_keyset_mismatch_recommendation_title
-  }
-
-private fun SecurityActionRecommendation.icon(): Icon =
-  when (this) {
-    BACKUP_MOBILE_KEY -> Icon.SmallIconCloud
-    BACKUP_EAK -> Icon.SmallIconRecovery
-    ADD_FINGERPRINTS -> Icon.SmallIconFingerprint
-    COMPLETE_FINGERPRINT_RESET -> Icon.SmallIconFingerprint
-    PROVISION_APP_KEY_TO_HARDWARE -> Icon.SmallIconFingerprint
-    ADD_TRUSTED_CONTACTS -> Icon.SmallIconShieldPerson
-    ENABLE_CRITICAL_ALERTS, ENABLE_SMS_NOTIFICATIONS, ENABLE_EMAIL_NOTIFICATIONS,
-    ENABLE_PUSH_NOTIFICATIONS,
-    -> Icon.SmallIconAnnouncement
-    ADD_BENEFICIARY -> Icon.SmallIconInheritance
-    SETUP_BIOMETRICS -> Icon.SmallIconLock
-    UPDATE_FIRMWARE, PAIR_HARDWARE_DEVICE -> Icon.SmallIconBitkey
-    ENABLE_TRANSACTION_VERIFICATION -> Icon.SmallIconShieldCheck
-    REPAIR_KEYSET_MISMATCH -> Icon.SmallIconWarning
   }
 
 @Snapshot

@@ -83,9 +83,9 @@ class ChooseAccountAccessUiStateMachineImpl(
       softwareWalletIsEnabledFeatureFlag.flagValue()
     }.collectAsState()
 
-    val orphanedKeysState by orphanedKeyDetectionService
-      .orphanedKeysState()
-      .collectAsState()
+    val orphanedKeysState by remember {
+      orphanedKeyDetectionService.orphanedKeysState()
+    }.collectAsState()
 
     val orphanedKeyRecoveryFlag by remember {
       orphanedKeyRecoveryFeatureFlag.flagValue()

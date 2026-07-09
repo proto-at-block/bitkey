@@ -1,8 +1,10 @@
 package build.wallet.statemachine.account.recovery.cloud
 
 import build.wallet.analytics.events.screen.context.CloudEventTrackerScreenIdContext
+import bitkey.account.AccountConfigServiceFake
 import build.wallet.cloud.store.CloudAccountMock
 import build.wallet.cloud.store.CloudStoreAccount
+import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.account.recovery.cloud.google.GoogleSignInModel
@@ -28,8 +30,9 @@ class CloudSignInUiStateMachineImplTests : FunSpec({
 
   val onSignInFailureCalls = turbines.create<Unit>("cannot access cloud calls")
   val onSignedInCalls = turbines.create<CloudStoreAccount>("on signed in calls")
+  val accountConfigService = AccountConfigServiceFake()
 
-  val stateMachine = CloudSignInUiStateMachineImpl(googleSignInStateMachine)
+  val stateMachine = CloudSignInUiStateMachineImpl(googleSignInStateMachine, accountConfigService)
   val props =
     CloudSignInUiProps(
       forceSignOut = false,
@@ -41,6 +44,36 @@ class CloudSignInUiStateMachineImplTests : FunSpec({
       },
       eventTrackerContext = CloudEventTrackerScreenIdContext.ACCOUNT_CREATION
     )
+
+  beforeTest {
+    googleSignInStateMachine.reset()
+    accountConfigService.reset()
+  }
+
+  test("fake cloud sign in - bypasses google sign in") {
+    accountConfigService.setIsCloudStoreFake(true)
+
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<LoadingSuccessBodyModel>()
+
+      onSignedInCalls.awaitItem().shouldBe(CloudStoreAccountFake.MockCloudAccount)
+    }
+  }
+
+  test("fake cloud sign in - uses google sign in for non-test accounts") {
+    accountConfigService.setIsCloudStoreFake(true)
+    accountConfigService.setActiveConfig(
+      accountConfigService.defaultConfig().value.copy(isTestAccount = false)
+    )
+    googleSignInStateMachine.emitModel(GoogleSignInModel.SuccessfullySignedIn(cloudAccount))
+
+    stateMachine.testWithVirtualTime(props) {
+      googleSignInStateMachine.props.forceSignOut.shouldBeFalse()
+      awaitBody<LoadingSuccessBodyModel>()
+
+      onSignedInCalls.awaitItem().shouldBe(cloudAccount)
+    }
+  }
 
   test("google sign in - success") {
     googleSignInStateMachine.emitModel(GoogleSignInModel.SuccessfullySignedIn(cloudAccount))

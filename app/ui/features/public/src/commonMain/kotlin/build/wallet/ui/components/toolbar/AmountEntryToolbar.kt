@@ -55,8 +55,7 @@ internal fun AmountEntryToolbar(
       ) {
         AmountEntryToolbarContent(
           modifier = modifier,
-          model = model,
-          isDesignSystemV2Enabled = true
+          model = model
         )
       }
     }
@@ -83,7 +82,6 @@ internal fun AmountEntryToolbar(
 private fun AmountEntryToolbarContent(
   modifier: Modifier = Modifier,
   model: ToolbarModel,
-  isDesignSystemV2Enabled: Boolean,
 ) {
   Box(
     modifier = modifier
@@ -96,10 +94,7 @@ private fun AmountEntryToolbarContent(
       }
     }
     Box(modifier = Modifier.align(Alignment.Center)) {
-      AmountEntryToolbarMiddleContent(
-        model = model,
-        isDesignSystemV2Enabled = isDesignSystemV2Enabled
-      )
+      AmountEntryToolbarMiddleContent(model = model)
     }
     Box(modifier = Modifier.align(Alignment.CenterEnd)) {
       model.trailingAccessory?.let {
@@ -112,18 +107,17 @@ private fun AmountEntryToolbarContent(
 @Composable
 private fun AmountEntryToolbarMiddleContent(
   model: ToolbarModel,
-  isDesignSystemV2Enabled: Boolean,
 ) {
   model.middleAccessory?.let { middleAccessory ->
     Column(horizontalAlignment = CenterHorizontally) {
       Label(
         text = middleAccessory.title,
-        type = if (isDesignSystemV2Enabled) LabelType.Body2Regular else LabelType.Title2
+        type = LabelType.Body2Regular
       )
       middleAccessory.subtitle?.let {
         Label(
           text = it,
-          type = if (isDesignSystemV2Enabled) LabelType.Body3Regular else LabelType.Title3,
+          type = LabelType.Body3Regular,
           treatment = Secondary
         )
       }

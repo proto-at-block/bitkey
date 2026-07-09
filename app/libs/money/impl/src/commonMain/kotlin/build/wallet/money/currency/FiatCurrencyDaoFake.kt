@@ -11,7 +11,7 @@ class FiatCurrencyDaoFake : FiatCurrencyDao {
   override fun allFiatCurrencies(): Flow<List<FiatCurrency>> = currencies
 
   override fun fiatCurrency(textCode: IsoCurrencyTextCode): Flow<FiatCurrency?> {
-    return currencies.map { it.find { it.textCode == textCode } }
+    return currencies.map { it.find { currency -> currency.textCode == textCode } }
   }
 
   override suspend fun storeFiatCurrencies(fiatCurrencies: List<FiatCurrency>) {

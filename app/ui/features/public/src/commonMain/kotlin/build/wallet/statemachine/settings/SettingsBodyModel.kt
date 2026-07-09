@@ -19,7 +19,6 @@ data class SettingsBodyModel(
     EventTrackerScreenInfo(
       eventTrackerScreenId = SettingsEventTrackerScreenId.SETTINGS
     ),
-  val onSecurityHubCoachmarkClick: (() -> Unit)?,
 ) : BodyModel() {
   data class SectionModel(
     val sectionHeaderTitle: String,

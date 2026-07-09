@@ -65,6 +65,33 @@ class Wallet:
             raise NotImplementedError(f"No role found for MCU: {mcu=}")
         return role
 
+    @staticmethod
+    def role_to_chip_name(product: str, role: int) -> str:
+        """Returns the chip name associated with an MCU role.
+
+        Inverse of :meth:`chip_name_to_role`.
+
+        :param product: the product name.
+        :param role: proto MCU role identifier.
+        :returns: chip name string (e.g. ``"efr32"``, ``"stm32u5"``).
+        :raises NotImplementedError: when no chip is mapped to ``role`` for ``product``.
+        """
+        _product_to_chip_mapping = {
+            "w1": {
+                "efr32": wallet_pb.mcu_role.MCU_ROLE_CORE,
+            },
+            "w3": {
+                "stm32u5": wallet_pb.mcu_role.MCU_ROLE_UXC,
+                "efr32": wallet_pb.mcu_role.MCU_ROLE_CORE,
+            },
+        }
+
+        chip_mapping = _product_to_chip_mapping.get(product.lower(), {})
+        for mcu, mcu_role in chip_mapping.items():
+            if mcu_role == role:
+                return mcu
+        raise NotImplementedError(f"No chip found for role: {role=}")
+
     def fwup_params(self: Wallet, mcu: Optional[str] = "efr32") -> FwupParams:
         """Retrieves the FWUP parameters for the target MCU.
 

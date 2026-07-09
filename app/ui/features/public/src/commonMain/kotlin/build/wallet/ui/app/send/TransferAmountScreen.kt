@@ -66,7 +66,7 @@ import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.currentStyle
-import build.wallet.ui.tokens.market.MarketIcons
+import build.wallet.statemachine.core.Icon
 import kotlinx.coroutines.delay
 
 private const val AMOUNT_SWAP_ANIMATION_DURATION_MS = 180
@@ -110,10 +110,8 @@ fun TransferAmountScreen(
   model: TransferAmountBodyModel,
 ) {
   val horizontalPadding = 20.dp
-  val isDesignSystemV2Enabled = true
   val backgroundColor = amountEntryBackgroundColor()
-  val shouldTriggerInsufficientFundsFeedback =
-    isDesignSystemV2Enabled && model.shouldTriggerContextualErrorFeedback
+  val shouldTriggerInsufficientFundsFeedback = model.shouldTriggerContextualErrorFeedback
   var lastKeypadFeedback by remember { mutableStateOf<AmountEntryKeypadFeedback?>(null) }
   var keypadPressCount by remember { mutableIntStateOf(0) }
   val amountSwapController = rememberAmountSwapController(model)
@@ -127,7 +125,7 @@ fun TransferAmountScreen(
   val amountShakeOffsetPx =
     rememberAmountEntryShakeOffset(
       trigger =
-        if (isDesignSystemV2Enabled && lastKeypadFeedback?.shouldShake == true) {
+        if (lastKeypadFeedback?.shouldShake == true) {
           keypadPressCount
         } else {
           null
@@ -148,101 +146,66 @@ fun TransferAmountScreen(
     },
     mainContent = {
       Spacer(Modifier.weight(1F))
-      if (isDesignSystemV2Enabled) {
-        Box(
-          modifier =
-            Modifier.align(CenterHorizontally)
-              .graphicsLayer { translationX = amountShakeOffsetPx }
-              .padding(horizontal = 20.dp)
-              .thenIf(amountSwapController.activeAmountSwap == null) { Modifier.clipToBounds() }
-        ) {
-          AnimatedHeroAmount(
-            modifier =
-              Modifier.graphicsLayer {
-                alpha = if (amountSwapController.activeAmountSwap != null) 0f else 1f
-              },
-            primaryAmount = model.amountModel.primaryAmount,
-            primaryAmountGhostedSubstringRange = model.amountModel.primaryAmountGhostedSubstringRange,
-            primaryAmountAnimationResetKey = amountSwapController.primaryAmountAnimationResetKey,
-            primaryAmountLabelType = LabelType.Display1,
-            contextLine = model.amountModel.secondaryAmount,
-            contextLineTreatment = model.amountContextLineTreatment,
-            centerWhenDesignSystemV2 = true,
-            disabled = model.amountDisabled,
-            onSwapClick =
-              model.onSwapCurrencyClick?.let { onSwapCurrencyClick ->
-                {
-                  lastKeypadFeedback = null
-                  amountSwapController.prepareForSwap()
-                  onSwapCurrencyClick()
-                }
-              }
-          )
-          amountSwapController.activeAmountSwap?.let { amountSwap ->
-            AnimatedAmountSwap(
-              sourcePrimaryAmount = amountSwap.sourcePrimaryAmount,
-              sourceSecondaryAmount = amountSwap.sourceSecondaryAmount,
-              targetPrimaryAmount = amountSwap.targetPrimaryAmount,
-              targetSecondaryAmount = amountSwap.targetSecondaryAmount,
-              contextLineTreatment = amountSwap.contextLineTreatment,
-              disabled = amountSwap.disabled,
-              showSwapIcon = amountSwap.showSwapIcon,
-              shouldAnimate = amountSwap.shouldAnimate,
-              modifier = Modifier.fillMaxWidth()
-            )
-          }
-        }
-
-        Spacer(Modifier.weight(1F))
-
-        if (model.useSmartBar) {
-          SmartBar(
-            modifier = Modifier
-              .align(CenterHorizontally)
-              .padding(bottom = 16.dp),
-            model = model.cardModel
-          )
-        } else {
-          Spacer(Modifier.height(16.dp))
-        }
-      } else {
-        AnimatedHeroAmount(
-          modifier = Modifier
-            .align(CenterHorizontally)
+      Box(
+        modifier =
+          Modifier.align(CenterHorizontally)
             .graphicsLayer { translationX = amountShakeOffsetPx }
             .padding(horizontal = 20.dp)
-            .clipToBounds(),
+            .thenIf(amountSwapController.activeAmountSwap == null) { Modifier.clipToBounds() }
+      ) {
+        AnimatedHeroAmount(
+          modifier =
+            Modifier.graphicsLayer {
+              alpha = if (amountSwapController.activeAmountSwap != null) 0f else 1f
+            },
           primaryAmount = model.amountModel.primaryAmount,
           primaryAmountGhostedSubstringRange = model.amountModel.primaryAmountGhostedSubstringRange,
           primaryAmountAnimationResetKey = amountSwapController.primaryAmountAnimationResetKey,
           primaryAmountLabelType = LabelType.Display1,
           contextLine = model.amountModel.secondaryAmount,
           contextLineTreatment = model.amountContextLineTreatment,
-          centerWhenDesignSystemV2 = true,
+          centerContent = true,
           disabled = model.amountDisabled,
           onSwapClick =
             model.onSwapCurrencyClick?.let { onSwapCurrencyClick ->
               {
                 lastKeypadFeedback = null
+                amountSwapController.prepareForSwap()
                 onSwapCurrencyClick()
               }
             }
         )
-        Spacer(Modifier.height(16.dp))
-
-        if (model.cardModel != null) {
-          SmartBar(
-            modifier = Modifier.align(CenterHorizontally),
-            model = model.cardModel
+        amountSwapController.activeAmountSwap?.let { amountSwap ->
+          AnimatedAmountSwap(
+            sourcePrimaryAmount = amountSwap.sourcePrimaryAmount,
+            sourceSecondaryAmount = amountSwap.sourceSecondaryAmount,
+            targetPrimaryAmount = amountSwap.targetPrimaryAmount,
+            targetSecondaryAmount = amountSwap.targetSecondaryAmount,
+            contextLineTreatment = amountSwap.contextLineTreatment,
+            disabled = amountSwap.disabled,
+            showSwapIcon = amountSwap.showSwapIcon,
+            shouldAnimate = amountSwap.shouldAnimate,
+            modifier = Modifier.fillMaxWidth()
           )
         }
+      }
 
-        Spacer(Modifier.weight(1F))
+      Spacer(Modifier.weight(1F))
+
+      if (model.useSmartBar) {
+        SmartBar(
+          modifier = Modifier
+            .align(CenterHorizontally)
+            .padding(bottom = 16.dp),
+          model = model.cardModel
+        )
+      } else {
+        Spacer(Modifier.height(16.dp))
       }
 
       Keypad(
         modifier =
-          Modifier.padding(horizontal = if (isDesignSystemV2Enabled) horizontalPadding else 0.dp),
+          Modifier.padding(horizontal = horizontalPadding),
         showDecimal = model.keypadModel.showDecimal,
         hapticsEffectForButtonPress = {
             keypadButton ->
@@ -358,7 +321,7 @@ private fun rememberAmountSwapController(model: TransferAmountBodyModel): Amount
 }
 
 /**
- * Renders the DSV2 fiat/BTC swap overlay.
+ * Renders the fiat/BTC swap overlay.
  *
  * The overlay is intentionally separate from [AnimatedHeroAmount] so we can animate between two
  * different label hierarchies without disturbing the steady-state hero layout.
@@ -422,7 +385,6 @@ private fun AnimatedAmountSwap(
   val secondaryStyle = LabelType.Body1Medium.currentStyle(TextStyle.Default)
   val density = LocalDensity.current
   val textMeasurer = rememberTextMeasurer()
-  val isDesignSystemV2Enabled = true
   val primaryLineHeightDp = with(density) { primaryStyle.lineHeight.toDp() }
   val secondaryLineHeightDp = with(density) { secondaryStyle.lineHeight.toDp() }
   val bottomBaseOffsetPx = with(density) {
@@ -432,8 +394,7 @@ private fun AnimatedAmountSwap(
   val swapIconSizeDp =
     when {
       !showSwapIcon -> 0.dp
-      isDesignSystemV2Enabled -> 20.dp
-      else -> IconSize.Small.value.dp
+      else -> 20.dp
     }
   val swapIconSpacingPx = with(density) { swapIconSpacingDp.toPx() }
   val bottomTargetTextWidthPx = remember(targetSecondaryAmount, secondaryStyle) {
@@ -564,22 +525,14 @@ private fun AnimatedAmountSwap(
               translationX = iconTranslationXPx
             }
       ) {
-        if (isDesignSystemV2Enabled) {
-          IconImage(
-            modifier = Modifier.graphicsLayer { rotationZ = 90f },
-            model = IconModel(
-              icon = MarketIcons.DualRotatingArrows,
-              iconSize = IconSize.Custom(20)
-            ),
-            color = if (disabled) WalletTheme.colors.foreground10 else WalletTheme.colors.foreground60
-          )
-        } else {
-          Icon(
-            icon = build.wallet.statemachine.core.Icon.SmallIconSwap,
-            size = IconSize.Small,
-            color = if (disabled) WalletTheme.colors.foreground10 else WalletTheme.colors.foreground60
-          )
-        }
+        IconImage(
+          modifier = Modifier.graphicsLayer { rotationZ = 90f },
+          model = IconModel(
+            icon = Icon.DualRotatingArrows,
+            iconSize = IconSize.Custom(20)
+          ),
+          color = if (disabled) WalletTheme.colors.foreground10 else WalletTheme.colors.foreground60
+        )
       }
     }
     if (bottomSuffixText != null && bottomSuffixAlpha > 0f) {
@@ -701,19 +654,15 @@ private fun SmartBar(
           )
     ) {
       bannerModel?.let {
-        val isDesignSystemV2Enabled = true
         Card(
           modifier = Modifier.fillMaxHeight(),
           verticalArrangement = Center
         ) {
           CardContent(
             model = it,
-            titleType = if (isDesignSystemV2Enabled) LabelType.Body2Regular else LabelType.Title2,
+            titleType = LabelType.Body2Regular,
             titleTreatment =
-              if (
-                isDesignSystemV2Enabled &&
-                it.titleTreatment == CardModel.TitleTreatment.Destructive
-              ) {
+              if (it.titleTreatment == CardModel.TitleTreatment.Destructive) {
                 LabelTreatment.Destructive
               } else {
                 LabelTreatment.Primary

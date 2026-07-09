@@ -42,7 +42,6 @@ import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.form.FormMainContentModel.TextInput
-import build.wallet.statemachine.core.form.formBodyModel
 import build.wallet.statemachine.dev.analytics.AnalyticsUiStateMachine
 import build.wallet.statemachine.dev.analytics.Props
 import build.wallet.statemachine.dev.cloud.CloudDevOptionsProps
@@ -92,6 +91,7 @@ data object DebugMenuScreen : Screen
 class DebugMenuScreenPresenter(
   private val analyticsUiStateMachine: AnalyticsUiStateMachine,
   private val clipboard: Clipboard,
+  private val debugDataManagementUiStateMachine: DebugDataManagementUiStateMachine,
   private val debugMenuListStateMachine: DebugMenuListStateMachine,
   private val f8eCustomUrlStateMachine: F8eCustomUrlStateMachine,
   @W1 private val w1FakeHardwareKeyStore: FakeHardwareKeyStore,
@@ -281,6 +281,22 @@ class DebugMenuScreenPresenter(
           CloudDevOptionsProps(onExit = { uiState = DebugMenuState.ShowingDebugMenu })
         ).asModalScreen()
 
+      is DebugMenuState.ShowingManualKeyDeletion ->
+        debugDataManagementUiStateMachine.model(
+          DebugDataManagementProps(
+            screen = DebugDataManagementScreen.ManualKeyDeletion,
+            onBack = { uiState = DebugMenuState.ShowingDebugMenu }
+          )
+        ).asModalScreen()
+
+      is DebugMenuState.ShowingRecoveryScenarioPresets ->
+        debugDataManagementUiStateMachine.model(
+          DebugDataManagementProps(
+            screen = DebugDataManagementScreen.RecoveryScenarioPresets,
+            onBack = { uiState = DebugMenuState.ShowingDebugMenu }
+          )
+        ).asModalScreen()
+
       is DebugMenuState.ShowingNetworkingDebugOptions ->
         networkingDebugConfigPickerUiStateMachine.model(
           NetworkingDebugConfigProps(onExit = { uiState = DebugMenuState.ShowingDebugMenu })
@@ -324,23 +340,8 @@ class DebugMenuScreenPresenter(
           ).asModalScreen()
         } else {
           // No firmware update available from memfault
-          formBodyModel(
-            id = null,
-            onBack = { uiState = DebugMenuState.ShowingDebugMenu },
-            toolbar = ToolbarModel(
-              leadingAccessory = BackAccessory(onClick = {
-                uiState = DebugMenuState.ShowingDebugMenu
-              })
-            ),
-            header = FormHeaderModel(
-              headline = "No Firmware Update Available",
-              subline = "No firmware packages are currently served from Memfault for this device. Check that the device info and hardware revision are correct."
-            ),
-            primaryButton = ButtonModel(
-              text = "Back to Debug Menu",
-              size = ButtonModel.Size.Footer,
-              onClick = StandardClick { uiState = DebugMenuState.ShowingDebugMenu }
-            )
+          NoFirmwareUpdateAvailableBodyModel(
+            onBack = { uiState = DebugMenuState.ShowingDebugMenu }
           ).asModalScreen()
         }
       }
@@ -529,15 +530,15 @@ class DebugMenuScreenPresenter(
     }
   }
 
-  private sealed class VerifyMetadataSubState {
-    data object ClearingStaleData : VerifyMetadataSubState()
+  private sealed interface VerifyMetadataSubState {
+    data object ClearingStaleData : VerifyMetadataSubState
 
-    data object ReadingNfcMetadata : VerifyMetadataSubState()
+    data object ReadingNfcMetadata : VerifyMetadataSubState
 
     data class SavingAndSyncing(
       val deviceInfo: FirmwareDeviceInfo,
       val metadata: FirmwareMetadata,
-    ) : VerifyMetadataSubState()
+    ) : VerifyMetadataSubState
   }
 }
 
@@ -553,6 +554,10 @@ sealed interface DebugMenuState {
   data object ShowingNetworkingDebugOptions : DebugMenuState
 
   data object ShowingCloudStorageDebugOptions : DebugMenuState
+
+  data object ShowingManualKeyDeletion : DebugMenuState
+
+  data object ShowingRecoveryScenarioPresets : DebugMenuState
 
   data object ShowingAnalytics : DebugMenuState
 
@@ -623,16 +628,75 @@ private fun MockSeedInputBodyModel(
   mockScenarioService: MockScenarioService,
   onBack: () -> Unit,
 ): ScreenModel {
-  val coroutineScope = rememberCoroutineScope()
+  val coroutineScope = rememberStableCoroutineScope()
   var currentConfig by remember { mutableStateOf<MockConfiguration?>(null) }
   var seedInput by remember { mutableStateOf("") }
 
   LaunchedEffect(Unit) {
     currentConfig = mockScenarioService.currentMockConfiguration()
-    seedInput = currentConfig?.seed?.toString() ?: ""
+    seedInput = currentConfig?.seed?.toString().orEmpty()
   }
 
-  return formBodyModel(
+  return MockSeedInputFormBodyModel(
+    currentConfig = currentConfig,
+    seedInput = seedInput,
+    onSeedInputChanged = { seedInput = it },
+    onApplyCustomSeed = {
+      coroutineScope.launch {
+        try {
+          val seed = seedInput.toLong()
+          val newConfig =
+            currentConfig?.copy(seed = seed, generatedAt = Clock.System.now())
+              ?: MockConfiguration(
+                priceScenario = MockPriceScenario.SIDEWAYS_MARKET,
+                transactionScenario = MockTransactionScenario.CASUAL_USER,
+                dataQuality = DataQuality.Perfect,
+                seed = seed,
+                generatedAt = Clock.System.now()
+              )
+          mockScenarioService.setConfiguration(newConfig)
+          onBack()
+        } catch (e: NumberFormatException) {
+          // NOOP
+        }
+      }
+    },
+    onRotateSeed = {
+      coroutineScope.launch {
+        mockScenarioService.rotateSeed()
+        onBack()
+      }
+    },
+    onBack = onBack
+  ).asModalScreen()
+}
+
+private data class NoFirmwareUpdateAvailableBodyModel(
+  override val onBack: () -> Unit,
+) : FormBodyModel(
+    id = null,
+    onBack = onBack,
+    toolbar = ToolbarModel(leadingAccessory = BackAccessory(onClick = onBack)),
+    header = FormHeaderModel(
+      headline = "No Firmware Update Available",
+      subline = "No firmware packages are currently served from Memfault for this device. " +
+        "Check that the device info and hardware revision are correct."
+    ),
+    primaryButton = ButtonModel(
+      text = "Back to Debug Menu",
+      size = ButtonModel.Size.Footer,
+      onClick = StandardClick(onBack)
+    )
+  )
+
+private data class MockSeedInputFormBodyModel(
+  val currentConfig: MockConfiguration?,
+  val seedInput: String,
+  val onSeedInputChanged: (String) -> Unit,
+  val onApplyCustomSeed: () -> Unit,
+  val onRotateSeed: () -> Unit,
+  override val onBack: () -> Unit,
+) : FormBodyModel(
     id = null,
     onBack = onBack,
     toolbar = ToolbarModel(leadingAccessory = BackAccessory(onClick = onBack)),
@@ -648,7 +712,7 @@ private fun MockSeedInputBodyModel(
         fieldModel = TextFieldModel(
           value = seedInput,
           placeholderText = "Enter numeric seed (e.g., 12345)",
-          onValueChange = { newValue, _ -> seedInput = newValue },
+          onValueChange = { newValue, _ -> onSeedInputChanged(newValue) },
           keyboardType = TextFieldModel.KeyboardType.Number,
           testTag = "debug-mock-seed-custom-input"
         )
@@ -657,44 +721,14 @@ private fun MockSeedInputBodyModel(
     primaryButton = ButtonModel(
       text = "Apply Custom Seed",
       size = ButtonModel.Size.Footer,
-      onClick = StandardClick {
-        coroutineScope.launch {
-          try {
-            val seed = seedInput.toLong()
-            val config = currentConfig
-            if (config != null) {
-              val newConfig = config.copy(seed = seed, generatedAt = Clock.System.now())
-              mockScenarioService.setConfiguration(newConfig)
-            } else {
-              // Default to sideways market and casual user if no config
-              val newConfig = MockConfiguration(
-                priceScenario = MockPriceScenario.SIDEWAYS_MARKET,
-                transactionScenario = MockTransactionScenario.CASUAL_USER,
-                dataQuality = DataQuality.Perfect,
-                seed = seed,
-                generatedAt = Clock.System.now()
-              )
-              mockScenarioService.setConfiguration(newConfig)
-            }
-            onBack()
-          } catch (e: NumberFormatException) {
-            // NOOP
-          }
-        }
-      }
+      onClick = StandardClick(onApplyCustomSeed)
     ),
     secondaryButton = ButtonModel(
       text = "Rotate Seed",
       size = ButtonModel.Size.Footer,
-      onClick = StandardClick {
-        coroutineScope.launch {
-          mockScenarioService.rotateSeed()
-          onBack()
-        }
-      }
+      onClick = StandardClick(onRotateSeed)
     )
-  ).asModalScreen()
-}
+  )
 
 /**
  * Body model for the Fake Hardware Seed screen in the debug menu.
@@ -814,8 +848,15 @@ private fun FirmwareUpdateDetailsBodyModel(
     ListItemModel(
       title = "${mcuUpdate.mcuRole.name} (${mcuUpdate.mcuName.name}) [$slotPath]",
       secondaryText = "$currentVersion → ${mcuUpdate.version} | ${mcuUpdate.fwupMode.name} | ${formatBytes(mcuUpdate.firmware.size)}",
-      trailingAccessory = ListItemAccessory.CheckAccessory(
-        isChecked = index in selectedIndices
+      trailingAccessory = ListItemAccessory.CheckboxAccessory(
+        isChecked = index in selectedIndices,
+        onClick = {
+          selectedIndices = if (index in selectedIndices) {
+            selectedIndices - index
+          } else {
+            selectedIndices + index
+          }
+        }
       ),
       onClick = {
         selectedIndices = if (index in selectedIndices) {
@@ -839,57 +880,70 @@ private fun FirmwareUpdateDetailsBodyModel(
         sideText = info.serial
       )
     )
-  } ?: emptyList()
+  }.orEmpty()
 
   val hasSelection = selectedIndices.isNotEmpty()
 
-  return formBodyModel(
+  return FirmwareUpdateDetailsFormBodyModel(
+    selectedCount = selectedIndices.size,
+    mcuUpdateCount = mcuUpdates.size,
+    deviceInfoItems = deviceInfoItems,
+    mcuListItems = mcuListItems,
+    hasSelection = hasSelection,
+    onContinue = {
+      val selectedMcuUpdates = mcuUpdates.filterIndexed { index, _ -> index in selectedIndices }
+      onContinue(
+        FirmwareData.FirmwareUpdateState.PendingUpdate(
+          mcuUpdates = selectedMcuUpdates.toImmutableList()
+        )
+      )
+    },
+    onBack = onBack
+  )
+}
+
+private data class FirmwareUpdateDetailsFormBodyModel(
+  val selectedCount: Int,
+  val mcuUpdateCount: Int,
+  val deviceInfoItems: List<DataList.Data>,
+  val mcuListItems: List<ListItemModel>,
+  val hasSelection: Boolean,
+  val onContinue: () -> Unit,
+  override val onBack: () -> Unit,
+) : FormBodyModel(
     id = null,
     onBack = onBack,
     toolbar = ToolbarModel(leadingAccessory = BackAccessory(onClick = onBack)),
     header = FormHeaderModel(
       headline = "Firmware Update Details",
-      subline = "Select the MCUs to update.\n${selectedIndices.size} of ${mcuUpdates.size} selected"
+      subline = "Select the MCUs to update.\n$selectedCount of $mcuUpdateCount selected"
     ),
     mainContentList = if (deviceInfoItems.isNotEmpty()) {
       immutableListOf(
         DataList(
           items = deviceInfoItems.toImmutableList()
         ),
-        FormMainContentModel.ListGroup(
-          listGroupModel = ListGroupModel(
-            header = "MCU Updates",
-            items = mcuListItems.toImmutableList(),
-            style = ListGroupStyle.DIVIDER
-          )
-        )
+        mcuUpdatesListGroup(mcuListItems)
       )
     } else {
-      immutableListOf(
-        FormMainContentModel.ListGroup(
-          listGroupModel = ListGroupModel(
-            header = "MCU Updates",
-            items = mcuListItems.toImmutableList(),
-            style = ListGroupStyle.DIVIDER
-          )
-        )
-      )
+      immutableListOf(mcuUpdatesListGroup(mcuListItems))
     },
     primaryButton = ButtonModel(
       text = "Continue with Update",
       isEnabled = hasSelection,
       size = ButtonModel.Size.Footer,
-      onClick = StandardClick {
-        val selectedMcuUpdates = mcuUpdates.filterIndexed { index, _ -> index in selectedIndices }
-        onContinue(
-          FirmwareData.FirmwareUpdateState.PendingUpdate(
-            mcuUpdates = selectedMcuUpdates.toImmutableList()
-          )
-        )
-      }
+      onClick = StandardClick(onContinue)
     )
   )
-}
+
+private fun mcuUpdatesListGroup(mcuListItems: List<ListItemModel>) =
+  FormMainContentModel.ListGroup(
+    listGroupModel = ListGroupModel(
+      header = "MCU Updates",
+      items = mcuListItems.toImmutableList(),
+      style = ListGroupStyle.DIVIDER
+    )
+  )
 
 private fun formatBytes(bytes: Int): String {
   return when {

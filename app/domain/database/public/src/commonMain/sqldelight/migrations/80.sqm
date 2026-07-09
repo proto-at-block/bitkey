@@ -1,0 +1,3 @@
+ALTER TABLE defaultAccountConfigEntity ADD COLUMN fakeCloudStore INTEGER NOT NULL DEFAULT 0;
+
+PRAGMA foreign_key_check;

@@ -70,16 +70,16 @@ interface MobilePayService {
 /**
  * Status of the daily spending limit based on the days sent transactions
  */
-sealed class DailySpendingLimitStatus {
+sealed interface DailySpendingLimitStatus {
   /**
    * The status is RequiresHardware if there is no spending limit, or the days sent transactions with
    * the current transaction are above the active limit
    */
-  data object RequiresHardware : DailySpendingLimitStatus()
+  data object RequiresHardware : DailySpendingLimitStatus
 
   /**
    * The status is Mobile Pay Available if the days sent transactions with the current transaction
    * are above the below limit
    */
-  data object MobilePayAvailable : DailySpendingLimitStatus()
+  data object MobilePayAvailable : DailySpendingLimitStatus
 }

@@ -1,6 +1,12 @@
 package build.wallet.statemachine.sweep
 
 import app.cash.turbine.plusAssign
+import bitkey.f8e.privilegedactions.AuthorizationStrategy
+import bitkey.f8e.privilegedactions.AuthorizationStrategyType
+import bitkey.f8e.privilegedactions.PrivilegedActionInstance
+import bitkey.f8e.privilegedactions.PrivilegedActionType
+import bitkey.privilegedaction.OutOfBandPrivilegedActionInstanceFake
+import bitkey.privilegedactions.HardwareVerificationPrivilegedActionServiceFake
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.InactiveWalletSweepEventTrackerScreenId
@@ -58,7 +64,17 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 
+// Large end-to-end coverage for the sweep flow; splitting would hurt cohesion.
+@Suppress("LargeClass")
 class SweepUiStateMachineImplTests : FunSpec({
+  val verifyHardwareSerialPrivilegedActionInstanceFake = PrivilegedActionInstance(
+    id = "fake-verify-hardware-serial-pa-id",
+    privilegedActionType = PrivilegedActionType.VERIFY_HARDWARE_SERIAL,
+    authorizationStrategy = AuthorizationStrategy.OutOfBand(
+      authorizationStrategyType = AuthorizationStrategyType.OUT_OF_BAND
+    )
+  )
+
   val onExitCalls = turbines.create<Unit>("exit calls")
   val onExitCallback = { onExitCalls += Unit }
   val onRetryCalls = turbines.create<Unit>("retry calls")
@@ -84,6 +100,7 @@ class SweepUiStateMachineImplTests : FunSpec({
       GeneratingPsbtsData
     ) {}
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
+  val hardwareVerificationPrivilegedActionService = HardwareVerificationPrivilegedActionServiceFake()
   val sweepSigningContextBuilder = object : SweepSigningContextBuilder {
     override fun buildFor(
       oldKeyset: SpendingKeyset,
@@ -91,6 +108,7 @@ class SweepUiStateMachineImplTests : FunSpec({
     ): SweepSigningContext? = null
   }
   val sweepStateMachine = SweepUiStateMachineImpl(
+    hardwareVerificationPrivilegedActionService,
     signTransactionNfcSessionUiStateMachine,
     moneyAmountUiStateMachine,
     fiatCurrencyPreferenceRepository,
@@ -111,6 +129,8 @@ class SweepUiStateMachineImplTests : FunSpec({
   beforeTest {
     fiatCurrencyPreferenceRepository.reset()
     sweepDataStateMachine.reset()
+    hardwareVerificationPrivilegedActionService.pendingHardwareVerificationAction = null
+    hardwareVerificationPrivilegedActionService.getPendingHardwareVerificationActionResult = null
   }
 
   test("no funds found") {
@@ -138,9 +158,9 @@ class SweepUiStateMachineImplTests : FunSpec({
       sweepDataStateMachine.emitModel(NoFundsFoundData(proceed = {}))
       awaitBody<FormBodyModel> {
         id shouldBe WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_ZERO_BALANCE
-        header.shouldNotBeNull().headline.shouldBe("No funds found")
-        designSystemV2Model?.eyebrow.shouldBe("Step 4 of 4")
-        designSystemV2Model?.title.shouldBe("No funds found")
+        header.shouldNotBeNull().headline.shouldBeNull()
+        formScreenTitle.shouldNotBeNull().eyebrow.shouldBe("Step 4 of 4")
+        formScreenTitle.shouldNotBeNull().title.shouldBe("No funds found")
       }
     }
   }
@@ -175,6 +195,68 @@ class SweepUiStateMachineImplTests : FunSpec({
         onBack!!()
       }
       onExitCalls.awaitItem()
+    }
+  }
+
+  test("hardware verification required shows informational screen") {
+    // Keep a pending action so polling does not immediately dismiss the screen
+    hardwareVerificationPrivilegedActionService.pendingHardwareVerificationAction =
+      verifyHardwareSerialPrivilegedActionInstanceFake
+
+    sweepStateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+      sweepDataStateMachine.emitModel(
+        HardwareVerificationRequiredData(
+          privilegedActionInstance = OutOfBandPrivilegedActionInstanceFake,
+          dismiss = onRetryCallback
+        )
+      )
+      awaitBody<LoadingSuccessBodyModel> {
+        id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_HARDWARE_VERIFICATION_REQUIRED
+        message.shouldBe("Waiting for verification...")
+        primaryButton.shouldNotBeNull().text.shouldBe("Resend email")
+        secondaryButton.shouldBeNull()
+      }
+    }
+  }
+
+  test("hardware verification required dismisses when polling detects no pending action") {
+    // pendingHardwareVerificationAction defaults to null, so the first poll resolves the action
+    // (whether by Confirm, Cancel, or exhaustion) and dismisses back to the sweep flow.
+    sweepStateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+      sweepDataStateMachine.emitModel(
+        HardwareVerificationRequiredData(
+          privilegedActionInstance = OutOfBandPrivilegedActionInstanceFake,
+          dismiss = onRetryCallback
+        )
+      )
+      awaitBody<LoadingSuccessBodyModel> {
+        message.shouldBe("Waiting for verification...")
+      }
+      // Polling sees no pending action and invokes dismiss (onRetryCallback)
+      onRetryCalls.awaitItem()
+    }
+  }
+
+  test("existing pending hardware verification locks sweep on entry") {
+    hardwareVerificationPrivilegedActionService.pendingHardwareVerificationAction =
+      verifyHardwareSerialPrivilegedActionInstanceFake
+
+    sweepStateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+      awaitBody<LoadingSuccessBodyModel> {
+        id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_HARDWARE_VERIFICATION_REQUIRED
+        message.shouldBe("Waiting for verification...")
+        primaryButton.shouldNotBeNull().text.shouldBe("Resend email")
+        secondaryButton.shouldBeNull()
+      }
     }
   }
 
@@ -254,7 +336,9 @@ class SweepUiStateMachineImplTests : FunSpec({
       val totalFeeAmount =
         PsbtMock.fee.amount + PsbtMock.fee.amount
       val totalTransferAmount = PsbtMock.amountBtc + PsbtMock.amountBtc
-      val needsHwSign = sweepPsbts.take(1).toSet()
+      val needsHwSign = sweepPsbts
+        .filter { it.signaturePlan.requiresHardwareSignature }
+        .toSet()
       sweepDataStateMachine.emitModel(
         PsbtsGeneratedData(
           totalFeeAmount,
@@ -410,6 +494,7 @@ class SweepUiStateMachineImplTests : FunSpec({
         skipPairingCheck shouldBe true
         skipFirmwareTelemetry shouldBe true
         hardwareTypeOverride shouldBe bitkey.account.HardwareType.W1
+        requiredHardwareType shouldBe bitkey.account.HardwareType.W1
       }
     }
   }
@@ -436,7 +521,9 @@ class SweepUiStateMachineImplTests : FunSpec({
       val totalFeeAmount =
         PsbtMock.fee.amount + PsbtMock.fee.amount
       val totalTransferAmount = PsbtMock.amountBtc + PsbtMock.amountBtc
-      val needsHwSign = sweepPsbts.take(1).toSet()
+      val needsHwSign = sweepPsbts
+        .filter { it.signaturePlan.requiresHardwareSignature }
+        .toSet()
       sweepDataStateMachine.emitModel(
         PsbtsGeneratedData(
           totalFeeAmount,

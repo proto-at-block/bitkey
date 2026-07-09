@@ -12,8 +12,10 @@ import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.core.BodyModel
+import build.wallet.statemachine.core.form.FormMainContentVerticalAlignment
+import build.wallet.statemachine.core.form.FormScreenLayoutModel
+import build.wallet.statemachine.core.form.FormScreenTitleModel
 import build.wallet.ui.app.core.form.FormScreen
-import build.wallet.ui.app.core.form.FormScreenContentVerticalAlignment
 import build.wallet.ui.components.switch.SwitchCard
 import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.model.switch.SwitchCardModel
@@ -87,9 +89,11 @@ internal data class TxVerificationPolicyStateModel(
           )
         )
       },
-      designSystemV2Title = "Transaction verification",
-      designSystemV2Scrollable = false,
-      designSystemV2MainContentAlignment = FormScreenContentVerticalAlignment.Bottom,
+      screenTitle = FormScreenTitleModel(title = "Transaction verification"),
+      layout = FormScreenLayoutModel.LargeTitle(
+        scrollable = false,
+        mainContentVerticalAlignment = FormMainContentVerticalAlignment.BOTTOM
+      ),
       mainContent = {
         SwitchCard(model = switchCardModel)
       }

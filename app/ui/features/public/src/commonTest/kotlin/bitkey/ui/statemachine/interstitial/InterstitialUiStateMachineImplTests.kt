@@ -1,10 +1,10 @@
 package bitkey.ui.statemachine.interstitial
 
 import bitkey.account.HardwareType.W1
-import build.wallet.bitkey.keybox.FullAccountMock
-import build.wallet.bitkey.keybox.FullAccountW3Mock
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.bitkey.keybox.FullAccountW3Mock
 import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.coachmark.CoachmarkServiceMock
 import build.wallet.coroutines.turbine.awaitUntil
@@ -50,14 +50,13 @@ class InterstitialUiStateMachineImplTests : FunSpec({
 
   fun stateMachine(
     wipeEligibilityService: DeviceWipeEligibilityService = deviceWipeEligibilityService,
-  ) =
-    InterstitialUiStateMachineImpl(
-      inheritanceUpsellService = inheritanceUpsellService,
-      coachmarkService = coachmarkService,
-      inAppBrowserNavigator = inAppBrowserNavigator,
-      deviceWipeEligibilityService = wipeEligibilityService,
-      wipingDeviceUiStateMachine = wipingDeviceUiStateMachine
-    )
+  ) = InterstitialUiStateMachineImpl(
+    inheritanceUpsellService = inheritanceUpsellService,
+    coachmarkService = coachmarkService,
+    inAppBrowserNavigator = inAppBrowserNavigator,
+    deviceWipeEligibilityService = wipeEligibilityService,
+    wipingDeviceUiStateMachine = wipingDeviceUiStateMachine
+  )
 
   val props = InterstitialUiProps(
     account = FullAccountMock,
@@ -128,6 +127,8 @@ class InterstitialUiStateMachineImplTests : FunSpec({
 
   test("W3 upgrade blocker does not show for W3 accounts") {
     coachmarkService.defaultCoachmarks = listOf(CoachmarkIdentifier.W3UpgradeBlockerCoachmark)
+
+    // Suppress inheritance upsell so it can't race into the emissions and cause flakes.
     inheritanceUpsellService.markUpsellAsSeen()
 
     val w3Props = InterstitialUiProps(
@@ -143,6 +144,8 @@ class InterstitialUiStateMachineImplTests : FunSpec({
 
   test("W3 upgrade blocker does not show when coming from onboarding") {
     coachmarkService.defaultCoachmarks = listOf(CoachmarkIdentifier.W3UpgradeBlockerCoachmark)
+    // Suppress inheritance upsell so it can't race into the emissions and cause flakes.
+    inheritanceUpsellService.markUpsellAsSeen()
 
     val onboardingProps = InterstitialUiProps(
       account = FullAccountMock,

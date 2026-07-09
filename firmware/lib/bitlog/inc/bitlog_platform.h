@@ -19,18 +19,18 @@ typedef struct PACKED {
 
 #else
 #if defined(__arm__)
-#define __GET_PC()                \
-  ({                              \
-    void* pc;                     \
-    asm("mov %0, pc" : "=r"(pc)); \
-    pc;                           \
+#define __GET_PC()                             \
+  ({                                           \
+    void* pc;                                  \
+    __asm__ volatile("mov %0, pc" : "=r"(pc)); \
+    pc;                                        \
   })
 #elif defined(__arm64__) || defined(__aarch64__)
-#define __GET_PC()               \
-  ({                             \
-    void* pc;                    \
-    asm("adr %0, ." : "=r"(pc)); \
-    pc;                          \
+#define __GET_PC()                            \
+  ({                                          \
+    void* pc;                                 \
+    __asm__ volatile("adr %0, ." : "=r"(pc)); \
+    pc;                                       \
   })
 #elif defined(__x86_64__)
 #define __GET_PC()                                   \

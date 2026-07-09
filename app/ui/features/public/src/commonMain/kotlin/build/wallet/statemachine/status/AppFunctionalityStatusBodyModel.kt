@@ -32,7 +32,7 @@ data class AppFunctionalityStatusBodyModel(
     onBack = onClose,
     toolbar = ToolbarModel(leadingAccessory = CloseAccessory(onClose)),
     header = FormHeaderModel(
-      icon = Icon.LargeIconNetworkError,
+      icon = Icon.NetworkError,
       headline = when (cause) {
         is F8eUnreachable -> "We’re having trouble reaching Bitkey services."
         is InternetUnreachable -> "It looks like you’re offline."
@@ -112,7 +112,7 @@ private fun FunctionalityFeatureStates.FeatureState.listItemModel(
     trailingAccessory =
       when (this) {
         is Available -> listItemStatusAccessory(Icon.SmallIconCheckFilled, IconTint.Green)
-        is Unavailable -> listItemStatusAccessory(Icon.SmallIconMinusFilled, IconTint.Destructive)
+        is Unavailable -> listItemStatusAccessory(Icon.MinusFilled, IconTint.Destructive)
         is OutOfDate -> listItemStatusAccessory(Icon.SmallIconWarningFilled, IconTint.OutOfDate)
       }
   )

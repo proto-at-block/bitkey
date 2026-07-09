@@ -3,6 +3,7 @@ package build.wallet.statemachine.settings.full.electrum
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.CustomElectrumServerEventTrackerScreenId
 import build.wallet.bitcoin.sync.ElectrumReachability
+import build.wallet.bitcoin.sync.ElectrumReachability.ElectrumReachabilityError
 import build.wallet.bitcoin.sync.ElectrumReachability.ElectrumReachabilityError.IncompatibleNetwork
 import build.wallet.bitcoin.sync.ElectrumReachability.ElectrumReachabilityError.Unreachable
 import build.wallet.bitcoin.sync.ElectrumServer.Custom
@@ -12,6 +13,7 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.root.ActionSuccessDuration
+import build.wallet.statemachine.settings.SettingsAppSegment
 import com.github.michaelbull.result.mapBoth
 import kotlinx.coroutines.delay
 
@@ -26,8 +28,8 @@ class SetElectrumServerUiStateMachineImpl(
     var state: State by remember {
       mutableStateOf(State.DefiningElectrumServerUiState(props.currentElectrumServerDetails))
     }
-    var hostString by remember { mutableStateOf(props.currentElectrumServerDetails?.host ?: "") }
-    var portString by remember { mutableStateOf(props.currentElectrumServerDetails?.port ?: "") }
+    var hostString by remember { mutableStateOf(props.currentElectrumServerDetails?.host.orEmpty()) }
+    var portString by remember { mutableStateOf(props.currentElectrumServerDetails?.port.orEmpty()) }
 
     val electrumServerDetails by remember(hostString, portString) {
       derivedStateOf { ElectrumServerDetails(hostString, portString) }
@@ -61,13 +63,7 @@ class SetElectrumServerUiStateMachineImpl(
                 state = State.ElectrumServerIsSetUiState
               },
               failure = { error ->
-                state =
-                  when (error) {
-                    is IncompatibleNetwork ->
-                      State.SaveElectrumServerBadNetworkUiState(currentState.serverDetails)
-
-                    is Unreachable -> State.SaveElectrumServerFailedUiState(currentState.serverDetails)
-                  }
+                state = State.SaveElectrumServerFailedUiState(currentState.serverDetails, error)
               }
             )
         }
@@ -91,8 +87,8 @@ class SetElectrumServerUiStateMachineImpl(
 
       is State.SaveElectrumServerFailedUiState ->
         ErrorFormBodyModel(
-          title = "Unable to contact Electrum server",
-          subline = "Check your server host and port and try again.",
+          title = currentState.error.errorTitle,
+          subline = currentState.error.errorSubline,
           primaryButton =
             ButtonDataModel(
               text = "Done",
@@ -100,20 +96,11 @@ class SetElectrumServerUiStateMachineImpl(
                 state = State.DefiningElectrumServerUiState(currentState.serverDetails)
               }
             ),
-          eventTrackerScreenId = CustomElectrumServerEventTrackerScreenId.CUSTOM_ELECTRUM_SERVER_UPDATE_ERROR
-        ).asModalScreen()
-
-      is State.SaveElectrumServerBadNetworkUiState ->
-        ErrorFormBodyModel(
-          title = "Incompatible Electrum server",
-          subline = "Check your server host and port and try again.",
-          primaryButton =
-            ButtonDataModel(
-              text = "Done",
-              onClick = {
-                state = State.DefiningElectrumServerUiState(currentState.serverDetails)
-              }
-            ),
+          errorData = ErrorData(
+            segment = SettingsAppSegment.Electrum,
+            actionDescription = "Saving custom Electrum server",
+            cause = currentState.error
+          ),
           eventTrackerScreenId = CustomElectrumServerEventTrackerScreenId.CUSTOM_ELECTRUM_SERVER_UPDATE_ERROR
         ).asModalScreen()
     }
@@ -149,14 +136,25 @@ class SetElectrumServerUiStateMachineImpl(
      */
     data class SaveElectrumServerFailedUiState(
       val serverDetails: ElectrumServerDetails,
-    ) : State
-
-    /**
-     * Shown when we try and connect to an Electrum endpoint that isn't serving the active keybox's
-     * bitcoin network.
-     */
-    data class SaveElectrumServerBadNetworkUiState(
-      val serverDetails: ElectrumServerDetails,
+      val error: ElectrumReachabilityError,
     ) : State
   }
 }
+
+private val ElectrumReachabilityError.errorTitle: String
+  get() =
+    when (this) {
+      is IncompatibleNetwork -> "Incompatible Electrum server"
+      is Unreachable -> "Unable to contact Electrum server"
+    }
+
+private val ElectrumReachabilityError.errorSubline: String
+  get() =
+    when (this) {
+      is IncompatibleNetwork -> INCOMPATIBLE_NETWORK_ERROR_SUBLINE
+      is Unreachable -> "Check your server host and port and try again."
+    }
+
+private const val INCOMPATIBLE_NETWORK_ERROR_SUBLINE =
+  "This Electrum server is connected to a different Bitcoin network. " +
+    "Check the server network and try again."

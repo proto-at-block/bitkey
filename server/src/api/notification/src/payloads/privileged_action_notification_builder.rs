@@ -44,6 +44,16 @@ impl From<PrivilegedActionType> for OutOfBandNotificationConfig {
                     },
                 }
             }
+            PrivilegedActionType::VerifyHardwareSerial => OutOfBandNotificationConfig {
+                // Shared with other OOB actions; the page handler
+                // dispatches on the action type.
+                url_path: "/privileged-action",
+                campaign_types: CampaignType {
+                    pending: IterableCampaignType::HardwareSerialVerificationPending,
+                    completed: IterableCampaignType::HardwareSerialVerificationCompleted,
+                    canceled: IterableCampaignType::HardwareSerialVerificationCanceled,
+                },
+            },
             _ => {
                 panic!("Unsupported action type: {:?}", action_type)
             }

@@ -10,14 +10,14 @@ import build.wallet.bitcoin.balance.BitcoinBalanceFake
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.FullAccountW3Mock
-import build.wallet.device.wipe.DeviceWipeEligibility.InactiveHasFunds
-import build.wallet.device.wipe.DeviceWipeEligibility.InactiveReady
+import build.wallet.coroutines.turbine.turbines
 import build.wallet.device.wipe.DeviceWipeEligibility.ActiveHasFunds
 import build.wallet.device.wipe.DeviceWipeEligibility.ActiveReady
+import build.wallet.device.wipe.DeviceWipeEligibility.InactiveHasFunds
+import build.wallet.device.wipe.DeviceWipeEligibility.InactiveReady
 import build.wallet.device.wipe.DeviceWipeEligibilityError
 import build.wallet.device.wipe.DeviceWipeEligibilityServiceFake
 import build.wallet.device.wipe.InactiveHardwareDevice
-import build.wallet.coroutines.turbine.turbines
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FirmwareDeviceInfoMock
 import build.wallet.limit.MobilePayServiceMock
@@ -25,6 +25,7 @@ import build.wallet.money.BitcoinMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
+import build.wallet.nfc.HwSpendingKeyResult
 import build.wallet.nfc.NfcCommandsMock
 import build.wallet.nfc.NfcException
 import build.wallet.nfc.NfcSession
@@ -79,9 +80,10 @@ class WipingDeviceIntroUiStateMachineImplTests : FunSpec({
     fullAccount = FullAccountMock
   )
 
-  fun nfcCommandsMock(id: String) = NfcCommandsMock { name ->
-    Turbine(name = "$id $name")
-  }
+  fun nfcCommandsMock(id: String) =
+    NfcCommandsMock { name ->
+      Turbine(name = "$id $name")
+    }
 
   beforeTest {
     deviceWipeEligibilityService.reset()
@@ -551,9 +553,9 @@ private fun nfcCommandsWithInitialSpendingKeyError(
   initialSpendingKeyError: NfcException,
   enrolledFingerprintsError: NfcException? = null,
 ) = object : NfcCommandsMock({ name ->
-    Turbine(name = "$id $name")
-  }) {
-  override suspend fun getInitialSpendingKey(
+  Turbine(name = "$id $name")
+}) {
+  override suspend fun getInitialSpendingPublicKey(
     session: NfcSession,
     network: BitcoinNetworkType,
   ): HwSpendingPublicKey {
@@ -566,9 +568,8 @@ private fun nfcCommandsWithInitialSpendingKeyError(
   }
 }
 
-private fun inactiveW1Device(
-  hardwareFingerprint: String,
-) = InactiveHardwareDevice(
-  hardwareType = W1,
-  hardwareFingerprint = hardwareFingerprint
-)
+private fun inactiveW1Device(hardwareFingerprint: String) =
+  InactiveHardwareDevice(
+    hardwareType = W1,
+    hardwareFingerprint = hardwareFingerprint
+  )

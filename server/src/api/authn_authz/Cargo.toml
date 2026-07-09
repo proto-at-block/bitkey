@@ -29,8 +29,10 @@ wsm-rust-client = { workspace = true }
 
 # path dependencies
 account = { workspace = true }
+authn_authz_utils = { workspace = true }
 bdk_utils = { workspace = true }
 errors = { workspace = true }
+experimentation = { workspace = true }
 feature_flags = { workspace = true }
 http_server = { workspace = true }
 instrumentation = { workspace = true }

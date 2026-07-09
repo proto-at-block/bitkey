@@ -4,15 +4,12 @@ import app.cash.turbine.plusAssign
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FingerprintHandle
-import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitSheet
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.clickSecondaryButton
-import build.wallet.ui.model.icon.IconImage.LocalImage
-import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -59,7 +56,7 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
           .shouldBeInstanceOf<FormMainContentModel.TextInput>()
           .fieldModel.value.shouldBe("Right index")
 
-        clickSecondaryButton()
+        clickPrimaryButton()
       }
 
       // The updated fingerprint handle should be emitted to onSave
@@ -72,7 +69,7 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       // Click Delete fingerprint
       awaitSheet<FormBodyModel> {
-        clickPrimaryButton()
+        clickSecondaryButton()
       }
 
       // Confirm deletion
@@ -91,10 +88,10 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
       // Click Delete fingerprint
       awaitSheet<FormBodyModel> {
         primaryButton.shouldNotBeNull()
-          .text.shouldBe("Delete fingerprint")
-        secondaryButton.shouldNotBeNull()
           .text.shouldBe("Save fingerprint")
-        clickPrimaryButton()
+        secondaryButton.shouldNotBeNull()
+          .text.shouldBe("Delete fingerprint")
+        clickSecondaryButton()
       }
 
       // Cancel the deletion
@@ -108,7 +105,8 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
 
       // Should go back to the first editing screen
       awaitSheet<FormBodyModel> {
-        secondaryButton.shouldNotBeNull().text.shouldBe("Save fingerprint")
+        primaryButton.shouldNotBeNull().text.shouldBe("Save fingerprint")
+        secondaryButton.shouldNotBeNull().text.shouldBe("Delete fingerprint")
       }
     }
   }
@@ -116,37 +114,20 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
   test("onBack calls") {
     stateMachine.test(props) {
       awaitSheet<FormBodyModel> {
-        toolbar.shouldNotBeNull()
-          .leadingAccessory.shouldBeInstanceOf<IconAccessory>().model.apply {
-            iconModel.iconImage.shouldBe(LocalImage(icon = Icon.SmallIconX))
-            onClick.shouldNotBeNull()
-              .invoke()
-          }
+        toolbar.shouldBeNull()
+        onBack.shouldNotBeNull().invoke()
       }
 
       onBackCalls.awaitItem().shouldBe(Unit)
     }
   }
 
-  test("editing fingerprint only removes the toolbar and reorders footer buttons in design system v2") {
+  test("editing fingerprint removes the toolbar and shows save before delete") {
     stateMachine.test(props) {
       awaitSheet<FormBodyModel> {
-        toolbar
-          .shouldNotBeNull()
-          .leadingAccessory
-          .shouldBeInstanceOf<IconAccessory>()
-
-        primaryButton.shouldNotBeNull().text.shouldBe("Delete fingerprint")
-        secondaryButton.shouldNotBeNull().text.shouldBe("Save fingerprint")
-
-        val designSystemV2Model = designSystemV2Model.shouldNotBeNull()
-
-        designSystemV2Model.toolbar.shouldBeNull()
-        designSystemV2Model.useLegacyToolbarFallback.shouldBe(false)
-        designSystemV2Model.primaryButton.shouldNotBeNull().text.shouldBe("Save fingerprint")
-        designSystemV2Model.useLegacyPrimaryButtonFallback.shouldBe(false)
-        designSystemV2Model.secondaryButton.shouldNotBeNull().text.shouldBe("Delete fingerprint")
-        designSystemV2Model.useLegacySecondaryButtonFallback.shouldBe(false)
+        toolbar.shouldBeNull()
+        primaryButton.shouldNotBeNull().text.shouldBe("Save fingerprint")
+        secondaryButton.shouldNotBeNull().text.shouldBe("Delete fingerprint")
       }
     }
   }
@@ -168,21 +149,12 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("adding a new fingerprint only shows one footer button in design system v2") {
+  test("adding a new fingerprint only shows the start footer button") {
     stateMachine.test(props.copy(isExistingFingerprint = false)) {
       awaitSheet<FormBodyModel> {
-        toolbar.shouldNotBeNull()
-        primaryButton.shouldBeNull()
-        secondaryButton.shouldNotBeNull().text.shouldBe("Start fingerprint")
-
-        val designSystemV2Model = designSystemV2Model.shouldNotBeNull()
-
-        designSystemV2Model.toolbar.shouldBeNull()
-        designSystemV2Model.useLegacyToolbarFallback.shouldBe(false)
-        designSystemV2Model.primaryButton.shouldNotBeNull().text.shouldBe("Start fingerprint")
-        designSystemV2Model.useLegacyPrimaryButtonFallback.shouldBe(false)
-        designSystemV2Model.secondaryButton.shouldBeNull()
-        designSystemV2Model.useLegacySecondaryButtonFallback.shouldBe(false)
+        toolbar.shouldBeNull()
+        primaryButton.shouldNotBeNull().text.shouldBe("Start fingerprint")
+        secondaryButton.shouldBeNull()
       }
     }
   }
@@ -208,14 +180,12 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
       }
 
       awaitSheet<FormBodyModel> {
-        // The delete button should not be available
-        primaryButton.shouldBeNull()
-
         // Click Start fingerprint
-        secondaryButton.shouldNotBeNull().apply {
+        primaryButton.shouldNotBeNull().apply {
           text.shouldBe("Start fingerprint")
           onClick.invoke()
         }
+        secondaryButton.shouldBeNull()
       }
 
       // The fingerprint to enroll should be emitted in onSave
@@ -237,10 +207,10 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
       // Click Delete fingerprint
       awaitSheet<FormBodyModel> {
         primaryButton.shouldNotBeNull()
-          .text.shouldBe("Delete fingerprint")
-        secondaryButton.shouldNotBeNull()
           .text.shouldBe("Save fingerprint")
-        clickPrimaryButton()
+        secondaryButton.shouldNotBeNull()
+          .text.shouldBe("Delete fingerprint")
+        clickSecondaryButton()
       }
 
       awaitSheet<FormBodyModel> {

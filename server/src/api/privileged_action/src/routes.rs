@@ -26,20 +26,23 @@ use crate::{
         get_pending_instance::GetPendingInstanceInput,
         get_pending_instances::GetPendingInstancesInput,
         get_privileged_action_definitions::GetPrivilegedActionDefinitionsInput,
+        increment_out_of_band_attempts::IncrementOutOfBandAttemptsResult,
         Service as PrivilegedActionService,
     },
-    static_handler::{get_template, static_handler},
+    static_handler::{get_template_for_action, static_handler},
 };
 
-use account::service::Service as AccountService;
-use errors::ApiError;
+use account::service::{FetchAccountInput, Service as AccountService};
+use errors::{ApiError, ErrorCode};
+use subtle::ConstantTimeEq;
+use types::account::{entities::Account, spending::AttestedHardwareSerial};
 use http_server::swagger::{SwaggerEndpoint, Url};
 use secure_site::static_handler::{html_error, inject_json_into_template};
 use types::{
     account::identifiers::AccountId,
     privileged_action::{
         definition::ResolvedPrivilegedActionDefinition,
-        repository::{AuthorizationStrategyRecord, RecordStatus},
+        repository::{AuthorizationStrategyRecord, RecordStatus, DEFAULT_OOB_MAX_ATTEMPTS},
         router::{
             generic::{
                 AuthorizationStrategyInput, AuthorizationStrategyOutput,
@@ -50,6 +53,7 @@ use types::{
             PrivilegedActionInstance,
         },
         shared::{PrivilegedActionDelayDuration, PrivilegedActionInstanceId, PrivilegedActionType},
+        verify_hardware_serial::VerifyHardwareSerialSubmission,
     },
     transaction_verification::router::PutTransactionVerificationPolicyRequest,
 };
@@ -76,6 +80,10 @@ impl RouterBuilder for RouteState {
             .route(
                 "/api/accounts/:account_id/privileged-actions/:privileged_action_id/cancel",
                 post(cancel_pending_out_of_band_instance),
+            )
+            .route(
+                "/api/accounts/:account_id/privileged-actions/:privileged_action_id/resend",
+                post(resend_out_of_band_verification),
             )
             .route_layer(FACTORY.route_layer(FACTORY_NAME.to_owned()))
             .with_state(self.to_owned())
@@ -142,6 +150,7 @@ impl From<RouteState> for SwaggerEndpoint {
     paths(
         cancel_pending_delay_and_notify_instance_by_token,
         cancel_pending_out_of_band_instance,
+        resend_out_of_band_verification,
         configure_privileged_action_delay_durations,
         get_pending_instance,
         get_pending_instances,
@@ -173,6 +182,7 @@ impl From<RouteState> for SwaggerEndpoint {
             GetPendingInstancesResponse,
             PrivilegedActionInstance,
             CancelPendingInstanceResponse,
+            ResendPendingInstanceResponse,
             UpdateDelayDurationForTestRequest,
             UpdateDelayDurationForTestResponse,
         ),
@@ -451,14 +461,56 @@ pub async fn cancel_pending_out_of_band_instance(
 }
 
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ResendPendingInstanceResponse {}
+
+#[instrument(err, skip(privileged_action_service))]
+#[utoipa::path(
+    post,
+    path = "/api/accounts/:account_id/privileged-actions/:privileged_action_id/resend",
+    responses(
+        (status = 200, description = "Verification email resent", body=ResendPendingInstanceResponse),
+        (status = 404, description = "Account or instance not found"),
+        (status = 409, description = "Instance not pending, or resend limit reached"),
+        (status = 429, description = "Resend requested before the cooldown elapsed")
+    ),
+)]
+pub async fn resend_out_of_band_verification(
+    Path((account_id, instance_id)): Path<(AccountId, PrivilegedActionInstanceId)>,
+    State(privileged_action_service): State<PrivilegedActionService>,
+) -> Result<Json<ResendPendingInstanceResponse>, ApiError> {
+    privileged_action_service
+        .resend_out_of_band_verification(&account_id, instance_id)
+        .await?;
+    Ok(Json(ResendPendingInstanceResponse {}))
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE", tag = "action")]
 pub enum ProcessPrivilegedActionVerificationRequest {
     Cancel {
         web_auth_token: String,
     },
     Confirm {
-        privileged_action_type: PrivilegedActionType,
         web_auth_token: String,
+        #[serde(flatten)]
+        submission: ConfirmSubmission,
+    },
+}
+
+/// User-submitted payload to confirm a pending out-of-band privileged action.
+///
+/// Tagged by `privileged_action_type` so each privileged action can carry
+/// action-specific confirmation parameters (e.g. a serial number typed by the
+/// user for hardware-verification flows). Variants are struct-shaped on the
+/// wire so they can be flattened into
+/// [`ProcessPrivilegedActionVerificationRequest::Confirm`] without nesting.
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(tag = "privileged_action_type", rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ConfirmSubmission {
+    LoosenTransactionVerificationPolicy {},
+    VerifyHardwareSerial {
+        submission_data: VerifyHardwareSerialSubmission,
     },
 }
 
@@ -478,17 +530,31 @@ pub async fn get_privileged_action_verification_interface(
         .get_by_web_auth_token::<Value>(&params.web_auth_token)
         .await
         .map_err(|e| html_error(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    // Same lazy-expiry the confirm path runs, so a GET against an
+    // expired-but-still-Pending record renders the lockout state
+    // instead of letting the user enter a serial they can't submit.
+    let privileged_action = privileged_action_service
+        .expire_pending_out_of_band_if_overdue(privileged_action)
+        .await
+        .map_err(|e| html_error(StatusCode::INTERNAL_SERVER_ERROR, e))?;
 
-    if privileged_action.get_record_status() != RecordStatus::Pending {
-        return Err(html_error(
-            StatusCode::BAD_REQUEST,
-            "Privileged action is not pending",
-        ));
+    let status = privileged_action.get_record_status();
+    match status {
+        RecordStatus::Pending | RecordStatus::Failed => {}
+        RecordStatus::Canceled | RecordStatus::Completed => {
+            return Err(html_error(
+                StatusCode::BAD_REQUEST,
+                "Privileged action is not pending",
+            ));
+        }
     }
 
     let mut verification_params = serde_json::json!({
         "privilegedActionId": privileged_action.id,
         "privilegedActionType": privileged_action.privileged_action_type,
+        // Page reads this flag and short-circuits to the lockout screen
+        // on load when the record has already been terminated.
+        "lockoutAtLoad": status == RecordStatus::Failed,
     });
     match privileged_action.privileged_action_type {
         PrivilegedActionType::LoosenTransactionVerificationPolicy => {
@@ -501,6 +567,21 @@ pub async fn get_privileged_action_verification_interface(
             verification_params["useBip177"] =
                 serde_json::json!(tx_policy_verification_payload.use_bip_177);
         }
+        PrivilegedActionType::VerifyHardwareSerial => {
+            // The expected serial is intentionally NOT injected; the
+            // page submits the user-typed value to the server for
+            // server-side comparison.
+            let AuthorizationStrategyRecord::OutOfBand(ref out_of_band) =
+                privileged_action.authorization_strategy
+            else {
+                return Err(html_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "VerifyHardwareSerial action has unexpected authorization strategy",
+                ));
+            };
+            verification_params["attemptsRemaining"] =
+                serde_json::json!(DEFAULT_OOB_MAX_ATTEMPTS.saturating_sub(out_of_band.attempts));
+        }
         _ => {
             return Err(html_error(
                 StatusCode::BAD_REQUEST,
@@ -509,12 +590,11 @@ pub async fn get_privileged_action_verification_interface(
         }
     };
 
-    let html = inject_json_into_template(
-        &get_template(),
-        "privileged-action-params",
-        verification_params,
-    )
-    .map_err(|e| html_error(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    let template = get_template_for_action(&privileged_action.privileged_action_type)
+        .map_err(|e| html_error(StatusCode::BAD_REQUEST, e))?;
+    let html =
+        inject_json_into_template(&template, "privileged-action-params", verification_params)
+            .map_err(|e| html_error(StatusCode::INTERNAL_SERVER_ERROR, e))?;
 
     Ok((
         StatusCode::OK,
@@ -524,15 +604,6 @@ pub async fn get_privileged_action_verification_interface(
 }
 
 #[instrument(err, skip(privileged_action_service, account_service, request))]
-#[utoipa::path(
-    put,
-    path = "/api/privileged-action/respond",
-    request_body = ProcessPrivilegedActionVerificationRequest,
-    responses(
-        (status = 200, description = "Privileged action was either cancelled or succeeded", body=ProcessPrivilegedActionVerificationResponse),
-        (status = 404, description = "Account not found")
-    ),
-)]
 async fn respond_to_out_of_band_privileged_action(
     State(privileged_action_service): State<PrivilegedActionService>,
     State(account_service): State<AccountService>,
@@ -540,13 +611,13 @@ async fn respond_to_out_of_band_privileged_action(
 ) -> Result<Json<ProcessPrivilegedActionVerificationResponse>, ApiError> {
     match request {
         ProcessPrivilegedActionVerificationRequest::Confirm {
-            privileged_action_type,
             web_auth_token,
+            submission,
         } => {
             confirm_privileged_action(
                 &privileged_action_service,
                 &account_service,
-                privileged_action_type,
+                submission,
                 &web_auth_token,
             )
             .await?;
@@ -564,11 +635,11 @@ async fn respond_to_out_of_band_privileged_action(
 async fn confirm_privileged_action(
     privileged_action_service: &PrivilegedActionService,
     account_service: &AccountService,
-    privileged_action_type: PrivilegedActionType,
+    submission: ConfirmSubmission,
     web_auth_token: &str,
 ) -> Result<(), ApiError> {
-    match privileged_action_type {
-        PrivilegedActionType::LoosenTransactionVerificationPolicy => {
+    match submission {
+        ConfirmSubmission::LoosenTransactionVerificationPolicy {} => {
             confirm_transaction_verification_policy(
                 privileged_action_service,
                 account_service,
@@ -576,11 +647,139 @@ async fn confirm_privileged_action(
             )
             .await
         }
-        _ => Err(ApiError::GenericBadRequest(format!(
-            "Unsupported privileged action type: {:?}",
-            privileged_action_type
-        ))),
+        ConfirmSubmission::VerifyHardwareSerial { submission_data } => {
+            confirm_hardware_serial_verification(
+                privileged_action_service,
+                account_service,
+                web_auth_token,
+                &submission_data,
+            )
+            .await
+        }
     }
+}
+
+async fn confirm_hardware_serial_verification(
+    privileged_action_service: &PrivilegedActionService,
+    account_service: &AccountService,
+    web_auth_token: &str,
+    submission: &VerifyHardwareSerialSubmission,
+) -> Result<(), ApiError> {
+    // Resolves the keyset to verify against via the active keyset (= the
+    // sweep's destination at the time PR9's gate fires). No keyset id is
+    // carried on the priv-action record.
+    let privileged_action = privileged_action_service
+        .get_by_web_auth_token::<()>(web_auth_token)
+        .await?;
+    let privileged_action = privileged_action_service
+        .expire_pending_out_of_band_if_overdue(privileged_action)
+        .await?;
+    validate_out_of_band_authorization(&privileged_action.authorization_strategy)?;
+
+    let account = account_service
+        .fetch_account(FetchAccountInput {
+            account_id: &privileged_action.account_id,
+        })
+        .await?;
+    let Account::Full(full_account) = account else {
+        return Err(ApiError::Specific {
+            code: ErrorCode::KeysetNotAttested,
+            detail: Some("account is not a FullAccount".to_string()),
+            field: None,
+        });
+    };
+
+    let active_keyset_id = full_account.active_keyset_id.clone();
+    let private = full_account
+        .active_spending_keyset()
+        .and_then(|k| k.optional_private_multi_sig())
+        .ok_or_else(|| ApiError::Specific {
+            code: ErrorCode::KeysetNotAttested,
+            detail: Some("active keyset is missing or not a PrivateMultiSig keyset".to_string()),
+            field: None,
+        })?;
+    let attested = match &private.attested_hardware_serial {
+        // Keyset is already Verified — a partial completion of a prior
+        // confirm (keyset wrote, priv-action didn't). Repair by closing
+        // out the still-Pending priv-action so the user gets the
+        // completion email and any caller waiting on PA completion sees
+        // it land.
+        Some(AttestedHardwareSerial::Verified(_)) => {
+            continue_out_of_band_privileged_action(
+                privileged_action_service,
+                &privileged_action,
+                web_auth_token,
+            )
+            .await?;
+            return Ok(());
+        }
+        Some(AttestedHardwareSerial::Pending(s)) => s.clone(),
+        None => {
+            return Err(ApiError::Specific {
+                code: ErrorCode::KeysetNotAttested,
+                detail: Some(
+                    "active keyset has no attested hardware serial".to_string(),
+                ),
+                field: None,
+            });
+        }
+    };
+
+    let expected = normalize_serial_for_comparison(&attested);
+    let submitted = normalize_serial_for_comparison(&submission.serial);
+    if expected
+        .as_bytes()
+        .ct_eq(submitted.as_bytes())
+        .unwrap_u8()
+        == 0
+    {
+        let outcome = privileged_action_service
+            .increment_out_of_band_attempts::<()>(&privileged_action.id)
+            .await?;
+        return Err(match outcome {
+            IncrementOutOfBandAttemptsResult::Recorded { remaining_attempts } => {
+                ApiError::Specific {
+                    code: ErrorCode::HardwareSerialMismatch,
+                    detail: Some(
+                        serde_json::json!({ "remainingAttempts": remaining_attempts }).to_string(),
+                    ),
+                    field: Some("serial".to_string()),
+                }
+            }
+            IncrementOutOfBandAttemptsResult::AttemptsExhausted => ApiError::Specific {
+                code: ErrorCode::OutOfBandVerificationSessionEnded,
+                detail: None,
+                field: None,
+            },
+        });
+    }
+
+    // Keyset write first, then priv-action completion: the two aren't
+    // atomic, and keyset-first leaves a benign stale-Pending priv-action
+    // on failure (lazy-expiry cleans up) rather than a Completed priv-
+    // action + completion email against a still-Pending keyset.
+    account_service
+        .mark_hardware_serial_verified(&privileged_action.account_id, &active_keyset_id)
+        .await?;
+    continue_out_of_band_privileged_action(
+        privileged_action_service,
+        &privileged_action,
+        web_auth_token,
+    )
+    .await?;
+    Ok(())
+}
+
+/// Canonicalize a hardware serial for comparison: keep alphanumeric
+/// characters only, uppercase. Strips whitespace, dashes, and any
+/// separators the user might have typed in addition to or instead of the
+/// serial digits.
+fn normalize_serial_for_comparison(serial: &str) -> String {
+    serial
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .flat_map(|c| c.to_uppercase())
+        .collect()
 }
 
 async fn confirm_transaction_verification_policy(
@@ -591,6 +790,9 @@ async fn confirm_transaction_verification_policy(
     // Fetch and validate the privileged action
     let privileged_action = privileged_action_service
         .get_by_web_auth_token::<PutTransactionVerificationPolicyRequest>(web_auth_token)
+        .await?;
+    let privileged_action = privileged_action_service
+        .expire_pending_out_of_band_if_overdue(privileged_action)
         .await?;
 
     validate_out_of_band_authorization(&privileged_action.authorization_strategy)?;
@@ -621,13 +823,19 @@ fn validate_out_of_band_authorization(
         ));
     };
 
-    if out_of_band.status != RecordStatus::Pending {
-        return Err(ApiError::GenericBadRequest(
+    match out_of_band.status {
+        RecordStatus::Pending => Ok(()),
+        // 410 so the approval page can render lockout identically for
+        // max-attempts and lazy-expiry.
+        RecordStatus::Failed => Err(ApiError::Specific {
+            code: ErrorCode::OutOfBandVerificationSessionEnded,
+            detail: None,
+            field: None,
+        }),
+        RecordStatus::Canceled | RecordStatus::Completed => Err(ApiError::GenericBadRequest(
             "Privileged action is not pending".to_string(),
-        ));
+        )),
     }
-
-    Ok(())
 }
 
 async fn continue_out_of_band_privileged_action<T>(
@@ -710,4 +918,115 @@ async fn format_value(
         }
     };
     Ok(Json(FormatValueResponse { formatted_value }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The wire shape the existing in-browser JS uses to confirm a
+    /// `LoosenTransactionVerificationPolicy` action MUST continue to parse and
+    /// re-serialize identically after the `ConfirmSubmission` refactor.
+    #[test]
+    fn confirm_loosen_tx_verification_policy_round_trip() {
+        let wire_json = serde_json::json!({
+            "action": "CONFIRM",
+            "privileged_action_type": "LOOSEN_TRANSACTION_VERIFICATION_POLICY",
+            "web_auth_token": "abc123",
+        });
+
+        let parsed: ProcessPrivilegedActionVerificationRequest =
+            serde_json::from_value(wire_json.clone()).expect("deserialize from wire");
+
+        match &parsed {
+            ProcessPrivilegedActionVerificationRequest::Confirm {
+                web_auth_token,
+                submission,
+            } => {
+                assert_eq!(web_auth_token, "abc123");
+                assert!(matches!(
+                    submission,
+                    ConfirmSubmission::LoosenTransactionVerificationPolicy {}
+                ));
+            }
+            other => panic!("expected Confirm, got {:?}", other),
+        }
+
+        let reserialized = serde_json::to_value(&parsed).expect("serialize");
+        assert_eq!(reserialized, wire_json);
+    }
+
+    #[test]
+    fn cancel_round_trip() {
+        let wire_json = serde_json::json!({
+            "action": "CANCEL",
+            "web_auth_token": "tok-xyz",
+        });
+
+        let parsed: ProcessPrivilegedActionVerificationRequest =
+            serde_json::from_value(wire_json.clone()).expect("deserialize from wire");
+
+        match &parsed {
+            ProcessPrivilegedActionVerificationRequest::Cancel { web_auth_token } => {
+                assert_eq!(web_auth_token, "tok-xyz");
+            }
+            other => panic!("expected Cancel, got {:?}", other),
+        }
+
+        let reserialized = serde_json::to_value(&parsed).expect("serialize");
+        assert_eq!(reserialized, wire_json);
+    }
+
+    /// The `ConfirmSubmission` enum is designed to be extended with new
+    /// privileged action types that carry their own confirmation parameters
+    /// (e.g. a serial number typed by the user). The new fields must flatten
+    /// next to `web_auth_token` without nesting.
+    ///
+    /// To exercise that design contract without committing this PR to a
+    /// concrete future variant, we mirror the production layout in a local
+    /// parallel enum with a hypothetical second variant.
+    #[test]
+    fn confirm_supports_new_submission_variant() {
+        #[derive(Serialize, Deserialize, Debug, PartialEq)]
+        #[serde(tag = "privileged_action_type", rename_all = "SCREAMING_SNAKE_CASE")]
+        enum FutureConfirmSubmission {
+            LoosenTransactionVerificationPolicy {},
+            ActivateHardwareVerification { serial_number: String },
+        }
+
+        #[derive(Serialize, Deserialize, Debug, PartialEq)]
+        #[serde(rename_all = "SCREAMING_SNAKE_CASE", tag = "action")]
+        enum FutureProcessRequest {
+            Confirm {
+                web_auth_token: String,
+                #[serde(flatten)]
+                submission: FutureConfirmSubmission,
+            },
+        }
+
+        let wire_json = serde_json::json!({
+            "action": "CONFIRM",
+            "privileged_action_type": "ACTIVATE_HARDWARE_VERIFICATION",
+            "web_auth_token": "tok",
+            "serial_number": "BK-12345",
+        });
+
+        let parsed: FutureProcessRequest =
+            serde_json::from_value(wire_json.clone()).expect("deserialize from wire");
+
+        let FutureProcessRequest::Confirm {
+            web_auth_token,
+            submission,
+        } = &parsed;
+        assert_eq!(web_auth_token, "tok");
+        assert_eq!(
+            submission,
+            &FutureConfirmSubmission::ActivateHardwareVerification {
+                serial_number: "BK-12345".to_string(),
+            },
+        );
+
+        let reserialized = serde_json::to_value(&parsed).expect("serialize");
+        assert_eq!(reserialized, wire_json);
+    }
 }

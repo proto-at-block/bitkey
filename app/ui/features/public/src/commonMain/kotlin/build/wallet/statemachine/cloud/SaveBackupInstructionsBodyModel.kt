@@ -7,9 +7,11 @@ import build.wallet.platform.device.DevicePlatform.*
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
+import build.wallet.statemachine.core.form.FormMainContentVerticalAlignment
 import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.core.form.FormScreenLayoutModel
+import build.wallet.statemachine.core.form.FormScreenTitleModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
@@ -36,29 +38,22 @@ data class SaveBackupInstructionsBodyModel(
         )
       )
     ),
+    formScreenTitle = FormScreenTitleModel(
+      title = backupInstructionsTitle(devicePlatform)
+    ),
+    formScreenLayout = FormScreenLayoutModel.LargeTitle(
+      scrollable = false,
+      mainContentVerticalAlignment = FormMainContentVerticalAlignment.BOTTOM
+    ),
     header = FormHeaderModel(
-      headline = backupInstructionsTitle(devicePlatform),
-      subline = backupInstructionsSubline(devicePlatform)
+      headline = null,
+      sublineModel = StringModel(backupInstructionsSubline(devicePlatform))
     ),
     mainContentList = saveBackupInstructionsMainContentList(
       devicePlatform = devicePlatform,
-      appKeyIcon = Icon.SmallIconMobileKey,
-      emergencyExitKitIcon = Icon.SmallIconRecovery,
-    ),
-    designSystemV2Model = FormDesignSystemV2Model(
-      title = backupInstructionsTitle(devicePlatform),
-      header = FormHeaderModel(
-        headline = null,
-        sublineModel = StringModel(backupInstructionsSubline(devicePlatform))
-      ),
-      mainContentList = saveBackupInstructionsMainContentList(
-        devicePlatform = devicePlatform,
-        appKeyIcon = Icon.DotCloudBackup,
-        emergencyExitKitIcon = Icon.DotEmergency,
-        leadingIconSize = IconSize.Regular,
-      ),
-      scrollable = false,
-      mainContentVerticalAlignment = FormDesignSystemV2Model.MainContentVerticalAlignment.BOTTOM
+      appKeyIcon = Icon.DotCloudBackup,
+      emergencyExitKitIcon = Icon.DotEmergency,
+      leadingIconSize = IconSize.Regular,
     ),
     primaryButton = ButtonModel(
       text = "Back up",

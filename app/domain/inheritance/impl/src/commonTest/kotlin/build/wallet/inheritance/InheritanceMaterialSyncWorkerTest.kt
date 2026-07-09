@@ -3,6 +3,7 @@ package build.wallet.inheritance
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.keybox.KeyboxMock2
 import build.wallet.bitkey.relationships.EndorsedTrustedContactFake1
+import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.db.DbQueryError
 import build.wallet.keybox.KeyboxDaoMock
@@ -107,7 +108,7 @@ class InheritanceMaterialSyncWorkerTest : FunSpec({
     inheritanceRelationshipsProvider.endorsedInheritanceContacts.emit(
       listOf(
         EndorsedTrustedContactFake1.copy(
-          relationshipId = "new-contact"
+          id = RelationshipId("new-contact")
         )
       )
     )

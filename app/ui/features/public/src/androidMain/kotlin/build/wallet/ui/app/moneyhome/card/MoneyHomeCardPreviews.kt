@@ -152,7 +152,7 @@ fun PreviewMoneyHomeCardInvitationPending() {
       TrustedContactCardModel(
         contact =
           Invitation(
-            relationshipId = "foo",
+            id = RelationshipId("foo"),
             trustedContactAlias = TrustedContactAlias("Bela"),
             code = "token",
             codeBitLength = 20,
@@ -173,7 +173,7 @@ fun PreviewMoneyHomeCardInvitationExpired() {
       TrustedContactCardModel(
         contact =
           Invitation(
-            relationshipId = "foo",
+            id = RelationshipId("foo"),
             trustedContactAlias = TrustedContactAlias("Bela"),
             code = "token",
             codeBitLength = 20,
@@ -228,9 +228,9 @@ fun PreviewMoneyHomeCardInactiveWallet() {
             title = "Funds in inactive wallet",
             subtitle = LabelModel.StringModel("Transfer funds now"),
             treatment = CalloutModel.Treatment.Warning,
-            useMonochromeStyleInDesignSystemV2 = true,
-            leadingIcon = Icon.SmallIconInformation,
-            trailingIcon = Icon.SmallIconArrowRight,
+            useMonochromeStyle = true,
+            leadingIcon = Icon.Information,
+            trailingIcon = Icon.ArrowRight,
             onClick = StandardClick {}
           )
         )
@@ -305,12 +305,12 @@ fun PreviewMoneyHomeCardWalletsProtecting() {
         protectedCustomers =
           immutableListOf(
             ProtectedCustomer(
-              relationshipId = "",
+              id = RelationshipId(""),
               alias = ProtectedCustomerAlias("Alice"),
               roles = setOf(TrustedContactRole.SocialRecoveryContact)
             ),
             ProtectedCustomer(
-              relationshipId = "",
+              id = RelationshipId(""),
               alias = ProtectedCustomerAlias("Bob"),
               roles = setOf(TrustedContactRole.SocialRecoveryContact)
             )

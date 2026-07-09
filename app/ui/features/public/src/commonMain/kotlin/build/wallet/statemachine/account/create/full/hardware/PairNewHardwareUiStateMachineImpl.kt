@@ -13,6 +13,7 @@ import bitkey.account.HardwareType
 import bitkey.firmware.HardwareUnlockInfoService
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
+import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_FINGERPRINT_ENROLLMENT_HELP
 import build.wallet.analytics.events.screen.id.WalletMigrationEventTrackerScreenId
 import build.wallet.analytics.v1.Action.ACTION_HW_FINGERPRINT_COMPLETE
 import build.wallet.analytics.v1.Action.ACTION_HW_ONBOARDING_FINGERPRINT
@@ -30,6 +31,9 @@ import build.wallet.nfc.transaction.PairingTransactionResponse
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrolled
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrollmentStarted
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintNotEnrolled
+import build.wallet.platform.app.AppSessionManager
+import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.statemachine.account.create.full.OnboardingAppSegment
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachineImpl.State.CompleteFingerprintEnrollmentViaNfcUiState
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachineImpl.State.ShowingActivationInstructionsUiState
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachineImpl.State.ShowingActivationInstructionsV2UiState
@@ -38,13 +42,19 @@ import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiS
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachineImpl.State.ShowingStartFingerprintEnrollmentInstructionsUiState
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachineImpl.State.ShowingWrongHardwareError
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachineImpl.State.StartFingerprintEnrollmentViaNfcUiState
+import build.wallet.statemachine.core.AppSegment
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
+import build.wallet.statemachine.core.SheetDragHandleTreatment.OVERLAY
+import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationHelpBodyModel
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationHelpContent.Companion.TapBitkey
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiProps
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiStateMachine
 import build.wallet.ui.theme.Theme
@@ -57,14 +67,19 @@ class PairNewHardwareUiStateMachineImpl(
   private val pairingTransactionProvider: PairingTransactionProvider,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val helpCenterUiStateMachine: HelpCenterUiStateMachine,
+  private val appSessionManager: AppSessionManager,
+  private val deviceInfoProvider: DeviceInfoProvider,
   private val hardwareUnlockInfoService: HardwareUnlockInfoService,
   private val w3OnboardingFeatureFlag: W3OnboardingFeatureFlag,
   private val accountConfigService: AccountConfigService,
 ) : PairNewHardwareUiStateMachine {
+  private val seenTapBitkeyIntroSessionKeys = mutableSetOf<String>()
+
   @Composable
   override fun model(props: PairNewHardwareProps): ScreenModel {
     val scope = rememberStableCoroutineScope()
     val isDesignSystemV2Enabled = true
+    val devicePlatform = remember { deviceInfoProvider.getDeviceInfo().devicePlatform }
     // W3Upgrade context always forces W3 onboarding, regardless of feature flag.
     val isW3Flow = props.pairingContext is PairingContext.W3Upgrade || w3OnboardingFeatureFlag.isEnabled()
     // Only override hardware type for fake hardware — real hardware auto-detects from firmware.
@@ -99,12 +114,28 @@ class PairNewHardwareUiStateMachineImpl(
       }
       mutableStateOf(initialState)
     }
-
+    val tapBitkeyIntroSessionKey = tapBitkeyIntroSessionKey(props.pairingContext)
+    var hasSeenTapBitkeyIntroSheet by remember(tapBitkeyIntroSessionKey) {
+      mutableStateOf(hasSeenTapBitkeyIntroSheet(tapBitkeyIntroSessionKey))
+    }
+    val shouldShowTapBitkeyIntroSheet =
+      isW3Flow
     val pairNewHardwareBodyModelPresentationStyle = determinePresentationStyle(props.screenPresentationStyle)
 
     return when (val s = state) {
       is ShowingActivationInstructionsV2UiState ->
-        handleActivationInstructionsV2(s, props, pairNewHardwareBodyModelPresentationStyle) { state = it }
+        handleActivationInstructionsV2(
+          s,
+          props,
+          pairNewHardwareBodyModelPresentationStyle,
+          devicePlatform,
+          shouldShowTapBitkeyIntroSheet = shouldShowTapBitkeyIntroSheet,
+          hasSeenTapBitkeyIntroSheet = hasSeenTapBitkeyIntroSheet,
+          markTapBitkeyIntroSheetSeen = {
+            markTapBitkeyIntroSheetSeen(tapBitkeyIntroSessionKey)
+            hasSeenTapBitkeyIntroSheet = true
+          }
+        ) { state = it }
 
       is ShowingActivationInstructionsUiState ->
         handleActivationInstructions(s, props, pairNewHardwareBodyModelPresentationStyle) { state = it }
@@ -113,14 +144,13 @@ class PairNewHardwareUiStateMachineImpl(
         handleStartFingerprintEnrollmentInstructions(
           s,
           props,
-          pairNewHardwareBodyModelPresentationStyle,
-          isDesignSystemV2Enabled
+          pairNewHardwareBodyModelPresentationStyle
         ) {
           state = it
         }
 
       is StartFingerprintEnrollmentViaNfcUiState ->
-        handleStartFingerprintEnrollmentViaNfc(s, props, scope, hardwareTypeOverride, isW3Flow) {
+        handleStartFingerprintEnrollmentViaNfc(s, props, scope, hardwareTypeOverride) {
           state = it
         }
 
@@ -129,6 +159,7 @@ class PairNewHardwareUiStateMachineImpl(
           s,
           props,
           pairNewHardwareBodyModelPresentationStyle,
+          devicePlatform,
           isHardwareFake,
           isDesignSystemV2Enabled
         ) {
@@ -161,22 +192,82 @@ class PairNewHardwareUiStateMachineImpl(
     state: ShowingActivationInstructionsV2UiState,
     props: PairNewHardwareProps,
     presentationStyle: ScreenPresentationStyle,
+    devicePlatform: build.wallet.platform.device.DevicePlatform,
+    shouldShowTapBitkeyIntroSheet: Boolean,
+    hasSeenTapBitkeyIntroSheet: Boolean,
+    markTapBitkeyIntroSheetSeen: () -> Unit,
     updateState: (State) -> Unit,
   ): ScreenModel {
+    when (state.helpScreen) {
+      ActivationInstructionsV2HelpScreen.FingerprintEnrollment -> {
+        return ScreenModel(
+          body = FingerprintEnrollmentHelpBodyModel(
+            onBack = { updateState(state.copy(helpScreen = null)) },
+            eventTrackerContext = props.eventTrackerContext,
+            devicePlatform = devicePlatform
+          ),
+          presentationStyle = presentationStyle,
+          themePreference = ThemePreference.Manual(Theme.DARK)
+        )
+      }
+
+      null -> Unit
+    }
+
+    val dismissTapBitkeyIntroSheet = {
+      markTapBitkeyIntroSheetSeen()
+    }
+
     return ScreenModel(
       body = ActivationInstructionsV2BodyModel(
         onContinue = when (props.request) {
           is PairNewHardwareProps.Request.Ready -> {
-            { updateState(StartFingerprintEnrollmentViaNfcUiState(props.request)) }
+            {
+              updateState(
+                StartFingerprintEnrollmentViaNfcUiState(
+                  request = props.request,
+                  returnToW3ActivationOnCancel = true
+                )
+              )
+            }
           }
           else -> null
         },
         onBack = props.onExit,
+        onHelpClick = {
+          updateState(state.copy(helpScreen = ActivationInstructionsV2HelpScreen.FingerprintEnrollment))
+        },
         isNavigatingBack = state.isNavigatingBack,
         eventTrackerContext = props.eventTrackerContext
       ),
       presentationStyle = presentationStyle,
-      themePreference = ThemePreference.Manual(Theme.DARK)
+      themePreference = ThemePreference.Manual(Theme.DARK),
+      bottomSheetModel =
+        if (shouldShowTapBitkeyIntroSheet && !hasSeenTapBitkeyIntroSheet) {
+          SheetModel(
+            dragHandleTreatment = OVERLAY,
+            onClosed = dismissTapBitkeyIntroSheet,
+            body = TapBitkeyIntroSheetBodyModel(
+              onDismiss = dismissTapBitkeyIntroSheet,
+              onLearnMore = {
+                markTapBitkeyIntroSheetSeen()
+                updateState(state.copy(helpScreen = ActivationInstructionsV2HelpScreen.FingerprintEnrollment))
+              },
+              onHasNoScreen =
+                if (props.pairingContext is PairingContext.Onboarding) {
+                  {
+                    markTapBitkeyIntroSheetSeen()
+                    updateState(ShowingActivationInstructionsUiState())
+                  }
+                } else {
+                  null
+                },
+              devicePlatform = devicePlatform
+            )
+          )
+        } else {
+          null
+        }
     )
   }
 
@@ -211,7 +302,6 @@ class PairNewHardwareUiStateMachineImpl(
     state: ShowingStartFingerprintEnrollmentInstructionsUiState,
     props: PairNewHardwareProps,
     presentationStyle: ScreenPresentationStyle,
-    isDesignSystemV2Enabled: Boolean,
     updateState: (State) -> Unit,
   ): ScreenModel {
     return ScreenModel(
@@ -219,7 +309,6 @@ class PairNewHardwareUiStateMachineImpl(
         onButtonClick = { updateState(StartFingerprintEnrollmentViaNfcUiState(state.request)) },
         onBack = { updateState(ShowingActivationInstructionsUiState(isNavigatingBack = true)) },
         isNavigatingBack = state.isNavigatingBack,
-        isDesignSystemV2Enabled = isDesignSystemV2Enabled,
         eventTrackerScreenIdContext = props.eventTrackerContext
       ),
       presentationStyle = presentationStyle,
@@ -233,7 +322,6 @@ class PairNewHardwareUiStateMachineImpl(
     props: PairNewHardwareProps,
     scope: kotlinx.coroutines.CoroutineScope,
     hardwareTypeOverride: HardwareType?,
-    isW3Flow: Boolean,
     updateState: (State) -> Unit,
   ): ScreenModel {
     val isW3UpgradeFlow = props.pairingContext is PairingContext.W3Upgrade
@@ -247,7 +335,7 @@ class PairNewHardwareUiStateMachineImpl(
       NfcSessionUIStateMachineProps(
         transaction = pairingTransactionProvider(
           onCancel = {
-            if (isW3Flow) {
+            if (state.returnToW3ActivationOnCancel) {
               updateState(
                 ShowingActivationInstructionsV2UiState(
                   isNavigatingBack = true
@@ -268,6 +356,7 @@ class PairNewHardwareUiStateMachineImpl(
               state = state,
               scope = scope,
               pairingContext = props.pairingContext,
+              segment = props.segment,
               updateState = updateState
             )
           },
@@ -283,7 +372,11 @@ class PairNewHardwareUiStateMachineImpl(
         eventTrackerContext = NfcEventTrackerScreenIdContext.PAIR_NEW_HW_ACTIVATION,
         onInauthenticHardware = { updateState(ShowingHelpCenter) },
         hardwareTypeOverride = hardwareTypeOverride,
-        onError = wrongHardwareErrorHandler(retryState = state, updateState = updateState),
+        onError = wrongHardwareErrorHandler(
+          retryState = state,
+          segment = props.segment,
+          updateState = updateState
+        ),
         skipFirmwareTelemetry = isW3UpgradeFlow
       )
     )
@@ -294,13 +387,16 @@ class PairNewHardwareUiStateMachineImpl(
     state: StartFingerprintEnrollmentViaNfcUiState,
     scope: kotlinx.coroutines.CoroutineScope,
     pairingContext: PairingContext,
+    segment: AppSegment?,
     updateState: (State) -> Unit,
   ) {
     // During W3 upgrade, enforce that the correct hardware type is tapped.
     if (pairingContext is PairingContext.W3Upgrade && response.hardwareType != HardwareType.W3) {
       updateState(
         ShowingWrongHardwareError(
-          retryState = StartFingerprintEnrollmentViaNfcUiState(state.request)
+          retryState = state,
+          segment = segment,
+          cause = IllegalStateException("Wrong hardware type tapped during W3 upgrade")
         )
       )
       return
@@ -336,6 +432,7 @@ class PairNewHardwareUiStateMachineImpl(
     state: ShowingCompleteFingerprintEnrollmentInstructionsUiState,
     props: PairNewHardwareProps,
     presentationStyle: ScreenPresentationStyle,
+    devicePlatform: build.wallet.platform.device.DevicePlatform,
     isHardwareFake: Boolean,
     isDesignSystemV2Enabled: Boolean,
     updateState: (State) -> Unit,
@@ -343,17 +440,16 @@ class PairNewHardwareUiStateMachineImpl(
     // W3 help sub-state - show help screen
     if (state.hardwareType == HardwareType.W3 && state.showingHelp) {
       return ScreenModel(
-        body = FingerprintEnrollmentHelpBodyModel(
+        body = HardwareConfirmationHelpBodyModel(
           onBack = { updateState(state.copy(showingHelp = false)) },
-          eventTrackerContext = props.eventTrackerContext
+          content = TapBitkey,
+          devicePlatform = devicePlatform,
+          eventTrackerScreenIdOverride = HW_FINGERPRINT_ENROLLMENT_HELP,
+          eventTrackerContext = props.eventTrackerContext,
+          eventTrackerShouldTrackOverride = true
         ),
         presentationStyle = presentationStyle,
-        themePreference =
-          if (isDesignSystemV2Enabled) {
-            ThemePreference.System
-          } else {
-            ThemePreference.Manual(Theme.DARK)
-          }
+        themePreference = screenThemePreference(isDesignSystemV2Enabled)
       )
     }
 
@@ -370,12 +466,7 @@ class PairNewHardwareUiStateMachineImpl(
           isHardwareFake = isHardwareFake
         ),
         presentationStyle = presentationStyle,
-        themePreference =
-          if (isDesignSystemV2Enabled) {
-            ThemePreference.System
-          } else {
-            ThemePreference.Manual(Theme.DARK)
-          }
+        themePreference = screenThemePreference(isDesignSystemV2Enabled)
       )
     }
 
@@ -402,7 +493,6 @@ class PairNewHardwareUiStateMachineImpl(
       eventTrackerContext = props.eventTrackerContext,
       isNavigatingBack = state.isNavigatingBack,
       presentationStyle = presentationStyle,
-      isDesignSystemV2Enabled = isDesignSystemV2Enabled,
       headline = "Set up your first fingerprint",
       instructions = "Place your finger on the sensor until you see a blue light. Lift your" +
         " finger and repeat (15-20 times) adjusting your finger position slightly each time," +
@@ -431,7 +521,14 @@ class PairNewHardwareUiStateMachineImpl(
         transaction = pairingTransactionProvider(
           appGlobalAuthPublicKey = state.request.appGlobalAuthPublicKey,
           onSuccess = { response ->
-            handleCompleteFingerprintEnrollmentSuccess(response, state, scope, props.pairingContext, updateState)
+            handleCompleteFingerprintEnrollmentSuccess(
+              response = response,
+              state = state,
+              scope = scope,
+              pairingContext = props.pairingContext,
+              segment = props.segment,
+              updateState = updateState
+            )
           },
           onCancel = {
             updateState(ShowingCompleteFingerprintEnrollmentInstructionsUiState(state.request, hardwareType = state.hardwareType))
@@ -454,7 +551,11 @@ class PairNewHardwareUiStateMachineImpl(
           updateState(ShowingHelpCenter)
         },
         hardwareTypeOverride = hardwareTypeOverride,
-        onError = wrongHardwareErrorHandler(retryState = state, updateState = updateState),
+        onError = wrongHardwareErrorHandler(
+          retryState = state,
+          segment = props.segment,
+          updateState = updateState
+        ),
         skipFirmwareTelemetry = isW3UpgradeFlow
       )
     )
@@ -465,13 +566,16 @@ class PairNewHardwareUiStateMachineImpl(
     state: CompleteFingerprintEnrollmentViaNfcUiState,
     scope: kotlinx.coroutines.CoroutineScope,
     pairingContext: PairingContext,
+    segment: AppSegment?,
     updateState: (State) -> Unit,
   ) {
     // During W3 upgrade, enforce that the correct hardware type is tapped.
     if (pairingContext is PairingContext.W3Upgrade && response.hardwareType != HardwareType.W3) {
       updateState(
         ShowingWrongHardwareError(
-          retryState = CompleteFingerprintEnrollmentViaNfcUiState(state.request, hardwareType = state.hardwareType)
+          retryState = CompleteFingerprintEnrollmentViaNfcUiState(state.request, hardwareType = state.hardwareType),
+          segment = segment,
+          cause = IllegalStateException("Wrong hardware type tapped during W3 upgrade")
         )
       )
       return
@@ -530,7 +634,12 @@ class PairNewHardwareUiStateMachineImpl(
           text = "Retry",
           onClick = { updateState(state.retryState) }
         ),
-        eventTrackerScreenId = WalletMigrationEventTrackerScreenId.W3_UPGRADE_WRONG_HARDWARE_ERROR
+        eventTrackerScreenId = WalletMigrationEventTrackerScreenId.W3_UPGRADE_WRONG_HARDWARE_ERROR,
+        errorData = ErrorData(
+          segment = state.segment ?: OnboardingAppSegment.FullAccount,
+          actionDescription = "Pairing new hardware",
+          cause = state.cause
+        )
       ),
       presentationStyle = ScreenPresentationStyle.RootFullScreen,
       themePreference = ThemePreference.Manual(Theme.DARK)
@@ -543,16 +652,27 @@ class PairNewHardwareUiStateMachineImpl(
    */
   private fun wrongHardwareErrorHandler(
     retryState: State,
+    segment: AppSegment?,
     updateState: (State) -> Unit,
   ): (NfcException) -> Boolean =
     { exception ->
       if (exception is NfcException.WrongHardwareType) {
-        updateState(ShowingWrongHardwareError(retryState = retryState))
+        updateState(
+          ShowingWrongHardwareError(
+            retryState = retryState,
+            segment = segment,
+            cause = exception
+          )
+        )
         true
       } else {
         false
       }
     }
+
+  private enum class ActivationInstructionsV2HelpScreen {
+    FingerprintEnrollment,
+  }
 
   private sealed interface State {
     /**
@@ -560,6 +680,7 @@ class PairNewHardwareUiStateMachineImpl(
      */
     data class ShowingActivationInstructionsV2UiState(
       val isNavigatingBack: Boolean = false,
+      val helpScreen: ActivationInstructionsV2HelpScreen? = null,
     ) : State
 
     /**
@@ -582,6 +703,7 @@ class PairNewHardwareUiStateMachineImpl(
      */
     data class StartFingerprintEnrollmentViaNfcUiState(
       val request: PairNewHardwareProps.Request.Ready,
+      val returnToW3ActivationOnCancel: Boolean = false,
     ) : State
 
     /**
@@ -614,6 +736,28 @@ class PairNewHardwareUiStateMachineImpl(
      */
     data class ShowingWrongHardwareError(
       val retryState: State,
+      val segment: AppSegment?,
+      val cause: Throwable,
     ) : State
+  }
+
+  private fun tapBitkeyIntroSessionKey(pairingContext: PairingContext): String {
+    return "${appSessionManager.getSessionId()}:$pairingContext"
+  }
+
+  private fun hasSeenTapBitkeyIntroSheet(sessionKey: String): Boolean {
+    return seenTapBitkeyIntroSessionKeys.contains(sessionKey)
+  }
+
+  private fun markTapBitkeyIntroSheetSeen(sessionKey: String) {
+    seenTapBitkeyIntroSessionKeys += sessionKey
+  }
+
+  private fun screenThemePreference(isDesignSystemV2Enabled: Boolean): ThemePreference {
+    return if (isDesignSystemV2Enabled) {
+      ThemePreference.System
+    } else {
+      ThemePreference.Manual(Theme.DARK)
+    }
   }
 }

@@ -2,6 +2,8 @@ package build.wallet.ui.components.layout
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -35,6 +37,7 @@ private const val EXPANDED_SCALE = 0.7f
  * @param horizontalAlignment The horizontal arrangement of all content composables.
  * @param topContent The top content for the expanded state.
  * @param bottomContent The bottom content for the expanded state.
+ * @param slideCollapsedContent Whether collapsed content should slide vertically as it appears.
  * @param collapsedContent The content to display for the collapsed state.
  */
 @Composable
@@ -45,30 +48,43 @@ fun CollapsibleLabelContainer(
   horizontalAlignment: Alignment.Horizontal,
   topContent: (@Composable AnimatedVisibilityScope.() -> Unit)?,
   bottomContent: (@Composable AnimatedVisibilityScope.() -> Unit)?,
+  slideCollapsedContent: Boolean = true,
   collapsedContent: @Composable AnimatedVisibilityScope.(placeholder: Boolean) -> Unit,
 ) {
-  Box(modifier = modifier, contentAlignment = Alignment.CenterEnd) {
+  Box(modifier = modifier, contentAlignment = horizontalAlignment.toBoxAlignment()) {
     val motionTweenFloat = remember { tween<Float>(ANIMATE_MOTION_DURATION, easing = LinearEasing) }
     val motionTween = remember { tween<IntOffset>(ANIMATE_MOTION_DURATION, easing = LinearEasing) }
     val fadeTween = remember { tween<Float>(ANIMATE_VISIBILITY_DURATION, easing = LinearEasing) }
-    AnimatedVisibility(
-      visible = collapsed,
-      enter = scaleIn(motionTweenFloat, COLLAPSED_SCALE, TransformOrigin.Center) +
-        fadeIn(fadeTween) +
-        slideInVertically(motionTween) { -ANIMATE_MOTION_OFFSET },
-      exit = scaleOut(motionTweenFloat, COLLAPSED_SCALE, TransformOrigin.Center) +
-        fadeOut(fadeTween) +
-        slideOutVertically(motionTween) { -ANIMATE_MOTION_OFFSET },
+    Box(
       modifier = Modifier.matchParentSize(),
-      content = {
-        Column(
-          horizontalAlignment = horizontalAlignment,
-          verticalArrangement = Arrangement.Center
-        ) {
-          collapsedContent(false)
+      contentAlignment = horizontalAlignment.toBoxAlignment()
+    ) {
+      AnimatedVisibility(
+        visible = collapsed,
+        enter = scaleIn(motionTweenFloat, COLLAPSED_SCALE, TransformOrigin.Center) +
+          fadeIn(fadeTween) +
+          if (slideCollapsedContent) {
+            slideInVertically(motionTween) { -ANIMATE_MOTION_OFFSET }
+          } else {
+            EnterTransition.None
+          },
+        exit = scaleOut(motionTweenFloat, COLLAPSED_SCALE, TransformOrigin.Center) +
+          fadeOut(fadeTween) +
+          if (slideCollapsedContent) {
+            slideOutVertically(motionTween) { -ANIMATE_MOTION_OFFSET }
+          } else {
+            ExitTransition.None
+          },
+        content = {
+          Column(
+            horizontalAlignment = horizontalAlignment,
+            verticalArrangement = Arrangement.Center
+          ) {
+            collapsedContent(false)
+          }
         }
-      }
-    )
+      )
+    }
 
     MeasureWithoutPlacement {
       Column(verticalArrangement = verticalArrangement) {
@@ -130,3 +146,11 @@ private fun AnimatedContentContainer(
     content = content
   )
 }
+
+private fun Alignment.Horizontal.toBoxAlignment(): Alignment =
+  when (this) {
+    Alignment.Start -> Alignment.CenterStart
+    Alignment.CenterHorizontally -> Alignment.Center
+    Alignment.End -> Alignment.CenterEnd
+    else -> Alignment.Center
+  }

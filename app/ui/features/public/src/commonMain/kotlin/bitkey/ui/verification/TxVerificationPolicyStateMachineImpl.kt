@@ -177,7 +177,7 @@ class TxVerificationPolicyStateMachineImpl(
         props = props,
         thresholdState = thresholdState,
         onToggle = onToggleVerification,
-        pendingToggleState = current.threshold is VerificationThreshold
+        pendingToggleState = true
       ).asRootScreen(
         bottomSheetModel = UpdatingPolicySheet(
           onBack = {

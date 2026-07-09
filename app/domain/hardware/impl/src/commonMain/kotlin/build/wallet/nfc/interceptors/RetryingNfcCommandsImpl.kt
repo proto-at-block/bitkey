@@ -176,6 +176,11 @@ private open class RetryingNfcCommands(
     network: BitcoinNetworkType,
   ) = retry { commands.getInitialSpendingKey(session, network) }
 
+  override suspend fun getInitialSpendingPublicKey(
+    session: NfcSession,
+    network: BitcoinNetworkType,
+  ) = retry { commands.getInitialSpendingPublicKey(session, network) }
+
   override suspend fun getNextSpendingKey(
     session: NfcSession,
     existingDescriptorPublicKeys: List<HwSpendingPublicKey>,
@@ -212,10 +217,11 @@ private open class RetryingNfcCommands(
     psbt: Psbt,
     spendingKeyset: SpendingKeyset,
     displayPreference: HwDisplayPreference?,
+    allowUnfinalized: Boolean,
   ): HardwareInteraction<Psbt> =
     wrapHardwareInteraction(
       retry {
-        commands.signTransaction(session, psbt, spendingKeyset, displayPreference)
+        commands.signTransaction(session, psbt, spendingKeyset, displayPreference, allowUnfinalized)
       }
     )
 
@@ -248,6 +254,22 @@ private open class RetryingNfcCommands(
   ): HardwareInteraction<SymmetricKey> =
     wrapHardwareInteraction(
       retry { commands.eekRestorationUnsealSymmetricKey(session, sealedKey) }
+    )
+
+  override suspend fun keysetRepairUnsealSymmetricKey(
+    session: NfcSession,
+    sealedKey: SealedData,
+  ): HardwareInteraction<SymmetricKey> =
+    wrapHardwareInteraction(
+      retry { commands.keysetRepairUnsealSymmetricKey(session, sealedKey) }
+    )
+
+  override suspend fun keysetRepairRotateHwKey(
+    session: NfcSession,
+    params: KeysetRepairRotateHwKeyParams,
+  ): HardwareInteraction<KeysetRepairRotateHwKeyResult> =
+    wrapHardwareInteraction(
+      retry { commands.keysetRepairRotateHwKey(session, params) }
     )
 
   override suspend fun getCert(

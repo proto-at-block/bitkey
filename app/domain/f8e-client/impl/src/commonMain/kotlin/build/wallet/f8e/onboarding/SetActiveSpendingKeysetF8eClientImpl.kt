@@ -77,16 +77,13 @@ private data class SetActiveSpendingKeysetResponse(
    */
   fun toSignedKeysetVerification(): SignedKeysetVerificationResponse? {
     // All fields must be present for W3 signed keyset verification
-    val fields = listOf(appAuthPub, hardwareAuthPub, appSpendingPub, hardwareSpendingPub, serverSpendingPub, signature)
-    if (fields.any { it == null }) return null
-
     return SignedKeysetVerificationResponse(
-      appAuthPub = appAuthPub!!,
-      hardwareAuthPub = hardwareAuthPub!!,
-      appSpendingPub = appSpendingPub!!,
-      hardwareSpendingPub = hardwareSpendingPub!!,
-      serverSpendingPub = serverSpendingPub!!,
-      signature = signature!!
+      appAuthPub = appAuthPub ?: return null,
+      hardwareAuthPub = hardwareAuthPub ?: return null,
+      appSpendingPub = appSpendingPub ?: return null,
+      hardwareSpendingPub = hardwareSpendingPub ?: return null,
+      serverSpendingPub = serverSpendingPub ?: return null,
+      signature = signature ?: return null
     )
   }
 }

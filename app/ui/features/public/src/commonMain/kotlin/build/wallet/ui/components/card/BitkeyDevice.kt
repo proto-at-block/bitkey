@@ -22,23 +22,17 @@ fun BitkeyDevice(
 ) {
   var mediaAlpha by remember { mutableStateOf(0.0f) }
   val mediaInteractionState = rememberBitkeyDeviceMediaInteractionState()
-  val isDesignSystemV2Enabled = true
-  val bitkeyDeviceCardCornerRadius = if (isDesignSystemV2Enabled) 12.dp else 24.dp
+  val bitkeyDeviceCardCornerRadius = 12.dp
   val supports3DMedia = supportsBitkeyDevice3DMedia(model.hardwareType)
   val useFallbackVideoSurfaceTreatment =
-    isDesignSystemV2Enabled &&
-      !supports3DMedia &&
+    !supports3DMedia &&
       model.deviceVideo != null
   val fallbackVideoSurfaceBackgroundColor = legacyBitkeyDeviceCardBackgroundColor()
   val mediaContainerModifier =
-    remember(isDesignSystemV2Enabled) {
-      if (isDesignSystemV2Enabled) {
-        Modifier
-          .fillMaxWidth()
-          .height(280.dp)
-      } else {
-        Modifier.size(250.dp)
-      }
+    remember {
+      Modifier
+        .fillMaxWidth()
+        .height(280.dp)
     }
 
   LaunchedEffect(Unit) {
@@ -50,8 +44,7 @@ fun BitkeyDevice(
     modifier = modifier.clip(RoundedCornerShape(bitkeyDeviceCardCornerRadius)),
     backgroundColor = when {
       useFallbackVideoSurfaceTreatment -> fallbackVideoSurfaceBackgroundColor
-      isDesignSystemV2Enabled -> WalletTheme.colors.secondary
-      else -> WalletTheme.colors.subtleBackground
+      else -> WalletTheme.colors.secondary
     },
     paddingValues = PaddingValues(0.dp),
     cornerRadius = bitkeyDeviceCardCornerRadius

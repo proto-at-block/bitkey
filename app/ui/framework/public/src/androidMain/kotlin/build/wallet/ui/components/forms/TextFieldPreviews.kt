@@ -38,7 +38,7 @@ internal fun TextFieldNoTextWithTrailingButtonPreview() {
       trailingButtonModel =
         ButtonModel(
           text = "Paste",
-          leadingIcon = Icon.SmallIconClipboard,
+          leadingIcon = Icon.Clipboard,
           treatment = Secondary,
           size = Compact,
           onClick = StandardClick {}

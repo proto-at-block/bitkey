@@ -144,9 +144,9 @@ impl Service {
         Ok(())
     }
 
-    async fn send_notification_for_canceled_instance(
+    pub(crate) async fn send_notification_for_canceled_instance<T>(
         &self,
-        updated_instance: &PrivilegedActionInstanceRecord<Value>,
+        updated_instance: &PrivilegedActionInstanceRecord<T>,
     ) -> Result<(), ServiceError> {
         let account = self
             .account_repository

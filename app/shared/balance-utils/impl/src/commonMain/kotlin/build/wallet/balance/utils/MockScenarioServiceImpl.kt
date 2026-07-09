@@ -6,12 +6,14 @@ import build.wallet.bitcoin.BlockTime
 import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType
+import build.wallet.catchingResult
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.platform.config.AppVariant
 import build.wallet.store.KeyValueStoreFactory
+import com.github.michaelbull.result.getOrElse
 import com.russhwolf.settings.ExperimentalSettingsApi
 import com.russhwolf.settings.coroutines.SuspendSettings
 import kotlinx.collections.immutable.persistentListOf
@@ -88,7 +90,7 @@ class MockScenarioServiceImpl(
     _currentSeedFlow.value = currentSeed
 
     currentGeneratedAt = store.getStringOrNull(GENERATED_AT_KEY)?.let { timestamp ->
-      runCatching { Instant.parse(timestamp) }.getOrElse {
+      catchingResult { Instant.parse(timestamp) }.getOrElse {
         throw IllegalStateException("Failed to parse stored timestamp: $timestamp", it)
       }
     }

@@ -45,8 +45,9 @@ fn get_authentication_key() -> Result<PublicKey, CommandError> {
         .ok_or(CommandError::MissingMessage)?;
 
     match message {
-        Msg::DeriveRsp(DeriveRsp { status, descriptor }) => match DeriveRspStatus::try_from(status)
-        {
+        Msg::DeriveRsp(DeriveRsp {
+            status, descriptor, ..
+        }) => match DeriveRspStatus::try_from(status) {
             Ok(DeriveRspStatus::Success) => match descriptor {
                 Some(descriptor) => {
                     let dpub: DescriptorPublicKey = descriptor.try_into()?;

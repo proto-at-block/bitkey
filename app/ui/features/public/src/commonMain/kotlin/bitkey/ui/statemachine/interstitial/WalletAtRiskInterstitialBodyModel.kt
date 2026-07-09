@@ -25,7 +25,7 @@ data class WalletAtRiskInterstitialBodyModel(
       leadingAccessory = ToolbarAccessoryModel.IconAccessory(
         model = IconButtonModel(
           iconModel = IconModel(
-            icon = Icon.SmallIconX,
+            icon = Icon.X,
             iconSize = IconSize.Accessory,
             iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Regular)
           ),

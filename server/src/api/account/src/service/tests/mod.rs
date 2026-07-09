@@ -173,6 +173,7 @@ pub fn create_private_spend_keyset(network: Network) -> SpendingKeyset {
         hardware_pub,
         server_pub,
         Default::default(),
+        None,
     )
 }
 
@@ -232,6 +233,7 @@ pub async fn create_full_account_for_test(
                 spending: spend,
             },
             is_test_account: network != Network::BitcoinMain,
+            hardware_verification_required: false,
         })
         .await
         .expect("full account should be created")
@@ -259,6 +261,7 @@ pub async fn create_full_account_for_test_v2(
                 spending: spend,
             },
             is_test_account: network != Network::BitcoinMain,
+            hardware_verification_required: false,
         })
         .await
         .expect("full account should be created")

@@ -2,15 +2,12 @@ package build.wallet.statemachine.recovery.cloud
 
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormHeaderModel.SublineTreatment
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.icon.IconModel
-import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
@@ -40,23 +37,17 @@ data class ConfirmingDeleteBackupBodyModel(
         listGroupModel = ListGroupModel(
           items = immutableListOf(
             ListItemModel(
-              leadingAccessory = ListItemAccessory.IconAccessory(
-                iconPadding = 12,
-                model = IconModel(
-                  icon = if (firstOptionIsConfirmed) Icon.SmallIconCheckboxSelected else Icon.SmallIconCheckbox,
-                  iconSize = IconSize.Small
-                )
+              leadingAccessory = ListItemAccessory.CheckboxAccessory(
+                isChecked = firstOptionIsConfirmed,
+                onClick = onClickFirstOption
               ),
               title = "I no longer intend to use this backup to recover my wallet.",
               onClick = onClickFirstOption
             ),
             ListItemModel(
-              leadingAccessory = ListItemAccessory.IconAccessory(
-                iconPadding = 12,
-                model = IconModel(
-                  icon = if (secondOptionIsConfirmed) Icon.SmallIconCheckboxSelected else Icon.SmallIconCheckbox,
-                  iconSize = IconSize.Small
-                )
+              leadingAccessory = ListItemAccessory.CheckboxAccessory(
+                isChecked = secondOptionIsConfirmed,
+                onClick = onClickSecondOption
               ),
               title = "I no longer intend to have access to this account via this backup.",
               onClick = onClickSecondOption

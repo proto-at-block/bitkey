@@ -77,7 +77,7 @@ class MobilePayStatusUiStateMachineImpl(
           title = "Daily limit",
           sideText = mobilePayData.activeSpendingLimit?.amount?.let {
             moneyDisplayFormatter.format(it)
-          } ?: "",
+          }.orEmpty(),
           onClick = {
             props.onSetLimitClick(mobilePayData.activeSpendingLimit)
           }
@@ -140,7 +140,7 @@ class MobilePayStatusUiStateMachineImpl(
     onSwitchCheckedChange = {
       props.onSetLimitClick(
         // Only pass the most recent limit if it matches the current currency
-        mobilePayData.mostRecentSpendingLimit?.takeIf { it.amount.currency == fiatCurrency }
+        mobilePayData.mostRecentSpendingLimit?.takeIf { limit -> limit.amount.currency == fiatCurrency }
       )
     },
     dailyLimitRow = null,

@@ -26,7 +26,7 @@ fun BuildHardwareDescriptorIntroBodyModel(
     onClick = StandardClick(onTapBitkey),
     treatment = ButtonModel.Treatment.BitkeyInteraction,
     size = ButtonModel.Size.Footer,
-    leadingIcon = Icon.SmallIconBitkey
+    leadingIcon = Icon.Bitkey
   ),
   backgroundVideo = BackgroundVideo(
     content = BitkeyPair,

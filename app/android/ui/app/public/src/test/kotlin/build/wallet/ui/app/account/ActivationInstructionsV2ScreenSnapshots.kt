@@ -16,6 +16,7 @@ class ActivationInstructionsV2ScreenSnapshots : FunSpec({
           ActivationInstructionsV2BodyModel(
             onBack = {},
             onContinue = {},
+            onHelpClick = {},
             isNavigatingBack = false,
             eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
           )
@@ -30,6 +31,7 @@ class ActivationInstructionsV2ScreenSnapshots : FunSpec({
           ActivationInstructionsV2BodyModel(
             onBack = {},
             onContinue = null, // Loading state
+            onHelpClick = {},
             isNavigatingBack = false,
             eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
           )

@@ -64,13 +64,23 @@ class AccountConfigServiceFake : AccountConfigService {
     return Ok(Unit)
   }
 
+  override suspend fun setIsCloudStoreFake(value: Boolean): Result<Unit, Error> {
+    updateDefaultConfig { it.copy(isCloudStoreFake = value && it.isTestAccount) }
+    return Ok(Unit)
+  }
+
   override suspend fun setHardwareType(value: HardwareType?): Result<Unit, Error> {
     updateDefaultConfig { it.copy(hardwareType = value) }
     return Ok(Unit)
   }
 
   override suspend fun setIsTestAccount(value: Boolean): Result<Unit, Error> {
-    updateDefaultConfig { it.copy(isTestAccount = value) }
+    updateDefaultConfig {
+      it.copy(
+        isTestAccount = value,
+        isCloudStoreFake = it.isCloudStoreFake && value
+      )
+    }
     return Ok(Unit)
   }
 

@@ -52,8 +52,8 @@ class SignTransactionW3IntegrationTests : FunSpec({
     val signatureUtils = SignatureUtilsMock()
     val fakeHardwareKeyStore = FakeHardwareKeyStoreFake()
     val featureFlagDao = FeatureFlagDaoFake()
-    val accountConfigService = AccountConfigServiceFake().also {
-      it.setHardwareType(HardwareType.W3)
+    val accountConfigService = AccountConfigServiceFake().apply {
+      setHardwareType(HardwareType.W3)
     }
     val fakeHardwareSpendingWalletProvider =
       FakeHardwareSpendingWalletProvider(

@@ -1,6 +1,7 @@
 package bitkey.verification
 
 import build.wallet.bitcoin.transactions.Psbt
+import build.wallet.coroutines.flow.ConfirmationFlow
 import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.exchange.ExchangeRate

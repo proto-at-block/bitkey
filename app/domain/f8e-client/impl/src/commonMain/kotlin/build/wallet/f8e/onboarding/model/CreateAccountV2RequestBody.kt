@@ -1,6 +1,8 @@
 package build.wallet.f8e.onboarding.model
 
 import bitkey.account.HardwareType
+import build.wallet.bitkey.hardware.HwAttestationCertificate
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.ktor.result.RedactedRequestBody
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -41,4 +43,28 @@ data class FullCreateAccountV2SpendingKeys(
   val hardware: String,
   /**The bitcoin network these keys were created on. */
   val network: String,
+  /**
+   * Optional device-identity-key attestation binding [hardware] to a specific
+   * Bitkey unit. Omitted when the hardware is on an older version without attestation.
+   */
+  @SerialName("hardware_attestation")
+  val hardwareAttestation: HardwareAttestationBody? = null,
 )
+
+/**
+ * Wire shape of `HardwareAttestation` on f8e: ECDSA signature over
+ * `b"HWV1" || hardware_pub` plus the device cert chain (leaf → root-ish).
+ * `signature` and each `cert_chain` entry are base64-encoded.
+ */
+@Serializable
+data class HardwareAttestationBody(
+  val signature: String,
+  @SerialName("cert_chain")
+  val certChain: List<String>,
+)
+
+internal fun HwSpendingKeyProof.toF8eBody(): HardwareAttestationBody =
+  HardwareAttestationBody(
+    signature = signature.value,
+    certChain = certChain.map(HwAttestationCertificate::value)
+  )

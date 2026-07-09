@@ -38,7 +38,7 @@ class RecoveryRelationshipNotificationUiStateMachineTests : FunSpec({
     socRecService.socRecRelationships.value = RelationshipsFake.copy(
       unendorsedTrustedContacts = listOf(
         UnendorsedTrustedContactFake.copy(
-          relationshipId = "accepted-invite-test"
+          id = RelationshipId("accepted-invite-test")
         )
       )
     )
@@ -57,7 +57,7 @@ class RecoveryRelationshipNotificationUiStateMachineTests : FunSpec({
       socRecService.socRecRelationships.value = RelationshipsFake.copy(
         endorsedTrustedContacts = listOf(
           EndorsedTrustedContactFake1.copy(
-            relationshipId = "accepted-invite-test"
+            id = RelationshipId("accepted-invite-test")
           )
         )
       )
@@ -69,7 +69,7 @@ class RecoveryRelationshipNotificationUiStateMachineTests : FunSpec({
     socRecService.socRecRelationships.value = RelationshipsFake.copy(
       endorsedTrustedContacts = listOf(
         EndorsedTrustedContactFake1.copy(
-          relationshipId = "accepted-invite-test"
+          id = RelationshipId("accepted-invite-test")
         )
       )
     )
@@ -90,7 +90,7 @@ class RecoveryRelationshipNotificationUiStateMachineTests : FunSpec({
     inheritanceService.relationships.value = RelationshipsFake.copy(
       unendorsedTrustedContacts = listOf(
         UnendorsedBeneficiaryFake.copy(
-          relationshipId = "accepted-invite-test"
+          id = RelationshipId("accepted-invite-test")
         )
       )
     )
@@ -109,7 +109,7 @@ class RecoveryRelationshipNotificationUiStateMachineTests : FunSpec({
       inheritanceService.relationships.value = RelationshipsFake.copy(
         endorsedTrustedContacts = listOf(
           EndorsedBeneficiaryFake.copy(
-            relationshipId = "accepted-invite-test"
+            id = RelationshipId("accepted-invite-test")
           )
         )
       )
@@ -122,7 +122,7 @@ class RecoveryRelationshipNotificationUiStateMachineTests : FunSpec({
     inheritanceService.relationships.value = RelationshipsFake.copy(
       endorsedTrustedContacts = listOf(
         EndorsedBeneficiaryFake.copy(
-          relationshipId = "accepted-invite-test"
+          id = RelationshipId("accepted-invite-test")
         )
       )
     )

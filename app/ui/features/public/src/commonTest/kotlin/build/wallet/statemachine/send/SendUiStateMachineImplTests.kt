@@ -1,5 +1,10 @@
 package build.wallet.statemachine.send
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.balance.BitcoinBalanceFake
 import build.wallet.bitcoin.fees.Fee
@@ -19,20 +24,27 @@ import build.wallet.money.currency.code.IsoCurrencyTextCode
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.money.exchange.ExchangeRateServiceFake
+import build.wallet.statemachine.BodyModelMock
 import build.wallet.statemachine.BodyStateMachineMock
 import build.wallet.statemachine.ScreenStateMachineMock
+import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorFormBodyModel
+import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.platform.permissions.PermissionUiProps
 import build.wallet.statemachine.platform.permissions.PermissionUiStateMachineMock
 import build.wallet.statemachine.send.fee.FeeSelectionUiProps
 import build.wallet.statemachine.send.fee.FeeSelectionUiStateMachine
 import build.wallet.statemachine.transactions.TransactionDetails
+import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Ok
 import com.ionspin.kotlin.bignum.integer.toBigInteger
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.collections.immutable.persistentMapOf
@@ -45,39 +57,46 @@ class SendUiStateMachineImplTests : FunSpec({
   val clock = ClockFake()
   val rateSyncer = ExchangeRateServiceFake(clock = clock)
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
-  val stateMachine =
-    SendUiStateMachineImpl(
-      bitcoinAddressRecipientUiStateMachine =
-        object : BitcoinAddressRecipientUiStateMachine,
-          BodyStateMachineMock<BitcoinAddressRecipientUiProps>(
-            "bitcoin-address-recipient"
-          ) {},
-      sendAmountEntryUiStateMachine =
-        object : SendAmountEntryUiStateMachine,
-          ScreenStateMachineMock<SendAmountEntryUiProps>(
-            "send-amount-entry"
-          ) {},
-      transferConfirmationUiStateMachine =
-        object : TransferConfirmationUiStateMachine,
-          ScreenStateMachineMock<TransferConfirmationUiProps>(
-            "transfer-confirmation"
-          ) {},
-      transferInitiatedUiStateMachine =
-        object : TransferInitiatedUiStateMachine, BodyStateMachineMock<TransferInitiatedUiProps>(
-          "transfer-initiated"
+  fun sendUiStateMachine(
+    usesDynamicIslandQrScannerPortal: Boolean = false,
+    onDynamicIslandQrScanSuccess: () -> Unit = {},
+    bitcoinQrCodeUiScanStateMachine: BitcoinQrCodeUiScanStateMachine =
+      object : BitcoinQrCodeUiScanStateMachine, ScreenStateMachineMock<BitcoinQrCodeScanUiProps>(
+        "bitcoin-qr-code"
+      ) {},
+  ) = SendUiStateMachineImpl(
+    bitcoinAddressRecipientUiStateMachine =
+      object : BitcoinAddressRecipientUiStateMachine,
+        BodyStateMachineMock<BitcoinAddressRecipientUiProps>(
+          "bitcoin-address-recipient"
         ) {},
-      bitcoinQrCodeUiScanStateMachine =
-        object : BitcoinQrCodeUiScanStateMachine, ScreenStateMachineMock<BitcoinQrCodeScanUiProps>(
-          "bitcoin-qr-code"
+    sendAmountEntryUiStateMachine =
+      object : SendAmountEntryUiStateMachine,
+        ScreenStateMachineMock<SendAmountEntryUiProps>(
+          "send-amount-entry"
         ) {},
-      permissionUiStateMachine = permissionUiStateMachine,
-      feeSelectionUiStateMachine =
-        object : FeeSelectionUiStateMachine, BodyStateMachineMock<FeeSelectionUiProps>(
-          "fee-options"
+    transferConfirmationUiStateMachine =
+      object : TransferConfirmationUiStateMachine,
+        ScreenStateMachineMock<TransferConfirmationUiProps>(
+          "transfer-confirmation"
         ) {},
-      exchangeRateService = rateSyncer,
-      fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
-    )
+    transferInitiatedUiStateMachine =
+      object : TransferInitiatedUiStateMachine, BodyStateMachineMock<TransferInitiatedUiProps>(
+        "transfer-initiated"
+      ) {},
+    bitcoinQrCodeUiScanStateMachine = bitcoinQrCodeUiScanStateMachine,
+    permissionUiStateMachine = permissionUiStateMachine,
+    feeSelectionUiStateMachine =
+      object : FeeSelectionUiStateMachine, BodyStateMachineMock<FeeSelectionUiProps>(
+        "fee-options"
+      ) {},
+    exchangeRateService = rateSyncer,
+    fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
+    usesDynamicIslandQrScannerPortalProvider = { usesDynamicIslandQrScannerPortal },
+    onDynamicIslandQrScanSuccess = onDynamicIslandQrScanSuccess
+  )
+
+  val stateMachine = sendUiStateMachine()
 
   val bitcoinWalletService = BitcoinWalletServiceFake()
 
@@ -134,7 +153,7 @@ class SendUiStateMachineImplTests : FunSpec({
           val psbtToBroadcast =
             PsbtMock.copy(
               amountSats = amountToSend,
-              fee = feeMap[FASTEST]!!
+              fee = feeMap.getValue(FASTEST)
             )
           onTransferInitiated(psbtToBroadcast, FASTEST)
         }
@@ -146,7 +165,7 @@ class SendUiStateMachineImplTests : FunSpec({
           with(
             transactionDetails.shouldBeTypeOf<TransactionDetails.Regular>()
           ) {
-            feeAmount.shouldBe(feeMap[FASTEST]!!.amount)
+            feeAmount.shouldBe(feeMap.getValue(FASTEST).amount)
             this.transferAmount.shouldBe(transferAmount)
           }
         }
@@ -234,7 +253,7 @@ class SendUiStateMachineImplTests : FunSpec({
           val psbtToBroadcast =
             PsbtMock.copy(
               amountSats = 60_000UL,
-              fee = feeMap[FASTEST]!!
+              fee = feeMap.getValue(FASTEST)
             )
           onTransferInitiated(psbtToBroadcast, FASTEST)
         }
@@ -246,7 +265,7 @@ class SendUiStateMachineImplTests : FunSpec({
           with(
             transactionDetails.shouldBeTypeOf<TransactionDetails.Regular>()
           ) {
-            feeAmount.shouldBe(feeMap[FASTEST]!!.amount)
+            feeAmount.shouldBe(feeMap.getValue(FASTEST).amount)
             this.transferAmount.shouldBe(transferAmount)
           }
         }
@@ -441,7 +460,88 @@ class SendUiStateMachineImplTests : FunSpec({
 
   context("QR scanner dismissal behavior") {
     test("closing QR scanner returns to address entry") {
-      stateMachine.test(props) {
+      val stateMachineWithEmbeddedQr =
+        sendUiStateMachine(
+          bitcoinQrCodeUiScanStateMachine =
+            object : BitcoinQrCodeUiScanStateMachine {
+              @Composable
+              override fun model(props: BitcoinQrCodeScanUiProps): ScreenModel {
+                return BitcoinQrCodeScanBodyModel(
+                  showSendToCopiedAddressButton = false,
+                  showActionButtons = props.showActionButtons,
+                  onQrCodeScanned = {},
+                  onEnterAddressClick = props.onEnterAddressClick,
+                  onClose = props.onClose,
+                  onSendToCopiedAddressClick = {}
+                ).asFullScreen()
+              }
+            }
+        )
+
+      stateMachineWithEmbeddedQr.test(props) {
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
+          showToolbarIcons.shouldBe(true)
+          onScanQrCodeClick()
+        }
+
+        awaitBodyMock<PermissionUiProps> {
+          onGranted()
+        }
+
+        awaitBody<SendRecipientAddressQrBodyModel> {
+          scannerBodyModel.showActionButtons.shouldBe(false)
+          recipientAddressBodyModel.shouldBeTypeOf<BodyModelMock<BitcoinAddressRecipientUiProps>>()
+            .latestProps.showToolbarIcons.shouldBe(false)
+          scannerBodyModel.onClose()
+        }
+
+        awaitBody<SendRecipientAddressQrBodyModel> {
+          addressSheetExpanded.shouldBe(true)
+          recipientAddressBodyModel.shouldBeTypeOf<BodyModelMock<BitcoinAddressRecipientUiProps>>()
+            .latestProps.showToolbarIcons.shouldBe(true)
+          onAddressSheetRestored()
+        }
+
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
+          address.shouldBeNull()
+          showToolbarIcons.shouldBe(true)
+        }
+      }
+    }
+
+    test("dismissing self-send QR error returns to address entry") {
+      val stateMachineWithSelfSendErrorQr =
+        sendUiStateMachine(
+          bitcoinQrCodeUiScanStateMachine =
+            object : BitcoinQrCodeUiScanStateMachine {
+              @Composable
+              override fun model(props: BitcoinQrCodeScanUiProps): ScreenModel {
+                var showingSelfSendError by remember { mutableStateOf(false) }
+
+                return if (showingSelfSendError) {
+                  ErrorFormBodyModel(
+                    title = "This is your Bitkey wallet address",
+                    primaryButton = ButtonDataModel(
+                      text = "Done",
+                      onClick = props.onClose
+                    ),
+                    eventTrackerScreenId = null
+                  ).asModalScreen()
+                } else {
+                  BitcoinQrCodeScanBodyModel(
+                    showSendToCopiedAddressButton = false,
+                    showActionButtons = props.showActionButtons,
+                    onQrCodeScanned = { showingSelfSendError = true },
+                    onEnterAddressClick = props.onEnterAddressClick,
+                    onClose = props.onClose,
+                    onSendToCopiedAddressClick = {}
+                  ).asFullScreen()
+                }
+              }
+            }
+        )
+
+      stateMachineWithSelfSendErrorQr.test(props) {
         awaitBodyMock<BitcoinAddressRecipientUiProps> {
           onScanQrCodeClick()
         }
@@ -450,12 +550,17 @@ class SendUiStateMachineImplTests : FunSpec({
           onGranted()
         }
 
-        awaitBodyMock<BitcoinQrCodeScanUiProps> {
-          onClose()
+        awaitBody<SendRecipientAddressQrBodyModel> {
+          scannerBodyModel.onQrCodeScanned("self-send-address")
+        }
+
+        awaitBody<FormBodyModel> {
+          primaryButton.shouldNotBeNull().onClick()
         }
 
         awaitBodyMock<BitcoinAddressRecipientUiProps> {
           address.shouldBeNull()
+          showToolbarIcons.shouldBe(true)
         }
       }
     }
@@ -468,6 +573,128 @@ class SendUiStateMachineImplTests : FunSpec({
 
         awaitBodyMock<PermissionUiProps> {
           onExit()
+        }
+
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
+          address.shouldBeNull()
+        }
+      }
+    }
+
+    test("dynamic island QR scanner requests camera permission before opening portal") {
+      sendUiStateMachine(usesDynamicIslandQrScannerPortal = true).test(props) {
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
+          onScanQrCodeClick()
+        }
+
+        awaitBodyMock<PermissionUiProps> {
+          onGranted()
+        }
+
+        awaitBody<DynamicIslandQrScannerPortalBodyModel> {
+          isClosing.shouldBe(false)
+          qrScannerScreenModel
+            .shouldNotBeNull()
+            .body
+            .shouldBeTypeOf<BodyModelMock<BitcoinQrCodeScanUiProps>>()
+            .latestProps
+            .showActionButtons
+            .shouldBe(true)
+        }
+      }
+    }
+
+    test("dynamic island QR scanner haptic runs after validated recipient scan") {
+      var hapticCalls = 0
+
+      sendUiStateMachine(
+        usesDynamicIslandQrScannerPortal = true,
+        onDynamicIslandQrScanSuccess = { hapticCalls += 1 }
+      ).test(props) {
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
+          onScanQrCodeClick()
+        }
+
+        awaitBodyMock<PermissionUiProps> {
+          onGranted()
+        }
+
+        awaitBody<DynamicIslandQrScannerPortalBodyModel> {
+          hapticCalls.shouldBe(0)
+          qrScannerScreenModel
+            .shouldNotBeNull()
+            .body
+            .shouldBeTypeOf<BodyModelMock<BitcoinQrCodeScanUiProps>>()
+            .latestProps
+            .onRecipientScanned(someBitcoinAddress)
+        }
+
+        hapticCalls.shouldBe(1)
+        awaitBodyMock<SendAmountEntryUiProps> {
+          recipientAddress.shouldBe(someBitcoinAddress)
+        }
+      }
+    }
+
+    test("dynamic island QR scanner unmounts scanner while closing portal") {
+      sendUiStateMachine(usesDynamicIslandQrScannerPortal = true).test(props) {
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
+          onScanQrCodeClick()
+        }
+
+        awaitBodyMock<PermissionUiProps> {
+          onGranted()
+        }
+
+        awaitBody<DynamicIslandQrScannerPortalBodyModel> {
+          qrScannerScreenModel.shouldNotBeNull()
+          onClose()
+        }
+
+        awaitBody<DynamicIslandQrScannerPortalBodyModel> {
+          isClosing.shouldBe(true)
+          qrScannerScreenModel.shouldBeNull()
+          onClosed()
+        }
+
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
+          address.shouldBeNull()
+        }
+      }
+    }
+
+    test("dynamic island QR scanner ignores queued scan result after close starts") {
+      var hapticCalls = 0
+
+      sendUiStateMachine(
+        usesDynamicIslandQrScannerPortal = true,
+        onDynamicIslandQrScanSuccess = { hapticCalls += 1 }
+      ).test(props) {
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
+          onScanQrCodeClick()
+        }
+
+        awaitBodyMock<PermissionUiProps> {
+          onGranted()
+        }
+
+        lateinit var scannerProps: BitcoinQrCodeScanUiProps
+        awaitBody<DynamicIslandQrScannerPortalBodyModel> {
+          scannerProps =
+            qrScannerScreenModel
+              .shouldNotBeNull()
+              .body
+              .shouldBeTypeOf<BodyModelMock<BitcoinQrCodeScanUiProps>>()
+              .latestProps
+          onClose()
+        }
+
+        scannerProps.onRecipientScanned(someBitcoinAddress)
+        hapticCalls.shouldBe(0)
+
+        awaitBody<DynamicIslandQrScannerPortalBodyModel> {
+          isClosing.shouldBe(true)
+          onClosed()
         }
 
         awaitBodyMock<BitcoinAddressRecipientUiProps> {

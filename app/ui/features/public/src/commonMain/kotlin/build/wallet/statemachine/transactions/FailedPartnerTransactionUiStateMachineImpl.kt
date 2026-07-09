@@ -58,7 +58,7 @@ class FailedPartnerTransactionUiStateMachineImpl(
         ButtonModel(
           text = "Go to ${props.transaction.details.partnerInfo.name}",
           treatment = ButtonModel.Treatment.Primary,
-          leadingIcon = Icon.SmallIconArrowUpRight,
+          leadingIcon = Icon.ArrowUpRight,
           size = ButtonModel.Size.Footer,
           onClick = StandardClick {
             inAppBrowserNavigator.open(

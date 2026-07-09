@@ -57,9 +57,9 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
 
           mainContentList.count().shouldBe(1)
           mainContentList[0].shouldBeTypeOf<FormMainContentModel.ListGroup> {
-            it.listGroupModel.items.map { it.title }
+            it.listGroupModel.items.map { item -> item.title }
               .shouldBe(listOf("Transaction history", "Current wallet descriptor"))
-            it.listGroupModel.items.map { it.secondaryText }
+            it.listGroupModel.items.map { item -> item.secondaryText }
               .shouldBe(listOf("Export CSV", "Export XPUB bundle"))
             it.listGroupModel.items.map { listItem ->
               listItem.trailingAccessory
@@ -68,7 +68,7 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
                 .iconImage
                 .shouldBeTypeOf<IconImage.LocalImage>()
                 .icon
-            }.shouldBe(listOf(Icon.SmallIconDocument, Icon.SmallIconDocument))
+            }.shouldBe(listOf(Icon.Document, Icon.Document))
           }
 
           primaryButton.shouldBeNull()
@@ -77,7 +77,7 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("uses document icon when design system v2 is enabled") {
+  test("uses document icon") {
     stateMachine.test(props) {
       awaitBody<ExportToolsSelectionModel> {
         mainContentList[0].shouldBeTypeOf<FormMainContentModel.ListGroup> {
@@ -88,7 +88,7 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
               .iconImage
               .shouldBeTypeOf<IconImage.LocalImage>()
               .icon
-          }.shouldBe(listOf(Icon.SmallIconDocument, Icon.SmallIconDocument))
+          }.shouldBe(listOf(Icon.Document, Icon.Document))
         }
       }
     }
@@ -97,7 +97,7 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
   test("onClose is called when close button is pressed.") {
     stateMachine.test(props) {
       awaitBody<ExportToolsSelectionModel> {
-        onBack?.invoke()
+        onBack.invoke()
       }
 
       onBackCalls.awaitItem()
@@ -120,7 +120,7 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
         primaryButton.shouldNotBeNull().text.shouldBe("Download .CSV")
         secondaryButton.shouldNotBeNull().text.shouldBe("Cancel")
 
-        primaryButton!!.onClick.invoke()
+        primaryButton.shouldNotBeNull().onClick.invoke()
       }
 
       awaitSheet<ExportSheetBodyModel> {
@@ -149,7 +149,7 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
         primaryButton.shouldNotBeNull().text.shouldBe("Download .CSV")
         secondaryButton.shouldNotBeNull().text.shouldBe("Cancel")
 
-        primaryButton!!.onClick.invoke()
+        primaryButton.shouldNotBeNull().onClick.invoke()
       }
 
       awaitSheet<ExportSheetBodyModel> {
@@ -189,7 +189,7 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
           it.item.subtitle.shouldNotBeNull().string.shouldBe("XPUB bundles contain sensitive privacy data. For tax reporting, use your transaction history.")
         }
 
-        primaryButton!!.onClick.invoke()
+        primaryButton.shouldNotBeNull().onClick.invoke()
       }
 
       awaitSheet<ExportSheetBodyModel> {
@@ -222,7 +222,7 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
           it.item.subtitle.shouldNotBeNull().string.shouldBe("XPUB bundles contain sensitive privacy data. For tax reporting, use your transaction history.")
         }
 
-        primaryButton!!.onClick.invoke()
+        primaryButton.shouldNotBeNull().onClick.invoke()
       }
 
       awaitSheet<ExportSheetBodyModel> {

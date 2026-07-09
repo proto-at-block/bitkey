@@ -259,7 +259,6 @@ impl MeasurementsCache {
     }
 }
 
-#[instrument(skip(state))]
 pub async fn handler(state: &WorkerState, sleep_duration_seconds: u64) -> Result<(), WorkerError> {
     // TODO: We should schedule events to trigger the job rather than using an infinite poll-loop
     // in a http handler: W-3245/scheduled-workers-refactor
@@ -282,6 +281,7 @@ pub async fn handler(state: &WorkerState, sleep_duration_seconds: u64) -> Result
     }
 }
 
+#[instrument(skip(state, measurements_cache))]
 pub async fn run_once(
     state: &WorkerState,
     measurements_cache: &MeasurementsCache,

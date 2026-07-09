@@ -130,6 +130,7 @@ static secure_channel_err_t _secure_uart_verify(secure_channel_type_t channel_ty
   if (!secure_channel_read_cert(cert_id, &verify_cert)) {
     // TODO[SECENG-9343]: Make verification mandatory on all devices.
     if (security_config.is_production == SECURE_TRUE) {
+      MFLOGE("SC UART peer cert read fail (PROD)");
       return SECURE_CHANNEL_ERROR_READ_CERT;
     } else {
       LOGW("SC peer cert miss (DEV)");
@@ -141,6 +142,7 @@ static secure_channel_err_t _secure_uart_verify(secure_channel_type_t channel_ty
                                     exchange_sig_len)) {
     // TODO[SECENG-9343]: Make verification mandatory on all devices.
     if (security_config.is_production == SECURE_TRUE) {
+      MFLOGE("SC UART verify fail (PROD)");
       return SECURE_CHANNEL_VERIFY_FAILED;
     } else {
       LOGW("SC UART fail (DEV)");
@@ -202,11 +204,13 @@ NO_OPTIMIZE secure_channel_err_t secure_uart_channel_confirm_session(uint8_t* re
   secure_channel_err_t ret = secure_channel_compute_confirmation(
     channel_type, &secure_channel_ctx.session_conf_key, expected_tag);
   if (ret != SECURE_CHANNEL_OK) {
+    MFLOGE("SC UART confirm compute fail ret=%d", (int)ret);
     goto out;
   }
 
   SECURE_DO_FAILIN(
     memcmp_s(expected_tag, received_tag, SECURE_CHANNEL_KEY_CONFIRMATION_TAG_LEN) != 0, {
+      MFLOGE("SC UART confirm tag mismatch");
       ret = SECURE_CHANNEL_CONFIRMATION_FAILED;
       goto out;
     });
@@ -218,6 +222,7 @@ NO_OPTIMIZE secure_channel_err_t secure_uart_channel_confirm_session(uint8_t* re
       sizeof(uxc_channel_local_state.pubkey_buf), uxc_channel_local_state.peer_pubkey_buf,
       sizeof(uxc_channel_local_state.peer_pubkey_buf), exchange_sig, exchange_sig_len));
   SECURE_DO_FAILIN(verify_ret != SECURE_CHANNEL_OK, {
+    MFLOGE("SC UART verify fail ret=%d", (int)verify_ret);
     ret = SECURE_CHANNEL_VERIFY_FAILED;
     goto out;
   });
@@ -227,6 +232,7 @@ NO_OPTIMIZE secure_channel_err_t secure_uart_channel_confirm_session(uint8_t* re
     uxc_channel_local_state.confirmed = true;
     uxc_channel_local_state.recv_sequence_number = 0;
     uxc_channel_local_state.send_sequence_number = 0;
+    MFLOGI("SC UART confirmed");
   }
   sysevent_set(SYSEVENT_UXC_SECURE_COMMS_ESTABLISHED);
 out:
@@ -290,6 +296,7 @@ secure_channel_err_t secure_uart_channel_establish(uint8_t* pk_peer, uint32_t pk
 
   ret = init_keys();
   if (ret != SECURE_CHANNEL_OK) {
+    MFLOGE("SC UART init_keys fail ret=%d", (int)ret);
     goto out;
   }
 
@@ -306,6 +313,7 @@ secure_channel_err_t secure_uart_channel_establish(uint8_t* pk_peer, uint32_t pk
                                       &uxc_channel_local_state.privkey,
                                       &uxc_channel_local_state.pubkey, NULL, 0);
   if (ret != SECURE_CHANNEL_OK) {
+    MFLOGE("SC UART establish_impl ret=%d", (int)ret);
     memzero(uxc_channel_local_state.privkey_buf, sizeof(uxc_channel_local_state.privkey_buf));
     uxc_channel_local_state.have_keys = false;
     goto out;
@@ -319,17 +327,20 @@ secure_channel_err_t secure_uart_channel_establish(uint8_t* pk_peer, uint32_t pk
   ret = secure_channel_compute_confirmation(
     secure_channel_ctx.channel_type, &secure_channel_ctx.session_conf_key, key_confirmation_tag);
   if (ret != SECURE_CHANNEL_OK) {
+    MFLOGE("SC UART compute_confirm ret=%d", (int)ret);
     goto out;
   }
 
   ret = _secure_uart_sign(uxc_channel_local_state.pubkey_buf, EC_PUBKEY_SIZE_X25519, pk_peer,
                           pk_peer_len, exchange_sig, exchange_sig_len);
   if (ret != SECURE_CHANNEL_OK) {
+    MFLOGE("SC UART sign ret=%d", (int)ret);
     goto out;
   }
 
   // Save the peer public key since it will be needed later for verification.
   memcpy(uxc_channel_local_state.peer_pubkey_buf, pk_peer, EC_PUBKEY_SIZE_X25519);
+  MFLOGI("SC UART establish ok");
 
 out:
   rtos_mutex_unlock(&secure_channel_ctx.lock);

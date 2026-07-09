@@ -1,0 +1,499 @@
+#!/usr/bin/env python3
+
+import re
+import sys
+from collections import Counter
+from dataclasses import dataclass
+from pathlib import Path
+
+
+APP_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = APP_ROOT.parent
+SETTINGS_FILE = APP_ROOT / "settings.gradle.kts"
+WORKFLOW_MATRIX_FILES = [
+    REPO_ROOT / ".github" / "workflows" / "app.yml",
+    REPO_ROOT / ".github" / "workflows" / "server.yml",
+]
+
+SHARDS = {
+    "account-recovery": [
+        "bitkey.recovery.LostAppAndCloudRecoveryFunctionalTests",
+        "build.wallet.integration.statemachine.recovery.LiteAccountRecoveryFunctionalTests",
+        "build.wallet.integration.statemachine.recovery.LostAppAndCloudRecoveryFunctionalTests",
+        "build.wallet.integration.statemachine.recovery.LostAppContestedRecoveryFunctionalTests",
+        "build.wallet.integration.statemachine.recovery.LostAppRecoveryUsingCloudFunctionalTests",
+        "build.wallet.integration.statemachine.recovery.LostHardwareRecoveryForceExitFunctionalTests",
+        "build.wallet.integration.statemachine.recovery.LostHardwareRecoveryFunctionalTests",
+        "build.wallet.integration.statemachine.recovery.LostHardwareRecoveryFundsFunctionalTests",
+        "build.wallet.integration.statemachine.recovery.emergencyexitkit.EmergencyExitRecoveryFunctionalTests",
+    ],
+    "social-recovery": [
+        "build.wallet.integration.statemachine.inheritance.DeclineInheritanceClaimIntegrationTests",
+        "build.wallet.integration.statemachine.inheritance.InheritanceClaimE2eTests",
+        "build.wallet.integration.statemachine.recovery.socrec.SocRecE2eFunctionalTests",
+        "build.wallet.integration.statemachine.recovery.socrec.TrustedContactDeepLinkFunctionalTests",
+        "build.wallet.integration.statemachine.recovery.socrec.TrustedContactManagementFunctionalTests",
+        "build.wallet.integration.statemachine.recovery.socrec.add.AddingTrustedContactFunctionalTests",
+        "build.wallet.integration.statemachine.recovery.socrec.challenge.RecoveryChallengeUiStateMachineFunctionalTests",
+        "build.wallet.recovery.socrec.SocRecServiceFunctionalTests",
+        "build.wallet.relationships.EndorseTrustedContactsServiceImplFunctionalTests",
+        "build.wallet.relationships.RelationshipsCryptoFakeTests",
+    ],
+    "wallet-transactions": [
+        "build.wallet.bitcoin.transactions.BitcoinWalletServiceFunctionalTests",
+        "build.wallet.bitcoin.transactions.FeeBumpFunctionalTests",
+        "build.wallet.bitcoin.transactions.SpeedUpDepositFunctionalTests",
+        "build.wallet.bitcoin.transactions.TransactionBuildFunctionalTests",
+        "build.wallet.bitcoin.wallet.SpendingWalletV2FunctionalTests",
+        "build.wallet.component.bitcoin.keys.ExtendedKeyGeneratorComponentTests",
+        "build.wallet.component.keybox.keys.AppKeysGeneratorComponentTests",
+        "build.wallet.component.keybox.keys.OnboardingAppKeyKeystoreComponentTests",
+        "build.wallet.component.keybox.wallet.AppSpendingWalletFunctionalTests",
+        "build.wallet.functional.statemachine.data.sweep.SweepDataStateMachineFunctionalTests",
+        "build.wallet.integration.statemachine.export.ExportToolsE2ETests",
+        "build.wallet.integration.statemachine.export.ExportTransactionsFunctionalTests",
+        "build.wallet.integration.statemachine.mobilepay.MobilePayE2ETests",
+        "build.wallet.integration.statemachine.mobilepay.SoftwareWalletSigningFunctionalTests",
+        "build.wallet.integration.statemachine.send.SendE2EFunctionalTests",
+        "build.wallet.integration.statemachine.transactions.FeeBumpUiFunctionalTests",
+        "build.wallet.integration.statemachine.utxo.UtxoConsolidationUiFunctionalTests",
+        "build.wallet.smoke.bitcoin.account.OnboardingAndMobilePaySmokeTests",
+        "build.wallet.treasury.RegtestTreasuryWalletTests",
+        "build.wallet.utxo.UtxoConsolidationFunctionalTests",
+        "build.wallet.utxo.WalletUtxoFunctionalTests",
+    ],
+    "onboarding-upgrade-misc": [
+        "bitkey.f8e.account.DescriptorBackupsF8eFunctionalTests",
+        "build.wallet.component.account.AccountRepositoryImplComponentTests",
+        "build.wallet.debug.AppDataDeleterImplComponentTests",
+        "build.wallet.f8e.debug.NetworkDebugFunctionalTests",
+        "build.wallet.f8e.recovery.HardwareAuthKeyAvailabilityF8eFunctionalTests",
+        "build.wallet.functional.statemachine.DualStateMachineTests",
+        "build.wallet.integration.statemachine.age.AgeRangeVerificationE2eTests",
+        "build.wallet.integration.statemachine.app.AppFunctionalTests",
+        "build.wallet.integration.statemachine.cloud.health.CloudBackupHealthFunctionalTests",
+        "build.wallet.integration.statemachine.connectivity.InternetConnectionCheckerFunctionalTests",
+        "build.wallet.integration.statemachine.create.CreateAndOnboardFullAccountFunctionalTests",
+        "build.wallet.integration.statemachine.create.CreateAndOnboardLiteAccountFunctionalTests",
+        "build.wallet.integration.statemachine.create.CreateSoftwareWalletE2eTests",
+        "build.wallet.integration.statemachine.create.OnboardFullAccountWithExistingLiteAccountFunctionalTests",
+        "build.wallet.integration.statemachine.create.OverwriteFullAccountCloudBackupFunctionalTests",
+        "build.wallet.integration.statemachine.create.ReplaceFullAccountWithLiteAccountBackupFunctionalTests",
+        "build.wallet.integration.statemachine.create.W3OnboardingFunctionalTests",
+        "build.wallet.integration.statemachine.fwup.FwupW3FunctionalTests",
+        "build.wallet.integration.statemachine.partnerships.PartnerPurchaseFunctionalTests",
+        "build.wallet.integration.statemachine.recovery.PrivateWalletUpgradeFunctionalTests",
+        "build.wallet.integration.statemachine.recovery.W3UpgradeBlockerFunctionalTests",
+        "build.wallet.integration.statemachine.recovery.W3UpgradeCloudRecoveryFunctionalTests",
+        "build.wallet.integration.statemachine.recovery.W3UpgradeFunctionalTests",
+        "build.wallet.integration.statemachine.recovery.cloud.MultipleFullAccountCloudBackupsRestoreFunctionalTests",
+        "build.wallet.integration.statemachine.recovery.cloud.RotateAuthKeyFunctionalTests",
+        "build.wallet.integration.statemachine.securitycenter.SecurityActionsInitializationFunctionalTests",
+        "build.wallet.integration.statemachine.settings.full.device.fingerprints.FingerprintResetFunctionalTests",
+        "build.wallet.integration.statemachine.settings.full.feedback.FeedbackFunctionalTests",
+        "build.wallet.onboarding.CreateFullAccountFunctionalTests",
+        "build.wallet.onboarding.CreateSoftwareWalletServiceComponentTests",
+        "build.wallet.onboarding.OnboardAccountFunctionalTests",
+        "build.wallet.partnerships.PartnershipPurchaseFunctionalTests",
+        "build.wallet.testing.DualAppTests",
+    ],
+}
+
+KOTEST_SPECS = {
+    "AnnotationSpec",
+    "BehaviorSpec",
+    "DescribeSpec",
+    "ExpectSpec",
+    "FeatureSpec",
+    "FreeSpec",
+    "FunSpec",
+    "ShouldSpec",
+    "StringSpec",
+    "WordSpec",
+}
+
+PACKAGE_PATTERN = re.compile(r"^package\s+([\w.]+)", re.MULTILINE)
+MODULE_PATTERN = re.compile(r'^\s*module\("(?P<module>:[^"]+)"\)', re.MULTILINE)
+CLASS_PATTERN = re.compile(
+    r"^(?P<indent>[ \t]*)"
+    r"(?P<modifiers>(?:(?:internal|private|public|protected|open|abstract|sealed)\s+)*)"
+    r"class\s+(?P<class_name>[A-Za-z_]\w*)"
+    r"(?:\s*<[^>{}]*>)?"
+    r"(?:\s+(?:(?:public|private|internal|protected)\s+)?constructor)?"
+    r"(?:\s*\((?:[^()]|\([^()]*\))*\))?"
+    r"\s*:\s*(?P<super_type>[A-Za-z_][\w.]*)",
+    re.MULTILINE | re.DOTALL,
+)
+WORKFLOW_SHARD_PATTERN = re.compile(r"^\s*-\s*(?P<shard>[-\w]+)\s*$")
+
+
+@dataclass(frozen=True)
+class SourceFile:
+    path: Path
+    gradle_task: str
+    text: str
+
+
+@dataclass(frozen=True)
+class ClassInfo:
+    path: Path
+    package_name: str
+    class_name: str
+    modifiers: frozenset[str]
+    super_type: str
+    gradle_task: str
+
+
+def usage() -> None:
+    print(
+        "Usage: scripts/jvm-integration-test-shards/run list|validate|args <shard>",
+        file=sys.stderr,
+    )
+
+
+def gradle_project_path(module_path: str) -> str:
+    module_parts = [part for part in module_path.split(":") if part]
+
+    if not module_parts:
+        raise ValueError(f"Invalid Gradle module path: {module_path}")
+
+    if len(module_parts) == 1:
+        return module_path
+
+    return f":{module_parts[0]}:{'-'.join(module_parts[1:])}"
+
+
+def module_dir(module_path: str) -> Path:
+    module_parts = [part for part in module_path.split(":") if part]
+    return APP_ROOT.joinpath(*module_parts)
+
+
+def declared_modules() -> dict[Path, str]:
+    settings = SETTINGS_FILE.read_text(encoding="utf-8")
+    modules = {}
+    for match in MODULE_PATTERN.finditer(settings):
+        path = module_dir(match.group("module"))
+        modules[path] = gradle_project_path(match.group("module"))
+
+    if not modules:
+        raise ValueError(f"No Gradle modules found in {SETTINGS_FILE}")
+
+    return modules
+
+
+def jvm_integration_source_files() -> list[SourceFile]:
+    sources = []
+    for path, gradle_path in sorted(declared_modules().items()):
+        source_dir = path / "src" / "jvmIntegrationTest" / "kotlin"
+        if not source_dir.exists():
+            continue
+
+        sources.extend(
+            SourceFile(
+                path=source_file,
+                gradle_task=f"{gradle_path}:jvmIntegrationTest",
+                text=source_file.read_text(encoding="utf-8"),
+            )
+            for source_file in sorted(source_dir.glob("**/*.kt"))
+        )
+
+    return sources
+
+
+def class_infos_for(source: SourceFile) -> list[ClassInfo]:
+    package = PACKAGE_PATTERN.search(source.text)
+    if not package:
+        return []
+
+    class_infos = []
+    for match in CLASS_PATTERN.finditer(source.text):
+        if match.group("indent"):
+            continue
+
+        class_infos.append(
+            ClassInfo(
+                path=source.path,
+                package_name=package.group(1),
+                class_name=match.group("class_name"),
+                modifiers=frozenset(match.group("modifiers").split()),
+                super_type=match.group("super_type").split(".")[-1],
+                gradle_task=source.gradle_task,
+            )
+        )
+    return class_infos
+
+
+def spec_class_names(class_infos: list[ClassInfo]) -> set[str]:
+    spec_classes = set(KOTEST_SPECS)
+
+    changed = True
+    while changed:
+        changed = False
+        for class_info in class_infos:
+            if (
+                class_info.super_type in spec_classes
+                and class_info.class_name not in spec_classes
+            ):
+                spec_classes.add(class_info.class_name)
+                changed = True
+
+    return spec_classes
+
+
+def is_concrete(class_info: ClassInfo) -> bool:
+    return "abstract" not in class_info.modifiers and "sealed" not in class_info.modifiers
+
+
+def is_test_file_class(class_info: ClassInfo) -> bool:
+    return (
+        class_info.path.stem == class_info.class_name
+        and class_info.class_name.endswith(("Test", "Tests"))
+    )
+
+
+def discover_tests_from_sources(sources: list[SourceFile]) -> dict[str, str]:
+    class_infos = [
+        class_info
+        for source in sources
+        for class_info in class_infos_for(source)
+    ]
+    known_spec_classes = spec_class_names(class_infos)
+
+    tests = {}
+    for class_info in class_infos:
+        if not is_concrete(class_info):
+            continue
+
+        directly_extends_kotest = class_info.super_type in KOTEST_SPECS
+        extends_spec_subclass = class_info.super_type in known_spec_classes
+        if not directly_extends_kotest and not (
+            extends_spec_subclass and is_test_file_class(class_info)
+        ):
+            continue
+
+        fqcn = f"{class_info.package_name}.{class_info.class_name}"
+        tests[fqcn] = class_info.gradle_task
+
+    return tests
+
+
+def discover_tests() -> dict[str, str]:
+    return discover_tests_from_sources(jvm_integration_source_files())
+
+
+def assigned_tests() -> list[str]:
+    return [test for tests in SHARDS.values() for test in tests]
+
+
+def indentation(line: str) -> int:
+    return len(line) - len(line.lstrip(" "))
+
+
+def workflow_matrix_shards(path: Path) -> list[str]:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    for index, line in enumerate(lines):
+        if line.strip() != "integration-test-shard:":
+            continue
+
+        matrix_indent = indentation(line)
+        shards = []
+        for nested_line in lines[index + 1:]:
+            if not nested_line.strip():
+                continue
+            if indentation(nested_line) <= matrix_indent:
+                break
+
+            match = WORKFLOW_SHARD_PATTERN.match(nested_line)
+            if match:
+                shards.append(match.group("shard"))
+
+        return shards
+
+    return []
+
+
+def workflow_matrix_failures() -> list[str]:
+    expected = list(SHARDS)
+    failures = []
+    for workflow in WORKFLOW_MATRIX_FILES:
+        actual = workflow_matrix_shards(workflow)
+        if actual != expected:
+            failures.append(
+                f"{workflow.relative_to(REPO_ROOT)} has shards {actual}; expected {expected}"
+            )
+    return failures
+
+
+def parser_self_check_failures() -> list[str]:
+    cases = [
+        (
+            "constructor parameters",
+            SourceFile(
+                path=Path("ConstructorParamTests.kt"),
+                gradle_task=":sample:jvmIntegrationTest",
+                text="""
+package sample
+
+class ConstructorParamTests(
+  private val fixture: Fixture = Fixture()
+) : FunSpec({
+})
+""",
+            ),
+            {"sample.ConstructorParamTests"},
+        ),
+        (
+            "multiline declaration",
+            SourceFile(
+                path=Path("MultilineDeclarationTests.kt"),
+                gradle_task=":sample:jvmIntegrationTest",
+                text="""
+package sample
+
+class MultilineDeclarationTests
+  : StringSpec({
+  })
+""",
+            ),
+            {"sample.MultilineDeclarationTests"},
+        ),
+        (
+            "wrapper spec subclass",
+            SourceFile(
+                path=Path("WrappedFunctionalTests.kt"),
+                gradle_task=":sample:jvmIntegrationTest",
+                text="""
+package sample
+
+abstract class BaseIntegrationSpec(
+  body: FunSpec.() -> Unit = {},
+) : FunSpec(body)
+
+class WrappedFunctionalTests : BaseIntegrationSpec()
+class HelperTests : BaseIntegrationSpec()
+""",
+            ),
+            {"sample.WrappedFunctionalTests"},
+        ),
+    ]
+
+    failures = []
+    for name, source, expected_tests in cases:
+        actual_tests = set(discover_tests_from_sources([source]))
+        if actual_tests != expected_tests:
+            failures.append(
+                f"{name}: expected {sorted(expected_tests)}, got {sorted(actual_tests)}"
+            )
+    return failures
+
+
+def validate() -> bool:
+    parser_failures = parser_self_check_failures()
+    workflow_failures = workflow_matrix_failures()
+    discovered = discover_tests()
+    assigned = assigned_tests()
+    assignment_counts = Counter(assigned)
+
+    missing_assignments = sorted(set(discovered) - set(assigned))
+    duplicate_assignments = sorted(
+        fqcn for fqcn, count in assignment_counts.items() if count > 1
+    )
+    unknown_assignments = sorted(set(assigned) - set(discovered))
+
+    if missing_assignments:
+        print("JVM integration test classes missing shard assignments:", file=sys.stderr)
+        for fqcn in missing_assignments:
+            print(f"  {fqcn}", file=sys.stderr)
+
+    if duplicate_assignments:
+        print("JVM integration test classes assigned to multiple shards:", file=sys.stderr)
+        for fqcn in duplicate_assignments:
+            print(f"  {fqcn}", file=sys.stderr)
+
+    if unknown_assignments:
+        print("Shard assignments that do not match discovered test classes:", file=sys.stderr)
+        for fqcn in unknown_assignments:
+            print(f"  {fqcn}", file=sys.stderr)
+
+    if parser_failures:
+        print("Shard parser self-checks failed:", file=sys.stderr)
+        for failure in parser_failures:
+            print(f"  {failure}", file=sys.stderr)
+
+    if workflow_failures:
+        print("Workflow shard matrices do not match SHARDS:", file=sys.stderr)
+        for failure in workflow_failures:
+            print(f"  {failure}", file=sys.stderr)
+
+    if (
+        parser_failures
+        or workflow_failures
+        or missing_assignments
+        or duplicate_assignments
+        or unknown_assignments
+    ):
+        return False
+
+    print(
+        f"Validated {len(discovered)} JVM integration test classes across "
+        f"{len(SHARDS)} shards."
+    )
+    return True
+
+
+def args_for(shard: str) -> str:
+    if shard not in SHARDS:
+        supported = ", ".join(SHARDS.keys())
+        raise ValueError(f"Unknown shard '{shard}'. Supported shards: {supported}")
+
+    discovered = discover_tests()
+    tests = SHARDS[shard]
+    missing = sorted(set(tests) - set(discovered))
+    if missing:
+        missing_list = "\n  ".join(missing)
+        raise ValueError(f"Shard '{shard}' includes unknown tests:\n  {missing_list}")
+
+    tasks = sorted({discovered[test] for test in tests})
+    filters = [item for test in sorted(tests) for item in ("--tests", test)]
+
+    return " ".join(
+        [
+            *tasks,
+            "-Dkotest.tags=!IsolatedTest",
+            f"-Pbitkey.integrationTest.shard={shard}",
+            *filters,
+        ]
+    )
+
+
+def main(argv: list[str]) -> int:
+    if len(argv) < 2:
+        usage()
+        return 2
+
+    command = argv[1]
+
+    if command == "list":
+        print("\n".join(SHARDS.keys()))
+        return 0
+
+    if command == "validate":
+        return 0 if validate() else 1
+
+    if command == "args":
+        if len(argv) != 3:
+            usage()
+            return 2
+        try:
+            print(args_for(argv[2]))
+        except ValueError as error:
+            print(error, file=sys.stderr)
+            return 1
+        return 0
+
+    usage()
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

@@ -29,6 +29,7 @@ feature_flags = { workspace = true }
 http_server = { workspace = true }
 instrumentation = { workspace = true }
 migration = { workspace = true }
+privileged_action = { workspace = true }
 repository = { workspace = true, features = ["anti_replay"] }
 screener = { workspace = true }
 strum_macros = { workspace = true }
@@ -37,6 +38,7 @@ transaction_verification = { workspace = true }
 types = { workspace = true, features = [
   "currencies",
   "exchange_rate",
+  "privileged_action",
   "serde",
 ] }
 userpool = { workspace = true }

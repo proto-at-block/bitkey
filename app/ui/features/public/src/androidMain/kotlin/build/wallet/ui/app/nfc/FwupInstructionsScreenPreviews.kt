@@ -49,5 +49,6 @@ private fun fwupInstructionsPreviewModel() =
     buttonText = "Update Bitkey",
     onButtonClick = {},
     hardwareType = HardwareType.W3,
+    onHelpClick = {},
     eventTrackerScreenId = null
   )

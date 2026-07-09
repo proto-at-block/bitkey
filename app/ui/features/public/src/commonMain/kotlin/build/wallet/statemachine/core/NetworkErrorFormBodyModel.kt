@@ -47,7 +47,7 @@ private fun NetworkErrorFormBodyModelWithOptionalErrorData(
   errorData: ErrorData?,
   eventTrackerScreenId: EventTrackerScreenId?,
   renderContext: RenderContext = RenderContext.Screen,
-) = ErrorFormBodyModelWithOptionalErrorData(
+) = errorFormBodyModelWithOptionalErrorData(
   title = title,
   subline = StringModel(
     when {
@@ -122,7 +122,7 @@ fun NetworkErrorFormBodyModelWithOptionalErrorData(
       onClick = onBack
     )
 
-  return ErrorFormBodyModelWithOptionalErrorData(
+  return errorFormBodyModelWithOptionalErrorData(
     onBack = onBack,
     title = title,
     subline = StringModel(

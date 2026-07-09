@@ -75,10 +75,12 @@ void sysinfo_task_request_coproc_coredump(fwpb_wallet_cmd* cmd) {
 }
 
 void sysinfo_task_port_prepare_power_down(void) {
+  MFLOGI("W1 prepare_power_down");
   ipc_send_empty(sysinfo_port, IPC_SYSINFO_POWER_OFF);
 }
 
 void sysinfo_task_port_power_down(void) {
+  MFLOGI("W1 power_down: LDO low-power, clear retain");
   power_set_ldo_low_power_mode();
   power_set_retain(false);
 }

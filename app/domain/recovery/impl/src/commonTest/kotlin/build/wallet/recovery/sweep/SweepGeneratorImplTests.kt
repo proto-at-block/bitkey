@@ -54,6 +54,8 @@ import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 
+// Large end-to-end coverage for sweep generation; splitting would hurt cohesion.
+@Suppress("LargeClass")
 class SweepGeneratorImplTests : FunSpec({
   val destinationAddress = "bc1zw508d6qejxtdg4y5r3zarvaryvaxxpcs"
   val psbtMock = PsbtMock.copy(fee = Fee(BitcoinMoney.btc(BigDecimal.TEN)))
@@ -240,7 +242,7 @@ class SweepGeneratorImplTests : FunSpec({
     processorMock.reset()
     processorMock.processBatchReturnValues = listOf(Ok(Unit), Ok(Unit))
 
-    wallets.values.forEach { it.reset() }
+    wallets.values.forEach { wallet -> wallet.reset() }
   }
 
   test("lost app recovery - single keyset - success") {

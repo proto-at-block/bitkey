@@ -50,7 +50,8 @@ class TrustedContactEnrollmentUiStateMachineImpl(
   private val createAccountUiStateMachine: CreateAccountUiStateMachine,
   private val promoCodeUpsellUiStateMachine: PromoCodeUpsellUiStateMachine,
 ) : TrustedContactEnrollmentUiStateMachine {
-  @Suppress("ComplexMethod")
+  // Large enrollment state machine; refactoring the model function is out of scope for lint cleanup.
+  @Suppress("CyclomaticComplexMethod")
   @Composable
   override fun model(props: TrustedContactEnrollmentUiProps): ScreenModel {
     var uiState: State by remember(props.inviteCode, props.variant) {
@@ -62,7 +63,7 @@ class TrustedContactEnrollmentUiStateMachineImpl(
       }
     }
     var inviteCode by remember(props.inviteCode, props.variant) {
-      mutableStateOf(props.inviteCode ?: "")
+      mutableStateOf(props.inviteCode.orEmpty())
     }
     var isInheritance by remember(props.inviteCode, props.variant) {
       mutableStateOf(props.variant is Direct && props.variant.target == Inheritance)

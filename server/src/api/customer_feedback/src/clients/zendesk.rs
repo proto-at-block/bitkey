@@ -1,6 +1,7 @@
 use std::env;
 
 use axum::body::Bytes;
+use clients_common::http::default_client;
 use reqwest::{
     header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
     Client, Response,
@@ -65,7 +66,7 @@ impl ZendeskClient {
         match mode {
             ZendeskMode::Environment => Self::Real {
                 endpoint: reqwest::Url::parse(ZENDESK_API_URL).unwrap(),
-                client: Client::new(),
+                client: default_client(),
                 authorization: env::var("ZENDESK_AUTHORIZATION")
                     .expect("ZENDESK_AUTHORIZATION environment variable not set"),
             },
@@ -73,7 +74,7 @@ impl ZendeskClient {
         }
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, request))]
     pub async fn create_ticket(
         &self,
         request: CreateRequestPayload,

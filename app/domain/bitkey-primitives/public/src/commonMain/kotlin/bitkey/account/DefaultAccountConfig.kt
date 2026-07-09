@@ -10,6 +10,7 @@ import kotlin.time.Duration
  *
  * @param skipCloudBackupOnboarding indicates if cloud backup onboarding step should be skipped.
  * @param skipNotificationsOnboarding indicates if notifications onboarding step should be skipped.
+ * @param isCloudStoreFake indicates if test-account cloud storage should use local fake storage.
  */
 data class DefaultAccountConfig(
   override val bitcoinNetworkType: BitcoinNetworkType,
@@ -17,6 +18,7 @@ data class DefaultAccountConfig(
   override val isTestAccount: Boolean,
   override val isUsingSocRecFakes: Boolean,
   val isHardwareFake: Boolean,
+  val isCloudStoreFake: Boolean = false,
   /**
    * Hardware type for the account.
    * - `null`: Defaults to W1 in [toFullAccountConfig]; actual type is resolved from the

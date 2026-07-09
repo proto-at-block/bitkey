@@ -265,20 +265,17 @@ class NotificationPreferencesSetupUiStateMachineImpl(
     overlayState: OverlayState,
     advanceToTransactions: () -> Unit,
   ) {
-    when (overlayState) {
-      !is SystemPromptRequestingPush -> Unit
-      is SystemPromptRequestingPush -> {
-        notificationPermissionRequester.requestNotificationPermission(
-          onGranted = {
-            eventTracker.track(ACTION_APP_PUSH_NOTIFICATIONS_ENABLED)
-            advanceToTransactions()
-          },
-          onDeclined = {
-            eventTracker.track(ACTION_APP_PUSH_NOTIFICATIONS_DISABLED)
-            advanceToTransactions()
-          }
-        )
-      }
+    if (overlayState is SystemPromptRequestingPush) {
+      notificationPermissionRequester.requestNotificationPermission(
+        onGranted = {
+          eventTracker.track(ACTION_APP_PUSH_NOTIFICATIONS_ENABLED)
+          advanceToTransactions()
+        },
+        onDeclined = {
+          eventTracker.track(ACTION_APP_PUSH_NOTIFICATIONS_DISABLED)
+          advanceToTransactions()
+        }
+      )
     }
   }
 

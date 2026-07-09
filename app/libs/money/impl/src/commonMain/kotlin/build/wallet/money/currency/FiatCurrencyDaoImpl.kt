@@ -27,7 +27,7 @@ class FiatCurrencyDaoImpl(
         .asFlowOfList()
         .map { result ->
           result.logFailure { "Failed to read all FiatCurrency values from database" }
-          result.get()?.map { it.toFiatCurrency() } ?: emptyList()
+          result.get()?.map { it.toFiatCurrency() }.orEmpty()
         }
         .collect(::emit)
     }

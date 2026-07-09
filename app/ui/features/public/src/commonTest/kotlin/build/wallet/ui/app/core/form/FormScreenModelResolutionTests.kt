@@ -1,129 +1,79 @@
 package build.wallet.ui.app.core.form
 
+import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.ui.model.StandardClick
+import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.core.form.FormScreenLayoutModel
+import build.wallet.statemachine.core.form.FormScreenTitleModel
 import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.model.toolbar.ToolbarModel
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
+import kotlinx.collections.immutable.ImmutableList
 
 class FormScreenModelResolutionTests : FunSpec({
-  test("falls back to the legacy header when dsv2 header fallback is enabled") {
-    val resolvedModel = resolveFormScreenModel(
+  test("supports explicit header to main content spacing") {
+    resolveHeaderToMainContentSpacing(
       model = TestFormBodyModel(
-        header = FormHeaderModel(headline = "Legacy headline"),
-        designSystemV2Model = FormDesignSystemV2Model(header = null)
-      )
-    )
-
-    resolvedModel.headerModel?.headline.shouldBe("Legacy headline")
+        header = FormHeaderModel(headline = "Headline"),
+        headerToMainContentSpacing = 8
+      ),
+      headerModel = FormHeaderModel(headline = "Headline")
+    ).shouldBe(8)
   }
 
-  test("can suppress the legacy header when dsv2 header fallback is disabled") {
-    val resolvedModel = resolveFormScreenModel(
-      model = TestFormBodyModel(
-        header = FormHeaderModel(headline = "Legacy headline"),
-        designSystemV2Model = FormDesignSystemV2Model(
-          header = null,
-          useLegacyHeaderFallback = false
-        )
-      )
-    )
-
-    resolvedModel.headerModel.shouldBeNull()
+  test("defaults to 16 spacing when there is no header") {
+    resolveHeaderToMainContentSpacing(
+      model = TestFormBodyModel(header = null),
+      headerModel = null
+    ).shouldBe(16)
   }
 
-  test("can suppress the legacy toolbar when dsv2 toolbar fallback is disabled") {
-    val resolvedModel = resolveFormScreenModel(
-      model = TestFormBodyModel(
-        header = FormHeaderModel(headline = "Legacy headline"),
-        toolbar = TestToolbarModel,
-        designSystemV2Model = FormDesignSystemV2Model(
-          toolbar = null,
-          useLegacyToolbarFallback = false
-        )
-      )
-    )
+  test("defaults to 24 spacing when header has no subline") {
+    val header = FormHeaderModel(headline = "Headline")
 
-    resolvedModel.toolbarModel.shouldBeNull()
+    resolveHeaderToMainContentSpacing(
+      model = TestFormBodyModel(header = header),
+      headerModel = header
+    ).shouldBe(24)
   }
 
-  test("can suppress the legacy secondary button when dsv2 secondary button fallback is disabled") {
-    val resolvedModel = resolveFormScreenModel(
-      model = TestFormBodyModel(
-        header = null,
-        secondaryButton = TestSecondaryButton,
-        designSystemV2Model = FormDesignSystemV2Model(
-          secondaryButton = null,
-          useLegacySecondaryButtonFallback = false
-        )
-      )
+  test("defaults to 16 spacing when header includes subline") {
+    val header = FormHeaderModel(
+      headline = "Headline",
+      subline = "Subline"
     )
 
-    resolvedModel.secondaryButton.shouldBeNull()
+    resolveHeaderToMainContentSpacing(
+      model = TestFormBodyModel(header = header),
+      headerModel = header
+    ).shouldBe(16)
   }
-
-  test("can suppress the legacy primary button when dsv2 primary button fallback is disabled") {
-    val resolvedModel = resolveFormScreenModel(
-      model = TestFormBodyModel(
-        header = null,
-        primaryButton = TestPrimaryButton,
-        designSystemV2Model = FormDesignSystemV2Model(
-          primaryButton = null,
-          useLegacyPrimaryButtonFallback = false
-        )
-      )
-    )
-
-    resolvedModel.primaryButton.shouldBeNull()
-  }
-
-  test("propagates dsv2 layout options") {
-    val resolvedModel = resolveFormScreenModel(
-      model = TestFormBodyModel(
-        header = null,
-        designSystemV2Model = FormDesignSystemV2Model(
-          useDesignSystemV2ScreenLayout = true,
-          scrollable = false,
-          mainContentVerticalAlignment = FormDesignSystemV2Model.MainContentVerticalAlignment.CENTER
-        )
-      )
-    )
-
-    resolvedModel.designSystemV2UseLayout.shouldBe(true)
-    resolvedModel.designSystemV2Scrollable.shouldBe(false)
-    resolvedModel.designSystemV2MainContentAlignment.shouldBe(FormScreenContentVerticalAlignment.Center)
-  }
-
 })
 
 private data class TestFormBodyModel(
   override val header: FormHeaderModel?,
-  override val toolbar: build.wallet.ui.model.toolbar.ToolbarModel? = null,
+  override val toolbar: ToolbarModel? = null,
+  override val mainContentList: ImmutableList<FormMainContentModel> = immutableListOf(),
   override val primaryButton: ButtonModel? = null,
   override val secondaryButton: ButtonModel? = null,
-  override val designSystemV2Model: FormDesignSystemV2Model? = null,
+  override val formScreenTitle: FormScreenTitleModel? = null,
+  override val formScreenLayout: FormScreenLayoutModel = FormScreenLayoutModel.Legacy,
+  override val headerToMainContentSpacing: Int? = null,
+  override val footerRevealDelayMillis: Int = 0,
+  override val preFooterContentList: ImmutableList<FormMainContentModel> = immutableListOf(),
 ) : FormBodyModel(
     id = null,
     onBack = {},
     toolbar = toolbar,
     header = header,
+    mainContentList = mainContentList,
     primaryButton = primaryButton,
-    secondaryButton = secondaryButton
-  )
-
-private val TestToolbarModel = build.wallet.ui.model.toolbar.ToolbarModel()
-private val TestPrimaryButton =
-  ButtonModel(
-    text = "Primary",
-    size = ButtonModel.Size.Footer,
-    onClick = StandardClick {}
-  )
-private val TestSecondaryButton =
-  ButtonModel(
-    text = "Secondary",
-    size = ButtonModel.Size.Footer,
-    onClick = StandardClick {}
+    secondaryButton = secondaryButton,
+    formScreenTitle = formScreenTitle,
+    formScreenLayout = formScreenLayout,
+    headerToMainContentSpacing = headerToMainContentSpacing,
+    footerRevealDelayMillis = footerRevealDelayMillis,
+    preFooterContentList = preFooterContentList
   )

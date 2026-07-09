@@ -5,7 +5,7 @@ import build.wallet.di.BitkeyInject
 import com.github.michaelbull.result.*
 import kotlinx.cinterop.ExperimentalForeignApi
 import okio.ByteString
-import okio.toByteString
+import okio.ByteString.Companion.toByteString
 import platform.CoreGraphics.CGAffineTransformMakeScale
 import platform.CoreImage.CIColor
 import platform.CoreImage.CIFilter

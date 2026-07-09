@@ -2,7 +2,13 @@ package build.wallet.statemachine.account.recovery.cloud
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import bitkey.account.AccountConfigService
+import bitkey.account.isFakeCloudStoreActive
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
+import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.account.recovery.cloud.google.GoogleSignInModel.SignInFailure
@@ -18,26 +24,39 @@ import build.wallet.statemachine.recovery.cloud.CloudSignInUiStateMachine
 @BitkeyInject(ActivityScope::class)
 class CloudSignInUiStateMachineImpl(
   private val googleSignInStateMachine: GoogleSignInStateMachine,
+  private val accountConfigService: AccountConfigService,
 ) : CloudSignInUiStateMachine {
   @Composable
   override fun model(props: CloudSignInUiProps): BodyModel {
-    when (
-      val signInResult =
-        googleSignInStateMachine.model(GoogleSignInProps(props.forceSignOut))
-    ) {
-      is SuccessfullySignedIn -> {
-        LaunchedEffect("on-signed-in") {
-          props.onSignedIn(signInResult.account)
-        }
-      }
+    val defaultConfig by remember { accountConfigService.defaultConfig() }.collectAsState()
+    val activeOrDefaultConfig by remember {
+      accountConfigService.activeOrDefaultConfig()
+    }.collectAsState()
+    val useFakeCloudStore = isFakeCloudStoreActive(defaultConfig, activeOrDefaultConfig)
 
-      is SignInFailure -> {
-        LaunchedEffect("on-sign-in-failure") {
-          props.onSignInFailure(signInResult.cause)
-        }
+    if (useFakeCloudStore) {
+      LaunchedEffect("fake-cloud-sign-in") {
+        props.onSignedIn(CloudStoreAccountFake.MockCloudAccount)
       }
+    } else {
+      when (
+        val signInResult =
+          googleSignInStateMachine.model(GoogleSignInProps(props.forceSignOut))
+      ) {
+        is SuccessfullySignedIn -> {
+          LaunchedEffect("on-signed-in") {
+            props.onSignedIn(signInResult.account)
+          }
+        }
 
-      SigningIn -> Unit
+        is SignInFailure -> {
+          LaunchedEffect("on-sign-in-failure") {
+            props.onSignInFailure(signInResult.cause)
+          }
+        }
+
+        SigningIn -> Unit
+      }
     }
 
     return LoadingBodyModel(

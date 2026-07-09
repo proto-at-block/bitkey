@@ -41,6 +41,8 @@ import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.coroutines.CompletableDeferred
 import kotlin.time.Duration
 
+// Large end-to-end coverage for sweep flows; splitting would hurt cohesion.
+@Suppress("LargeClass")
 class SweepDataStateMachineImplTests : FunSpec({
   val sweepService = SweepServiceMock()
   val serverSigner = MobilePaySigningF8eClientMock(turbines::create)

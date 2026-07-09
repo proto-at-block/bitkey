@@ -4,7 +4,7 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum CustomerFeedbackClientError {
-    #[error("Error: HTTP {0} - {1}")]
+    #[error("Zendesk create ticket failed with HTTP {0}")]
     ZendeskCreateTicketResponseError(StatusCode, String),
     #[error("Failed to create help desk ticket")]
     ZendeskCreateTicketError(#[from] reqwest::Error),
@@ -35,7 +35,7 @@ impl From<CustomerFeedbackClientError> for ApiError {
 
 #[derive(Debug, Error)]
 pub enum GetTicketFormError {
-    #[error("Error: HTTP {0} - {1}")]
+    #[error("Zendesk get ticket form failed with HTTP {0}")]
     GetFormResponse(StatusCode, String),
     #[error("Failed to get form structure: {0}")]
     GetFormStructure(#[from] reqwest::Error),
@@ -51,7 +51,7 @@ impl From<GetTicketFormError> for ApiError {
 
 #[derive(Debug, Error)]
 pub enum UploadAttachmentError {
-    #[error("Error: HTTP {0} - {1}")]
+    #[error("Zendesk upload attachment failed with HTTP {0}")]
     ZendeskUploadAttachmentResponseError(StatusCode, String),
     #[error("Failed to upload attachment")]
     ZendeskUploadAttachmentError(#[from] reqwest::Error),
@@ -60,5 +60,58 @@ pub enum UploadAttachmentError {
 impl From<UploadAttachmentError> for ApiError {
     fn from(e: UploadAttachmentError) -> Self {
         ApiError::GenericInternalApplicationError(e.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn create_ticket_error_still_maps_invalid_email() {
+        let error = CustomerFeedbackClientError::ZendeskCreateTicketResponseError(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            r#"{"details":{"requester":[{"description":"Requester: Email: user@example is not properly formatted"}]}}"#
+                .to_string(),
+        );
+
+        assert_eq!(
+            ApiError::from(error),
+            ApiError::Specific {
+                code: ErrorCode::InvalidEmailAddress,
+                detail: None,
+                field: None,
+            }
+        );
+    }
+
+    #[test]
+    fn create_ticket_error_omits_zendesk_response_body() {
+        let error = CustomerFeedbackClientError::ZendeskCreateTicketResponseError(
+            StatusCode::BAD_REQUEST,
+            "contains user@example.com and request description".to_string(),
+        );
+
+        assert_eq!(
+            ApiError::from(error),
+            ApiError::GenericInternalApplicationError(
+                "Zendesk create ticket failed with HTTP 400 Bad Request".to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn upload_attachment_error_omits_zendesk_response_body() {
+        let error = UploadAttachmentError::ZendeskUploadAttachmentResponseError(
+            StatusCode::BAD_REQUEST,
+            "contains attachment filename or body details".to_string(),
+        );
+
+        assert_eq!(
+            ApiError::from(error),
+            ApiError::GenericInternalApplicationError(
+                "Zendesk upload attachment failed with HTTP 400 Bad Request".to_string()
+            )
+        );
     }
 }

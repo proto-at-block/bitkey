@@ -22,7 +22,7 @@ fun ApproveLimitBodyModel(
   primaryButton = ButtonModel(
     text = "Resend email",
     size = ButtonModel.Size.Footer,
-    leadingIcon = Icon.SmallIconBitkey,
+    leadingIcon = Icon.Bitkey,
     treatment = ButtonModel.Treatment.BitkeyInteraction,
     onClick = StandardClick(onResendEmail)
   ),

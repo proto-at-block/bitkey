@@ -1,0 +1,16 @@
+diff --git a/src/transaction.c b/src/transaction.c
+index b5e6e277..f3c5f8ab 100644
+--- a/src/transaction.c
++++ b/src/transaction.c
+@@ -2236,4 +2236,5 @@ static int analyze_tx(const unsigned char *bytes, size_t bytes_len,
+ #define ensure_n(n) if ((n) > (size_t)(end - p)) return WALLY_EINVAL
+-
+-#define ensure_varint(dst) ensure_n(varint_length_from_bytes(p)); \
++
++#define ensure_varint(dst) ensure_n(sizeof(uint8_t)); \
++    ensure_n(varint_length_from_bytes(p)); \
+     p += varint_from_bytes(p, (dst))
+@@ -2244,2 +2245,3 @@ static int analyze_tx(const unsigned char *bytes, size_t bytes_len,
+ #define ensure_commitment(dst, explicit_siz, prefix_a, prefix_b) \
++    ensure_n(sizeof(uint8_t)); \
+     switch (*dst) { \

@@ -25,7 +25,7 @@ private fun RowOfTwoButtonsContainerPreview() {
             Button(
               text = "First",
               treatment = Primary,
-              leadingIcon = Icon.SmallIconBitkey,
+              leadingIcon = Icon.Bitkey,
               size = ButtonModel.Size.Regular,
               onClick = StandardClick {}
             )
@@ -51,7 +51,7 @@ private fun RowOfThreeButtonsContainerPreview() {
     IconButtonModel(
       iconModel =
         IconModel(
-          LocalImage(Icon.SmallIconArrowUp),
+          LocalImage(Icon.ArrowUp),
           iconSize = Small,
           iconBackgroundType =
             IconBackgroundType.Circle(

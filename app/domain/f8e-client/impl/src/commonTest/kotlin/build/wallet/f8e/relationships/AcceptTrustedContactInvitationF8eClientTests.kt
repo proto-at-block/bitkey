@@ -2,6 +2,7 @@ package build.wallet.f8e.relationships
 
 import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.bitkey.relationships.ProtectedCustomerAlias
+import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
@@ -59,7 +60,7 @@ class AcceptTrustedContactInvitationF8eClientTests : FunSpec({
         customer =
           ProtectedCustomer(
             alias = ProtectedCustomerAlias("Some Alias"),
-            relationshipId = "test-id",
+            id = RelationshipId("test-id"),
             roles = setOf(TrustedContactRole.SocialRecoveryContact)
           )
       )

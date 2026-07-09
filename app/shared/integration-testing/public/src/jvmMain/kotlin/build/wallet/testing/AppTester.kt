@@ -224,7 +224,7 @@ class AppTester(
         bitcoinNetworkType ?: System.getenv(BITCOIN_NETWORK_ENV_VAR_NAME)?.let {
           BitcoinNetworkType.valueOf(it.uppercase())
         } ?: REGTEST
-      val bdkBlockchainFactory = bdkBlockchainFactory ?: BdkBlockchainFactoryImpl()
+      val resolvedBdkBlockchainFactory = bdkBlockchainFactory ?: BdkBlockchainFactoryImpl()
 
       val appTesterId = uuid()
       val appDir = initAppDir(appTesterId = appTesterId, existingAppDir = existingAppDir)
@@ -233,7 +233,7 @@ class AppTester(
       val appComponent = createAppComponent(
         appScope = appScope,
         appDir = appDir,
-        bdkBlockchainFactory = bdkBlockchainFactory,
+        bdkBlockchainFactory = resolvedBdkBlockchainFactory,
         cloudStoreAccountRepositoryOverride = cloudStoreAccountRepository,
         cloudBackupStoreOverride = cloudBackupStore
       )

@@ -9,7 +9,7 @@ import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.VERIF
  * for Social Recovery.
  */
 data class EndorsedTrustedContact(
-  override val relationshipId: String,
+  override val id: RelationshipId,
   override val trustedContactAlias: TrustedContactAlias,
   override val roles: Set<TrustedContactRole>,
   val keyCertificate: TrustedContactKeyCertificate,

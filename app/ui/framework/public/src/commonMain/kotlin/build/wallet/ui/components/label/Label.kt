@@ -1,12 +1,16 @@
 package build.wallet.ui.components.label
 
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.text.BasicText
-import androidx.compose.foundation.text.ClickableText
 import androidx.compose.runtime.*
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.onClick as semanticsOnClick
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
@@ -18,7 +22,7 @@ import build.wallet.statemachine.core.LabelModel
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.LabelType.Title3
-import build.wallet.ui.tokens.isAllCapsInCurrentDesignSystem
+import build.wallet.ui.tokens.shouldRenderAllCaps
 
 private const val AUTO_SIZE_SCALING_FACTOR = .97
 
@@ -37,7 +41,7 @@ fun Label(
   allowFontScaling: Boolean = true,
   onClick: (() -> Unit)? = null,
 ) {
-  val textToRender = if (type.isAllCapsInCurrentDesignSystem()) text.uppercase() else text
+  val textToRender = if (type.shouldRenderAllCaps()) text.uppercase() else text
   Label(
     text = AnnotatedString(textToRender),
     modifier = modifier,
@@ -66,7 +70,7 @@ fun Label(
   allowFontScaling: Boolean = true,
   onTextLayout: (TextLayoutResult) -> Unit = {},
 ) {
-  val modelToRender = if (type.isAllCapsInCurrentDesignSystem()) {
+  val modelToRender = if (type.shouldRenderAllCaps()) {
     when (model) {
       is LabelModel.StringModel -> model.copy(string = model.string.uppercase())
       is LabelModel.CalloutModel -> model.copy(string = model.string.uppercase())
@@ -118,9 +122,9 @@ fun Label(
   allowFontScaling: Boolean = true,
   onClick: ((TextClickPosition) -> Unit)? = null,
 ) {
-  val textToRender = if (type.isAllCapsInCurrentDesignSystem()) {
-    if (text.spanStyles.isEmpty() && text.paragraphStyles.isEmpty()) {
-      AnnotatedString(text.text.uppercase())
+  val textToRender = if (type.shouldRenderAllCaps()) {
+    if (text.spanStyles.isEmpty() && text.paragraphStyles.isEmpty() && !text.hasAnnotations()) {
+      text.uppercasePreservingAnnotations()
     } else {
       text
     }
@@ -180,7 +184,7 @@ fun AutoResizedLabel(
   allowFontScaling: Boolean = true,
   onClick: ((TextClickPosition) -> Unit)? = null,
 ) {
-  val textToRender = if (type.isAllCapsInCurrentDesignSystem()) text.uppercase() else text
+  val textToRender = if (type.shouldRenderAllCaps()) text.uppercase() else text
   AutoResizedLabel(
     text = AnnotatedString(textToRender),
     modifier = modifier,
@@ -276,13 +280,33 @@ fun Label(
   }
   val styleToRender = styleWithFontScaling.copy(fontFeatureSettings = null)
   if (onClick != null) {
-    ClickableText(
+    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+    val currentOnClick by rememberUpdatedState(onClick)
+    BasicText(
       text = textWithFeatureSpan,
-      modifier = modifier,
+      modifier = modifier
+        .pointerInput(Unit) {
+          detectTapGestures { offset ->
+            textLayoutResult
+              ?.getOffsetForPosition(offset)
+              ?.let(currentOnClick)
+          }
+        }
+        .semantics {
+          semanticsOnClick {
+            textLayoutResult
+              ?.getOffsetForPosition(Offset.Zero)
+              ?.let(currentOnClick) != null
+          }
+        },
       style = styleToRender,
+      softWrap = softWrap,
       overflow = overflow,
-      onClick = onClick,
-      onTextLayout = onTextLayout
+      onTextLayout = {
+        textLayoutResult = it
+        onTextLayout(it)
+      },
+      maxLines = maxLines
     )
   } else {
     BasicText(
@@ -316,6 +340,31 @@ private fun AnnotatedString.withGlobalFontFeatureIfNeeded(
       end = this@withGlobalFontFeatureIfNeeded.length
     )
   }
+}
+
+private fun AnnotatedString.uppercasePreservingAnnotations(): AnnotatedString {
+  val uppercaseText = text.uppercase()
+  if (uppercaseText == text) return this
+  if (uppercaseText.length != text.length) return this
+
+  val annotations = mutableListOf<AnnotatedString.Range<out AnnotatedString.Annotation>>()
+  mapAnnotations {
+    annotations.add(it)
+    it
+  }
+  return AnnotatedString(
+    text = uppercaseText,
+    annotations = annotations
+  )
+}
+
+private fun AnnotatedString.hasAnnotations(): Boolean {
+  var hasAnnotations = false
+  mapAnnotations {
+    hasAnnotations = true
+    it
+  }
+  return hasAnnotations
 }
 
 private typealias TextClickPosition = Int

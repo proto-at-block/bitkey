@@ -35,6 +35,8 @@ import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
+// Large end-to-end coverage for transaction speed-up; splitting would hurt cohesion.
+@Suppress("LargeClass")
 class SpeedUpTransactionServiceImplTests : FunSpec({
   val feeRateEstimator = BitcoinFeeRateEstimatorMock()
   val bitcoinWalletService = BitcoinWalletServiceFake()

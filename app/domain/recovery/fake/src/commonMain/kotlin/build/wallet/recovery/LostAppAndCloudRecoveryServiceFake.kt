@@ -71,6 +71,7 @@ class LostAppAndCloudRecoveryServiceFake(
     appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
     bitcoinNetworkType: BitcoinNetworkType,
     hardwareType: HardwareType,
+    spendingKeyProof: build.wallet.bitkey.hardware.HwSpendingKeyProof?,
   ): HardwareKeysForRecovery =
     HardwareKeysForRecovery(
       proof = proof,

@@ -66,12 +66,12 @@ enum class SeKeyUsageConstraints {
 /**
  * How long the key is valid for; or if it's required for every use.
  */
-sealed class SeKeyValidity {
-  object RequiredForEveryUse : SeKeyValidity()
+sealed interface SeKeyValidity {
+  object RequiredForEveryUse : SeKeyValidity
 
   data class ValidForDuration(
     val duration: Duration,
-  ) : SeKeyValidity()
+  ) : SeKeyValidity
 }
 
 /**

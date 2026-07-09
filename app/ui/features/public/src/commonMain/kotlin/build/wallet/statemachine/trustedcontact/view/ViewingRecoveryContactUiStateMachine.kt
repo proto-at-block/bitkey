@@ -5,6 +5,8 @@ import build.wallet.bitkey.relationships.TrustedContact
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
+import kotlinx.collections.immutable.ImmutableSet
+import kotlinx.collections.immutable.persistentSetOf
 
 /**
  * State machine for viewing the details and actions on an established Trusted Contact.
@@ -16,6 +18,7 @@ data class ViewingRecoveryContactProps(
   val screenBody: BodyModel,
   val recoveryContact: TrustedContact,
   val account: FullAccount,
+  val unendorsedContactRelationshipIdsMissingPakeData: ImmutableSet<String> = persistentSetOf(),
   val afterContactRemoved: (TrustedContact) -> Unit,
   val onExit: () -> Unit,
 )

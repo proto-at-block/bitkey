@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.map
  *
  * See [Coroutines cancellation and timeouts](https://kotlinlang.org/docs/cancellation-and-timeouts.html#making-computation-code-cancellable).
  */
+// catchingResult is the sanctioned wrapper around runSuspendCatching.
+@Suppress("ForbiddenMethodCall")
 inline fun <V> catchingResult(block: () -> V): Result<V, Throwable> = runSuspendCatching(block)
 
 /**

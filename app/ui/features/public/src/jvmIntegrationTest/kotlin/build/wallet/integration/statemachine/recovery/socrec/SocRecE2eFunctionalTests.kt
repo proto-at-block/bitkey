@@ -118,7 +118,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       }
         .protectedCustomers
         .first()
-        .relationshipId
+        .id.value
       cancelAndIgnoreRemainingEvents()
     }
 
@@ -159,7 +159,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       }
         .protectedCustomers
         .first()
-        .relationshipId
+        .id.value
       cancelAndIgnoreRemainingEvents()
     }
 
@@ -188,7 +188,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       CloudStoreAccountFake.TrustedContactFake
     )
 
-    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.relationshipId)
+    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.id.value)
 
     // TODO(W-9704): execute workers by default
     customerApp = launchNewApp(
@@ -274,7 +274,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       account = customerAccount,
       endorsements = listOf(
         TrustedContactEndorsement(
-          RelationshipId(unendorsedTc.relationshipId),
+          unendorsedTc.id,
           badKeyCert
         )
       )
@@ -342,7 +342,7 @@ class SocRecE2eFunctionalTests : FunSpec({
         PROTECTED_CUSTOMER_ALIAS,
         CloudStoreAccountFake.TrustedContactFake
       )
-      customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.relationshipId)
+      customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.id.value)
 
       // TODO(W-9704): execute workers by default
       customerApp = launchNewApp(
@@ -416,7 +416,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       protectedCustomerName = PROTECTED_CUSTOMER_ALIAS,
       cloudStoreAccountForBackup = CloudStoreAccountFake.TrustedContactFake
     )
-    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.relationshipId)
+    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.id.value)
 
     // TODO(W-9704): execute workers by default
     customerApp = launchNewApp(
@@ -460,7 +460,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       PROTECTED_CUSTOMER_ALIAS,
       CloudStoreAccountFake.TrustedContactFake
     )
-    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.relationshipId)
+    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.id.value)
 
     // PC: lost hardware D+N
     customerApp.fakeNfcCommands.wipeDevice()
@@ -520,7 +520,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       PROTECTED_CUSTOMER_ALIAS,
       CloudStoreAccountFake.TrustedContactFake
     )
-    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.relationshipId)
+    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.id.value)
 
     // PC: lost app & cloud D+N
     val hardwareSeed = customerApp.fakeHardwareKeyStore.getSeed()
@@ -586,7 +586,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       }
         .protectedCustomers
         .first()
-        .relationshipId
+        .id.value
 
       cancelAndIgnoreRemainingEvents()
     }
@@ -631,7 +631,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       PROTECTED_CUSTOMER_ALIAS,
       CloudStoreAccountFake.TrustedContactFake
     )
-    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.relationshipId)
+    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.id.value)
 
     // PC: lost hardware D+N
     customerApp.fakeNfcCommands.wipeDevice()
@@ -666,7 +666,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       PROTECTED_CUSTOMER_ALIAS,
       CloudStoreAccountFake.TrustedContactFake
     )
-    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.relationshipId)
+    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.id.value)
 
     // 2. Wipe hardware and start Lost HW recovery, then kill app at cloud backup step
     customerApp.fakeNfcCommands.wipeDevice()
@@ -739,7 +739,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       PROTECTED_CUSTOMER_ALIAS,
       CloudStoreAccountFake.TrustedContactFake
     )
-    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.relationshipId)
+    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.id.value)
 
     val recoveredApp = shouldSucceedSocialRestore(customerApp, tcApp, PROTECTED_CUSTOMER_ALIAS)
 
@@ -777,7 +777,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     )
     val relationshipId = customerApp.awaitRelationships {
       it.invitations.any { inv -> inv.trustedContactAlias.alias == "bob" }
-    }.invitations.first().relationshipId
+    }.invitations.first().id.value
     customerApp.awaitTcIsVerifiedAndBackedUp(relationshipId)
 
     customerApp.fakeW3NfcCommands.wipeDevice()
@@ -815,7 +815,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     )
     val relationshipId = customerApp.awaitRelationships {
       it.invitations.any { inv -> inv.trustedContactAlias.alias == "bob" }
-    }.invitations.first().relationshipId
+    }.invitations.first().id.value
     customerApp.awaitTcIsVerifiedAndBackedUp(relationshipId)
 
     customerApp.fakeW3NfcCommands.wipeDevice()
@@ -887,7 +887,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     )
     val relationshipId = customerApp.awaitRelationships {
       it.invitations.any { inv -> inv.trustedContactAlias.alias == "bob" }
-    }.invitations.first().relationshipId
+    }.invitations.first().id.value
     customerApp.awaitTcIsVerifiedAndBackedUp(relationshipId)
 
     val recoveredApp = shouldSucceedSocialRestore(customerApp, tcApp, PROTECTED_CUSTOMER_ALIAS)
@@ -930,7 +930,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     )
     val relationshipId = customerApp.awaitRelationships {
       it.invitations.any { inv -> inv.trustedContactAlias.alias == "bob" }
-    }.invitations.first().relationshipId
+    }.invitations.first().id.value
     customerApp.awaitTcIsVerifiedAndBackedUp(relationshipId)
 
     // Wipe hardware and start Lost HW recovery

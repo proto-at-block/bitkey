@@ -19,19 +19,8 @@ fun SettingsScreenPreview() {
   }
 }
 
-@Preview
 @Composable
-fun SettingsScreenWithSecurityHubCoachmarkPreview() {
-  PreviewWalletTheme {
-    SettingsScreen(securityHubClickHandler = {})
-  }
-}
-
-@Composable
-fun SettingsScreen(
-  securityHubClickHandler: (() -> Unit)? = null,
-  allItemsEnabled: Boolean = false,
-) {
+fun SettingsScreen(allItemsEnabled: Boolean = false) {
   SettingsScreen(
     model = SettingsBodyModel(
       onBack = {},
@@ -42,33 +31,33 @@ fun SettingsScreen(
             rowModels =
               immutableListOf(
                 SettingsBodyModel.RowModel(
-                  icon = Icon.SmallIconPhone,
+                  icon = Icon.Phone,
                   title = "Mobile Pay",
                   isDisabled = !allItemsEnabled
                 ) {},
                 SettingsBodyModel.RowModel(
-                  icon = Icon.SmallIconBitkey,
+                  icon = Icon.Bitkey,
                   title = "Lost or Stolen Device",
                   isDisabled = !allItemsEnabled
                 ) {},
                 SettingsBodyModel.RowModel(
-                  icon = Icon.SmallIconQuestion,
+                  icon = Icon.Question,
                   title = "Help Center",
                   isDisabled = false
                 ) {},
                 SettingsBodyModel.RowModel(
-                  icon = Icon.SmallIconCloud,
+                  icon = Icon.Cloud,
                   title = "Cloud Backup",
                   isDisabled = false
                 ) {},
                 SettingsBodyModel.RowModel(
-                  icon = Icon.SmallIconLock,
+                  icon = Icon.Lock,
                   title = "App Security",
                   isDisabled = false,
                   coachmarkLabelModel = CoachmarkLabelModel.New
                 ) {},
                 SettingsBodyModel.RowModel(
-                  icon = Icon.SmallIconWallet,
+                  icon = Icon.Wallet,
                   title = "Private Wallet Update",
                   isDisabled = false,
                   coachmarkLabelModel = CoachmarkLabelModel.New
@@ -79,8 +68,7 @@ fun SettingsScreen(
       toolbarModel = ToolbarModel(
         leadingAccessory = BackAccessory(onClick = {}),
         middleAccessory = ToolbarMiddleAccessoryModel(title = "Settings")
-      ),
-      onSecurityHubCoachmarkClick = securityHubClickHandler
+      )
     )
   )
 }

@@ -24,7 +24,6 @@ import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconButtonModel
 import build.wallet.ui.model.icon.IconImage.LocalImage
-import build.wallet.ui.model.icon.IconImage.MarketIconImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
@@ -37,9 +36,7 @@ fun IconButton(
   testTag: String? = null,
 ) {
   when (model.iconModel.iconImage) {
-    is LocalImage,
-    is MarketIconImage,
-    -> {
+    is LocalImage -> {
       val iconModel = model.iconModel
       val click: () -> Unit =
         when (model.onClick) {
@@ -205,13 +202,10 @@ fun IconButton(
     }
 
     text?.let {
-      val isDesignSystemV2Enabled = true
-      val labelType = if (isDesignSystemV2Enabled) LabelType.Body3Mono else LabelType.Title3
-
       Spacer(Modifier.height(8.dp))
       Label(
         text = it,
-        type = labelType,
+        type = LabelType.Body3Mono,
         treatment = if (enabled) LabelTreatment.Primary else LabelTreatment.Disabled
       )
     }

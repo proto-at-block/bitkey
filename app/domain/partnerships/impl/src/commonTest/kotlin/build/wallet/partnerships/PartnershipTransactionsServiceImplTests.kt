@@ -127,7 +127,7 @@ class PartnershipTransactionsServiceImplTests : FunSpec({
 
     daoMock.getByIdCalls.awaitItem().shouldBe(testId)
     val (fetchedPartnerId, fetchedTransactionId) = getPartnershipsF8eClient.getTransactionCalls.awaitItem()
-    val savedTransaction = daoMock.saveCalls.awaitItem()
+    daoMock.saveCalls.awaitItem()
 
     fetchedPartnerId.shouldBe(PartnerId("test-partner"))
     fetchedTransactionId.shouldBe(testId)

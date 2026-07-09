@@ -19,11 +19,6 @@ enum class CoachmarkIdentifier(
     id = "__unknown_coachmark__",
     action = Action.ACTION_UNSPECIFIED
   ),
-  SecurityHubSettingsCoachmark(
-    id = "security_hub_settings_coachmark",
-    action = Action.ACTION_APP_COACHMARK_VIEWED_SECURITY_HUB_SETTINGS,
-    expiration = 14.days
-  ),
   PrivateWalletHomeCoachmark(
     id = "private_wallet_home_coachmark",
     action = Action.ACTION_APP_COACHMARK_VIEWED_PRIVATE_WALLET_HOME
@@ -33,16 +28,6 @@ enum class CoachmarkIdentifier(
     action = Action.ACTION_APP_COACHMARK_VIEWED_BIP_177,
     expiration = 14.days
   ),
-  @Deprecated("W3 upgrade completion now uses a sheet. Kept for DB row compatibility.")
-  W3UpgradeCompleteCoachmark(
-    id = "w3_upgrade_complete_coachmark",
-    action = Action.ACTION_APP_COACHMARK_VIEWED_W3_UPGRADE_COMPLETE
-  ),
-  @Deprecated("Feature removed. Kept for DB row compatibility with older app versions.")
-  AddressVerificationEducationCoachmark(
-    id = "address_verification_education_coachmark",
-    action = Action.ACTION_APP_COACHMARK_VIEWED_ADDRESS_VERIFICATION_EDUCATION
-  ),
   W3UpgradeBlockerCoachmark(
     id = "w3_upgrade_blocker_coachmark",
     action = Action.ACTION_APP_COACHMARK_VIEWED_W3_UPGRADE_BLOCKER
@@ -51,9 +36,8 @@ enum class CoachmarkIdentifier(
 
   companion object {
     private val byStableId = entries.associateBy { it.id }
-    private val byEnumName = entries.associateBy { it.name }
 
     fun fromDatabaseValue(databaseValue: String): CoachmarkIdentifier =
-      byStableId[databaseValue] ?: byEnumName[databaseValue] ?: Unknown
+      byStableId[databaseValue] ?: Unknown
   }
 }

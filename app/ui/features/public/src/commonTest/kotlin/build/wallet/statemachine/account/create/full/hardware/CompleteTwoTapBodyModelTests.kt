@@ -1,8 +1,9 @@
 package build.wallet.statemachine.account.create.full.hardware
 
 import build.wallet.analytics.events.screen.context.PairHardwareEventTrackerScreenIdContext
-import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.core.form.FormMainContentVerticalAlignment
+import build.wallet.statemachine.core.form.FormScreenLayoutModel
 import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationScreenModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -11,7 +12,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 
 class CompleteTwoTapBodyModelTests : FunSpec({
 
-  test("design system v2 keeps onboarding copy and uses scan animation") {
+  test("keeps onboarding copy and uses scan animation") {
     val completeTwoTapModel = CompleteTwoTapBodyModel(
       onBack = {},
       onContinue = {},
@@ -20,27 +21,25 @@ class CompleteTwoTapBodyModelTests : FunSpec({
     )
     val hardwareConfirmationModel = HardwareConfirmationScreenModel(
       onBack = {},
-      onConfirm = {}
+      onConfirm = {},
+      onHelpClick = {}
     )
 
-    val completeTwoTapDesignSystemV2Model = completeTwoTapModel.designSystemV2Model.shouldNotBeNull()
-    val hardwareConfirmationDesignSystemV2Model = hardwareConfirmationModel.designSystemV2Model.shouldNotBeNull()
-
-    completeTwoTapDesignSystemV2Model.scrollable.shouldBe(false)
-    completeTwoTapDesignSystemV2Model.mainContentVerticalAlignment.shouldBe(
-      FormDesignSystemV2Model.MainContentVerticalAlignment.CENTER
+    completeTwoTapModel.formScreenLayout.shouldBe(
+      FormScreenLayoutModel.LargeTitle(
+        scrollable = false,
+        mainContentVerticalAlignment = FormMainContentVerticalAlignment.CENTER
+      )
     )
-    completeTwoTapDesignSystemV2Model.mainContentVerticalAlignment.shouldBe(
-      hardwareConfirmationDesignSystemV2Model.mainContentVerticalAlignment
-    )
+    completeTwoTapModel.formScreenLayout.shouldBe(hardwareConfirmationModel.formScreenLayout)
 
-    val completeTwoTapHeader = completeTwoTapDesignSystemV2Model
-      .mainContentList.shouldNotBeNull()
+    val completeTwoTapHeader = completeTwoTapModel
+      .mainContentList
       .single()
       .shouldBeInstanceOf<FormMainContentModel.HeaderBlock>()
       .header
-    val hardwareConfirmationHeader = hardwareConfirmationDesignSystemV2Model
-      .mainContentList.shouldNotBeNull()
+    val hardwareConfirmationHeader = hardwareConfirmationModel
+      .mainContentList
       .single()
       .shouldBeInstanceOf<FormMainContentModel.HeaderBlock>()
       .header
@@ -49,6 +48,7 @@ class CompleteTwoTapBodyModelTests : FunSpec({
     completeTwoTapHeader.sublineModel.shouldNotBeNull().string.shouldBe(
       "Follow the instructions on the device, then continue."
     )
+    completeTwoTapModel.toolbar.shouldNotBeNull().trailingAccessory.shouldNotBeNull()
     completeTwoTapHeader.headlineLabelType.shouldBe(hardwareConfirmationHeader.headlineLabelType)
     completeTwoTapHeader.customContent.shouldBe(hardwareConfirmationHeader.customContent)
     completeTwoTapHeader.bottomContent.shouldBe(hardwareConfirmationHeader.bottomContent)

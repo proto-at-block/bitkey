@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
@@ -42,6 +41,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import bitkey.ui.framework_public.generated.resources.Res
 import bitkey.ui.framework_public.generated.resources.bitkey_corian
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.platform.haptics.HapticsEffect
 import build.wallet.statemachine.core.Icon
 import build.wallet.ui.components.button.Button
@@ -73,20 +73,18 @@ internal fun ListItemAccessory(
   isLoading: Boolean = false,
   parentTestTag: String? = null,
 ) {
-  val isDesignSystemV2Enabled = true
-
   when (model) {
     is IconAccessory ->
       {
-        val isDesignSystemV2Chevron = isDesignSystemV2Enabled && model.isChevronAccessory()
+        val isCurrentChevron = model.isChevronAccessory()
         val resolvedIconModel =
-          if (isDesignSystemV2Chevron) {
+          if (isCurrentChevron) {
             model.model.copy(iconSize = IconSize.Accessory)
           } else {
             model.model
           }
         val resolvedOpticalOffsetX =
-          if (isDesignSystemV2Chevron) {
+          if (isCurrentChevron) {
             4
           } else {
             model.opticalOffsetX
@@ -157,11 +155,6 @@ internal fun ListItemAccessory(
         model = model,
         modifier = Modifier.resId(parentTestTag?.let { "$it-contact-avatar" })
       )
-    is CheckAccessory ->
-      CheckIconAccessory(
-        modifier = Modifier.resId(parentTestTag?.let { "$it-check" }),
-        isChecked = model.isChecked
-      )
     is CheckboxAccessory ->
       AnimatedCheckboxAccessory(
         modifier = Modifier
@@ -177,7 +170,7 @@ internal fun ListItemAccessory(
 private fun IconAccessory.isChevronAccessory(): Boolean {
   val iconImage = model.iconImage
   return iconImage is build.wallet.ui.model.icon.IconImage.LocalImage &&
-    iconImage.icon == Icon.SmallIconCaretRight
+    iconImage.icon == Icon.CaretRight
 }
 
 @Composable
@@ -185,8 +178,6 @@ private fun CircularCharacterAccessory(
   model: CircularCharacterAccessory,
   modifier: Modifier = Modifier,
 ) {
-  val isDesignSystemV2Enabled = true
-
   Box(
     modifier =
       modifier
@@ -197,14 +188,17 @@ private fun CircularCharacterAccessory(
         Modifier
           .size(model.circleSize.dp)
           .background(
-            color = WalletTheme.colors.foreground10,
+            color = when (model.backgroundColor) {
+              CircularCharacterAccessory.BackgroundColor.Foreground10 -> WalletTheme.colors.foreground10
+              CircularCharacterAccessory.BackgroundColor.SubtleBackground -> WalletTheme.colors.subtleBackground
+            },
             shape = CircleShape
           ),
       contentAlignment = Alignment.Center
     ) {
       Label(
         text = model.character.toString(),
-        type = model.characterType.regularizedForDesignSystemV2ListItems(isDesignSystemV2Enabled)
+        type = model.characterType.regularizedForListItems()
       )
     }
   }
@@ -225,7 +219,10 @@ private fun CircularIconAccessoryView(
         Modifier
           .size(model.circleSize.dp)
           .background(
-            color = WalletTheme.colors.foreground10,
+            color = when (model.backgroundColor) {
+              ListItemAccessory.CircularIconAccessory.BackgroundColor.Foreground10 -> WalletTheme.colors.foreground10
+              ListItemAccessory.CircularIconAccessory.BackgroundColor.SubtleBackground -> WalletTheme.colors.subtleBackground
+            },
             shape = CircleShape
           ),
       contentAlignment = Alignment.Center
@@ -317,26 +314,6 @@ private fun ContactAvatarAccessory(
 }
 
 @Composable
-private fun CheckIconAccessory(
-  modifier: Modifier = Modifier,
-  isChecked: Boolean,
-) {
-  val icon = if (isChecked) {
-    Icon.SmallIconCheckboxSelected
-  } else {
-    Icon.SmallIconCheckbox
-  }
-
-  IconImage(
-    modifier = modifier.size(24.dp),
-    model = IconModel(
-      icon = icon,
-      iconSize = IconSize.Small
-    )
-  )
-}
-
-@Composable
 private fun AnimatedCheckboxAccessory(
   modifier: Modifier = Modifier,
   isChecked: Boolean,
@@ -372,7 +349,7 @@ private fun AnimatedCheckboxAccessory(
   val checkboxColor = WalletTheme.colors.foreground
   val cutoutColor = WalletTheme.colors.background
   val haptics = LocalHaptics.current
-  val scope = rememberCoroutineScope()
+  val scope = rememberStableCoroutineScope()
   val onCheckboxClick = remember(isEnabled, onClick, haptics, scope) {
     {
       if (isEnabled) {
@@ -479,22 +456,16 @@ private fun checkPath(): Path =
     lineTo(14.7441f, 5.34473f)
     lineTo(8.99609f, 11.9766f)
     close()
-}
+  }
 
 private const val CHECKBOX_SVG_SIZE = 20f
 private const val CHECKBOX_CHECKED_FILL_MIN_SCALE = 0.5f
 
-private fun LabelType.regularizedForDesignSystemV2ListItems(
-  isDesignSystemV2Enabled: Boolean,
-): LabelType =
-  if (!isDesignSystemV2Enabled) {
-    this
-  } else {
-    when (this) {
-      LabelType.Body1Medium -> LabelType.Body1Regular
-      LabelType.Body2Medium -> LabelType.Body2Regular
-      LabelType.Body3Medium -> LabelType.Body3Regular
-      LabelType.Body4Medium -> LabelType.Body4Regular
-      else -> this
-    }
+private fun LabelType.regularizedForListItems(): LabelType =
+  when (this) {
+    LabelType.Body1Medium -> LabelType.Body1Regular
+    LabelType.Body2Medium -> LabelType.Body2Regular
+    LabelType.Body3Medium -> LabelType.Body3Regular
+    LabelType.Body4Medium -> LabelType.Body4Regular
+    else -> this
   }

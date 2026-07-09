@@ -97,6 +97,7 @@ static NO_OPTIMIZE void fwup_thread(void* UNUSED(args)) {
 static bool fwup_task_handle_start_cmd(ipc_ref_t* message) {
   fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
   const fwpb_mcu_role mcu_role = cmd->msg.fwup_start_cmd.mcu_role;
+  MFLOGI("FWUP start role=%d", (int)mcu_role);
 
   if ((mcu_role != fwpb_mcu_role_MCU_ROLE_CORE && mcu_role != fwpb_mcu_role_MCU_ROLE_UXC) ||
       fwup_should_reject_cmd()) {
@@ -147,6 +148,8 @@ static void fwup_task_handle_transfer_cmd(ipc_ref_t* message) {
 static NO_OPTIMIZE void fwup_task_handle_finish_cmd(ipc_ref_t* message) {
   fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
   const fwpb_mcu_role mcu_role = cmd->msg.fwup_finish_cmd.mcu_role;
+  MFLOGI("FWUP finish role=%d mode=%d bl=%d", (int)mcu_role, (int)cmd->msg.fwup_finish_cmd.mode,
+         (int)cmd->msg.fwup_finish_cmd.bl_upgrade);
 
   if ((mcu_role != fwpb_mcu_role_MCU_ROLE_CORE && mcu_role != fwpb_mcu_role_MCU_ROLE_UXC) ||
       fwup_should_reject_cmd()) {
@@ -216,6 +219,7 @@ static NO_OPTIMIZE void fwup_task_handle_finish_cmd(ipc_ref_t* message) {
   }
 
   UI_SHOW_EVENT(UI_EVENT_LED_CLEAR);
+  MFLOGI("FWUP finish result success=%d", (int)success);
   if (success) {
     bool is_final = true;
     UI_SHOW_EVENT_WITH_DATA(UI_EVENT_FWUP_COMPLETE, &is_final, sizeof(is_final));

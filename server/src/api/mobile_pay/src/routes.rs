@@ -12,6 +12,7 @@ use time::OffsetDateTime;
 use tracing::{error, instrument};
 use utoipa::{OpenApi, ToSchema};
 
+use account::hardware_verification::hardware_verification_enforced;
 use account::service::{
     FetchAccountInput, FetchAndUpdateSpendingLimitInput, Service as AccountService,
 };
@@ -28,6 +29,13 @@ use http_server::{
     router::RouterBuilder,
     swagger::{SwaggerEndpoint, Url},
 };
+use privileged_action::service::{
+    authorize_privileged_action::{
+        AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
+        PrivilegedActionRequestValidatorBuilder,
+    },
+    Service as PrivilegedActionService,
+};
 use screener::service::Service as ScreenerService;
 use transaction_verification::service::Service as TransactionVerificationService;
 use types::{
@@ -36,11 +44,15 @@ use types::{
         identifiers::{AccountId, KeysetId},
         money::Money,
         spend_limit::SpendingLimit,
-        spending::SpendingKeyDefinition,
+        spending::{AttestedHardwareSerial, SpendingKeyDefinition},
     },
     currencies::{
         Currency,
         CurrencyCode::{self, BTC},
+    },
+    privileged_action::{
+        router::generic::{PrivilegedActionRequest, PrivilegedActionResponse},
+        shared::PrivilegedActionType,
     },
     transaction_verification::router::TransactionVerificationGrantView,
 };
@@ -51,7 +63,8 @@ use crate::{
     daily_spend_record::service::Service as DailySpendRecordService, entities::Settings,
     error::SigningError, get_mobile_pay_spending_record, metrics as mobile_pay_metrics,
     sats_for_limit, signed_psbt_cache::service::Service as SignedPsbtCacheService,
-    signing_processor::SigningProcessor, signing_strategies::SigningStrategyFactory,
+    signing_processor::SigningProcessor,
+    signing_strategies::{determine_signing_method, SigningStrategyFactory},
     util::total_sats_spent_today, SERVER_SIGNING_ENABLED,
 };
 
@@ -75,6 +88,7 @@ pub struct RouteState(
     pub Arc<ScreenerService>,
     pub TransactionVerificationService,
     pub repository::anti_replay::AntiReplayRepository,
+    pub PrivilegedActionService,
 );
 
 impl RouterBuilder for RouteState {
@@ -240,7 +254,8 @@ async fn sign_transaction_maybe_broadcast_impl(
         request,
         feature_flags_service,
         screener_service,
-        transaction_verification_service
+        transaction_verification_service,
+        privileged_action_service
     )
 )]
 #[utoipa::path(
@@ -269,14 +284,44 @@ async fn sign_transaction_with_keyset(
     State(feature_flags_service): State<FeatureFlagsService>,
     State(screener_service): State<Arc<ScreenerService>>,
     State(transaction_verification_service): State<TransactionVerificationService>,
+    State(privileged_action_service): State<PrivilegedActionService>,
     experimentation_claims: ExperimentationClaims,
     Json(request): Json<SignTransactionData>,
-) -> Result<Json<SignTransactionResponse>, ApiError> {
+) -> Result<Json<PrivilegedActionResponse<SignTransactionResponse>>, ApiError> {
+    // Block disabled server-signing before any side effects — otherwise
+    // the OOBA gate below could initiate a hardware-verification action
+    // (record + email) for a co-sign that can never proceed. Mirrors the
+    // same check in sign_transaction_maybe_broadcast_impl.
+    if !SERVER_SIGNING_ENABLED
+        .resolver(&feature_flags_service)
+        .resolve()
+    {
+        return Err(SigningError::ServerSigningDisabled.into());
+    }
+
     let full_account = account_service
         .fetch_full_account(FetchAccountInput {
             account_id: &account_id,
         })
         .await?;
+
+    // Hardware-verification OOBA gate. A sweep into a destination keyset
+    // whose attestation is still `Pending` requires the user to verify
+    // the device serial out-of-band before the server will co-sign. The
+    // destination is the account's active keyset (sweeps land funds into
+    // it); the URL-path `keyset_id` is the source being swept away from.
+    if let Some(pending) = maybe_initiate_hardware_verification(
+        &privileged_action_service,
+        &feature_flags_service,
+        &experimentation_claims,
+        &full_account,
+        &keyset_id,
+    )
+    .await?
+    {
+        return Ok(Json(pending));
+    }
+
     let context_key = experimentation_claims.account_context_key().ok();
 
     let response = sign_transaction_maybe_broadcast_impl(
@@ -295,7 +340,70 @@ async fn sign_transaction_with_keyset(
     )
     .await?;
 
-    Ok(Json(response))
+    Ok(Json(PrivilegedActionResponse::Completed(response)))
+}
+
+/// Returns `Some(Pending)` when the request is a sweep that must be
+/// gated behind hardware-serial OOBA, after initiating the
+/// `VerifyHardwareSerial` privileged action. Returns `None` when no
+/// gating applies and the caller should proceed with normal cosigning.
+///
+/// Gates only when ALL hold: the signing method is a sweep, the account
+/// is enrolled (`hardware_verification_required`), the LD kill switch is
+/// on, and the destination (active) keyset's attestation is `Pending`.
+/// The kill switch fails closed here: with an enrolled, pending sweep the
+/// non-flag state already says "enforce", so an unresolvable switch keeps the
+/// OOBA gate up (returns `Pending`, not a hard block) rather than letting an
+/// unverified sweep through during an LD outage.
+async fn maybe_initiate_hardware_verification(
+    privileged_action_service: &PrivilegedActionService,
+    feature_flags_service: &FeatureFlagsService,
+    experimentation_claims: &ExperimentationClaims,
+    full_account: &FullAccount,
+    signing_keyset_id: &KeysetId,
+) -> Result<Option<PrivilegedActionResponse<SignTransactionResponse>>, ApiError> {
+    if !full_account.hardware_verification_required {
+        return Ok(None);
+    }
+    if !determine_signing_method(full_account, signing_keyset_id)?.is_sweep() {
+        return Ok(None);
+    }
+    let destination_pending = full_account
+        .active_spending_keyset()
+        .and_then(|k| k.optional_private_multi_sig())
+        .and_then(|k| k.attested_hardware_serial.as_ref())
+        .is_some_and(AttestedHardwareSerial::is_pending);
+    if !destination_pending {
+        return Ok(None);
+    }
+    // Account-keyed context so a missing app-installation header can't
+    // dodge the kill switch.
+    let context_key =
+        experimentation_claims.overridden_account_context_key(full_account.id.clone());
+    if !hardware_verification_enforced(feature_flags_service, &context_key) {
+        return Ok(None);
+    }
+
+    let authorize_result: AuthorizePrivilegedActionOutput<(), SignTransactionResponse> =
+        privileged_action_service
+            .authorize_privileged_action(AuthorizePrivilegedActionInput::<(), ApiError> {
+                account_id: &full_account.id,
+                privileged_action_definition: &PrivilegedActionType::VerifyHardwareSerial.into(),
+                // No stored request payload — the confirm handler resolves
+                // the target keyset via `account.active_spending_keyset()`.
+                privileged_action_request: &PrivilegedActionRequest::Initiate(()),
+                request_validator: PrivilegedActionRequestValidatorBuilder::default().build()?,
+            })
+            .await?;
+
+    match authorize_result {
+        AuthorizePrivilegedActionOutput::Pending(response) => Ok(Some(response)),
+        AuthorizePrivilegedActionOutput::Authorized(()) => Err(
+            ApiError::GenericInternalApplicationError(
+                "VerifyHardwareSerial should require out-of-band authorization".to_string(),
+            ),
+        ),
+    }
 }
 
 #[serde_as]

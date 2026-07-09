@@ -11,6 +11,9 @@ import com.github.michaelbull.result.Ok as ResultOk
  * Primary used for easier Swift interop. With Kotlin/Native, most of the generics get erased
  * in generated ObjC code, which makes consuming code with generics in Swift hard and tedious.
  */
+// Kept as a sealed class for Swift interop: a generic class exports to ObjC with generics,
+// while an interface would export as a non-generic protocol and break iOS sources.
+@Suppress("AbstractClassCanBeInterface")
 sealed class FileManagerResult<out V : Any> {
   abstract val result: Result<V, FileManagerError>
 

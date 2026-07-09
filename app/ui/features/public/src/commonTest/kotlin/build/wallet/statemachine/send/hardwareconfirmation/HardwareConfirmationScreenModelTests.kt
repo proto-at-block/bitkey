@@ -30,8 +30,8 @@ class HardwareConfirmationScreenModelTests : FunSpec({
       )
     )
     model.content.recipientAddress.shouldBe(address)
-    model.designSystemV2Model!!.preFooterMainContentList.shouldHaveSize(1)
-    model.designSystemV2Model!!.preFooterMainContentList.first()
+    model.preFooterContentList.shouldHaveSize(1)
+    model.preFooterContentList.first()
       .shouldBeInstanceOf<build.wallet.statemachine.core.form.FormMainContentModel.CollapsibleAddress>()
   }
 
@@ -42,7 +42,7 @@ class HardwareConfirmationScreenModelTests : FunSpec({
       content = HardwareConfirmationContent.ConsolidateUtxos
     )
     model.content.recipientAddress.shouldBeNull()
-    model.designSystemV2Model!!.preFooterMainContentList.shouldBeEmpty()
+    model.preFooterContentList.shouldBeEmpty()
   }
 
   test("each content variant sets the correct screen id on HardwareConfirmationScreenModel") {

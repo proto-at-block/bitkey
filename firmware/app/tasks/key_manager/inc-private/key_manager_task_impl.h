@@ -73,18 +73,24 @@ void key_manager_task_handle_upgrade_authorize_w3(ipc_ref_t* message);
 void key_manager_task_handle_eek_restoration_unseal_symmetric_key(ipc_ref_t* message);
 void key_manager_task_handle_full_account_cloud_backup_restoration(ipc_ref_t* message);
 void key_manager_task_handle_full_account_cloud_backup_restoration_continue(ipc_ref_t* message);
+void key_manager_task_handle_keyset_repair_unseal_symmetric_key(ipc_ref_t* message);
+void key_manager_task_handle_keyset_repair_rotate_hw_key(ipc_ref_t* message);
 
 // Derive a key at the given path and serialize as a 78-byte bare extended public key.
-// Optionally outputs the master fingerprint (pass NULL if not needed).
+// Optionally outputs the master fingerprint and/or derived extended public key
+// (pass NULL for any out-parameter that is not needed).
 // Used by handle_derive (for DeriveKeyDescriptorCmd) and lost app recovery.
 bool key_manager_derive_and_serialize_pubkey(derivation_path_t path, version_bytes_t version,
                                              uint8_t bare_key_out[BIP32_SERIALIZED_EXT_KEY_SIZE],
-                                             fingerprint_t* master_fp_out);
+                                             fingerprint_t* master_fp_out,
+                                             extended_key_t* derived_pubkey_out);
 
 // Derive a key at the given path and populate a full key_descriptor response payload.
 // Uses the same descriptor serialization contract as DeriveKeyDescriptorCmd.
+// Optionally outputs the derived extended public key (pass NULL if not needed).
 bool key_manager_derive_key_descriptor(derivation_path_t path, version_bytes_t version,
-                                       fwpb_key_descriptor* descriptor_out);
+                                       fwpb_key_descriptor* descriptor_out,
+                                       extended_key_t* derived_pubkey_out);
 
 // Derive a key at the given path and sign a hash with policy enforcement.
 // Used by do_sync_derive_and_sign (for DeriveKeyDescriptorAndSignCmd) and lost app recovery.

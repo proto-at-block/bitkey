@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "wallet-pr-26404-wca-status-word-preservation",
+      "repo": "squareup/wallet",
+      "pr_number": 26404,
+      "pr_url": "https://github.com/squareup/wallet/pull/26404",
+      "commit_range": {
+        "base": "401615b295284c84cae5a873a6147d1cad9f759a",
+        "head": "7c5cac3f08da7c0d62481d0b3c7e8e11c6226512",
+        "merge_commit": "e4f85857b94828c30e5dab1d795972b1e1d3db1b"
+      },
+      "changed_files": [
+        "firmware/app/tasks/nfc/src/nfc_task.c",
+        "firmware/hal/nfc/src/embedded/hal_nfc_listener.c",
+        "firmware/lib/wca/inc/wca.h",
+        "firmware/lib/wca/src/wca.c",
+        "firmware/lib/wca/src/wca_fuzz.cc",
+        "firmware/lib/wca/src/wca_test.c"
+      ],
+      "miss_class": "miss",
+      "source_kind": "review_comment",
+      "source_comment_url": "https://github.com/squareup/wallet/pull/26404#discussion_r3290926796",
+      "expected_destination": "test_or_linter",
+      "summary": "NFC/WCA failure handling changed in a way that could replace specific handler status words with a generic unsupported-instruction response.",
+      "expected_finding": "Flag response-routing changes that discard handler-provided WCA failure status words; require preserving the specific status or adding a regression test for the failure path.",
+      "labels": [
+        "firmware",
+        "wca",
+        "nfc",
+        "status-word",
+        "bot-review"
+      ]
+    },
+    {
+      "id": "wallet-pr-25670-w3-migration-failure-tests",
+      "repo": "squareup/wallet",
+      "pr_number": 25670,
+      "pr_url": "https://github.com/squareup/wallet/pull/25670",
+      "commit_range": {
+        "base": "a1423044a94679d20c2edd2a0c66dc91083eadba",
+        "head": "7b0a61ec2dd2b6267f758882991ad39fc657fa08",
+        "merge_commit": "5243af7311ca10a059ff2f58b0c9a8ccdb520ab4"
+      },
+      "changed_files": [
+        "app/domain/walletmigration/impl/src/commonMain/kotlin/build/wallet/wallet/migration/MigrationServiceImpl.kt",
+        "app/ui/features/public/src/commonMain/kotlin/build/wallet/statemachine/walletmigration/W3UpgradeUiStateMachineImpl.kt"
+      ],
+      "miss_class": "miss",
+      "source_kind": "review_comment",
+      "source_comment_url": "https://github.com/squareup/wallet/pull/25670#discussion_r3018630590",
+      "expected_destination": "test_or_linter",
+      "summary": "W3 upgrade failure handling changed for malformed server key material, but the original diff did not cover the new failure cases in tests.",
+      "expected_finding": "Flag state-machine changes that add malformed-server-key failure paths without tests proving the NFC tap fails cleanly and does not continue the upgrade flow.",
+      "labels": [
+        "app",
+        "wallet-migration",
+        "state-machine",
+        "test-coverage"
+      ]
+    },
+    {
+      "id": "wallet-pr-26139-wca-partial-proto-replay-test",
+      "repo": "squareup/wallet",
+      "pr_number": 26139,
+      "pr_url": "https://github.com/squareup/wallet/pull/26139",
+      "commit_range": {
+        "base": "559ab89ed1b923bcbab7710e05222c989c793a39",
+        "head": "5ec07b73ec03b84143761c0a90bc537bdbea1b8e",
+        "merge_commit": "c0abf077bdb9a163908ff80b9e008f172a099272"
+      },
+      "changed_files": [
+        "firmware/hal/nfc/src/embedded/hal_nfc_listener.c",
+        "firmware/lib/bitlog/inc/bitlog_platform.h",
+        "firmware/lib/wca/src/wca.c",
+        "firmware/lib/wca/src/wca_session_fuzz.cc",
+        "firmware/lib/wca/src/wca_test.c"
+      ],
+      "miss_class": "miss",
+      "source_kind": "review_comment",
+      "source_comment_url": "https://github.com/squareup/wallet/pull/26139#discussion_r3262736722",
+      "expected_destination": "test_or_linter",
+      "summary": "A WCA stale-state regression test claimed to cover partial proto reset behavior but seeded a complete proto before reset.",
+      "expected_finding": "Flag replay/regression tests whose setup already satisfies the success condition before the action under test; require a fixture that starts from the intended partial state.",
+      "labels": [
+        "firmware",
+        "wca",
+        "replay",
+        "test-validity",
+        "bot-review"
+      ]
+    }
+  ]
+}

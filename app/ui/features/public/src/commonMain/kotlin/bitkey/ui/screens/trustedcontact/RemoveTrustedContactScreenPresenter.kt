@@ -21,6 +21,7 @@ import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.trustedcontact.remove.RemoveTrustedContactBodyModel
+import build.wallet.statemachine.trustedcontact.remove.removalContext
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.datetime.Clock
@@ -44,21 +45,16 @@ class RemoveTrustedContactScreenPresenter(
   ): ScreenModel {
     var state: State by remember { mutableStateOf(State.RemoveRequestState) }
 
-    val isExpiredInvitation =
-      if (screen.trustedContact is Invitation) {
-        screen.trustedContact.isExpired(clock)
-      } else {
-        false
-      }
+    val isExpiredInvitation = (screen.trustedContact as? Invitation)?.isExpired(clock) == true
 
     val isBeneficiary = screen.trustedContact.roles.contains(TrustedContactRole.Beneficiary)
     val actionDescription = if (isBeneficiary) "Removing Beneficiary" else "Removing Recovery Contact"
+    val removalContext = screen.trustedContact.removalContext(isExpiredInvitation)
 
     return when (val current = state) {
       is State.RemoveRequestState ->
         RemoveTrustedContactBodyModel(
           trustedContactAlias = screen.trustedContact.trustedContactAlias,
-          isExpiredInvitation = isExpiredInvitation,
           onRemove = {
             // For removing expired invitations we don't need to scan hardware
             state =
@@ -71,7 +67,8 @@ class RemoveTrustedContactScreenPresenter(
           onClosed = {
             navigator.goTo(screen.origin)
           },
-          isBeneficiary = isBeneficiary
+          isBeneficiary = isBeneficiary,
+          removalContext = removalContext
         ).asModalScreen()
 
       is State.ScanningHardwareState ->
@@ -79,9 +76,9 @@ class RemoveTrustedContactScreenPresenter(
           HardwareAuthUiProps(
             account = screen.account,
             actionProofType = if (isBeneficiary) {
-              ActionProofType.RemoveBeneficiary(entityId = screen.trustedContact.relationshipId, name = screen.trustedContact.trustedContactAlias.alias)
+              ActionProofType.RemoveBeneficiary(entityId = screen.trustedContact.id.value, name = screen.trustedContact.trustedContactAlias.alias)
             } else {
-              ActionProofType.RemoveRecoveryContact(entityId = screen.trustedContact.relationshipId, name = screen.trustedContact.trustedContactAlias.alias)
+              ActionProofType.RemoveRecoveryContact(entityId = screen.trustedContact.id.value, name = screen.trustedContact.trustedContactAlias.alias)
             },
             segment = RecoverySegment.SocRec.ProtectedCustomer.Setup,
             actionDescription = actionDescription,
@@ -101,7 +98,7 @@ class RemoveTrustedContactScreenPresenter(
             account = screen.account,
             proof = current.proof,
             authTokenScope = AuthTokenScope.Global,
-            relationshipId = screen.trustedContact.relationshipId
+            relationshipId = screen.trustedContact.id.value
           ).onSuccess {
             navigator.goTo(screen.origin)
           }.onFailure {

@@ -24,5 +24,9 @@ WHERE id = ?;
 getAllCoachmarks:
 SELECT * FROM coachmarkEntity;
 
+deleteUnknownCoachmarks:
+DELETE FROM coachmarkEntity
+WHERE CAST(id AS TEXT) NOT IN ?;
+
 reset:
 DELETE FROM coachmarkEntity;

@@ -33,7 +33,6 @@ import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.model.icon.IconBackgroundType.Transient
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
-import build.wallet.ui.model.icon.IconSize.Small
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
@@ -43,17 +42,6 @@ import build.wallet.ui.tokens.LabelType
 
 @Composable
 fun SettingsScreen(
-  modifier: Modifier = Modifier,
-  model: SettingsBodyModel,
-) {
-  SettingsScreenDesignSystem(
-    modifier = modifier,
-    model = model
-  )
-}
-
-@Composable
-private fun SettingsScreenDesignSystem(
   modifier: Modifier = Modifier,
   model: SettingsBodyModel,
 ) {
@@ -98,10 +86,7 @@ private fun SettingsScreenDesignSystem(
         verticalArrangement = Arrangement.spacedBy(32.dp)
       ) {
         for (sectionModel in model.sectionModels) {
-          SettingsSection(
-            model = sectionModel,
-            isDesignSystemV2Enabled = true
-          )
+          SettingsSection(model = sectionModel)
         }
       }
     }
@@ -119,7 +104,6 @@ private fun SettingsScreenDesignSystem(
 @Composable
 private fun SettingsSection(
   model: SettingsBodyModel.SectionModel,
-  isDesignSystemV2Enabled: Boolean,
 ) {
   Column {
     // Section title
@@ -127,45 +111,37 @@ private fun SettingsSection(
       modifier = Modifier.padding(top = 8.dp),
       text = model.sectionHeaderTitle,
       treatment = LabelTreatment.Secondary,
-      type = if (isDesignSystemV2Enabled) LabelType.Body3Mono else LabelType.Title3
+      type = LabelType.Body3Mono
     )
 
     // Section rows
     for (rowModel in model.rowModels) {
       ListItem(
         title = rowModel.title,
-        contentSpacing = if (isDesignSystemV2Enabled) 12.dp else 8.dp,
-        titleType = if (isDesignSystemV2Enabled) LabelType.Body2MonoCaps else LabelType.Body2Medium,
+        contentSpacing = 12.dp,
+        titleType = LabelType.Body2MonoCaps,
         titleTreatment = if (rowModel.isDisabled) LabelTreatment.Disabled else LabelTreatment.Primary,
         leadingAccessory =
           ListItemAccessory.IconAccessory(
             model =
               IconModel(
                 icon = rowModel.icon,
-                iconSize = if (isDesignSystemV2Enabled) IconSize.Accessory else Small,
+                iconSize = IconSize.Accessory,
                 iconBackgroundType = Transient,
                 iconTint = if (rowModel.isDisabled) IconTint.On10 else null
               )
           ),
         trailingAccessory =
-          if (isDesignSystemV2Enabled) {
-            ListItemAccessory.drillIcon(
-              tint = IconTint.On30,
-              iconSize = IconSize.Accessory
-            ).takeIf { !rowModel.isDisabled }
-          } else {
-            ListItemAccessory.drillIcon().takeIf { !rowModel.isDisabled }
-          },
+          ListItemAccessory.drillIcon(
+            tint = IconTint.On30,
+            iconSize = IconSize.Accessory
+          ).takeIf { !rowModel.isDisabled },
         onClick = rowModel.onClick,
         coachmarkLabel = rowModel.coachmarkLabelModel
       )
-      if (isDesignSystemV2Enabled) {
-        Divider(
-          color = WalletTheme.colors.subtleBackground
-        )
-      } else {
-        Divider()
-      }
+      Divider(
+        color = WalletTheme.colors.subtleBackground
+      )
     }
   }
 }

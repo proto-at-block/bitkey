@@ -159,6 +159,23 @@ pub enum SigningMethod {
     },
 }
 
+impl SigningMethod {
+    /// Whether this method sweeps funds from a source keyset into the
+    /// account's active (destination) keyset, as opposed to a mobile-pay
+    /// spend from the active keyset itself. The match is intentionally
+    /// exhaustive (no wildcard) so a new `SigningMethod` variant forces a
+    /// compile error here rather than silently defaulting.
+    pub fn is_sweep(&self) -> bool {
+        match self {
+            SigningMethod::LegacyMobilePay { .. } | SigningMethod::PrivateMobilePay { .. } => false,
+            SigningMethod::LegacySweep { .. }
+            | SigningMethod::PrivateSweep { .. }
+            | SigningMethod::MigrationSweep { .. }
+            | SigningMethod::InheritanceDowngradeSweep { .. } => true,
+        }
+    }
+}
+
 #[async_trait]
 impl Signer for SigningProcessor<Validated> {
     type SigningProcessor = SigningProcessor<Signed>;

@@ -212,11 +212,10 @@ private class ComposeAnimatedAmountTransitionState(
     current = amount
     mask = nextMask
     direction =
-      if (amount.value > previousAmount.value) {
-        AnimatedAmountDirection.Increase
-      } else {
-        AnimatedAmountDirection.Decrease
-      }
+      animatedAmountDirectionFor(
+        previousValue = previousAmount.value,
+        currentValue = amount.value
+      )
     enterDurationMs = nextEnterDuration
     exitDurationMs = nextExitDuration
 
@@ -235,12 +234,7 @@ private class ComposeAnimatedAmountTransitionState(
   }
 }
 
-private enum class AnimatedAmountDirection {
-  Increase,
-  Decrease,
-}
-
-private enum class AnimatedAmountPhase {
+internal enum class AnimatedAmountPhase {
   Enter,
   Exit,
 }
@@ -407,12 +401,12 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawAnimatedAmountL
   }
 }
 
-private data class AnimatedAmountDrawState(
+internal data class AnimatedAmountDrawState(
   val alpha: Float,
   val translateY: Float,
 )
 
-private fun animatedAmountDrawState(
+internal fun animatedAmountDrawState(
   elapsedMs: Float,
   durationMs: Int,
   groupIndex: Int,

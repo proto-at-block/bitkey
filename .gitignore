@@ -40,7 +40,7 @@ valid-dependencies/**/target
 .hermit
 
 # JetBrains
-.idea/*
+**/.idea/*
 
 # Java Manifest
 META-INF/*

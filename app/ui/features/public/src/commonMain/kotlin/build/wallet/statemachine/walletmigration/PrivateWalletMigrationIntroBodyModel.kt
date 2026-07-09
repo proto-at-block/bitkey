@@ -57,7 +57,7 @@ data class PrivateWalletMigrationIntroBodyModel(
               secondaryText = "To keep your bitcoin secure, your Bitkey device is required for any security changes.",
               leadingAccessory = ListItemAccessory.IconAccessory(
                 model = IconModel(
-                  icon = Icon.SmallIconBitkey,
+                  icon = Icon.Bitkey,
                   iconSize = IconSize.Small,
                   iconTint = IconTint.Foreground
                 )
@@ -68,7 +68,7 @@ data class PrivateWalletMigrationIntroBodyModel(
               secondaryText = "Your balance will be transferred on-chain to your updated wallet. Network fees may apply.",
               leadingAccessory = ListItemAccessory.IconAccessory(
                 model = IconModel(
-                  icon = Icon.SmallIconBitcoinStroked,
+                  icon = Icon.BitcoinStroked,
                   iconSize = IconSize.Small,
                   iconTint = IconTint.Foreground
                 )

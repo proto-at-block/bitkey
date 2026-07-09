@@ -2,6 +2,7 @@ package build.wallet.cloud.store
 
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.di.Impl
 import build.wallet.platform.data.MimeType
 import okio.ByteString
 
@@ -12,6 +13,7 @@ import okio.ByteString
  */
 
 @BitkeyInject(AppScope::class)
+@Impl
 class CloudFileStoreImpl(
   private val googleDriveFileStore: GoogleDriveFileStore,
 ) : CloudFileStore {

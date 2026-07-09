@@ -22,4 +22,7 @@ package build.wallet.di
  * ```
  */
 @SingleIn(scope = AppScope::class)
+// DI scope marker: the private constructor intentionally prevents instantiation/subclassing,
+// which an interface cannot express.
+@Suppress("AbstractClassCanBeInterface")
 abstract class ActivityScope private constructor()

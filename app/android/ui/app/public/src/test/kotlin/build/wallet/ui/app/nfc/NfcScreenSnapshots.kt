@@ -5,6 +5,7 @@ import androidx.compose.ui.Modifier
 import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.platform.device.DeviceInfo
 import build.wallet.platform.device.DevicePlatform
+import build.wallet.platform.device.DevicePlatform.Android
 import build.wallet.statemachine.nfc.NfcBodyModel
 import build.wallet.statemachine.nfc.NfcBodyModel.Status.*
 import build.wallet.statemachine.nfc.NfcHelpBodyModel
@@ -19,31 +20,7 @@ class NfcScreenSnapshots : FunSpec({
     isEmulator = true
   )
 
-  test("NFC searching") {
-    paparazzi.snapshot {
-      NfcScreenSearchingPreview()
-    }
-  }
-
-  test("NFC connected") {
-    paparazzi.snapshot {
-      NfcScreenConnectedPreview()
-    }
-  }
-
-  test("NFC success") {
-    paparazzi.snapshot {
-      NfcScreenSuccessPreview()
-    }
-  }
-
-  test("NFC connected with spinner") {
-    paparazzi.snapshot {
-      NfcScreenConnectedWithSpinnerPreview()
-    }
-  }
-
-  test("NFC searching Android DSV2") {
+  test("NFC searching Android") {
     paparazzi.snapshot {
       CompositionLocalProvider(LocalDeviceInfo provides androidDeviceInfo) {
         NfcScreen(
@@ -58,13 +35,13 @@ class NfcScreenSnapshots : FunSpec({
     }
   }
 
-  test("NFC help Android DSV2") {
+  test("NFC help Android") {
     paparazzi.snapshot {
-      NfcHelpBodyModel(onBack = {}).render(Modifier)
+      NfcHelpBodyModel(onBack = {}, devicePlatform = Android).render(Modifier)
     }
   }
 
-  test("NFC connected Android DSV2") {
+  test("NFC connected Android") {
     paparazzi.snapshot {
       CompositionLocalProvider(LocalDeviceInfo provides androidDeviceInfo) {
         NfcScreen(
@@ -79,7 +56,7 @@ class NfcScreenSnapshots : FunSpec({
     }
   }
 
-  test("NFC connected with spinner Android DSV2") {
+  test("NFC connected with spinner Android") {
     paparazzi.snapshot {
       CompositionLocalProvider(LocalDeviceInfo provides androidDeviceInfo) {
         NfcScreen(
@@ -94,7 +71,7 @@ class NfcScreenSnapshots : FunSpec({
     }
   }
 
-  test("NFC success Android DSV2") {
+  test("NFC success Android") {
     paparazzi.snapshot {
       CompositionLocalProvider(LocalDeviceInfo provides androidDeviceInfo) {
         NfcScreen(

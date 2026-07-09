@@ -8,7 +8,7 @@ import kotlinx.datetime.Instant
  * The Trusted Contact's view of an invitation.
  */
 data class IncomingInvitation(
-  val relationshipId: String,
+  val id: RelationshipId,
   @Redacted
   val code: String,
   val protectedCustomerEnrollmentPakeKey: PublicKey<ProtectedCustomerEnrollmentPakeKey>,

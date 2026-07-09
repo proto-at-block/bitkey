@@ -11,6 +11,8 @@ import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.ThemePreference
 
 abstract class BodyModel : ComposeModel {
+  open val screenStyle: BodyModelScreenStyle = BodyModelScreenStyle.Default
+
   /**
    * A unique ID and optional context used to track screens across the app.
    *
@@ -100,4 +102,15 @@ abstract class BodyModel : ComposeModel {
     statusBannerModel = statusBannerModel,
     themePreference = theme?.let { ThemePreference.Manual(it) }
   )
+}
+
+data class BodyModelScreenStyle(
+  val requiresSystemBarsPadding: Boolean = false,
+  val usesBlackFullscreenBackground: Boolean = false,
+  val drawsBehindReservedStatusBar: Boolean = false,
+  val usesThemeBackgroundForScreenContainer: Boolean = false,
+) {
+  companion object {
+    val Default = BodyModelScreenStyle()
+  }
 }

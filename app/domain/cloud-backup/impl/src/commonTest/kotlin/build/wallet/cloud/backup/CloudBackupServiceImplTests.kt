@@ -29,6 +29,7 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import okio.ByteString.Companion.encodeUtf8
@@ -87,6 +88,154 @@ class CloudBackupServiceImplTests : FunSpec({
     cloudBackupStore.getString(cloudAccount, key = "cb-${accountId.serverId}-${clock.now()}").shouldBeOk(null)
     cloudBackupStore.getString(cloudAccount, key = "cloud-backup").shouldBeOk(null)
     cloudBackupStore.getString(cloudAccount, key = "not-a-backup-key").shouldBeOk("keep-me")
+  }
+
+  test("legacy active migration does not overwrite fresher account-specific V3 backup with V2 backup") {
+    sharedCloudBackupsFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    val accountSpecificBackup = CloudBackupV3WithFullAccountMock.copy(
+      accountId = accountId.serverId,
+      createdAt = Instant.parse("2024-02-01T00:00:00Z"),
+      deviceNickname = "account-specific-v3"
+    )
+    val legacyBackup = CloudBackupV2WithFullAccountMock.copy(accountId = accountId.serverId)
+
+    cloudBackupStore.setString(
+      cloudAccount,
+      key = "cb-${accountId.serverId}",
+      value = accountSpecificBackup.toBackupJson()
+    ).shouldBeOk()
+    cloudBackupStore.setString(
+      cloudAccount,
+      key = "cloud-backup",
+      value = legacyBackup.toBackupJson()
+    ).shouldBeOk()
+
+    cloudBackupService.migrateBackupToAccountIdKey(cloudAccount).shouldBeOk()
+
+    cloudBackupService.readBackup(accountId, cloudAccount)
+      .shouldBeOk(accountSpecificBackup)
+    cloudBackupStore.getString(cloudAccount, key = "cloud-backup").shouldBeOk(null)
+  }
+
+  test("legacy active migration overwrites older account-specific V3 backup with fresher legacy V3 backup") {
+    sharedCloudBackupsFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    val accountSpecificBackup = CloudBackupV3WithFullAccountMock.copy(
+      accountId = accountId.serverId,
+      createdAt = Instant.parse("2024-01-01T00:00:00Z"),
+      deviceNickname = "account-specific-old"
+    )
+    val legacyBackup = CloudBackupV3WithFullAccountMock.copy(
+      accountId = accountId.serverId,
+      createdAt = Instant.parse("2024-02-01T00:00:00Z"),
+      deviceNickname = "legacy-new"
+    )
+
+    cloudBackupStore.setString(
+      cloudAccount,
+      key = "cb-${accountId.serverId}",
+      value = accountSpecificBackup.toBackupJson()
+    ).shouldBeOk()
+    cloudBackupStore.setString(
+      cloudAccount,
+      key = "cloud-backup",
+      value = legacyBackup.toBackupJson()
+    ).shouldBeOk()
+
+    cloudBackupService.migrateBackupToAccountIdKey(cloudAccount).shouldBeOk()
+
+    cloudBackupService.readBackup(accountId, cloudAccount)
+      .shouldBeOk(legacyBackup)
+    cloudBackupStore.getString(cloudAccount, key = "cloud-backup").shouldBeOk(null)
+  }
+
+  test("legacy active migration preserves legacy active backup when same-account backups have equal freshness") {
+    sharedCloudBackupsFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    val createdAt = Instant.parse("2024-02-01T00:00:00Z")
+    val accountSpecificBackup = CloudBackupV3WithFullAccountMock.copy(
+      accountId = accountId.serverId,
+      createdAt = createdAt,
+      deviceNickname = "account-specific"
+    )
+    val legacyBackup = CloudBackupV3WithFullAccountMock.copy(
+      accountId = accountId.serverId,
+      createdAt = createdAt,
+      deviceNickname = "legacy-different"
+    )
+
+    cloudBackupStore.setString(
+      cloudAccount,
+      key = "cb-${accountId.serverId}",
+      value = accountSpecificBackup.toBackupJson()
+    ).shouldBeOk()
+    cloudBackupStore.setString(
+      cloudAccount,
+      key = "cloud-backup",
+      value = legacyBackup.toBackupJson()
+    ).shouldBeOk()
+
+    cloudBackupService.migrateBackupToAccountIdKey(cloudAccount).shouldBeOk()
+
+    cloudBackupService.readBackup(accountId, cloudAccount)
+      .shouldBeOk(accountSpecificBackup)
+    cloudBackupStore.getString(cloudAccount, key = "cloud-backup")
+      .shouldBeOk(legacyBackup.toBackupJson())
+  }
+
+  test("legacy active migration overwrites different-account account-specific backup") {
+    sharedCloudBackupsFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    val accountSpecificBackup = CloudBackupV3WithFullAccountMock.copy(
+      accountId = "other-account",
+      createdAt = Instant.parse("2024-02-01T00:00:00Z"),
+      deviceNickname = "wrong-account"
+    )
+    val legacyBackup = CloudBackupV3WithFullAccountMock.copy(
+      accountId = accountId.serverId,
+      createdAt = Instant.parse("2024-01-01T00:00:00Z"),
+      deviceNickname = "legacy-target-account"
+    )
+
+    cloudBackupStore.setString(
+      cloudAccount,
+      key = "cb-${accountId.serverId}",
+      value = accountSpecificBackup.toBackupJson()
+    ).shouldBeOk()
+    cloudBackupStore.setString(
+      cloudAccount,
+      key = "cloud-backup",
+      value = legacyBackup.toBackupJson()
+    ).shouldBeOk()
+
+    cloudBackupService.migrateBackupToAccountIdKey(cloudAccount).shouldBeOk()
+
+    cloudBackupService.readBackup(accountId, cloudAccount)
+      .shouldBeOk(legacyBackup)
+    cloudBackupStore.getString(cloudAccount, key = "cloud-backup").shouldBeOk(null)
+  }
+
+  test("legacy active migration overwrites malformed account-specific backup") {
+    sharedCloudBackupsFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    val legacyBackup = CloudBackupV3WithFullAccountMock.copy(
+      accountId = accountId.serverId,
+      createdAt = Instant.parse("2024-02-01T00:00:00Z"),
+      deviceNickname = "legacy-valid"
+    )
+
+    cloudBackupStore.setString(
+      cloudAccount,
+      key = "cb-${accountId.serverId}",
+      value = "malformed"
+    ).shouldBeOk()
+    cloudBackupStore.setString(
+      cloudAccount,
+      key = "cloud-backup",
+      value = legacyBackup.toBackupJson()
+    ).shouldBeOk()
+
+    cloudBackupService.migrateBackupToAccountIdKey(cloudAccount).shouldBeOk()
+
+    cloudBackupService.readBackup(accountId, cloudAccount)
+      .shouldBeOk(legacyBackup)
+    cloudBackupStore.getString(cloudAccount, key = "cloud-backup").shouldBeOk(null)
   }
 
   backupTestData(clock).forEach {
@@ -378,7 +527,7 @@ class CloudBackupServiceImplTests : FunSpec({
         cloudBackupStore.getString(cloudAccount, key = oldKey)
           .shouldBeOk().shouldBeNull()
         val newKeys = cloudBackupStore.keys(cloudAccount).shouldBeOk()
-        newKeys.filter { it.startsWith("cloud-backup-") }.size shouldBe 1
+        newKeys.count { it.startsWith("cloud-backup-") } shouldBe 1
       }
 
       test("shared cloud backups is on - write backup to cloud key-value store and dao") {
@@ -535,10 +684,15 @@ class CloudBackupServiceImplTests : FunSpec({
         sharedCloudBackupsFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
         deviceInfoProvider.deviceNicknameValue = "Test Device"
         val otherAccountId = FullAccountId("other-account")
+        val otherAccountBackup = backup.withAccountId(otherAccountId.serverId)
 
         // Setup: Multiple account-specific backups (simulating shared cloud account)
         cloudBackupStore.setString(cloudAccount, key = "cb-${accountId.serverId}", value = backupJson)
-        cloudBackupStore.setString(cloudAccount, key = "cb-${otherAccountId.serverId}", value = backupJson)
+        cloudBackupStore.setString(
+          cloudAccount,
+          key = "cb-${otherAccountId.serverId}",
+          value = otherAccountBackup.toBackupJson()
+        )
         cloudBackupStore.setString(cloudAccount, key = "cloud-backup", value = backupJson) // legacy
 
         // Should return all 2 backups
@@ -687,7 +841,7 @@ private fun backupTestData(clock: Clock) =
     val json = when (updatedBackup) {
       is CloudBackupV2 -> Json.encodeToString(updatedBackup)
       is CloudBackupV3 -> Json.encodeToString(updatedBackup)
-      else -> throw IllegalStateException("Unknown backup version")
+      else -> error("Unknown backup version")
     }
     BackupTestData(
       testName = "backup $version",

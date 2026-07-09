@@ -4,9 +4,9 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
@@ -29,7 +29,6 @@ import bitkey.ui.framework_public.generated.resources.bitkey_update_light
 import bitkey.ui.framework_public.generated.resources.bitkey_update_light_snapshot
 import bitkey.ui.framework_public.generated.resources.pair_snapshot
 import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.nfc.FwupInstructionsBodyModel
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.header.Header
@@ -77,73 +76,86 @@ fun FwupInstructionsScreen(
   modifier: Modifier = Modifier,
   model: FwupInstructionsBodyModel,
 ) {
+  val isW3 = model.hardwareType == HardwareType.W3
   BackHandler(onBack = model.onBack)
-  FwupSystemThemedContent(followIosSystemTheme = model.hardwareType == HardwareType.W3) {
+  FwupSystemThemedContent(followIosSystemTheme = isW3) {
     val theme = LocalTheme.current
     // The legacy W1 hero is composed for the bottom-sheet copy layout, while W3
-    // uses the full-screen DSV2 presentation and media.
-    val useDesignSystemV2Layout = model.hardwareType == HardwareType.W3
+    // uses the full-screen presentation and media.
+    val useLegacyScreen = !isW3
     Box(
       modifier = modifier
         .fillMaxSize()
         .background(WalletTheme.colors.background)
     ) {
-      if (useDesignSystemV2Layout) {
-        FwupInstructionsDesignSystemV2Screen(
+      if (useLegacyScreen) {
+        LegacyFwupInstructionsScreen(
           modifier = Modifier.fillMaxSize(),
           model = model,
           theme = theme
         )
-        return@Box
-      }
-
-      Box(modifier = Modifier.fillMaxSize()) {
-        FwupUpdateBackgroundMedia(
-          modifier = Modifier.matchParentSize(),
-          theme = theme,
-          hardwareType = model.hardwareType,
-          showVideoPlaceholder = false
+      } else {
+        FwupInstructionsScreen(
+          modifier = Modifier.fillMaxSize(),
+          model = model,
+          theme = theme
         )
-
-        Column(
-          modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding(),
-          horizontalAlignment = CenterHorizontally
-        ) {
-          Toolbar(
-            modifier = Modifier.padding(horizontal = 20.dp),
-            model = model.toolbarModel,
-            showDesignSystemChrome = false
-          )
-          Spacer(Modifier.weight(1F))
-          Column(
-            modifier =
-              Modifier
-                .height(IntrinsicSize.Min)
-                .clip(RoundedCornerShape(24.dp, 24.dp, 0.dp, 0.dp))
-                .background(WalletTheme.colors.background)
-                .padding(horizontal = 20.dp)
-          ) {
-            Spacer(Modifier.height(16.dp))
-            Header(
-              model = model.headerModel,
-              sublineLabelTreatment = Primary
-            )
-            Spacer(Modifier.height(24.dp))
-            Button(
-              model = model.buttonModel
-            )
-            Spacer(Modifier.height(28.dp))
-          }
-        }
       }
     }
   }
 }
 
 @Composable
-private fun FwupInstructionsDesignSystemV2Screen(
+private fun LegacyFwupInstructionsScreen(
+  modifier: Modifier = Modifier,
+  model: FwupInstructionsBodyModel,
+  theme: Theme,
+) {
+  Box(modifier = modifier) {
+    FwupUpdateBackgroundMedia(
+      modifier = Modifier.matchParentSize(),
+      theme = theme,
+      hardwareType = model.hardwareType,
+      showVideoPlaceholder = false
+    )
+
+    Column(
+      modifier = Modifier
+        .fillMaxSize()
+        .statusBarsPadding(),
+      horizontalAlignment = CenterHorizontally
+    ) {
+      Toolbar(
+        modifier = Modifier.padding(horizontal = 20.dp),
+        model = model.toolbarModel,
+        showDesignSystemChrome = false
+      )
+      Spacer(Modifier.weight(1F))
+      Column(
+        modifier =
+          Modifier
+            .height(IntrinsicSize.Min)
+            .clip(RoundedCornerShape(24.dp, 24.dp, 0.dp, 0.dp))
+            .background(WalletTheme.colors.background)
+            .padding(horizontal = 20.dp)
+      ) {
+        Spacer(Modifier.height(16.dp))
+        Header(
+          model = model.headerModel,
+          sublineLabelTreatment = Primary
+        )
+        Spacer(Modifier.height(24.dp))
+        Button(
+          model = model.buttonModel
+        )
+        Spacer(Modifier.height(28.dp))
+      }
+    }
+  }
+}
+
+@Composable
+private fun FwupInstructionsScreen(
   modifier: Modifier = Modifier,
   model: FwupInstructionsBodyModel,
   theme: Theme,
@@ -154,7 +166,7 @@ private fun FwupInstructionsDesignSystemV2Screen(
       .background(WalletTheme.colors.background)
   ) {
     if (maxHeight < UpdateFirmwareCompactHeightThreshold) {
-      FwupInstructionsCompactDesignSystemV2Screen(
+      FwupInstructionsCompactScreen(
         modifier = Modifier.fillMaxSize(),
         model = model,
         theme = theme,
@@ -177,7 +189,10 @@ private fun FwupInstructionsDesignSystemV2Screen(
           horizontalAlignment = CenterHorizontally
         ) {
           Toolbar(
-            model = updateFirmwareToolbarModel(model.onBack),
+            model = updateFirmwareToolbarModel(
+              onClose = model.onBack,
+              onHelpClick = model.onHelpClick
+            ),
             showDesignSystemChrome = false
           )
 
@@ -202,7 +217,7 @@ private fun FwupInstructionsDesignSystemV2Screen(
 }
 
 @Composable
-private fun FwupInstructionsCompactDesignSystemV2Screen(
+private fun FwupInstructionsCompactScreen(
   modifier: Modifier = Modifier,
   model: FwupInstructionsBodyModel,
   theme: Theme,
@@ -223,7 +238,10 @@ private fun FwupInstructionsCompactDesignSystemV2Screen(
     horizontalAlignment = CenterHorizontally
   ) {
     Toolbar(
-      model = updateFirmwareToolbarModel(model.onBack),
+      model = updateFirmwareToolbarModel(
+        onClose = model.onBack,
+        onHelpClick = model.onHelpClick
+      ),
       showDesignSystemChrome = false
     )
 
@@ -309,9 +327,7 @@ private fun FwupCompactHeroBackground(
 }
 
 @Composable
-private fun FwupInstructionsHeader(
-  model: FwupInstructionsBodyModel,
-) {
+private fun FwupInstructionsHeader(model: FwupInstructionsBodyModel) {
   val sublineModel = model.headerModel.sublineModel
 
   Column(
@@ -335,16 +351,7 @@ private fun FwupInstructionsHeader(
         type = LabelType.Body3Regular,
         treatment = Unspecified,
         alignment = TextAlign.Center,
-        color = WalletTheme.colors.foreground60,
-        onClick = { index ->
-          if (sublineModel is LabelModel.LinkSubstringModel) {
-            sublineModel.linkedSubstrings.forEach { link ->
-              if (link.range.contains(index)) {
-                link.onClick()
-              }
-            }
-          }
-        }
+        color = WalletTheme.colors.foreground60
       )
     }
   }
@@ -382,22 +389,20 @@ private fun FwupUpdateBackgroundMedia(
     } else if (videoResourcePath == null || !showVideoPlaceholder) {
       FwupUpdateBackgroundMediaWithoutPlaceholder(
         theme = theme,
-        videoResourcePath = videoResourcePath,
+        videoResourcePath = videoResourcePath
       )
     } else {
       FwupUpdateBackgroundMediaWithPlaceholder(
         theme = theme,
         videoResourcePath = videoResourcePath,
-        placeholderAlpha = placeholderAlpha,
+        placeholderAlpha = placeholderAlpha
       )
     }
   }
 }
 
 @Composable
-private fun FwupLegacyPairMedia(
-  videoResourcePath: String?,
-) {
+private fun FwupLegacyPairMedia(videoResourcePath: String?) {
   BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
     val mediaSize = minOf(maxWidth + UpdateFirmwareLegacyPairHeroOverscan, maxHeight + UpdateFirmwareLegacyPairHeroOverscan)
     val mediaModifier = Modifier
@@ -409,7 +414,7 @@ private fun FwupLegacyPairMedia(
         modifier = mediaModifier,
         resourcePath = videoResourcePath,
         isLooping = false,
-        backgroundColor = Color.Black,
+        backgroundColor = Color.Black
       )
     } else {
       Image(
@@ -493,12 +498,15 @@ internal fun updateFirmwareHeroImageResource(
       }
   }
 
-private fun updateFirmwareToolbarModel(onClose: () -> Unit): ToolbarModel {
+private fun updateFirmwareToolbarModel(
+  onClose: () -> Unit,
+  onHelpClick: (() -> Unit)?,
+): ToolbarModel {
   return ToolbarModel(
     leadingAccessory = ToolbarAccessoryModel.IconAccessory(
       model = IconButtonModel(
         iconModel = IconModel(
-          icon = Icon.SmallIconX,
+          icon = Icon.X,
           iconSize = IconSize.Accessory,
           iconBackgroundType = IconBackgroundType.Circle(
             circleSize = IconSize.Regular,
@@ -509,6 +517,23 @@ private fun updateFirmwareToolbarModel(onClose: () -> Unit): ToolbarModel {
         testTag = "fwup-instructions-close",
         onClick = StandardClick(onClose)
       )
-    )
+    ),
+    trailingAccessory = onHelpClick?.let {
+      ToolbarAccessoryModel.IconAccessory(
+        model = IconButtonModel(
+          iconModel = IconModel(
+            icon = Icon.Question,
+            iconSize = IconSize.Accessory,
+            iconBackgroundType = IconBackgroundType.Circle(
+              circleSize = IconSize.Regular,
+              color = IconBackgroundType.Circle.CircleColor.Secondary
+            ),
+            iconTint = IconTint.Foreground
+          ),
+          testTag = "fwup-instructions-help",
+          onClick = StandardClick(it)
+        )
+      )
+    }
   )
 }

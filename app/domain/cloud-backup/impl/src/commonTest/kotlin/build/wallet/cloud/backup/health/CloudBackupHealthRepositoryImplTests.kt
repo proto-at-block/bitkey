@@ -209,7 +209,7 @@ class CloudBackupHealthRepositoryImplTests : FunSpec({
           val differentCloudBackup = when (cloudBackup) {
             is CloudBackupV2 -> cloudBackup.copy(accountId = "different-id")
             is CloudBackupV3 -> cloudBackup.copy(accountId = "different-id")
-            else -> throw IllegalStateException("Unknown backup version: $cloudBackup")
+            else -> error("Unknown backup version: $cloudBackup")
           }
 
           cloudStoreAccountRepository.set(cloudAccount)

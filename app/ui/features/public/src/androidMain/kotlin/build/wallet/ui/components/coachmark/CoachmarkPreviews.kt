@@ -21,34 +21,9 @@ fun PrivateWalletHomeCoachmarkPreview() {
   }
 }
 
-@Preview(name = "Private Wallet Home Coachmark DSV2")
-@Composable
-fun PrivateWalletHomeCoachmarkDesignSystemV2Preview() {
-  PreviewWalletTheme {
-    Coachmark(
-      model = PrivateWalletHomeCoachmarkModel(
-        onDismiss = {},
-        onGoToPrivateWalletMigration = {}
-      ),
-      offset = Offset(0f, 0f)
-    )
-  }
-}
-
 @Preview(name = "BIP177 Coachmark")
 @Composable
 fun Bip177CoachmarkPreview() {
-  PreviewWalletTheme {
-    Coachmark(
-      model = Bip177CoachmarkModel(onDismiss = {}),
-      offset = Offset(0f, 0f)
-    )
-  }
-}
-
-@Preview(name = "BIP177 Coachmark DSV2")
-@Composable
-fun Bip177CoachmarkDesignSystemV2Preview() {
   PreviewWalletTheme {
     Coachmark(
       model = Bip177CoachmarkModel(onDismiss = {}),

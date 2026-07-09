@@ -549,25 +549,25 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
   }
 }
 
-private sealed class FullAccountCloudSignInAndBackupUiState {
+private sealed interface FullAccountCloudSignInAndBackupUiState {
   /**
    * Showing instructions that we are about to start backing up to cloud.
    */
   data class ShowingBackupInstructionsUiState(
     val generatingCsek: Boolean = false,
-  ) : FullAccountCloudSignInAndBackupUiState()
+  ) : FullAccountCloudSignInAndBackupUiState
 
   data class ShowingCustomerSupportUiState(
     val urlString: String,
     val sealedCsek: SealedCsek,
-  ) : FullAccountCloudSignInAndBackupUiState()
+  ) : FullAccountCloudSignInAndBackupUiState
 
   /**
    * Showing cloud backup 'learn more' content.
    */
   data class ShowingBackupLearnMoreUiState(
     val urlString: String,
-  ) : FullAccountCloudSignInAndBackupUiState()
+  ) : FullAccountCloudSignInAndBackupUiState
 
   /**
    * Currently signing into a cloud account.
@@ -576,7 +576,7 @@ private sealed class FullAccountCloudSignInAndBackupUiState {
    */
   data class SigningIntoCloudUiState(
     val sealedCsek: SealedCsek,
-  ) : FullAccountCloudSignInAndBackupUiState()
+  ) : FullAccountCloudSignInAndBackupUiState
 
   /**
    * State entered when there was a failure signing into cloud account
@@ -585,7 +585,7 @@ private sealed class FullAccountCloudSignInAndBackupUiState {
    */
   data class CloudSignInFailedUiState(
     val sealedCsek: SealedCsek,
-  ) : FullAccountCloudSignInAndBackupUiState()
+  ) : FullAccountCloudSignInAndBackupUiState
 
   /**
    * Checking cloud backup to see if one already exists
@@ -593,7 +593,7 @@ private sealed class FullAccountCloudSignInAndBackupUiState {
   data class CheckingCloudBackupUiState(
     val account: CloudStoreAccount,
     val sealedCsek: SealedCsek,
-  ) : FullAccountCloudSignInAndBackupUiState()
+  ) : FullAccountCloudSignInAndBackupUiState
 
   /**
    * In process of creating and saving the backup.
@@ -601,7 +601,7 @@ private sealed class FullAccountCloudSignInAndBackupUiState {
   data class CreatingAndSavingBackupUiState(
     val cloudStoreAccount: CloudStoreAccount,
     val sealedCsek: SealedCsek,
-  ) : FullAccountCloudSignInAndBackupUiState()
+  ) : FullAccountCloudSignInAndBackupUiState
 
   /**
    * If we don't previously have a signed CSEK, we sign here in this state.
@@ -610,7 +610,7 @@ private sealed class FullAccountCloudSignInAndBackupUiState {
    */
   data class SealingCsekViaNfcUiState(
     val csek: Csek,
-  ) : FullAccountCloudSignInAndBackupUiState()
+  ) : FullAccountCloudSignInAndBackupUiState
 
   /**
    * Explaining error that may be fixable.
@@ -620,47 +620,47 @@ private sealed class FullAccountCloudSignInAndBackupUiState {
     val rectifiableCloudBackupError: RectifiableCloudBackupError,
     val sealedCsek: SealedCsek,
     val errorData: ErrorData,
-  ) : FullAccountCloudSignInAndBackupUiState()
+  ) : FullAccountCloudSignInAndBackupUiState
 
   /**
    * Base class for all unrectifiable failure states during the backup process.
    */
-  sealed class UnrectifiableFailureUiState : FullAccountCloudSignInAndBackupUiState() {
-    abstract val errorData: ErrorData
+  sealed interface UnrectifiableFailureUiState : FullAccountCloudSignInAndBackupUiState {
+    val errorData: ErrorData
 
     /**
      * Error during backup checking process.
      */
     data class CheckingBackupFailure(
       override val errorData: ErrorData,
-    ) : UnrectifiableFailureUiState()
+    ) : UnrectifiableFailureUiState
 
     /**
      * Error during backup creation process.
      */
     data class CreatingBackupFailure(
       override val errorData: ErrorData,
-    ) : UnrectifiableFailureUiState()
+    ) : UnrectifiableFailureUiState
 
     /**
      * Error during backup upload process.
      */
     data class UploadingBackupFailure(
       override val errorData: ErrorData,
-    ) : UnrectifiableFailureUiState()
+    ) : UnrectifiableFailureUiState
 
     /**
      * Error during Emergency Exit Kit creation process.
      */
     data class CreatingEmergencyExitKitFailure(
       override val errorData: ErrorData,
-    ) : UnrectifiableFailureUiState()
+    ) : UnrectifiableFailureUiState
 
     /**
      * Error during Emergency Exit Kit upload process.
      */
     data class UploadingEmergencyExitKitFailure(
       override val errorData: ErrorData,
-    ) : UnrectifiableFailureUiState()
+    ) : UnrectifiableFailureUiState
   }
 }

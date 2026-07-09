@@ -19,5 +19,4 @@ data class SettingsHomeUiProps(
   val account: Account,
   val settingsListState: SettingsListState?,
   val homeStatusBannerModel: StatusBannerModel?,
-  val goToSecurityHub: () -> Unit,
 )

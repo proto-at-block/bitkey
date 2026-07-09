@@ -97,6 +97,7 @@ data class ProofOfPossessionNfcProps(
   val onTokenRefreshError: (
     (
       isConnectivityError: Boolean,
+      error: Error,
       onRetry: () -> Unit,
     ) -> ScreenModel
   )? = null,

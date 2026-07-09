@@ -1,6 +1,8 @@
 libwally_base = 'libwally/'
 libwally_src = libwally_base + 'src'
 
+patch_program = find_program('patch')
+
 # Copy config.h to libwally directories during build
 configure_file(
   input: '../libwally_config.h',
@@ -34,7 +36,6 @@ libwally_srcs = [
   libwally_src / 'pullpush.c',
   libwally_src / 'script.c',
   libwally_src / 'sign.c',
-  libwally_src / 'transaction.c',
   libwally_src / 'tx_io.c',
   libwally_src / 'wif.c',
   libwally_src / 'map.c',
@@ -46,6 +47,16 @@ libwally_srcs = [
   libwally_src / 'ccan/ccan/crypto/sha512/sha512.c',
   libwally_src / 'ccan/ccan/str/hex/hex.c',
 ]
+
+libwally_srcs += custom_target(
+  'libwally_transaction_patched',
+  input: [
+    libwally_src / 'transaction.c',
+    '../patches/libwally-transaction-varint-bounds.patch',
+  ],
+  output: 'transaction.c',
+  command: [patch_program, '-o', '@OUTPUT@', '@INPUT0@', '-i', '@INPUT1@'],
+)
 
 libwally_includes = [
   include_directories(libwally_base + 'include'),
@@ -71,12 +82,20 @@ c_args = [
   '-Wno-reserved-identifier', # For error: identifier '_ops' is reserved because it starts with '_' at global scope in libwally/src/internal.c
 ]
 
+public_abi_args = [
+  '-DWALLY_ABI_NO_ELEMENTS=1',
+]
+
 libwally_lib = static_library(
   'wally',
   libwally_srcs,
   include_directories: libwally_includes,
-  c_args: c_args,
+  c_args: c_args + public_abi_args,
   install: false,
 )
 
-libwally_dep = declare_dependency(include_directories: libwally_includes, link_whole: libwally_lib)
+libwally_dep = declare_dependency(
+  include_directories: libwally_includes,
+  compile_args: public_abi_args,
+  link_whole: libwally_lib,
+)

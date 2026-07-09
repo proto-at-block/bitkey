@@ -108,6 +108,7 @@ mod tests {
             application_auth_pubkey: None,
             hardware_auth_pubkey: SecretKey::new(&mut OsRng).public_key(&secp),
             auth_keys: Default::default(),
+            hardware_verification_required: false,
             common_fields: CommonAccountFields {
                 active_auth_keys_id: AuthKeysId::gen().unwrap(),
                 touchpoints: Default::default(),

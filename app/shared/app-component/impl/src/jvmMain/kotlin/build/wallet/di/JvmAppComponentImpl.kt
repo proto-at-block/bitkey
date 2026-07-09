@@ -9,6 +9,8 @@ import build.wallet.bdk.bindings.BdkBlockchainFactory
 import build.wallet.bdk.bindings.BdkBlockchainFactoryImpl
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.cloud.backup.CloudBackupStore
+import build.wallet.cloud.backup.CloudBackupStoreDelegate
+import build.wallet.cloud.backup.CloudBackupStoreFakeImpl
 import build.wallet.cloud.backup.CloudBackupStoreImpl
 import build.wallet.cloud.store.*
 import build.wallet.coroutines.flow.TickerFlowFactory
@@ -51,6 +53,12 @@ import kotlin.time.Duration.Companion.seconds
     CoroutinesComponent::class,
     CloudBackupStoreImpl::class,
     CloudKeyValueStoreImpl::class,
+    CloudBackupStoreDelegate::class,
+    CloudBackupStoreFakeImpl::class,
+    CloudStoreAccountRepositoryDelegate::class,
+    CloudStoreAccountRepositoryFakeImpl::class,
+    CloudFileStoreDelegate::class,
+    CloudFileStoreFakeImpl::class,
     ExchangeRateF8eClientImpl::class,
     MemfaultClientImpl::class,
     RecoverySyncFrequencyComponent::class,

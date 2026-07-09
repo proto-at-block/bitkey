@@ -78,30 +78,6 @@ write_seed("wca-proto-handlers-fuzz", "seal_csek_short.bin",
            struct.pack("<I", 5) + struct.pack("<I", 1) + b"\x00")
 
 # ---------------------------------------------------------------------------
-# nfc-timer-fuzz seeds (BCW-05)
-# FuzzedDataProvider stream: [index:4B][use_expired:1B] ...
-# ---------------------------------------------------------------------------
-TIMER_INDEX_OFFSET = 1000
-
-write_seed("nfc-timer-fuzz", "index_zero.bin",
-           struct.pack("<I", 0) + b"\x01")         # safe: ST-RFAL special case
-
-write_seed("nfc-timer-fuzz", "index_valid_min.bin",
-           struct.pack("<I", TIMER_INDEX_OFFSET) + b"\x01")    # valid: timers[0]
-
-write_seed("nfc-timer-fuzz", "index_valid_max.bin",
-           struct.pack("<I", TIMER_INDEX_OFFSET + 9) + b"\x00") # valid: timers[9]
-
-write_seed("nfc-timer-fuzz", "index_oob_just_above.bin",
-           struct.pack("<I", TIMER_INDEX_OFFSET + 10) + b"\x01") # OOB: triggers ASSERT
-
-write_seed("nfc-timer-fuzz", "index_below_offset.bin",
-           struct.pack("<I", 1) + b"\x00")         # OOB: wraps to 0xFFFFF001
-
-write_seed("nfc-timer-fuzz", "index_max.bin",
-           struct.pack("<I", 0xFFFFFFFF) + b"\x01")  # OOB: UINT32_MAX
-
-# ---------------------------------------------------------------------------
 # touch-decode-fuzz seeds (BCW-40)
 # FuzzedDataProvider stream: [num_points:1B][touch_data_bytes...]
 # ---------------------------------------------------------------------------
@@ -278,6 +254,40 @@ write_seed("psbt-fuzz", "psbt_magic_only.bin",
 # PSBT magic + global separator (0x00) = minimal structurally-plausible header
 write_seed("psbt-fuzz", "psbt_minimal.bin",
            PSBT_MAGIC + b"\x00" + struct.pack("<Q", 6) + bytes(64))
+
+# ---------------------------------------------------------------------------
+# libwally-tx-fuzz seeds
+# Layout: first byte selects parser mode; remaining bytes are raw parser input.
+# Modes: 0=BTC witness tx, 1=BTC pre-BIP144 tx, 2=Elements tx,
+#        3=PSBT/PSET strict, 4=PSBT/PSET loose.
+# ---------------------------------------------------------------------------
+MINIMAL_BTC_TX = (
+    struct.pack("<I", 1) +      # version
+    b"\x01" +                   # one input
+    bytes(32) +                 # prev txid
+    struct.pack("<I", 0xffffffff) +
+    b"\x00" +                   # empty scriptSig
+    struct.pack("<I", 0xffffffff) +
+    b"\x01" +                   # one output
+    struct.pack("<Q", 0) +
+    b"\x00" +                   # empty scriptPubKey
+    struct.pack("<I", 0)        # lock_time
+)
+
+write_seed("libwally-tx-fuzz", "btc_minimal_pre_bip144.bin",
+           bytes([1]) + MINIMAL_BTC_TX)
+
+write_seed("libwally-tx-fuzz", "psbt_minimal_strict.bin",
+           bytes([3]) + PSBT_MAGIC + b"\x00")
+
+# Elements tx: version || elements witness flag || input_count || output_count.
+# Ends immediately before the first output commitment prefix.
+write_seed("libwally-tx-fuzz", "elements_output_commitment_prefix_missing.bin",
+           bytes([2]) + struct.pack("<I", 1) + b"\x00\x00\x01")
+
+# Same path, but with an explicit commitment prefix and no committed value body.
+write_seed("libwally-tx-fuzz", "elements_output_commitment_body_missing.bin",
+           bytes([2]) + struct.pack("<I", 1) + b"\x00\x00\x01\x01")
 
 # ---------------------------------------------------------------------------
 # grant-protocol-fuzz seeds

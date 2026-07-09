@@ -80,7 +80,7 @@ fun StatementWithLongBodyOnlyPreview() {
 fun NumberedStatementWithTitleAndBodyPreview() {
   PreviewWalletTheme {
     Statement(
-      icon = Icon.SmallIconDigitTwo,
+      icon = Icon.DigitTwo,
       title = "Statement Title",
       body = "Statement Body"
     )

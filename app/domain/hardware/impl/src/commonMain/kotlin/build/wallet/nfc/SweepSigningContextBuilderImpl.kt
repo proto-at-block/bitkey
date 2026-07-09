@@ -20,7 +20,7 @@ import okio.ByteString.Companion.toByteString
  * on Android, iOS, and JVM.
  *
  * Returns `null` when the source keyset's account index equals the current
- * account index (no sweep routing needed — caller should use the normal
+ * account index (no sweep routing needed - caller should use the normal
  * signing path) or when a descriptor xpub cannot be decoded (caller falls
  * back to normal signing; firmware will reject non-current-account inputs
  * defensively).
@@ -69,10 +69,8 @@ class SweepSigningContextBuilderImpl : SweepSigningContextBuilder {
         oldServerXpub = decodeXpubMaterial(oldServerRootXpub)
       )
     } catch (e: IllegalArgumentException) {
+      // Also covers NumberFormatException (a subclass) from xpub decoding.
       logError(tag = "NFC", throwable = e) { "Failed to build SweepSigningContext from keyset" }
-      null
-    } catch (e: NumberFormatException) {
-      logError(tag = "NFC", throwable = e) { "Failed to decode xpub in SweepSigningContext build" }
       null
     }
   }
@@ -190,4 +188,3 @@ private fun base58Divmod(number: ByteArray, firstDigit: Int, base: Int, divisor:
   }
   return remainder
 }
-

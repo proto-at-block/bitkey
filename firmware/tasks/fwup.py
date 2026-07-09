@@ -154,6 +154,7 @@ def fwup(
 
     if not status:
         click.secho("Firmware update failed.", fg="red")
+        raise Exit(code=1)
     else:
         click.secho("Firmware update finished successfully.", fg="green")
 

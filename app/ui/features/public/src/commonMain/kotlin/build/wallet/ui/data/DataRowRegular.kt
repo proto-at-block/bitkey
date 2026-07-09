@@ -12,18 +12,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data.SideTextTreatment
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data.SideTextType
 import build.wallet.ui.components.icon.Icon
 import build.wallet.ui.components.icon.IconButton
 import build.wallet.ui.components.icon.IconImage
-import build.wallet.ui.components.icon.iconStyle
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.compose.thenIf
-import build.wallet.ui.model.icon.*
+import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconSize.Accessory
 import build.wallet.ui.model.icon.IconSize.Small
 import build.wallet.ui.theme.LocalTheme
@@ -31,7 +31,6 @@ import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import kotlin.jvm.JvmName
-import build.wallet.statemachine.core.Icon as LegacyIcon
 
 @Composable
 internal fun DataRowRegular(
@@ -39,14 +38,13 @@ internal fun DataRowRegular(
   model: Data,
   isFirst: Boolean,
   contentHorizontalPadding: Dp = 16.dp,
-  useContainedDesignSystemV2Typography: Boolean = false,
+  useContainedTypography: Boolean = false,
 ) {
-  val isDesignSystemV2Enabled = true
-  val endIconColor = model.endIconColor(isDesignSystemV2Enabled)
-  val endIconSize = model.endIconSize(isDesignSystemV2Enabled)
-  val trailingAccessoryOpticalOffset = model.trailingAccessoryOpticalOffset(isDesignSystemV2Enabled)
-  val helperBackgroundColor = helperBackgroundColor(isDesignSystemV2Enabled)
-  val dividerColor = dividerColor(isDesignSystemV2Enabled)
+  val endIconColor = model.endIconColor()
+  val endIconSize = model.endIconSize()
+  val trailingAccessoryOpticalOffset = model.trailingAccessoryOpticalOffset()
+  val helperBackgroundColor = helperBackgroundColor()
+  val dividerColor = dividerColor()
   val helperContent: (@Composable () -> Unit)? =
     model.explainer?.let { explainer ->
       {
@@ -87,7 +85,7 @@ internal fun DataRowRegular(
         Column {
           Label(
             text = model.title,
-            type = model.titleTextType.toLabelType(useContainedDesignSystemV2Typography),
+            type = model.titleTextType.toLabelType(useContainedTypography),
             alignment = TextAlign.Start,
             treatment = LabelTreatment.Secondary
           )
@@ -95,7 +93,7 @@ internal fun DataRowRegular(
             Label(
               text = secondaryTitle,
               type =
-                if (useContainedDesignSystemV2Typography) {
+                if (useContainedTypography) {
                   LabelType.Body2Regular
                 } else {
                   LabelType.Body3Regular
@@ -126,13 +124,13 @@ internal fun DataRowRegular(
           Label(
             text = model.sideText,
             alignment = TextAlign.End,
-            type = model.sideTextType.toLabelType(useContainedDesignSystemV2Typography),
+            type = model.sideTextType.toLabelType(useContainedTypography),
             treatment = model.sideTextTreatment.toLabelTreatment()
           )
           model.secondarySideText?.let {
             Label(
               text = it,
-              type = model.secondarySideTextType.toLabelType(useContainedDesignSystemV2Typography),
+              type = model.secondarySideTextType.toLabelType(useContainedTypography),
               treatment = model.secondarySideTextTreatment.toLabelTreatment(),
               alignment = TextAlign.End
             )
@@ -154,27 +152,27 @@ internal fun DataRowRegular(
 }
 
 @Composable
-private fun Data.endIconColor(isDesignSystemV2Enabled: Boolean): Color {
-  return if (isDesignSystemV2Enabled && endIcon == LegacyIcon.SmallIconCopy) {
+private fun Data.endIconColor(): Color {
+  return if (endIcon == Icon.Copy) {
     WalletTheme.colors.foreground
   } else {
     WalletTheme.colors.foreground30
   }
 }
 
-private fun Data.endIconSize(isDesignSystemV2Enabled: Boolean): IconSize {
-  return if (isDesignSystemV2Enabled && endIcon == LegacyIcon.SmallIconCopy) {
+private fun Data.endIconSize(): IconSize {
+  return if (endIcon == Icon.Copy) {
     Accessory
   } else {
     Small
   }
 }
 
-private fun Data.trailingAccessoryOpticalOffset(isDesignSystemV2Enabled: Boolean): Dp {
-  return if (isDesignSystemV2Enabled && onClick != null) {
+private fun Data.trailingAccessoryOpticalOffset(): Dp {
+  return if (onClick != null) {
     when (endIcon) {
-      LegacyIcon.SmallIconCaretRight -> 4.dp
-      LegacyIcon.SmallIconCopy -> 3.dp
+      Icon.CaretRight -> 4.dp
+      Icon.Copy -> 3.dp
       else -> 0.dp
     }
   } else {
@@ -183,20 +181,16 @@ private fun Data.trailingAccessoryOpticalOffset(isDesignSystemV2Enabled: Boolean
 }
 
 @Composable
-private fun helperBackgroundColor(isDesignSystemV2Enabled: Boolean): Color {
-  return if (isDesignSystemV2Enabled) {
-    WalletTheme.colors.secondary
-  } else {
-    WalletTheme.colors.foreground10
-  }
+private fun helperBackgroundColor(): Color {
+  return WalletTheme.colors.secondary
 }
 
 @Composable
-private fun dividerColor(isDesignSystemV2Enabled: Boolean): Color {
-  return if (isDesignSystemV2Enabled) {
-    if (LocalTheme.current == Theme.DARK) WalletTheme.colors.foreground30 else WalletTheme.colors.foreground10
+private fun dividerColor(): Color {
+  return if (LocalTheme.current == Theme.DARK) {
+    WalletTheme.colors.foreground30
   } else {
-    Color.Black.copy(alpha = 0.05F)
+    WalletTheme.colors.foreground10
   }
 }
 
@@ -254,8 +248,8 @@ private fun DataRowHelperContent(
   }
 }
 
-private fun SideTextType.toLabelType(useContainedDesignSystemV2Typography: Boolean): LabelType {
-  if (useContainedDesignSystemV2Typography) {
+private fun SideTextType.toLabelType(useContainedTypography: Boolean): LabelType {
+  if (useContainedTypography) {
     return when (this) {
       SideTextType.BODY1REGULAR -> LabelType.Body1Regular
       SideTextType.BODY2BOLD,
@@ -287,9 +281,9 @@ private fun SideTextTreatment.toLabelTreatment(): LabelTreatment {
 }
 
 private fun Data.TitleTextType.toLabelType(
-  useContainedDesignSystemV2Typography: Boolean,
+  useContainedTypography: Boolean,
 ): LabelType {
-  if (useContainedDesignSystemV2Typography) {
+  if (useContainedTypography) {
     return when (this) {
       Data.TitleTextType.BODY1REGULAR -> LabelType.Body1Regular
       Data.TitleTextType.BODY2REGULAR,

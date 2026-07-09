@@ -3,12 +3,12 @@ package build.wallet.bitcoin.fees
 /**
  * Represents different ways to specify fees for a transaction.
  */
-sealed class FeePolicy {
+sealed interface FeePolicy {
   /** An absolute fee, in sats. */
-  data class Absolute(val fee: Fee) : FeePolicy()
+  data class Absolute(val fee: Fee) : FeePolicy
 
   /** A custom fee rate, in sats/vB. */
-  data class Rate(val feeRate: FeeRate) : FeePolicy()
+  data class Rate(val feeRate: FeeRate) : FeePolicy
 
   /*
    * When passed to SpendingWallet, the underlying TxBuilder never calls .feeAbsolute or .feeRate.
@@ -18,5 +18,5 @@ sealed class FeePolicy {
    * for constructing "dummy" PSBTs for [BitcoinTransactionFeeEstimator] to apply our own heuristic
    * for fee estimation.
    */
-  data object MinRelayRate : FeePolicy()
+  data object MinRelayRate : FeePolicy
 }

@@ -4,6 +4,7 @@ import build.wallet.bitkey.app.AppSpendingPublicKey;
 import build.wallet.bitkey.f8e.F8eSpendingKeyset;
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature;
 import build.wallet.bitkey.hardware.HwAuthPublicKey;
+import build.wallet.bitkey.hardware.HwSpendingKeyProof;
 import build.wallet.bitkey.hardware.HwSpendingPublicKey;
 import build.wallet.cloud.backup.csek.SealedSsek;
 import build.wallet.crypto.PublicKey;
@@ -35,7 +36,8 @@ CREATE TABLE w3UpgradeMigrationEntity(
   resumedFromCloudBackup INTEGER AS Boolean NOT NULL DEFAULT 0,
   sealedSsekForDecryption BLOB AS SealedSsek,
   oldW1SweepStatus TEXT NOT NULL DEFAULT 'UNKNOWN',
-  oldW1WipeReminderDismissed INTEGER AS Boolean NOT NULL DEFAULT 0
+  oldW1WipeReminderDismissed INTEGER AS Boolean NOT NULL DEFAULT 0,
+  newHardwareKeyProof TEXT AS HwSpendingKeyProof
 );
 
 CREATE TABLE w3UpgradeSweepTransactionEntity(
@@ -47,9 +49,11 @@ getState:
 SELECT * FROM w3UpgradeMigrationEntity WHERE rowId = 0;
 
 saveHardwareKey:
-INSERT INTO w3UpgradeMigrationEntity(rowId, newHardwareKey)
-VALUES (0, ?)
-ON CONFLICT(rowId) DO UPDATE SET newHardwareKey = excluded.newHardwareKey;
+INSERT INTO w3UpgradeMigrationEntity(rowId, newHardwareKey, newHardwareKeyProof)
+VALUES (0, :newHardwareKey, :newHardwareKeyProof)
+ON CONFLICT(rowId) DO UPDATE SET
+  newHardwareKey = excluded.newHardwareKey,
+  newHardwareKeyProof = excluded.newHardwareKeyProof;
 
 saveOldDeviceSerial:
 INSERT INTO w3UpgradeMigrationEntity(rowId, oldDeviceSerial)

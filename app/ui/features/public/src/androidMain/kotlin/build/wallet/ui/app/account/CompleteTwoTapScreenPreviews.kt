@@ -26,24 +26,3 @@ fun CompleteTwoTapScreenPreview() {
     )
   }
 }
-
-@Preview(name = "Complete Two Tap (Design System V2)")
-@Composable
-fun CompleteTwoTapScreenPreviewDesignSystemV2() {
-  PreviewWalletTheme {
-    Box(
-      modifier = Modifier
-        .fillMaxSize()
-        .background(WalletTheme.colors.background)
-    ) {
-      FormScreen(
-        model = CompleteTwoTapBodyModel(
-          onBack = {},
-          onContinue = {},
-          onHelpClick = {},
-          eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
-        )
-      )
-    }
-  }
-}

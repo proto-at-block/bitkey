@@ -2,10 +2,11 @@ package build.wallet.statemachine.walletmigration
 
 import build.wallet.analytics.events.screen.id.WalletMigrationEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormDesignSystemV2Model
-import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.LabelModel.StringModel
+import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormHeaderModel
+import build.wallet.statemachine.core.form.FormScreenLayoutModel
+import build.wallet.statemachine.core.form.FormScreenTitleModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
@@ -30,22 +31,18 @@ data class W3UpgradeDeviceReadyBodyModel(
         )
       )
     },
+    formScreenTitle = FormScreenTitleModel(
+      eyebrow = w3UpgradeStepEyebrow(step, totalSteps),
+      title = "Do you have a new Bitkey device ready?"
+    ),
+    formScreenLayout = FormScreenLayoutModel.LargeTitle(scrollable = false),
     header = FormHeaderModel(
-      headline = "Do you have a new Bitkey device ready?",
-      subline = "You'll need to pair a new Bitkey device before you can start the process of replacing the old one."
+      headline = null,
+      sublineModel = StringModel(
+        "You'll need to pair a new Bitkey device before you can start the process of replacing the old one."
+      )
     ),
     mainContentList = immutableListOf(),
-    designSystemV2Model = FormDesignSystemV2Model(
-      eyebrow = w3UpgradeStepEyebrow(step, totalSteps),
-      title = "Do you have a new Bitkey device ready?",
-      header = FormHeaderModel(
-        headline = null,
-        sublineModel = StringModel(
-          "You'll need to pair a new Bitkey device before you can start the process of replacing the old one."
-        )
-      ),
-      scrollable = false
-    ),
     primaryButton = ButtonModel(
       text = "Yes",
       size = ButtonModel.Size.Footer,

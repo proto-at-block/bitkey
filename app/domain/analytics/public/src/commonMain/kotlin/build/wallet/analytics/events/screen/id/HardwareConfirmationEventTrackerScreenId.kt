@@ -46,4 +46,12 @@ enum class HardwareConfirmationEventTrackerScreenId : EventTrackerScreenId {
   /** Cloud backup restoration */
   HW_CONFIRMATION_CLOUD_BACKUP_RESTORATION,
   HW_CONFIRMATION_CANCELED_CLOUD_BACKUP_RESTORATION,
+
+  /** Stale keyset repair — unseal SSEK */
+  HW_CONFIRMATION_KEYSET_REPAIR_UNSEAL,
+  HW_CONFIRMATION_CANCELED_KEYSET_REPAIR_UNSEAL,
+
+  /** Stale keyset repair — rotate HW spending key + sign access token composite */
+  HW_CONFIRMATION_KEYSET_REPAIR_ROTATE_HW_KEY,
+  HW_CONFIRMATION_CANCELED_KEYSET_REPAIR_ROTATE_HW_KEY,
 }

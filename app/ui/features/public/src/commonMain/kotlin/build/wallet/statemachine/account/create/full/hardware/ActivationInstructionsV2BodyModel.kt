@@ -14,6 +14,7 @@ import build.wallet.ui.model.video.VideoStartingPosition.START
 fun ActivationInstructionsV2BodyModel(
   onContinue: (() -> Unit)?,
   onBack: (() -> Unit)?,
+  onHelpClick: () -> Unit,
   isNavigatingBack: Boolean,
   eventTrackerContext: EventTrackerContext,
 ) = PairNewHardwareBodyModel(
@@ -27,10 +28,13 @@ fun ActivationInstructionsV2BodyModel(
     text = "Let's go",
     treatment = ButtonModel.Treatment.BitkeyInteraction,
     size = ButtonModel.Size.Footer,
-    leadingIcon = Icon.SmallIconBitkey,
+    leadingIcon = Icon.Bitkey,
     isLoading = onContinue == null,
     onClick = StandardClick { onContinue?.invoke() }
   ),
+  toolbarTrailingIcon = Icon.Question,
+  onToolbarTrailingClick = onHelpClick,
+  toolbarTrailingTestTag = "help",
   backgroundVideo = PairNewHardwareBodyModel.BackgroundVideo(
     content = BitkeyFingerprint,
     startingPosition = if (isNavigatingBack) END else START

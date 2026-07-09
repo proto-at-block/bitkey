@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.platform.web.InAppBrowserNavigator
@@ -18,7 +17,7 @@ class HelpCenterUiStateMachineImpl(
 ) : HelpCenterUiStateMachine {
   @Composable
   override fun model(props: HelpCenterUiProps): ScreenModel {
-    var uiState: HelpCenterUiState by remember {
+    val uiState: HelpCenterUiState by remember {
       mutableStateOf(ViewingFaqUiState)
     }
 

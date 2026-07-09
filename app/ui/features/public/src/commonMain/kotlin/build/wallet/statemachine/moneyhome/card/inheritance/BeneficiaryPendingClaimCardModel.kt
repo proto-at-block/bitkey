@@ -20,7 +20,7 @@ internal fun BeneficiaryPendingClaimCardModel(
     timeRemaining = timeRemaining,
     progress = progress,
     onClick = onClick,
-    useMonochromeStyleInDesignSystemV2 = true
+    useMonochromeStyle = true
   ),
   style = CardModel.CardStyle.Plain
 )

@@ -9,7 +9,7 @@ import build.wallet.ui.tooling.PreviewWalletTheme
 
 @Preview(name = "Create Wallet Intro (Light)")
 @Composable
-fun BuildHardwareDescriptorIntroDsv2LightPreview() {
+fun BuildHardwareDescriptorIntroLightPreview() {
   BuildHardwareDescriptorIntroPreview(
     theme = Theme.LIGHT,
   )
@@ -17,7 +17,7 @@ fun BuildHardwareDescriptorIntroDsv2LightPreview() {
 
 @Preview(name = "Create Wallet Intro (Dark)")
 @Composable
-fun BuildHardwareDescriptorIntroDsv2DarkPreview() {
+fun BuildHardwareDescriptorIntroDarkPreview() {
   BuildHardwareDescriptorIntroPreview(
     theme = Theme.DARK,
   )

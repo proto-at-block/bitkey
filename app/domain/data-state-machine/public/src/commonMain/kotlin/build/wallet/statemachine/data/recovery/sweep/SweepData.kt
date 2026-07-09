@@ -1,5 +1,6 @@
 package build.wallet.statemachine.data.recovery.sweep
 
+import bitkey.privilegedactions.PrivilegedActionInstance
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.money.BitcoinMoney
 import build.wallet.recovery.sweep.SweepPsbt
@@ -62,6 +63,14 @@ sealed interface SweepData {
    * on success.
    */
   data object SigningAndBroadcastingSweepsData : SweepData
+
+  /**
+   * Sweep signing is blocked until the user completes hardware verification out-of-band.
+   */
+  data class HardwareVerificationRequiredData(
+    val privilegedActionInstance: PrivilegedActionInstance,
+    val dismiss: () -> Unit,
+  ) : SweepData
 
   /**
    * Sweep succeeded.

@@ -165,13 +165,13 @@ interface SignChallenge {
 interface GetInitialSpendingKey {
   constructor(BtcNetwork network);
   [Throws=CommandError]
-  DescriptorPublicKeyState next(sequence<u8> response);
+  SpendingKeyResultState next(sequence<u8> response);
 };
 
 interface GetNextSpendingKey {
   constructor(sequence<DescriptorPublicKey> existing, BtcNetwork network);
   [Throws=CommandError]
-  DescriptorPublicKeyState next(sequence<u8> response);
+  SpendingKeyResultState next(sequence<u8> response);
 };
 
 interface LockDevice {
@@ -389,6 +389,18 @@ interface EekRestorationUnseal {
   EekRestorationUnsealResultState next(sequence<u8> response);
 };
 
+interface KeysetRepairUnseal {
+  constructor(sequence<u8> sealed_key);
+  [Throws=CommandError]
+  KeysetRepairUnsealResultState next(sequence<u8> response);
+};
+
+interface KeysetRepairRotateHwKey {
+  constructor(sequence<u8> access_token, sequence<DescriptorPublicKey> existing_descriptor_public_keys, BtcNetwork network);
+  [Throws=CommandError]
+  KeysetRepairRotateHwKeyResultState next(sequence<u8> response);
+};
+
 interface FullAccountCloudBackupRestoration {
   constructor();
   [Throws=CommandError]
@@ -485,6 +497,17 @@ interface DescriptorPublicKeyState {
   Result(DescriptorPublicKey value);
 };
 
+[Enum]
+interface SpendingKeyResultState {
+  Data(sequence<u8> response);
+  Result(SpendingKeyResult value);
+};
+
+dictionary SpendingKeyResult {
+  string dpub;
+  sequence<u8>? attestation_signature;
+};
+
 
 [Enum]
 interface SignatureState {
@@ -533,6 +556,8 @@ interface ConfirmedCommandResult {
   UpgradeAuthorizeW3(sequence<u8> descriptor_backups_signature, sequence<u8> activate_keyset_signature, sequence<u8> sealed_ddk_data, sequence<u8> unsealed_ssek);
   EekRestorationUnsealSymmetricKey(sequence<u8> unsealed_key);
   FullAccountCloudBackupRestoration();
+  KeysetRepairUnsealSymmetricKey(sequence<u8> unsealed_key);
+  KeysetRepairRotateHwKey(string spending_key_dpub, sequence<u8> access_token_signature);
 };
 
 [Enum]
@@ -768,6 +793,28 @@ interface EekRestorationUnsealResultState {
 
 [Enum]
 interface EekRestorationUnsealResult {
+  ConfirmationPending(sequence<u8> response_handle, sequence<u8> confirmation_handle);
+};
+
+[Enum]
+interface KeysetRepairUnsealResultState {
+  Data(sequence<u8> response);
+  Result(KeysetRepairUnsealResult value);
+};
+
+[Enum]
+interface KeysetRepairUnsealResult {
+  ConfirmationPending(sequence<u8> response_handle, sequence<u8> confirmation_handle);
+};
+
+[Enum]
+interface KeysetRepairRotateHwKeyResultState {
+  Data(sequence<u8> response);
+  Result(KeysetRepairRotateHwKeyResult value);
+};
+
+[Enum]
+interface KeysetRepairRotateHwKeyResult {
   ConfirmationPending(sequence<u8> response_handle, sequence<u8> confirmation_handle);
 };
 
@@ -1081,6 +1128,14 @@ interface Attestation {
 
   [Throws=AttestationError]
   sequence<u8> generate_challenge();
+
+  [Throws=AttestationError]
+  void verify_spending_key_attestation(
+    sequence<u8> identity_cert_der,
+    sequence<u8> batch_cert_der,
+    sequence<u8> compressed_spending_pubkey,
+    sequence<u8> signature
+  );
 };
 
 enum BtcDisplayUnit {

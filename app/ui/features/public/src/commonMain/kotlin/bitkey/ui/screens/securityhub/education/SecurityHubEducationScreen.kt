@@ -3,6 +3,7 @@ package bitkey.ui.screens.securityhub.education
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import bitkey.account.HardwareType
 import bitkey.privilegedactions.FingerprintResetAvailabilityService
 import bitkey.securitycenter.SecurityAction
@@ -62,10 +63,10 @@ class SecurityHubEducationScreenPresenter(
       is SecurityHubEducationScreen.RecommendationEducation -> screen.recommendation.navigationScreenId()
     }
 
-    val isFingerprintResetEnabled by fingerprintResetAvailabilityService.isAvailable()
+    val isFingerprintResetEnabled by remember { fingerprintResetAvailabilityService.isAvailable() }
       .collectAsState(false)
 
-    val firmwareData by firmwareDataService.firmwareData().collectAsState()
+    val firmwareData by remember { firmwareDataService.firmwareData() }.collectAsState()
     val canEditFingerprints = when (val info = firmwareData.firmwareDeviceInfo) {
       null -> true
       else -> info.hardwareType() != HardwareType.W3

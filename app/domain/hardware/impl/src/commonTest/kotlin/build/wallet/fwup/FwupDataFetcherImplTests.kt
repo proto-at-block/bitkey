@@ -48,7 +48,7 @@ class FwupDataFetcherImplTests : FunSpec({
     // ── Device state ──
     val deviceInfo = w3DeviceInfo(
       coreVersion = "1.0.0", coreSlot = A,
-      uxcVersion = "1.0.0", uxcSlot = A
+      uxcVersion = "1.0.0"
     )
 
     // ── Bundle from Memfault ──
@@ -82,7 +82,7 @@ class FwupDataFetcherImplTests : FunSpec({
     // was never completed (customer killed the app or lost NFC connection).
     val deviceInfo = w3DeviceInfo(
       coreVersion = "1.0.0", coreSlot = A,
-      uxcVersion = "2.0.0", uxcSlot = A
+      uxcVersion = "2.0.0"
     )
 
     // ── Bundle from Memfault ──
@@ -104,7 +104,7 @@ class FwupDataFetcherImplTests : FunSpec({
     // ── Device state ──
     val deviceInfo = w3DeviceInfo(
       coreVersion = "1.0.0", coreSlot = A,
-      uxcVersion = "1.0.0", uxcSlot = A
+      uxcVersion = "1.0.0"
     )
 
     // ── Bundle from Memfault ──
@@ -130,7 +130,7 @@ class FwupDataFetcherImplTests : FunSpec({
     // UXC was updated to 2.0.0 in a previous session, CORE still at 1.0.0.
     val deviceInfo = w3DeviceInfo(
       coreVersion = "1.0.0", coreSlot = A,
-      uxcVersion = "2.0.0", uxcSlot = A
+      uxcVersion = "2.0.0"
     )
 
     // ── Bundle from Memfault ──
@@ -157,7 +157,6 @@ private fun w3DeviceInfo(
   coreVersion: String,
   coreSlot: FirmwareSlot,
   uxcVersion: String,
-  uxcSlot: FirmwareSlot,
 ) = FirmwareDeviceInfo(
   version = coreVersion,
   serial = "test-serial",

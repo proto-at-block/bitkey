@@ -42,6 +42,14 @@ android-app-clear:
 android-app-uninstall:
   adb uninstall world.bitkey.app
 
+# Set up a Blox workstation: hermit JDK, Android SDK packages, cargo registry
+blox-setup:
+  ./scripts/blox/setup.sh
+
+# Boot a headless Android emulator (Blox workstations only)
+android-emulator *ARGS: blox-setup
+  ./scripts/blox/run-emulator.sh --background {{ARGS}}
+
 # Verify SqlDelight schemas and migrations
 test-unit-database:
   {{gradle}} verifySqlDelightMigration verifySqlDelightMigrationForeignKeyCheck

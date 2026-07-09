@@ -4,7 +4,6 @@ import build.wallet.analytics.events.screen.id.WalletMigrationEventTrackerScreen
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
@@ -32,18 +31,17 @@ data class W3UpgradeOldHardwareInstructionsBodyModel(
         )
       )
     },
-    header = FormHeaderModel(
-      headline = "Finish the upgrade using your first generation Bitkey",
+    formScreenTitle = w3UpgradeInstructionScreenTitle(
+      eyebrow = w3UpgradeStepEyebrow(step, totalSteps),
+      title = "Finish the upgrade using your first generation Bitkey"
+    ),
+    formScreenLayout = w3UpgradeInstructionLayout(),
+    headerToMainContentSpacing = W3_UPGRADE_INSTRUCTION_HEADER_TO_MAIN_CONTENT_SPACING,
+    header = w3UpgradeInstructionHeader(
       subline = "You'll need to tap your old Bitkey device a couple more times."
     ),
     mainContentList = immutableListOf(
       oldHardwareInstructionListGroup()
-    ),
-    designSystemV2Model = w3UpgradeInstructionDesignSystemV2Model(
-      eyebrow = w3UpgradeStepEyebrow(step, totalSteps),
-      title = "Finish the upgrade using your first generation Bitkey",
-      subline = "You'll need to tap your old Bitkey device a couple more times.",
-      mainContentList = immutableListOf(oldHardwareInstructionListGroupDesignSystemV2())
     ),
     primaryButton = ButtonModel.BitkeyInteractionButtonModel(
       text = "Continue",
@@ -57,34 +55,15 @@ private fun oldHardwareInstructionListGroup() =
     listGroupModel = ListGroupModel(
       style = ListGroupStyle.NONE,
       items = immutableListOf(
-        w3UpgradeLegacyInstructionListItem(
+        w3UpgradeInstructionListItem(
           title = "Confirm the wallet upgrade",
           secondaryText = "Tap your old Bitkey to authorize the upgrade.",
-          icon = Icon.SmallIconBitkey
+          icon = Icon.Bitkey
         ),
-        w3UpgradeLegacyInstructionListItem(
+        w3UpgradeInstructionListItem(
           title = "Move your funds to the new wallet",
           secondaryText = "Small network fee required.",
-          icon = Icon.SmallIconBitkeySend
-        )
-      )
-    )
-  )
-
-private fun oldHardwareInstructionListGroupDesignSystemV2() =
-  FormMainContentModel.ListGroup(
-    listGroupModel = ListGroupModel(
-      style = ListGroupStyle.NONE,
-      items = immutableListOf(
-        w3UpgradeDesignSystemV2InstructionListItem(
-          title = "Confirm the wallet upgrade",
-          secondaryText = "Tap your old Bitkey to authorize the upgrade.",
-          icon = Icon.SmallIconBitkey
-        ),
-        w3UpgradeDesignSystemV2InstructionListItem(
-          title = "Move your funds to the new wallet",
-          secondaryText = "Small network fee required.",
-          icon = Icon.SmallIconBitkeySend
+          icon = Icon.BitkeySend
         )
       )
     )

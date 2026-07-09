@@ -21,7 +21,7 @@ data class BeneficiaryApprovedClaimWarningBodyModel(
     toolbar = null,
     header = FormHeaderModel(
       iconModel = IconModel(
-        icon = Icon.LargeIconWarning,
+        icon = Icon.LargeIconWarningFilled,
         iconSize = IconSize.Avatar
       ),
       headline = "Transfer funds to remove benefactor",

@@ -3,6 +3,7 @@
 package bitkey.verification
 
 import app.cash.turbine.test
+import build.wallet.coroutines.flow.ConfirmationState
 import bitkey.f8e.verify.TxVerificationF8eClientFake
 import bitkey.f8e.verify.TxVerifyPolicyF8eClientFake
 import bitkey.privilegedactions.AuthorizationStrategyType

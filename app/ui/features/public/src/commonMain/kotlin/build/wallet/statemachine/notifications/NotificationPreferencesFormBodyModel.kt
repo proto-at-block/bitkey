@@ -173,7 +173,7 @@ data class NetworkingErrorSheetBodyModel(
 ) : FormBodyModel(
     id = NotificationsEventTrackerScreenId.RECOVERY_CHANNELS_SETTINGS_NETWORKING_ERROR_SHEET,
     header = FormHeaderModel(
-      icon = LargeIconNetworkError,
+      icon = NetworkError,
       headline = "A networking error has occurred. Please try again.",
       subline = networkingError.message,
       alignment = FormHeaderModel.Alignment.LEADING

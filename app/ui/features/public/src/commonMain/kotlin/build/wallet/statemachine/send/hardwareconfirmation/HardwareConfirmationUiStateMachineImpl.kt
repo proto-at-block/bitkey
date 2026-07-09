@@ -7,15 +7,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.statemachine.core.ScreenModel
 
 @BitkeyInject(ActivityScope::class)
-class HardwareConfirmationUiStateMachineImpl : HardwareConfirmationUiStateMachine {
+class HardwareConfirmationUiStateMachineImpl(
+  private val deviceInfoProvider: DeviceInfoProvider,
+) : HardwareConfirmationUiStateMachine {
   @Composable
   override fun model(props: HardwareConfirmationUiProps): ScreenModel {
     var uiState: HardwareConfirmationUiState by remember {
       mutableStateOf(HardwareConfirmationUiState.ShowingConfirmation)
     }
+    val devicePlatform = remember { deviceInfoProvider.getDeviceInfo().devicePlatform }
 
     return when (uiState) {
       HardwareConfirmationUiState.ShowingConfirmation -> {
@@ -39,7 +43,8 @@ class HardwareConfirmationUiStateMachineImpl : HardwareConfirmationUiStateMachin
         ScreenModel(
           body = HardwareConfirmationHelpBodyModel(
             onBack = { uiState = HardwareConfirmationUiState.ShowingConfirmation },
-            content = requireNotNull(props.content.helpContent)
+            content = requireNotNull(props.content.helpContent),
+            devicePlatform = devicePlatform
           )
         )
       }

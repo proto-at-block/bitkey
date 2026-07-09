@@ -15,6 +15,7 @@ import bitkey.ui.framework.ScreenPresenter
 import bitkey.ui.screens.device.DeviceSettingsScreen
 import bitkey.ui.screens.recovery.KeysetRepairScreen
 import bitkey.ui.screens.recoverychannels.RecoveryChannelSettingsScreen
+import bitkey.ui.screens.securityhub.SecurityHubUiState.ViewingRecoveryContactDetails
 import bitkey.ui.screens.securityhub.education.SecurityHubEducationScreen
 import bitkey.ui.sheets.ViewInvitationSheet
 import build.wallet.LoadableValue
@@ -68,6 +69,8 @@ import build.wallet.statemachine.status.BannerContext
 import build.wallet.statemachine.status.BannerType.OfflineStatus
 import build.wallet.statemachine.status.HomeStatusBannerUiProps
 import build.wallet.statemachine.status.HomeStatusBannerUiStateMachine
+import build.wallet.statemachine.trustedcontact.view.ViewingRecoveryContactProps
+import build.wallet.statemachine.trustedcontact.view.ViewingRecoveryContactUiStateMachine
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.launch
 
@@ -80,9 +83,11 @@ data class SecurityHubScreen(
 @BitkeyInject(ActivityScope::class)
 class SecurityHubPresenter(
   private val securityActionsService: SecurityActionsService,
+  private val securityHubAllSetPillSessionManager: SecurityHubAllSetPillSessionManager,
   private val homeStatusBannerUiStateMachine: HomeStatusBannerUiStateMachine,
   private val firmwareDataService: FirmwareDataService,
   private val recoveryContactCardsUiStateMachine: RecoveryContactCardsUiStateMachine,
+  private val viewingRecoveryContactUiStateMachine: ViewingRecoveryContactUiStateMachine,
   private val hardwareRecoveryStatusCardUiStateMachine: HardwareRecoveryStatusCardUiStateMachine,
   private val fingerprintResetStatusCardUiStateMachine: FingerprintResetStatusCardUiStateMachine,
   private val fingerprintResetUiStateMachine: FingerprintResetUiStateMachine,
@@ -92,6 +97,7 @@ class SecurityHubPresenter(
   private val provisionAppAuthKeyTransactionProvider: ProvisionAppAuthKeyTransactionProvider,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
 ) : ScreenPresenter<SecurityHubScreen> {
+  @Suppress("CyclomaticComplexMethod")
   @Composable
   override fun model(
     navigator: Navigator,
@@ -153,7 +159,15 @@ class SecurityHubPresenter(
     val functionalityStatus by remember {
       appFunctionalityService.status
     }.collectAsState()
-    val isDesignSystemV2Enabled = true
+    val hasAutoHiddenAllSetPill by remember {
+      securityHubAllSetPillSessionManager.hasAutoHiddenPillInCurrentForegroundSession
+    }.collectAsState()
+    val allSetPillForegroundSessionGeneration by remember {
+      securityHubAllSetPillSessionManager.foregroundSessionGeneration
+    }.collectAsState()
+    val isAppForegrounded by remember {
+      securityHubAllSetPillSessionManager.isAppForegrounded
+    }.collectAsState()
 
     val hardwareRecoveryStatusCardModel = hardwareRecoveryStatusCardUiStateMachine.model(
       HardwareRecoveryStatusCardUiProps(
@@ -166,36 +180,11 @@ class SecurityHubPresenter(
       )
     )
 
-    val recoveryContactCardsModel = recoveryContactCardsUiStateMachine.model(
-      RecoveryContactCardsUiProps(
-        onClick = {
-          when (it) {
-            is EndorsedTrustedContact -> {
-              navigator.goTo(
-                TrustedContactManagementScreen(
-                  account = screen.account,
-                  onExit = { navigator.goTo(screen) }
-                )
-              )
-            }
-            is Invitation -> navigator.showSheet(
-              ViewInvitationSheet(
-                account = screen.account,
-                invitation = it,
-                origin = screen
-              )
-            )
-            is UnendorsedTrustedContact -> {
-              navigator.goTo(
-                TrustedContactManagementScreen(
-                  account = screen.account,
-                  onExit = { navigator.goTo(screen) }
-                )
-              )
-            }
-          }
-        }
-      )
+    val recoveryContactCardsModel = recoveryContactCardsModel(
+      recoveryContactCardsUiStateMachine,
+      navigator,
+      screen,
+      setState = { uiState = it }
     )
 
     val cardsModel = CardListModel(
@@ -219,84 +208,114 @@ class SecurityHubPresenter(
       cardsModel = cardsModel
     )
 
-    return when (uiState) {
-      is SecurityHubUiState.ViewingSecurityHub -> {
-        ScreenModel(
-          body = SecurityHubBodyModel(
-            isOffline = functionalityStatus is AppFunctionalityStatus.LimitedFunctionality,
-            atRiskRecommendations = securityActionsWithRecommendations.atRiskRecommendations.toImmutableList(),
-            recommendations = securityActionsWithRecommendations.recommendations.toImmutableList(),
-            cardsModel = cardsModel,
-            showAllSetState = shouldShowAllSetState,
-            securityActions = securityActionsWithRecommendations.securityActions,
-            recoveryActions = securityActionsWithRecommendations.recoveryActions,
-            onRecommendationClick = { recommendation ->
-              when (recommendation) {
-                COMPLETE_FINGERPRINT_RESET -> {
-                  uiState = SecurityHubUiState.FingerprintResetState
-                }
-                PROVISION_APP_KEY_TO_HARDWARE -> {
-                  uiState = SecurityHubUiState.ProvisioningAppKeyState
-                }
-                else -> {
-                  if (recommendation.shouldShowEducation()) {
-                    navigator.goTo(
-                      screen = SecurityHubEducationScreen.RecommendationEducation(
-                        recommendation = recommendation,
-                        originScreen = screen,
-                        firmwareData = firmwareUpdateData.firmwareUpdateState
-                      )
-                    )
-                  } else {
-                    navigator.navigateToScreen(
-                      id = recommendation.navigationScreenId(),
-                      originScreen = screen,
-                      firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
-                      isFingerprintResetEnabled = isFingerprintResetEnabled,
-                      canEditFingerprints = canEditFingerprints,
-                      onCannotUnlockFingerprints = onCannotUnlockFingerprints
-                    )
-                  }
-                }
-              }
-            },
-            onSecurityActionClick = { securityAction ->
+    val securityHubBodyModel = SecurityHubBodyModel(
+      isOffline = functionalityStatus is AppFunctionalityStatus.LimitedFunctionality,
+      atRiskRecommendations = securityActionsWithRecommendations.atRiskRecommendations.toImmutableList(),
+      recommendations = securityActionsWithRecommendations.recommendations.toImmutableList(),
+      cardsModel = cardsModel,
+      showAllSetState = shouldShowAllSetState,
+      foregroundSessionGeneration = allSetPillForegroundSessionGeneration,
+      securityActions = securityActionsWithRecommendations.securityActions,
+      recoveryActions = securityActionsWithRecommendations.recoveryActions,
+      autoHideAllSetPillAfterDelay =
+        shouldShowAllSetState && isAppForegrounded && !hasAutoHiddenAllSetPill,
+      hideAllSetPillOnEntry =
+        shouldShowAllSetState && isAppForegrounded && hasAutoHiddenAllSetPill,
+      onAllSetPillAutoHidden = {
+        securityHubAllSetPillSessionManager.markPillAutoHidden(allSetPillForegroundSessionGeneration)
+      },
+      onRecommendationClick = { recommendation ->
+        when (recommendation) {
+          COMPLETE_FINGERPRINT_RESET -> {
+            uiState = SecurityHubUiState.FingerprintResetState
+          }
+          PROVISION_APP_KEY_TO_HARDWARE -> {
+            uiState = SecurityHubUiState.ProvisioningAppKeyState
+          }
+          else -> {
+            if (recommendation.hasEducation) {
+              navigator.goTo(
+                screen = SecurityHubEducationScreen.RecommendationEducation(
+                  recommendation = recommendation,
+                  originScreen = screen,
+                  firmwareData = firmwareUpdateData.firmwareUpdateState
+                )
+              )
+            } else {
               navigator.navigateToScreen(
-                id = securityAction.navigationScreenId(),
+                id = recommendation.navigationScreenId(),
                 originScreen = screen,
                 firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
                 isFingerprintResetEnabled = isFingerprintResetEnabled,
                 canEditFingerprints = canEditFingerprints,
                 onCannotUnlockFingerprints = onCannotUnlockFingerprints
               )
-            },
-            onHomeTabClick = {
-              scope.launch {
-                haptics.vibrate(effect = HapticsEffect.LightClick)
-                navigator.exit()
-              }
-            },
-            trailingToolbarAccessoryModel = securityHubToolbarAccessoryModel(
-              onClick = {
-                navigator.navigateToScreen(
-                  id = NavigationScreenId.NAVIGATION_SCREEN_ID_SETTINGS,
-                  originScreen = screen,
-                  firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
-                  isFingerprintResetEnabled = isFingerprintResetEnabled,
-                  canEditFingerprints = canEditFingerprints,
-                  onCannotUnlockFingerprints = onCannotUnlockFingerprints
-                )
-              }
-            ),
-            haptics = haptics
-          ),
-          presentationStyle = if (isDesignSystemV2Enabled) {
-            ScreenPresentationStyle.RootFullScreen
-          } else {
-            ScreenPresentationStyle.Root
-          },
+            }
+          }
+        }
+      },
+      onSecurityActionClick = { securityAction ->
+        navigator.navigateToScreen(
+          id = securityAction.navigationScreenId(),
+          originScreen = screen,
+          firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
+          isFingerprintResetEnabled = isFingerprintResetEnabled,
+          canEditFingerprints = canEditFingerprints,
+          onCannotUnlockFingerprints = onCannotUnlockFingerprints
+        )
+      },
+      onHomeTabClick = {
+        scope.launch {
+          haptics.vibrate(effect = HapticsEffect.LightClick)
+          navigator.exit()
+        }
+      },
+      trailingToolbarAccessoryModel = securityHubToolbarAccessoryModel(
+        onClick = {
+          navigator.navigateToScreen(
+            id = NavigationScreenId.NAVIGATION_SCREEN_ID_SETTINGS,
+            originScreen = screen,
+            firmwareUpdateData = firmwareUpdateData.firmwareUpdateState,
+            isFingerprintResetEnabled = isFingerprintResetEnabled,
+            canEditFingerprints = canEditFingerprints,
+            onCannotUnlockFingerprints = onCannotUnlockFingerprints
+          )
+        }
+      ),
+      haptics = haptics
+    )
+
+    return when (val currentState = uiState) {
+      is SecurityHubUiState.ViewingSecurityHub -> {
+        ScreenModel(
+          body = securityHubBodyModel,
+          presentationStyle = ScreenPresentationStyle.RootFullScreen,
           statusBannerModel = homeStatusBannerModel
         )
+      }
+
+      is ViewingRecoveryContactDetails -> {
+        val contactScreenModel = viewingRecoveryContactUiStateMachine.model(
+          ViewingRecoveryContactProps(
+            screenBody = securityHubBodyModel,
+            recoveryContact = currentState.contact,
+            account = screen.account,
+            afterContactRemoved = {
+              uiState = SecurityHubUiState.ViewingSecurityHub
+            },
+            onExit = {
+              uiState = SecurityHubUiState.ViewingSecurityHub
+            }
+          )
+        )
+        if (contactScreenModel.body === securityHubBodyModel) {
+          contactScreenModel.copy(
+            presentationStyle = ScreenPresentationStyle.RootFullScreen,
+            statusBannerModel = homeStatusBannerModel
+          )
+        } else {
+          contactScreenModel
+        }
       }
 
       is SecurityHubUiState.FingerprintResetState -> {
@@ -348,6 +367,37 @@ class SecurityHubPresenter(
   }
 }
 
+@Composable
+private fun recoveryContactCardsModel(
+  recoveryContactCardsUiStateMachine: RecoveryContactCardsUiStateMachine,
+  navigator: Navigator,
+  screen: SecurityHubScreen,
+  setState: (SecurityHubUiState) -> Unit,
+) = recoveryContactCardsUiStateMachine.model(
+  RecoveryContactCardsUiProps(
+    onClick = {
+      when (it) {
+        is EndorsedTrustedContact -> {
+          navigator.goTo(
+            TrustedContactManagementScreen(
+              account = screen.account,
+              onExit = { navigator.goTo(screen) }
+            )
+          )
+        }
+        is Invitation -> navigator.showSheet(
+          ViewInvitationSheet(
+            account = screen.account,
+            invitation = it,
+            origin = screen
+          )
+        )
+        is UnendorsedTrustedContact -> setState(ViewingRecoveryContactDetails(it))
+      }
+    }
+  )
+)
+
 private fun <T> LoadableValue<T>.loadedValueOrNull(): T? =
   when (this) {
     InitialLoading -> null
@@ -360,8 +410,8 @@ private fun SecurityActionsWithRecommendations?.shouldShowAllSetState(
   isFingerprintResetStatusCardLoaded: Boolean,
   areRecoveryContactCardsLoaded: Boolean,
   cardsModel: CardListModel,
-): Boolean =
-  this != null &&
+): Boolean {
+  return this != null &&
     functionalityStatus !is AppFunctionalityStatus.LimitedFunctionality &&
     isHardwareRecoveryStatusCardLoaded &&
     isFingerprintResetStatusCardLoaded &&
@@ -369,9 +419,6 @@ private fun SecurityActionsWithRecommendations?.shouldShowAllSetState(
     atRiskRecommendations.isEmpty() &&
     recommendations.isEmpty() &&
     cardsModel.cards.isEmpty()
-
-private fun SecurityActionRecommendation.shouldShowEducation(): Boolean {
-  return hasEducation
 }
 
 fun Navigator.navigateToScreen(
@@ -534,6 +581,13 @@ sealed interface SecurityHubUiState {
    * Viewing the main Security Hub screen
    */
   data object ViewingSecurityHub : SecurityHubUiState
+
+  /**
+   * Viewing the details/actions for a failed or invalid Recovery Contact setup.
+   */
+  data class ViewingRecoveryContactDetails(
+    val contact: UnendorsedTrustedContact,
+  ) : SecurityHubUiState
 
   /**
    * State for resetting fingerprints

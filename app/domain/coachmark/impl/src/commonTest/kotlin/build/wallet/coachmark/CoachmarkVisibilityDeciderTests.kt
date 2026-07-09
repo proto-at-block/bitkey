@@ -41,12 +41,17 @@ class CoachmarkVisibilityDeciderTests :
       privateWalletMigrationFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       w3UpgradeBlockerFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
       onboardingCompletionService.reset()
+      // The W3 upgrade blocker coachmark requires onboarding completion 14+ days ago. Default
+      // to a long-past completion so tests exercise other criteria; time-gating tests override.
+      onboardingCompletionService.completionTimestamp = Instant.DISTANT_PAST
+      onboardingCompletionService.getCompletionTimestampResult = Ok(Instant.DISTANT_PAST)
     }
 
     test("return unexpired coachmarks") {
+      w3UpgradeBlockerFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       coachmarkVisibilityDecider.shouldShow(
         Coachmark(
-          CoachmarkIdentifier.SecurityHubSettingsCoachmark,
+          CoachmarkIdentifier.W3UpgradeBlockerCoachmark,
           viewed = false,
           expiration = Instant.DISTANT_FUTURE
         )
@@ -54,9 +59,10 @@ class CoachmarkVisibilityDeciderTests :
     }
 
     test("return unviewed coachmarks") {
+      w3UpgradeBlockerFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       coachmarkVisibilityDecider.shouldShow(
         Coachmark(
-          CoachmarkIdentifier.SecurityHubSettingsCoachmark,
+          CoachmarkIdentifier.W3UpgradeBlockerCoachmark,
           viewed = false,
           expiration = Instant.DISTANT_FUTURE
         )
@@ -64,9 +70,10 @@ class CoachmarkVisibilityDeciderTests :
     }
 
     test("return feature flag on coachmarks") {
+      w3UpgradeBlockerFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       coachmarkVisibilityDecider.shouldShow(
         Coachmark(
-          CoachmarkIdentifier.SecurityHubSettingsCoachmark,
+          CoachmarkIdentifier.W3UpgradeBlockerCoachmark,
           viewed = false,
           expiration = Instant.DISTANT_FUTURE
         )
@@ -84,9 +91,10 @@ class CoachmarkVisibilityDeciderTests :
     }
 
     test("don't return expired coachmarks") {
+      w3UpgradeBlockerFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       coachmarkVisibilityDecider.shouldShow(
         Coachmark(
-          CoachmarkIdentifier.SecurityHubSettingsCoachmark,
+          CoachmarkIdentifier.W3UpgradeBlockerCoachmark,
           viewed = false,
           expiration = Instant.DISTANT_PAST
         )
@@ -94,9 +102,10 @@ class CoachmarkVisibilityDeciderTests :
     }
 
     test("don't return viewed coachmarks") {
+      w3UpgradeBlockerFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       coachmarkVisibilityDecider.shouldShow(
         Coachmark(
-          CoachmarkIdentifier.SecurityHubSettingsCoachmark,
+          CoachmarkIdentifier.W3UpgradeBlockerCoachmark,
           viewed = true,
           expiration = Instant.DISTANT_PAST
         )
@@ -126,13 +135,17 @@ class CoachmarkVisibilityDeciderTests :
       ).shouldBe(false)
     }
 
-    test("W3UpgradeBlockerCoachmark is eligible when flag enabled and no onboarding timestamp") {
+    test("W3UpgradeBlockerCoachmark is ineligible when flag enabled but no onboarding timestamp") {
+      // No timestamp (pre-feature install or fresh recovery): not eligible yet. Money Home
+      // records a timestamp on first render, which starts the 14-day delay window.
       w3UpgradeBlockerFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+      onboardingCompletionService.completionTimestamp = null
+      onboardingCompletionService.getCompletionTimestampResult = Ok(null)
       coachmarkVisibilityDecider.shouldCreate(CoachmarkIdentifier.W3UpgradeBlockerCoachmark)
-        .shouldBe(true)
+        .shouldBe(false)
       coachmarkVisibilityDecider.shouldShow(
         Coachmark(CoachmarkIdentifier.W3UpgradeBlockerCoachmark, viewed = false, expiration = null)
-      ).shouldBe(true)
+      ).shouldBe(false)
     }
 
     test("W3UpgradeBlockerCoachmark is eligible when flag enabled and 14+ days since onboarding") {

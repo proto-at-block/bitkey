@@ -8,6 +8,7 @@ import build.wallet.bitkey.f8e.FullAccountId;
 import build.wallet.bitkey.factor.PhysicalFactor;
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature;
 import build.wallet.bitkey.hardware.HwAuthPublicKey;
+import build.wallet.bitkey.hardware.HwSpendingKeyProof;
 import build.wallet.bitkey.hardware.HwSpendingPublicKey;
 import build.wallet.cloud.backup.csek.SealedCsek;
 import build.wallet.cloud.backup.csek.SealedSsek;
@@ -63,8 +64,9 @@ CREATE TABLE localRecoveryAttemptEntity(
   -- The original app global auth key before rotation (Lost Hardware recovery only).
   hwDescriptorValidated           INTEGER AS Boolean NOT NULL DEFAULT 0,
   -- presence of above means W3 hardware descriptor validation completed via NFC (appended via migration 67)
-  sealedDdk                       BLOB AS SealedData
+  sealedDdk                       BLOB AS SealedData,
   -- sealed DDK (Delegated Decryption Key) from NFC tap 2 during Lost HW recovery (appended via migration 75)
+  destinationHardwareSpendingKeyProof TEXT AS HwSpendingKeyProof
 );
 
 -- Table for storing spending keysets during recovery
@@ -106,9 +108,9 @@ clear {
 }
 
 markAsInitiated:
-INSERT INTO localRecoveryAttemptEntity(rowId, account, destinationAppGlobalAuthKey, destinationAppRecoveryAuthKey, destinationHardwareAuthKey, destinationAppSpendingKey, destinationHardwareSpendingKey, appGlobalAuthKeyHwSignature, lostFactor, sealedCsek, sealedSsek, authKeysRotated, serverSpendingKey, uploadedDescriptorBackups, spendingKeysActivated, ddkBackedUp, backedUpToCloud, hadServerRecovery, sweepInProgress, originalAppGlobalAuthKey)
+INSERT INTO localRecoveryAttemptEntity(rowId, account, destinationAppGlobalAuthKey, destinationAppRecoveryAuthKey, destinationHardwareAuthKey, destinationAppSpendingKey, destinationHardwareSpendingKey, destinationHardwareSpendingKeyProof, appGlobalAuthKeyHwSignature, lostFactor, sealedCsek, sealedSsek, authKeysRotated, serverSpendingKey, uploadedDescriptorBackups, spendingKeysActivated, ddkBackedUp, backedUpToCloud, hadServerRecovery, sweepInProgress, originalAppGlobalAuthKey)
 -- Use stable id to ensure we only ever have a single active set of local pending recovery keys.
-VALUES(0, :account, :destinationAppGlobalAuthKey, :destinationAppRecoveryAuthKey, :destinationHardwareAuthKey, :destinationAppSpendingKey, :destinationHardwareSpendingKey, :appGlobalAuthKeyHwSignature, :lostFactor, NULL, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, :originalAppGlobalAuthKey);
+VALUES(0, :account, :destinationAppGlobalAuthKey, :destinationAppRecoveryAuthKey, :destinationHardwareAuthKey, :destinationAppSpendingKey, :destinationHardwareSpendingKey, :destinationHardwareSpendingKeyProof, :appGlobalAuthKeyHwSignature, :lostFactor, NULL, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, :originalAppGlobalAuthKey);
 
 -- To protect against race conditions where we might not get a server sync between the time we
 -- rotate auth keys to the time we complete our recovery on the app, we clear the server recovery

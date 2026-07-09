@@ -51,6 +51,26 @@ class AnimatedHeroAmountTests : FunSpec({
     ).shouldBe(emptyList())
   }
 
+  test("vertical motion uses entry offset while glyphs enter or exit") {
+    animatedAmountVerticalTranslationTarget(
+      entering = true,
+      exiting = false,
+      entryTranslationYPx = 16f
+    ).shouldBe(16f)
+
+    animatedAmountVerticalTranslationTarget(
+      entering = false,
+      exiting = true,
+      entryTranslationYPx = 16f
+    ).shouldBe(16f)
+
+    animatedAmountVerticalTranslationTarget(
+      entering = false,
+      exiting = false,
+      entryTranslationYPx = 16f
+    ).shouldBe(0f)
+  }
+
   test("draw start offset centers content when requested") {
     animatedAmountStartX(
       containerWidth = 200f,

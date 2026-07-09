@@ -5,6 +5,7 @@ import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.catchingResult
 import build.wallet.chaincode.delegation.ChaincodeDelegationServerKeyGenerator
@@ -18,6 +19,8 @@ import build.wallet.f8e.client.plugins.withAccountId
 import build.wallet.f8e.client.plugins.withAppAuthKey
 import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
+import build.wallet.f8e.onboarding.model.HardwareAttestationBody
+import build.wallet.f8e.onboarding.model.toF8eBody
 import build.wallet.f8e.serialization.toJsonString
 import build.wallet.f8e.wsmIntegrityKeyVariant
 import build.wallet.ktor.result.NetworkingError
@@ -46,6 +49,7 @@ class CreateAccountKeysetV2F8eClientImpl(
     appSpendingKey: AppSpendingPublicKey,
     network: BitcoinNetworkType,
     appAuthKey: PublicKey<AppGlobalAuthKey>,
+    hardwareSpendingKeyProof: HwSpendingKeyProof?,
   ): Result<F8eSpendingKeyset, NetworkingError> {
     return f8eHttpClient.authenticated()
       .bodyResult<ResponseBody> {
@@ -64,7 +68,8 @@ class CreateAccountKeysetV2F8eClientImpl(
                 .extractPublicKey(hardwareSpendingKey.key)
                 .result
                 .getOrElse { error("Failed to extract hardware spending public key") },
-              network = network.toJsonString()
+              network = network.toJsonString(),
+              hardwareAttestation = hardwareSpendingKeyProof?.toF8eBody()
             )
           )
         }
@@ -106,6 +111,8 @@ private data class RequestBody(
   private val hardwareSpendingPublicKey: String,
   @SerialName("network")
   private val network: String,
+  @SerialName("hardware_attestation")
+  private val hardwareAttestation: HardwareAttestationBody? = null,
 ) : RedactedRequestBody
 
 @Serializable

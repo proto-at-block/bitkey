@@ -59,17 +59,17 @@ class CustomElectrumServerSettingUiStateMachineImpl(
     }
   }
 
-  private sealed class State {
+  private sealed interface State {
     /**
      * Showing current user setting for Electrum node it is connected to.
      */
-    data object ShowingCustomElectrumServerSettingsUiState : State()
+    data object ShowingCustomElectrumServerSettingsUiState : State
 
     /**
      * Showing screen where the user is setting the desired host and port for their Electrum server.
      */
     data class SettingCustomElectrumServerUiState(
       val currentElectrumServer: ElectrumServer?,
-    ) : State()
+    ) : State
   }
 }

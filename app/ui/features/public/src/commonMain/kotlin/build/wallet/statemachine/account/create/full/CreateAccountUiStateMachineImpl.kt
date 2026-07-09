@@ -13,6 +13,7 @@ import build.wallet.onboarding.OnboardFullAccountService
 import build.wallet.statemachine.account.create.full.CreateAccountUiStateMachineImpl.ActivateAccountState.AccountActivationError
 import build.wallet.statemachine.account.create.full.keybox.create.CreateKeyboxUiProps
 import build.wallet.statemachine.account.create.full.keybox.create.CreateKeyboxUiStateMachine
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.NetworkErrorFormBodyModel
 import build.wallet.statemachine.core.ScreenModel
@@ -94,7 +95,12 @@ class CreateAccountUiStateMachineImpl(
             onboardFullAccountService.cancelAccountCreation()
           }
         },
-        eventTrackerScreenId = CreateAccountEventTrackerScreenId.NEW_ACCOUNT_CREATION_FAILURE
+        eventTrackerScreenId = CreateAccountEventTrackerScreenId.NEW_ACCOUNT_CREATION_FAILURE,
+        errorData = ErrorData(
+          segment = OnboardingAppSegment.FullAccount,
+          actionDescription = "Activating full account",
+          cause = state.error
+        )
       ).asRootScreen()
 
       is ActivateAccountState.OverwriteFullAccountCloudBackupWarningState -> overwriteFullAccountCloudBackupUiStateMachine.model(

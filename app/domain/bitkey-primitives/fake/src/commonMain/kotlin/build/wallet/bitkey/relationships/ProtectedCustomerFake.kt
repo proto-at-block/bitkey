@@ -1,14 +1,14 @@
 package build.wallet.bitkey.relationships
 
 val ProtectedCustomerFake = ProtectedCustomer(
-  relationshipId = "recoveryRelationshipId-fake",
+  id = RelationshipId("recoveryRelationshipId-fake"),
   alias = ProtectedCustomerAlias("protected customer alias fake"),
   roles = setOf(TrustedContactRole.SocialRecoveryContact)
 )
 
 val ProtectedBeneficiaryCustomerFake =
   ProtectedCustomer(
-    relationshipId = "beneficiaryPCRelationshipIc",
+    id = RelationshipId("beneficiaryPCRelationshipIc"),
     alias = ProtectedCustomerAlias("beneficiaryPC"),
     roles = setOf(TrustedContactRole.Beneficiary)
   )

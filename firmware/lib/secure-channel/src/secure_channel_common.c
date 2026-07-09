@@ -52,6 +52,7 @@ secure_channel_err_t secure_channel_compute_confirmation(secure_channel_type_t c
   uint8_t hmac_result[SHA256_DIGEST_SIZE] = {0};
   if (!crypto_hmac((uint8_t const*)confirmation_message, confirmation_message_len, conf_key,
                    hmac_result, sizeof(hmac_result), ALG_SHA256)) {
+    MFLOGE("SC hmac fail type=%d", (int)channel_type);
     return SECURE_CHANNEL_FAILED_TO_DERIVE_KEY;
   }
 
@@ -75,7 +76,7 @@ secure_channel_err_t secure_channel_establish_impl(secure_channel_ctx_t* secure_
   secure_channel_ctx->established = false;
 
   if (pk_device->key.size > SECURE_CHANNEL_PUBKEY_MAX_LEN) {
-    LOGE("Pubkey too large: max %d", SECURE_CHANNEL_PUBKEY_MAX_LEN);
+    MFLOGE("Pubkey too large: max %d", SECURE_CHANNEL_PUBKEY_MAX_LEN);
     return SECURE_CHANNEL_FAILED_TO_DERIVE_KEY;
   }
 
@@ -118,7 +119,7 @@ secure_channel_err_t secure_channel_establish_impl(secure_channel_ctx_t* secure_
   }
 
   if (!crypto_key_exchange(&key_exchange_ctx, &key_material)) {
-    LOGE("Key exchange fail");
+    MFLOGE("Key exchange fail");
     return SECURE_CHANNEL_FAILED_TO_DERIVE_KEY;
   }
 
@@ -139,7 +140,7 @@ secure_channel_err_t secure_channel_cipher(secure_channel_ctx_t* secure_channel_
   secure_channel_err_t result = SECURE_CHANNEL_CIPHER_FAILED;
 
   if (!secure_channel_ctx->established) {
-    LOGE("SC not established");
+    MFLOGE("SC not established");
     result = SECURE_CHANNEL_NO_KEY;
     goto out;
   }

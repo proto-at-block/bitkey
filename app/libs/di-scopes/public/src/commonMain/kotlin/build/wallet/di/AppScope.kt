@@ -24,4 +24,7 @@ package build.wallet.di
  * }
  * ```
  */
+// DI scope marker: the private constructor intentionally prevents instantiation/subclassing,
+// which an interface cannot express.
+@Suppress("AbstractClassCanBeInterface")
 abstract class AppScope private constructor()

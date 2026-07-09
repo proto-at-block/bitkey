@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::helpers::{check_hw_signature_with_domain_tag, DOMAIN_TAG_AUTH_ROTATION};
+use crate::helpers::{DOMAIN_TAG_AUTH_ROTATION, check_hw_signature_with_domain_tag};
 use crate::{
     ensure_pubkeys_unique,
     entities::{RecoveryDestination, RecoveryType},
@@ -8,15 +8,15 @@ use crate::{
     metrics,
     repository::RecoveryRepository,
     service::social::challenge::Service as SocialChallengeService,
-    state_machine::{run_recovery_fsm, RecoveryEvent},
+    state_machine::{RecoveryEvent, run_recovery_fsm},
 };
 use crate::{
     service::inheritance::{
-        recreate_pending_claims_for_beneficiary::RecreatePendingClaimsForBeneficiaryInput,
         Service as InheritanceService,
+        recreate_pending_claims_for_beneficiary::RecreatePendingClaimsForBeneficiaryInput,
     },
     state_machine::{
-        pending_recovery::PendingRecoveryResponse, PendingDelayNotifyRecovery, RecoveryResponse,
+        PendingDelayNotifyRecovery, RecoveryResponse, pending_recovery::PendingRecoveryResponse,
     },
 };
 use account::{
@@ -28,17 +28,16 @@ use account::{
 };
 use authn_authz::{Action, Authorization, AuthorizationRequirements};
 use axum::{
+    Extension, Json, Router,
     extract::{Path, State},
     routing::{delete, get, post, put},
-    Extension, Json, Router,
 };
 use bdk_utils::{bdk::bitcoin::secp256k1::PublicKey, signature::check_signature};
 use comms_verification::{
-    error::CommsVerificationError, InitiateVerificationForScopeInput,
-    Service as CommsVerificationService, VerifyForScopeInput,
+    InitiateVerificationForScopeInput, Service as CommsVerificationService, VerifyForScopeInput,
+    error::CommsVerificationError,
 };
 use errors::{ApiError, ErrorCode};
-use instrumentation::middleware::HardwareSerialHeader;
 use experimentation::claims::ExperimentationClaims;
 use feature_flags::{flag::evaluate_flag_value, service::Service as FeatureFlagsService};
 use http_server::{
@@ -46,12 +45,13 @@ use http_server::{
     swagger::{SwaggerEndpoint, Url},
 };
 use instrumentation::metrics::KeyValue;
+use instrumentation::middleware::HardwareSerialHeader;
 use notification::{entities::NotificationTouchpoint, service::Service as NotificationService};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::{base64::Base64, serde_as};
 use time::Duration;
-use tracing::{event, instrument, Level};
+use tracing::{Level, event, instrument};
 use types::account::{
     entities::{
         Account, CommsVerificationScope, Factor, FullAccountAuthKeysInput, HardwareType, Touchpoint,
@@ -131,6 +131,10 @@ impl RouterBuilder for RouteState {
                 "/api/accounts/:account_id/authentication-keys",
                 post(rotate_authentication_keys),
             )
+            .route(
+                "/api/accounts/:account_id/hardware-auth-key/availability",
+                post(check_hardware_auth_key_availability),
+            )
             .route_layer(metrics::FACTORY.route_layer("recovery".to_owned()))
             .with_state(self.to_owned())
     }
@@ -152,6 +156,7 @@ impl From<RouteState> for SwaggerEndpoint {
         complete_delay_notify_transaction,
         create_delay_notify,
         get_recovery_status,
+        check_hardware_auth_key_availability,
         rotate_authentication_keys,
         send_verification_code,
         verify_code,
@@ -165,6 +170,9 @@ impl From<RouteState> for SwaggerEndpoint {
             FullAccountAuthKeysInput,
             PendingRecoveryResponse,
             PendingDelayNotifyRecovery,
+            HardwareAuthKeyAvailabilityRequest,
+            HardwareAuthKeyAvailabilityResponse,
+            HardwareAuthKeyAvailabilityStatus,
             RecoveryResponse,
             RotateAuthenticationKeysRequest,
             RotateAuthenticationKeysResponse,
@@ -802,6 +810,102 @@ pub struct RotateAuthenticationKeysRequest {
 
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct RotateAuthenticationKeysResponse {}
+
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+pub struct HardwareAuthKeyAvailabilityRequest {
+    pub hardware_auth_pubkey: PublicKey,
+}
+
+/// Availability of a hardware auth key relative to the requesting account.
+///
+/// Every status means the key is associated with, or available for, the current account. Keys
+/// linked to another account or reserved by a pending recovery return HW_AUTH_PUBKEY_IN_USE
+/// instead of a status.
+#[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum HardwareAuthKeyAvailabilityStatus {
+    /// The key is not linked to any account or pending recovery.
+    Available,
+    /// The key is claimed by the requesting account, but is not its active hardware auth key.
+    ClaimedByCurrentAccount,
+    /// The key is already the requesting account's active hardware auth key.
+    ActiveOnCurrentAccount,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
+pub struct HardwareAuthKeyAvailabilityResponse {
+    pub status: HardwareAuthKeyAvailabilityStatus,
+}
+
+/// Checks whether a hardware auth key can be used by the requesting account.
+///
+/// This endpoint is read-only: it does not claim the key or mutate account or recovery state.
+#[instrument(err, skip(account_service, recovery_service, public_key_repository))]
+#[utoipa::path(
+    post,
+    path = "/api/accounts/{account_id}/hardware-auth-key/availability",
+    params(
+        ("account_id" = AccountId, Path, description = "AccountId"),
+    ),
+    request_body = HardwareAuthKeyAvailabilityRequest,
+    responses(
+        (status = 200, description = "Hardware auth key availability check completed.", body=HardwareAuthKeyAvailabilityResponse),
+        (status = 400, description = "Hardware auth key is already in use."),
+        (status = 404, description = "Account not found.")
+    ),
+)]
+pub async fn check_hardware_auth_key_availability(
+    Path(account_id): Path<AccountId>,
+    State(account_service): State<AccountService>,
+    State(recovery_service): State<RecoveryRepository>,
+    State(public_key_repository): State<repository::public_key::PublicKeyRepository>,
+    Json(request): Json<HardwareAuthKeyAvailabilityRequest>,
+) -> Result<Json<HardwareAuthKeyAvailabilityResponse>, ApiError> {
+    let full_account = account_service
+        .fetch_full_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await?;
+
+    let hardware_auth_pubkey = request.hardware_auth_pubkey;
+
+    if full_account.hardware_auth_pubkey == hardware_auth_pubkey {
+        return Ok(Json(HardwareAuthKeyAvailabilityResponse {
+            status: HardwareAuthKeyAvailabilityStatus::ActiveOnCurrentAccount,
+        }));
+    }
+
+    let claimed_key_record = public_key_repository
+        .fetch_by_public_key(&hardware_auth_pubkey.to_string())
+        .await?;
+
+    let claimed_by_current_account = match claimed_key_record {
+        Some(record) if record.account_id != account_id => {
+            return Err(RecoveryError::HwAuthPubkeyReuseAccount.into());
+        }
+        Some(_) => true,
+        None => false,
+    };
+
+    if recovery_service
+        .fetch_optional_recovery_by_hardware_auth_pubkey(
+            hardware_auth_pubkey,
+            crate::entities::RecoveryStatus::Pending,
+        )
+        .await?
+        .is_some()
+    {
+        return Err(RecoveryError::HwAuthPubkeyReuseRecovery.into());
+    }
+
+    let status = if claimed_by_current_account {
+        HardwareAuthKeyAvailabilityStatus::ClaimedByCurrentAccount
+    } else {
+        HardwareAuthKeyAvailabilityStatus::Available
+    };
+
+    Ok(Json(HardwareAuthKeyAvailabilityResponse { status }))
+}
 
 #[instrument(
     err,

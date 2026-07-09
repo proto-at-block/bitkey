@@ -1,7 +1,6 @@
 package build.wallet.statemachine.send
 
 import app.cash.turbine.plusAssign
-import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.bitcoin.balance.BitcoinBalanceFake
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.transactions.TransactionsDataMock
@@ -73,7 +72,6 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
         null
       ) {}
   val mobilePayService = MobilePayServiceMock(turbines::create)
-  val appFunctionalityService = AppFunctionalityServiceFake()
 
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
   val bitcoinWalletService = BitcoinWalletServiceFake()
@@ -83,8 +81,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
     moneyDisplayFormatter = MoneyDisplayFormatterFake,
     fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
     bitcoinWalletService = bitcoinWalletService,
-    transferCardUiStateMachine = transferCardUiStateMachine,
-    appFunctionalityService = appFunctionalityService
+    transferCardUiStateMachine = transferCardUiStateMachine
   )
 
   val onContinueClickCalls = turbines.create<ContinueTransferParams>("onContinueClick calls")
@@ -107,7 +104,6 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
 
   beforeTest {
     mobilePayService.reset()
-    appFunctionalityService.reset()
     mobilePayService.status = DailySpendingLimitStatus.MobilePayAvailable
     bitcoinWalletService.reset()
 
@@ -399,6 +395,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
     stateMachine.test(props.copy(initialAmount = FiatMoney.zeroUsd())) {
       awaitBody<TransferAmountBodyModel> {
         onSwapCurrencyClick.shouldNotBeNull()
+        useSmartBar.shouldBeTrue()
         primaryButton.shouldBeDisabled()
       }
     }
@@ -438,7 +435,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
       }
     }
 
-    test("Should show approval required") {
+    test("Should reserve smart bar space before send max is shown") {
       val primaryAmountBelowBalance = balancePrimaryAmount - FiatMoney.usd(0.1)
       val secondaryAmountBelowBalance = BitcoinMoney(
         currency = BTC,
@@ -457,14 +454,14 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
       stateMachine.test(props) {
         awaitBody<TransferAmountBodyModel> {
           toolbar.middleAccessory.shouldNotBeNull().subtitle.shouldBe("\$16.67 available")
-          useSmartBar.shouldBeFalse()
+          useSmartBar.shouldBeTrue()
         }
       }
 
       stateMachine.test(props) {
         awaitBody<TransferAmountBodyModel> {
           amountDisabled.shouldBeFalse()
-          useSmartBar.shouldBeFalse()
+          useSmartBar.shouldBeTrue()
         }
       }
     }

@@ -7,6 +7,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.bitkey.relationships.ProtectedCustomerAlias
+import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
@@ -16,7 +17,6 @@ import build.wallet.home.GettingStartedTask.TaskId.EnableSpendingLimit
 import build.wallet.home.GettingStartedTask.TaskState.Incomplete
 import build.wallet.pricechart.DataPoint
 import build.wallet.pricechart.PriceDirection
-import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.list.ListModel
 import build.wallet.statemachine.money.amount.MoneyAmountModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
@@ -31,26 +31,21 @@ import build.wallet.statemachine.transactions.SkeletonTransactionItemModel
 import build.wallet.statemachine.transactions.TransactionItemModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.icon.BadgeType
-import build.wallet.ui.model.icon.IconButtonModel
-import build.wallet.ui.model.icon.IconImage
-import build.wallet.ui.model.icon.IconModel
-import build.wallet.ui.model.icon.IconSize
-import build.wallet.ui.model.icon.IconTint
+import build.wallet.ui.model.icon.*
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
 import build.wallet.ui.model.list.ListItemSideTextTint
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.theme.Theme
-import build.wallet.ui.tokens.market.MarketIcons
+import build.wallet.statemachine.core.Icon
 import build.wallet.ui.tooling.PreviewWalletTheme
 
 @Preview
 @Composable
 fun MoneyHomeScreenFullPreview(
   hideBalance: Boolean = false,
-  largeBalance: Boolean = false
+  largeBalance: Boolean = false,
 ) {
   PreviewWalletTheme {
     MoneyHomeScreenFull(
@@ -60,37 +55,37 @@ fun MoneyHomeScreenFullPreview(
   }
 }
 
-@Preview(name = "Money Home DSV2 Light")
+@Preview(name = "Money Home Light")
 @Composable
-fun MoneyHomeScreenFullDesignSystemV2PreviewLight() {
+fun MoneyHomeScreenFullPreviewLight() {
   PreviewWalletTheme {
     MoneyHomeScreenFullNewWalletGettingStartedNoActivity()
   }
 }
 
-@Preview(name = "Money Home DSV2 Dark")
+@Preview(name = "Money Home Dark")
 @Composable
-fun MoneyHomeScreenFullDesignSystemV2PreviewDark() {
+fun MoneyHomeScreenFullPreviewDark() {
   PreviewWalletTheme(
-    theme = Theme.DARK,
+    theme = Theme.DARK
   ) {
     MoneyHomeScreenFullNewWalletGettingStartedNoActivity()
   }
 }
 
-@Preview(name = "Money Home Pending Activity DSV2 Light")
+@Preview(name = "Money Home Pending Activity Light")
 @Composable
-fun MoneyHomeScreenFullPendingActivityDesignSystemV2PreviewLight() {
+fun MoneyHomeScreenFullPendingActivityPreviewLight() {
   PreviewWalletTheme {
     MoneyHomeScreenFullWithPendingActivity()
   }
 }
 
-@Preview(name = "Money Home Pending Activity DSV2 Dark")
+@Preview(name = "Money Home Pending Activity Dark")
 @Composable
-fun MoneyHomeScreenFullPendingActivityDesignSystemV2PreviewDark() {
+fun MoneyHomeScreenFullPendingActivityPreviewDark() {
   PreviewWalletTheme(
-    theme = Theme.DARK,
+    theme = Theme.DARK
   ) {
     MoneyHomeScreenFullWithPendingActivity()
   }
@@ -110,7 +105,6 @@ fun MoneyHomeScreenFull(
   isLoadingTransactions: Boolean = false,
   useSkeletonTransactions: Boolean = false,
 ) {
-  val isDesignSystemV2Enabled = true
   MoneyHomeScreen(
     model =
       MoneyHomeBodyModel(
@@ -141,7 +135,7 @@ fun MoneyHomeScreenFull(
         onRefresh = {},
         isRefreshing = false,
         onOpenPriceDetails = {},
-        trailingToolbarAccessoryModel = moneyHomeToolbarAccessory(isDesignSystemV2Enabled),
+        trailingToolbarAccessoryModel = moneyHomeToolbarAccessory(),
         onSecurityHubTabClick = {},
         isSecurityHubBadged = securityHubBadged
       )
@@ -268,7 +262,10 @@ private fun populatedRecentActivityItems(
   }
 )
 
-private fun previewPartnerIconImage() = IconImage.MarketIconImage(MarketIcons.CashAppMulticolor)
+private fun previewPartnerIconImage() = IconImage.UrlImage(
+  "https://images.ctfassets.net/mtmp6hzjjvnd/1lJRVmj6pcRnZcmL4eCEET/89cea9f73e867a8e70aa72971dba3586/CashLogo.svg",
+  fallbackIcon = Icon.Bitcoin
+)
 
 private fun previewPartnerTransactionItemModel(
   title: String,
@@ -328,21 +325,14 @@ private fun moneyMovementButtonsModel(
     )
 )
 
-private fun moneyHomeToolbarAccessory(isDesignSystemV2Enabled: Boolean) =
+private fun moneyHomeToolbarAccessory() =
   ToolbarAccessoryModel.IconAccessory(
     model = IconButtonModel(
-      iconModel = if (isDesignSystemV2Enabled) {
-        IconModel(
-          icon = MarketIcons.EllipsisHorizontal,
-          iconSize = IconSize.HeaderToolbar,
-          iconTint = IconTint.Foreground
-        )
-      } else {
-        IconModel(
-          icon = Icon.SmallIconSettingsBadged,
-          iconSize = IconSize.HeaderToolbar
-        )
-      },
+      iconModel = IconModel(
+        icon = Icon.EllipsisHorizontal,
+        iconSize = IconSize.HeaderToolbar,
+        iconTint = IconTint.Foreground
+      ),
       onClick = StandardClick {}
     )
   )
@@ -390,7 +380,7 @@ fun MoneyHomeScreenLitePreview() {
 @Composable
 fun MoneyHomeScreenLitePreviewDark() {
   PreviewWalletTheme(
-    theme = Theme.DARK,
+    theme = Theme.DARK
   ) {
     MoneyHomeScreenLite()
   }
@@ -405,15 +395,15 @@ fun MoneyHomeScreenLite() {
         buttonModel = MoneyHomeButtonsModel.SingleButtonModel(onSetUpBitkeyDevice = { }),
         protectedCustomers = immutableListOf(
           ProtectedCustomer(
-            "",
-            ProtectedCustomerAlias("Alice"),
-            setOf(TrustedContactRole.SocialRecoveryContact)
+            id = RelationshipId(""),
+            alias = ProtectedCustomerAlias("Alice"),
+            roles = setOf(TrustedContactRole.SocialRecoveryContact)
           )
         ),
         onProtectedCustomerClick = {},
         onBuyOwnBitkeyClick = {},
         onAcceptInviteClick = {},
-        onIHaveABitkeyClick = {},
+        onIHaveABitkeyClick = {}
       )
   )
 }
@@ -437,7 +427,7 @@ fun MoneyHomeScreenLiteWithoutProtectedCustomers() {
         onProtectedCustomerClick = {},
         onBuyOwnBitkeyClick = {},
         onAcceptInviteClick = {},
-        onIHaveABitkeyClick = {},
+        onIHaveABitkeyClick = {}
       )
   )
 }
@@ -452,7 +442,6 @@ fun MoneyHomeScreenFullNewWalletGettingStartedNoActivityPreview() {
 
 @Composable
 fun MoneyHomeScreenFullNewWalletGettingStartedNoActivity() {
-  val isDesignSystemV2Enabled = true
   MoneyHomeScreen(
     model =
       MoneyHomeBodyModel(
@@ -542,18 +531,11 @@ fun MoneyHomeScreenFullNewWalletGettingStartedNoActivity() {
           ToolbarAccessoryModel.IconAccessory(
             model =
               IconButtonModel(
-                iconModel = if (isDesignSystemV2Enabled) {
-                  IconModel(
-                    icon = MarketIcons.EllipsisHorizontal,
-                    iconSize = IconSize.HeaderToolbar,
-                    iconTint = IconTint.Foreground
-                  )
-                } else {
-                  IconModel(
-                    icon = Icon.SmallIconSettings,
-                    iconSize = IconSize.HeaderToolbar
-                  )
-                },
+                iconModel = IconModel(
+                  icon = Icon.EllipsisHorizontal,
+                  iconSize = IconSize.HeaderToolbar,
+                  iconTint = IconTint.Foreground
+                ),
                 onClick = StandardClick {}
               )
           ),

@@ -207,7 +207,7 @@ class RelationshipsF8eClientImpl(
       .authenticated()
       .bodyResult<AcceptTrustedContactInvitationResponseBody> {
         put(
-          "/api/accounts/${account.accountId.serverId}/recovery/relationships/${invitation.relationshipId}"
+          "/api/accounts/${account.accountId.serverId}/recovery/relationships/${invitation.id.value}"
         ) {
           withDescription("Accept Trusted Contact invitation")
           withEnvironment(account.config.f8eEnvironment)
@@ -287,7 +287,7 @@ class RelationshipsF8eClientImpl(
 
 private fun F8eEndorsedTrustedContact.toEndorsedTrustedContact() =
   EndorsedTrustedContact(
-    relationshipId = relationshipId,
+    id = RelationshipId(relationshipId),
     trustedContactAlias = trustedContactAlias,
     keyCertificate = keyCertificate,
     /**
@@ -300,7 +300,7 @@ private fun F8eEndorsedTrustedContact.toEndorsedTrustedContact() =
 
 private fun RetrieveTrustedContactInvitation.toIncomingInvitation(invitationCode: String) =
   IncomingInvitation(
-    relationshipId = relationshipId,
+    id = RelationshipId(relationshipId),
     code = invitationCode,
     protectedCustomerEnrollmentPakeKey = protectedCustomerEnrollmentPakePubkey,
     recoveryRelationshipRoles = recoveryRelationshipRoles,
@@ -309,7 +309,7 @@ private fun RetrieveTrustedContactInvitation.toIncomingInvitation(invitationCode
 
 private fun RelationshipInvitation.toInvitation() =
   Invitation(
-    relationshipId = relationshipId,
+    id = RelationshipId(relationshipId),
     trustedContactAlias = trustedContactAlias,
     roles = roles,
     code = code,

@@ -47,17 +47,16 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tokens.market.MarketIcons
 import kotlinx.coroutines.launch
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary as ButtonPrimary
 
 @Composable
 fun CloudBackupHealthStatusCard(model: CloudBackupHealthStatusCardModel) {
-  CloudBackupHealthStatusCardDesignSystemV2(model)
+  CloudBackupHealthStatusCardContent(model)
 }
 
 @Composable
-private fun CloudBackupHealthStatusCardDesignSystemV2(model: CloudBackupHealthStatusCardModel) {
+private fun CloudBackupHealthStatusCardContent(model: CloudBackupHealthStatusCardModel) {
   val actionAccessory = model.toolbarModel?.trailingAccessory as? ToolbarAccessoryModel.IconAccessory
 
   Column(
@@ -65,7 +64,7 @@ private fun CloudBackupHealthStatusCardDesignSystemV2(model: CloudBackupHealthSt
   ) {
     IconImage(
       model = IconModel(
-        icon = model.designSystemV2Icon(),
+        icon = model.statusCardIcon(),
         iconSize = IconSize.Regular
       )
     )
@@ -120,9 +119,9 @@ private fun CloudBackupHealthStatusCardDesignSystemV2(model: CloudBackupHealthSt
 
 @Composable
 private fun CloudBackupHealthStatusRow(model: CloudBackupHealthStatusCardModel) {
-  val statusText = model.designSystemV2StatusText ?: model.backupStatus.secondaryText
+  val statusText = model.statusTextOverride ?: model.backupStatus.secondaryText
   val statusIndicatorColor =
-    model.designSystemV2StatusTone.colorOrNull() ?: model.backupStatus.statusIndicatorColor()
+    model.statusToneOverride.colorOrNull() ?: model.backupStatus.statusIndicatorColor()
 
   Row(
     modifier = Modifier
@@ -166,7 +165,7 @@ private fun CloudBackupHealthStatusIndicator(color: Color) {
   )
 }
 
-private fun CloudBackupHealthStatusCardModel.designSystemV2Icon(): Icon =
+private fun CloudBackupHealthStatusCardModel.statusCardIcon(): Icon =
   when (type) {
     CloudBackupHealthStatusCardType.APP_KEY_BACKUP -> Icon.DotCloudBackup
     CloudBackupHealthStatusCardType.EEK_BACKUP -> Icon.DotEmergency
@@ -181,8 +180,8 @@ private fun ButtonModel.asCompactButton(): ButtonModel =
 
 @Composable
 private fun CloudBackupHealthHeaderActionButton(model: IconButtonModel) {
-  val actionButtonModel = model.designSystemV2IconButtonModel()
-  if ((actionButtonModel.iconModel.iconImage as? IconImage.MarketIconImage)?.icon != MarketIcons.FileUpload) {
+  val actionButtonModel = model.normalizedIconButtonModel()
+  if ((actionButtonModel.iconModel.iconImage as? IconImage.LocalImage)?.icon != Icon.FileUpload) {
     IconButton(
       model = actionButtonModel,
       modifier = Modifier
@@ -226,11 +225,11 @@ private fun CloudBackupHealthHeaderActionButton(model: IconButtonModel) {
   }
 }
 
-private fun IconButtonModel.designSystemV2IconButtonModel(): IconButtonModel =
-  if ((iconModel.iconImage as? IconImage.LocalImage)?.icon == Icon.SmallIconShare) {
+private fun IconButtonModel.normalizedIconButtonModel(): IconButtonModel =
+  if ((iconModel.iconImage as? IconImage.LocalImage)?.icon == Icon.Share) {
     copy(
       iconModel = iconModel.copy(
-        iconImage = IconImage.MarketIconImage(MarketIcons.FileUpload)
+        iconImage = IconImage.LocalImage(Icon.FileUpload)
       )
     )
   } else {
@@ -269,15 +268,6 @@ val CloudBackupHealthStatusCardModelForPreview =
     toolbarModel = null,
     headerModel =
       FormHeaderModel(
-        iconModel = IconModel(
-          icon = Icon.CloudBackupMobileKey,
-          iconSize = IconSize.Large,
-          iconTint = IconTint.Primary,
-          iconBackgroundType = IconBackgroundType.Circle(
-            circleSize = IconSize.Avatar,
-            color = IconBackgroundType.Circle.CircleColor.Primary
-          )
-        ),
         headline = "App Key Backup",
         subline = "Encrypted backup of your App Key for easy access when you get a new phone.",
         alignment = FormHeaderModel.Alignment.CENTER,
@@ -288,8 +278,8 @@ val CloudBackupHealthStatusCardModelForPreview =
       secondaryText = "Successfully backed up",
       trailingAccessory = ListItemAccessory.IconAccessory(SmallIconCheckFilled)
     ),
-    designSystemV2StatusText = "Successfully backed up",
-    designSystemV2StatusTone = CloudBackupHealthStatusTone.SUCCESS,
+    statusTextOverride = "Successfully backed up",
+    statusToneOverride = CloudBackupHealthStatusTone.SUCCESS,
     backupStatusActionButton = null,
     type = CloudBackupHealthStatusCardType.APP_KEY_BACKUP
   )
@@ -300,7 +290,7 @@ val CloudBackupHealthStatusCardEekModelForPreview =
       trailingAccessory = IconAccessory(
         IconButtonModel(
           iconModel = IconModel(
-            icon = Icon.SmallIconShare,
+            icon = Icon.Share,
             iconSize = IconSize.Small
           ),
           onClick = StandardClick {},
@@ -310,15 +300,6 @@ val CloudBackupHealthStatusCardEekModelForPreview =
     ),
     headerModel =
       FormHeaderModel(
-        iconModel = IconModel(
-          icon = Icon.SmallIconRecovery,
-          iconSize = IconSize.Large,
-          iconTint = IconTint.Primary,
-          iconBackgroundType = IconBackgroundType.Circle(
-            circleSize = IconSize.Avatar,
-            color = IconBackgroundType.Circle.CircleColor.Primary
-          )
-        ),
         headline = "Emergency Exit Kit",
         subline = "Ensures you still have access to your wallet if you can’t access the Bitkey App.",
         alignment = FormHeaderModel.Alignment.CENTER,
@@ -329,8 +310,8 @@ val CloudBackupHealthStatusCardEekModelForPreview =
       secondaryText = "Successfully backed up",
       trailingAccessory = ListItemAccessory.IconAccessory(SmallIconCheckFilled)
     ),
-    designSystemV2StatusText = "Successfully backed up",
-    designSystemV2StatusTone = CloudBackupHealthStatusTone.SUCCESS,
+    statusTextOverride = "Successfully backed up",
+    statusToneOverride = CloudBackupHealthStatusTone.SUCCESS,
     backupStatusActionButton = null,
     type = CloudBackupHealthStatusCardType.EEK_BACKUP
   )

@@ -282,27 +282,50 @@ private suspend fun StateMachineTester<Unit, ScreenModel>.initiateLostHardwareRe
     .clickPrimaryButton()
   awaitUntilBody<NewDeviceReadyQuestionBodyModel>()
     .clickPrimaryButton()
-  awaitUntilBody<PairNewHardwareBodyModel>(matching = { !it.primaryButton.isLoading })
-    .clickPrimaryButton()
 
-  when (
-    val nextBody = awaitUntilScreenWithBody<BodyModel>(
-      matchingBody = { it is PairNewHardwareBodyModel || it is CompleteTwoTapBodyModel }
-    ).body
-  ) {
-    is CompleteTwoTapBodyModel -> {
-      nextBody.clickPrimaryButton()
+  // Match the activation screen by specific screen ID to avoid matching wrong PairNewHardwareBodyModel
+  val activationBody = awaitUntilBody<PairNewHardwareBodyModel>(
+    matching = {
+      !it.primaryButton.isLoading &&
+        when (it.eventTrackerScreenInfo?.eventTrackerScreenId) {
+          HW_ACTIVATION_INSTRUCTIONS, HW_ACTIVATION_INSTRUCTIONS_V2 -> true
+          else -> false
+        }
     }
+  )
+  activationBody.clickPrimaryButton()
 
-    is PairNewHardwareBodyModel -> {
-      nextBody.clickPrimaryButton()
+  // Legacy W1 path (HW_ACTIVATION_INSTRUCTIONS) has an additional HW_PAIR_INSTRUCTIONS
+  // screen that requires clicking before HW_SAVE_FINGERPRINT_INSTRUCTIONS appears.
+  // The V2 path goes directly to HW_SAVE_FINGERPRINT_INSTRUCTIONS or HW_COMPLETE_TWO_TAP.
+  if (
+    activationBody.eventTrackerScreenInfo?.eventTrackerScreenId ==
+    HW_ACTIVATION_INSTRUCTIONS
+  ) {
+    awaitUntilBody<PairNewHardwareBodyModel>(HW_PAIR_INSTRUCTIONS)
+      .clickPrimaryButton()
+  }
 
-      if (nextBody.eventTrackerScreenInfo?.eventTrackerScreenId == HW_PAIR_INSTRUCTIONS) {
-        awaitUntilBody<PairNewHardwareBodyModel>(HW_SAVE_FINGERPRINT_INSTRUCTIONS)
-          .clickPrimaryButton()
+  // After NFC, the detected hardware type determines the next pairing step:
+  // - W1: HW_SAVE_FINGERPRINT_INSTRUCTIONS (PairNewHardwareBodyModel)
+  // - W3: HW_COMPLETE_TWO_TAP (CompleteTwoTapBodyModel)
+  val nextBody = awaitUntilScreenWithBody<BodyModel>(
+    matchingBody = {
+      when (it) {
+        is PairNewHardwareBodyModel ->
+          it.eventTrackerScreenInfo?.eventTrackerScreenId == HW_SAVE_FINGERPRINT_INSTRUCTIONS
+        is CompleteTwoTapBodyModel ->
+          it.eventTrackerScreenInfo?.eventTrackerScreenId == HW_COMPLETE_TWO_TAP
+        else -> false
       }
     }
+  ).body
+
+  when (nextBody) {
+    is PairNewHardwareBodyModel -> nextBody.clickPrimaryButton()
+    is CompleteTwoTapBodyModel -> nextBody.clickPrimaryButton()
   }
+
   if (cancelOtherRecovery) {
     awaitUntilBody<RecoveryConflictBodyModel>(
       LOST_APP_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_PROMPT

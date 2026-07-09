@@ -49,26 +49,7 @@ class VerificationCodeInputScreenSnapshots : FunSpec({
     }
   }
 
-  test("verification input screen with resend countdown text - design system v2") {
-    paparazzi.snapshot {
-      FormScreen(
-        model =
-          VerificationCodeInputBodyModel(
-            title = "Verify some touchpoint",
-            subtitle = "We sent a code to you",
-            value = "123456",
-            expectedCodeLength = 6,
-            resendCodeContent = Text(value = "Resend code in 00:15"),
-            onValueChange = {},
-            onBack = {},
-            explainerText = null,
-            id = null
-          ).body as FormBodyModel
-      )
-    }
-  }
-
-  test("verification input screen with resend button - design system v2") {
+  test("verification input screen with resend button") {
     paparazzi.snapshot {
       FormScreen(
         model =
@@ -87,7 +68,7 @@ class VerificationCodeInputScreenSnapshots : FunSpec({
     }
   }
 
-  test("verification input screen with explainer - design system v2") {
+  test("verification input screen with explainer") {
     paparazzi.snapshot {
       FormScreen(
         model =
@@ -106,7 +87,7 @@ class VerificationCodeInputScreenSnapshots : FunSpec({
     }
   }
 
-  test("verification input screen with four digit code - design system v2") {
+  test("verification input screen with four digit code") {
     paparazzi.snapshot {
       FormScreen(
         model =

@@ -1,92 +1,29 @@
+//! App-side wrapper over [`device_attestation`]. Keeps the existing
+//! UniFFI surface (`Attestation` interface, `AttestationError` enum)
+//! intact while delegating the cert-chain and signature-verification
+//! logic to the shared crate.
+
 use rand_core::{OsRng, RngCore};
-use ring::signature::{UnparsedPublicKey, ECDSA_P256_SHA256_FIXED};
-use thiserror::Error;
-use x509_parser::certificate::X509Certificate;
-use x509_parser::prelude::FromDer;
-use x509_parser::public_key::PublicKey;
 
-#[derive(Error, Debug, PartialEq)]
-pub enum AttestationError {
-    #[error("certificate is not for Block")]
-    NotForBlock,
-    #[error("certificate chain is invalid")]
-    InvalidChain,
-    #[error("failed to parse certificate")]
-    ParseFailure,
-    #[error("failed to verify signature")]
-    VerificationFailure,
-}
+pub use device_attestation::AttestationError;
 
-const SILABS_FACTORY_INTERMEDIATE: &[u8] =
-    include_bytes!("../../../../firmware/config/keys/silabs-certs/factory-prod.der");
-const SILABS_DEVICE_ROOT: &[u8] =
-    include_bytes!("../../../../firmware/config/keys/silabs-certs/device-root-prod.der");
-const ORG_W1: &str = "Block Inc";
-const ORG_W3: &str = "Bitkey W3, Block Inc";
+/// Domain-separation prefix for the app's hardware-challenge-response
+/// payload. Device signs `ATV1_PREFIX || challenge`.
+const ATV1_PREFIX: &[u8] = b"ATV1";
 
-fn extract_serial_from_cn(cn: &str) -> Result<String, AttestationError> {
-    let start_substring = "EUI:";
-    match cn.find(start_substring) {
-        Some(start) => {
-            let serial_begin = start + start_substring.len();
-            let serial_length = 16;
-            let value = &cn[serial_begin..serial_begin + serial_length];
-            Ok(value.to_string())
-        }
-        None => Err(AttestationError::ParseFailure),
-    }
-}
+/// Domain-separation prefix for the spending-key attestation payload.
+/// Wire format pinned by both firmware and verifier:
+/// `b"HWV1" || compressed pubkey`. Firmware constructs the same bytes in
+/// `populate_key_attestation()`; keep these in sync.
+const SPENDING_KEY_ATTESTATION_CONTEXT: &[u8] = b"HWV1";
 
-/// Check that the device certificate is for Block, and return the cert's serial number.
-fn check_device_cert_is_for_block(cert: &X509Certificate) -> Result<String, AttestationError> {
-    let subject = cert.subject();
-    let organization = subject
-        .iter_organization()
-        .next()
-        .and_then(|organization| organization.as_str().ok())
-        .ok_or(AttestationError::NotForBlock)?;
-    let common_name = subject
-        .iter_common_name()
-        .next()
-        .and_then(|common_name| common_name.as_str().ok())
-        .ok_or(AttestationError::NotForBlock)?;
-
-    let is_block_w1 = organization == ORG_W1 && common_name.contains(ORG_W1);
-    let is_block_w3 = organization == ORG_W3 && common_name.contains(ORG_W3);
-
-    if (is_block_w1 || is_block_w3) && common_name.contains("ID:MCU") {
-        extract_serial_from_cn(common_name)
-    } else {
-        Err(AttestationError::NotForBlock)
-    }
-}
-
-fn verify_directly_issued_by(cert: &X509Certificate, issuer: &X509Certificate) -> bool {
-    if cert.issuer() != issuer.subject() {
-        return false;
-    }
-
-    if cert.verify_signature(Some(issuer.public_key())).is_err() {
-        return false;
-    }
-
-    true
-}
-
-fn verify_cert_chain(chain: Vec<&X509Certificate>) -> bool {
-    if chain.is_empty() {
-        return false;
-    }
-
-    for i in 0..chain.len() - 1 {
-        // The issuer is the next cert in the chain.
-        if !verify_directly_issued_by(chain[i], chain[i + 1]) {
-            return false;
-        }
-    }
-
-    // The root is self-signed.
-    verify_directly_issued_by(chain[chain.len() - 1], chain[chain.len() - 1])
+/// Build the spending-key attestation payload. Extracted so the byte
+/// layout can be asserted in a unit test.
+fn spending_key_attestation_payload(compressed_spending_pubkey: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(SPENDING_KEY_ATTESTATION_CONTEXT.len() + 33);
+    out.extend_from_slice(SPENDING_KEY_ATTESTATION_CONTEXT);
+    out.extend_from_slice(compressed_spending_pubkey);
+    out
 }
 
 pub struct Attestation {}
@@ -102,70 +39,52 @@ impl Attestation {
         Self {}
     }
 
-    /// Verify a certificate chain for a Bitkey. Return the unique serial if the chain is okay.
+    /// Verify a certificate chain for a Bitkey. Returns the manufacturer
+    /// serial if the chain is okay.
     pub fn verify_device_identity_cert_chain(
         &self,
         identity_cert_der: Vec<u8>,
         batch_cert_der: Vec<u8>,
     ) -> Result<String, AttestationError> {
-        let Ok((_, identity_cert)) = X509Certificate::from_der(&identity_cert_der) else {
-            return Err(AttestationError::ParseFailure);
-        };
-
-        let Ok((_, batch_cert)) = X509Certificate::from_der(&batch_cert_der) else {
-            return Err(AttestationError::ParseFailure);
-        };
-
-        let Ok((_, silabs_factory_intermediate)) =
-            X509Certificate::from_der(SILABS_FACTORY_INTERMEDIATE)
-        else {
-            return Err(AttestationError::ParseFailure);
-        };
-
-        let Ok((_, silabs_root)) = X509Certificate::from_der(SILABS_DEVICE_ROOT) else {
-            return Err(AttestationError::ParseFailure);
-        };
-
-        let serial = check_device_cert_is_for_block(&identity_cert)?;
-
-        if verify_cert_chain(vec![
-            &identity_cert,
-            &batch_cert,
-            &silabs_factory_intermediate,
-            &silabs_root,
-        ]) {
-            Ok(serial)
-        } else {
-            Err(AttestationError::InvalidChain)
-        }
+        device_attestation::verify_device_identity_chain(&identity_cert_der, &batch_cert_der)
+            .map(|cert| cert.serial().to_string())
     }
 
+    /// Verify a hardware-attestation challenge response. The caller is
+    /// expected to have already verified `identity_cert_der` via
+    /// [`Attestation::verify_device_identity_cert_chain`].
     pub fn verify_challenge_response(
         &self,
         challenge: Vec<u8>,
         identity_cert_der: Vec<u8>,
         signature: Vec<u8>,
     ) -> Result<(), AttestationError> {
-        let mut digest_input = vec![b'A', b'T', b'V', b'1'];
-        digest_input.extend_from_slice(&challenge);
+        let mut payload = Vec::with_capacity(ATV1_PREFIX.len() + challenge.len());
+        payload.extend_from_slice(ATV1_PREFIX);
+        payload.extend_from_slice(&challenge);
+        device_attestation::verify_signature_with_identity_der(
+            &identity_cert_der,
+            &payload,
+            &signature,
+        )
+    }
 
-        let Ok((_, identity_cert)) = X509Certificate::from_der(&identity_cert_der) else {
+    pub fn verify_spending_key_attestation(
+        &self,
+        identity_cert_der: Vec<u8>,
+        batch_cert_der: Vec<u8>,
+        compressed_spending_pubkey: Vec<u8>,
+        signature: Vec<u8>,
+    ) -> Result<(), AttestationError> {
+        if compressed_spending_pubkey.len() != 33 {
             return Err(AttestationError::ParseFailure);
-        };
-
-        let Ok(pubkey) = identity_cert.public_key().parsed() else {
-            return Err(AttestationError::ParseFailure);
-        };
-
-        match pubkey {
-            PublicKey::EC(ec) => {
-                let public_key = UnparsedPublicKey::new(&ECDSA_P256_SHA256_FIXED, ec.data());
-                public_key
-                    .verify(&digest_input, &signature)
-                    .map_err(|_| AttestationError::VerificationFailure)
-            }
-            _ => Err(AttestationError::ParseFailure),
         }
+
+        let device =
+            device_attestation::verify_device_identity_chain(&identity_cert_der, &batch_cert_der)?;
+
+        let payload = spending_key_attestation_payload(&compressed_spending_pubkey);
+        device.verify_signature(&payload, &signature)
     }
 
     pub fn generate_challenge(&self) -> Result<Vec<u8>, AttestationError> {
@@ -195,36 +114,6 @@ mod tests {
             .step_by(2)
             .map(|i| u8::from_str_radix(&s[i..i + 2], 16))
             .collect()
-    }
-
-    #[test]
-    fn test_check_device_cert_is_for_block_w1() {
-        let identity_cert = decode_hex(W1_IDENTITY_CERT_HEX).unwrap();
-        let identity_cert = X509Certificate::from_der(&identity_cert).unwrap();
-        assert!(check_device_cert_is_for_block(&identity_cert.1).is_ok());
-
-        let batch_cert = decode_hex(W1_BATCH_CERT_HEX).unwrap();
-        let batch_cert = X509Certificate::from_der(&batch_cert).unwrap();
-
-        let result = check_device_cert_is_for_block(&batch_cert.1);
-        assert_eq!(result.unwrap_err(), AttestationError::NotForBlock);
-    }
-
-    #[test]
-    fn test_check_device_cert_is_for_block_w3() {
-        let dev_identity_cert = decode_hex(W3_DEV_MCU_CERT_HEX).unwrap();
-        let dev_identity_cert = X509Certificate::from_der(&dev_identity_cert).unwrap();
-        assert_eq!(
-            check_device_cert_is_for_block(&dev_identity_cert.1).unwrap(),
-            "6CA042FFFE3C65EF".to_string()
-        );
-
-        let prod_identity_cert = decode_hex(W3_PROD_MCU_CERT_HEX).unwrap();
-        let prod_identity_cert = X509Certificate::from_der(&prod_identity_cert).unwrap();
-        assert_eq!(
-            check_device_cert_is_for_block(&prod_identity_cert.1).unwrap(),
-            "6CA042FFFE3C4094".to_string()
-        );
     }
 
     #[test]
@@ -276,35 +165,6 @@ mod tests {
     }
 
     #[test]
-    fn test_verify_bad_cert_chain() {
-        let bad_batch_cert_der = SILABS_DEVICE_ROOT;
-
-        for identity_cert_der in [
-            decode_hex(W1_IDENTITY_CERT_HEX).unwrap(),
-            decode_hex(W3_DEV_MCU_CERT_HEX).unwrap(),
-            decode_hex(W3_PROD_MCU_CERT_HEX).unwrap(),
-        ] {
-            let result = Attestation {}
-                .verify_device_identity_cert_chain(identity_cert_der, bad_batch_cert_der.to_vec());
-            assert_eq!(result.unwrap_err(), AttestationError::InvalidChain);
-        }
-    }
-
-    #[test]
-    fn test_verify_cert_invalid_chain_size_two() {
-        let root = X509Certificate::from_der(SILABS_DEVICE_ROOT).unwrap();
-
-        for identity_cert_der in [
-            decode_hex(W1_IDENTITY_CERT_HEX).unwrap(),
-            decode_hex(W3_DEV_MCU_CERT_HEX).unwrap(),
-            decode_hex(W3_PROD_MCU_CERT_HEX).unwrap(),
-        ] {
-            let identity_cert = X509Certificate::from_der(&identity_cert_der).unwrap();
-            assert!(!verify_cert_chain(vec![&identity_cert.1, &root.1]));
-        }
-    }
-
-    #[test]
     fn test_challenge_response_good() {
         let identity_cert_der = decode_hex("308201d43082017aa00302010202146f7a8b1e6158fe6360d76acb00ab9fe98316cc23300a06082a8648ce3d04030230413116301406035504030c0d42617463682031313936313436311a3018060355040a0c1153696c69636f6e204c61627320496e632e310b30090603550406130255533020170d3233303631313134353332315a180f32313233303631313134353332315a3057310b300906035504061302555331123010060355040a0c09426c6f636b20496e633134303206035504030c2b426c6f636b20496e63204555493a3338333938464646464544303831423620533a5345302049443a4d43553059301306072a8648ce3d020106082a8648ce3d03010703420004067795ee79e9618fed1d4a7f9b2e82c42c75536041daed0cf67d1ca88f33f270a05ccb561ec03b0bd18ceb1b1b3293ac60baf28575bac7627997fb5f4efe9067a3383036300c0603551d130101ff04023000300e0603551d0f0101ff0404030206c030160603551d250101ff040c300a06082b06010505070302300a06082a8648ce3d0403020348003045022100939e1fafb54e7cad973f9b3928f559c42142a5efb9827c9e7dc313c7b209482702202af4eb7b96d1f96fe93fabdd92d1870a6cf2580d634c636d862217cfd7515d7b").unwrap();
         let challenge = decode_hex("0b05c5ef411f36354219036afa3e3a02").unwrap();
@@ -328,6 +188,41 @@ mod tests {
                 .unwrap_err(),
             AttestationError::VerificationFailure
         );
+    }
+
+    #[test]
+    fn spending_key_attestation_payload_wire_format() {
+        // Pin the exact bytes that firmware signs and the verifier checks:
+        // "HWV1" (4 bytes) || compressed SEC1 pubkey (33 bytes) = 37 bytes total.
+        // If this test fails, firmware (populate_key_attestation in
+        // key_manager_task.c) and/or any server-side verifier likely drifted
+        // from the app-side construction; align the three together.
+        let mut pubkey = vec![0x02];
+        pubkey.extend_from_slice(&[0u8; 32]);
+
+        let payload = spending_key_attestation_payload(&pubkey);
+
+        assert_eq!(payload.len(), 37);
+        assert_eq!(&payload[..4], b"HWV1");
+        assert_eq!(payload[4], 0x02);
+        assert_eq!(&payload[5..], &[0u8; 32]);
+    }
+
+    #[test]
+    fn verify_spending_key_attestation_rejects_wrong_pubkey_length() {
+        let identity_cert_der = decode_hex(W1_IDENTITY_CERT_HEX).unwrap();
+        let batch_cert_der = decode_hex(W1_BATCH_CERT_HEX).unwrap();
+        // 32-byte X-only pubkey is wrong; we require 33-byte compressed SEC1.
+        let bad_pubkey = vec![0u8; 32];
+        let signature = vec![0u8; 64];
+
+        let result = Attestation {}.verify_spending_key_attestation(
+            identity_cert_der,
+            batch_cert_der,
+            bad_pubkey,
+            signature,
+        );
+        assert_eq!(result.unwrap_err(), AttestationError::ParseFailure);
     }
 
     #[test]

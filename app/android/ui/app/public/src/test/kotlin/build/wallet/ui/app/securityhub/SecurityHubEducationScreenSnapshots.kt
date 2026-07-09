@@ -8,31 +8,31 @@ class SecurityHubEducationScreenSnapshots : FunSpec({
 
   test("security hub education emergency exit kit") {
     paparazzi.snapshot {
-      EmergencyExitKitSecurityHubEducationDesignSystemV2Preview()
+      EmergencyExitKitSecurityHubEducationPreview()
     }
   }
 
   test("security hub education multiple fingerprints") {
     paparazzi.snapshot {
-      MultipleFingerprintsSecurityHubEducationDesignSystemV2Preview()
+      MultipleFingerprintsSecurityHubEducationPreview()
     }
   }
 
   test("security hub education recovery contacts") {
     paparazzi.snapshot {
-      RecoveryContactsSecurityHubEducationDesignSystemV2Preview()
+      RecoveryContactsSecurityHubEducationPreview()
     }
   }
 
   test("security hub education critical alerts") {
     paparazzi.snapshot {
-      CriticalAlertsSecurityHubEducationDesignSystemV2Preview()
+      CriticalAlertsSecurityHubEducationPreview()
     }
   }
 
   test("security hub education transaction verification") {
     paparazzi.snapshot {
-      TransactionVerificationSecurityHubEducationDesignSystemV2Preview()
+      TransactionVerificationSecurityHubEducationPreview()
     }
   }
 })

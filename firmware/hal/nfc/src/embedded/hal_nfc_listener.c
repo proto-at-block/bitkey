@@ -55,6 +55,8 @@ static st_ret_t hal_nfc_deactivate_session(void);
 extern hal_nfc_priv_t hal_nfc_priv;
 
 void hal_nfc_listener_init(void) {
+  wca_reset_session_state();
+
   hal_nfc_priv.discovery_cfg.compMode = RFAL_COMPLIANCE_MODE_NFC;
   hal_nfc_priv.discovery_cfg.devLimit = 1U;
   hal_nfc_priv.discovery_cfg.nfcfBR = RFAL_BR_212;
@@ -82,6 +84,7 @@ void hal_nfc_listener_init(void) {
 }
 
 void hal_nfc_listener_deinit(void) {
+  wca_reset_session_state();
   hal_nfc_priv.session_state = NFC_SESSION_IDLE;
   hal_nfc_priv.session_timer_start = 0;
   const st_ret_t err = rfalListenStop();
@@ -204,7 +207,7 @@ void hal_nfc_listener_run(hal_nfc_callback_t callback) {
 
       // Transition ACTIVATED → ESTABLISHED when the first WCA command arrives.
       if (hal_nfc_priv.session_state == NFC_SESSION_ACTIVATED &&
-          wca_is_valid(hal_nfc_priv.rx_buf, *hal_nfc_priv.rx_len)) {
+          wca_is_wca(hal_nfc_priv.rx_buf, *hal_nfc_priv.rx_len)) {
 #if HAL_NFC_LOG_COMMS
         LOGD("nfc session established — WCA received");
 #endif
@@ -239,7 +242,7 @@ void hal_nfc_listener_run(hal_nfc_callback_t callback) {
 }
 
 static bool hal_nfc_filter_command(uint8_t* buffer, uint32_t len) {
-  return (wca_is_valid(buffer, len)) || (t4t_is_valid(buffer, len));
+  return (wca_is_wca(buffer, len)) || (t4t_is_valid(buffer, len));
 }
 
 static st_ret_t hal_nfc_deactivate_session(void) {

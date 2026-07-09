@@ -58,7 +58,6 @@ class InheritanceManagementSnapshots : FunSpec({
     paparazzi.snapshot {
       ManagingInheritanceBodyModel(
         onBack = {},
-        isDesignSystemV2Enabled = false,
         onLearnMore = {},
         onInviteClick = StandardClick {},
         onTabRowClick = {},
@@ -75,7 +74,6 @@ class InheritanceManagementSnapshots : FunSpec({
     paparazzi.snapshot {
       ManagingInheritanceBodyModel(
         onBack = {},
-        isDesignSystemV2Enabled = false,
         onLearnMore = {},
         onInviteClick = StandardClick {},
         onTabRowClick = {},
@@ -92,7 +90,6 @@ class InheritanceManagementSnapshots : FunSpec({
     paparazzi.snapshot {
       ManagingInheritanceBodyModel(
         onBack = {},
-        isDesignSystemV2Enabled = false,
         onLearnMore = {},
         onInviteClick = StandardClick {},
         onTabRowClick = {},
@@ -109,7 +106,6 @@ class InheritanceManagementSnapshots : FunSpec({
     paparazzi.snapshot {
       ManagingInheritanceBodyModel(
         onBack = {},
-        isDesignSystemV2Enabled = true,
         onLearnMore = {},
         onInviteClick = StandardClick {},
         onTabRowClick = {},
@@ -132,7 +128,6 @@ class InheritanceManagementSnapshots : FunSpec({
     paparazzi.snapshot {
       ManagingInheritanceBodyModel(
         onBack = {},
-        isDesignSystemV2Enabled = true,
         onLearnMore = {},
         onInviteClick = StandardClick {},
         onTabRowClick = {},
@@ -155,7 +150,6 @@ class InheritanceManagementSnapshots : FunSpec({
     paparazzi.snapshot {
       ManagingInheritanceBodyModel(
         onBack = {},
-        isDesignSystemV2Enabled = true,
         onLearnMore = {},
         onInviteClick = StandardClick {},
         onTabRowClick = {},
@@ -174,7 +168,7 @@ class InheritanceManagementSnapshots : FunSpec({
               timeRemaining = 1.days,
               progress = Progress.Half,
               onClick = null,
-              useMonochromeStyleInDesignSystemV2 = true
+              useMonochromeStyle = true
             ),
             style = CardModel.CardStyle.Plain
           )

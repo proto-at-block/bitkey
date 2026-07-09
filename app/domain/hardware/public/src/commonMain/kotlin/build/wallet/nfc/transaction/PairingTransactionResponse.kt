@@ -3,6 +3,7 @@ package build.wallet.nfc.transaction
 import bitkey.account.HardwareType
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.backup.csek.SealedSsek
 
@@ -14,6 +15,7 @@ sealed interface PairingTransactionResponse {
   data class FingerprintEnrolled(
     val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
     val keyBundle: HwKeyBundle,
+    val spendingKeyProof: HwSpendingKeyProof? = null,
     val sealedCsek: SealedCsek,
     val sealedSsek: SealedSsek,
     val serial: String,

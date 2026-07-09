@@ -83,19 +83,19 @@ class CloudRecoveryFormScreenSnapshots : FunSpec({
               backup = CloudBackupV3WithFullAccountMock,
               displayLabel = "Joel's iPhone (2)",
               secondaryText = "Last backed up: 11/15/2025 at 6:30pm",
-              icon = Icon.SmallIconBitkey
+              icon = Icon.Bitkey
             ),
             CloudBackupItemModel(
               backup = CloudBackupV3WithFullAccountMock,
               displayLabel = "Joey's Pixel 9 Pro",
               secondaryText = "Last backed up: 11/14/2025 at 11:45am",
-              icon = Icon.SmallIconBitkey
+              icon = Icon.Bitkey
             ),
             CloudBackupItemModel(
               backup = CloudBackupV3WithLiteAccountMock,
               displayLabel = "Cameron's iPhone",
               secondaryText = "Recovery Contact Backup",
-              icon = Icon.SmallIconShieldPerson
+              icon = Icon.ShieldPerson
             )
           ).toImmutableList(),
           onBackupSelected = { _ -> },

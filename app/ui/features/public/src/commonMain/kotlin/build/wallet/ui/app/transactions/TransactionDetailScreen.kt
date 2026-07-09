@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -63,7 +62,7 @@ fun TransactionDetailScreen(
       }
     } else {
       { screenModifier ->
-        TransactionDetailScreenV2(
+        TransactionDetailScreenContent(
           modifier = screenModifier,
           model = model,
           title = title
@@ -75,17 +74,13 @@ fun TransactionDetailScreen(
 }
 
 @Composable
-private fun TransactionDetailScreenV2(
+private fun TransactionDetailScreenContent(
   modifier: Modifier = Modifier,
   model: TransactionDetailModel,
   title: String,
 ) {
   if (model.keepScreenOn) {
     KeepScreenOn()
-  }
-
-  LaunchedEffect("transaction-detail-screen-loaded") {
-    model.onLoaded?.invoke()
   }
 
   model.onBack?.let {
@@ -168,7 +163,6 @@ private fun TransactionDetailScreenV2(
     }
 
     when {
-      model.disableFixedFooter -> Unit
       model.primaryButton != null || model.secondaryButton != null -> {
         Column(
           modifier = Modifier
@@ -176,7 +170,11 @@ private fun TransactionDetailScreenV2(
             .padding(top = 12.dp, bottom = 28.dp)
             .padding(horizontal = TransactionDetailHorizontalPadding)
         ) {
-          FooterContent(model)
+          FooterContent(
+            primaryButton = model.primaryButton,
+            secondaryButton = model.secondaryButton,
+            tertiaryButton = model.tertiaryButton
+          )
         }
       }
     }
@@ -254,17 +252,6 @@ private fun TransactionDetailHeader(
           color = when (theme) {
             Theme.DARK -> Color.White
             Theme.LIGHT -> Color.Unspecified
-          },
-          onClick = { index ->
-            when (val sublineModel = headerModel.sublineModel) {
-              is LabelModel.LinkSubstringModel ->
-                sublineModel.linkedSubstrings.forEach { link ->
-                  if (link.range.contains(index)) {
-                    link.onClick()
-                  }
-                }
-              else -> Unit
-            }
           }
         )
       }

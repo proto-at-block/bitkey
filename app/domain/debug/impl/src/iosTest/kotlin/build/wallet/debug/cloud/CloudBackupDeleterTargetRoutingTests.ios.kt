@@ -40,7 +40,7 @@ class CloudBackupDeleterTargetRoutingTests : FunSpec({
       requireAuthRefresh = false
     ).shouldBeOk()
 
-    cloudBackupDeleter.deleteBackupsIn(UbiquitousKvs)
+    cloudBackupDeleter.deleteBackupsIn(UbiquitousKvs).shouldBeOk()
 
     cloudBackupStoreCleaner.deleteCalls.shouldContain(
       CloudBackupStoreCleanerFake.DeleteCall(

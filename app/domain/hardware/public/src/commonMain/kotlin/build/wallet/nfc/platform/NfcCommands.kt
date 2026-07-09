@@ -8,6 +8,7 @@ import build.wallet.bitcoin.keys.DescriptorPublicKey
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.crypto.PublicKey
@@ -22,6 +23,7 @@ import build.wallet.grants.Grant
 import build.wallet.grants.GrantAction
 import build.wallet.grants.GrantRequest
 import build.wallet.money.display.BitcoinDisplayUnit
+import build.wallet.nfc.HwSpendingKeyResult
 import build.wallet.nfc.NfcException
 import build.wallet.nfc.NfcSession
 import okio.ByteString
@@ -145,6 +147,21 @@ sealed interface ConfirmationResult {
   data class EekRestorationUnsealSymmetricKey(val unsealedKey: List<UByte>) : ConfirmationResult
 
   /**
+   * Unsealed symmetric key returned after user confirms stale-keyset-repair unseal on the device.
+   */
+  data class KeysetRepairUnsealSymmetricKey(val unsealedKey: List<UByte>) : ConfirmationResult
+
+  /**
+   * Result of the stale-keyset-repair rotate composite command after user confirms on device.
+   * Bundles the new hardware spending key (as a dpub descriptor) and a DER-encoded signature
+   * over the access token used as hardware proof-of-possession.
+   */
+  data class KeysetRepairRotateHwKey(
+    val spendingKeyDpub: String,
+    val accessTokenSignature: List<UByte>,
+  ) : ConfirmationResult
+
+  /**
    * User confirmed full account cloud backup restoration on the device.
    * The session is now ready for continuation commands with sealed CSEKs.
    */
@@ -236,6 +253,41 @@ data class UpgradeRotateAppAuthKeysResult(
 data class UpgradeRotateAppAuthKeysParams(
   val accountId: String,
   val appGlobalAuthPublicKey: String,
+)
+
+/**
+ * Parameters for the stale-keyset-repair rotate composite command.
+ *
+ * The hardware needs the access token to sign as proof-of-possession alongside deriving
+ * a fresh spending key, so both inputs travel together in one confirmable tap.
+ */
+data class KeysetRepairRotateHwKeyParams(
+  /** Access token to sign as hardware proof-of-possession. */
+  val accessToken: AccessToken,
+  /** Existing HW spending keys; used by firmware to pick a fresh derivation index. */
+  val existingHwSpendingKeys: List<HwSpendingPublicKey>,
+  /** Bitcoin network for the new spending key. */
+  val network: BitcoinNetworkType,
+)
+
+/**
+ * Result of the stale-keyset-repair rotate composite command.
+ *
+ * Contains the new hardware spending key and a DER-encoded hex signature over the
+ * access token, both produced in a single confirmable W3 tap.
+ */
+data class KeysetRepairRotateHwKeyResult(
+  /** The newly-derived hardware spending key. */
+  val hwSpendingKey: HwSpendingPublicKey,
+  /** Hex-encoded DER signature over the access token, matching [signAccessToken] format. */
+  val signedAccessToken: String,
+  /**
+   * Optional attestation proof binding [hwSpendingKey] to this Bitkey unit's
+   * device-identity key. `null` on pre-attestation firmware or on flows that
+   * don't surface it (e.g. the W3 confirmable path that builds the result
+   * from a proto without re-tapping the certs).
+   */
+  val hwSpendingKeyProof: HwSpendingKeyProof? = null,
 )
 
 /**
@@ -490,6 +542,18 @@ interface NfcCommands {
   suspend fun getInitialSpendingKey(
     session: NfcSession,
     network: BitcoinNetworkType,
+  ): HwSpendingKeyResult
+
+  /**
+   * Return a new and unique initial spending public key only.
+   *
+   * Unlike [getInitialSpendingKey], this does not require collecting spending-key
+   * attestation metadata and should be used only by flows that need the public key
+   * itself and will not send attestation to the server.
+   */
+  suspend fun getInitialSpendingPublicKey(
+    session: NfcSession,
+    network: BitcoinNetworkType,
   ): HwSpendingPublicKey
 
   /**
@@ -502,7 +566,7 @@ interface NfcCommands {
     session: NfcSession,
     existingDescriptorPublicKeys: List<HwSpendingPublicKey>,
     network: BitcoinNetworkType,
-  ): HwSpendingPublicKey
+  ): HwSpendingKeyResult
 
   /**
    * Lock the device after use is complete.
@@ -563,6 +627,9 @@ interface NfcCommands {
    * @param displayPreference: Display preferences for the hardware screen during transaction
    * confirmation. When provided, the hardware uses these to format amounts. Not persisted.
    * Only used by W3 hardware (W1 ignores this parameter).
+   * @param allowUnfinalized: When true, W3 regular signing accepts PSBTs that cannot be
+   * finalized after applying hardware signatures. Sweep flows use this when app/server signatures
+   * will complete finalization later. Regular sends should keep the strict default.
    *
    * @return A PSBT with the hardware signature.
    */
@@ -571,6 +638,7 @@ interface NfcCommands {
     psbt: Psbt,
     spendingKeyset: SpendingKeyset,
     displayPreference: HwDisplayPreference? = null,
+    allowUnfinalized: Boolean = false,
   ): HardwareInteraction<Psbt>
 
   /**
@@ -652,6 +720,54 @@ interface NfcCommands {
     session: NfcSession,
     sealedKey: SealedData,
   ): HardwareInteraction<SymmetricKey>
+
+  /**
+   * Unseal an SSEK during stale keyset repair with user confirmation.
+   *
+   * Used during the post-cloud-restore Stale Keyset Repair flow when private keysets
+   * must be decrypted from descriptor backups. Distinct from [eekRestorationUnsealSymmetricKey]
+   * because the W3 firmware shows a repair-specific prompt rather than the EEK-specific one.
+   *
+   * On W3, this is a confirmable command:
+   * 1. First tap: sends sealed key → firmware shows repair confirmation → returns RequiresConfirmation
+   * 2. Second tap: retrieves unsealed key via getConfirmationResult
+   *
+   * On W1, this delegates to [unsealData] and wraps the result in [HardwareInteraction.Completed].
+   *
+   * @param session the active NFC session
+   * @param sealedKey the sealed symmetric key to unseal
+   * @return HardwareInteraction that resolves to the unsealed SymmetricKey
+   */
+  suspend fun keysetRepairUnsealSymmetricKey(
+    session: NfcSession,
+    sealedKey: SealedData,
+  ): HardwareInteraction<SymmetricKey>
+
+  /**
+   * Composite W3 command for stale keyset repair: derives a new HW spending key and
+   * signs the provided access token as hardware proof-of-possession in a single
+   * confirmable tap.
+   *
+   * The two operations cannot be split: each is sensitive on its own, and exposing them
+   * as separate confirmable taps would let an attacker authorize one without the other.
+   * Bundling them keeps the security boundary intact.
+   *
+   * On W3:
+   * 1. First tap: sends params → firmware shows repair confirmation → returns RequiresConfirmation
+   * 2. Second tap: retrieves the bundled result via getConfirmationResult
+   *
+   * On W1, this synthesizes the bundle from sequential [getNextSpendingKey] +
+   * [signAccessToken] calls and wraps in [HardwareInteraction.Completed]. W1 hardware
+   * has no on-device confirmation, so a single tap is appropriate.
+   *
+   * @param session the active NFC session
+   * @param params access token + existing spending keys + network
+   * @return HardwareInteraction that resolves to [KeysetRepairRotateHwKeyResult]
+   */
+  suspend fun keysetRepairRotateHwKey(
+    session: NfcSession,
+    params: KeysetRepairRotateHwKeyParams,
+  ): HardwareInteraction<KeysetRepairRotateHwKeyResult>
 
   /**
    * Get the certificate for the hardware device.

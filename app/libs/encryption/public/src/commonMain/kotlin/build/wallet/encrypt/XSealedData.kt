@@ -43,7 +43,12 @@ data class XSealedData(
     val encodedHeader = Json.encodeToString(header).encodeUtf8().base64NoPad()
     val baseCiphertext = "$encodedHeader.${ciphertext.base64NoPad()}.${nonce.bytes.base64NoPad()}"
     // Only append the publicKey part if the format indicates its presence
-    val publicKeyPart = if (header.format == Format.WithPubkey) ".${publicKey!!.value.decodeHex().base64NoPad()}" else ""
+    val publicKeyPart = if (header.format == Format.WithPubkey) {
+      val key = checkNotNull(publicKey) { "Public key must not be null for WithPubkey format" }
+      ".${key.value.decodeHex().base64NoPad()}"
+    } else {
+      ""
+    }
     return XCiphertext(baseCiphertext + publicKeyPart)
   }
 

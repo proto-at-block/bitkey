@@ -342,7 +342,7 @@ private suspend fun io.kotest.core.test.TestScope.prepareW3CloudRecoveryFixture(
     inviteCode = invite.inviteCode,
     protectedCustomerName = "alice"
   )
-  customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.relationshipId)
+  customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.id.value)
   tcApp.closeForUninstall()
 
   customerApp.addSomeFunds(sats(10_000L))
@@ -350,7 +350,7 @@ private suspend fun io.kotest.core.test.TestScope.prepareW3CloudRecoveryFixture(
   return W3CloudRecoveryFixture(
     customerApp = customerApp,
     accountId = customerApp.getActiveFullAccount().accountId,
-    tcRelationshipId = invite.invitation.relationshipId,
+    tcRelationshipId = invite.invitation.id.value,
     preUpgradeHwAuthPublicKey = customerApp.getActiveHwAuthKey().publicKey,
     preUpgradeCloudBackup = customerApp.snapshotCloudRecoveryBackup(ProtectedCustomerFake),
     preUpgradeCloudBackupObject = customerApp.readCloudBackup(ProtectedCustomerFake).shouldNotBeNull()
@@ -572,11 +572,11 @@ private suspend fun AppTester.awaitCloudRecoveryVerifiedTrustedContact(
 ): Relationships {
   val relationships = awaitRelationships(timeout = 60.seconds) {
     it.endorsedTrustedContacts.any { tc ->
-      tc.relationshipId == relationshipId &&
+      tc.id.value == relationshipId &&
         tc.authenticationState == TrustedContactAuthenticationState.VERIFIED
     }
   }
-  relationships.endorsedTrustedContacts.single { it.relationshipId == relationshipId }
+  relationships.endorsedTrustedContacts.single { it.id.value == relationshipId }
     .authenticationState.shouldBe(TrustedContactAuthenticationState.VERIFIED)
   return relationships
 }

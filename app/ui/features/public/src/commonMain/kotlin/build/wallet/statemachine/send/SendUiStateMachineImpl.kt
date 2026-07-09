@@ -16,6 +16,7 @@ import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.money.exchange.ExchangeRateService
 import build.wallet.platform.permissions.Permission.Camera
+import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.platform.permissions.PermissionUiProps
 import build.wallet.statemachine.platform.permissions.PermissionUiStateMachine
@@ -23,6 +24,8 @@ import build.wallet.statemachine.send.SendUiState.*
 import build.wallet.statemachine.send.fee.FeeSelectionUiProps
 import build.wallet.statemachine.send.fee.FeeSelectionUiStateMachine
 import build.wallet.statemachine.transactions.TransactionDetails
+import build.wallet.ui.app.qrcode.performDynamicIslandQrScanSuccessHaptic as performQrScanSuccessHaptic
+import build.wallet.ui.app.qrcode.usesDynamicIslandQrScannerPortal
 import com.ionspin.kotlin.bignum.integer.toBigInteger
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap
@@ -40,6 +43,10 @@ class SendUiStateMachineImpl(
   private val feeSelectionUiStateMachine: FeeSelectionUiStateMachine,
   private val exchangeRateService: ExchangeRateService,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
+  private val usesDynamicIslandQrScannerPortalProvider: () -> Boolean = {
+    usesDynamicIslandQrScannerPortal
+  },
+  private val onDynamicIslandQrScanSuccess: () -> Unit = ::performQrScanSuccessHaptic,
 ) : SendUiStateMachine {
   @Composable
   @Suppress("CyclomaticComplexMethod")
@@ -99,32 +106,17 @@ class SendUiStateMachineImpl(
         }
       )
     }
+    var isDynamicIslandQrScannerClosing by remember { mutableStateOf(false) }
 
     return when (val state = uiState) {
       is SelectingRecipientUiState ->
-        bitcoinAddressRecipientUiStateMachine.model(
-          props =
-            BitcoinAddressRecipientUiProps(
-              address = state.recipientAddress,
-              validInvoiceInClipboard = props.validInvoiceInClipboard,
-              onBack = props.onExit,
-              onRecipientEntered = { recipientAddress ->
-                uiState =
-                  EnteringAmountUiState(
-                    recipientAddress = recipientAddress,
-                    transferMoney = defaultAmountEntryAmount
-                  )
-              },
-              onScanQrCodeClick = {
-                uiState =
-                  if (permissionUiStateMachine.isImplemented) {
-                    RequestingCameraUiState
-                  } else {
-                    ScanningQrCodeUiState
-                  }
-              },
-              onGoToUtxoConsolidation = props.onGoToUtxoConsolidation
-            )
+        recipientAddressBodyModel(
+          recipientAddress = state.recipientAddress,
+          showToolbarIcons = true,
+          props = props,
+          defaultAmountEntryAmount = defaultAmountEntryAmount,
+          setDynamicIslandQrScannerClosing = { isDynamicIslandQrScannerClosing = it },
+          onStateChange = { uiState = it }
         ).asModalFullScreen()
 
       is RequestingCameraUiState ->
@@ -132,41 +124,27 @@ class SendUiStateMachineImpl(
           PermissionUiProps(
             permission = Camera,
             onExit = {
-              uiState = SelectingRecipientUiState(recipientAddress = null)
+              uiState = SelectingRecipientUiState(recipientAddress = state.recipientAddress)
             },
             onGranted = {
-              uiState = ScanningQrCodeUiState
+              isDynamicIslandQrScannerClosing = false
+              uiState =
+                ScanningQrCodeUiState(
+                  recipientAddress = state.recipientAddress,
+                  isClosingDynamicIslandQrScanner = false
+                )
             }
           )
         ).asModalFullScreen()
 
       is ScanningQrCodeUiState ->
-        bitcoinQrCodeUiScanStateMachine.model(
-          props =
-            BitcoinQrCodeScanUiProps(
-              validInvoiceInClipboard = props.validInvoiceInClipboard,
-              onEnterAddressClick = {
-                uiState = SelectingRecipientUiState(recipientAddress = null)
-              },
-              onClose = {
-                uiState = SelectingRecipientUiState(recipientAddress = null)
-              },
-              onRecipientScanned = { address ->
-                uiState =
-                  EnteringAmountUiState(
-                    recipientAddress = address,
-                    transferMoney = defaultAmountEntryAmount
-                  )
-              },
-              onInvoiceScanned = { invoice ->
-                uiState =
-                  EnteringAmountUiState(
-                    recipientAddress = invoice.address,
-                    transferMoney = invoice.amount ?: defaultAmountEntryAmount
-                  )
-              },
-              onGoToUtxoConsolidation = props.onGoToUtxoConsolidation
-            )
+        scanningRecipientAddressModel(
+          state = state,
+          props = props,
+          defaultAmountEntryAmount = defaultAmountEntryAmount,
+          isDynamicIslandQrScannerClosing = { isDynamicIslandQrScannerClosing },
+          setDynamicIslandQrScannerClosing = { isDynamicIslandQrScannerClosing = it },
+          onStateChange = { uiState = it }
         )
 
       is EnteringAmountUiState ->
@@ -291,6 +269,223 @@ class SendUiStateMachineImpl(
         ).asModalFullScreen()
     }
   }
+
+  @Composable
+  private fun recipientAddressBodyModel(
+    recipientAddress: BitcoinAddress?,
+    showToolbarIcons: Boolean,
+    props: SendUiProps,
+    defaultAmountEntryAmount: Money,
+    setDynamicIslandQrScannerClosing: (Boolean) -> Unit,
+    onStateChange: (SendUiState) -> Unit,
+  ): BodyModel =
+    bitcoinAddressRecipientUiStateMachine.model(
+      props =
+        BitcoinAddressRecipientUiProps(
+          address = recipientAddress,
+          validInvoiceInClipboard = props.validInvoiceInClipboard,
+          showToolbarIcons = showToolbarIcons,
+          onBack = props.onExit,
+          onRecipientEntered = { enteredRecipientAddress ->
+            onStateChange(
+              EnteringAmountUiState(
+                recipientAddress = enteredRecipientAddress,
+                transferMoney = defaultAmountEntryAmount
+              )
+            )
+          },
+          onScanQrCodeClick = {
+            setDynamicIslandQrScannerClosing(false)
+            onStateChange(
+              if (permissionUiStateMachine.isImplemented) {
+                RequestingCameraUiState(recipientAddress = recipientAddress)
+              } else {
+                ScanningQrCodeUiState(recipientAddress = recipientAddress)
+              }
+            )
+          },
+          onGoToUtxoConsolidation = props.onGoToUtxoConsolidation
+        )
+    )
+
+  @Composable
+  private fun scanningRecipientAddressModel(
+    state: ScanningQrCodeUiState,
+    props: SendUiProps,
+    defaultAmountEntryAmount: Money,
+    isDynamicIslandQrScannerClosing: () -> Boolean,
+    setDynamicIslandQrScannerClosing: (Boolean) -> Unit,
+    onStateChange: (SendUiState) -> Unit,
+  ): ScreenModel {
+    val usesDynamicIslandPortal = usesDynamicIslandQrScannerPortalProvider()
+    val recipientAddressBodyModel =
+      recipientAddressBodyModel(
+        recipientAddress = state.recipientAddress,
+        showToolbarIcons = state.isAddressSheetExpanded,
+        props = props,
+        defaultAmountEntryAmount = defaultAmountEntryAmount,
+        setDynamicIslandQrScannerClosing = setDynamicIslandQrScannerClosing,
+        onStateChange = onStateChange
+      )
+
+    fun expandAddressSheet() {
+      onStateChange(state.copy(isAddressSheetExpanded = true))
+    }
+
+    fun exitQrScanner() {
+      setDynamicIslandQrScannerClosing(false)
+      onStateChange(SelectingRecipientUiState(recipientAddress = state.recipientAddress))
+    }
+
+    val closeDynamicIslandQrScanner = {
+      closeDynamicIslandQrScanner(
+        state = state,
+        isDynamicIslandQrScannerClosing = isDynamicIslandQrScannerClosing,
+        setDynamicIslandQrScannerClosing = setDynamicIslandQrScannerClosing,
+        onStateChange = onStateChange
+      )
+    }
+
+    val onEnterAddressClick =
+      if (usesDynamicIslandPortal) {
+        closeDynamicIslandQrScanner
+      } else {
+        ::expandAddressSheet
+      }
+    val onCloseQrScanner =
+      if (usesDynamicIslandPortal) {
+        closeDynamicIslandQrScanner
+      } else {
+        ::exitQrScanner
+      }
+
+    val qrCodeScreenModel =
+      qrCodeScreenModel(
+        state = state,
+        props = props,
+        usesDynamicIslandPortal = usesDynamicIslandPortal,
+        defaultAmountEntryAmount = defaultAmountEntryAmount,
+        isDynamicIslandQrScannerClosing = isDynamicIslandQrScannerClosing,
+        onEnterAddressClick = onEnterAddressClick,
+        onCloseQrScanner = onCloseQrScanner,
+        onStateChange = onStateChange
+      )
+
+    if (usesDynamicIslandPortal) {
+      return DynamicIslandQrScannerPortalBodyModel(
+        recipientAddressBodyModel = recipientAddressBodyModel,
+        qrScannerScreenModel = qrCodeScreenModel,
+        isClosing = state.isClosingDynamicIslandQrScanner,
+        onClose = closeDynamicIslandQrScanner,
+        onClosed = ::exitQrScanner
+      ).asModalFullScreen()
+    }
+
+    return embeddedRecipientAddressQrModel(
+      qrCodeScreenModel = requireNotNull(qrCodeScreenModel),
+      recipientAddressBodyModel = recipientAddressBodyModel,
+      state = state,
+      expandAddressSheet = ::expandAddressSheet,
+      exitQrScanner = ::exitQrScanner
+    )
+  }
+
+  @Composable
+  private fun qrCodeScreenModel(
+    state: ScanningQrCodeUiState,
+    props: SendUiProps,
+    usesDynamicIslandPortal: Boolean,
+    defaultAmountEntryAmount: Money,
+    isDynamicIslandQrScannerClosing: () -> Boolean,
+    onEnterAddressClick: () -> Unit,
+    onCloseQrScanner: () -> Unit,
+    onStateChange: (SendUiState) -> Unit,
+  ): ScreenModel? {
+    if (state.isClosingDynamicIslandQrScanner) return null
+
+    return bitcoinQrCodeUiScanStateMachine.model(
+      props =
+        BitcoinQrCodeScanUiProps(
+          validInvoiceInClipboard = props.validInvoiceInClipboard,
+          showActionButtons = usesDynamicIslandPortal,
+          onEnterAddressClick = onEnterAddressClick,
+          onClose = onCloseQrScanner,
+          onRecipientScanned = { address ->
+            enterAmountFromQrScan(
+              address = address,
+              transferMoney = defaultAmountEntryAmount,
+              usesDynamicIslandPortal = usesDynamicIslandPortal,
+              isDynamicIslandQrScannerClosing = isDynamicIslandQrScannerClosing,
+              onStateChange = onStateChange
+            )
+          },
+          onInvoiceScanned = { invoice ->
+            enterAmountFromQrScan(
+              address = invoice.address,
+              transferMoney = invoice.amount ?: defaultAmountEntryAmount,
+              usesDynamicIslandPortal = usesDynamicIslandPortal,
+              isDynamicIslandQrScannerClosing = isDynamicIslandQrScannerClosing,
+              onStateChange = onStateChange
+            )
+          },
+          onGoToUtxoConsolidation = props.onGoToUtxoConsolidation
+        )
+    )
+  }
+
+  private fun enterAmountFromQrScan(
+    address: BitcoinAddress,
+    transferMoney: Money,
+    usesDynamicIslandPortal: Boolean,
+    isDynamicIslandQrScannerClosing: () -> Boolean,
+    onStateChange: (SendUiState) -> Unit,
+  ) {
+    if (usesDynamicIslandPortal && isDynamicIslandQrScannerClosing()) return
+    if (usesDynamicIslandPortal) {
+      onDynamicIslandQrScanSuccess()
+    }
+    onStateChange(
+      EnteringAmountUiState(
+        recipientAddress = address,
+        transferMoney = transferMoney
+      )
+    )
+  }
+
+  private fun closeDynamicIslandQrScanner(
+    state: ScanningQrCodeUiState,
+    isDynamicIslandQrScannerClosing: () -> Boolean,
+    setDynamicIslandQrScannerClosing: (Boolean) -> Unit,
+    onStateChange: (SendUiState) -> Unit,
+  ) {
+    if (isDynamicIslandQrScannerClosing()) return
+    setDynamicIslandQrScannerClosing(true)
+    onStateChange(state.copy(isClosingDynamicIslandQrScanner = true))
+  }
+
+  private fun embeddedRecipientAddressQrModel(
+    qrCodeScreenModel: ScreenModel,
+    recipientAddressBodyModel: BodyModel,
+    state: ScanningQrCodeUiState,
+    expandAddressSheet: () -> Unit,
+    exitQrScanner: () -> Unit,
+  ): ScreenModel {
+    val qrCodeBodyModel = qrCodeScreenModel.body
+    return if (qrCodeBodyModel is QrCodeScanBodyModel) {
+      SendRecipientAddressQrBodyModel(
+        scannerBodyModel = qrCodeBodyModel.copy(
+          onClose = expandAddressSheet
+        ),
+        recipientAddressBodyModel = recipientAddressBodyModel,
+        addressSheetExpanded = state.isAddressSheetExpanded,
+        onAddressSheetExpansionStarted = expandAddressSheet,
+        onAddressSheetRestored = exitQrScanner,
+        onBack = expandAddressSheet
+      ).asModalFullScreen()
+    } else {
+      qrCodeScreenModel
+    }
+  }
 }
 
 private sealed interface SendUiState {
@@ -302,14 +497,20 @@ private sealed interface SendUiState {
   ) : SendUiState
 
   /**
-   * Customer is scanning a qr code to send funds
+   * Requesting camera to scan QR code.
    */
-  data object ScanningQrCodeUiState : SendUiState
+  data class RequestingCameraUiState(
+    val recipientAddress: BitcoinAddress?,
+  ) : SendUiState
 
   /**
-   * Requesting camera to scan QR code
+   * Customer is scanning a QR code to send funds.
    */
-  data object RequestingCameraUiState : SendUiState
+  data class ScanningQrCodeUiState(
+    val recipientAddress: BitcoinAddress?,
+    val isAddressSheetExpanded: Boolean = false,
+    val isClosingDynamicIslandQrScanner: Boolean = false,
+  ) : SendUiState
 
   data class SelectingTransactionPriorityUiState(
     val recipientAddress: BitcoinAddress,

@@ -11,7 +11,8 @@ use wca::commands::{
     compute_commitment_hash, serialize_stream_payload, BioMatchStats, BtcDisplayUnit, BtcNetwork,
     CancelFingerprintEnrollment, ConfirmedCommandResult, CoredumpFragment,
     DecomposedPsbt, DeleteFingerprint, DescriptorPublicKey, DeviceIdentifiers, DeviceInfo,
-    DeviceInfoMcu, EekRestorationUnseal, EekRestorationUnsealResult, EnrolledFingerprints,
+    DeviceInfoMcu, EekRestorationUnseal, EekRestorationUnsealResult, KeysetRepairRotateHwKey,
+    KeysetRepairRotateHwKeyResult, KeysetRepairUnseal, KeysetRepairUnsealResult, EnrolledFingerprints,
     EnrollmentDiagnostics, EventFragment, FingerprintEnrollmentResult, FingerprintEnrollmentStatus,
     FingerprintResetFinalize, FingerprintResetRequest, FirmwareFeatureFlag, FirmwareFeatureFlagCfg,
     FirmwareMetadata, FirmwareSlot, FullAccountCloudBackupRestoration,
@@ -46,7 +47,7 @@ use wca::fwpb::FingerprintHandle;
 use wca::log_buffer::{
     disable_proto_exchange_logging, enable_proto_exchange_logging, get_proto_exchange_logs,
 };
-use wca::{EllipticCurve, KeyEncoding, PublicKeyHandle, PublicKeyMetadata, SignatureContext};
+use wca::{EllipticCurve, KeyEncoding, PublicKeyHandle, PublicKeyMetadata, SignatureContext, SpendingKeyResult};
 
 type BooleanState = State<bool>;
 type U16State = State<u16>;
@@ -61,6 +62,7 @@ type EventFragmentState = State<EventFragment>;
 type TelemetryIdentifiersState = State<TelemetryIdentifiers>;
 type DeviceInfoState = State<DeviceInfo>;
 type DescriptorPublicKeyState = State<DescriptorPublicKey>;
+type SpendingKeyResultState = State<SpendingKeyResult>;
 type SignatureState = State<Signature>;
 type CoredumpFragmentState = State<CoredumpFragment>;
 type PublicKeyState = State<PublicKey>;
@@ -91,6 +93,8 @@ type RecoveryAuthorizeLostAppResultState = State<RecoveryAuthorizeLostAppResult>
 type RecoveryAuthorizeLostHwResultState = State<RecoveryAuthorizeLostHwResult>;
 type UpgradeAuthorizeW3ResultState = State<UpgradeAuthorizeW3Result>;
 type EekRestorationUnsealResultState = State<EekRestorationUnsealResult>;
+type KeysetRepairUnsealResultState = State<KeysetRepairUnsealResult>;
+type KeysetRepairRotateHwKeyResultState = State<KeysetRepairRotateHwKeyResult>;
 type FullAccountCloudBackupRestorationResultState = State<FullAccountCloudBackupRestorationResult>;
 type FullAccountCloudBackupRestorationContinueResultState =
     State<FullAccountCloudBackupRestorationContinueResult>;

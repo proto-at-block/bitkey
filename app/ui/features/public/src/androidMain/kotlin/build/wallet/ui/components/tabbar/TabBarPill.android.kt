@@ -39,23 +39,22 @@ actual fun TabBarPill(
   tabCount: Int,
   tabs: @Composable RowScope.() -> Unit,
 ) {
-  val isDesignSystemV2Enabled = true
   val theme = LocalTheme.current
-  val pillWidth = if (isDesignSystemV2Enabled) 160.dp else 130.dp
+  val pillWidth = 160.dp
   val pillHeight = 60.dp
   val indicatorInset = 4.dp
   val indicatorOverlap = 6.dp
   val pillBackgroundColor =
-    if (isDesignSystemV2Enabled && theme == Theme.DARK) {
+    if (theme == Theme.DARK) {
       WalletTheme.colors.subtleBackground
     } else {
       WalletTheme.colors.tabBarBackground
     }
   val indicatorColor =
-    if (isDesignSystemV2Enabled) {
-      if (theme == Theme.DARK) WalletTheme.colors.secondary else WalletTheme.colors.subtleBackground
+    if (theme == Theme.DARK) {
+      WalletTheme.colors.secondary
     } else {
-      WalletTheme.colors.foreground10
+      WalletTheme.colors.subtleBackground
     }
   val paint = remember {
     Paint().apply {
@@ -87,44 +86,40 @@ actual fun TabBarPill(
       }
       .background(pillBackgroundColor, shape = RoundedCornerShape(30.dp)),
     verticalAlignment = Alignment.CenterVertically,
-    horizontalArrangement = if (isDesignSystemV2Enabled) Arrangement.Center else Arrangement.SpaceEvenly
+    horizontalArrangement = Arrangement.Center
   ) {
-    if (isDesignSystemV2Enabled) {
-      Box(modifier = Modifier.fillMaxSize()) {
-        if (tabCount > 0) {
-          val clampedIndex = selectedIndex.coerceIn(0, tabCount - 1)
-          val baseWidth = (pillWidth - indicatorInset * 2) / tabCount
-          val indicatorWidth = baseWidth + indicatorOverlap
-          val indicatorHeight = pillHeight - indicatorInset * 2
-          val minOffset = indicatorInset
-          val maxOffset = pillWidth - indicatorInset - indicatorWidth
-          val rawOffset = indicatorInset + baseWidth * clampedIndex - indicatorOverlap / 2
-          val indicatorOffsetX: Dp by animateDpAsState(
-            targetValue = rawOffset.coerceIn(minOffset, maxOffset),
-            animationSpec = tween(durationMillis = 240, easing = LinearOutSlowInEasing),
-            label = "TabBarIndicatorOffset"
-          )
+    Box(modifier = Modifier.fillMaxSize()) {
+      if (tabCount > 0) {
+        val clampedIndex = selectedIndex.coerceIn(0, tabCount - 1)
+        val baseWidth = (pillWidth - indicatorInset * 2) / tabCount
+        val indicatorWidth = baseWidth + indicatorOverlap
+        val indicatorHeight = pillHeight - indicatorInset * 2
+        val minOffset = indicatorInset
+        val maxOffset = pillWidth - indicatorInset - indicatorWidth
+        val rawOffset = indicatorInset + baseWidth * clampedIndex - indicatorOverlap / 2
+        val indicatorOffsetX: Dp by animateDpAsState(
+          targetValue = rawOffset.coerceIn(minOffset, maxOffset),
+          animationSpec = tween(durationMillis = 240, easing = LinearOutSlowInEasing),
+          label = "TabBarIndicatorOffset"
+        )
 
-          Box(
-            modifier = Modifier
-              .offset(x = indicatorOffsetX, y = indicatorInset)
-              .size(width = indicatorWidth, height = indicatorHeight)
-              .background(
-                color = indicatorColor,
-                shape = RoundedCornerShape(30.dp)
-              )
-          )
-        }
-
-        Row(
-          modifier = Modifier.fillMaxSize(),
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.Center,
-          content = tabs
+        Box(
+          modifier = Modifier
+            .offset(x = indicatorOffsetX, y = indicatorInset)
+            .size(width = indicatorWidth, height = indicatorHeight)
+            .background(
+              color = indicatorColor,
+              shape = RoundedCornerShape(30.dp)
+            )
         )
       }
-    } else {
-      tabs()
+
+      Row(
+        modifier = Modifier.fillMaxSize(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+        content = tabs
+      )
     }
   }
 }

@@ -35,6 +35,9 @@ interface SignTransactionNfcSessionUiStateMachine :
  * @property hardwareTypeOverride: When set, overrides the hardware type derived from the account
  * config. Used during W3 upgrade sweeps where the old W1 hardware must sign transactions even
  * though the account has already been updated to W3.
+ * @property requiredHardwareType: When set, verifies that the tapped real hardware resolves to
+ * this type before signing. Unlike [hardwareTypeOverride], this enforces the resolved device
+ * identity and fails with [NfcException.WrongHardwareType] on mismatch.
  * @property skipPairingCheck: When true, skips the hardware pairing verification. This is needed
  * during W3 upgrade sweeps where the old W1 hardware must sign transactions but the active keybox
  * has already been updated to the new W3 hardware, so the pairing check would fail.
@@ -59,14 +62,14 @@ interface SignTransactionNfcSessionUiStateMachine :
  * default pending screen is shown.
  * @property deniedBodyModel: Optional lambda to provide operation-specific content for the
  * "denied" screen shown when user explicitly denies on the device. If null, the flow is canceled.
- * @property sweepSigningContext: When set, routes the signing call to the dedicated W3
- * sweep signing command ([NfcCommands.sweepTransaction]) instead of the regular
- * [NfcCommands.signTransaction]. Required for sweeps from a non-current account index on
- * W3 hardware (the regular path rejects non-current-account inputs). Constructed by the
- * sweep flow from the OLD source keyset's xpub material. Must be null on W1 hardware —
- * a non-null value selects the sweep-signing command path, and W1 does not implement it
- * (it throws). W1's full-PSBT signing handles arbitrary account indices natively via the
- * regular signTransaction path, so the W1 caller should always leave this null.
+ * @property sweepSigningContext: When set and the tapped hardware resolves to W3, routes the
+ * signing call to the dedicated W3 sweep signing command ([NfcCommands.sweepTransaction])
+ * instead of the regular [NfcCommands.signTransaction]. Required for sweeps from a non-current
+ * account index on W3 hardware (the regular path rejects non-current-account inputs). Constructed
+ * by the sweep flow from the OLD source keyset's xpub material.
+ * @property allowUnfinalized: When true, regular W3 signing allows the returned PSBT to
+ * remain unfinalized after applying hardware signatures. Sweep flows use this when app/server
+ * signatures will complete finalization later. Defaults to strict finalization for normal sends.
  */
 data class SignTransactionNfcSessionUiProps(
   val account: FullAccount,
@@ -74,9 +77,11 @@ data class SignTransactionNfcSessionUiProps(
   val spendingKeyset: SpendingKeyset? = null,
   val useRecoveryHwAuthKey: Boolean = false,
   val hardwareTypeOverride: HardwareType? = null,
+  val requiredHardwareType: HardwareType? = null,
   val skipPairingCheck: Boolean = false,
   val skipFirmwareTelemetry: Boolean = false,
   val sweepSigningContext: SweepSigningContext? = null,
+  val allowUnfinalized: Boolean = false,
   val onBack: () -> Unit,
   val onSuccess: (Psbt) -> Unit,
   val onError: (NfcException) -> Boolean = { false },

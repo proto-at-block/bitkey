@@ -20,7 +20,7 @@ import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
-import build.wallet.ui.tokens.market.MarketIcons
+import build.wallet.statemachine.core.Icon
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 
@@ -43,7 +43,7 @@ data class LiteMoneyHomeBodyModel(
     onIHaveABitkeyClick: () -> Unit,
   ) : this(
     cardsModel = CardListModel(
-      cards = listOfNotNull(
+      cards = listOf(
         // Wallets you're Protecting card
         WalletsProtectingMoneyHomeCardModel(
           protectedCustomers = protectedCustomers,
@@ -64,7 +64,7 @@ data class LiteMoneyHomeBodyModel(
       ToolbarAccessoryModel.IconAccessory(
         model = IconButtonModel(
           iconModel = IconModel(
-            icon = MarketIcons.EllipsisHorizontal,
+            icon = Icon.EllipsisHorizontal,
             iconSize = IconSize.HeaderToolbar,
             iconBackgroundType = IconBackgroundType.Circle(
               circleSize = IconSize.Regular,

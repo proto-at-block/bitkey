@@ -5,6 +5,7 @@ import bitkey.recovery.InitiateDelayNotifyRecoveryError
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import com.github.michaelbull.result.Result
 
 /**
@@ -26,6 +27,7 @@ interface LostHardwareRecoveryService {
   suspend fun initiate(
     destinationAppKeyBundle: AppKeyBundle,
     destinationHardwareKeyBundle: HwKeyBundle,
+    spendingKeyProof: HwSpendingKeyProof? = null,
     appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
     hardwareType: HardwareType,
   ): Result<Unit, InitiateDelayNotifyRecoveryError>

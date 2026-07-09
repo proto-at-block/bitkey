@@ -152,7 +152,7 @@ class SocRecCloudBackupSyncWorkerImpl(
             ?: return Err(Error("Lite Account Backups have no trusted contacts to refresh"))
 
         val backedUpRelationshipIds = fields.socRecSealedDekMap.keys
-        val newRelationshipIds = endorsedTrustedContacts.map { it.relationshipId }.toSet()
+        val newRelationshipIds = endorsedTrustedContacts.map { it.id.value }.toSet()
         if (backedUpRelationshipIds == newRelationshipIds) {
           Ok(UpToDate)
         } else {

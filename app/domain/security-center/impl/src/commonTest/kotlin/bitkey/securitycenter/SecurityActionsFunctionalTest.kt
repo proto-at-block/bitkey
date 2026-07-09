@@ -13,6 +13,7 @@ import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.relationships.EndorsedTrustedContactFake1
+import build.wallet.catchingResult
 import build.wallet.cloud.backup.health.AppKeyBackupStatus
 import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
 import build.wallet.cloud.backup.health.EekBackupStatus
@@ -31,6 +32,7 @@ import build.wallet.nfc.HardwareProvisionedAppKeyStatusDaoFake
 import build.wallet.recovery.keyset.SpendingKeysetRepairServiceFake
 import build.wallet.recovery.keyset.SpendingKeysetSyncStatus
 import build.wallet.recovery.socrec.SocRecServiceFake
+import com.github.michaelbull.result.onFailure
 import io.kotest.assertions.fail
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -316,7 +318,7 @@ class SecurityActionsFunctionalTest : FunSpec({
           emptyList()
         }
 
-        runCatching {
+        catchingResult {
           awaitItem().shouldNotBeNull().apply {
             atRiskRecommendations.shouldBe(expectedAtRiskRecommendations)
             recommendations shouldBe expectedRecsForThisStep
@@ -339,7 +341,7 @@ class SecurityActionsFunctionalTest : FunSpec({
 
         testScope.advanceUntilIdle()
 
-        runCatching {
+        catchingResult {
           awaitItem().shouldNotBeNull().apply {
             atRiskRecommendations.shouldBeEmpty()
             recommendations shouldBe expectedRecommendations

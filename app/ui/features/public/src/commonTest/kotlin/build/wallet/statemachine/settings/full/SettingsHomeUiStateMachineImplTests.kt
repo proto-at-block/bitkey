@@ -1,18 +1,11 @@
 package build.wallet.statemachine.settings.full
 
-import app.cash.turbine.test
 import bitkey.ui.framework.NavigatorModelFake
 import bitkey.ui.framework.NavigatorPresenterFake
 import bitkey.ui.verification.TxVerificationPolicyProps
 import bitkey.ui.verification.TxVerificationPolicyStateMachine
 import build.wallet.bitkey.keybox.FullAccountMock
-import build.wallet.compose.collections.immutableListOf
-import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
-import build.wallet.fwup.FirmwareDataPendingUpdateMock
-import build.wallet.fwup.FirmwareDataServiceFake
-import build.wallet.fwup.McuFwupDataMock_W1_CORE
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.BodyStateMachineMock
 import build.wallet.statemachine.ScreenStateMachineMock
@@ -56,15 +49,13 @@ import io.kotest.matchers.types.shouldBeTypeOf
 class SettingsHomeUiStateMachineImplTests : FunSpec({
 
   val propsOnBackCalls = turbines.create<Unit>("props onBack calls")
-  val firmwareDataService = FirmwareDataServiceFake()
 
   val props =
     SettingsHomeUiProps(
       account = FullAccountMock,
       settingsListState = null,
       homeStatusBannerModel = null,
-      onBack = { propsOnBackCalls.add(Unit) },
-      goToSecurityHub = {}
+      onBack = { propsOnBackCalls.add(Unit) }
     )
 
   val navigatorPresenter = NavigatorPresenterFake()
@@ -90,7 +81,6 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
       rotateAuthKeyUIStateMachine = object : RotateAuthKeyUIStateMachine,
         ScreenStateMachineMock<RotateAuthKeyUIStateMachineProps>("rotate-auth-key") {},
       navigatorPresenter = navigatorPresenter,
-      firmwareDataService = firmwareDataService,
       utxoConsolidationUiStateMachine = object : UtxoConsolidationUiStateMachine,
         ScreenStateMachineMock<UtxoConsolidationProps>("utxo-consolidation") {},
       inheritanceManagementUiStateMachine = object : InheritanceManagementUiStateMachine,
@@ -106,10 +96,6 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
           "private-wallet-migration"
         ) {}
     )
-
-  beforeTest {
-    firmwareDataService.reset()
-  }
 
   test("onBack calls props onBack") {
     stateMachine().test(props) {
@@ -248,40 +234,6 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
         origin.shouldBeTypeOf<RotateAuthKeyUIOrigin.Settings>().onBack()
       }
       awaitBodyMock<SettingsListUiProps>()
-    }
-  }
-
-  test("all settings screen checks for new firmware") {
-    val firstUpdate = FirmwareDataPendingUpdateMock
-    val secondUpdate = firstUpdate.copy(
-      firmwareUpdateState =
-        PendingUpdate(
-          mcuUpdates = immutableListOf(McuFwupDataMock_W1_CORE.copy(version = "second update"))
-        )
-    )
-
-    // Prepare an update
-    firmwareDataService.pendingUpdate = firstUpdate
-
-    stateMachine().test(props) {
-      awaitBodyMock<SettingsListUiProps> {
-        firmwareDataService.firmwareData.test {
-          awaitUntil(firstUpdate)
-        }
-
-        // Prepare a new update
-        firmwareDataService.pendingUpdate = secondUpdate
-        // Navigate somewhere else and back
-        supportedRows.first { it is SettingsListUiProps.SettingsListRow.MobilePay }.onClick()
-      }
-
-      awaitBodyMock<MobilePaySettingsUiProps> {
-        onBack()
-      }
-      awaitBodyMock<SettingsListUiProps>()
-      firmwareDataService.firmwareData.test {
-        awaitUntil(secondUpdate)
-      }
     }
   }
 

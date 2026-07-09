@@ -2,9 +2,10 @@ package build.wallet.statemachine.walletmigration
 
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel.StringModel
-import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.core.form.FormMainContentVerticalAlignment
+import build.wallet.statemachine.core.form.FormScreenLayoutModel
+import build.wallet.statemachine.core.form.FormScreenTitleModel
 import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
@@ -12,25 +13,10 @@ import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemAccessoryAlignment
 import build.wallet.ui.model.list.ListItemModel
-import kotlinx.collections.immutable.ImmutableList
 
-internal fun w3UpgradeLegacyInstructionListItem(
-  title: String,
-  secondaryText: String,
-  icon: Icon,
-) = ListItemModel(
-  title = title,
-  secondaryText = secondaryText,
-  leadingAccessory = ListItemAccessory.IconAccessory(
-    model = IconModel(
-      icon = icon,
-      iconSize = IconSize.Small,
-      iconTint = IconTint.Foreground
-    )
-  )
-)
+internal const val W3_UPGRADE_INSTRUCTION_HEADER_TO_MAIN_CONTENT_SPACING = 8
 
-internal fun w3UpgradeDesignSystemV2InstructionListItem(
+internal fun w3UpgradeInstructionListItem(
   title: String,
   secondaryText: String,
   icon: Icon,
@@ -57,20 +43,20 @@ internal fun w3UpgradeStepEyebrow(
   totalSteps: Int = 4,
 ) = "Step $step of $totalSteps"
 
-internal fun w3UpgradeInstructionDesignSystemV2Model(
+internal fun w3UpgradeInstructionScreenTitle(
   title: String,
-  subline: String?,
-  mainContentList: ImmutableList<FormMainContentModel>,
   eyebrow: String? = null,
-) = FormDesignSystemV2Model(
+) = FormScreenTitleModel(
   eyebrow = eyebrow,
-  title = title,
-  header = FormHeaderModel(
-    headline = null,
-    sublineModel = subline?.let(::StringModel)
-  ),
-  mainContentList = mainContentList,
-  headerToMainContentSpacing = 8,
+  title = title
+)
+
+internal fun w3UpgradeInstructionHeader(subline: String?) = FormHeaderModel(
+  headline = null,
+  sublineModel = subline?.let(::StringModel)
+)
+
+internal fun w3UpgradeInstructionLayout() = FormScreenLayoutModel.LargeTitle(
   scrollable = false,
-  mainContentVerticalAlignment = FormDesignSystemV2Model.MainContentVerticalAlignment.BOTTOM
+  mainContentVerticalAlignment = FormMainContentVerticalAlignment.BOTTOM
 )

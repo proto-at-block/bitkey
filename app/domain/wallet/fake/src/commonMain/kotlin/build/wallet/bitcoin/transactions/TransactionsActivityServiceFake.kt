@@ -7,7 +7,7 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.map
 
 class TransactionsActivityServiceFake : TransactionsActivityService {
   override suspend fun sync(): Result<Unit, Error> = Ok(Unit)
@@ -17,19 +17,25 @@ class TransactionsActivityServiceFake : TransactionsActivityService {
   )
   override val transactionsState: MutableStateFlow<TransactionsActivityState> = _transactionsState
 
-  @Suppress("DEPRECATION")
-  override val transactions = MutableStateFlow<List<Transaction>?>(null)
-
   override val activeAndInactiveWalletTransactions = MutableStateFlow<List<Transaction>?>(null)
 
   override fun transactionById(transactionId: String): Flow<Transaction?> {
-    return transactions.mapNotNull { txns ->
-      txns?.find { it.id == transactionId }
+    return transactionsState.map { state ->
+      (state as? TransactionsActivityState.Loaded)
+        ?.transactions
+        ?.find { it.id == transactionId }
     }
   }
 
+  fun setTransactions(transactions: List<Transaction>) {
+    transactionsState.value = when {
+      transactions.isEmpty() -> TransactionsActivityState.Empty
+      else -> TransactionsActivityState.Loaded(transactions)
+    }
+    activeAndInactiveWalletTransactions.value = transactions
+  }
+
   fun reset() {
-    transactions.value = null
     activeAndInactiveWalletTransactions.value = null
     _transactionsState.value = TransactionsActivityState.InitialLoading
   }

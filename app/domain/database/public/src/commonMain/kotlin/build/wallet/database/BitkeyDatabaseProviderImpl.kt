@@ -1,5 +1,6 @@
 package build.wallet.database
 
+import app.cash.sqldelight.ColumnAdapter
 import app.cash.sqldelight.EnumColumnAdapter
 import app.cash.sqldelight.db.SqlDriver
 import build.wallet.analytics.v1.Event
@@ -15,11 +16,17 @@ import build.wallet.partnerships.PartnerId
 import build.wallet.partnerships.PartnershipTransactionId
 import build.wallet.sqldelight.SqlDriverFactory
 import build.wallet.sqldelight.adapter.ByteStringColumnAdapter
-import build.wallet.sqldelight.adapter.InstantAsEpochMillisecondsColumnAdapter
 import build.wallet.sqldelight.adapter.InstantAsIso8601ColumnAdapter
 import build.wallet.sqldelight.adapter.WireColumnAdapter
 import build.wallet.sqldelight.withLogging
 import kotlinx.coroutines.*
+import kotlinx.datetime.Instant
+
+// These legacy columns intentionally persist Instants as epoch-ms Longs.
+// Swapping adapters would change on-disk encoding and requires a migration.
+@Suppress("DEPRECATION")
+private val legacyInstantAsEpochMillisecondsColumnAdapter: ColumnAdapter<Instant, Long> =
+  build.wallet.sqldelight.adapter.InstantAsEpochMillisecondsColumnAdapter
 
 @BitkeyInject(AppScope::class)
 class BitkeyDatabaseProviderImpl(
@@ -132,11 +139,11 @@ class BitkeyDatabaseProviderImpl(
         ExchangeRateEntity.Adapter(
           fromCurrencyAdapter = IsoCurrencyTextCodeColumnAdapter,
           toCurrencyAdapter = IsoCurrencyTextCodeColumnAdapter,
-          timeRetrievedAdapter = InstantAsEpochMillisecondsColumnAdapter
+          timeRetrievedAdapter = legacyInstantAsEpochMillisecondsColumnAdapter
         ),
       historicalExchangeRateEntityAdapter =
         HistoricalExchangeRateEntity.Adapter(
-          timeAdapter = InstantAsEpochMillisecondsColumnAdapter,
+          timeAdapter = legacyInstantAsEpochMillisecondsColumnAdapter,
           fromCurrencyAdapter = IsoCurrencyTextCodeColumnAdapter,
           toCurrencyAdapter = IsoCurrencyTextCodeColumnAdapter
         ),
@@ -176,8 +183,8 @@ class BitkeyDatabaseProviderImpl(
       activeServerRecoveryEntityAdapter =
         ActiveServerRecoveryEntity.Adapter(
           accountAdapter = FullAccountColumnAdapter,
-          startTimeAdapter = InstantAsEpochMillisecondsColumnAdapter,
-          endTimeAdapter = InstantAsEpochMillisecondsColumnAdapter,
+          startTimeAdapter = legacyInstantAsEpochMillisecondsColumnAdapter,
+          endTimeAdapter = legacyInstantAsEpochMillisecondsColumnAdapter,
           lostFactorAdapter = EnumColumnAdapter(),
           destinationAppGlobalAuthKeyAdapter = PublicKeyColumnAdapter(),
           destinationAppRecoveryAuthKeyAdapter = PublicKeyColumnAdapter(),
@@ -191,6 +198,7 @@ class BitkeyDatabaseProviderImpl(
           destinationHardwareAuthKeyAdapter = HwAuthPublicKeyColumnAdapter,
           destinationAppSpendingKeyAdapter = AppSpendingPublicKeyColumnAdapter,
           destinationHardwareSpendingKeyAdapter = HwSpendingPublicKeyColumnAdapter,
+          destinationHardwareSpendingKeyProofAdapter = HwSpendingKeyProofColumnAdapter,
           appGlobalAuthKeyHwSignatureAdapter = AppGlobalAuthKeyHwSignatureColumnAdapter,
           serverSpendingKeyAdapter = F8eSpendingKeysetColumnAdapter,
           lostFactorAdapter = EnumColumnAdapter(),
@@ -257,7 +265,7 @@ class BitkeyDatabaseProviderImpl(
       trustedContactInvitationEntityAdapter =
         TrustedContactInvitationEntity.Adapter(
           trustedContactAliasAdapter = TrustedContactAliasColumnAdapter,
-          expiresAtAdapter = InstantAsEpochMillisecondsColumnAdapter,
+          expiresAtAdapter = legacyInstantAsEpochMillisecondsColumnAdapter,
           rolesAdapter = StringSetAdapter(
             DelegatedColumnAdapter(
               ::TrustedContactRole,
@@ -310,7 +318,7 @@ class BitkeyDatabaseProviderImpl(
         NetworkReachabilityEventEntity.Adapter(
           connectionAdapter = NetworkConnectionColumnAdapter,
           reachabilityAdapter = EnumColumnAdapter(),
-          timestampAdapter = InstantAsEpochMillisecondsColumnAdapter
+          timestampAdapter = legacyInstantAsEpochMillisecondsColumnAdapter
         ),
       onboardingKeyboxHwAuthPublicKeyAdapter =
         OnboardingKeyboxHwAuthPublicKey.Adapter(
@@ -340,7 +348,7 @@ class BitkeyDatabaseProviderImpl(
       ),
       coachmarkEntityAdapter = CoachmarkEntity.Adapter(
         idAdapter = CoachmarkIdentifierColumnAdapter,
-        expirationAdapter = InstantAsEpochMillisecondsColumnAdapter
+        expirationAdapter = legacyInstantAsEpochMillisecondsColumnAdapter
       ),
       softwareKeyboxEntityAdapter = SoftwareKeyboxEntity.Adapter(
         accountIdAdapter = SoftwareAccountIdColumnAdapter,
@@ -350,9 +358,9 @@ class BitkeyDatabaseProviderImpl(
       securityRecommendationInteractionEntityAdapter =
         SecurityRecommendationInteractionEntity.Adapter(
           interactionStatusAdapter = EnumColumnAdapter(),
-          lastInteractedAtAdapter = InstantAsEpochMillisecondsColumnAdapter,
-          lastRecommendationTriggeredAtAdapter = InstantAsEpochMillisecondsColumnAdapter,
-          recordUpdatedAtAdapter = InstantAsEpochMillisecondsColumnAdapter
+          lastInteractedAtAdapter = legacyInstantAsEpochMillisecondsColumnAdapter,
+          lastRecommendationTriggeredAtAdapter = legacyInstantAsEpochMillisecondsColumnAdapter,
+          recordUpdatedAtAdapter = legacyInstantAsEpochMillisecondsColumnAdapter
         ),
       inheritanceDataEntityAdapter = InheritanceDataEntity.Adapter(
         lastSyncHashAdapter = DelegatedColumnAdapter(
@@ -360,19 +368,19 @@ class BitkeyDatabaseProviderImpl(
           InheritanceMaterialHash::value
         )
           .then(DelegatedColumnAdapter(Long::toInt, Int::toLong)),
-        lastSyncTimestampAdapter = InstantAsEpochMillisecondsColumnAdapter
+        lastSyncTimestampAdapter = legacyInstantAsEpochMillisecondsColumnAdapter
       ),
       pendingBenefactorClaimEntityAdapter = PendingBenefactorClaimEntity.Adapter(
         claimIdAdapter = InheritanceClaimIdColumnAdapter,
         relationshipIdAdapter = RelationshipIdColumnAdapter,
-        delayEndTimeAdapter = InstantAsEpochMillisecondsColumnAdapter,
-        delayStartTimeAdapter = InstantAsEpochMillisecondsColumnAdapter
+        delayEndTimeAdapter = legacyInstantAsEpochMillisecondsColumnAdapter,
+        delayStartTimeAdapter = legacyInstantAsEpochMillisecondsColumnAdapter
       ),
       pendingBeneficiaryClaimEntityAdapter = PendingBeneficiaryClaimEntity.Adapter(
         claimIdAdapter = InheritanceClaimIdColumnAdapter,
         relationshipIdAdapter = RelationshipIdColumnAdapter,
-        delayEndTimeAdapter = InstantAsEpochMillisecondsColumnAdapter,
-        delayStartTimeAdapter = InstantAsEpochMillisecondsColumnAdapter
+        delayEndTimeAdapter = legacyInstantAsEpochMillisecondsColumnAdapter,
+        delayStartTimeAdapter = legacyInstantAsEpochMillisecondsColumnAdapter
       ),
       mobileMetricEntityAdapter = MobileMetricEntity.Adapter(
         lastUpdatedAdapter = InstantAsIso8601ColumnAdapter
@@ -408,11 +416,13 @@ class BitkeyDatabaseProviderImpl(
       ),
       privateWalletMigrationEntityAdapter = PrivateWalletMigrationEntity.Adapter(
         newHardwareKeyAdapter = HwSpendingPublicKeyColumnAdapter,
+        newHardwareKeyProofAdapter = HwSpendingKeyProofColumnAdapter,
         newAppKeyAdapter = AppSpendingPublicKeyColumnAdapter,
         newServerKeyAdapter = F8eSpendingKeysetColumnAdapter
       ),
       w3UpgradeMigrationEntityAdapter = W3UpgradeMigrationEntity.Adapter(
         newHardwareKeyAdapter = HwSpendingPublicKeyColumnAdapter,
+        newHardwareKeyProofAdapter = HwSpendingKeyProofColumnAdapter,
         newAppKeyAdapter = AppSpendingPublicKeyColumnAdapter,
         newServerKeyAdapter = F8eSpendingKeysetColumnAdapter,
         sealedSsekForDecryptionAdapter = ByteStringColumnAdapter,

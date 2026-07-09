@@ -172,7 +172,7 @@ class PartnershipsPurchaseAmountUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("dsv2 purchase options show header and keypad style") {
+  test("purchase options show header and keypad style") {
 
     stateMachine.test(props()) {
       awaitLoader()

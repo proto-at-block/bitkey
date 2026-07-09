@@ -31,7 +31,7 @@ class CriticalAlertsSettingsScreenSnapshots : FunSpec({
     onClick = {}
   )
 
-  test("critical alerts settings dsv2") {
+  test("critical alerts settings") {
     paparazzi.snapshot {
       RecoveryChannelsSettingsFormBodyModel(
         source = Source.Settings,
@@ -44,8 +44,7 @@ class CriticalAlertsSettingsScreenSnapshots : FunSpec({
         emailItem = emailItem,
         onBack = {},
         learnOnClick = {},
-        continueOnClick = null,
-        isDesignSystemV2Enabled = true
+        continueOnClick = null
       ).render(modifier = Modifier)
     }
   }

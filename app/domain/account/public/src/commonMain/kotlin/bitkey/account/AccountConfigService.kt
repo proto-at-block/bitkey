@@ -40,6 +40,8 @@ interface AccountConfigService {
 
   suspend fun setIsHardwareFake(value: Boolean): Result<Unit, Error>
 
+  suspend fun setIsCloudStoreFake(value: Boolean): Result<Unit, Error>
+
   suspend fun setHardwareType(value: HardwareType?): Result<Unit, Error>
 
   suspend fun setF8eEnvironment(value: F8eEnvironment): Result<Unit, Error>
@@ -62,3 +64,20 @@ interface AccountConfigService {
    */
   suspend fun disableDemoMode(): Result<Unit, Error>
 }
+
+/**
+ * Fake cloud storage is a debug-only option and is only effective for test-account configs.
+ *
+ * The persisted default flag controls whether the user requested fake cloud storage, while the
+ * active/default account config gates whether it is safe to apply that request.
+ */
+val AccountConfigService.isFakeCloudStoreActive: Boolean
+  get() = isFakeCloudStoreActive(
+    defaultConfig = defaultConfig().value,
+    activeOrDefaultConfig = activeOrDefaultConfig().value
+  )
+
+fun isFakeCloudStoreActive(
+  defaultConfig: DefaultAccountConfig,
+  activeOrDefaultConfig: AccountConfig,
+): Boolean = defaultConfig.isCloudStoreFake && activeOrDefaultConfig.isTestAccount

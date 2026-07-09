@@ -8,10 +8,14 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.statemachine.cloud.RectifiableErrorHandlingProps
 import build.wallet.statemachine.cloud.RectifiableErrorHandlingUiStateMachineImpl
 import build.wallet.statemachine.cloud.RectifiableErrorMessages
+import build.wallet.statemachine.cloud.RectifiableErrorMessages.Companion.RectifiableErrorAccessMessages
+import build.wallet.statemachine.cloud.RectifiableErrorMessages.Companion.RectifiableErrorCreateFullMessages
+import build.wallet.statemachine.cloud.RectifiableErrorMessages.Companion.RectifiableErrorCreateLiteMessages
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import io.kotest.core.spec.style.FunSpec
@@ -77,6 +81,39 @@ class RectifiableErrorHandlingUiStateMachineImplTests : FunSpec({
           head.headline.shouldNotBeNull().shouldBeEqual(props.messages.title)
           head.sublineModel.shouldNotBeNull().string.shouldBeEqual(props.messages.subline)
         }
+      }
+    }
+  }
+
+  test("Uses restoration error segment for access failures") {
+    stateMachine.test(
+      props = props.copy(messages = RectifiableErrorAccessMessages)
+    ) {
+      awaitBody<FormBodyModel>(props.screenId) {
+        errorData.shouldNotBeNull().segment
+          .shouldBe(RecoverySegment.CloudBackup.FullAccount.Restoration)
+      }
+    }
+  }
+
+  test("Uses full account upload error segment for full account create failures") {
+    stateMachine.test(
+      props = props.copy(messages = RectifiableErrorCreateFullMessages)
+    ) {
+      awaitBody<FormBodyModel>(props.screenId) {
+        errorData.shouldNotBeNull().segment
+          .shouldBe(RecoverySegment.CloudBackup.FullAccount.Upload)
+      }
+    }
+  }
+
+  test("Uses lite account upload error segment for lite account create failures") {
+    stateMachine.test(
+      props = props.copy(messages = RectifiableErrorCreateLiteMessages)
+    ) {
+      awaitBody<FormBodyModel>(props.screenId) {
+        errorData.shouldNotBeNull().segment
+          .shouldBe(RecoverySegment.CloudBackup.LiteAccount.Upload)
       }
     }
   }

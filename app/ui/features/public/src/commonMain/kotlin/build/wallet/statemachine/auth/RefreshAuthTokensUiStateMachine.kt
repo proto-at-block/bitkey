@@ -33,6 +33,7 @@ data class RefreshAuthTokensProps(
   val onTokenRefreshError: (
     (
       isConnectivityError: Boolean,
+      error: Error,
       onRetry: () -> Unit,
     ) -> ScreenModel
   )? = null,
@@ -87,13 +88,18 @@ class RefreshAuthTokensUiStateMachineImpl(
                     IconAccessory.BackAccessory(
                       onClick = props.onBack
                     )
-                ),
+              ),
               onBack = props.onBack,
-              eventTrackerScreenId = AUTH_TOKENS_REFRESH_FOR_HW_POP_ERROR
+              eventTrackerScreenId = AUTH_TOKENS_REFRESH_FOR_HW_POP_ERROR,
+              errorData = ErrorData(
+                segment = AuthAppSegment,
+                actionDescription = "Refreshing auth tokens for hardware proof of possession",
+                cause = state.error
+              )
             ).asScreen(props.screenPresentationStyle)
 
           else ->
-            onTokenRefreshError(state.error is HttpError.NetworkError) {
+            onTokenRefreshError(state.error is HttpError.NetworkError, state.error) {
               uiState = RefreshingAuthTokensState
             }
         }
@@ -106,4 +112,8 @@ class RefreshAuthTokensUiStateMachineImpl(
 
     data class AuthTokensRefreshError(val error: Error) : State
   }
+}
+
+private object AuthAppSegment : AppSegment {
+  override val id: String = "Auth"
 }

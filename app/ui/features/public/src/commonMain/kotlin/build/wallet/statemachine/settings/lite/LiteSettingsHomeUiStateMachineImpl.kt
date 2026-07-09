@@ -115,7 +115,6 @@ class LiteSettingsHomeUiStateMachineImpl(
               ),
               onShowAlert = { alertModel = it },
               onDismissAlert = { alertModel = null },
-              goToSecurityHub = {},
               isLiteAccount = true
             )
         ),

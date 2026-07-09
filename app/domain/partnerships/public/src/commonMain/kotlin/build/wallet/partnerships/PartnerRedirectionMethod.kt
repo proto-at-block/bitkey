@@ -7,7 +7,7 @@ import build.wallet.platform.links.AppRestrictions
  * Upon going into a Partner's transfer flow
  * we will be redirected to their platform.
  */
-sealed class PartnerRedirectionMethod {
+sealed interface PartnerRedirectionMethod {
   /**
    * Partner is redirected via deeplink
    * @param urlString - the url needed to open the deeplink
@@ -18,7 +18,7 @@ sealed class PartnerRedirectionMethod {
     val urlString: String,
     val appRestrictions: AppRestrictions?,
     val partnerName: String,
-  ) : PartnerRedirectionMethod()
+  ) : PartnerRedirectionMethod
 
   /**
    * Partner is redirected via a web url
@@ -26,5 +26,5 @@ sealed class PartnerRedirectionMethod {
   data class Web(
     val urlString: String,
     val partnerInfo: PartnerInfo,
-  ) : PartnerRedirectionMethod()
+  ) : PartnerRedirectionMethod
 }

@@ -27,4 +27,7 @@ enum class InactiveWalletSweepEventTrackerScreenId : EventTrackerScreenId {
 
   /** Warning screen shown on W3 when there are multiple transactions to sign */
   INACTIVE_WALLET_SWEEP_MULTIPLE_TRANSACTIONS_WARNING,
+
+  /** Screen shown while awaiting hardware verification before sweep */
+  INACTIVE_WALLET_SWEEP_HARDWARE_VERIFICATION_REQUIRED,
 }

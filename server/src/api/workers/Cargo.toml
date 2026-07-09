@@ -6,7 +6,6 @@ version = "0.1.0"
 
 [dependencies]
 aes-gcm = "0.10.3"
-aws-config = { workspace = true }
 aws-sdk-sesv2 = "1.16.0"
 aws-sdk-sns = { workspace = true }
 base64 = { workspace = true }
@@ -31,6 +30,7 @@ trait-variant = { workspace = true }
 account = { workspace = true }
 bdk_utils = { workspace = true }
 chain_indexer = { workspace = true }
+clients_common = { workspace = true }
 database = { workspace = true }
 errors = { workspace = true }
 feature_flags = { workspace = true }

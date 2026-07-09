@@ -8,6 +8,8 @@
 #include "memfault/core/log.h"
 #include "memfault/core/math.h"
 #include "memfault/core/platform/debug_log.h"
+#include "memfault/panics/arch/arm/cortex_m.h"
+#include "memfault/panics/fault_handling.h"
 #include "memfault/ports/freertos.h"
 #include "memfault/ports/freertos_coredump.h"
 #include "memfault/ports/reboot_reason.h"
@@ -31,6 +33,17 @@ static void platform_coredump_init(void);
 
 MEMFAULT_PUT_IN_SECTION(".noinit.mflt_reboot_tracking")
 static uint8_t s_reboot_tracking[MEMFAULT_REBOOT_TRACKING_REGION_SIZE];
+
+// NOTE: We deliberately do not provide a `memfault_platform_fault_handler`
+// override here. The hook runs in fault/handler mode where the FreeRTOS
+// scheduler is stopped. Any call into the Memfault logging APIs takes
+// `memfault_lock()` via `xSemaphoreTakeRecursive(..., portMAX_DELAY)` — if
+// the mutex was held by a task at fault time, the wait can never resolve
+// and the watchdog times the device out (~3s) instead of letting the
+// coredump path reboot cleanly. The reboot reason, faulting PC/LR, and SCB
+// fault registers (CFSR/MMFAR/BFAR/HFSR/SHCSR) are already captured in the
+// coredump itself via memfault_reboot_tracking_mark_reset_imminent and
+// memfault_coredump_get_arch_regions, so no platform-side log is needed.
 
 void memfault_platform_get_device_info(sMemfaultDeviceInfo* info) {
   // IMPORTANT: All strings returned in info must be constant

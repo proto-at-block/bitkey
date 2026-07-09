@@ -72,6 +72,7 @@ sysinfo_platform_configs = {
       metadata_dep,
       rtos_dep,
       secure_channel_deps['w3-uxc'],
+      sysinfo_dep,
       telemetry_storage_dep,
       uc_dep,
     ],

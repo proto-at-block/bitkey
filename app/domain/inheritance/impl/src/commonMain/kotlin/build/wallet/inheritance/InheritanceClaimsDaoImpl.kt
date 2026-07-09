@@ -29,15 +29,15 @@ class InheritanceClaimsDaoImpl(
         .asFlow()
         .map { query ->
           database.awaitTransactionWithResult {
-            query.executeAsList().map {
+            query.executeAsList().map { row ->
               BeneficiaryClaim.PendingClaim(
-                claimId = it.claimId,
-                relationshipId = it.relationshipId,
-                delayEndTime = it.delayEndTime,
-                delayStartTime = it.delayStartTime,
+                claimId = row.claimId,
+                relationshipId = row.relationshipId,
+                delayEndTime = row.delayEndTime,
+                delayStartTime = row.delayStartTime,
                 authKeys = InheritanceClaimKeyset(
-                  appPubkey = it.appPubkey,
-                  hardwarePubkey = it.hardwarePubkey
+                  appPubkey = row.appPubkey,
+                  hardwarePubkey = row.hardwarePubkey
                 )
               )
             }
@@ -55,12 +55,12 @@ class InheritanceClaimsDaoImpl(
         .asFlow()
         .map { query ->
           database.awaitTransactionWithResult {
-            query.executeAsList().map {
+            query.executeAsList().map { row ->
               BenefactorClaim.PendingClaim(
-                claimId = it.claimId,
-                relationshipId = it.relationshipId,
-                delayEndTime = it.delayEndTime,
-                delayStartTime = it.delayStartTime
+                claimId = row.claimId,
+                relationshipId = row.relationshipId,
+                delayEndTime = row.delayEndTime,
+                delayStartTime = row.delayStartTime
               )
             }
           }
@@ -76,8 +76,9 @@ class InheritanceClaimsDaoImpl(
       // Delete any existing claims
       inheritanceClaimsQueries.clearInheritanceClaims()
 
-      inheritanceClaims.let { it.beneficiaryClaims + it.benefactorClaims }.forEach {
-        insertClaim(it)
+      val allClaims = inheritanceClaims.beneficiaryClaims + inheritanceClaims.benefactorClaims
+      allClaims.forEach { claim ->
+        insertClaim(claim)
       }
     }
   }

@@ -55,7 +55,6 @@ import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.system.BackHandler
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tokens.market.MarketIcons
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.delay
 
@@ -94,7 +93,6 @@ fun AddressQrCodeScreen(
           ) {
             when (val content = model.content) {
               is QrCode -> {
-                val isDesignSystemV2Enabled = true
                 var isAddressExpanded by remember(content.addressDisplayString) {
                   mutableStateOf(false)
                 }
@@ -137,16 +135,15 @@ fun AddressQrCodeScreen(
                     .padding(horizontal = 32.dp)
                     .padding(top = 8.dp)
                 ) {
-                  val disclaimerType = if (isDesignSystemV2Enabled) LabelType.Body4Mono else LabelType.Body4Regular
                   Label(
                     model = LabelModel.StringModel(
                       "This address only accepts Bitcoin (BTC). " +
                         "Sending other assets will result in permanent loss of funds."
                     ),
-                    type = disclaimerType,
+                    type = LabelType.Body4Mono,
                     alignment = TextAlign.Start,
                     treatment = LabelTreatment.Secondary,
-                    style = WalletTheme.labelStyle(disclaimerType, LabelTreatment.Secondary, TextAlign.Start)
+                    style = WalletTheme.labelStyle(LabelType.Body4Mono, LabelTreatment.Secondary, TextAlign.Start)
                       .copy(fontSize = 10.sp)
                   )
                 }
@@ -214,14 +211,7 @@ private fun QrCodeWithAddressCard(
   onCopyClick: () -> Unit = {},
   qrCodeState: QrCodeState,
 ) {
-  val isDesignSystemV2Enabled = true
-  val cardBackgroundColor = if (isDesignSystemV2Enabled) {
-    WalletTheme.colors.subtleBackground
-  } else {
-    WalletTheme.colors.containerBackground
-  }
-  val cardCornerRadius = if (isDesignSystemV2Enabled) 12.dp else 24.dp
-  val cardBorderWidth = if (isDesignSystemV2Enabled) 0.dp else 2.dp
+  val cardBackgroundColor = WalletTheme.colors.subtleBackground
   val interactionSource = remember { MutableInteractionSource() }
 
   Card(
@@ -231,10 +221,10 @@ private fun QrCodeWithAddressCard(
         interactionSource = interactionSource,
         indication = null,
         onClick = { onCopyClick() }
-      ),
+    ),
     backgroundColor = cardBackgroundColor,
-    cornerRadius = cardCornerRadius,
-    borderWidth = cardBorderWidth,
+    cornerRadius = 12.dp,
+    borderWidth = 0.dp,
     paddingValues = PaddingValues(horizontal = 24.dp, vertical = 24.dp)
   ) {
     Box(
@@ -250,7 +240,7 @@ private fun QrCodeWithAddressCard(
         is QrCodeState.Success -> {
           QrCode(
             matrix = qrCodeState.matrix,
-            centerIcon = Icon.SmallIconBitcoinStroked,
+            centerIcon = Icon.BitcoinStroked,
             backgroundColor = cardBackgroundColor
           )
         }
@@ -384,7 +374,7 @@ private fun AnimatedCopyIcon(
   copied: Boolean,
   onClick: () -> Unit,
 ) {
-  val copyIcon = if (copied) MarketIcons.CheckmarkCircleFill else MarketIcons.Copy
+  val copyIcon = if (copied) Icon.CheckmarkCircleFill else Icon.Copy
 
   Box(
     modifier = Modifier.clickable(onClick = onClick),
@@ -440,7 +430,7 @@ private fun AnimatedVerifyButton(onVerifyClick: (() -> Unit)?) {
   ) {
     Button(
       text = "Verify",
-      leadingIcon = Icon.SmallIconBitkey,
+      leadingIcon = Icon.Bitkey,
       style = WalletTheme.buttonStyle(
         treatment = ButtonModel.Treatment.Secondary,
         size = ButtonModel.Size.Compact
@@ -485,7 +475,7 @@ private fun ExpandableAddressSection(
         )
         IconImage(
           model = IconModel(
-            icon = MarketIcons.ChevronRight,
+            icon = Icon.CaretRight,
             iconSize = IconSize.Custom(14)
           ),
           modifier = Modifier.rotate(chevronRotation),
@@ -589,7 +579,7 @@ private fun CircularActionButtons(
     verticalAlignment = Alignment.CenterVertically
   ) {
     ActionButton(
-      icon = Icon.SmallIconShare,
+      icon = Icon.Share,
       text = "Share",
       onClick = onShareClick
     )

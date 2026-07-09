@@ -39,7 +39,7 @@ data class EmergencyAccountAccessMoreOptionsFormBodyModel(
               leadingAccessory = IconAccessory(
                 iconPadding = 12,
                 model = IconModel(
-                  icon = Icon.SmallIconRecovery,
+                  icon = Icon.Recovery,
                   iconSize = IconSize.Small
                 )
               ),

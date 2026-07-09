@@ -30,22 +30,16 @@ data class FwupNfcBodyModel(
     )
 
   fun asPlatformNfcScreen(
-    designSystemV2Enabled: Boolean,
     devicePlatform: DevicePlatform,
   ) =
     ScreenModel(
       body = this,
-      presentationStyle = if (designSystemV2Enabled) ModalFullScreen else FullScreen,
-      themePreference =
-        if (designSystemV2Enabled) {
-          fwupThemePreference(
-            devicePlatform = devicePlatform,
-            followSystemOnIos = showNativeSheetOnIos
-          )
-        } else {
-          ThemePreference.Manual(Theme.DARK)
-        },
-      platformNfcScreen = designSystemV2Enabled || showNativeSheetOnIos
+      presentationStyle = ModalFullScreen,
+      themePreference = fwupThemePreference(
+        devicePlatform = devicePlatform,
+        followSystemOnIos = showNativeSheetOnIos
+      ),
+      platformNfcScreen = true
     )
 
   @Composable

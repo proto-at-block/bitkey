@@ -153,7 +153,7 @@ private fun CardImage(model: CardModel.CardImage) {
           indicatorColor = WalletTheme.colors.containerHighlightForeground,
           strokeWidth = 3.dp
         )
-        Icon(icon = Icon.SmallIconBitkey, size = Small)
+        Icon(icon = Icon.Bitkey, size = Small)
       }
   }
 }

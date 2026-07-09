@@ -87,9 +87,15 @@ object BeneficiaryClaimSerializer : KSerializer<BeneficiaryClaim> {
       BeneficiaryClaim.PendingClaim(
         claimId = claimId,
         relationshipId = relationshipId,
-        delayEndTime = delayEndTime!!,
-        delayStartTime = delayStartTime!!,
-        authKeys = authKeys!!
+        delayEndTime = checkNotNull(delayEndTime) {
+          "delay_end_time is required for a pending beneficiary claim"
+        },
+        delayStartTime = checkNotNull(delayStartTime) {
+          "delay_start_time is required for a pending beneficiary claim"
+        },
+        authKeys = checkNotNull(authKeys) {
+          "auth_keys is required for a pending beneficiary claim"
+        }
       )
 
     fun asCancelledClaim() =
@@ -102,8 +108,12 @@ object BeneficiaryClaimSerializer : KSerializer<BeneficiaryClaim> {
       BeneficiaryClaim.LockedClaim(
         claimId = claimId,
         relationshipId = relationshipId,
-        sealedDek = sealedDek!!,
-        sealedMobileKey = sealedMobileKey!!,
+        sealedDek = checkNotNull(sealedDek) {
+          "sealed_dek is required for a locked beneficiary claim"
+        },
+        sealedMobileKey = checkNotNull(sealedMobileKey) {
+          "sealed_mobile_key is required for a locked beneficiary claim"
+        },
         sealedDescriptor = sealedDescriptor,
         benefactorKeyset = benefactorKeyset,
         sealedServerRootXpub = sealedServerRootXpub

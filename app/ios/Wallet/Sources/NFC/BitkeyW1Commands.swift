@@ -2,8 +2,40 @@ import CoreNFC
 import firmware
 import Shared
 
-public final class BitkeyW1Commands: NfcCommands {
+private extension firmware.SpendingKeyResult {
+    func toSharedHwSpendingPublicKey() -> Shared.HwSpendingPublicKey {
+        return Shared.HwSpendingPublicKey(dpub: dpub)
+    }
 
+    func toSharedHwSpendingKeyResult(
+        certChain: [String] = []
+    ) -> Shared.HwSpendingKeyResult {
+        return Shared.HwSpendingKeyResult(
+            publicKey: Shared.HwSpendingPublicKey(dpub: dpub),
+            attestationSignature: attestationSignature.map { Data($0).base64EncodedString() },
+            certChain: certChain
+        )
+    }
+}
+
+private extension Shared.HwSpendingKeyResult {
+    func toHwSpendingKeyProof() -> Shared.HwSpendingKeyProof? {
+        guard
+            let attestationSignature,
+            !attestationSignature.isEmpty,
+            !certChain.isEmpty
+        else {
+            return nil
+        }
+
+        return Shared.HwSpendingKeyProof(
+            signature: attestationSignature as NSString,
+            certChain: certChain.map { $0 as NSString }
+        )
+    }
+}
+
+public final class BitkeyW1Commands: NfcCommands {
     public func fwupStart(
         session: NfcSession,
         patchSize: KotlinUInt?,
@@ -250,22 +282,70 @@ public final class BitkeyW1Commands: NfcCommands {
     public func getInitialSpendingKey(
         session: NfcSession,
         network: BitcoinNetworkType
+    ) async throws -> HwSpendingKeyResult {
+        let result = try await getInitialSpendingKeyResult(session: session, network: network)
+        let certChain = try await fetchAttestationCertChain(session: session, result: result)
+        return result.toSharedHwSpendingKeyResult(certChain: certChain)
+    }
+
+    public func getInitialSpendingPublicKey(
+        session: NfcSession,
+        network: BitcoinNetworkType
     ) async throws -> HwSpendingPublicKey {
-        return try await .init(
-            dpub: GetInitialSpendingKey(network: network.btcNetwork)
-                .transceive(session: session)
-        )
+        return try await getInitialSpendingKeyResult(session: session, network: network)
+            .toSharedHwSpendingPublicKey()
     }
 
     public func getNextSpendingKey(
         session: NfcSession,
         existingDescriptorPublicKeys: [HwSpendingPublicKey],
         network: BitcoinNetworkType
-    ) async throws -> HwSpendingPublicKey {
-        return try await .init(dpub: GetNextSpendingKey(
+    ) async throws -> HwSpendingKeyResult {
+        let result = try await GetNextSpendingKey(
             existing: existingDescriptorPublicKeys.map(\.key.dpub),
             network: network.btcNetwork
-        ).transceive(session: session))
+        )
+        .transceive(session: session)
+        let certChain = try await fetchAttestationCertChain(session: session, result: result)
+        return result.toSharedHwSpendingKeyResult(certChain: certChain)
+    }
+
+    private func getInitialSpendingKeyResult(
+        session: NfcSession,
+        network: BitcoinNetworkType
+    ) async throws -> firmware.SpendingKeyResult {
+        return try await GetInitialSpendingKey(network: network.btcNetwork)
+            .transceive(session: session)
+    }
+
+    /// Fetch the device identity + batch certs so the server can validate the
+    /// attestation signature returned alongside the spending key. Returns an
+    /// empty chain only when firmware didn't attest the key (no signature).
+    /// If firmware did attest the key, failures fetching the cert chain are
+    /// surfaced so the caller can retry the NFC flow instead of silently
+    /// dropping proof.
+    private func fetchAttestationCertChain(
+        session: NfcSession,
+        result: firmware.SpendingKeyResult
+    ) async throws -> [String] {
+        guard let signature = result.attestationSignature, !signature.isEmpty else {
+            return []
+        }
+        let identityBytes = try await GetCert(kind: FirmwareCertType.identity.toCoreCertType())
+            .transceive(session: session)
+        let batchBytes = try await GetCert(kind: FirmwareCertType.batch.toCoreCertType())
+            .transceive(session: session)
+        guard !identityBytes.isEmpty, !batchBytes.isEmpty else {
+            throw NSError(
+                domain: "BitkeyW1Commands",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Spending key attestation present but identity/batch cert was empty."]
+            )
+        }
+        return [
+            Data(identityBytes).base64EncodedString(),
+            Data(batchBytes).base64EncodedString(),
+        ]
     }
 
     public func lockDevice(session: NfcSession) async throws -> KotlinBoolean {
@@ -327,7 +407,8 @@ public final class BitkeyW1Commands: NfcCommands {
         session: NfcSession,
         psbt: Psbt,
         spendingKeyset: SpendingKeyset,
-        displayPreference _: Shared.HwDisplayPreference?
+        displayPreference _: Shared.HwDisplayPreference?,
+        allowUnfinalized _: Bool
     ) async throws -> Shared.HardwareInteraction {
         let signedPsbt = try await Psbt(
             id: psbt.id,
@@ -585,6 +666,15 @@ public final class BitkeyW1Commands: NfcCommands {
             )
         case .fullAccountCloudBackupRestoration:
             return Shared.ConfirmationResultFullAccountCloudBackupRestoration()
+        case let .keysetRepairUnsealSymmetricKey(unsealedKey):
+            return Shared.ConfirmationResultKeysetRepairUnsealSymmetricKey(
+                unsealedKey: unsealedKey.map { KotlinUByte(value: $0) }
+            )
+        case let .keysetRepairRotateHwKey(spendingKeyDpub, accessTokenSignature):
+            return Shared.ConfirmationResultKeysetRepairRotateHwKey(
+                spendingKeyDpub: spendingKeyDpub,
+                accessTokenSignature: accessTokenSignature.map { KotlinUByte(value: $0) }
+            )
         }
     }
 
@@ -599,6 +689,39 @@ public final class BitkeyW1Commands: NfcCommands {
         ) as Shared.HardwareInteraction
     }
 
+    public func keysetRepairUnsealSymmetricKey(
+        session: NfcSession,
+        sealedKey: OkioByteString
+    ) async throws -> Shared.HardwareInteraction {
+        let unsealedData = try await unsealData(session: session, sealedData: sealedKey)
+        let symmetricKey = Shared.SymmetricKeyImpl(raw: unsealedData)
+        return Shared.HardwareInteractionCompleted<Shared.SymmetricKeyImpl>(
+            result: symmetricKey
+        ) as Shared.HardwareInteraction
+    }
+
+    public func keysetRepairRotateHwKey(
+        session: NfcSession,
+        params: Shared.KeysetRepairRotateHwKeyParams
+    ) async throws -> Shared.HardwareInteraction {
+        let hwSpendingKey = try await getNextSpendingKey(
+            session: session,
+            existingDescriptorPublicKeys: params.existingHwSpendingKeys,
+            network: params.network
+        )
+        let signedAccessToken = try await signChallenge(
+            session: session,
+            challenge: OkioKt.ByteString(data: Data(params.accessToken.raw.utf8))
+        )
+        let result = Shared.KeysetRepairRotateHwKeyResult(
+            hwSpendingKey: hwSpendingKey.publicKey,
+            signedAccessToken: signedAccessToken,
+            hwSpendingKeyProof: hwSpendingKey.toHwSpendingKeyProof()
+        )
+        return Shared.HardwareInteractionCompleted<Shared.KeysetRepairRotateHwKeyResult>(
+            result: result
+        ) as Shared.HardwareInteraction
+    }
 }
 
 // MARK: -

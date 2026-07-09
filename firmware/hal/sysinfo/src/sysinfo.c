@@ -6,6 +6,8 @@
 #include "log.h"
 #include "mcu_devinfo.h"
 
+#include <string.h>
+
 #define MLB_SERIAL_FILE_NAME  ("mlb-serial.txt")
 #define ASSY_SERIAL_FILE_NAME ("assy-serial.txt")
 
@@ -108,4 +110,12 @@ bool sysinfo_load(void) {
 
 sysinfo_t* sysinfo_get(void) {
   return &sysinfo_priv;
+}
+
+void sysinfo_set_serial(const char* serial, uint32_t length) {
+  if (serial == NULL || length != SYSINFO_SERIAL_NUMBER_LENGTH) {
+    return;
+  }
+  memcpy(sysinfo_priv.serial, serial, SYSINFO_SERIAL_NUMBER_LENGTH);
+  sysinfo_priv.serial[SYSINFO_SERIAL_NUMBER_LENGTH] = '\0';
 }

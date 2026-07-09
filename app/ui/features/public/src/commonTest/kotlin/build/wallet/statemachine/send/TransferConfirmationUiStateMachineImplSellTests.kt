@@ -213,7 +213,7 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
               onTitle.shouldNotBeNull()
               titleIcon.shouldNotBeNull()
                 .iconImage
-                .shouldBe(IconImage.LocalImage(Icon.SmallIconInformation))
+                .shouldBe(IconImage.LocalImage(Icon.Information))
               sideText.shouldBe("$2.00")
               secondarySideText.shouldBe("4,791 sats")
             }

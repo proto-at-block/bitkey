@@ -10,6 +10,7 @@ import bitkey.privilegedactions.PrivilegedActionError
 import build.wallet.Progress
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.firmware.EnrolledFingerprints
@@ -372,7 +373,7 @@ class FingerprintResetUiStateMachineImpl(
     props: FingerprintResetProps,
     updateState: (FingerprintResetUiState) -> Unit,
   ): ScreenModel {
-    val coroutineScope = rememberCoroutineScope()
+    val coroutineScope = rememberStableCoroutineScope()
     return ScreenModel(
       body = FinishFingerprintResetBodyModel(
         onClose = {

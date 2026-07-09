@@ -27,8 +27,8 @@ data class Retreat(
           iconModel =
             IconModel(
               when (style) {
-                RetreatStyle.Back -> Icon.SmallIconArrowLeft
-                RetreatStyle.Close -> Icon.SmallIconX
+                RetreatStyle.Back -> Icon.ArrowLeft
+                RetreatStyle.Close -> Icon.X
               },
               iconSize = IconSize.Accessory,
               iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Regular)

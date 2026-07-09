@@ -9,7 +9,6 @@ import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.ScreenPresentationStyle.*
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.fwup.FwupNfcBodyModel
 import build.wallet.statemachine.limit.picker.SpendingLimitPickerModel
 import build.wallet.statemachine.nfc.NfcBodyModel
 import build.wallet.statemachine.partnerships.purchase.CustomAmountBodyModel
@@ -37,7 +36,8 @@ private fun doesScreenRequirePadding(
   bodyModel: BodyModel,
   presentationStyle: ScreenPresentationStyle,
 ): Boolean {
-  return bodyModel::class in bodyModelsRequiringPadding ||
+  return bodyModel.screenStyle.requiresSystemBarsPadding ||
+    bodyModel::class in bodyModelsRequiringPadding ||
     presentationStyle !in presentationStylesWithoutPadding ||
     FormBodyModel::class.isInstance(bodyModel)
 }
@@ -50,12 +50,11 @@ private fun isAmountEntryBodyModel(bodyModel: BodyModel): Boolean {
 
 internal fun usesBlackFullscreenBackground(
   bodyModel: BodyModel,
-  isDesignSystemV2Enabled: Boolean,
 ): Boolean {
-  return (bodyModel is ChooseAccountAccessModel) ||
+  return bodyModel.screenStyle.usesBlackFullscreenBackground ||
+    (bodyModel is ChooseAccountAccessModel) ||
     bodyModel is PairNewHardwareBodyModel ||
-    bodyModel is NfcBodyModel ||
-    (bodyModel is FwupNfcBodyModel && !isDesignSystemV2Enabled)
+    bodyModel is NfcBodyModel
 }
 
 /**
@@ -81,42 +80,38 @@ internal fun screenStyle(
   hasStatusBanner: Boolean = false,
 ): ScreenStyle {
   val theme = LocalTheme.current
-  val isDesignSystemV2Enabled = true
-  val usesDesignSystemV2AmountEntryBackground =
-    isDesignSystemV2Enabled && isAmountEntryBodyModel(bodyModel)
   val amountEntryBackgroundColor =
-    if (usesDesignSystemV2AmountEntryBackground) {
+    if (isAmountEntryBodyModel(bodyModel)) {
       WalletTheme.colors.subtleBackground
     } else {
       WalletTheme.colors.background
     }
   val statusBarColor = when {
     usesBlackFullscreenBackground(
-      bodyModel = bodyModel,
-      isDesignSystemV2Enabled = isDesignSystemV2Enabled
+      bodyModel = bodyModel
     ) -> Color.Black
     bodyModel is SecurityHubBodyModel && bodyModel.isOffline -> WalletTheme.colors.background
-    bodyModel is SecurityHubBodyModel && isDesignSystemV2Enabled -> WalletTheme.colors.background
-    bodyModel is SecurityHubBodyModel -> WalletTheme.colors.secondary
+    bodyModel is SecurityHubBodyModel -> WalletTheme.colors.background
     isAmountEntryBodyModel(bodyModel) -> amountEntryBackgroundColor
     else -> WalletTheme.colors.background
   }
 
   val screenBackgroundColor = when {
+    bodyModel.screenStyle.usesThemeBackgroundForScreenContainer -> WalletTheme.colors.background
     usesBlackFullscreenBackground(
-      bodyModel = bodyModel,
-      isDesignSystemV2Enabled = isDesignSystemV2Enabled
+      bodyModel = bodyModel
     ) -> Color.Black
     isAmountEntryBodyModel(bodyModel) -> amountEntryBackgroundColor
     else -> WalletTheme.colors.background
   }
 
-  // When there's a status banner in design system v2 light mode, the banner has a dark
+  // When there's a status banner in light mode, the banner has a dark
   // (inverse) background, so the status bar icons should be light to contrast it.
-  val hasDarkBanner = hasStatusBanner && isDesignSystemV2Enabled && theme == LIGHT
+  val hasDarkBanner = hasStatusBanner && theme == LIGHT
 
   return ScreenStyle(
-    useDarkSystemBarIcons = theme == LIGHT && !hasDarkBanner,
+    useDarkSystemBarIcons =
+      theme == LIGHT && !hasDarkBanner && !usesBlackFullscreenBackground(bodyModel),
     addSystemBarsPadding = doesScreenRequirePadding(bodyModel, presentationStyle),
     statusBarColor = statusBarColor,
     screenBackgroundColor = screenBackgroundColor

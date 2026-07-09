@@ -14,6 +14,7 @@ impl Service {
     ) -> Result<FullAccount, AccountError> {
         let account_id = input.clone().account_id;
         let is_test_account = input.is_test_account;
+        let hardware_verification_required = input.hardware_verification_required;
         let full_account = FullAccount::new(
             account_id,
             input.clone().keyset_id,
@@ -21,6 +22,7 @@ impl Service {
             input.clone().into(),
             input.into(),
             AccountProperties { is_test_account },
+            hardware_verification_required,
         );
         self.account_repo
             .persist(&full_account.clone().into())

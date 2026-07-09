@@ -56,13 +56,13 @@
 /* #undef NO_MINUS_C_MINUS_O */
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "0.8.8"
+#define PACKAGE_VERSION "1.5.1"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
 
 /* Version number of package */
-#define VERSION "0.8.8"
+#define VERSION "1.5.1"
 
 /* Disable Elements support for non-Elements builds */
 /* #define BUILD_ELEMENTS 1 */

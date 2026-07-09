@@ -96,7 +96,7 @@ class MetricTrackerServiceImpl(
       .addUserAction(
         type = ActionType.Custom,
         name = trackedMetric.name.name,
-        attributes = listOfNotNull(
+        attributes = listOf(
           "outcome" to outcome.toString().lowercase(),
           // Always emit a variant attribute even if there is none, otherwise datadog will not allow
           // us to group by variant for flows where a variant is only sometimes available.

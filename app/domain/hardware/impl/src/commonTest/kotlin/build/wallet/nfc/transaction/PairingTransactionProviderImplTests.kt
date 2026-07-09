@@ -1,16 +1,21 @@
 package build.wallet.nfc.transaction
 
+import app.cash.turbine.Turbine
 import bitkey.account.AccountConfigServiceFake
 import bitkey.account.HardwareType
 import build.wallet.account.analytics.AppInstallation
 import build.wallet.account.analytics.AppInstallationDaoMock
+import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
 import build.wallet.bitcoin.keys.DescriptorPublicKeyMock
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.auth.HwAuthSecp256k1PublicKeyMock
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
+import build.wallet.bitkey.hardware.HwAttestationCertificate
 import build.wallet.bitkey.hardware.HwKeyBundle
+import build.wallet.bitkey.hardware.HwSpendingKeyAttestationSignature
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.cloud.backup.csek.CsekDaoFake
 import build.wallet.cloud.backup.csek.SekGeneratorMock
@@ -29,8 +34,10 @@ import build.wallet.firmware.FirmwareDeviceInfoDaoFake
 import build.wallet.firmware.FirmwareDeviceInfoMock
 import build.wallet.firmware.HardwareAttestationFake
 import build.wallet.nfc.HardwareProvisionedAppKeyStatusDaoFake
+import build.wallet.nfc.HwSpendingKeyResult
 import build.wallet.nfc.NfcCommandsMock
 import build.wallet.nfc.NfcException
+import build.wallet.nfc.NfcSession
 import build.wallet.nfc.NfcSessionFake
 import build.wallet.platform.random.UuidGeneratorFake
 import com.github.michaelbull.result.Ok
@@ -370,6 +377,61 @@ class PairingTransactionProviderImplTests : FunSpec({
     result.hardwareType.shouldBe(HardwareType.W3)
 
     nfcCommands.deviceInfoResult = FirmwareDeviceInfoMock
+  }
+
+  test("spendingKeyProof is plumbed onto FingerprintEnrolled when firmware attests the key") {
+    val attestingCommands = object : NfcCommandsMock(turbine = {
+        name ->
+      Turbine(name = "attesting $name")
+    }) {
+      override suspend fun getInitialSpendingKey(
+        session: NfcSession,
+        network: BitcoinNetworkType,
+      ) = HwSpendingKeyResult(
+        publicKey = HwSpendingPublicKey(DescriptorPublicKeyMock(identifier = "hardware-dpub-0")),
+        attestationSignature = "sig-base64",
+        certChain = listOf("identity-cert-base64", "batch-cert-base64")
+      )
+    }
+
+    val transaction = provider(
+      appGlobalAuthPublicKey = PublicKey("6170702D617574682D64707562"),
+      onCancel = {},
+      onSuccess = {}
+    )
+
+    val activationResult = transaction
+      .session(nfcSession, attestingCommands)
+      .shouldBeTypeOf<PairingTransactionResponse.FingerprintEnrolled>()
+
+    activationResult.spendingKeyProof.shouldBe(
+      HwSpendingKeyProof(
+        signature = HwSpendingKeyAttestationSignature("sig-base64"),
+        certChain =
+          listOf(
+            HwAttestationCertificate("identity-cert-base64"),
+            HwAttestationCertificate("batch-cert-base64")
+          )
+      )
+    )
+  }
+
+  test("spendingKeyProof is null when firmware does not attest the key") {
+    val transaction = provider(
+      appGlobalAuthPublicKey = PublicKey("6170702D617574682D64707562"),
+      onCancel = {},
+      onSuccess = {}
+    )
+
+    val activationResult = transaction
+      .session(nfcSession, nfcCommands)
+      .shouldBeTypeOf<PairingTransactionResponse.FingerprintEnrolled>()
+
+    nfcCommands.getAuthenticationKeyCalls.awaitItem()
+    nfcCommands.getDeviceInfoCalls.awaitItem()
+    nfcCommands.provisionAppAuthKeyCalls.awaitItem()
+
+    activationResult.spendingKeyProof.shouldBe(null)
   }
 
   test("incomplete enrollment does not lock or show confirmation") {

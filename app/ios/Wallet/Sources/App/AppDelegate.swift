@@ -12,6 +12,10 @@ import UserNotifications
 
 // MARK: -
 
+private let dynamicIslandScannerStatusBarHiddenNotification = Notification.Name(
+    "build.wallet.dynamicIslandScannerStatusBarHiddenChanged"
+)
+
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
@@ -31,6 +35,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         initializeDatadog(appVariant: appVariant)
 
         super.init()
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleDynamicIslandScannerStatusBarHiddenChanged(_:)),
+            name: dynamicIslandScannerStatusBarHiddenNotification,
+            object: nil
+        )
     }
 
     // MARK: - UIApplicationDelegate
@@ -149,6 +160,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
 
         return false
+    }
+}
+
+private extension AppDelegate {
+    @objc
+    func handleDynamicIslandScannerStatusBarHiddenChanged(_ notification: Notification) {
+        guard let hidden = notification.userInfo?["hidden"] as? Bool else { return }
+        UIApplication.shared.setStatusBarHidden(hidden, with: .fade)
     }
 }
 

@@ -22,7 +22,7 @@ data class ViewingAddTrustedContactFormBodyModel(
     toolbar = null,
     header = FormHeaderModel(
       iconModel = IconModel(
-        icon = Icon.LargeIconShieldPerson,
+        icon = Icon.ShieldPerson,
         iconSize = IconSize.Large,
         iconTint = IconTint.Primary,
         iconBackgroundType = IconBackgroundType.Circle(

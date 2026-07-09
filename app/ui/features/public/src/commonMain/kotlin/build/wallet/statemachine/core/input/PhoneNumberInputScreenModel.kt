@@ -7,6 +7,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.TextInput
 import build.wallet.statemachine.core.form.RenderContext.Sheet
+import build.wallet.statemachine.notifications.NotificationsAppSegment
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.input.TextFieldModel.KeyboardType.Phone
@@ -60,7 +61,6 @@ data class PhoneNumberInputBodyModel(
 ) : FormBodyModel(
     id = NotificationsEventTrackerScreenId.SMS_INPUT_ENTERING_SMS,
     onBack = onClose,
-    onSwipeToDismiss = onClose,
     toolbar =
       ToolbarModel(
         leadingAccessory = onClose?.let {
@@ -103,9 +103,14 @@ fun PhoneNumberInputErrorSheetModel(
     ButtonDataModel(
       text = "Back",
       onClick = onBack
-    ),
+  ),
   renderContext = Sheet,
-  eventTrackerScreenId = NotificationsEventTrackerScreenId.SMS_INPUT_ERROR_SHEET
+  eventTrackerScreenId = NotificationsEventTrackerScreenId.SMS_INPUT_ERROR_SHEET,
+  errorData = ErrorData(
+    segment = NotificationsAppSegment,
+    actionDescription = "Adding SMS notification touchpoint",
+    cause = IllegalStateException("Failed to add SMS notification touchpoint")
+  )
 )
 
 fun PhoneNumberTouchpointAlreadyActiveErrorSheetModel(onBack: () -> Unit) =
@@ -116,9 +121,14 @@ fun PhoneNumberTouchpointAlreadyActiveErrorSheetModel(onBack: () -> Unit) =
       ButtonDataModel(
         text = "Back",
         onClick = onBack
-      ),
+    ),
     renderContext = Sheet,
-    eventTrackerScreenId = NotificationsEventTrackerScreenId.SMS_ALREADY_ACTIVE_ERROR_SHEET
+    eventTrackerScreenId = NotificationsEventTrackerScreenId.SMS_ALREADY_ACTIVE_ERROR_SHEET,
+    errorData = ErrorData(
+      segment = NotificationsAppSegment,
+      actionDescription = "Adding SMS notification touchpoint",
+      cause = IllegalStateException("SMS touchpoint is already active")
+    )
   )
 
 fun PhoneNumberUnsupportedCountryErrorSheetModel(
@@ -138,5 +148,10 @@ fun PhoneNumberUnsupportedCountryErrorSheetModel(
     ButtonDataModel(text = it, onClick = secondaryButtonOnClick ?: onBack)
   },
   renderContext = Sheet,
-  eventTrackerScreenId = NotificationsEventTrackerScreenId.SMS_UNSUPPORTED_COUNTRY_ERROR_SHEET
+  eventTrackerScreenId = NotificationsEventTrackerScreenId.SMS_UNSUPPORTED_COUNTRY_ERROR_SHEET,
+  errorData = ErrorData(
+    segment = NotificationsAppSegment,
+    actionDescription = "Adding SMS notification touchpoint",
+    cause = IllegalStateException("SMS notifications are unsupported in the selected country")
+  )
 )

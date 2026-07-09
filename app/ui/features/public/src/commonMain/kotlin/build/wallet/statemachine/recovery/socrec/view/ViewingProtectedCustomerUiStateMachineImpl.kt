@@ -78,7 +78,7 @@ class ViewingProtectedCustomerUiStateMachineImpl(
             HardwareAuthUiProps(
               account = fullAccount,
               actionProofType = ActionProofType.RemoveRecoveryCustomer(
-                entityId = props.protectedCustomer.relationshipId,
+                entityId = props.protectedCustomer.id.value,
                 name = props.protectedCustomer.alias.alias
               ),
               segment = RecoverySegment.SocRec.TrustedContact,
@@ -100,7 +100,7 @@ class ViewingProtectedCustomerUiStateMachineImpl(
               account = props.account,
               proof = state.proof,
               authTokenScope = if (state.proof != null) AuthTokenScope.Global else AuthTokenScope.Recovery,
-              relationshipId = props.protectedCustomer.relationshipId
+              relationshipId = props.protectedCustomer.id.value
             )
               .onSuccess {
                 props.onExit()
@@ -153,6 +153,11 @@ class ViewingProtectedCustomerUiStateMachineImpl(
             title = "We couldn't remove you as a Recovery Contact",
             subline = "There was a problem removing yourself as a Recovery Contact. Please try again.",
             primaryButton = ButtonDataModel("Back", onClick = { props.onExit() }),
+            errorData = ErrorData(
+              segment = RecoverySegment.SocRec.TrustedContact,
+              actionDescription = "Removing self as Recovery Contact",
+              cause = state.error
+            ),
             onClosed = props.onExit,
             eventTrackerScreenId = TC_PROTECTED_CUSTOMER_SHEET_REMOVAL_FAILURE
           )

@@ -29,7 +29,7 @@ class StartClaimUiStateMachineImpl(
   @Composable
   override fun model(props: StartClaimUiStateMachineProps): ScreenModel {
     var uiState: State by remember { mutableStateOf(State.EducationState) }
-    val notificationPreferences = notificationsService.getCriticalNotificationStatus()
+    val notificationPreferences = remember { notificationsService.getCriticalNotificationStatus() }
       .collectAsState(null)
 
     when (uiState) {

@@ -9,6 +9,7 @@ import build.wallet.nfc.NfcCommandsMock
 import build.wallet.nfc.NfcException
 import build.wallet.nfc.NfcSessionFake
 import build.wallet.nfc.platform.ConfirmationHandlesFake
+import build.wallet.nfc.platform.EmulatedPromptOption
 import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.ScreenPresentationStyle
@@ -18,6 +19,7 @@ import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationU
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.awaitUntilBodyMock
+import build.wallet.statemachine.ui.awaitUntilSheet
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.nulls.shouldBeNull
@@ -69,6 +71,31 @@ class NfcConfirmableSessionUiStateMachineImplTests : FunSpec({
   test("initial state delegates to NfcSessionUIStateMachine") {
     stateMachine.test(createProps()) {
       awaitBodyMock<NfcSessionUIStateMachineProps<*>>(id = "nfc-session")
+    }
+  }
+
+  test("emulated prompt sheet uses dedicated screen id") {
+    val emulatedPrompt = HardwareInteraction.ConfirmWithEmulatedPrompt(
+      approve = EmulatedPromptOption<Boolean>(
+        fetchResult = { _, _ -> HardwareInteraction.Completed(true) }
+      ),
+      deny = EmulatedPromptOption(
+        fetchResult = { _, _ -> HardwareInteraction.Completed(false) }
+      )
+    )
+
+    stateMachine.test(createProps()) {
+      awaitBodyMock<NfcSessionUIStateMachineProps<*>>(id = "nfc-session") {
+        @Suppress("UNCHECKED_CAST")
+        val onSuccess = onSuccess as suspend (Any?) -> Unit
+        onSuccess(emulatedPrompt)
+      }
+
+      awaitUntilSheet<PromptSelectionFormBodyModel>(
+        id = NfcEventTrackerScreenId.NFC_EMULATED_HARDWARE_CONFIRMATION
+      ) {
+        eventTrackerContext.shouldBe(SIGN_TRANSACTION)
+      }
     }
   }
 

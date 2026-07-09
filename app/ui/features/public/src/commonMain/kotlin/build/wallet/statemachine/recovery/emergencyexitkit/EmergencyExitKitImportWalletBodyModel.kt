@@ -31,12 +31,12 @@ data class EmergencyExitKitImportWalletBodyModel(
       FormMainContentModel.Explainer(
         items = immutableListOf(
           FormMainContentModel.Explainer.Statement(
-            leadingIcon = Icon.SmallIconCloud,
+            leadingIcon = Icon.Cloud,
             title = "Find your Emergency Exit Kit",
             body = "Navigate to your device's cloud file manager to locate and download your Emergency Exit Kit."
           ),
           FormMainContentModel.Explainer.Statement(
-            leadingIcon = Icon.SmallIconQrCode,
+            leadingIcon = Icon.QrCode,
             title = "Scan or enter manually",
             body = "Scan the QR code for easy access to your Bitkey backup or enter the details manually."
           )

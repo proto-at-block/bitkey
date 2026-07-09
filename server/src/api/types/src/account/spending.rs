@@ -34,6 +34,7 @@ impl SpendingKeyset {
         hardware_pub: PublicKey,
         server_pub: PublicKey,
         server_pub_integrity_sig: String,
+        attested_hardware_serial: Option<AttestedHardwareSerial>,
     ) -> Self {
         Self::PrivateMultiSig(PrivateMultiSigSpendingKeyset::new(
             network,
@@ -41,6 +42,7 @@ impl SpendingKeyset {
             hardware_pub,
             server_pub,
             server_pub_integrity_sig,
+            attested_hardware_serial,
         ))
     }
 
@@ -132,6 +134,12 @@ pub struct PrivateMultiSigSpendingKeyset {
 
     // Signature of `server_pub`, signed with the WSM integrity key
     pub server_pub_integrity_sig: String,
+
+    /// `None` for legacy / pre-enrollment keysets (grandfathered at sweep
+    /// time). `#[serde(default)]` for forward-compat with records persisted
+    /// before this field existed.
+    #[serde(default)]
+    pub attested_hardware_serial: Option<AttestedHardwareSerial>,
 }
 
 impl PrivateMultiSigSpendingKeyset {
@@ -142,6 +150,7 @@ impl PrivateMultiSigSpendingKeyset {
         hardware_pub: PublicKey,
         server_pub: PublicKey,
         server_pub_integrity_sig: String,
+        attested_hardware_serial: Option<AttestedHardwareSerial>,
     ) -> Self {
         Self {
             network,
@@ -149,6 +158,40 @@ impl PrivateMultiSigSpendingKeyset {
             hardware_pub,
             server_pub,
             server_pub_integrity_sig,
+            attested_hardware_serial,
+        }
+    }
+}
+
+/// Per-keyset hardware-verification state. `Pending` triggers OOBA at
+/// sweep time; `Verified` lets the sweep proceed. The illegal
+/// "(no serial, but verified)" state is unrepresentable.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(tag = "state", content = "serial", rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum AttestedHardwareSerial {
+    Pending(String),
+    Verified(String),
+}
+
+impl AttestedHardwareSerial {
+    pub fn serial(&self) -> &str {
+        match self {
+            Self::Pending(s) | Self::Verified(s) => s,
+        }
+    }
+
+    pub fn is_pending(&self) -> bool {
+        matches!(self, Self::Pending(_))
+    }
+
+    pub fn is_verified(&self) -> bool {
+        matches!(self, Self::Verified(_))
+    }
+
+    /// Promote `Pending` to `Verified`. Idempotent on `Verified`.
+    pub fn verify(self) -> Self {
+        match self {
+            Self::Pending(s) | Self::Verified(s) => Self::Verified(s),
         }
     }
 }
@@ -261,5 +304,53 @@ mod tests {
 
         assert_eq!(outer, deserialized_from_inner);
         assert_eq!(outer, deserialized_from_outer);
+    }
+
+    /// Legacy records must still deserialize with the new field as `None`.
+    #[test]
+    fn private_multi_sig_keyset_deserializes_legacy_shape() {
+        use crate::account::spending::{AttestedHardwareSerial, PrivateMultiSigSpendingKeyset};
+
+        let legacy_json = serde_json::json!({
+            "network": "bitcoin-signet",
+            "app_pub": "020000000000000000000000000000000000000000000000000000000000000001",
+            "hardware_pub": "020000000000000000000000000000000000000000000000000000000000000002",
+            "server_pub": "020000000000000000000000000000000000000000000000000000000000000003",
+            "server_pub_integrity_sig": "deadbeef",
+        });
+
+        let parsed: PrivateMultiSigSpendingKeyset =
+            serde_json::from_value(legacy_json).expect("legacy DDB shape must deserialize");
+        assert!(parsed.attested_hardware_serial.is_none());
+    }
+
+    #[test]
+    fn attested_hardware_serial_verify_is_idempotent() {
+        use crate::account::spending::AttestedHardwareSerial;
+
+        let pending = AttestedHardwareSerial::Pending("ABC123".to_string());
+        let verified = pending.clone().verify();
+        assert_eq!(
+            verified,
+            AttestedHardwareSerial::Verified("ABC123".to_string())
+        );
+        assert_eq!(verified.clone().verify(), verified);
+        assert_eq!(verified.serial(), "ABC123");
+        assert!(verified.is_verified());
+        assert!(!pending.is_verified());
+    }
+
+    #[test]
+    fn attested_hardware_serial_wire_format() {
+        use crate::account::spending::AttestedHardwareSerial;
+
+        let pending = AttestedHardwareSerial::Pending("ABC123".to_string());
+        let json = serde_json::to_value(&pending).unwrap();
+        assert_eq!(
+            json,
+            serde_json::json!({ "state": "PENDING", "serial": "ABC123" })
+        );
+        let round_trip: AttestedHardwareSerial = serde_json::from_value(json).unwrap();
+        assert_eq!(round_trip, pending);
     }
 }

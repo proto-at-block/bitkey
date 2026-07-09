@@ -102,7 +102,7 @@ class InfoOptionsUiStateMachineImpl(
   ) {
     if (state.cloudBackupVersion == null && state.accountId != null && state.accountId != NO_ACCOUNT) {
       LaunchedEffect("load-cloud-backup-version") {
-        cloudBackupDao.get(state.accountId!!)
+        cloudBackupDao.get(state.accountId)
           .onSuccess { backup ->
             val version = when (backup) {
               is CloudBackupV2 -> "v2"

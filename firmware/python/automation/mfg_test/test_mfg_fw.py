@@ -236,8 +236,9 @@ class TestClassMfgFW:
         self.inv_task.build_platforms()
 
         logger.info("Bundle and FWUP")
-        self.inv_task.fwup_bundle(platform_config)
+        self.inv_task.fwup_bundle()
         self.inv_task.fwup_fwup()
+        time.sleep(_WALLET_RESET_TIME)
 
         new_version, active_slot = self.get_active_version(wallet=wallet)
         logger.info(
@@ -256,7 +257,7 @@ class TestClassMfgFW:
         self.inv_task.build_platforms()
 
         logger.info("Bundle and FWUP")
-        self.inv_task.fwup_bundle(platform_config)
+        self.inv_task.fwup_bundle()
         self.inv_task.fwup_fwup()
 
     @allure.step("Get version from Metadata response")

@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.onStart
 
 interface InheritanceActionFactory {
-  suspend fun create(): Flow<SecurityAction?>
+  fun create(): Flow<SecurityAction?>
 }
 
 @BitkeyInject(AppScope::class)
@@ -18,7 +18,7 @@ class InheritanceActionFactoryImpl(
   private val inheritanceService: InheritanceService,
   private val appFunctionalityService: AppFunctionalityService,
 ) : InheritanceActionFactory {
-  override suspend fun create(): Flow<SecurityAction?> {
+  override fun create(): Flow<SecurityAction?> {
     return combine(
       inheritanceService.inheritanceRelationships,
       appFunctionalityService.status

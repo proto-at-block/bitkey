@@ -30,7 +30,6 @@ fun CustomAmountScreen(
   model: CustomAmountBodyModel,
 ) {
   val horizontalPadding = 20.dp
-  val isDesignSystemV2Enabled = true
   var lastKeypadFeedback by remember { mutableStateOf<AmountEntryKeypadFeedback?>(null) }
   var keypadPressCount by remember { mutableIntStateOf(0) }
   val feedbackForKeypadButton = { keypadButton: KeypadButton ->
@@ -43,7 +42,7 @@ fun CustomAmountScreen(
   val amountShakeOffsetPx =
     rememberAmountEntryShakeOffset(
       trigger =
-        if (isDesignSystemV2Enabled && lastKeypadFeedback?.shouldShake == true) {
+        if (lastKeypadFeedback?.shouldShake == true) {
           keypadPressCount
         } else {
           null
@@ -77,7 +76,7 @@ fun CustomAmountScreen(
           primaryAmountLabelType = LabelType.Display1,
           contextLine = model.amountModel.secondaryAmount,
           contextLineTreatment = model.amountContextLineTreatment,
-          centerWhenDesignSystemV2 = true,
+          centerContent = true,
           onSwapClick = null,
           disabled = false
         )
@@ -85,7 +84,7 @@ fun CustomAmountScreen(
 
         Keypad(
           modifier =
-            Modifier.padding(horizontal = if (isDesignSystemV2Enabled) horizontalPadding else 0.dp),
+            Modifier.padding(horizontal = horizontalPadding),
           showDecimal = model.keypadModel.showDecimal,
           hapticsEffectForButtonPress = { keypadButton ->
             feedbackForKeypadButton(keypadButton).hapticsEffect

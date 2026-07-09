@@ -35,8 +35,6 @@ fun FeeOption(
   infoText: String?,
   onClick: (() -> Unit)?,
 ) {
-  val isDesignSystemV2Enabled = true
-
   Box(
     modifier =
       modifier
@@ -79,7 +77,7 @@ fun FeeOption(
             title = leadingText,
             sideText = trailingPrimaryText,
             secondarySideText = trailingSecondaryText,
-            titleType = if (isDesignSystemV2Enabled) LabelType.Body2Regular else null,
+            titleType = LabelType.Body2Regular,
             secondarySideTextType = LabelType.Body3Regular,
             enabled = enabled,
             onClick = onClick

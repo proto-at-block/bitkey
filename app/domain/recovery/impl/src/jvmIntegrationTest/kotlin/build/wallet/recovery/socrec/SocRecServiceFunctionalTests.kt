@@ -30,7 +30,7 @@ class SocRecServiceFunctionalTests : FunSpec({
         shouldNotBeNull()
         shouldOnlyHaveSingleInvitation {
           it.shouldHaveAlias(tcName)
-          it.relationshipId.shouldBe(tcInvitation.relationshipId)
+          it.id.shouldBe(tcInvitation.id)
         }
       }
     }
@@ -60,7 +60,7 @@ class SocRecServiceFunctionalTests : FunSpec({
         shouldNotBeNull()
         shouldOnlyHaveSingleEndorsedTrustedContact {
           it.shouldHaveAlias(tcName)
-          it.relationshipId.shouldBe(tcInvitation.relationshipId)
+          it.id.shouldBe(tcInvitation.id)
         }
       }
     }

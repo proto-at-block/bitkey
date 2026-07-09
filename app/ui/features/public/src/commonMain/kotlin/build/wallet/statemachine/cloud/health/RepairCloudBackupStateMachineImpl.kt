@@ -34,6 +34,7 @@ import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiProps
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiStateMachine
 import build.wallet.ui.model.alert.ButtonAlertModel
@@ -380,7 +381,12 @@ class RepairCloudBackupStateMachineImpl(
       title = "We were unable to upload backup to ${cloudServiceProvider().name}",
       subline = "Please try again.",
       primaryButton = ButtonDataModel(text = "Retry", onClick = onTryAgain),
-      eventTrackerScreenId = CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_FAILURE_NEW_ACCOUNT
+      eventTrackerScreenId = CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_FAILURE_NEW_ACCOUNT,
+      errorData = ErrorData(
+        segment = RecoverySegment.CloudBackup.FullAccount.Upload,
+        actionDescription = "Uploading repaired full account backup to cloud",
+        cause = IllegalStateException("Failed to upload repaired full account backup to cloud")
+      )
     ).asScreen(props.presentationStyle)
   }
 
@@ -417,7 +423,12 @@ class RepairCloudBackupStateMachineImpl(
       title = "We were unable to connect to ${cloudServiceProvider().name}",
       subline = "Please try again.",
       primaryButton = ButtonDataModel(text = "Retry", onClick = onTryAgain),
-      eventTrackerScreenId = SAVE_CLOUD_BACKUP_NOT_SIGNED_IN
+      eventTrackerScreenId = SAVE_CLOUD_BACKUP_NOT_SIGNED_IN,
+      errorData = ErrorData(
+        segment = RecoverySegment.CloudBackup.FullAccount.SignIn,
+        actionDescription = "Connecting to cloud account for backup repair",
+        cause = IllegalStateException("Failed to connect to cloud account for backup repair")
+      )
     ).asScreen(props.presentationStyle)
   }
 
@@ -471,7 +482,9 @@ class RepairCloudBackupStateMachineImpl(
             if (foundLocalBackup.isFullAccount()) {
               return CreatingEekBackupState(
                 cloudAccount = cloudAccount,
-                sealedCsek = foundLocalBackup.fullAccountFields!!.sealedHwEncryptionKey,
+                sealedCsek = checkNotNull(foundLocalBackup.fullAccountFields) {
+                  "Full account backup is missing full account fields."
+                }.sealedHwEncryptionKey,
                 appKeyBackup = foundLocalBackup
               )
             } else {

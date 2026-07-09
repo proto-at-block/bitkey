@@ -15,9 +15,9 @@ buildLogic {
   app {
     version(
       yyyy = 2026,
-      version = 10,
+      version = 11,
       patch = 0,
-      build = 4
+      build = 3
     )
   }
   compose {
@@ -51,12 +51,27 @@ android {
   }
 
   buildTypes {
-    // Resolve the git commit date once for non-debug build types.
+    // Resolve the build date once for non-debug build types.
     @Suppress("UnstableApiUsage")
-    val gitBuildDate by lazy {
-      providers.exec {
-        commandLine("git", "log", "-1", "--format=%cd", "--date=short")
-      }.standardOutput.asText.get().trim()
+    val releaseBuildDate by lazy {
+      // Published source commits can be created after the internal build commit,
+      // so their git commit date may not match the date compiled into the binary.
+      // Source publishing writes release-build-date.txt with the shipped date;
+      // builds without that file use the current checkout's commit date.
+      val buildDate =
+        rootProject.file("verifiable-build/android/release-build-date.txt")
+          .takeIf { it.isFile }
+          ?.readText()
+          ?.trim()
+          ?.takeIf { it.isNotBlank() }
+          ?: providers.exec {
+            commandLine("git", "log", "-1", "--format=%cd", "--date=short")
+          }.standardOutput.asText.get().trim()
+
+      require(Regex("""\d{4}-\d{2}-\d{2}""").matches(buildDate)) {
+        "Build date must use YYYY-MM-DD format."
+      }
+      buildDate
     }
 
     // Build Type for development builds.
@@ -77,7 +92,7 @@ android {
       isMinifyEnabled = true
       isShrinkResources = true
       isDebuggable = false
-      buildConfigField("String", "BUILD_DATE", "\"${gitBuildDate}\"")
+      buildConfigField("String", "BUILD_DATE", "\"${releaseBuildDate}\"")
       reproducibleBuildVariables(project)
       proguardFiles(
         getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -91,7 +106,7 @@ android {
       isMinifyEnabled = true
       isShrinkResources = true
       isDebuggable = false
-      buildConfigField("String", "BUILD_DATE", "\"${gitBuildDate}\"")
+      buildConfigField("String", "BUILD_DATE", "\"${releaseBuildDate}\"")
       reproducibleBuildVariables(project)
       proguardFiles(
         getDefaultProguardFile("proguard-android-optimize.txt"),

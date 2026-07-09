@@ -54,7 +54,8 @@ class GrantRequestTests : FunSpec({
     }
 
     test("equality with null should be false") {
-      (baseRequest.equals(null)) shouldBe false
+      val nullRequest: GrantRequest? = null
+      (baseRequest == nullRequest) shouldBe false
     }
 
     test("equality with different type should be false") {

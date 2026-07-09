@@ -4,11 +4,8 @@ import androidx.compose.runtime.*
 import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
-import build.wallet.coachmark.CoachmarkIdentifier
-import build.wallet.coachmark.CoachmarkService
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
-import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.Icon
@@ -26,19 +23,16 @@ import build.wallet.wallet.migration.MigrationService
 import build.wallet.wallet.migration.MigrationType
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.launch
 import kotlin.reflect.KClass
 
 @BitkeyInject(ActivityScope::class)
 class SettingsListUiStateMachineImpl(
   private val appFunctionalityService: AppFunctionalityService,
-  private val coachmarkService: CoachmarkService,
   private val migrationService: MigrationService,
 ) : SettingsListUiStateMachine {
   @Composable
   override fun model(props: SettingsListUiProps): SettingsBodyModel {
     val appFunctionalityStatus by remember { appFunctionalityService.status }.collectAsState()
-    val scope = rememberStableCoroutineScope()
 
     // Check if migration is available by calling resume()
     var isMigrationAvailable by remember { mutableStateOf(false) }
@@ -47,17 +41,6 @@ class SettingsListUiStateMachineImpl(
         .onSuccess { progress ->
           isMigrationAvailable = progress is MigrationProgress.NotStarted
         }
-    }
-
-    var coachmarksToDisplay by remember { mutableStateOf(immutableListOf<CoachmarkIdentifier>()) }
-    LaunchedEffect("coachmarks") {
-      coachmarkService.coachmarksToDisplay(
-        coachmarkIds = setOf(
-          CoachmarkIdentifier.SecurityHubSettingsCoachmark
-        )
-      ).onSuccess {
-        coachmarksToDisplay = it.toImmutableList()
-      }
     }
 
     return SettingsBodyModel(
@@ -110,13 +93,7 @@ class SettingsListUiStateMachineImpl(
             HelpCenter::class
           )
         )
-      ),
-      onSecurityHubCoachmarkClick = {
-        scope.launch {
-          coachmarkService.markCoachmarkAsDisplayed(CoachmarkIdentifier.SecurityHubSettingsCoachmark)
-        }
-        props.goToSecurityHub()
-      }.takeIf { coachmarksToDisplay.contains(CoachmarkIdentifier.SecurityHubSettingsCoachmark) }
+      )
     )
   }
 
@@ -152,19 +129,19 @@ class SettingsListUiStateMachineImpl(
   ): RowModel {
     val (icon: Icon, title: String) =
       when (this) {
-        is MobilePay -> Pair(SmallIconMobileLimit, "Transfers")
-        is AppearancePreference -> Pair(SmallIconPaintBrush, "Appearance")
-        is NotificationPreferences -> Pair(SmallIconNotification, "Notifications")
-        is CustomElectrumServer -> Pair(SmallIconElectrum, "Custom Electrum Server")
-        is ContactUs -> Pair(SmallIconMessage, "Contact Us")
-        is HelpCenter -> Pair(SmallIconQuestion, "Help Center")
-        is TrustedContacts -> Pair(SmallIconShieldPerson, "Recovery Contacts")
-        is RotateAuthKey -> Pair(SmallIconPhone, "Mobile Devices")
-        is DebugMenu -> Pair(SmallIconInformation, "Debug Menu")
-        is UtxoConsolidation -> Pair(SmallIconConsolidation, "UTXO Consolidation")
-        is InheritanceManagement -> Pair(SmallIconInheritance, "Inheritance")
-        is ExportTools -> Pair(SmallIconDocument, "Exports")
-        is PrivateWalletMigration -> Pair(SmallIconWallet, "Private Wallet Update")
+        is MobilePay -> Pair(MobileLimit, "Transfers")
+        is AppearancePreference -> Pair(PaintBrush, "Appearance")
+        is NotificationPreferences -> Pair(Notification, "Notifications")
+        is CustomElectrumServer -> Pair(Electrum, "Custom Electrum Server")
+        is ContactUs -> Pair(Message, "Contact Us")
+        is HelpCenter -> Pair(Question, "Help Center")
+        is TrustedContacts -> Pair(ShieldPerson, "Recovery Contacts")
+        is RotateAuthKey -> Pair(Phone, "Mobile Devices")
+        is DebugMenu -> Pair(Information, "Debug Menu")
+        is UtxoConsolidation -> Pair(Consolidation, "UTXO Consolidation")
+        is InheritanceManagement -> Pair(Inheritance, "Inheritance")
+        is ExportTools -> Pair(Document, "Exports")
+        is PrivateWalletMigration -> Pair(Wallet, "Private Wallet Update")
       }
     val isRowEnabled = isRowEnabled(appFunctionalityStatus)
 

@@ -153,21 +153,33 @@ private class NoopMockScenarioService : MockScenarioService {
 
   override fun currentSeedFlow(): Flow<Long?> = flowOf(null)
 
-  override suspend fun setPriceScenario(scenario: MockPriceScenario) {}
+  override suspend fun setPriceScenario(scenario: MockPriceScenario) {
+    // No-op test double.
+  }
 
-  override suspend fun setTransactionScenario(scenario: MockTransactionScenario) {}
+  override suspend fun setTransactionScenario(scenario: MockTransactionScenario) {
+    // No-op test double.
+  }
 
-  override suspend fun setDataQuality(dataQuality: DataQuality) {}
+  override suspend fun setDataQuality(dataQuality: DataQuality) {
+    // No-op test double.
+  }
 
   override suspend fun setConfiguration(
     config: MockConfiguration,
     generateNewSeed: Boolean,
-  ) {}
+  ) {
+    // No-op test double.
+  }
 
-  override suspend fun rotateSeed() {}
+  override suspend fun rotateSeed() {
+    // No-op test double.
+  }
 
   override suspend fun clearScenarios(
     clearPrice: Boolean,
     clearTransaction: Boolean,
-  ) {}
+  ) {
+    // No-op test double.
+  }
 }

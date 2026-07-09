@@ -4,7 +4,7 @@ package build.wallet.bitcoin.sync
  * An interface that uses `On` or `Off` variants to indicate whether or not a user has
  * set a custom server.
  */
-sealed class ElectrumServerPreferenceValue {
+sealed interface ElectrumServerPreferenceValue {
   /**
    * Indicates that the user is using a Block-provided Electrum server.
    *
@@ -12,7 +12,7 @@ sealed class ElectrumServerPreferenceValue {
    */
   data class Off(
     val previousUserDefinedElectrumServer: ElectrumServer?,
-  ) : ElectrumServerPreferenceValue()
+  ) : ElectrumServerPreferenceValue
 
   /**
    * Indicates that the user has configured **and** turned on the setting for using a custom
@@ -20,5 +20,5 @@ sealed class ElectrumServerPreferenceValue {
    *
    * @param server the ElectrumServer that the user has configured.
    */
-  data class On(val server: ElectrumServer) : ElectrumServerPreferenceValue()
+  data class On(val server: ElectrumServer) : ElectrumServerPreferenceValue
 }

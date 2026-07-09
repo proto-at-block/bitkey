@@ -28,6 +28,12 @@ sealed interface MigrationError {
   /** Failed to rotate auth keys on the server or locally. */
   data class AuthKeyRotationFailed(val cause: Throwable) : MigrationError
 
+  /** The paired W3 hardware auth key is already in use by another account or recovery. */
+  data class HardwareAuthKeyAlreadyInUse(val cause: Throwable? = null) : MigrationError
+
+  /** Failed to check whether the paired W3 hardware auth key is usable due to a transient or unknown error. */
+  data class HardwareAuthKeyAvailabilityCheckFailed(val cause: Throwable) : MigrationError
+
   /** Failed to re-seal and upload the DDK with new hardware. */
   data class DdkBackupFailed(val cause: Throwable) : MigrationError
 

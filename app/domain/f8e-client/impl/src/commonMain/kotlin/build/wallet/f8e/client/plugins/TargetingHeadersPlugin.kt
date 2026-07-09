@@ -1,13 +1,13 @@
 package build.wallet.f8e.client.plugins
 
 import build.wallet.account.analytics.AppInstallationDao
-import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.platform.settings.CountryCodeGuesser
 import com.github.michaelbull.result.get
 import io.ktor.client.plugins.api.*
 
 private object CustomHeaders {
   const val APP_VERSION = "Bitkey-App-Version"
+  const val FIRMWARE_VERSION = "Bitkey-Firmware-Version"
   const val OS_TYPE = "Bitkey-OS-Type"
   const val OS_VERSION = "Bitkey-OS-Version"
   const val APP_INSTALLATION_ID = "Bitkey-App-Installation-ID"
@@ -18,7 +18,6 @@ private object CustomHeaders {
 class TargetingHeadersPluginConfig {
   lateinit var appInstallationDao: AppInstallationDao
   lateinit var countryCodeGuesser: CountryCodeGuesser
-  lateinit var firmwareDeviceInfoDao: FirmwareDeviceInfoDao
 }
 
 /**
@@ -31,7 +30,6 @@ val TargetingHeadersPlugin = createClientPlugin(
 ) {
   val appInstallationDao = pluginConfig.appInstallationDao
   val countryCodeGuesser = pluginConfig.countryCodeGuesser
-  val firmwareDeviceInfoDao = pluginConfig.firmwareDeviceInfoDao
   onRequest { request, _ ->
     appInstallationDao.getOrCreateAppInstallation().get()?.let { appInstallation ->
       request.headers.append(
@@ -40,11 +38,9 @@ val TargetingHeadersPlugin = createClientPlugin(
       )
     }
 
-    firmwareDeviceInfoDao.getDeviceInfo().get()?.serial?.let { serial ->
-      request.headers.append(
-        CustomHeaders.HARDWARE_SERIAL_NUMBER,
-        serial
-      )
+    request.attributes.getOrNull(FirmwareDeviceInfoAttribute)?.let { firmwareDeviceInfo ->
+      request.headers.append(CustomHeaders.HARDWARE_SERIAL_NUMBER, firmwareDeviceInfo.serial)
+      request.headers.append(CustomHeaders.FIRMWARE_VERSION, firmwareDeviceInfo.version)
     }
 
     val platformInfo = request.attributes[PlatformInfoAttribute]

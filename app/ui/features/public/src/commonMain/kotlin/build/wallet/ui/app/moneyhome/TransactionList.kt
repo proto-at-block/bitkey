@@ -19,7 +19,6 @@ import build.wallet.ui.components.list.ListGroup
 import build.wallet.ui.components.list.ListHeader
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
-import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 
@@ -59,51 +58,29 @@ fun TransactionList(
 
 @Composable
 private fun EmptyTransactionState() {
-  val isDesignSystemV2Enabled = true
-  val primaryLabelType = if (isDesignSystemV2Enabled) {
-    LabelType.Body2Regular
-  } else {
-    LabelType.Title3
-  }
-  val secondaryLabelType = if (isDesignSystemV2Enabled) {
-    LabelType.Body3Mono
-  } else {
-    LabelType.Body1Regular
-  }
-
   Column(
     modifier = Modifier
       .fillMaxWidth()
       .padding(vertical = 40.dp),
     horizontalAlignment = Alignment.CenterHorizontally
   ) {
-    if (isDesignSystemV2Enabled) {
-      IconImage(
-        model = IconModel(
-          icon = Icon.DotIconsSearch,
-          iconSize = IconSize.XLarge,
-          iconOpacity = 0.5f
-        )
+    IconImage(
+      model = IconModel(
+        icon = Icon.DotIconsSearch,
+        iconSize = IconSize.XLarge,
+        iconOpacity = 0.5f
       )
-    } else {
-      IconImage(
-        model = IconModel(
-          icon = Icon.SmallIconClock,
-          iconSize = IconSize.XLarge,
-          iconTint = IconTint.On60
-        )
-      )
-    }
+    )
     Spacer(Modifier.height(16.dp))
     Label(
       text = "Nothing to see, yet",
-      type = primaryLabelType,
+      type = LabelType.Body2Regular,
       alignment = TextAlign.Center
     )
     Spacer(Modifier.height(4.dp))
     Label(
       text = "Your transactions will appear here",
-      type = secondaryLabelType,
+      type = LabelType.Body3Mono,
       color = WalletTheme.colors.foreground60,
       alignment = TextAlign.Center
     )

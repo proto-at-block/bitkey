@@ -59,7 +59,7 @@ def test_corrupted_firmware(setup: None, platform_config: PlatformConfig, images
     Inv_task.bump()
     Inv_task.clean()
     Inv_task.build_platforms()
-    Inv_task.fwup_bundle(platform_config)
+    Inv_task.fwup_bundle()
 
     corrupt_file(images.firmware)
     auth_with_pin()
@@ -76,7 +76,7 @@ def test_corrupted_signature(platform_config: PlatformConfig, images: FwupImage)
     Inv_task.bump()
     Inv_task.clean()
     Inv_task.build_platforms()
-    Inv_task.fwup_bundle(platform_config)
+    Inv_task.fwup_bundle()
 
     corrupt_file(images.signature)
     auth_with_pin()
@@ -156,7 +156,7 @@ def fwup_new(platform_config: PlatformConfig) -> None:
     Inv_task.build_platforms()
 
     logger.info("Bundle and FWUP")
-    Inv_task.fwup_bundle(platform_config)
+    Inv_task.fwup_bundle()
     auth_with_pin()
     Inv_task.fwup_fwup()
 
@@ -173,7 +173,7 @@ def fwup_new(platform_config: PlatformConfig) -> None:
 def fwup_current_version(platform_config: PlatformConfig) -> None:
     Inv_task.build_platforms()
     logger.info("Bundle and FWUP")
-    Inv_task.fwup_bundle(platform_config)
+    Inv_task.fwup_bundle()
     auth_with_pin()
     Inv_task.fwup_fwup()
 

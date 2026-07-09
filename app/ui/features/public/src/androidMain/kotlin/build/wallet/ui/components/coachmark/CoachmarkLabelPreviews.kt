@@ -21,14 +21,6 @@ internal fun CoachmarkLabelPreview() {
   }
 }
 
-@Preview(name = "Coachmark Label DSV2")
-@Composable
-internal fun CoachmarkLabelDesignSystemV2Preview() {
-  PreviewWalletTheme {
-    CoachmarkLabelPreviewContent()
-  }
-}
-
 @Composable
 private fun CoachmarkLabelPreviewContent() {
   Box(modifier = Modifier.padding(16.dp)) {

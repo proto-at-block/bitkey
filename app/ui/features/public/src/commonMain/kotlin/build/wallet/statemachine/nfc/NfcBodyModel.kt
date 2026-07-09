@@ -8,7 +8,6 @@ import build.wallet.platform.device.DevicePlatform
 import build.wallet.statemachine.automations.AutomaticUiTests
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle.FullScreen
 import build.wallet.statemachine.core.ScreenPresentationStyle.ModalFullScreen
 import build.wallet.ui.app.nfc.NfcScreen
 
@@ -27,36 +26,33 @@ data class NfcBodyModel(
   override val eventTrackerScreenInfo: EventTrackerScreenInfo?,
 ) : BodyModel(), AutomaticUiTests {
   /**
-   * Convenience method to wrap NFC screen model into a platform NFC screen while
-   * preserving legacy presentation behavior outside of design system v2.
+   * Convenience method to wrap NFC screen model into a platform NFC screen.
    */
   fun asPlatformNfcScreen(
-    designSystemV2Enabled: Boolean,
     devicePlatform: DevicePlatform,
   ) =
     ScreenModel(
       body = this,
-      presentationStyle = if (designSystemV2Enabled) ModalFullScreen else FullScreen,
+      presentationStyle = ModalFullScreen,
       themePreference = nfcThemePreference(
-        designSystemV2Enabled = designSystemV2Enabled,
         devicePlatform = devicePlatform,
         followSystemOnIos = showNativeSheetOnIos
       ),
-      platformNfcScreen = designSystemV2Enabled || showNativeSheetOnIos
+      platformNfcScreen = true
     )
 
-  sealed class Status {
+  sealed interface Status {
     data class Searching(
       val onCancel: () -> Unit,
-    ) : Status()
+    ) : Status
 
     data class Connected(
       val onCancel: () -> Unit,
       /** Whether we want to show an indeterminate progress spinner (on Android) during the NFC operation */
       val showProgressSpinner: Boolean = false,
-    ) : Status()
+    ) : Status
 
-    data object Success : Status()
+    data object Success : Status
   }
 
   override fun automateNextPrimaryScreen() {

@@ -17,7 +17,7 @@ utoipa = { workspace = true }
 
 # path dependencies
 account = { workspace = true }
-authn_authz = { workspace = true }
+authn_authz_utils = { workspace = true }
 errors = { workspace = true }
 feature_flags = { workspace = true }
 instrumentation = { workspace = true }
@@ -25,6 +25,7 @@ types = { workspace = true, features = ["account"] }
 
 [dev-dependencies]
 tokio = { workspace = true }
+userpool = { workspace = true }
 
 [lints]
 workspace = true

@@ -5,6 +5,7 @@ import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.di.Impl
 import build.wallet.store.KeyValueStoreFactory
 import build.wallet.store.putStringWithResult
 import build.wallet.store.removeWithResult
@@ -22,6 +23,7 @@ import okio.ByteString.Companion.decodeBase64
  * account-scoped composite key based on [CloudStoreAccountFake].
  */
 @BitkeyInject(AppScope::class)
+@Impl
 class CloudBackupStoreImpl(
   private val keyValueStoreFactory: KeyValueStoreFactory,
 ) : CloudBackupStore {

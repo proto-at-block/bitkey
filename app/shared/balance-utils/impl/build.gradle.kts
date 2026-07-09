@@ -15,6 +15,7 @@ kotlin {
         implementation(projects.domain.walletPublic)
         implementation(projects.libs.keyValueStorePublic)
         implementation(projects.libs.platformPublic)
+        implementation(projects.libs.stdlibPublic)
         implementation(libs.kmp.settings.coroutines)
         implementation(libs.kmp.kotlin.datetime)
       }

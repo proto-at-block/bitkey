@@ -31,7 +31,6 @@ enum class ManagingInheritanceTab {
 
 data class ManagingInheritanceBodyModel(
   override val onBack: () -> Unit,
-  val isDesignSystemV2Enabled: Boolean,
   val onLearnMore: () -> Unit,
   val onInviteClick: StandardClick,
   val onTabRowClick: (ManagingInheritanceTab) -> Unit,
@@ -71,7 +70,7 @@ data class ManagingInheritanceBodyModel(
           item = CalloutModel(
             title = "Beneficiary not active",
             subtitle = LabelModel.StringModel("Your contact must accept the invite to be an active beneficiary."),
-            leadingIcon = Icon.SmallIconInformation,
+            leadingIcon = Icon.Information,
             treatment = CalloutModel.Treatment.Information
           )
         ).takeIf {
@@ -91,43 +90,35 @@ data class ManagingInheritanceBodyModel(
             }
           ),
           SetupInheritanceUpsell(
-            icon = if (isDesignSystemV2Enabled) Icon.DotInheritance else Icon.SmallIconInheritance,
+            icon = Icon.DotInheritance,
             title = "Add a beneficiary",
             body = "Your investment is worth passing on. Add a beneficiary to ensure it stays in good hands.",
             primaryButton = ButtonModel(
               text = "Add",
               size = ButtonModel.Size.Short,
-              leadingIcon = Icon.SmallIconPlus,
+              leadingIcon = Icon.Plus,
               onClick = onInviteClick,
-              treatment = if (isDesignSystemV2Enabled) {
-                ButtonModel.Treatment.Primary
-              } else {
-                ButtonModel.Treatment.Accent
-              }
+              treatment = ButtonModel.Treatment.Primary
             ),
             onSecondaryClick = StandardClick { onLearnMore() },
-            showIconBackground = !isDesignSystemV2Enabled,
-            iconTint = if (isDesignSystemV2Enabled) IconTint.Foreground else null
+            showIconBackground = false,
+            iconTint = IconTint.Foreground
           ).takeIf {
             selectedTab == ManagingInheritanceTab.Beneficiaries && beneficiaries.items.isEmpty()
           },
           SetupInheritanceUpsell(
-            icon = if (isDesignSystemV2Enabled) Icon.DotInheritance else Icon.SmallIconShieldPerson,
+            icon = Icon.DotInheritance,
             title = "Become a beneficiary",
             body = "Accept an invite code from your benefactor to get started.",
             primaryButton = ButtonModel(
               text = "Accept invite",
               size = ButtonModel.Size.Short,
               onClick = StandardClick(onAcceptInvitation),
-              treatment = if (isDesignSystemV2Enabled) {
-                ButtonModel.Treatment.Primary
-              } else {
-                ButtonModel.Treatment.Accent
-              }
+              treatment = ButtonModel.Treatment.Primary
             ),
             onSecondaryClick = StandardClick { onLearnMore() },
-            showIconBackground = !isDesignSystemV2Enabled,
-            iconTint = if (isDesignSystemV2Enabled) IconTint.Foreground else null
+            showIconBackground = false,
+            iconTint = IconTint.Foreground
           ).takeIf {
             selectedTab == ManagingInheritanceTab.Inheritance && benefactors.items.isEmpty()
           }

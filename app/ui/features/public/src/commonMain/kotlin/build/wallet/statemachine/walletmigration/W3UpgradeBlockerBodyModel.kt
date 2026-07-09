@@ -4,9 +4,10 @@ import build.wallet.analytics.events.screen.id.WalletMigrationEventTrackerScreen
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
+import build.wallet.statemachine.core.form.FormMainContentVerticalAlignment
 import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.core.form.FormScreenLayoutModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
@@ -29,47 +30,33 @@ data class W3UpgradeBlockerBodyModel(
       )
     ),
     header = null,
+    formScreenLayout = FormScreenLayoutModel.LargeTitle(
+      scrollable = false,
+      mainContentVerticalAlignment = FormMainContentVerticalAlignment.CENTER
+    ),
     mainContentList = immutableListOf(
       FormMainContentModel.Showcase(
         content = FormMainContentModel.Showcase.Content.ImageContent(
           image = FormMainContentModel.Showcase.Content.ImageContent.Image.UPGRADE_W3_UP_DOWN,
           scale = 1.15f
         ),
-        title = W3_UPGRADE_BLOCKER_TITLE,
-        body = build.wallet.statemachine.core.LabelModel.StringModel(
-          W3_UPGRADE_BLOCKER_SUBLINE
-        ),
         fillAvailableSpace = false
+      )
+    ),
+    preFooterContentList = immutableListOf(
+      FormMainContentModel.HeaderBlock(
+        header = FormHeaderModel(
+          headline = W3_UPGRADE_BLOCKER_TITLE,
+          subline = W3_UPGRADE_BLOCKER_SUBLINE,
+          headlineLabelType = LabelType.Display3
+        )
       )
     ),
     primaryButton = ButtonModel(
       text = "Get the new Bitkey",
-      leadingIcon = Icon.SmallIconArrowUpRight,
+      leadingIcon = Icon.ArrowUpRight,
       size = ButtonModel.Size.Footer,
       treatment = ButtonModel.Treatment.Primary,
       onClick = StandardClick(onGetStarted)
-    ),
-    designSystemV2Model = FormDesignSystemV2Model(
-      useDesignSystemV2ScreenLayout = true,
-      scrollable = false,
-      mainContentVerticalAlignment = FormDesignSystemV2Model.MainContentVerticalAlignment.CENTER,
-      mainContentList = immutableListOf(
-        FormMainContentModel.Showcase(
-          content = FormMainContentModel.Showcase.Content.ImageContent(
-            image = FormMainContentModel.Showcase.Content.ImageContent.Image.UPGRADE_W3_UP_DOWN,
-            scale = 1.15f
-          ),
-          fillAvailableSpace = false
-        )
-      ),
-      preFooterMainContentList = immutableListOf(
-        FormMainContentModel.HeaderBlock(
-          header = FormHeaderModel(
-            headline = W3_UPGRADE_BLOCKER_TITLE,
-            subline = W3_UPGRADE_BLOCKER_SUBLINE,
-            headlineLabelType = LabelType.Display3
-          )
-        )
-      )
     )
   )

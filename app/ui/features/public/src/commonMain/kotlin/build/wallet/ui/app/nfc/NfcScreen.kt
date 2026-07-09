@@ -8,16 +8,12 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Alignment.Companion.CenterHorizontally
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.BlurredEdgeTreatment
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -35,7 +31,6 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.nfc.NfcBodyModel
 import build.wallet.statemachine.nfc.NfcBodyModel.Status.*
 import build.wallet.ui.app.LocalDeviceInfo
-import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment.Primary
 import build.wallet.ui.components.label.labelStyle
@@ -43,8 +38,6 @@ import build.wallet.ui.components.progress.IndeterminateCircularProgressIndicato
 import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.components.toolbar.ToolbarAccessory
 import build.wallet.ui.model.StandardClick
-import build.wallet.ui.model.button.ButtonModel.Size.Footer
-import build.wallet.ui.model.button.ButtonModel.Treatment.Translucent
 import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconButtonModel
 import build.wallet.ui.model.icon.IconModel
@@ -52,7 +45,6 @@ import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.system.BackHandler
 import build.wallet.ui.system.KeepScreenOn
-import build.wallet.ui.system.isBlurSupported
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import io.github.alexzhirkevich.compottie.LottieCompositionSpec
@@ -67,98 +59,25 @@ fun NfcScreen(
 ) {
   KeepScreenOn()
   val devicePlatform = LocalDeviceInfo.current.devicePlatform
-  val designSystemV2Enabled = true
 
-  when {
-    devicePlatform == DevicePlatform.IOS && designSystemV2Enabled -> {
+  when (devicePlatform) {
+    DevicePlatform.IOS -> {
       NfcScreenInternalIos(model = model, modifier = modifier)
     }
-    devicePlatform == DevicePlatform.Android && designSystemV2Enabled -> {
-      NfcScreenInternalV2(model = model, modifier = modifier)
-    }
-    else -> {
-      NfcScreenInternal(model = model, modifier = modifier)
-    }
-  }
-}
-
-@Composable
-internal fun NfcScreenInternal(
-  model: NfcBodyModel,
-  modifier: Modifier = Modifier,
-) {
-  model.status.whenInProgress { onCancel ->
-    BackHandler {
-      onCancel()
-    }
-  }
-
-  val cancelButtonAlpha: Float by animateFloatAsState(
-    targetValue =
-      when (model.status) {
-        is Searching, is Connected -> 1f
-        is Success -> 0f
-      },
-    label = "cancelButtonAlphaAnimation"
-  )
-  NfcBlurBackground {
-    Column(
-      modifier =
-        modifier
-          .background(WalletTheme.colors.foreground.copy(alpha = 0.1F))
-          .padding(horizontal = 20.dp)
-          .navigationBarsPadding()
-          .fillMaxSize(),
-      horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-      Spacer(Modifier.weight(1F))
-
-      NfcStatusIcon(status = model.status)
-
-      AnimatedContent(
-        modifier =
-          Modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp),
-        targetState = model.text,
-        transitionSpec = {
-          fadeIn(animationSpec = tween(durationMillis = 500)) togetherWith
-            fadeOut(animationSpec = tween(durationMillis = 500))
-        },
-        contentAlignment = Center,
-        label = "NfcStatusLabelAnimation"
-      ) { text ->
-        NfcScreenStatusLabel(
-          modifier = Modifier.align(CenterHorizontally),
-          text = text
-        )
-      }
-
-      Spacer(Modifier.weight(1F))
-      Button(
-        text = "Cancel",
-        modifier = Modifier.alpha(cancelButtonAlpha),
-        treatment = Translucent,
-        size = Footer,
-        onClick = StandardClick {
-          when (val status = model.status) {
-            is Searching -> status.onCancel()
-            is Connected -> status.onCancel()
-            is Success -> Unit
-          }
-        }
-      )
-      Spacer(modifier = Modifier.height(24.dp))
+    DevicePlatform.Android,
+    DevicePlatform.Jvm,
+    -> {
+      NfcScreenInternalAndroid(model = model, modifier = modifier)
     }
   }
 }
 
 @Composable
-internal fun NfcScreenInternalV2(
+internal fun NfcScreenInternalAndroid(
   model: NfcBodyModel,
   modifier: Modifier = Modifier,
 ) {
-  NfcProgressScreenAndroidLayoutV2(
+  NfcProgressScreenAndroidLayout(
     modifier = modifier,
     onCancel =
       when (val status = model.status) {
@@ -187,7 +106,7 @@ internal fun NfcScreenInternalV2(
                       IconButtonModel(
                         iconModel =
                           IconModel(
-                            icon = Icon.SmallIconQuestionNoOutline,
+                            icon = Icon.Question,
                             iconSize = IconSize.Accessory,
                             iconBackgroundType =
                               IconBackgroundType.Circle(
@@ -205,7 +124,7 @@ internal fun NfcScreenInternalV2(
       }
     },
     statusContent = {
-      NfcStatusIndicatorV2(status = model.status)
+      NfcStatusIndicator(status = model.status)
 
       AnimatedContent(
         modifier =
@@ -234,8 +153,6 @@ internal fun NfcScreenInternalIos(
   model: NfcBodyModel,
   modifier: Modifier = Modifier,
 ) {
-  val designSystemV2Enabled = true
-
   model.status.whenInProgress { onCancel ->
     BackHandler {
       onCancel()
@@ -244,7 +161,7 @@ internal fun NfcScreenInternalIos(
 
   Box(modifier = modifier.fillMaxSize()) {
     if (!model.showNativeSheetOnIos) {
-      FwupSystemThemedContent(followIosSystemTheme = designSystemV2Enabled) {
+      FwupSystemThemedContent(followIosSystemTheme = true) {
         NfcProgressScreenIosLayout(
           modifier = Modifier.matchParentSize(),
           hardwareType = model.hardwareType,
@@ -254,8 +171,7 @@ internal fun NfcScreenInternalIos(
         ) {
           NfcIosStatusContent(
             status = model.status,
-            text = model.text,
-            designSystemV2Enabled = designSystemV2Enabled
+            text = model.text
           )
         }
       }
@@ -269,7 +185,7 @@ internal fun NfcScreenInternalIos(
 
     NfcIosBackgroundLayout(
       modifier = Modifier.matchParentSize(),
-      backgroundPainter = if (designSystemV2Enabled) painterResource(backgroundDrawable) else null,
+      backgroundPainter = painterResource(backgroundDrawable),
       backgroundTopPadding = 200.dp
     ) {}
   }
@@ -279,31 +195,24 @@ internal fun NfcScreenInternalIos(
 private fun NfcIosStatusContent(
   status: NfcBodyModel.Status,
   text: String,
-  designSystemV2Enabled: Boolean,
 ) {
-  if (designSystemV2Enabled) {
-    val headline = nfcIosStatusHeadline(status = status, text = text)
-    val subtitle = nfcIosStatusSubtitle(status = status, text = text)
+  val headline = nfcIosStatusHeadline(status = status, text = text)
+  val subtitle = nfcIosStatusSubtitle(status = status, text = text)
 
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-      NfcStatusLabel(
-        text = headline,
-        labelType = if (status is Success) LabelType.Body2Regular else LabelType.Body2MonoCaps,
-        textColor = WalletTheme.colors.foreground
-      )
-
-      subtitle?.let {
-        NfcStatusLabel(
-          text = it,
-          labelType = LabelType.Body2Regular,
-          textColor = WalletTheme.colors.foreground60
-        )
-      }
-    }
-  } else {
-    NfcScreenStatusLabel(
-      text = text
+  Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    NfcStatusLabel(
+      text = headline,
+      labelType = if (status is Success) LabelType.Body2Regular else LabelType.Body2MonoCaps,
+      textColor = WalletTheme.colors.foreground
     )
+
+    subtitle?.let {
+      NfcStatusLabel(
+        text = it,
+        labelType = LabelType.Body2Regular,
+        textColor = WalletTheme.colors.foreground60
+      )
+    }
   }
 }
 
@@ -346,7 +255,6 @@ private inline fun NfcBodyModel.Status.whenInProgress(onBack: (() -> Unit) -> Un
 @Composable
 private fun NfcStatusIcon(status: NfcBodyModel.Status) {
   val density = LocalDensity.current.density
-  val designSystemV2Enabled = true
 
   Box(
     contentAlignment = Center,
@@ -356,30 +264,6 @@ private fun NfcStatusIcon(status: NfcBodyModel.Status) {
         .size(100.dp)
         .wrapContentSize(unbounded = true)
   ) {
-    if (!designSystemV2Enabled && isBlurSupported()) {
-      val blueBackgroundAlpha: Float by animateFloatAsState(
-        targetValue =
-          when (status) {
-            is Connected -> 1f
-            is Searching, Success -> 0f
-          },
-        label = "blueBackgroundAlphaAnimation"
-      )
-
-      Box(
-        modifier =
-          Modifier
-            .size(50.dp * density)
-            .blur(radius = 45.dp * density, edgeTreatment = BlurredEdgeTreatment.Unbounded)
-            .background(
-              color =
-                Color(0xff1f60B8)
-                  .copy(alpha = blueBackgroundAlpha),
-              shape = RoundedCornerShape(size = 50.dp * density)
-            )
-      )
-    }
-
     val circleStrokeWidth: Float by animateFloatAsState(
       targetValue =
         when (status) {
@@ -484,7 +368,7 @@ private fun NfcStatusIcon(status: NfcBodyModel.Status) {
 }
 
 @Composable
-private fun NfcStatusIndicatorV2(status: NfcBodyModel.Status) {
+private fun NfcStatusIndicator(status: NfcBodyModel.Status) {
   NfcStatusIcon(status = status)
 }
 

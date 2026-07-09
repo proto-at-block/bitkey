@@ -59,7 +59,6 @@ class InheritanceManagementUiStateMachineImpl(
   override fun model(props: InheritanceManagementUiProps): ScreenModel {
     var uiState: UiState by remember { mutableStateOf(UiState.ManagingInheritance()) }
     var selectedTab by remember { mutableStateOf(props.selectedTab) }
-    val isDesignSystemV2Enabled = true
 
     val benefactorStates =
       inheritanceService.benefactorClaimState.collectAsState(emptyImmutableList())
@@ -82,7 +81,7 @@ class InheritanceManagementUiStateMachineImpl(
         denyClaim = { claim ->
           uiState = UiState.DecliningClaim(
             recoveryEntity = beneficiaryStates.value.first {
-              it.claims.filter { it.claimId == claim.claimId }.isNotEmpty()
+              it.claims.any { beneficiaryClaim -> beneficiaryClaim.claimId == claim.claimId }
             }.relationship
           )
         },
@@ -133,7 +132,6 @@ class InheritanceManagementUiStateMachineImpl(
       UiState.BenefactorApprovedClaimWarning,
       -> {
         ManagingInheritanceBodyModel(
-          isDesignSystemV2Enabled = isDesignSystemV2Enabled,
           selectedTab = selectedTab,
           onBack = props.onBack,
           onLearnMore = {

@@ -1,6 +1,7 @@
 package build.wallet.statemachine.data.recovery.sweep
 
 import androidx.compose.runtime.*
+import build.wallet.f8e.mobilepay.HardwareVerificationRequiredError
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.Companion.sweepPriority
 import build.wallet.bitcoin.transactions.Psbt
@@ -63,6 +64,14 @@ class SweepDataStateMachineImpl(
     data class SignAndBroadcastState(
       val allPsbts: Set<SweepPsbt>,
       val sweep: Sweep,
+    ) : State
+
+    /**
+     * Sweep signing is blocked until the user completes hardware verification out-of-band.
+     */
+    data class HardwareVerificationRequiredState(
+      val sweep: Sweep,
+      val error: HardwareVerificationRequiredError,
     ) : State
 
     /**
@@ -173,7 +182,13 @@ class SweepDataStateMachineImpl(
             .fold(
               success = { it },
               failure = {
-                sweepState = SweepFailedState(it)
+                sweepState = when (it) {
+                  is HardwareVerificationRequiredError -> HardwareVerificationRequiredState(
+                    sweep = state.sweep,
+                    error = it
+                  )
+                  else -> SweepFailedState(it)
+                }
                 return@LaunchedEffect
               }
             )
@@ -193,6 +208,12 @@ class SweepDataStateMachineImpl(
       is NoFundsFoundState ->
         NoFundsFoundData(
           proceed = props.onSuccess
+        )
+
+      is HardwareVerificationRequiredState ->
+        HardwareVerificationRequiredData(
+          privilegedActionInstance = state.error.privilegedActionInstance,
+          dismiss = { sweepState = PsbtsGeneratedState(state.sweep) }
         )
 
       /** Terminal state: Sweep succeeded */

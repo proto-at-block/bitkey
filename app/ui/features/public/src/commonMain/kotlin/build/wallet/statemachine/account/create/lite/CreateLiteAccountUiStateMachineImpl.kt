@@ -17,6 +17,7 @@ import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupUiStateMachine
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
+import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiProps
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiStateMachine
 import build.wallet.statemachine.trustedcontact.model.EnteringInviteCodeBodyModel
@@ -47,11 +48,12 @@ class CreateLiteAccountUiStateMachineImpl(
       mutableStateOf(
         if (props.showBeTrustedContactIntroduction) {
           // If we are not skipping the introduction, show it.
-          State.ShowingBeTrustedContactIntroduction(inviteCode ?: "")
+          State.ShowingBeTrustedContactIntroduction(inviteCode.orEmpty())
         } else {
-          if (inviteCode != null) {
+          val code = inviteCode
+          if (code != null) {
             // If we are skipping the introduction, create the account immediately with invite code.
-            State.CreatingLiteAccount(inviteCode!!)
+            State.CreatingLiteAccount(code)
           } else {
             // If there is no invite code, we need to enter one.
             State.EnteringInviteCode("")
@@ -138,6 +140,7 @@ class CreateLiteAccountUiStateMachineImpl(
             }
             .onFailure { error ->
               uiState = State.CreatingLiteAccountFailure(
+                error = error,
                 isConnectivityError = error.isConnectivityError,
                 inviteCode = state.inviteCode
               )
@@ -160,7 +163,12 @@ class CreateLiteAccountUiStateMachineImpl(
               null
             },
           onBack = { uiState = State.EnteringInviteCode(state.inviteCode) },
-          eventTrackerScreenId = NEW_LITE_ACCOUNT_CREATION_FAILURE
+          eventTrackerScreenId = NEW_LITE_ACCOUNT_CREATION_FAILURE,
+          errorData = ErrorData(
+            segment = RecoverySegment.SocRec.TrustedContact.Setup,
+            actionDescription = "Creating lite account",
+            cause = state.error
+          )
         ).asRootScreen()
 
       is State.BackingUpLiteAccount ->
@@ -168,11 +176,12 @@ class CreateLiteAccountUiStateMachineImpl(
           props =
             LiteAccountCloudSignInAndBackupProps(
               liteAccount = state.liteAccount,
-              onBackupFailed = {
+              onBackupFailed = { error ->
                 uiState =
                   State.BackingUpLiteAccountError(
                     liteAccount = state.liteAccount,
-                    inviteCode = state.inviteCode
+                    inviteCode = state.inviteCode,
+                    error = error
                   )
               },
               onBackupSaved = {
@@ -203,7 +212,12 @@ class CreateLiteAccountUiStateMachineImpl(
               }
             ),
           onBack = props.onBack,
-          eventTrackerScreenId = NEW_LITE_ACCOUNT_BACKUP_FAILURE
+          eventTrackerScreenId = NEW_LITE_ACCOUNT_BACKUP_FAILURE,
+          errorData = ErrorData(
+            segment = RecoverySegment.CloudBackup.LiteAccount.Upload,
+            actionDescription = "Uploading lite account backup to cloud",
+            cause = state.error ?: IllegalStateException("Failed to upload lite account backup to cloud")
+          )
         ).asScreen(Root)
 
       is State.EnrollingAsTrustedContact -> {
@@ -227,19 +241,19 @@ class CreateLiteAccountUiStateMachineImpl(
 
 private fun (() -> Unit).toBackRetreat() = Retreat(style = RetreatStyle.Back, onRetreat = this)
 
-private sealed class State {
+private sealed interface State {
   /**
    * Maintain the invite code when going "back" as well as the period between
    * [EnteringInviteCode] and [EnrollingAsTrustedContact].
    */
-  abstract val inviteCode: String
+  val inviteCode: String
 
   /**
    * Introduction to being a trusted contact.
    */
   data class ShowingBeTrustedContactIntroduction(
     override val inviteCode: String,
-  ) : State()
+  ) : State
 
   /**
    * Enter invite code.
@@ -250,34 +264,36 @@ private sealed class State {
    */
   data class EnteringInviteCode(
     override val inviteCode: String,
-  ) : State()
+  ) : State
 
   /** We are generating keys and creating the lite account on the server */
   data class CreatingLiteAccount(
     override val inviteCode: String,
-  ) : State()
+  ) : State
 
   /** Create and upload cloud backup. */
   data class BackingUpLiteAccount(
     override val inviteCode: String,
     val liteAccount: LiteAccount,
-  ) : State()
+  ) : State
 
   /** Handle backup error. */
   data class BackingUpLiteAccountError(
     override val inviteCode: String,
     val liteAccount: LiteAccount,
-  ) : State()
+    val error: Throwable?,
+  ) : State
 
   /** Some part of the account creation process failed */
   data class CreatingLiteAccountFailure(
+    val error: Throwable,
     val isConnectivityError: Boolean,
     override val inviteCode: String,
-  ) : State()
+  ) : State
 
   /** The account creation process succeeded, we are now enrolling the account as a Trusted Contact */
   data class EnrollingAsTrustedContact(
     override val inviteCode: String,
     val liteAccount: LiteAccount,
-  ) : State()
+  ) : State
 }

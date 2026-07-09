@@ -75,9 +75,9 @@ class ReinviteTrustedContactScreenPresenter(
 
       is State.ScanningHardwareState -> {
         val actionProofType = if (isBeneficiary) {
-          ActionProofType.ReinviteBeneficiary(name = current.tcName, entityId = screen.invitation.relationshipId)
+          ActionProofType.ReinviteBeneficiary(name = current.tcName, entityId = screen.invitation.id.value)
         } else {
-          ActionProofType.ReinviteRecoveryContact(name = current.tcName, entityId = screen.invitation.relationshipId)
+          ActionProofType.ReinviteRecoveryContact(name = current.tcName, entityId = screen.invitation.id.value)
         }
         hardwareAuthUiStateMachine.model(
           HardwareAuthUiProps(
@@ -107,7 +107,7 @@ class ReinviteTrustedContactScreenPresenter(
         LaunchedEffect("reinvite-tc-to-bitkey") {
           relationshipsService.refreshInvitation(
             account = screen.account,
-            relationshipId = screen.invitation.relationshipId,
+            relationshipId = screen.invitation.id.value,
             proof = current.proof
           )
             .onSuccess {

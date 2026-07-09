@@ -71,13 +71,11 @@ fun AnimatedHeroAmount(
   contextLineTreatment: LabelTreatment = LabelTreatment.Secondary,
   hideBalance: Boolean = false,
   disabled: Boolean = false,
-  centerWhenDesignSystemV2: Boolean = false,
+  centerContent: Boolean = false,
   onSwapClick: (() -> Unit)? = null,
   isLoading: Boolean = false,
 ) {
-  val isDesignSystemV2Enabled = true
-  val shouldUseStartAlignment =
-    isDesignSystemV2Enabled && !centerWhenDesignSystemV2
+  val shouldUseStartAlignment = !centerContent
   val primaryTreatment = if (disabled) Disabled else Primary
   val primaryAmountMinHeight =
     heroAmountMinHeight(primaryAmountLabelType, primaryTreatment)
@@ -87,7 +85,7 @@ fun AnimatedHeroAmount(
     contextLineTreatment = contextLineTreatment,
     hideBalance = hideBalance,
     disabled = disabled,
-    centerWhenDesignSystemV2 = centerWhenDesignSystemV2,
+    centerContent = centerContent,
     onSwapClick = onSwapClick,
     isLoading = isLoading,
     topContent = {
@@ -405,7 +403,19 @@ private fun AnimatedAmountGlyphState.glyphScaleTarget(): Float {
 private fun AnimatedAmountGlyphState.glyphEntryTranslationTarget(
   entryTranslationYPx: Float,
 ): Float {
-  return if (entering) entryTranslationYPx else 0f
+  return animatedAmountVerticalTranslationTarget(
+    entering = entering,
+    exiting = exiting,
+    entryTranslationYPx = entryTranslationYPx
+  )
+}
+
+internal fun animatedAmountVerticalTranslationTarget(
+  entering: Boolean,
+  exiting: Boolean,
+  entryTranslationYPx: Float,
+): Float {
+  return if (entering || exiting) entryTranslationYPx else 0f
 }
 
 private fun AnimatedAmountGlyphState.separatorTranslateY(

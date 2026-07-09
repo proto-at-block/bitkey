@@ -7,15 +7,19 @@ name = "account"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "aws-config",
  "aws-sdk-sns",
  "bdk_utils",
+ "clients_common",
  "database",
+ "device-attestation",
  "errors",
  "external_identifier",
+ "feature_flags",
  "http_server",
+ "instrumentation",
  "isocountry",
  "migration",
+ "once_cell",
  "repository",
  "serde_json",
  "thiserror 1.0.57",
@@ -226,6 +230,45 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8824ecca2e851cec16968d54a01dd372ef8f95b244fb84b84e70128be347c3c6"
 dependencies = [
  "term",
+]
+
+[[package]]
+name = "asn1-rs"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5493c3bedbacf7fd7382c6346bbd66687d12bbaad3a89a2d2c303ee6cf20b048"
+dependencies = [
+ "asn1-rs-derive",
+ "asn1-rs-impl",
+ "displaydoc",
+ "nom",
+ "num-traits",
+ "rusticata-macros",
+ "thiserror 1.0.57",
+ "time",
+]
+
+[[package]]
+name = "asn1-rs-derive"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "965c2d33e53cb6b267e148a4cb0760bc01f4904c1cd4bb4002a085bb016d1490"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.90",
+ "synstructure",
+]
+
+[[package]]
+name = "asn1-rs-impl"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b18050c2cd6fe86c3a76584ef5e0baf286d038cda203eb6223df2cc413565f7"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.90",
 ]
 
 [[package]]
@@ -493,11 +536,13 @@ dependencies = [
  "account",
  "action-proof",
  "async-trait",
+ "authn_authz_utils",
  "axum",
  "axum-macros",
  "base64 0.22.1",
  "bdk_utils",
  "errors",
+ "experimentation",
  "feature_flags",
  "hex",
  "http_server",
@@ -519,6 +564,15 @@ dependencies = [
  "userpool",
  "utoipa",
  "wsm-rust-client",
+]
+
+[[package]]
+name = "authn_authz_utils"
+version = "0.1.0"
+dependencies = [
+ "http 1.1.0",
+ "jsonwebtoken",
+ "types",
 ]
 
 [[package]]
@@ -1882,6 +1936,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "98cc8fbded0c607b7ba9dd60cd98df59af97e84d24e49c8557331cfc26d301ce"
 
 [[package]]
+name = "clients_common"
+version = "0.1.0"
+dependencies = [
+ "aws-config",
+ "aws-types",
+ "reqwest",
+]
+
+[[package]]
 name = "cmake"
 version = "0.1.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2227,10 +2290,10 @@ version = "0.1.0"
 dependencies = [
  "account",
  "authn_authz",
- "aws-config",
  "aws-sdk-kms",
  "axum",
  "axum-macros",
+ "clients_common",
  "errors",
  "http_server",
  "instrumentation",
@@ -2352,6 +2415,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "der-parser"
+version = "9.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5cd0a5c643689626bec213c4d8bd4d96acc8ffdb4ad4bb6bc16abf27d5f4b553"
+dependencies = [
+ "asn1-rs",
+ "displaydoc",
+ "nom",
+ "num-bigint",
+ "num-traits",
+ "rusticata-macros",
+]
+
+[[package]]
 name = "deranged"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2390,6 +2467,15 @@ checksum = "ab63b0e2bf4d5928aff72e83a7dace85d7bba5fe12dcc3c5a572d78caffd3f3c"
 dependencies = [
  "derive_builder_core",
  "syn 2.0.90",
+]
+
+[[package]]
+name = "device-attestation"
+version = "0.1.1"
+dependencies = [
+ "ring",
+ "thiserror 1.0.57",
+ "x509-parser",
 ]
 
 [[package]]
@@ -2761,7 +2847,7 @@ name = "experimentation"
 version = "0.1.0"
 dependencies = [
  "account",
- "authn_authz",
+ "authn_authz_utils",
  "axum",
  "axum-macros",
  "errors",
@@ -2775,6 +2861,7 @@ dependencies = [
  "tokio",
  "tracing",
  "types",
+ "userpool",
  "utoipa",
 ]
 
@@ -4301,6 +4388,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "minimal-lexical"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
+
+[[package]]
 name = "miniscript"
 version = "12.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4361,6 +4454,7 @@ dependencies = [
  "migration",
  "mockall",
  "once_cell",
+ "privileged_action",
  "repository",
  "rstest",
  "screener",
@@ -4483,6 +4577,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "nom"
+version = "7.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d273983c5a657a70a3e8f2a01329822f3b8c8172b73826411a55751e404a0a4a"
+dependencies = [
+ "memchr",
+ "minimal-lexical",
+]
+
+[[package]]
 name = "notification"
 version = "0.1.0"
 dependencies = [
@@ -4494,6 +4598,7 @@ dependencies = [
  "axum-macros",
  "base64 0.22.1",
  "bdk_utils",
+ "clients_common",
  "database",
  "derive_builder",
  "dyn-clone",
@@ -4609,6 +4714,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9cf5f9dd3933bd50a9e1f149ec995f39ae2c496d31fd772c1fd45ebc27e902b0"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "oid-registry"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8d8034d9489cdaf79228eb9f6a3b8d7bb32ba00d6645ebd48eef4077ceb5bd9"
+dependencies = [
+ "asn1-rs",
 ]
 
 [[package]]
@@ -4905,6 +5019,7 @@ dependencies = [
  "base64 0.22.1",
  "bdk_wallet",
  "chrono",
+ "clients_common",
  "experimentation",
  "feature_flags",
  "futures",
@@ -5274,6 +5389,7 @@ dependencies = [
  "secure_site",
  "serde",
  "serde_json",
+ "subtle",
  "thiserror 1.0.57",
  "time",
  "tokio",
@@ -5484,8 +5600,8 @@ dependencies = [
 name = "queue"
 version = "0.1.0"
 dependencies = [
- "aws-config",
  "aws-sdk-sqs",
+ "clients_common",
  "errors",
  "futures",
  "serde",
@@ -5991,6 +6107,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfcb3a22ef46e85b45de6ee7e79d063319ebb6594faafcf1c225ea92ab6e9b92"
 dependencies = [
  "semver",
+]
+
+[[package]]
+name = "rusticata-macros"
+version = "4.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "faf0c4a6ece9950b9abdb62b1cfcf2a68b3b67a10ba445b3bb85be2a293d0632"
+dependencies = [
+ "nom",
 ]
 
 [[package]]
@@ -7716,9 +7841,9 @@ name = "userpool"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "aws-config",
  "aws-sdk-cognitoidentityprovider",
  "aws-types",
+ "clients_common",
  "dyn-clone",
  "errors",
  "hex",
@@ -8245,12 +8370,12 @@ version = "0.1.0"
 dependencies = [
  "account",
  "aes-gcm",
- "aws-config",
  "aws-sdk-sesv2",
  "aws-sdk-sns",
  "base64 0.22.1",
  "bdk_utils",
  "chain_indexer",
+ "clients_common",
  "csv",
  "ctrlc",
  "database",
@@ -8401,6 +8526,24 @@ dependencies = [
  "url",
  "wsm-common",
  "wsm-compat",
+]
+
+[[package]]
+name = "x509-parser"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fcbc162f30700d6f3f82a24bf7cc62ffe7caea42c0b2cba8bf7f3ae50cf51f69"
+dependencies = [
+ "asn1-rs",
+ "data-encoding",
+ "der-parser",
+ "lazy_static",
+ "nom",
+ "oid-registry",
+ "ring",
+ "rusticata-macros",
+ "thiserror 1.0.57",
+ "time",
 ]
 
 [[package]]

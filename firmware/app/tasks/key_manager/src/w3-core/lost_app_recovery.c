@@ -21,11 +21,11 @@
 // Forward declaration
 static void lost_app_recovery_sign_challenge_register_handlers(void);
 
-// Session state for lost app recovery (persists between commands within same NFC session)
+// Session state for lost app recovery (persists between commands within same NFC session).
+// Validation/handles/UI for the initial command live in [unseal] (sealed_unseal_session_t);
+// [confirmed] is set in the result handler so the continue command can proceed.
 typedef struct {
-  // Sealed SSEK stashed from initial command, used after confirmation
-  fwpb_sealed_data sealed_ssek;
-  bool valid;
+  sealed_unseal_session_t unseal;
   // Flag: confirmation completed, continue command expected
   bool confirmed;
 } lost_app_recovery_session_t;
@@ -43,58 +43,13 @@ void lost_app_recovery_handle_init(ipc_ref_t* message) {
   fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
   fwpb_wallet_rsp* rsp = proto_get_rsp();
 
-  rsp->status = fwpb_status_ERROR;
-
-  // Clear prior sessions
-  confirmation_manager_clear();
-  lar_session_clear();
-
-  // Validate exact sealed SSEK field sizes (AES-256-GCM: 32-byte data, 12-byte IV, 16-byte tag)
-  if (cmd->msg.lost_app_recovery_cmd.sealed_ssek.data.size != AES_256_LENGTH_BYTES ||
-      cmd->msg.lost_app_recovery_cmd.sealed_ssek.nonce.size != AES_GCM_IV_LENGTH ||
-      cmd->msg.lost_app_recovery_cmd.sealed_ssek.tag.size != AES_GCM_TAG_LENGTH) {
-    LOGE("LAR: invalid sealed SSEK");
-    rsp->status = fwpb_status_INVALID_ARGUMENT;
-    goto out;
+  if (!sealed_unseal_begin(&cmd->msg.lost_app_recovery_cmd.sealed_ssek,
+                           SAP_ACTION_CREATE_LOST_APP_RECOVERY, CONFIRMATION_TYPE_LOST_APP_RECOVERY,
+                           &lar_session.unseal, rsp)) {
+    LOGE("LAR: begin failed, status=%d", rsp->status);
   }
-
-  // Stash sealed SSEK in session state
-  memcpy(&lar_session.sealed_ssek, &cmd->msg.lost_app_recovery_cmd.sealed_ssek,
-         sizeof(fwpb_sealed_data));
-  lar_session.valid = true;
-
-  // Create confirmation with handles
-  uint8_t response_handle[CONFIRMATION_HANDLE_SIZE];
-  uint8_t confirmation_handle[CONFIRMATION_HANDLE_SIZE];
-  uint8_t token = 1;  // Placeholder operation data
-
-  confirmation_result_t res = confirmation_manager_create(
-    CONFIRMATION_TYPE_LOST_APP_RECOVERY, &token, sizeof(token), response_handle,
-    sizeof(response_handle), confirmation_handle, sizeof(confirmation_handle));
-
-  if (res != CONFIRMATION_RESULT_SUCCESS) {
-    LOGE("LAR CM create failed");
-    lar_session_clear();
-    goto out;
-  }
-
-  // Show confirmation prompt on display (title resolved via SAP action -> langpack lookup)
-  fwpb_display_params_privileged_action display_params = {0};
-  display_params.sap_action = SAP_ACTION_CREATE_LOST_APP_RECOVERY;
-  display_params.which_action = fwpb_display_params_privileged_action_confirm_action_tag;
-  display_params.action.confirm_action.action_type =
-    fwpb_display_privileged_action_type_DISPLAY_PRIVILEGED_ACTION_NONE;
-  UI_SHOW_EVENT_WITH_DATA(UI_EVENT_START_PRIVILEGED_ACTION, &display_params,
-                          sizeof(display_params));
-
-  // Return CONFIRMATION_PENDING with handles
-  rsp->status = fwpb_status_CONFIRMATION_PENDING;
-  memcpy(rsp->response_handle.bytes, response_handle, sizeof(response_handle));
-  rsp->response_handle.size = sizeof(response_handle);
-  memcpy(rsp->confirmation_handle.bytes, confirmation_handle, sizeof(confirmation_handle));
-  rsp->confirmation_handle.size = sizeof(confirmation_handle);
-
-out:
+  // sealed_unseal_begin clears the session it owns; clear our extra state too.
+  lar_session.confirmed = false;
   proto_send_rsp(cmd, rsp);
 }
 
@@ -129,7 +84,7 @@ static bool lar_confirmation_result_handler(ipc_ref_t* message) {
     return false;
   }
 
-  if (!lar_session.valid) {
+  if (!lar_session.unseal.valid) {
     rsp->status = fwpb_status_ERROR;
     LOGE("LAR no session");
     confirmation_manager_clear();
@@ -139,7 +94,7 @@ static bool lar_confirmation_result_handler(ipc_ref_t* message) {
 
   // Unseal SSEK using hardware sealing key
   uint8_t unsealed_ssek[AES_256_LENGTH_BYTES] = {0};
-  if (!sealed_data_unseal(&lar_session.sealed_ssek, unsealed_ssek, sizeof(unsealed_ssek))) {
+  if (!sealed_data_unseal(&lar_session.unseal.sealed_key, unsealed_ssek, sizeof(unsealed_ssek))) {
     LOGE("LAR unseal fail");
     rsp->status = fwpb_status_ERROR;
     lar_session_clear();
@@ -174,7 +129,7 @@ static bool lar_confirmation_result_handler(ipc_ref_t* message) {
 // ---------------------------------------------------------------------------
 
 bool lost_app_recovery_is_session_ready(void) {
-  return lar_session.valid && lar_session.confirmed;
+  return lar_session.unseal.valid && lar_session.confirmed;
 }
 
 void lost_app_recovery_register_handlers(void) {

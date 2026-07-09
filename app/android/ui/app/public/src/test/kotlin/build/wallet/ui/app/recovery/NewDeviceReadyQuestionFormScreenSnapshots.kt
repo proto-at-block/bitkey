@@ -40,7 +40,7 @@ class NewDeviceReadyQuestionFormScreenSnapshots : FunSpec({
             showBack = true,
             backIconModel =
               IconModel(
-                icon = Icon.SmallIconArrowLeft,
+                icon = Icon.ArrowLeft,
                 iconSize = IconSize.Accessory,
                 iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Regular)
               ),

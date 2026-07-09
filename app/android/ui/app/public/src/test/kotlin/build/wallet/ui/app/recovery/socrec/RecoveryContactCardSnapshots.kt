@@ -17,7 +17,7 @@ import kotlinx.datetime.Instant.Companion.DISTANT_FUTURE
 class RecoveryContactCardSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
-  test("Pending recovery contact card with inverse background and design system v2") {
+  test("Pending recovery contact card with inverse background") {
     paparazzi.snapshot {
       Box(
         modifier = Modifier

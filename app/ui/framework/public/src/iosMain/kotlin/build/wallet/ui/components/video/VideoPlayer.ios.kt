@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.viewinterop.UIKitInteropProperties
 import androidx.compose.ui.viewinterop.UIKitView
 import build.wallet.ui.model.video.VideoStartingPosition
@@ -15,6 +16,8 @@ import platform.CoreMedia.CMTimeMakeWithSeconds
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSSelectorFromString
 import platform.Foundation.NSURL
+import platform.QuartzCore.kCALayerMaxXMinYCorner
+import platform.QuartzCore.kCALayerMinXMinYCorner
 import platform.UIKit.*
 
 @OptIn(ExperimentalForeignApi::class)
@@ -27,9 +30,11 @@ actual fun VideoPlayer(
   autoStart: Boolean,
   startingPosition: VideoStartingPosition,
   scalingMode: VideoScalingMode,
+  topCornerRadius: Dp,
   allowSurfaceOnTopWorkaround: Boolean,
   videoPlayerCallback: (VideoPlayerHandler) -> Unit,
 ) {
+  val topCornerRadiusPoints = topCornerRadius.value
   val player = remember {
     if (isLooping) {
       AVQueuePlayer()
@@ -54,13 +59,18 @@ actual fun VideoPlayer(
       playerHandler.dispose()
     }
   }
-  val factory = remember(player, backgroundColor, scalingMode) {
+  val factory = remember(player, backgroundColor, scalingMode, topCornerRadiusPoints) {
     {
       object : UIView(cValue { CGRectZero }) {
         private val playerLayer = AVPlayerLayer.playerLayerWithPlayer(player)
 
         init {
           clipsToBounds = true
+          layer.cornerRadius = topCornerRadiusPoints.toDouble()
+          layer.maskedCorners = kCALayerMinXMinYCorner or kCALayerMaxXMinYCorner
+          playerLayer.cornerRadius = topCornerRadiusPoints.toDouble()
+          playerLayer.maskedCorners = kCALayerMinXMinYCorner or kCALayerMaxXMinYCorner
+          playerLayer.masksToBounds = true
           this.backgroundColor = UIColor.colorWithRed(
             red = backgroundColor.red.toDouble(),
             green = backgroundColor.green.toDouble(),
@@ -101,7 +111,7 @@ private data class AVPlayerHandler(
   private val resourcePath: String,
   private val isLooping: Boolean,
   private val autoStart: Boolean,
-) : VideoPlayerHandler() {
+) : VideoPlayerHandler {
   private var looper: AVPlayerLooper? = null
 
   init {

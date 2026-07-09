@@ -21,6 +21,8 @@ import build.wallet.firmware.UnlockMethod
 import build.wallet.nfc.transaction.PairingTransactionProviderFake
 import build.wallet.nfc.transaction.PairingTransactionResponse
 import build.wallet.nfc.transaction.PairingTransactionResponse.*
+import build.wallet.platform.app.AppSessionManagerFake
+import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -41,9 +43,12 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import io.kotest.matchers.types.shouldBeSameInstanceAs
 import kotlinx.coroutines.flow.first
 import okio.ByteString.Companion.encodeUtf8
 
+// Large end-to-end coverage for hardware pairing; splitting would hurt cohesion.
+@Suppress("LargeClass")
 class PairNewHardwareUiStateMachineImplTests : FunSpec({
 
   val eventTracker = EventTrackerMock(turbines::create)
@@ -58,6 +63,8 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
     object : HelpCenterUiStateMachine,
       ScreenStateMachineMock<HelpCenterUiProps>("help-center") {}
 
+  val appSessionManager = AppSessionManagerFake()
+  val deviceInfoProvider = DeviceInfoProviderMock()
   val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
 
   val featureFlagDao = FeatureFlagDaoFake()
@@ -70,6 +77,8 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
       pairingTransactionProvider = pairingTransactionProvider,
       nfcSessionUIStateMachine = nfcSessionUIStateMachine,
       helpCenterUiStateMachine = helpCenterUiStateMachine,
+      appSessionManager = appSessionManager,
+      deviceInfoProvider = deviceInfoProvider,
       hardwareUnlockInfoService = hardwareUnlockInfoService,
       w3OnboardingFeatureFlag = w3OnboardingFeatureFlag,
       accountConfigService = accountConfigService,
@@ -106,11 +115,37 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
     pairingContext = PairingContext.Onboarding
   )
 
+  fun incompleteFingerprintErrorCause() =
+    HardwareFingerprintEnrollmentScreenModel(
+      onSaveFingerprint = {},
+      onBack = null,
+      showingIncompleteEnrollmentError = true,
+      incompleteEnrollmentErrorOnPrimaryButtonClick = {},
+      onErrorOverlayClosed = {},
+      eventTrackerContext = props.eventTrackerContext,
+      presentationStyle = props.screenPresentationStyle,
+      isNavigatingBack = false,
+      headline = "Save your fingerprint",
+      instructions = "Keep scanning your fingerprint."
+    )
+      .bottomSheetModel.shouldNotBeNull()
+      .body.shouldBeInstanceOf<FormBodyModel>()
+      .errorData.shouldNotBeNull()
+      .cause
+
   beforeTest {
     accountConfigService.reset()
+    appSessionManager.reset()
+    appSessionManager.currentSessionId = "session-id"
+    deviceInfoProvider.reset()
     hardwareUnlockInfoService.clear()
     featureFlagDao.reset()
     pairingTransactionProvider.reset()
+  }
+
+  test("incomplete fingerprint scan error uses stable cause") {
+    incompleteFingerprintErrorCause()
+      .shouldBeSameInstanceAs(incompleteFingerprintErrorCause())
   }
 
   test("pairing new wallet ui -- success") {

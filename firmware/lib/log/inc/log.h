@@ -118,9 +118,20 @@ void _log(log_level_t level, const char* colour, const char* file, int line, con
   } while (0)
 #endif
 
+// Compact-only: skips the local printf fallback so the format string is
+// stripped from flash at link time (only Memfault decoders see it). The
+// `colour` argument is intentionally absent so no ANSI escape strings end up
+// in .rodata. Use in flash-constrained paths.
+#define _LOG_COMPACT(level, ...)                                            \
+  do {                                                                      \
+    eMemfaultPlatformLogLevel memfault_level = _TRANSLATE_LOG_LEVEL(level); \
+    MEMFAULT_COMPACT_LOG_SAVE(memfault_level, __VA_ARGS__);                 \
+  } while (0)
+
 #else
 
 #define _LOG(level, colour, ...) _log(level, colour, __FILENAME__, __LINE__, __VA_ARGS__)
+#define _LOG_COMPACT(level, ...) _log(level, "", __FILENAME__, __LINE__, __VA_ARGS__)
 
 #endif
 
@@ -165,6 +176,14 @@ log_level_t log_get_level(void);
 #define LOGD_RAW(...) _LOG_RAW(LOG_DEBUG, DEBUG, __VA_ARGS__)
 #define LOGW_RAW(...) _LOG_RAW(LOG_WARN, WARN, __VA_ARGS__)
 #define LOGE_RAW(...) _LOG_RAW(LOG_ERROR, ERROR, __VA_ARGS__)
+
+// Memfault-only variants: format strings are stripped from flash. No console
+// output on the device. Use when flash is tight or for high-volume breadcrumb
+// logs that don't need to appear on the serial console.
+#define MFLOGI(...) _LOG_COMPACT(LOG_INFO, __VA_ARGS__)
+#define MFLOGD(...) _LOG_COMPACT(LOG_DEBUG, __VA_ARGS__)
+#define MFLOGW(...) _LOG_COMPACT(LOG_WARN, __VA_ARGS__)
+#define MFLOGE(...) _LOG_COMPACT(LOG_ERROR, __VA_ARGS__)
 
 #ifdef EMBEDDED_BUILD
 // Assert with a custom error message.

@@ -36,8 +36,8 @@ class SecurityHubDotLogicTest : FunSpec({
   }
 
   test("dot is shown if some recommendations not viewed") {
-    service.statuses = SecurityActionRecommendation.entries.mapIndexed { i, it ->
-      recWithStatus(it, viewed = i % 2 == 0)
+    service.statuses = SecurityActionRecommendation.entries.mapIndexed { i, recommendation ->
+      recWithStatus(recommendation, viewed = i % 2 == 0)
     }
     val attention = runBlocking { service.hasRecommendationsRequiringAttention().first() }
     attention shouldBe true

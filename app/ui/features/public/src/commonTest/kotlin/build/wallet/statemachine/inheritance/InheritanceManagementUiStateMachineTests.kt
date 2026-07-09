@@ -6,7 +6,6 @@ import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.relationships.EndorsedTrustedContactFake1
 import build.wallet.bitkey.relationships.ProtectedCustomerFake
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.inheritance.ContactClaimState
 import build.wallet.inheritance.InheritanceServiceMock
 import build.wallet.platform.web.InAppBrowserNavigatorMock
@@ -39,7 +38,6 @@ import kotlinx.datetime.Instant
 class InheritanceManagementUiStateMachineTests : FunSpec({
 
   val inheritanceService = InheritanceServiceMock(turbines.create("sync-calls"))
-  val featureFlagDao = FeatureFlagDaoFake()
 
   val stateMachine = InheritanceManagementUiStateMachineImpl(
     inviteBeneficiaryUiStateMachine = object : InviteBeneficiaryUiStateMachine,

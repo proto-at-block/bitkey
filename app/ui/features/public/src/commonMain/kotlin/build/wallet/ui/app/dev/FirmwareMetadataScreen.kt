@@ -115,7 +115,7 @@ fun FirmwareMetadataScreen(
             if (index > 0) {
               Divider()
             }
-            val slotInfo = mcu.activeSlot?.let { " [Slot $it]" } ?: ""
+            val slotInfo = mcu.activeSlot?.let { " [Slot $it]" }.orEmpty()
             ListItem(
               title = "${mcu.role} MCU (${mcu.name})$slotInfo",
               sideText = mcu.firmwareVersion

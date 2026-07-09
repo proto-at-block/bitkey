@@ -48,7 +48,7 @@ class TrustedContactManagementFunctionalTests : FunSpec({
       }
     }.invitations.first { invitation ->
       invitation.trustedContactAlias.alias == "Bob"
-    }.relationshipId
+    }.id.value
 
     app.trustedContactManagementScreenPresenter.test(
       screen = TrustedContactManagementScreen(
@@ -59,13 +59,13 @@ class TrustedContactManagementFunctionalTests : FunSpec({
       awaitUntilBody<TrustedContactsListBodyModel>(
         matching = {
           it.invitations.any { invitation ->
-            invitation.relationshipId == inviteRelationshipId
+            invitation.id.value == inviteRelationshipId
           }
         }
       ) {
         onContactPressed(
           invitations.first { invitation ->
-            invitation.relationshipId == inviteRelationshipId
+            invitation.id.value == inviteRelationshipId
           }
         )
       }
@@ -83,7 +83,7 @@ class TrustedContactManagementFunctionalTests : FunSpec({
       awaitUntilBody<TrustedContactsListBodyModel>(
         matching = {
           it.invitations.none { invitation ->
-            invitation.relationshipId == inviteRelationshipId
+            invitation.id.value == inviteRelationshipId
           }
         }
       ) {
@@ -112,11 +112,11 @@ class TrustedContactManagementFunctionalTests : FunSpec({
       }
     }.invitations.first { invitation ->
       invitation.trustedContactAlias.alias == "Carol"
-    }.relationshipId
+    }.id.value
 
     val relationships = app.awaitRelationships { current ->
       current.invitations.any { invitation ->
-        invitation.relationshipId == inviteRelationshipId
+        invitation.id.value == inviteRelationshipId
       }
     }
     app.relationshipsDao.setRelationships(
@@ -124,7 +124,7 @@ class TrustedContactManagementFunctionalTests : FunSpec({
     ).getOrThrow()
     app.awaitRelationships { current ->
       current.invitations.any { invitation ->
-        invitation.relationshipId == inviteRelationshipId && invitation.isExpired(Clock.System)
+        invitation.id.value == inviteRelationshipId && invitation.isExpired(Clock.System)
       }
     }
 
@@ -137,13 +137,13 @@ class TrustedContactManagementFunctionalTests : FunSpec({
       awaitUntilBody<TrustedContactsListBodyModel>(
         matching = {
           it.invitations.any { invitation ->
-            invitation.relationshipId == inviteRelationshipId && invitation.isExpired(it.now)
+            invitation.id.value == inviteRelationshipId && invitation.isExpired(it.now)
           }
         }
       ) {
         onContactPressed(
           invitations.first { invitation ->
-            invitation.relationshipId == inviteRelationshipId
+            invitation.id.value == inviteRelationshipId
           }
         )
       }
@@ -191,7 +191,7 @@ private fun Relationships.expireInvitation(relationshipId: String): Relationship
   val expiredAt = Clock.System.now().minus(1.days)
   return copy(
     invitations = invitations.map { invitation ->
-      if (invitation.relationshipId == relationshipId) {
+      if (invitation.id.value == relationshipId) {
         invitation.copy(expiresAt = expiredAt)
       } else {
         invitation

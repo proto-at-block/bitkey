@@ -64,6 +64,8 @@ async fn create_account_v2_test_with_idempotency() {
             network: Network::Signet,
             app_pub: spending_app_pub,
             hardware_pub: spending_hw_pub,
+
+            hardware_attestation: None,
         },
         is_test_account: true,
     };
@@ -130,6 +132,8 @@ async fn upgrade_account_v2_test_with_idempotency() {
             network: Network::Signet,
             app_pub: spending_app_pub,
             hardware_pub: spending_hw_pub,
+
+            hardware_attestation: None,
         },
     };
     let actual_response = client
@@ -165,6 +169,8 @@ async fn create_keyset_v2_test_with_idempotency() {
             network: Network::Signet,
             app_pub: spending_app_pub,
             hardware_pub: spending_hw_pub,
+
+            hardware_attestation: None,
         },
         is_test_account: true,
     };
@@ -180,6 +186,8 @@ async fn create_keyset_v2_test_with_idempotency() {
                 network: Network::Signet,
                 app_pub: spending_app_pub,
                 hardware_pub: spending_hw_pub,
+
+                hardware_attestation: None,
             },
         )
         .await;
@@ -193,6 +201,8 @@ async fn create_keyset_v2_test_with_idempotency() {
                 network: Network::Signet,
                 app_pub: spending_app_pub,
                 hardware_pub: spending_hw_pub,
+
+                hardware_attestation: None,
             },
         )
         .await;
@@ -334,6 +344,8 @@ async fn create_account_v2_key_validation_test(
                     network: Network::Signet,
                     app_pub: spending_keyset.app_pub,
                     hardware_pub: spending_keyset.hardware_pub,
+
+                    hardware_attestation: None,
                 },
                 is_test_account: true,
             },
@@ -424,6 +436,8 @@ async fn test_complete_onboarding_v2_success() {
             network: Network::Signet,
             app_pub: spending_app_pub,
             hardware_pub: spending_hw_pub,
+
+            hardware_attestation: None,
         },
         is_test_account: true,
     };
@@ -519,6 +533,8 @@ async fn test_complete_onboarding_v2_missing_descriptor_backup() {
             network: Network::Signet,
             app_pub: spending_app_pub,
             hardware_pub: spending_hw_pub,
+
+            hardware_attestation: None,
         },
         is_test_account: true,
     };
@@ -564,6 +580,8 @@ async fn test_complete_onboarding_v2_test_account_missing_email_allowed() {
             network: Network::Signet,
             app_pub: spending_app_pub,
             hardware_pub: spending_hw_pub,
+
+            hardware_attestation: None,
         },
         is_test_account: true,
     };
@@ -633,6 +651,8 @@ async fn test_complete_onboarding_v2_production_account_missing_email_fails() {
             network: Network::Signet,
             app_pub: spending_app_pub,
             hardware_pub: spending_hw_pub,
+
+            hardware_attestation: None,
         },
         is_test_account: false, // Production account
     };
@@ -737,6 +757,8 @@ async fn complete_onboarding_v2_requires_w3_hardware_type() {
             network: Network::Signet,
             app_pub: spending_app_pub,
             hardware_pub: spending_hw_pub,
+
+            hardware_attestation: None,
         },
         is_test_account: true,
     };
@@ -792,6 +814,8 @@ async fn complete_onboarding_v2_rejects_w1_hardware_type() {
             network: Network::Signet,
             app_pub: spending_app_pub,
             hardware_pub: spending_hw_pub,
+
+            hardware_attestation: None,
         },
         is_test_account: true,
     };
@@ -847,6 +871,8 @@ async fn complete_onboarding_v2_rejects_default_hardware_type() {
             network: Network::Signet,
             app_pub: spending_app_pub,
             hardware_pub: spending_hw_pub,
+
+            hardware_attestation: None,
         },
         is_test_account: true,
     };
@@ -902,6 +928,8 @@ async fn w3_rejects_key_claims_auth_for_touchpoint_activation() {
             network: Network::Signet,
             app_pub: spending_app_pub,
             hardware_pub: spending_hw_pub,
+
+            hardware_attestation: None,
         },
         is_test_account: true,
     };
@@ -972,6 +1000,8 @@ async fn w3_requires_action_proof_signatures_for_touchpoint_during_onboarding() 
             network: Network::Signet,
             app_pub: spending_app_pub,
             hardware_pub: spending_hw_pub,
+
+            hardware_attestation: None,
         },
         is_test_account: true,
     };
@@ -1063,6 +1093,8 @@ async fn w1_allows_skip_signatures_for_touchpoint_during_onboarding() {
             network: Network::Signet,
             app_pub: spending_app_pub,
             hardware_pub: spending_hw_pub,
+
+            hardware_attestation: None,
         },
         is_test_account: true,
     };
@@ -1126,6 +1158,8 @@ async fn w3_create_keyset_v2_with_action_proof_succeeds() {
         network: Network::Signet,
         app_pub: create_pubkey(),
         hardware_pub: create_pubkey(),
+
+        hardware_attestation: None,
     };
 
     let response = client.create_keyset_v2(&account_id, &keyset_request).await;
@@ -1148,6 +1182,8 @@ async fn w3_rotate_spending_keyset_with_action_proof_succeeds() {
         network: Network::Signet,
         app_pub: create_pubkey(),
         hardware_pub: create_pubkey(),
+
+        hardware_attestation: None,
     };
     let keyset_response = client.create_keyset_v2(&account_id, &keyset_request).await;
     assert_eq!(keyset_response.status_code, StatusCode::OK);
@@ -1219,6 +1255,8 @@ async fn w1_to_w3_rotate_spending_keyset_rejects_keyclaims() {
             network: Network::Signet,
             app_pub: create_pubkey(),
             hardware_pub: create_pubkey(),
+
+            hardware_attestation: None,
         },
         is_test_account: true,
     };
@@ -1263,6 +1301,8 @@ async fn w1_to_w3_rotate_spending_keyset_rejects_keyclaims() {
         network: Network::Signet,
         app_pub: create_pubkey(),
         hardware_pub: create_pubkey(),
+
+        hardware_attestation: None,
     };
     let create_response = client.create_keyset_v2(&account_id, &keyset_request).await;
     assert_eq!(create_response.status_code, StatusCode::OK);
@@ -1302,6 +1342,8 @@ async fn w3_delete_account_with_action_proof_succeeds() {
             network: Network::Signet,
             app_pub: create_pubkey(),
             hardware_pub: create_pubkey(),
+
+            hardware_attestation: None,
         },
         is_test_account: true,
     };
@@ -1344,6 +1386,8 @@ async fn w3_delete_account_with_action_proof_succeeds() {
                     network: Network::Signet,
                     app_pub: create_pubkey(),
                     hardware_pub: create_pubkey(),
+
+                    hardware_attestation: None,
                 },
                 is_test_account: true,
             },
@@ -1382,6 +1426,8 @@ async fn create_non_onboarded_v2_account(
             network: Network::Signet,
             app_pub: create_pubkey(),
             hardware_pub: create_pubkey(),
+
+            hardware_attestation: None,
         },
         is_test_account: true,
     };
@@ -1699,6 +1745,8 @@ async fn create_keyset_v2_gate_allows_when_flag_off() {
                 network: Network::Signet,
                 app_pub: create_pubkey(),
                 hardware_pub: create_pubkey(),
+
+                hardware_attestation: None,
             },
         )
         .await;
@@ -1727,6 +1775,8 @@ async fn create_keyset_v2_gate_blocks_legacy_when_flag_on() {
                 network: Network::Signet,
                 app_pub: create_pubkey(),
                 hardware_pub: create_pubkey(),
+
+                hardware_attestation: None,
             },
         )
         .await;
@@ -1761,6 +1811,8 @@ async fn create_keyset_v2_gate_skipped_for_private_active_keyset() {
                 network: Network::Signet,
                 app_pub: create_pubkey(),
                 hardware_pub: create_pubkey(),
+
+                hardware_attestation: None,
             },
         )
         .await;
@@ -1797,6 +1849,8 @@ async fn create_keyset_v2_gate_bypassed_by_recent_recovery() {
                 network: Network::Signet,
                 app_pub: create_pubkey(),
                 hardware_pub: create_pubkey(),
+
+                hardware_attestation: None,
             },
         )
         .await;
@@ -1833,6 +1887,8 @@ async fn create_keyset_v2_gate_blocks_when_recovery_outside_grace_window() {
                 network: Network::Signet,
                 app_pub: create_pubkey(),
                 hardware_pub: create_pubkey(),
+
+                hardware_attestation: None,
             },
         )
         .await;

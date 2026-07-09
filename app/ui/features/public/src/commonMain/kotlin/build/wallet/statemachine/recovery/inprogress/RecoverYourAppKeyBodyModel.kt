@@ -9,7 +9,6 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.recovery.getEventId
 import build.wallet.statemachine.core.Icon.*
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Explainer
 import build.wallet.statemachine.core.form.FormMainContentModel.Explainer.Statement
@@ -38,17 +37,17 @@ data class RecoverYourAppKeyBodyModel(
       Explainer(
         immutableListOf(
           Statement(
-            leadingIcon = SmallIconClock,
+            leadingIcon = Clock,
             title = "7-day security waiting period",
             body = "During this time, you’ll get regular alerts about the recovery.  No action is needed; these are to keep you informed and aware."
           ),
           Statement(
-            leadingIcon = SmallIconMinusStroked,
+            leadingIcon = MinusStroked,
             title = "Cancel anytime",
             body = "You can cancel this process anytime, and return to using your old phone or restore using your existing cloud backup if you find either of them later."
           ),
           Statement(
-            leadingIcon = SmallIconBitcoinStroked,
+            leadingIcon = BitcoinStroked,
             title = "Small network fee required",
             body = "To recover your key, you’ll need to initiate an on-chain transaction to complete the process."
           )
@@ -89,7 +88,11 @@ data class DelayAndNotifyNewKeyReady(
       }
     ),
     header = FormHeaderModel(
-      icon = LargeIconCheckStroked,
+      iconModel = build.wallet.ui.model.icon.IconModel(
+        icon = LargeIconCheckStroked,
+        iconSize = build.wallet.ui.model.icon.IconSize.Avatar,
+        iconTint = build.wallet.ui.model.icon.IconTint.Foreground
+      ),
       headline = when (factorToRecover) {
         App -> "Confirm App Key replacement"
         Hardware -> "Confirm your replacement device"
@@ -119,39 +122,6 @@ data class DelayAndNotifyNewKeyReady(
       text = "Confirm replacement",
       onClick = StandardClick(onCompleteRecovery),
       size = Footer
-    ),
-    designSystemV2Model = FormDesignSystemV2Model(
-      header = FormHeaderModel(
-        iconModel = build.wallet.ui.model.icon.IconModel(
-          icon = LargeIconCheckStroked,
-          iconSize = build.wallet.ui.model.icon.IconSize.Avatar,
-          iconTint = build.wallet.ui.model.icon.IconTint.Foreground
-        ),
-        headline = when (factorToRecover) {
-          App -> "Confirm App Key replacement"
-          Hardware -> "Confirm your replacement device"
-        },
-        subline = buildString {
-          when (factorToRecover) {
-            App -> append(
-              "The security waiting period is complete and your new App Key is ready to be created."
-            )
-            Hardware -> append(
-              "The security waiting period is complete and your new Bitkey device is ready to use."
-            )
-          }
-          appendLine()
-          appendLine()
-          append(
-            "To finish your recovery, you’ll need to approve a transaction, including an additional network fee."
-          )
-          appendLine()
-          appendLine()
-          append(
-            "If this fee appears very high, the network may be very busy. You can try returning later when fees may be lower."
-          )
-        }
-      )
     ),
     eventTrackerShouldTrack = false
   )

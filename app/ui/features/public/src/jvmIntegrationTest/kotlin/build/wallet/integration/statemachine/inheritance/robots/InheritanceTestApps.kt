@@ -145,7 +145,7 @@ suspend fun TestScope.setupInheritanceBetween(
     }
       .protectedCustomers
       .first()
-      .relationshipId
+      .id.value
     cancelAndIgnoreRemainingEvents()
   }
 

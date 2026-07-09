@@ -78,7 +78,9 @@ class RecoveryDaoImpl(
           val localRecoveryAttempt = localRecoveryQuery.executeAsOneOrNull()
           val activeServerRecovery = serverRecoveryQuery.executeAsOneOrNull()
           localRecoveryAttempt?.toRecovery(activeServerRecovery, queries)
-            ?: activeServerRecovery?.let { SomeoneElseIsRecovering(it.lostFactor) }
+            ?: activeServerRecovery?.let { serverRecovery ->
+              SomeoneElseIsRecovering(serverRecovery.lostFactor)
+            }
             ?: NoActiveRecovery
         }
       }.distinctUntilChanged()
@@ -137,6 +139,7 @@ class RecoveryDaoImpl(
           destinationHardwareAuthKey = progress.hwKeyBundle.authKey,
           destinationAppSpendingKey = progress.appKeyBundle.spendingKey,
           destinationHardwareSpendingKey = progress.hwKeyBundle.spendingKey,
+          destinationHardwareSpendingKeyProof = progress.spendingKeyProof,
           appGlobalAuthKeyHwSignature = progress.appGlobalAuthKeyHwSignature,
           lostFactor = progress.lostFactor,
           originalAppGlobalAuthKey = progress.originalAppGlobalAuthKey
@@ -208,14 +211,14 @@ class RecoveryDaoImpl(
       recoveryQueries.markUploadedDescriptorBackups()
 
       // Insert all descriptors
-      progress.spendingKeysets.forEach {
+      progress.spendingKeysets.forEach { keyset ->
         recoveryQueries.insertRecoverySpendingKeyset(
           recoveryAttemptRowId = 0, // Using stable rowId,
-          keysetLocalId = it.localId,
-          appKey = it.appKey,
-          hardwareKey = it.hardwareKey,
-          serverKey = it.f8eSpendingKeyset,
-          networkType = it.networkType
+          keysetLocalId = keyset.localId,
+          appKey = keyset.appKey,
+          hardwareKey = keyset.hardwareKey,
+          serverKey = keyset.f8eSpendingKeyset,
+          networkType = keyset.networkType
         )
       }
     }
@@ -420,6 +423,11 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
         "serverSpendingKey should not be null when spendingKeysCreated() returns true"
       }
 
+      val recoverySealedCsek = sealedCsek
+      checkNotNull(recoverySealedCsek) {
+        "sealedCsek should not be null when spendingKeysCreated() returns true"
+      }
+
       if (sweepInProgress) {
         return ServerIndependentRecovery.SweepAttempted(
           f8eSpendingKeyset = serverF8eSpendingKeyset,
@@ -463,7 +471,7 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
           hardwareAuthKey = destinationHardwareAuthKey,
           appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
           factorToRecover = lostFactor,
-          sealedCsek = sealedCsek!!,
+          sealedCsek = recoverySealedCsek,
           sealedSsek = sealedSsek,
           keysets = storedKeysets,
           originalAppGlobalAuthKey = originalAppGlobalAuthKey
@@ -481,7 +489,7 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
           hardwareAuthKey = destinationHardwareAuthKey,
           appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
           factorToRecover = lostFactor,
-          sealedCsek = sealedCsek!!,
+          sealedCsek = recoverySealedCsek,
           sealedSsek = sealedSsek,
           keysets = storedKeysets,
           originalAppGlobalAuthKey = originalAppGlobalAuthKey,
@@ -500,7 +508,7 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
           hardwareAuthKey = destinationHardwareAuthKey,
           appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
           factorToRecover = lostFactor,
-          sealedCsek = sealedCsek!!,
+          sealedCsek = recoverySealedCsek,
           sealedSsek = sealedSsek,
           keysets = storedKeysets,
           originalAppGlobalAuthKey = originalAppGlobalAuthKey
@@ -518,7 +526,7 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
           hardwareAuthKey = destinationHardwareAuthKey,
           appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
           factorToRecover = lostFactor,
-          sealedCsek = sealedCsek!!,
+          sealedCsek = recoverySealedCsek,
           sealedSsek = sealedSsek,
           keysets = storedKeysets,
           originalAppGlobalAuthKey = originalAppGlobalAuthKey
@@ -534,7 +542,7 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
           hardwareSpendingKey = destinationHardwareSpendingKey,
           hardwareAuthKey = destinationHardwareAuthKey,
           factorToRecover = lostFactor,
-          sealedCsek = sealedCsek!!,
+          sealedCsek = recoverySealedCsek,
           sealedSsek = sealedSsek,
           appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
           originalAppGlobalAuthKey = originalAppGlobalAuthKey
@@ -547,10 +555,13 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(
         appGlobalAuthKey = destinationAppGlobalAuthKey,
         appRecoveryAuthKey = destinationAppRecoveryAuthKey,
         hardwareSpendingKey = destinationHardwareSpendingKey,
+        hardwareSpendingKeyProof = destinationHardwareSpendingKeyProof,
         hardwareAuthKey = destinationHardwareAuthKey,
         appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
         factorToRecover = lostFactor,
-        sealedCsek = sealedCsek!!,
+        sealedCsek = checkNotNull(sealedCsek) {
+          "sealedCsek should not be null when auth keys have been rotated"
+        },
         sealedSsek = sealedSsek,
         originalAppGlobalAuthKey = originalAppGlobalAuthKey
       )
@@ -611,7 +622,7 @@ private fun BitkeyDatabase.saveKeyboxAsActive(keybox: Keybox) {
     val serverKeys = keybox.keysets.groupBy { it.f8eSpendingKeyset.spendingPublicKey }
     (hardwareKeys + appKeys + serverKeys)
       .filter { it.value.size > 1 }
-      .map { it.value.map { it.localId } }
+      .map { it.value.map { keyset -> keyset.localId } }
       .forEach {
         logError { "Duplicate keys found in keysets: [${it.joinToString()}]" }
       }

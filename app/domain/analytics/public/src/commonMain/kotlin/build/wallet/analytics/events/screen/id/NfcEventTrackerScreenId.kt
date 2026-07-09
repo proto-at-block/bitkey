@@ -10,6 +10,9 @@ enum class NfcEventTrackerScreenId : EventTrackerScreenId {
   /** Screen shown when the NFC connection is first opened */
   NFC_INITIATE,
 
+  /** Sheet shown by fake hardware to emulate an on-device approve/deny confirmation */
+  NFC_EMULATED_HARDWARE_CONFIRMATION,
+
   /** Screen shown when the NFC connection detects a tag */
   NFC_DETECTED,
 
@@ -19,7 +22,7 @@ enum class NfcEventTrackerScreenId : EventTrackerScreenId {
   /** Screen shown when the NFC interaction fails */
   NFC_FAILURE,
 
-  /** Placeholder help screen shown from the Android DSV2 NFC flow */
+  /** Placeholder help screen shown from the Android NFC flow */
   NFC_HELP,
 
   /**

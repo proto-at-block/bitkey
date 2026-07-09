@@ -56,7 +56,7 @@ class BitcoinTransactionItemUiStateMachineImpl(
             Incoming -> "+ $formatted"
             Outgoing, UtxoConsolidation -> formatted
           }
-        } ?: ""
+        }.orEmpty()
       }
     }
 

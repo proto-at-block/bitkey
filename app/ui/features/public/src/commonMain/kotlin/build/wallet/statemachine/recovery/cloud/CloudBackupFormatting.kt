@@ -15,7 +15,7 @@ import kotlinx.datetime.toLocalDateTime
  * Formatting rules:
  * - Display label: Uses device nickname if available (V3), otherwise "Account Type (id prefix...)"
  * - Secondary text: "Recovery Contact Backup" for lite accounts, date for full accounts (V3), account ID for V2
- * - Icons: SmallIconBitkey for full accounts, SmallIconShieldPerson for lite accounts
+ * - Icons: Bitkey for full accounts, ShieldPerson for lite accounts
  *
  * @param backup The cloud backup to format
  * @param dateTimeFormatter Formatter to use for dates
@@ -46,9 +46,9 @@ fun formatCloudBackupItemModel(
   }
 
   val icon = if (backup.isFullAccount()) {
-    Icon.SmallIconBitkey
+    Icon.Bitkey
   } else {
-    Icon.SmallIconShieldPerson
+    Icon.ShieldPerson
   }
 
   return CloudBackupItemModel(

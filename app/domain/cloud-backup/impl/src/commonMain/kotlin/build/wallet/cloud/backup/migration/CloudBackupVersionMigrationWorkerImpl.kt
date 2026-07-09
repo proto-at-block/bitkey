@@ -121,7 +121,9 @@ class CloudBackupVersionMigrationWorkerImpl(
         when (account) {
           is FullAccount -> fullAccountCloudBackupCreator.create(
             keybox = account.keybox,
-            sealedCsek = oldBackup.fullAccountFields!!.sealedHwEncryptionKey
+            sealedCsek = checkNotNull(oldBackup.fullAccountFields) {
+              "Full account backup is missing full account fields"
+            }.sealedHwEncryptionKey
           )
           is LiteAccount -> liteAccountCloudBackupCreator.create(account = account)
           else -> error("Unsupported account type: ${account::class.simpleName}")

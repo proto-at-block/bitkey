@@ -135,7 +135,7 @@ class FakeHardwareKeyStoreTest : FunSpec({
   ): List<SpendingKeypair> {
     require(count > 0)
     val keys = mutableListOf(keyStore.getInitialSpendingKeypair(networkType))
-    for (i in 1 until count) {
+    while (keys.size < count) {
       keys.add(keyStore.getNextSpendingKeypair(keys.map { it.publicKey.key.dpub }, networkType))
     }
     return keys.toImmutableList()

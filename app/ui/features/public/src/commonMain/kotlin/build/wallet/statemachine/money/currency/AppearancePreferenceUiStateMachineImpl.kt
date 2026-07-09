@@ -26,7 +26,6 @@ import build.wallet.pricechart.ChartRange
 import build.wallet.pricechart.ChartRangePreference
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
-import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.money.currency.AppearancePreferenceUiState.*
 import build.wallet.statemachine.pricechart.TimeScaleListFormModel
 import build.wallet.ui.theme.Theme
@@ -67,18 +66,19 @@ class AppearancePreferenceUiStateMachineImpl(
     val selectedFiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference
       .collectAsState()
 
-    val selectedThemePreference by themePreferenceService.themePreference()
+    val selectedThemePreference by remember { themePreferenceService.themePreference() }
       .collectAsState(ThemePreference.System)
 
     val isHideBalanceEnabled by remember {
       hideBalancePreference.isEnabled
-    }.onEach {
-      when (val s = state) {
-        is ShowingPreferencesUiState -> state = s.copy(isHideBalanceEnabled = it)
-        else -> {
-          // no-op
+        .onEach {
+          when (val s = state) {
+            is ShowingPreferencesUiState -> state = s.copy(isHideBalanceEnabled = it)
+            else -> {
+              // no-op
+            }
+          }
         }
-      }
     }.collectAsState(false)
 
     return when (val uiState = state) {
@@ -323,12 +323,13 @@ class AppearancePreferenceUiStateMachineImpl(
     return ScreenModel(
       body = AppearancePreferenceBodyModel(
         onBack = props.onBack,
-        moneyHomeHero =
-          FormMainContentModel.MoneyHomeHero(
-            primaryAmount = moneyHomeHeroPrimaryAmountString,
-            secondaryAmount = moneyHomeHeroSecondaryAmountString,
-            isHidden = isHideBalanceEnabled
-          ),
+        moneyHomeHero = MoneyHomeHeroModel(
+          primaryAmount = moneyHomeHeroPrimaryAmountString,
+          secondaryAmount = moneyHomeHeroSecondaryAmountString,
+          isHidden = isHideBalanceEnabled,
+          isPriceGraphEnabled = isBitcoinPriceCardEnabled,
+          selectedSection = selectedSection
+        ),
         selectedSection = selectedSection,
         onSectionSelected = onSectionSelected,
         themePreferenceString = themePreferenceString,

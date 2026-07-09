@@ -243,6 +243,9 @@ interface HardwareAuthUiStateMachine : StateMachine<HardwareAuthUiProps, ScreenM
  * @property screenPresentationStyle Presentation style for screens.
  * @property onSuccess Called with the [PrivilegedActionProof] on success.
  * @property onBack Called when the user backs out of the flow.
+ * @property refreshAuthTokens Whether to refresh auth tokens before building the proof. W3 callers
+ *   that collect multiple deferred proofs can set this to false after the first refresh so token
+ *   bindings remain valid for all proofs.
  * @property onTokenRefresh Optional override: screen model to show while auth tokens
  *   are refreshing. When null, a default loading screen is shown.
  * @property onTokenRefreshError Optional override: screen model to show if auth token
@@ -259,10 +262,12 @@ data class HardwareAuthUiProps(
   val screenPresentationStyle: ScreenPresentationStyle,
   val onSuccess: (PrivilegedActionProof) -> Unit,
   val onBack: () -> Unit,
+  val refreshAuthTokens: Boolean = true,
   val onTokenRefresh: (() -> ScreenModel)? = null,
   val onTokenRefreshError: (
     (
       isConnectivityError: Boolean,
+      error: Error,
       onRetry: () -> Unit,
     ) -> ScreenModel
   )? = null,
@@ -282,10 +287,12 @@ data class HardwareAuthUiProps(
     screenPresentationStyle: ScreenPresentationStyle,
     onSuccess: (PrivilegedActionProof) -> Unit,
     onBack: () -> Unit,
+    refreshAuthTokens: Boolean = true,
     onTokenRefresh: (() -> ScreenModel)? = null,
     onTokenRefreshError: (
       (
         isConnectivityError: Boolean,
+        error: Error,
         onRetry: () -> Unit,
       ) -> ScreenModel
     )? = null,
@@ -300,6 +307,7 @@ data class HardwareAuthUiProps(
     screenPresentationStyle = screenPresentationStyle,
     onSuccess = onSuccess,
     onBack = onBack,
+    refreshAuthTokens = refreshAuthTokens,
     onTokenRefresh = onTokenRefresh,
     onTokenRefreshError = onTokenRefreshError,
     shouldLock = shouldLock

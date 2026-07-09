@@ -15,6 +15,8 @@ import kotlinx.coroutines.CoroutineScope
  */
 @Composable
 fun rememberStableCoroutineScope(): CoroutineScope {
+  // This is the sanctioned wrapper around rememberCoroutineScope.
+  @Suppress("ForbiddenMethodCall")
   val scope = rememberCoroutineScope()
   return remember { StableCoroutineScope(scope) }
 }

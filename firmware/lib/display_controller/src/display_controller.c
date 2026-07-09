@@ -302,6 +302,31 @@ static const flow_handler_t* flow_handlers[FLOW_COUNT] = {
   [FLOW_POWER_OFF] = &power_off_handler,
 };
 
+static const char* const k_flow_names[FLOW_COUNT] = {
+  [FLOW_SCAN] = "SCAN",
+  [FLOW_ONBOARDING] = "ONBOARDING",
+  [FLOW_MENU] = "MENU",
+  [FLOW_TRANSACTION] = "TRANSACTION",
+  [FLOW_FINGERPRINT_MGMT] = "FP_MGMT",
+  [FLOW_FINGERPRINTS_MENU] = "FP_MENU",
+  [FLOW_LOCKED] = "LOCKED",
+  [FLOW_RECOVERY] = "RECOVERY",
+  [FLOW_FIRMWARE_UPDATE] = "FWUP",
+  [FLOW_WIPE] = "WIPE",
+  [FLOW_PRIVILEGED_ACTIONS] = "PRIV_ACTIONS",
+  [FLOW_BRIGHTNESS] = "BRIGHTNESS",
+  [FLOW_INFO] = "INFO",
+  [FLOW_MFG] = "MFG",
+  [FLOW_CONFIRMATION] = "CONFIRMATION",
+  [FLOW_ONBOARDING_COMPLETE] = "ONBOARDING_DONE",
+  [FLOW_GAME] = "GAME",
+  [FLOW_POWER_OFF] = "POWER_OFF",
+};
+
+static inline const char* flow_name(flow_id_t f) {
+  return ((unsigned)f < FLOW_COUNT && k_flow_names[f]) ? k_flow_names[f] : "?";
+}
+
 // Returns true if we have a valid active flow (safe to access flow_handlers)
 static inline bool in_flow(void) {
   return controller.current_flow < FLOW_COUNT;
@@ -636,6 +661,7 @@ void display_controller_handle_ui_event(ui_event_type_t event, const void* data,
     }
 
     case UI_EVENT_POWER_OFF:
+      MFLOGI("flow -> POWER_OFF (UI_EVENT_POWER_OFF)");
       memset(&controller.show_screen.params, 0, sizeof(controller.show_screen.params));
       controller.current_flow = FLOW_POWER_OFF;
       display_controller_power_off_on_enter(&controller, NULL);
@@ -790,6 +816,9 @@ static void unlock_device(void) {
 // Phone-initiated flows (transactions, firmware updates) clear the stack, while
 // device-driven flows (menu navigation) preserve it for proper back behavior.
 static void enter_flow(flow_id_t flow, const void* entry_data, bool clear_nav_stack) {
+  MFLOGI("flow %s -> %s (clear_nav=%d)", flow_name(controller.current_flow), flow_name(flow),
+         (int)clear_nav_stack);
+
   // Exit current flow's cleanup before transitioning
   const flow_handler_t* current_handler = flow_handlers[controller.current_flow];
   if (current_handler && current_handler->on_exit) {

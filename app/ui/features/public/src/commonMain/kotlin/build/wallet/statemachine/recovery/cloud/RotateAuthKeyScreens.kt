@@ -93,7 +93,7 @@ object RotateAuthKeyScreens {
         onClick = StandardClick(onRetry)
       ),
       secondaryButton = ButtonModel(
-        leadingIcon = Icon.SmallIconArrowUpRight,
+        leadingIcon = Icon.ArrowUpRight,
         text = "Customer support",
         treatment = ButtonModel.Treatment.Secondary,
         size = ButtonModel.Size.Footer,

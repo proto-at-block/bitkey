@@ -79,7 +79,7 @@ class OnboardAccountServiceImpl(
 
   override suspend fun markStepIncomplete(step: OnboardAccountStep): Result<Unit, Throwable> {
     return coroutineBinding {
-      val step = when (step) {
+      val keyboxStep = when (step) {
         is DescriptorBackup -> OnboardingKeyboxStep.DescriptorBackup
         is CloudBackup -> OnboardingKeyboxStep.CloudBackup
         is NotificationPreferences -> OnboardingKeyboxStep.NotificationPreferences
@@ -88,7 +88,7 @@ class OnboardAccountServiceImpl(
 
       onboardingKeyboxStepStateDao
         .setStateForStep(
-          step = step,
+          step = keyboxStep,
           state = OnboardingKeyboxStepState.Incomplete
         )
         .bind()

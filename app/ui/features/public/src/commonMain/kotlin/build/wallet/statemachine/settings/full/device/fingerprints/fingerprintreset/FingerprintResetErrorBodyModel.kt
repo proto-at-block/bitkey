@@ -7,15 +7,15 @@ import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 
-sealed class FingerprintResetErrorBodyModel {
-  abstract fun toFormBodyModel(
+sealed interface FingerprintResetErrorBodyModel {
+  fun toFormBodyModel(
     onRetry: () -> Unit,
     onCancel: () -> Unit,
   ): FormBodyModel
 
   data class CreatePrivilegedActionError(
     val error: PrivilegedActionError,
-  ) : FingerprintResetErrorBodyModel() {
+  ) : FingerprintResetErrorBodyModel {
     override fun toFormBodyModel(
       onRetry: () -> Unit,
       onCancel: () -> Unit,
@@ -35,7 +35,7 @@ sealed class FingerprintResetErrorBodyModel {
 
   data class CompletePrivilegedActionError(
     val error: PrivilegedActionError,
-  ) : FingerprintResetErrorBodyModel() {
+  ) : FingerprintResetErrorBodyModel {
     override fun toFormBodyModel(
       onRetry: () -> Unit,
       onCancel: () -> Unit,
@@ -55,7 +55,7 @@ sealed class FingerprintResetErrorBodyModel {
 
   data class NfcError(
     val cause: Throwable?,
-  ) : FingerprintResetErrorBodyModel() {
+  ) : FingerprintResetErrorBodyModel {
     override fun toFormBodyModel(
       onRetry: () -> Unit,
       onCancel: () -> Unit,
@@ -80,7 +80,7 @@ sealed class FingerprintResetErrorBodyModel {
     val eventTrackerScreenId: EventTrackerScreenId,
     val primaryButtonText: String = "Retry",
     val secondaryButtonText: String = "Cancel",
-  ) : FingerprintResetErrorBodyModel() {
+  ) : FingerprintResetErrorBodyModel {
     override fun toFormBodyModel(
       onRetry: () -> Unit,
       onCancel: () -> Unit,

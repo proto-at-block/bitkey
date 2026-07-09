@@ -41,7 +41,6 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.ui.app.core.form.MoneyHomeHero
 import build.wallet.ui.components.card.Card
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
@@ -69,7 +68,7 @@ import org.jetbrains.compose.resources.stringResource
 
 class AppearancePreferenceBodyModel(
   override val onBack: () -> Unit,
-  val moneyHomeHero: FormMainContentModel.MoneyHomeHero,
+  val moneyHomeHero: MoneyHomeHeroModel,
   val selectedSection: AppearanceSection,
   val onSectionSelected: (AppearanceSection) -> Unit,
   val themePreferenceString: String,
@@ -98,11 +97,6 @@ class AppearancePreferenceBodyModel(
 
   @Composable
   override fun render(modifier: Modifier) {
-    AppearancePreferenceScreenDesignSystem(modifier = modifier)
-  }
-
-  @Composable
-  private fun AppearancePreferenceScreenDesignSystem(modifier: Modifier = Modifier) {
     BackHandler(onBack = onBack)
 
     val scrollState = rememberScrollState()
@@ -152,20 +146,14 @@ class AppearancePreferenceBodyModel(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        MoneyHomeHero(
-          model = moneyHomeHero,
-          selectedSection = selectedSection,
-          isDarkMode = LocalTheme.current == Theme.DARK,
-          isPriceGraphEnabled = isBitcoinPriceCardEnabled
-        )
+        moneyHomeHero.render(modifier = Modifier.fillMaxWidth())
 
         Spacer(modifier = Modifier.height(16.dp))
 
         CircularTabRow(
           items = AppearanceSection.entries.map { stringResource(it.label) }.toImmutableList(),
           selectedItemIndex = selectedSection.ordinal,
-          onClick = { index -> onSectionSelected(AppearanceSection.entries[index]) },
-          backgroundColor = WalletTheme.colors.subtleBackground
+          onClick = { index -> onSectionSelected(AppearanceSection.entries[index]) }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -496,7 +484,12 @@ private fun appearancePreferenceSnapshotModel(
   isHideBalanceEnabled: Boolean = false,
 ) = AppearancePreferenceBodyModel(
   onBack = {},
-  moneyHomeHero = FormMainContentModel.MoneyHomeHero("$0", "0 sats"),
+  moneyHomeHero = MoneyHomeHeroModel(
+    "$0", "0 sats",
+    isHidden = isHideBalanceEnabled,
+    isPriceGraphEnabled = isBitcoinPriceCardEnabled,
+    selectedSection = selectedSection
+  ),
   selectedSection = selectedSection,
   onSectionSelected = {},
   themePreferenceString = "System",

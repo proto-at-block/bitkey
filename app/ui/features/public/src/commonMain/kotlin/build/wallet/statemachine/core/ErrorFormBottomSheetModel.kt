@@ -51,7 +51,7 @@ private fun ErrorFormBottomSheetModelWithOptionalErrorData(
 ) = SheetModel(
   onClosed = onClosed,
   body =
-    ErrorFormBodyModelWithOptionalErrorData(
+    errorFormBodyModelWithOptionalErrorData(
       title = title,
       subline = subline?.let { StringModel(it) },
       primaryButton = primaryButton,

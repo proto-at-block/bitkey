@@ -109,4 +109,43 @@ mod tests {
         assert!(message.push_payload.is_none());
         assert!(message.sms_payload.is_none());
     }
+
+    /// `VerifyHardwareSerial` reuses the existing `/privileged-action`
+    /// approval-page route — the same handler dispatches on action type.
+    /// Pin the URL and campaign so a stray rename of either silently
+    /// breaks the pending-email link.
+    #[test]
+    fn verify_hardware_serial_pending_email_links_to_privileged_action_route() {
+        let account_id =
+            AccountId::from_str("urn:wallet-account:00000000000000000000000000").unwrap();
+        let notification_id =
+            NotificationId::from_str("customer-01H4661RMJDM407YDJ63BHAJ2R").unwrap();
+        let composite_key = NotificationCompositeKey::from((account_id.clone(), notification_id));
+
+        let payload = PrivilegedActionPendingOutOfBandVerificationPayload {
+            base_verification_url: "https://example.com".to_string(),
+            web_auth_token: "abc123xyz789".to_string(),
+            privileged_action_instance_id: PrivilegedActionInstanceId::gen().unwrap(),
+            privileged_action_type: PrivilegedActionType::VerifyHardwareSerial,
+        };
+
+        let message = NotificationMessage::try_from((composite_key, payload))
+            .expect("payload should convert to NotificationMessage");
+
+        let Some(EmailPayload::Iterable {
+            campaign_type,
+            data_fields,
+        }) = message.email_payload
+        else {
+            panic!("expected Iterable email payload");
+        };
+        assert_eq!(
+            campaign_type,
+            IterableCampaignType::HardwareSerialVerificationPending,
+        );
+        assert_eq!(
+            data_fields.get("verificationURL").map(String::as_str),
+            Some("https://example.com/privileged-action?web_auth_token=abc123xyz789"),
+        );
+    }
 }

@@ -1,9 +1,7 @@
 package build.wallet.statemachine.walletmigration
 
 import build.wallet.analytics.events.screen.id.WalletMigrationEventTrackerScreenId
-import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Showcase.Content.ImageContent
@@ -13,7 +11,7 @@ import build.wallet.ui.model.SheetClosingClick
 import build.wallet.ui.model.button.ButtonModel
 
 /**
- * Design-system-v2-only W3 upgrade success sheet.
+ * W3 upgrade success sheet.
  */
 data class W3UpgradeCompleteSheetBodyModel(
   override val onBack: () -> Unit,
@@ -23,24 +21,24 @@ data class W3UpgradeCompleteSheetBodyModel(
     onBack = onBack,
     toolbar = null,
     header = null,
-    mainContentList = immutableListOf(),
+    mainContentList = w3UpgradeCompleteMainContentList,
     primaryButton = ButtonModel(
       text = "Done",
       size = ButtonModel.Size.Footer,
       treatment = ButtonModel.Treatment.Primary,
       onClick = SheetClosingClick(onDone)
     ),
-    renderContext = RenderContext.Sheet,
-    designSystemV2Model = FormDesignSystemV2Model(
-      mainContentList = immutableListOf(
-        FormMainContentModel.Showcase(
-          content = ImageContent(UPGRADE_W3),
-          fillAvailableSpace = false
-        ),
-        FormMainContentModel.HeaderBlock(
-          header = w3UpgradeCompleteHeaderModel()
-        )
-      )
+    renderContext = RenderContext.Sheet
+  )
+
+private val w3UpgradeCompleteMainContentList =
+  build.wallet.compose.collections.immutableListOf(
+    FormMainContentModel.Showcase(
+      content = ImageContent(UPGRADE_W3),
+      fillAvailableSpace = false
+    ),
+    FormMainContentModel.HeaderBlock(
+      header = w3UpgradeCompleteHeaderModel()
     )
   )
 

@@ -1,4 +1,3 @@
-use aws_config::BehaviorVersion;
 use aws_sdk_sns::{error::ProvideErrorMetadata, Client as SNSClient};
 use tracing::{event, Level};
 use types::account::entities::{Account, Touchpoint, TouchpointPlatform};
@@ -95,7 +94,7 @@ pub async fn generate_device_arn(
         AccountError::PlatformArnNotFound
     })?;
 
-    let sdk_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
+    let sdk_config = clients_common::aws_sdk::load_default_sdk_config().await;
     let sns_client = SNSClient::new(&sdk_config);
 
     let res = sns_client

@@ -5,6 +5,7 @@ import build.wallet.bitkey.account.SoftwareAccount
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.onboarding.OnboardSoftwareAccountService
+import build.wallet.statemachine.account.create.full.OnboardingAppSegment
 import build.wallet.statemachine.account.create.CreateSoftwareWalletUiStateMachineImpl.State.*
 import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiProps
 import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachine
@@ -68,6 +69,11 @@ class CreateSoftwareWalletUiStateMachineImpl(
         primaryButton = ButtonDataModel(
           text = "Ok",
           onClick = props.onExit
+        ),
+        errorData = ErrorData(
+          segment = OnboardingAppSegment.FullAccount,
+          actionDescription = "Creating software account",
+          cause = state.throwable ?: IllegalStateException("Failed to create software account")
         )
       ).asRootScreen()
     }

@@ -21,7 +21,7 @@ class W3UpgradeCompleteSnapshots : FunSpec({
     }
   }
 
-  test("W3 upgrade complete sheet with design system v2") {
+  test("W3 upgrade complete sheet") {
     paparazzi.snapshotSheet(
       model = W3UpgradeCompleteSheetBodyModel(
         onBack = {},

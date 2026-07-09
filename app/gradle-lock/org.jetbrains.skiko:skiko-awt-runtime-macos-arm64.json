@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.skiko:skiko-awt-runtime-macos-arm64",
+    "components": [
+        {
+            "version": "0.9.22.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "skiko-awt-runtime-macos-arm64-0.9.22.2.jar": "89a31521faf9985bbd4858c863283d1c38ea5d78d177bdb39aa3203285f2fd04"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

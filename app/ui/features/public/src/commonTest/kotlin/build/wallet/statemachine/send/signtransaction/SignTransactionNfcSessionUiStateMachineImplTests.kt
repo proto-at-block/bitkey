@@ -32,6 +32,8 @@ import build.wallet.nfc.platform.ConfirmationHandlesFake
 import build.wallet.nfc.platform.ConfirmationResult
 import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.SweepSigningContext
+import build.wallet.nfc.platform.SweepXpub
 import build.wallet.nfc.platform.confirmationResultMapper
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.web.InAppBrowserNavigatorMock
@@ -43,6 +45,7 @@ import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.nfc.DescriptorRepairUiProps
 import build.wallet.statemachine.nfc.DescriptorRepairUiStateMachine
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.nfc.NfcHelpBodyModel
 import build.wallet.statemachine.platform.nfc.EnableNfcNavigatorMock
 import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationUiProps
 import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationUiStateMachine
@@ -59,6 +62,7 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
+import okio.ByteString.Companion.toByteString
 import okio.ByteString.Companion.encodeUtf8
 
 /**
@@ -124,6 +128,14 @@ class SignTransactionNfcSessionUiStateMachineImplTests : FunSpec({
       bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryFake(),
     )
   }
+
+  fun recordingTransactorFor(
+    commands: NfcCommands,
+    turbinePrefix: String,
+  ) = RecordingExecutingNfcTransactor(
+    commandsPerCall = listOf(commands),
+    turbineFactory = { name -> turbines.create("$turbinePrefix-$name") }
+  )
 
   val onBackCalls = turbines.create<Unit>("onBack calls")
   val onSuccessCalls = turbines.create<Psbt>("onSuccess calls")
@@ -219,6 +231,87 @@ class SignTransactionNfcSessionUiStateMachineImplTests : FunSpec({
       nfcTransactor.transactCalls.awaitItem()
       onErrorCalls.awaitItem()
       onBackCalls.awaitItem()
+    }
+  }
+
+  test("design system v2 searching screen opens NFC help and returns") {
+    nfcTransactor.pauseNextTransact()
+    nfcTransactor.transactResult = Err(NfcException.Timeout())
+
+    stateMachine.test(props) {
+      var onHelpClick: (() -> Unit)? = null
+
+      awaitBody<SignTransactionNfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+        onHelpClick = this.onHelpClick.shouldNotBeNull()
+      }
+
+      nfcTransactor.transactCalls.awaitItem()
+      onHelpClick.shouldNotBeNull().invoke()
+
+      awaitBody<NfcHelpBodyModel> {
+        formScreenTitle.shouldNotBeNull().title.shouldBe("How it works")
+        onBack.shouldNotBeNull().invoke()
+      }
+
+      awaitBody<SignTransactionNfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+      }
+
+      nfcTransactor.transactCalls.awaitItem()
+      onErrorCalls.awaitItem().shouldBeTypeOf<NfcException.Timeout>()
+    }
+  }
+
+  test("design system v2 signing screen hides NFC help to keep active session") {
+    val transactGate = nfcTransactor.pauseNextTransact()
+    nfcTransactor.transactResult = Err(NfcException.Timeout())
+
+    stateMachine.test(props) {
+      awaitBody<SignTransactionNfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+        onHelpClick.shouldNotBeNull()
+      }
+
+      val transactCalls =
+        nfcTransactor.transactCalls.awaitItem()
+          .shouldBeTypeOf<NfcSession.Parameters>()
+
+      transactCalls.onTagConnected(NfcSessionFake())
+      eventTracker.eventCalls.awaitItem()
+
+      awaitBody<SignTransactionNfcBodyModel> {
+        status.shouldBeTypeOf<Signing>()
+        onHelpClick.shouldBeNull()
+      }
+
+      transactGate.complete(Unit)
+      onErrorCalls.awaitItem().shouldBeTypeOf<NfcException.Timeout>()
+    }
+  }
+
+  test("design system v2 lost connection screen keeps NFC help available") {
+    val transactGate = nfcTransactor.pauseNextTransact()
+    nfcTransactor.transactResult = Err(NfcException.Timeout())
+
+    stateMachine.test(props) {
+      awaitBody<SignTransactionNfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+      }
+
+      val transactCalls =
+        nfcTransactor.transactCalls.awaitItem()
+          .shouldBeTypeOf<NfcSession.Parameters>()
+
+      transactCalls.onTagDisconnected()
+
+      awaitBody<SignTransactionNfcBodyModel> {
+        status.shouldBeTypeOf<LostConnection>()
+        onHelpClick.shouldNotBeNull()
+      }
+
+      transactGate.complete(Unit)
+      onErrorCalls.awaitItem().shouldBeTypeOf<NfcException.Timeout>()
     }
   }
 
@@ -331,7 +424,7 @@ class SignTransactionNfcSessionUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("W3 confirmation continuation carries resolved device info into second tap parameters") {
+  test("W3 confirmation continuation uses resolved device info for second tap parameters") {
     val w3ResolvedDeviceInfo =
       FirmwareDeviceInfoMock.copy(hwRevision = "w3a-core-evt", serial = "w3-confirmation-serial")
     val commands =
@@ -355,15 +448,17 @@ class SignTransactionNfcSessionUiStateMachineImplTests : FunSpec({
       )
 
     createStateMachineWithTransactor(executingTransactor).test(
-      props.copy(account = FullAccountW3Mock)
+      props.copy(account = FullAccountMock)
     ) {
       awaitBody<SignTransactionNfcBodyModel> {
         status.shouldBeTypeOf<Searching>()
+        hardwareType.shouldBe(HardwareType.W1)
       }
 
       val initialParams = executingTransactor.transactCalls.awaitItem()
         .shouldBeTypeOf<NfcSession.Parameters>()
       initialParams.nfcFlowName.shouldBe("sign-transaction")
+      initialParams.hardwareType.shouldBe(HardwareType.W1)
       initialParams.resolvedDeviceInfoOverride.shouldBeNull()
 
       awaitBodyMock<HardwareConfirmationUiProps>(id = "hardware-confirmation") {
@@ -372,11 +467,13 @@ class SignTransactionNfcSessionUiStateMachineImplTests : FunSpec({
 
       awaitBody<SignTransactionNfcBodyModel> {
         status.shouldBeTypeOf<Searching>()
+        hardwareType.shouldBe(HardwareType.W3)
       }
 
       val continuationParams = executingTransactor.transactCalls.awaitItem()
         .shouldBeTypeOf<NfcSession.Parameters>()
       continuationParams.nfcFlowName.shouldBe("sign-transaction-confirmation")
+      continuationParams.hardwareType.shouldBe(HardwareType.W3)
       continuationParams.resolvedDeviceInfoOverride.shouldBe(w3ResolvedDeviceInfo)
 
       commands.signTransactionCalls.awaitItem().shouldBe(PsbtMock)
@@ -418,6 +515,121 @@ class SignTransactionNfcSessionUiStateMachineImplTests : FunSpec({
       transactCalls.hardwareType.shouldBe(HardwareType.W1)
 
       onErrorCalls.awaitItem()
+    }
+  }
+
+  test("requiredHardwareType rejects mismatched resolved hardware before signing") {
+    val commands = NfcCommandsMock { name -> turbines.create("required-w1-mismatch-$name") }.apply {
+      deviceInfoResult = FirmwareDeviceInfoMock.copy(hwRevision = "w3a-core-evt")
+    }
+    val executingTransactor = recordingTransactorFor(commands, "required-w1-mismatch-exec")
+
+    createStateMachineWithTransactor(executingTransactor).test(
+      props.copy(requiredHardwareType = HardwareType.W1)
+    ) {
+      awaitBody<SignTransactionNfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+      }
+
+      executingTransactor.transactCalls.awaitItem()
+        .shouldBeTypeOf<NfcSession.Parameters>()
+
+      onErrorCalls.awaitItem()
+        .shouldBeTypeOf<NfcException.WrongHardwareType>()
+        .apply {
+          expected.shouldBe(HardwareType.W1)
+          actual.shouldBe(HardwareType.W3)
+        }
+      commands.signTransactionCalls.expectNoEvents()
+      commands.sweepTransactionCalls.expectNoEvents()
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("requiredHardwareType allows matching resolved hardware to sign") {
+    val commands = NfcCommandsMock { name -> turbines.create("required-w1-match-$name") }.apply {
+      deviceInfoResult = FirmwareDeviceInfoMock
+    }
+    val executingTransactor = recordingTransactorFor(commands, "required-w1-match-exec")
+
+    createStateMachineWithTransactor(executingTransactor).test(
+      props.copy(requiredHardwareType = HardwareType.W1)
+    ) {
+      awaitBody<SignTransactionNfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+      }
+
+      executingTransactor.transactCalls.awaitItem()
+        .shouldBeTypeOf<NfcSession.Parameters>()
+      commands.signTransactionCalls.awaitItem().shouldBe(PsbtMock)
+      onSuccessCalls.awaitItem()
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("uses regular signTransaction with unfinalized mode when no sweep context is provided") {
+    val commands = NfcCommandsMock { name -> turbines.create("w3-unfinalized-$name") }.apply {
+      deviceInfoResult = FirmwareDeviceInfoMock.copy(hwRevision = "w3a-core-evt")
+    }
+    val executingTransactor = recordingTransactorFor(commands, "w3-unfinalized-exec")
+
+    createStateMachineWithTransactor(executingTransactor).test(
+      props.copy(account = FullAccountW3Mock, allowUnfinalized = true)
+    ) {
+      awaitBody<SignTransactionNfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+      }
+
+      executingTransactor.transactCalls.awaitItem()
+        .shouldBeTypeOf<NfcSession.Parameters>()
+      commands.signTransactionCalls.awaitItem().shouldBe(PsbtMock)
+      commands.lastSignTransactionAllowUnfinalized.shouldBe(true)
+      onSuccessCalls.awaitItem()
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("uses sweepTransaction when sweep context is provided and tapped hardware is W3") {
+    val sweepContext = sweepSigningContext()
+    val commands = NfcCommandsMock { name -> turbines.create("w3-sweep-$name") }.apply {
+      deviceInfoResult = FirmwareDeviceInfoMock.copy(hwRevision = "w3a-core-evt")
+    }
+    val executingTransactor = recordingTransactorFor(commands, "w3-sweep-exec")
+
+    createStateMachineWithTransactor(executingTransactor).test(
+      props.copy(sweepSigningContext = sweepContext, allowUnfinalized = true)
+    ) {
+      awaitBody<SignTransactionNfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+      }
+
+      executingTransactor.transactCalls.awaitItem()
+        .shouldBeTypeOf<NfcSession.Parameters>()
+      commands.sweepTransactionCalls.awaitItem().shouldBe(PsbtMock to sweepContext)
+      onSuccessCalls.awaitItem()
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("uses signTransaction with unfinalized mode when sweep context is provided and tapped hardware is W1") {
+    val commands = NfcCommandsMock { name -> turbines.create("w1-sweep-$name") }.apply {
+      deviceInfoResult = FirmwareDeviceInfoMock
+    }
+    val executingTransactor = recordingTransactorFor(commands, "w1-sweep-exec")
+
+    createStateMachineWithTransactor(executingTransactor).test(
+      props.copy(sweepSigningContext = sweepSigningContext(), allowUnfinalized = true)
+    ) {
+      awaitBody<SignTransactionNfcBodyModel> {
+        status.shouldBeTypeOf<Searching>()
+      }
+
+      executingTransactor.transactCalls.awaitItem()
+        .shouldBeTypeOf<NfcSession.Parameters>()
+      commands.signTransactionCalls.awaitItem().shouldBe(PsbtMock)
+      commands.lastSignTransactionAllowUnfinalized.shouldBe(true)
+      onSuccessCalls.awaitItem()
+      cancelAndIgnoreRemainingEvents()
     }
   }
 
@@ -634,6 +846,18 @@ class SignTransactionNfcSessionUiStateMachineImplTests : FunSpec({
     }
   }
 })
+
+private fun sweepSigningContext() = SweepSigningContext(
+  oldAccountIndex = 5u,
+  oldAppXpub = SweepXpub(
+    pubkey = ByteArray(33) { 0x02 }.toByteString(),
+    chaincode = ByteArray(32) { 0xab.toByte() }.toByteString()
+  ),
+  oldServerXpub = SweepXpub(
+    pubkey = ByteArray(33) { 0x03 }.toByteString(),
+    chaincode = ByteArray(32) { 0xcd.toByte() }.toByteString()
+  )
+)
 
 private class RecordingExecutingNfcTransactor(
   private val commandsPerCall: List<NfcCommands>,

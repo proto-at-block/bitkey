@@ -18,7 +18,7 @@ interface KeysetSyncActionFactory {
   /**
    * Creates a flow of [SecurityAction] for keyset sync status.
    */
-  suspend fun create(): Flow<SecurityAction>
+  fun create(): Flow<SecurityAction>
 }
 
 @BitkeyInject(AppScope::class)
@@ -27,7 +27,7 @@ class KeysetSyncActionFactoryImpl(
   private val accountService: AccountService,
   private val keysetRepairFeatureFlag: KeysetRepairFeatureFlag,
 ) : KeysetSyncActionFactory {
-  override suspend fun create(): Flow<SecurityAction> =
+  override fun create(): Flow<SecurityAction> =
     combine(
       accountService.activeAccount(),
       spendingKeysetRepairService.syncStatus,

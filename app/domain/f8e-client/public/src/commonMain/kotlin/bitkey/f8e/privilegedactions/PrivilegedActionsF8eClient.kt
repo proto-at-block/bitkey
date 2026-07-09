@@ -96,6 +96,7 @@ data class Authorization(
 enum class PrivilegedActionType {
   RESET_FINGERPRINT,
   LOOSEN_TRANSACTION_VERIFICATION_POLICY,
+  VERIFY_HARDWARE_SERIAL,
 }
 
 /**
@@ -145,9 +146,9 @@ enum class AuthorizationStrategyType {
 @Serializable
 @OptIn(ExperimentalSerializationApi::class)
 @JsonClassDiscriminator("authorization_strategy_type")
-sealed class AuthorizationStrategy {
+sealed interface AuthorizationStrategy {
   @SerialName("authorization_strategy_type")
-  abstract val authorizationStrategyType: AuthorizationStrategyType
+  val authorizationStrategyType: AuthorizationStrategyType
 
   /**
    * Authorization strategy that requires a delay period before completion
@@ -165,14 +166,14 @@ sealed class AuthorizationStrategy {
     val cancellationToken: String,
     @SerialName("completion_token")
     val completionToken: String,
-  ) : AuthorizationStrategy()
+  ) : AuthorizationStrategy
 
   @Serializable
   @SerialName("OUT_OF_BAND")
   data class OutOfBand(
     @SerialName("authorization_strategy_type")
     override val authorizationStrategyType: AuthorizationStrategyType,
-  ) : AuthorizationStrategy()
+  ) : AuthorizationStrategy
 }
 
 /**
@@ -207,6 +208,7 @@ fun PrivilegedActionType.toPrimitive(): bitkey.privilegedactions.PrivilegedActio
   return when (this) {
     PrivilegedActionType.RESET_FINGERPRINT -> bitkey.privilegedactions.PrivilegedActionType.RESET_FINGERPRINT
     PrivilegedActionType.LOOSEN_TRANSACTION_VERIFICATION_POLICY -> bitkey.privilegedactions.PrivilegedActionType.LOOSEN_TRANSACTION_VERIFICATION_POLICY
+    PrivilegedActionType.VERIFY_HARDWARE_SERIAL -> bitkey.privilegedactions.PrivilegedActionType.VERIFY_HARDWARE_SERIAL
   }
 }
 

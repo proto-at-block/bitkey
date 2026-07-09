@@ -47,10 +47,10 @@ class FakeHardwareKeyStoreImpl(
     )
   }
 
-  override suspend fun setSeed(seed: FakeHardwareKeyStore.Seed) {
+  override suspend fun setSeed(words: FakeHardwareKeyStore.Seed) {
     val secureStore = store()
-    secureStore.putString(SEED_KEY, seed.words)
-    secureStore.putBoolean(DESCRIPTOR_LOADED_KEY, seed.descriptorLoaded)
+    secureStore.putString(SEED_KEY, words.words)
+    secureStore.putBoolean(DESCRIPTOR_LOADED_KEY, words.descriptorLoaded)
   }
 
   private suspend fun getRootPrivateKey(network: BitcoinNetworkType): BdkDescriptorSecretKey {
@@ -84,7 +84,9 @@ class FakeHardwareKeyStoreImpl(
   ): SpendingKeypair {
     val initial = getInitialSpendingKeypair(network)
     val initialDpub = initial.publicKey.key
-    val expectPath = extractPathParts(initialDpub.origin.derivationPath)!!
+    val expectPath = checkNotNull(extractPathParts(initialDpub.origin.derivationPath)) {
+      "Initial spending dpub has an unexpected derivation path: ${initialDpub.origin.derivationPath}"
+    }
     val maxAccount =
       existingDescriptorPublicKeys.map(DescriptorPublicKey::invoke)
         .filter { initialDpub.origin.fingerprint == it.origin.fingerprint }

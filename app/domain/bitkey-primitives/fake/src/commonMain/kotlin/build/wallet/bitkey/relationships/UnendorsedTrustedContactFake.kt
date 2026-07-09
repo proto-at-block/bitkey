@@ -5,7 +5,7 @@ import build.wallet.encrypt.XCiphertext
 import okio.ByteString.Companion.encodeUtf8
 
 val UnendorsedTrustedContactFake = UnendorsedTrustedContact(
-  relationshipId = "someRelationshipId",
+  id = RelationshipId("someRelationshipId"),
   trustedContactAlias = TrustedContactAlias("someContact"),
   enrollmentPakeKey = PublicKey("deadbeef"),
   enrollmentKeyConfirmation = "".encodeUtf8(),
@@ -15,7 +15,7 @@ val UnendorsedTrustedContactFake = UnendorsedTrustedContact(
 )
 
 val UnendorsedBeneficiaryFake = UnendorsedTrustedContactFake.copy(
-  relationshipId = "unendorsedBeneficiaryRelationshipId",
+  id = RelationshipId("unendorsedBeneficiaryRelationshipId"),
   trustedContactAlias = TrustedContactAlias("unendorsedBeneficiaryAlias"),
   roles = setOf(TrustedContactRole.Beneficiary)
 )

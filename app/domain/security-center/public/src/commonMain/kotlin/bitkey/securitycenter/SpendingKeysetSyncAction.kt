@@ -14,6 +14,7 @@ data class SpendingKeysetSyncAction(
   override fun getRecommendations(): List<SecurityActionRecommendation> =
     when (syncStatus) {
       is SpendingKeysetSyncStatus.Mismatch,
+      is SpendingKeysetSyncStatus.IncompleteKeysetList,
       is SpendingKeysetSyncStatus.IncompletePrivateWallet ->
         listOf(SecurityActionRecommendation.REPAIR_KEYSET_MISMATCH)
       else -> emptyList()
@@ -26,6 +27,7 @@ data class SpendingKeysetSyncAction(
   override fun state(): SecurityActionState =
     when (syncStatus) {
       is SpendingKeysetSyncStatus.Mismatch,
+      is SpendingKeysetSyncStatus.IncompleteKeysetList,
       is SpendingKeysetSyncStatus.IncompletePrivateWallet ->
         SecurityActionState.HasCriticalActions
       else -> SecurityActionState.Secure

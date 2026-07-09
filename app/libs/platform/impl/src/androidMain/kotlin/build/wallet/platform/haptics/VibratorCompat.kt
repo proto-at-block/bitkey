@@ -30,7 +30,7 @@ internal fun Vibrator.maybeVibrate(
   if (hasVibrator()) {
     if (VERSION.SDK_INT >= VERSION_CODES.Q) {
       when (effect) {
-        DoubleClick ->
+        DoubleClick, Success ->
           vibrate(VibrationEffect.createPredefined(EFFECT_DOUBLE_CLICK))
         DullOneShot ->
           vibrate(VibrationEffect.createOneShot(800, 125))

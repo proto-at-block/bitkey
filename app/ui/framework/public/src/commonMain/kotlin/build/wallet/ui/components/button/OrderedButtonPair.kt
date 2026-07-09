@@ -16,18 +16,14 @@ fun OrderedButtonPair(
   modifier: Modifier = Modifier,
   renderButton: @Composable (ButtonModel) -> Unit = { Button(model = it) },
 ) {
-  val isDesignSystemV2Enabled = true
-  val topButton = if (isDesignSystemV2Enabled) primary else secondary
-  val bottomButton = if (isDesignSystemV2Enabled) secondary else primary
-
   Column(modifier = modifier) {
-    topButton?.let { button ->
+    primary?.let { button ->
       renderButton(button)
-      bottomButton?.let {
+      secondary?.let {
         Spacer(modifier = Modifier.height(spacing))
       }
     }
-    bottomButton?.let { button ->
+    secondary?.let { button ->
       renderButton(button)
     }
   }

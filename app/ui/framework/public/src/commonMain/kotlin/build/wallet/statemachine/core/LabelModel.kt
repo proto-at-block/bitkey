@@ -14,6 +14,7 @@ sealed interface LabelModel {
 
   data class CalloutModel(override val string: String) : LabelModel
 
+  @ConsistentCopyVisibility
   data class LinkSubstringModel internal constructor(
     override val string: String,
     val underline: Boolean,
@@ -189,6 +190,7 @@ sealed interface LabelModel {
     BLUE,
     ON60,
     FOREGROUND,
+    INVERSE,
     PRIMARY,
 
     /**

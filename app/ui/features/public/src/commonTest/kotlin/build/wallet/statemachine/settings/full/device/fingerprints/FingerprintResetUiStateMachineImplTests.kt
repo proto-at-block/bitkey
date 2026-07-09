@@ -240,7 +240,7 @@ class FingerprintResetUiStateMachineImplTests : FunSpec({
       awaitBody<FingerprintResetConfirmationBodyModel> {
         val accessory =
           toolbar?.leadingAccessory.shouldBeInstanceOf<ToolbarAccessoryModel.IconAccessory>()
-        accessory.model.onClick?.invoke()
+        accessory.model.onClick.invoke()
       }
 
       onCancelCalls.awaitItem()

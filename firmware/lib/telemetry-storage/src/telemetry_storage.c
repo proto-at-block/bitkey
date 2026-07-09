@@ -165,19 +165,15 @@ static void maybe_delete_old_coredumps(void) {
     goto out;
   }
 
-  // Check for presence of old (4K size) coredumps.
-
-  // https://docs.memfault.com/docs/mcu/coredumps/#memfault-coredump-format
-  uint8_t header[12];
-  int32_t bytes_read = fs_file_read(file, header, sizeof(header));
-  if (bytes_read < 0) {
-    LOGE("Read coredump fail");
-    goto out;
-  }
-
-  uint32_t size = *(uint32_t*)&header[8];
-  if (size == 4096) {
-    LOGI("Deleting old coredumps");
+  // If the file size isn't an exact multiple of the current slot size, a
+  // prior firmware was using a different TELEMETRY_COREDUMP_SIZE. Reading
+  // misaligned records would produce corrupt uploads and a misaligned
+  // wrap queue, so wipe instead. This also handles the legacy 4 KiB slot
+  // size that an earlier check covered explicitly.
+  int32_t file_size = fs_file_size(file);
+  if (file_size > 0 && ((uint32_t)file_size % TELEMETRY_COREDUMP_SIZE) != 0) {
+    LOGI("Deleting legacy coredumps (file=%" PRId32 " not multiple of %u)", file_size,
+         (unsigned)TELEMETRY_COREDUMP_SIZE);
     fs_file_truncate(file, 0);
   }
 

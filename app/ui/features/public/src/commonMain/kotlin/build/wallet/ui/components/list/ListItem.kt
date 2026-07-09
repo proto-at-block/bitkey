@@ -50,7 +50,6 @@ fun ListItem(
   collapseContent: Boolean = false,
 ) {
   with(model) {
-    val isDesignSystemV2Enabled = true
     val sideTextValue: AnnotatedString? = model.sideText()
     val secondarySideTextValue: AnnotatedString? = model.secondarySideText()
     val resolvedTitleType = (
@@ -64,7 +63,7 @@ fun ListItem(
         INFO -> LabelType.Body4Regular
         DESTRUCTIVE -> LabelType.Body2Medium
       }
-    ).regularizedForDesignSystemV2ListItems(isDesignSystemV2Enabled)
+    ).regularizedForListItems()
 
     ListItem(
       modifier = modifier,
@@ -96,21 +95,18 @@ fun ListItem(
       listItemTitleBackgroundTreatment = listItemTitleBackgroundTreatment,
       secondaryText =
         secondaryText?.let { secondaryText ->
-          val textColor = when (enabled) {
-            true -> WalletTheme.colors.foreground60
-            false -> WalletTheme.colors.foreground30
-          }
+          val textColor = model.secondaryTextTint.textColor(enabled)
           AnnotatedString(secondaryText, SpanStyle(color = textColor))
         },
       secondaryTextType =
         when (model.treatment) {
           SECONDARY_DISPLAY -> LabelType.Body1Regular
           else -> LabelType.Body3Regular
-        }.regularizedForDesignSystemV2ListItems(isDesignSystemV2Enabled),
+        }.regularizedForListItems(),
       sideText = sideTextValue,
       secondarySideText = secondarySideTextValue,
       secondarySideTextType =
-        model.secondarySideTextType.regularizedForDesignSystemV2ListItems(isDesignSystemV2Enabled),
+        model.secondarySideTextType.regularizedForListItems(),
       leadingAccessory =
         when (enabled) {
           true -> leadingAccessory
@@ -139,19 +135,13 @@ fun ListItem(
   }
 }
 
-private fun LabelType.regularizedForDesignSystemV2ListItems(
-  isDesignSystemV2Enabled: Boolean,
-): LabelType =
-  if (!isDesignSystemV2Enabled) {
-    this
-  } else {
-    when (this) {
-      LabelType.Body1Medium -> LabelType.Body1Regular
-      LabelType.Body2Medium -> LabelType.Body2Regular
-      LabelType.Body3Medium -> LabelType.Body3Regular
-      LabelType.Body4Medium -> LabelType.Body4Regular
-      else -> this
-    }
+private fun LabelType.regularizedForListItems(): LabelType =
+  when (this) {
+    LabelType.Body1Medium -> LabelType.Body1Regular
+    LabelType.Body2Medium -> LabelType.Body2Regular
+    LabelType.Body3Medium -> LabelType.Body3Regular
+    LabelType.Body4Medium -> LabelType.Body4Regular
+    else -> this
   }
 
 @Composable
@@ -441,9 +431,9 @@ fun ListItem(
               Column(
                 modifier = Modifier.weight(1f)
               ) {
-                it.title?.let { title ->
+                it.title?.let { explainerTitle ->
                   Label(
-                    text = title,
+                    text = explainerTitle,
                     type = LabelType.Body3Bold,
                     alignment = TextAlign.Start,
                     treatment = LabelTreatment.Primary
@@ -515,15 +505,15 @@ private fun ListItem(
         .then(modifier)
   ) {
     Column {
-      var verticalPadding = verticalPadding
+      var contentVerticalPadding = verticalPadding
 
       topAccessoryContent?.let {
-        verticalPadding = 8.dp
+        contentVerticalPadding = 8.dp
         Box(
           modifier = Modifier
             .fillMaxWidth()
             .padding(
-              top = verticalPadding
+              top = contentVerticalPadding
             ),
           contentAlignment = Alignment.Center
         ) {
@@ -536,7 +526,7 @@ private fun ListItem(
           Modifier
             .fillMaxWidth()
             .padding(
-              vertical = verticalPadding,
+              vertical = contentVerticalPadding,
               horizontal = horizontalPadding
             )
             .offset(offset.x.dp, offset.y.dp),
@@ -550,7 +540,7 @@ private fun ListItem(
         }
         Column(
           modifier = Modifier.weight(1F),
-          verticalArrangement = Arrangement.spacedBy(2.dp),
+          verticalArrangement = Arrangement.spacedBy(0.dp),
           horizontalAlignment = contentAlignment
         ) {
           Box { primaryContent() }
@@ -564,6 +554,7 @@ private fun ListItem(
             collapsed = collapseContent,
             verticalArrangement = Arrangement.spacedBy(2.dp),
             horizontalAlignment = Alignment.End,
+            slideCollapsedContent = false,
             topContent = sideContent?.let {
               { Box { sideContent() } }
             },
@@ -607,17 +598,19 @@ private fun ListItem(
 @Composable
 private fun ListItemModel.sideText(): AnnotatedString? =
   sideText?.let { sideText ->
-    val textColor = when (sideTextTint) {
-      ListItemSideTextTint.PRIMARY -> when (enabled) {
-        true -> WalletTheme.colors.foreground
-        false -> WalletTheme.colors.foreground30
-      }
+    val textColor = sideTextTint.textColor(enabled)
+    AnnotatedString(sideText, SpanStyle(color = textColor))
+  }
 
+@Composable
+private fun ListItemSideTextTint.textColor(enabled: Boolean) =
+  when (enabled) {
+    false -> WalletTheme.colors.foreground30
+    true -> when (this) {
+      ListItemSideTextTint.PRIMARY -> WalletTheme.colors.foreground
       ListItemSideTextTint.SECONDARY -> WalletTheme.colors.foreground60
-
       ListItemSideTextTint.GREEN -> WalletTheme.colors.positiveForeground
     }
-    AnnotatedString(sideText, SpanStyle(color = textColor))
   }
 
 @Composable

@@ -77,6 +77,8 @@ async fn test_w1_legacy_to_w3_upgrade() {
         network: Network::Signet,
         app_pub: create_pubkey(),
         hardware_pub: create_pubkey(),
+
+        hardware_attestation: None,
     };
     let keyset_response = client.create_keyset_v2(&account_id, &keyset_request).await;
     assert_eq!(keyset_response.status_code, StatusCode::OK);
@@ -147,6 +149,8 @@ async fn test_w1_private_to_w3_upgrade() {
                     network: Network::Signet,
                     app_pub: create_pubkey(),
                     hardware_pub: create_pubkey(),
+
+                    hardware_attestation: None,
                 },
                 is_test_account: true,
             },
@@ -194,6 +198,8 @@ async fn test_w1_private_to_w3_upgrade() {
         network: Network::Signet,
         app_pub: create_pubkey(),
         hardware_pub: create_pubkey(),
+
+        hardware_attestation: None,
     };
     let keyset_response = client.create_keyset_v2(&account_id, &keyset_request).await;
     assert_eq!(keyset_response.status_code, StatusCode::OK);

@@ -1,5 +1,6 @@
 package build.wallet.debug.cloud
 
+import build.wallet.bitkey.f8e.AccountId
 import com.github.michaelbull.result.Result
 
 /**
@@ -13,10 +14,10 @@ import com.github.michaelbull.result.Result
  */
 interface CloudBackupCorrupter {
   /**
-   * Corrupts cloud backup for the current cloud provider by writing
+   * Corrupts the active account cloud backup for the current cloud provider by writing
    * invalid data. Assumes a cloud account is already signed in.
    */
-  suspend fun corrupt(): Result<Unit, CorruptionError>
+  suspend fun corrupt(accountId: AccountId): Result<Unit, CorruptionError>
 }
 
 sealed class CorruptionError : Error() {
@@ -43,6 +44,11 @@ sealed class CorruptionError : Error() {
   ) : CorruptionError()
 
   data class BackupWriteError(
+    override val message: String,
+    override val cause: Throwable? = null,
+  ) : CorruptionError()
+
+  data class BackupNotFoundError(
     override val message: String,
     override val cause: Throwable? = null,
   ) : CorruptionError()

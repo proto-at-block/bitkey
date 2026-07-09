@@ -3,6 +3,7 @@ package build.wallet.ui.app.recovery
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.relationships.*
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.AWAITING_VERIFY
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.VERIFIED
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.crypto.PublicKey
@@ -67,7 +68,7 @@ class TrustedContactsListFormScreenSnapshots : FunSpec({
           protectedCustomers =
             immutableListOf(
               ProtectedCustomer(
-                relationshipId = "",
+                id = RelationshipId(""),
                 alias = ProtectedCustomerAlias("Alice"),
                 roles = setOf(TrustedContactRole.SocialRecoveryContact)
               )
@@ -80,7 +81,7 @@ class TrustedContactsListFormScreenSnapshots : FunSpec({
     }
   }
 
-  test("Recovery Contacts list with design system v2") {
+  test("Recovery Contacts list pending and expired invitations") {
     paparazzi.snapshot {
       FormScreen(
         trustedContactsListBodyModel(
@@ -89,13 +90,24 @@ class TrustedContactsListFormScreenSnapshots : FunSpec({
               sampleEndorsedTrustedContact(
                 alias = "Bob",
                 relationshipId = "bob-contact-id"
+              ),
+              sampleEndorsedTrustedContact(
+                alias = "Eve",
+                relationshipId = "eve-contact-id",
+                authenticationState = AWAITING_VERIFY
               )
             ),
           invitations =
             listOf(
               sampleInvitation(
                 alias = "Alice",
-                relationshipId = "alice-invite-id"
+                relationshipId = "alice-invite-id",
+                expiresAt = Instant.DISTANT_FUTURE
+              ),
+              sampleInvitation(
+                alias = "Ryan",
+                relationshipId = "ryan-invite-id",
+                expiresAt = Instant.DISTANT_PAST
               )
             ),
           protectedCustomers =
@@ -114,13 +126,6 @@ class TrustedContactsListFormScreenSnapshots : FunSpec({
     }
   }
 
-  test("Recovery Contacts list empty with design system v2") {
-    paparazzi.snapshot {
-      FormScreen(
-        trustedContactsListBodyModel()
-      )
-    }
-  }
 })
 
 private fun trustedContactsListBodyModel(
@@ -144,9 +149,10 @@ private fun trustedContactsListBodyModel(
 private fun sampleEndorsedTrustedContact(
   alias: String,
   relationshipId: String,
+  authenticationState: TrustedContactAuthenticationState = VERIFIED,
 ): EndorsedTrustedContact {
   return EndorsedTrustedContact(
-    relationshipId = relationshipId,
+    id = RelationshipId(relationshipId),
     trustedContactAlias = TrustedContactAlias(alias = alias),
     keyCertificate = TrustedContactKeyCertificate(
       delegatedDecryptionKey = PublicKey(""),
@@ -155,7 +161,7 @@ private fun sampleEndorsedTrustedContact(
       appAuthGlobalKeyHwSignature = AppGlobalAuthKeyHwSignature(""),
       trustedContactIdentityKeyAppSignature = TcIdentityKeyAppSignature("")
     ),
-    authenticationState = VERIFIED,
+    authenticationState = authenticationState,
     roles = setOf(TrustedContactRole.SocialRecoveryContact)
   )
 }
@@ -163,14 +169,15 @@ private fun sampleEndorsedTrustedContact(
 private fun sampleInvitation(
   alias: String,
   relationshipId: String,
+  expiresAt: Instant = Instant.DISTANT_FUTURE,
 ): Invitation {
   return Invitation(
-    relationshipId = relationshipId,
+    id = RelationshipId(relationshipId),
     trustedContactAlias = TrustedContactAlias(alias),
     roles = setOf(TrustedContactRole.SocialRecoveryContact),
     code = "$relationshipId-code",
     codeBitLength = 20,
-    expiresAt = Instant.DISTANT_FUTURE
+    expiresAt = expiresAt
   )
 }
 
@@ -179,7 +186,7 @@ private fun sampleProtectedCustomer(
   relationshipId: String,
 ): ProtectedCustomer {
   return ProtectedCustomer(
-    relationshipId = relationshipId,
+    id = RelationshipId(relationshipId),
     alias = ProtectedCustomerAlias(alias),
     roles = setOf(TrustedContactRole.SocialRecoveryContact)
   )

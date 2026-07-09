@@ -34,32 +34,37 @@ class TxVerificationDaoImpl(
     }
   }
 
-  override suspend fun getActivePolicy(): Flow<Result<TxVerificationPolicy.Active?, Error>> {
-    return databaseProvider.database().transactionVerificationQueries
-      .getActivePolicy()
-      .asFlowOfOneOrNull()
-      .flatMapLatest { policyResult ->
-        policyResult.get()?.thresholdCurrencyAlphaCode?.let { code ->
-          databaseProvider.database()
-            .fiatCurrencyQueries
-            .getFiatCurrencyByTextCode(code)
-            .asFlowOfOneOrNull()
-            .map { policyResult to it }
-        } ?: flowOf(policyResult to null)
-      }
-      .mapLatest { (policyResult, fiatCurrencyResult) ->
-        policyResult.get()?.let { policy ->
-          coroutineBinding {
-            TxVerificationPolicy.Active(
-              threshold = buildThreshold(
-                policyCurrencyCode = policy.thresholdCurrencyAlphaCode,
-                threshold = policy.thresholdAmountFractionalUnitValue,
-                fiatCurrencyEntity = fiatCurrencyResult?.bind()
-              ).bind()
-            )
+  override fun getActivePolicy(): Flow<Result<TxVerificationPolicy.Active?, Error>> {
+    return flow {
+      val database = databaseProvider.database()
+      emitAll(
+        database.transactionVerificationQueries
+          .getActivePolicy()
+          .asFlowOfOneOrNull()
+          .flatMapLatest { policyResult ->
+            policyResult.get()?.thresholdCurrencyAlphaCode?.let { code ->
+              database
+                .fiatCurrencyQueries
+                .getFiatCurrencyByTextCode(code)
+                .asFlowOfOneOrNull()
+                .map { policyResult to it }
+            } ?: flowOf(policyResult to null)
           }
-        } ?: Ok(null)
-      }
+          .mapLatest { (policyResult, fiatCurrencyResult) ->
+            policyResult.get()?.let { policy ->
+              coroutineBinding {
+                TxVerificationPolicy.Active(
+                  threshold = buildThreshold(
+                    policyCurrencyCode = policy.thresholdCurrencyAlphaCode,
+                    threshold = policy.thresholdAmountFractionalUnitValue,
+                    fiatCurrencyEntity = fiatCurrencyResult?.bind()
+                  ).bind()
+                )
+              }
+            } ?: Ok(null)
+          }
+      )
+    }
   }
 
   override suspend fun deletePolicy(): Result<Unit, DbError> {

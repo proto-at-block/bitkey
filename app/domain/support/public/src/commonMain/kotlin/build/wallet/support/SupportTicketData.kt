@@ -45,8 +45,8 @@ interface SupportTicketData {
   }
 }
 
-sealed class SendEncryptedDescriptor {
-  object NotSelected : SendEncryptedDescriptor()
+sealed interface SendEncryptedDescriptor {
+  object NotSelected : SendEncryptedDescriptor
 
-  data class Selected(val accountId: AccountId) : SendEncryptedDescriptor()
+  data class Selected(val accountId: AccountId) : SendEncryptedDescriptor
 }

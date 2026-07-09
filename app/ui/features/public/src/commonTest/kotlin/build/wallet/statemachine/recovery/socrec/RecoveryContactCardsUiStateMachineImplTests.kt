@@ -147,7 +147,8 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
         cards.size.shouldBeEqual(1)
         cards.first().let { cardModel ->
           cardModel.title.shouldNotBeNull().string.shouldBeEqual("someContact")
-          cardModel.trailingButton.shouldNotBeNull().text.shouldBeEqual("Failed")
+          cardModel.subtitle.shouldNotBeNull().shouldBeEqual("Failed Recovery Contact")
+          cardModel.trailingButton.shouldNotBeNull().text.shouldBeEqual("Review")
         }
       }
     }
@@ -167,7 +168,8 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
         cards.size.shouldBeEqual(1)
         cards.first().let { cardModel ->
           cardModel.title.shouldNotBeNull().string.shouldBeEqual("someContact")
-          cardModel.trailingButton.shouldNotBeNull().text.shouldBeEqual("Failed")
+          cardModel.subtitle.shouldNotBeNull().shouldBeEqual("Failed Recovery Contact")
+          cardModel.trailingButton.shouldNotBeNull().text.shouldBeEqual("Review")
         }
       }
     }
@@ -187,7 +189,8 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
         cards.size.shouldBeEqual(1)
         cards.first().let { cardModel ->
           cardModel.title.shouldNotBeNull().string.shouldBeEqual("someContact")
-          cardModel.trailingButton.shouldNotBeNull().text.shouldBeEqual("Invalid")
+          cardModel.subtitle.shouldNotBeNull().shouldBeEqual("Invalid Recovery Contact")
+          cardModel.trailingButton.shouldNotBeNull().text.shouldBeEqual("Review")
         }
       }
     }

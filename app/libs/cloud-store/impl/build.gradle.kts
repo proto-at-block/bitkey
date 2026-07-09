@@ -12,9 +12,20 @@ kotlin {
     commonMain {
       dependencies {
         implementation(libs.kmp.okio)
+        implementation(projects.domain.accountPublic)
+        implementation(projects.libs.keyValueStorePublic)
         implementation(projects.libs.platformPublic)
         implementation(projects.libs.loggingPublic)
         implementation(projects.libs.stdlibPublic)
+      }
+    }
+
+    commonTest {
+      dependencies {
+        implementation(projects.domain.accountFake)
+        implementation(projects.libs.keyValueStoreFake)
+        implementation(projects.libs.platformFake)
+        implementation(projects.libs.testingPublic)
       }
     }
 

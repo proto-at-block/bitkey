@@ -3,7 +3,6 @@ package bitkey.ui.statemachine.interstitial
 import build.wallet.analytics.events.screen.id.WalletMigrationEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Showcase.Content.ImageContent
@@ -30,7 +29,7 @@ data class W3UpgradeOldDeviceWipeReadyBodyModel(
     onBack = onDone,
     toolbar = null,
     header = null,
-    mainContentList = immutableListOf(),
+    mainContentList = wipeReadyMainContentList,
     primaryButton = ButtonModel(
       text = "Wipe first generation Bitkey",
       size = ButtonModel.Size.Footer,
@@ -43,10 +42,7 @@ data class W3UpgradeOldDeviceWipeReadyBodyModel(
       treatment = ButtonModel.Treatment.Secondary,
       onClick = SheetClosingClick(onDone)
     ),
-    renderContext = RenderContext.Sheet,
-    designSystemV2Model = FormDesignSystemV2Model(
-      mainContentList = wipeReadyMainContentList
-    )
+    renderContext = RenderContext.Sheet
   )
 
 private val wipeReadyMainContentList = immutableListOf(

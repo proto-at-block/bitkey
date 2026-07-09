@@ -1,9 +1,11 @@
 package build.wallet.recovery.keyset
 
+import bitkey.account.HardwareType
 import bitkey.recovery.DescriptorBackupService
 import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeyset
@@ -120,6 +122,26 @@ class SpendingKeysetRepairServiceImpl(
             return@mapBoth SpendingKeysetSyncStatus.IncompletePrivateWallet(
               activeKeysetId = localActiveKeysetId
             )
+          }
+
+          if (account.keybox.canUseKeyboxKeysets) {
+            val localKeysetIds = account.keybox.keysets
+              .map { it.f8eSpendingKeyset.keysetId }
+              .toSet()
+            val serverKeysetIds = response.keysets
+              .map { it.keysetId }
+              .toSet()
+            val missingServerKeysetIds = serverKeysetIds - localKeysetIds
+
+            if (missingServerKeysetIds.isNotEmpty()) {
+              logWarn {
+                "Incomplete keyset list detected for active keyset $localActiveKeysetId; missing server keysets: ${missingServerKeysetIds.joinToString()}"
+              }
+              return@mapBoth SpendingKeysetSyncStatus.IncompleteKeysetList(
+                activeKeysetId = localActiveKeysetId,
+                missingKeysetIds = missingServerKeysetIds
+              )
+            }
           }
 
           return@mapBoth SpendingKeysetSyncStatus.Synced
@@ -306,7 +328,40 @@ class SpendingKeysetRepairServiceImpl(
     hwSpendingKey: HwSpendingPublicKey,
     hwProofOfPossession: HwFactorProofOfPossession,
     cachedData: KeysetRepairCachedData,
+    hwSpendingKeyProof: HwSpendingKeyProof?,
   ): Result<KeysetRepairState.RepairComplete, KeysetRepairError> =
+    coroutineBinding {
+      if (account.config.hardwareType == HardwareType.W3) {
+        Err(
+          KeysetRepairError.KeysetActivationFailed(
+            cause = IllegalStateException("W3 keyset repair requires action proofs")
+          )
+        ).bind<Unit>()
+      }
+
+      val proof = PrivilegedActionProof.HwKeyProof(hwProofOfPossession)
+      val prepared = prepareRegeneratedActiveKeyset(
+        account = account,
+        updatedKeybox = updatedKeybox,
+        hwSpendingKey = hwSpendingKey,
+        hwSpendingKeyProof = hwSpendingKeyProof
+      ).bind()
+
+      completeRegeneratedActiveKeyset(
+        account = account,
+        preparedRegeneratedKeyset = prepared,
+        descriptorBackupProof = proof,
+        keysetActivationProof = proof,
+        cachedData = cachedData
+      ).bind()
+    }
+
+  override suspend fun prepareRegeneratedActiveKeyset(
+    account: FullAccount,
+    updatedKeybox: Keybox,
+    hwSpendingKey: HwSpendingPublicKey,
+    hwSpendingKeyProof: HwSpendingKeyProof?,
+  ): Result<PreparedRegeneratedKeyset, KeysetRepairError> =
     coroutineBinding {
       logInfo { "Regenerating active keyset for account ${account.accountId}" }
 
@@ -322,7 +377,8 @@ class SpendingKeysetRepairServiceImpl(
         hardwareSpendingKey = hwSpendingKey,
         appSpendingKey = appKeyBundle.spendingKey,
         network = account.keybox.config.bitcoinNetworkType,
-        appAuthKey = account.keybox.activeAppKeyBundle.authKey
+        appAuthKey = account.keybox.activeAppKeyBundle.authKey,
+        hardwareSpendingKeyProof = hwSpendingKeyProof
       )
         .mapError { KeysetRepairError.FetchKeysetsFailed(cause = it) }
         .bind()
@@ -349,9 +405,36 @@ class SpendingKeysetRepairServiceImpl(
 
       logInfo { "Local keybox updated with new keyset" }
 
+      PreparedRegeneratedKeyset(
+        keybox = keyboxWithNewKeyset,
+        newKeyset = newKeyset
+      )
+    }
+
+  override suspend fun completeRegeneratedActiveKeyset(
+    account: FullAccount,
+    preparedRegeneratedKeyset: PreparedRegeneratedKeyset,
+    descriptorBackupProof: PrivilegedActionProof?,
+    keysetActivationProof: PrivilegedActionProof,
+    cachedData: KeysetRepairCachedData,
+  ): Result<KeysetRepairState.RepairComplete, KeysetRepairError> =
+    coroutineBinding {
+      logInfo {
+        "Completing regenerated keyset repair for account ${account.accountId}"
+      }
+
+      val keyboxWithNewKeyset = preparedRegeneratedKeyset.keybox
+      val newKeyset = preparedRegeneratedKeyset.newKeyset
+
       // Get the sealed SSEK from the cached response
       val sealedSsek = cachedData.response.wrappedSsek
       if (sealedSsek != null) {
+        val proof = descriptorBackupProof ?: Err(
+          KeysetRepairError.DescriptorBackupFailed(
+            cause = IllegalStateException("Descriptor backup upload requires authorization proof")
+          )
+        ).bind()
+
         // Get existing encrypted descriptors from the cached response
         val existingDescriptors = cachedData.response.descriptorBackups
 
@@ -373,7 +456,7 @@ class SpendingKeysetRepairServiceImpl(
           sealedSsekForDecryption = sealedSsek,
           sealedSsekForEncryption = sealedSsek,
           appAuthKey = keyboxWithNewKeyset.activeAppKeyBundle.authKey,
-          proof = PrivilegedActionProof.HwKeyProof(hwProofOfPossession),
+          proof = proof,
           descriptorsToDecrypt = existingDescriptors,
           keysetsToEncrypt = keysetsToBackup
         )
@@ -385,15 +468,28 @@ class SpendingKeysetRepairServiceImpl(
         logInfo { "No sealed SSEK available, skipping descriptor backup" }
       }
 
-      setActiveSpendingKeysetF8eClient.set(
+      val signedKeysetVerificationResponse = setActiveSpendingKeysetF8eClient.set(
         f8eEnvironment = account.config.f8eEnvironment,
         fullAccountId = account.accountId,
-        keysetId = f8eSpendingKeyset.keysetId,
+        keysetId = newKeyset.f8eSpendingKeyset.keysetId,
         appAuthKey = keyboxWithNewKeyset.activeAppKeyBundle.authKey,
-        proof = PrivilegedActionProof.HwKeyProof(hwProofOfPossession)
+        proof = keysetActivationProof
       )
         .mapError { KeysetRepairError.KeysetActivationFailed(cause = it) }
         .bind()
+
+      val signedKeysetVerification = when (account.config.hardwareType) {
+        HardwareType.W3 -> signedKeysetVerificationResponse ?: run {
+          Err(
+            KeysetRepairError.KeysetActivationFailed(
+              cause = IllegalStateException(
+                "W3 keyset activation did not return signed keyset verification data"
+              )
+            )
+          ).bind()
+        }
+        HardwareType.W1 -> signedKeysetVerificationResponse
+      }
 
       logInfo { "Keyset activated on server" }
 
@@ -434,7 +530,10 @@ class SpendingKeysetRepairServiceImpl(
 
       logInfo { "Keyset regeneration completed successfully" }
 
-      KeysetRepairState.RepairComplete(keyboxWithNewKeyset)
+      KeysetRepairState.RepairComplete(
+        updatedKeybox = keyboxWithNewKeyset,
+        signedKeysetVerification = signedKeysetVerification
+      )
     }
 
   private fun markRepaired() {

@@ -65,8 +65,9 @@ class RecoveryChannelSettingsUiStateMachineImpl(
   @Composable
   override fun model(props: RecoveryChannelSettingsProps): ScreenModel {
     val scope = rememberStableCoroutineScope()
-    val smsErrorHint = uiErrorHintsProvider.errorHintFlow(UiErrorHintKey.Phone).collectAsState()
-    val isDesignSystemV2Enabled = true
+    val smsErrorHint = remember {
+      uiErrorHintsProvider.errorHintFlow(UiErrorHintKey.Phone)
+    }.collectAsState()
     val notificationTouchpointData = remember {
       notificationTouchpointService.notificationTouchpointData()
     }.collectAsState(null).value
@@ -155,7 +156,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
                 onApprove = { /* no-op: button loading */ }
               )
             },
-            onTokenRefreshError = { isConnectivityError, _ ->
+            onTokenRefreshError = { _, error, _ ->
               NotificationOperationApprovalInstructionsFormScreenModel(
                 onExit = { state = ShowingNotificationsSettingsUiState() },
                 operationDescription = stateVal.notificationChannel.disableOperationDescription(
@@ -164,7 +165,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
                 isApproveButtonLoading = false,
                 errorBottomSheetState =
                   NotificationTouchpointInputAndVerificationUiState.ActivationApprovalInstructionsUiState.ErrorBottomSheetState.Showing(
-                    isConnectivityError = isConnectivityError,
+                    error = error,
                     onClosed = { state = ShowingNotificationsSettingsUiState() }
                   ),
                 onApprove = { /* no-op: showing error */ }
@@ -182,8 +183,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
           scope = scope,
           smsErrorHint.value,
           updateState = { state = it },
-          notificationTouchpointData = notificationTouchpointData,
-          isDesignSystemV2Enabled = isDesignSystemV2Enabled
+          notificationTouchpointData = notificationTouchpointData
         )
 
       is EnteringAndVerifyingPhoneNumberUiState -> {
@@ -325,7 +325,6 @@ class RecoveryChannelSettingsUiStateMachineImpl(
     phoneErrorHint: UiErrorHint,
     updateState: (RecoveryState) -> Unit,
     notificationTouchpointData: NotificationTouchpointData?,
-    isDesignSystemV2Enabled: Boolean,
   ): ScreenModel {
     val delayedAlertOverlay = (stateVal.overlayState as? AlertOverlayState)?.alertModel
 
@@ -527,7 +526,6 @@ class RecoveryChannelSettingsUiStateMachineImpl(
       learnOnClick = {
         updateState(ShowLearnRecoveryWebView)
       },
-      isDesignSystemV2Enabled = isDesignSystemV2Enabled,
       bottomSheetModel = (stateVal.overlayState as? BottomSheetOverlayState)?.bottomSheetModel
     )
   }

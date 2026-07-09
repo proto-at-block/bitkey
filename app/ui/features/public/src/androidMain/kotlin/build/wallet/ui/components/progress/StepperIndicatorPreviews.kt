@@ -19,7 +19,7 @@ internal fun StepIndicator() {
           StepperIndicator.Step(
             style = COMPLETED,
             label = "Submitted",
-            icon = IconImage.LocalImage(Icon.SmallIconCheck)
+            icon = IconImage.LocalImage(Icon.Check)
           ),
           StepperIndicator.Step(
             style = PENDING,

@@ -2,6 +2,7 @@ package build.wallet.wallet.migration
 
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.PrivateWalletMigrationEntity
@@ -28,11 +29,14 @@ class PrivateWalletMigrationDaoImpl(
     }
   }
 
-  override suspend fun saveHardwareKey(hwKey: HwSpendingPublicKey): Result<Unit, DbError> {
+  override suspend fun saveHardwareKey(
+    hwKey: HwSpendingPublicKey,
+    hwKeyProof: HwSpendingKeyProof?,
+  ): Result<Unit, DbError> {
     return databaseProvider.database()
       .privateWalletMigrationQueries
       .awaitTransaction {
-        saveHardwareKey(hwKey)
+        saveHardwareKey(newHardwareKey = hwKey, newHardwareKeyProof = hwKeyProof)
       }
   }
 

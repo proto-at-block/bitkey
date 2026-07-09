@@ -1,7 +1,7 @@
 package build.wallet.statemachine.moneyhome.card.gettingstarted
 
 import build.wallet.statemachine.core.Icon.DotBitkey
-import build.wallet.statemachine.core.Icon.SmallIconBitkey
+import build.wallet.statemachine.core.Icon.Bitkey
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.CardModel.CardContent.DrillList
@@ -62,7 +62,7 @@ private fun CardModel.GettingStartedTileModel.toLegacyListItemModel(): ListItemM
           ListItemAccessory.IconAccessory(
             model =
               IconModel(
-                icon = SmallIconBitkey,
+                icon = Bitkey,
                 iconSize = IconSize.Small
               )
           ),

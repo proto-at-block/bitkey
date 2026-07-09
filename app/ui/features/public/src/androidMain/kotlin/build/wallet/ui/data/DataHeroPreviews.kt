@@ -24,7 +24,7 @@ fun PreviewDataHeroWithoutButton() {
             IconModel(
               iconImage =
                 LocalImage(
-                  icon = Icon.BitkeyDevice3D
+                  icon = Icon.BitkeyFrontLit
                 ),
               iconSize = XLarge
             ),
@@ -47,7 +47,7 @@ fun PreviewDataHeroWithButton() {
             IconModel(
               iconImage =
                 LocalImage(
-                  icon = Icon.BitkeyDevice3D
+                  icon = Icon.BitkeyFrontLit
                 ),
               iconSize = XLarge
             ),

@@ -92,7 +92,7 @@ class RelationshipsF8eClientFake(
       )
     }
     val outgoing = Invitation(
-      relationshipId = uuidGenerator.random(),
+      id = RelationshipId(uuidGenerator.random()),
       trustedContactAlias = trustedContactAlias,
       code = genServerInviteCode(),
       codeBitLength = 20,
@@ -103,7 +103,7 @@ class RelationshipsF8eClientFake(
     val invitation = InvitationPair(
       outgoing = outgoing,
       incoming = IncomingInvitation(
-        relationshipId = outgoing.relationshipId,
+        id = outgoing.id,
         code = outgoing.code,
         protectedCustomerEnrollmentPakeKey = protectedCustomerEnrollmentPakeKey,
         recoveryRelationshipRoles = roles,
@@ -118,7 +118,7 @@ class RelationshipsF8eClientFake(
       if (invitations.remove(invitation)) {
         unendorsedTrustedContacts.add(
           UnendorsedTrustedContact(
-            relationshipId = invitation.outgoing.relationshipId,
+            id = invitation.outgoing.id,
             trustedContactAlias = invitation.outgoing.trustedContactAlias,
             sealedDelegatedDecryptionKey = XCiphertext("deadbeef"),
             enrollmentPakeKey = PublicKey("deadbeef"),
@@ -139,7 +139,7 @@ class RelationshipsF8eClientFake(
     relationshipId: String,
   ): Result<Invitation, NetworkingError> {
     val invitation =
-      invitations.find { it.outgoing.relationshipId == relationshipId }
+      invitations.find { it.outgoing.id.value == relationshipId }
         ?: return Err(UnhandledException(Exception("Invitation $relationshipId not found.")))
     invitations.remove(invitation)
 
@@ -176,13 +176,18 @@ class RelationshipsF8eClientFake(
   ): Result<Unit, NetworkingError> {
     fakeNetworkingError?.let { return Err(it) }
 
-    if (invitations.removeAll { it.outgoing.relationshipId == relationshipId } ||
-      endorsedTrustedContacts.removeAll { it.relationshipId == relationshipId } ||
-      protectedCustomers.removeAll { it.relationshipId == relationshipId }
-    ) {
-      return Ok(Unit)
+    val removed = listOf(
+      invitations.removeAll { it.outgoing.id.value == relationshipId },
+      endorsedTrustedContacts.removeAll { it.id.value == relationshipId },
+      unendorsedTrustedContacts.removeAll { it.id.value == relationshipId },
+      protectedCustomers.removeAll { it.id.value == relationshipId }
+    ).any { it }
+
+    return if (removed) {
+      Ok(Unit)
+    } else {
+      Err(UnhandledException(Exception("Relationship $relationshipId not found.")))
     }
-    return Err(UnhandledException(Exception("Relationship $relationshipId not found.")))
   }
 
   override suspend fun retrieveInvitation(
@@ -192,7 +197,7 @@ class RelationshipsF8eClientFake(
   ): Result<IncomingInvitation, F8eError<RetrieveTrustedContactInvitationErrorCode>> {
     return Ok(
       IncomingInvitation(
-        relationshipId = uuidGenerator.random(),
+        id = RelationshipId(uuidGenerator.random()),
         code = genServerInviteCode(),
         protectedCustomerEnrollmentPakeKey = PublicKey("deadbeef"),
         recoveryRelationshipRoles = setOf(),
@@ -211,7 +216,7 @@ class RelationshipsF8eClientFake(
   ): Result<ProtectedCustomer, F8eError<AcceptTrustedContactInvitationErrorCode>> {
     val protectedCustomer =
       ProtectedCustomer(
-        relationshipId = invitation.relationshipId,
+        id = invitation.id,
         alias = protectedCustomerAlias,
         roles = setOf(TrustedContactRole.SocialRecoveryContact)
       )
@@ -227,7 +232,7 @@ class RelationshipsF8eClientFake(
     endorsements.forEach { (relationshipId, certificate) ->
       // Find known unendorsed trusted contacts based on given endorsement
       val unendorsedContact =
-        unendorsedTrustedContacts.find { it.relationshipId == relationshipId.value }
+        unendorsedTrustedContacts.find { it.id == relationshipId }
 
       if (unendorsedContact != null) {
         // Add new certificates
@@ -237,7 +242,7 @@ class RelationshipsF8eClientFake(
         unendorsedTrustedContacts.remove(unendorsedContact)
         endorsedTrustedContacts.add(
           EndorsedTrustedContact(
-            relationshipId = relationshipId.value,
+            id = relationshipId,
             trustedContactAlias = unendorsedContact.trustedContactAlias,
             authenticationState = TrustedContactAuthenticationState.VERIFIED,
             keyCertificate = certificate,
@@ -273,7 +278,7 @@ class RelationshipsF8eClientFake(
   }
 
   fun deleteInvitation(recoveryRelationshipId: String) {
-    invitations.removeAll { it.outgoing.relationshipId == recoveryRelationshipId }
+    invitations.removeAll { it.outgoing.id.value == recoveryRelationshipId }
   }
 
   fun reset() {
@@ -291,6 +296,6 @@ class RelationshipsF8eClientFake(
     accountId: AccountId,
     f8eEnvironment: F8eEnvironment,
   ): ByteString {
-    return ("deadbeef-" + accountId + "-" + f8eEnvironment).encodeUtf8()
+    return ("deadbeef-$accountId-$f8eEnvironment").encodeUtf8()
   }
 }

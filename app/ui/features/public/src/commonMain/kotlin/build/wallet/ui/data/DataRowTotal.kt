@@ -24,7 +24,7 @@ internal fun DataRowTotal(
   modifier: Modifier = Modifier,
   model: FormMainContentModel.DataList.Data,
   contentHorizontalPadding: Dp = 16.dp,
-  useContainedDesignSystemV2Typography: Boolean = false,
+  useContainedTypography: Boolean = false,
 ) {
   DataRowTotal(
     modifier = modifier.padding(horizontal = contentHorizontalPadding),
@@ -32,14 +32,14 @@ internal fun DataRowTotal(
       Column {
         Label(
           text = model.title,
-          type = model.titleTextType.toTotalTitleLabelType(useContainedDesignSystemV2Typography),
+          type = model.titleTextType.toTotalTitleLabelType(useContainedTypography),
           alignment = TextAlign.Start
         )
         model.secondaryTitle?.let { secondaryTitle ->
           Label(
             text = secondaryTitle,
             type =
-              if (useContainedDesignSystemV2Typography) {
+              if (useContainedTypography) {
                 LabelType.Body2Regular
               } else {
                 LabelType.Body3Regular
@@ -57,13 +57,13 @@ internal fun DataRowTotal(
       ) {
         Label(
           text = model.sideText,
-          type = model.sideTextType.toTotalSideLabelType(useContainedDesignSystemV2Typography),
+          type = model.sideTextType.toTotalSideLabelType(useContainedTypography),
           alignment = TextAlign.End
         )
         model.secondarySideText?.let { secondarySideText ->
           Label(
             text = secondarySideText,
-            type = model.secondarySideTextType.toTotalSecondarySideLabelType(useContainedDesignSystemV2Typography),
+            type = model.secondarySideTextType.toTotalSecondarySideLabelType(useContainedTypography),
             alignment = TextAlign.End,
             treatment = Secondary
           )
@@ -94,9 +94,9 @@ private fun DataRowTotal(
 }
 
 private fun Data.TitleTextType.toTotalTitleLabelType(
-  useContainedDesignSystemV2Typography: Boolean,
+  useContainedTypography: Boolean,
 ): LabelType {
-  if (useContainedDesignSystemV2Typography) {
+  if (useContainedTypography) {
     return when (this) {
       Data.TitleTextType.BODY1REGULAR -> LabelType.Body1Regular
       Data.TitleTextType.BODY2REGULAR,
@@ -114,9 +114,9 @@ private fun Data.TitleTextType.toTotalTitleLabelType(
 }
 
 private fun Data.SideTextType.toTotalSideLabelType(
-  useContainedDesignSystemV2Typography: Boolean,
+  useContainedTypography: Boolean,
 ): LabelType {
-  if (useContainedDesignSystemV2Typography) {
+  if (useContainedTypography) {
     return when (this) {
       Data.SideTextType.BODY1REGULAR -> LabelType.Body1Regular
       Data.SideTextType.BODY2REGULAR,
@@ -140,9 +140,9 @@ private fun Data.SideTextType.toTotalSideLabelType(
 }
 
 private fun Data.SideTextType.toTotalSecondarySideLabelType(
-  useContainedDesignSystemV2Typography: Boolean,
+  useContainedTypography: Boolean,
 ): LabelType {
-  if (useContainedDesignSystemV2Typography) {
+  if (useContainedTypography) {
     return when (this) {
       Data.SideTextType.BODY1REGULAR -> LabelType.Body1Regular
       Data.SideTextType.BODY2REGULAR,

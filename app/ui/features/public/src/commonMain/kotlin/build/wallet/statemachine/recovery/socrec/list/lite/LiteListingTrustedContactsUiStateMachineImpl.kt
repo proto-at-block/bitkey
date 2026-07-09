@@ -19,7 +19,7 @@ class LiteListingTrustedContactsUiStateMachineImpl(
   override fun model(props: LiteListingTrustedContactsUiProps): ScreenModel {
     var state: State by remember { mutableStateOf(State.ViewingListState) }
 
-    val protectedCustomers = socRecService.socRecRelationships.value?.protectedCustomers ?: emptyList()
+    val protectedCustomers = socRecService.socRecRelationships.value?.protectedCustomers.orEmpty()
 
     val screenModel = LiteTrustedContactsListBodyModel(
       onBackPressed = props.onExit,

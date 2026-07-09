@@ -49,7 +49,6 @@ private data class DemoCodeEntryIdleBodyModel(
 ) : FormBodyModel(
     id = DemoCodeTrackerScreenId.DEMO_MODE_CODE_ENTRY,
     onBack = onBack,
-    onSwipeToDismiss = onBack,
     header = FormHeaderModel(headline = "Enter demo mode code"),
     mainContentList = immutableListOf(
       TextInput(

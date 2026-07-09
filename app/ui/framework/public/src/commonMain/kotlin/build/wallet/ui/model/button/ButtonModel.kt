@@ -120,7 +120,7 @@ data class ButtonModel(
     text = text,
     treatment = if (requiresBitkeyInteraction) BitkeyInteraction else treatment,
     size = size,
-    leadingIcon = if (requiresBitkeyInteraction) Icon.SmallIconBitkey else leadingIcon,
+    leadingIcon = if (requiresBitkeyInteraction) Icon.Bitkey else leadingIcon,
     isEnabled = isEnabled,
     isLoading = isLoading,
     onClick = StandardClick { onClick() }
@@ -142,7 +142,7 @@ data class ButtonModel(
       text = text,
       treatment = treatment,
       size = size,
-      leadingIcon = Icon.SmallIconBitkey,
+      leadingIcon = Icon.Bitkey,
       isEnabled = isEnabled,
       isLoading = isLoading,
       onClick = onClick

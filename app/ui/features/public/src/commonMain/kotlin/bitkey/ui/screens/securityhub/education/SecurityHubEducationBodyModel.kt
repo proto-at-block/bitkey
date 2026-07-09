@@ -7,7 +7,6 @@ import bitkey.ui.screens.securityhub.SecurityHubEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.ui.app.core.form.FormScreen
 import build.wallet.ui.model.button.ButtonModel
@@ -26,23 +25,21 @@ data class SecurityHubEducationBodyModel(
     onBack = onBack,
     toolbar = null,
     header = FormHeaderModel(
-      customContent = FormHeaderModel.PosterImage(
-        icon = actionType.posterImage()
+      iconModel = IconModel(
+        icon = actionType.securityHubIcon(),
+        iconSize = IconSize.Custom(48),
+        iconTint = IconTint.Background,
+        iconBackgroundType = IconBackgroundType.Circle(
+          circleSize = IconSize.XLarge,
+          color = IconBackgroundType.Circle.CircleColor.InverseBackground
+        )
       ),
-      iconModel = null,
       headline = actionType.headline(),
-      subline = actionType.subline()
+      subline = actionType.subline(),
+      headlineLabelType = LabelType.Body1Mono
     ),
     primaryButton = actionType.primaryButton(onContinue),
-    secondaryButton = actionType.secondaryButton(onBack),
-    designSystemV2Model = FormDesignSystemV2Model(
-      header = FormHeaderModel(
-        iconModel = actionType.designSystemV2IconModel(),
-        headline = actionType.headline(),
-        subline = actionType.subline(),
-        headlineLabelType = LabelType.Body1Mono
-      )
-    )
+    secondaryButton = actionType.secondaryButton(onBack)
   ) {
   @Composable
   override fun render(modifier: Modifier) {
@@ -59,29 +56,6 @@ private fun SecurityActionType.eventTrackerScreenId(): EventTrackerScreenId {
     SecurityActionType.TRANSACTION_VERIFICATION -> SECURITY_HUB_EDUCATION_TRANSACTION_VERIFICATION
     else -> error("Unsupported action type: $this")
   }
-}
-
-private fun SecurityActionType.posterImage(): Icon {
-  return when (this) {
-    SecurityActionType.EEK_BACKUP -> Icon.SecurityHubEducationEmergencyExit
-    SecurityActionType.FINGERPRINTS -> Icon.SecurityHubEducationMultipleFingerprints
-    SecurityActionType.SOCIAL_RECOVERY -> Icon.SecurityHubEducationTrustedContact
-    SecurityActionType.CRITICAL_ALERTS -> Icon.SecurityHubEducationCriticalAlerts
-    SecurityActionType.TRANSACTION_VERIFICATION -> Icon.SecurityHubEducationTransactionVerification
-    else -> error("Unsupported action type: $this")
-  }
-}
-
-private fun SecurityActionType.designSystemV2IconModel(): IconModel {
-  return IconModel(
-    icon = securityHubIcon(),
-    iconSize = IconSize.Custom(48),
-    iconTint = IconTint.Background,
-    iconBackgroundType = IconBackgroundType.Circle(
-      circleSize = IconSize.XLarge,
-      color = IconBackgroundType.Circle.CircleColor.InverseBackground
-    )
-  )
 }
 
 private fun SecurityActionType.securityHubIcon(): Icon {

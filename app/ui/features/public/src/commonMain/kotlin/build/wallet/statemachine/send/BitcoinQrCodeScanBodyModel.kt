@@ -14,6 +14,8 @@ import build.wallet.statemachine.core.Icon
  */
 fun BitcoinQrCodeScanBodyModel(
   showSendToCopiedAddressButton: Boolean,
+  showActionButtons: Boolean = true,
+  isScanSuccess: Boolean = false,
   onQrCodeScanned: (String) -> Unit,
   onEnterAddressClick: () -> Unit,
   onClose: () -> Unit,
@@ -21,6 +23,8 @@ fun BitcoinQrCodeScanBodyModel(
 ) = QrCodeScanBodyModel(
   headline = "Recipient",
   reticleLabel = "Scan a Bitcoin address",
+  showActionButtons = showActionButtons,
+  isScanSuccess = isScanSuccess,
   onQrCodeScanned = onQrCodeScanned,
   onClose = onClose,
   primaryButtonData =
@@ -32,7 +36,7 @@ fun BitcoinQrCodeScanBodyModel(
     ButtonDataModel(
       text = "Send to copied address",
       onClick = onSendToCopiedAddressClick,
-      leadingIcon = Icon.SmallIconClipboard
+      leadingIcon = Icon.Clipboard
     ).takeIf { showSendToCopiedAddressButton },
   // We don't want to track this for privacy reasons
   eventTrackerScreenInfo = null

@@ -10,6 +10,7 @@
 #include "grant_protocol.h"
 #include "hash.h"
 #include "ipc.h"
+#include "key_management.h"
 #include "key_manager_task_impl.h"
 #include "log.h"
 #include "lost_app_recovery_impl.h"
@@ -33,6 +34,45 @@
 
 #include <inttypes.h>
 
+#define ATTESTATION_DOMAIN_PREFIX      "HWV1"
+#define ATTESTATION_DOMAIN_PREFIX_SIZE (sizeof(ATTESTATION_DOMAIN_PREFIX) - 1)
+
+typedef enum {
+  KEY_ATTEST_ERR_SEED_DERIVE = 1,
+  KEY_ATTEST_ERR_PRIV_TO_PUB = 2,
+  KEY_ATTEST_ERR_SIGN = 3,
+} key_attest_err_t;
+
+// Spending keys are derived under BIP84 (purpose=84'). Auth keys and other
+// internal derivations use different purpose indexes, and we deliberately do
+// not attest those: it would waste a signing op per derive and would couple the
+// hard-abort-on-attestation-failure behavior into unrelated flows.
+static bool is_bip84_spend_path(const derivation_path_t* path) {
+  return path->num_indices >= 1 && path->indices[0] == (BIP84_PURPOSE | BIP32_HARDENED_BIT);
+}
+
+static bool populate_key_attestation(const extended_key_t* key_pub, fwpb_derive_rsp* rsp) {
+  uint8_t attestation_payload[ATTESTATION_DOMAIN_PREFIX_SIZE + BIP32_SEC1_KEY_SIZE] = {0};
+  memcpy(attestation_payload, ATTESTATION_DOMAIN_PREFIX, ATTESTATION_DOMAIN_PREFIX_SIZE);
+  attestation_payload[ATTESTATION_DOMAIN_PREFIX_SIZE] = key_pub->prefix;
+  memcpy(&attestation_payload[ATTESTATION_DOMAIN_PREFIX_SIZE + 1], key_pub->key, BIP32_KEY_SIZE);
+
+  if (!crypto_sign_with_device_identity(attestation_payload, sizeof(attestation_payload),
+                                        rsp->attestation_signature.bytes,
+                                        sizeof(rsp->attestation_signature.bytes))) {
+    BITLOG_EVENT(wallet_generate_key_attestation_err, KEY_ATTEST_ERR_SIGN);
+    return false;
+  }
+  rsp->attestation_signature.size = ECC_SIG_SIZE;
+
+  return true;
+}
+
+static void clear_key_attestation(fwpb_derive_rsp* rsp) {
+  rsp->attestation_signature.size = 0;
+  memzero(rsp->attestation_signature.bytes, sizeof(rsp->attestation_signature.bytes));
+}
+
 static struct {
   rtos_queue_t* queue;
   uint32_t send_timeout_ms;
@@ -46,7 +86,8 @@ static struct {
 
 bool key_manager_derive_and_serialize_pubkey(derivation_path_t path, version_bytes_t version,
                                              uint8_t bare_key_out[BIP32_SERIALIZED_EXT_KEY_SIZE],
-                                             fingerprint_t* master_fp_out) {
+                                             fingerprint_t* master_fp_out,
+                                             extended_key_t* derived_pubkey_out) {
   extended_key_t key_priv __attribute__((__cleanup__(bip32_zero_key)));
   fingerprint_t master_fp;
   fingerprint_t parent_fp;
@@ -70,6 +111,10 @@ bool key_manager_derive_and_serialize_pubkey(derivation_path_t path, version_byt
     return false;
   }
 
+  if (derived_pubkey_out) {
+    memcpy(derived_pubkey_out, &key_pub, sizeof(extended_key_t));
+  }
+
   if (master_fp_out) {
     memcpy(master_fp_out, &master_fp, sizeof(fingerprint_t));
   }
@@ -78,14 +123,15 @@ bool key_manager_derive_and_serialize_pubkey(derivation_path_t path, version_byt
 }
 
 bool key_manager_derive_key_descriptor(derivation_path_t path, version_bytes_t version,
-                                       fwpb_key_descriptor* descriptor_out) {
+                                       fwpb_key_descriptor* descriptor_out,
+                                       extended_key_t* derived_pubkey_out) {
   if (!descriptor_out) {
     return false;
   }
 
   fingerprint_t master_fingerprint;
   if (!key_manager_derive_and_serialize_pubkey(path, version, descriptor_out->bare_bip32_key.bytes,
-                                               &master_fingerprint)) {
+                                               &master_fingerprint, derived_pubkey_out)) {
     return false;
   }
 
@@ -120,6 +166,7 @@ static void handle_derive(ipc_ref_t* message) {
 
   fwpb_derive_key_descriptor_cmd* cmd = &m_cmd->msg.derive_key_descriptor_cmd;
   fwpb_derive_rsp* rsp = &m_rsp->msg.derive_rsp;
+  extended_key_t derived_pubkey __attribute__((__cleanup__(bip32_zero_key))) = {0};
 
   if (!cmd->has_derivation_path) {
     rsp->status = fwpb_derive_rsp_derive_rsp_status_ERROR;
@@ -137,14 +184,25 @@ static void handle_derive(ipc_ref_t* message) {
   };
 
   version_bytes_t version = (cmd->network == BITCOIN) ? MAINNET_PUB : TESTNET_PUB;
-  if (!key_manager_derive_key_descriptor(derivation_path, version, &rsp->descriptor)) {
+  if (!key_manager_derive_key_descriptor(derivation_path, version, &rsp->descriptor,
+                                         &derived_pubkey)) {
     rsp->status = fwpb_derive_rsp_derive_rsp_status_DERIVATION_FAILED;
-    LOGE("Key derive fail");
     goto out;
   }
 
-  rsp->has_descriptor = true;
+  if (is_bip84_spend_path(&derivation_path)) {
+    if (!populate_key_attestation(&derived_pubkey, rsp)) {
+      rsp->has_descriptor = false;
+      memzero(&rsp->descriptor, sizeof(rsp->descriptor));
+      clear_key_attestation(rsp);
+      rsp->status = fwpb_derive_rsp_derive_rsp_status_ERROR;
+      goto out;
+    }
+  } else {
+    clear_key_attestation(rsp);
+  }
 
+  rsp->has_descriptor = true;
   rsp->status = fwpb_derive_rsp_derive_rsp_status_SUCCESS;
 
 out:
@@ -735,6 +793,14 @@ void key_manager_thread(void* UNUSED(args)) {
       }
       case IPC_PROTO_FULL_ACCOUNT_CLOUD_BACKUP_RESTORATION_CONTINUE_CMD: {
         key_manager_task_handle_full_account_cloud_backup_restoration_continue(&message);
+        break;
+      }
+      case IPC_PROTO_KEYSET_REPAIR_UNSEAL_SYMMETRIC_KEY_CMD: {
+        key_manager_task_handle_keyset_repair_unseal_symmetric_key(&message);
+        break;
+      }
+      case IPC_PROTO_KEYSET_REPAIR_ROTATE_HW_KEY_CMD: {
+        key_manager_task_handle_keyset_repair_rotate_hw_key(&message);
         break;
       }
       default:

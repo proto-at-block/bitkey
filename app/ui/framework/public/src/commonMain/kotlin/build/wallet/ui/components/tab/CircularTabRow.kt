@@ -49,27 +49,13 @@ fun CircularTabRow(
   selectedItemIndex: Int,
   modifier: Modifier = Modifier,
   onClick: (Int) -> Unit,
-  backgroundColor: Color = WalletTheme.colors.subtleBackground,
-  indicatorColor: Color = WalletTheme.colors.background,
 ) {
-  val isDesignSystemV2Enabled = true
-  val effectiveBackgroundColor = if (isDesignSystemV2Enabled) {
-    WalletTheme.colors.subtleBackground
-  } else {
-    backgroundColor
-  }
-  val effectiveIndicatorColor = if (isDesignSystemV2Enabled) {
-    WalletTheme.colors.secondary
-  } else {
-    indicatorColor
-  }
-
   BoxWithConstraints(
     modifier = modifier
       .wrapContentHeight()
       .fillMaxWidth()
       .clip(shape = CircleShape)
-      .background(effectiveBackgroundColor)
+      .background(WalletTheme.colors.subtleBackground)
       .padding(all = 4.dp)
   ) {
     val tabWidth = remember(maxWidth, items.size) { maxWidth / items.size }
@@ -84,7 +70,7 @@ fun CircularTabRow(
           .fillMaxHeight()
           .requiredWidth(tabWidth)
           .offset(indicatorOffset),
-        color = effectiveIndicatorColor
+        color = WalletTheme.colors.secondary
       )
     }
     Row(

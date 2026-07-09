@@ -43,14 +43,14 @@ data class TransactionDetailModel(
 ) : FormBodyModel(
     primaryButton = viewTransactionText?.let {
       ButtonModel(
-        leadingIcon = SmallIconArrowUpRight,
+        leadingIcon = ArrowUpRight,
         text = viewTransactionText,
         size = Footer,
         onClick = StandardClick(onViewTransaction)
       )
     },
     secondaryButton = ButtonModel(
-      leadingIcon = SmallIconLightning,
+      leadingIcon = Lightning,
       text = "Speed Up",
       treatment = ButtonModel.Treatment.Secondary,
       size = Footer,
@@ -58,7 +58,6 @@ data class TransactionDetailModel(
       onClick = StandardClick(onSpeedUpTransaction)
     ).takeIf { feeBumpEnabled },
     onBack = onClose,
-    onSwipeToDismiss = onClose,
     header = formHeaderModel,
     toolbar = ToolbarModel(
       leadingAccessory = BackAccessory(onClick = onClose)
@@ -166,7 +165,7 @@ val submittedTransactionStepper: StepperIndicator = StepperIndicator(
   steps = immutableListOf(
     StepperIndicator.Step(
       style = StepStyle.COMPLETED,
-      icon = LocalImage(icon = SmallIconCheck),
+      icon = LocalImage(icon = Check),
       label = "Submitted"
     ),
     StepperIndicator.Step(
@@ -189,7 +188,7 @@ val processingTransactionStepper: StepperIndicator = StepperIndicator(
   steps = immutableListOf(
     StepperIndicator.Step(
       style = StepStyle.COMPLETED,
-      icon = LocalImage(icon = SmallIconCheck),
+      icon = LocalImage(icon = Check),
       label = "Submitted"
     ),
     StepperIndicator.Step(
@@ -212,17 +211,17 @@ val completeTransactionStepper: StepperIndicator = StepperIndicator(
   steps = immutableListOf(
     StepperIndicator.Step(
       style = StepStyle.COMPLETED,
-      icon = LocalImage(icon = SmallIconCheck),
+      icon = LocalImage(icon = Check),
       label = "Submitted"
     ),
     StepperIndicator.Step(
       style = StepStyle.COMPLETED,
-      icon = LocalImage(icon = SmallIconCheck),
+      icon = LocalImage(icon = Check),
       label = "Processing"
     ),
     StepperIndicator.Step(
       style = StepStyle.COMPLETED,
-      icon = LocalImage(icon = SmallIconCheck),
+      icon = LocalImage(icon = Check),
       label = "Complete"
     )
   )

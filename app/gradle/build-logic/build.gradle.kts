@@ -109,4 +109,12 @@ customDependencyLocking {
   }
 
   commonDependencyLockingGroups.buildClasspath.pin(libs.jvm.asm)
+
+  // Kotlin's internal Bouncy Castle configuration requests exact bcpg/bcpkix 1.80,
+  // but their POMs use [1.80,1.81) ranges for bcprov/bcutil. Pin the transitives
+  // so new Bouncy Castle patch releases do not move lockfiles without a catalog change.
+  commonDependencyLockingGroups.kotlinCompiler.pin(
+    libs.jvm.bouncycastle.bcprov.jdk18on,
+    libs.jvm.bouncycastle.bcutil.jdk18on
+  )
 }

@@ -108,7 +108,9 @@ class InheritanceTransactionFactoryImpl(
       val isSourcePrivate = benefactorInheritancePackage.serverRootXpub != null
       val sourceSpendingKeyset = if (isSourcePrivate) {
         descriptorBackupService.parseDescriptorKeys(
-          descriptorString = benefactorInheritancePackage.descriptor!!,
+          descriptorString = checkNotNull(benefactorInheritancePackage.descriptor) {
+            "Inheritance package for a private source wallet is missing a descriptor."
+          },
           privateWalletRootXpub = benefactorInheritancePackage.serverRootXpub,
           keysetId = "it-doesnt-matter", // we don't have keyset-id, but it isn't used when applying tweaks
           networkType = destinationKeyset.networkType
@@ -122,7 +124,9 @@ class InheritanceTransactionFactoryImpl(
         isSourcePrivate && isDestinationPrivate -> {
           chaincodeDelegationTweakService.sweepPsbtWithTweaks(
             psbt = psbt,
-            sourceKeyset = sourceSpendingKeyset!!,
+            sourceKeyset = checkNotNull(sourceSpendingKeyset) {
+              "Source spending keyset must be parsed when the source wallet is private."
+            },
             destinationKeyset = destinationKeyset
           ).bind()
         }
@@ -131,7 +135,9 @@ class InheritanceTransactionFactoryImpl(
             .psbtWithTweaks(
               psbt = psbt,
               appSpendingPrivateKey = benefactorInheritancePackage.inheritanceKeyset.appSpendingPrivateKey.key,
-              spendingKeyset = sourceSpendingKeyset!!
+              spendingKeyset = checkNotNull(sourceSpendingKeyset) {
+                "Source spending keyset must be parsed when the source wallet is private."
+              }
             )
             .bind()
         }
@@ -149,16 +155,19 @@ class InheritanceTransactionFactoryImpl(
     claim: BeneficiaryClaim.LockedClaim,
   ): String {
     // Otherwise, we try to use the decrypted package descriptor if it is available.
-    return if (decryptInheritanceMaterialPackage.descriptor != null) {
+    val descriptor = decryptInheritanceMaterialPackage.descriptor
+    return if (descriptor != null) {
       logInfo {
         "[Privacy] inheritance material package has non-null descriptor, using it to create transaction."
       }
-      decryptInheritanceMaterialPackage.descriptor!!
+      descriptor
     } else {
       logInfo {
         "[Privacy] inheritance material package has null descriptor, falling back to benefactor keyset."
       }
-      claim.benefactorKeyset!!.value
+      checkNotNull(claim.benefactorKeyset) {
+        "Locked claim has no benefactor keyset and inheritance package has no descriptor."
+      }.value
     }
   }
 }

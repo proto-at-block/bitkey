@@ -58,6 +58,8 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlin.time.Duration.Companion.milliseconds
 
+// Large end-to-end coverage for touchpoint input and verification; splitting would hurt cohesion.
+@Suppress("LargeClass")
 class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpec({
 
   val onCloseCalls = turbines.create<Unit>("on close calls")
@@ -247,7 +249,9 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
             Email -> actionProofType.shouldBeInstanceOf<ActionProofType.SetRecoveryEmail>()
           }
 
-          val errorScreenModel = onTokenRefreshError.shouldNotBeNull().invoke(false) {}
+          val errorScreenModel =
+            onTokenRefreshError.shouldNotBeNull()
+              .invoke(false, Error("test token refresh failure")) {}
           errorScreenModel.body.shouldBeInstanceOf<FormBodyModel>()
             .expectActivationInstructions(
               entryPoint = Settings(fullAccount = FullAccountMock),

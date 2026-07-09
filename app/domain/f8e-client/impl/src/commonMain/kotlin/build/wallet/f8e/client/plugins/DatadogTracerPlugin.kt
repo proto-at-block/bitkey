@@ -28,10 +28,11 @@ val DatadogTracerPlugin = createClientPlugin(
 
   onRequest { request, _ ->
     val accountId = request.attributes.getOrNull(AccountIdAttribute)
+    val urlWithoutQuery = request.url.toString().substringBefore('?')
     val span =
       datadogTracer.buildSpan(SPAN_NAME).apply {
         setTag("http.method", request.method.value)
-        setTag("http.url", filterAccountId(request.url.toString(), accountId))
+        setTag("http.url", filterAccountId(urlWithoutQuery, accountId))
         resourceName = filterAccountId(request.url.encodedPath, accountId)
       }
     datadogTracer.inject(span)

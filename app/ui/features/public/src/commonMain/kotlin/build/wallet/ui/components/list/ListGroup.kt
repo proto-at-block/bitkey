@@ -31,7 +31,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +39,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.card.Card
 import build.wallet.ui.components.icon.IconImage
@@ -131,15 +131,15 @@ private fun FixedColumnKeypadListGroup(
     modifier = Modifier.heightIn(max = 512.dp)
   ) {
     items(model.items.size) { index ->
-      DsV2FixedColumnKeypadListItem(item = model.items[index])
+      FixedColumnKeypadListItem(item = model.items[index])
     }
   }
 }
 
 @Composable
-private fun DsV2FixedColumnKeypadListItem(item: ListItemModel) {
+private fun FixedColumnKeypadListItem(item: ListItemModel) {
   val interactionSource = remember { MutableInteractionSource() }
-  val scope = rememberCoroutineScope()
+  val scope = rememberStableCoroutineScope()
   val isEnabled = item.enabled && item.onClick != null
   var isVisuallyPressed by remember { mutableStateOf(false) }
   var releaseVisualPressJob by remember { mutableStateOf<Job?>(null) }
@@ -341,8 +341,7 @@ private fun RegularListGroup(
               bottom = if (addsVerticalPadding) 20.dp else 0.dp
             )
             .height(40.dp),
-        model = buttonModel,
-        cornerRadius = 12.dp
+        model = buttonModel
       )
     }
   }

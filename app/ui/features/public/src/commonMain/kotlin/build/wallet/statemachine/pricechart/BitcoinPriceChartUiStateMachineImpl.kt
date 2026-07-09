@@ -5,6 +5,7 @@ import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.BitcoinPriceChartScreenId
 import build.wallet.compose.collections.emptyImmutableList
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.money.BitcoinMoney
@@ -73,7 +74,7 @@ class BitcoinPriceChartUiStateMachineImpl(
         balance = mutableStateMapOf()
       )
     }
-    val prefetchScope = rememberCoroutineScope()
+    val prefetchScope = rememberStableCoroutineScope()
     val pointTickEvents = remember {
       MutableSharedFlow<DataPoint>(
         extraBufferCapacity = 32,

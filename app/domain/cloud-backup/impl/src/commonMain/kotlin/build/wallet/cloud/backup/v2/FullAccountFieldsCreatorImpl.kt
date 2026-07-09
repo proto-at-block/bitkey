@@ -77,7 +77,7 @@ class FullAccountFieldsCreatorImpl(
           .bind()
 
       val socRecRelationshipsMap = endorsedTrustedContacts.associate {
-        it.relationshipId to relationshipsCrypto.encryptPrivateKeyEncryptionKey(
+        it.id.value to relationshipsCrypto.encryptPrivateKeyEncryptionKey(
           it.identityKey,
           socRecPKMatOutput.privateKeyEncryptionKey
         )

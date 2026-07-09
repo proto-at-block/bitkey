@@ -154,7 +154,8 @@ class RecoveryDaoImplTests : FunSpec({
                 factorToRecover = Hardware,
                 sealedCsek = sealedCsek,
                 sealedSsek = sealedSsek,
-                originalAppGlobalAuthKey = originalAppGlobalAuthKey
+                originalAppGlobalAuthKey = originalAppGlobalAuthKey,
+                hardwareSpendingKeyProof = null
               )
             )
           )
@@ -367,7 +368,7 @@ class RecoveryDaoImplTests : FunSpec({
 
         val database = databaseProvider.database()
         val w3UpgradeMigrationQueries = database.w3UpgradeMigrationQueries
-        w3UpgradeMigrationQueries.saveHardwareKey(keyset.hardwareKey)
+        w3UpgradeMigrationQueries.saveHardwareKey(keyset.hardwareKey, newHardwareKeyProof = null)
         w3UpgradeMigrationQueries.insertSweepTransaction(
           txid = "w3-sweep-txid-1",
           broadcastTime = "2026-05-21T00:00:00Z"

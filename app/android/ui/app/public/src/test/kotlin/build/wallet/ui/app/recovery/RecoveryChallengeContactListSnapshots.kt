@@ -1,6 +1,7 @@
 package build.wallet.ui.app.recovery
 
 import build.wallet.bitkey.relationships.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.bitkey.relationships.TrustedContactAlias
 import build.wallet.bitkey.relationships.TrustedContactKeyCertificateFake
 import build.wallet.bitkey.relationships.TrustedContactRole
@@ -21,7 +22,7 @@ class RecoveryChallengeContactListSnapshots : FunSpec({
           onExit = {},
           endorsedTrustedContacts = immutableListOf(
             EndorsedTrustedContact(
-              relationshipId = "1",
+              id = RelationshipId("1"),
               trustedContactAlias = TrustedContactAlias(alias = "alias"),
               keyCertificate = TrustedContactKeyCertificateFake,
               roles = setOf(TrustedContactRole.SocialRecoveryContact)
@@ -43,7 +44,7 @@ class RecoveryChallengeContactListSnapshots : FunSpec({
           onExit = {},
           endorsedTrustedContacts = immutableListOf(
             EndorsedTrustedContact(
-              relationshipId = "1",
+              id = RelationshipId("1"),
               trustedContactAlias = TrustedContactAlias(alias = "alias"),
               keyCertificate = TrustedContactKeyCertificateFake,
               roles = setOf(TrustedContactRole.SocialRecoveryContact)
@@ -65,13 +66,13 @@ class RecoveryChallengeContactListSnapshots : FunSpec({
           onExit = {},
           endorsedTrustedContacts = immutableListOf(
             EndorsedTrustedContact(
-              relationshipId = "1",
+              id = RelationshipId("1"),
               trustedContactAlias = TrustedContactAlias(alias = "alias"),
               keyCertificate = TrustedContactKeyCertificateFake,
               roles = setOf(TrustedContactRole.SocialRecoveryContact)
             ),
             EndorsedTrustedContact(
-              relationshipId = "2",
+              id = RelationshipId("2"),
               trustedContactAlias = TrustedContactAlias(alias = "alias2"),
               keyCertificate = TrustedContactKeyCertificateFake,
               roles = setOf(TrustedContactRole.SocialRecoveryContact)

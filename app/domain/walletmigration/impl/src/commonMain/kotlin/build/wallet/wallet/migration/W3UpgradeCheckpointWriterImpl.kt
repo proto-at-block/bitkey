@@ -32,7 +32,10 @@ class W3UpgradeCheckpointWriterImpl(
     return databaseProvider.database().awaitTransaction {
       w3UpgradeMigrationQueries.saveOldDeviceSerial(oldDeviceSerial)
       w3UpgradeMigrationQueries.saveOldHardwareFingerprint(oldHardwareFingerprint)
-      w3UpgradeMigrationQueries.saveHardwareKey(newKeyset.hardwareKey)
+      // Hardware key + attestation proof are persisted incrementally in
+      // `MigrationServiceImpl.createNewKeyset` before `createKeyset` runs, so we do NOT
+      // re-save them here — re-running `saveHardwareKey` with `newHardwareKeyProof = null`
+      // would clobber the real proof saved earlier.
       w3UpgradeMigrationQueries.saveAppKey(newKeyset.appKey)
       w3UpgradeMigrationQueries.saveServerKey(newKeyset.f8eSpendingKeyset)
       w3UpgradeMigrationQueries.setKeysetLocalId(newKeyset.localId)

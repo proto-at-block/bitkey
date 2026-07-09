@@ -6,6 +6,9 @@ import io.ktor.http.Url
 /**
  * This is a sealed class that represents the deep link routes that the router can handle.
  */
+// Kept as a sealed class for Swift interop: iOS calls Route.companion.from(...), which
+// only exports for classes (an interface exports as an ObjC protocol without it).
+@Suppress("AbstractClassCanBeInterface")
 sealed class Route {
   object SupportedPaths {
     const val TRUSTED_CONTACT = "/links/downloads/trusted-contact"
@@ -92,8 +95,8 @@ sealed class Route {
                 )
               Context.SCREEN ->
                 parsedUrl.parameters[NotificationPayloadKeys.NAVIGATE_TO_SCREEN_ID]?.let {
-                  NavigationScreenId.fromValue(it.toInt())?.let {
-                    NavigationDeeplink(screen = it)
+                  NavigationScreenId.fromValue(it.toInt())?.let { screenId ->
+                    NavigationDeeplink(screen = screenId)
                   }
                 }
               else -> null
@@ -128,8 +131,8 @@ sealed class Route {
       }
 
       screenId?.let {
-        NavigationScreenId.fromValue(screenId)?.let {
-          return NavigationDeeplink(it)
+        NavigationScreenId.fromValue(screenId)?.let { navigationScreenId ->
+          return NavigationDeeplink(navigationScreenId)
         }
       }
 

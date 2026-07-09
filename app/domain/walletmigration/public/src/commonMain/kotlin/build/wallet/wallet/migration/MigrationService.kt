@@ -54,6 +54,17 @@ interface MigrationService {
   ): Result<BitcoinMoney, MigrationError>
 
   /**
+   * Checks whether the paired W3 hardware auth key can be used for a W3 upgrade.
+   *
+   * This is a read-only server check used before creating the W3 keyset or entering
+   * old-hardware authorization. Final auth-key rotation remains the authoritative mutation.
+   */
+  suspend fun checkW3UpgradeHardwareAuthKeyAvailability(
+    account: FullAccount,
+    hwAuthPublicKey: HwAuthPublicKey,
+  ): Result<HardwareAuthKeyAvailabilityStatus, MigrationError>
+
+  /**
    * Clears any local migration state for the given type.
    * Used when deleting app data via the debug menu.
    */

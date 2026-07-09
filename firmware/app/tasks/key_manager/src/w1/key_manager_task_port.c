@@ -349,3 +349,25 @@ void key_manager_task_handle_full_account_cloud_backup_restoration_continue(ipc_
   LOGE("W1 does not support full account cloud backup restoration continue");
   proto_send_rsp(cmd, rsp);
 }
+
+void key_manager_task_handle_keyset_repair_unseal_symmetric_key(ipc_ref_t* message) {
+  fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
+  fwpb_wallet_rsp* rsp = proto_get_rsp();
+
+  rsp->status = fwpb_status_FEATURE_NOT_SUPPORTED;
+
+  LOGE("W1 does not support keyset repair unseal symmetric key");
+  proto_send_rsp(cmd, rsp);
+}
+
+void key_manager_task_handle_keyset_repair_rotate_hw_key(ipc_ref_t* message) {
+  fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
+  fwpb_wallet_rsp* rsp = proto_get_rsp();
+
+  // No dedicated rsp message — keyset_repair_rotate_hw_key uses CONFIRMATION_PENDING globally;
+  // unsupported on W1, so just signal feature unavailable.
+  rsp->status = fwpb_status_FEATURE_NOT_SUPPORTED;
+
+  LOGE("W1 does not support keyset repair rotate hw key");
+  proto_send_rsp(cmd, rsp);
+}

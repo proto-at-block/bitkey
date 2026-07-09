@@ -18,17 +18,3 @@ fun ChooseAccountAccessScreenPreview() {
     )
   }
 }
-
-@Preview(name = "Choose Account Access (Design System V2)")
-@Composable
-fun ChooseAccountAccessScreenDesignSystemV2Preview() {
-  PreviewWalletTheme {
-    ChooseAccountAccessScreen(
-      model = ChooseAccountAccessModel(
-        onLogoClick = {},
-        onSetUpNewWalletClick = {},
-        onMoreOptionsClick = {}
-      )
-    )
-  }
-}

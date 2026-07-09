@@ -19,10 +19,10 @@ internal fun BenefactorLockedCompleteClaimCardModel(
       title = title,
       subtitle = LabelModel.StringModel(subtitle),
       treatment = Treatment.Danger,
-      useMonochromeStyleInDesignSystemV2 = true,
-      leadingIconOverrideInDesignSystemV2 = Icon.SmallIconShieldPerson,
-      leadingIcon = Icon.SmallIconInformation,
-      trailingIcon = Icon.SmallIconArrowRight,
+      useMonochromeStyle = true,
+      leadingIconOverride = Icon.ShieldPerson,
+      leadingIcon = Icon.Information,
+      trailingIcon = Icon.ArrowRight,
       onClick = onClick
     )
   )

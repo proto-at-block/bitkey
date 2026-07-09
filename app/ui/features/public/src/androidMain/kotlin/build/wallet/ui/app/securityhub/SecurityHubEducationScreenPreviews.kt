@@ -17,27 +17,11 @@ fun EmergencyExitKitSecurityHubEducationPreview() {
   )
 }
 
-@Preview(name = "Emergency Exit Kit (Design System V2)")
-@Composable
-fun EmergencyExitKitSecurityHubEducationDesignSystemV2Preview() {
-  SecurityHubEducationPreview(
-    actionType = SecurityActionType.EEK_BACKUP,
-  )
-}
-
 @Preview(name = "Multiple Fingerprints")
 @Composable
 fun MultipleFingerprintsSecurityHubEducationPreview() {
   SecurityHubEducationPreview(
     actionType = SecurityActionType.FINGERPRINTS
-  )
-}
-
-@Preview(name = "Multiple Fingerprints (Design System V2)")
-@Composable
-fun MultipleFingerprintsSecurityHubEducationDesignSystemV2Preview() {
-  SecurityHubEducationPreview(
-    actionType = SecurityActionType.FINGERPRINTS,
   )
 }
 
@@ -49,14 +33,6 @@ fun RecoveryContactsSecurityHubEducationPreview() {
   )
 }
 
-@Preview(name = "Recovery Contacts (Design System V2)")
-@Composable
-fun RecoveryContactsSecurityHubEducationDesignSystemV2Preview() {
-  SecurityHubEducationPreview(
-    actionType = SecurityActionType.SOCIAL_RECOVERY,
-  )
-}
-
 @Preview(name = "Critical Alerts")
 @Composable
 fun CriticalAlertsSecurityHubEducationPreview() {
@@ -65,27 +41,11 @@ fun CriticalAlertsSecurityHubEducationPreview() {
   )
 }
 
-@Preview(name = "Critical Alerts (Design System V2)")
-@Composable
-fun CriticalAlertsSecurityHubEducationDesignSystemV2Preview() {
-  SecurityHubEducationPreview(
-    actionType = SecurityActionType.CRITICAL_ALERTS,
-  )
-}
-
 @Preview(name = "Transaction Verification")
 @Composable
 fun TransactionVerificationSecurityHubEducationPreview() {
   SecurityHubEducationPreview(
     actionType = SecurityActionType.TRANSACTION_VERIFICATION
-  )
-}
-
-@Preview(name = "Transaction Verification (Design System V2)")
-@Composable
-fun TransactionVerificationSecurityHubEducationDesignSystemV2Preview() {
-  SecurityHubEducationPreview(
-    actionType = SecurityActionType.TRANSACTION_VERIFICATION,
   )
 }
 

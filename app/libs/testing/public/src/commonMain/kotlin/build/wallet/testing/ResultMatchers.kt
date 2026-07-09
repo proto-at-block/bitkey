@@ -16,9 +16,9 @@ import io.kotest.matchers.types.shouldBeTypeOf
  */
 inline fun <reified E : Throwable> Result<Any?, Any>.shouldBeErr(error: E) {
   asClue {
-    shouldBeErrOfType<E>().should {
-      it.message.shouldBe(error.message)
-      it.cause.shouldBe(error.cause)
+    shouldBeErrOfType<E>().should { actualError ->
+      actualError.message.shouldBe(error.message)
+      actualError.cause.shouldBe(error.cause)
     }
   }
 }

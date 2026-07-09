@@ -11,12 +11,10 @@
  *           accepted and drained without asserting.
  *   BCW-06: wca_proto_cont silently truncates oversized continuation data
  *           instead of rejecting.  Covered by random-length PROTO_CONT inputs.
- *   BCW-09: Stale WCA command context can be replayed across NFC sessions by
- *           sending PROTO_CONT with zero-length after session re-init.
- *           Simulated by calling wca_init() mid-sequence without clearing state.
- *   BCW-10: Undrained response bytes from session N are visible to session N+1
- *           via GET_RESPONSE.  Simulated by session-reset actions interleaved
- *           with GET_RESPONSE commands.
+ *   BCW-09: Regression coverage ensuring session resets prevent stale WCA
+ *           command context from being replayed via PROTO_CONT.
+ *   BCW-10: Regression coverage ensuring session resets prevent stale response
+ *           bytes from being drained via GET_RESPONSE.
  */
 
 #include "FuzzedDataProvider.h"
@@ -79,9 +77,9 @@ enum Action {
   kVersion = 0,
   kProto,
   kProtoCont,
-  kProtoContZeroLen,  /* BCW-09: explicit zero-length PROTO_CONT */
+  kProtoContZeroLen, /* BCW-09: explicit zero-length PROTO_CONT regression */
   kGetResponse,
-  kSessionReset,      /* BCW-09/10: reinit WCA without clearing state */
+  kSessionReset,        /* BCW-09/10: reset WCA session state between exchanges */
   kResponseBufferExact, /* BCW-04: exact RESPONSE_BUFFER_SIZE regression coverage */
   kNumActions,
 };
@@ -105,10 +103,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     Action action = static_cast<Action>(action_raw);
 
     if (action == kSessionReset) {
-      /* BCW-09/BCW-10: Reinitialize WCA without clearing the command/response
-       * context. Production code does the same thing on a new NFC field tap.
-       * After this, PROTO_CONT can replay stale command state (BCW-09) and
-       * GET_RESPONSE can return bytes from the previous session (BCW-10). */
+      /* BCW-09/BCW-10: Reinitialize WCA to model a new NFC session. wca_init()
+       * resets command/response state, so any follow-up PROTO_CONT or
+       * GET_RESPONSE must fail closed instead of surfacing stale data. */
       wca_init(&api);
       continue;
     }
@@ -159,9 +156,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     }
 
     if (action == kProtoContZeroLen && cmd_bytes.size() >= 5) {
-      /* BCW-09: Force Lc = 0 (zero-length PROTO_CONT).  This replays the
-       * stale encoded_proto_cmd_ctx from the previous session, causing it to
-       * dispatch the prior proto command to the task handler again. */
+      /* BCW-09: Force Lc = 0 (zero-length PROTO_CONT). Combined with session
+       * resets, this exercises the stale-command replay guard. */
       cmd_bytes[LC] = 0x00;
     }
 
@@ -169,8 +165,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     uint32_t rsp_len = 256;
     std::vector<uint8_t> rsp_bytes(rsp_len, 0);
 
-    wca_handle_command(cmd_bytes.data(), static_cast<uint32_t>(cmd_bytes.size()),
-                       rsp_bytes.data(), &rsp_len);
+    wca_handle_command(cmd_bytes.data(), static_cast<uint32_t>(cmd_bytes.size()), rsp_bytes.data(),
+                       &rsp_len);
   }
 
   return 0;

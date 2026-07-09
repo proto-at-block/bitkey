@@ -4,9 +4,11 @@ import androidx.compose.runtime.*
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.settings.SettingsAppSegment
 import build.wallet.support.SupportTicketData
 import build.wallet.support.SupportTicketForm
 import build.wallet.support.SupportTicketRepository
@@ -34,12 +36,13 @@ class FeedbackUiStateMachineImpl(
                 structure = form
               )
           },
-          onLoadFailed = {
-            uiState = FeedbackUiState.LoadingFormFailed
+          onLoadFailed = { error ->
+            uiState = FeedbackUiState.LoadingFormFailed(error)
           }
         )
-      FeedbackUiState.LoadingFormFailed ->
+      is FeedbackUiState.LoadingFormFailed ->
         LoadingFormFailed(
+          error = state.error,
           onBack = props.onBack,
           onRetry = {
             uiState = FeedbackUiState.LoadingFormStructure
@@ -61,7 +64,7 @@ class FeedbackUiStateMachineImpl(
   @Composable
   private fun LoadingFormStructure(
     onStructureLoaded: (form: SupportTicketForm, initialData: SupportTicketData) -> Unit,
-    onLoadFailed: () -> Unit,
+    onLoadFailed: (Error) -> Unit,
   ): ScreenModel {
     LaunchedEffect("load-form-structure") {
       supportTicketRepository.loadFormStructure()
@@ -69,7 +72,7 @@ class FeedbackUiStateMachineImpl(
           val initialData = supportTicketRepository.prefillKnownFields(value)
           onStructureLoaded(value, initialData)
         }
-        .onFailure { onLoadFailed() }
+        .onFailure { onLoadFailed(it) }
     }
 
     return LoadingBodyModel(
@@ -79,6 +82,7 @@ class FeedbackUiStateMachineImpl(
 
   @Composable
   private fun LoadingFormFailed(
+    error: Error,
     onBack: () -> Unit,
     onRetry: () -> Unit,
   ): ScreenModel {
@@ -96,6 +100,11 @@ class FeedbackUiStateMachineImpl(
           text = "Dismiss",
           onClick = onBack
         ),
+      errorData = ErrorData(
+        segment = SettingsAppSegment.Feedback,
+        actionDescription = "Loading feedback form",
+        cause = error
+      ),
       eventTrackerScreenId = FeedbackEventTrackerScreenId.FEEDBACK_LOAD_FAILED
     ).asModalScreen()
   }
@@ -104,7 +113,7 @@ class FeedbackUiStateMachineImpl(
 private sealed interface FeedbackUiState {
   data object LoadingFormStructure : FeedbackUiState
 
-  data object LoadingFormFailed : FeedbackUiState
+  data class LoadingFormFailed(val error: Error) : FeedbackUiState
 
   data class FillingForm(
     val initialData: SupportTicketData,

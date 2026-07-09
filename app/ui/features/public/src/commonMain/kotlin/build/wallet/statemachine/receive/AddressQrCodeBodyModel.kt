@@ -100,7 +100,7 @@ data class AddressQrCodeBodyModel(
               IconButtonModel(
                 iconModel =
                   IconModel(
-                    iconImage = IconImage.LocalImage(Icon.SmallIconRefresh),
+                    iconImage = IconImage.LocalImage(Icon.Refresh),
                     iconSize = IconSize.Accessory,
                     iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Regular)
                   ),

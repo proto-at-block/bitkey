@@ -50,11 +50,11 @@ class MobilePaySettingsUiStateMachineImpl(
     }
   }
 
-  private sealed class State {
-    data object ShowingMobilePayStatusUiState : State()
+  private sealed interface State {
+    data object ShowingMobilePayStatusUiState : State
 
     data class SettingSpendingLimitUiState(
       val defaultSpendingLimit: SpendingLimit? = null,
-    ) : State()
+    ) : State
   }
 }

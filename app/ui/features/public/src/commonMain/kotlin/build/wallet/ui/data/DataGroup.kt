@@ -1,7 +1,6 @@
 package build.wallet.ui.data
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -26,26 +25,25 @@ fun DataGroup(
   modifier: Modifier = Modifier,
   rows: DataList,
 ) {
-  val isDesignSystemV2Enabled = true
   val lineColor =
-    if (isDesignSystemV2Enabled && LocalTheme.current == Theme.DARK) {
+    if (LocalTheme.current == Theme.DARK) {
       WalletTheme.colors.foreground30
     } else {
       WalletTheme.colors.foreground10
     }
   val useBorderlessContainer = rows.containerStyle == BORDERLESS
-  val useContainedDesignSystemV2Typography = isDesignSystemV2Enabled && !useBorderlessContainer
+  val useContainedTypography = !useBorderlessContainer
   val contentHorizontalPadding = if (useBorderlessContainer) 0.dp else 16.dp
-  val cornerRadius = if (isDesignSystemV2Enabled) 8.dp else 16.dp
+  val cornerRadius = 8.dp
   val containerShape = RoundedCornerShape(cornerRadius)
   val totalDividerModifier =
-    if (isDesignSystemV2Enabled && !useBorderlessContainer) {
+    if (!useBorderlessContainer) {
       Modifier.padding(horizontal = contentHorizontalPadding)
     } else {
       Modifier
     }
   val backgroundColor =
-    if (isDesignSystemV2Enabled && !useBorderlessContainer) {
+    if (!useBorderlessContainer) {
       WalletTheme.colors.secondary
     } else {
       WalletTheme.colors.background
@@ -57,13 +55,6 @@ fun DataGroup(
           color = backgroundColor,
           shape = containerShape
         )
-        .thenIf(!useBorderlessContainer && !isDesignSystemV2Enabled) {
-          Modifier.border(
-            width = 2.dp,
-            color = lineColor,
-            shape = containerShape
-          )
-        }
         .clip(containerShape),
     horizontalAlignment = Alignment.CenterHorizontally
   ) {
@@ -76,7 +67,7 @@ fun DataGroup(
         model = element,
         isFirst = idx == 0,
         contentHorizontalPadding = contentHorizontalPadding,
-        useContainedDesignSystemV2Typography = useContainedDesignSystemV2Typography
+        useContainedTypography = useContainedTypography
       )
     }
     rows.total?.let {
@@ -87,7 +78,7 @@ fun DataGroup(
       DataRowTotal(
         model = it,
         contentHorizontalPadding = contentHorizontalPadding,
-        useContainedDesignSystemV2Typography = useContainedDesignSystemV2Typography
+        useContainedTypography = useContainedTypography
       )
     }
     rows.buttons.forEach {

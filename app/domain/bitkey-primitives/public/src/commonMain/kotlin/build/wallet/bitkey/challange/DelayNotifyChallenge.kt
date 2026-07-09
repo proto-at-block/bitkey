@@ -31,7 +31,7 @@ value class DelayNotifyChallenge(
       recovery: PublicKey<AppRecoveryAuthKey>?,
       hw: HwAuthPublicKey,
     ): DelayNotifyChallenge {
-      return DelayNotifyChallenge("${type.key}${hw.pubKey.value}${app.value}${recovery?.value ?: ""}")
+      return DelayNotifyChallenge("${type.key}${hw.pubKey.value}${app.value}${recovery?.value.orEmpty()}")
     }
 
     fun fromKeybox(

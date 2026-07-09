@@ -7,25 +7,26 @@ import build.wallet.cloud.backup.CloudBackupStoreKeys
 /**
  * Fake key classifier for debug-cloud tests.
  *
- * Treats keys prefixed with `backup-` and `archive-` as valid and keeps unsupported
- * formatting APIs unimplemented because tests only need key classification behavior.
+ * Treats legacy `cloud-backup`, account-specific `cb-*`, older `backup-*`, and
+ * archived `archive-*` keys as valid.
  */
 internal class CloudBackupStoreKeysFake : CloudBackupStoreKeys {
   override fun isValidArchivedKey(key: String): Boolean = key.startsWith("archive-")
 
-  override fun isValidBackupKey(key: String): Boolean = key.startsWith("backup-")
+  override fun isValidBackupKey(key: String): Boolean =
+    isLegacyActiveBackupKey(key) || key.startsWith("cb-") || key.startsWith("backup-")
 
   override fun archiveFormatKey(backup: CloudBackup): String = error("Not used in tests")
 
   override fun activeBackupFormatAccountSpecificKey(accountId: AccountId): String =
-    error("Not used in tests")
+    "cb-${accountId.serverId}"
 
   override fun activeBackupFormatKey(backup: CloudBackup): String = error("Not used in tests")
 
-  override fun isLegacyActiveBackupKey(key: String): Boolean = false
+  override fun isLegacyActiveBackupKey(key: String): Boolean = key == "cloud-backup"
 
   override fun isAccountSpecificActiveBackupKeyForAccount(
     key: String,
     accountId: AccountId,
-  ): Boolean = false
+  ): Boolean = key == activeBackupFormatAccountSpecificKey(accountId)
 }

@@ -89,7 +89,7 @@ private fun themeSelectionIconModel(themeOption: ThemeOption): IconModel {
 private val themeOptions = listOf(
   ThemeOption(ThemePreference.Manual(Theme.LIGHT), "Light", Icon.ThemeLight),
   ThemeOption(ThemePreference.Manual(Theme.DARK), "Dark", Icon.ThemeDark),
-  ThemeOption(ThemePreference.System, "System", Icon.SmallIconPhone)
+  ThemeOption(ThemePreference.System, "System", Icon.Phone)
 )
 
 private data class ThemeOption(

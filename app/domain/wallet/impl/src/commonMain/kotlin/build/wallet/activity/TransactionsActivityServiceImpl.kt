@@ -62,9 +62,6 @@ class TransactionsActivityServiceImpl(
 
   override val transactionsState: StateFlow<TransactionsActivityState> = _transactionsState
 
-  @Suppress("DEPRECATION")
-  override val transactions: StateFlow<List<Transaction>?> = transactionsCache
-
   private val activeAndInactiveWalletTransactionsCache = MutableStateFlow<List<Transaction>?>(null)
   override val activeAndInactiveWalletTransactions: StateFlow<List<Transaction>?> = activeAndInactiveWalletTransactionsCache
   private val inactiveWallets =
@@ -133,7 +130,7 @@ class TransactionsActivityServiceImpl(
   }
 
   override fun transactionById(transactionId: String): Flow<Transaction?> {
-    return transactions.map { it?.find { tx -> tx.id == transactionId } }
+    return transactionsCache.map { it?.find { tx -> tx.id == transactionId } }
       .distinctUntilChanged()
   }
 

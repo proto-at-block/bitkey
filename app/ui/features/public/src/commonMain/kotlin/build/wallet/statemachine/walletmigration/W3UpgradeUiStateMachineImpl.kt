@@ -52,12 +52,12 @@ import build.wallet.logging.logFailure
 import build.wallet.logging.logWarn
 import build.wallet.nfc.NfcException
 import build.wallet.nfc.platform.ActionProofAction
-import build.wallet.nfc.platform.detectedDeviceInfo
 import build.wallet.nfc.platform.RotateAppAuthKeysContinueParams
 import build.wallet.nfc.platform.UpgradeAuthorizeW3Result
 import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysParams
-import build.wallet.nfc.platform.requireW3
 import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysResult
+import build.wallet.nfc.platform.detectedDeviceInfo
+import build.wallet.nfc.platform.requireW3
 import build.wallet.nfc.platform.verifyHardwareType
 import build.wallet.nfc.transaction.PairingTransactionResponse
 import build.wallet.recovery.sweep.SweepContext
@@ -169,6 +169,7 @@ class W3UpgradeUiStateMachineImpl(
         )
 
       is W3UpgradeUiState.PairingNewHardware,
+      is W3UpgradeUiState.CheckingHardwareAuthKeyAvailability,
       ->
         PairingPhaseModel(
           state = uiState,
@@ -218,6 +219,7 @@ class W3UpgradeUiStateMachineImpl(
 
       is W3UpgradeUiState.Success,
       is W3UpgradeUiState.Error,
+      is W3UpgradeUiState.HardwareAuthKeyAlreadyInUse,
       ->
         TerminalPhaseModel(
           state = uiState,
@@ -267,26 +269,13 @@ class W3UpgradeUiStateMachineImpl(
               appGlobalAuthPublicKey = props.account.keybox.activeAppKeyBundle.authKey,
               onSuccess = { fingerprintEnrolled ->
                 eventTracker.track(AnalyticsAction.ACTION_APP_W3_UPGRADE_HW_PAIRED)
-                if (resumedFromCloudBackupFlow) {
-                  onStateChange(
-                    W3UpgradeUiState.GeneratingAuthKeys(
-                      fingerprintEnrolled = fingerprintEnrolled,
-                      oldDeviceSerial = state.oldDeviceSerial,
-                      oldHardwareFingerprint = state.oldHardwareFingerprint
-                    )
+                onStateChange(
+                  W3UpgradeUiState.CheckingHardwareAuthKeyAvailability(
+                    fingerprintEnrolled = fingerprintEnrolled,
+                    oldDeviceSerial = state.oldDeviceSerial,
+                    oldHardwareFingerprint = state.oldHardwareFingerprint
                   )
-                } else {
-                  // Show old hardware instructions immediately (keyset creation deferred until W1 tap)
-                  onStateChange(
-                    W3UpgradeUiState.ShowingOldHardwareInstructionsForAuthorization(
-                      fingerprintEnrolled = fingerprintEnrolled,
-                      newAppGlobalAuthKey = null,
-                      newAppRecoveryAuthKey = null,
-                      oldDeviceSerial = state.oldDeviceSerial,
-                      oldHardwareFingerprint = state.oldHardwareFingerprint
-                    )
-                  )
-                }
+                )
               }
             ),
             onExit = {
@@ -296,6 +285,34 @@ class W3UpgradeUiStateMachineImpl(
             screenPresentationStyle = ScreenPresentationStyle.Modal,
             pairingContext = PairingContext.W3Upgrade
           )
+        )
+      }
+      is W3UpgradeUiState.CheckingHardwareAuthKeyAvailability -> {
+        LaunchedEffect(Unit) {
+          migrationService.checkW3UpgradeHardwareAuthKeyAvailability(
+            account = props.account,
+            hwAuthPublicKey = state.fingerprintEnrolled.keyBundle.authKey
+          )
+            .onSuccess {
+              onStateChange(state.nextAfterSuccessfulAvailabilityCheck(resumedFromCloudBackupFlow))
+            }
+            .onFailure { error ->
+              when (error) {
+                is MigrationError.HardwareAuthKeyAlreadyInUse ->
+                  onStateChange(
+                    W3UpgradeUiState.HardwareAuthKeyAlreadyInUse(
+                      oldDeviceSerial = state.oldDeviceSerial,
+                      oldHardwareFingerprint = state.oldHardwareFingerprint
+                    )
+                  )
+                else -> onStateChange(W3UpgradeUiState.Error)
+              }
+            }
+        }
+
+        w3LoadingScreenModel(
+          "Checking your new device...",
+          WalletMigrationEventTrackerScreenId.W3_UPGRADE_CHECKING_HARDWARE_AUTH_KEY_AVAILABILITY
         )
       }
       else -> error("Unexpected state in PairingPhaseModel: $state")
@@ -338,8 +355,12 @@ class W3UpgradeUiStateMachineImpl(
                   newAppGlobalAuthKey = appGlobalAuthKey,
                   newAppRecoveryAuthKey = appRecoveryAuthKey,
                   w1ProofOfPossession = null,
-                  oldDeviceSerial = state.oldDeviceSerial!!,
-                  oldHardwareFingerprint = state.oldHardwareFingerprint!!
+                  oldDeviceSerial = checkNotNull(state.oldDeviceSerial) {
+                    "oldDeviceSerial must be set when fingerprintEnrolled is set"
+                  },
+                  oldHardwareFingerprint = checkNotNull(state.oldHardwareFingerprint) {
+                    "oldHardwareFingerprint must be set when fingerprintEnrolled is set"
+                  }
                 )
               )
             }
@@ -429,8 +450,12 @@ class W3UpgradeUiStateMachineImpl(
                       newAppGlobalAuthKey = state.newAppGlobalAuthKey,
                       newAppRecoveryAuthKey = state.newAppRecoveryAuthKey,
                       w1ProofOfPossession = hwFactorProofOfPossession,
-                      oldDeviceSerial = state.oldDeviceSerial!!,
-                      oldHardwareFingerprint = state.oldHardwareFingerprint!!
+                      oldDeviceSerial = checkNotNull(state.oldDeviceSerial) {
+                        "oldDeviceSerial must be set when fingerprintEnrolled is set"
+                      },
+                      oldHardwareFingerprint = checkNotNull(state.oldHardwareFingerprint) {
+                        "oldHardwareFingerprint must be set when fingerprintEnrolled is set"
+                      }
                     )
                   )
                 } else if (state.resumedAuthRotation != null) {
@@ -518,7 +543,8 @@ class W3UpgradeUiStateMachineImpl(
             ssek = unsealedSsek,
             sealedSsek = state.fingerprintEnrolled.sealedSsek,
             sealedCsek = state.fingerprintEnrolled.sealedCsek,
-            resumedFromCloudBackup = resumedFromCloudBackupFlow
+            resumedFromCloudBackup = resumedFromCloudBackupFlow,
+            newHwSpendingKeyProof = state.fingerprintEnrolled.spendingKeyProof
           )
 
           // Loop through migration states until we reach one that needs UI interaction
@@ -1433,13 +1459,12 @@ class W3UpgradeUiStateMachineImpl(
     state: W3UpgradeUiState.ShowingWrongHardwareError,
     onStateChange: (W3UpgradeUiState) -> Unit,
   ): ScreenModel {
-    val errorMessage = NfcErrorMessage.fromException(
-      NfcException.WrongHardwareType(
-        expected = state.expectedHardwareType,
-        // actual is not used by NfcErrorMessage — only expected determines the message.
-        actual = state.expectedHardwareType
-      )
+    val error = NfcException.WrongHardwareType(
+      expected = state.expectedHardwareType,
+      // actual is not used by NfcErrorMessage — only expected determines the message.
+      actual = state.expectedHardwareType
     )
+    val errorMessage = NfcErrorMessage.fromException(error)
     return ScreenModel(
       body = ErrorFormBodyModel(
         title = errorMessage.title,
@@ -1447,6 +1472,11 @@ class W3UpgradeUiStateMachineImpl(
         primaryButton = ButtonDataModel(
           text = "Retry",
           onClick = { onStateChange(state.retryState) }
+        ),
+        errorData = ErrorData(
+          segment = PrivateWalletMigrationAppSegment,
+          actionDescription = "Verifying W3 upgrade hardware type",
+          cause = error
         ),
         eventTrackerScreenId = WalletMigrationEventTrackerScreenId.W3_UPGRADE_WRONG_HARDWARE_ERROR
       )
@@ -1511,6 +1541,25 @@ private fun authKeysForRotation(
     }
   )
 }
+
+private fun W3UpgradeUiState.CheckingHardwareAuthKeyAvailability.nextAfterSuccessfulAvailabilityCheck(
+  resumedFromCloudBackupFlow: Boolean,
+): W3UpgradeUiState =
+  if (resumedFromCloudBackupFlow) {
+    W3UpgradeUiState.GeneratingAuthKeys(
+      fingerprintEnrolled = fingerprintEnrolled,
+      oldDeviceSerial = oldDeviceSerial,
+      oldHardwareFingerprint = oldHardwareFingerprint
+    )
+  } else {
+    W3UpgradeUiState.ShowingOldHardwareInstructionsForAuthorization(
+      fingerprintEnrolled = fingerprintEnrolled,
+      newAppGlobalAuthKey = null,
+      newAppRecoveryAuthKey = null,
+      oldDeviceSerial = oldDeviceSerial,
+      oldHardwareFingerprint = oldHardwareFingerprint
+    )
+  }
 
 @Composable
 private fun IntroPhaseModel(
@@ -1812,7 +1861,43 @@ private fun TerminalPhaseModel(
             text = "Cancel",
             onClick = props.onExit
           ).takeUnless { isMigrationInProgress },
+          errorData = ErrorData(
+            segment = PrivateWalletMigrationAppSegment,
+            actionDescription = "Upgrading wallet to W3 hardware",
+            cause = w3UpgradeFailedError
+          ),
           eventTrackerScreenId = WalletMigrationEventTrackerScreenId.W3_UPGRADE_ERROR
+        ),
+        presentationStyle = ScreenPresentationStyle.Modal
+      )
+    }
+    is W3UpgradeUiState.HardwareAuthKeyAlreadyInUse -> {
+      ScreenModel(
+        body = ErrorFormBodyModel(
+          title = "This Bitkey device cannot be used",
+          subline = "The Bitkey device is already associated with another Bitkey account. Use a different device or contact support.",
+          primaryButton = ButtonDataModel(
+            text = "Try another device",
+            onClick = {
+              onStateChange(
+                W3UpgradeUiState.PairingNewHardware(
+                  oldDeviceSerial = state.oldDeviceSerial,
+                  oldHardwareFingerprint = state.oldHardwareFingerprint
+                )
+              )
+            }
+          ),
+          secondaryButton = ButtonDataModel(
+            text = "Cancel",
+            onClick = props.onExit
+          ).takeUnless { isMigrationInProgress },
+          errorData = ErrorData(
+            segment = PrivateWalletMigrationAppSegment,
+            actionDescription = "Checking W3 hardware auth key availability",
+            cause = IllegalStateException("W3 hardware auth key is already associated with another account")
+          ),
+          eventTrackerScreenId =
+            WalletMigrationEventTrackerScreenId.W3_UPGRADE_HARDWARE_AUTH_KEY_IN_USE_ERROR
         ),
         presentationStyle = ScreenPresentationStyle.Modal
       )
@@ -1913,6 +1998,13 @@ private sealed interface W3UpgradeUiState {
 
   /** Pairing the new W3 hardware device. Carries old device identity in memory. */
   data class PairingNewHardware(
+    val oldDeviceSerial: String,
+    val oldHardwareFingerprint: String,
+  ) : W3UpgradeUiState
+
+  /** Checking whether the paired W3 hardware auth key can be used for this upgrade. */
+  data class CheckingHardwareAuthKeyAvailability(
+    val fingerprintEnrolled: PairingTransactionResponse.FingerprintEnrolled,
     val oldDeviceSerial: String,
     val oldHardwareFingerprint: String,
   ) : W3UpgradeUiState
@@ -2070,8 +2162,16 @@ private sealed interface W3UpgradeUiState {
   /** Upgrade failed with error. */
   data object Error : W3UpgradeUiState
 
+  /** Paired W3 hardware auth key is already in use elsewhere. */
+  data class HardwareAuthKeyAlreadyInUse(
+    val oldDeviceSerial: String,
+    val oldHardwareFingerprint: String,
+  ) : W3UpgradeUiState
+
   /** Confirming exit from the upgrade flow (user doesn't have their old Bitkey). */
   data class ConfirmingExit(
     val previousState: W3UpgradeUiState,
   ) : W3UpgradeUiState
 }
+
+private val w3UpgradeFailedError = IllegalStateException("W3 upgrade failed")

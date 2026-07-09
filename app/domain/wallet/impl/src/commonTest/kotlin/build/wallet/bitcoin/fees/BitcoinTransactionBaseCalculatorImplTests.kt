@@ -26,7 +26,7 @@ class BitcoinTransactionBaseCalculatorImplTests : FunSpec({
         sendAmount = ExactAmount(amountToSend),
         fees = feeMap
       ).shouldBe(
-        amountToSend + feeMap[SIXTY_MINUTES]!!.amount
+        amountToSend + feeMap.getValue(SIXTY_MINUTES).amount
       )
     }
   }
@@ -38,7 +38,7 @@ class BitcoinTransactionBaseCalculatorImplTests : FunSpec({
         sendAmount = SendAll,
         fees = feeMap
       ).shouldBe(
-        BitcoinBalanceFake.total - feeMap[FASTEST]!!.amount
+        BitcoinBalanceFake.total - feeMap.getValue(FASTEST).amount
       )
     }
   }

@@ -8,7 +8,6 @@ version = "0.1.0"
 debug-embed = ["rust-embed/debug-embed"]
 
 [dependencies]
-aws-config = { workspace = true }
 aws-sdk-kms = { workspace = true }
 axum = { workspace = true }
 axum-macros = { workspace = true }
@@ -29,6 +28,7 @@ utoipa = { workspace = true }
 # path dependencies
 account = { workspace = true }
 authn_authz = { workspace = true }
+clients_common = { workspace = true }
 errors = { workspace = true }
 http_server = { workspace = true }
 repository = { workspace = true, features = ["encrypted_attachment"] }

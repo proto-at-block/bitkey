@@ -419,7 +419,7 @@ class MobilePayServiceImplTests : FunSpec({
           activeSpendingLimit = mobilePayEnabledWithSpentBtc.activeSpendingLimit,
           remainingBitcoinSpendingAmount = mobilePayEnabledWithSpentBtc.balance!!.available,
           remainingFiatSpendingAmount = usd(dollars = 4.5),
-          spentBitcoinAmount = mobilePayEnabledWithSpentBtc.balance!!.spent,
+          spentBitcoinAmount = mobilePayEnabledWithSpentBtc.balance.spent,
           spentFiatAmount = usd(dollars = 1.5)
         )
       )
@@ -540,7 +540,7 @@ class MobilePayServiceImplTests : FunSpec({
           activeSpendingLimit = enabled.activeSpendingLimit,
           remainingBitcoinSpendingAmount = enabled.balance!!.available,
           remainingFiatSpendingAmount = usd(dollars = 9.0),
-          spentBitcoinAmount = enabled.balance!!.spent,
+          spentBitcoinAmount = enabled.balance.spent,
           spentFiatAmount = usd(dollars = 0.3)
         )
       )
@@ -570,7 +570,7 @@ class MobilePayServiceImplTests : FunSpec({
           activeSpendingLimit = enabled.activeSpendingLimit,
           remainingBitcoinSpendingAmount = enabled.balance!!.available,
           remainingFiatSpendingAmount = usd(dollars = 0.0),
-          spentBitcoinAmount = enabled.balance!!.spent,
+          spentBitcoinAmount = enabled.balance.spent,
           spentFiatAmount = usd(dollars = 6.0) // clamped from $9 down to the $6 limit
         )
       )
@@ -600,7 +600,7 @@ class MobilePayServiceImplTests : FunSpec({
           activeSpendingLimit = enabled.activeSpendingLimit,
           remainingBitcoinSpendingAmount = enabled.balance!!.available,
           remainingFiatSpendingAmount = usd(dollars = 0.0),
-          spentBitcoinAmount = enabled.balance!!.spent,
+          spentBitcoinAmount = enabled.balance.spent,
           spentFiatAmount = usd(dollars = 6.0)
         )
       )

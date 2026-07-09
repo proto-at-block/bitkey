@@ -7,6 +7,7 @@ import bitkey.ui.screens.securityhub.SecurityHubBodyModel
 import build.wallet.analytics.events.screen.id.*
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.LOADING_RESTORING_FROM_CLOUD_BACKUP
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_TRUSTED_CONTACTS_LIST
+import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.integration.statemachine.create.restoreButton
@@ -532,27 +533,58 @@ suspend fun ReceiveTurbine<ScreenModel>.awaitW3ConfirmableNfcSession() {
 
 private suspend fun ReceiveTurbine<ScreenModel>.advanceThroughReplacementHardwarePairing():
   DelayAndNotifyNewKeyReady {
-  // First screen: activation instructions (V1 or V2 depending on isW3Flow)
-  awaitUntilBody<PairNewHardwareBodyModel>(matching = { !it.primaryButton.isLoading })
-    .clickPrimaryButton()
+  val activationBody = awaitUntilBody<PairNewHardwareBodyModel>(
+    matching = {
+      !it.primaryButton.isLoading &&
+        when (it.eventTrackerScreenInfo?.eventTrackerScreenId) {
+          PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS,
+          PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2,
+          -> true
+          else -> false
+        }
+    }
+  )
+  activationBody.clickPrimaryButton()
 
-  // After NFC, the detected hardware type determines the rest of the flow:
-  // - W1 hardware → PairNewHardwareBodyModel (pair instructions) → fingerprint
-  // - W3 hardware → CompleteTwoTapBodyModel
+  if (
+    activationBody.eventTrackerScreenInfo?.eventTrackerScreenId ==
+    PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS
+  ) {
+    awaitUntilBody<PairNewHardwareBodyModel>(
+      PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS
+    )
+      .clickPrimaryButton()
+  }
+
+  // After NFC, the detected hardware type determines the second pairing step:
+  // - W1 hardware → fingerprint enrollment instructions
+  // - W3 hardware → complete two-tap confirmation
   val nextBody = awaitUntilScreenWithBody<BodyModel>(
-    matchingBody = { it is PairNewHardwareBodyModel || it is CompleteTwoTapBodyModel }
+    matchingBody = {
+      when (it) {
+        is PairNewHardwareBodyModel ->
+          it.eventTrackerScreenInfo?.eventTrackerScreenId ==
+            PairHardwareEventTrackerScreenId.HW_SAVE_FINGERPRINT_INSTRUCTIONS
+        is CompleteTwoTapBodyModel ->
+          it.eventTrackerScreenInfo?.eventTrackerScreenId ==
+            PairHardwareEventTrackerScreenId.HW_COMPLETE_TWO_TAP
+        else -> false
+      }
+    }
   ).body
 
   when (nextBody) {
-    is PairNewHardwareBodyModel -> {
-      // W1 hardware detected after NFC: click pair instructions to continue
-      nextBody.clickPrimaryButton()
-    }
-    is CompleteTwoTapBodyModel -> {
-      // W3 hardware detected: complete two tap
-      nextBody.clickPrimaryButton()
-    }
+    is PairNewHardwareBodyModel -> nextBody.clickPrimaryButton()
+    is CompleteTwoTapBodyModel -> nextBody.clickPrimaryButton()
   }
 
-  return awaitUntilBody<DelayAndNotifyNewKeyReady>(HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_READY)
+  awaitLoadingScreen(
+    HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INITIATING_SERVER_RECOVERY
+  )
+
+  return awaitUntilBody<DelayAndNotifyNewKeyReady>(
+    HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_READY
+  ).also {
+    it.factorToRecover.shouldBe(PhysicalFactor.Hardware)
+  }
 }

@@ -9,7 +9,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ProtectedCustomer(
   @SerialName("recovery_relationship_id")
-  override val relationshipId: String,
+  override val id: RelationshipId,
   @SerialName("customer_alias")
   val alias: ProtectedCustomerAlias,
   @SerialName("trusted_contact_roles")

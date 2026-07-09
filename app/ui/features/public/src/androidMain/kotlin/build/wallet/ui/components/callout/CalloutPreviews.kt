@@ -28,7 +28,7 @@ fun CalloutPreviews() {
 
 @Preview
 @Composable
-fun CalloutPreviewsDesignSystemV2() {
+fun CalloutPreviewsThemedBackground() {
   PreviewWalletTheme {
     CalloutList(useThemeBackground = true)
   }
@@ -67,8 +67,8 @@ fun CalloutList(useThemeBackground: Boolean = false) {
             false -> StringModel("Subtitle")
           },
           treatment = config.treatment,
-          leadingIcon = Icon.SmallIconCheck,
-          trailingIcon = Icon.SmallIconArrowRight
+          leadingIcon = Icon.Check,
+          trailingIcon = Icon.ArrowRight
         )
       )
     }

@@ -68,8 +68,12 @@ object BenefactorClaimSerializer : KSerializer<BenefactorClaim> {
       BenefactorClaim.PendingClaim(
         claimId = claimId,
         relationshipId = relationshipId,
-        delayEndTime = delayEndTime!!,
-        delayStartTime = delayStartTime!!
+        delayEndTime = checkNotNull(delayEndTime) {
+          "delay_end_time is required for a pending benefactor claim"
+        },
+        delayStartTime = checkNotNull(delayStartTime) {
+          "delay_start_time is required for a pending benefactor claim"
+        }
       )
 
     fun asCancelledClaim() =

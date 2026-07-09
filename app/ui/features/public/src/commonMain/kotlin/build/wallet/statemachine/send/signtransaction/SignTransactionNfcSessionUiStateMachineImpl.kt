@@ -35,6 +35,8 @@ import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.HwDisplayPreference
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.platform.NfcProgressCallback
+import build.wallet.nfc.platform.SweepSigningContext
+import build.wallet.nfc.platform.actualHardwareType
 import build.wallet.nfc.platform.detectedDeviceInfo
 import build.wallet.nfc.platform.toSessionFn
 import build.wallet.platform.device.DeviceInfoProvider
@@ -53,6 +55,7 @@ import build.wallet.statemachine.nfc.AndroidNfcAvailabilityUiState.*
 import build.wallet.statemachine.nfc.delayForIosNativeNfcTransition
 import build.wallet.statemachine.nfc.EnableNfcInstructionsModel
 import build.wallet.statemachine.nfc.HardwareConfirmationResultBodyModel
+import build.wallet.statemachine.nfc.NfcHelpBodyModel
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NoNfcMessageModel
 import build.wallet.statemachine.nfc.PromptSelectionFormBodyModel
@@ -150,6 +153,8 @@ class SignTransactionNfcSessionUiStateMachineImpl(
     val designSystemV2Enabled = true
     return when (state) {
       is InNfcSessionUiState -> {
+        val sessionHardwareType = state.resolvedDeviceInfo?.hardwareType() ?: hardwareType
+
         // Track progress separately from state to avoid closure capture issues in LaunchedEffect
         var transferProgress by remember { mutableStateOf(Progress.Zero) }
 
@@ -158,22 +163,27 @@ class SignTransactionNfcSessionUiStateMachineImpl(
           props = props,
           state = state,
           isHardwareFake = isHardwareFake,
-          hardwareType = hardwareType,
-          designSystemV2Enabled = designSystemV2Enabled,
+          hardwareType = sessionHardwareType,
           setState = setState,
           onProgressUpdate = { progress -> transferProgress = progress }
         )
 
+        val onHelpClick =
+          if (designSystemV2Enabled) {
+            { setState(HelpUiState(state)) }
+          } else {
+            null
+          }
         val nfcModel = when (state.displayMode) {
           InNfcSessionUiState.DisplayMode.Searching -> {
             SignTransactionNfcBodyModel(
               onCancel = props.onBack,
               status = SignTransactionNfcBodyModel.Status.Searching,
-              hardwareType = hardwareType,
+              hardwareType = sessionHardwareType,
               showNativeSheetOnIos = props.showNativeSheetOnIos,
+              onHelpClick = onHelpClick,
               eventTrackerScreenInfo = EventTrackerScreenInfo(NFC_INITIATE, props.eventTrackerContext, eventTrackerShouldTrack = false)
             ).asFullScreen(
-              designSystemV2Enabled = designSystemV2Enabled,
               devicePlatform = devicePlatform
             )
           }
@@ -181,12 +191,11 @@ class SignTransactionNfcSessionUiStateMachineImpl(
             SignTransactionNfcBodyModel(
               onCancel = props.onBack,
               status = SignTransactionNfcBodyModel.Status.Signing,
-              hardwareType = hardwareType,
+              hardwareType = sessionHardwareType,
               showNativeSheetOnIos = props.showNativeSheetOnIos,
               // NFC_DETECTED is already tracked imperatively in onTagConnected
               eventTrackerScreenInfo = null
             ).asFullScreen(
-              designSystemV2Enabled = designSystemV2Enabled,
               devicePlatform = devicePlatform
             )
           }
@@ -194,11 +203,10 @@ class SignTransactionNfcSessionUiStateMachineImpl(
             SignTransactionNfcBodyModel(
               onCancel = props.onBack,
               status = SignTransactionNfcBodyModel.Status.Transferring(transferProgress),
-              hardwareType = hardwareType,
+              hardwareType = sessionHardwareType,
               showNativeSheetOnIos = props.showNativeSheetOnIos,
               eventTrackerScreenInfo = EventTrackerScreenInfo(NFC_INITIATE, props.eventTrackerContext, eventTrackerShouldTrack = false)
             ).asFullScreen(
-              designSystemV2Enabled = designSystemV2Enabled,
               devicePlatform = devicePlatform
             )
           }
@@ -206,11 +214,11 @@ class SignTransactionNfcSessionUiStateMachineImpl(
             SignTransactionNfcBodyModel(
               onCancel = props.onBack,
               status = SignTransactionNfcBodyModel.Status.LostConnection(transferProgress),
-              hardwareType = hardwareType,
+              hardwareType = sessionHardwareType,
               showNativeSheetOnIos = props.showNativeSheetOnIos,
+              onHelpClick = onHelpClick,
               eventTrackerScreenInfo = EventTrackerScreenInfo(NFC_INITIATE, props.eventTrackerContext, eventTrackerShouldTrack = false)
             ).asFullScreen(
-              designSystemV2Enabled = designSystemV2Enabled,
               devicePlatform = devicePlatform
             )
           }
@@ -264,7 +272,6 @@ class SignTransactionNfcSessionUiStateMachineImpl(
           showNativeSheetOnIos = props.showNativeSheetOnIos,
           eventTrackerScreenInfo = EventTrackerScreenInfo(NFC_SUCCESS, props.eventTrackerContext, eventTrackerShouldTrack = false)
         ).asFullScreen(
-          designSystemV2Enabled = designSystemV2Enabled,
           devicePlatform = devicePlatform
         )
       }
@@ -289,6 +296,20 @@ class SignTransactionNfcSessionUiStateMachineImpl(
           )
         )
       }
+
+      is HelpUiState ->
+        ScreenModel(
+          body = NfcHelpBodyModel(
+            onBack = { setState(state.previousState) },
+            devicePlatform = devicePlatform
+          ),
+          presentationStyle = ScreenPresentationStyle.FullScreen,
+          themePreference =
+            nfcThemePreference(
+              devicePlatform = devicePlatform,
+              followSystemOnIos = props.showNativeSheetOnIos
+            )
+        )
 
       is ErrorUiState -> {
         NfcErrorFormBodyModel(
@@ -525,7 +546,6 @@ class SignTransactionNfcSessionUiStateMachineImpl(
     state: InNfcSessionUiState,
     isHardwareFake: Boolean,
     hardwareType: HardwareType,
-    designSystemV2Enabled: Boolean,
     setState: (Any) -> Unit,
     onProgressUpdate: (Progress) -> Unit,
   ) {
@@ -535,7 +555,6 @@ class SignTransactionNfcSessionUiStateMachineImpl(
 
     LaunchedEffect(effectKey) {
       delayForIosNativeNfcTransition(
-        designSystemV2Enabled = designSystemV2Enabled,
         devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform
       )
       // Resolve the hardware auth public key for pairing verification.
@@ -688,18 +707,22 @@ class SignTransactionNfcSessionUiStateMachineImpl(
       bitcoinDisplayUnit = bitcoinDisplayPreferenceRepository.bitcoinDisplayUnit.value
     )
 
-    // When a sweep context is provided, route to the dedicated W3 sweep command
-    // so firmware uses the OLD account's app/server xpubs and derives HW to the
-    // old account index. The regular signTransaction rejects non-current-account
-    // inputs on W3. On W1 the PSBT itself carries derivation paths so we always
-    // use signTransaction — callers on W1 should not set sweepSigningContext.
-    val sweepContext = props.sweepSigningContext
-    val interaction = if (sweepContext != null) {
+    // When a sweep context is provided and the tapped hardware resolves to W3,
+    // route to the dedicated W3 sweep command so firmware uses the OLD account's
+    // app/server xpubs and derives HW to the old account index. On W1 the PSBT
+    // itself carries derivation paths, so use regular signTransaction even if a
+    // sweep context was provided speculatively.
+    val w3SweepContext = w3SweepContextForSigning(
+      session = session,
+      commands = commands,
+      props = props
+    )
+    val interaction = if (w3SweepContext != null) {
       commands.sweepTransaction(
         session = session,
         psbt = props.psbt,
         spendingKeyset = spendingKeyset,
-        sweepContext = sweepContext,
+        sweepContext = w3SweepContext,
         displayPreference = displayPreference
       )
     } else {
@@ -707,7 +730,8 @@ class SignTransactionNfcSessionUiStateMachineImpl(
         session = session,
         psbt = props.psbt,
         spendingKeyset = spendingKeyset,
-        displayPreference = displayPreference
+        displayPreference = displayPreference,
+        allowUnfinalized = props.allowUnfinalized
       )
     }
 
@@ -760,6 +784,36 @@ class SignTransactionNfcSessionUiStateMachineImpl(
     }
   }
 
+  private suspend fun w3SweepContextForSigning(
+    session: NfcSession,
+    commands: NfcCommands,
+    props: SignTransactionNfcSessionUiProps,
+  ): SweepSigningContext? {
+    val sweepContext = props.sweepSigningContext
+    if (props.requiredHardwareType == null && sweepContext == null) {
+      return null
+    }
+
+    val actualHardwareType = commands.actualHardwareType(session)
+    verifyRequiredHardwareType(
+      requiredHardwareType = props.requiredHardwareType,
+      actualHardwareType = actualHardwareType
+    )
+    return sweepContext.takeIf { actualHardwareType == HardwareType.W3 }
+  }
+
+  private fun verifyRequiredHardwareType(
+    requiredHardwareType: HardwareType?,
+    actualHardwareType: HardwareType,
+  ) {
+    if (requiredHardwareType != null && actualHardwareType != requiredHardwareType) {
+      throw NfcException.WrongHardwareType(
+        expected = requiredHardwareType,
+        actual = actualHardwareType
+      )
+    }
+  }
+
   /**
    * Continuation transaction for two-tap flow: calls fetchResult to fetch the signed PSBT.
    *
@@ -809,35 +863,20 @@ class SignTransactionNfcSessionUiStateMachineImpl(
   }
 
   private fun SignTransactionNfcBodyModel.asFullScreen(
-    designSystemV2Enabled: Boolean,
     devicePlatform: DevicePlatform,
   ) =
     ScreenModel(
       body = this,
       presentationStyle = ScreenPresentationStyle.FullScreen,
-      themePreference = signTransactionNfcThemePreference(designSystemV2Enabled, devicePlatform)
+      themePreference = signTransactionNfcThemePreference(devicePlatform)
     )
 
   private fun SignTransactionNfcBodyModel.signTransactionNfcThemePreference(
-    designSystemV2Enabled: Boolean,
     devicePlatform: DevicePlatform,
   ): ThemePreference =
     nfcThemePreference(
-      designSystemV2Enabled = designSystemV2Enabled,
       devicePlatform = devicePlatform,
       followSystemOnIos = showNativeSheetOnIos
-    )
-
-  private fun EnableNfcInstructionsModel.asModalScreen() =
-    ScreenModel(
-      body = this,
-      presentationStyle = ScreenPresentationStyle.Modal
-    )
-
-  private fun FormBodyModel.asModalScreen() =
-    ScreenModel(
-      body = this,
-      presentationStyle = ScreenPresentationStyle.Modal
     )
 
   private fun defaultPendingBodyModel(onAcknowledge: () -> Unit) =
@@ -906,6 +945,10 @@ private sealed interface SignTransactionNfcSessionUiState {
         NfcCommands,
       ) -> HardwareInteraction<Psbt>,
       val resolvedDeviceInfo: FirmwareDeviceInfo? = null,
+    ) : InSessionUiState
+
+    data class HelpUiState(
+      val previousState: InNfcSessionUiState,
     ) : InSessionUiState
 
     /**

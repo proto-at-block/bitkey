@@ -23,6 +23,7 @@ import build.wallet.money.exchange.ExchangeRateService
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.partnerships.*
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
@@ -31,7 +32,9 @@ import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.partnerships.PartnerEventTrackerScreenIdContext
+import build.wallet.statemachine.partnerships.PartnershipsSegment
 import build.wallet.statemachine.receive.AddressVerificationPromptBodyModel
+import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableList
@@ -123,6 +126,7 @@ class PartnershipsPurchaseQuotesUiStateMachineImpl(
           id = DepositEventTrackerScreenId.PARTNER_QUOTES_LIST_ERROR,
           error = currentState.error,
           errorMessage = "Failed to load partner quotes.",
+          actionDescription = "Loading partner purchase quotes",
           onBack = props.onBack
         )
       }
@@ -130,14 +134,13 @@ class PartnershipsPurchaseQuotesUiStateMachineImpl(
       is State.GeneratingAddress -> {
         LaunchedEffect("generate-address-for-verification") {
           val account = accountService.getAccount<FullAccount>()
-            .onFailure { error ->
+            .getOrElse { error ->
               state = State.RedirectLoadingFailure(
                 partner = currentState.quote.partnerInfo,
                 error = error
               )
               return@LaunchedEffect
             }
-            .component1()!!
           val isW3 = account.config.hardwareType == HardwareType.W3
 
           if (isW3) {
@@ -266,6 +269,7 @@ class PartnershipsPurchaseQuotesUiStateMachineImpl(
           context = PartnerEventTrackerScreenIdContext(currentState.partner),
           error = currentState.error,
           errorMessage = "Failed to redirect to $partnerName.",
+          actionDescription = "Loading partner purchase redirect",
           onBack = { state = State.LoadingQuotes }
         )
       }
@@ -318,8 +322,9 @@ class PartnershipsPurchaseQuotesUiStateMachineImpl(
 private fun failureScreenModel(
   id: DepositEventTrackerScreenId,
   context: PartnerEventTrackerScreenIdContext? = null,
-  error: Throwable?,
+  error: Throwable,
   errorMessage: String,
+  actionDescription: String,
   onBack: () -> Unit,
 ): ScreenModel {
   LaunchedEffect("partnership-log-error", error, errorMessage) {
@@ -333,6 +338,11 @@ private fun failureScreenModel(
       subline = errorMessage,
       primaryButton = ButtonDataModel("Got it", isLoading = false, onClick = onBack),
       renderContext = RenderContext.Screen,
+      errorData = ErrorData(
+        segment = PartnershipsSegment,
+        actionDescription = actionDescription,
+        cause = error
+      ),
       onBack = onBack
     )
   )

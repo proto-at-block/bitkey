@@ -2,16 +2,16 @@ package build.wallet.statemachine.send.hardwareconfirmation
 
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.web.InAppBrowserNavigatorMock
-import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.core.form.FormMainContentVerticalAlignment
+import build.wallet.statemachine.core.form.FormScreenLayoutModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.ui.model.icon.IconBackgroundType.Circle
 import build.wallet.ui.model.icon.IconBackgroundType.Circle.CircleColor.Foreground10
-import build.wallet.ui.model.icon.IconBackgroundType.Circle.CircleColor.Secondary
 import build.wallet.ui.model.icon.IconSize.Regular
-import build.wallet.ui.model.icon.IconTint.Foreground
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -22,8 +22,9 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 class HardwareConfirmationUiStateMachineImplTests : FunSpec({
 
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
+  val deviceInfoProvider = DeviceInfoProviderMock()
 
-  val stateMachine = HardwareConfirmationUiStateMachineImpl()
+  val stateMachine = HardwareConfirmationUiStateMachineImpl(deviceInfoProvider)
 
   val onBackCalls = turbines.create<Unit>("on back calls")
   val onCancelCalls = turbines.create<Unit>("on cancel calls")
@@ -38,6 +39,7 @@ class HardwareConfirmationUiStateMachineImplTests : FunSpec({
 
   beforeTest {
     inAppBrowserNavigator.reset()
+    deviceInfoProvider.reset()
   }
 
   test("shows confirmation screen initially") {
@@ -64,55 +66,36 @@ class HardwareConfirmationUiStateMachineImplTests : FunSpec({
     ).forEach { content ->
       stateMachine.test(props.copy(content = content)) {
         awaitBody<HardwareConfirmationScreenModel> {
-          header.shouldNotBeNull().apply {
-            headline.shouldBe(content.title)
-            sublineModel.shouldNotBeNull().string.shouldBe(content.body)
-          }
-          primaryButton.shouldNotBeNull().text.shouldBe(content.confirmButtonText)
-          secondaryButton.shouldNotBeNull().text.shouldBe(content.cancelButtonText)
-
-          val designSystemV2Model = designSystemV2Model.shouldNotBeNull()
-          designSystemV2Model.useDesignSystemV2ScreenLayout.shouldBe(true)
-          designSystemV2Model.scrollable.shouldBe(false)
-          designSystemV2Model.mainContentVerticalAlignment.shouldBe(
-            FormDesignSystemV2Model.MainContentVerticalAlignment.CENTER
+          header.shouldBeNull()
+          formScreenLayout.shouldBe(
+            FormScreenLayoutModel.LargeTitle(
+              scrollable = false,
+              mainContentVerticalAlignment = FormMainContentVerticalAlignment.CENTER
+            )
           )
-          designSystemV2Model.header.shouldBeNull()
-          designSystemV2Model.mainContentList.shouldNotBeNull()[0]
+          mainContentList[0]
             .shouldBeInstanceOf<FormMainContentModel.HeaderBlock>()
             .header.apply {
               headline.shouldBe(content.title)
               sublineModel.shouldNotBeNull().string.shouldBe(content.body)
             }
-          designSystemV2Model.primaryButton.shouldNotBeNull().text.shouldBe(content.confirmButtonText)
-          designSystemV2Model.secondaryButton.shouldNotBeNull().text.shouldBe(content.cancelButtonText)
+          primaryButton.shouldNotBeNull().text.shouldBe(content.confirmButtonText)
+          secondaryButton.shouldNotBeNull().text.shouldBe(content.cancelButtonText)
         }
       }
     }
   }
 
-  test("confirmation screen keeps legacy toolbar styling while DSV2 uses standard accessories") {
+  test("confirmation screen uses standard toolbar accessories") {
     stateMachine.test(props.copy(content = HardwareConfirmationContent.SignTransaction)) {
       awaitBody<HardwareConfirmationScreenModel> {
         toolbar.shouldNotBeNull().leadingAccessory.shouldBeInstanceOf<IconAccessory>()
-          .model.iconModel.apply {
-            iconBackgroundType.shouldBe(Circle(circleSize = Regular, color = Secondary))
-            iconTint.shouldBe(Foreground)
-          }
-
-        toolbar.shouldNotBeNull().trailingAccessory.shouldBeInstanceOf<IconAccessory>()
-          .model.iconModel.apply {
-            iconBackgroundType.shouldBe(Circle(circleSize = Regular, color = Secondary))
-            iconTint.shouldBe(Foreground)
-          }
-
-        designSystemV2Model.shouldNotBeNull().toolbar.shouldNotBeNull().leadingAccessory.shouldBeInstanceOf<IconAccessory>()
           .model.iconModel.apply {
             iconBackgroundType.shouldBe(Circle(circleSize = Regular, color = Foreground10))
             iconTint.shouldBeNull()
           }
 
-        designSystemV2Model.shouldNotBeNull().toolbar.shouldNotBeNull().trailingAccessory.shouldBeInstanceOf<IconAccessory>()
+        toolbar.shouldNotBeNull().trailingAccessory.shouldBeInstanceOf<IconAccessory>()
           .model.iconModel.apply {
             iconBackgroundType.shouldBe(Circle(circleSize = Regular, color = Foreground10))
             iconTint.shouldBeNull()
@@ -128,11 +111,21 @@ class HardwareConfirmationUiStateMachineImplTests : FunSpec({
       }
 
       awaitBody<HardwareConfirmationHelpBodyModel> {
-        header.shouldNotBeNull().headline.shouldBe("How it works")
-        mainContentList.first().shouldBeInstanceOf<FormMainContentModel.Explainer>().items.first().apply {
-          title.shouldBe("CHECK THE ADDRESS")
-          body.string.shouldBe("Compare the address shown on your Bitkey to the source where the recipient address was obtained, not to what’s shown in the Bitkey app.")
-        }
+        formScreenTitle.shouldNotBeNull().title.shouldBe("How it works")
+        mainContentList.first().shouldBeInstanceOf<FormMainContentModel.CustomContent>()
+      }
+    }
+  }
+
+  test("firmware update confirmation can open dedicated help content") {
+    stateMachine.test(props.copy(content = HardwareConfirmationContent.FirmwareUpdate)) {
+      awaitBody<HardwareConfirmationScreenModel> {
+        onHelpClick.shouldNotBeNull().invoke()
+      }
+
+      awaitBody<HardwareConfirmationHelpBodyModel> {
+        formScreenTitle.shouldNotBeNull().title.shouldBe("How it works")
+        mainContentList.first().shouldBeInstanceOf<FormMainContentModel.CustomContent>()
       }
     }
   }
@@ -182,14 +175,14 @@ class HardwareConfirmationUiStateMachineImplTests : FunSpec({
           text.shouldBe("Done")
         }
 
-        val designSystemV2Model = designSystemV2Model.shouldNotBeNull()
-        designSystemV2Model.useDesignSystemV2ScreenLayout.shouldBe(true)
-        designSystemV2Model.scrollable.shouldBe(false)
-        designSystemV2Model.mainContentVerticalAlignment.shouldBe(
-          FormDesignSystemV2Model.MainContentVerticalAlignment.CENTER
+        formScreenLayout.shouldBe(
+          FormScreenLayoutModel.LargeTitle(
+            scrollable = false,
+            mainContentVerticalAlignment = FormMainContentVerticalAlignment.CENTER
+          )
         )
-        designSystemV2Model.header.shouldBeNull()
-        designSystemV2Model.mainContentList.shouldNotBeNull().single()
+        header.shouldBeNull()
+        mainContentList.single()
           .shouldBeInstanceOf<FormMainContentModel.HeaderBlock>()
           .header.apply {
             headline.shouldBe(HardwareConfirmationContent.SignTransaction.canceledTitle)

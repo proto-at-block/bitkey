@@ -160,18 +160,18 @@ class FirmwareMetadataUiStateMachineImpl(
       activeSlot = activeSlot?.name
     )
 
-  private sealed class State {
+  private sealed interface State {
     data class ShowingMetadataUiState(
       val firmwareMetadata: FirmwareMetadata,
       val mcuInfo: List<McuInfo>,
-    ) : State()
+    ) : State
 
-    data object LoadingMetadataUiState : State()
+    data object LoadingMetadataUiState : State
 
-    data object ReadingMetadataUiState : State()
+    data object ReadingMetadataUiState : State
 
     data class ReadMetadataSuccessUiState(
       val firmwareInfoPair: Pair<FirmwareDeviceInfo, FirmwareMetadata>,
-    ) : State()
+    ) : State
   }
 }

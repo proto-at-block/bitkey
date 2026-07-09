@@ -68,6 +68,23 @@ class ElectrumServerConfigRepositoryImpl(
       .logFailure { "Failed to store user Electrum server preference" }
   }
 
+  private val electrumServerEntity =
+    flow {
+      databaseProvider.database()
+        .electrumConfigQueries
+        .loadElectrumConfig()
+        .asFlowOfOneOrNull()
+        .transformLatest { queryResult ->
+          queryResult
+            .onSuccess { entity ->
+              emit(entity)
+            }
+            .logFailure { "Error reading electrum server record from database" }
+        }
+        .distinctUntilChanged()
+        .collect(::emit)
+    }
+
   override fun getUserElectrumServerPreference(): Flow<ElectrumServerPreferenceValue?> =
     electrumServerEntity.map { entity ->
       when (entity?.isCustomElectrumServerOn) {
@@ -118,22 +135,5 @@ class ElectrumServerConfigRepositoryImpl(
           )
         )
       }
-    }
-
-  private val electrumServerEntity =
-    flow {
-      databaseProvider.database()
-        .electrumConfigQueries
-        .loadElectrumConfig()
-        .asFlowOfOneOrNull()
-        .transformLatest { queryResult ->
-          queryResult
-            .onSuccess { entity ->
-              emit(entity)
-            }
-            .logFailure { "Error reading electrum server record from database" }
-        }
-        .distinctUntilChanged()
-        .collect(::emit)
     }
 }

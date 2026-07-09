@@ -11,14 +11,15 @@ import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.Customer
 import build.wallet.platform.config.AppVariant.Development
 import build.wallet.platform.config.AppVariant.Team
+import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
-import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.shouldBe
 
 class CloudBackupDeleterImplTests : FunSpec({
   val accountId = FullAccountIdMock
@@ -44,21 +45,21 @@ class CloudBackupDeleterImplTests : FunSpec({
 
   context("Customer builds") {
     test("not allowed to delete single cloud backup") {
-      shouldThrow<IllegalStateException> {
-        cloudBackupDeleter(Customer).delete(accountId)
-      }
+      cloudBackupDeleter(Customer).delete(accountId)
+        .shouldBeErrOfType<Error>()
+        .message.shouldBe("Not allowed to clear cloud backups in Customer builds.")
     }
 
     test("not allowed to delete all cloud backups") {
-      shouldThrow<IllegalStateException> {
-        cloudBackupDeleter(Customer).deleteAllBackups()
-      }
+      cloudBackupDeleter(Customer).deleteAllBackups()
+        .shouldBeErrOfType<Error>()
+        .message.shouldBe("Not allowed to clear cloud backups in Customer builds.")
     }
 
     test("not allowed to delete cloud backups in a store") {
-      shouldThrow<IllegalStateException> {
-        cloudBackupDeleter(Customer).deleteBackupsIn(storeType)
-      }
+      cloudBackupDeleter(Customer).deleteBackupsIn(storeType)
+        .shouldBeErrOfType<Error>()
+        .message.shouldBe("Not allowed to clear cloud backups in Customer builds.")
     }
   }
 
@@ -72,7 +73,7 @@ class CloudBackupDeleterImplTests : FunSpec({
           requireAuthRefresh = false
         ).shouldBeOk()
 
-        cloudBackupDeleter(variant).delete(accountId)
+        cloudBackupDeleter(variant).delete(accountId).shouldBeOk()
 
         cloudBackupService.readActiveBackup(cloudAccount)
           .shouldBeOk()
@@ -87,25 +88,35 @@ class CloudBackupDeleterImplTests : FunSpec({
           requireAuthRefresh = false
         ).shouldBeOk()
 
-        cloudBackupDeleter(variant).deleteAllBackups()
+        cloudBackupDeleter(variant).deleteAllBackups().shouldBeOk()
 
         cloudBackupService.awaitNoBackups()
       }
 
-      test("delete all cloud backups suppress the error when there is no cloud account") {
+      test("delete all cloud backups fails when cloud account lookup fails") {
         cloudStoreAccountRepository.currentAccountResult = Err(object : CloudStoreAccountError() {})
 
         cloudBackupDeleter(variant).deleteAllBackups()
+          .shouldBeErrOfType<Error>()
+          .message.shouldBe("Failed to find cloud account")
+      }
+
+      test("delete all cloud backups fails when there is no cloud account") {
+        cloudStoreAccountRepository.currentAccountResult = Ok(null)
+
+        cloudBackupDeleter(variant).deleteAllBackups()
+          .shouldBeErrOfType<Error>()
+          .message.shouldBe("No cloud account")
       }
 
       test("delete all cloud backups uses cloud backup service path") {
-        cloudBackupDeleter(variant).deleteAllBackups()
+        cloudBackupDeleter(variant).deleteAllBackups().shouldBeOk()
 
         cloudBackupStoreCleaner.deleteCalls.shouldBeEmpty()
       }
 
       test("delete cloud backups in a store uses store cleaner path") {
-        cloudBackupDeleter(variant).deleteBackupsIn(storeType)
+        cloudBackupDeleter(variant).deleteBackupsIn(storeType).shouldBeOk()
 
         cloudBackupStoreCleaner.deleteCalls.shouldContain(
           CloudBackupStoreCleanerFake.DeleteCall(

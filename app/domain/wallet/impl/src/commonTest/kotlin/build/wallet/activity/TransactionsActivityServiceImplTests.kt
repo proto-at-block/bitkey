@@ -18,7 +18,6 @@ import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.coroutines.createBackgroundScope
 import build.wallet.coroutines.turbine.awaitUntil
-import build.wallet.coroutines.turbine.awaitUntilNotNull
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.recovery.LegacyRemoteKeyset
 import build.wallet.f8e.recovery.ListKeysetsF8eClientMock
@@ -171,8 +170,8 @@ class TransactionsActivityServiceImplTests : FunSpec({
       service.executeWork()
     }
 
-    service.transactions.test {
-      awaitUntilNotNull().shouldContainExactly(
+    service.transactionsState.test {
+      awaitUntil<TransactionsActivityState.Loaded>().transactions.shouldContainExactly(
         Transaction.PartnershipTransaction(
           details = partnershipTxWithMatch,
           bitcoinTransaction = btcTxWithMatch
@@ -184,7 +183,7 @@ class TransactionsActivityServiceImplTests : FunSpec({
       )
 
       bitcoinWalletService.setTransactions(listOf())
-      awaitItem().shouldContainExactly(
+      awaitUntil<TransactionsActivityState.Loaded>().transactions.shouldContainExactly(
         Transaction.PartnershipTransaction(
           details = partnershipTxWithMatch,
           bitcoinTransaction = null
@@ -196,7 +195,7 @@ class TransactionsActivityServiceImplTests : FunSpec({
       )
 
       partnershipTransactionsService.transactions.value = listOf(partnershipTxWithMatch)
-      awaitItem().shouldContainExactly(
+      awaitUntil<TransactionsActivityState.Loaded>().transactions.shouldContainExactly(
         Transaction.PartnershipTransaction(
           details = partnershipTxWithMatch,
           bitcoinTransaction = null

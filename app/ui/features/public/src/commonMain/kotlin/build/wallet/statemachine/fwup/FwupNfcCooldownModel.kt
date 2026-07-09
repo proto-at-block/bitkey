@@ -11,9 +11,10 @@ import androidx.compose.ui.unit.dp
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.FwupEventTrackerScreenId
 import build.wallet.statemachine.core.BodyModel
+import build.wallet.statemachine.core.form.FormMainContentVerticalAlignment
 import build.wallet.statemachine.core.form.FormHeaderModel
+import build.wallet.statemachine.core.form.FormScreenLayoutModel
 import build.wallet.ui.app.core.form.FormScreen
-import build.wallet.ui.app.core.form.FormScreenContentVerticalAlignment
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.header.Header
 import build.wallet.ui.components.progress.IndeterminateCircularProgressIndicator
@@ -74,9 +75,10 @@ data class FwupNfcCooldownModel(
     FormScreen(
       modifier = modifier,
       onBack = onBack,
-      designSystemV2UseLayout = true,
-      designSystemV2Scrollable = false,
-      designSystemV2MainContentAlignment = FormScreenContentVerticalAlignment.Center,
+      layout = FormScreenLayoutModel.LargeTitle(
+        scrollable = false,
+        mainContentVerticalAlignment = FormMainContentVerticalAlignment.CENTER
+      ),
       headerContent = {
         Header(model = headerModel)
       },

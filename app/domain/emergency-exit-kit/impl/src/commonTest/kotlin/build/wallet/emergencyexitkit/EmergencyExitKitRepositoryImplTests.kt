@@ -1,12 +1,16 @@
 package build.wallet.emergencyexitkit
 
+import bitkey.account.AccountConfigServiceFake
 import build.wallet.cloud.store.CloudAccountMock
 import build.wallet.cloud.store.CloudError
+import build.wallet.cloud.store.CloudFileStoreDelegate
 import build.wallet.cloud.store.CloudFileStoreFake
+import build.wallet.cloud.store.CloudFileStoreFakeImpl
 import build.wallet.platform.data.FileManager
 import build.wallet.platform.data.FileManagerMock
 import build.wallet.platform.data.MimeType
 import build.wallet.testing.shouldBeErrOfType
+import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.map
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
@@ -73,5 +77,26 @@ class EmergencyExitKitRepositoryImplTests : FunSpec({
     cloudFileStore.read(account, "Emergency Access Kit.pdf").result.value
       .shouldBeEqual(oldEEK.pdfData)
     cloudFileStore.read(account, "Emergency Exit Kit.pdf").result.shouldBeErrOfType<CloudError>()
+  }
+
+  test("fake cloud mode writes and reads through local fake file storage") {
+    val accountConfigService = AccountConfigServiceFake()
+    val realCloudFileStore = CloudFileStoreFakeImpl(FileManagerMock().apply { failWrite = true })
+    val fakeCloudFileStore = CloudFileStoreFakeImpl(FileManagerMock())
+    val repository = EmergencyExitKitRepositoryImpl(
+      CloudFileStoreDelegate(
+        realStore = realCloudFileStore,
+        fakeStore = fakeCloudFileStore,
+        accountConfigService = accountConfigService
+      )
+    )
+    val staleRealAccount = CloudAccountMock("stale-real-account")
+    accountConfigService.setIsCloudStoreFake(true)
+
+    repository.write(staleRealAccount, emergencyExitKitData).shouldBeOk(Unit)
+    repository.read(staleRealAccount)
+      .map { it.pdfData }
+      .value
+      .shouldBeEqual(emergencyExitKitData.pdfData)
   }
 })

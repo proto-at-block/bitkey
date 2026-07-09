@@ -22,7 +22,7 @@ import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.theme.WalletTheme.colors
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tokens.isAllCapsInCurrentDesignSystem
+import build.wallet.ui.tokens.shouldRenderAllCaps
 
 /**
  * Styling configuration for a [Button].
@@ -52,24 +52,21 @@ data class ButtonStyle(
 fun WalletTheme.buttonStyle(
   treatment: ButtonModel.Treatment,
   size: ButtonModel.Size,
-  cornerRadius: Dp = 16.dp,
   enabled: Boolean = true,
 ): ButtonStyle {
-  val isDesignSystemV2Enabled = true
-  val effectiveCornerRadius = if (isDesignSystemV2Enabled) 80.dp else cornerRadius
   val isTextButton = treatment.isTextButton()
-  val labelType = treatment.textLabelType(isDesignSystemV2Enabled)
+  val labelType = treatment.textLabelType()
 
   return ButtonStyle(
-    textStyle = treatment.toTextStyle(labelType, isDesignSystemV2Enabled),
-    isAllCaps = labelType.isAllCapsInCurrentDesignSystem(),
-    shape = RoundedCornerShape(effectiveCornerRadius),
-    backgroundColor = treatment.backgroundColor(enabled, isDesignSystemV2Enabled),
-    iconColor = iconColor(treatment, isDesignSystemV2Enabled),
+    textStyle = treatment.toTextStyle(labelType),
+    isAllCaps = labelType.shouldRenderAllCaps(),
+    shape = RoundedCornerShape(80.dp),
+    backgroundColor = treatment.backgroundColor(enabled),
+    iconColor = iconColor(treatment),
     iconSize = treatment.leadingIconSize,
     isTextButton = isTextButton,
     fillWidth = size == Footer,
-    height = size.toHeight(isDesignSystemV2Enabled),
+    height = size.toHeight(),
     minWidth = size.toMinWidth(isTextButton),
     verticalPadding = size.toVerticalPadding(),
     horizontalPadding = size.toHorizontalPadding(isTextButton),
@@ -83,22 +80,13 @@ private fun ButtonModel.Treatment.isTextButton(): Boolean =
     this == TertiaryNoUnderline ||
     this == TertiaryNoUnderlineWhite
 
-private fun ButtonModel.Treatment.textLabelType(isDesignSystemV2Enabled: Boolean): LabelType =
-  if (isDesignSystemV2Enabled) {
-    LabelType.Body3Mono
-  } else {
-    when (this) {
-      Tertiary, TertiaryNoUnderline, TertiaryNoUnderlineWhite -> LabelType.Label2
-      else -> LabelType.Label1
-    }
-  }
+private fun ButtonModel.Treatment.textLabelType(): LabelType = LabelType.Body3Mono
 
 @Composable
 private fun ButtonModel.Treatment.toTextStyle(
   labelType: LabelType,
-  isDesignSystemV2Enabled: Boolean,
 ): TextStyle {
-  val textColor = textColor(treatment = this, isDesignSystemV2Enabled = isDesignSystemV2Enabled)
+  val textColor = textColor(treatment = this)
 
   return buttonTextStyle(
     type = labelType,
@@ -110,20 +98,19 @@ private fun ButtonModel.Treatment.toTextStyle(
 @Composable
 private fun ButtonModel.Treatment.backgroundColor(
   enabled: Boolean,
-  isDesignSystemV2Enabled: Boolean,
 ): Color =
   if (enabled) {
-    normalBackgroundColor(isDesignSystemV2Enabled)
+    normalBackgroundColor()
   } else {
-    disabledBackgroundColor(isDesignSystemV2Enabled)
+    disabledBackgroundColor()
   }
 
-private fun ButtonModel.Size.toHeight(isDesignSystemV2Enabled: Boolean): Dp? =
+private fun ButtonModel.Size.toHeight(): Dp? =
   when (this) {
     Compact -> 32.dp
     ToolbarAccessory -> 44.dp
     Floating -> 64.dp
-    Footer, Regular -> if (isDesignSystemV2Enabled) 56.dp else 52.dp
+    Footer, Regular -> 56.dp
     FitContent -> null
     Short -> 40.dp
   }
@@ -157,44 +144,14 @@ private fun ButtonModel.Size.toHorizontalPadding(isTextButton: Boolean): Dp =
 @ReadOnlyComposable
 private fun textColor(
   treatment: ButtonModel.Treatment,
-  isDesignSystemV2Enabled: Boolean,
 ): Color {
-  if (isDesignSystemV2Enabled) {
-    if (treatment == SecondaryDestructive || treatment == TertiaryDestructive) {
-      return colors.destructive
-    }
-    return if (treatment.isV2NeutralBackground()) {
-      colors.inverseBackground
-    } else {
-      colors.background
-    }
+  if (treatment == SecondaryDestructive || treatment == TertiaryDestructive) {
+    return colors.destructive
   }
-  return when (treatment) {
-    Primary,
-    PrimaryDestructive,
-    -> colors.primaryForeground
-    PrimaryDanger -> colors.dangerButtonText
-
-    Secondary -> colors.secondaryForeground
-    SecondaryDestructive -> colors.destructive
-    Tertiary,
-    TertiaryNoUnderline,
-    -> colors.foreground
-
-    TertiaryNoUnderlineWhite,
-    -> colors.primaryForeground
-
-    TertiaryDestructive -> colors.destructiveForeground
-    Translucent, Translucent10 -> colors.translucentForeground
-    Grayscale20 -> colors.surfaceCorian
-    TertiaryPrimary,
-    TertiaryPrimaryNoUnderline,
-    -> colors.bitkeyPrimary
-
-    BitkeyInteraction -> colors.background
-    White -> Color.Black
-    Warning -> colors.foreground10
-    Accent -> colors.primaryForeground
+  return if (treatment.usesNeutralBackground()) {
+    colors.inverseBackground
+  } else {
+    colors.background
   }
 }
 
@@ -202,49 +159,18 @@ private fun textColor(
 @ReadOnlyComposable
 private fun iconColor(
   treatment: ButtonModel.Treatment,
-  isDesignSystemV2Enabled: Boolean,
 ): Color {
-  if (isDesignSystemV2Enabled) {
-    if (treatment == SecondaryDestructive || treatment == TertiaryDestructive) {
-      return colors.destructive
-    }
-    return if (treatment.isV2NeutralBackground()) {
-      colors.inverseBackground
-    } else {
-      colors.background
-    }
+  if (treatment == SecondaryDestructive || treatment == TertiaryDestructive) {
+    return colors.destructive
   }
-  return when (treatment) {
-    Primary,
-    PrimaryDestructive,
-    -> colors.primaryIconForeground
-    PrimaryDanger -> colors.dangerButtonText
-
-    Secondary -> colors.secondaryIconForeground
-    SecondaryDestructive -> colors.destructive
-    Tertiary,
-    TertiaryNoUnderline,
-    -> colors.primaryIcon
-
-    TertiaryNoUnderlineWhite,
-    -> colors.primaryIconForeground
-
-    TertiaryDestructive -> colors.destructive
-    Translucent, Translucent10 -> colors.translucentForeground
-    Grayscale20 -> colors.surfaceCorian
-    TertiaryPrimary,
-    TertiaryPrimaryNoUnderline,
-    -> colors.bitkeyPrimary
-
-    BitkeyInteraction -> colors.background
-    White -> Color.Black
-
-    Warning -> colors.warning
-    Accent -> colors.primaryForeground
+  return if (treatment.usesNeutralBackground()) {
+    colors.inverseBackground
+  } else {
+    colors.background
   }
 }
 
-private fun ButtonModel.Treatment.isV2NeutralBackground(): Boolean =
+private fun ButtonModel.Treatment.usesNeutralBackground(): Boolean =
   when (this) {
     Secondary,
     SecondaryDestructive,
@@ -263,14 +189,9 @@ private fun ButtonModel.Treatment.isV2NeutralBackground(): Boolean =
 
 @Composable
 @ReadOnlyComposable
-private fun ButtonModel.Treatment.normalBackgroundColor(isDesignSystemV2Enabled: Boolean) =
+private fun ButtonModel.Treatment.normalBackgroundColor() =
   when (this) {
-    Primary ->
-      if (isDesignSystemV2Enabled) {
-        colors.inverseBackground
-      } else {
-        colors.bitkeyPrimary
-      }
+    Primary -> colors.inverseBackground
     PrimaryDanger -> colors.dangerBackground
     Secondary, SecondaryDestructive -> colors.secondary
     PrimaryDestructive -> colors.destructive
@@ -283,12 +204,7 @@ private fun ButtonModel.Treatment.normalBackgroundColor(isDesignSystemV2Enabled:
     TertiaryPrimary,
     TertiaryPrimaryNoUnderline,
     -> Color.Transparent
-    BitkeyInteraction ->
-      if (isDesignSystemV2Enabled) {
-        colors.inverseBackground
-      } else {
-        colors.inverseBackground
-      }
+    BitkeyInteraction -> colors.inverseBackground
     White -> Color.White
     Warning -> colors.warningForeground
     Accent,
@@ -298,14 +214,10 @@ private fun ButtonModel.Treatment.normalBackgroundColor(isDesignSystemV2Enabled:
 
 @Composable
 @ReadOnlyComposable
-private fun ButtonModel.Treatment.disabledBackgroundColor(isDesignSystemV2Enabled: Boolean) =
+private fun ButtonModel.Treatment.disabledBackgroundColor() =
   when (this) {
     Primary ->
-      if (isDesignSystemV2Enabled) {
-        colors.inverseBackground.copy(alpha = 0.4F)
-      } else {
-        colors.bitkeyPrimary.copy(alpha = 0.4F)
-      }
+      colors.inverseBackground.copy(alpha = 0.4F)
     PrimaryDestructive ->
       colors.destructive.copy(alpha = 0.4F)
     PrimaryDanger, Secondary, SecondaryDestructive ->
@@ -323,11 +235,7 @@ private fun ButtonModel.Treatment.disabledBackgroundColor(isDesignSystemV2Enable
     ->
       Color.Transparent
     BitkeyInteraction ->
-      if (isDesignSystemV2Enabled) {
-        colors.inverseBackground.copy(alpha = 0.4F)
-      } else {
-        colors.inverseBackground.copy(alpha = 0.2F)
-      }
+      colors.inverseBackground.copy(alpha = 0.4F)
     White -> Color.White.copy(alpha = 0.4F)
     Warning -> colors.warningForeground.copy(alpha = 0.4F)
     Accent -> colors.accentDarkBackground

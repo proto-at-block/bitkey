@@ -141,7 +141,7 @@ class AccountDaoImpl(
       database.fullAccountQueries
         .getActiveFullAccount()
         .asFlowOfOneOrNull()
-        .map { it.flatMap { it?.toFullAccount() ?: Ok(null) } }
+        .map { result -> result.flatMap { it?.toFullAccount() ?: Ok(null) } }
         .collect(::emit)
     }
   }
@@ -174,7 +174,7 @@ class AccountDaoImpl(
       database.fullAccountQueries
         .getOnboardingFullAccount()
         .asFlowOfOneOrNull()
-        .map { it.flatMap { it?.toFullAccount() ?: Ok(null) } }
+        .map { result -> result.flatMap { it?.toFullAccount() ?: Ok(null) } }
         .collect(::emit)
     }
   }

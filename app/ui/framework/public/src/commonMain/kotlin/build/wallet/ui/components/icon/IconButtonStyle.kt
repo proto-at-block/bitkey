@@ -11,12 +11,12 @@ data class IconButtonStyle(
   val size: Dp,
   val backgroundStyle: BackgroundStyle,
 ) {
-  sealed class BackgroundStyle {
+  sealed interface BackgroundStyle {
     data class ShapedBackground(
       val shape: Shape,
       val color: Color,
-    ) : BackgroundStyle()
+    ) : BackgroundStyle
 
-    data object NoBackground : BackgroundStyle()
+    data object NoBackground : BackgroundStyle
   }
 }

@@ -7,7 +7,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.Bitcoin
-import build.wallet.statemachine.core.Icon.SmallIconCopy
+import build.wallet.statemachine.core.Icon.Copy
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.LEADING
@@ -39,26 +39,10 @@ fun PendingReceiveTransactionDetailPreview() {
   TransactionDetailPreview(model = pendingReceiveTransactionDetailModel())
 }
 
-@Preview(name = "Pending Receive DSV2")
-@Composable
-fun PendingReceiveTransactionDetailDesignSystemV2Preview() {
-  TransactionDetailPreview(
-    model = pendingReceiveTransactionDetailModel(),
-  )
-}
-
 @Preview(name = "Late Send")
 @Composable
 fun LateSendTransactionDetailPreview() {
   TransactionDetailPreview(model = lateSendTransactionDetailModel())
-}
-
-@Preview(name = "Late Send DSV2")
-@Composable
-fun LateSendTransactionDetailDesignSystemV2Preview() {
-  TransactionDetailPreview(
-    model = lateSendTransactionDetailModel(),
-  )
 }
 
 @Preview(name = "Sent")
@@ -67,26 +51,10 @@ fun SentTransactionDetailPreview() {
   TransactionDetailPreview(model = sentTransactionDetailModel())
 }
 
-@Preview(name = "Sent DSV2")
-@Composable
-fun SentTransactionDetailDesignSystemV2Preview() {
-  TransactionDetailPreview(
-    model = sentTransactionDetailModel(),
-  )
-}
-
 @Preview(name = "Received")
 @Composable
 fun ReceivedTransactionDetailPreview() {
   TransactionDetailPreview(model = receivedTransactionDetailModel())
-}
-
-@Preview(name = "Received DSV2")
-@Composable
-fun ReceivedTransactionDetailDesignSystemV2Preview() {
-  TransactionDetailPreview(
-    model = receivedTransactionDetailModel(),
-  )
 }
 
 @Preview(name = "UTXO Consolidation")
@@ -95,26 +63,10 @@ fun UtxoConsolidationTransactionDetailPreview() {
   TransactionDetailPreview(model = utxoConsolidationTransactionDetailModel())
 }
 
-@Preview(name = "UTXO Consolidation DSV2")
-@Composable
-fun UtxoConsolidationTransactionDetailDesignSystemV2Preview() {
-  TransactionDetailPreview(
-    model = utxoConsolidationTransactionDetailModel(),
-  )
-}
-
 @Preview(name = "Pending Partnership Transfer")
 @Composable
 fun PendingPartnershipTransactionDetailPreview() {
   TransactionDetailPreview(model = pendingPartnershipTransactionDetailModel())
-}
-
-@Preview(name = "Pending Partnership Transfer DSV2")
-@Composable
-fun PendingPartnershipTransactionDetailDesignSystemV2Preview() {
-  TransactionDetailPreview(
-    model = pendingPartnershipTransactionDetailModel(),
-  )
 }
 
 @Preview(name = "Pending Partnership Sale")
@@ -123,40 +75,16 @@ fun PendingPartnershipSaleTransactionDetailPreview() {
   TransactionDetailPreview(model = pendingPartnershipSaleTransactionDetailModel())
 }
 
-@Preview(name = "Pending Partnership Sale DSV2")
-@Composable
-fun PendingPartnershipSaleTransactionDetailDesignSystemV2Preview() {
-  TransactionDetailPreview(
-    model = pendingPartnershipSaleTransactionDetailModel(),
-  )
-}
-
 @Preview(name = "Confirmed Partnership Sale")
 @Composable
 fun ConfirmedPartnershipTransactionDetailPreview() {
   TransactionDetailPreview(model = confirmedPartnershipTransactionDetailModel())
 }
 
-@Preview(name = "Confirmed Partnership Sale DSV2")
-@Composable
-fun ConfirmedPartnershipTransactionDetailDesignSystemV2Preview() {
-  TransactionDetailPreview(
-    model = confirmedPartnershipTransactionDetailModel(),
-  )
-}
-
 @Preview(name = "Confirmed Partnership Purchase")
 @Composable
 fun ConfirmedPartnershipPurchaseTransactionDetailPreview() {
   TransactionDetailPreview(model = confirmedPartnershipPurchaseTransactionDetailModel())
-}
-
-@Preview(name = "Confirmed Partnership Purchase DSV2")
-@Composable
-fun ConfirmedPartnershipPurchaseTransactionDetailDesignSystemV2Preview() {
-  TransactionDetailPreview(
-    model = confirmedPartnershipPurchaseTransactionDetailModel(),
-  )
 }
 
 @Composable
@@ -221,7 +149,7 @@ private fun lateSendTransactionDetailModel() =
               showTopDivider = true,
               iconButton = IconButtonModel(
                 iconModel = IconModel(
-                  icon = Icon.SmallIconInformation,
+                  icon = Icon.Information,
                   iconSize = IconSize.Accessory,
                   iconBackgroundType = IconBackgroundType.Circle(
                     circleSize = IconSize.Accessory
@@ -467,7 +395,7 @@ private fun transactionIdDataList() =
         title = "Transaction ID",
         sideText = TRANSACTION_ID,
         onClick = {},
-        endIcon = SmallIconCopy
+        endIcon = Copy
       ).asTransactionDetailTypography()
     )
   )

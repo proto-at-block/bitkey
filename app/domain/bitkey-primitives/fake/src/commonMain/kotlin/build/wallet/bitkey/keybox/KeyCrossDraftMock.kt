@@ -9,6 +9,7 @@ import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.bitkey.hardware.HwSpendingKeyProofMock
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.keybox.KeyCrossDraft.WithAppKeysAndHardwareKeys
@@ -54,5 +55,6 @@ val WithAppKeysAndHardwareKeysMock =
     appKeyBundle = appKeyBundle,
     hardwareKeyBundle = hwKeyBundle,
     config = config,
-    appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock
+    appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
+    spendingKeyProof = HwSpendingKeyProofMock
   )

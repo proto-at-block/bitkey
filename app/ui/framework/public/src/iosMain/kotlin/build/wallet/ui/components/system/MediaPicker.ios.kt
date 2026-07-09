@@ -5,7 +5,7 @@ package build.wallet.ui.components.system
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.ui.interop.LocalUIViewController
+import androidx.compose.ui.uikit.LocalUIViewController
 import build.wallet.platform.data.MimeType
 import build.wallet.statemachine.core.SystemUIModel
 import kotlinx.cinterop.ExperimentalForeignApi

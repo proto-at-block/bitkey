@@ -66,33 +66,3 @@ fun PreviewSpendingLimitPickerScreenWithValueKeypad() {
     )
   }
 }
-
-@Preview
-@Composable
-fun PreviewSpendingLimitPickerScreenWithValueKeypadDesignSystemV2() {
-  PreviewWalletTheme(
-    backgroundColor = lightStyleDictionaryColors.subtleBackground
-  ) {
-    SpendingLimitPickerScreen(
-      model = SpendingLimitPickerModel(
-        onBack = {},
-        toolbarModel = ToolbarModel(
-          leadingAccessory = BackAccessory {},
-          middleAccessory = ToolbarMiddleAccessoryModel(title = "Set daily limit")
-        ),
-        amountModel = MoneyAmountEntryModel(
-          primaryAmount = "$100",
-          primaryAmountGhostedSubstringRange = null,
-          secondaryAmount = "484,191 sats"
-        ),
-        keypadModel = KeypadModel(
-          showDecimal = false,
-          onButtonPress = {}
-        ),
-        setLimitButtonEnabled = true,
-        setLimitButtonLoading = false,
-        onSetLimitClick = {}
-      )
-    )
-  }
-}

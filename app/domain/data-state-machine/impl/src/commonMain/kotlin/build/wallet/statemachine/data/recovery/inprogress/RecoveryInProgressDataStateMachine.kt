@@ -1244,9 +1244,15 @@ class RecoveryInProgressDataStateMachineImpl(
                   session = session,
                   sealedDdkData = dataState.sealedDdkData,
                   sealedSsekForDecryption = dataState.sealedSsekForDecryption,
-                  descriptorBackupsBindings = dataState.descriptorBackupsBindings!!,
-                  activateKeysetBindings = dataState.activateKeysetBindings!!,
-                  actionProofVersion = dataState.actionProofVersion!!
+                  descriptorBackupsBindings = checkNotNull(dataState.descriptorBackupsBindings) {
+                    "descriptorBackupsBindings is required in the W3 recovery flow"
+                  },
+                  activateKeysetBindings = checkNotNull(dataState.activateKeysetBindings) {
+                    "activateKeysetBindings is required in the W3 recovery flow"
+                  },
+                  actionProofVersion = checkNotNull(dataState.actionProofVersion) {
+                    "actionProofVersion is required in the W3 recovery flow"
+                  }
                 )
               },
               onSuccess = onSuccess@{ result ->
@@ -1281,11 +1287,19 @@ class RecoveryInProgressDataStateMachineImpl(
                 // Convert signatures to ActionProof headers (both HW + app)
                 val (descriptorBackupsProof, activateKeysetProof) = createW3ActionProofs(
                   descriptorBackupsSignature = result.descriptorBackupsSignature,
-                  descriptorBackupsNonce = dataState.descriptorBackupsNonce!!,
-                  descriptorBackupsBindings = dataState.descriptorBackupsBindings!!,
+                  descriptorBackupsNonce = checkNotNull(dataState.descriptorBackupsNonce) {
+                    "descriptorBackupsNonce is required in the W3 recovery flow"
+                  },
+                  descriptorBackupsBindings = checkNotNull(dataState.descriptorBackupsBindings) {
+                    "descriptorBackupsBindings is required in the W3 recovery flow"
+                  },
                   activateKeysetSignature = result.activateKeysetSignature,
-                  activateKeysetNonce = dataState.activateKeysetNonce!!,
-                  activateKeysetBindings = dataState.activateKeysetBindings!!,
+                  activateKeysetNonce = checkNotNull(dataState.activateKeysetNonce) {
+                    "activateKeysetNonce is required in the W3 recovery flow"
+                  },
+                  activateKeysetBindings = checkNotNull(dataState.activateKeysetBindings) {
+                    "activateKeysetBindings is required in the W3 recovery flow"
+                  },
                   appAuthKey = props.recovery.appGlobalAuthKey
                 ) ?: run {
                   state =
@@ -1410,20 +1424,34 @@ class RecoveryInProgressDataStateMachineImpl(
                 commands.requireW3(session).recoveryAuthorizeLostHw(
                   session = session,
                   ddkPrivateKeyBytes = dataState.ddkKeypair?.privateKey?.bytes,
-                  descriptorBackupsBindings = dataState.descriptorBackupsBindings!!,
-                  activateKeysetBindings = dataState.activateKeysetBindings!!,
-                  actionProofVersion = dataState.actionProofVersion!!
+                  descriptorBackupsBindings = checkNotNull(dataState.descriptorBackupsBindings) {
+                    "descriptorBackupsBindings is required in the W3 recovery flow"
+                  },
+                  activateKeysetBindings = checkNotNull(dataState.activateKeysetBindings) {
+                    "activateKeysetBindings is required in the W3 recovery flow"
+                  },
+                  actionProofVersion = checkNotNull(dataState.actionProofVersion) {
+                    "actionProofVersion is required in the W3 recovery flow"
+                  }
                 )
               },
               onSuccess = onSuccess@{ result ->
                 // Convert signatures to ActionProof headers (both HW + app)
                 val (descriptorBackupsProof, activateKeysetProof) = createW3ActionProofs(
                   descriptorBackupsSignature = result.descriptorBackupsSignature,
-                  descriptorBackupsNonce = dataState.descriptorBackupsNonce!!,
-                  descriptorBackupsBindings = dataState.descriptorBackupsBindings!!,
+                  descriptorBackupsNonce = checkNotNull(dataState.descriptorBackupsNonce) {
+                    "descriptorBackupsNonce is required in the W3 recovery flow"
+                  },
+                  descriptorBackupsBindings = checkNotNull(dataState.descriptorBackupsBindings) {
+                    "descriptorBackupsBindings is required in the W3 recovery flow"
+                  },
                   activateKeysetSignature = result.activateKeysetSignature,
-                  activateKeysetNonce = dataState.activateKeysetNonce!!,
-                  activateKeysetBindings = dataState.activateKeysetBindings!!,
+                  activateKeysetNonce = checkNotNull(dataState.activateKeysetNonce) {
+                    "activateKeysetNonce is required in the W3 recovery flow"
+                  },
+                  activateKeysetBindings = checkNotNull(dataState.activateKeysetBindings) {
+                    "activateKeysetBindings is required in the W3 recovery flow"
+                  },
                   appAuthKey = props.recovery.appGlobalAuthKey
                 ) ?: run {
                   state =

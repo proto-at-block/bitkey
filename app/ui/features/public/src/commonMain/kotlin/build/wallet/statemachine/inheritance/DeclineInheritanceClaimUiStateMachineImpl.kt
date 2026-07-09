@@ -36,8 +36,8 @@ class DeclineInheritanceClaimUiStateMachineImpl(
         LaunchedEffect("fetch claims") {
           inheritanceClaimsRepository.fetchClaims()
             .onSuccess {
-              val claim = it.benefactorClaims.firstOrNull {
-                it.claimId.value == props.claimId
+              val claim = it.benefactorClaims.firstOrNull { benefactorClaim ->
+                benefactorClaim.claimId.value == props.claimId
               } as? BenefactorClaim.PendingClaim
               val trustedContact = inheritanceService.inheritanceRelationships.map {
                   relationships ->

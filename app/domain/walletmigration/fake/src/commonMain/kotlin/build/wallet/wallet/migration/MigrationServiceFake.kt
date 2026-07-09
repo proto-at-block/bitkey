@@ -39,6 +39,9 @@ class MigrationServiceFake : MigrationService {
 
   var resumeCalls = mutableListOf<MigrationType>()
   var proceedCalls = mutableListOf<MigrationProgress>()
+  var hardwareAuthKeyAvailabilityResult: Result<HardwareAuthKeyAvailabilityStatus, MigrationError> =
+    Ok(HardwareAuthKeyAvailabilityStatus.Available)
+  var hardwareAuthKeyAvailabilityCalls = mutableListOf<Pair<FullAccount, HwAuthPublicKey>>()
   var clearMigrationCalls = mutableListOf<MigrationType>()
   var estimateMigrationFeesCalls = mutableListOf<Pair<FullAccount, String?>>()
   var isW3UpgradeInProgressResult: Boolean = false
@@ -78,6 +81,14 @@ class MigrationServiceFake : MigrationService {
     }
   }
 
+  override suspend fun checkW3UpgradeHardwareAuthKeyAvailability(
+    account: FullAccount,
+    hwAuthPublicKey: HwAuthPublicKey,
+  ): Result<HardwareAuthKeyAvailabilityStatus, MigrationError> {
+    hardwareAuthKeyAvailabilityCalls += account to hwAuthPublicKey
+    return hardwareAuthKeyAvailabilityResult
+  }
+
   override suspend fun clearMigration(type: MigrationType) {
     clearMigrationCalls.add(type)
   }
@@ -104,6 +115,8 @@ class MigrationServiceFake : MigrationService {
     estimateMigrationFeesResults.clear()
     resumeCalls.clear()
     proceedCalls.clear()
+    hardwareAuthKeyAvailabilityResult = Ok(HardwareAuthKeyAvailabilityStatus.Available)
+    hardwareAuthKeyAvailabilityCalls.clear()
     clearMigrationCalls.clear()
     estimateMigrationFeesCalls.clear()
     isW3UpgradeInProgressResult = false

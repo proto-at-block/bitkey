@@ -1,0 +1,7 @@
+ALTER TABLE privateWalletMigrationEntity ADD COLUMN newHardwareKeyProof TEXT;
+
+ALTER TABLE w3UpgradeMigrationEntity ADD COLUMN newHardwareKeyProof TEXT;
+
+ALTER TABLE localRecoveryAttemptEntity ADD COLUMN destinationHardwareSpendingKeyProof TEXT;
+
+PRAGMA foreign_key_check;

@@ -5,7 +5,11 @@ import com.github.michaelbull.result.Result
 import kotlinx.datetime.Instant
 
 class OnboardingCompletionServiceFake : OnboardingCompletionService {
-  private var completionTimestamp: Instant? = null
+  /**
+   * Persistent timestamp that [getCompletionTimestampResult] falls back to after its one-shot
+   * value is consumed. Set this for tests that read the timestamp more than once.
+   */
+  var completionTimestamp: Instant? = null
   private var fallbackCompletion: Boolean = false
 
   var recordCompletionResult: Result<Unit, Error> = Ok(Unit)

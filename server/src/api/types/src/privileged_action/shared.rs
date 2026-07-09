@@ -54,6 +54,7 @@ pub enum PrivilegedActionType {
     ActivateTouchpoint,
     ResetFingerprint,
     LoosenTransactionVerificationPolicy,
+    VerifyHardwareSerial,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema, PartialEq, Eq)]

@@ -1,23 +1,38 @@
 package bitkey.ui.screens.recovery
 
 import androidx.compose.runtime.*
+import bitkey.account.HardwareType
 import bitkey.auth.AccountAuthTokens
+import bitkey.serialization.hex.decodeHexWithResult
 import bitkey.ui.framework.Navigator
 import bitkey.ui.framework.Screen
 import bitkey.ui.framework.ScreenPresenter
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.KeysetRepairEventTrackerScreenId
+import build.wallet.bitcoin.BitcoinNetworkType
+import build.wallet.bitcoin.keys.extractAccountIndex
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.keybox.Keybox
+import build.wallet.chaincode.delegation.ChaincodeExtractor
 import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.cloud.backup.csek.Sek
 import build.wallet.cloud.backup.csek.SsekDao
+import build.wallet.crypto.WsmVerifier
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.nfc.platform.signAccessToken
-import build.wallet.nfc.platform.unsealSymmetricKey
+import build.wallet.f8e.auth.PrivilegedActionProof
+import build.wallet.f8e.recovery.SignedKeysetVerificationResponse
+import build.wallet.keybox.KeyboxDao
+import build.wallet.logging.logFailure
+import build.wallet.nfc.platform.KeysetRepairRotateHwKeyParams
+import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.requireW3
+import build.wallet.nfc.NfcSession
+import build.wallet.recovery.keyset.PreparedRegeneratedKeyset
 import build.wallet.recovery.keyset.KeysetRepairCachedData
 import build.wallet.recovery.keyset.KeysetRepairError
 import build.wallet.recovery.keyset.PrivateKeysetInfo
@@ -26,12 +41,21 @@ import build.wallet.recovery.sweep.SweepContext
 import build.wallet.recovery.sweep.SweepService
 import build.wallet.statemachine.auth.RefreshAuthTokensProps
 import build.wallet.statemachine.auth.RefreshAuthTokensUiStateMachine
+import build.wallet.statemachine.auth.ActionProofType
+import build.wallet.statemachine.auth.HardwareAuthUiProps
+import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachine
+import build.wallet.statemachine.nfc.NfcSessionConfig
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
+import build.wallet.statemachine.nfc.verifyPublicKeysOrLog
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationContent
 import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.sweep.SweepUiProps
 import build.wallet.statemachine.recovery.sweep.SweepUiStateMachine
@@ -39,6 +63,12 @@ import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
+import com.github.michaelbull.result.Err
+import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.coroutines.coroutineBinding
+import com.github.michaelbull.result.get
+import com.github.michaelbull.result.getError
+import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
@@ -60,19 +90,24 @@ data class KeysetRepairScreen(
 @BitkeyInject(ActivityScope::class)
 class SpendingKeysetRepairScreenPresenter(
   private val spendingKeysetRepairService: SpendingKeysetRepairService,
+  private val nfcConfirmableSessionUiStateMachine: NfcConfirmableSessionUiStateMachine,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
+  private val hardwareAuthUiStateMachine: HardwareAuthUiStateMachine,
   private val sweepUiStateMachine: SweepUiStateMachine,
   private val sweepService: SweepService,
   private val ssekDao: SsekDao,
   private val refreshAuthTokensUiStateMachine: RefreshAuthTokensUiStateMachine,
+  private val keyboxDao: KeyboxDao,
+  private val chaincodeExtractor: ChaincodeExtractor,
+  private val wsmVerifier: WsmVerifier,
 ) : ScreenPresenter<KeysetRepairScreen> {
+  @Suppress("CyclomaticComplexMethod")
   @Composable
   override fun model(
     navigator: Navigator,
     screen: KeysetRepairScreen,
   ): ScreenModel {
     var uiState: State by remember { mutableStateOf(State.CheckingPrivateKeysets) }
-    val isDesignSystemV2Enabled = true
 
     return when (val currentState = uiState) {
       is State.CheckingPrivateKeysets -> {
@@ -104,7 +139,7 @@ class SpendingKeysetRepairScreenPresenter(
       is State.ShowingExplanation -> {
         ExplanationFormBodyModel(
           needsHardware = currentState.sealedSsek != null,
-          useBitkeyInteraction = currentState.useBitkeyInteraction(isDesignSystemV2Enabled),
+          useBitkeyInteraction = currentState.useBitkeyInteraction(),
           onContinue = {
             uiState = if (currentState.sealedSsek != null) {
               State.UnsealingSsek(
@@ -122,15 +157,16 @@ class SpendingKeysetRepairScreenPresenter(
       }
 
       is State.UnsealingSsek -> {
-        nfcSessionUIStateMachine.model(
-          NfcSessionUIStateMachineProps(
+        nfcConfirmableSessionUiStateMachine.model(
+          NfcConfirmableSessionUIStateMachineProps(
             session = { session, commands ->
-              val unsealedKey = commands.unsealSymmetricKey(session, currentState.sealedSsek)
-              Sek(unsealedKey)
+              commands.keysetRepairUnsealSymmetricKey(
+                session = session,
+                sealedKey = currentState.sealedSsek
+              )
             },
-            onSuccess = { unsealedSsek ->
-              // Store the unsealed SSEK for later use
-              ssekDao.set(currentState.sealedSsek, unsealedSsek)
+            onSuccess = { unsealedKey ->
+              ssekDao.set(currentState.sealedSsek, Sek(unsealedKey))
                 .onSuccess {
                   uiState = State.ExecutingRepair(
                     cachedData = currentState.cachedData
@@ -143,15 +179,19 @@ class SpendingKeysetRepairScreenPresenter(
                   )
                 }
             },
-            onCancel = {
-              uiState = State.ShowingExplanation(
-                sealedSsek = currentState.sealedSsek,
-                cachedData = currentState.cachedData
-              )
-            },
-            hardwareVerification = NotRequired,
-            screenPresentationStyle = ScreenPresentationStyle.Modal,
-            eventTrackerContext = NfcEventTrackerScreenIdContext.UNSEAL_SSEK
+            config = NfcSessionConfig(
+              onCancel = {
+                uiState = State.ShowingExplanation(
+                  sealedSsek = currentState.sealedSsek,
+                  cachedData = currentState.cachedData
+                )
+              },
+              hardwareVerification = NotRequired,
+              shouldLock = screen.account.config.hardwareType != HardwareType.W3,
+              screenPresentationStyle = ScreenPresentationStyle.Modal,
+              eventTrackerContext = NfcEventTrackerScreenIdContext.UNSEAL_SSEK
+            ),
+            confirmationContent = HardwareConfirmationContent.KeysetRepairUnseal
           )
         )
       }
@@ -224,22 +264,16 @@ class SpendingKeysetRepairScreenPresenter(
       }
 
       is State.GeneratingHardwareKey -> {
-        nfcSessionUIStateMachine.model(
-          NfcSessionUIStateMachineProps(
+        nfcConfirmableSessionUiStateMachine.model(
+          NfcConfirmableSessionUIStateMachineProps(
             session = { session, commands ->
-              val existingHwKeys = currentState.updatedKeybox.keysets.map { it.hardwareKey }
-              val newHwKey = commands.getNextSpendingKey(
+              commands.keysetRepairRotateHwKey(
                 session = session,
-                existingDescriptorPublicKeys = existingHwKeys,
-                network = currentState.updatedKeybox.config.bitcoinNetworkType
-              )
-              val signedAccessToken = commands.signAccessToken(
-                session = session,
-                accessToken = currentState.authTokens.accessToken
-              )
-              HardwareKeyGenerationResult(
-                hwSpendingKey = newHwKey,
-                hwProofOfPossession = HwFactorProofOfPossession(signedAccessToken)
+                params = KeysetRepairRotateHwKeyParams(
+                  accessToken = currentState.authTokens.accessToken,
+                  existingHwSpendingKeys = currentState.updatedKeybox.keysets.map { it.hardwareKey },
+                  network = currentState.updatedKeybox.config.bitcoinNetworkType
+                )
               )
             },
             onSuccess = { result ->
@@ -247,33 +281,154 @@ class SpendingKeysetRepairScreenPresenter(
                 updatedKeybox = currentState.updatedKeybox,
                 cachedData = currentState.cachedData,
                 hwSpendingKey = result.hwSpendingKey,
-                hwProofOfPossession = result.hwProofOfPossession
+                hwProofOfPossession = HwFactorProofOfPossession(result.signedAccessToken),
+                hwSpendingKeyProof = result.hwSpendingKeyProof
               )
             },
-            onCancel = {
-              uiState = State.ShowingKeyRegenerationExplanation(
-                updatedKeybox = currentState.updatedKeybox,
-                cachedData = currentState.cachedData
-              )
-            },
-            hardwareVerification = NotRequired,
-            screenPresentationStyle = ScreenPresentationStyle.Modal,
-            eventTrackerContext = NfcEventTrackerScreenIdContext.KEYSET_REPAIR_GENERATE_HW_KEY
+            config = NfcSessionConfig(
+              onCancel = {
+                uiState = State.ShowingKeyRegenerationExplanation(
+                  updatedKeybox = currentState.updatedKeybox,
+                  cachedData = currentState.cachedData
+                )
+              },
+              hardwareVerification = NotRequired,
+              shouldLock = screen.account.config.hardwareType != HardwareType.W3,
+              screenPresentationStyle = ScreenPresentationStyle.Modal,
+              eventTrackerContext = NfcEventTrackerScreenIdContext.KEYSET_REPAIR_GENERATE_HW_KEY
+            ),
+            confirmationContent = HardwareConfirmationContent.KeysetRepairRotateHwKey
           )
         )
       }
 
       is State.GeneratingAppKey -> {
         LaunchedEffect(currentState) {
-          spendingKeysetRepairService.regenerateActiveKeyset(
+          when (screen.account.config.hardwareType) {
+            HardwareType.W1 -> {
+              spendingKeysetRepairService.regenerateActiveKeyset(
+                account = screen.account,
+                updatedKeybox = currentState.updatedKeybox,
+                hwSpendingKey = currentState.hwSpendingKey,
+                hwProofOfPossession = currentState.hwProofOfPossession,
+                cachedData = currentState.cachedData,
+                hwSpendingKeyProof = currentState.hwSpendingKeyProof
+              )
+                .onSuccess { repair ->
+                  uiState = State.CheckingForSweep(repair.updatedKeybox)
+                }
+                .onFailure { error ->
+                  uiState = State.ShowingError(
+                    error = error,
+                    cachedData = currentState.cachedData
+                  )
+                }
+            }
+            HardwareType.W3 -> {
+              spendingKeysetRepairService.prepareRegeneratedActiveKeyset(
+                account = screen.account,
+                updatedKeybox = currentState.updatedKeybox,
+                hwSpendingKey = currentState.hwSpendingKey,
+                hwSpendingKeyProof = currentState.hwSpendingKeyProof
+              )
+                .onSuccess { prepared ->
+                  uiState = if (currentState.cachedData.response.wrappedSsek != null) {
+                    State.AuthorizingDescriptorBackup(
+                      preparedRegeneratedKeyset = prepared,
+                      cachedData = currentState.cachedData
+                    )
+                  } else {
+                    State.AuthorizingKeysetActivation(
+                      preparedRegeneratedKeyset = prepared,
+                      descriptorBackupProof = null,
+                      cachedData = currentState.cachedData
+                    )
+                  }
+                }
+                .onFailure { error ->
+                  uiState = State.ShowingError(
+                    error = error,
+                    cachedData = currentState.cachedData
+                  )
+                }
+            }
+          }
+        }
+
+        LoadingBodyModel(
+          id = KeysetRepairEventTrackerScreenId.KEYSET_REPAIR_GENERATING_APP_KEY,
+          title = "Recovering Wallet..."
+        ).asModalScreen()
+      }
+
+      is State.AuthorizingDescriptorBackup -> {
+        hardwareAuthUiStateMachine.model(
+          keysetRepairHardwareAuthProps(
             account = screen.account,
-            updatedKeybox = currentState.updatedKeybox,
-            hwSpendingKey = currentState.hwSpendingKey,
-            hwProofOfPossession = currentState.hwProofOfPossession,
+            actionProofType = ActionProofType.UpdateDescriptorBackups,
+            actionDescription = "Authorize descriptor backup update",
+            shouldLock = false,
+            onSuccess = { proof ->
+              uiState = State.AuthorizingKeysetActivation(
+                preparedRegeneratedKeyset = currentState.preparedRegeneratedKeyset,
+                descriptorBackupProof = proof,
+                cachedData = currentState.cachedData
+              )
+            },
+            onBack = {
+              uiState = State.ShowingKeyRegenerationExplanation(
+                updatedKeybox = currentState.preparedRegeneratedKeyset.keybox,
+                cachedData = currentState.cachedData
+              )
+            }
+          )
+        )
+      }
+
+      is State.AuthorizingKeysetActivation -> {
+        hardwareAuthUiStateMachine.model(
+          keysetRepairHardwareAuthProps(
+            account = screen.account,
+            actionProofType = ActionProofType.RotateSpendingKeyset(
+              keysetId = currentState.preparedRegeneratedKeyset.newKeyset.f8eSpendingKeyset.keysetId
+            ),
+            actionDescription = "Authorize keyset activation",
+            refreshAuthTokens = currentState.descriptorBackupProof == null,
+            shouldLock = false,
+            onSuccess = { proof ->
+              uiState = State.CompletingRegeneratedKeyset(
+                preparedRegeneratedKeyset = currentState.preparedRegeneratedKeyset,
+                descriptorBackupProof = currentState.descriptorBackupProof,
+                keysetActivationProof = proof,
+                cachedData = currentState.cachedData
+              )
+            },
+            onBack = {
+              uiState = State.ShowingKeyRegenerationExplanation(
+                updatedKeybox = currentState.preparedRegeneratedKeyset.keybox,
+                cachedData = currentState.cachedData
+              )
+            }
+          )
+        )
+      }
+
+      is State.CompletingRegeneratedKeyset -> {
+        LaunchedEffect(currentState) {
+          spendingKeysetRepairService.completeRegeneratedActiveKeyset(
+            account = screen.account,
+            preparedRegeneratedKeyset = currentState.preparedRegeneratedKeyset,
+            descriptorBackupProof = currentState.descriptorBackupProof,
+            keysetActivationProof = currentState.keysetActivationProof,
             cachedData = currentState.cachedData
           )
             .onSuccess { repair ->
-              uiState = State.CheckingForSweep(repair.updatedKeybox)
+              uiState = repair.signedKeysetVerification?.let { signedKeysetVerification ->
+                State.ProvisioningHardwareDescriptor(
+                  keybox = repair.updatedKeybox,
+                  signedKeysetVerification = signedKeysetVerification
+                )
+              } ?: State.CheckingForSweep(repair.updatedKeybox)
             }
             .onFailure { error ->
               uiState = State.ShowingError(
@@ -288,6 +443,86 @@ class SpendingKeysetRepairScreenPresenter(
           title = "Recovering Wallet..."
         ).asModalScreen()
       }
+
+      is State.ProvisioningHardwareDescriptor -> {
+        nfcSessionUIStateMachine.model(
+          NfcSessionUIStateMachineProps(
+            session = { session, commands ->
+              prepareHardwareDescriptorProvisioning(
+                session = session,
+                commands = commands,
+                account = screen.account,
+                keybox = currentState.keybox,
+                signedKeysetVerification = currentState.signedKeysetVerification
+              )
+            },
+            onSuccess = { result ->
+              val signature = result.get()
+              if (signature == null) {
+                uiState = State.ShowingHardwareDescriptorProvisioningError(
+                  keybox = currentState.keybox,
+                  signedKeysetVerification = currentState.signedKeysetVerification,
+                  cause = result.getError()
+                    ?: Error("Hardware descriptor verification failed")
+                )
+                return@NfcSessionUIStateMachineProps
+              }
+
+              keyboxDao.updateAppGlobalAuthKeyHwSignature(
+                keybox = currentState.keybox,
+                signature = signature
+              )
+                .onSuccess { updatedKeybox ->
+                  uiState = State.CheckingForSweep(updatedKeybox)
+                }
+                .onFailure { error ->
+                  uiState = State.ShowingHardwareDescriptorProvisioningError(
+                    keybox = currentState.keybox,
+                    signedKeysetVerification = currentState.signedKeysetVerification,
+                    cause = error
+                  )
+                }
+            },
+            onCancel = {
+              uiState = State.ShowingHardwareDescriptorProvisioningError(
+                keybox = currentState.keybox,
+                signedKeysetVerification = currentState.signedKeysetVerification,
+                cause = Error("Hardware descriptor validation cancelled")
+              )
+            },
+            screenPresentationStyle = ScreenPresentationStyle.Modal,
+            eventTrackerContext = NfcEventTrackerScreenIdContext.VERIFY_KEYS_AND_BUILD_HARDWARE_DESCRIPTOR,
+            hardwareVerification = Required(),
+            hardwareTypeOverride = HardwareType.W3,
+            showDeviceConfirmation = true
+          )
+        )
+      }
+
+      is State.ShowingHardwareDescriptorProvisioningError -> ErrorFormBodyModel(
+        title = "Repair failed",
+        subline = "An error occurred. Please try again.",
+        primaryButton = ButtonDataModel(
+          text = "Retry",
+          onClick = {
+            uiState = State.ProvisioningHardwareDescriptor(
+              keybox = currentState.keybox,
+              signedKeysetVerification = currentState.signedKeysetVerification
+            )
+          }
+        ),
+        secondaryButton = ButtonDataModel(
+          text = "Cancel",
+          onClick = { navigator.exit() }
+        ),
+        eventTrackerScreenId = KeysetRepairEventTrackerScreenId.KEYSET_REPAIR_FAILED,
+        errorData = ErrorData(
+          segment = RecoverySegment.KeysetRepair.Repair,
+          cause = currentState.cause,
+          actionDescription = "Provisioning W3 hardware descriptor"
+        ),
+        onBack = { navigator.exit() }
+      ).asModalScreen()
 
       is State.CheckingForSweep -> {
         LaunchedEffect(currentState.keybox) {
@@ -340,6 +575,98 @@ class SpendingKeysetRepairScreenPresenter(
     }
   }
 
+  private fun keysetRepairHardwareAuthProps(
+    account: FullAccount,
+    actionProofType: ActionProofType,
+    actionDescription: String,
+    refreshAuthTokens: Boolean = true,
+    shouldLock: Boolean = true,
+    onSuccess: (PrivilegedActionProof) -> Unit,
+    onBack: () -> Unit,
+  ) = HardwareAuthUiProps(
+    account = account,
+    actionProofType = actionProofType,
+    segment = RecoverySegment.KeysetRepair.Repair,
+    actionDescription = actionDescription,
+    screenPresentationStyle = ScreenPresentationStyle.Modal,
+    onSuccess = onSuccess,
+    onBack = onBack,
+    refreshAuthTokens = refreshAuthTokens,
+    shouldLock = shouldLock
+  )
+
+  private suspend fun prepareHardwareDescriptorProvisioning(
+    session: NfcSession,
+    commands: NfcCommands,
+    account: FullAccount,
+    keybox: Keybox,
+    signedKeysetVerification: SignedKeysetVerificationResponse,
+  ): Result<AppGlobalAuthKeyHwSignature, Throwable> =
+    coroutineBinding {
+      val newKeyset = keybox.activeSpendingKeyset
+
+      wsmVerifier.verifyPublicKeysOrLog(
+        appAuthPubHex = signedKeysetVerification.appAuthPub,
+        hardwareAuthPubHex = signedKeysetVerification.hardwareAuthPub,
+        appSpendingPubHex = signedKeysetVerification.appSpendingPub,
+        hardwareSpendingPubHex = signedKeysetVerification.hardwareSpendingPub,
+        serverSpendingPubHex = signedKeysetVerification.serverSpendingPub,
+        signature = signedKeysetVerification.signature,
+        f8eEnvironment = account.config.f8eEnvironment,
+        context = "W3 keyset repair build hardware descriptor"
+      )
+
+      val appSpendingKey = signedKeysetVerification.appSpendingPub
+        .decodeHexWithResult()
+        .mapError { Error("Invalid app spending key hex from server", it) }
+        .bind()
+      val appAuthKey = signedKeysetVerification.appAuthPub
+        .decodeHexWithResult()
+        .mapError { Error("Invalid app auth key hex from server", it) }
+        .bind()
+      val serverSpendingKey = signedKeysetVerification.serverSpendingPub
+        .decodeHexWithResult()
+        .mapError { Error("Invalid server spending key hex from server", it) }
+        .bind()
+      val wsmSignature = signedKeysetVerification.signature
+        .decodeHexWithResult()
+        .mapError { Error("Invalid WSM signature hex from server", it) }
+        .bind()
+
+      val appSpendingKeyChaincode = chaincodeExtractor
+        .extractChaincode(newKeyset.appKey.key.xpub)
+        .result
+        .mapError { Error("Failed to extract app spending key chaincode", it) }
+        .bind()
+
+      val serverSpendingXpub = newKeyset.f8eSpendingKeyset.privateWalletRootXpub
+        ?: Err(IllegalStateException("Server spending xpub is required for W3 keyset repair"))
+          .bind()
+
+      val serverSpendingKeyChaincode = chaincodeExtractor
+        .extractChaincode(serverSpendingXpub)
+        .result
+        .mapError { Error("Failed to extract server spending key chaincode", it) }
+        .bind()
+
+      val networkMainnet = keybox.config.bitcoinNetworkType == BitcoinNetworkType.BITCOIN
+      val accountIndex = newKeyset.hardwareKey.key.extractAccountIndex()
+
+      val signature = commands.requireW3(session).verifyKeysAndBuildDescriptor(
+        session = session,
+        appSpendingKey = appSpendingKey,
+        appSpendingKeyChaincode = appSpendingKeyChaincode,
+        networkMainnet = networkMainnet,
+        appAuthKey = appAuthKey,
+        serverSpendingKey = serverSpendingKey,
+        serverSpendingKeyChaincode = serverSpendingKeyChaincode,
+        wsmSignature = wsmSignature,
+        accountIndex = accountIndex
+      )
+
+      AppGlobalAuthKeyHwSignature(signature)
+    }.logFailure { "Failed to prepare W3 keyset repair hardware descriptor" }
+
   private sealed interface State {
     /** Checking if there are private keysets that need SSEK unsealing. */
     data object CheckingPrivateKeysets : State
@@ -349,8 +676,7 @@ class SpendingKeysetRepairScreenPresenter(
       val sealedSsek: SealedSsek?,
       val cachedData: KeysetRepairCachedData,
     ) : State {
-      fun useBitkeyInteraction(isDesignSystemV2Enabled: Boolean): Boolean =
-        sealedSsek != null && isDesignSystemV2Enabled
+      fun useBitkeyInteraction(): Boolean = sealedSsek != null
     }
 
     /** Unsealing the SSEK via NFC for private keyset decryption. */
@@ -389,6 +715,41 @@ class SpendingKeysetRepairScreenPresenter(
       val cachedData: KeysetRepairCachedData,
       val hwSpendingKey: HwSpendingPublicKey,
       val hwProofOfPossession: HwFactorProofOfPossession,
+      val hwSpendingKeyProof: HwSpendingKeyProof? = null,
+    ) : State
+
+    /** Collecting W3 action proof for descriptor backup upload. */
+    data class AuthorizingDescriptorBackup(
+      val preparedRegeneratedKeyset: PreparedRegeneratedKeyset,
+      val cachedData: KeysetRepairCachedData,
+    ) : State
+
+    /** Collecting W3 action proof for activating the regenerated keyset. */
+    data class AuthorizingKeysetActivation(
+      val preparedRegeneratedKeyset: PreparedRegeneratedKeyset,
+      val descriptorBackupProof: PrivilegedActionProof?,
+      val cachedData: KeysetRepairCachedData,
+    ) : State
+
+    /** Uploading backups and activating the regenerated keyset after authorization. */
+    data class CompletingRegeneratedKeyset(
+      val preparedRegeneratedKeyset: PreparedRegeneratedKeyset,
+      val descriptorBackupProof: PrivilegedActionProof?,
+      val keysetActivationProof: PrivilegedActionProof,
+      val cachedData: KeysetRepairCachedData,
+    ) : State
+
+    /** Provisioning the regenerated W3 hardware descriptor after server activation. */
+    data class ProvisioningHardwareDescriptor(
+      val keybox: Keybox,
+      val signedKeysetVerification: SignedKeysetVerificationResponse,
+    ) : State
+
+    /** Failed to provision the regenerated W3 hardware descriptor. */
+    data class ShowingHardwareDescriptorProvisioningError(
+      val keybox: Keybox,
+      val signedKeysetVerification: SignedKeysetVerificationResponse,
+      val cause: Throwable,
     ) : State
 
     /** Checking if there are funds to sweep from old keysets. */
@@ -441,14 +802,6 @@ data class ExplanationFormBodyModel(
       onClick = StandardClick(onBackClick)
     )
   )
-
-/**
- * Result from NFC session for generating new hardware keys.
- */
-private data class HardwareKeyGenerationResult(
-  val hwSpendingKey: HwSpendingPublicKey,
-  val hwProofOfPossession: HwFactorProofOfPossession,
-)
 
 /**
  * Explanation screen shown when we need to regenerate keys because the

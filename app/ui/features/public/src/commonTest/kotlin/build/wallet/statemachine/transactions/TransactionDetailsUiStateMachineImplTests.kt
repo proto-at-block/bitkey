@@ -30,7 +30,7 @@ import build.wallet.platform.haptics.HapticsMock
 import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.Icon.SmallIconInformation
+import build.wallet.statemachine.core.Icon.Information
 import build.wallet.statemachine.core.LabelModel.ChunkedAddressModel
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -61,6 +61,8 @@ import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Duration.Companion.minutes
 
+// Large end-to-end coverage for transaction details; splitting would hurt cohesion.
+@Suppress("LargeClass")
 class TransactionDetailsUiStateMachineImplTests : FunSpec({
 
   val timeZoneProvider = TimeZoneProviderMock()
@@ -541,7 +543,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         }
       }
 
-      transactionActivityService.transactions.value = listOf(sentProps.transaction)
+      transactionActivityService.setTransactions(listOf(sentProps.transaction))
 
       awaitUntilBody<TransactionDetailModel>(
         matching = { it.content[2].shouldBeInstanceOf<DataList>().items[0].title == "Confirmed" }
@@ -693,7 +695,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
               ?.iconModel
               ?.iconImage
               .shouldBeTypeOf<IconImage.LocalImage>()
-              .icon.shouldBe(SmallIconInformation)
+              .icon.shouldBe(Information)
           }
         }
 
@@ -727,7 +729,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
               ?.iconModel
               ?.iconImage
               .shouldBeTypeOf<IconImage.LocalImage>()
-              .icon.shouldBe(SmallIconInformation)
+              .icon.shouldBe(Information)
             items[0]
               .explainer
               ?.iconButton
@@ -895,7 +897,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
           secondaryButton.shouldNotBeNull()
         }
 
-        transactionActivityService.transactions.value = listOf(sentProps.transaction)
+        transactionActivityService.setTransactions(listOf(sentProps.transaction))
 
         awaitUntilBody<TransactionDetailModel>(
           matching = {

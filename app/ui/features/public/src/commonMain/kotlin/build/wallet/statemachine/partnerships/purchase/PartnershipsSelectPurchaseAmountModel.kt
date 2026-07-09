@@ -23,7 +23,7 @@ import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.list.ListItemTitleAlignment
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
-import build.wallet.ui.tokens.market.MarketIcons
+import build.wallet.statemachine.core.Icon
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 
@@ -43,7 +43,6 @@ import kotlinx.collections.immutable.toImmutableList
 fun selectPurchaseAmountModel(
   purchaseAmounts: ImmutableList<FiatMoney>,
   selectedAmount: FiatMoney?,
-  isDesignSystemV2Enabled: Boolean = false,
   moneyDisplayFormatter: MoneyDisplayFormatter,
   onSelectAmount: (FiatMoney) -> Unit,
   onSelectCustomAmount: () -> Unit,
@@ -66,17 +65,13 @@ fun selectPurchaseAmountModel(
       title = "...",
       titleAlignment = ListItemTitleAlignment.CENTER,
       leadingAccessory =
-        if (isDesignSystemV2Enabled) {
-          IconAccessory(
-            model =
-              IconModel(
-                iconImage = IconImage.MarketIconImage(MarketIcons.EllipsisHorizontal),
-                iconSize = IconSize.Small
-              )
-          )
-        } else {
-          null
-        },
+        IconAccessory(
+          model =
+            IconModel(
+              iconImage = IconImage.LocalImage(Icon.EllipsisHorizontal),
+              iconSize = IconSize.Small
+            )
+        ),
       onClick = onSelectCustomAmount,
       selected = selectedAmount?.let { !purchaseAmounts.contains(it) } ?: false
     )
@@ -87,7 +82,6 @@ fun selectPurchaseAmountModel(
       items = items.toImmutableList(),
       purchaseAmounts = purchaseAmounts,
       selectedAmount = selectedAmount,
-      isDesignSystemV2Enabled = isDesignSystemV2Enabled,
       moneyDisplayFormatter = moneyDisplayFormatter,
       onSelectAmount = onSelectAmount,
       onSelectCustomAmount = onSelectCustomAmount,
@@ -103,7 +97,6 @@ internal data class SelectPurchaseAmountBodyModel(
   val items: ImmutableList<ListItemModel>,
   val purchaseAmounts: ImmutableList<FiatMoney>,
   val selectedAmount: FiatMoney?,
-  val isDesignSystemV2Enabled: Boolean,
   val moneyDisplayFormatter: MoneyDisplayFormatter,
   val onSelectAmount: (FiatMoney) -> Unit,
   val onSelectCustomAmount: () -> Unit,
@@ -111,32 +104,15 @@ internal data class SelectPurchaseAmountBodyModel(
   val onExit: () -> Unit,
 ) : FormBodyModel(
     id = DepositEventTrackerScreenId.PARTNER_PURCHASE_OPTIONS,
-    header =
-      if (isDesignSystemV2Enabled) {
-        FormHeaderModel(headline = "Choose an amount", subline = null)
-      } else {
-        null
-      },
+    header = FormHeaderModel(headline = "Choose an amount", subline = null),
     onBack = onExit,
-    toolbar =
-      if (isDesignSystemV2Enabled) {
-        null
-      } else {
-        ToolbarModel(
-          middleAccessory = ToolbarMiddleAccessoryModel(title = "Choose an amount")
-        )
-      },
+    toolbar = null,
     mainContentList =
       immutableListOf(
         FormMainContentModel.ListGroup(
           listGroupModel =
             ListGroupModel(
-              style =
-                if (isDesignSystemV2Enabled) {
-                  ListGroupStyle.THREE_COLUMN_KEYPAD_ITEM
-                } else {
-                  ListGroupStyle.THREE_COLUMN_CARD_ITEM
-                },
+              style = ListGroupStyle.THREE_COLUMN_KEYPAD_ITEM,
               items = items
             )
         )

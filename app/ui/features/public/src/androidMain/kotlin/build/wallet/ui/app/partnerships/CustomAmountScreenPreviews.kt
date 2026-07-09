@@ -62,33 +62,3 @@ fun CustomAmountScreenValidEntryPreview() {
     )
   }
 }
-
-@Preview
-@Composable
-fun CustomAmountScreenValidEntryDesignSystemV2Preview() {
-  PreviewWalletTheme(
-    backgroundColor = lightStyleDictionaryColors.subtleBackground
-  ) {
-    CustomAmountScreen(
-      model = CustomAmountBodyModel(
-        onBack = {},
-        limits = "From $20.00 to $100.00",
-        amountModel =
-          MoneyAmountEntryModel(
-            primaryAmount = "$50.00",
-            primaryAmountGhostedSubstringRange = null,
-            secondaryAmount = "50,000 sats"
-          ),
-        keypadModel =
-          KeypadModel(
-            showDecimal = true,
-            onButtonPress = {}
-          ),
-        isAmountAboveMaximum = false,
-
-        continueButtonEnabled = true,
-        onNext = {}
-      )
-    )
-  }
-}

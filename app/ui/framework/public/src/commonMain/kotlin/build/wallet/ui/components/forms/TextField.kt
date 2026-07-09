@@ -147,7 +147,7 @@ fun TextField(
             Phone -> KeyboardType.Phone
             Uri -> KeyboardType.Uri
           },
-        autoCorrect = model.enableAutoCorrect,
+        autoCorrectEnabled = model.enableAutoCorrect,
         capitalization =
           when (model.capitalization) {
             Capitalization.None -> None
@@ -283,15 +283,13 @@ fun TextFieldWithCharacteristic(
   visualTransformation: VisualTransformation,
   onValueChange: (TextFieldValue) -> Unit,
 ) {
-  val isDesignSystemV2Enabled = true
   val shape =
     RoundedCornerShape(
-      size = if (isDesignSystemV2Enabled) 8.dp else 32.dp
+      size = 8.dp
     )
   val backgroundColor =
-    when {
-      !isDesignSystemV2Enabled -> WalletTheme.colors.foreground10
-      LocalTheme.current == Theme.LIGHT -> WalletTheme.colors.subtleBackground
+    when (LocalTheme.current) {
+      Theme.LIGHT -> WalletTheme.colors.subtleBackground
       else -> WalletTheme.colors.foreground10
     }
 

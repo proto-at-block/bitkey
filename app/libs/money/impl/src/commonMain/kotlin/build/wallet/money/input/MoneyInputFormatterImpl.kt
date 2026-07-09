@@ -51,7 +51,9 @@ class MoneyInputFormatterImpl(
       }
 
       is DecimalNumber -> {
-        val inputAmountNumber = doubleFormatter.parse(inputAmount.numberString)!!.toBigDecimal()
+        val inputAmountNumber = checkNotNull(doubleFormatter.parse(inputAmount.numberString)) {
+          "Expected a parseable number string: ${inputAmount.numberString}"
+        }.toBigDecimal()
         val moneyAmount =
           when (inputAmountCurrency) {
             is FiatCurrency ->

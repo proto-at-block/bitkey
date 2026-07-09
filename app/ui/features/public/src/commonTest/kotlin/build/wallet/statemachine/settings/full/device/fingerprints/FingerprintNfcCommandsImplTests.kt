@@ -94,7 +94,7 @@ class FingerprintNfcCommandsImplTests : FunSpec({
       commands = nfcCommandsMock,
       session = NfcSessionFake(),
       enrolledFingerprints = existingEnrolledFingerprints,
-      fingerprintToEnroll = fingerprintToEnroll
+      fingerprintHandle = fingerprintToEnroll
     )
 
     nfcCommandsMock.getEnrolledFingerprintsCalls.awaitItem()
@@ -110,7 +110,7 @@ class FingerprintNfcCommandsImplTests : FunSpec({
       commands = nfcCommandsMock,
       session = NfcSessionFake(),
       enrolledFingerprints = existingEnrolledFingerprints,
-      fingerprintToEnroll = fingerprintToEnroll
+      fingerprintHandle = fingerprintToEnroll
     )
 
     nfcCommandsMock.getEnrolledFingerprintsCalls.awaitItem()
@@ -125,7 +125,7 @@ class FingerprintNfcCommandsImplTests : FunSpec({
       commands = nfcCommandsMock,
       session = NfcSessionFake(),
       enrolledFingerprints = existingEnrolledFingerprints,
-      fingerprintToEnroll = fingerprintToEnroll
+      fingerprintHandle = fingerprintToEnroll
     )
 
     nfcCommandsMock.getEnrolledFingerprintsCalls.awaitItem()
@@ -141,7 +141,7 @@ class FingerprintNfcCommandsImplTests : FunSpec({
       commands = nfcCommandsMock,
       session = NfcSessionFake(),
       enrolledFingerprints = existingEnrolledFingerprints,
-      fingerprintToEnroll = fingerprintToEnroll
+      fingerprintHandle = fingerprintToEnroll
     )
 
     nfcCommandsMock.getEnrolledFingerprintsCalls.awaitItem()

@@ -37,11 +37,15 @@ test('grant test', grant_test)
 grant_protocol_fuzz = executable('grant-protocol-fuzz',
   ['grant_protocol_fuzz.cc', 'src/grant_protocol.c'],
   include_directories : ['inc', 'src'],
-  c_args   : fuzz_args,
+  # Rename IPC sends only in the fuzz-compiled copy of grant_protocol.c. This
+  # avoids GNU ld's --wrap, which is unsupported by macOS ld64.
+  c_args   : fuzz_args + [
+    '-D_ipc_send=grant_fuzz_ipc_send',
+    '-Dsecure_glitch_random_delay=grant_fuzz_secure_glitch_random_delay',
+    '-Dsecure_glitch_detect=grant_fuzz_secure_glitch_detect',
+  ],
   cpp_args : fuzz_args,
-  # --wrap=_ipc_send stubs IPC sends (perform_action → ipc_send_empty) since
-  # IPC ports aren't initialized in the fuzz harness.
-  link_args : fuzz_args + ['-Wl,--wrap=_ipc_send'],
+  link_args : fuzz_args,
   dependencies : [
     bip32_dep,
     wallet_dep,

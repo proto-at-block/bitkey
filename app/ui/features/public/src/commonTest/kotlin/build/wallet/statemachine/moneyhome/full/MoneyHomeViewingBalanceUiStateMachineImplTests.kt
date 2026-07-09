@@ -119,7 +119,9 @@ class MoneyHomeViewingBalanceUiStateMachineImplTests : FunSpec({
     inAppBrowserNavigator = inAppBrowserNavigator,
     securityActionsService = securityActionsService,
     refreshExecutor = object : RefreshExecutor {
-      override suspend fun runRefreshOperation(refreshOperation: RefreshOperation) {}
+      override suspend fun runRefreshOperation(refreshOperation: RefreshOperation) {
+        // No-op: refresh behavior is not exercised in these tests.
+      }
     },
     partnerTransferLinkUiStateMachine = object : PartnerTransferLinkUiStateMachine,
       ScreenStateMachineMock<PartnerTransferLinkProps>("partner-transfer-link") {},
@@ -219,21 +221,11 @@ class MoneyHomeViewingBalanceUiStateMachineImplTests : FunSpec({
   test("transactions list shows empty state when no transactions and not loading") {
     bitcoinWalletService.transactionsData.value = TransactionsDataMock
 
-    stateMachine.test(props.copy(isDesignSystemV2Enabled = true)) {
+    stateMachine.test(props) {
       awaitBody<MoneyHomeBodyModel> {
         transactionsModel.shouldNotBeNull()
         transactionsModel.headerText.shouldBe("Recent activity")
         transactionsModel.sections.shouldBeEmpty()
-      }
-    }
-  }
-
-  test("transactions list is hidden when empty and V2 disabled") {
-    bitcoinWalletService.transactionsData.value = TransactionsDataMock
-
-    stateMachine.test(props.copy(isDesignSystemV2Enabled = false)) {
-      awaitBody<MoneyHomeBodyModel> {
-        transactionsModel.shouldBeNull()
       }
     }
   }
@@ -249,7 +241,7 @@ class MoneyHomeViewingBalanceUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("transactions list shows transactions when they exist and V2 enabled") {
+  test("transactions list shows transactions when they exist") {
     val mockModel = TransactionsActivityModel(
       listModel = build.wallet.ui.model.list.ListGroupModel(
         items = immutableListOf(
@@ -261,7 +253,7 @@ class MoneyHomeViewingBalanceUiStateMachineImplTests : FunSpec({
     )
     transactionsActivityUiStateMachine.emitModel(mockModel)
 
-    stateMachine.test(props.copy(isDesignSystemV2Enabled = true)) {
+    stateMachine.test(props) {
       awaitBody<MoneyHomeBodyModel> {
         transactionsModel.shouldNotBeNull()
         // It should contain the sections from mockModel

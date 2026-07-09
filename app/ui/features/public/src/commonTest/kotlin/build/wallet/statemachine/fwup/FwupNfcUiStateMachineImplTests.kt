@@ -21,6 +21,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.nfc.FwupInstructionsBodyModel
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationHelpBodyModel
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.ui.theme.Theme
@@ -168,6 +169,84 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
 
       inAppBrowserNavigator.onOpenCalls.awaitItem()
         .shouldBe("https://bitkey.world/en-US/releases")
+    }
+  }
+
+  test("update instructions help opens firmware update help content") {
+    deviceInfoProvider.devicePlatformValue = DevicePlatform.Android
+    accountConfigService.setHardwareType(HardwareType.W3)
+
+    stateMachine.test(props) {
+      awaitBody<FwupInstructionsBodyModel> {
+        toolbarModel.trailingAccessory.shouldNotBeNull()
+          .shouldBeInstanceOf<build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory>()
+          .model.onClick()
+      }
+
+      awaitItem().apply {
+        themePreference.shouldBe(ThemePreference.System)
+        body.shouldBeInstanceOf<HardwareConfirmationHelpBodyModel>().apply {
+          formScreenTitle.shouldNotBeNull().title.shouldBe("How it works")
+          onBack.shouldNotBeNull().invoke()
+        }
+      }
+
+      awaitBody<FwupInstructionsBodyModel>()
+    }
+  }
+
+  test("w1 firmware update help inherits system theme on Android") {
+    deviceInfoProvider.devicePlatformValue = DevicePlatform.Android
+
+    stateMachine.test(props) {
+      awaitBody<FwupInstructionsBodyModel> {
+        toolbarModel.trailingAccessory.shouldNotBeNull()
+          .shouldBeInstanceOf<build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory>()
+          .model.onClick()
+      }
+
+      awaitItem().apply {
+        themePreference.shouldBe(ThemePreference.System)
+        body.shouldBeInstanceOf<HardwareConfirmationHelpBodyModel>()
+      }
+    }
+  }
+
+  test("w1 firmware update help stays dark on iOS") {
+    deviceInfoProvider.devicePlatformValue = DevicePlatform.IOS
+
+    stateMachine.test(props) {
+      awaitBody<FwupInstructionsBodyModel> {
+        toolbarModel.trailingAccessory.shouldNotBeNull()
+          .shouldBeInstanceOf<build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory>()
+          .model.onClick()
+      }
+
+      awaitItem().apply {
+        themePreference.shouldBe(ThemePreference.Manual(Theme.DARK))
+        body.shouldBeInstanceOf<HardwareConfirmationHelpBodyModel>().apply {
+          formScreenTitle.shouldNotBeNull().title.shouldBe("How it works")
+        }
+      }
+    }
+  }
+
+  test("update instructions help can navigate back to firmware update instructions") {
+    accountConfigService.setHardwareType(HardwareType.W3)
+
+    stateMachine.test(props) {
+      awaitBody<FwupInstructionsBodyModel> {
+        toolbarModel.trailingAccessory.shouldNotBeNull()
+          .shouldBeInstanceOf<build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory>()
+          .model.onClick()
+      }
+
+      awaitItem().body.shouldBeInstanceOf<HardwareConfirmationHelpBodyModel>().apply {
+        formScreenTitle.shouldNotBeNull().title.shouldBe("How it works")
+        onBack.shouldNotBeNull().invoke()
+      }
+
+      awaitBody<FwupInstructionsBodyModel>()
     }
   }
 
@@ -416,9 +495,14 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
       testBottomSheetContent(
         error = NfcException.Timeout(),
         expectedTitle = "Update timed out",
-        expectedSubline = "The connection timed out during the update. Hold your device closer to your phone and try again." +
-          "\n\nContinue the update to resume where it left off." +
-          "\n\nIf problems persist, turn on Airplane Mode to minimize interruptions.",
+        expectedSubline =
+          """
+          The connection timed out during the update. Hold your device closer to your phone and try again.
+
+          Continue the update to resume where it left off.
+
+          If problems persist, turn on Airplane Mode to minimize interruptions.
+          """.trimIndent(),
         withButtonGoesToRetry = true,
         withUpdateInProgress = true,
         withTransactionType = FwupTransactionType.ResumeFromSequenceId(100U)

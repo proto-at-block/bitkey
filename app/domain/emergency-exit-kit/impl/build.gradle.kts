@@ -38,6 +38,7 @@ kotlin {
 
     commonTest {
       dependencies {
+        implementation(projects.domain.accountFake)
         implementation(projects.domain.emergencyExitKitFake)
         implementation(projects.domain.bitkeyPrimitivesFake)
         implementation(projects.domain.walletFake)

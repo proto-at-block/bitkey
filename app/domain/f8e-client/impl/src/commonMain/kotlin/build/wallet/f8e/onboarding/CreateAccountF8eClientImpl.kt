@@ -110,7 +110,8 @@ class CreateAccountF8eClientImpl(
         spend = FullCreateAccountV2SpendingKeys(
           app = appSpendingPubKey,
           hardware = hardwareSpendingPubKey,
-          network = keyCrossDraft.config.bitcoinNetworkType.toJsonString()
+          network = keyCrossDraft.config.bitcoinNetworkType.toJsonString(),
+          hardwareAttestation = keyCrossDraft.spendingKeyProof?.toF8eBody()
         ),
         isTestAccount = if (keyCrossDraft.config.isTestAccount) true else null
       )

@@ -34,9 +34,9 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
 import build.wallet.statemachine.core.form.FormMainContentModel.DeviceStatusCard
 import build.wallet.statemachine.core.form.FormMainContentModel.SettingsList
+import build.wallet.statemachine.core.form.FormScreenLayoutModel
 import build.wallet.statemachine.fwup.FwupScreen
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineFake
@@ -61,7 +61,6 @@ import build.wallet.time.TimeZoneProviderMock
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.list.ListItemTreatment
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
-import build.wallet.ui.tokens.market.MarketIcons
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import io.kotest.core.spec.style.FunSpec
@@ -76,6 +75,8 @@ import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.datetime.Instant
 import okio.ByteString.Companion.encodeUtf8
 
+// Large end-to-end coverage for device settings; splitting would hurt cohesion.
+@Suppress("LargeClass")
 class DeviceSettingsScreenPresenterTests : FunSpec({
 
   val firmwareDeviceInfoDao = FirmwareDeviceInfoDaoMock(turbines::create)
@@ -404,15 +405,14 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
     }
   }
 
-  test("device settings configures collapsible toolbar for design system screens") {
+  test("device settings configures large title toolbar") {
     presenter.test(screen) { _ ->
       awaitBody<FormBodyModel> {
-        designSystemV2Model.shouldNotBeNull().apply {
-          title.shouldBe("Bitkey Device")
-          toolbar.shouldNotBeNull().apply {
-            middleAccessory.shouldBeNull()
-            leadingAccessory.shouldBeInstanceOf<IconAccessory>()
-          }
+        formScreenTitle.shouldNotBeNull().title.shouldBe("Bitkey Device")
+        formScreenLayout.shouldBe(FormScreenLayoutModel.LargeTitle())
+        toolbar.shouldNotBeNull().apply {
+          middleAccessory.shouldBeNull()
+          leadingAccessory.shouldBeInstanceOf<IconAccessory>()
         }
       }
     }
@@ -428,12 +428,12 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
         )
 
         items[2].apply {
-          icon.iconImage.shouldBe(IconImage.MarketIconImage(MarketIcons.BitkeyWallet))
+          icon.iconImage.shouldBe(IconImage.LocalImage(Icon.BitkeyWallet))
           treatment.shouldBe(ListItemTreatment.PRIMARY)
         }
 
         items[4].apply {
-          icon.iconImage.shouldBe(IconImage.LocalImage(Icon.SmallIconBitkeyReset))
+          icon.iconImage.shouldBe(IconImage.LocalImage(Icon.BitkeyReset))
           treatment.shouldBe(ListItemTreatment.DESTRUCTIVE)
         }
       }
@@ -1098,53 +1098,6 @@ class DeviceSettingsScreenPresenterTests : FunSpec({
     }
   }
 })
-
-private fun List<Data>.verifyMetadataDataList() {
-  forEachIndexed { index, data ->
-    when (index) {
-      0 -> data.verifyMetadataData("Model name", "Bitkey")
-      1 -> data.verifyMetadataData("Model number", "evtd")
-      2 -> data.verifyMetadataData("Serial number", "serial")
-      3 -> data.verifyMetadataData("Firmware version", "1.2.3")
-      4 -> data.verifyMetadataData(
-        "Last known charge",
-        "100%"
-      ) // Not 89% due to battery level masking
-      5 -> data.verifyMetadataData(
-        "Last sync",
-        "date-time"
-      )
-    }
-  }
-}
-
-private fun List<Data>.verifyMetadataDataListWithReplacement(replacementStatus: String) {
-  forEachIndexed { index, data ->
-    when (index) {
-      0 -> data.verifyMetadataData("Model name", "Bitkey")
-      1 -> data.verifyMetadataData("Model number", "evtd")
-      2 -> data.verifyMetadataData("Serial number", "serial")
-      3 -> data.verifyMetadataData("Firmware version", "1.2.3")
-      4 -> data.verifyMetadataData(
-        "Last known charge",
-        "100%"
-      ) // Not 89% due to battery level masking
-      5 -> data.verifyMetadataData(
-        "Last sync",
-        "date-time"
-      )
-      6 -> data.verifyMetadataData("Replacement pending", replacementStatus)
-    }
-  }
-}
-
-private fun Data.verifyMetadataData(
-  title: String,
-  sideText: String,
-) {
-  this.title.shouldBe(title)
-  this.sideText.shouldBe(sideText)
-}
 
 private fun SettingsList.itemWithTitle(title: String): SettingsList.SettingsListItem =
   items.first { it.title == title }

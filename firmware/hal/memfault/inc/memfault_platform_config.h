@@ -3,6 +3,15 @@
 #define MEMFAULT_USE_GNU_BUILD_ID        0
 #define MEMFAULT_PLATFORM_HAS_LOG_CONFIG 1
 
+// Cortex-M vector tables in this project name the MPU exception handler
+// `MemManage_Handler` (CMSIS convention). Memfault SDK's default symbol is
+// `MemoryManagement_Handler`, so we override here. Memfault's strong NAKED
+// handler captures the exception frame and SCB fault registers (CFSR /
+// MMFAR / BFAR / HFSR / SHCSR) into the coredump, then reboots via
+// `memfault_platform_reboot()`. HardFault/BusFault/UsageFault default names
+// already match the vector table — no override needed for those.
+#define MEMFAULT_EXC_HANDLER_MEMORY_MANAGEMENT MemManage_Handler
+
 #ifdef EMBEDDED_BUILD
 #define MEMFAULT_COMPACT_LOG_ENABLE 1
 #else

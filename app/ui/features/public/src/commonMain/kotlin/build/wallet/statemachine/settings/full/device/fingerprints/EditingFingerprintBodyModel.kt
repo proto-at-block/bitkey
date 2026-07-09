@@ -11,8 +11,6 @@ import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButto
 import build.wallet.ui.model.callout.CalloutModel
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.input.TextFieldModel.Capitalization
-import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
-import build.wallet.ui.model.toolbar.ToolbarModel
 
 /** Hardware supports a label length of up to 32 characters. */
 private const val MAX_LABEL_LENGTH = 32
@@ -30,24 +28,7 @@ data class EditingFingerprintBodyModel(
 ) : FormBodyModel(
     id = ManagingFingerprintsEventTrackerScreenId.EDIT_FINGERPRINT,
     onBack = onBackPressed,
-    toolbar = ToolbarModel(
-      leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(onBackPressed)
-    ),
-    designSystemV2Model = FormDesignSystemV2Model(
-      toolbar = null,
-      useLegacyToolbarFallback = false,
-      primaryButton = saveFingerprintButton(
-        isExistingFingerprint = isExistingFingerprint,
-        isEnabled = !isExistingFingerprint || label != textFieldValue,
-        onSave = onSave
-      ),
-      useLegacyPrimaryButtonFallback = false,
-      useLegacySecondaryButtonFallback = false,
-      secondaryButton = deleteFingerprintButton(onDelete).takeIf {
-        // Only show the delete button if this is an existing fingerprint and not a new enrollment
-        isExistingFingerprint
-      }
-    ),
+    toolbar = null,
     header = FormHeaderModel(
       headline = when {
         !isExistingFingerprint -> "Add fingerprint name"
@@ -73,20 +54,20 @@ data class EditingFingerprintBodyModel(
         item = CalloutModel(
           title = "At least one fingerprint is required",
           subtitle = StringModel("Add another fingerprint to delete"),
-          leadingIcon = Icon.SmallIconInformation,
+          leadingIcon = Icon.Information,
           treatment = CalloutModel.Treatment.Information
         )
       ).takeIf { attemptToDeleteLastFingerprint }
     ),
-    primaryButton = deleteFingerprintButton(onDelete).takeIf {
-      // Only show the delete button if this is an existing fingerprint and not a new enrollment
-      isExistingFingerprint
-    },
-    secondaryButton = saveFingerprintButton(
+    primaryButton = saveFingerprintButton(
       isExistingFingerprint = isExistingFingerprint,
       isEnabled = !isExistingFingerprint || label != textFieldValue,
       onSave = onSave
     ),
+    secondaryButton = deleteFingerprintButton(onDelete).takeIf {
+      // Only show the delete button if this is an existing fingerprint and not a new enrollment
+      isExistingFingerprint
+    },
     renderContext = RenderContext.Sheet
   ) {
 

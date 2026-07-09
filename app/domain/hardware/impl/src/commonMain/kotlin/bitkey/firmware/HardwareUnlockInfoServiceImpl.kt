@@ -43,7 +43,7 @@ class HardwareUnlockInfoServiceImpl(
       }
   }
 
-  override suspend fun countUnlockInfo(unlockMethod: UnlockMethod): Flow<Int> {
+  override fun countUnlockInfo(unlockMethod: UnlockMethod): Flow<Int> {
     return unlockInfoList.map {
       it.count { unlockInfo -> unlockInfo.unlockMethod == unlockMethod }
     }

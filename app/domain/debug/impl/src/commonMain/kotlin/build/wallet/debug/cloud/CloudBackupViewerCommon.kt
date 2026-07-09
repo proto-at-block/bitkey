@@ -56,6 +56,9 @@ internal class SingleStoreCloudBackupViewer(
 internal suspend fun loadCloudBackupViewerData(
   cloudStoreAccountRepository: CloudStoreAccountRepository,
   iosCloudKitBackupEnabled: Boolean?,
+  storeTypes: (CloudStoreAccount) -> List<CloudBackupStoreType> = {
+    availableCloudBackupStoreTypes()
+  },
   loadStore: suspend (
     storeType: CloudBackupStoreType,
     cloudStoreAccount: CloudStoreAccount,
@@ -75,7 +78,7 @@ internal suspend fun loadCloudBackupViewerData(
       return@coroutineBinding CloudBackupViewerData.NoCloudAccount
     }
 
-    val stores = availableCloudBackupStoreTypes().map { storeType ->
+    val stores = storeTypes(cloudStoreAccount).map { storeType ->
       loadStore(storeType, cloudStoreAccount)
     }
 

@@ -10,7 +10,7 @@ import build.wallet.statemachine.core.StateMachine
  *
  * @param id The id included with the [BodyModelMock].
  */
-abstract class SheetStateMachineMock<PropsT : Any>(
+open class SheetStateMachineMock<PropsT : Any>(
   val id: String,
 ) : StateMachine<PropsT, SheetModel> {
   @Composable

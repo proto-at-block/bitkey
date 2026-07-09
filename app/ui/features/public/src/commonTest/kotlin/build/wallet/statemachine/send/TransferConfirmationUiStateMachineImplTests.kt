@@ -2,7 +2,7 @@ package build.wallet.statemachine.send
 
 import app.cash.turbine.Turbine
 import app.cash.turbine.test
-import bitkey.verification.ConfirmationState
+import build.wallet.coroutines.flow.ConfirmationState
 import bitkey.verification.FakeTxVerificationApproval
 import bitkey.verification.TxVerificationServiceFake
 import build.wallet.analytics.events.screen.id.TxVerificationEventTrackerScreenId

@@ -22,6 +22,8 @@ actual class UiModelContentScreen actual constructor(model: ScreenModel) : Voyag
    * the screen. This also updates the [modelState] which is used trigger an update on the current
    * screen composable
    */
+  // False positive: read in Content() and written by the `model` setter below.
+  @Suppress("UnusedPrivateProperty")
   private val modelState: MutableState<ScreenModel> = mutableStateOf(model)
 
   actual var model = model

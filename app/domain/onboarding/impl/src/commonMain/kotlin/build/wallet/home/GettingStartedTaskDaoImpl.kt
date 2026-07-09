@@ -49,7 +49,7 @@ class GettingStartedTaskDaoImpl(
   override suspend fun addTasks(tasks: List<GettingStartedTask>) =
     databaseProvider.database().gettingStartedTaskQueries
       .awaitTransaction {
-        tasks.forEach { insertGettingStartedTask(taskId = it.id, taskState = it.state) }
+        tasks.forEach { task -> insertGettingStartedTask(taskId = task.id, taskState = task.state) }
       }
 
   override suspend fun updateTask(

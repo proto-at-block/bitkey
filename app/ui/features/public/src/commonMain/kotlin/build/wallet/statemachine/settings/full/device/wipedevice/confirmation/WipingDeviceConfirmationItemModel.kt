@@ -9,8 +9,8 @@ data class WipingDeviceConfirmationItemModel(
   val onClick: () -> Unit,
 )
 
-sealed class WipingDeviceConfirmationState {
-  data object NotCompleted : WipingDeviceConfirmationState()
+sealed interface WipingDeviceConfirmationState {
+  data object NotCompleted : WipingDeviceConfirmationState
 
-  data object Completed : WipingDeviceConfirmationState()
+  data object Completed : WipingDeviceConfirmationState
 }

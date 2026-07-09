@@ -28,6 +28,8 @@ mod fetch_account;
 mod fetch_and_update_spend_limit;
 mod fetch_or_create_comms_verification_claim;
 mod fetch_touchpoint;
+pub mod mark_hardware_serial_verified;
+pub mod mark_hardware_verification_required;
 mod migrations;
 mod put_comms_verification_claim;
 mod put_inactive_spending_distributed_key;
@@ -88,6 +90,8 @@ pub struct CreateAccountAndKeysetsInput {
     // TODO [BKR-518]: Clean up keysets
     pub keyset: Keyset,
     pub is_test_account: bool,
+    /// Pre-evaluated enrollment-gate decision from the caller.
+    pub hardware_verification_required: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -197,6 +201,8 @@ pub struct UpgradeLiteAccountToFullAccountInput<'a> {
     pub spending_keyset: SpendingKeyset,
     pub auth_key_id: AuthKeysId,
     pub auth_keys: FullAccountAuthKeys,
+    /// Pre-evaluated enrollment-gate decision from the caller.
+    pub hardware_verification_required: bool,
 }
 
 #[derive(Debug, Clone)]

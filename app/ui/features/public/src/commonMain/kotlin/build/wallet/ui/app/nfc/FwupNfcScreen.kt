@@ -3,10 +3,8 @@ package build.wallet.ui.app.nfc
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.unit.dp
 import bitkey.ui.Snapshot
@@ -36,17 +34,15 @@ fun FwupNfcScreen(
 ) {
   KeepScreenOn()
   val devicePlatform = LocalDeviceInfo.current.devicePlatform
-  val designSystemV2Enabled = true
 
-  when {
-    devicePlatform == DevicePlatform.IOS -> {
+  when (devicePlatform) {
+    DevicePlatform.IOS -> {
       FwupNfcScreenInternalIos(model = model, modifier = modifier)
     }
-    devicePlatform == DevicePlatform.Android && designSystemV2Enabled -> {
-      FwupNfcScreenInternalV2(model = model, modifier = modifier)
-    }
-    else -> {
-      FwupNfcScreenInternal(model = model, modifier = modifier)
+    DevicePlatform.Android,
+    DevicePlatform.Jvm,
+    -> {
+      FwupNfcScreenInternalAndroid(model = model, modifier = modifier)
     }
   }
 }
@@ -57,19 +53,16 @@ internal fun FwupNfcScreenInternalIos(
   modifier: Modifier = Modifier,
   backgroundPainter: Painter? = null,
 ) {
-  val designSystemV2Enabled = true
-
   if (!model.showNativeSheetOnIos) {
-    FwupSystemThemedContent(followIosSystemTheme = designSystemV2Enabled) {
+    FwupSystemThemedContent(followIosSystemTheme = true) {
       NfcProgressScreenIosLayout(
         modifier = modifier,
         backgroundColor = WalletTheme.colors.background,
         statusTopPadding = 40.dp,
         showDefaultHardwareBackground = false
       ) {
-        FwupNfcIosStatusContent(
-          status = model.status,
-          designSystemV2Enabled = designSystemV2Enabled
+        FwupNfcIosOffsetStatusContent(
+          status = model.status
         )
       }
     }
@@ -77,12 +70,11 @@ internal fun FwupNfcScreenInternalIos(
   }
 
   FwupSystemThemedContent(
-    followIosSystemTheme = model.shouldFollowIosSystemTheme(designSystemV2Enabled)
+    followIosSystemTheme = true
   ) {
-    val showDetailedIosInstructions = model.shouldShowDetailedIosInstructions(designSystemV2Enabled)
+    val showDetailedIosInstructions = model.status.hasDetailedIosInstructions
     val resolvedBackgroundPainter =
       fwupIosBackgroundPainter(
-        designSystemV2Enabled = designSystemV2Enabled,
         showDetailedIosInstructions = showDetailedIosInstructions,
         backgroundPainter = backgroundPainter
       )
@@ -92,12 +84,11 @@ internal fun FwupNfcScreenInternalIos(
       backgroundColor = WalletTheme.colors.background,
       backgroundPainter = resolvedBackgroundPainter,
       backgroundTopPadding = 200.dp,
-      statusTopPadding = if (designSystemV2Enabled) 40.dp else 48.dp,
+      statusTopPadding = 40.dp,
       showDefaultHardwareBackground = !showDetailedIosInstructions
     ) {
-      FwupNfcIosStatusContent(
-        status = model.status,
-        designSystemV2Enabled = designSystemV2Enabled
+      FwupNfcIosOffsetStatusContent(
+        status = model.status
       )
     }
   }
@@ -105,7 +96,6 @@ internal fun FwupNfcScreenInternalIos(
 
 @Composable
 private fun fwupIosBackgroundPainter(
-  designSystemV2Enabled: Boolean,
   showDetailedIosInstructions: Boolean,
   backgroundPainter: Painter?,
 ): Painter? {
@@ -115,7 +105,7 @@ private fun fwupIosBackgroundPainter(
     Theme.LIGHT -> Res.drawable.ios_nfc_background_fwup_light
   }
 
-  return if (designSystemV2Enabled && !showDetailedIosInstructions) {
+  return if (!showDetailedIosInstructions) {
     backgroundPainter ?: painterResource(backgroundDrawable)
   } else {
     backgroundPainter
@@ -123,24 +113,19 @@ private fun fwupIosBackgroundPainter(
 }
 
 @Composable
-private fun FwupNfcIosStatusContent(
+private fun FwupNfcIosOffsetStatusContent(
   status: FwupNfcBodyModel.Status,
-  designSystemV2Enabled: Boolean,
 ) {
-  if (designSystemV2Enabled) {
-    Column(
-      modifier = Modifier.offset(y = IosFwupStatusContentOffset),
-      horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-      FwupNfcIosStatusContentV2(status = status)
-    }
-  } else {
-    FwupNfcIosStatusContentLegacy(status = status)
+  Column(
+    modifier = Modifier.offset(y = IosFwupStatusContentOffset),
+    horizontalAlignment = Alignment.CenterHorizontally
+  ) {
+    FwupNfcIosStatusContent(status = status)
   }
 }
 
 @Composable
-private fun FwupNfcIosStatusContentV2(status: FwupNfcBodyModel.Status) {
+private fun FwupNfcIosStatusContent(status: FwupNfcBodyModel.Status) {
   when (status) {
     is Searching -> {
       NfcStatusLabel(
@@ -173,59 +158,11 @@ private fun FwupNfcIosStatusContentV2(status: FwupNfcBodyModel.Status) {
 }
 
 @Composable
-private fun FwupNfcIosStatusContentLegacy(status: FwupNfcBodyModel.Status) {
-  when (status) {
-    is Searching -> {
-      NfcStatusLabel(
-        text = "Ready to Update",
-        labelType = LabelType.Title1
-      )
-      NfcStatusLabel(
-        text = "Hold device to phone",
-        labelType = LabelType.Body2Regular
-      )
-    }
-    is InProgress -> {
-      NfcStatusLabel(
-        text = "Updating...",
-        labelType = LabelType.Title1
-      )
-      NfcStatusLabel(
-        text = "Continue holding to phone",
-        labelType = LabelType.Body2Regular
-      )
-    }
-    is LostConnection,
-    is Success,
-    -> Unit
-  }
-}
-
-@Composable
-fun FwupNfcScreenInternal(
+internal fun FwupNfcScreenInternalAndroid(
   model: FwupNfcBodyModel,
   modifier: Modifier = Modifier,
 ) {
   NfcProgressScreenAndroidLayout(
-    modifier = modifier,
-    onCancel = model.onCancel,
-    // Disable back gesture during firmware update - use cancel button instead
-    enableBackGesture = false,
-    statusIndicator = {
-      FwupNfcStatusIndicator(model.status)
-    },
-    statusLabel = {
-      FwupNfcStatusLabel(text = model.status.text)
-    }
-  )
-}
-
-@Composable
-internal fun FwupNfcScreenInternalV2(
-  model: FwupNfcBodyModel,
-  modifier: Modifier = Modifier,
-) {
-  NfcProgressScreenAndroidLayoutV2(
     modifier = modifier,
     onCancel = model.onCancel,
     // Disable back gesture during firmware update - use cancel button instead
@@ -243,7 +180,6 @@ internal fun FwupNfcScreenInternalV2(
 
 @Composable
 private fun FwupNfcStatusIndicator(status: FwupNfcBodyModel.Status) {
-  val designSystemV2Enabled = true
   NfcProgressStatusIndicator(
     statusState = FwupNfcStatusState(status)
   ) { currentStatus ->
@@ -254,7 +190,7 @@ private fun FwupNfcStatusIndicator(status: FwupNfcBodyModel.Status) {
       is InProgress ->
         NfcProgressPercentageLabel(
           progressText = currentStatus.progressText,
-          progressLabelType = if (designSystemV2Enabled) LabelType.Title3 else LabelType.Title1
+          progressLabelType = LabelType.Title3
         )
 
       is LostConnection ->
@@ -322,18 +258,6 @@ private val FwupNfcBodyModel.Status.hasDetailedIosInstructions: Boolean
       is Searching, is InProgress -> true
       is LostConnection, is Success -> false
     }
-
-internal fun FwupNfcBodyModel.shouldFollowIosSystemTheme(
-  designSystemV2Enabled: Boolean,
-): Boolean =
-  designSystemV2Enabled && showNativeSheetOnIos
-
-private fun FwupNfcBodyModel.shouldShowDetailedIosInstructions(
-  designSystemV2Enabled: Boolean,
-): Boolean =
-  designSystemV2Enabled &&
-    showNativeSheetOnIos &&
-    status.hasDetailedIosInstructions
 
 @Snapshot
 val SnapshotHost.fwupNfcReadyToUpdate

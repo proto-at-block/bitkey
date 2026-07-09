@@ -73,7 +73,7 @@ while IFS= read -r -d '' fuzzer; do
     echo "     dict:   $(basename "${dicts[0]}")"
   fi
 
-done < <(find "$FUZZ_BUILD_DIR" -maxdepth 1 -name '*-fuzz' -type f -print0 | sort -z)
+done < <(find "$FUZZ_BUILD_DIR" -name '*-fuzz' -type f -print0 | sort -z)
 
 echo ""
 echo "==> Done. Fuzzer artifacts written to $OUT/"

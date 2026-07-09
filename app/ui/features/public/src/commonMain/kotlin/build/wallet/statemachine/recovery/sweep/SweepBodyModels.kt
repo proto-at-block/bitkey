@@ -1,21 +1,31 @@
 package build.wallet.statemachine.recovery.sweep
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import bitkey.privilegedactions.HardwareVerificationPrivilegedActionService
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
+import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.InactiveWalletSweepEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.WalletMigrationEventTrackerScreenId
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.coroutines.flow.ConfirmationState
 import build.wallet.recovery.sweep.SweepContext
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.Icon.*
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.form.designSystemV2HeroIconHeader
-import build.wallet.statemachine.core.form.designSystemV2WarningIconHeader
+import build.wallet.statemachine.core.form.FormScreenLayoutModel
+import build.wallet.statemachine.core.form.FormScreenTitleModel
+import build.wallet.statemachine.core.form.formHeroIconHeader
+import build.wallet.statemachine.core.form.formWarningIconHeader
 import build.wallet.statemachine.money.amount.MoneyAmountModel
+import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.send.NetworkFeesInfoSheetModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
@@ -32,7 +42,6 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
-import build.wallet.ui.tokens.market.MarketIcons
 
 fun generatingPsbtsBodyModel(
   id: EventTrackerScreenId?,
@@ -60,6 +69,11 @@ fun generatePsbtsFailedScreenModel(
       title = "Error",
       subline = "We couldn’t load your existing funds",
       primaryButton = ButtonDataModel("OK", onClick = onPrimaryButtonClick),
+      errorData = ErrorData(
+        segment = RecoverySegment.AdditionalSweep.Sweep,
+        actionDescription = "Generating sweep PSBTs",
+        cause = IllegalStateException("Failed to generate sweep PSBTs")
+      ),
       eventTrackerScreenId = id,
       eventTrackerShouldTrack = false
     )
@@ -75,7 +89,7 @@ private val walletUpdateExplainers = immutableListOf(
     body = "Copy a fresh receive address every time you transfer bitcoin to avoid sending funds to an old wallet."
   ),
   FormMainContentModel.Explainer.Statement(
-    leadingIcon = Icon.SmallIconMessage,
+    leadingIcon = Icon.Message,
     title = "Alert contacts",
     body = "Make sure your contacts know to ask for a current wallet address every time they send you bitcoin."
   )
@@ -119,7 +133,7 @@ private data class SweepInactiveHelpBodyModel(
     primaryButton = ButtonModel(
       text = "Learn more",
       treatment = ButtonModel.Treatment.Secondary,
-      leadingIcon = Icon.SmallIconArrowUpRight,
+      leadingIcon = Icon.ArrowUpRight,
       onClick = StandardClick { onLearnMore() },
       size = Footer
     )
@@ -185,7 +199,7 @@ data class SweepFundsPromptBodyModel(
       trailingAccessory = ToolbarAccessoryModel.IconAccessory(
         model = IconButtonModel(
           iconModel = IconModel(
-            icon = SmallIconQuestionNoOutline,
+            icon = Question,
             iconSize = Accessory,
             iconBackgroundType = Circle(circleSize = Regular)
           ),
@@ -194,40 +208,16 @@ data class SweepFundsPromptBodyModel(
         )
       ).takeIf { sweepContext !is SweepFundsPromptContext.Recovery }
     ),
-    header =
-      FormHeaderModel(
-        iconModel = IconModel(
-          icon = when (sweepContext) {
-            is SweepFundsPromptContext.Recovery -> LargeIconCheckFilled
-            is SweepFundsPromptContext.InactiveWallet -> LargeIconWarningFilled
-          },
-          iconSize = IconSize.Avatar,
-          iconTint = when (sweepContext) {
-            is SweepFundsPromptContext.Recovery -> IconTint.Primary
-            is SweepFundsPromptContext.InactiveWallet -> IconTint.On30
-          }
-        ),
-        headline = when (sweepContext) {
-          is SweepFundsPromptContext.Recovery -> "Finalize recovery"
-          is SweepFundsPromptContext.InactiveWallet -> "Transfer funds to active wallet"
-        },
-        subline = when (sweepContext) {
-          is SweepFundsPromptContext.Recovery -> null
-          is SweepFundsPromptContext.InactiveWallet -> "These funds were deposited in an inactive wallet. Transfer funds to your active wallet and discontinue use of your old address."
-        }
-      ),
-    designSystemV2Model = FormDesignSystemV2Model(
-      header = designSystemV2HeroIconHeader(
-        headline = when (sweepContext) {
-          is SweepFundsPromptContext.Recovery -> "Finalize recovery"
-          is SweepFundsPromptContext.InactiveWallet -> "Transfer funds to active wallet"
-        },
-        subline = when (sweepContext) {
-          is SweepFundsPromptContext.Recovery -> null
-          is SweepFundsPromptContext.InactiveWallet -> "These funds were deposited in an inactive wallet. Transfer funds to your active wallet and discontinue use of your old address."
-        },
-        icon = null
-      )
+    header = formHeroIconHeader(
+      headline = when (sweepContext) {
+        is SweepFundsPromptContext.Recovery -> "Finalize recovery"
+        is SweepFundsPromptContext.InactiveWallet -> "Transfer funds to active wallet"
+      },
+      subline = when (sweepContext) {
+        is SweepFundsPromptContext.Recovery -> null
+        is SweepFundsPromptContext.InactiveWallet -> "These funds were deposited in an inactive wallet. Transfer funds to your active wallet and discontinue use of your old address."
+      },
+      icon = null
     ),
     mainContentList = immutableListOf(
       FormMainContentModel.DataList(
@@ -249,7 +239,7 @@ data class SweepFundsPromptBodyModel(
             onTitle = onShowNetworkFeesInfo,
             titleIcon =
               IconModel(
-                icon = Icon.SmallIconInformation,
+                icon = Icon.Information,
                 iconSize = IconSize.XSmall,
                 iconTint = IconTint.On30
               ),
@@ -302,23 +292,29 @@ data class ZeroBalancePromptBodyModel(
     id = id,
     onBack = onDone,
     toolbar = ToolbarModel(leadingAccessory = CloseAccessory(onClick = onDone)),
-    header =
-      FormHeaderModel(
-        headline = "No funds found",
-        subline = "We didn’t find any funds to move, or the amount of funds are lower than the network fees required to move them"
-      ),
-    designSystemV2Model = eyebrow?.let {
-      FormDesignSystemV2Model(
+    formScreenTitle = eyebrow?.let {
+      FormScreenTitleModel(
         eyebrow = it,
-        title = "No funds found",
-        header = FormHeaderModel(
+        title = "No funds found"
+      )
+    },
+    formScreenLayout = when (eyebrow) {
+      null -> FormScreenLayoutModel.Legacy
+      else -> FormScreenLayoutModel.LargeTitle(scrollable = false)
+    },
+    header = when (eyebrow) {
+      null ->
+        FormHeaderModel(
+          headline = "No funds found",
+          subline = "We didn’t find any funds to move, or the amount of funds are lower than the network fees required to move them"
+        )
+      else ->
+        FormHeaderModel(
           headline = null,
           sublineModel = StringModel(
             "We didn’t find any funds to move, or the amount of funds are lower than the network fees required to move them"
           )
-        ),
-        scrollable = false
-      )
+        )
     },
     primaryButton =
       ButtonModel(
@@ -348,6 +344,55 @@ fun broadcastingScreenModel(
     )
 )
 
+@Composable
+fun hardwareVerificationRequiredScreenModel(
+  sweepContext: SweepContext,
+  hardwareVerificationPrivilegedActionService: HardwareVerificationPrivilegedActionService,
+  pollKey: Any?,
+  /**
+   * Invoked once the pending VerifyHardwareSerial action is no longer
+   * present on the server. This does NOT mean the hardware was successfully
+   * verified — Cancel and attempt-exhaustion remove the action too, and
+   * leave the keyset's attested serial Pending. Callers should re-attempt
+   * the underlying sweep operation, which will either succeed against the
+   * now-verified keyset or surface a hardware-attestation error and start
+   * a new OOBA.
+   */
+  onActionResolved: () -> Unit,
+  onResendEmail: () -> Unit,
+  presentationStyle: ScreenPresentationStyle,
+): ScreenModel {
+  LaunchedEffect(pollKey) {
+    hardwareVerificationPrivilegedActionService
+      .pollPendingHardwareVerificationAction()
+      .collect { state ->
+        if (state is ConfirmationState.Complete) {
+          onActionResolved()
+        }
+      }
+  }
+  return ScreenModel(
+    presentationStyle = presentationStyle,
+    body = LoadingBodyModel(
+      id = when (sweepContext) {
+        is SweepContext.Recovery -> when (sweepContext.recoveredFactor) {
+          App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_HARDWARE_VERIFICATION_REQUIRED
+          Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_HARDWARE_VERIFICATION_REQUIRED
+        }
+        is SweepContext.PrivateWalletMigration, is SweepContext.W3Upgrade -> WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_SWEEP_HARDWARE_VERIFICATION_REQUIRED
+        else -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_HARDWARE_VERIFICATION_REQUIRED
+      },
+      title = "Waiting for verification...",
+      eventTrackerShouldTrack = false,
+      primaryButton = ButtonModel(
+        text = "Resend email",
+        onClick = StandardClick(onResendEmail),
+        size = Footer
+      )
+    )
+  )
+}
+
 fun sweepSuccessScreenModel(
   id: EventTrackerScreenId?,
   recoveredFactor: PhysicalFactor?,
@@ -373,34 +418,17 @@ data class SweepSuccessScreenBodyModel(
       ToolbarModel(
         leadingAccessory = CloseAccessory(onClick = onDone)
       ),
-    header =
-      FormHeaderModel(
-        icon = LargeIconCheckFilled,
-        headline =
-          when (recoveredFactor) {
-            App -> "Your App Key recovery is complete!"
-            Hardware -> "Success!"
-            null -> "Your transfer is complete!"
-          },
-        subline =
-          when (recoveredFactor) {
-            App, null -> "You can now safely use this phone to manage your Bitkey. Take precautions to avoid sending money to your old wallet."
-            Hardware -> "Your recovery is now complete and your new Bitkey device is ready to use. Take precautions to avoid sending money to your old wallet."
-          }
-      ),
-    designSystemV2Model = FormDesignSystemV2Model(
-      header = designSystemV2HeroIconHeader(
-        headline = when (recoveredFactor) {
-          App -> "Your App Key recovery is complete!"
-          Hardware -> "Success!"
-          null -> "Your transfer is complete!"
-        },
-        subline = when (recoveredFactor) {
-          App, null -> "You can now safely use this phone to manage your Bitkey. Take precautions to avoid sending money to your old wallet."
-          Hardware -> "Your recovery is now complete and your new Bitkey device is ready to use. Take precautions to avoid sending money to your old wallet."
-        },
-        icon = MarketIcons.Checkmark
-      )
+    header = formHeroIconHeader(
+      headline = when (recoveredFactor) {
+        App -> "Your App Key recovery is complete!"
+        Hardware -> "Success!"
+        null -> "Your transfer is complete!"
+      },
+      subline = when (recoveredFactor) {
+        App, null -> "You can now safely use this phone to manage your Bitkey. Take precautions to avoid sending money to your old wallet."
+        Hardware -> "Your recovery is now complete and your new Bitkey device is ready to use. Take precautions to avoid sending money to your old wallet."
+      },
+      icon = Icon.Checkmark
     ),
     mainContentList = immutableListOf(
       FormMainContentModel.Explainer(
@@ -447,28 +475,16 @@ private data class MultipleTransactionsWarningBodyModel(
     toolbar = ToolbarModel(
       leadingAccessory = BackAccessory(onClick = onBack)
     ),
-    header = FormHeaderModel(
-      iconModel = IconModel(
-        icon = LargeIconWarningFilled,
-        iconSize = IconSize.Avatar,
-        iconTint = IconTint.Primary
-      ),
+    header = formWarningIconHeader(
       headline = "Multiple transactions to sign",
       subline = "This transfer requires $transactionCount separate transactions. " +
         "You'll need to approve each one on your Bitkey device."
-    ),
-    designSystemV2Model = FormDesignSystemV2Model(
-      header = designSystemV2WarningIconHeader(
-        headline = "Multiple transactions to sign",
-        subline = "This transfer requires $transactionCount separate transactions. " +
-          "You'll need to approve each one on your Bitkey device."
-      )
     ),
     primaryButton = ButtonModel(
       text = "Continue",
       onClick = StandardClick { onContinue() },
       size = Footer,
-      leadingIcon = Icon.SmallIconBitkey,
+      leadingIcon = Icon.Bitkey,
       treatment = ButtonModel.Treatment.BitkeyInteraction
     ),
     eventTrackerShouldTrack = false

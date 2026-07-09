@@ -188,8 +188,12 @@ class CloudBackupHealthRepositoryImpl(
         // We've exceeded the limit due to INC-7289; overwrite the local cache with the correct backup
         // and report a mismatch
         val sealedCsek = when (localCloudBackup) {
-          is CloudBackupV2 -> localCloudBackup.fullAccountFields!!.sealedHwEncryptionKey
-          is CloudBackupV3 -> localCloudBackup.fullAccountFields!!.sealedHwEncryptionKey
+          is CloudBackupV2 -> checkNotNull(localCloudBackup.fullAccountFields) {
+            "Full account backup is missing full account fields"
+          }.sealedHwEncryptionKey
+          is CloudBackupV3 -> checkNotNull(localCloudBackup.fullAccountFields) {
+            "Full account backup is missing full account fields"
+          }.sealedHwEncryptionKey
         }
         val fixedBackup = fullAccountCloudBackupCreator.create(
           keybox = keybox,

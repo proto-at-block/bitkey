@@ -6,14 +6,14 @@ import kotlinx.coroutines.flow.Flow
 
 // TODO: Move this to the impl
 
-sealed class AuthKeyRotationAttemptDaoState {
-  data object NoAttemptInProgress : AuthKeyRotationAttemptDaoState()
+sealed interface AuthKeyRotationAttemptDaoState {
+  data object NoAttemptInProgress : AuthKeyRotationAttemptDaoState
 
-  data object KeyRotationProposalWritten : AuthKeyRotationAttemptDaoState()
+  data object KeyRotationProposalWritten : AuthKeyRotationAttemptDaoState
 
   data class AuthKeysWritten(
     val appAuthPublicKeys: AppAuthPublicKeys,
-  ) : AuthKeyRotationAttemptDaoState()
+  ) : AuthKeyRotationAttemptDaoState
 }
 
 interface AuthKeyRotationAttemptDao {

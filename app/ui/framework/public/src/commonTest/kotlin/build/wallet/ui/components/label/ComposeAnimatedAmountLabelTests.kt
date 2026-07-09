@@ -42,6 +42,55 @@ class ComposeAnimatedAmountLabelTests : FunSpec({
     mask.exitAnimatedCharacters.toList() shouldBe emptyList()
   }
 
+  test("amount direction follows value changes") {
+    animatedAmountDirectionFor(previousValue = 100L, currentValue = 101L)
+      .shouldBe(AnimatedAmountDirection.Increase)
+
+    animatedAmountDirectionFor(previousValue = 100L, currentValue = 99L)
+      .shouldBe(AnimatedAmountDirection.Decrease)
+
+    animatedAmountDirectionFor(previousValue = 100L, currentValue = 100L)
+      .shouldBe(AnimatedAmountDirection.Increase)
+  }
+
+  test("amount direction changes vertical animation motion") {
+    animatedAmountDrawState(
+      elapsedMs = 0f,
+      durationMs = 350,
+      groupIndex = 0,
+      textHeight = 40f,
+      direction = AnimatedAmountDirection.Increase,
+      phase = AnimatedAmountPhase.Enter
+    ).translateY shouldBe 20f
+
+    animatedAmountDrawState(
+      elapsedMs = 0f,
+      durationMs = 350,
+      groupIndex = 0,
+      textHeight = 40f,
+      direction = AnimatedAmountDirection.Decrease,
+      phase = AnimatedAmountPhase.Enter
+    ).translateY shouldBe -20f
+
+    animatedAmountDrawState(
+      elapsedMs = 350f,
+      durationMs = 350,
+      groupIndex = 0,
+      textHeight = 40f,
+      direction = AnimatedAmountDirection.Increase,
+      phase = AnimatedAmountPhase.Exit
+    ).translateY shouldBe -20f
+
+    animatedAmountDrawState(
+      elapsedMs = 350f,
+      durationMs = 350,
+      groupIndex = 0,
+      textHeight = 40f,
+      direction = AnimatedAmountDirection.Decrease,
+      phase = AnimatedAmountPhase.Exit
+    ).translateY shouldBe 20f
+  }
+
   test("min scale accounts for disabled font scaling") {
     resolvedAnimatedAmountMinScale(
       styleFontSize = 8.sp,

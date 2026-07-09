@@ -35,7 +35,7 @@ data class ExportToolsSelectionModel(
               secondaryText = "Export CSV",
               trailingAccessory = IconAccessory(
                 model = IconModel(
-                  icon = Icon.SmallIconDocument,
+                  icon = Icon.Document,
                   iconSize = Small,
                   iconBackgroundType = Transient
                 ),
@@ -48,7 +48,7 @@ data class ExportToolsSelectionModel(
               secondaryText = "Export XPUB bundle",
               trailingAccessory = IconAccessory(
                 model = IconModel(
-                  icon = Icon.SmallIconDocument,
+                  icon = Icon.Document,
                   iconSize = Small,
                   iconBackgroundType = Transient
                 ),

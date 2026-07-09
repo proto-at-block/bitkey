@@ -1,12 +1,13 @@
 package build.wallet.ui.app.nfc
 
-import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -18,17 +19,27 @@ import bitkey.ui.framework_public.generated.resources.ios_nfc_background_standar
 import bitkey.ui.framework_public.generated.resources.ios_nfc_background_w1
 import build.wallet.platform.device.DeviceInfo
 import build.wallet.platform.device.DevicePlatform
+import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.send.signtransaction.SignTransactionNfcBodyModel
 import build.wallet.statemachine.send.signtransaction.SignTransactionNfcBodyModel.Status.*
 import build.wallet.ui.app.LocalDeviceInfo
+import build.wallet.ui.components.toolbar.Toolbar
+import build.wallet.ui.components.toolbar.ToolbarAccessory
 import build.wallet.ui.model.ComposeModel
+import build.wallet.ui.model.StandardClick
+import build.wallet.ui.model.icon.IconBackgroundType
+import build.wallet.ui.model.icon.IconButtonModel
+import build.wallet.ui.model.icon.IconModel
+import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.system.KeepScreenOn
 import build.wallet.ui.theme.WalletTheme
-import build.wallet.ui.tooling.PreviewWalletTheme
 import build.wallet.ui.tokens.LabelType
+import build.wallet.ui.tooling.PreviewWalletTheme
 import org.jetbrains.compose.resources.painterResource
 
 private val IosSignTransactionStatusContentOffset = (-8).dp
+
 @Composable
 fun SignTransactionNfcScreen(
   modifier: Modifier = Modifier,
@@ -36,17 +47,15 @@ fun SignTransactionNfcScreen(
 ) {
   KeepScreenOn()
   val devicePlatform = LocalDeviceInfo.current.devicePlatform
-  val designSystemV2Enabled = true
 
-  when {
-    devicePlatform == DevicePlatform.IOS -> {
+  when (devicePlatform) {
+    DevicePlatform.IOS -> {
       SignTransactionNfcScreenInternalIos(model = model, modifier = modifier)
     }
-    devicePlatform == DevicePlatform.Android && designSystemV2Enabled -> {
-      SignTransactionNfcScreenInternalV2(model = model, modifier = modifier)
-    }
-    else -> {
-      SignTransactionNfcScreenInternal(model = model, modifier = modifier)
+    DevicePlatform.Android,
+    DevicePlatform.Jvm,
+    -> {
+      SignTransactionNfcScreenInternalAndroid(model = model, modifier = modifier)
     }
   }
 }
@@ -56,10 +65,8 @@ internal fun SignTransactionNfcScreenInternalIos(
   model: SignTransactionNfcBodyModel,
   modifier: Modifier = Modifier,
 ) {
-  val designSystemV2Enabled = true
-
   if (model.shouldUseCustomBackgroundLayout()) {
-    FwupSystemThemedContent(followIosSystemTheme = designSystemV2Enabled) {
+    FwupSystemThemedContent(followIosSystemTheme = true) {
       NfcProgressScreenIosLayout(
         modifier = modifier,
         hardwareType = model.hardwareType,
@@ -67,9 +74,8 @@ internal fun SignTransactionNfcScreenInternalIos(
         statusTopPadding = 40.dp,
         showDefaultHardwareBackground = false
       ) {
-        SignTransactionNfcIosStatusContent(
-          status = model.status,
-          designSystemV2Enabled = designSystemV2Enabled
+        SignTransactionNfcIosOffsetStatusContent(
+          status = model.status
         )
       }
     }
@@ -77,9 +83,9 @@ internal fun SignTransactionNfcScreenInternalIos(
   }
 
   FwupSystemThemedContent(
-    followIosSystemTheme = model.shouldFollowIosSystemTheme(designSystemV2Enabled)
+    followIosSystemTheme = true
   ) {
-    val showDetailedIosInstructions = model.shouldShowDetailedIosInstructions(designSystemV2Enabled)
+    val showDetailedIosInstructions = model.status.hasDetailedIosInstructions
     val backgroundDrawable = when (model.hardwareType) {
       HardwareType.W1 -> Res.drawable.ios_nfc_background_w1
       HardwareType.W3 -> Res.drawable.ios_nfc_background_standard
@@ -90,38 +96,30 @@ internal fun SignTransactionNfcScreenInternalIos(
       hardwareType = model.hardwareType,
       backgroundColor = WalletTheme.colors.background,
       backgroundPainter =
-        if (designSystemV2Enabled && !showDetailedIosInstructions) painterResource(backgroundDrawable) else null,
+        if (!showDetailedIosInstructions) painterResource(backgroundDrawable) else null,
       backgroundTopPadding = 200.dp,
-      statusTopPadding = if (designSystemV2Enabled) 40.dp else 48.dp,
+      statusTopPadding = 40.dp,
       showDefaultHardwareBackground = !showDetailedIosInstructions
     ) {
-      SignTransactionNfcIosStatusContent(
-        status = model.status,
-        designSystemV2Enabled = designSystemV2Enabled
+      SignTransactionNfcIosOffsetStatusContent(
+        status = model.status
       )
     }
   }
 }
 
 @Composable
-private fun SignTransactionNfcIosStatusContent(
-  status: SignTransactionNfcBodyModel.Status,
-  designSystemV2Enabled: Boolean,
-) {
-  if (designSystemV2Enabled) {
-    Column(
-      modifier = Modifier.offset(y = IosSignTransactionStatusContentOffset),
-      horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-      SignTransactionNfcIosStatusContentV2(status = status)
-    }
-  } else {
-    SignTransactionNfcIosStatusContentLegacy(status = status)
+private fun SignTransactionNfcIosOffsetStatusContent(status: SignTransactionNfcBodyModel.Status) {
+  Column(
+    modifier = Modifier.offset(y = IosSignTransactionStatusContentOffset),
+    horizontalAlignment = Alignment.CenterHorizontally
+  ) {
+    SignTransactionNfcIosStatusContent(status = status)
   }
 }
 
 @Composable
-private fun SignTransactionNfcIosStatusContentV2(status: SignTransactionNfcBodyModel.Status) {
+private fun SignTransactionNfcIosStatusContent(status: SignTransactionNfcBodyModel.Status) {
   when (status) {
     is Searching -> {
       NfcStatusLabel(
@@ -161,69 +159,51 @@ private fun SignTransactionNfcIosStatusContentV2(status: SignTransactionNfcBodyM
 }
 
 @Composable
-private fun SignTransactionNfcIosStatusContentLegacy(status: SignTransactionNfcBodyModel.Status) {
-  when (status) {
-    is Searching -> {
-      NfcStatusLabel(
-        text = "Ready to Sign",
-        labelType = LabelType.Title1
-      )
-      NfcStatusLabel(
-        text = "Hold device to phone",
-        labelType = LabelType.Body2Regular
-      )
-    }
-    is Signing -> {
-      NfcStatusLabel(
-        text = "This can take up to 1 minute…",
-        labelType = LabelType.Title1
-      )
-      NfcStatusLabel(
-        text = "Continue holding to phone",
-        labelType = LabelType.Body2Regular
-      )
-    }
-    is Transferring -> {
-      NfcStatusLabel(
-        text = "Transferring...",
-        labelType = LabelType.Title1
-      )
-      NfcStatusLabel(
-        text = "Continue holding to phone",
-        labelType = LabelType.Body2Regular
-      )
-    }
-    is LostConnection,
-    is Success,
-    -> Unit
-  }
-}
-
-@Composable
-fun SignTransactionNfcScreenInternal(
+internal fun SignTransactionNfcScreenInternalAndroid(
   model: SignTransactionNfcBodyModel,
   modifier: Modifier = Modifier,
 ) {
   NfcProgressScreenAndroidLayout(
     modifier = modifier,
     onCancel = model.onCancel,
-    statusIndicator = {
-      SignTransactionNfcStatusIndicator(status = model.status)
+    topContent = {
+      if (model.status !is Success && model.onHelpClick != null) {
+        Box(
+          modifier =
+            Modifier
+              .fillMaxWidth()
+              .statusBarsPadding()
+        ) {
+          Toolbar(
+            modifier =
+              Modifier
+                .padding(horizontal = ANDROID_NFC_TOOLBAR_HORIZONTAL_PADDING)
+                .fillMaxWidth(),
+            trailingContent = {
+              ToolbarAccessory(
+                model =
+                  ToolbarAccessoryModel.IconAccessory(
+                    model =
+                      IconButtonModel(
+                        iconModel =
+                          IconModel(
+                            icon = Icon.Question,
+                            iconSize = IconSize.Accessory,
+                            iconBackgroundType =
+                              IconBackgroundType.Circle(
+                                circleSize = IconSize.Regular
+                              )
+                          ),
+                        testTag = "sign-transaction-nfc-help",
+                        onClick = StandardClick(model.onHelpClick)
+                      )
+                  )
+              )
+            }
+          )
+        }
+      }
     },
-    statusLabel = {
-      SignTransactionNfcStatusLabel(status = model.status)
-    }
-  )
-}
-
-@Composable
-internal fun SignTransactionNfcScreenInternalV2(
-  model: SignTransactionNfcBodyModel,
-  modifier: Modifier = Modifier,
-) {
-  NfcProgressScreenAndroidLayoutV2(
-    modifier = modifier,
-    onCancel = model.onCancel,
     statusContent = {
       SignTransactionNfcStatusIndicator(status = model.status)
       SignTransactionNfcStatusLabel(
@@ -336,18 +316,6 @@ private val SignTransactionNfcBodyModel.Status.hasDetailedIosInstructions: Boole
 
 internal fun SignTransactionNfcBodyModel.shouldUseCustomBackgroundLayout(): Boolean =
   !showNativeSheetOnIos
-
-internal fun SignTransactionNfcBodyModel.shouldFollowIosSystemTheme(
-  designSystemV2Enabled: Boolean,
-): Boolean =
-  designSystemV2Enabled && showNativeSheetOnIos
-
-internal fun SignTransactionNfcBodyModel.shouldShowDetailedIosInstructions(
-  designSystemV2Enabled: Boolean,
-): Boolean =
-  designSystemV2Enabled &&
-    showNativeSheetOnIos &&
-    status.hasDetailedIosInstructions
 
 @Snapshot
 val SnapshotHost.signTransactionReady

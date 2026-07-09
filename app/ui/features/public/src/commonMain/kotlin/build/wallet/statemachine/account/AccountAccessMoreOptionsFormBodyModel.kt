@@ -45,7 +45,7 @@ data class AccountAccessMoreOptionsFormBodyModel(
               leadingAccessory = IconAccessory(
                 iconPadding = 12,
                 model = IconModel(
-                  icon = Icon.SmallIconShieldPerson,
+                  icon = Icon.ShieldPerson,
                   iconSize = IconSize.Small
                 )
               ),
@@ -57,7 +57,7 @@ data class AccountAccessMoreOptionsFormBodyModel(
               leadingAccessory = IconAccessory(
                 iconPadding = 12,
                 model = IconModel(
-                  icon = Icon.SmallIconWallet,
+                  icon = Icon.Wallet,
                   iconSize = IconSize.Small
                 )
               ),
@@ -70,7 +70,7 @@ data class AccountAccessMoreOptionsFormBodyModel(
                 leadingAccessory = IconAccessory(
                   iconPadding = 12,
                   model = IconModel(
-                    icon = Icon.SmallIconRecovery,
+                    icon = Icon.Recovery,
                     iconSize = IconSize.Small
                   )
                 ),
@@ -84,7 +84,7 @@ data class AccountAccessMoreOptionsFormBodyModel(
                 leadingAccessory = IconAccessory(
                   iconPadding = 12,
                   model = IconModel(
-                    icon = Icon.SmallIconBitkey,
+                    icon = Icon.Bitkey,
                     iconSize = IconSize.Small
                   )
                 ),
@@ -98,7 +98,7 @@ data class AccountAccessMoreOptionsFormBodyModel(
                 leadingAccessory = IconAccessory(
                   iconPadding = 12,
                   model = IconModel(
-                    icon = Icon.SmallIconMessage,
+                    icon = Icon.Message,
                     iconSize = IconSize.Small
                   )
                 ),

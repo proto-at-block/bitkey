@@ -211,6 +211,21 @@ class HardwareAuthUiStateMachineImplTests : FunSpec({
       )
     }
 
+    test("W3: can skip token refresh before building an action proof") {
+      stateMachine.test(
+        w3Props.copy(refreshAuthTokens = false)
+      ) {
+        awaitBody<LoadingSuccessBodyModel>()
+        awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<String>>(id = "nfc-confirmable-session") {
+          onSuccess("hw-signature")
+        }
+      }
+
+      val call = actionProofService.buildAppSignedPayloadCalls.first()
+      call.action.shouldBe(Action.SET_SPEND_WITHOUT_HARDWARE)
+      onSuccess.awaitItem().shouldBeInstanceOf<HwSignedAction>()
+    }
+
     test("W3: shows error screen when payload build fails") {
       actionProofService.buildAppSignedPayloadResult =
         Err(ActionProofError.InternalError(RuntimeException("build failed")))

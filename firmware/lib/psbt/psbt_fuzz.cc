@@ -17,6 +17,7 @@
 extern "C" {
 #include "attributes.h"
 #include "fff.h"
+#include "mempool.h"
 #include "psbt.h"
 #include "rtos.h"
 
@@ -35,16 +36,29 @@ DEFINE_FFF_GLOBALS;
 #include <stdlib.h>
 #include <vector>
 
-/* Intercept mempool_alloc via --wrap linker flag.  The embedded mempool calls
- * exit(2) when the fixed-size pool is exhausted, killing the fuzzer.  Using
- * malloc() lets the fuzzer run indefinitely while ASAN catches real OOB bugs.
- * Requires -Wl,--wrap=mempool_alloc in link_args (see meson.build). */
+static constexpr size_t kMaxFuzzPsbtSize = 2048;
+/* TODO(W-16140): Keep this in sync when WALLY_MEMPOOL_REGIONS is resized for
+ * multi-input PSBT support. Mirrors the largest current region in src/psbt.c. */
+static constexpr uint32_t kMaxFuzzMempoolAllocSize = 896;
+
+/* psbt.c is compiled for this fuzz target with mempool_alloc/mempool_free
+ * renamed to these harness functions. Use malloc/free so the fuzzer is not
+ * bounded by fixed pool capacity, but until W-16140 resizes the production
+ * regions, treat oversized libwally allocations as parse failures. For
+ * supported sizes, preserve production's non-null-or-fatal contract. */
 extern "C" {
-extern void* __real_mempool_alloc(void* pool, uint32_t size);
-void* __wrap_mempool_alloc(void* pool, uint32_t size) {
+void* psbt_fuzz_mempool_alloc(mempool_t* pool, uint32_t size) {
   (void)pool;
-  if (size == 0) return NULL;
-  return malloc(size);
+  if (size == 0 || size > kMaxFuzzMempoolAllocSize) return NULL;
+
+  void* buffer = malloc(size);
+  ASSERT(buffer != NULL);
+  return buffer;
+}
+
+void psbt_fuzz_mempool_free(mempool_t* pool, void* buffer) {
+  (void)pool;
+  free(buffer);
 }
 }
 
@@ -66,8 +80,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
    * The PSBT binary format starts with a magic header (0x70736274ff);
    * libFuzzer will discover valid and malformed cases automatically. */
   {
+    /* Production firmware rejects PSBTs > MAX_PSBT_SIZE (1536 bytes).
+     * Keep the fuzz parser input slightly higher to preserve edge-case coverage
+     * while avoiding false timeouts in libwally's BIP174 parser. */
+    const size_t max_psbt_len =
+      size < kMaxFuzzPsbtSize ? size : kMaxFuzzPsbtSize;
     const size_t psbt_len =
-      fuzzed_data.ConsumeIntegralInRange<size_t>(0, size);
+      fuzzed_data.ConsumeIntegralInRange<size_t>(0, max_psbt_len);
     std::vector<uint8_t> psbt_bytes =
       fuzzed_data.ConsumeBytes<uint8_t>(psbt_len);
     psbt_bytes.resize(psbt_len, 0);

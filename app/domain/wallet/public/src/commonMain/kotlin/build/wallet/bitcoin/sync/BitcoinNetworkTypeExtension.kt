@@ -43,7 +43,6 @@ fun BitcoinNetworkType.mempoolElectrumServerDetails(
         },
         port = "8101"
       )
-    else -> error("not supported")
   }
 }
 
@@ -88,7 +87,6 @@ fun BitcoinNetworkType.blockstreamElectrumServerDetails(
         },
         port = "8101"
       )
-    else -> error("not supported")
   }
 }
 

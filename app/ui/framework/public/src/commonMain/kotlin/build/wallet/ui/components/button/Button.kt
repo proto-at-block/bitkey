@@ -12,14 +12,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.statemachine.core.Icon
 import build.wallet.ui.components.icon.Icon
 import build.wallet.ui.components.loading.LoadingBadge
 import build.wallet.ui.components.label.Label
-import build.wallet.ui.components.loading.LoadingIndicator
 import build.wallet.ui.components.sheet.LocalSheetCloser
 import build.wallet.ui.compose.buttonTestTag
 import build.wallet.ui.compose.resId
@@ -39,7 +37,6 @@ import kotlinx.coroutines.launch
 @Composable
 fun Button(
   model: ButtonModel,
-  cornerRadius: Dp = 16.dp,
   modifier: Modifier = Modifier,
 ) {
   with(model) {
@@ -51,7 +48,6 @@ fun Button(
       leadingIcon = leadingIcon,
       treatment = treatment,
       size = size,
-      cornerRadius = cornerRadius,
       onClick = model.onClick
     )
   }
@@ -72,7 +68,6 @@ fun Button(
   leadingIcon: Icon? = null,
   treatment: Treatment = Primary,
   size: Size = Regular,
-  cornerRadius: Dp = 16.dp,
   onClick: Click,
 ) {
   // when the onClick is of type [Click.SheetClosingClick], we need to close the sheet first and then
@@ -103,7 +98,6 @@ fun Button(
       WalletTheme.buttonStyle(
         treatment = treatment,
         size = size,
-        cornerRadius = cornerRadius,
         enabled = enabled
       ),
     onClick = clickHandler
@@ -160,7 +154,6 @@ internal fun Button(
   onClick: () -> Unit,
   content: @Composable () -> Unit,
 ) {
-  val isDesignSystemV2Enabled = true
   Box(
     modifier =
       modifier
@@ -200,17 +193,10 @@ internal fun Button(
         enter = fadeIn(),
         exit = fadeOut()
       ) {
-        if (isDesignSystemV2Enabled) {
-          LoadingBadge(
-            modifier = Modifier.size(24.dp),
-            color = style.iconColor
-          )
-        } else {
-          LoadingIndicator(
-            modifier = Modifier.size(24.dp),
-            color = style.iconColor
-          )
-        }
+        LoadingBadge(
+          modifier = Modifier.size(24.dp),
+          color = style.iconColor
+        )
       }
 
       AnimatedVisibility(

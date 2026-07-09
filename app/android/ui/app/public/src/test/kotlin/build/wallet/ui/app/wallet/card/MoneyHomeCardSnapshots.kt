@@ -68,25 +68,25 @@ class MoneyHomeCardSnapshots : FunSpec({
     }
   }
 
-  test("Money Home Card Inactive Wallet with design system v2") {
+  test("Money Home Card Inactive Wallet") {
     paparazzi.snapshot {
       PreviewMoneyHomeCardInactiveWallet()
     }
   }
 
-  test("Money Home Card Benefactor Pending Claim with design system v2") {
+  test("Money Home Card Benefactor Pending Claim") {
     paparazzi.snapshot {
       PreviewMoneyHomeCardBenefactorPendingClaim()
     }
   }
 
-  test("Money Home Card Benefactor Approved Claim with design system v2") {
+  test("Money Home Card Benefactor Approved Claim") {
     paparazzi.snapshot {
       PreviewMoneyHomeCardBenefactorApprovedClaim()
     }
   }
 
-  test("Money Home Card Beneficiary Pending Claim with design system v2") {
+  test("Money Home Card Beneficiary Pending Claim") {
     paparazzi.snapshot {
       PreviewMoneyHomeCardBeneficiaryPendingClaim()
     }
@@ -104,7 +104,7 @@ class MoneyHomeCardSnapshots : FunSpec({
     }
   }
 
-  test("Money Home Card Inheritance with design system v2") {
+  test("Money Home Card Inheritance") {
     paparazzi.snapshot {
       PreviewInheritanceMoneyHomeCard()
     }

@@ -11,7 +11,7 @@ import build.wallet.ui.model.icon.*
 internal fun IconImageWithCircleBackground() {
   IconImage(
     model = IconModel(
-      icon = Icon.SmallIconPhone,
+      icon = Icon.Phone,
       iconTint = IconTint.Primary,
       iconSize = IconSize.Large,
       iconBackgroundType = IconBackgroundType.Circle(
@@ -27,7 +27,7 @@ internal fun IconImageWithCircleBackground() {
 internal fun IconImageWithSquareBackgroundPreview() {
   IconImage(
     model = IconModel(
-      icon = Icon.SmallIconArrowRight,
+      icon = Icon.ArrowRight,
       iconSize = IconSize.Accessory,
       iconBackgroundType = IconBackgroundType.Square(
         size = IconSize.Large,
@@ -44,7 +44,7 @@ internal fun IconImageWithSquareBackgroundPreview() {
 internal fun IconImageWithAlphaPreview() {
   IconImage(
     model = IconModel(
-      icon = Icon.BitkeyDevice3D,
+      icon = Icon.BitkeyFrontLit,
       iconSize = IconSize.XLarge,
       iconOpacity = 0.5f
     )

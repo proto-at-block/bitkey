@@ -1,5 +1,7 @@
 package build.wallet.debug.cloud
 
+import bitkey.account.AccountConfigServiceFake
+import build.wallet.cloud.backup.CloudBackupStoreFake
 import build.wallet.cloud.store.CloudKitKeyValueStoreFake
 import build.wallet.cloud.store.CloudStoreAccountRepositoryMock
 import build.wallet.cloud.store.UbiquitousKeyValueStoreFake
@@ -20,7 +22,9 @@ class CloudBackupViewerImplTests : FunSpec({
   val cloudStoreAccountRepository = CloudStoreAccountRepositoryMock()
   val ubiquitousKeyValueStore = UbiquitousKeyValueStoreFake()
   val cloudKitKeyValueStore = CloudKitKeyValueStoreFake()
+  val cloudBackupStore = CloudBackupStoreFake()
   val cloudBackupStoreKeys = CloudBackupStoreKeysFake()
+  val accountConfigService = AccountConfigServiceFake()
   val featureFlagDao = FeatureFlagDaoFake()
   val iosCloudKitBackupFeatureFlag = IosCloudKitBackupFeatureFlag(featureFlagDao)
   val cloudBackupViewer =
@@ -28,8 +32,10 @@ class CloudBackupViewerImplTests : FunSpec({
       cloudStoreAccountRepository = cloudStoreAccountRepository,
       ubiquitousKeyValueStore = ubiquitousKeyValueStore,
       cloudKitKeyValueStore = cloudKitKeyValueStore,
+      cloudBackupStore = cloudBackupStore,
       cloudBackupStoreKeys = cloudBackupStoreKeys,
-      iosCloudKitBackupFeatureFlag = iosCloudKitBackupFeatureFlag
+      iosCloudKitBackupFeatureFlag = iosCloudKitBackupFeatureFlag,
+      accountConfigService = accountConfigService
     )
   val account = iCloudAccount("ios-account-token")
 
@@ -37,6 +43,8 @@ class CloudBackupViewerImplTests : FunSpec({
     cloudStoreAccountRepository.currentAccountResult = Ok(account)
     ubiquitousKeyValueStore.reset()
     cloudKitKeyValueStore.reset()
+    cloudBackupStore.reset()
+    accountConfigService.reset()
     iosCloudKitBackupFeatureFlag.reset()
   }
 
@@ -66,6 +74,18 @@ class CloudBackupViewerImplTests : FunSpec({
 
     cloudKitKeyValueStore.get(account, key = "backup-shared").shouldBeOk().shouldBeNull()
     ubiquitousKeyValueStore.getString(account, key = "backup-shared").shouldBeOk("kvs")
+  }
+
+  test("load shows one local fake cloud store when fake cloud is active") {
+    accountConfigService.setIsCloudStoreFake(true)
+    cloudBackupStore.set(account, key = "backup-fake", value = "fake".encodeUtf8()).shouldBeOk()
+
+    val loaded = cloudBackupViewer.load().shouldBeOkOfType<CloudBackupViewerData.Loaded>()
+    val fakeStore = loaded.stores.single()
+
+    loaded.stores.map { it.storeType }.shouldContainExactly(UbiquitousKvs)
+    fakeStore.entries.map { it.key }.shouldContainExactly("backup-fake")
+    fakeStore.entries.single().value.shouldBe("fake")
   }
 
   test("load returns no-cloud-account state when account is missing") {

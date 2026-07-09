@@ -25,7 +25,6 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
-import com.github.michaelbull.result.orElse
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.datetime.Clock
 import okio.ByteString
@@ -122,7 +121,7 @@ class CloudBackupServiceImpl(
               null
             }
           }
-        backups
+        backups.freshestByAccount()
       } else {
         val backupResult = readThenParseBackup(cloudStoreAccount, cloudBackupLegacyKeyPrefix)
         val backups = mutableListOf<CloudBackup>().apply {
@@ -137,7 +136,7 @@ class CloudBackupServiceImpl(
             logInfo { "Failed to read backup with legacy key, skipping." }
           }
         }
-        backups
+        backups.freshestByAccount()
       }
     }
 
@@ -148,11 +147,11 @@ class CloudBackupServiceImpl(
     coroutineBinding {
       val accountSpecificKey = cloudBackupStoreKeys.activeBackupFormatAccountSpecificKey(accountId)
       val accountSpecificBackup = readThenParseBackup(cloudStoreAccount, accountSpecificKey).bind()
-      if (accountSpecificBackup != null) {
-        return@coroutineBinding accountSpecificBackup
-      }
+      val legacyBackup = readThenParseBackup(cloudStoreAccount, cloudBackupLegacyKeyPrefix).bind()
 
-      readThenParseBackup(cloudStoreAccount, cloudBackupLegacyKeyPrefix).bind()
+      listOfNotNull(accountSpecificBackup, legacyBackup)
+        .freshestByAccount()
+        .firstOrNull()
     }
 
   override suspend fun writeBackup(
@@ -319,14 +318,7 @@ class CloudBackupServiceImpl(
           null
         }
         else -> {
-          // Found encoded app data
-          // Attempt to decode as V3 backup, then fall back to V2. See the cloud backup README.md.
-          val backup = jsonSerializer.decodeFromStringResult<CloudBackupV3>(backupEncoded.utf8())
-            .orElse { jsonSerializer.decodeFromStringResult<CloudBackupV2>(backupEncoded.utf8()) }
-            .mapError {
-              UnrectifiableCloudBackupError(UnknownAppDataFoundError(it))
-            }
-            .bind()
+          val backup = parseBackup(backupEncoded).bind()
           logInfo { "Successfully parsed backup from key=$key (accountId=${backup.accountId})" }
           backup
         }
@@ -348,54 +340,167 @@ class CloudBackupServiceImpl(
         logInfo { "Migrating legacy backup for keys: ${legacyKeys.joinToString()}" }
 
         legacyKeys.forEach { key ->
-          // Read the legacy backup
-          val legacyBackupEncoded = cloudBackupStore
-            .get(cloudStoreAccount, key)
-            .mapPossibleRectifiableErrors()
-            .bind()
-
-          if (legacyBackupEncoded != null) {
-            // Parse the backup to ensure it's valid
-            val parsedBackup = jsonSerializer.decodeFromStringResult<CloudBackupV2>(legacyBackupEncoded.utf8())
-              .mapError { UnrectifiableCloudBackupError(UnknownAppDataFoundError(it)) }
-              .bind()
-
-            // To make sure everything is type-safe
-            val backupAccountSpecific = parsedBackup.mapToAccountSpecific()
-
-            // Write the backup using the account-specific key format.
-            if (cloudBackupStoreKeys.isValidBackupKey(key)) {
-              val accountIdForBackup = if (backupAccountSpecific.isFullAccount()) {
-                FullAccountId(backupAccountSpecific.accountId)
-              } else {
-                LiteAccountId(backupAccountSpecific.accountId)
-              }
-              writeBackup(
-                accountId = accountIdForBackup,
-                cloudStoreAccount = cloudStoreAccount,
-                backup = backupAccountSpecific,
-                requireAuthRefresh = false // Don't require auth refresh for migration
-              ).bind()
-            } else {
-              archiveBackup(
-                cloudStoreAccount = cloudStoreAccount,
-                backup = backupAccountSpecific
-              ).bind()
-            }
-
-            // The legacy backup should be removed after successful migration.
-            cloudBackupStore
-              .remove(cloudStoreAccount, key)
-              .mapPossibleRectifiableErrors()
-              .logFailure(Warn) { "Error deleting legacy cloud backup from cloud key-value store" }
-              .bind()
-
-            logInfo {
-              "Successfully migrated legacy backup for key $key to account-specific key"
-            }
-          }
+          migrateLegacyBackupKey(cloudStoreAccount, key).bind()
         }
       }
+    }
+
+  private suspend fun migrateLegacyBackupKey(
+    cloudStoreAccount: CloudStoreAccount,
+    key: String,
+  ): Result<Unit, CloudBackupError> =
+    coroutineBinding {
+      val legacyBackup = readThenParseBackup(cloudStoreAccount, key).bind()
+        ?: return@coroutineBinding
+      val backupAccountSpecific = legacyBackup.toAccountSpecificBackup()
+
+      val shouldRemoveLegacyBackup = if (cloudBackupStoreKeys.isValidBackupKey(key)) {
+        migrateLegacyActiveBackup(
+          cloudStoreAccount = cloudStoreAccount,
+          key = key,
+          legacyBackup = legacyBackup,
+          accountSpecificBackup = backupAccountSpecific
+        ).bind()
+      } else {
+        archiveBackup(
+          cloudStoreAccount = cloudStoreAccount,
+          backup = backupAccountSpecific
+        ).bind()
+        true
+      }
+
+      if (shouldRemoveLegacyBackup) {
+        removeLegacyBackupKey(cloudStoreAccount, key).bind()
+      }
+    }
+
+  private suspend fun migrateLegacyActiveBackup(
+    cloudStoreAccount: CloudStoreAccount,
+    key: String,
+    legacyBackup: CloudBackup,
+    accountSpecificBackup: CloudBackup,
+  ): Result<Boolean, CloudBackupError> =
+    coroutineBinding {
+      val accountIdForBackup = accountSpecificBackup.accountIdForBackup()
+      val accountSpecificKey = cloudBackupStoreKeys
+        .activeBackupFormatAccountSpecificKey(accountIdForBackup)
+      val existingAccountSpecificBackup = accountSpecificBackupAtKeyForMigration(
+        cloudStoreAccount = cloudStoreAccount,
+        accountSpecificKey = accountSpecificKey
+      ).bind()
+
+      if (
+        existingAccountSpecificBackup == null ||
+        shouldWriteAccountSpecificBackup(legacyBackup, accountSpecificBackup, existingAccountSpecificBackup)
+      ) {
+        writeBackup(
+          accountId = accountIdForBackup,
+          cloudStoreAccount = cloudStoreAccount,
+          backup = accountSpecificBackup,
+          requireAuthRefresh = false // Don't require auth refresh for migration
+        ).bind()
+        true
+      } else {
+        shouldRemoveLegacyActiveBackup(
+          key = key,
+          legacyBackup = legacyBackup,
+          accountSpecificBackup = accountSpecificBackup,
+          existingAccountSpecificBackup = existingAccountSpecificBackup
+        )
+      }
+    }
+
+  private suspend fun accountSpecificBackupAtKeyForMigration(
+    cloudStoreAccount: CloudStoreAccount,
+    accountSpecificKey: String,
+  ): Result<CloudBackup?, CloudBackupError> =
+    coroutineBinding {
+      val existingAccountSpecificBackupResult = readThenParseBackup(
+        cloudStoreAccount = cloudStoreAccount,
+        key = accountSpecificKey
+      )
+      if (existingAccountSpecificBackupResult.isOk) {
+        return@coroutineBinding existingAccountSpecificBackupResult.value
+      }
+
+      val error = existingAccountSpecificBackupResult.error
+      if (error.isUnknownAppDataFound()) {
+        logInfo {
+          "Overwriting unreadable account-specific backup at key $accountSpecificKey " +
+            "from legacy backup"
+        }
+        null
+      } else {
+        existingAccountSpecificBackupResult.bind()
+      }
+    }
+
+  private fun shouldWriteAccountSpecificBackup(
+    legacyBackup: CloudBackup,
+    accountSpecificBackup: CloudBackup,
+    existingAccountSpecificBackup: CloudBackup,
+  ): Boolean =
+    existingAccountSpecificBackup.accountId != accountSpecificBackup.accountId ||
+      legacyBackup.isFresherThan(existingAccountSpecificBackup)
+
+  private fun shouldRemoveLegacyActiveBackup(
+    key: String,
+    legacyBackup: CloudBackup,
+    accountSpecificBackup: CloudBackup,
+    existingAccountSpecificBackup: CloudBackup,
+  ): Boolean =
+    if (
+      existingAccountSpecificBackup == legacyBackup ||
+      existingAccountSpecificBackup == accountSpecificBackup ||
+      existingAccountSpecificBackup.isFresherThan(legacyBackup)
+    ) {
+      logInfo {
+        "Skipping legacy active backup migration for key $key because account-specific backup is current"
+      }
+      true
+    } else {
+      logInfo {
+        "Preserving legacy active backup for key $key because account-specific backup has equal freshness"
+      }
+      false
+    }
+
+  private suspend fun removeLegacyBackupKey(
+    cloudStoreAccount: CloudStoreAccount,
+    key: String,
+  ): Result<Unit, CloudBackupError> =
+    coroutineBinding {
+      cloudBackupStore
+        .remove(cloudStoreAccount, key)
+        .mapPossibleRectifiableErrors()
+        .logFailure(Warn) { "Error deleting legacy cloud backup from cloud key-value store" }
+        .bind()
+
+      logInfo {
+        "Successfully migrated legacy backup for key $key to account-specific key"
+      }
+    }
+
+  private fun parseBackup(backupEncoded: ByteString): Result<CloudBackup, CloudBackupError> =
+    jsonSerializer.decodeCloudBackup(backupEncoded.utf8())
+      .mapError {
+        UnrectifiableCloudBackupError(UnknownAppDataFoundError(it))
+      }
+
+  private fun CloudBackupError.isUnknownAppDataFound(): Boolean =
+    this is UnrectifiableCloudBackupError && cause is UnknownAppDataFoundError
+
+  private fun CloudBackup.accountIdForBackup(): AccountId =
+    if (isFullAccount()) {
+      FullAccountId(accountId)
+    } else {
+      LiteAccountId(accountId)
+    }
+
+  private fun CloudBackup.toAccountSpecificBackup(): CloudBackup =
+    when (this) {
+      is CloudBackupV2 -> mapToAccountSpecific()
+      is CloudBackupV3 -> this
     }
 
   private fun <T> Result<T, Throwable>.mapPossibleRectifiableErrors(): Result<T, CloudBackupError> {

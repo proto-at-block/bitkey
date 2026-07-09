@@ -5,6 +5,7 @@ import build.wallet.bitkey.relationships.TrustedContactRole.Companion.Beneficiar
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.moneyhome.card.CardModel
+import build.wallet.statemachine.moneyhome.card.CardModel.CardStyle.Gradient.BackgroundColor
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
@@ -14,19 +15,19 @@ fun TrustedContactCardModel(
   buttonText: String,
   onClick: () -> Unit,
   buttonTreatment: ButtonModel.Treatment = ButtonModel.Treatment.Primary,
-  backgroundColor: CardModel.CardStyle.Gradient.BackgroundColor =
-    CardModel.CardStyle.Gradient.BackgroundColor.Default,
+  backgroundColor: BackgroundColor = BackgroundColor.Default,
+  subtitleText: String = when {
+    Beneficiary == contact.roles.singleOrNull() -> "Beneficiary"
+    else -> "$buttonText Recovery Contact"
+  },
 ) = CardModel(
-  leadingImage = CardModel.CardImage.StaticImage(Icon.MediumIconTrustedContact),
+  leadingImage = CardModel.CardImage.StaticImage(Icon.ShieldPerson),
   title =
     LabelModel.StringWithStyledSubstringModel.from(
       string = contact.trustedContactAlias.alias,
       substringToColor = emptyMap()
     ),
-  subtitle = when {
-    Beneficiary == contact.roles.singleOrNull() -> "Beneficiary"
-    else -> "$buttonText Recovery Contact"
-  },
+  subtitle = subtitleText,
   trailingButton =
     ButtonModel(
       text = buttonText,

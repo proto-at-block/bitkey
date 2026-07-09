@@ -2,9 +2,9 @@ source "https://rubygems.org"
 ruby "~> 3.2"
 
 gem "colorize"
-gem "fastlane"
+gem "fastlane", ">= 2.233.1"
 gem "xcodeproj", "~> 1.21"
-gem "xcpretty", "~> 0.3.0"
+gem "xcpretty", "~> 0.4.1"
 
 source 'https://gems.vip.global.square/private' do
     gem 'sq-githubapp-client', '~> 0.18'

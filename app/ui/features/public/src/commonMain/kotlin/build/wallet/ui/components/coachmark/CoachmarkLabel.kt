@@ -33,11 +33,10 @@ import org.jetbrains.compose.resources.Font
  */
 @Composable
 fun CoachmarkLabel(model: CoachmarkLabelModel) {
-  val isDesignSystemV2Enabled = true
-  val useDesignSystemV2DarkTreatment =
-    isDesignSystemV2Enabled && model.treatment == CoachmarkLabelTreatment.Dark
+  val useDarkTreatment =
+    model.treatment == CoachmarkLabelTreatment.Dark
 
-  if (useDesignSystemV2DarkTreatment) {
+  if (useDarkTreatment) {
     CompositionLocalProvider(LocalTheme provides Theme.DARK) {
       WalletTheme {
         val primaryButtonStyle = WalletTheme.buttonStyle(
@@ -62,23 +61,13 @@ fun CoachmarkLabel(model: CoachmarkLabelModel) {
   } else {
     val backgroundColor =
       when (model.treatment) {
-        CoachmarkLabelTreatment.Light ->
-          if (isDesignSystemV2Enabled) {
-            WalletTheme.colors.inverseBackground
-          } else {
-            WalletTheme.colors.newCoachmarkLightBackground
-          }
+        CoachmarkLabelTreatment.Light -> WalletTheme.colors.inverseBackground
         CoachmarkLabelTreatment.Dark -> WalletTheme.colors.bitkeyPrimary
         CoachmarkLabelTreatment.Disabled -> WalletTheme.colors.subtleBackground
       }
     val textColor =
       when (model.treatment) {
-        CoachmarkLabelTreatment.Light ->
-          if (isDesignSystemV2Enabled) {
-            WalletTheme.colors.background
-          } else {
-            WalletTheme.colors.newCoachmarkLightText
-          }
+        CoachmarkLabelTreatment.Light -> WalletTheme.colors.background
         CoachmarkLabelTreatment.Dark -> WalletTheme.colors.primaryForeground
         CoachmarkLabelTreatment.Disabled -> WalletTheme.colors.foreground10
       }

@@ -1,0 +1,17 @@
+# Android SDK packages installed on Blox workstations (BKW-89).
+# Versions must stay in sync with app/gradle/libs.versions.toml
+# (android-build-tools, android-ndk, android-sdk-compile) and
+# .github/actions/android-sdk/action.yml.
+platform-tools
+build-tools;35.0.0
+platforms;android-35
+ndk;25.2.9519653
+emulator
+# API 29 default x86_64 image: smallest/fastest headless boot; primary image
+# for onboarding and fake-hardware smoke flows that need no Google services
+# (minSdk is 24, so 29 is in range).
+system-images;android-29;default;x86_64
+# google_apis variant: required for Google-account-dependent flows, e.g. the
+# legacy cloud-backup recovery Maestro flow that drives the Google account
+# picker (app/maestro-test/recovery.yaml).
+system-images;android-29;google_apis;x86_64

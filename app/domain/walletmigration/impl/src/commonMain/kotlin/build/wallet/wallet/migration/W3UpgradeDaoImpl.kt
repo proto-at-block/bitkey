@@ -5,6 +5,7 @@ import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.crypto.PublicKey
@@ -33,11 +34,14 @@ class W3UpgradeDaoImpl(
     }
   }
 
-  override suspend fun saveHardwareKey(hwKey: HwSpendingPublicKey): Result<Unit, DbError> {
+  override suspend fun saveHardwareKey(
+    hwKey: HwSpendingPublicKey,
+    hwKeyProof: HwSpendingKeyProof?,
+  ): Result<Unit, DbError> {
     return databaseProvider.database()
       .w3UpgradeMigrationQueries
       .awaitTransaction {
-        saveHardwareKey(hwKey)
+        saveHardwareKey(newHardwareKey = hwKey, newHardwareKeyProof = hwKeyProof)
       }
   }
 

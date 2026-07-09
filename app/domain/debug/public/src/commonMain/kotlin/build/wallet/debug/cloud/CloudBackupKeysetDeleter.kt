@@ -23,6 +23,11 @@ interface CloudBackupKeysetDeleter {
 sealed class KeysetDeletionError : Error() {
   abstract override val message: String
 
+  data class CustomerBuild(
+    override val message: String,
+    override val cause: Throwable? = null,
+  ) : KeysetDeletionError()
+
   data class CloudAccountError(
     override val message: String,
     override val cause: Throwable? = null,

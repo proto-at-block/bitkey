@@ -3,13 +3,15 @@ package build.wallet.statemachine.core.input
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.LabelModel
+import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.TextInput
 import build.wallet.statemachine.core.form.RenderContext.Sheet
+import build.wallet.statemachine.notifications.NotificationsAppSegment
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.input.TextFieldModel.KeyboardType.Email
@@ -37,7 +39,6 @@ data class EmailInputScreenModel(
   val isCloseButton: Boolean = false,
 ) : FormBodyModel(
     id = NotificationsEventTrackerScreenId.EMAIL_INPUT_ENTERING_EMAIL,
-    onSwipeToDismiss = onClose,
     onBack = onClose,
     toolbar =
       ToolbarModel(
@@ -81,9 +82,14 @@ fun EmailTouchpointAlreadyActiveErrorSheetModel(onBack: () -> Unit) =
           ButtonDataModel(
             text = "Back",
             onClick = onBack
-          ),
+        ),
         renderContext = Sheet,
-        eventTrackerScreenId = NotificationsEventTrackerScreenId.EMAIL_ALREADY_ACTIVE_ERROR_SHEET
+        eventTrackerScreenId = NotificationsEventTrackerScreenId.EMAIL_ALREADY_ACTIVE_ERROR_SHEET,
+        errorData = ErrorData(
+          segment = NotificationsAppSegment,
+          actionDescription = "Adding email notification touchpoint",
+          cause = IllegalStateException("Email touchpoint is already active")
+        )
       ),
     onClosed = onBack
   )
@@ -98,9 +104,14 @@ fun EmailTouchpointInvalidErrorSheetModel(onBack: () -> Unit) =
           ButtonDataModel(
             text = "Back",
             onClick = onBack
-          ),
+        ),
         renderContext = Sheet,
-        eventTrackerScreenId = NotificationsEventTrackerScreenId.EMAIL_INVALID_ERROR_SHEET
+        eventTrackerScreenId = NotificationsEventTrackerScreenId.EMAIL_INVALID_ERROR_SHEET,
+        errorData = ErrorData(
+          segment = NotificationsAppSegment,
+          actionDescription = "Adding email notification touchpoint",
+          cause = IllegalStateException("Email touchpoint is invalid")
+        )
       ),
     onClosed = onBack
   )
@@ -121,9 +132,14 @@ fun EmailInputErrorSheetModel(
         ButtonDataModel(
           text = "Back",
           onClick = onBack
-        ),
+      ),
       renderContext = Sheet,
-      eventTrackerScreenId = NotificationsEventTrackerScreenId.EMAIL_INPUT_ERROR_SHEET
+      eventTrackerScreenId = NotificationsEventTrackerScreenId.EMAIL_INPUT_ERROR_SHEET,
+      errorData = ErrorData(
+        segment = NotificationsAppSegment,
+        actionDescription = "Adding email notification touchpoint",
+        cause = IllegalStateException("Failed to add email notification touchpoint")
+      )
     ),
   onClosed = onBack
 )

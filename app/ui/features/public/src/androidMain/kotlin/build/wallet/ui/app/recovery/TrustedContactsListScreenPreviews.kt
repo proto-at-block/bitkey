@@ -12,6 +12,7 @@ import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.bitkey.relationships.Invitation
 import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.bitkey.relationships.ProtectedCustomerAlias
+import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.bitkey.relationships.TcIdentityKeyAppSignature
 import build.wallet.bitkey.relationships.TrustedContactAlias
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.VERIFIED
@@ -39,53 +40,6 @@ fun RecoveryContactsListEmptyPreview() {
 @Preview(name = "Recovery Contacts Populated")
 @Composable
 fun RecoveryContactsListPopulatedPreview() {
-  PreviewWalletTheme {
-    RecoveryContactsListPreviewContent(
-      model =
-        previewTrustedContactsListBodyModel(
-          contacts =
-            listOf(
-              sampleEndorsedTrustedContact(
-                alias = "Bob",
-                relationshipId = "bob-contact-id"
-              )
-            ),
-          invitations =
-            listOf(
-              sampleInvitation(
-                alias = "Alice",
-                relationshipId = "alice-invite-id"
-              )
-            ),
-          protectedCustomers =
-            immutableListOf(
-              sampleProtectedCustomer(
-                alias = "Charlie",
-                relationshipId = "charlie-protected-id"
-              ),
-              sampleProtectedCustomer(
-                alias = "Dana",
-                relationshipId = "dana-protected-id"
-              )
-            )
-        )
-    )
-  }
-}
-
-@Preview(name = "Recovery Contacts Empty (Design System V2)")
-@Composable
-fun RecoveryContactsListEmptyPreviewDesignSystemV2() {
-  PreviewWalletTheme {
-    RecoveryContactsListPreviewContent(
-      model = previewTrustedContactsListBodyModel()
-    )
-  }
-}
-
-@Preview(name = "Recovery Contacts Populated (Design System V2)")
-@Composable
-fun RecoveryContactsListPopulatedPreviewDesignSystemV2() {
   PreviewWalletTheme {
     RecoveryContactsListPreviewContent(
       model =
@@ -154,7 +108,7 @@ private fun sampleEndorsedTrustedContact(
   relationshipId: String,
 ): EndorsedTrustedContact {
   return EndorsedTrustedContact(
-    relationshipId = relationshipId,
+    id = RelationshipId(relationshipId),
     trustedContactAlias = TrustedContactAlias(alias = alias),
     keyCertificate = TrustedContactKeyCertificate(
       delegatedDecryptionKey = PublicKey(""),
@@ -173,7 +127,7 @@ private fun sampleInvitation(
   relationshipId: String,
 ): Invitation {
   return Invitation(
-    relationshipId = relationshipId,
+    id = RelationshipId(relationshipId),
     trustedContactAlias = TrustedContactAlias(alias),
     roles = setOf(TrustedContactRole.SocialRecoveryContact),
     code = "$relationshipId-code",
@@ -187,7 +141,7 @@ private fun sampleProtectedCustomer(
   relationshipId: String,
 ): ProtectedCustomer {
   return ProtectedCustomer(
-    relationshipId = relationshipId,
+    id = RelationshipId(relationshipId),
     alias = ProtectedCustomerAlias(alias),
     roles = setOf(TrustedContactRole.SocialRecoveryContact)
   )

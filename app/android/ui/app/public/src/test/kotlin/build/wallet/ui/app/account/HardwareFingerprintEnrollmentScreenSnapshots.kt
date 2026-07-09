@@ -52,7 +52,6 @@ private fun FingerprintEnrollmentScreen(
     eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION,
     presentationStyle = ScreenPresentationStyle.Root,
     headline = headline,
-    isDesignSystemV2Enabled = true,
     instructions = "Place your finger on the sensor until you see a blue light. Lift your" +
       " finger and repeat (15-20 times) adjusting your finger position slightly each time," +
       " until the light turns green. Then save your fingerprint."

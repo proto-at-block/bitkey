@@ -1,9 +1,11 @@
 package build.wallet.recovery.keyset
 
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.recovery.ListKeysetsResponse
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -42,6 +44,18 @@ class SpendingKeysetRepairServiceFake : SpendingKeysetRepairService {
   var regenerateActiveKeysetResult: Result<KeysetRepairState.RepairComplete, KeysetRepairError> =
     Err(KeysetRepairError.FetchKeysetsFailed(cause = NotImplementedError("Fake not configured")))
 
+  /**
+   * Result to return from [prepareRegeneratedActiveKeyset].
+   */
+  var prepareRegeneratedActiveKeysetResult: Result<PreparedRegeneratedKeyset, KeysetRepairError> =
+    Err(KeysetRepairError.FetchKeysetsFailed(cause = NotImplementedError("Fake not configured")))
+
+  /**
+   * Result to return from [completeRegeneratedActiveKeyset].
+   */
+  var completeRegeneratedActiveKeysetResult: Result<KeysetRepairState.RepairComplete, KeysetRepairError> =
+    Err(KeysetRepairError.FetchKeysetsFailed(cause = NotImplementedError("Fake not configured")))
+
   override suspend fun checkPrivateKeysets(
     account: FullAccount,
   ): Result<PrivateKeysetInfo, KeysetRepairError> {
@@ -61,8 +75,28 @@ class SpendingKeysetRepairServiceFake : SpendingKeysetRepairService {
     hwSpendingKey: HwSpendingPublicKey,
     hwProofOfPossession: HwFactorProofOfPossession,
     cachedData: KeysetRepairCachedData,
+    hwSpendingKeyProof: HwSpendingKeyProof?,
   ): Result<KeysetRepairState.RepairComplete, KeysetRepairError> {
     return regenerateActiveKeysetResult
+  }
+
+  override suspend fun prepareRegeneratedActiveKeyset(
+    account: FullAccount,
+    updatedKeybox: Keybox,
+    hwSpendingKey: HwSpendingPublicKey,
+    hwSpendingKeyProof: HwSpendingKeyProof?,
+  ): Result<PreparedRegeneratedKeyset, KeysetRepairError> {
+    return prepareRegeneratedActiveKeysetResult
+  }
+
+  override suspend fun completeRegeneratedActiveKeyset(
+    account: FullAccount,
+    preparedRegeneratedKeyset: PreparedRegeneratedKeyset,
+    descriptorBackupProof: PrivilegedActionProof?,
+    keysetActivationProof: PrivilegedActionProof,
+    cachedData: KeysetRepairCachedData,
+  ): Result<KeysetRepairState.RepairComplete, KeysetRepairError> {
+    return completeRegeneratedActiveKeysetResult
   }
 
   /**
@@ -83,6 +117,10 @@ class SpendingKeysetRepairServiceFake : SpendingKeysetRepairService {
     attemptRepairResult =
       Err(KeysetRepairError.FetchKeysetsFailed(cause = NotImplementedError("Fake not configured")))
     regenerateActiveKeysetResult =
+      Err(KeysetRepairError.FetchKeysetsFailed(cause = NotImplementedError("Fake not configured")))
+    prepareRegeneratedActiveKeysetResult =
+      Err(KeysetRepairError.FetchKeysetsFailed(cause = NotImplementedError("Fake not configured")))
+    completeRegeneratedActiveKeysetResult =
       Err(KeysetRepairError.FetchKeysetsFailed(cause = NotImplementedError("Fake not configured")))
   }
 

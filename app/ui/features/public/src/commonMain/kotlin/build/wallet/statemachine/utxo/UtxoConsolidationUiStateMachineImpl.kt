@@ -238,6 +238,11 @@ class UtxoConsolidationUiStateMachineImpl(
           onClick = props.onBack
         ),
         onBack = props.onBack,
+        errorData = ErrorData(
+          segment = UtxoConsolidationAppSegment,
+          actionDescription = "Preparing UTXO consolidation",
+          cause = currentState.error
+        ),
         eventTrackerScreenId = null
       ).asRootScreen()
       is ShowingErrorBroadcastingConsolidation -> ErrorFormBodyModel(
@@ -253,6 +258,11 @@ class UtxoConsolidationUiStateMachineImpl(
           }
         ),
         onBack = props.onBack,
+        errorData = ErrorData(
+          segment = UtxoConsolidationAppSegment,
+          actionDescription = "Broadcasting UTXO consolidation transaction",
+          cause = currentState.error
+        ),
         eventTrackerScreenId = null
       ).asRootScreen()
       is ShowingExceedsMaxUtxoCount -> ExceedsMaxUtxoCountBodyModel(

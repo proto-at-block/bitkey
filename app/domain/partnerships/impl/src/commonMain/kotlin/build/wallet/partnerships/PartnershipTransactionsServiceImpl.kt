@@ -84,7 +84,9 @@ class PartnershipTransactionsServiceImpl(
    */
   private val pendingTransactions: Flow<List<PartnershipTransaction>> =
     transactionsCache
-      .mapNotNull { it?.filter { it.status == PENDING || it.status == null } }
+      .mapNotNull { cachedTransactions ->
+        cachedTransactions?.filter { it.status == PENDING || it.status == null }
+      }
       .distinctUntilChanged()
 
   override val previouslyUsedPartnerIds: Flow<List<PartnerId>> = dao.getPreviouslyUsedPartnerIds()

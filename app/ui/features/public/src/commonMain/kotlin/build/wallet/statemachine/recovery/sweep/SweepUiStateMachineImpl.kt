@@ -3,24 +3,26 @@ package build.wallet.statemachine.recovery.sweep
 import androidx.compose.runtime.*
 import bitkey.account.HardwareType
 import bitkey.account.isW3Hardware
+import bitkey.privilegedactions.HardwareVerificationPrivilegedActionService
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.InactiveWalletSweepEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.WalletMigrationEventTrackerScreenId
 import build.wallet.bitcoin.address.BitcoinAddress
+import build.wallet.bitcoin.keys.extractAccountIndex
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.logging.logDebug
+import build.wallet.logging.logWarn
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
-import build.wallet.platform.web.InAppBrowserNavigator
-import build.wallet.bitcoin.keys.extractAccountIndex
 import build.wallet.nfc.platform.SweepSigningContextBuilder
+import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.recovery.sweep.SweepContext
 import build.wallet.recovery.sweep.SweepPsbt
 import build.wallet.statemachine.core.ErrorData
@@ -38,9 +40,13 @@ import build.wallet.statemachine.send.*
 import build.wallet.statemachine.send.signtransaction.SignTransactionNfcSessionUiProps
 import build.wallet.statemachine.send.signtransaction.SignTransactionNfcSessionUiStateMachine
 import build.wallet.statemachine.walletmigration.PrivateWalletMigrationAppSegment
+import com.github.michaelbull.result.onFailure
+import com.github.michaelbull.result.onSuccess
 
 @BitkeyInject(ActivityScope::class)
 class SweepUiStateMachineImpl(
+  private val hardwareVerificationPrivilegedActionService:
+    HardwareVerificationPrivilegedActionService,
   private val signTransactionNfcSessionUiStateMachine: SignTransactionNfcSessionUiStateMachine,
   private val moneyAmountUiStateMachine: MoneyAmountUiStateMachine,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
@@ -50,7 +56,9 @@ class SweepUiStateMachineImpl(
 ) : SweepUiStateMachine {
   @Composable
   override fun model(props: SweepUiProps): ScreenModel {
-    var screenState: ScreenState by remember { mutableStateOf(ScreenState.ShowingSweepState) }
+    var screenState: ScreenState by remember {
+      mutableStateOf(ScreenState.CheckingHardwareVerificationGate)
+    }
     val sweepData = sweepDataStateMachine.model(
       SweepDataProps(
         hasAttemptedSweep = props.hasAttemptedSweep,
@@ -66,6 +74,24 @@ class SweepUiStateMachineImpl(
     var initiatedSigningForData: AwaitingHardwareSignedSweepsData? by remember { mutableStateOf(null) }
 
     return when (val uiState = screenState) {
+      ScreenState.CheckingHardwareVerificationGate -> {
+        LaunchedEffect(props.account.accountId.serverId) {
+          hardwareVerificationPrivilegedActionService
+            .getPendingHardwareVerificationAction()
+            .onSuccess { pendingAction ->
+              screenState = if (pendingAction != null) {
+                ScreenState.AwaitingHardwareVerification
+              } else {
+                ScreenState.ShowingSweepState
+              }
+            }
+            .onFailure { error ->
+              logWarn { "Failed to check pending hardware verification action for sweep: $error" }
+              screenState = ScreenState.ShowingSweepState
+            }
+        }
+        generatingPsbtsLoadingScreen(props)
+      }
       ScreenState.ShowingSweepState -> getSweepScreen(
         props = props,
         sweepData = sweepData,
@@ -90,6 +116,18 @@ class SweepUiStateMachineImpl(
             )
           }
         ).asModalScreen()
+      }
+      ScreenState.AwaitingHardwareVerification -> {
+        hardwareVerificationRequiredScreenModel(
+          sweepContext = props.sweepContext,
+          hardwareVerificationPrivilegedActionService = hardwareVerificationPrivilegedActionService,
+          pollKey = props.account.accountId.serverId,
+          onActionResolved = { screenState = ScreenState.ShowingSweepState },
+          onResendEmail = {
+            // TODO W-17351 Route to the resend email state
+          },
+          presentationStyle = props.presentationStyle
+        )
       }
       is ScreenState.ShowingMultipleTransactionsWarning -> {
         multipleTransactionsWarningScreenModel(
@@ -331,6 +369,18 @@ class SweepUiStateMachineImpl(
           presentationStyle = props.presentationStyle
         )
 
+      is HardwareVerificationRequiredData ->
+        hardwareVerificationRequiredScreenModel(
+          sweepContext = props.sweepContext,
+          hardwareVerificationPrivilegedActionService = hardwareVerificationPrivilegedActionService,
+          pollKey = props.account.accountId.serverId,
+          onActionResolved = sweepData.dismiss,
+          onResendEmail = {
+            // TODO W-17351 Route to the resend email state
+          },
+          presentationStyle = props.presentationStyle
+        )
+
       /** Terminal state: Broadcast completed */
       is SweepCompleteData ->
         when (props.sweepContext) {
@@ -457,6 +507,7 @@ class SweepUiStateMachineImpl(
         psbt = state.currentPsbt.psbt,
         spendingKeyset = state.currentPsbt.sourceKeyset,
         sweepSigningContext = sweepSigningContext,
+        allowUnfinalized = true,
         useRecoveryHwAuthKey = props.sweepContext is SweepContext.Recovery,
         // During W3 upgrade, the active keybox has been switched to the new W3 but the
         // sweep needs to sign with the OLD W1 hardware — skip pairing check to avoid
@@ -468,6 +519,11 @@ class SweepUiStateMachineImpl(
         // During W3 upgrade, the keybox has already been switched to W3
         // but the sweep needs to tap the OLD W1 hardware to sign transactions.
         hardwareTypeOverride = if (props.sweepContext is SweepContext.W3Upgrade) {
+          HardwareType.W1
+        } else {
+          null
+        },
+        requiredHardwareType = if (props.sweepContext is SweepContext.W3Upgrade) {
           HardwareType.W1
         } else {
           null
@@ -562,9 +618,20 @@ class SweepUiStateMachineImpl(
 
   private sealed interface ScreenState {
     /**
+     * Checking whether the account already has a pending hardware-verification OOBA that should
+     * block sweeping before showing the rest of the flow.
+     */
+    data object CheckingHardwareVerificationGate : ScreenState
+
+    /**
      * Currently displaying a screen based on the [SweepData]
      */
     data object ShowingSweepState : ScreenState
+
+    /**
+     * Sweep is blocked until a pending out-of-band hardware verification is completed.
+     */
+    data object AwaitingHardwareVerification : ScreenState
 
     /**
      * Displaying help text to explain why a sweep is required

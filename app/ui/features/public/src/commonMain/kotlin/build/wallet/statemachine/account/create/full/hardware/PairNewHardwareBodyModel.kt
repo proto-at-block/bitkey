@@ -25,6 +25,9 @@ data class PairNewHardwareBodyModel(
   val header: FormHeaderModel,
   val primaryButton: ButtonModel,
   val secondaryButton: ButtonModel? = null,
+  val toolbarTrailingIcon: Icon? = null,
+  val onToolbarTrailingClick: (() -> Unit)? = null,
+  val toolbarTrailingTestTag: String = "pair-new-hardware-toolbar-action",
   val backgroundVideo: BackgroundVideo,
   val heroImageContent: HeroImageContent? = null,
   val isNavigatingBack: Boolean,
@@ -64,15 +67,22 @@ data class PairNewHardwareBodyModel(
     return ToolbarModel(
       leadingAccessory = onBack?.let {
         toolbarAccessory(
-          icon = Icon.SmallIconArrowLeft,
+          icon = Icon.ArrowLeft,
           onClick = it,
           useAdaptiveStyle = useAdaptiveStyle
         )
       },
       trailingAccessory =
-        if (showReplayAction) {
+        if (toolbarTrailingIcon != null && onToolbarTrailingClick != null) {
           toolbarAccessory(
-            icon = Icon.SmallIconRefresh,
+            icon = toolbarTrailingIcon,
+            onClick = onToolbarTrailingClick,
+            useAdaptiveStyle = useAdaptiveStyle,
+            testTag = toolbarTrailingTestTag
+          )
+        } else if (showReplayAction) {
+          toolbarAccessory(
+            icon = Icon.Refresh,
             onClick = onRefreshClick,
             useAdaptiveStyle = useAdaptiveStyle
           )
@@ -86,6 +96,7 @@ data class PairNewHardwareBodyModel(
     icon: Icon,
     onClick: () -> Unit,
     useAdaptiveStyle: Boolean,
+    testTag: String = "pair-new-hardware-toolbar-action",
   ) = ToolbarAccessoryModel.IconAccessory(
     model =
       IconButtonModel(
@@ -110,7 +121,7 @@ data class PairNewHardwareBodyModel(
                 IconTint.OnTranslucent
               }
           ),
-        testTag = "pair-new-hardware-toolbar-action",
+        testTag = testTag,
         onClick = StandardClick(onClick)
       )
   )

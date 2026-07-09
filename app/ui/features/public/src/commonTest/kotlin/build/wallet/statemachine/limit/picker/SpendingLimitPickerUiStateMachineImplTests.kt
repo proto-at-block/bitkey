@@ -204,7 +204,9 @@ class SpendingLimitPickerUiStateMachineImplTests : FunSpec({
 
       // hardware auth (skipping intermediate formatting state)
       awaitUntilBodyMock<HardwareAuthUiProps> {
-        val model = onTokenRefreshError.shouldNotBeNull().invoke(false) {}
+        val model =
+          onTokenRefreshError.shouldNotBeNull()
+            .invoke(false, Error("test token refresh failure")) {}
         model.bottomSheetModel.shouldNotBeNull()
       }
     }

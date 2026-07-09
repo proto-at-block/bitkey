@@ -53,6 +53,11 @@ message uxc_boot_status_msg {
 
   // Active firmware slot for this MCU.
   firmware_slot active_slot = 5;
+
+  // Device assembly serial number. Populated by Core when sending Core->UXC
+  // so the UXC can report the shared device serial in Memfault events. Empty
+  // when sent UXC->Core (UXC does not store its own serial).
+  bytes serial = 6 [(nanopb).max_size = 16];
 }
 
 // Messages sent from the host to the UXC device.

@@ -2,10 +2,14 @@ package build.wallet.statemachine.dev.cloud
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import bitkey.account.AccountConfigService
+import bitkey.account.isFakeCloudStoreActive
+import build.wallet.account.AccountService
 import build.wallet.cloud.store.iCloudAccountRepository
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.collections.immutableListOf
@@ -27,6 +31,7 @@ import build.wallet.ui.model.list.ListItemModel
 import com.github.michaelbull.result.fold
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onFailure
+import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.coroutines.launch
 
 /**
@@ -38,9 +43,19 @@ import kotlinx.coroutines.launch
 class CloudDevOptionsStateMachineImpl(
   private val iCloudAccountRepository: iCloudAccountRepository,
   private val cloudBackupViewer: CloudBackupViewer,
+  private val accountConfigService: AccountConfigService,
+  private val accountService: AccountService,
 ) : CloudDevOptionsStateMachine {
   @Composable
   override fun model(props: CloudDevOptionsProps): BodyModel {
+    val defaultConfig by remember { accountConfigService.defaultConfig() }.collectAsState()
+    val activeOrDefaultConfig by remember {
+      accountConfigService.activeOrDefaultConfig()
+    }.collectAsState()
+    val accountStatusResult by remember {
+      accountService.accountStatus()
+    }.collectAsState(initial = null)
+    val fakeCloudStoreActive = isFakeCloudStoreActive(defaultConfig, activeOrDefaultConfig)
     val iCloudAccount = iCloudAccountRepository.currentAccount().get()
     var ubiquityContainerPath: String? by remember { mutableStateOf("Fetching…") }
     var cloudBackupViewerData by remember { mutableStateOf<CloudBackupViewerData?>(null) }
@@ -49,6 +64,7 @@ class CloudDevOptionsStateMachineImpl(
     var pendingDeleteEntry by remember { mutableStateOf<PendingDeleteEntry?>(null) }
     var deleteErrorMessage by remember { mutableStateOf<String?>(null) }
     var expandedEntries by remember { mutableStateOf(setOf<String>()) }
+    var collapsedGroups by remember { mutableStateOf(persistentSetOf<String>()) }
     val scope = rememberStableCoroutineScope()
 
     LaunchedEffect("ubiquity-container-path") {
@@ -99,11 +115,16 @@ class CloudDevOptionsStateMachineImpl(
           expandedEntries + entryId
         }
       },
+      isCloudStoreFake = fakeCloudStoreActive,
       extraSummaryItems = listOf(
         ListItemModel(
           title = "iOS CloudKit Backup Flag",
           sideText = cloudKitFlagText,
-          secondaryText = "Both Ubiquitous KVS and CloudKit stores are shown below, regardless of this flag."
+          secondaryText = if (fakeCloudStoreActive) {
+            "Fake cloud storage is active; local fake backup entries are shown below."
+          } else {
+            "Both Ubiquitous KVS and CloudKit stores are shown below, regardless of this flag."
+          }
         )
       )
     )
@@ -112,6 +133,19 @@ class CloudDevOptionsStateMachineImpl(
       title = "Cloud Storage",
       onBack = props.onExit,
       groups = buildImmutableList {
+        add(
+          fakeCloudStorageDebugGroup(
+            isChecked = defaultConfig.isCloudStoreFake,
+            isEditable = accountStatusResult.canEditFakeCloudStorageSetting(),
+            onCheckedChange = { enabled ->
+              scope.launch {
+                accountConfigService.setIsCloudStoreFake(enabled)
+                deleteErrorMessage = null
+                refreshViewerCounter++
+              }
+            }
+          )
+        )
         add(
           ListGroupModel(
             header = "iCloud Account",
@@ -132,10 +166,19 @@ class CloudDevOptionsStateMachineImpl(
         )
         addAll(backupViewerGroups)
       },
+      collapsedGroupHeaders = collapsedGroups,
+      onToggleGroupCollapse = { header ->
+        collapsedGroups = if (collapsedGroups.contains(header)) {
+          collapsedGroups.remove(header)
+        } else {
+          collapsedGroups.add(header)
+        }
+      },
       alertModel = pendingDeleteEntry?.let { entry ->
+        val storeTitle = cloudBackupStoreTitle(entry.storeType.name, fakeCloudStoreActive)
         ButtonAlertModel(
           title = "Delete backup entry?",
-          subline = "Store: ${entry.storeType.name}\nKey: ${entry.key}",
+          subline = "Store: $storeTitle\nKey: ${entry.key}",
           onDismiss = { pendingDeleteEntry = null },
           primaryButtonText = "Delete",
           onPrimaryButtonClick = {

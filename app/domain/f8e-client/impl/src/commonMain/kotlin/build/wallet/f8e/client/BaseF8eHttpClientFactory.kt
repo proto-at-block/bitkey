@@ -42,7 +42,7 @@ import kotlin.time.Duration.Companion.seconds
  * In the future, this class will be final and be used to produce a
  * single [HttpClient] used in both contexts.
  */
-abstract class BaseF8eHttpClientFactory(
+open class BaseF8eHttpClientFactory(
   private val appVariant: AppVariant,
   private val deviceInfoProvider: DeviceInfoProvider,
   private val platformInfoProvider: PlatformInfoProvider,
@@ -112,6 +112,9 @@ abstract class BaseF8eHttpClientFactory(
       }
 
       install(CommonRequestConfigPlugin)
+      install(FirmwareDeviceInfoPlugin) {
+        firmwareDeviceInfoDao = factory.firmwareDeviceInfoDao
+      }
       install(ForceOfflinePlugin)
       factory.internetConnectionChecker?.let { checker ->
         install(InternetConnectionPlugin) {
@@ -132,7 +135,6 @@ abstract class BaseF8eHttpClientFactory(
       install(TargetingHeadersPlugin) {
         appInstallationDao = factory.appInstallationDao
         countryCodeGuesser = factory.countryCodeGuesser
-        firmwareDeviceInfoDao = factory.firmwareDeviceInfoDao
       }
       install(DatadogTracerPlugin) {
         datadogTracer = factory.datadogTracer

@@ -38,6 +38,12 @@ For example, in the case of JVM the final jar can be produced by calling the `jv
 All tasks defined by this plugin use the "_build/rust" directory as their build directory.
 This directory also contains the Rust "target" directory, which is shared with other (non-Gradle) scripts. 
 
+By default, Android Gradle builds register all supported Rust ABIs.
+To reduce local Rust target cache growth, developers can opt in per invocation with `-Pbuild.wallet.rust.androidTargets=arm64`, `arm32`, `x64`, `all`, or a comma-separated subset like `arm64,x64`.
+To persist a local override, set `build.wallet.rust.androidTargets` in `~/.gradle/gradle.properties`.
+Direct `compileRustAndroid<Abi><Profile>` and `setupRustToolchainAndroid<Abi>` task requests register the requested ABI even when a local override selects a different ABI.
+CI ignores the local override and always registers all Android Rust ABIs.
+
 To verify that the custom tasks work correctly, you can, for example, call the given task and inspect the produced output. 
 However, a more complete test would be to create all the KMP artifacts (for example, by calling the `build` task). 
 An artifact can then be verified by using it as a dependency of some other Kotlin module, which will call some Rust function. 

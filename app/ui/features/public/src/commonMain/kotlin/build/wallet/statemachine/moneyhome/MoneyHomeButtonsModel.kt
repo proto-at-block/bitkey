@@ -1,10 +1,10 @@
 package build.wallet.statemachine.moneyhome
 
 import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.Icon.SmallIconPlus
-import build.wallet.statemachine.core.Icon.LargeIconMinus
-import build.wallet.statemachine.core.Icon.SmallIconArrowDown
-import build.wallet.statemachine.core.Icon.SmallIconArrowUp
+import build.wallet.statemachine.core.Icon.ArrowDown
+import build.wallet.statemachine.core.Icon.ArrowUp
+import build.wallet.statemachine.core.Icon.Minus
+import build.wallet.statemachine.core.Icon.Plus
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconBackgroundType
@@ -28,10 +28,10 @@ sealed interface MoneyHomeButtonsModel {
     private val receiveButton: Button,
   ) : MoneyHomeButtonsModel {
     val buttons: List<IconButtonModel> = listOf(
-      MoneyMovementIconModel("Buy", SmallIconPlus, addButton),
-      MoneyMovementIconModel("Sell", LargeIconMinus, sellButton),
-      MoneyMovementIconModel("Send", SmallIconArrowUp, sendButton),
-      MoneyMovementIconModel("Receive", SmallIconArrowDown, receiveButton)
+      MoneyMovementIconModel("Buy", Plus, addButton),
+      MoneyMovementIconModel("Sell", Minus, sellButton),
+      MoneyMovementIconModel("Send", ArrowUp, sendButton),
+      MoneyMovementIconModel("Receive", ArrowDown, receiveButton)
     )
 
     data class Button(

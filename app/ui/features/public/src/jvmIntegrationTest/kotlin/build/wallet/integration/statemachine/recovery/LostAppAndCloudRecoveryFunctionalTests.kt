@@ -496,6 +496,8 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       awaitUntilBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
         .signInSuccess(CloudStoreAccount1Fake)
       awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
+      val hardwareSweepSigningRequestsBeforeSweep =
+        app.hardwareSweepSigningRequestCount(coverageMode.hardwareType)
       awaitUntilBody<SweepFundsPromptBodyModel>()
         .onSubmit()
       if (coverageMode.hardwareType == HardwareType.W3) {
@@ -505,6 +507,8 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
         awaitUntilBody<HardwareConfirmationScreenModel> { onConfirm() }
       }
       awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING)
+      app.hardwareSweepSigningRequestCount(coverageMode.hardwareType)
+        .shouldBe(hardwareSweepSigningRequestsBeforeSweep + 1)
       awaitUntilBody<SweepSuccessScreenBodyModel>()
         .onDone()
 
@@ -645,6 +649,12 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     app.decryptCloudBackupKeys().keysets.size.shouldBe(2)
   }
 })
+
+private fun AppTester.hardwareSweepSigningRequestCount(hardwareType: HardwareType): Int =
+  when (hardwareType) {
+    HardwareType.W1 -> fakeNfcCommands.signTransactionRequestCount
+    HardwareType.W3 -> fakeW3NfcCommands.sweepTransactionRequestCount
+  }
 
 private suspend fun ReceiveTurbine<ScreenModel>.advanceThroughDelayNotifyInitiation(
   hardwareType: HardwareType = HardwareType.W1,

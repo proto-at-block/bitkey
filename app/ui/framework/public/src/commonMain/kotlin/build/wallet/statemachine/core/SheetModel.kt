@@ -12,6 +12,7 @@ import dev.zacsweers.redacted.annotations.Redacted
 @Redacted
 data class SheetModel(
   val size: SheetSize = DEFAULT,
+  val dragHandleTreatment: SheetDragHandleTreatment = SheetDragHandleTreatment.STANDARD,
   val onClosed: () -> Unit,
   val body: BodyModel,
 )
@@ -42,4 +43,12 @@ enum class VerticalAlignment {
    * Contents are aligned to the center of the sheet
    */
   CENTER,
+}
+
+enum class SheetDragHandleTreatment {
+  // Standard sheet with a reserved drag handle area above the content.
+  STANDARD,
+
+  // Drag handle overlays the sheet content so content can extend behind it.
+  OVERLAY,
 }

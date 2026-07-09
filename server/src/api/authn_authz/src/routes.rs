@@ -13,12 +13,18 @@ use types::authn_authz::cognito::{CognitoUser, CognitoUsername};
 use userpool::userpool::{UserPoolError, UserPoolService};
 use utoipa::{OpenApi, ToSchema};
 
+use account::hardware_verification::{
+    should_enroll_in_hardware_verification, ENROLLMENT_FLIPPED, TRIGGER_KEY, TRIGGER_POST_CREATION,
+};
 use account::service::{FetchAccountByAuthKeyInput, Service as AccountService};
+use authn_authz_utils::get_user_name_from_jwt;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
 use errors::ApiError;
+use experimentation::claims::ExperimentationClaims;
 use feature_flags::service::Service as FeatureFlagsService;
 use http_server::swagger::{SwaggerEndpoint, Url};
+use instrumentation::metrics::KeyValue;
 use types::account::identifiers::AccountId;
 use wsm_rust_client::{SigningService, WsmClient};
 
@@ -118,7 +124,13 @@ pub struct AuthenticateWithRecoveryResponse {
 //TODO[BKR-608]: Remove this once we're using /api/authenticate
 #[instrument(
     fields(username),
-    skip(account_service, user_pool_service, feature_flags_service, request, headers)
+    skip(
+        account_service,
+        user_pool_service,
+        feature_flags_service,
+        request,
+        headers
+    )
 )]
 #[utoipa::path(
     post,
@@ -193,7 +205,13 @@ pub struct AuthenticateWithHardwareResponse {
 
 #[instrument(
     fields(account_id),
-    skip(account_service, user_pool_service, feature_flags_service, request, headers)
+    skip(
+        account_service,
+        user_pool_service,
+        feature_flags_service,
+        request,
+        headers
+    )
 )]
 #[utoipa::path(
     post,
@@ -269,7 +287,13 @@ pub struct AuthenticationResponse {
 
 #[instrument(
     fields(account_id),
-    skip(account_service, user_pool_service, feature_flags_service, request, headers)
+    skip(
+        account_service,
+        user_pool_service,
+        feature_flags_service,
+        request,
+        headers
+    )
 )]
 #[utoipa::path(
     post,
@@ -377,7 +401,16 @@ pub struct InitiateWsmSecureChannelResponse {
     pub noise_bundle: String,
 }
 
-#[instrument(fields(account_id), skip(user_pool_service, request))]
+#[instrument(
+    fields(account_id),
+    skip(
+        account_service,
+        user_pool_service,
+        feature_flags_service,
+        experimentation_claims,
+        request,
+    )
+)]
 #[utoipa::path(
     post,
     path = "/api/authenticate/tokens",
@@ -388,7 +421,10 @@ pub struct InitiateWsmSecureChannelResponse {
     ),
 )]
 pub async fn get_tokens(
+    State(account_service): State<AccountService>,
     State(user_pool_service): State<UserPoolService>,
+    State(feature_flags_service): State<FeatureFlagsService>,
+    mut experimentation_claims: ExperimentationClaims,
     Json(request): Json<GetTokensRequest>,
 ) -> Result<Json<GetTokensResponse>, ApiError> {
     let (challenge_present, refresh_token_present) =
@@ -439,12 +475,68 @@ pub async fn get_tokens(
         ));
     };
 
+    // Post-creation hardware-verification enrollment gate. Runs on every
+    // successful token issuance — both initial-auth challenge responses and
+    // refresh-token rotations. Best-effort: any failure here is logged but
+    // never fails token issuance, since Cognito has already authenticated
+    // the caller and we don't want to lock them out over a downstream miss.
+    //
+    // The account id comes from the just-issued access token (Cognito's
+    // signature is trusted transitively since we issued the token ourselves
+    // — see `get_user_name_from_jwt` for why sig-verification is skipped).
+    maybe_enroll_post_creation_hardware_verification(
+        &account_service,
+        &feature_flags_service,
+        &mut experimentation_claims,
+        &tokens.access_token,
+    )
+    .await;
+
     Ok(Json(GetTokensResponse {
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
         expires_in: tokens.expires_in,
         refresh_token_expires_in: tokens.refresh_token_expires_in,
     }))
+}
+
+/// Best-effort hardware-verification enrollment check. Logs and swallows
+/// any failure — token issuance already succeeded, so we never fail login
+/// over a downstream miss here.
+async fn maybe_enroll_post_creation_hardware_verification(
+    account_service: &AccountService,
+    feature_flags_service: &FeatureFlagsService,
+    experimentation_claims: &mut ExperimentationClaims,
+    access_token: &str,
+) {
+    let Some(account_id) = get_user_name_from_jwt(access_token)
+        .and_then(|u| CognitoUser::from_str(u.as_ref()).ok())
+        .map(|cognito_user| cognito_user.get_account_id().to_owned())
+    else {
+        error!("Could not decode account id from just-issued access token");
+        return;
+    };
+
+    let result = account_service
+        .maybe_mark_hardware_verification_required(&account_id, |hardware_type| {
+            experimentation_claims.hardware_type = Some(hardware_type.to_string());
+            // No JWT to derive from — the bearer is being minted right now.
+            should_enroll_in_hardware_verification(
+                feature_flags_service,
+                &experimentation_claims.overridden_account_context_key(account_id.clone()),
+            )
+        })
+        .await;
+
+    match result {
+        Ok(true) => {
+            ENROLLMENT_FLIPPED.add(1, &[KeyValue::new(TRIGGER_KEY, TRIGGER_POST_CREATION)]);
+        }
+        Ok(false) => {}
+        Err(e) => {
+            error!(account_id = %account_id, "Enrollment check failed: {e}");
+        }
+    }
 }
 
 #[instrument(skip(wsm_client))]

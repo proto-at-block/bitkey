@@ -27,7 +27,7 @@ class CloudBackupFormattingTest : FunSpec({
 
     model.displayLabel.shouldBe("Joel's iPhone (2)")
     model.secondaryText.shouldContain("Last backed up:")
-    model.icon.shouldBe(Icon.SmallIconBitkey)
+    model.icon.shouldBe(Icon.Bitkey)
     model.backup.shouldBe(backup)
   }
 
@@ -39,7 +39,7 @@ class CloudBackupFormattingTest : FunSpec({
     model.displayLabel.shouldContain("Wallet Backup")
     model.displayLabel.shouldContain(backup.accountId.take(8))
     model.secondaryText.shouldContain("Last backed up:")
-    model.icon.shouldBe(Icon.SmallIconBitkey)
+    model.icon.shouldBe(Icon.Bitkey)
   }
 
   test("formats V3 lite account backup") {
@@ -49,7 +49,7 @@ class CloudBackupFormattingTest : FunSpec({
 
     model.displayLabel.shouldContain("Lite Test Device")
     model.secondaryText.shouldBe("Recovery Contact Backup")
-    model.icon.shouldBe(Icon.SmallIconShieldPerson)
+    model.icon.shouldBe(Icon.ShieldPerson)
   }
 
   test("formats V2 full account backup") {
@@ -61,7 +61,7 @@ class CloudBackupFormattingTest : FunSpec({
     model.displayLabel.shouldContain(backup.accountId.take(8))
     model.secondaryText.shouldContain("Account ID:")
     model.secondaryText.shouldContain(backup.accountId.take(12))
-    model.icon.shouldBe(Icon.SmallIconBitkey)
+    model.icon.shouldBe(Icon.Bitkey)
   }
 
   test("formats V2 lite account backup") {
@@ -72,7 +72,7 @@ class CloudBackupFormattingTest : FunSpec({
     model.displayLabel.shouldContain("Recovery Contact Backup")
     model.displayLabel.shouldContain(backup.accountId.take(8))
     model.secondaryText.shouldBe("Recovery Contact Backup")
-    model.icon.shouldBe(Icon.SmallIconShieldPerson)
+    model.icon.shouldBe(Icon.ShieldPerson)
   }
 
   test("truncates account ID prefix to 8 characters in fallback label") {
@@ -93,8 +93,8 @@ class CloudBackupFormattingTest : FunSpec({
     val fullModel = formatCloudBackupItemModel(fullBackup, dateTimeFormatter, timeZone)
     val liteModel = formatCloudBackupItemModel(liteBackup, dateTimeFormatter, timeZone)
 
-    fullModel.icon.shouldBe(Icon.SmallIconBitkey)
-    liteModel.icon.shouldBe(Icon.SmallIconShieldPerson)
+    fullModel.icon.shouldBe(Icon.Bitkey)
+    liteModel.icon.shouldBe(Icon.ShieldPerson)
   }
 
   test("formats V3 backup date using provided time zone") {

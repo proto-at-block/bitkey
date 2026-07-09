@@ -21,7 +21,7 @@ import io.kotest.core.spec.style.FunSpec
 class SelectPurchaseAmountSheetSnapshots : FunSpec({
   val paparazzi = paparazziExtension(maxPercentDifference = 0.1)
 
-  test("select purchase amount sheet - design system v2") {
+  test("select purchase amount sheet") {
     paparazzi.snapshot {
       Column(
         Modifier
@@ -40,7 +40,6 @@ class SelectPurchaseAmountSheetSnapshots : FunSpec({
                   FiatMoney.usd(200.0)
                 ),
               selectedAmount = FiatMoney.usd(100.0),
-              isDesignSystemV2Enabled = true,
               moneyDisplayFormatter = SnapshotMoneyDisplayFormatter,
               onSelectAmount = {},
               onSelectCustomAmount = {},

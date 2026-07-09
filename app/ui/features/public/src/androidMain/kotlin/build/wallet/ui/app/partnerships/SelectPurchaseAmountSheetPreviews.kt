@@ -20,7 +20,7 @@ import build.wallet.ui.tooling.PreviewWalletTheme
 
 @Preview(widthDp = 390, heightDp = 844)
 @Composable
-fun SelectPurchaseAmountSheetDesignSystemV2Preview() {
+fun SelectPurchaseAmountSheetPreview() {
   PreviewWalletTheme(
     modifier = Modifier.fillMaxSize(),
     backgroundColor = lightStyleDictionaryColors.subtleBackground
@@ -41,7 +41,6 @@ fun SelectPurchaseAmountSheetDesignSystemV2Preview() {
                 FiatMoney.usd(200.0)
               ),
             selectedAmount = FiatMoney.usd(100.0),
-            isDesignSystemV2Enabled = true,
             moneyDisplayFormatter = PreviewMoneyDisplayFormatter,
             onSelectAmount = {},
             onSelectCustomAmount = {},

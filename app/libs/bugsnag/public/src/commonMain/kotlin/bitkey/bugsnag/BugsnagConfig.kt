@@ -10,6 +10,7 @@ import build.wallet.platform.config.AppVariant.*
  * this release stage value to distinguish between errors that happen in different stages of the
  * application release process.
  */
+@ConsistentCopyVisibility
 data class BugsnagConfig internal constructor(
   val releaseStage: String,
 ) {

@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.onStart
 
 interface CriticalAlertsActionFactory {
-  suspend fun create(): Flow<SecurityAction?>
+  fun create(): Flow<SecurityAction?>
 }
 
 @BitkeyInject(AppScope::class)
@@ -21,7 +21,7 @@ class CriticalAlertsActionFactoryImpl(
   private val notificationsService: NotificationsService,
   private val appFunctionalityService: AppFunctionalityService,
 ) : CriticalAlertsActionFactory {
-  override suspend fun create(): Flow<SecurityAction?> {
+  override fun create(): Flow<SecurityAction?> {
     return combine(
       accountService.activeAccount(),
       notificationsService.getCriticalNotificationStatus(),

@@ -75,7 +75,7 @@ class GetRelationshipsF8eClientTests : FunSpec({
         unendorsedTrustedContacts =
           listOf(
             UnendorsedTrustedContact(
-              relationshipId = "unendorsed-trusted-contact-recovery-relationship-id",
+              id = RelationshipId("unendorsed-trusted-contact-recovery-relationship-id"),
               sealedDelegatedDecryptionKey = XCiphertext("sealed-delegated-decryption-pubkey"),
               enrollmentPakeKey = PublicKey("enrollment-pake-pubkey"),
               enrollmentKeyConfirmation = "deadbeef".decodeHex(),
@@ -95,7 +95,7 @@ class GetRelationshipsF8eClientTests : FunSpec({
         customers =
           listOf(
             ProtectedCustomer(
-              relationshipId = "customer-recovery-relationship-id",
+              id = RelationshipId("customer-recovery-relationship-id"),
               alias = ProtectedCustomerAlias("customer-alias"),
               roles = setOf(TrustedContactRole.SocialRecoveryContact)
             )

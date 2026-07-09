@@ -39,7 +39,7 @@ data class VerifyingContactMethodFormBodyModel(
           items = immutableListOf(
             ListItemModel(
               leadingAccessory = ListItemAccessory.IconAccessory(
-                icon = Icon.SmallIconMessage
+                icon = Icon.Message
               ),
               title = "Text Message",
               trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30),
@@ -47,7 +47,7 @@ data class VerifyingContactMethodFormBodyModel(
             ),
             ListItemModel(
               leadingAccessory = ListItemAccessory.IconAccessory(
-                icon = Icon.SmallIconEmail
+                icon = Icon.Email
               ),
               title = "Email",
               trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30),
@@ -55,7 +55,7 @@ data class VerifyingContactMethodFormBodyModel(
             ),
             ListItemModel(
               leadingAccessory = ListItemAccessory.IconAccessory(
-                icon = Icon.SmallIconPhone
+                icon = Icon.Phone
               ),
               title = "Phone Call",
               trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30),
@@ -63,7 +63,7 @@ data class VerifyingContactMethodFormBodyModel(
             ),
             ListItemModel(
               leadingAccessory = ListItemAccessory.IconAccessory(
-                icon = Icon.SmallIconVideo
+                icon = Icon.Video
               ),
               title = "Video Chat",
               trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30),
@@ -71,7 +71,7 @@ data class VerifyingContactMethodFormBodyModel(
             ),
             ListItemModel(
               leadingAccessory = ListItemAccessory.IconAccessory(
-                icon = Icon.SmallIconAccount
+                icon = Icon.Account
               ),
               title = "In Person",
               trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30),

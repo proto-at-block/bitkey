@@ -148,7 +148,7 @@ static bool _uc_send(void* proto, uint16_t flags) {
 
   if (err != UC_ERR_NONE) {
     BITLOG_EVENT(uc_err, err);
-    LOGW("uc_send failed: proto_tag=0x%lx err=%d", proto_tag, err);
+    MFLOGW("uc_send failed: proto_tag=0x%lx err=%d", proto_tag, err);
     return false;
   }
   return true;
@@ -281,7 +281,7 @@ uc_err_t uc_process_msg(uc_msg_t* msg, size_t msg_len, void* proto_buffer, size_
 
     if ((hdr->flags & UC_MSG_HDR_FLAGS_ENCRYPTED) && (hdr->payload_len > 0)) {
       if (hdr->payload_len < UC_ENCRYPTION_PADDING) {
-        LOGE("Payload too small");
+        MFLOGE("Payload too small");
         return UC_ERR_DECODE_FAILED;
       }
       const size_t plaintext_len = hdr->payload_len - UC_ENCRYPTION_PADDING;
@@ -309,7 +309,7 @@ uc_err_t uc_process_msg(uc_msg_t* msg, size_t msg_len, void* proto_buffer, size_
       if (_uc_state_priv.crypto.gcm_decrypt(&msg->payload[UC_DECRYPT_OFFSET], msg->payload,
                                             plaintext_len, aad, sizeof(aad), nonce,
                                             mac) != SECURE_TRUE) {
-        LOGE("Decrypt failed for: %ld", hdr->proto_tag);
+        MFLOGE("Decrypt failed for: %ld", hdr->proto_tag);
         return UC_ERR_DECRYPT_FAILED;
       }
 
@@ -329,14 +329,14 @@ uc_err_t uc_process_msg(uc_msg_t* msg, size_t msg_len, void* proto_buffer, size_
             rtos_timer_start(&_uc_state_priv.ack_timer, UC_ACK_TIMEOUT_MS);
           }
         }
-        LOGW("Replay drop (tag=%ld)", tag);
+        MFLOGW("Replay drop (tag=%ld)", tag);
         return UC_ERR_NONE;
       }
     }
 
     if (proto_buffer_len < hdr->payload_len) {
       // Buffer is too small to fit the entire decoded message.
-      LOGE("Proto buffer too small.");
+      MFLOGE("Proto buffer too small.");
       return UC_ERR_DECODE_TOO_SMALL;
     }
 
@@ -443,7 +443,7 @@ void uc_init(uc_send_callback_t send_cb, uc_crypto_api_t const* crypto_api, void
       .get_send_seq = &_uc_send_seq_no_op,
       .has_session = &_uc_has_session_no_op,
     };
-    LOGW("No crypto, UXC plain");
+    MFLOGW("No crypto, UXC plain");
   } else {
     ASSERT(crypto_api->gcm_encrypt != NULL);
     ASSERT(crypto_api->gcm_decrypt != NULL);
@@ -501,7 +501,7 @@ uc_err_t uc_encode(uint32_t proto_tag, void* proto, uint16_t proto_len, uint16_t
     if (proto_len > (msg_buffer_size - (sizeof(uc_msg_hdr_t) + UC_ENCRYPTION_PADDING))) {
       _uc_put_msg_buffer(msg);
       ASSERT(rtos_mutex_unlock(&_uc_state_priv.wr_mutex));
-      LOGE("Buf too small");
+      MFLOGE("Buf too small");
       return UC_ERR_TOO_LARGE;
     }
     msg->hdr.flags |= UC_MSG_HDR_FLAGS_ENCRYPTED;
@@ -534,7 +534,7 @@ uc_err_t uc_encode(uint32_t proto_tag, void* proto, uint16_t proto_len, uint16_t
 
       if (_uc_state_priv.crypto.gcm_encrypt(msg->payload, msg->payload, ostream.bytes_written, aad,
                                             sizeof(aad), nonce, mac) != SECURE_TRUE) {
-        LOGE("Encrypt failed for: %ld", proto_tag);
+        MFLOGE("Encrypt failed for: %ld", proto_tag);
         _uc_put_msg_buffer(msg);
         ASSERT(rtos_mutex_unlock(&_uc_state_priv.wr_mutex));
         return UC_ERR_ENCRYPT_FAILED;
@@ -595,11 +595,16 @@ uc_err_t uc_encode(uint32_t proto_tag, void* proto, uint16_t proto_len, uint16_t
   for (retry_cnt = 0; retry_cnt < UC_RETRANSMIT_MAX_COUNT; retry_cnt++) {
     (void)rtos_event_group_clear_bits(&_uc_state_priv.ack_events, bits);
 
+    if (retry_cnt > 0) {
+      MFLOGW("uc retransmit tag=0x%lx attempt=%u", (unsigned long)proto_tag, (unsigned)retry_cnt);
+    }
+
     uint8_t* wr_buf = _uc_state_priv.wr_enc_buffer;
     size_t remaining_bytes = enc_len;
     while (remaining_bytes > 0) {
       const size_t wr_size = send_cb(context, wr_buf, remaining_bytes);
       if (wr_size == 0) {
+        MFLOGE("uc write fail tag=0x%lx", (unsigned long)proto_tag);
         ASSERT(rtos_mutex_unlock(&_uc_state_priv.wr_mutex));
         return UC_ERR_WR_FAILED;
       }
@@ -621,10 +626,17 @@ uc_err_t uc_encode(uint32_t proto_tag, void* proto, uint16_t proto_len, uint16_t
       // Message received and ACK'd.
       break;
     }
+    if (flags & UC_EVENT_NACK) {
+      MFLOGW("uc NACK tag=0x%lx", (unsigned long)proto_tag);
+    }
   }
 
   ASSERT(rtos_mutex_unlock(&_uc_state_priv.wr_mutex));
-  return (retry_cnt < UC_RETRANSMIT_MAX_COUNT ? UC_ERR_NONE : UC_ERR_MAX_RETRANSMITS);
+  if (retry_cnt >= UC_RETRANSMIT_MAX_COUNT) {
+    MFLOGE("uc max retransmits tag=0x%lx", (unsigned long)proto_tag);
+    return UC_ERR_MAX_RETRANSMITS;
+  }
+  return UC_ERR_NONE;
 }
 
 uc_err_t uc_ack(void) {

@@ -1,0 +1,10 @@
+[package]
+edition = { workspace = true }
+name = "device-attestation"
+publish = { workspace = true }
+version = { workspace = true }
+
+[dependencies]
+ring = "0.17.7"
+thiserror = { workspace = true }
+x509-parser = { version = "0.16.0", features = ["verify"] }

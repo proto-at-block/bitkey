@@ -27,7 +27,7 @@ data class FakeAction(
   }
 }
 
-abstract class FakeActionFactory(
+open class FakeActionFactory(
   private val recommendations: List<SecurityActionRecommendation>,
   private val category: SecurityActionCategory,
   private val type: SecurityActionType,
@@ -53,7 +53,7 @@ class AppKeyCloudBackupHealthActionFactoryFake : AppKeyBackupHealthActionFactory
     category = SecurityActionCategory.RECOVERY,
     type = SecurityActionType.APP_KEY_BACKUP
   ) {
-  override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
+  override fun create(): Flow<SecurityAction> = flowOf(createAction())
 }
 
 class EekCloudBackupHealthActionFactoryFake : EekBackupHealthActionFactory,
@@ -62,7 +62,7 @@ class EekCloudBackupHealthActionFactoryFake : EekBackupHealthActionFactory,
     category = SecurityActionCategory.RECOVERY,
     type = SecurityActionType.EEK_BACKUP
   ) {
-  override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
+  override fun create(): Flow<SecurityAction> = flowOf(createAction())
 }
 
 class SocialRecoveryActionFactoryFake : SocialRecoveryActionFactory,
@@ -71,7 +71,7 @@ class SocialRecoveryActionFactoryFake : SocialRecoveryActionFactory,
     category = SecurityActionCategory.RECOVERY,
     type = SecurityActionType.SOCIAL_RECOVERY
   ) {
-  override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
+  override fun create(): Flow<SecurityAction> = flowOf(createAction())
 }
 
 class InheritanceActionFactoryFake : InheritanceActionFactory,
@@ -80,7 +80,7 @@ class InheritanceActionFactoryFake : InheritanceActionFactory,
     category = SecurityActionCategory.RECOVERY,
     type = SecurityActionType.INHERITANCE
   ) {
-  override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
+  override fun create(): Flow<SecurityAction> = flowOf(createAction())
 }
 
 class BiometricActionFactoryFake : BiometricActionFactory,
@@ -89,7 +89,7 @@ class BiometricActionFactoryFake : BiometricActionFactory,
     category = SecurityActionCategory.SECURITY,
     type = SecurityActionType.BIOMETRIC
   ) {
-  override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
+  override fun create(): Flow<SecurityAction> = flowOf(createAction())
 }
 
 class CriticalAlertsActionFactoryFake : CriticalAlertsActionFactory,
@@ -98,7 +98,7 @@ class CriticalAlertsActionFactoryFake : CriticalAlertsActionFactory,
     category = SecurityActionCategory.RECOVERY,
     type = SecurityActionType.CRITICAL_ALERTS
   ) {
-  override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
+  override fun create(): Flow<SecurityAction> = flowOf(createAction())
 }
 
 class FingerprintsActionFactoryFake : FingerprintsActionFactory,
@@ -111,7 +111,7 @@ class FingerprintsActionFactoryFake : FingerprintsActionFactory,
     category = SecurityActionCategory.SECURITY,
     type = SecurityActionType.FINGERPRINTS
   ) {
-  override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
+  override fun create(): Flow<SecurityAction> = flowOf(createAction())
 }
 
 class HardwareDeviceActionFactoryFake : HardwareDeviceActionFactory,
@@ -123,7 +123,7 @@ class HardwareDeviceActionFactoryFake : HardwareDeviceActionFactory,
     category = SecurityActionCategory.SECURITY,
     type = SecurityActionType.HARDWARE_DEVICE
   ) {
-  override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
+  override fun create(): Flow<SecurityAction> = flowOf(createAction())
 }
 
 class TxVerificationActionFactoryFake : TxVerificationActionFactory, FakeActionFactory(
@@ -133,7 +133,7 @@ class TxVerificationActionFactoryFake : TxVerificationActionFactory, FakeActionF
   category = SecurityActionCategory.SECURITY,
   type = SecurityActionType.TRANSACTION_VERIFICATION
 ) {
-  override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
+  override fun create(): Flow<SecurityAction> = flowOf(createAction())
 }
 
 class KeysetSyncActionFactoryFake : KeysetSyncActionFactory, FakeActionFactory(
@@ -143,5 +143,5 @@ class KeysetSyncActionFactoryFake : KeysetSyncActionFactory, FakeActionFactory(
   category = SecurityActionCategory.RECOVERY,
   type = SecurityActionType.KEYSET_SYNC
 ) {
-  override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
+  override fun create(): Flow<SecurityAction> = flowOf(createAction())
 }

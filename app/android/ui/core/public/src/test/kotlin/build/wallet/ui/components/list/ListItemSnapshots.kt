@@ -24,12 +24,6 @@ class ListItemSnapshots : FunSpec({
     }
   }
 
-  test("list item with trailing switch - design system v2") {
-    paparazzi.snapshot {
-      ListItemWithTrailingSwitch()
-    }
-  }
-
   test("list item with trailing icon") {
     paparazzi.snapshot {
       ListItemWithTrailingIcon()

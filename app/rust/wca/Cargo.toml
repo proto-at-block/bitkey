@@ -16,6 +16,7 @@ pcsc = ["dep:pcsc"]
 apdu = { path = "../apdu" }
 bitcoin = { workspace = true, features = ["base64"] }
 bytes = "1"
+device-attestation = { path = "../../../core/device-attestation" }
 hex = "0.4"
 hkdf = "0.12.4"
 hmac = "0.12.1"

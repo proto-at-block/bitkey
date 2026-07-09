@@ -1,10 +1,14 @@
 package build.wallet.recovery.keyset
 
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.keybox.Keybox
+import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.recovery.ListKeysetsResponse
+import build.wallet.f8e.recovery.SignedKeysetVerificationResponse
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.StateFlow
 
@@ -53,7 +57,8 @@ interface SpendingKeysetRepairService {
   ): Result<KeysetRepairState.RepairComplete, KeysetRepairError>
 
   /**
-   * Regenerates the active keyset when the app spending private key is missing.
+   * Regenerates the active keyset when the app spending private key is missing using the
+   * legacy W1 hardware proof-of-possession path.
    *
    * This method:
    * 1. Generates a new app spending key pair
@@ -75,6 +80,35 @@ interface SpendingKeysetRepairService {
     hwSpendingKey: HwSpendingPublicKey,
     hwProofOfPossession: HwFactorProofOfPossession,
     cachedData: KeysetRepairCachedData,
+    hwSpendingKeyProof: HwSpendingKeyProof? = null,
+  ): Result<KeysetRepairState.RepairComplete, KeysetRepairError>
+
+  /**
+   * Creates and locally persists a regenerated keyset without authorizing server activation.
+   *
+   * W3 repair uses this first because the rotate-spending-keyset action proof must include the
+   * new f8e keyset id, which is only known after creating the server keyset.
+   */
+  suspend fun prepareRegeneratedActiveKeyset(
+    account: FullAccount,
+    updatedKeybox: Keybox,
+    hwSpendingKey: HwSpendingPublicKey,
+    hwSpendingKeyProof: HwSpendingKeyProof? = null,
+  ): Result<PreparedRegeneratedKeyset, KeysetRepairError>
+
+  /**
+   * Finishes a previously prepared regenerated keyset repair.
+   *
+   * W1 passes [PrivilegedActionProof.HwKeyProof] for both proofs. W3 passes action proofs:
+   * update-descriptor-backups for [descriptorBackupProof] when descriptor backup upload is needed,
+   * and rotate-spending-keyset for [keysetActivationProof].
+   */
+  suspend fun completeRegeneratedActiveKeyset(
+    account: FullAccount,
+    preparedRegeneratedKeyset: PreparedRegeneratedKeyset,
+    descriptorBackupProof: PrivilegedActionProof?,
+    keysetActivationProof: PrivilegedActionProof,
+    cachedData: KeysetRepairCachedData,
   ): Result<KeysetRepairState.RepairComplete, KeysetRepairError>
 }
 
@@ -93,6 +127,14 @@ sealed interface SpendingKeysetSyncStatus {
   data class Mismatch(
     val localActiveKeysetId: String,
     val serverActiveKeysetId: String,
+  ) : SpendingKeysetSyncStatus
+
+  /**
+   * Local keybox is missing keysets that are known to the server.
+   */
+  data class IncompleteKeysetList(
+    val activeKeysetId: String,
+    val missingKeysetIds: Set<String>,
   ) : SpendingKeysetSyncStatus
 
   /**
@@ -131,8 +173,18 @@ sealed interface KeysetRepairState {
    */
   data class RepairComplete(
     val updatedKeybox: Keybox,
+    val signedKeysetVerification: SignedKeysetVerificationResponse? = null,
   ) : KeysetRepairState
 }
+
+/**
+ * A regenerated keyset that has been created on f8e and saved locally, but has not yet been
+ * activated on f8e.
+ */
+data class PreparedRegeneratedKeyset(
+  val keybox: Keybox,
+  val newKeyset: SpendingKeyset,
+)
 
 /**
  * Information about whether repair requires SSEK unsealing.

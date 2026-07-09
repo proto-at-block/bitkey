@@ -58,28 +58,4 @@ class LoadingSuccessScreenSnapshots : FunSpec({
     }
   }
 
-  test("loading state with design system v2") {
-    paparazzi.snapshot {
-      LoadingSuccessScreen(
-        model =
-          LoadingSuccessBodyModel(
-            state = LoadingSuccessBodyModel.State.Loading,
-            id = null
-          )
-      )
-    }
-  }
-
-  test("success state with design system v2") {
-    paparazzi.snapshot {
-      LoadingSuccessScreen(
-        model =
-          LoadingSuccessBodyModel(
-            message = "Success",
-            state = Success,
-            id = null
-          )
-      )
-    }
-  }
 })

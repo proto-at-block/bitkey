@@ -47,6 +47,8 @@ class SecurityActionsServiceImpl(
     SecurityActionType.KEYSET_SYNC to keysetSyncActionFactory::create
   )
 
+  override val securityActionsWithRecommendations = MutableStateFlow<SecurityActionsWithRecommendations?>(null)
+
   override suspend fun executeWork() {
     combine(
       factories.map { (actionType, factoryMethod) ->
@@ -107,14 +109,12 @@ class SecurityActionsServiceImpl(
         securityActionsWithRecommendations.value = SecurityActionsWithRecommendations(
           securityActions = securityActions,
           recoveryActions = recoveryActions,
-          recommendations = recommendations.takeIf { atRiskRecommendations.isEmpty() } ?: emptyList(),
+          recommendations = recommendations.takeIf { atRiskRecommendations.isEmpty() }.orEmpty(),
           atRiskRecommendations = atRiskRecommendations
         )
       }
       .collect()
   }
-
-  override val securityActionsWithRecommendations = MutableStateFlow<SecurityActionsWithRecommendations?>(null)
 
   override fun getRecommendationsWithInteractionStatus(): Flow<List<SecurityRecommendationWithStatus>> {
     val activeSystemRecsFlow = securityActionsWithRecommendations

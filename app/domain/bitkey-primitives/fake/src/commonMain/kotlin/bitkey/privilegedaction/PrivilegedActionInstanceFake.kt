@@ -12,3 +12,11 @@ val OutOfBandPrivilegedActionInstanceFake = PrivilegedActionInstance(
     authorizationStrategyType = AuthorizationStrategyType.OUT_OF_BAND
   )
 )
+
+val VerifyHardwareSerialPrivilegedActionInstanceFake = PrivilegedActionInstance(
+  id = "fake-verify-hardware-serial-privileged-action-instance-id",
+  privilegedActionType = PrivilegedActionType.VERIFY_HARDWARE_SERIAL,
+  authorizationStrategy = AuthorizationStrategy.OutOfBand(
+    authorizationStrategyType = AuthorizationStrategyType.OUT_OF_BAND
+  )
+)

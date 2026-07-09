@@ -6,7 +6,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.settings.full.mobilepay.SpendingLimitCardModel
-import build.wallet.ui.components.card.Card
 import build.wallet.ui.components.icon.Icon
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment.Secondary
@@ -43,36 +42,16 @@ fun SpendingLimitCard(
   spentText: String,
   remainingText: String,
 ) {
-  val isDesignSystemV2Enabled = true
-
-  if (isDesignSystemV2Enabled) {
-    SpendingLimitCardContent(
-      modifier = modifier.fillMaxWidth(),
-      icon = icon,
-      titleText = titleText,
-      titleType = LabelType.Body2MonoCaps,
-      resetText = resetText,
-      progress = progress,
-      spentText = spentText,
-      remainingText = remainingText
-    )
-  } else {
-    Card(
-      modifier = modifier,
-      paddingValues = PaddingValues(20.dp)
-    ) {
-      SpendingLimitCardContent(
-        modifier = Modifier.fillMaxWidth(),
-        icon = null,
-        titleText = titleText,
-        titleType = LabelType.Title2,
-        resetText = resetText,
-        progress = progress,
-        spentText = spentText,
-        remainingText = remainingText
-      )
-    }
-  }
+  SpendingLimitCardContent(
+    modifier = modifier.fillMaxWidth(),
+    icon = icon,
+    titleText = titleText,
+    titleType = LabelType.Body2MonoCaps,
+    resetText = resetText,
+    progress = progress,
+    spentText = spentText,
+    remainingText = remainingText
+  )
 }
 
 @Composable

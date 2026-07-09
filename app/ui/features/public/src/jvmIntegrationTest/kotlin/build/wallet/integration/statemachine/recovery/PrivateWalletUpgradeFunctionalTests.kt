@@ -80,7 +80,9 @@ class PrivateWalletUpgradeFunctionalTests : FunSpec({
         onConfirm()
       }
 
-      awaitUntilBody<SaveBackupInstructionsBodyModel> {
+      awaitUntilBody<SaveBackupInstructionsBodyModel>(
+        matching = { !it.isLoading }
+      ) {
         onBackupClick()
       }
 
@@ -116,11 +118,9 @@ class PrivateWalletUpgradeFunctionalTests : FunSpec({
       account.keybox.isPrivateWallet.shouldBeTrue()
       account.keybox.canUseKeyboxKeysets.shouldBeTrue()
     }
-    app.bitcoinWalletService.transactionsData().test {
-      val transactionData = awaitItem()
-      transactionData.shouldNotBeNull()
-
-      transactionData.transactions.size.shouldBe(1)
+    app.bitcoinWalletService.sync()
+    app.bitcoinWalletService.transactionsData().test(timeout = 60.seconds) {
+      val transactionData = awaitUntil { it?.transactions?.size == 1 }.shouldNotBeNull()
       val upgradeTransaction = transactionData.transactions.first()
       upgradeTransaction.recipientAddress.shouldBe(upgradeDestinationAddress)
     }
@@ -147,7 +147,9 @@ class PrivateWalletUpgradeFunctionalTests : FunSpec({
         onConfirm()
       }
 
-      awaitUntilBody<SaveBackupInstructionsBodyModel> {
+      awaitUntilBody<SaveBackupInstructionsBodyModel>(
+        matching = { !it.isLoading }
+      ) {
         onBackupClick()
       }
 
@@ -198,7 +200,9 @@ class PrivateWalletUpgradeFunctionalTests : FunSpec({
         onConfirm()
       }
 
-      awaitUntilBody<SaveBackupInstructionsBodyModel> {
+      awaitUntilBody<SaveBackupInstructionsBodyModel>(
+        matching = { !it.isLoading }
+      ) {
         onBackupClick()
       }
 
@@ -252,7 +256,9 @@ class PrivateWalletUpgradeFunctionalTests : FunSpec({
         clickPrimaryButton()
       }
 
-      awaitUntilBody<SaveBackupInstructionsBodyModel> {
+      awaitUntilBody<SaveBackupInstructionsBodyModel>(
+        matching = { !it.isLoading }
+      ) {
         onBackupClick()
       }
 
@@ -284,7 +290,9 @@ class PrivateWalletUpgradeFunctionalTests : FunSpec({
       navigateToPrivateWalletUpdate()
       continuePrivateWalletMigrationPastFeeEstimate()
 
-      awaitUntilBody<SaveBackupInstructionsBodyModel> {
+      awaitUntilBody<SaveBackupInstructionsBodyModel>(
+        matching = { !it.isLoading }
+      ) {
         onBackupClick()
       }
 

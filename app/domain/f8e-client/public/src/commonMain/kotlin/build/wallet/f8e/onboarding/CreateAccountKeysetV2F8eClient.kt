@@ -5,6 +5,7 @@ import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
@@ -25,5 +26,12 @@ interface CreateAccountKeysetV2F8eClient {
     appSpendingKey: AppSpendingPublicKey,
     network: BitcoinNetworkType,
     appAuthKey: PublicKey<AppGlobalAuthKey>,
+    /**
+     * Optional device-identity attestation for [hardwareSpendingKey], captured
+     * at the same NFC tap the key was derived. Send `null` for legacy code paths
+     * where attestation isn't available; the server's enrollment gate decides
+     * whether to require it.
+     */
+    hardwareSpendingKeyProof: HwSpendingKeyProof? = null,
   ): Result<F8eSpendingKeyset, NetworkingError>
 }

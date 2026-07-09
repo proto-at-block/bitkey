@@ -43,4 +43,11 @@ class CloudBackupViewerFormatterTests : FunSpec({
     cloudBackupStoreTitle("Ubiquitous KVS").shouldBe("UbiquitousKeyValueStore")
     cloudBackupStoreTitle("CloudKit").shouldBe("CloudKit")
   }
+
+  test("cloudBackupStoreTitle labels fake stores") {
+    cloudBackupStoreTitle("Google Drive", isFake = true).shouldBe("Cloud Storage (Fake)")
+    cloudBackupStoreTitle("CloudKit", isFake = true).shouldBe("Cloud Storage (Fake)")
+    cloudBackupStoreTitle("Ubiquitous KVS", isFake = true)
+      .shouldBe("Cloud Storage (Fake)")
+  }
 })

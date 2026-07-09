@@ -51,12 +51,14 @@ use privileged_action::routes::{
     ConfigurePrivilegedActionDelayDurationsRequest,
     ConfigurePrivilegedActionDelayDurationsResponse, GetPendingInstanceResponse,
     GetPendingInstancesParams, GetPendingInstancesResponse, GetPrivilegedActionDefinitionsResponse,
+    ResendPendingInstanceResponse,
     ProcessPrivilegedActionVerificationRequest, ProcessPrivilegedActionVerificationResponse,
     UpdateDelayDurationForTestRequest, UpdateDelayDurationForTestResponse,
 };
 use recovery::routes::delay_notify::{
     CompleteDelayNotifyRequest, CreateAccountDelayNotifyRequest, EvaluatePinRequest,
-    EvaluatePinResponse, RotateAuthenticationKeysRequest, RotateAuthenticationKeysResponse,
+    EvaluatePinResponse, HardwareAuthKeyAvailabilityRequest, HardwareAuthKeyAvailabilityResponse,
+    RotateAuthenticationKeysRequest, RotateAuthenticationKeysResponse,
     SendAccountVerificationCodeRequest, SendAccountVerificationCodeResponse,
     UpdateDelayForTestRecoveryRequest, VerifyAccountVerificationCodeRequest,
     VerifyAccountVerificationCodeResponse,
@@ -817,6 +819,22 @@ impl TestClient {
         response
     }
 
+    pub(crate) async fn check_hardware_auth_key_availability(
+        &self,
+        account_id: &AccountId,
+        request: &HardwareAuthKeyAvailabilityRequest,
+    ) -> Response<HardwareAuthKeyAvailabilityResponse> {
+        Request::builder()
+            .method("POST")
+            .uri(format!(
+                "/api/accounts/{account_id}/hardware-auth-key/availability"
+            ))
+            .authenticated(account_id, None, None)
+            .post(&request)
+            .call(&self.router)
+            .await
+    }
+
     pub(crate) async fn rotate_to_spending_keyset(
         &self,
         account_id: &str,
@@ -916,8 +934,18 @@ impl TestClient {
         &self,
         request: &GetTokensRequest,
     ) -> Response<GetTokensResponse> {
+        self.get_tokens_with_headers(HeaderMap::new(), request)
+            .await
+    }
+
+    pub(crate) async fn get_tokens_with_headers(
+        &self,
+        headers: HeaderMap,
+        request: &GetTokensRequest,
+    ) -> Response<GetTokensResponse> {
         Request::builder()
             .uri("/api/authenticate/tokens")
+            .with_headers(headers)
             .post(&request)
             .call(&self.router)
             .await
@@ -1788,6 +1816,21 @@ impl TestClient {
             .await
     }
 
+    pub(crate) async fn resend_out_of_band_verification(
+        &self,
+        account_id: &str,
+        instance_id: &str,
+    ) -> Response<ResendPendingInstanceResponse> {
+        Request::builder()
+            .uri(format!(
+                "/api/accounts/{account_id}/privileged-actions/{instance_id}/resend"
+            ))
+            .authenticated(&AccountId::from_str(account_id).unwrap(), None, None)
+            .post(())
+            .call(&self.router)
+            .await
+    }
+
     pub(crate) async fn get_account_descriptors(
         &self,
         account_id: &str,
@@ -2098,6 +2141,16 @@ impl TestClient {
         context: &mut TestContext,
         request: &CreateAccountRequestV2,
     ) -> Response<CreateAccountResponseV2> {
+        self.create_account_v2_with_headers(context, HeaderMap::new(), request)
+            .await
+    }
+
+    pub(crate) async fn create_account_v2_with_headers(
+        &self,
+        context: &mut TestContext,
+        headers: HeaderMap,
+        request: &CreateAccountRequestV2,
+    ) -> Response<CreateAccountResponseV2> {
         let serial = match request.auth.hardware_type {
             HardwareType::W1 => HardwareType::TEST_SERIAL_W1,
             HardwareType::W3 => HardwareType::TEST_SERIAL_W3,
@@ -2105,6 +2158,7 @@ impl TestClient {
         let response: Response<CreateAccountResponseV2> = Request::builder()
             .uri("/api/v2/accounts")
             .header(HARDWARE_SERIAL_HEADER_NAME, serial)
+            .with_headers(headers)
             .post(request)
             .call(&self.router)
             .await;
@@ -2121,6 +2175,17 @@ impl TestClient {
         account_id: &str,
         request: &UpgradeAccountRequestV2,
     ) -> Response<CreateKeysetResponseV2> {
+        self.upgrade_account_v2_with_headers(context, HeaderMap::new(), account_id, request)
+            .await
+    }
+
+    pub(crate) async fn upgrade_account_v2_with_headers(
+        &self,
+        context: &mut TestContext,
+        headers: HeaderMap,
+        account_id: &str,
+        request: &UpgradeAccountRequestV2,
+    ) -> Response<CreateKeysetResponseV2> {
         let serial = match request.auth.hardware_type {
             HardwareType::W1 => HardwareType::TEST_SERIAL_W1,
             HardwareType::W3 => HardwareType::TEST_SERIAL_W3,
@@ -2128,6 +2193,7 @@ impl TestClient {
         let response: Response<CreateKeysetResponseV2> = Request::builder()
             .uri(format!("/api/v2/accounts/{account_id}/upgrade"))
             .header(HARDWARE_SERIAL_HEADER_NAME, serial)
+            .with_headers(headers)
             .recovery_authenticated(&AccountId::from_str(account_id).unwrap())
             .post(request)
             .call(&self.router)

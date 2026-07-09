@@ -148,7 +148,7 @@ private suspend fun NavigatorPresenter.test(
   validate: suspend TurbineTestContext<ScreenModel>.() -> Unit,
 ) {
   val models: Flow<ScreenModel> = moleculeFlow(mode = RecompositionMode.Immediate) {
-    model(initialScreen, {})
+    model(initialScreen) {}
   }.distinctUntilChanged()
 
   models.test(timeout = turbineTimeout) {

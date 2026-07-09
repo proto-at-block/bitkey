@@ -316,6 +316,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
                     text = "Back",
                     onClick = onBackToTouchpointInput
                   ),
+                  errorData = state.error.verificationErrorData(),
                   eventTrackerScreenId = when (props.touchpointType) {
                     Email -> NotificationsEventTrackerScreenId.EMAIL_INPUT_CODE_EXPIRED_ERROR
                     PhoneNumber -> NotificationsEventTrackerScreenId.SMS_INPUT_CODE_EXPIRED_ERROR
@@ -327,6 +328,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
                   title = state.touchpointToVerify.verificationErrorTitle(),
                   subline = "The verification code was incorrect. Please try again.",
                   primaryButton = ButtonDataModel(text = "Back", onClick = onBackToCodeInput),
+                  errorData = state.error.verificationErrorData(),
                   eventTrackerScreenId = when (props.touchpointType) {
                     Email -> NotificationsEventTrackerScreenId.EMAIL_INPUT_INCORRECT_CODE_ERROR
                     PhoneNumber -> NotificationsEventTrackerScreenId.SMS_INPUT_INCORRECT_CODE_ERROR
@@ -340,6 +342,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
               title = state.touchpointToVerify.verificationErrorTitle(),
               isConnectivityError = isConnectivityError,
               onBack = if (isConnectivityError) onBackToCodeInput else onBackToTouchpointInput,
+              errorData = state.error.verificationErrorData(),
               eventTrackerScreenId = when (props.touchpointType) {
                 Email -> NotificationsEventTrackerScreenId.EMAIL_INPUT_SENDING_CODE_TO_SERVER_ERROR
                 PhoneNumber -> NotificationsEventTrackerScreenId.SMS_INPUT_SENDING_CODE_TO_SERVER_ERROR
@@ -413,7 +416,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
                   }
                 )
               },
-              onTokenRefreshError = { isConnectivityError, _ ->
+              onTokenRefreshError = { _, error, _ ->
                 // Provide a screen model to show if the token refresh results in an error.
                 // We want this to be the same as [ActivationApprovalInstructionsUiState]
                 // but with the error bottom sheet showing
@@ -424,7 +427,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
                   primaryButtonText = props.entryPoint.activationApprovalPrimaryButtonText(),
                   isApproveButtonLoading = false,
                   errorBottomSheetState = ErrorBottomSheetState.Showing(
-                    isConnectivityError = isConnectivityError,
+                    error = error,
                     onClosed = goToActivationInstructions
                   ),
                   onApprove = {
@@ -475,6 +478,11 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
           title = state.touchpointToActivate.activationErrorTitle(),
           isConnectivityError = state.error is NetworkError,
           onBack = { uiState = EnteringTouchpointUiState(touchpointPrefill = state.touchpointToActivate) },
+          errorData = ErrorData(
+            segment = NotificationsAppSegment,
+            actionDescription = "Activating notification touchpoint",
+            cause = state.error
+          ),
           eventTrackerScreenId = when (props.touchpointType) {
             Email -> NotificationsEventTrackerScreenId.EMAIL_INPUT_SENDING_ACTIVATION_TO_SERVER_ERROR
             PhoneNumber -> NotificationsEventTrackerScreenId.SMS_INPUT_SENDING_ACTIVATION_TO_SERVER_ERROR
@@ -550,9 +558,12 @@ sealed interface NotificationTouchpointInputAndVerificationUiState {
       data object Hidden : ErrorBottomSheetState
 
       data class Showing(
-        val isConnectivityError: Boolean,
+        val error: Error,
         val onClosed: () -> Unit,
-      ) : ErrorBottomSheetState
+      ) : ErrorBottomSheetState {
+        val isConnectivityError: Boolean
+          get() = error is NetworkError
+      }
     }
   }
 
@@ -648,6 +659,13 @@ private fun EntryPoint.dataInputStyle(hasExistingTouchpoint: Boolean) =
 
 private fun F8eError<AddTouchpointClientErrorCode>.isUnsupportedCountryCode(): Boolean =
   this is F8eError.SpecificClientError && errorCode == AddTouchpointClientErrorCode.UNSUPPORTED_COUNTRY_CODE
+
+private fun F8eError<VerifyTouchpointClientErrorCode>.verificationErrorData() =
+  ErrorData(
+    segment = NotificationsAppSegment,
+    actionDescription = "Verifying notification touchpoint code",
+    cause = error
+  )
 
 /**
  * Maps a [NotificationTouchpoint] to the corresponding [ActionProofType] for hardware signing.

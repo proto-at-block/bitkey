@@ -4,6 +4,9 @@ enum class FwupEventTrackerScreenId : EventTrackerScreenId {
   /** Instructions shown to the customer to update their firmware */
   FWUP_UPDATE_INSTRUCTIONS,
 
+  /** Help screen explaining how to tap Bitkey during firmware update flows */
+  FWUP_HELP,
+
   /** Error sheet shown when FWUP fails for some reason */
   FWUP_UPDATE_ERROR_SHEET,
 

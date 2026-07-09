@@ -2,11 +2,13 @@ package build.wallet.cloud.store
 
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.di.Impl
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
 @BitkeyInject(AppScope::class)
+@Impl
 class CloudStoreAccountRepositoryImpl(
   private val googleAccountRepository: GoogleAccountRepository,
 ) : CloudStoreAccountRepository {

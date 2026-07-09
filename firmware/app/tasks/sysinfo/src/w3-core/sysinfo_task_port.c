@@ -324,6 +324,17 @@ void sysinfo_task_handle_coproc_boot(ipc_ref_t* message) {
     rsp->auth_status = fwpb_uxc_auth_status_UXC_AUTH_STATUS_UNAUTHENTICATED;
   }
 
+  // Push our loaded device serial to UXC so its Memfault events report the
+  // same device identity as ours. UXC has no copy of its own. Skip the push
+  // when sysinfo_load failed and we're holding the "XXXXXXXXXXXXXXXX"
+  // placeholder — otherwise we'd just hand UXC our placeholder, which is
+  // worse than letting it keep its own.
+  const sysinfo_t* const local_sysinfo = sysinfo_get();
+  if (local_sysinfo->serial[0] != 'X') {
+    rsp->serial.size = SYSINFO_SERIAL_NUMBER_LENGTH;
+    memcpy(rsp->serial.bytes, local_sysinfo->serial, SYSINFO_SERIAL_NUMBER_LENGTH);
+  }
+
   // ACK immediately since we may want to send a followup cert request.
   (void)uc_send_immediate(msg);
 
@@ -388,7 +399,7 @@ void sysinfo_task_handle_coproc_coredump(ipc_ref_t* message) {
               sizeof(rsp->msg.coredump_get_rsp.coredump_fragment.data.bytes));
     memcpy(rsp->msg.coredump_get_rsp.coredump_fragment.data.bytes,
            msg_device->msg.coredump_get_rsp.coredump_fragment.data.bytes, coredump_size);
-    msg_device->msg.coredump_get_rsp.coredump_fragment.data.size = coredump_size;
+    rsp->msg.coredump_get_rsp.coredump_fragment.data.size = coredump_size;
   }
   uc_free_recv_proto(msg_device);
 
@@ -540,6 +551,7 @@ void sysinfo_task_port_prepare_power_down(void) {
   // If USB is plugged in, we cannot power off, so instead we turn off the
   // screen and poll until USB is un-plugged.
   if (power_is_plugged_in()) {
+    MFLOGI("prepare_power_down: USB plugged, polling");
     rtos_thread_sleep(SYSINFO_POWER_OFF_TOUCH_DELAY_MS);
     const sysevent_t touch_events = SYSEVENT_TOUCH | SYSEVENT_CAPTOUCH;
     sysevent_clear(touch_events);
@@ -552,9 +564,16 @@ void sysinfo_task_port_prepare_power_down(void) {
     // If there is a touch event (captouch or screen) while USB is plugged
     // in, we exit to reset under the assumption that the user wants to
     // use their device.
+    uint32_t poll_iters = 0;
     while (power_is_plugged_in() && !sysevent_get(wake_events)) {
       rtos_thread_sleep(SYSINFO_POWER_OFF_POLL_MS);
+      // Heartbeat so a stuck poll loop is visible in Memfault.
+      poll_iters++;
+      if (poll_iters % 100 == 0) {
+        MFLOGW("prepare_power_down: poll stuck iters=%lu", (unsigned long)poll_iters);
+      }
     }
+    MFLOGI("prepare_power_down: poll exit iters=%lu", (unsigned long)poll_iters);
 
     if (power_is_plugged_in() && sysevent_get(SYSEVENT_COPROC_BOOT)) {
       LOGI("UXC booted during USB power-off wait");
@@ -579,6 +598,7 @@ void sysinfo_task_port_prepare_power_down(void) {
 
 void sysinfo_task_port_power_down(void) {
   if (power_is_plugged_in()) {
+    MFLOGW("power_down: USB plugged, resetting");
     // If USB is plugged in, we cannot power down, so instead we just reset.
     const mcu_reset_reason_t reason = sysevent_get(SYSEVENT_FORCE_POWER_OFF_RESET)
                                         ? MCU_RESET_DISPLAY_WEDGE
@@ -587,9 +607,11 @@ void sysinfo_task_port_power_down(void) {
     mcu_reset_with_reason(reason);
   } else {
     if (sysinfo_task_in_ship_state()) {
+      MFLOGI("power_down: ship state, disable LDO");
       // Disable LDO completely for ship state (packout mode).
       power_disable_ldo();
     } else {
+      MFLOGI("power_down: LDO low-power mode");
       // Reduce LDO quiescent current before sleep.
       power_set_ldo_low_power_mode();
     }

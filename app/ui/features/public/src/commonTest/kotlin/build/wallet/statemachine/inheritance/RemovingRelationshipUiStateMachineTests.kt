@@ -52,7 +52,6 @@ class RemovingRelationshipUiStateMachineTests : FunSpec({
     onSuccess = { onSuccessCalls.add(Unit) },
     body = ManagingInheritanceBodyModel(
       onBack = {},
-      isDesignSystemV2Enabled = false,
       onLearnMore = {},
       onInviteClick = StandardClick {},
       onTabRowClick = {},

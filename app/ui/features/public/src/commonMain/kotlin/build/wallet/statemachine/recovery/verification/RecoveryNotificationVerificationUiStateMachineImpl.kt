@@ -21,6 +21,7 @@ import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.input.VerificationCodeInputProps
 import build.wallet.statemachine.core.input.VerificationCodeInputProps.ResendCodeCallbacks
 import build.wallet.statemachine.core.input.VerificationCodeInputStateMachine
+import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiState.*
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -259,20 +260,15 @@ class RecoveryNotificationVerificationUiStateMachineImpl(
     onRetry: () -> Unit,
     error: Error,
   ): BodyModel {
-    return NetworkErrorFormBodyModelWithOptionalErrorData(
+    return NetworkErrorFormBodyModel(
       title = "We couldn’t load verification for recovery",
       isConnectivityError = error is HttpError.NetworkError,
       onRetry = onRetry,
       onBack = props.onRollback,
-      errorData = if (props.segment != null && props.actionDescription != null) {
-        ErrorData(
-          segment = props.segment,
-          cause = error,
-          actionDescription = props.actionDescription
-        )
-      } else {
-        null
-      },
+      errorData = props.errorData(
+        cause = error,
+        defaultActionDescription = "Loading recovery notification touchpoint"
+      ),
       eventTrackerScreenId = null
     )
   }
@@ -284,20 +280,15 @@ class RecoveryNotificationVerificationUiStateMachineImpl(
     rollback: () -> Unit,
     error: Error,
   ): BodyModel {
-    return NetworkErrorFormBodyModelWithOptionalErrorData(
+    return NetworkErrorFormBodyModel(
       title = "We couldn’t send a verification code",
       isConnectivityError = error is HttpError.NetworkError,
       onRetry = onRetry,
       onBack = rollback,
-      errorData = if (props.segment != null && props.actionDescription != null) {
-        ErrorData(
-          segment = props.segment,
-          cause = error,
-          actionDescription = props.actionDescription
-        )
-      } else {
-        null
-      },
+      errorData = props.errorData(
+        cause = error,
+        defaultActionDescription = "Sending recovery notification verification code"
+      ),
       eventTrackerScreenId = null
     )
   }
@@ -381,6 +372,7 @@ class RecoveryNotificationVerificationUiStateMachineImpl(
                   text = "Back",
                   onClick = rollback
                 ),
+              errorData = error.verificationErrorData(),
               eventTrackerScreenId = null
             )
 
@@ -389,6 +381,7 @@ class RecoveryNotificationVerificationUiStateMachineImpl(
               title = errorTitle,
               subline = "The verification code was incorrect. Please try again.",
               primaryButton = ButtonDataModel(text = "Back", onClick = rollback),
+              errorData = error.verificationErrorData(),
               eventTrackerScreenId = null
             )
         }
@@ -399,11 +392,28 @@ class RecoveryNotificationVerificationUiStateMachineImpl(
           isConnectivityError = error is F8eError.ConnectivityError,
           onRetry = retry,
           onBack = rollback,
+          errorData = error.verificationErrorData(),
           eventTrackerScreenId = null
         )
       }
     }
   }
+
+  private fun RecoveryNotificationVerificationUiProps.errorData(
+    cause: Throwable,
+    defaultActionDescription: String,
+  ) = ErrorData(
+    segment = segment ?: RecoverySegment.DelayAndNotify,
+    actionDescription = actionDescription ?: defaultActionDescription,
+    cause = cause
+  )
+
+  private fun F8eError<VerifyTouchpointClientErrorCode>.verificationErrorData() =
+    ErrorData(
+      segment = RecoverySegment.DelayAndNotify,
+      actionDescription = "Verifying recovery notification code",
+      cause = error
+    )
 }
 
 private sealed interface RecoveryNotificationVerificationUiState {

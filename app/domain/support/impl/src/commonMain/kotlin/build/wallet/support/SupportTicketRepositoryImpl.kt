@@ -174,7 +174,7 @@ class SupportTicketRepositoryImpl(
                         title = it.name,
                         value = it.value
                       )
-                    } ?: emptyList(),
+                    }.orEmpty(),
                   knownType = resolveKnownType(field.knownType)
                 )
               TicketFormFieldDTO.Type.CheckBox ->
@@ -210,7 +210,7 @@ class SupportTicketRepositoryImpl(
                         title = it.name,
                         value = it.value
                       )
-                    } ?: emptyList(),
+                    }.orEmpty(),
                   knownType = resolveKnownType(field.knownType)
                 )
             }
@@ -219,7 +219,7 @@ class SupportTicketRepositoryImpl(
         val conditions =
           structureDto.conditions.map { condition ->
             SupportTicketFieldCondition(
-              parentField = fieldsById[condition.parentFieldId]!!,
+              parentField = fieldsById.getValue(condition.parentFieldId),
               expectedValue =
                 when (val value = condition.value) {
                   is TicketFormFieldDTO.Value.Bool -> SupportTicketField.RawValue.Bool(value.value)
@@ -232,7 +232,7 @@ class SupportTicketRepositoryImpl(
               children =
                 condition.childFields.map { childVisibility ->
                   SupportTicketFieldCondition.Child(
-                    field = fieldsById[childVisibility.id]!!,
+                    field = fieldsById.getValue(childVisibility.id),
                     isRequired = childVisibility.isRequired
                   )
                 }
@@ -292,6 +292,9 @@ class SupportTicketRepositoryImpl(
     }
   }
 
+  // Used via indexed assignment (`this[form, type] = value`) in prefillKnownFields; Detekt
+  // doesn't recognize operator convention usage.
+  @Suppress("UnusedPrivateFunction")
   private operator fun <Field : SupportTicketField<Value>, Value : Any> MutableSupportTicketData.set(
     form: SupportTicketForm,
     type: SupportTicketField.KnownFieldType<Field>,
@@ -344,6 +347,16 @@ class SupportTicketRepositoryImpl(
     }
   }
 
+  private val OSType.systemName: String
+    get() =
+      when (this) {
+        OSType.OS_TYPE_UNSPECIFIED -> "Unspecified"
+        OSType.OS_TYPE_ANDROID -> "Android"
+        OSType.OS_TYPE_IOS -> "iOS"
+        OSType.OS_TYPE_WINDOWS -> "Windows"
+        OSType.OS_TYPE_UNIX -> "Unix"
+      }
+
   private suspend fun getDebugData(): TicketDebugDataDTO {
     val appInstallation = appInstallationDao.getOrCreateAppInstallation().get()
     val deviceInfo = firmwareDeviceInfoDao.getDeviceInfo().get()
@@ -372,14 +385,4 @@ class SupportTicketRepositoryImpl(
         }
     )
   }
-
-  private val OSType.systemName: String
-    get() =
-      when (this) {
-        OSType.OS_TYPE_UNSPECIFIED -> "Unspecified"
-        OSType.OS_TYPE_ANDROID -> "Android"
-        OSType.OS_TYPE_IOS -> "iOS"
-        OSType.OS_TYPE_WINDOWS -> "Windows"
-        OSType.OS_TYPE_UNIX -> "Unix"
-      }
 }

@@ -38,8 +38,10 @@ class InheritanceUpsellServiceTests : FunSpec({
     )
   }
 
-  test("initial state shows upsell for existing users without onboarding timestamp") {
-    service.shouldShowUpsell().shouldBe(true)
+  test("upsell is not shown without an onboarding timestamp") {
+    // No timestamp (pre-feature install or fresh recovery): Money Home records one on first
+    // render, which starts the 14-day delay window.
+    service.shouldShowUpsell().shouldBe(false)
   }
 
   test("shouldShowUpsell is false immediately after onboarding completion") {

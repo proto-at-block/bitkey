@@ -1,44 +1,21 @@
 package build.wallet.statemachine.send.amountentry
 
-import build.wallet.availability.AppFunctionalityServiceFake
-import build.wallet.availability.AppFunctionalityStatus
-import build.wallet.availability.F8eUnreachable
-import build.wallet.bitcoin.balance.BitcoinBalanceFake
-import build.wallet.coroutines.turbine.turbines
-import build.wallet.limit.DailySpendingLimitStatus
-import build.wallet.limit.MobilePayServiceMock
-import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.send.TransferAmountUiState
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import kotlinx.datetime.Instant
 
 class TransferCardUiStateMachineImplTests : FunSpec({
-  val appFunctionalityService = AppFunctionalityServiceFake()
-  val mobilePayService = MobilePayServiceMock(turbines::create)
-
   val props = TransferCardUiProps(
-    bitcoinBalance = BitcoinBalanceFake,
-    enteredBitcoinMoney = BitcoinMoney.sats(800),
     transferAmountState = TransferAmountUiState.ValidAmountEnteredUiState.AmountBelowBalanceUiState,
-    onHardwareRequiredClick = {},
     onSendMaxClick = {}
   )
 
-  val stateMachine = TransferCardUiStateMachineImpl(
-    appFunctionalityService = appFunctionalityService,
-    mobilePayService = mobilePayService,
-  )
+  val stateMachine = TransferCardUiStateMachineImpl()
 
-  beforeTest {
-    appFunctionalityService.reset()
-    mobilePayService.reset()
-  }
-
-  test("dsv2 transfer state keeps send max when amount reaches balance") {
+  test("transfer state keeps send max when amount reaches balance") {
     stateMachine.test(
       props.copy(
         transferAmountState = TransferAmountUiState.ValidAmountEnteredUiState.AmountEqualOrAboveBalanceUiState
@@ -52,20 +29,7 @@ class TransferCardUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("dsv2 transfer state hides legacy approval and unavailable banners") {
-    mobilePayService.status = DailySpendingLimitStatus.RequiresHardware
-    stateMachine.test(
-      props.copy(
-        transferAmountState = TransferAmountUiState.ValidAmountEnteredUiState.AmountBelowBalanceUiState
-      )
-    ) {
-      awaitItem().shouldBeNull()
-    }
-
-    appFunctionalityService.status.value = AppFunctionalityStatus.LimitedFunctionality(
-      cause = F8eUnreachable(lastReachableTime = Instant.DISTANT_PAST)
-    )
-    mobilePayService.status = DailySpendingLimitStatus.MobilePayAvailable
+  test("transfer state hides legacy approval and unavailable banners") {
     stateMachine.test(
       props.copy(
         transferAmountState = TransferAmountUiState.ValidAmountEnteredUiState.AmountBelowBalanceUiState

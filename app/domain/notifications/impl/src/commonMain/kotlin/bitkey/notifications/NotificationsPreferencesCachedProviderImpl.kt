@@ -78,7 +78,7 @@ class NotificationsPreferencesCachedProviderImpl(
         )
       }.onFailure {
         // No saved values. Emit error.
-        preferencesFlow.update { it }
+        preferencesFlow.update { currentPrefs -> currentPrefs }
       }
     }
   }

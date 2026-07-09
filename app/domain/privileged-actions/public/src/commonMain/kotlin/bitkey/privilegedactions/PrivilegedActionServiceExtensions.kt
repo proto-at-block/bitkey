@@ -72,7 +72,7 @@ suspend fun <Req, Res> DirectPrivilegedActionService<Req, Res>.continueAction(
   }
 
   val token = strat.completionToken
-  if (strat.delayEndTime > clock.now() || token.isNullOrBlank()) {
+  if (strat.delayEndTime > clock.now() || token.isBlank()) {
     return Err(PrivilegedActionError.NotAuthorized)
   }
 

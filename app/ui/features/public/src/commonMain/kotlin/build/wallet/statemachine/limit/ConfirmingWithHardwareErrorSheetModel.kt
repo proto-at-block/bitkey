@@ -2,12 +2,14 @@ package build.wallet.statemachine.limit
 
 import build.wallet.analytics.events.screen.id.MobilePayEventTrackerScreenId.MOBILE_PAY_LIMIT_UPDATE_HW_APPROVAL_ERROR_SHEET
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.RenderContext
 
 fun ConfirmingWithHardwareErrorSheetModel(
   isConnectivityError: Boolean,
+  error: Throwable,
   onClosed: () -> Unit,
 ): SheetModel {
   return SheetModel(
@@ -26,6 +28,11 @@ fun ConfirmingWithHardwareErrorSheetModel(
             onClick = onClosed
           ),
         renderContext = RenderContext.Sheet,
+        errorData = ErrorData(
+          segment = MobilePayAppSegment,
+          actionDescription = "Confirming mobile pay limit with hardware",
+          cause = error
+        ),
         eventTrackerScreenId = MOBILE_PAY_LIMIT_UPDATE_HW_APPROVAL_ERROR_SHEET
       )
   )

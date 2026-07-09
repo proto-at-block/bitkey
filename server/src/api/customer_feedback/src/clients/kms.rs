@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use aws_config::BehaviorVersion;
 use aws_sdk_kms::error::ProvideErrorMetadata;
 use aws_sdk_kms::types::DataKeyPairSpec;
 use aws_sdk_kms::Client as KmsClient;
@@ -44,7 +43,7 @@ impl KmsWrapper {
     pub async fn new(config: Config) -> Self {
         match config.kms {
             KmsMode::Environment => {
-                let sdk_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
+                let sdk_config = clients_common::aws_sdk::load_default_sdk_config().await;
                 let client = KmsClient::new(&sdk_config);
                 Self::Real {
                     client,

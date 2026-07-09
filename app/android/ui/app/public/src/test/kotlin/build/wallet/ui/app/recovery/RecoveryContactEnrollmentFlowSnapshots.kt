@@ -115,7 +115,7 @@ class RecoveryContactEnrollmentFlowSnapshots : FunSpec({
           contacts = listOf(sampleEndorsedTrustedContact(alias = "Bob", relationshipId = "bob-id")),
           invitations = listOf(
             Invitation(
-              "ryan-invite-id",
+              RelationshipId("ryan-invite-id"),
               TrustedContactAlias("Ryan"),
               setOf(TrustedContactRole.SocialRecoveryContact),
               "invite-code",
@@ -141,7 +141,7 @@ private fun sampleEndorsedTrustedContact(
   relationshipId: String,
 ): EndorsedTrustedContact {
   return EndorsedTrustedContact(
-    relationshipId = relationshipId,
+    id = RelationshipId(relationshipId),
     trustedContactAlias = TrustedContactAlias(alias = alias),
     keyCertificate = TrustedContactKeyCertificate(
       delegatedDecryptionKey = PublicKey(""),

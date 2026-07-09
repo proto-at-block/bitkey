@@ -101,7 +101,7 @@ private fun GettingStartedTask.taskPresentation(): GettingStartedTaskPresentatio
     AddBitcoin ->
       GettingStartedTaskPresentation(
         title = "Add bitcoin",
-        listIcon = SmallIconPlus,
+        listIcon = Plus,
         tileIcon = DotCoins,
         tileId = GettingStartedTileModel.Id.AddBitcoin
       )
@@ -109,7 +109,7 @@ private fun GettingStartedTask.taskPresentation(): GettingStartedTaskPresentatio
     EnableSpendingLimit ->
       GettingStartedTaskPresentation(
         title = "Customize transfer settings",
-        listIcon = SmallIconMobileLimit,
+        listIcon = MobileLimit,
         tileIcon = DotPair,
         tileId = GettingStartedTileModel.Id.EnableSpendingLimit
       )

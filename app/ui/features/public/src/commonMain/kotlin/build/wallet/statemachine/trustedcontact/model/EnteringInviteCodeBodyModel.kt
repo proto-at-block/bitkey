@@ -24,7 +24,6 @@ data class EnteringInviteCodeBodyModel(
     } else {
       SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_ENTER_INVITE_CODE
     },
-    onSwipeToDismiss = retreat.onRetreat,
     onBack = retreat.onRetreat,
     toolbar = ToolbarModel(leadingAccessory = retreat.leadingToolbarAccessory),
     header = FormHeaderModel(

@@ -46,6 +46,7 @@ import build.wallet.f8e.mobilepay.MobilePaySigningF8eClient
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
 import build.wallet.f8e.onboarding.CreateAccountKeysetF8eClient
 import build.wallet.f8e.onboarding.CreateAccountKeysetV2F8eClient
+import build.wallet.f8e.recovery.HardwareAuthKeyAvailabilityF8eClient
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.f8e.recovery.UpdateDelayNotifyPeriodForTestingApi
 import build.wallet.feature.FeatureFlagService
@@ -73,6 +74,8 @@ import build.wallet.partnerships.PartnershipTransactionsService
 import build.wallet.platform.app.AppSessionManager
 import build.wallet.platform.connectivity.InternetConnectionCheckerImpl
 import build.wallet.platform.data.FileDirectoryProvider
+import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.platform.haptics.Haptics
 import build.wallet.platform.permissions.PushNotificationPermissionStatusProvider
 import build.wallet.platform.sharing.SharingManagerFake
 import build.wallet.recovery.LostAppAndCloudRecoveryService
@@ -105,6 +108,8 @@ interface JvmAppComponent {
   val appKeysGenerator: AppKeysGenerator
   val appPrivateKeyDao: AppPrivateKeyDao
   val appSessionManager: AppSessionManager
+  val deviceInfoProvider: DeviceInfoProvider
+  val haptics: Haptics
   val appSpendingWalletProvider: AppSpendingWalletProvider
   val appWorkerExecutor: AppWorkerExecutor
   val authF8eClient: AuthF8eClient
@@ -122,6 +127,7 @@ interface JvmAppComponent {
   val configureDelayDurationF8eClient: ConfigureDelayDurationF8eClient
   val createAccountKeysetF8eClient: CreateAccountKeysetF8eClient
   val createAccountKeysetV2F8eClient: CreateAccountKeysetV2F8eClient
+  val hardwareAuthKeyAvailabilityF8eClient: HardwareAuthKeyAvailabilityF8eClient
   val listKeysetsF8eClient: ListKeysetsF8eClient
   val updateDescriptorBackupsF8eClient: UpdateDescriptorBackupsF8eClient
   val onboardFullAccountService: OnboardFullAccountService
@@ -205,6 +211,8 @@ interface JvmAppComponent {
   val w3OnboardingFeatureFlag: W3OnboardingFeatureFlag
   val updateToPrivateWalletOnRecoveryFeatureFlag: UpdateToPrivateWalletOnRecoveryFeatureFlag
   val bdk2FeatureFlag: Bdk2FeatureFlag
+  val w3UpgradeBlockerFeatureFlag: W3UpgradeBlockerFeatureFlag
+  val onboardingCompletionDao: OnboardingCompletionDao
   val sharedCloudBackupsFeatureFlag: SharedCloudBackupsFeatureFlag
   val usSmsFeatureFlag: UsSmsFeatureFlag
   val jvmInternetConnectionChecker: InternetConnectionCheckerImpl

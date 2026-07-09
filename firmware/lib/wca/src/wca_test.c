@@ -105,6 +105,8 @@ Test(wca, version) {
   uint8_t rsp[WCA_BUF_LEN] = {0};
   uint32_t rsp_len = sizeof(rsp);
 
+  cr_assert(wca_is_wca(version_cmd, sizeof(version_cmd)));
+  cr_assert(wca_is_valid(version_cmd, sizeof(version_cmd)));
   cr_assert(wca_handle_command(version_cmd, sizeof(version_cmd), rsp, &rsp_len));
 
   uint8_t expected_rsp[SW_SIZE + 2] = {0};
@@ -113,7 +115,39 @@ Test(wca, version) {
   RSP_OK(expected_rsp, 2);
 
   cr_assert(rsp_len == sizeof(expected_rsp));
-  cr_util_cmp_buffers(&expected_rsp, &rsp, SW_SIZE);
+  cr_util_cmp_buffers(expected_rsp, rsp, sizeof(expected_rsp));
+}
+
+Test(wca, four_byte_proto_apdus_rejected, .init = setup) {
+  const uint8_t ins[] = {WCA_INS_PROTO, WCA_INS_PROTO_CONT};
+
+  for (size_t i = 0; i < sizeof(ins) / sizeof(ins[0]); i++) {
+    uint8_t cmd[] = {WCA_CLA, ins[i], 0, 0};
+    uint8_t rsp[WCA_BUF_LEN] = {0};
+    uint32_t rsp_len = sizeof(rsp);
+
+    cr_assert(wca_is_valid(cmd, sizeof(cmd)) == false);
+    cr_assert(wca_is_wca(cmd, sizeof(cmd)));
+    cr_assert(wca_handle_command(cmd, sizeof(cmd), rsp, &rsp_len) == false);
+    cr_assert(rsp_len == SW_SIZE);
+    cr_assert(read_status_words(rsp) == 0x6800);
+  }
+}
+
+Test(wca, truncated_extended_lc_apdus_rejected, .init = setup) {
+  const uint8_t ins[] = {WCA_INS_PROTO, WCA_INS_PROTO_CONT};
+
+  for (size_t i = 0; i < sizeof(ins) / sizeof(ins[0]); i++) {
+    uint8_t cmd[] = {WCA_CLA, ins[i], 0, 0, 0};
+    uint8_t rsp[WCA_BUF_LEN] = {0};
+    uint32_t rsp_len = sizeof(rsp);
+
+    cr_assert(wca_is_valid(cmd, sizeof(cmd)) == false);
+    cr_assert(wca_is_wca(cmd, sizeof(cmd)));
+    cr_assert(wca_handle_command(cmd, sizeof(cmd), rsp, &rsp_len) == false);
+    cr_assert(rsp_len == SW_SIZE);
+    cr_assert(read_status_words(rsp) == 0x6800);
+  }
 }
 
 // Send a proto which fits inside a single APDU
@@ -200,6 +234,95 @@ Test(wca, proto_cont_rejected_after_complete_proto, .init = setup) {
 
   uint16_t status_words = read_status_words(rsp);
   cr_assert(status_words == 0x6f00);
+
+  free(proto_cmd);
+}
+
+Test(wca, proto_cont_rejected_after_complete_proto_session_reset, .init = setup) {
+  fwpb_test_cmd sent_proto = fwpb_test_cmd_init_default;
+  sent_proto.which_msg = fwpb_test_cmd_manifest_tag;
+  sent_proto.msg.manifest.version = 0xaabb;
+
+  uint8_t buffer[sizeof(fwpb_test_cmd)] = {0};
+  pb_ostream_t ostream = pb_ostream_from_buffer(buffer, sizeof(buffer));
+  cr_assert(pb_encode(&ostream, fwpb_test_cmd_fields, &sent_proto));
+  uint32_t proto_length = ostream.bytes_written;
+
+  const uint32_t apdu_overhead = LC + 1;
+  const uint32_t proto_cmd_len = apdu_overhead + proto_length;
+  uint8_t* proto_cmd = malloc(proto_cmd_len);
+  uint8_t apdu_start[] = {WCA_CLA, WCA_INS_PROTO, UINT16_HI(proto_length), UINT16_LO(proto_length),
+                          proto_length};
+  memcpy(proto_cmd, apdu_start, sizeof(apdu_start));
+  memcpy(&proto_cmd[sizeof(apdu_start)], buffer, proto_length);
+
+  uint8_t rsp[WCA_BUF_LEN] = {0};
+  uint32_t rsp_len = sizeof(rsp);
+  cr_assert(wca_handle_command(proto_cmd, proto_cmd_len, rsp, &rsp_len));
+
+  wca_reset_session_state();
+  cr_assert(wca_priv.encoded_proto_cmd_ctx.tag == 0);
+  cr_assert(wca_priv.encoded_proto_cmd_ctx.size == 0);
+  cr_assert(wca_priv.encoded_proto_cmd_ctx.offset == 0);
+
+  uint8_t cont_cmd[] = {WCA_CLA, WCA_INS_PROTO_CONT, 0, 0, 0, 0, 0};
+  rsp_len = sizeof(rsp);
+  cr_assert(wca_handle_command(cont_cmd, sizeof(cont_cmd), rsp, &rsp_len) == false);
+  cr_assert(rsp_len == SW_SIZE);
+
+  uint16_t status_words = read_status_words(rsp);
+  cr_assert(status_words == 0x6f00);
+  cr_assert(wca_priv.encoded_proto_cmd_ctx.tag == 0);
+  cr_assert(wca_priv.encoded_proto_cmd_ctx.size == 0);
+  cr_assert(wca_priv.encoded_proto_cmd_ctx.offset == 0);
+
+  free(proto_cmd);
+}
+
+Test(wca, proto_cont_rejected_after_session_reset, .init = setup) {
+  const uint32_t first_chunk_len = 16;
+  const uint32_t bar_size = 64;
+
+  fwpb_test_cmd sent_proto = fwpb_test_cmd_init_default;
+  sent_proto.which_msg = fwpb_test_cmd_foo_tag;
+  memset(sent_proto.msg.foo.bar.bytes, 'a', sizeof(sent_proto.msg.foo.bar.bytes));
+  sent_proto.msg.foo.bar.size = bar_size;
+
+  uint8_t buffer[sizeof(fwpb_test_cmd)] = {0};
+  pb_ostream_t ostream = pb_ostream_from_buffer(buffer, sizeof(buffer));
+  cr_assert(pb_encode(&ostream, fwpb_test_cmd_fields, &sent_proto));
+  uint32_t proto_length = ostream.bytes_written;
+  cr_assert(proto_length > first_chunk_len);
+
+  const size_t proto_cmd_len = LC + 1 + first_chunk_len;
+  uint8_t* proto_cmd = malloc(proto_cmd_len);
+  uint8_t apdu_start[] = {
+    WCA_CLA, WCA_INS_PROTO, UINT16_HI(proto_length), UINT16_LO(proto_length), first_chunk_len,
+  };
+  memcpy(proto_cmd, apdu_start, sizeof(apdu_start));
+  memcpy(&proto_cmd[sizeof(apdu_start)], buffer, first_chunk_len);
+
+  uint8_t rsp[WCA_BUF_LEN] = {0};
+  uint32_t rsp_len = sizeof(rsp);
+  cr_assert(wca_handle_command(proto_cmd, proto_cmd_len, rsp, &rsp_len));
+  cr_assert(wca_priv.encoded_proto_cmd_ctx.size == proto_length);
+  cr_assert(wca_priv.encoded_proto_cmd_ctx.offset == first_chunk_len);
+
+  wca_reset_session_state();
+  cr_assert(wca_priv.encoded_proto_cmd_ctx.tag == 0);
+  cr_assert(wca_priv.encoded_proto_cmd_ctx.size == 0);
+  cr_assert(wca_priv.encoded_proto_cmd_ctx.offset == 0);
+
+  uint8_t cont_cmd[] = {WCA_CLA, WCA_INS_PROTO_CONT, 0, 0, 0, 0, 0};
+  rsp_len = sizeof(rsp);
+  cr_assert(wca_handle_command(cont_cmd, sizeof(cont_cmd), rsp, &rsp_len) == false);
+  cr_assert(rsp_len == SW_SIZE);
+
+  uint16_t status_words = read_status_words(rsp);
+  cr_assert(status_words == 0x6f00);
+  cr_assert(wca_priv.encoded_proto_cmd_ctx.tag == 0);
+  cr_assert(wca_priv.encoded_proto_cmd_ctx.size == 0);
+  cr_assert(wca_priv.encoded_proto_cmd_ctx.offset == 0);
 
   free(proto_cmd);
 }
@@ -480,7 +603,7 @@ Test(wca, handle_proto_response_accepts_exact_response_buffer_size, .init = setu
   cr_assert(wca_priv.encoded_proto_rsp_ctx.offset == RESPONSE_BUFFER_SIZE);
 }
 
-Test(wca, get_response_empty_after_reset, .init = setup) {
+Test(wca, get_response_rejected_after_reset, .init = setup) {
   (void)seed_fragmented_response();
 
   uint8_t cmd[] = {WCA_CLA, WCA_INS_GET_RESPONSE, 0, 0};
@@ -495,11 +618,11 @@ Test(wca, get_response_empty_after_reset, .init = setup) {
   cr_assert(wca_priv.encoded_proto_rsp_ctx.offset == 0);
 
   rsp_len = sizeof(rsp_apdu);
-  cr_assert(wca_handle_command(cmd, sizeof(cmd), rsp_apdu, &rsp_len));
+  cr_assert(wca_handle_command(cmd, sizeof(cmd), rsp_apdu, &rsp_len) == false);
   cr_assert(rsp_len == SW_SIZE);
 
   uint16_t status_words = read_status_words(&rsp_apdu[rsp_len - SW_SIZE]);
-  cr_assert(status_words == 0x9000);
+  cr_assert(status_words == 0x6f00);
 }
 
 Test(wca, reset_session_state_drains_orphaned_semaphore) {

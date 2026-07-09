@@ -23,7 +23,6 @@ fun SpendingLimitPickerScreen(
   model: SpendingLimitPickerModel,
 ) {
   val horizontalPadding = 20.dp
-  val isDesignSystemV2Enabled = true
   FormScreen(
     modifier = modifier,
     onBack = model.onBack,
@@ -47,7 +46,7 @@ fun SpendingLimitPickerScreen(
         primaryAmountGhostedSubstringRange = model.amountModel.primaryAmountGhostedSubstringRange,
         primaryAmountLabelType = LabelType.Display1,
         contextLine = model.amountModel.secondaryAmount,
-        centerWhenDesignSystemV2 = true
+        centerContent = true
       )
 
       Spacer(Modifier.height(16.dp))
@@ -56,7 +55,7 @@ fun SpendingLimitPickerScreen(
 
       Keypad(
         modifier =
-          Modifier.padding(horizontal = if (isDesignSystemV2Enabled) horizontalPadding else 0.dp),
+          Modifier.padding(horizontal = horizontalPadding),
         showDecimal = model.keypadModel.showDecimal,
         onButtonPress = model.keypadModel.onButtonPress
       )

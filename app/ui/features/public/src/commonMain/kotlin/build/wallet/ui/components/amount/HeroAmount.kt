@@ -19,8 +19,6 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
-import build.wallet.statemachine.core.Icon
-import build.wallet.ui.components.icon.Icon
 import build.wallet.ui.components.label.AnimatedAmount
 import build.wallet.ui.components.label.AnimatedAmountAutoResizedLabel
 import build.wallet.ui.components.icon.IconImage
@@ -34,10 +32,9 @@ import build.wallet.ui.components.layout.MeasureWithoutPlacement
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
-import build.wallet.ui.model.icon.IconSize.Small
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tokens.market.MarketIcons
+import build.wallet.statemachine.core.Icon
 
 /**
  * Helper extension to hide content when loading by setting alpha to 0.
@@ -61,12 +58,11 @@ fun HeroAmount(
   contextLineTreatment: LabelTreatment = LabelTreatment.Secondary,
   hideBalance: Boolean = false,
   disabled: Boolean = false,
-  centerWhenDesignSystemV2: Boolean = false,
+  centerContent: Boolean = false,
   onSwapClick: (() -> Unit)? = null,
   isLoading: Boolean = false,
   animateValueChanges: Boolean = false,
 ) {
-  val isDesignSystemV2Enabled = true
   HeroAmountContainer(
     modifier = modifier,
     topContent = {
@@ -85,7 +81,7 @@ fun HeroAmount(
             )
           }
         }
-        if (isDesignSystemV2Enabled && primaryAmountValue != null && primaryAmount.hasNoInlineStyles()) {
+        if (primaryAmountValue != null && primaryAmount.hasNoInlineStyles()) {
           val primaryTreatment =
             if (disabled) {
               LabelTreatment.Disabled
@@ -124,7 +120,7 @@ fun HeroAmount(
     contextLineTreatment = contextLineTreatment,
     hideBalance = hideBalance,
     disabled = disabled,
-    centerWhenDesignSystemV2 = centerWhenDesignSystemV2,
+    centerContent = centerContent,
     onSwapClick = onSwapClick,
     isLoading = isLoading
   )
@@ -137,13 +133,12 @@ internal fun HeroAmountContainer(
   contextLineTreatment: LabelTreatment,
   hideBalance: Boolean,
   disabled: Boolean,
-  centerWhenDesignSystemV2: Boolean,
+  centerContent: Boolean,
   onSwapClick: (() -> Unit)?,
   isLoading: Boolean,
   topContent: @Composable () -> Unit,
 ) {
-  val isDesignSystemV2Enabled = true
-  val shouldUseStartAlignment = isDesignSystemV2Enabled && !centerWhenDesignSystemV2
+  val shouldUseStartAlignment = !centerContent
   val horizontalAlignment = if (shouldUseStartAlignment) Alignment.Start else Alignment.CenterHorizontally
 
   CollapsibleLabelContainer(
@@ -158,7 +153,7 @@ internal fun HeroAmountContainer(
           contextLine = contextLine,
           contextLineTreatment = contextLineTreatment,
           disabled = disabled,
-          centerWhenDesignSystemV2 = centerWhenDesignSystemV2,
+          centerContent = centerContent,
           onSwapClick = onSwapClick,
           isLoading = isLoading
         )
@@ -192,12 +187,11 @@ internal fun HeroAmountBottom(
   contextLine: String,
   contextLineTreatment: LabelTreatment = LabelTreatment.Secondary,
   disabled: Boolean = false,
-  centerWhenDesignSystemV2: Boolean = false,
+  centerContent: Boolean = false,
   onSwapClick: (() -> Unit)? = null,
   isLoading: Boolean = false,
 ) {
-  val isDesignSystemV2Enabled = true
-  val shouldUseStartAlignment = isDesignSystemV2Enabled && !centerWhenDesignSystemV2
+  val shouldUseStartAlignment = !centerContent
   val columnAlignment = if (shouldUseStartAlignment) Alignment.Start else Alignment.CenterHorizontally
   val rowArrangement = if (shouldUseStartAlignment) Arrangement.Start else Arrangement.Center
 
@@ -241,22 +235,14 @@ internal fun HeroAmountBottom(
       if (onSwapClick != null) {
         Spacer(Modifier.width(4.dp))
         val iconColor = if (disabled) WalletTheme.colors.foreground10 else WalletTheme.colors.foreground60
-        if (isDesignSystemV2Enabled) {
-          IconImage(
-            modifier = Modifier.rotate(90f),
-            model = IconModel(
-              icon = MarketIcons.DualRotatingArrows,
-              iconSize = IconSize.Custom(20)
-            ),
-            color = iconColor
-          )
-        } else {
-          Icon(
-            icon = Icon.SmallIconSwap,
-            size = Small,
-            color = iconColor
-          )
-        }
+        IconImage(
+          modifier = Modifier.rotate(90f),
+          model = IconModel(
+            icon = Icon.DualRotatingArrows,
+            iconSize = IconSize.Custom(20)
+          ),
+          color = iconColor
+        )
       }
     }
   }

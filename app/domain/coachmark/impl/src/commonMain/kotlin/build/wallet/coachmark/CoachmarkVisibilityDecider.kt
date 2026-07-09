@@ -73,12 +73,14 @@ class CoachmarkVisibilityDecider(
   }
 
   /**
-   * Returns true if enough time has passed since onboarding, or if the user is an existing user
-   * without a recorded onboarding timestamp (show immediately for pre-existing users).
+   * Returns true if enough time has passed since onboarding. Users without a recorded
+   * timestamp (pre-feature installs, freshly recovered devices) are not shown the coachmark
+   * yet; Money Home records a timestamp on first render, starting their delay window. This
+   * keeps eligibility deterministic instead of racing that first-render write.
    */
   private suspend fun hasEnoughTimeSinceOnboarding(): Boolean {
     val completionTimestamp = onboardingCompletionService.getCompletionTimestamp().getOr(null)
-      ?: return true // No timestamp means existing user — show immediately
+      ?: return false
     return clock.now() - completionTimestamp >= W3_UPGRADE_BLOCKER_ONBOARDING_DELAY
   }
 }

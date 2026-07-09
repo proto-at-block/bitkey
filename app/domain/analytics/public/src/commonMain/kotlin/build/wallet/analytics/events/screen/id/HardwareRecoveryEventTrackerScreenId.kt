@@ -70,6 +70,9 @@ enum class HardwareRecoveryEventTrackerScreenId : EventTrackerScreenId {
   /** Warning screen shown on W3 when there are multiple transactions to sign during hardware recovery */
   LOST_HW_DELAY_NOTIFY_SWEEP_MULTIPLE_TRANSACTIONS_WARNING,
 
+  /** Screen shown while awaiting hardware verification before sweep during lost hardware D+N */
+  LOST_HW_DELAY_NOTIFY_SWEEP_HARDWARE_VERIFICATION_REQUIRED,
+
   /** Error screen shown when user navigates away from sweep */
   LOST_HW_DELAY_NOTIFY_SWEEP_EXITED,
 

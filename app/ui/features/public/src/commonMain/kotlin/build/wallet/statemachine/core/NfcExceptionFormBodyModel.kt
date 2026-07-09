@@ -33,7 +33,7 @@ fun NfcErrorFormBodyModel(
         ButtonDataModel("View troubleshooting guide", onClick = onSecondaryButtonClick)
     }
 
-  return ErrorFormBodyModelWithOptionalErrorData(
+  return errorFormBodyModelWithOptionalErrorData(
     title = message.title,
     subline = StringModel(message.description),
     primaryButton = ButtonDataModel("OK", onClick = onPrimaryButtonClick),
@@ -49,6 +49,6 @@ fun NfcErrorFormBodyModel(
     },
     eventTrackerScreenId = eventTrackerScreenId,
     eventTrackerContext = eventTrackerScreenIdContext,
-    secondaryButtonIcon = Icon.SmallIconArrowUpRight
+    secondaryButtonIcon = Icon.ArrowUpRight
   )
 }

@@ -7,7 +7,6 @@ import build.wallet.platform.device.DevicePlatform
 import build.wallet.statemachine.fwup.FwupNfcBodyModel
 import build.wallet.ui.app.LocalDeviceInfo
 import build.wallet.ui.app.nfc.FwupNfcScreen
-import build.wallet.ui.app.nfc.FwupNfcScreenInternal
 import io.kotest.core.spec.style.FunSpec
 
 class FwupNfcSnapshots : FunSpec({
@@ -18,61 +17,51 @@ class FwupNfcSnapshots : FunSpec({
     isEmulator = true
   )
 
-  test("fwup nfc progress with zero progress") {
-    paparazzi.snapshot {
-      FwupNfcScreenInternal(
-        model =
-          FwupNfcBodyModel(
-            onCancel = {},
-            status =
-              FwupNfcBodyModel.Status.InProgress(fwupProgress = 0f),
-            eventTrackerScreenInfo = null
-          )
-      )
+  @androidx.compose.runtime.Composable
+  fun FwupNfcSnapshot(model: FwupNfcBodyModel) {
+    CompositionLocalProvider(LocalDeviceInfo provides androidDeviceInfo) {
+      FwupNfcScreen(model = model)
     }
   }
 
-  test("fwup nfc progress with some progress") {
+  test("fwup nfc progress with zero progress") {
     paparazzi.snapshot {
-      FwupNfcScreenInternal(
-        model =
-          FwupNfcBodyModel(
-            onCancel = {},
-            status =
-              FwupNfcBodyModel.Status.InProgress(fwupProgress = 33f),
-            eventTrackerScreenInfo = null
-          )
+      FwupNfcSnapshot(
+        FwupNfcBodyModel(
+          onCancel = {},
+          status =
+            FwupNfcBodyModel.Status.InProgress(fwupProgress = 0f),
+          eventTrackerScreenInfo = null
+        )
       )
     }
   }
 
   test("fwup nfc lost connection") {
     paparazzi.snapshot {
-      FwupNfcScreenInternal(
-        model =
-          FwupNfcBodyModel(
-            onCancel = {},
-            status =
-              FwupNfcBodyModel.Status.LostConnection(fwupProgress = 5f),
-            eventTrackerScreenInfo = null
-          )
+      FwupNfcSnapshot(
+        FwupNfcBodyModel(
+          onCancel = {},
+          status =
+            FwupNfcBodyModel.Status.LostConnection(fwupProgress = 5f),
+          eventTrackerScreenInfo = null
+        )
       )
     }
   }
 
   test("fwup nfc success") {
     paparazzi.snapshot {
-      FwupNfcScreenInternal(
-        model =
-          FwupNfcBodyModel(
-            onCancel = null,
-            status = FwupNfcBodyModel.Status.Success(),
-            eventTrackerScreenInfo = null
-          )
+      FwupNfcSnapshot(
+        FwupNfcBodyModel(
+          onCancel = null,
+          status = FwupNfcBodyModel.Status.Success(),
+          eventTrackerScreenInfo = null
+        )
       )
     }
   }
-  test("fwup nfc ready to update dsv2") {
+  test("fwup nfc ready to update") {
     paparazzi.snapshot {
       CompositionLocalProvider(LocalDeviceInfo provides androidDeviceInfo) {
         FwupNfcScreen(
@@ -87,7 +76,7 @@ class FwupNfcSnapshots : FunSpec({
     }
   }
 
-  test("fwup nfc progress with some progress dsv2") {
+  test("fwup nfc progress with some progress") {
     paparazzi.snapshot {
       CompositionLocalProvider(LocalDeviceInfo provides androidDeviceInfo) {
         FwupNfcScreen(

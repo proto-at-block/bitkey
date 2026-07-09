@@ -76,6 +76,9 @@ enum class DelayNotifyRecoveryEventTrackerScreenId : EventTrackerScreenId {
   /** Warning screen shown on W3 when there are multiple transactions to sign during recovery */
   LOST_APP_DELAY_NOTIFY_SWEEP_MULTIPLE_TRANSACTIONS_WARNING,
 
+  /** Screen shown while awaiting hardware verification before sweep during lost app D+N */
+  LOST_APP_DELAY_NOTIFY_SWEEP_HARDWARE_VERIFICATION_REQUIRED,
+
   /** Error screen shown when user navigates away from sweep */
   LOST_APP_DELAY_NOTIFY_SWEEP_EXITED,
 

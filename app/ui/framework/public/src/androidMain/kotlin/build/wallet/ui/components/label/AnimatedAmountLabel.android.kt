@@ -21,7 +21,6 @@ import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.LabelType.Body2Mono
 import build.wallet.ui.tokens.LabelType.Body3Mono
 import build.wallet.ui.tokens.LabelType.Body4Mono
-import build.wallet.ui.tokens.LabelType.Header1
 import kotlin.math.max
 
 private const val COMPOSE_RESOURCES_PREFIX =
@@ -32,13 +31,6 @@ private const val CASH_SANS_MONO_REGULAR_ASSET =
   "${COMPOSE_RESOURCES_PREFIX}cash_sans_mono_regular.otf"
 private const val CASH_SANS_MONO_MEDIUM_ASSET =
   "${COMPOSE_RESOURCES_PREFIX}cash_sans_mono_medium.otf"
-private const val FOUNDERS_GROTESK_ASSET =
-  "${COMPOSE_RESOURCES_PREFIX}founders_grotesk_x_condensed_bold.otf"
-private const val INTER_REGULAR_ASSET = "${COMPOSE_RESOURCES_PREFIX}inter_regular.otf"
-private const val INTER_MEDIUM_ASSET = "${COMPOSE_RESOURCES_PREFIX}inter_medium.otf"
-private const val INTER_SEMIBOLD_ASSET = "${COMPOSE_RESOURCES_PREFIX}inter_semibold.otf"
-private const val INTER_BOLD_ASSET = "${COMPOSE_RESOURCES_PREFIX}inter_bold.otf"
-private const val ROBOTO_MONO_ASSET = "${COMPOSE_RESOURCES_PREFIX}roboto_mono.ttf"
 
 @Composable
 actual fun AnimatedAmountAutoResizedLabel(
@@ -114,10 +106,9 @@ private fun AndroidAnimatedAmountLabel(
   val context = LocalContext.current
   val density = LocalDensity.current
   val style = WalletTheme.labelStyle(type, treatment, alignment, color)
-  val isDesignSystemV2Enabled = true
 
-  val typeface = remember(type, style.fontWeight, isDesignSystemV2Enabled) {
-    val assetPath = resolveFontAssetPath(type, style.fontWeight, isDesignSystemV2Enabled)
+  val typeface = remember(type, style.fontWeight) {
+    val assetPath = resolveFontAssetPath(type, style.fontWeight)
     try {
       Typeface.createFromAsset(context.assets, assetPath)
     } catch (_: RuntimeException) {
@@ -175,24 +166,16 @@ private fun AndroidAnimatedAmountLabel(
 private fun resolveFontAssetPath(
   type: LabelType,
   fontWeight: FontWeight?,
-  isDesignSystemV2Enabled: Boolean,
 ): String {
   val weight = fontWeight?.weight ?: FontWeight.Normal.weight
   val isMono = type in setOf(Body2Mono, Body3Mono, Body4Mono)
 
   return when {
-    isDesignSystemV2Enabled && isMono ->
+    isMono ->
       if (weight >= FontWeight.Medium.weight) CASH_SANS_MONO_MEDIUM_ASSET else CASH_SANS_MONO_REGULAR_ASSET
 
-    isDesignSystemV2Enabled ->
+    else ->
       if (weight >= FontWeight.Medium.weight) CASH_SANS_MEDIUM_ASSET else CASH_SANS_REGULAR_ASSET
-
-    type == Header1 -> FOUNDERS_GROTESK_ASSET
-    isMono -> ROBOTO_MONO_ASSET
-    weight >= FontWeight.Bold.weight -> INTER_BOLD_ASSET
-    weight >= FontWeight.SemiBold.weight -> INTER_SEMIBOLD_ASSET
-    weight >= FontWeight.Medium.weight -> INTER_MEDIUM_ASSET
-    else -> INTER_REGULAR_ASSET
   }
 }
 

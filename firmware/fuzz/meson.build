@@ -25,3 +25,12 @@ picocert_fuzz = executable('picocert-fuzz',
   link_args : fuzz_args,
   dependencies : [picocert_dep, fuzzed_data_provider_dep],
 )
+
+# Direct libwally transaction/PSBT parser fuzzer. This complements psbt-fuzz,
+# which exercises libwally indirectly through libew and firmware summary logic.
+libwally_tx_fuzz = executable('libwally-tx-fuzz',
+  '../third-party/packagefiles/libwally/libwally_tx_fuzz.cc',
+  cpp_args : fuzz_args,
+  link_args : fuzz_args,
+  dependencies : [libwally_dep, secp256k1_dep, fuzzed_data_provider_dep],
+)

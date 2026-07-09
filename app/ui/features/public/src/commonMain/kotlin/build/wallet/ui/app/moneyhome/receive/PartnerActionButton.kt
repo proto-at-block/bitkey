@@ -22,7 +22,6 @@ import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tokens.market.MarketIcons
 
 /**
  * A circular action button specifically designed for the receive screen.
@@ -105,8 +104,6 @@ fun PartnerActionButton(
   fallbackIcon: Icon = Icon.Bitcoin,
   isLoading: Boolean = false,
 ) {
-  val isDesignSystemV2Enabled = true
-
   PartnerActionButton(
     iconModel = IconModel(
       iconImage = when (logoUrl) {
@@ -123,7 +120,7 @@ fun PartnerActionButton(
     onClick = onClick,
     modifier = modifier,
     isLoading = isLoading,
-    labelType = if (isDesignSystemV2Enabled) LabelType.Body4Mono else LabelType.Body4Regular
+    labelType = LabelType.Body4Mono
   )
 }
 
@@ -138,8 +135,6 @@ fun ActionButton(
   modifier: Modifier = Modifier,
   iconTint: IconTint? = IconTint.Foreground,
 ) {
-  val isDesignSystemV2Enabled = true
-
   PartnerActionButton(
     iconModel = actionButtonIconModel(
       icon = icon,
@@ -148,12 +143,8 @@ fun ActionButton(
     text = text,
     onClick = onClick,
     modifier = modifier,
-    buttonBackgroundColor = if (isDesignSystemV2Enabled) {
-      WalletTheme.colors.secondary
-    } else {
-      WalletTheme.colors.foreground10
-    },
-    labelType = if (isDesignSystemV2Enabled) LabelType.Body4Mono else LabelType.Body4Regular
+    buttonBackgroundColor = WalletTheme.colors.secondary,
+    labelType = LabelType.Body4Mono
   )
 }
 
@@ -161,9 +152,9 @@ private fun actionButtonIconModel(
   icon: Icon,
   iconTint: IconTint?,
 ): IconModel =
-  if (icon == Icon.SmallIconShare) {
+  if (icon == Icon.Share) {
     IconModel(
-      iconImage = IconImage.MarketIconImage(MarketIcons.FileUpload),
+      iconImage = IconImage.LocalImage(Icon.FileUpload),
       iconSize = IconSize.Small
     )
   } else {

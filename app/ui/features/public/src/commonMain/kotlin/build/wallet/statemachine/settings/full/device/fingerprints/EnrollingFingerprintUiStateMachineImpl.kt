@@ -35,7 +35,6 @@ class EnrollingFingerprintUiStateMachineImpl(
 ) : EnrollingFingerprintUiStateMachine {
   @Composable
   override fun model(props: EnrollingFingerprintProps): ScreenModel {
-    val isDesignSystemV2Enabled = true
     val initialState = when (props.context) {
       is EnrollmentContext.FingerprintReset -> ShowingFingerprintInstructionsUiState()
       EnrollmentContext.AddingFingerprint -> StartingEnrollmentUiState
@@ -91,7 +90,6 @@ class EnrollingFingerprintUiStateMachineImpl(
           onBack = props.onCancel,
           eventTrackerContext = NfcEventTrackerScreenIdContext.ENROLLING_NEW_FINGERPRINT,
           isNavigatingBack = state.isNavigatingBack,
-          isDesignSystemV2Enabled = isDesignSystemV2Enabled,
           presentationStyle = ScreenPresentationStyle.RootFullScreen,
           headline = when (props.context) {
             is EnrollmentContext.FingerprintReset -> "Set up your fingerprint"

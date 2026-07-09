@@ -13,9 +13,9 @@ import build.wallet.emergencyexitkit.EmergencyExitPayloadRestorer.AccountRestora
 import build.wallet.emergencyexitkit.EmergencyExitPayloadRestorer.EmergencyExitPayloadRestorerError
 import build.wallet.emergencyexitkit.EmergencyExitPayloadRestorer.EmergencyExitPayloadRestorerError.*
 import build.wallet.encrypt.SymmetricKeyEncryptor
-import build.wallet.ensure
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.logging.logFailure
+import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
@@ -52,13 +52,10 @@ class EmergencyExitPayloadRestorerImpl(
               .bind()
 
           val backup =
-            emergencyExitKitPayloadDecoder.decodeDecryptedBackup(encodedBackup)
+            (emergencyExitKitPayloadDecoder.decodeDecryptedBackup(encodedBackup)
               .mapError { InvalidBackup(cause = it) }
-              .bind() as EmergencyExitKitBackupV1
-
-          ensure(backup is EmergencyExitKitBackupV1) {
-            InvalidBackup(Error("Expected backup to be of type EmergencyExitKitBackupV1."))
-          }
+              .bind() as? EmergencyExitKitBackupV1)
+              ?: Err<EmergencyExitPayloadRestorerError>(InvalidBackup()).bind()
 
           // Load the spending app private key into the DAO.
           appPrivateKeyDao.storeAppSpendingKeyPair(

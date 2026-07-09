@@ -54,7 +54,7 @@ class RecoveryChallengeUiStateMachineImpl(
       }
 
       val respondingContact = props.endorsedTrustedContacts.find {
-        it.relationshipId == response.recoveryRelationshipId
+        it.id.value == response.recoveryRelationshipId
       } ?: run {
         state = State.RecoveryFailed(error = Error("Could not find matching Recovery Contact"))
         return
@@ -156,7 +156,7 @@ class RecoveryChallengeUiStateMachineImpl(
       }
       is State.ShareChallengeCode ->
         current.challenge.tcAuths
-          .firstOrNull { it.relationshipId == current.selectedContact.relationshipId }
+          .firstOrNull { it.relationshipId == current.selectedContact.id.value }
           ?.let { auth ->
             // Matching auth found -> render the code screen
             RecoveryChallengeCodeBodyModel(

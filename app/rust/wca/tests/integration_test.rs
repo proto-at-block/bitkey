@@ -2,6 +2,7 @@ mod helpers;
 
 #[cfg(feature = "pcsc")]
 mod recordings {
+    use std::str::FromStr;
 
     use bdk_wallet::{KeychainKind, Wallet};
     use bitcoin::{
@@ -107,7 +108,7 @@ mod recordings {
                 .perform(wca::commands::GetInitialSpendingKey::new(Signet))
                 .unwrap();
             assert_eq!(a, b);
-            a
+            miniscript::DescriptorPublicKey::from_str(&a.dpub).unwrap()
         };
 
         let destination = {
@@ -124,7 +125,7 @@ mod recordings {
                 ))
                 .unwrap();
             assert_eq!(a, b);
-            a
+            DescriptorPublicKey::from_str(&a.dpub).unwrap()
         };
 
         assert_ne!(source, destination);
@@ -160,7 +161,7 @@ mod recordings {
                 .perform(wca::commands::GetInitialSpendingKey::new(Signet))
                 .unwrap();
             assert_eq!(a, b);
-            a
+            miniscript::DescriptorPublicKey::from_str(&a.dpub).unwrap()
         };
 
         let destination = {
@@ -177,7 +178,7 @@ mod recordings {
                 ))
                 .unwrap();
             assert_eq!(a, b);
-            a
+            DescriptorPublicKey::from_str(&a.dpub).unwrap()
         };
 
         assert_ne!(source, destination);

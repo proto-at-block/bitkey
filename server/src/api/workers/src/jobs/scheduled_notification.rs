@@ -14,7 +14,6 @@ use tracing::{event, instrument, Level};
 use super::WorkerState;
 use crate::error::WorkerError;
 
-#[instrument(skip(state))]
 pub async fn handler(state: WorkerState, sleep_duration_seconds: u64) -> Result<(), WorkerError> {
     let sleep_duration = std::time::Duration::from_secs(sleep_duration_seconds);
 
@@ -30,6 +29,7 @@ pub async fn handler(state: WorkerState, sleep_duration_seconds: u64) -> Result<
     }
 }
 
+#[instrument(skip(state))]
 pub async fn run_once(state: WorkerState) -> Result<(), WorkerError> {
     let cur_time = OffsetDateTime::now_utc();
 

@@ -25,22 +25,17 @@ import build.wallet.nfc.platform.ConfirmationHandles
 import build.wallet.nfc.platform.ConfirmationResult
 import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.HwDisplayPreference
+import build.wallet.nfc.platform.KeysetRepairRotateHwKeyParams
+import build.wallet.nfc.platform.KeysetRepairRotateHwKeyResult
 import build.wallet.nfc.platform.NfcCommands
-import build.wallet.nfc.platform.RecoveryAuthorizeLostAppResult
-import build.wallet.nfc.platform.RecoveryAuthorizeLostHwResult
-import build.wallet.nfc.platform.RotateAppAuthKeysCompositeResult
-import build.wallet.nfc.platform.RotateAppAuthKeysContinueParams
-import build.wallet.nfc.platform.SignChallengeAndSealSeksResult
 import build.wallet.nfc.platform.SweepSigningContext
-import build.wallet.nfc.platform.UpgradeAuthorizeW3Result
-import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysParams
-import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysResult
 import build.wallet.nfc.transaction.TransactionError
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.mapError
 import kotlinx.datetime.Instant
 import okio.ByteString
+import okio.ByteString.Companion.encodeUtf8
 
 @Fake
 @BitkeyInject(AppScope::class)
@@ -51,6 +46,9 @@ class BitkeyW1CommandsFake(
   @W1 private val fakeHardwareSpendingWalletProvider: FakeHardwareSpendingWalletProvider,
   private val fakeHardwareStatesDao: FakeHardwareStatesDao,
 ) : NfcCommands {
+  var signTransactionRequestCount: Int = 0
+    private set
+
   private var telemetryCoredumpCount: Int = 0
   private var telemetryCoredumpFragmentsByOffset: Map<Int, CoredumpFragment> = emptyMap()
 
@@ -67,7 +65,7 @@ class BitkeyW1CommandsFake(
     telemetryCoredumpFragmentsByOffset = emptyMap()
   }
 
-  private var fingerprintEnrollmentResult = FingerprintEnrollmentResult(
+  private val fingerprintEnrollmentResult = FingerprintEnrollmentResult(
     status = NOT_IN_PROGRESS,
     passCount = null,
     failCount = null,
@@ -202,17 +200,32 @@ class BitkeyW1CommandsFake(
   override suspend fun getInitialSpendingKey(
     session: NfcSession,
     network: BitcoinNetworkType,
-  ) = HwSpendingPublicKey(fakeHardwareKeyStore.getInitialSpendingKeypair(network).publicKey.key)
+  ) = HwSpendingKeyResult(
+    publicKey = HwSpendingPublicKey(
+      fakeHardwareKeyStore.getInitialSpendingKeypair(network).publicKey.key
+    ),
+    attestationSignature = null
+  )
+
+  override suspend fun getInitialSpendingPublicKey(
+    session: NfcSession,
+    network: BitcoinNetworkType,
+  ) = HwSpendingPublicKey(
+    fakeHardwareKeyStore.getInitialSpendingKeypair(network).publicKey.key
+  )
 
   override suspend fun getNextSpendingKey(
     session: NfcSession,
     existingDescriptorPublicKeys: List<HwSpendingPublicKey>,
     network: BitcoinNetworkType,
-  ) = HwSpendingPublicKey(
-    fakeHardwareKeyStore.getNextSpendingKeypair(
-      existingDescriptorPublicKeys.map { it.key.dpub },
-      network
-    ).publicKey.key
+  ) = HwSpendingKeyResult(
+    publicKey = HwSpendingPublicKey(
+      fakeHardwareKeyStore.getNextSpendingKeypair(
+        existingDescriptorPublicKeys.map { it.key.dpub },
+        network
+      ).publicKey.key
+    ),
+    attestationSignature = null
   )
 
   override suspend fun lockDevice(session: NfcSession) = true
@@ -253,7 +266,9 @@ class BitkeyW1CommandsFake(
     psbt: Psbt,
     spendingKeyset: SpendingKeyset,
     displayPreference: HwDisplayPreference?,
+    allowUnfinalized: Boolean,
   ): HardwareInteraction<Psbt> {
+    signTransactionRequestCount += 1
     if (fakeHardwareStatesDao.getTransactionVerificationEnabled().get() == true) {
       throw TransactionError.VerificationRequired()
     }
@@ -347,6 +362,33 @@ class BitkeyW1CommandsFake(
     HardwareInteraction.Completed(
       build.wallet.crypto.SymmetricKeyImpl(unsealData(session, sealedKey))
     )
+
+  @OptIn(bitkey.data.PrivateData::class)
+  override suspend fun keysetRepairUnsealSymmetricKey(
+    session: NfcSession,
+    sealedKey: SealedData,
+  ): HardwareInteraction<SymmetricKey> =
+    HardwareInteraction.Completed(
+      build.wallet.crypto.SymmetricKeyImpl(unsealData(session, sealedKey))
+    )
+
+  override suspend fun keysetRepairRotateHwKey(
+    session: NfcSession,
+    params: KeysetRepairRotateHwKeyParams,
+  ): HardwareInteraction<KeysetRepairRotateHwKeyResult> {
+    val hwSpendingKey = getNextSpendingKey(
+      session = session,
+      existingDescriptorPublicKeys = params.existingHwSpendingKeys,
+      network = params.network
+    ).publicKey
+    val signedAccessToken = signChallenge(session, params.accessToken.raw.encodeUtf8())
+    return HardwareInteraction.Completed(
+      KeysetRepairRotateHwKeyResult(
+        hwSpendingKey = hwSpendingKey,
+        signedAccessToken = signedAccessToken
+      )
+    )
+  }
 }
 
 internal fun EnrolledFingerprints.insertOrUpdateFingerprintHandle(

@@ -6,7 +6,6 @@ version = "0.1.0"
 
 [dependencies]
 async-trait = { workspace = true }
-aws-config = { workspace = true }
 aws-sdk-cognitoidentityprovider = "1.18.0"
 aws-types = { workspace = true }
 dyn-clone = { workspace = true }
@@ -19,6 +18,7 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 
 # path dependencies
+clients_common = { workspace = true }
 errors = { workspace = true }
 migration = { workspace = true }
 types = { workspace = true, features = ["account", "authn_authz"] }

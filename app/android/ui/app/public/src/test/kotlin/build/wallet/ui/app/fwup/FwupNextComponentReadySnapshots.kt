@@ -8,7 +8,7 @@ import io.kotest.core.spec.style.FunSpec
 class FwupNextComponentReadySnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
-  test("fwup next component ready dsv2") {
+  test("fwup next component ready") {
     paparazzi.snapshot {
       FwupNextComponentReadyModel(
         completedIndex = 1,

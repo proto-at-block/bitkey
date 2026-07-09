@@ -22,7 +22,7 @@ class SecureRandomTests : FunSpec({
     var or = ByteArray(8) { 0x00.toByte() }
     val seen = mutableSetOf<ByteString>()
 
-    for (i in 1..100) {
+    repeat(100) {
       val bytes = ByteArray(size)
       random.nextBytes(bytes)
       bytes.size shouldBe size

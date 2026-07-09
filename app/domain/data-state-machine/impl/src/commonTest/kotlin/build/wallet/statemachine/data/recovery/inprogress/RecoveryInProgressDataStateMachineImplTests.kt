@@ -87,6 +87,8 @@ import okio.ByteString.Companion.decodeHex
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
+// Large end-to-end coverage for recovery-in-progress flows; splitting would hurt cohesion.
+@Suppress("LargeClass")
 class RecoveryInProgressDataStateMachineImplTests : FunSpec({
   val clock = ClockFake()
   val delayNotifyService = DelayNotifyServiceFake()
@@ -1555,6 +1557,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       appGlobalAuthKey = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKey,
       appRecoveryAuthKey = StillRecoveringInitiatedRecoveryMock.appRecoveryAuthKey,
       hardwareSpendingKey = StillRecoveringInitiatedRecoveryMock.hardwareSpendingKey,
+      hardwareSpendingKeyProof = null,
       hardwareAuthKey = StillRecoveringInitiatedRecoveryMock.hardwareAuthKey,
       factorToRecover = App,
       appGlobalAuthKeyHwSignature = StillRecoveringInitiatedRecoveryMock.appGlobalAuthKeyHwSignature,
@@ -1574,8 +1577,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
   test("W3 hardware path exercises hardware descriptor validation") {
     val recovery = hardwareRecovery()
-    val recoveredSpendingKeyDpub =
-      "[34eae6a8/84'/0'/9']xpubDDj952KUFGTDcNV1qY5Tuevm6vnBWK8NSpTTkCz1XTApv2SeDaqcrUTBgDdCRF9KmtxV33R8E9NtSi9VSBUPj4M3fKr4uk3kRy8Vbo1LbAv/*"
     val w3DeviceInfo = createFirmwareDeviceInfo("2.0.0", hwRevision = "w3a-core-evt")
     delay(delayDuration)
 

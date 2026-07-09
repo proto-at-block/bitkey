@@ -1,5 +1,7 @@
 package build.wallet.debug.cloud
 
+import build.wallet.ensure
+import build.wallet.ensureNotNull
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupService
 import build.wallet.cloud.backup.CloudBackupV2
@@ -16,7 +18,6 @@ import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.Customer
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.toErrorIfNull
 import kotlinx.serialization.json.Json
@@ -33,21 +34,24 @@ class CloudBackupKeysetDeleterImpl(
 ) : CloudBackupKeysetDeleter {
   override suspend fun deleteActiveKeyset(): Result<Unit, KeysetDeletionError> =
     coroutineBinding {
-      check(appVariant != Customer) { "Not allowed in Customer builds." }
+      ensure(appVariant != Customer) {
+        KeysetDeletionError.CustomerBuild("Not allowed in Customer builds.")
+      }
 
       val cloudAccount = cloudStoreAccountRepository.currentAccount(cloudServiceProvider())
         .mapError { KeysetDeletionError.CloudAccountError("Failed to get cloud account", it) }
+        .toErrorIfNull { KeysetDeletionError.CloudAccountError("No cloud account") }
         .bind()
-        ?: error("No cloud account")
 
       val backup = cloudBackupService.readActiveBackup(cloudAccount)
         .mapError { KeysetDeletionError.BackupReadError("Failed to read backup", it) }
+        .toErrorIfNull { KeysetDeletionError.BackupReadError("No backup found") }
         .bind()
-        ?: error("No backup found")
 
       val keybox = keyboxDao.getActiveOrOnboardingKeybox()
-        .getOrElse { null }
-        ?: error("No active keybox")
+        .mapError { KeysetDeletionError.DecryptionError("Failed to get active keybox", it) }
+        .toErrorIfNull { KeysetDeletionError.DecryptionError("No active keybox") }
+        .bind()
 
       val modifiedBackup = modifyBackup(backup).bind()
 
@@ -64,18 +68,27 @@ class CloudBackupKeysetDeleterImpl(
       val fields = when (backup) {
         is CloudBackupV3 -> backup.fullAccountFields
         is CloudBackupV2 -> backup.fullAccountFields
-      } ?: error("No full account fields")
+      }
+      val fullAccountFields = ensureNotNull(fields) {
+        KeysetDeletionError.DecryptionError("No full account fields")
+      }
 
-      val csek = csekDao.get(fields.sealedHwEncryptionKey)
+      val csek = csekDao.get(fullAccountFields.sealedHwEncryptionKey)
         .mapError { KeysetDeletionError.DecryptionError("Failed to get CSEK", it) }
         .toErrorIfNull { KeysetDeletionError.PkekMissingError("CSEK not found") }
         .bind()
 
-      val decrypted = symmetricKeyEncryptor.unsealNoMetadata(fields.hwFullAccountKeysCiphertext, csek.key)
+      val decrypted = symmetricKeyEncryptor.unsealNoMetadata(
+        fullAccountFields.hwFullAccountKeysCiphertext,
+        csek.key
+      )
       val keys = Json.decodeFromString<FullAccountKeys>(decrypted.utf8())
 
-      val previousKeyset = keys.keysets.lastOrNull { it.localId != keys.activeSpendingKeyset.localId }
-        ?: error("No previous keyset available")
+      val previousKeyset = ensureNotNull(
+        keys.keysets.lastOrNull { it.localId != keys.activeSpendingKeyset.localId }
+      ) {
+        KeysetDeletionError.DecryptionError("No previous keyset available")
+      }
 
       val modifiedKeys = keys.copy(
         activeSpendingKeyset = previousKeyset,
@@ -87,7 +100,7 @@ class CloudBackupKeysetDeleterImpl(
         csek.key
       )
 
-      val modifiedFields = fields.copy(hwFullAccountKeysCiphertext = encrypted)
+      val modifiedFields = fullAccountFields.copy(hwFullAccountKeysCiphertext = encrypted)
 
       when (backup) {
         is CloudBackupV3 -> backup.copy(fullAccountFields = modifiedFields)

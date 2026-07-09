@@ -7,9 +7,9 @@ import androidx.compose.runtime.remember
 import build.wallet.LoadableValue
 import build.wallet.LoadableValue.InitialLoading
 import build.wallet.LoadableValue.LoadedValue
-import build.wallet.bitkey.relationships.TrustedContactAuthenticationState
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.FAILED
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.PAKE_DATA_UNAVAILABLE
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.TAMPERED
 import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
@@ -57,22 +57,32 @@ class RecoveryContactCardsUiStateMachineImpl(
             )
           },
         relationships.unendorsedTrustedContacts
-          .filter { it.authenticationState in setOf(FAILED, PAKE_DATA_UNAVAILABLE) }
+          .filter {
+            it.roles.contains(TrustedContactRole.SocialRecoveryContact) &&
+              it.authenticationState in setOf(FAILED, PAKE_DATA_UNAVAILABLE)
+          }
           .map {
             TrustedContactCardModel(
               contact = it,
-              buttonText = "Failed",
+              buttonText = "Review",
               buttonTreatment = ButtonModel.Treatment.Warning,
+              subtitleText = "Failed Recovery Contact",
+              backgroundColor = CardModel.CardStyle.Gradient.BackgroundColor.InverseBackground,
               onClick = { props.onClick(it) }
             )
           },
         relationships.unendorsedTrustedContacts
-          .filter { it.authenticationState == TrustedContactAuthenticationState.TAMPERED }
+          .filter {
+            it.roles.contains(TrustedContactRole.SocialRecoveryContact) &&
+              it.authenticationState == TAMPERED
+          }
           .map {
             TrustedContactCardModel(
               contact = it,
-              buttonText = "Invalid",
+              buttonText = "Review",
               buttonTreatment = ButtonModel.Treatment.Warning,
+              subtitleText = "Invalid Recovery Contact",
+              backgroundColor = CardModel.CardStyle.Gradient.BackgroundColor.InverseBackground,
               onClick = { props.onClick(it) }
             )
           }

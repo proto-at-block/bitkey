@@ -26,7 +26,6 @@ import build.wallet.ui.theme.Theme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.StyleDictionaryColors
 import build.wallet.ui.tokens.darkStyleDictionaryColors
-import build.wallet.ui.tokens.lightStyleDictionaryColors
 import build.wallet.ui.tokens.lightStyleDictionaryColorsDesignSystemUpdates
 
 internal data class StatusBannerColors(
@@ -37,22 +36,15 @@ internal data class StatusBannerColors(
 internal fun statusBannerColors(
   style: BannerStyle,
   theme: Theme,
-  isDesignSystemV2Enabled: Boolean,
 ): StatusBannerColors {
   val colors = when (theme) {
-    Theme.LIGHT -> if (isDesignSystemV2Enabled) {
-      lightStyleDictionaryColorsDesignSystemUpdates
-    } else {
-      lightStyleDictionaryColors
-    }
-
+    Theme.LIGHT -> lightStyleDictionaryColorsDesignSystemUpdates
     Theme.DARK -> darkStyleDictionaryColors
   }
 
   return statusBannerColors(
     style = style,
     theme = theme,
-    isDesignSystemV2Enabled = isDesignSystemV2Enabled,
     colors = colors
   )
 }
@@ -60,13 +52,12 @@ internal fun statusBannerColors(
 private fun statusBannerColors(
   style: BannerStyle,
   theme: Theme,
-  isDesignSystemV2Enabled: Boolean,
   colors: StyleDictionaryColors,
 ): StatusBannerColors {
-  val useDarkPaletteOnLightDsv2 = isDesignSystemV2Enabled && theme == Theme.LIGHT
-  val contentColors = if (useDarkPaletteOnLightDsv2) darkStyleDictionaryColors else colors
+  val useDarkPaletteOnLight = theme == Theme.LIGHT
+  val contentColors = if (useDarkPaletteOnLight) darkStyleDictionaryColors else colors
 
-  val backgroundColor = if (useDarkPaletteOnLightDsv2) {
+  val backgroundColor = if (useDarkPaletteOnLight) {
     colors.inverseBackground
   } else {
     when (style) {
@@ -100,8 +91,7 @@ fun StatusBannerModel.backgroundColor(): Color {
 private fun StatusBannerModel.colors(): StatusBannerColors {
   return statusBannerColors(
     style = style,
-    theme = LocalTheme.current,
-    isDesignSystemV2Enabled = true
+    theme = LocalTheme.current
   )
 }
 
@@ -140,7 +130,7 @@ fun StatusBanner(
         IconImage(
           modifier = Modifier.padding(start = 4.dp),
           model = IconModel(
-            iconImage = IconImage.LocalImage(Icon.SmallIconInformation),
+            iconImage = IconImage.LocalImage(Icon.Information),
             iconSize = IconSize.XSmall
           ),
           color = bannerColors.contentColor

@@ -22,6 +22,38 @@ from .comms import WalletComms
 from .partition_info import get_bootloader_metadata_offset_and_size
 
 
+# Ordered MCU roles for multi-MCU FWUP per product.
+# UXC must be updated before Core within a single deferred-commit FWUP session.
+# The device enforces this at fwup_task_port.c:446-462 (specifically the
+# session_defer_commit && !uxc_verified reject at lines 455-457) by rejecting
+# a Core fwup_start_cmd whose defer_commit=true if the UXC has not yet
+# succeeded in the current session.
+_FWUP_ORDER_BY_PRODUCT: Dict[str, list[int]] = {
+    "w1": [wallet_pb.mcu_role.MCU_ROLE_CORE],
+    "w3": [
+        wallet_pb.mcu_role.MCU_ROLE_UXC,   # UXC first.
+        wallet_pb.mcu_role.MCU_ROLE_CORE,  # Core second.
+    ],
+}
+
+
+def get_fwup_order_for_product(product: str) -> list[int]:
+    """Returns the ordered MCU roles to FWUP for ``product``.
+
+    :param product: bare product name (e.g. ``"w1"``, ``"w3"``). Case-insensitive.
+    :returns: a defensive copy of the ordered proto :class:`wallet_pb.mcu_role`
+        values to update, in the order the device requires.
+    :raises ValueError: if ``product`` has no FWUP ordering defined.
+    """
+    order = _FWUP_ORDER_BY_PRODUCT.get(product.lower())
+    if order is None:
+        raise ValueError(
+            f"No FWUP order defined for product {product!r}; "
+            f"known products: {sorted(_FWUP_ORDER_BY_PRODUCT)}"
+        )
+    return list(order)
+
+
 @dataclass
 class FwupStartSuccess:
     """Firmware update started successfully (without confirmation flow)."""

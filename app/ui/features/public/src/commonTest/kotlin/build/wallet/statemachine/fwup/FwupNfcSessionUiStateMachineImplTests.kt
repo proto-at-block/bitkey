@@ -55,6 +55,8 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.coroutines.CompletableDeferred
 
+// Large end-to-end coverage for the FWUP NFC session; splitting would hurt cohesion.
+@Suppress("LargeClass")
 class FwupNfcSessionUiStateMachineImplTests : FunSpec({
 
   val eventTracker = EventTrackerMock(turbines::create)
@@ -173,7 +175,7 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("FWUP progress screens use platform NFC screens with design system v2") {
+  test("FWUP progress screens use platform NFC screens") {
     nfcTransactor.transactResult = Ok(FwupTransactionResult.Completed)
 
     stateMachine.test(props) {

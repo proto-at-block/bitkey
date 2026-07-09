@@ -3,6 +3,7 @@ package build.wallet.wallet.migration
 import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeyset
@@ -69,6 +70,7 @@ sealed interface MigrationProgress {
       ssek: Sek,
       sealedSsek: SealedSsek,
       sealedCsek: SealedCsek? = null,
+      newHwSpendingKeyProof: HwSpendingKeyProof? = null,
     ): CreateNewKeyset.PrivateWalletMigration {
       return CreateNewKeyset.PrivateWalletMigration(
         currentKeybox = currentKeybox,
@@ -76,7 +78,8 @@ sealed interface MigrationProgress {
         hwProofOfPossession = hwProofOfPossession,
         ssek = ssek,
         sealedSsek = sealedSsek,
-        sealedCsek = sealedCsek
+        sealedCsek = sealedCsek,
+        newHwSpendingKeyProof = newHwSpendingKeyProof
       )
     }
   }
@@ -85,6 +88,17 @@ sealed interface MigrationProgress {
   sealed interface CreateNewKeyset : MigrationProgress {
     val currentKeybox: Keybox
     val newHwSpendingKey: HwSpendingPublicKey
+
+    /**
+     * Optional hardware-attested proof for [newHwSpendingKey]. Populated when the
+     * NFC tap that derived the spending key also returned an attestation signature
+     * + cert chain. Persisted incrementally via [PrivateWalletMigrationDao]/[W3UpgradeDao]
+     * before [createKeyset]; on resume [MigrationServiceImpl] prefers the persisted
+     * value over the in-memory one. Server tolerates `null` until the enrollment
+     * gate flips on.
+     */
+    val newHwSpendingKeyProof: HwSpendingKeyProof?
+      get() = null
     val hwProofOfPossession: HwFactorProofOfPossession
     val ssek: Sek
     val sealedSsek: SealedSsek
@@ -117,6 +131,7 @@ sealed interface MigrationProgress {
       override val ssek: Sek,
       override val sealedSsek: SealedSsek,
       override val sealedCsek: SealedCsek? = null,
+      override val newHwSpendingKeyProof: HwSpendingKeyProof? = null,
     ) : CreateNewKeyset {
       override val type: MigrationType = MigrationType.PrivateWalletMigration
     }
@@ -132,6 +147,7 @@ sealed interface MigrationProgress {
       override val sealedSsek: SealedSsek,
       override val sealedCsek: SealedCsek? = null,
       override val resumedFromCloudBackup: Boolean = false,
+      override val newHwSpendingKeyProof: HwSpendingKeyProof? = null,
     ) : CreateNewKeyset {
       override val type: MigrationType = MigrationType.W3Upgrade
     }

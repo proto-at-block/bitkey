@@ -71,6 +71,14 @@ static inline bool received_full_proto(void) {
   return (wca_priv.encoded_proto_cmd_ctx.offset >= wca_priv.encoded_proto_cmd_ctx.size);
 }
 
+static bool wca_has_readable_lc(const uint8_t* cmd, uint32_t cmd_len) {
+  // PROTO and PROTO_CONT parse Lc at cmd[4], which also proves the P1/P2 header
+  // bytes before it are readable. A nonzero Lc is the one-byte short form; zero
+  // marks the three-byte extended form, so cmd[5] and cmd[6] must also be
+  // present before lc_to_int() can safely read the length.
+  return cmd_len > LC && (cmd[LC] != 0 || cmd_len >= LC + 3);
+}
+
 void drain_response_buffer(uint8_t* rsp, uint32_t* rsp_len) {
   uint32_t in_len = *rsp_len;
 
@@ -112,7 +120,7 @@ static bool handle_proto_exchange(uint8_t* rsp, uint32_t* rsp_len) {
     ipc_proto_route(wca_priv.encoded_proto_cmd_ctx.tag, wca_priv.encoded_proto_cmd_ctx.buffer,
                     wca_priv.encoded_proto_cmd_ctx.size);
   if (!status) {
-    LOGE("Failed to route proto %d", wca_priv.encoded_proto_cmd_ctx.tag);
+    MFLOGE("Failed to route proto %d", wca_priv.encoded_proto_cmd_ctx.tag);
     UI_SHOW_EVENT(UI_EVENT_NFC_ERROR);
     clear_proto_state();
     return false;
@@ -122,7 +130,7 @@ static bool handle_proto_exchange(uint8_t* rsp, uint32_t* rsp_len) {
 
   if (!status) {
     // Expired.
-    LOGE("Proto rsp timeout");
+    MFLOGE("Proto rsp timeout");
     UI_SHOW_EVENT(UI_EVENT_NFC_ERROR);
     RSP_FCI_GENERIC_FAILURE(rsp, 0);
     clear_proto_state();
@@ -168,6 +176,7 @@ bool wca_handle_command(uint8_t* cmd, uint32_t cmd_len, uint8_t* rsp, uint32_t* 
 
 err:
   clear_proto_state();
+  *rsp_len = SW_SIZE;
   RSP_UNSUPPORTED_INS(rsp, 0);
   return false;
 }
@@ -184,6 +193,10 @@ bool wca_proto(uint8_t* cmd, uint32_t cmd_len, uint8_t* rsp, uint32_t* rsp_len) 
   uint32_t in_len = *rsp_len;
   *rsp_len = SW_SIZE;
   clear_proto_state();
+
+  if (!wca_has_readable_lc(cmd, cmd_len)) {
+    goto err;
+  }
 
   const uint32_t desired_size = (cmd[P1] << 8) | cmd[P2];
   if (desired_size > COMMAND_BUFFER_SIZE) {
@@ -204,7 +217,7 @@ bool wca_proto(uint8_t* cmd, uint32_t cmd_len, uint8_t* rsp, uint32_t* rsp_len) 
   bool eof = false;
   pb_istream_t istream = pb_istream_from_buffer(&cmd[data_off], remaining_cmd_bytes);
   if (!pb_decode_tag(&istream, &wire_type, &tag, &eof)) {
-    LOGE("Failed to check tag");
+    MFLOGE("Failed to check tag");
     goto err;
   }
   wca_priv.encoded_proto_cmd_ctx.tag = tag;
@@ -234,6 +247,10 @@ err:
 bool wca_proto_cont(uint8_t* cmd, uint32_t cmd_len, uint8_t* rsp, uint32_t* rsp_len) {
   uint32_t in_len = *rsp_len;
   *rsp_len = SW_SIZE;
+
+  if (!wca_has_readable_lc(cmd, cmd_len)) {
+    goto err;
+  }
 
   uint16_t num_bytes = lc_to_int(&cmd[LC]);
   uint16_t data_off = is_short_coding(num_bytes) ? LC + 1 : LC + 3;
@@ -277,10 +294,38 @@ err:
 
 bool wca_get_response(uint8_t* UNUSED(cmd), uint32_t UNUSED(cmd_len), uint8_t* rsp,
                       uint32_t* rsp_len) {
+  if (wca_priv.encoded_proto_rsp_ctx.size == 0) {
+    clear_proto_state();
+    RSP_FCI_GENERIC_FAILURE(rsp, 0);
+    *rsp_len = SW_SIZE;
+    return false;
+  }
+
   drain_response_buffer(rsp, rsp_len);
   return true;
 }
 
-bool wca_is_valid(uint8_t* cmd, uint32_t cmd_len) {
-  return (cmd_len >= (P2 + 1)) && cmd[CLA] == WCA_CLA;
+bool wca_is_wca(const uint8_t* cmd, uint32_t cmd_len) {
+  // This is an NFC demux check, not full command validation. Route any frame
+  // with the WCA CLA byte to wca_handle_command() so malformed WCA traffic can
+  // still receive APDU status words instead of being treated as unknown NFC.
+  return cmd != NULL && cmd_len > CLA && cmd[CLA] == WCA_CLA;
+}
+
+bool wca_is_valid(const uint8_t* cmd, uint32_t cmd_len) {
+  // Semantic command validation needs the four-byte APDU header so handlers can
+  // safely inspect INS/P1/P2. Data-bearing commands get an extra Lc check below
+  // before dispatch because their handlers parse the length field at cmd[4].
+  if ((cmd_len < (P2 + 1)) || !wca_is_wca(cmd, cmd_len)) {
+    return false;
+  }
+
+  // PROTO and PROTO_CONT carry protobuf bytes, so they must include a readable
+  // Lc field. Without this, a four-byte APDU would pass routing and the handler
+  // would read past the end of the command buffer.
+  if (cmd[INS] == WCA_INS_PROTO || cmd[INS] == WCA_INS_PROTO_CONT) {
+    return wca_has_readable_lc(cmd, cmd_len);
+  }
+
+  return true;
 }

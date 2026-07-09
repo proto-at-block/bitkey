@@ -15,18 +15,21 @@ class CloudKitBackupMigrationWorkerImplTests : FunSpec({
   val featureFlag = IosCloudKitBackupFeatureFlag(featureFlagDao)
   val lock = CloudBackupOperationLockImpl()
   val service = CloudKitBackupMigrationServiceFake()
+  val cloudKitBackupMigrationStatusDao = CloudKitBackupMigrationStatusDaoFake()
 
   fun worker(appVariant: AppVariant = AppVariant.Customer) =
     CloudKitBackupMigrationWorkerImpl(
       appVariant = appVariant,
       iosCloudKitBackupFeatureFlag = featureFlag,
       cloudBackupOperationLock = lock,
-      cloudKitBackupMigrationService = service
+      cloudKitBackupMigrationService = service,
+      cloudKitBackupMigrationStatusDao = cloudKitBackupMigrationStatusDao
     )
 
   beforeTest {
     featureFlagDao.reset()
     service.reset()
+    cloudKitBackupMigrationStatusDao.reset()
   }
 
   test("run strategy is startup and flag updates") {
@@ -46,6 +49,7 @@ class CloudKitBackupMigrationWorkerImplTests : FunSpec({
     worker().executeWork()
 
     service.migrateIfNeededCallCount.shouldBe(0)
+    cloudKitBackupMigrationStatusDao.clearCallCount.shouldBe(1)
   }
 
   test("runs migration when flag is on") {

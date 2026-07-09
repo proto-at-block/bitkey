@@ -32,7 +32,7 @@ class PhoneNumberInputUiStateMachineImpl(
       val exampleNumber = phoneNumberValidator.exampleFormattedNumberForCurrentRegion()
       val validatedPhoneNumber =
         phoneNumberValidator.validatePhoneNumber(
-          number = props.prefillValue?.formattedE164Value ?: ""
+          number = props.prefillValue?.formattedE164Value.orEmpty()
         )
       val entryState =
         when (validatedPhoneNumber) {

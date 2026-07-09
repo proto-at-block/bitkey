@@ -2,6 +2,7 @@ package build.wallet.statemachine.utxo
 
 import build.wallet.analytics.events.screen.id.UtxoConsolidationEventTrackerScreenId
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
@@ -22,5 +23,10 @@ fun ExceedsMaxUtxoCountBodyModel(
     onClick = onContinue
   ),
   onBack = onBack,
+  errorData = ErrorData(
+    segment = UtxoConsolidationAppSegment,
+    actionDescription = "Preparing UTXO consolidation",
+    cause = IllegalStateException("UTXO count exceeds maximum single consolidation count: $maxUtxoCount")
+  ),
   eventTrackerScreenId = UtxoConsolidationEventTrackerScreenId.UTXO_CONSOLIDATION_EXCEEDED_MAX_COUNT
 )

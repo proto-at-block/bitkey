@@ -110,6 +110,9 @@ pub struct ClientConfig {
     pub privileged_action_completed_out_of_band_verification_campaign_id: usize,
     pub privileged_action_pending_out_of_band_verification_campaign_id: usize,
     pub privileged_action_delay_notify_update_campaign_id: usize,
+    pub hardware_serial_verification_pending_campaign_id: usize,
+    pub hardware_serial_verification_completed_campaign_id: usize,
+    pub hardware_serial_verification_canceled_campaign_id: usize,
     pub social_challenge_response_received_campaign_id: usize,
     pub marketing_channel_id: usize,
     pub transactional_channel_id: usize,
@@ -157,6 +160,9 @@ pub enum IterableCampaignType {
     InheritanceClaimInitiatedAsBeneficiary,
     InheritanceClaimPeriodCompletedAsBenefactor,
     InheritanceClaimPeriodCompletedAsBeneficiary,
+    HardwareSerialVerificationCanceled,
+    HardwareSerialVerificationCompleted,
+    HardwareSerialVerificationPending,
     PrivilegedActionCanceledOutOfBandVerification,
     PrivilegedActionCompletedOutOfBandVerification,
     PrivilegedActionDelayNotifyUpdate,
@@ -324,6 +330,15 @@ impl IterableClient {
                     }
                     IterableCampaignType::PrivilegedActionPendingOutOfBandVerification => {
                         config.privileged_action_pending_out_of_band_verification_campaign_id
+                    }
+                    IterableCampaignType::HardwareSerialVerificationPending => {
+                        config.hardware_serial_verification_pending_campaign_id
+                    }
+                    IterableCampaignType::HardwareSerialVerificationCompleted => {
+                        config.hardware_serial_verification_completed_campaign_id
+                    }
+                    IterableCampaignType::HardwareSerialVerificationCanceled => {
+                        config.hardware_serial_verification_canceled_campaign_id
                     }
                     IterableCampaignType::RecoveryPendingDelayPeriodLostApp => {
                         config.recovery_pending_delay_period_lost_app_campaign_id

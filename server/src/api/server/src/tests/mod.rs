@@ -16,6 +16,8 @@ mod customer_feedback_integration_tests;
 mod exchange_rate_integration_tests;
 mod experimentation_integration_tests;
 mod export_tools_integration_tests;
+mod hardware_auth_key_availability_integration_tests;
+mod hardware_verification_integration_tests;
 mod lib;
 mod linear_webhook_integration_tests;
 mod mempool_polling_integration_tests;
@@ -27,10 +29,14 @@ mod privileged_actions_integration_tests;
 mod recovery;
 mod register_watch_address_integration_tests;
 mod requests;
+mod resend_oob_verification_integration_tests;
 mod scheduled_notifications_integration_tests;
 mod send_customer_notifications_integration_tests;
 mod transaction_integration_tests;
 mod transaction_verification_integration_tests;
+mod sweep_hardware_verification_integration_tests;
+mod v1_endpoint_block_integration_tests;
+mod verify_hardware_serial_integration_tests;
 mod w1_to_w3_upgrade_integration_tests;
 
 #[derive(Debug, Default)]

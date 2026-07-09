@@ -13,6 +13,7 @@ kotlin {
         api(projects.shared.priceChartPublic)
         api(projects.domain.walletPublic)
         api(libs.kmp.kotlin.datetime)
+        implementation(projects.libs.stdlibPublic)
       }
     }
   }

@@ -40,11 +40,15 @@ static bool route_nfc_message(uint8_t* in, uint32_t in_len, uint8_t* out, uint32
   // Insert a glitch before command handlers to prevent glitching on user-provided input
   secure_glitch_random_delay();
 
-  if (wca_is_valid(in, in_len)) {
-    return wca_handle_command(in, in_len, out, out_len);
+  if (wca_is_wca(in, in_len)) {
+    // wca_handle_command() returns false for malformed WCA after filling status words.
+    // Return true here so the NFC listener transmits the APDU error response.
+    (void)wca_handle_command(in, in_len, out, out_len);
+    return true;
   } else if (t4t_is_valid(in, in_len)) {
     return t4t_handle_command(in, in_len, out, out_len);
   } else {
+    MFLOGW("NFC rx unrecognized len=%lu", (unsigned long)in_len);
     return false;
   }
 }

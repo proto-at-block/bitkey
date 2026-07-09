@@ -4,7 +4,6 @@ import build.wallet.analytics.events.screen.id.WalletMigrationEventTrackerScreen
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
@@ -32,18 +31,17 @@ data class W3UpgradeNewHardwareAuthRotationInstructionsBodyModel(
         )
       )
     },
-    header = FormHeaderModel(
-      headline = "Now tap your new Bitkey",
+    formScreenTitle = w3UpgradeInstructionScreenTitle(
+      eyebrow = w3UpgradeStepEyebrow(step, totalSteps),
+      title = "Now tap your new Bitkey"
+    ),
+    formScreenLayout = w3UpgradeInstructionLayout(),
+    headerToMainContentSpacing = W3_UPGRADE_INSTRUCTION_HEADER_TO_MAIN_CONTENT_SPACING,
+    header = w3UpgradeInstructionHeader(
       subline = "Use your new Bitkey device to complete the upgrade. This registers your new device with your account."
     ),
     mainContentList = immutableListOf(
       newHardwareAuthRotationInstructionListGroup()
-    ),
-    designSystemV2Model = w3UpgradeInstructionDesignSystemV2Model(
-      eyebrow = w3UpgradeStepEyebrow(step, totalSteps),
-      title = "Now tap your new Bitkey",
-      subline = "Use your new Bitkey device to complete the upgrade. This registers your new device with your account.",
-      mainContentList = immutableListOf(newHardwareAuthRotationInstructionListGroupDesignSystemV2())
     ),
     primaryButton = ButtonModel.BitkeyInteractionButtonModel(
       text = "Continue",
@@ -57,24 +55,10 @@ private fun newHardwareAuthRotationInstructionListGroup() =
     listGroupModel = ListGroupModel(
       style = ListGroupStyle.NONE,
       items = immutableListOf(
-        w3UpgradeLegacyInstructionListItem(
+        w3UpgradeInstructionListItem(
           title = "Have your new Bitkey ready",
           secondaryText = "You'll need to tap your new device to confirm.",
-          icon = Icon.SmallIconBitkey
-        )
-      )
-    )
-  )
-
-private fun newHardwareAuthRotationInstructionListGroupDesignSystemV2() =
-  FormMainContentModel.ListGroup(
-    listGroupModel = ListGroupModel(
-      style = ListGroupStyle.NONE,
-      items = immutableListOf(
-        w3UpgradeDesignSystemV2InstructionListItem(
-          title = "Have your new Bitkey ready",
-          secondaryText = "You'll need to tap your new device to confirm.",
-          icon = Icon.SmallIconBitkey
+          icon = Icon.Bitkey
         )
       )
     )

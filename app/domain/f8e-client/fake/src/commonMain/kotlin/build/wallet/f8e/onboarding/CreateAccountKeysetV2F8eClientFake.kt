@@ -6,6 +6,7 @@ import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.F8eSpendingKeysetPrivateWalletMock
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
@@ -17,6 +18,7 @@ class CreateAccountKeysetV2F8eClientFake : CreateAccountKeysetV2F8eClient {
   var createKeysetResult: Result<F8eSpendingKeyset, NetworkingError> =
     Ok(F8eSpendingKeysetPrivateWalletMock)
   var lastHardwareSpendingKey: HwSpendingPublicKey? = null
+  var lastHardwareSpendingKeyProof: HwSpendingKeyProof? = null
 
   override suspend fun createKeyset(
     f8eEnvironment: F8eEnvironment,
@@ -25,13 +27,16 @@ class CreateAccountKeysetV2F8eClientFake : CreateAccountKeysetV2F8eClient {
     appSpendingKey: AppSpendingPublicKey,
     network: BitcoinNetworkType,
     appAuthKey: PublicKey<AppGlobalAuthKey>,
+    hardwareSpendingKeyProof: HwSpendingKeyProof?,
   ): Result<F8eSpendingKeyset, NetworkingError> {
     lastHardwareSpendingKey = hardwareSpendingKey
+    lastHardwareSpendingKeyProof = hardwareSpendingKeyProof
     return createKeysetResult
   }
 
   fun reset() {
     createKeysetResult = Ok(F8eSpendingKeysetPrivateWalletMock)
     lastHardwareSpendingKey = null
+    lastHardwareSpendingKeyProof = null
   }
 }

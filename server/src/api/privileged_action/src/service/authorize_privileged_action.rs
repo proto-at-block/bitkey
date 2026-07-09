@@ -437,10 +437,65 @@ impl Service {
         ReqT: Serialize + Clone,
         ErrT: Into<ApiError>,
     {
+        // Run the action's initiate validator BEFORE any dedup/reuse.
+        // This is where callers enforce authorization (e.g.
+        // `LoosenTransactionVerificationPolicy` requires the initiate be
+        // signed by both app and hardware keys), so it must run on every
+        // initiate attempt — otherwise a JWT-only retry with an identical
+        // payload could reuse an existing session and skip the check.
         if let Some(on_initiate_out_of_band) = on_initiate_out_of_band {
             on_initiate_out_of_band(initial_request.clone())
                 .await
                 .map_err(Into::into)?;
+        }
+
+        // Reuse an existing OOB session only when it is a live
+        // (non-expired) Pending instance whose stored request is
+        // identical to this one — the email-flood retry case (e.g. a
+        // client re-submitting a gated sweep, whose request payload is
+        // empty). Caps repeated initiates to one notification per
+        // session.
+        //
+        // A *different* request must NOT reuse the old record:
+        // `LoosenTransactionVerificationPolicy` stores the requested
+        // policy in the payload, so resurfacing a stale one could apply a
+        // more permissive policy than the user last asked for. And an
+        // expired record must not be reused — its emailed link is dead;
+        // a fresh initiate needs a fresh record + email. In both cases we
+        // fall through to mint a new instance.
+        //
+        // This read-then-write dedup is best-effort, not atomic (records
+        // are keyed by random ULID, so the persist's same-record
+        // optimistic-concurrency guard can't collide two creates). Two
+        // truly-concurrent initiates can each observe no reusable record
+        // and both persist + notify. This matches the existing
+        // delay-and-notify concurrency guard. Accepted: the duplicate is
+        // benign — each session is independently valid, completing either
+        // satisfies the gate, and the dangling record is reused by the
+        // next retry / cleared by lazy expiry. A hard guarantee would
+        // need a deterministic dedup key, which this table doesn't have.
+        let new_request = serde_json::to_value(&initial_request)
+            .map_err(|e| ApiError::GenericInternalApplicationError(e.to_string()))?;
+        let now = self.clock.now_utc();
+        if let Some(reusable) = self
+            .privileged_action_repository
+            .fetch_for_account_id::<Value>(
+                account_id,
+                Some(AuthorizationStrategyDiscriminants::OutOfBand),
+                Some(privileged_action_type.clone()),
+                Some(RecordStatus::Pending),
+            )
+            .await?
+            .into_iter()
+            .find(|record| {
+                record.request == new_request
+                    && matches!(
+                        &record.authorization_strategy,
+                        AuthorizationStrategyRecord::OutOfBand(oob) if now < oob.expiry_time
+                    )
+            })
+        {
+            return Ok(Some(reusable.into()));
         }
 
         let web_auth_token = gen_token();
@@ -451,7 +506,10 @@ impl Service {
             AuthorizationStrategyRecord::OutOfBand(OutOfBandRecord {
                 status: RecordStatus::Pending,
                 web_auth_token: web_auth_token.clone(),
-                expiry_time: self.clock.now_utc() + Duration::days(1),
+                expiry_time: now + Duration::days(1),
+                attempts: 0,
+                last_sent_at: Some(now),
+                resend_count: 0,
             }),
             initial_request,
         )?;
@@ -460,9 +518,24 @@ impl Service {
             .persist(&instance_record)
             .await?;
 
+        self.send_oob_pending_notification(&instance_record, &web_auth_token)
+            .await?;
+
+        Ok(Some(instance_record.into()))
+    }
+
+    /// Sends (or resends) the out-of-band verification email for a pending
+    /// instance. Shared by the initial initiate path and the resend endpoint
+    /// so the payload/campaign wiring lives in one place; the caller supplies
+    /// the instance's stable `web_auth_token`.
+    pub(crate) async fn send_oob_pending_notification<T>(
+        &self,
+        instance_record: &PrivilegedActionInstanceRecord<T>,
+        web_auth_token: &str,
+    ) -> Result<(), ServiceError> {
         self.notification_service
             .send_notification(SendNotificationInput {
-                account_id,
+                account_id: &instance_record.account_id,
                 payload_type: NotificationPayloadType::PrivilegedActionPendingOutOfBandVerification,
                 payload: &NotificationPayloadBuilder::default()
                     .privileged_action_pending_oob_verification_payload(Some(
@@ -470,15 +543,14 @@ impl Service {
                             privileged_action_instance_id: instance_record.id.clone(),
                             privileged_action_type: instance_record.privileged_action_type.clone(),
                             base_verification_url: self.config.ext_secure_site_base_url.clone(),
-                            web_auth_token,
+                            web_auth_token: web_auth_token.to_string(),
                         },
                     ))
                     .build()?,
                 only_touchpoints: None,
             })
             .await?;
-
-        Ok(Some(instance_record.into()))
+        Ok(())
     }
 
     /// Continues an out-of-band privileged action flow that was previously initiated.
@@ -562,6 +634,7 @@ impl Service {
         if !matches!(
             privileged_action_type,
             PrivilegedActionType::LoosenTransactionVerificationPolicy
+                | PrivilegedActionType::VerifyHardwareSerial
         ) {
             return Ok(());
         }

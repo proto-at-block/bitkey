@@ -1,7 +1,7 @@
 package build.wallet.pricechart
 
-sealed class SelectedPointData {
-  abstract val isUserSelected: Boolean
+sealed interface SelectedPointData {
+  val isUserSelected: Boolean
 
   data class BtcPrice(
     override val isUserSelected: Boolean,
@@ -10,7 +10,7 @@ sealed class SelectedPointData {
     val secondaryText: String,
     val secondaryTimePeriodText: String,
     val direction: PriceDirection,
-  ) : SelectedPointData()
+  ) : SelectedPointData
 
   data class Balance(
     override val isUserSelected: Boolean,
@@ -20,5 +20,5 @@ sealed class SelectedPointData {
     val primaryBtcText: String,
     val primaryBtcValue: Long? = null,
     val secondaryBtcText: String,
-  ) : SelectedPointData()
+  ) : SelectedPointData
 }

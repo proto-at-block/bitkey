@@ -77,7 +77,7 @@ class HelpingWithRecoveryUiStateMachineImpl(
       is UiState.VerifyingRecoveryCode ->
         VerifyingRecoveryCodeModel(
           account = props.account,
-          relationshipId = props.protectedCustomer.relationshipId,
+          relationshipId = props.protectedCustomer.id.value,
           goToSuccess = { uiState = UiState.SuccessfullyVerified },
           goToFailure = { uiState = UiState.FailedToVerify(it) },
           recoveryCode = state.recoveryCode

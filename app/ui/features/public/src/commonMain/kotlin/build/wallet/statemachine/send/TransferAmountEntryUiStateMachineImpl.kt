@@ -1,8 +1,6 @@
 package build.wallet.statemachine.send
 
 import androidx.compose.runtime.*
-import build.wallet.availability.AppFunctionalityService
-import build.wallet.availability.FunctionalityFeatureStates
 import build.wallet.bitcoin.balance.BitcoinBalance.Companion.ZeroBalance
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
@@ -20,7 +18,6 @@ import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.core.*
-import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiProps
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiStateMachine
 import build.wallet.statemachine.send.amountentry.TransferCardUiProps
@@ -36,7 +33,6 @@ class TransferAmountEntryUiStateMachineImpl(
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val bitcoinWalletService: BitcoinWalletService,
   private val transferCardUiStateMachine: TransferCardUiStateMachine,
-  private val appFunctionalityService: AppFunctionalityService,
 ) : TransferAmountEntryUiStateMachine {
   // TODO(W-703): derive from BDK
   private val dustLimit = BitcoinMoney.sats(546)
@@ -58,18 +54,8 @@ class TransferAmountEntryUiStateMachineImpl(
       }
     val isSellFlow = flow is TransferAmountEntryUiProps.Flow.Sell
     val scope = rememberStableCoroutineScope()
-    val isDesignSystemV2Enabled = true
     val fiatCurrency by remember { fiatCurrencyPreferenceRepository.fiatCurrencyPreference }
       .collectAsState()
-
-    var sheetState by remember {
-      mutableStateOf<SheetState>(SheetState.Hidden)
-    }
-
-    val mobilePayAvailability by remember {
-      appFunctionalityService.status
-        .mapAsStateFlow(scope) { it.featureStates.mobilePay }
-    }.collectAsState()
 
     // Always start with the currency of the given amount as the primary currency
     // and the given fiat or BTC as secondary, whichever the amount isn't
@@ -117,26 +103,18 @@ class TransferAmountEntryUiStateMachineImpl(
     )
 
     val enteredBitcoinMoney: BitcoinMoney = remember(calculatorModel) {
-      if (calculatorModel.primaryAmount is BitcoinMoney) {
-        calculatorModel.primaryAmount
-      } else if (calculatorModel.secondaryAmount is BitcoinMoney) {
-        calculatorModel.secondaryAmount
-      } else {
-        error("Entered bitcoin money is neither primary or secondary. This should never happen.")
-      }
+      calculatorModel.primaryAmount as? BitcoinMoney
+        ?: (
+          calculatorModel.secondaryAmount as? BitcoinMoney ?: error(
+            "Entered bitcoin money is neither primary or secondary. This should never happen."
+          )
+        )
     }
 
     val enteredFiatMoney: FiatMoney? = remember(props.exchangeRates, calculatorModel) {
       // We don't have exchange rates, so we can't convert.
       props.exchangeRates?.let {
-        if (calculatorModel.primaryAmount is FiatMoney) {
-          calculatorModel.primaryAmount
-        } else if (calculatorModel.secondaryAmount is FiatMoney) {
-          calculatorModel.secondaryAmount
-        } else {
-          // If neither primary or secondary is fiat, assume fiat is unavailable
-          null
-        }
+        calculatorModel.primaryAmount as? FiatMoney ?: calculatorModel.secondaryAmount as? FiatMoney
       }
     }
 
@@ -267,7 +245,10 @@ class TransferAmountEntryUiStateMachineImpl(
         }
       }
     }
-    val amountContextLineTreatment by remember(sellContextLineOverride, isAmountExceedsAvailableBalanceState) {
+    val amountContextLineTreatment by remember(
+      sellContextLineOverride,
+      isAmountExceedsAvailableBalanceState
+    ) {
       derivedStateOf {
         when {
           sellContextLineOverride != null -> Destructive
@@ -283,8 +264,9 @@ class TransferAmountEntryUiStateMachineImpl(
     ) {
       derivedStateOf {
         when {
-          isSellFlow -> isAmountExceedsAvailableBalanceState ||
-            transferAmountState is TransferAmountUiState.InvalidAmountEnteredUiState.AmountAboveMaximumUiState
+          isSellFlow ->
+            isAmountExceedsAvailableBalanceState ||
+              transferAmountState is TransferAmountUiState.InvalidAmountEnteredUiState.AmountAboveMaximumUiState
           else -> isAmountExceedsAvailableBalanceState
         }
       }
@@ -322,8 +304,6 @@ class TransferAmountEntryUiStateMachineImpl(
       } else {
         transferCardUiStateMachine.model(
           props = TransferCardUiProps(
-            bitcoinBalance = bitcoinBalance,
-            enteredBitcoinMoney = enteredBitcoinMoney,
             transferAmountState = transferAmountState,
             onSendMaxClick = {
               props.onContinueClick(
@@ -331,25 +311,13 @@ class TransferAmountEntryUiStateMachineImpl(
                   SendAll
                 )
               )
-            },
-            onHardwareRequiredClick = {
-              if (
-                !isDesignSystemV2Enabled &&
-                mobilePayAvailability == FunctionalityFeatureStates.FeatureState.Unavailable
-              ) {
-                sheetState = SheetState.HardwareRequiredSheetState
-              }
             }
           )
         )
       }
 
-    val useSmartBar by remember(isDesignSystemV2Enabled, isSellFlow, transferAmountState) {
-      derivedStateOf {
-        isDesignSystemV2Enabled &&
-          !isSellFlow &&
-          transferAmountState is TransferAmountUiState.ValidAmountEnteredUiState.AmountEqualOrAboveBalanceUiState
-      }
+    val useSmartBar by remember(isSellFlow, allowSendAll, bitcoinBalance) {
+      derivedStateOf { !isSellFlow && allowSendAll && !bitcoinBalance.total.isZero }
     }
 
     val bodyModel = TransferAmountBodyModel(
@@ -399,29 +367,9 @@ class TransferAmountEntryUiStateMachineImpl(
         }
     )
 
-    val bottomSheetModel = when (sheetState) {
-      SheetState.Hidden -> null
-      SheetState.HardwareRequiredSheetState ->
-        SheetModel(
-          onClosed = { sheetState = SheetState.Hidden },
-          body = ErrorFormBodyModel(
-            title = "Bitkey Services Unavailable",
-            subline = "Fiat exchange rates are unavailable and your Bitkey device is required for all transactions.",
-            primaryButton =
-              ButtonDataModel(
-                text = "Got it",
-                onClick = { sheetState = SheetState.Hidden }
-              ),
-            renderContext = RenderContext.Sheet,
-            eventTrackerScreenId = null
-          )
-        )
-    }
-
     return ScreenModel(
       body = bodyModel,
-      presentationStyle = ScreenPresentationStyle.ModalFullScreen,
-      bottomSheetModel = bottomSheetModel
+      presentationStyle = ScreenPresentationStyle.ModalFullScreen
     )
   }
 
@@ -437,16 +385,5 @@ class TransferAmountEntryUiStateMachineImpl(
         initialAmountInInputCurrency = amountInSecondaryCurrency
       )
     }
-  }
-
-  private sealed interface SheetState {
-    /**
-     * Legacy informational sheet shown when fiat exchange rates are unavailable and the customer
-     * would need hardware to continue.
-     */
-    data object HardwareRequiredSheetState : SheetState
-
-    /** No sheet is currently displayed. */
-    data object Hidden : SheetState
   }
 }

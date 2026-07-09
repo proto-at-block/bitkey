@@ -2,6 +2,7 @@ package build.wallet.statemachine.fwup
 
 import build.wallet.analytics.events.screen.id.FwupEventTrackerScreenId
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBottomSheetModel
 import build.wallet.statemachine.core.SheetModel
 
@@ -19,5 +20,10 @@ fun FwupPreviousMcuUpdateNotAppliedModel(
     subline = "The previous update was not applied on your device. " +
       "Please restart the update to try again.",
     primaryButton = ButtonDataModel(text = "Restart update", onClick = onRelaunchFwup),
+    errorData = ErrorData(
+      segment = FwupSegment(),
+      actionDescription = "Applying firmware update",
+      cause = IllegalStateException("Previous MCU firmware update was not applied")
+    ),
     eventTrackerScreenId = FwupEventTrackerScreenId.FWUP_PREVIOUS_MCU_UPDATE_NOT_APPLIED_SHEET
   )

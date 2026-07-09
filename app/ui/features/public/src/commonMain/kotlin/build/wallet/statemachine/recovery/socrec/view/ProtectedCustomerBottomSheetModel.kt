@@ -5,10 +5,9 @@ import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.RenderContext
-import build.wallet.statemachine.recovery.socrec.recoveryContactDesignSystemV2Header
+import build.wallet.statemachine.recovery.socrec.recoveryContactFormHeader
 import build.wallet.ui.model.SheetClosingClick
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
@@ -41,8 +40,7 @@ private data class ProtectedCustomerBottomSheetBodyModel(
     onBack = onClosed,
     toolbar = null,
     header =
-      FormHeaderModel(
-        icon = Icon.LargeIconShieldPerson,
+      recoveryContactFormHeader(
         headline = protectedCustomer.alias.alias,
         subline = "You’re currently protecting their wallet.",
         alignment = FormHeaderModel.Alignment.CENTER
@@ -62,14 +60,5 @@ private data class ProtectedCustomerBottomSheetBodyModel(
         treatment = ButtonModel.Treatment.SecondaryDestructive,
         isLoading = isRemoveSelfAsTrustedContactButtonLoading
       ),
-    renderContext = RenderContext.Sheet,
-    designSystemV2Model =
-      FormDesignSystemV2Model(
-        header =
-          recoveryContactDesignSystemV2Header(
-            headline = protectedCustomer.alias.alias,
-            subline = "You’re currently protecting their wallet.",
-            alignment = FormHeaderModel.Alignment.CENTER
-          )
-      )
+    renderContext = RenderContext.Sheet
   )

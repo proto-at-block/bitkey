@@ -32,7 +32,7 @@ class PartnershipTransactionsDaoImpl(
         .asFlow()
         .map { query ->
           database.awaitTransactionWithResult {
-            query.executeAsList().map { it.toModel() }
+            query.executeAsList().map { entity -> entity.toModel() }
           }
         }
         .collect(::emit)

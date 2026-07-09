@@ -193,7 +193,7 @@ class AppPrivateKeyDaoImpl(
   ): Result<PrivateKey<T>?, Throwable> {
     return secureStore()
       .getStringOrNullWithResult(key.value)
-      .map { it?.let { PrivateKey<T>(it.decodeHex()) } }
+      .map { it?.let { privateKeyHex -> PrivateKey<T>(privateKeyHex.decodeHex()) } }
       .logFailure { "Error getting asymmetric private key from ${AppPrivateKeyDao.STORE_NAME}" }
   }
 

@@ -17,6 +17,8 @@ import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.client.plugins.withAccountId
 import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
+import build.wallet.f8e.onboarding.model.HardwareAttestationBody
+import build.wallet.f8e.onboarding.model.toF8eBody
 import build.wallet.f8e.serialization.toJsonString
 import build.wallet.f8e.wsmIntegrityKeyVariant
 import build.wallet.ktor.result.RedactedRequestBody
@@ -71,7 +73,8 @@ class UpgradeAccountV2F8eClientImpl(
               spend = SpendingKeys(
                 app = appSpendingPubKey,
                 hardware = hardwareSpendingPubKey,
-                network = keyCrossDraft.config.bitcoinNetworkType.toJsonString()
+                network = keyCrossDraft.config.bitcoinNetworkType.toJsonString(),
+                hardwareAttestation = keyCrossDraft.spendingKeyProof?.toF8eBody()
               )
             )
           )
@@ -147,6 +150,9 @@ class UpgradeAccountV2F8eClientImpl(
     val hardware: String,
     /** The bitcoin network these keys were created on. */
     val network: String,
+    /** Optional device-identity attestation binding [hardware] to a specific Bitkey unit. */
+    @SerialName("hardware_attestation")
+    val hardwareAttestation: HardwareAttestationBody? = null,
   )
 
   /**

@@ -1,5 +1,10 @@
 use std::str::FromStr;
 
+use account::attestation_verifier::{test_fixture, verify_hardware_attestation};
+use account::hardware_verification::{
+    hardware_verification_enforced, should_enroll_in_hardware_verification, ENROLLMENT_FLIPPED,
+    TRIGGER_KEY, TRIGGER_ONBOARDING,
+};
 use account::service::{
     CreateAccountAndKeysetsInput, CreateInactiveSpendingKeysetInput, FetchAccountInput,
     Service as AccountService, UpgradeLiteAccountToFullAccountInput,
@@ -17,6 +22,7 @@ use feature_flags::{
     service::Service as FeatureFlagsService,
 };
 use http_server::middlewares::identifier_generator::IdentifierGenerator;
+use instrumentation::metrics::KeyValue;
 use instrumentation::middleware::HardwareSerialHeader;
 use notification::clients::iterable::IterableClient;
 use recovery::{
@@ -31,13 +37,14 @@ use types::account::{
     bitcoin::to_wsm_bitcoin_network,
     entities::{
         v2::{
-            FullAccountAuthKeysInputV2, SpendingKeysetInputV2, UpgradeLiteAccountAuthKeysInputV2,
+            FullAccountAuthKeysInputV2, HardwareAttestation, SpendingKeysetInputV2,
+            UpgradeLiteAccountAuthKeysInputV2,
         },
-        Account, HardwareType, Keyset, LiteAccount,
+        Account, FullAccount, HardwareType, Keyset, LiteAccount,
     },
     identifiers::{AccountId, AuthKeysId, KeysetId},
     keys::FullAccountAuthKeys,
-    spending::SpendingKeyset,
+    spending::{AttestedHardwareSerial, SpendingKeyset},
 };
 use userpool::userpool::UserPoolService;
 use utoipa::ToSchema;
@@ -52,6 +59,89 @@ use crate::{
     routes::Config,
     upsert_account_iterable_user,
 };
+
+/// Opportunistic attestation collection.
+///
+/// - If `required` and no attestation is supplied → 400
+///   `HARDWARE_ATTESTATION_REQUIRED`.
+/// - If `required` and the supplied attestation fails to verify → 400
+///   `HARDWARE_ATTESTATION_INVALID`.
+/// - If not `required` and no attestation is supplied → `None`.
+/// - If not `required` and the supplied attestation fails to verify →
+///   log a warning and persist `None`. We accept opportunistic
+///   attestations from gate-not-yet-flipped clients so we can populate
+///   the persistence path before enforcement, without breaking clients
+///   that ship buggy attestation code in the meantime.
+///
+/// Test-account bypass: when `is_test_account` is true and the supplied
+/// attestation matches the magic fixture in [`test_fixture`], skip the
+/// real verifier and persist the canned serial. See the module docs for
+/// the risk accepted by this bypass.
+fn collect_attested_hardware_serial(
+    required: bool,
+    request_attestation: Option<&HardwareAttestation>,
+    hardware_pub: &PublicKey,
+    is_test_account: bool,
+) -> Result<Option<AttestedHardwareSerial>, ApiError> {
+    let Some(attestation) = request_attestation else {
+        return if required {
+            Err(ApiError::Specific {
+                code: ErrorCode::HardwareAttestationRequired,
+                detail: Some(
+                    "hardware_attestation is required on this account's keyset creations"
+                        .to_string(),
+                ),
+                field: Some("spend.hardware_attestation".to_string()),
+            })
+        } else {
+            Ok(None)
+        };
+    };
+    if is_test_account && test_fixture::matches(&attestation.signature, &attestation.cert_chain) {
+        return Ok(Some(AttestedHardwareSerial::Pending(
+            test_fixture::TEST_ACCOUNT_ATTESTED_SERIAL.to_string(),
+        )));
+    }
+    match verify_hardware_attestation(
+        &attestation.cert_chain,
+        &attestation.signature,
+        hardware_pub,
+    ) {
+        Ok(serial) => Ok(Some(AttestedHardwareSerial::Pending(serial))),
+        Err(e) if required => Err(ApiError::Specific {
+            code: ErrorCode::HardwareAttestationInvalid,
+            detail: Some(e.to_string()),
+            field: Some("spend.hardware_attestation".to_string()),
+        }),
+        Err(e) => {
+            tracing::warn!("opportunistic attestation failed verification: {e}");
+            Ok(None)
+        }
+    }
+}
+
+/// Promote `Pending(s)` to `Verified(s)` when the active keyset is
+/// already `Verified(s)` — same physical Bitkey, user has already OOBA'd
+/// for this serial, so skip the re-prompt at the next sweep. Other
+/// inputs pass through unchanged.
+fn inherit_verified_status_from_active_keyset(
+    new_attestation: Option<AttestedHardwareSerial>,
+    account: &FullAccount,
+) -> Option<AttestedHardwareSerial> {
+    let Some(AttestedHardwareSerial::Pending(ref new_serial)) = new_attestation else {
+        return new_attestation;
+    };
+    let active_attested = account
+        .active_spending_keyset()
+        .and_then(|k| k.optional_private_multi_sig())
+        .and_then(|p| p.attested_hardware_serial.as_ref());
+    if let Some(AttestedHardwareSerial::Verified(active_serial)) = active_attested {
+        if active_serial == new_serial {
+            return Some(AttestedHardwareSerial::Verified(new_serial.clone()));
+        }
+    }
+    new_attestation
+}
 
 const PRIVATE_KEYSET_CREATION_BLOCKED: Flag<'_, bool> =
     Flag::new("f8e-private-keyset-creation-blocked");
@@ -118,6 +208,7 @@ impl TryFrom<&Account> for CreateAccountResponseV2 {
         config,
         iterable_client,
         public_key_repository,
+        feature_flags_service,
         request,
     )
 )]
@@ -139,7 +230,9 @@ pub async fn create_account_v2(
     State(user_pool_service): State<UserPoolService>,
     State(config): State<Config>,
     State(iterable_client): State<IterableClient>,
+    State(feature_flags_service): State<FeatureFlagsService>,
     hw_serial: HardwareSerialHeader,
+    mut experimentation_claims: ExperimentationClaims,
     Json(request): Json<CreateAccountRequestV2>,
 ) -> Result<Json<CreateAccountResponseV2>, ApiError> {
     // Block W3 hardware claiming to be W1
@@ -168,6 +261,22 @@ pub async fn create_account_v2(
 
     // provide the generated account ID once we have it
     tracing::Span::current().record("account_id", account_id.to_string());
+
+    // Resolve enrollment + verify attestation before any durable side
+    // effects below (public_keys row, Cognito users, WSM root key).
+    // Override LD context with the just-generated `account_id` since the
+    // request is unauthenticated and the extractor has no JWT to read.
+    experimentation_claims.hardware_type = Some(request.auth.hardware_type.to_string());
+    let hardware_verification_required = should_enroll_in_hardware_verification(
+        &feature_flags_service,
+        &experimentation_claims.overridden_account_context_key(account_id.clone()),
+    );
+    let attested_hardware_serial = collect_attested_hardware_serial(
+        hardware_verification_required,
+        request.spend.hardware_attestation.as_ref(),
+        &request.spend.hardware_pub,
+        request.is_test_account,
+    )?;
 
     // Record hw auth pubkey in public_keys table before any external side
     // effects (Cognito, WSM).
@@ -242,11 +351,17 @@ pub async fn create_account_v2(
                 request.spend.hardware_pub,
                 server_pub,
                 key.pub_sig.clone(),
+                attested_hardware_serial,
             ),
         },
         is_test_account: request.is_test_account,
+        hardware_verification_required,
     };
     let account = account_service.create_account_and_keysets(input).await?;
+
+    if hardware_verification_required {
+        ENROLLMENT_FLIPPED.add(1, &[KeyValue::new(TRIGGER_KEY, TRIGGER_ONBOARDING)]);
+    }
 
     emit_keyset_created(PRIVATE_VALUE);
 
@@ -295,6 +410,8 @@ impl From<(&LiteAccount, &UpgradeAccountRequestV2)> for AccountValidationRequest
         user_pool_service,
         config,
         public_key_repository,
+        feature_flags_service,
+        experimentation_claims,
     )
 )]
 #[utoipa::path(
@@ -314,8 +431,10 @@ pub async fn upgrade_account_v2(
     State(id_generator): State<IdentifierGenerator>,
     State(user_pool_service): State<UserPoolService>,
     State(config): State<Config>,
+    State(feature_flags_service): State<FeatureFlagsService>,
     Path(account_id): Path<AccountId>,
     hw_serial: HardwareSerialHeader,
+    mut experimentation_claims: ExperimentationClaims,
     Json(request): Json<UpgradeAccountRequestV2>,
 ) -> Result<Json<CreateKeysetResponseV2>, ApiError> {
     // Block W3 hardware claiming to be W1
@@ -370,6 +489,21 @@ pub async fn upgrade_account_v2(
             &public_key_repository,
         )
         .await?;
+
+    // Mirrors `create_account_v2`: resolve enrollment + verify
+    // attestation before durable side effects. No pre-existing
+    // `hardware_verification_required` on a lite account to read.
+    experimentation_claims.hardware_type = Some(request.auth.hardware_type.to_string());
+    let hardware_verification_required = should_enroll_in_hardware_verification(
+        &feature_flags_service,
+        &experimentation_claims.overridden_account_context_key(account_id.clone()),
+    );
+    let attested_hardware_serial = collect_attested_hardware_serial(
+        hardware_verification_required,
+        request.spend.hardware_attestation.as_ref(),
+        &request.spend.hardware_pub,
+        lite_account.common_fields.properties.is_test_account,
+    )?;
 
     // Record hw auth pubkey in public_keys table before any external side
     // effects (Cognito, WSM). This ensures a rejected upgrade never leaves
@@ -435,6 +569,7 @@ pub async fn upgrade_account_v2(
             request.spend.hardware_pub,
             server_pub,
             key.pub_sig.clone(),
+            attested_hardware_serial,
         ),
         auth_key_id: auth_key_id.clone(),
         auth_keys: FullAccountAuthKeys::new(
@@ -448,10 +583,15 @@ pub async fn upgrade_account_v2(
             ),
             request.auth.hardware_type,
         ),
+        hardware_verification_required,
     };
     let full_account = account_service
         .upgrade_lite_account_to_full_account(input)
         .await?;
+
+    if hardware_verification_required {
+        ENROLLMENT_FLIPPED.add(1, &[KeyValue::new(TRIGGER_KEY, TRIGGER_ONBOARDING)]);
+    }
 
     emit_keyset_created(PRIVATE_VALUE);
 
@@ -613,6 +753,25 @@ pub async fn create_keyset_v2(
         }
     }
 
+    // Verify attestation before WSM key allocation so a 400 doesn't
+    // orphan a WSM key. Account-keyed LD context so a missing
+    // `Bitkey-App-Installation-Id` header can't dodge the kill switch.
+    // Fails closed for an enrolled account: an unresolvable kill switch keeps
+    // attestation required, so an LD outage can't mint an unattested keyset.
+    let attestation_required = account.hardware_verification_required
+        && hardware_verification_enforced(
+            &feature_flags_service,
+            &experimentation_claims.overridden_account_context_key(account_id.clone()),
+        );
+    let attested_hardware_serial = collect_attested_hardware_serial(
+        attestation_required,
+        request.hardware_attestation.as_ref(),
+        &request.hardware_pub,
+        account.common_fields.properties.is_test_account,
+    )?;
+    let attested_hardware_serial =
+        inherit_verified_status_from_active_keyset(attested_hardware_serial, &account);
+
     let spending_keyset_id = KeysetId::gen().map_err(RouteError::InvalidIdentifier)?;
     let key = wsm_client
         .create_root_key(
@@ -643,6 +802,7 @@ pub async fn create_keyset_v2(
                 request.hardware_pub,
                 server_pub,
                 key.pub_sig.clone(),
+                attested_hardware_serial,
             ),
         })
         .await?;

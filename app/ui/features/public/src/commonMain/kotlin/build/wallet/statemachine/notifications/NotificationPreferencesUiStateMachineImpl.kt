@@ -316,14 +316,14 @@ class NotificationPreferencesUiStateMachineImpl(
       notificationPreferences,
       proof = proof
     ).onSuccess {
-      notificationPreferences.moneyMovement.forEach {
-        when (it) {
+      notificationPreferences.moneyMovement.forEach { channel ->
+        when (channel) {
           NotificationChannel.Push -> eventTracker.track(Action.ACTION_APP_TRANSACTION_PUSH_NOTIFICATIONS_ENABLED)
           else -> {}
         }
       }
-      notificationPreferences.productMarketing.forEach {
-        when (it) {
+      notificationPreferences.productMarketing.forEach { channel ->
+        when (channel) {
           NotificationChannel.Email -> eventTracker.track(Action.ACTION_APP_MARKETING_EMAIL_NOTIFICATIONS_ENABLED)
           NotificationChannel.Push -> eventTracker.track(Action.ACTION_APP_MARKETING_PUSH_NOTIFICATIONS_ENABLED)
           else -> {}

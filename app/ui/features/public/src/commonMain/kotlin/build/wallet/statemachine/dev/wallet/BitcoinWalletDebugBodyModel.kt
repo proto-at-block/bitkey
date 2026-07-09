@@ -1,7 +1,7 @@
 package build.wallet.statemachine.dev.wallet
 
 import build.wallet.compose.collections.buildImmutableList
-import build.wallet.statemachine.core.Icon.SmallIconCheck
+import build.wallet.statemachine.core.Icon.Check
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.ui.model.icon.IconImage
@@ -72,5 +72,5 @@ internal data class UtxoRowModel(
   val onClick: () -> Unit,
 )
 
-private val TnxConfirmedIcon = IconModel(icon = SmallIconCheck, iconSize = IconSize.Small)
+private val TnxConfirmedIcon = IconModel(icon = Check, iconSize = IconSize.Small)
 private val TnxPendingIcon = IconModel(iconImage = IconImage.LoadingBadge, iconSize = IconSize.Small)

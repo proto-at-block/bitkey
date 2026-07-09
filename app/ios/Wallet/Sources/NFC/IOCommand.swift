@@ -161,13 +161,13 @@ extension GetAuthenticationKey: IOCommand {
 }
 
 extension GetInitialSpendingKey: IOCommand {
-    typealias FFIStateType = DescriptorPublicKeyState
-    typealias ResultType = firmware.DescriptorPublicKey
+    typealias FFIStateType = SpendingKeyResultState
+    typealias ResultType = firmware.SpendingKeyResult
 }
 
 extension GetNextSpendingKey: IOCommand {
-    typealias FFIStateType = DescriptorPublicKeyState
-    typealias ResultType = firmware.DescriptorPublicKey
+    typealias FFIStateType = SpendingKeyResultState
+    typealias ResultType = firmware.SpendingKeyResult
 }
 
 extension SignChallenge: IOCommand {
@@ -273,6 +273,16 @@ extension UpgradeAuthorizeW3: IOCommand {
 extension EekRestorationUnseal: IOCommand {
     typealias FFIStateType = EekRestorationUnsealResultState
     typealias ResultType = EekRestorationUnsealResult
+}
+
+extension KeysetRepairUnseal: IOCommand {
+    typealias FFIStateType = KeysetRepairUnsealResultState
+    typealias ResultType = KeysetRepairUnsealResult
+}
+
+extension KeysetRepairRotateHwKey: IOCommand {
+    typealias FFIStateType = KeysetRepairRotateHwKeyResultState
+    typealias ResultType = firmware.KeysetRepairRotateHwKeyResult
 }
 
 extension FullAccountCloudBackupRestoration: IOCommand {
@@ -523,6 +533,15 @@ extension IOCommand {
         }
     }
 
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.SpendingKeyResult>
+        where FFIStateType == SpendingKeyResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
     func next(_ response: [UInt8]) throws -> IOResult<SignStartResult>
         where FFIStateType == SignStartResultState
     {
@@ -633,6 +652,24 @@ extension IOCommand {
 
     func next(_ response: [UInt8]) throws -> IOResult<EekRestorationUnsealResult>
         where FFIStateType == EekRestorationUnsealResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<KeysetRepairUnsealResult>
+        where FFIStateType == KeysetRepairUnsealResultState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.KeysetRepairRotateHwKeyResult>
+        where FFIStateType == KeysetRepairRotateHwKeyResultState
     {
         switch try self.next(response: response) {
         case let .data(response: response): return .data(response: response)

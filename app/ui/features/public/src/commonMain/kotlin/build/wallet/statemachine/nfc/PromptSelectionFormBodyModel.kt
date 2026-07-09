@@ -30,7 +30,7 @@ internal data class PromptSelectionFormBodyModel(
   override val onBack: () -> Unit,
   override val eventTrackerContext: NfcEventTrackerScreenIdContext,
 ) : FormBodyModel(
-    id = NfcEventTrackerScreenId.NFC_INITIATE,
+    id = NfcEventTrackerScreenId.NFC_EMULATED_HARDWARE_CONFIRMATION,
     onBack = onBack,
     toolbar = ToolbarModel(leadingAccessory = CloseAccessory(onBack)),
     header = FormHeaderModel(

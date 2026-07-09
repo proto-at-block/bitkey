@@ -128,10 +128,8 @@ class SpendingLimitPickerUiStateMachineImpl(
                 locale = locale
               )
           },
-          onFormatError = { isConnectivityError ->
-            uiState = FormatErrorUiState(
-              isConnectivityError = isConnectivityError
-            )
+          onFormatError = { error ->
+            uiState = FormatErrorUiState(error)
           },
           onBack = {
             uiState = PickingSpendingLimitUiState
@@ -150,7 +148,8 @@ class SpendingLimitPickerUiStateMachineImpl(
             onSetLimitClick = {}
           ),
           bottomSheetModel = ConfirmingWithHardwareErrorSheetModel(
-            isConnectivityError = state.isConnectivityError,
+            isConnectivityError = state.error.isFormatValueConnectivityError,
+            error = state.error,
             onClosed = { uiState = PickingSpendingLimitUiState }
           ),
           presentationStyle = ScreenPresentationStyle.Modal
@@ -177,7 +176,7 @@ class SpendingLimitPickerUiStateMachineImpl(
     keypadModel: KeypadModel,
     toolbarModel: ToolbarModel,
     onFormatted: (formattedValue: String, locale: Locale) -> Unit,
-    onFormatError: (isConnectivityError: Boolean) -> Unit,
+    onFormatError: (Throwable) -> Unit,
     onBack: () -> Unit,
   ): ScreenModel {
     val locale = remember {
@@ -197,9 +196,7 @@ class SpendingLimitPickerUiStateMachineImpl(
         }
         .logFailure { "Failed to format spending limit display value" }
         .onFailure { error ->
-          val isConnectivity = error is ActionProofError.F8eError &&
-            error.cause is HttpError.NetworkError
-          onFormatError(isConnectivity)
+          onFormatError(error)
         }
     }
 
@@ -263,7 +260,7 @@ class SpendingLimitPickerUiStateMachineImpl(
             // but with the button in a loading state
             disabledSpendingLimitPickerModel(isLoading = true).asModalScreen()
           },
-          onTokenRefreshError = { isConnectivityError, _ ->
+          onTokenRefreshError = { isConnectivityError, error, _ ->
             // Provide a screen model to show if the token refresh results in an error.
             // We want this to be the same as [PickingSpendingLimitUiState]
             // but with the error bottom sheet showing
@@ -272,6 +269,7 @@ class SpendingLimitPickerUiStateMachineImpl(
               bottomSheetModel =
                 ConfirmingWithHardwareErrorSheetModel(
                   isConnectivityError = isConnectivityError,
+                  error = error,
                   onClosed = onBack
                 ),
               presentationStyle = ScreenPresentationStyle.Modal
@@ -308,7 +306,7 @@ sealed interface SpendingLimitPickerUiState {
    * The server format request failed. Shows an error sheet over the picker UI.
    */
   data class FormatErrorUiState(
-    val isConnectivityError: Boolean,
+    val error: Throwable,
   ) : SpendingLimitPickerUiState
 
   /**
@@ -338,3 +336,6 @@ sealed interface SpendingLimitPickerUiState {
     val locale: Locale,
   ) : SpendingLimitPickerUiState
 }
+
+private val Throwable.isFormatValueConnectivityError: Boolean
+  get() = this is ActionProofError.F8eError && cause is HttpError.NetworkError

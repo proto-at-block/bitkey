@@ -6,6 +6,7 @@ import build.wallet.cloud.store.GoogleAccount
 import build.wallet.cloud.store.GoogleDriveKeyValueStore
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.di.Impl
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import okio.ByteString
@@ -18,6 +19,7 @@ import okio.ByteString.Companion.encodeUtf8
  * Values are stored as UTF-8 strings in Google Drive and converted to/from [ByteString] at this boundary.
  */
 @BitkeyInject(AppScope::class)
+@Impl
 class CloudBackupStoreImpl(
   private val googleDriveKeyValueStore: GoogleDriveKeyValueStore,
 ) : CloudBackupStore {

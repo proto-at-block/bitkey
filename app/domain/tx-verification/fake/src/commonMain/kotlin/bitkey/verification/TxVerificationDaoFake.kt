@@ -20,7 +20,7 @@ class TxVerificationDaoFake : TxVerificationDao {
     }
   }
 
-  override suspend fun getActivePolicy(): Flow<Result<TxVerificationPolicy.Active?, Error>> {
+  override fun getActivePolicy(): Flow<Result<TxVerificationPolicy.Active?, Error>> {
     return activePolicy.map { Ok(it) }
   }
 

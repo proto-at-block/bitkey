@@ -48,6 +48,7 @@ class SocRecChallengeRepositoryImpl(
 
       // for each trusted contact...
       val startSocialChallengeTcs = endorsedTrustedContacts.map { trustedContact ->
+        val relationshipId = trustedContact.id.value
         // generate a pake code
         val pakeCode = Schema.maskPakeData(SecureRandom().nextBytes(Schema.pakeByteArraySize()))
         // and a ProtectedCustomerRecoveryPakeKey
@@ -56,15 +57,15 @@ class SocRecChallengeRepositoryImpl(
             .bind()
         // insert them into the db
         socRecStartedChallengeAuthenticationDao.insert(
-          recoveryRelationshipId = trustedContact.relationshipId,
+          recoveryRelationshipId = relationshipId,
           protectedCustomerRecoveryPakeKey = protectedCustomerRecoveryPakeKey,
           pakeCode = pakeCode
         ).mapError { Error(it) }
           .bind()
         // get the sealed dek for this trusted contact
-        sealedDekMap[trustedContact.relationshipId]?.let {
+        sealedDekMap[relationshipId]?.let {
           StartSocialChallengeRequestTrustedContact(
-            trustedContact.relationshipId,
+            relationshipId,
             protectedCustomerRecoveryPakeKey.publicKey,
             it.value
           )

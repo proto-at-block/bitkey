@@ -30,6 +30,7 @@ import build.wallet.nfc.platform.ConfirmationResult
 import build.wallet.nfc.platform.CsekUnsealResult
 import build.wallet.nfc.platform.HardwareIdentityAwareNfcCommands
 import build.wallet.nfc.platform.HwDisplayPreference
+import build.wallet.nfc.platform.KeysetRepairRotateHwKeyParams
 import build.wallet.nfc.platform.LostAppRecoveryContinueParams
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.platform.RotateAppAuthKeysContinueParams
@@ -40,8 +41,6 @@ import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import okio.ByteString
-import kotlin.contracts.InvocationKind.EXACTLY_ONCE
-import kotlin.contracts.contract
 
 private const val SPAN_NAME = "nfc"
 
@@ -84,16 +83,15 @@ private open class MetricsNfcCommands(
     action: String,
     block: suspend () -> T,
   ): T {
-    contract { callsInPlace(block, EXACTLY_ONCE) }
     return datadogTracer.span(spanName = SPAN_NAME, resourceName = action) {
       datadogRumMonitor.startResourceLoading(SPAN_NAME, "command", "nfc:$action", emptyMap())
       catchingResult { block() }
         .onSuccess { datadogRumMonitor.stopResourceLoading(SPAN_NAME, Other, emptyMap()) }
-        .onFailure {
+        .onFailure { throwable ->
           datadogRumMonitor.stopResourceLoadingError(
             SPAN_NAME,
             Network,
-            it,
+            throwable,
             emptyMap()
           )
         }
@@ -235,6 +233,11 @@ private open class MetricsNfcCommands(
     network: BitcoinNetworkType,
   ) = measure("getInitialSpendingKey") { commands.getInitialSpendingKey(session, network) }
 
+  override suspend fun getInitialSpendingPublicKey(
+    session: NfcSession,
+    network: BitcoinNetworkType,
+  ) = measure("getInitialSpendingPublicKey") { commands.getInitialSpendingPublicKey(session, network) }
+
   override suspend fun getNextSpendingKey(
     session: NfcSession,
     existingDescriptorPublicKeys: List<HwSpendingPublicKey>,
@@ -280,8 +283,9 @@ private open class MetricsNfcCommands(
     psbt: Psbt,
     spendingKeyset: SpendingKeyset,
     displayPreference: HwDisplayPreference?,
+    allowUnfinalized: Boolean,
   ) = measure("signTransaction") {
-    commands.signTransaction(session, psbt, spendingKeyset, displayPreference)
+    commands.signTransaction(session, psbt, spendingKeyset, displayPreference, allowUnfinalized)
   }
 
   override suspend fun sweepTransaction(
@@ -310,6 +314,20 @@ private open class MetricsNfcCommands(
     sealedKey: SealedData,
   ) = measure("eekRestorationUnsealSymmetricKey") {
     commands.eekRestorationUnsealSymmetricKey(session, sealedKey)
+  }
+
+  override suspend fun keysetRepairUnsealSymmetricKey(
+    session: NfcSession,
+    sealedKey: SealedData,
+  ) = measure("keysetRepairUnsealSymmetricKey") {
+    commands.keysetRepairUnsealSymmetricKey(session, sealedKey)
+  }
+
+  override suspend fun keysetRepairRotateHwKey(
+    session: NfcSession,
+    params: KeysetRepairRotateHwKeyParams,
+  ) = measure("keysetRepairRotateHwKey") {
+    commands.keysetRepairRotateHwKey(session, params)
   }
 
   override suspend fun getCert(

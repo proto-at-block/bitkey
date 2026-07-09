@@ -21,6 +21,7 @@ interface BitcoinQrCodeUiScanStateMachine : StateMachine<BitcoinQrCodeScanUiProp
  */
 data class BitcoinQrCodeScanUiProps(
   val validInvoiceInClipboard: ParsedPaymentData?,
+  val showActionButtons: Boolean = true,
   val onEnterAddressClick: () -> Unit,
   val onClose: () -> Unit,
   val onRecipientScanned: (address: BitcoinAddress) -> Unit,

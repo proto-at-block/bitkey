@@ -95,7 +95,7 @@ internal fun showConfirmation() =
         session.parameters.showDeviceConfirmation &&
         commands.actualHardwareType(session) == HardwareType.W3
       ) {
-        runCatching {
+        catchingResult {
           commands.requireW3(session).showConfirmationScreen(
             session = session,
             lockOnDismiss = session.parameters.shouldLock

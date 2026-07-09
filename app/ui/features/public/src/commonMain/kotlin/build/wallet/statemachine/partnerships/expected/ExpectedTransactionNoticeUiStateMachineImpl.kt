@@ -50,7 +50,7 @@ class ExpectedTransactionNoticeUiStateMachineImpl(
                   )
                   .logFailure { "Unable to fetch partner info for expected transaction screen" }
                   .get()
-                  .let { State.ViewingPendingTransactionDetails(transaction = it) }
+                  .let { transaction -> State.ViewingPendingTransactionDetails(transaction = transaction) }
               } ?: State.ViewingPendingTransactionDetails(transaction = null)
             }
           }

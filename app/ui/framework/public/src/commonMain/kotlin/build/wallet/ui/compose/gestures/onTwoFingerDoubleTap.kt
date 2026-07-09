@@ -59,9 +59,9 @@ private val doubleTapTimeout: Duration = 300.milliseconds
 /**
  * State for two finger double tap action.
  */
-private sealed class State {
+private sealed interface State {
   /** Indicates that we are waiting for the first two finger tap */
-  data object WaitingForFirstTwoFingerTap : State()
+  data object WaitingForFirstTwoFingerTap : State
 
   /**
    * Indicates that we have the first two finger tap, waiting for the second one.
@@ -70,7 +70,7 @@ private sealed class State {
    */
   data class WaitingForSecondTwoFingerTap(
     val first: Instant,
-  ) : State()
+  ) : State
 
   /**
    * Indicates that we have the first two finger tap, waiting for the second one.
@@ -80,7 +80,7 @@ private sealed class State {
   data class WaitingForThirdTwoFingerTap(
     val first: Instant,
     val second: Instant,
-  ) : State()
+  ) : State
 
   /**
    * Indicates that we have two most recent double tap events.
@@ -91,7 +91,7 @@ private sealed class State {
   data class FirstAndSecondDoubleTap(
     val first: Instant,
     val second: Instant,
-  ) : State()
+  ) : State
 
   /**
    * Indicates that we have two most recent double tap events.
@@ -104,7 +104,7 @@ private sealed class State {
     val first: Instant,
     val second: Instant,
     val third: Instant,
-  ) : State()
+  ) : State
 }
 
 /**

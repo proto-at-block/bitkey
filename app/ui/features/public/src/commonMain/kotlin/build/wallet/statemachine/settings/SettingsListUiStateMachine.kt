@@ -21,8 +21,7 @@ data class SettingsListUiProps(
   val isLiteAccount: Boolean,
   val supportedRows: Set<SettingsListRow>,
   val onShowAlert: (ButtonAlertModel) -> Unit,
-  val onDismissAlert: () -> Unit,
-  val goToSecurityHub: () -> Unit,
+  val onDismissAlert: () -> Unit
 ) {
   /**
    * A row to be shown in the settings list.

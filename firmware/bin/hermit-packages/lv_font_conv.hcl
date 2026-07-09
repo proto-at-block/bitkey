@@ -1,9 +1,12 @@
 description = "Converts TTF/WOFF/OTF fonts to compact bitmap format for LVGL"
 binaries = ["lv_font_conv"]
 test = "lv_font_conv --help"
-# Note: Requires Node.js to be available in PATH (provided by parent wallet directory)
+runtime-dependencies = ["node@lts"]
 
-source = "https://registry.npmjs.org/lv_font_conv/-/lv_font_conv-${version}.tgz"
+source = "file://${HERMIT_ENV}/third-party/lv_font_conv/lv_font_conv-${version}.tgz"
+sha256sums = {
+  "file://${HERMIT_ENV}/third-party/lv_font_conv/lv_font_conv-1.5.3.tgz": "73e82a745ba3dae3fe361f8552a5fe98dd1a11b139f4bb93c2a7bcbd16d5caac"
+}
 
 on "unpack" {
   # npm tarballs extract to package/ directory with all node_modules

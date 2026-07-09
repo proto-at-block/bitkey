@@ -9,10 +9,10 @@ import okio.ByteString.Companion.toByteString
 object Base32 {
   data class Base32Error(override val message: String) : Throwable(message)
 
-  sealed class Alphabet {
-    data class RFC4648(val padding: Boolean) : Alphabet()
+  sealed interface Alphabet {
+    data class RFC4648(val padding: Boolean) : Alphabet
 
-    data object Crockford : Alphabet()
+    data object Crockford : Alphabet
   }
 
   private val rfc4648Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567".encodeToByteArray()

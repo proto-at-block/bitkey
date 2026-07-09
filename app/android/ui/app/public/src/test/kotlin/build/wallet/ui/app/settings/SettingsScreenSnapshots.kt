@@ -12,10 +12,4 @@ class SettingsScreenSnapshots : FunSpec({
     }
   }
 
-  test("settings screen with security hub screen coachmark") {
-    paparazzi.snapshot {
-      SettingsScreen(securityHubClickHandler = {})
-    }
-  }
-
 })

@@ -55,6 +55,7 @@ class SetSpendingLimitUiStateMachineImpl(
 
       is ReceivedSavingErrorUiState ->
         FailedToSetLimitScreenModel(
+          error = state.error,
           onGoBack = {
             uiState = PickingAndConfirmingSpendingLimitUiState(props.currentSpendingLimit)
           }
@@ -73,8 +74,8 @@ class SetSpendingLimitUiStateMachineImpl(
                     spendingLimit = state.spendingLimit
                   )
               }
-              .onFailure {
-                uiState = ReceivedSavingErrorUiState
+              .onFailure { error ->
+                uiState = ReceivedSavingErrorUiState(error)
               }
           }
         )
@@ -166,11 +167,19 @@ class SetSpendingLimitUiStateMachineImpl(
   }
 
   @Composable
-  private fun FailedToSetLimitScreenModel(onGoBack: () -> Unit) =
+  private fun FailedToSetLimitScreenModel(
+    error: Error,
+    onGoBack: () -> Unit,
+  ) =
     ErrorFormBodyModel(
       title = "We were unable to set your spending limit.",
       subline = "Make sure you are connected to the internet or try again later.",
       primaryButton = ButtonDataModel(text = "Go Back", onClick = onGoBack),
+      errorData = ErrorData(
+        segment = MobilePayAppSegment,
+        actionDescription = "Saving mobile pay spending limit",
+        cause = error
+      ),
       eventTrackerScreenId = MobilePayEventTrackerScreenId.MOBILE_PAY_LIMIT_UPDATE_FAILURE
     ).asModalScreen()
 }
@@ -215,5 +224,5 @@ sealed interface SpendingLimitUiState {
   /**
    * Received saving error while saving to the backend
    */
-  data object ReceivedSavingErrorUiState : SpendingLimitUiState
+  data class ReceivedSavingErrorUiState(val error: Error) : SpendingLimitUiState
 }

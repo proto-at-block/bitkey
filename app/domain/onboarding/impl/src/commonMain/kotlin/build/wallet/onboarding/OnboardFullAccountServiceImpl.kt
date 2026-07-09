@@ -129,6 +129,7 @@ class OnboardFullAccountServiceImpl(
         appKeyBundle = appKeys.appKeyBundle,
         hardwareKeyBundle = hwActivation.keyBundle,
         appGlobalAuthKeyHwSignature = hwActivation.appGlobalAuthKeyHwSignature,
+        spendingKeyProof = hwActivation.spendingKeyProof,
         config = configWithDetectedHardwareType
       )
 

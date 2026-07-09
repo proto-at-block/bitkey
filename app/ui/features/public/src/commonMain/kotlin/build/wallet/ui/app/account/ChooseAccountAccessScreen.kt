@@ -11,10 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import bitkey.ui.framework_public.generated.resources.*
@@ -23,6 +20,7 @@ import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.button.buttonStyle
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
+import build.wallet.ui.components.label.buildAnnotatedString
 import build.wallet.ui.components.video.VideoPlayer
 import build.wallet.ui.components.video.VideoScalingMode
 import build.wallet.ui.compose.resId
@@ -37,40 +35,10 @@ fun ChooseAccountAccessScreen(
   modifier: Modifier = Modifier,
   model: ChooseAccountAccessModel,
 ) {
-  ChooseAccountAccessDesignSystemV2Screen(
-    modifier = modifier,
-    model = model
-  )
-}
-
-@Composable
-private fun ChooseAccountAccessDesignSystemV2Screen(
-  modifier: Modifier = Modifier,
-  model: ChooseAccountAccessModel,
-) {
   val backgroundColor = Color.Black
   val contentTint = WalletTheme.colors.bitkeyGetStartedTint
   val subtitleTint = contentTint.copy(alpha = 0.72f)
-  val legalNotice = model.legalNotice
-  val legalNoticeText = remember(legalNotice) {
-    buildAnnotatedString {
-      append(legalNotice.string)
-
-      legalNotice.linkedSubstrings.forEach { linkedSubstring ->
-        addStyle(
-          style = SpanStyle(
-            textDecoration = if (legalNotice.underline) {
-              TextDecoration.Underline
-            } else {
-              TextDecoration.None
-            }
-          ),
-          start = linkedSubstring.range.first,
-          end = linkedSubstring.range.last + 1
-        )
-      }
-    }
-  }
+  val legalNoticeText = model.legalNotice.buildAnnotatedString()
 
   if (model.showW3Video) {
     Box(
@@ -115,7 +83,7 @@ private fun ChooseAccountAccessDesignSystemV2Screen(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        ChooseAccountAccessDesignSystemV2Footer(
+        ChooseAccountAccessFooter(
           model = model,
           legalNoticeText = legalNoticeText,
           backgroundColor = backgroundColor,
@@ -168,7 +136,7 @@ private fun ChooseAccountAccessDesignSystemV2Screen(
         )
       }
 
-      ChooseAccountAccessDesignSystemV2Footer(
+      ChooseAccountAccessFooter(
         model = model,
         legalNoticeText = legalNoticeText,
         backgroundColor = backgroundColor,
@@ -180,14 +148,13 @@ private fun ChooseAccountAccessDesignSystemV2Screen(
 }
 
 @Composable
-private fun ChooseAccountAccessDesignSystemV2Footer(
+private fun ChooseAccountAccessFooter(
   model: ChooseAccountAccessModel,
   legalNoticeText: AnnotatedString,
   backgroundColor: Color,
   contentTint: Color,
   subtitleTint: Color,
 ) {
-  val legalNotice = model.legalNotice
   Column(
     modifier = Modifier
       .fillMaxWidth()
@@ -233,10 +200,7 @@ private fun ChooseAccountAccessDesignSystemV2Footer(
       type = LabelType.Body4Mono,
       alignment = TextAlign.Center,
       treatment = LabelTreatment.Unspecified,
-      color = subtitleTint,
-      onClick = { index ->
-        legalNotice.linkedSubstrings.firstOrNull { index in it.range }?.onClick()
-      }
+      color = subtitleTint
     )
   }
 }

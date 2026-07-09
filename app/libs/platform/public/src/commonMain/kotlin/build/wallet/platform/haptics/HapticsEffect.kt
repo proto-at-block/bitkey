@@ -4,6 +4,9 @@ enum class HapticsEffect {
   /** A short, intense vibration. Used for success states. */
   DoubleClick,
 
+  /** Platform-native feedback for successful completion. */
+  Success,
+
   /** A longer, duller vibration. Used for error states. */
   DullOneShot,
 

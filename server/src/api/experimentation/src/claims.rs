@@ -4,7 +4,7 @@ use axum::http::request::Parts;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 
 use account::service::Service as AccountService;
-use authn_authz::extract_account_id;
+use authn_authz_utils::extract_account_id;
 use feature_flags::flag::ContextKey;
 use instrumentation::middleware::APP_INSTALLATION_ID_HEADER_NAME;
 use types::account::identifiers::AccountId;
@@ -13,6 +13,7 @@ use crate::attributes::ToLaunchDarklyAttributes;
 use crate::error::ExperimentationError;
 
 const APP_VERSION_HEADER_NAME: &str = "Bitkey-App-Version";
+const FIRMWARE_VERSION_HEADER_NAME: &str = "Bitkey-Firmware-Version";
 const OS_TYPE_HEADER_NAME: &str = "Bitkey-OS-Type";
 const OS_VERSION_HEADER_NAME: &str = "Bitkey-OS-Version";
 const DEVICE_REGION_HEADER_NAME: &str = "Bitkey-Device-Region";
@@ -22,6 +23,9 @@ pub struct ExperimentationClaims {
     pub account_id: Option<String>,
     pub app_installation_id: Option<String>,
     pub app_version: Option<String>,
+    /// `Bitkey-Firmware-Version` header value. `None` for legacy clients
+    /// that don't send it yet.
+    pub firmware_version: Option<String>,
     pub os_type: Option<String>,
     pub os_version: Option<String>,
     pub device_region: Option<String>,
@@ -38,6 +42,7 @@ impl ExperimentationClaims {
                 APP_INSTALLATION_ID_HEADER_NAME,
             ),
             app_version: Self::extract_header_value(&headers, APP_VERSION_HEADER_NAME),
+            firmware_version: Self::extract_header_value(&headers, FIRMWARE_VERSION_HEADER_NAME),
             os_type: Self::extract_header_value(&headers, OS_TYPE_HEADER_NAME),
             os_version: Self::extract_header_value(&headers, OS_VERSION_HEADER_NAME),
             device_region: Self::extract_header_value(&headers, DEVICE_REGION_HEADER_NAME),
@@ -98,11 +103,21 @@ where
 
 #[cfg(test)]
 mod tests {
-    use authn_authz::test_utils::get_test_access_token;
+    use std::str::FromStr;
+
     use axum::http::header::HeaderValue;
     use axum::http::{HeaderMap, Request};
+    use types::account::identifiers::AccountId;
+    use types::authn_authz::cognito::CognitoUser;
+    use userpool::test_utils::get_test_access_token_for_cognito_user;
 
     use super::*;
+
+    fn make_test_access_token(account_id: &str) -> String {
+        get_test_access_token_for_cognito_user(&CognitoUser::App(
+            AccountId::from_str(account_id).expect("valid AccountId"),
+        ))
+    }
 
     #[tokio::test]
     async fn test_from_request_parts() {
@@ -110,10 +125,11 @@ mod tests {
         let account_id = "urn:wallet-account:000000000000000000000000000";
         let app_installation_id = "test_app_installation_id";
         let app_version = "test_app_version";
+        let firmware_version = "1.0.99";
         let os_type = "test_os_type";
         let os_version = "test_os_version";
         let device_region = "test_device_region";
-        let access_token = get_test_access_token();
+        let access_token = make_test_access_token(account_id);
 
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -123,6 +139,10 @@ mod tests {
         headers.insert(
             APP_VERSION_HEADER_NAME,
             HeaderValue::from_static(app_version),
+        );
+        headers.insert(
+            FIRMWARE_VERSION_HEADER_NAME,
+            HeaderValue::from_static(firmware_version),
         );
         headers.insert(OS_TYPE_HEADER_NAME, HeaderValue::from_static(os_type));
         headers.insert(OS_VERSION_HEADER_NAME, HeaderValue::from_static(os_version));
@@ -151,10 +171,33 @@ mod tests {
             Some(app_installation_id.to_string())
         );
         assert_eq!(claims.app_version, Some(app_version.to_string()));
+        assert_eq!(claims.firmware_version, Some(firmware_version.to_string()));
         assert_eq!(claims.os_type, Some(os_type.to_string()));
         assert_eq!(claims.os_version, Some(os_version.to_string()));
         assert_eq!(claims.device_region, Some(device_region.to_string()));
         // hardware_type is populated server-side, not from headers
         assert_eq!(claims.hardware_type, None);
+    }
+
+    /// Missing firmware-version header is tolerated (legacy clients don't send it).
+    #[tokio::test]
+    async fn missing_firmware_version_yields_none() {
+        let access_token = make_test_access_token("urn:wallet-account:000000000000000000000000000");
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            APP_VERSION_HEADER_NAME,
+            HeaderValue::from_static("2026.10.0"),
+        );
+        headers.insert(
+            "Authorization",
+            HeaderValue::from_str(format!("Bearer {}", access_token).as_str()).unwrap(),
+        );
+
+        let mut request = Request::new(());
+        request.headers_mut().extend(headers);
+        let mut parts = request.into_parts().0;
+
+        let claims = ExperimentationClaims::from_request_parts(&mut parts);
+        assert_eq!(claims.firmware_version, None);
     }
 }

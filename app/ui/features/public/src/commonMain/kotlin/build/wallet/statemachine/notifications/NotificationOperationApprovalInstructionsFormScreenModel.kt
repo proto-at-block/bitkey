@@ -2,6 +2,7 @@ package build.wallet.statemachine.notifications
 
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
@@ -55,6 +56,11 @@ fun NotificationOperationApprovalInstructionsFormScreenModel(
                   onClick = errorBottomSheetState.onClosed
                 ),
               renderContext = Sheet,
+              errorData = ErrorData(
+                segment = NotificationsAppSegment,
+                actionDescription = "Approving notification operation with hardware",
+                cause = errorBottomSheetState.error
+              ),
               eventTrackerScreenId = NotificationsEventTrackerScreenId.NOTIFICATIONS_HW_APPROVAL_ERROR_SHEET
             )
         )

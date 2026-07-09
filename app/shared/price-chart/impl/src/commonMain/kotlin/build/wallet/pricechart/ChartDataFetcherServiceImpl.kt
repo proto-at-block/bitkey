@@ -35,7 +35,7 @@ class ChartDataFetcherServiceImpl(
     mockScenarioService.currentPriceScenario()?.let { _ ->
       val fiatCurrency = fiatCurrencyPreferenceRepository.fiatCurrencyPreference.value
       val maxPoints = maxPricePoints ?: range.maxPricePoints
-      val mockPriceData = mockScenarioService.generatePriceData(maxPoints, fiatCurrency, range.duration) ?: emptyList()
+      val mockPriceData = mockScenarioService.generatePriceData(maxPoints, fiatCurrency, range.duration)
       // Convert MockDataPoint to DataPoint
       val dataPoints = mockPriceData.map { DataPoint(it.timestamp, it.price) }
       return Ok(dataPoints)

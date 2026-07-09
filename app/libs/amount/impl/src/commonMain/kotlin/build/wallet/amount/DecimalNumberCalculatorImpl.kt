@@ -36,7 +36,9 @@ class DecimalNumberCalculatorImpl(
       }
 
       // Don't allow the new result to go above the set maximum
-      val result = doubleFormatter.parse(resultString)!!
+      val result = checkNotNull(doubleFormatter.parse(resultString)) {
+        "Expected a parseable number string: $resultString"
+      }
       if (result > maximumValue) {
         decimalNumberCreator.create(
           number = maximumValue,
@@ -49,7 +51,10 @@ class DecimalNumberCalculatorImpl(
         )
       }
     } else {
-      val result = doubleFormatter.parse(amount.numberString)!! * 10 + digit
+      val parsedNumber = checkNotNull(doubleFormatter.parse(amount.numberString)) {
+        "Expected a parseable number string: ${amount.numberString}"
+      }
+      val result = parsedNumber * 10 + digit
       decimalNumberCreator.create(
         // Don't allow the new result to go above the absolute maximum
         numberString = (if (result > maximumValue) maximumValue else result).toLong().toString(),
@@ -66,7 +71,9 @@ class DecimalNumberCalculatorImpl(
         maximumFractionDigits = amount.maximumFractionDigits
       )
     } else {
-      val resultDouble = doubleFormatter.parse(amount.numberString)!! / 10
+      val resultDouble = checkNotNull(doubleFormatter.parse(amount.numberString)) {
+        "Expected a parseable number string: ${amount.numberString}"
+      } / 10
       val remainder = resultDouble % 1.0
       val result = resultDouble - remainder
       decimalNumberCreator.create(

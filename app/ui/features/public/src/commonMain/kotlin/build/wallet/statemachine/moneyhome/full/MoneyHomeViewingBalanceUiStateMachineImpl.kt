@@ -32,7 +32,6 @@ import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.platform.haptics.Haptics
 import build.wallet.platform.haptics.HapticsEffect
 import build.wallet.platform.web.InAppBrowserNavigator
-import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.SheetModel
@@ -81,7 +80,7 @@ import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
-import build.wallet.ui.tokens.market.MarketIcons
+import build.wallet.statemachine.core.Icon
 import build.wallet.wallet.migration.MigrationProgress
 import build.wallet.wallet.migration.MigrationService
 import build.wallet.wallet.migration.MigrationType
@@ -151,7 +150,6 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
     val isBip177Enabled by remember {
       bip177FeatureFlag.flagValue().map { it.isEnabled() }
     }.collectAsState(initial = bip177FeatureFlag.isEnabled())
-    val isDesignSystemV2Enabled = true
     val bitcoinDisplayUnit by bitcoinDisplayPreferenceRepository.bitcoinDisplayUnit.collectAsState()
 
     var coachmarksToDisplay by remember { mutableStateOf(listOf<CoachmarkIdentifier>()) }
@@ -220,8 +218,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
           ),
           transactionsModel = createTransactionsListModel(
             transactionsModel = transactionsModel,
-            isLoading = transactionsData == null,
-            isDesignSystemV2Enabled = props.isDesignSystemV2Enabled
+            isLoading = transactionsData == null
           ),
           seeAllButtonModel = createSeeAllButtonModel(transactionsModel, props),
           coachmark = transactionsData?.let {
@@ -242,25 +239,17 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
           },
           trailingToolbarAccessoryModel = ToolbarAccessoryModel.IconAccessory(
             model = IconButtonModel(
-              iconModel = if (isDesignSystemV2Enabled) {
-                IconModel(
-                  icon = MarketIcons.EllipsisHorizontal,
-                  iconSize = IconSize.HeaderToolbar,
-                  iconBackgroundType = IconBackgroundType.Circle(
-                    circleSize = IconSize.Regular,
-                    color = IconBackgroundType.Circle.CircleColor.SubtleBackground
-                  ),
-                  iconTint = IconTint.Foreground
-                )
-              } else {
-                IconModel(
-                  icon = Icon.SmallIconSettings,
-                  iconSize = IconSize.HeaderToolbar,
-                  iconBackgroundType = IconBackgroundType.Transient
-                )
-              },
+              iconModel = IconModel(
+                icon = Icon.EllipsisHorizontal,
+                iconSize = IconSize.HeaderToolbar,
+                iconBackgroundType = IconBackgroundType.Circle(
+                  circleSize = IconSize.Regular,
+                  color = IconBackgroundType.Circle.CircleColor.SubtleBackground
+                ),
+                iconTint = IconTint.Foreground
+              ),
               testTag = "money-home-settings",
-              onClick = StandardClick({ props.onSettings() })
+              onClick = StandardClick { props.onSettings() }
             )
           ),
           onSecurityHubTabClick = {
@@ -269,15 +258,11 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
               haptics.vibrate(effect = HapticsEffect.LightClick)
             }
           },
-          isSecurityHubBadged = securityActionsService.hasRecommendationsRequiringAttention()
+          isSecurityHubBadged = remember { securityActionsService.hasRecommendationsRequiringAttention() }
             .collectAsState(false).value,
           haptics = haptics
         ),
-        presentationStyle = if (isDesignSystemV2Enabled) {
-          ScreenPresentationStyle.RootFullScreen
-        } else {
-          ScreenPresentationStyle.Root
-        },
+        presentationStyle = ScreenPresentationStyle.RootFullScreen,
         bottomSheetModel = MoneyHomeBottomSheetModel(
           props = props
         ),
@@ -325,9 +310,8 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private fun createTransactionsListModel(
     transactionsModel: TransactionsActivityModel?,
     isLoading: Boolean,
-    isDesignSystemV2Enabled: Boolean,
   ): ListModel? {
-    if (transactionsModel == null && !isLoading && isDesignSystemV2Enabled) {
+    if (transactionsModel == null && !isLoading) {
       return ListModel(
         headerText = "Recent activity",
         sections = immutableListOf()

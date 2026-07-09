@@ -84,6 +84,12 @@ static void power_system_down_callback(rtos_timer_handle_t UNUSED(timer)) {
   // which would starve all other timer callbacks (including the watchdog feeder).
   // Instead, send an IPC message so the sysinfo thread handles it.
   //
+  // For the same reason, do not call any Memfault logging API here: those
+  // take the Memfault FreeRTOS mutex and can block the timer service task if
+  // another task is holding it, stalling the watchdog feeder. The
+  // `shutdown: prepare_power_down` breadcrumb on the dequeue side covers
+  // the equivalent information from a safe context.
+  //
   // Use a bounded (not zero) timeout: `ipc_send_empty` would fall back to
   // `IPC_TIMEOUT_MAX`, which re-introduces the exact starvation this function
   // is trying to avoid. But a zero timeout converts ordinary transient
@@ -878,10 +884,11 @@ void sysinfo_thread(void* UNUSED(args)) {
         sysinfo_task_handle_coproc_events(&message);
         break;
       case IPC_SYSINFO_POWER_OFF_REQUESTED:
+        MFLOGI("shutdown: prepare_power_down");
         sysinfo_task_port_prepare_power_down();
         break;
       case IPC_SYSINFO_POWER_OFF:
-        LOGI("Powering off");
+        MFLOGI("shutdown: power_down");
         sysinfo_task_port_power_down();
         break;
       case IPC_PROTO_GET_CONFIRMATION_RESULT_CMD:

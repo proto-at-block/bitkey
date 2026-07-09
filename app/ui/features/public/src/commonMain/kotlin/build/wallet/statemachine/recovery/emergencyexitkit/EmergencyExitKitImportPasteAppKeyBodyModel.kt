@@ -49,7 +49,7 @@ data class EmergencyExitKitImportPasteAppKeyBodyModel(
         trailingButtonModel = if (enteredText.isEmpty()) {
           ButtonModel(
             text = "Paste",
-            leadingIcon = Icon.SmallIconClipboard,
+            leadingIcon = Icon.Clipboard,
             treatment = ButtonModel.Treatment.Secondary,
             size = ButtonModel.Size.Compact,
             onClick = StandardClick(onPasteButtonClick)

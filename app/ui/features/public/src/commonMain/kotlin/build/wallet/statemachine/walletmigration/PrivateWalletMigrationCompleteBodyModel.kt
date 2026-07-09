@@ -4,10 +4,8 @@ import build.wallet.analytics.events.screen.id.WalletMigrationEventTrackerScreen
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormDesignSystemV2Model
-import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.form.designSystemV2HeroIconHeader
+import build.wallet.statemachine.core.form.formHeroIconHeader
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconModel
@@ -20,7 +18,6 @@ import build.wallet.ui.model.list.ListItemAccessoryAlignment
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
-import build.wallet.ui.tokens.market.MarketIcons
 
 data class PrivateWalletMigrationCompleteBodyModel(
   override val onBack: (() -> Unit),
@@ -33,17 +30,10 @@ data class PrivateWalletMigrationCompleteBodyModel(
           onClick = onBack
         )
       ),
-    header = FormHeaderModel(
-      icon = Icon.LargeIconCheckFilled,
+    header = formHeroIconHeader(
       headline = "Your wallet update is complete",
-      subline = "Take precautions to avoid sending money to your old wallet."
-    ),
-    designSystemV2Model = FormDesignSystemV2Model(
-      header = designSystemV2HeroIconHeader(
-        headline = "Your wallet update is complete",
-        subline = "Take precautions to avoid sending money to your old wallet.",
-        icon = MarketIcons.Checkmark
-      )
+      subline = "Take precautions to avoid sending money to your old wallet.",
+      icon = Icon.Checkmark
     ),
     mainContentList = immutableListOf(
       FormMainContentModel.ListGroup(
@@ -67,7 +57,7 @@ data class PrivateWalletMigrationCompleteBodyModel(
               secondaryText = "Your Emergency Exit Kit has been updated in your cloud account. Previous versions will no longer work.",
               leadingAccessory = ListItemAccessory.IconAccessory(
                 model = IconModel(
-                  icon = Icon.SmallIconRecovery,
+                  icon = Icon.Recovery,
                   iconSize = IconSize.Small,
                   iconTint = IconTint.Foreground
                 )

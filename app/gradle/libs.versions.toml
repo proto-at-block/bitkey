@@ -69,6 +69,7 @@ android-appcompat = "1.7.0"
 # JVM versions
 
 jvm-bytebuddy = "1.15.11"
+jvm-bouncycastle = "1.80.2"
 jvm-kotlinpoet = "2.0.0"
 jvm-compileTesting = "0.7.0"
 
@@ -243,6 +244,8 @@ android-test-findbugs = { module = "com.google.code.findbugs:jsr305", version = 
 # JVM libraries
 jvm-asm = { module = "org.ow2.asm:asm", version = "9.7.1" }
 jvm-bdk-legacy = { module = "org.bitcoindevkit:bdk-jvm", version.ref = "bdk-legacy" }
+jvm-bouncycastle-bcprov-jdk18on = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "jvm-bouncycastle" }
+jvm-bouncycastle-bcutil-jdk18on = { module = "org.bouncycastle:bcutil-jdk18on", version.ref = "jvm-bouncycastle" }
 jvm-bitcoin-rpc-client = { module = "wf.bitcoin:bitcoin-rpc-client", version = "1.2.4" }
 jvm-di-inject = { module = "javax.inject:javax.inject", version = "1" }
 jvm-google-drive = { module = "com.google.apis:google-api-services-drive", version = "v3-rev20240123-2.0.0" }

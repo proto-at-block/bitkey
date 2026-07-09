@@ -3,6 +3,7 @@ use std::env;
 use std::str::FromStr;
 
 use account::error::AccountError;
+use account::hardware_verification::hardware_verification_enforced;
 use account::service::{
     ActivateTouchpointForAccountInput, AddPushTouchpointToAccountInput, CompleteOnboardingInput,
     CreateAccountAndKeysetsInput, CreateInactiveSpendingKeysetInput, CreateLiteAccountInput,
@@ -42,12 +43,13 @@ use comms_verification::{
     Service as CommsVerificationService, VerifyForScopeInput,
 };
 use errors::{ApiError, ErrorCode, RouteError};
-use instrumentation::middleware::HardwareSerialHeader;
 use experimentation::claims::ExperimentationClaims;
 use external_identifier::ExternalIdentifier;
+use feature_flags::flag::ContextKey;
 use feature_flags::service::Service as FeatureFlagsService;
 use http_server::swagger::{SwaggerEndpoint, Url};
 use http_server::{middlewares::identifier_generator::IdentifierGenerator, router::RouterBuilder};
+use instrumentation::middleware::HardwareSerialHeader;
 use isocountry::CountryCode;
 use itertools::Itertools;
 use notification::clients::iterable::{IterableClient, IterableMode};
@@ -72,7 +74,7 @@ use types::account::bitcoin::to_wsm_bitcoin_network;
 use types::account::entities::v2::UpgradeLiteAccountAuthKeysInputV2;
 use types::account::entities::{
     v2::{FullAccountAuthKeysInputV2, SpendingKeysetInputV2},
-    Account, CommsVerificationScope, DescriptorBackup, DescriptorBackupsSet,
+    Account, CommsVerificationScope, DescriptorBackup, DescriptorBackupsSet, FullAccount,
     FullAccountAuthKeysInput, HardwareType, Keyset, LiteAccount, LiteAccountAuthKeysInput,
     SoftwareAccountAuthKeysInput, SpendingKeysetInput, Touchpoint, TouchpointPlatform,
     UpgradeLiteAccountAuthKeysInput,
@@ -1076,6 +1078,38 @@ impl TryFrom<&Account> for CreateAccountResponse {
     }
 }
 
+/// Close the v1 keyset-creating surface for hardware-verification-enrolled
+/// accounts. v1 creates `LegacyMultiSigSpendingKeyset`s with no
+/// attestation, which would bypass the OOBA sweep gate — so an enrolled
+/// account must use the v2 endpoints.
+///
+/// Gated on the hardware-verification kill switch, exactly like the sweep gate
+/// that this protects: when the switch is *deliberately* off the sweep gate
+/// stops enforcing attestation, so there is no bypass to close and the whole
+/// feature reverts to pre-feature behavior. Fails *closed* — a flag-resolution
+/// failure keeps the route blocked, since reopening it would mint a durable
+/// unattested keyset that outlives the outage. Account-keyed LD context so a
+/// missing app-installation header can't dodge the switch.
+fn reject_enrolled_account_on_v1(
+    account: &FullAccount,
+    feature_flags: &FeatureFlagsService,
+    context_key: &ContextKey,
+) -> Result<(), ApiError> {
+    let blocked = account.hardware_verification_required
+        && hardware_verification_enforced(feature_flags, context_key);
+    if blocked {
+        return Err(ApiError::Specific {
+            code: ErrorCode::AccountEnrolledRequiresV2,
+            detail: Some(
+                "This account is enrolled in hardware verification; use the v2 endpoints."
+                    .to_string(),
+            ),
+            field: None,
+        });
+    }
+    Ok(())
+}
+
 #[instrument(
     fields(account_id),
     skip(
@@ -1086,6 +1120,8 @@ impl TryFrom<&Account> for CreateAccountResponse {
         config,
         iterable_client,
         public_key_repository,
+        feature_flags_service,
+        experimentation_claims,
         request,
     )
 )]
@@ -1109,6 +1145,8 @@ pub async fn create_account(
     State(user_pool_service): State<UserPoolService>,
     State(config): State<Config>,
     State(iterable_client): State<IterableClient>,
+    State(feature_flags_service): State<FeatureFlagsService>,
+    experimentation_claims: ExperimentationClaims,
     hw_serial: HardwareSerialHeader,
     Json(request): Json<CreateAccountRequest>,
 ) -> Result<Json<CreateAccountResponse>, ApiError> {
@@ -1131,6 +1169,12 @@ pub async fn create_account(
         let mut create_account_response = CreateAccountResponse::try_from(&v.existing_account)?;
         match &v.existing_account {
             Account::Full(full_account) => {
+                reject_enrolled_account_on_v1(
+                    full_account,
+                    &feature_flags_service,
+                    &experimentation_claims
+                        .overridden_account_context_key(full_account.id.clone()),
+                )?;
                 let spending_sig = maybe_get_wsm_integrity_sig(
                     &wsm_client,
                     &full_account.active_keyset_id.to_string(),
@@ -1234,6 +1278,8 @@ pub async fn create_account(
                     ),
                 },
                 is_test_account,
+                // v1 never enrolls; enrollment lives on the v2 path.
+                hardware_verification_required: false,
             };
             let account = account_service.create_account_and_keysets(input).await?;
 
@@ -1329,6 +1375,8 @@ impl From<(&LiteAccount, &UpgradeAccountRequest)> for AccountValidationRequest {
         user_pool_service,
         config,
         public_key_repository,
+        feature_flags_service,
+        experimentation_claims,
     )
 )]
 #[utoipa::path(
@@ -1348,6 +1396,8 @@ pub async fn upgrade_account(
     State(id_generator): State<IdentifierGenerator>,
     State(user_pool_service): State<UserPoolService>,
     State(config): State<Config>,
+    State(feature_flags_service): State<FeatureFlagsService>,
+    experimentation_claims: ExperimentationClaims,
     Path(account_id): Path<AccountId>,
     hw_serial: HardwareSerialHeader,
     Json(request): Json<UpgradeAccountRequest>,
@@ -1364,6 +1414,11 @@ pub async fn upgrade_account(
     let lite_account = match existing_account {
         Account::Lite(lite_account) => lite_account,
         Account::Full(full_account) => {
+            reject_enrolled_account_on_v1(
+                full_account,
+                &feature_flags_service,
+                &experimentation_claims.overridden_account_context_key(account_id.clone()),
+            )?;
             let Some(active_auth_keys) = full_account.active_auth_keys() else {
                 return Err(RouteError::NoActiveAuthKeys)?;
             };
@@ -1491,6 +1546,8 @@ pub async fn upgrade_account(
             ),
             hardware_type: HardwareType::W1,
         },
+        // v1 never enrolls; enrollment lives on the v2 path.
+        hardware_verification_required: false,
     };
     let full_account = account_service
         .upgrade_lite_account_to_full_account(input)
@@ -1524,7 +1581,7 @@ pub struct CreateKeysetResponse {
     pub spending_sig: Option<String>,
 }
 
-#[instrument(skip(account_service, request))]
+#[instrument(skip(account_service, feature_flags_service, experimentation_claims, request))]
 #[utoipa::path(
     post,
     path = "/api/accounts/{account_id}/keysets",
@@ -1541,6 +1598,8 @@ pub async fn create_keyset(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
     State(wsm_client): State<WsmClient>,
+    State(feature_flags_service): State<FeatureFlagsService>,
+    experimentation_claims: ExperimentationClaims,
     hw_serial: HardwareSerialHeader,
     Json(request): Json<CreateKeysetRequest>,
 ) -> Result<Json<CreateKeysetResponse>, ApiError> {
@@ -1552,6 +1611,11 @@ pub async fn create_keyset(
             account_id: &account_id,
         })
         .await?;
+    reject_enrolled_account_on_v1(
+        &account,
+        &feature_flags_service,
+        &experimentation_claims.overridden_account_context_key(account_id.clone()),
+    )?;
 
     if let Some((keyset_id, keyset)) = account
         .spending_keysets

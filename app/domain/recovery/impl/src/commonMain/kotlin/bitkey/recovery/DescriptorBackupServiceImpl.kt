@@ -692,7 +692,7 @@ class DescriptorBackupServiceImpl(
           sealedSsek = sealedSsekToDecrypt,
           encryptedDescriptorBackups = descriptorsToDecrypt
         ).bind()
-      } ?: emptyList()
+      }.orEmpty()
 
       logInfo { "Decrypted ${decryptedKeysets.size} existing descriptor backups" }
 

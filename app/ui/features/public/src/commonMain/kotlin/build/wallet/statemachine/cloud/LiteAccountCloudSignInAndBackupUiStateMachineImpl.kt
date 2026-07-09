@@ -215,25 +215,25 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImpl(
   }
 }
 
-private sealed class LiteAccountCloudSignInAndBackupState {
+private sealed interface LiteAccountCloudSignInAndBackupState {
   /**
    * Currently signing into a cloud account.
    */
-  data object SigningIntoCloudState : LiteAccountCloudSignInAndBackupState()
+  data object SigningIntoCloudState : LiteAccountCloudSignInAndBackupState
 
   /**
    * State entered when there was a failure signing into cloud account
    */
   data class CloudSignInFailedState(
     val cause: Error?,
-  ) : LiteAccountCloudSignInAndBackupState()
+  ) : LiteAccountCloudSignInAndBackupState
 
   /**
    * In process of creating and saving the backup.
    */
   data class CreatingAndSavingBackupState(
     val cloudStoreAccount: CloudStoreAccount,
-  ) : LiteAccountCloudSignInAndBackupState()
+  ) : LiteAccountCloudSignInAndBackupState
 
   /**
    * Explaining error that may be fixable
@@ -242,30 +242,30 @@ private sealed class LiteAccountCloudSignInAndBackupState {
     val cloudStoreAccount: CloudStoreAccount,
     val rectifiableCloudBackupError: RectifiableCloudBackupError,
     val errorData: ErrorData,
-  ) : LiteAccountCloudSignInAndBackupState()
+  ) : LiteAccountCloudSignInAndBackupState
 
   /**
    * Base class for all unrectifiable failure states during the backup process.
    */
-  sealed class UnrectifiableFailureState : LiteAccountCloudSignInAndBackupState() {
-    abstract val errorData: ErrorData
+  sealed interface UnrectifiableFailureState : LiteAccountCloudSignInAndBackupState {
+    val errorData: ErrorData
 
     /**
      * Error during lite account backup creation process.
      */
     data class CreatingLiteAccountBackupFailure(
       override val errorData: ErrorData,
-    ) : UnrectifiableFailureState()
+    ) : UnrectifiableFailureState
 
     /**
      * Error during lite account backup upload process.
      */
     data class UploadingLiteAccountBackupFailure(
       override val errorData: ErrorData,
-    ) : UnrectifiableFailureState()
+    ) : UnrectifiableFailureState
   }
 
   data class ShowingCustomerSupportUiState(
     val urlString: String,
-  ) : LiteAccountCloudSignInAndBackupState()
+  ) : LiteAccountCloudSignInAndBackupState
 }

@@ -5,6 +5,7 @@ import bitkey.recovery.InitiateDelayNotifyRecoveryError
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.bitkey.keybox.AppKeyBundleMock
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -19,6 +20,7 @@ class LostHardwareRecoveryServiceFake : LostHardwareRecoveryService {
   override suspend fun initiate(
     destinationAppKeyBundle: AppKeyBundle,
     destinationHardwareKeyBundle: HwKeyBundle,
+    spendingKeyProof: HwSpendingKeyProof?,
     appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
     hardwareType: HardwareType,
   ): Result<Unit, InitiateDelayNotifyRecoveryError> {

@@ -67,7 +67,7 @@ private fun IconTintVariations() {
       Column(horizontalAlignment = Alignment.CenterHorizontally) {
         IconImage(
           model = IconModel(
-            iconImage = IconImage.LocalImage(Icon.SmallIconBitcoinStroked),
+            iconImage = IconImage.LocalImage(Icon.BitcoinStroked),
             iconSize = IconSize.Large
           )
         )
@@ -78,7 +78,7 @@ private fun IconTintVariations() {
       Column(horizontalAlignment = Alignment.CenterHorizontally) {
         IconImage(
           model = IconModel(
-            iconImage = IconImage.LocalImage(Icon.SmallIconBitcoinStroked),
+            iconImage = IconImage.LocalImage(Icon.BitcoinStroked),
             iconSize = IconSize.Large,
             iconTint = IconTint.Primary
           )
@@ -90,7 +90,7 @@ private fun IconTintVariations() {
       Column(horizontalAlignment = Alignment.CenterHorizontally) {
         IconImage(
           model = IconModel(
-            iconImage = IconImage.LocalImage(Icon.SmallIconBitcoinStroked),
+            iconImage = IconImage.LocalImage(Icon.BitcoinStroked),
             iconSize = IconSize.Large,
             iconTint = IconTint.Foreground
           )
@@ -102,7 +102,7 @@ private fun IconTintVariations() {
       Column(horizontalAlignment = Alignment.CenterHorizontally) {
         IconImage(
           model = IconModel(
-            iconImage = IconImage.LocalImage(Icon.SmallIconBitcoinStroked),
+            iconImage = IconImage.LocalImage(Icon.BitcoinStroked),
             iconSize = IconSize.Large,
             iconTint = IconTint.Warning
           )
@@ -114,7 +114,7 @@ private fun IconTintVariations() {
       Column(horizontalAlignment = Alignment.CenterHorizontally) {
         IconImage(
           model = IconModel(
-            iconImage = IconImage.LocalImage(Icon.SmallIconBitcoinStroked),
+            iconImage = IconImage.LocalImage(Icon.BitcoinStroked),
             iconSize = IconSize.Large
           ),
           color = Color.Red
@@ -143,7 +143,7 @@ private fun IconWithBackgroundsAndTints() {
       Column(horizontalAlignment = Alignment.CenterHorizontally) {
         IconImage(
           model = IconModel(
-            iconImage = IconImage.LocalImage(Icon.SmallIconBitcoinStroked),
+            iconImage = IconImage.LocalImage(Icon.BitcoinStroked),
             iconSize = IconSize.Small,
             iconBackgroundType = IconBackgroundType.Circle(
               circleSize = IconSize.Avatar,
@@ -158,7 +158,7 @@ private fun IconWithBackgroundsAndTints() {
       Column(horizontalAlignment = Alignment.CenterHorizontally) {
         IconImage(
           model = IconModel(
-            iconImage = IconImage.LocalImage(Icon.SmallIconBitcoinStroked),
+            iconImage = IconImage.LocalImage(Icon.BitcoinStroked),
             iconSize = IconSize.Small,
             iconBackgroundType = IconBackgroundType.Square(
               size = IconSize.Avatar,
@@ -175,7 +175,7 @@ private fun IconWithBackgroundsAndTints() {
       Column(horizontalAlignment = Alignment.CenterHorizontally) {
         IconImage(
           model = IconModel(
-            iconImage = IconImage.LocalImage(Icon.SmallIconBitcoinStroked),
+            iconImage = IconImage.LocalImage(Icon.BitcoinStroked),
             iconSize = IconSize.Large,
             iconBackgroundType = IconBackgroundType.Square(
               size = IconSize.Avatar,

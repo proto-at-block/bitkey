@@ -74,7 +74,9 @@ class MoneyCalculatorUiStateMachineImpl(
       derivedStateOf {
         when (val amount = enteredAmount) {
           is DecimalNumber -> {
-            val value = doubleFormatter.parse(amount.numberString)!!.toBigDecimal()
+            val value = requireNotNull(doubleFormatter.parse(amount.numberString)) {
+              "Unable to parse entered decimal amount"
+            }.toBigDecimal()
             when (props.inputAmountCurrency) {
               is FiatCurrency ->
                 FiatMoney(
@@ -143,8 +145,6 @@ class MoneyCalculatorUiStateMachineImpl(
               is Decimal -> {
                 enteredAmount = amountCalculator.decimal(enteredAmount)
               }
-
-              else -> Unit
             }
           },
           isButtonPressRejected = { keypadButton ->

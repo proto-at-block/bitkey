@@ -12,8 +12,6 @@ class NavigatorImplTests : FunSpec({
   val screenA = ScreenFake(id = "A")
   val screenB = ScreenFake(id = "B")
 
-  val sheetA = SheetFake(id = "Sheet A", origin = screenA)
-
   val exitCalls = turbines.create<Unit>("exit calls")
 
   fun navigator() =

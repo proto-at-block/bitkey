@@ -152,15 +152,22 @@ public final class BitkeyW3Commands: W3NfcCommands {
     public func getInitialSpendingKey(
         session: NfcSession,
         network: BitcoinNetworkType
-    ) async throws -> HwSpendingPublicKey {
+    ) async throws -> HwSpendingKeyResult {
         return try await delegate.getInitialSpendingKey(session: session, network: network)
+    }
+
+    public func getInitialSpendingPublicKey(
+        session: NfcSession,
+        network: BitcoinNetworkType
+    ) async throws -> HwSpendingPublicKey {
+        return try await delegate.getInitialSpendingPublicKey(session: session, network: network)
     }
 
     public func getNextSpendingKey(
         session: NfcSession,
         existingDescriptorPublicKeys: [HwSpendingPublicKey],
         network: BitcoinNetworkType
-    ) async throws -> HwSpendingPublicKey {
+    ) async throws -> HwSpendingKeyResult {
         return try await delegate.getNextSpendingKey(
             session: session,
             existingDescriptorPublicKeys: existingDescriptorPublicKeys,
@@ -231,7 +238,8 @@ public final class BitkeyW3Commands: W3NfcCommands {
         session: NfcSession,
         psbt: Shared.Psbt,
         spendingKeyset: SpendingKeyset,
-        displayPreference: Shared.HwDisplayPreference?
+        displayPreference: Shared.HwDisplayPreference?,
+        allowUnfinalized: Bool
     ) async throws -> Shared.HardwareInteraction {
         let decomposed: firmware.DecomposedPsbt
         do {
@@ -253,14 +261,16 @@ public final class BitkeyW3Commands: W3NfcCommands {
             return try signTransactionStreaming(
                 psbt: psbt,
                 decomposed: decomposed,
-                displayPreference: displayPreference
+                displayPreference: displayPreference,
+                allowUnfinalized: allowUnfinalized
             )
         } else {
             return try await signTransactionOneShot(
                 session: session,
                 psbt: psbt,
                 decomposed: decomposed,
-                displayPreference: displayPreference
+                displayPreference: displayPreference,
+                allowUnfinalized: allowUnfinalized
             )
         }
     }
@@ -270,7 +280,8 @@ public final class BitkeyW3Commands: W3NfcCommands {
         session: NfcSession,
         psbt: Shared.Psbt,
         decomposed: firmware.DecomposedPsbt,
-        displayPreference: Shared.HwDisplayPreference?
+        displayPreference: Shared.HwDisplayPreference?,
+        allowUnfinalized: Bool
     ) async throws -> Shared.HardwareInteraction {
         let result = try await SignTxRequest(
             version: decomposed.version,
@@ -302,7 +313,7 @@ public final class BitkeyW3Commands: W3NfcCommands {
                         signedBase64 = try firmware.assemblePsbtSignatures(
                             psbtBase64: psbt.base64,
                             signatures: ffiSignatures,
-                            allowUnfinalized: false
+                            allowUnfinalized: allowUnfinalized
                         )
                     } catch {
                         throw NfcException.CommandError(
@@ -356,7 +367,8 @@ public final class BitkeyW3Commands: W3NfcCommands {
     private func signTransactionStreaming(
         psbt: Shared.Psbt,
         decomposed: firmware.DecomposedPsbt,
-        displayPreference: Shared.HwDisplayPreference?
+        displayPreference: Shared.HwDisplayPreference?,
+        allowUnfinalized: Bool
     ) throws -> Shared.HardwareInteraction {
         // Serialize canonical payload eagerly so errors surface immediately
         let streamPayload: firmware.StreamPayload
@@ -383,7 +395,8 @@ public final class BitkeyW3Commands: W3NfcCommands {
                 decomposed: decomposed,
                 streamPayload: streamPayload,
                 displayPreference: displayPreference,
-                onProgress: onProgress
+                onProgress: onProgress,
+                allowUnfinalized: allowUnfinalized
             )
         }
         return Shared.HardwareInteractionRequiresTransfer<Shared.Psbt>(
@@ -399,7 +412,8 @@ public final class BitkeyW3Commands: W3NfcCommands {
         decomposed: firmware.DecomposedPsbt,
         streamPayload: firmware.StreamPayload,
         displayPreference: Shared.HwDisplayPreference?,
-        onProgress: Shared.NfcProgressCallback
+        onProgress: Shared.NfcProgressCallback,
+        allowUnfinalized: Bool
     ) async throws -> Shared.HardwareInteraction {
         // Step 1: Start streaming session
         let startResult = try await SignStreamStart(
@@ -486,7 +500,7 @@ public final class BitkeyW3Commands: W3NfcCommands {
                             signedBase64 = try firmware.assemblePsbtSignatures(
                                 psbtBase64: psbt.base64,
                                 signatures: ffiSignatures,
-                                allowUnfinalized: false
+                                allowUnfinalized: allowUnfinalized
                             )
                         } catch {
                             throw NfcException.CommandError(
@@ -1476,6 +1490,108 @@ public final class BitkeyW3Commands: W3NfcCommands {
             }
             return Shared
                 .HardwareInteractionRequiresConfirmation<Shared.SymmetricKeyImpl>(
+                    handles: handles,
+                    mapResult: mapper
+                ) as Shared.HardwareInteraction
+        }
+    }
+
+    /// Stale keyset repair unseal symmetric key on W3 hardware with user confirmation.
+    ///
+    /// First tap: sends sealed key → firmware shows "DECRYPT WALLET DATA" → CONFIRMATION_PENDING.
+    /// Second tap: getConfirmationResult returns the unsealed symmetric key.
+    public func keysetRepairUnsealSymmetricKey(
+        session: NfcSession,
+        sealedKey: OkioByteString
+    ) async throws -> Shared.HardwareInteraction {
+        let result = try await KeysetRepairUnseal(
+            sealedKey: sealedKey.toByteArray().asUInt8Array()
+        ).transceive(session: session)
+
+        switch result {
+        case let .confirmationPending(responseHandle, confirmationHandle):
+            let handles = Shared.ConfirmationHandles(
+                responseHandle: responseHandle.map { KotlinUByte(value: $0) },
+                confirmationHandle: confirmationHandle.map { KotlinUByte(value: $0) }
+            )
+            let mapper = NfcConfirmationResultMapper { confirmResult in
+                switch confirmResult {
+                case let krResult as Shared.ConfirmationResultKeysetRepairUnsealSymmetricKey:
+                    let unsealedBytes = krResult.unsealedKey.map(\.uint8Value)
+                    let keyByteString = OkioKt.ByteString(data: Data(unsealedBytes))
+                    let symmetricKey = Shared.SymmetricKeyImpl(raw: keyByteString)
+                    return Shared
+                        .HardwareInteractionCompleted<Shared.SymmetricKeyImpl>(
+                            result: symmetricKey
+                        ) as Shared.HardwareInteraction
+                case is Shared.ConfirmationResultPending:
+                    throw NfcException.ConfirmationPending().asError()
+                case is Shared.ConfirmationResultDenied:
+                    throw NfcException.UserDenied().asError()
+                default:
+                    throw NfcException.CommandError(
+                        message: "keysetRepairUnsealSymmetricKey expected KeysetRepairUnsealSymmetricKey result but got: \(type(of: confirmResult))",
+                        cause: nil
+                    ).asError()
+                }
+            }
+            return Shared
+                .HardwareInteractionRequiresConfirmation<Shared.SymmetricKeyImpl>(
+                    handles: handles,
+                    mapResult: mapper
+                ) as Shared.HardwareInteraction
+        }
+    }
+
+    /// Stale keyset repair rotate composite on W3 hardware with user confirmation.
+    ///
+    /// First tap: pre-derive (in Rust binding) + send composite → "AUTHORIZE WALLET REPAIR" prompt → CONFIRMATION_PENDING.
+    /// Second tap: getConfirmationResult returns the new spending key descriptor + access-token signature.
+    public func keysetRepairRotateHwKey(
+        session: NfcSession,
+        params: Shared.KeysetRepairRotateHwKeyParams
+    ) async throws -> Shared.HardwareInteraction {
+        let accessTokenBytes = Array(params.accessToken.raw.utf8)
+        let result = try await KeysetRepairRotateHwKey(
+            accessToken: accessTokenBytes,
+            existingDescriptorPublicKeys: params.existingHwSpendingKeys.map(\.key.dpub),
+            network: params.network.btcNetwork
+        ).transceive(session: session)
+
+        switch result {
+        case let .confirmationPending(responseHandle, confirmationHandle):
+            let handles = Shared.ConfirmationHandles(
+                responseHandle: responseHandle.map { KotlinUByte(value: $0) },
+                confirmationHandle: confirmationHandle.map { KotlinUByte(value: $0) }
+            )
+            let mapper = NfcConfirmationResultMapper { confirmResult in
+                switch confirmResult {
+                case let krResult as Shared.ConfirmationResultKeysetRepairRotateHwKey:
+                    let signatureBytes = krResult.accessTokenSignature.map(\.uint8Value)
+                    let signatureHex = Data(signatureBytes).hexString
+                    let hwSpendingKey = Shared.HwSpendingPublicKey(dpub: krResult.spendingKeyDpub)
+                    let bundle = Shared.KeysetRepairRotateHwKeyResult(
+                        hwSpendingKey: hwSpendingKey,
+                        signedAccessToken: signatureHex,
+                        hwSpendingKeyProof: nil
+                    )
+                    return Shared
+                        .HardwareInteractionCompleted<Shared.KeysetRepairRotateHwKeyResult>(
+                            result: bundle
+                        ) as Shared.HardwareInteraction
+                case is Shared.ConfirmationResultPending:
+                    throw NfcException.ConfirmationPending().asError()
+                case is Shared.ConfirmationResultDenied:
+                    throw NfcException.UserDenied().asError()
+                default:
+                    throw NfcException.CommandError(
+                        message: "keysetRepairRotateHwKey expected KeysetRepairRotateHwKey result but got: \(type(of: confirmResult))",
+                        cause: nil
+                    ).asError()
+                }
+            }
+            return Shared
+                .HardwareInteractionRequiresConfirmation<Shared.KeysetRepairRotateHwKeyResult>(
                     handles: handles,
                     mapResult: mapper
                 ) as Shared.HardwareInteraction

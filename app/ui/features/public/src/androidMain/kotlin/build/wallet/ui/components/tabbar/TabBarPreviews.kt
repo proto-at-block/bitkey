@@ -40,35 +40,21 @@ fun TabBarWithHomeAndSecurityHubBadgedPreview() {
 
 @Composable
 fun TabBarWithHomeAndSecurityHub() {
-  val isDesignSystemV2Enabled = true
   TabBar(selectedIndex = 0, tabCount = 2) {
-    if (isDesignSystemV2Enabled) {
-      Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-        Tab(
-          icon = Icon.SmallIconWalletFilled,
-          selected = true,
-          onClick = { },
-          modifier = Modifier.offset(x = 3.dp)
-        )
-      }
-      Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-        Tab(
-          icon = Icon.SmallIconShield,
-          selected = false,
-          onClick = { },
-          modifier = Modifier.offset(x = (-3).dp)
-        )
-      }
-    } else {
+    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
       Tab(
-        icon = Icon.SmallIconWalletFilled,
+        icon = Icon.WalletFilled,
         selected = true,
-        onClick = { }
+        onClick = { },
+        modifier = Modifier.offset(x = 3.dp)
       )
+    }
+    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
       Tab(
-        icon = Icon.SmallIconShield,
+        icon = Icon.Shield,
         selected = false,
-        onClick = { }
+        onClick = { },
+        modifier = Modifier.offset(x = (-3).dp)
       )
     }
   }
@@ -76,37 +62,22 @@ fun TabBarWithHomeAndSecurityHub() {
 
 @Composable
 fun TabBarWithHomeAndSecurityHubBadged() {
-  val isDesignSystemV2Enabled = true
   TabBar(selectedIndex = 0, tabCount = 2) {
-    if (isDesignSystemV2Enabled) {
-      Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-        Tab(
-          icon = Icon.SmallIconWalletFilled,
-          selected = true,
-          onClick = { },
-          modifier = Modifier.offset(x = 3.dp)
-        )
-      }
-      Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-        Tab(
-          icon = Icon.SmallIconShield,
-          selected = false,
-          badged = true,
-          onClick = { },
-          modifier = Modifier.offset(x = (-3).dp)
-        )
-      }
-    } else {
+    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
       Tab(
-        icon = Icon.SmallIconWalletFilled,
+        icon = Icon.WalletFilled,
         selected = true,
-        onClick = { }
+        onClick = { },
+        modifier = Modifier.offset(x = 3.dp)
       )
+    }
+    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
       Tab(
-        icon = Icon.SmallIconShield,
+        icon = Icon.Shield,
         selected = false,
         badged = true,
-        onClick = { }
+        onClick = { },
+        modifier = Modifier.offset(x = (-3).dp)
       )
     }
   }

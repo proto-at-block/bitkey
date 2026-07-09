@@ -2,9 +2,11 @@ package build.wallet.cloud.store
 
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.di.Impl
 import com.github.michaelbull.result.Result
 
 @BitkeyInject(AppScope::class)
+@Impl
 class CloudKeyValueStoreImpl(
   private val ubiquitousKeyValueStore: UbiquitousKeyValueStore,
 ) : CloudKeyValueStore {

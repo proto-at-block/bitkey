@@ -36,7 +36,7 @@ class ComposeIosAppUIControllerImpl(
 
     // Observe theme preference to apply override to view controller
     // This ensures native iOS components (alerts, pickers, etc.) respect the app's theme
-    val themePreference by themePreferenceService.themePreference()
+    val themePreference by remember { themePreferenceService.themePreference() }
       .collectAsState(initial = ThemePreference.System)
 
     LaunchedEffect(themePreference) {

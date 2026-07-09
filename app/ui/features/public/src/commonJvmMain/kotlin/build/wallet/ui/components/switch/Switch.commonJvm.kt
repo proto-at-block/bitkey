@@ -21,6 +21,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.ui.compose.resId
 import build.wallet.ui.compose.resolveTestTag
 import build.wallet.ui.compose.switchTestTag
@@ -43,7 +44,7 @@ internal actual fun PlatformSwitch(
   disabledTrackColor: Color,
   interopBackgroundColor: Color,
 ) {
-  val coroutineScope = rememberCoroutineScope()
+  val coroutineScope = rememberStableCoroutineScope()
 
   // Track pressed state for thumb size animation.
   var isPressed by remember { mutableStateOf(false) }

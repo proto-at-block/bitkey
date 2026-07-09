@@ -23,6 +23,7 @@ import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.keybox.Keybox
+import build.wallet.catchingResult
 import build.wallet.chaincode.delegation.ChaincodeExtractor
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.crypto.WsmVerifier
@@ -57,6 +58,7 @@ import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationC
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getError
+import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.launch
@@ -64,7 +66,7 @@ import okio.ByteString
 import okio.ByteString.Companion.decodeHex
 
 private fun String.decodeHexOrError(fieldName: String): ByteString =
-  runCatching { decodeHex() }
+  catchingResult { decodeHex() }
     .getOrElse { throw IllegalArgumentException("Invalid $fieldName hex from server") }
 
 @BitkeyInject(ActivityScope::class)

@@ -1,16 +1,15 @@
 use std::str::FromStr;
 
 use async_trait::async_trait;
+pub use authn_authz_utils::{extract_account_id, get_jwt_from_headers, get_user_name_from_jwt};
 use axum::extract::{FromRef, FromRequestParts};
 use axum::http::request::Parts;
-use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
-use jsonwebtoken::{DecodingKey, Validation};
+use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use secp256k1::ecdsa::Signature;
 use secp256k1::hashes::{sha256, Hash};
 use secp256k1::{Message, PublicKey, Secp256k1};
 use types::account::identifiers::AccountId;
 use types::authn_authz::cognito::{CognitoUser, CognitoUsername};
-use types::authn_authz::AccessTokenClaims;
 use userpool::userpool::{UserPoolError, UserPoolService};
 
 pub const APP_SIG_HEADER: &str = "X-App-Signature";
@@ -91,39 +90,6 @@ pub fn verify_signature(signature: &str, message: String, pubkey: String) -> boo
         return false;
     };
     secp.verify_ecdsa(&message, &signature, &pubkey).is_ok()
-}
-
-pub fn extract_account_id(headers: &HeaderMap<HeaderValue>) -> Option<String> {
-    get_jwt_from_headers(headers)
-        .and_then(|jwt| get_user_name_from_jwt(&jwt))
-        .and_then(|u| CognitoUser::from_str(u.as_ref()).ok())
-        .map(|cognito_user| cognito_user.get_account_id().to_string())
-}
-
-pub fn get_user_name_from_jwt(jwt: &str) -> Option<CognitoUsername> {
-    let mut validation = Validation::new(jsonwebtoken::Algorithm::RS256);
-    // We already validate the signature on the token in [authorizer.rs:23].
-    // By the time we get to here, a 401 has already been returned if the signature is invalid.
-    // Because cognito rotates in signing keys every 24 hours, we don't want to have to fetch
-    // and cache it in multiple places.
-    // Since we're just pulling out the user name, we skip signature validation here.
-    validation.insecure_disable_signature_validation();
-    if let Ok(token) =
-        jsonwebtoken::decode::<AccessTokenClaims>(jwt, &DecodingKey::from_secret(&[]), &validation)
-    {
-        Some(token.claims.username)
-    } else {
-        None
-    }
-}
-
-pub fn get_jwt_from_headers(headers: &HeaderMap<HeaderValue>) -> Option<String> {
-    headers
-        .get(header::AUTHORIZATION)
-        .cloned()
-        .and_then(|value| value.to_str().ok().map(String::from))
-        // The contents of the `Authorization` header should be "Bearer [JWT token]" so strip out out the "Bearer " prefix
-        .and_then(|value| value.strip_prefix("Bearer ").map(String::from))
 }
 
 pub async fn get_pubkeys_from_cognito(

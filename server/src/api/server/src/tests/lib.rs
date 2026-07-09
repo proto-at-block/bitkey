@@ -38,12 +38,12 @@ use notification::service::{
 use onboarding::routes::{CompleteOnboardingRequestV2, CreateAccountRequest, CreateKeysetRequest};
 use onboarding::routes_v2::CreateAccountRequestV2;
 use rand::thread_rng;
-use repository::public_key::KeyType;
 use recovery::entities::{
     DelayNotifyRecoveryAction, DelayNotifyRequirements, RecoveryAction, RecoveryDestination,
     RecoveryRequirements, RecoveryStatus, RecoveryType, WalletRecovery,
 };
 use recovery::routes::delay_notify::{AuthenticationKey, RotateAuthenticationKeysRequest};
+use repository::public_key::KeyType;
 use time::format_description::well_known::Rfc3339;
 use time::{Duration, OffsetDateTime};
 use types::account::bitcoin::Network;
@@ -241,6 +241,8 @@ async fn create_default_account_with_predefined_wallet_internal(
                         network: network.into(),
                         app_pub: app_xpub.to_public_key().inner,
                         hardware_pub: hardware_xpub.to_public_key().inner,
+
+                        hardware_attestation: None,
                     },
                     is_test_account,
                 },
@@ -416,6 +418,8 @@ pub(crate) async fn create_inactive_spending_keyset_for_account(
                             network: network.into(),
                             app_pub: app_xpub.xkey.public_key,
                             hardware_pub: hw_xpub.xkey.public_key,
+
+                            hardware_attestation: None,
                         },
                     )
                     .await;
@@ -994,6 +998,8 @@ pub(crate) async fn create_onboarded_w3_account(
             network: Network::BitcoinSignet.into(),
             app_pub: create_pubkey(),
             hardware_pub: create_pubkey(),
+
+            hardware_attestation: None,
         },
         is_test_account: true,
     };

@@ -629,6 +629,7 @@ impl BootstrapBuilder {
             self.services.screener_service.clone(),
             self.services.transaction_verification_service.clone(),
             self.services.anti_replay_repository.clone(),
+            self.services.privileged_action_service.clone(),
         );
 
         let transaction_verification_state = transaction_verification::routes::RouteState(

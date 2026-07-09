@@ -113,7 +113,7 @@ class RelationshipsCodeBuilderImplTests : FunSpec({
 
   test("test parseRecoveryCode - version mismatch") {
     val recoveryCode = 0b1_1_11111110110111000010000000000000010_10101011110000010010_001010u.toString()
-    val result = builder.parseRecoveryCode(recoveryCode).shouldBeErrOfType<RelationshipsCodeVersionError>()
+    builder.parseRecoveryCode(recoveryCode).shouldBeErrOfType<RelationshipsCodeVersionError>()
   }
 
   test("test parseRecoveryCode - invalid code format") {

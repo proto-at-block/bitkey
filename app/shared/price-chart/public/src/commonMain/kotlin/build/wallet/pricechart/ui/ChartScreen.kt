@@ -12,7 +12,7 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.invisibleToUser
+import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -53,8 +53,7 @@ internal fun ChartScreen(
     CircularTabRow(
       items = ChartType.entries.map { stringResource(it.label) }.toImmutableList(),
       selectedItemIndex = model.type.ordinal,
-      onClick = { model.onChartTypeSelected(ChartType.entries[it]) },
-      backgroundColor = WalletTheme.colors.secondary
+      onClick = { model.onChartTypeSelected(ChartType.entries[it]) }
     )
 
     Spacer(modifier = Modifier.height(4.dp))
@@ -91,7 +90,7 @@ internal fun LoadingErrorMessage() {
   ) {
     Icon(
       modifier = Modifier,
-      icon = build.wallet.statemachine.core.Icon.SmallIconCloudError,
+      icon = build.wallet.statemachine.core.Icon.CloudError,
       size = IconSize.Large,
       color = WalletTheme.colors.foreground30
     )
@@ -162,7 +161,7 @@ private fun ChartHistorySelector(
         if (!isSelected) {
           Label(
             text = stringResource(entry.label),
-            modifier = Modifier.semantics { invisibleToUser() },
+            modifier = Modifier.semantics { hideFromAccessibility() },
             style = WalletTheme.textStyle(
               type = LabelType.Body2Bold,
               treatment = LabelTreatment.Unspecified,

@@ -44,13 +44,6 @@ interface TransactionsActivityService {
   val transactionsState: StateFlow<TransactionsActivityState>
 
   /**
-   * Emits latest list of transactions activity.
-   * @deprecated Use [transactionsState] instead for proper loading state handling.
-   */
-  @Deprecated("Use transactionsState instead")
-  val transactions: StateFlow<List<Transaction>?>
-
-  /**
    * Emits latest list of transactions activity including inactive wallet transactions.
    */
   val activeAndInactiveWalletTransactions: StateFlow<List<Transaction>?>

@@ -1,5 +1,7 @@
 package build.wallet.worker
 
+import build.wallet.catchingResult
+import build.wallet.coroutines.withTimeoutThrowing
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.logging.logDebug
@@ -7,9 +9,8 @@ import build.wallet.logging.logError
 import build.wallet.logging.logWarn
 import build.wallet.platform.app.AppSessionManager
 import build.wallet.platform.app.AppSessionState
-import kotlinx.coroutines.CancellationException
+import com.github.michaelbull.result.onFailure
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
@@ -18,7 +19,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 import kotlin.time.Duration
 import kotlin.time.measureTime
 
@@ -36,7 +36,11 @@ class AppWorkerExecutorImpl(
 
   // Mutex lock that ensures thread-safety in case if
   // multiple calls to executeAll() are made concurrently on accident.
-  private var executionLock = Mutex()
+  private val executionLock = Mutex()
+
+  private val AppWorker.label get() = this::class.simpleName?.let {
+    "[AppWorker: $it]"
+  } ?: "[AppWorker: ${this::class}]"
 
   override suspend fun executeAll() {
     withContext(appScope.coroutineContext) {
@@ -131,20 +135,18 @@ class AppWorkerExecutorImpl(
     }
 
     repeat(retries + 1) { attempt ->
-      runCatching {
+      // catchingResult rethrows CancellationException, and withTimeoutThrowing surfaces
+      // timeouts as a non-cancellation TimeoutException, so timeouts are retried below
+      // while genuine cancellations propagate.
+      catchingResult {
         val time = measureTime {
-          withTimeout(timeout) {
+          withTimeoutThrowing(timeout) {
             worker.executeWork()
           }
         }
         logDebug { "${worker.label} completed in $time" }
         return
       }.onFailure { error ->
-        if (error is CancellationException && error !is TimeoutCancellationException) {
-          logDebug { "${worker.label} coroutine is being canceled" }
-          throw error
-        }
-
         logError(throwable = error) { "${worker.label} failed" }
 
         if (attempt == retries) {
@@ -157,8 +159,4 @@ class AppWorkerExecutorImpl(
       }
     }
   }
-
-  private val AppWorker.label get() = this::class.simpleName?.let {
-    "[AppWorker: $it]"
-  } ?: "[AppWorker: ${this::class}]"
 }

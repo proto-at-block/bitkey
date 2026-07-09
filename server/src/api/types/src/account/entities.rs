@@ -88,8 +88,7 @@ impl HardwareType {
     /// if the serial is missing or unrecognized.
     fn require_known_serial(serial: Option<&str>) -> Result<HardwareType, &'static str> {
         let serial = serial.ok_or("Hardware serial header is required.")?;
-        HardwareType::from_serial(serial)
-            .ok_or("Unrecognized hardware serial number.")
+        HardwareType::from_serial(serial).ok_or("Unrecognized hardware serial number.")
     }
 
     /// For v1 routes: require that the serial is present and maps to W1 hardware.
@@ -97,7 +96,9 @@ impl HardwareType {
     pub fn require_w1_serial(serial: Option<&str>) -> Result<(), &'static str> {
         match Self::require_known_serial(serial)? {
             HardwareType::W1 => Ok(()),
-            _ => Err("This endpoint requires W1 hardware. Upgrade your app to use the v2 endpoints."),
+            _ => {
+                Err("This endpoint requires W1 hardware. Upgrade your app to use the v2 endpoints.")
+            }
         }
     }
 
@@ -110,9 +111,7 @@ impl HardwareType {
     ) -> Result<(), &'static str> {
         let hw_type = Self::require_known_serial(serial)?;
         if hw_type == HardwareType::W3 && claimed_hardware_type == HardwareType::W1 {
-            return Err(
-                "W3 hardware must not onboard as W1. Use the correct hardware type.",
-            );
+            return Err("W3 hardware must not onboard as W1. Use the correct hardware type.");
         }
         Ok(())
     }
@@ -408,6 +407,11 @@ pub struct FullAccount {
     pub hardware_auth_pubkey: PublicKey,
     #[serde(default)]
     pub auth_keys: HashMap<AuthKeysId, FullAccountAuthKeys>,
+    /// One-way enrollment flag for hardware-verification OOBA. Once `true`,
+    /// must never be unset — see `account::hardware_verification` for the
+    /// gate model.
+    #[serde(default)]
+    pub hardware_verification_required: bool,
     #[serde(flatten)]
     pub common_fields: CommonAccountFields,
 }
@@ -421,6 +425,7 @@ impl FullAccount {
         auth: FullAccountAuthKeys,
         spending: SpendingKeyset,
         properties: AccountProperties,
+        hardware_verification_required: bool,
     ) -> Self {
         let now = OffsetDateTime::now_utc();
         let hardware_auth_pubkey = auth.hardware_pubkey;
@@ -436,6 +441,7 @@ impl FullAccount {
             transaction_verification_policy: None,
             application_auth_pubkey,
             hardware_auth_pubkey,
+            hardware_verification_required,
             common_fields: CommonAccountFields {
                 active_auth_keys_id,
                 touchpoints: vec![],
@@ -553,6 +559,7 @@ impl LiteAccount {
         spending_keyset: SpendingKeyset,
         auth_keys_id: AuthKeysId,
         auth_keys: FullAccountAuthKeys,
+        hardware_verification_required: bool,
     ) -> FullAccount {
         FullAccount {
             id: self.id.clone(),
@@ -564,6 +571,7 @@ impl LiteAccount {
             application_auth_pubkey: Some(auth_keys.app_pubkey),
             hardware_auth_pubkey: auth_keys.hardware_pubkey,
             auth_keys: HashMap::from([(auth_keys_id.clone(), auth_keys)]),
+            hardware_verification_required,
             common_fields: CommonAccountFields {
                 active_auth_keys_id: auth_keys_id,
                 onboarding_complete: false,
@@ -863,6 +871,24 @@ pub mod v2 {
         pub network: Network,
         pub app_pub: PublicKey,
         pub hardware_pub: PublicKey,
+        /// `Option` because pre-enrollment clients don't send it; the
+        /// server only requires it when the account is enrolled.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pub hardware_attestation: Option<HardwareAttestation>,
+    }
+
+    /// Device-identity-key signature over `b"HWV1" || hardware_pub`, with
+    /// the cert chain back to Silicon Labs needed to validate the signing
+    /// key. `signature` and each `cert_chain` entry are base64 on the wire.
+    #[serde_with::serde_as]
+    #[derive(Deserialize, Serialize, Debug, PartialEq, ToSchema, Clone)]
+    pub struct HardwareAttestation {
+        #[serde_as(as = "serde_with::base64::Base64")]
+        #[schema(value_type = String, format = Byte)]
+        pub signature: Vec<u8>,
+        #[serde_as(as = "Vec<serde_with::base64::Base64>")]
+        #[schema(value_type = Vec<String>)]
+        pub cert_chain: Vec<Vec<u8>>,
     }
 
     #[derive(Deserialize, Serialize, PartialEq, Debug, ToSchema, Clone)]
@@ -957,6 +983,7 @@ mod tests {
                 server_dpub: descriptor_public_key,
             }),
             properties.clone(),
+            false,
         );
 
         let lite_account = LiteAccount::new(
@@ -1068,6 +1095,7 @@ mod tests {
             transaction_verification_policy: None,
             application_auth_pubkey: None,
             hardware_auth_pubkey: public_key,
+            hardware_verification_required: false,
             common_fields: CommonAccountFields {
                 active_auth_keys_id: auth_keys_id,
                 touchpoints: vec![],
@@ -1110,6 +1138,24 @@ mod tests {
         assert!(empty_account.active_hardware_type().is_err());
     }
 
+    /// Records persisted before `hardware_verification_required` must still
+    /// deserialize, with the field defaulting to `false`.
+    #[test]
+    fn test_full_account_deserializes_legacy_shape_without_hardware_verification_required() {
+        let account = generate_default_test_account();
+        let mut value = serde_json::to_value(&account).expect("serialize");
+        value
+            .as_object_mut()
+            .expect("object")
+            .remove("hardware_verification_required");
+
+        let parsed: FullAccount = serde_json::from_value(value).expect("legacy shape deserializes");
+        assert!(
+            !parsed.hardware_verification_required,
+            "absent field must default to false (account not yet enrolled)"
+        );
+    }
+
     #[test]
     fn test_untagged_descriptor_backup_deserialization() {
         let keyset_id = KeysetId::gen().unwrap();
@@ -1135,15 +1181,30 @@ mod tests {
 
     #[test]
     fn test_from_serial_w1_codes() {
-        assert_eq!(HardwareType::from_serial("0000S203rest"), Some(HardwareType::W1));
-        assert_eq!(HardwareType::from_serial("0000S204rest"), Some(HardwareType::W1));
-        assert_eq!(HardwareType::from_serial("0000S233rest"), Some(HardwareType::W1));
+        assert_eq!(
+            HardwareType::from_serial("0000S203rest"),
+            Some(HardwareType::W1)
+        );
+        assert_eq!(
+            HardwareType::from_serial("0000S204rest"),
+            Some(HardwareType::W1)
+        );
+        assert_eq!(
+            HardwareType::from_serial("0000S233rest"),
+            Some(HardwareType::W1)
+        );
     }
 
     #[test]
     fn test_from_serial_w3_codes() {
-        assert_eq!(HardwareType::from_serial("0000S271rest"), Some(HardwareType::W3));
-        assert_eq!(HardwareType::from_serial("0000S272rest"), Some(HardwareType::W3));
+        assert_eq!(
+            HardwareType::from_serial("0000S271rest"),
+            Some(HardwareType::W3)
+        );
+        assert_eq!(
+            HardwareType::from_serial("0000S272rest"),
+            Some(HardwareType::W3)
+        );
     }
 
     #[test]
@@ -1161,8 +1222,14 @@ mod tests {
 
     #[test]
     fn test_from_serial_test_constants() {
-        assert_eq!(HardwareType::from_serial(HardwareType::TEST_SERIAL_W1), Some(HardwareType::W1));
-        assert_eq!(HardwareType::from_serial(HardwareType::TEST_SERIAL_W3), Some(HardwareType::W3));
+        assert_eq!(
+            HardwareType::from_serial(HardwareType::TEST_SERIAL_W1),
+            Some(HardwareType::W1)
+        );
+        assert_eq!(
+            HardwareType::from_serial(HardwareType::TEST_SERIAL_W3),
+            Some(HardwareType::W3)
+        );
     }
 
     #[test]
@@ -1181,25 +1248,31 @@ mod tests {
 
         // W3 serial claiming W1 → error
         assert!(HardwareType::reject_w3_claiming_w1(
-            Some(HardwareType::TEST_SERIAL_W3), HardwareType::W1
-        ).is_err());
+            Some(HardwareType::TEST_SERIAL_W3),
+            HardwareType::W1
+        )
+        .is_err());
 
         // W3 serial claiming W3 → ok
         assert!(HardwareType::reject_w3_claiming_w1(
-            Some(HardwareType::TEST_SERIAL_W3), HardwareType::W3
-        ).is_ok());
+            Some(HardwareType::TEST_SERIAL_W3),
+            HardwareType::W3
+        )
+        .is_ok());
 
         // W1 serial → ok regardless of claimed type
         assert!(HardwareType::reject_w3_claiming_w1(
-            Some(HardwareType::TEST_SERIAL_W1), HardwareType::W1
-        ).is_ok());
+            Some(HardwareType::TEST_SERIAL_W1),
+            HardwareType::W1
+        )
+        .is_ok());
         assert!(HardwareType::reject_w3_claiming_w1(
-            Some(HardwareType::TEST_SERIAL_W1), HardwareType::W3
-        ).is_ok());
+            Some(HardwareType::TEST_SERIAL_W1),
+            HardwareType::W3
+        )
+        .is_ok());
 
         // Unrecognized serial → error
-        assert!(HardwareType::reject_w3_claiming_w1(
-            Some("0000XXXX"), HardwareType::W1
-        ).is_err());
+        assert!(HardwareType::reject_w3_claiming_w1(Some("0000XXXX"), HardwareType::W1).is_err());
     }
 }

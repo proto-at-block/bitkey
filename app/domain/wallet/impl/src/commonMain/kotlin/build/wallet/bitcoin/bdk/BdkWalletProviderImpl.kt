@@ -6,6 +6,7 @@ import build.wallet.bdk.bindings.BdkWalletFactory
 import build.wallet.bdk.bindings.wallet
 import build.wallet.bitcoin.descriptor.BitcoinDescriptor
 import build.wallet.bitcoin.wallet.WalletDescriptor
+import build.wallet.catchingResult
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.logging.logError
@@ -13,10 +14,12 @@ import build.wallet.logging.logFailure
 import build.wallet.platform.data.File.join
 import build.wallet.platform.data.FileDirectoryProvider
 import build.wallet.platform.data.databasesDir
-import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
+import com.github.michaelbull.result.onFailure
+import com.github.michaelbull.result.onSuccess
+import com.github.michaelbull.result.recoverCatching
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okio.ByteString.Companion.encodeUtf8
@@ -69,23 +72,19 @@ class BdkWalletProviderImpl(
     val externalDescriptor = Descriptor(walletDescriptor.receivingDescriptor.raw, network)
     val internalDescriptor = Descriptor(walletDescriptor.changeDescriptor.raw, network)
 
-    return runCatching {
-      runCatching {
-        BdkV2Wallet.load(externalDescriptor, internalDescriptor, persister)
-      }.recoverCatching {
+    return catchingResult {
+      BdkV2Wallet.load(externalDescriptor, internalDescriptor, persister)
+    }
+      .recoverCatching {
         BdkV2Wallet(externalDescriptor, internalDescriptor, network, persister)
-      }.getOrThrow()
-    }.fold(
-      onSuccess = { wallet ->
+      }
+      .onSuccess { wallet ->
         walletsV2[key] = wallet
-        Ok(wallet)
-      },
-      onFailure = { error ->
+      }
+      .onFailure { error ->
         val errorName = error::class.simpleName ?: "UnknownError"
         logError { "BDK2 wallet create failed (error=$errorName)" }
-        Err(error)
       }
-    )
   }
 
   override fun getPersister(identifier: String): Persister {

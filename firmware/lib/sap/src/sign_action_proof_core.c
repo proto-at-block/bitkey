@@ -33,6 +33,8 @@ const char* const sap_action_strings[SAP_ACTION_COUNT] = {
   "InitiateWalletUpgrade",
   "RemoveRecoveryCustomer",
   "RemoveBenefactor",
+  "KeysetRepairUnseal",
+  "KeysetRepairRotate",
 };
 
 sap_action_t sap_parse_action(const char* str) {

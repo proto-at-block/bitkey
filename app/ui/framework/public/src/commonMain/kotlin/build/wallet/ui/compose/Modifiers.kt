@@ -11,7 +11,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -19,6 +18,7 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.platform.haptics.HapticsEffect
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -119,7 +119,7 @@ fun Modifier.scalingClickable(
     label = "scaling-clickable-opacity-transition"
   )
 
-  val scope = rememberCoroutineScope()
+  val scope = rememberStableCoroutineScope()
   val haptics = LocalHaptics.current
 
   this.graphicsLayer {

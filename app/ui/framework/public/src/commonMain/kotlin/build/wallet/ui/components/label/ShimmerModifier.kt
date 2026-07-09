@@ -12,7 +12,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.semantics.invisibleToUser
+import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import build.wallet.ui.theme.WalletTheme
@@ -107,7 +107,7 @@ fun Modifier.loadingScrim(
       .then(
         if (isLoading) {
           Modifier.semantics {
-            invisibleToUser() // Hide from screen readers when loading
+            hideFromAccessibility() // Hide from screen readers when loading
           }
         } else {
           Modifier

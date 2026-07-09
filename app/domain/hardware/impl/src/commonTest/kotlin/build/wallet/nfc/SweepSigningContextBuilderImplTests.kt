@@ -1,5 +1,14 @@
 package build.wallet.nfc
 
+import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
+import build.wallet.bitcoin.keys.DescriptorPublicKey
+import build.wallet.bitcoin.keys.DescriptorPublicKey.Origin
+import build.wallet.bitcoin.keys.DescriptorPublicKey.Wildcard.Unhardened
+import build.wallet.bitkey.app.AppSpendingPublicKey
+import build.wallet.bitkey.f8e.F8eSpendingKeyset
+import build.wallet.bitkey.f8e.F8eSpendingPublicKey
+import build.wallet.bitkey.hardware.HwSpendingPublicKey
+import build.wallet.bitkey.spending.SpendingKeyset
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
@@ -38,4 +47,53 @@ class SweepSigningContextBuilderImplTests : FunSpec({
       // expected
     }
   }
+
+  test("buildFor returns null for current account index by default") {
+    val builder = SweepSigningContextBuilderImpl()
+
+    builder.buildFor(
+      oldKeyset = keyset(accountIndex = 0u),
+      currentAccountIndex = 0u
+    ).shouldBe(null)
+  }
+
+  test("buildFor returns context for non-current account index") {
+    val builder = SweepSigningContextBuilderImpl()
+
+    val context = builder.buildFor(
+      oldKeyset = keyset(accountIndex = 1u),
+      currentAccountIndex = 0u
+    )
+
+    context?.oldAccountIndex.shouldBe(1u)
+  }
 })
+
+private fun keyset(accountIndex: UInt): SpendingKeyset {
+  val descriptor = descriptorPublicKey(accountIndex)
+  return SpendingKeyset(
+    localId = "keyset-$accountIndex",
+    networkType = SIGNET,
+    appKey = AppSpendingPublicKey(descriptor),
+    hardwareKey = HwSpendingPublicKey(descriptor),
+    f8eSpendingKeyset = F8eSpendingKeyset(
+      keysetId = "server-keyset-$accountIndex",
+      spendingPublicKey = F8eSpendingPublicKey(descriptor),
+      privateWalletRootXpub = VALID_XPUB
+    )
+  )
+}
+
+private fun descriptorPublicKey(accountIndex: UInt): DescriptorPublicKey =
+  DescriptorPublicKey(
+    origin = Origin(
+      fingerprint = "e5ff120e",
+      derivationPath = "/84'/0'/$accountIndex'"
+    ),
+    xpub = VALID_XPUB,
+    derivationPath = "/*",
+    wildcard = Unhardened
+  )
+
+private const val VALID_XPUB =
+  "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8"

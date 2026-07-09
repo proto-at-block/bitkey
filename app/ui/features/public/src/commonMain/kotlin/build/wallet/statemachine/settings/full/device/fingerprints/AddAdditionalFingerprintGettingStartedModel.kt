@@ -21,7 +21,7 @@ data class AddAdditionalFingerprintGettingStartedModel(
     toolbar = null,
     header = FormHeaderModel(
       iconModel = IconModel(
-        icon = Icon.SmallIconFingerprint,
+        icon = Icon.Fingerprint,
         iconSize = IconSize.Large,
         iconTint = IconTint.Primary,
         iconBackgroundType = IconBackgroundType.Circle(
@@ -37,7 +37,7 @@ data class AddAdditionalFingerprintGettingStartedModel(
     primaryButton =
       ButtonModel(
         text = "Add additional fingerprint",
-        leadingIcon = Icon.SmallIconBitkey,
+        leadingIcon = Icon.Bitkey,
         onClick = SheetClosingClick(onContinue),
         treatment = ButtonModel.Treatment.BitkeyInteraction,
         size = ButtonModel.Size.Footer

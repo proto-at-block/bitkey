@@ -143,7 +143,7 @@ class ViewingProtectedCustomerUiStateMachineImplTests : FunSpec({
       // Hardware auth screen - verify the action proof type includes the customer alias
       awaitUntilBodyMock<HardwareAuthUiProps> {
         actionProofType.shouldBeTypeOf<ActionProofType.RemoveRecoveryCustomer>().run {
-          entityId.shouldBe(ProtectedCustomerFake.relationshipId)
+          entityId.shouldBe(ProtectedCustomerFake.id.value)
           name.shouldBe(ProtectedCustomerFake.alias.alias)
         }
         onBack()

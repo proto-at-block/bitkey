@@ -7,6 +7,7 @@ import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
+import build.wallet.catchingResult
 import build.wallet.crypto.SealedData
 import build.wallet.crypto.SymmetricKey
 import build.wallet.crypto.SymmetricKeyImpl
@@ -28,6 +29,8 @@ import build.wallet.nfc.platform.EmulatedPromptOption
 import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.HardwareIdentityAwareNfcCommands
 import build.wallet.nfc.platform.HwDisplayPreference
+import build.wallet.nfc.platform.KeysetRepairRotateHwKeyParams
+import build.wallet.nfc.platform.KeysetRepairRotateHwKeyResult
 import build.wallet.nfc.platform.LostAppRecoveryCompositeResult
 import build.wallet.nfc.platform.LostAppRecoveryContinueParams
 import build.wallet.nfc.platform.NfcCommands
@@ -104,7 +107,7 @@ class BitkeyW3CommandsFake(
 
   // ---- Per-device state (independent from W1) ----
 
-  private var fingerprintEnrollmentResult = FingerprintEnrollmentResult(
+  private val fingerprintEnrollmentResult = FingerprintEnrollmentResult(
     status = FingerprintEnrollmentStatus.NOT_IN_PROGRESS,
     passCount = null,
     failCount = null,
@@ -158,9 +161,9 @@ class BitkeyW3CommandsFake(
     val w3Tag = w3AuthKeyBytes.substring(12, 28)
 
     val matchedHardwareTypes = sealedCseks.mapNotNull { sealedCsek ->
-      val parsedSealedData = runCatching {
+      val parsedSealedData = catchingResult {
         FakeSealedDataCodec.parseSealedDataProto(sealedCsek)
-      }.getOrNull() ?: run {
+      }.get() ?: run {
         logInfo {
           "W3 fake cloud backup restoration could not parse sealed CSEK; falling back to configuredHardwareType=$configuredHardwareType"
         }
@@ -221,7 +224,23 @@ class BitkeyW3CommandsFake(
   ) = when (presentedHardwareType(session)) {
     HardwareType.W1 -> w1CommandsFake.getInitialSpendingKey(session, network)
     HardwareType.W3 ->
-      HwSpendingPublicKey(fakeHardwareKeyStore.getInitialSpendingKeypair(network).publicKey.key)
+      HwSpendingKeyResult(
+        publicKey = HwSpendingPublicKey(
+          fakeHardwareKeyStore.getInitialSpendingKeypair(network).publicKey.key
+        ),
+        attestationSignature = null
+      )
+  }
+
+  override suspend fun getInitialSpendingPublicKey(
+    session: NfcSession,
+    network: BitcoinNetworkType,
+  ) = when (presentedHardwareType(session)) {
+    HardwareType.W1 -> w1CommandsFake.getInitialSpendingPublicKey(session, network)
+    HardwareType.W3 ->
+      HwSpendingPublicKey(
+        fakeHardwareKeyStore.getInitialSpendingKeypair(network).publicKey.key
+      )
   }
 
   override suspend fun getNextSpendingKey(
@@ -231,11 +250,14 @@ class BitkeyW3CommandsFake(
   ) = when (presentedHardwareType(session)) {
     HardwareType.W1 -> w1CommandsFake.getNextSpendingKey(session, existingDescriptorPublicKeys, network)
     HardwareType.W3 ->
-      HwSpendingPublicKey(
-        fakeHardwareKeyStore.getNextSpendingKeypair(
-          existingDescriptorPublicKeys.map { it.key.dpub },
-          network
-        ).publicKey.key
+      HwSpendingKeyResult(
+        publicKey = HwSpendingPublicKey(
+          fakeHardwareKeyStore.getNextSpendingKeypair(
+            existingDescriptorPublicKeys.map { it.key.dpub },
+            network
+          ).publicKey.key
+        ),
+        attestationSignature = null
       )
   }
 
@@ -448,6 +470,9 @@ class BitkeyW3CommandsFake(
     hwRevision = "w3a-core-evt"
   )
 
+  var lastSignTransactionAllowUnfinalized: Boolean? = null
+    private set
+
   /**
    * W3 hardware requires on-device confirmation for transaction signing (non-PSBT protocol).
    *
@@ -462,11 +487,13 @@ class BitkeyW3CommandsFake(
     psbt: Psbt,
     spendingKeyset: SpendingKeyset,
     displayPreference: HwDisplayPreference?,
+    allowUnfinalized: Boolean,
   ): HardwareInteraction<Psbt> {
     if (!descriptorLoaded()) throw NfcException.DescriptorNotLoaded()
     if (fakeHardwareStatesDao.getTransactionVerificationEnabled().get() == true) {
       throw TransactionError.VerificationRequired()
     }
+    lastSignTransactionAllowUnfinalized = allowUnfinalized
     return emulatedPrompt(
       details = listOf(
         EmulatedPromptOption.Detail("Action", "Sign Transaction"),
@@ -503,6 +530,8 @@ class BitkeyW3CommandsFake(
    */
   var lastSweepContext: SweepSigningContext? = null
     private set
+  var sweepTransactionRequestCount: Int = 0
+    private set
 
   override suspend fun sweepTransaction(
     session: NfcSession,
@@ -513,6 +542,7 @@ class BitkeyW3CommandsFake(
   ): HardwareInteraction<Psbt> {
     if (!descriptorLoaded()) throw NfcException.DescriptorNotLoaded()
     lastSweepContext = sweepContext
+    sweepTransactionRequestCount += 1
     return emulatedPrompt(
       details = listOf(
         EmulatedPromptOption.Detail("Action", "Sweep Transaction"),
@@ -666,6 +696,47 @@ class BitkeyW3CommandsFake(
       details = listOf(EmulatedPromptOption.Detail("Action", "EEK Restoration — Unseal Key")),
       onApprove = { fetchSession, _ ->
         SymmetricKeyImpl(unsealData(fetchSession, sealedKey))
+      }
+    )
+
+  /**
+   * W3 hardware requires on-device confirmation for stale keyset repair unseal.
+   */
+  override suspend fun keysetRepairUnsealSymmetricKey(
+    session: NfcSession,
+    sealedKey: SealedData,
+  ): HardwareInteraction<SymmetricKey> =
+    emulatedPrompt(
+      details = listOf(EmulatedPromptOption.Detail("Action", "Keyset Repair — Unseal Key")),
+      onApprove = { fetchSession, _ ->
+        SymmetricKeyImpl(unsealData(fetchSession, sealedKey))
+      }
+    )
+
+  /**
+   * W3 hardware requires on-device confirmation for the keyset repair rotate composite,
+   * which derives a new HW spending key and signs the access token in one tap.
+   */
+  override suspend fun keysetRepairRotateHwKey(
+    session: NfcSession,
+    params: KeysetRepairRotateHwKeyParams,
+  ): HardwareInteraction<KeysetRepairRotateHwKeyResult> =
+    emulatedPrompt(
+      details = listOf(EmulatedPromptOption.Detail("Action", "Keyset Repair — Rotate HW Key")),
+      onApprove = { fetchSession, _ ->
+        val hwSpendingKey = getNextSpendingKey(
+          fetchSession,
+          params.existingHwSpendingKeys,
+          params.network
+        ).publicKey
+        val signedAccessToken = messageSigner.sign(
+          params.accessToken.raw.encodeUtf8(),
+          fakeHardwareKeyStore.getAuthKeypair().privateKey.key
+        )
+        KeysetRepairRotateHwKeyResult(
+          hwSpendingKey = hwSpendingKey,
+          signedAccessToken = signedAccessToken
+        )
       }
     )
 

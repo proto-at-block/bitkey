@@ -81,6 +81,10 @@ To begin verification, run the script like so:
 app/verifiable-build/android/verification/verify-android-apk . verify-apk
 ```
 
+Published release source includes
+`app/verifiable-build/android/release-build-date.txt`.
+The verification build uses this date automatically when it exists.
+
 Once the script finishes,
 look through its output.
 It should end with builds being identical.

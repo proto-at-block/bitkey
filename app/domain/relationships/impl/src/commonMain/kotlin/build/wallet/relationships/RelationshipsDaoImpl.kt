@@ -36,7 +36,7 @@ class RelationshipsDaoImpl(
           val invitations =
             trustedContactInvitationsQuery.executeAsList().map { invitation ->
               Invitation(
-                relationshipId = invitation.relationshipId,
+                id = RelationshipId(invitation.relationshipId),
                 trustedContactAlias = invitation.trustedContactAlias,
                 code = invitation.token,
                 codeBitLength = invitation.tokenBitLength.toInt(),
@@ -47,7 +47,7 @@ class RelationshipsDaoImpl(
           val unendorsedTrustedContacts =
             unendorsedTrustedContactsQueries.executeAsList().map { contact ->
               UnendorsedTrustedContact(
-                relationshipId = contact.relationshipId,
+                id = RelationshipId(contact.relationshipId),
                 trustedContactAlias = contact.trustedContactAlias,
                 enrollmentPakeKey = contact.enrollmentPakeKey,
                 enrollmentKeyConfirmation = contact.enrollmentKeyConfirmation,
@@ -59,7 +59,7 @@ class RelationshipsDaoImpl(
           val endorsedTrustedContacts =
             trustedContactsQuery.executeAsList().map { trustedContact ->
               EndorsedTrustedContact(
-                relationshipId = trustedContact.relationshipId,
+                id = RelationshipId(trustedContact.relationshipId),
                 trustedContactAlias = trustedContact.trustedContactAlias,
                 authenticationState = trustedContact.authenticationState,
                 keyCertificate = EncodedTrustedContactKeyCertificate(trustedContact.certificate)
@@ -71,7 +71,7 @@ class RelationshipsDaoImpl(
           val protectedProtectedCustomers =
             protectedCustomersQueries.executeAsList().map { customer ->
               ProtectedCustomer(
-                relationshipId = customer.relationshipId,
+                id = RelationshipId(customer.relationshipId),
                 alias = customer.alias,
                 roles = customer.roles
               )
@@ -98,7 +98,7 @@ class RelationshipsDaoImpl(
         relationshipsQueries.clearProtectedCustomers()
         customers.forEach { customer ->
           relationshipsQueries.insertProtectedCustomer(
-            relationshipId = customer.relationshipId,
+            relationshipId = customer.id.value,
             alias = customer.alias,
             roles = customer.roles
           )
@@ -113,9 +113,9 @@ class RelationshipsDaoImpl(
         relationshipsQueries.clearTrustedContacts()
         relationships.endorsedTrustedContacts.forEach { tc ->
           relationshipsQueries.insertTrustedContact(
-            relationshipId = tc.relationshipId,
+            relationshipId = tc.id.value,
             trustedContactAlias = tc.trustedContactAlias,
-            authenticationState = currentAuthStates[tc.relationshipId]
+            authenticationState = currentAuthStates[tc.id.value]
               ?: tc.authenticationState,
             certificate = tc.keyCertificate.encode().getOrThrow().base64,
             roles = tc.roles
@@ -126,7 +126,7 @@ class RelationshipsDaoImpl(
         relationshipsQueries.clearTrustedContactInvitations()
         relationships.invitations.forEach { invitation ->
           relationshipsQueries.insertTrustedContactInvitation(
-            relationshipId = invitation.relationshipId,
+            relationshipId = invitation.id.value,
             trustedContactAlias = invitation.trustedContactAlias,
             token = invitation.code,
             tokenBitLength = invitation.codeBitLength.toLong(),
@@ -144,13 +144,13 @@ class RelationshipsDaoImpl(
         relationshipsQueries.clearUnendorsedTrustedContacts()
         relationships.unendorsedTrustedContacts.forEach { contact ->
           relationshipsQueries.insertUnendorsedTrustedContact(
-            relationshipId = contact.relationshipId,
+            relationshipId = contact.id.value,
             trustedContactAlias = contact.trustedContactAlias,
             enrollmentPakeKey = contact.enrollmentPakeKey,
             enrollmentKeyConfirmation = contact.enrollmentKeyConfirmation,
             sealedDelegatedDecryptionKey = contact.sealedDelegatedDecryptionKey.value,
             authenticationState =
-              currentUnendorsedAuthStates[contact.relationshipId]
+              currentUnendorsedAuthStates[contact.id.value]
                 ?: TrustedContactAuthenticationState.UNAUTHENTICATED,
             roles = contact.roles
           )

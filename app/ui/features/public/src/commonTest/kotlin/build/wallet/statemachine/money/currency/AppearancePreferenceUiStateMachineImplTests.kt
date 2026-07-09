@@ -27,6 +27,7 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.pricechart.TimeScaleListFormModel
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitUntilBody
+import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.awaitUntilSheet
 import build.wallet.ui.theme.ThemePreferenceServiceFake
 import io.kotest.core.spec.style.FunSpec
@@ -167,7 +168,9 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
       }
 
       // Verify we're back to main appearance preference screen without bottom sheet
-      awaitItem().bottomSheetModel.shouldBe(null)
+      awaitUntilScreenWithBody<AppearancePreferenceBodyModel>(
+        matchingScreen = { it.bottomSheetModel == null }
+      )
     }
   }
 

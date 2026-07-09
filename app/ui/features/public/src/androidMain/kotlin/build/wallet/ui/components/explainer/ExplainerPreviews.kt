@@ -49,17 +49,17 @@ fun NumberedExplainerWithManyStatementsPreview() {
   PreviewWalletTheme {
     Explainer {
       Statement(
-        icon = Icon.SmallIconDigitOne,
+        icon = Icon.DigitOne,
         title = "First title",
         body = LONG_TEXT
       )
       Statement(
-        icon = Icon.SmallIconDigitTwo,
+        icon = Icon.DigitTwo,
         title = "Second title",
         body = "Second body"
       )
       Statement(
-        icon = Icon.SmallIconDigitThree,
+        icon = Icon.DigitThree,
         title = "Third title",
         body = "Third body"
       )

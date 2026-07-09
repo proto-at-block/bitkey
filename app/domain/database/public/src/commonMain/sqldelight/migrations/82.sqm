@@ -1,0 +1,37 @@
+DELETE FROM coachmarkEntity
+WHERE id = 'PrivateWalletHomeCoachmark'
+  AND EXISTS (
+    SELECT 1
+    FROM coachmarkEntity normalized
+    WHERE normalized.id = 'private_wallet_home_coachmark'
+  );
+
+UPDATE coachmarkEntity
+SET id = 'private_wallet_home_coachmark'
+WHERE id = 'PrivateWalletHomeCoachmark';
+
+DELETE FROM coachmarkEntity
+WHERE id = 'Bip177Coachmark'
+  AND EXISTS (
+    SELECT 1
+    FROM coachmarkEntity normalized
+    WHERE normalized.id = 'bip_177_coachmark'
+  );
+
+UPDATE coachmarkEntity
+SET id = 'bip_177_coachmark'
+WHERE id = 'Bip177Coachmark';
+
+DELETE FROM coachmarkEntity
+WHERE id = 'W3UpgradeBlockerCoachmark'
+  AND EXISTS (
+    SELECT 1
+    FROM coachmarkEntity normalized
+    WHERE normalized.id = 'w3_upgrade_blocker_coachmark'
+  );
+
+UPDATE coachmarkEntity
+SET id = 'w3_upgrade_blocker_coachmark'
+WHERE id = 'W3UpgradeBlockerCoachmark';
+
+PRAGMA foreign_key_check;

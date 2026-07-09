@@ -8,9 +8,9 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment.Custom
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.TextInput
-import build.wallet.statemachine.core.form.formBodyModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
@@ -28,33 +28,45 @@ class F8eCustomUrlStateMachineImpl(
   override fun model(props: F8eCustomUrlStateMachineProps): ScreenModel {
     val scope = rememberStableCoroutineScope()
     var customUrl by remember { mutableStateOf(props.customUrl) }
-    return formBodyModel(
-      id = DebugMenuEventTrackerScreenId.F8E_CUSTOM_URL_ENTRY,
-      onBack = props.onBack,
-      toolbar = ToolbarModel(leadingAccessory = BackAccessory(onClick = props.onBack)),
-      header = FormHeaderModel(headline = "Custom Fromagerie Url"),
-      mainContentList = immutableListOf(
-        TextInput(
-          title = "Url",
-          fieldModel = TextFieldModel(
-            value = customUrl,
-            placeholderText = "http://localhost:8080",
-            testTag = "debug-f8e-custom-url-input",
-            onValueChange = { newValue, _ -> customUrl = newValue },
-            keyboardType = Uri
-          )
-        )
-      ),
-      primaryButton = ButtonModel(
-        text = "Set Url",
-        size = Footer,
-        onClick = StandardClick {
-          scope.launch {
-            accountConfigService.setF8eEnvironment(Custom(customUrl))
-            props.onBack()
-          }
+    return F8eCustomUrlBodyModel(
+      customUrl = customUrl,
+      onCustomUrlChanged = { customUrl = it },
+      onSetUrl = {
+        scope.launch {
+          accountConfigService.setF8eEnvironment(Custom(customUrl))
+          props.onBack()
         }
-      )
+      },
+      onBack = props.onBack
     ).asModalScreen()
   }
 }
+
+private data class F8eCustomUrlBodyModel(
+  val customUrl: String,
+  val onCustomUrlChanged: (String) -> Unit,
+  val onSetUrl: () -> Unit,
+  override val onBack: () -> Unit,
+) : FormBodyModel(
+    id = DebugMenuEventTrackerScreenId.F8E_CUSTOM_URL_ENTRY,
+    onBack = onBack,
+    toolbar = ToolbarModel(leadingAccessory = BackAccessory(onClick = onBack)),
+    header = FormHeaderModel(headline = "Custom Fromagerie Url"),
+    mainContentList = immutableListOf(
+      TextInput(
+        title = "Url",
+        fieldModel = TextFieldModel(
+          value = customUrl,
+          placeholderText = "http://localhost:8080",
+          testTag = "debug-f8e-custom-url-input",
+          onValueChange = { newValue, _ -> onCustomUrlChanged(newValue) },
+          keyboardType = Uri
+        )
+      )
+    ),
+    primaryButton = ButtonModel(
+      text = "Set Url",
+      size = Footer,
+      onClick = StandardClick(onSetUrl)
+    )
+  )

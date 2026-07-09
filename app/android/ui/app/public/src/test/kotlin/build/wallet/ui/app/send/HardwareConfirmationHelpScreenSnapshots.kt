@@ -2,6 +2,7 @@ package build.wallet.ui.app.send
 
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.kotest.paparazzi.paparazziExtension
+import build.wallet.platform.device.DevicePlatform.Android
 import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationContent
 import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationHelpBodyModel
 import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationScreenModel
@@ -29,18 +30,20 @@ class HardwareConfirmationHelpScreenSnapshots : FunSpec({
       FormScreen(
         model = HardwareConfirmationHelpBodyModel(
           onBack = {},
-          content = HardwareConfirmationContent.SignTransaction.helpContent!!
+          content = HardwareConfirmationContent.SignTransaction.helpContent!!,
+          devicePlatform = Android
         )
       )
     }
   }
 
-  test("send hardware confirmation help screen - design system v2") {
+  test("firmware update help screen") {
     paparazzi.snapshot {
       FormScreen(
         model = HardwareConfirmationHelpBodyModel(
           onBack = {},
-          content = HardwareConfirmationContent.SignTransaction.helpContent!!
+          content = HardwareConfirmationContent.FirmwareUpdate.helpContent!!,
+          devicePlatform = Android
         )
       )
     }
@@ -59,20 +62,6 @@ class HardwareConfirmationHelpScreenSnapshots : FunSpec({
     }
   }
 
-  test("send transaction hardware confirmation screen - design system v2") {
-    paparazzi.snapshot {
-      FormScreen(
-        model = HardwareConfirmationScreenModel(
-          onBack = {},
-          onConfirm = {},
-          onHelpClick = {},
-          content = HardwareConfirmationContent.SendTransaction,
-          isHardwareFake = true
-        )
-      )
-    }
-  }
-
   test("consolidate utxos hardware confirmation screen") {
     paparazzi.snapshot {
       FormScreen(
@@ -86,21 +75,7 @@ class HardwareConfirmationHelpScreenSnapshots : FunSpec({
     }
   }
 
-  test("consolidate utxos hardware confirmation screen - design system v2") {
-    paparazzi.snapshot {
-      FormScreen(
-        model = HardwareConfirmationScreenModel(
-          onBack = {},
-          onConfirm = {},
-          onHelpClick = {},
-          content = HardwareConfirmationContent.ConsolidateUtxos,
-          isHardwareFake = true
-        )
-      )
-    }
-  }
-
-  test("send transaction hardware confirmation screen with destination address - design system v2") {
+  test("send transaction hardware confirmation screen with destination address") {
     paparazzi.snapshot {
       FormScreen(
         model = HardwareConfirmationScreenModel(

@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.FAILED
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.PAKE_DATA_UNAVAILABLE
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.TAMPERED
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.UNAUTHENTICATED
 import build.wallet.bitkey.relationships.UnendorsedTrustedContact
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
@@ -30,6 +31,14 @@ class ViewingRecoveryContactUiStateMachineImpl(
         ScreenModel(
           body = props.screenBody,
           bottomSheetModel = when {
+            props.recoveryContact is UnendorsedTrustedContact &&
+              props.recoveryContact.authenticationState == UNAUTHENTICATED &&
+              props.recoveryContact.id.value in props.unendorsedContactRelationshipIdsMissingPakeData ->
+              ViewingFailedContactSheetModel(
+                contact = props.recoveryContact,
+                onRemove = { state = Removing },
+                onClosed = props.onExit
+              )
             props.recoveryContact is UnendorsedTrustedContact && props.recoveryContact.authenticationState in setOf(
               FAILED,
               PAKE_DATA_UNAVAILABLE

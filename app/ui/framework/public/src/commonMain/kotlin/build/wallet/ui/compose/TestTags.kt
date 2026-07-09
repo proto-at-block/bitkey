@@ -51,7 +51,6 @@ fun IconModel.testTagDescriptor(): String =
   when (val iconImage = iconImage) {
     is IconImage.LocalImage -> iconImage.icon.name
     is IconImage.DrawableResourceImage -> "drawable-resource"
-    is IconImage.MarketIconImage -> iconImage.icon.toString()
     is IconImage.UrlImage -> iconImage.fallbackIcon.name
     IconImage.LoadingBadge -> "loading-badge"
   }

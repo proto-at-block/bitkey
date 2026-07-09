@@ -14,40 +14,8 @@ import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.form.RenderContext.Screen
 import build.wallet.ui.app.core.form.FormScreen
 import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.label.CallToActionModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.collections.immutable.ImmutableList
-
-data class FormDesignSystemV2Model(
-  val title: String? = null,
-  val toolbar: ToolbarModel? = null,
-  val useLegacyToolbarFallback: Boolean = true,
-  val header: FormHeaderModel? = null,
-  val useLegacyHeaderFallback: Boolean = true,
-  val mainContentList: ImmutableList<FormMainContentModel>? = null,
-  val primaryButton: ButtonModel? = null,
-  val secondaryButton: ButtonModel? = null,
-  val footerRevealDelayMillis: Int = 0,
-  val useDesignSystemV2ScreenLayout: Boolean = false,
-  val headerToMainContentSpacing: Int? = null,
-  val contentSpacing: Int = 24,
-  val scrollable: Boolean = true,
-  val mainContentVerticalAlignment: MainContentVerticalAlignment = MainContentVerticalAlignment.TOP,
-  /**
-   * Content rendered in the footer area before the animated button reveal.
-   * This content is always visible (not subject to the footer reveal animation).
-   */
-  val preFooterMainContentList: ImmutableList<FormMainContentModel> = emptyImmutableList(),
-  val useLegacyPrimaryButtonFallback: Boolean = true,
-  val useLegacySecondaryButtonFallback: Boolean = true,
-  val eyebrow: String? = null,
-) {
-  enum class MainContentVerticalAlignment {
-    TOP,
-    CENTER,
-    BOTTOM,
-  }
-}
 
 /**
  * A generic model capable of showing many different "form" like screens.
@@ -72,8 +40,6 @@ data class FormDesignSystemV2Model(
  *
  * @property id: A unique identifier for this screen that will also be used to track screen
  * analytic events.
- * @property onSwipeToDismiss: Handler for iOS swipe to dismiss gesture. If nonnull, screen will
- * be swipe-to-dimiss-able. Otherwise, swipe to dismiss will be prevented.
  * @property toolbar: Toolbar component to show at the top of the screen. If `null`, empty toolbar
  * will be used that will act as a spacer.
  * @property header: Content shown at the top of the screen, under the toolbar.
@@ -82,34 +48,32 @@ data class FormDesignSystemV2Model(
  * @property primaryButton: The primary button in the footer area of the screen.
  * @property secondaryButton: Optional secondary button shown above the primary button.
  * @property tertiaryButton: Optional tertiary button shown below the primary button.
- * @property ctaWarning If specified, show a warning text above button stack.
  * @property keepScreenOn: Prevent screen dimming from inactivity.
  * @property renderContext [RenderContext]: how the model will be displayed to the user, defaults to
  * [Screen]
  * @property eventTrackerShouldTrack: whether the screen event should be tracked for analytics
  * @property errorData If the screen is an error screen, this will contain appropriate error data
  * to be logged.
- * @property disableFixedFooter When true, includes footer content inside the main scrollable area.
  */
-abstract class FormBodyModel(
+open class FormBodyModel(
   open val id: EventTrackerScreenId?,
   override val onBack: (() -> Unit)?,
-  open val onSwipeToDismiss: (() -> Unit)? = null,
   open val toolbar: ToolbarModel?,
   open val header: FormHeaderModel?,
   open val mainContentList: ImmutableList<FormMainContentModel> = emptyImmutableList(),
   open val primaryButton: ButtonModel?,
   open val secondaryButton: ButtonModel? = null,
   open val tertiaryButton: ButtonModel? = null,
-  open val ctaWarning: CallToActionModel? = null,
   open val keepScreenOn: Boolean = false,
   open val renderContext: RenderContext = Screen,
-  open val onLoaded: (() -> Unit)? = null,
   open val eventTrackerContext: EventTrackerContext? = null,
   open val eventTrackerShouldTrack: Boolean = true,
   open val errorData: ErrorData? = null,
-  open val disableFixedFooter: Boolean = false,
-  open val designSystemV2Model: FormDesignSystemV2Model? = null,
+  open val formScreenTitle: FormScreenTitleModel? = null,
+  open val formScreenLayout: FormScreenLayoutModel = FormScreenLayoutModel.Legacy,
+  open val headerToMainContentSpacing: Int? = null,
+  open val footerRevealDelayMillis: Int = 0,
+  open val preFooterContentList: ImmutableList<FormMainContentModel> = emptyImmutableList(),
 ) : BodyModel(), AutomaticUiTests {
   override val eventTrackerScreenInfo: EventTrackerScreenInfo?
     get() =
@@ -171,17 +135,14 @@ enum class RenderContext {
 fun formBodyModel(
   id: EventTrackerScreenId?,
   onBack: (() -> Unit)?,
-  onSwipeToDismiss: (() -> Unit)? = null,
   toolbar: ToolbarModel?,
   header: FormHeaderModel?,
   mainContentList: ImmutableList<FormMainContentModel> = emptyImmutableList(),
   primaryButton: ButtonModel?,
   secondaryButton: ButtonModel? = null,
   tertiaryButton: ButtonModel? = null,
-  ctaWarning: CallToActionModel? = null,
   keepScreenOn: Boolean = false,
   renderContext: RenderContext = Screen,
-  onLoaded: (() -> Unit)? = null,
   eventTrackerContext: EventTrackerContext? = null,
   eventTrackerShouldTrack: Boolean = true,
   errorData: ErrorData? = null,
@@ -189,17 +150,14 @@ fun formBodyModel(
   FormBodyModelImpl(
     id = id,
     onBack = onBack,
-    onSwipeToDismiss = onSwipeToDismiss,
     toolbar = toolbar,
     header = header,
     mainContentList = mainContentList,
     primaryButton = primaryButton,
     secondaryButton = secondaryButton,
     tertiaryButton = tertiaryButton,
-    ctaWarning = ctaWarning,
     keepScreenOn = keepScreenOn,
     renderContext = renderContext,
-    onLoaded = onLoaded,
     eventTrackerContext = eventTrackerContext,
     eventTrackerShouldTrack = eventTrackerShouldTrack,
     errorData = errorData
@@ -215,37 +173,39 @@ fun formBodyModel(
 private data class FormBodyModelImpl(
   override val id: EventTrackerScreenId?,
   override val onBack: (() -> Unit)?,
-  override val onSwipeToDismiss: (() -> Unit)? = null,
   override val toolbar: ToolbarModel?,
   override val header: FormHeaderModel?,
   override val mainContentList: ImmutableList<FormMainContentModel> = emptyImmutableList(),
   override val primaryButton: ButtonModel?,
   override val secondaryButton: ButtonModel? = null,
   override val tertiaryButton: ButtonModel? = null,
-  override val ctaWarning: CallToActionModel? = null,
   override val keepScreenOn: Boolean = false,
   override val renderContext: RenderContext = Screen,
-  override val onLoaded: (() -> Unit)? = null,
   override val eventTrackerContext: EventTrackerContext? = null,
   override val eventTrackerShouldTrack: Boolean = true,
   override val errorData: ErrorData? = null,
-  override val designSystemV2Model: FormDesignSystemV2Model? = null,
+  override val formScreenTitle: FormScreenTitleModel? = null,
+  override val formScreenLayout: FormScreenLayoutModel = FormScreenLayoutModel.Legacy,
+  override val headerToMainContentSpacing: Int? = null,
+  override val footerRevealDelayMillis: Int = 0,
+  override val preFooterContentList: ImmutableList<FormMainContentModel> = emptyImmutableList(),
 ) : FormBodyModel(
     id = id,
     onBack = onBack,
-    onSwipeToDismiss = onSwipeToDismiss,
     toolbar = toolbar,
     header = header,
     mainContentList = mainContentList,
     primaryButton = primaryButton,
     secondaryButton = secondaryButton,
     tertiaryButton = tertiaryButton,
-    ctaWarning = ctaWarning,
     keepScreenOn = keepScreenOn,
     renderContext = renderContext,
-    onLoaded = onLoaded,
     eventTrackerContext = eventTrackerContext,
     eventTrackerShouldTrack = eventTrackerShouldTrack,
     errorData = errorData,
-    designSystemV2Model = designSystemV2Model
+    formScreenTitle = formScreenTitle,
+    formScreenLayout = formScreenLayout,
+    headerToMainContentSpacing = headerToMainContentSpacing,
+    footerRevealDelayMillis = footerRevealDelayMillis,
+    preFooterContentList = preFooterContentList
   )

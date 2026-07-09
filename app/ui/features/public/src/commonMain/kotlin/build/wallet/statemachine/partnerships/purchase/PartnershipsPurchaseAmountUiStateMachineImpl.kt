@@ -15,12 +15,14 @@ import build.wallet.partnerships.PartnershipPurchaseService
 import build.wallet.partnerships.PartnershipPurchaseService.NoPurchaseOptionsError
 import build.wallet.partnerships.SuggestedPurchaseAmounts
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.SheetSize.MIN40
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DotLoader
 import build.wallet.statemachine.core.form.RenderContext.Sheet
+import build.wallet.statemachine.partnerships.PartnershipsSegment
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.toImmutableList
@@ -36,8 +38,6 @@ class PartnershipsPurchaseAmountUiStateMachineImpl(
 ) : PartnershipsPurchaseAmountUiStateMachine {
   @Composable
   override fun model(props: PartnershipsPurchaseAmountUiProps): SheetModel {
-    val isDesignSystemV2Enabled = true
-
     var state: State by remember {
       mutableStateOf(State.Loading(preSelectedAmount = props.selectedAmount))
     }
@@ -47,7 +47,6 @@ class PartnershipsPurchaseAmountUiStateMachineImpl(
         selectPurchaseAmountModel(
           purchaseAmounts = currentState.purchaseAmounts.displayOptions.toImmutableList(),
           selectedAmount = currentState.selectedAmount,
-          isDesignSystemV2Enabled = isDesignSystemV2Enabled,
           moneyDisplayFormatter = moneyDisplayFormatter,
           onSelectAmount = { amount ->
             // deselect amount if it's already selected
@@ -165,7 +164,7 @@ class PartnershipsPurchaseAmountUiStateMachineImpl(
 private fun failureModel(
   id: DepositEventTrackerScreenId,
   title: String = "Error",
-  error: Throwable?,
+  error: Throwable,
   errorMessage: String,
   onExit: () -> Unit,
 ): SheetModel {
@@ -180,6 +179,11 @@ private fun failureModel(
       subline = errorMessage,
       primaryButton = ButtonDataModel("Got it", isLoading = false, onClick = onExit),
       renderContext = Sheet,
+      errorData = ErrorData(
+        segment = PartnershipsSegment,
+        actionDescription = "Loading partner purchase amounts",
+        cause = error
+      ),
       onBack = onExit
     ),
     onClosed = onExit,

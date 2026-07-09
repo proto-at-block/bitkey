@@ -2,6 +2,7 @@ package build.wallet.wallet.migration
 
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.database.sqldelight.PrivateWalletMigrationEntity
 import build.wallet.db.DbError
@@ -20,7 +21,10 @@ interface PrivateWalletMigrationDao {
   /**
    * Save the new hardware key after it is generated.
    */
-  suspend fun saveHardwareKey(hwKey: HwSpendingPublicKey): Result<Unit, DbError>
+  suspend fun saveHardwareKey(
+    hwKey: HwSpendingPublicKey,
+    hwKeyProof: HwSpendingKeyProof? = null,
+  ): Result<Unit, DbError>
 
   /**
    * Save the new app key after it is generated.

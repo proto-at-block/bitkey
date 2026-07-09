@@ -12,10 +12,12 @@ import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.onboarding.HardwareDescriptorDeliveryService
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
+import build.wallet.statemachine.recovery.RecoverySegment
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
@@ -100,6 +102,11 @@ class DescriptorRepairUiStateMachineImpl(
             onClick = {
               props.onBack()
             }
+          ),
+          errorData = ErrorData(
+            segment = RecoverySegment.KeysetRepair.Repair,
+            actionDescription = "Repairing wallet descriptor",
+            cause = currentState.error
           ),
           eventTrackerScreenId = LOADING_ONBOARDING_STEP
         ).let { body ->

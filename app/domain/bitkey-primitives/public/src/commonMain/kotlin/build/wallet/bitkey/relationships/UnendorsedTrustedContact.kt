@@ -16,7 +16,7 @@ import okio.ByteString
 @Serializable
 data class UnendorsedTrustedContact(
   @SerialName("recovery_relationship_id")
-  override val relationshipId: String,
+  override val id: RelationshipId,
   @SerialName("trusted_contact_alias")
   override val trustedContactAlias: TrustedContactAlias,
   @SerialName("sealed_delegated_decryption_pubkey")

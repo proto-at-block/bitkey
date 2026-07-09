@@ -12,10 +12,17 @@ pub mod cancel_pending_instance;
 pub mod configure_delay_duration_for_test;
 pub mod configure_privileged_action_delay_durations;
 pub mod error;
+pub mod expire_pending_out_of_band;
 pub mod get_by_web_auth_token;
 pub mod get_pending_instance;
 pub mod get_pending_instances;
 pub mod get_privileged_action_definitions;
+pub mod increment_out_of_band_attempts;
+pub mod resend_out_of_band_verification;
+
+/// Minimum interval between verification-email sends for a single OOB
+/// instance. Mirrors `comms_verification`'s resend throttle.
+pub const RESEND_COOLDOWN: time::Duration = time::Duration::seconds(30);
 
 #[derive(Clone, Deserialize)]
 pub struct Config {

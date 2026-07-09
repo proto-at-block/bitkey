@@ -21,6 +21,8 @@ import okio.ByteString.Companion.decodeHex
 class CsekDaoImpl(
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
 ) : CsekDao {
+  private val SealedCsek.forStore: String get() = hex()
+
   private suspend fun secureStore(): SuspendSettings =
     encryptedKeyValueStoreFactory.getOrCreate(storeName = "CsekStore")
 
@@ -39,6 +41,4 @@ class CsekDaoImpl(
   }
 
   override suspend fun clear(): Result<Unit, Throwable> = secureStore().clearWithResult()
-
-  private val SealedCsek.forStore: String get() = hex()
 }

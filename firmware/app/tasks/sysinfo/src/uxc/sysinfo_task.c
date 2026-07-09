@@ -12,6 +12,7 @@
 #include "rtos_timer.h"
 #include "secure_channel_cert.h"
 #include "sysevent.h"
+#include "sysinfo.h"
 #include "telemetry_storage.h"
 #include "uc.h"
 #include "uc_route.h"
@@ -307,6 +308,11 @@ static void sysinfo_thread(void* args) {
 
     switch (proto->which_msg) {
       case fwpb_uxc_msg_host_boot_status_msg_tag:
+        // Core piggybacks the device serial here so our Memfault events
+        // report the same identity. Empty/short payloads are ignored by
+        // sysinfo_set_serial so old Core builds remain compatible.
+        sysinfo_set_serial((const char*)proto->msg.boot_status_msg.serial.bytes,
+                           proto->msg.boot_status_msg.serial.size);
         uc_free_recv_proto(proto);
         _sysinfo_send_cert_request();
         break;

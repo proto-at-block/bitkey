@@ -8,8 +8,10 @@ import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus
 import build.wallet.bitcoin.keys.DescriptorPublicKeyMock
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.bitkey.keybox.FullAccountW3Mock
 import build.wallet.bitkey.keybox.PrivateWalletKeyboxMock
 import build.wallet.bitkey.spending.HwSpendingPublicKeyMock
+import build.wallet.f8e.auth.ActionProofHeader
 import build.wallet.cloud.backup.CloudBackupServiceFake
 import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
 import build.wallet.cloud.backup.FullAccountCloudBackupCreatorMock
@@ -19,12 +21,14 @@ import build.wallet.cloud.store.CloudStoreAccountRepositoryMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.onboarding.CreateAccountKeysetV2F8eClientFake
 import build.wallet.f8e.onboarding.SetActiveSpendingKeysetF8eClientFake
 import build.wallet.f8e.recovery.LegacyRemoteKeyset
 import build.wallet.f8e.recovery.ListKeysetsF8eClientMock
 import build.wallet.f8e.recovery.ListKeysetsResponse
 import build.wallet.f8e.recovery.PrivateMultisigRemoteKeyset
+import build.wallet.f8e.recovery.SignedKeysetVerificationResponseMock
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.FeatureFlagValue
 import build.wallet.feature.flags.KeysetRepairFeatureFlag
@@ -40,10 +44,13 @@ import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 
+// Large end-to-end coverage for keyset repair; splitting would hurt cohesion.
+@Suppress("LargeClass")
 class SpendingKeysetRepairServiceImplTests : FunSpec({
   val accountService = AccountServiceFake()
   val listKeysetsF8eClient = ListKeysetsF8eClientMock()
@@ -110,7 +117,104 @@ class SpendingKeysetRepairServiceImplTests : FunSpec({
     test("returns Synced when local and server keyset IDs match") {
       accountService.setActiveAccount(FullAccountMock)
       val localKeysetId = FullAccountMock.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
-      listKeysetsF8eClient.activeKeysetId = localKeysetId
+      listKeysetsF8eClient.result = Ok(
+        ListKeysetsResponse(
+          keysets = listOf(createFakeLegacyRemoteKeyset(localKeysetId)),
+          wrappedSsek = null,
+          descriptorBackups = emptyList(),
+          activeKeysetId = localKeysetId
+        )
+      )
+
+      val service = service()
+      service.executeWork()
+
+      service.syncStatus.value.shouldBe(SpendingKeysetSyncStatus.Synced)
+    }
+
+    test("returns IncompleteKeysetList when server has keysets missing locally") {
+      accountService.setActiveAccount(FullAccountMock)
+      val localKeysetId = FullAccountMock.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
+      val missingKeysetId = "missing-server-keyset-id"
+      listKeysetsF8eClient.result = Ok(
+        ListKeysetsResponse(
+          keysets = listOf(
+            createFakeLegacyRemoteKeyset(localKeysetId),
+            createFakeLegacyRemoteKeyset(missingKeysetId)
+          ),
+          wrappedSsek = null,
+          descriptorBackups = emptyList(),
+          activeKeysetId = localKeysetId
+        )
+      )
+
+      val service = service()
+      service.executeWork()
+
+      val status = service.syncStatus.value
+      status.shouldBeInstanceOf<SpendingKeysetSyncStatus.IncompleteKeysetList>()
+      status.activeKeysetId.shouldBe(localKeysetId)
+      status.missingKeysetIds.shouldBe(setOf(missingKeysetId))
+    }
+
+    test("returns IncompleteKeysetList when private wallet server has inactive legacy keysets missing locally") {
+      val privateAccount = FullAccountMock.copy(
+        keybox = PrivateWalletKeyboxMock.copy(
+          keysets = listOf(PrivateWalletKeyboxMock.activeSpendingKeyset),
+          canUseKeyboxKeysets = true
+        )
+      )
+      accountService.setActiveAccount(privateAccount)
+      val activePrivateKeysetId =
+        privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
+      val missingKeysetId = "missing-legacy-keyset-id"
+      listKeysetsF8eClient.result = Ok(
+        ListKeysetsResponse(
+          keysets = listOf(
+            createFakeLegacyRemoteKeyset(missingKeysetId),
+            PrivateMultisigRemoteKeyset(
+              keysetId = activePrivateKeysetId,
+              networkType = "SIGNET",
+              appPublicKey = privateAccount.keybox.activeSpendingKeyset.appKey.key.dpub,
+              hardwarePublicKey = privateAccount.keybox.activeSpendingKeyset.hardwareKey.key.dpub,
+              serverPublicKey =
+                privateAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey.key.dpub
+            )
+          ),
+          wrappedSsek = null,
+          descriptorBackups = emptyList(),
+          activeKeysetId = activePrivateKeysetId
+        )
+      )
+
+      val service = service()
+      service.executeWork()
+
+      val status = service.syncStatus.value
+      status.shouldBeInstanceOf<SpendingKeysetSyncStatus.IncompleteKeysetList>()
+      status.activeKeysetId.shouldBe(activePrivateKeysetId)
+      status.missingKeysetIds.shouldBe(setOf(missingKeysetId))
+    }
+
+    test("returns Synced when server has keysets missing locally but local keysets are not authoritative") {
+      val nonAuthoritativeAccount = FullAccountMock.copy(
+        keybox = FullAccountMock.keybox.copy(canUseKeyboxKeysets = false)
+      )
+      accountService.setActiveAccount(nonAuthoritativeAccount)
+      val localKeysetId =
+        nonAuthoritativeAccount.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
+      val missingKeysetId = "missing-server-keyset-id"
+      listKeysetsF8eClient.result = Ok(
+        ListKeysetsResponse(
+          keysets = listOf(
+            createFakeLegacyRemoteKeyset(localKeysetId),
+            createFakeLegacyRemoteKeyset(missingKeysetId)
+          ),
+          wrappedSsek = null,
+          descriptorBackups = emptyList(),
+          activeKeysetId = localKeysetId
+        )
+      )
 
       val service = service()
       service.executeWork()
@@ -667,6 +771,12 @@ class SpendingKeysetRepairServiceImplTests : FunSpec({
       repairComplete.updatedKeybox.keysets.size.shouldBe(
         FullAccountMock.keybox.keysets.size + 1
       )
+      setActiveSpendingKeysetF8eClient.lastSetArguments
+        .shouldNotBeNull()
+        .proof
+        .shouldBeInstanceOf<PrivilegedActionProof.HwKeyProof>()
+        .hwFactorProofOfPossession
+        .shouldBe(HwFactorProofOfPossession("fake-proof"))
       fullAccountCloudBackupCreator.createCalls.awaitItem()
     }
 
@@ -718,7 +828,108 @@ class SpendingKeysetRepairServiceImplTests : FunSpec({
 
       result.shouldBeOk()
       // Descriptor backup is uploaded internally when SSEK is available
+      descriptorBackupService.lastUploadDescriptorBackupsArgs
+        .shouldNotBeNull()
+        .proof
+        .shouldBeInstanceOf<PrivilegedActionProof.HwKeyProof>()
+        .hwFactorProofOfPossession
+        .shouldBe(HwFactorProofOfPossession("fake-proof"))
       fullAccountCloudBackupCreator.createCalls.awaitItem()
+    }
+
+    test("regenerates W3 keyset with action proofs") {
+      accountService.setActiveAccount(FullAccountW3Mock)
+      val serverActiveKeysetId = "spending-public-keyset-fake-server-id-0"
+
+      val descriptorBackup = DescriptorBackup(
+        keysetId = serverActiveKeysetId,
+        sealedDescriptor = XCiphertext("fake-sealed-descriptor"),
+        privateWalletRootXpub = XCiphertext("fake-private-wallet-root-xpub")
+      )
+
+      val cachedData = KeysetRepairCachedData(
+        response = ListKeysetsResponse(
+          keysets = listOf(
+            LegacyRemoteKeyset(
+              keysetId = serverActiveKeysetId,
+              networkType = "SIGNET",
+              appDescriptor = DescriptorPublicKeyMock(identifier = "app-0").dpub,
+              hardwareDescriptor = DescriptorPublicKeyMock(identifier = "hw-0").dpub,
+              serverDescriptor = DescriptorPublicKeyMock(identifier = "server-0").dpub
+            )
+          ),
+          wrappedSsek = SealedSsekFake,
+          descriptorBackups = listOf(descriptorBackup),
+          activeKeysetId = serverActiveKeysetId
+        ),
+        serverActiveKeysetId = serverActiveKeysetId
+      )
+
+      listKeysetsF8eClient.result = Ok(cachedData.response)
+      setActiveSpendingKeysetF8eClient.setResult = Ok(SignedKeysetVerificationResponseMock)
+      cloudStoreAccountRepository.currentAccountResult = Ok(testCloudStoreAccount)
+      cloudBackupService.writeBackup(
+        accountId = FullAccountW3Mock.accountId,
+        cloudStoreAccount = testCloudStoreAccount,
+        backup = CloudBackupV2WithFullAccountMock,
+        requireAuthRefresh = false
+      )
+      fullAccountCloudBackupCreator.backupResult = Ok(CloudBackupV2WithFullAccountMock)
+
+      val service = service()
+      val prepared = service.prepareRegeneratedActiveKeyset(
+        account = FullAccountW3Mock,
+        updatedKeybox = FullAccountW3Mock.keybox,
+        hwSpendingKey = HwSpendingPublicKeyMock
+      ).shouldBeOk()
+      val descriptorProof = PrivilegedActionProof.HwSignedAction(
+        ActionProofHeader(signatures = listOf("descriptor-signature"), nonce = "db-nonce")
+      )
+      val activationProof = PrivilegedActionProof.HwSignedAction(
+        ActionProofHeader(signatures = listOf("activation-signature"), nonce = "ak-nonce")
+      )
+
+      val result = service.completeRegeneratedActiveKeyset(
+        account = FullAccountW3Mock,
+        preparedRegeneratedKeyset = prepared,
+        descriptorBackupProof = descriptorProof,
+        keysetActivationProof = activationProof,
+        cachedData = cachedData
+      )
+
+      val repairComplete = result.shouldBeOk()
+      repairComplete.signedKeysetVerification.shouldBe(SignedKeysetVerificationResponseMock)
+      descriptorBackupService.lastUploadDescriptorBackupsArgs
+        .shouldNotBeNull()
+        .proof
+        .shouldBe(descriptorProof)
+      setActiveSpendingKeysetF8eClient.lastSetArguments
+        .shouldNotBeNull()
+        .proof
+        .shouldBe(activationProof)
+      fullAccountCloudBackupCreator.createCalls.awaitItem()
+    }
+
+    test("W3 one-shot regeneration rejects legacy hardware proof") {
+      val cachedData = KeysetRepairCachedData(
+        response = ListKeysetsResponse(
+          keysets = emptyList(),
+          wrappedSsek = null,
+          descriptorBackups = emptyList(),
+          activeKeysetId = "server-keyset"
+        ),
+        serverActiveKeysetId = "server-keyset"
+      )
+
+      val result = service().regenerateActiveKeyset(
+        account = FullAccountW3Mock,
+        updatedKeybox = FullAccountW3Mock.keybox,
+        hwSpendingKey = HwSpendingPublicKeyMock,
+        hwProofOfPossession = HwFactorProofOfPossession("fake-proof"),
+        cachedData = cachedData
+      )
+
+      result.shouldBeErrOfType<KeysetRepairError.KeysetActivationFailed>()
     }
 
     test("returns error when app key generation fails") {

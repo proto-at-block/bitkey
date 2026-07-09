@@ -75,8 +75,6 @@ fun App(
   val appTheme by themePreferenceService?.theme()?.collectAsState(initial = currentSystemTheme)
     ?: remember { mutableStateOf(currentSystemTheme) }
 
-  val isDesignSystemV2Enabled = true
-
   CompositionLocalProvider(
     LocalDeviceInfo provides deviceInfo,
     LocalAccelerometer provides accelerometer,
@@ -87,8 +85,7 @@ fun App(
       val backdropTheme =
         effectiveTheme(appTheme = appTheme, screenThemePreference = model.themePreference)
       val rootBackgroundColor = if (usesBlackFullscreenBackground(
-          bodyModel = model.body,
-          isDesignSystemV2Enabled = isDesignSystemV2Enabled
+          bodyModel = model.body
         )
       ) {
         Color.Black
@@ -209,7 +206,6 @@ private fun BitkeyTransition(
   // of the screen. This is passed to the animation retrieval functions which returns the appropriate
   // animation
   val density = LocalDensity.current
-  val isDesignSystemV2Enabled = true
 
   val transitionSpec: AnimatedContentTransitionScope<VoyagerScreen>.() -> ContentTransform = {
     val fromModel = (initialState as UiModelContentScreen).model
@@ -233,8 +229,7 @@ private fun BitkeyTransition(
       shouldSkipTransitionAnimation(
         lastEvent = navigator.lastEvent,
         fromModel = fromModel,
-        toModel = toModel,
-        isDesignSystemV2Enabled = isDesignSystemV2Enabled
+        toModel = toModel
       ) -> NoAnimation
       navigator.lastEvent == Pop ->
         navigator.popContentTransform(
@@ -319,13 +314,12 @@ private fun shouldSkipTransitionAnimation(
   lastEvent: cafe.adriel.voyager.core.stack.StackEvent,
   fromModel: ScreenModel,
   toModel: ScreenModel,
-  isDesignSystemV2Enabled: Boolean,
 ): Boolean {
   return lastEvent == Replace ||
     lastEvent == Idle ||
     isHomeSecurityHubTransition(fromModel.body, toModel.body) ||
-    shouldSkipRealtimeSurfaceTransition(fromModel, toModel, isDesignSystemV2Enabled) ||
-    shouldKeepHomeBannerFixed(fromModel, toModel, isDesignSystemV2Enabled)
+    shouldSkipRealtimeSurfaceTransition(fromModel, toModel) ||
+    shouldKeepHomeBannerFixed(fromModel, toModel)
 }
 
 private fun isHomeSecurityHubTransition(
@@ -339,7 +333,6 @@ private fun isHomeSecurityHubTransition(
 private fun shouldSkipRealtimeSurfaceTransition(
   fromModel: ScreenModel,
   toModel: ScreenModel,
-  isDesignSystemV2Enabled: Boolean,
 ): Boolean {
   if (fromModel.presentationStyle.isModalPresentationStyle() || toModel.presentationStyle.isModalPresentationStyle()) {
     return false
@@ -347,11 +340,8 @@ private fun shouldSkipRealtimeSurfaceTransition(
 
   val fromBody = fromModel.body
   val toBody = toModel.body
-  return isDesignSystemV2Enabled &&
-    (
-      fromBody is DeviceSettingsFormBodyModel ||
-        toBody is DeviceSettingsFormBodyModel
-    )
+  return fromBody is DeviceSettingsFormBodyModel ||
+    toBody is DeviceSettingsFormBodyModel
 }
 
 private fun ScreenPresentationStyle.isModalPresentationStyle(): Boolean {
@@ -361,10 +351,8 @@ private fun ScreenPresentationStyle.isModalPresentationStyle(): Boolean {
 private fun shouldKeepHomeBannerFixed(
   fromModel: ScreenModel,
   toModel: ScreenModel,
-  isDesignSystemV2Enabled: Boolean,
 ): Boolean {
-  return isDesignSystemV2Enabled &&
-    isMoneyHomeSettingsTransition(fromModel.body, toModel.body) &&
+  return isMoneyHomeSettingsTransition(fromModel.body, toModel.body) &&
     (fromModel.statusBannerModel != null || toModel.statusBannerModel != null)
 }
 

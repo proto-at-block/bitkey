@@ -19,7 +19,6 @@ use crate::sms::SendSMS;
 use crate::sqs::sqs_job_handler;
 use crate::{email::SendEmail, error::WorkerError, sns::SendPushNotification};
 
-#[instrument(skip(state))]
 pub async fn handler(
     state: &WorkerState,
     notification_channel: NotificationChannel,
@@ -40,36 +39,23 @@ pub async fn handler(
     let push_client_ref = &push_client;
     let sms_client_ref = &sms_client;
 
-    sqs_job_handler(state, queue_url, |serialized_messages| async move {
-        let mut failed_messages: Vec<NotificationMessage> = Vec::new();
-        for serialized_notification in serialized_messages {
-            let notification: NotificationMessage = serde_json::from_str(&serialized_notification)
-                .map_err(WorkerError::SerdeSerialization)?;
-            if let Err(e) = notification_handler(
-                &state.account_service,
-                &state.notification_service,
-                push_client_ref,
-                email_client_ref,
-                sms_client_ref,
-                &notification,
-            )
-            .await
-            {
-                let composite_key = notification.clone().composite_key;
-                failed_messages.push(notification);
-                event!(
-                    Level::ERROR,
-                    "Failed to update notification with id: {:?} due to error: {e}",
-                    composite_key
-                );
-            } else {
-                event!(
-                    Level::INFO,
-                    "Successfully handled notification with key: {:?}",
-                    notification.composite_key
-                );
-            }
-        }
+    sqs_job_handler(state, queue_url, |serialized_notification| async move {
+        let notification: NotificationMessage = serde_json::from_str(&serialized_notification)
+            .map_err(WorkerError::SerdeSerialization)?;
+        notification_handler(
+            &state.account_service,
+            &state.notification_service,
+            push_client_ref,
+            email_client_ref,
+            sms_client_ref,
+            &notification,
+        )
+        .await?;
+        event!(
+            Level::INFO,
+            "Successfully handled notification with key: {:?}",
+            notification.composite_key,
+        );
         Ok(())
     })
     .await
@@ -77,6 +63,7 @@ pub async fn handler(
 
 //TODO: Make into closure once for<'a> is supported
 // https://github.com/rust-lang/rust/issues/97362
+#[instrument(skip_all, fields(composite_key = ?message.composite_key))]
 async fn notification_handler(
     account_service: &AccountService,
     notification_service: &NotificationService,
@@ -107,17 +94,6 @@ async fn notification_handler(
         );
         return Ok(());
     };
-    notification_service
-        .update_delivery_status(UpdateDeliveryStatusInput {
-            composite_key: message.clone().composite_key,
-            status: DeliveryStatus::Completed,
-        })
-        .await?;
-    event!(
-        Level::INFO,
-        "Updated Delivery Status for message: {:?}",
-        message.composite_key.clone()
-    );
 
     let email_payload = message.email_payload.as_ref();
     let push_payload = message.push_payload.as_ref();
@@ -134,51 +110,64 @@ async fn notification_handler(
         } => account.get_push_touchpoint_by_platform_and_device_token(platform, device_token),
         _ => None,
     };
-    let Some(t) = touchpoint else {
-        return Ok(());
-    };
 
-    match t.to_owned() {
-        Touchpoint::Email { .. } => {
-            if let Some(payload) = email_payload {
-                email_client.send(account.get_id(), t, payload).await?;
-            }
-        }
-        Touchpoint::Push {
-            platform: _,
-            arn,
-            device_token: _,
-        } => {
-            if let Some(payload) = push_payload {
-                push_client.send(&arn, payload).await?;
-            }
-        }
-        Touchpoint::Phone { country_code, .. } => {
-            if let Some(payload) = sms_payload {
-                if !sms_client.is_supported_country_code(country_code) {
-                    event!(
-                        Level::INFO,
-                        "Filtering SMS: client does not support the country_code {}",
-                        country_code,
-                    );
-                    return Ok(());
+    if let Some(t) = touchpoint {
+        match t.to_owned() {
+            Touchpoint::Email { .. } => {
+                if let Some(payload) = email_payload {
+                    email_client.send(account.get_id(), t, payload).await?;
                 }
-
-                if let Some(unsupported_country_codes) = payload.unsupported_country_codes.as_ref()
-                {
-                    if unsupported_country_codes.contains(&country_code) {
+            }
+            Touchpoint::Push {
+                platform: _,
+                arn,
+                device_token: _,
+            } => {
+                if let Some(payload) = push_payload {
+                    push_client.send(&arn, payload).await?;
+                }
+            }
+            Touchpoint::Phone { country_code, .. } => {
+                if let Some(payload) = sms_payload {
+                    if !sms_client.is_supported_country_code(country_code) {
+                        event!(
+                            Level::INFO,
+                            "Filtering SMS: client does not support the country_code {}",
+                            country_code,
+                        );
+                    } else if payload
+                        .unsupported_country_codes
+                        .as_ref()
+                        .is_some_and(|codes| codes.contains(&country_code))
+                    {
                         event!(
                             Level::INFO,
                             "Filtering SMS: payload does not support the country_code {}",
                             country_code,
                         );
-                        return Ok(());
+                    } else {
+                        sms_client.send(t, payload).await?;
                     }
                 }
-
-                sms_client.send(t, payload).await?;
             }
         }
     }
+
+    // Mark Completed only after a successful send (or after deciding there
+    // was nothing to send). On a send error, `?` propagates above this point
+    // and the notification stays Pending; sqs_job_handler will likewise not
+    // delete the SQS message, so visibility-timeout redelivery can retry it.
+    notification_service
+        .update_delivery_status(UpdateDeliveryStatusInput {
+            composite_key: message.clone().composite_key,
+            status: DeliveryStatus::Completed,
+        })
+        .await?;
+    event!(
+        Level::INFO,
+        "Updated Delivery Status for message: {:?}",
+        message.composite_key.clone()
+    );
+
     Ok(())
 }

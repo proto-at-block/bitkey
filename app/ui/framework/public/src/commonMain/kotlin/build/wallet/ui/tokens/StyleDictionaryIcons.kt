@@ -20,103 +20,81 @@ private class LightStyleDictionaryIcons : StyleDictionaryIcons {
       Bitcoin -> Res.drawable.bitcoin
       BitcoinConsolidation -> Res.drawable.bitcoin_consolidation
       BitcoinBadged -> Res.drawable.bitcoin_badged
-      BitkeyDevice3D -> Res.drawable.bitkey_device_3d
       BitkeyFrontLit -> Res.drawable.bitkey_front_lit
-      SmallIconBitkeyReset -> Res.drawable.bitkey_reset
+      BitkeyReset -> Res.drawable.bitkey_reset
       BitkeyLogo -> Res.drawable.bitkey_logo
       BuyOwnBitkeyHero -> Res.drawable.buy_own_bitkey_hero
-      CloudBackupMobileKey -> Res.drawable.cloud_backup_mobile_key
       InheritanceShowcase -> Res.drawable.inheritance_showcase
       LiteMoneyHomeInheritanceHero -> Res.drawable.lite_money_home_inheritance_hero
-      LargeIconMinus -> Res.drawable.market_minus
+      Minus -> Res.drawable.market_minus
       LargeIconCheckFilled -> Res.drawable.large_icon_check_filled
       LargeIconCheckStroked -> Res.drawable.large_icon_check_stroked
-      LargeIconNetworkError -> Res.drawable.large_icon_network_error
-      LargeIconShieldPerson -> Res.drawable.large_icon_shield_person
-      LargeIconWarning -> Res.drawable.large_icon_warning
+      NetworkError -> Res.drawable.large_icon_network_error
       LargeIconWarningFilled -> Res.drawable.large_icon_warning_filled
-      LargeIconWarningStroked -> Res.drawable.large_icon_warning_stroked
-      MediumIconTrustedContact -> Res.drawable.medium_icon_trusted_contact
-      MoneyHomeHero -> Res.drawable.money_home_hero
       MoneyHomeHeroLightWithGraph -> Res.drawable.money_home_hero_light_with_graph
       MoneyHomeHeroLightNoGraph -> Res.drawable.money_home_hero_light_no_graph
       MoneyHomeHeroDarkWithGraph -> Res.drawable.money_home_hero_dark_with_graph
       MoneyHomeHeroDarkNoGraph -> Res.drawable.money_home_hero_dark_no_graph
-      SecurityHubEducationTrustedContact -> Res.drawable.hero_recovery_contacts
-      SecurityHubEducationMultipleFingerprints -> Res.drawable.hero_multiple_fingerprints
-      SecurityHubEducationEmergencyExit -> Res.drawable.hero_eak
-      SecurityHubEducationCriticalAlerts -> Res.drawable.hero_critical_alerts
-      SecurityHubEducationTransactionVerification -> Res.drawable.hero_transaction_verification
-      SmallIconAccount -> Res.drawable.small_icon_account
-      SmallIconAnnouncement -> Res.drawable.market_loud_speaker
-      SmallIconArrowDown -> Res.drawable.market_arrow_down
-      SmallIconArrowLeft -> Res.drawable.small_icon_arrow_left
-      SmallIconArrowRight -> Res.drawable.market_arrow_right
-      SmallIconArrowUp -> Res.drawable.market_arrow_up
-      SmallIconArrowUpRight -> Res.drawable.small_icon_arrow_up_right
-      SmallIconBitcoinStroked -> Res.drawable.market_bitcoin
-      SmallIconBitkey -> Res.drawable.market_bitkey_fill
-      SmallIconBitkeySend -> Res.drawable.market_bitkey_arrow_up
-      SmallIconCaretDown -> Res.drawable.small_icon_caret_down
-      SmallIconCaretLeft -> Res.drawable.small_icon_caret_left
-      SmallIconCaretRight -> Res.drawable.market_chevron_right
-      SmallIconCheck -> Res.drawable.small_icon_check
-      SmallIconCheckInheritance -> Res.drawable.small_icon_check_inheritance
-      SmallIconCheckbox -> Res.drawable.small_icon_checkbox
-      SmallIconCheckboxSelected -> Res.drawable.small_icon_checkbox_selected
+      Account -> Res.drawable.small_icon_account
+      ArrowDown -> Res.drawable.market_arrow_down
+      ArrowLeft -> Res.drawable.small_icon_arrow_left
+      ArrowRight -> Res.drawable.market_arrow_right
+      ArrowUp -> Res.drawable.market_arrow_up
+      ArrowUpRight -> Res.drawable.small_icon_arrow_up_right
+      BitcoinStroked -> Res.drawable.market_bitcoin
+      Bitkey -> Res.drawable.market_bitkey_fill
+      BitkeySend -> Res.drawable.market_bitkey_arrow_up
+      CaretDown -> Res.drawable.market_chevron_down
+      CaretRight -> Res.drawable.market_chevron_right
+      Check -> Res.drawable.small_icon_check
+      CheckInheritance -> Res.drawable.small_icon_check_inheritance
       SmallIconCheckFilled -> Res.drawable.small_icon_check_filled
       SmallIconCheckStroked -> Res.drawable.small_icon_check_stroked
-      SmallIconCircleStroked -> Res.drawable.small_icon_circle_stroked
-      SmallIconClipboard -> Res.drawable.small_icon_clipboard
-      SmallIconClock -> Res.drawable.small_icon_clock
-      SmallIconClockHands -> Res.drawable.small_icon_clock_hands
-      SmallIconCloud -> Res.drawable.market_cloud_1
-      SmallIconCloudError -> Res.drawable.small_icon_cloud_error
-      SmallIconConsolidation -> Res.drawable.market_arrows_converge_vertical
-      SmallIconCopy -> Res.drawable.market_copy
-      SmallIconDigitOne -> Res.drawable.small_icon_digit_one
-      SmallIconDigitThree -> Res.drawable.small_icon_digit_three
-      SmallIconDigitTwo -> Res.drawable.small_icon_digit_two
-      SmallIconDocument -> Res.drawable.market_file_download
-      SmallIconElectrum -> Res.drawable.market_stack
-      SmallIconEmail -> Res.drawable.market_envelope
-      SmallIconFingerprint -> Res.drawable.market_fingerprint
-      SmallIconInformation -> Res.drawable.market_i_circle
-      SmallIconInheritance -> Res.drawable.market_donation
-      SmallIconLightning -> Res.drawable.small_icon_lightning
-      SmallIconLock -> Res.drawable.market_lock_on
-      SmallIconMessage -> Res.drawable.market_message
-      SmallIconMinusFilled -> Res.drawable.small_icon_minus_filled
-      SmallIconMinusStroked -> Res.drawable.small_icon_minus_stroked
-      SmallIconMobileKey -> Res.drawable.small_icon_mobile_key
-      SmallIconMobileLimit -> Res.drawable.market_right_left
-      SmallIconNotification -> Res.drawable.market_notification_square
-      SmallIconPaintBrush -> Res.drawable.market_palette
-      SmallIconPhone -> Res.drawable.market_phone
-      SmallIconPlus -> Res.drawable.market_plus
-      SmallIconQrCode -> Res.drawable.small_icon_qr_code
-      SmallIconQuestion -> Res.drawable.market_question_mark_circle
-      SmallIconQuestionNoOutline -> Res.drawable.small_icon_question_no_outline
-      SmallIconRecovery -> Res.drawable.market_float
-      SmallIconRefresh -> Res.drawable.market_arrow_rotate_counterclockwise
-      SmallIconScan -> Res.drawable.small_icon_scan
-      SmallIconSettings -> Res.drawable.market_gear
-      SmallIconSettingsBadged -> Res.drawable.small_icon_settings_badged
-      SmallIconShare -> Res.drawable.small_icon_share
-      SmallIconShield -> Res.drawable.market_shield_empty
-      SmallIconShieldFilled -> Res.drawable.market_shield_fill
-      SmallIconShieldCheck -> Res.drawable.market_shield_check
-      SmallIconShieldPerson -> Res.drawable.market_shield_human
-      SmallIconSpeed -> Res.drawable.small_icon_speed
-      SmallIconSwap -> Res.drawable.small_icon_swap
-      SmallIconTicket -> Res.drawable.small_icon_ticket
-      SmallIconVideo -> Res.drawable.small_icon_video
-      SmallIconWallet -> Res.drawable.market_card_line
-      SmallIconWalletFilled -> Res.drawable.market_card_line_fill
+      CircleStroked -> Res.drawable.small_icon_circle_stroked
+      Clipboard -> Res.drawable.small_icon_clipboard
+      Clock -> Res.drawable.small_icon_clock
+      ClockHands -> Res.drawable.small_icon_clock_hands
+      Cloud -> Res.drawable.market_cloud_1
+      CloudError -> Res.drawable.market_cloud_1_slash
+      Consolidation -> Res.drawable.market_arrows_converge_vertical
+      Copy -> Res.drawable.market_copy
+      DigitOne -> Res.drawable.small_icon_digit_one
+      DigitThree -> Res.drawable.small_icon_digit_three
+      DigitTwo -> Res.drawable.small_icon_digit_two
+      Document -> Res.drawable.market_file_download
+      Electrum -> Res.drawable.market_stack
+      Email -> Res.drawable.market_envelope
+      Fingerprint -> Res.drawable.market_fingerprint
+      Information -> Res.drawable.market_i_circle
+      Inheritance -> Res.drawable.market_donation
+      Lightning -> Res.drawable.small_icon_lightning
+      Lock -> Res.drawable.market_lock_on
+      Message -> Res.drawable.market_message
+      MinusFilled -> Res.drawable.small_icon_minus_filled
+      MinusStroked -> Res.drawable.small_icon_minus_stroked
+      MobileLimit -> Res.drawable.market_right_left
+      Notification -> Res.drawable.market_notification_square
+      PaintBrush -> Res.drawable.market_palette
+      Phone -> Res.drawable.market_phone
+      Plus -> Res.drawable.market_plus
+      QrCode -> Res.drawable.small_icon_qr_code
+      Question -> Res.drawable.market_question_mark_circle
+      Recovery -> Res.drawable.market_float
+      Refresh -> Res.drawable.market_arrow_rotate_counterclockwise
+      ScanQrCode -> Res.drawable.market_scan_qr_code
+      Share -> Res.drawable.small_icon_share
+      Shield -> Res.drawable.market_shield_empty
+      ShieldFilled -> Res.drawable.market_shield_fill
+      ShieldCheck -> Res.drawable.market_shield_check
+      ShieldPerson -> Res.drawable.market_shield_human
+      Ticket -> Res.drawable.small_icon_ticket
+      Video -> Res.drawable.small_icon_video
+      Wallet -> Res.drawable.market_card_line
+      WalletFilled -> Res.drawable.market_card_line_fill
       SmallIconWarning -> Res.drawable.market_exclamation_circle
       SmallIconWarningFilled -> Res.drawable.small_icon_warning_filled
-      SmallIconX -> Res.drawable.small_icon_x
-      SmallIconXFilled -> Res.drawable.small_icon_xfilled
+      X -> Res.drawable.small_icon_x
+      XFilled -> Res.drawable.small_icon_xfilled
       DotAddressVerification -> Res.drawable.dot_address_verification
       DotAppKey -> Res.drawable.dot_app_key
       DotAppSecurity -> Res.drawable.dot_app_security
@@ -150,11 +128,18 @@ private class LightStyleDictionaryIcons : StyleDictionaryIcons {
       DotVaults -> Res.drawable.dot_vaults
       DotVerification -> Res.drawable.dot_verification
       DotWorld -> Res.drawable.dot_world
-      CalloutArrow -> Res.drawable.callout_arrow
       ThemeLight -> Res.drawable.market_brightness
       ThemeDark -> Res.drawable.market_moon
       WarningBadge -> Res.drawable.warning_badge
-      Insights -> Res.drawable.insights
+      Backspace -> Res.drawable.market_backspace
+      BitkeyWallet -> Res.drawable.market_bitkey_wallet
+      Checkmark -> Res.drawable.market_checkmark
+      CheckmarkCircleFill -> Res.drawable.market_checkmark_circle_fill
+      CriticalBadgeAlert -> Res.drawable.market_critical_badge_alert
+      DualRotatingArrows -> Res.drawable.market_dual_rotating_arrows
+      EllipsisHorizontal -> Res.drawable.market_ellipsis_horizontal
+      FileUpload -> Res.drawable.market_file_upload
+      XCircleFill -> Res.drawable.market_x_circle_fill
     }
 }
 
@@ -168,9 +153,7 @@ private class DarkStyleDictionaryIcons(
       BitcoinBadged -> Res.drawable.bitcoin_badged_dark
       InheritanceShowcase -> Res.drawable.inheritance_showcase_dark
       LiteMoneyHomeInheritanceHero -> Res.drawable.lite_money_home_inheritance_hero_dark
-      MoneyHomeHero -> Res.drawable.money_home_hero_dark
-      LargeIconNetworkError -> Res.drawable.large_icon_network_error_dark
-      SmallIconSettingsBadged -> Res.drawable.small_icon_settings_badged_dark
+      NetworkError -> Res.drawable.large_icon_network_error_dark
 
       // For all other icons, fall back to the light theme icons
       else -> lightIcons.getDrawableResource(icon)

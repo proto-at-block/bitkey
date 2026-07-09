@@ -37,7 +37,7 @@ data class ExistingFullAccountFoundBodyModel(
                 leadingAccessory =
                   ListItemAccessory.IconAccessory(
                     iconPadding = 12,
-                    model = IconModel(icon = Icon.SmallIconRecovery, iconSize = IconSize.Small)
+                    model = IconModel(icon = Icon.Recovery, iconSize = IconSize.Small)
                   ),
                 title = "Restore your wallet",
                 secondaryText = when (devicePlatform) {

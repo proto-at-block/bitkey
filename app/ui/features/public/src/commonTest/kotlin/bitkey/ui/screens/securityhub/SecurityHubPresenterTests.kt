@@ -12,6 +12,8 @@ import build.wallet.LoadableValue.LoadedValue
 import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.availability.FunctionalityFeatureStates
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.FAILED
+import build.wallet.bitkey.relationships.UnendorsedTrustedContactFake
 import build.wallet.cloud.backup.health.EekBackupStatus
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.database.SecurityInteractionStatus
@@ -47,6 +49,8 @@ import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintre
 import build.wallet.statemachine.settings.full.device.fingerprints.fingerprintreset.FingerprintResetUiStateMachine
 import build.wallet.statemachine.status.HomeStatusBannerUiProps
 import build.wallet.statemachine.status.HomeStatusBannerUiStateMachine
+import build.wallet.statemachine.trustedcontact.view.ViewingRecoveryContactProps
+import build.wallet.statemachine.trustedcontact.view.ViewingRecoveryContactUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.awaitUntilBody
@@ -66,6 +70,23 @@ class SecurityHubPresenterTests : FunSpec({
   val clock = ClockFake()
   val securityActionsService = SecurityActionsServiceFake()
   val haptics = HapticsMock()
+  val allSetPillSessionManager = object : SecurityHubAllSetPillSessionManager {
+    override val hasAutoHiddenPillInCurrentForegroundSession = MutableStateFlow(false)
+    override val foregroundSessionGeneration = MutableStateFlow(0)
+    override val isAppForegrounded = MutableStateFlow(true)
+
+    override fun markPillAutoHidden(foregroundSessionGeneration: Int): Boolean {
+      if (
+        this.foregroundSessionGeneration.value == foregroundSessionGeneration &&
+        isAppForegrounded.value
+      ) {
+        hasAutoHiddenPillInCurrentForegroundSession.value = true
+        return true
+      }
+
+      return false
+    }
+  }
 
   val firmwareDataService = FirmwareDataServiceFake()
   firmwareDataService.pendingUpdate = FirmwareDataPendingUpdateMock
@@ -106,12 +127,19 @@ class SecurityHubPresenterTests : FunSpec({
       initialModel = LoadedValue(null)
     ) {}
 
+  val viewingRecoveryContactUiStateMachine = object : ViewingRecoveryContactUiStateMachine,
+    ScreenStateMachineMock<ViewingRecoveryContactProps>(
+      id = "viewing-recovery-contact"
+    ) {}
+
   val presenter = SecurityHubPresenter(
     securityActionsService = securityActionsService,
+    securityHubAllSetPillSessionManager = allSetPillSessionManager,
     homeStatusBannerUiStateMachine = object : HomeStatusBannerUiStateMachine,
       StateMachineMock<HomeStatusBannerUiProps, StatusBannerModel?>(initialModel = null) {},
     firmwareDataService = firmwareDataService,
     recoveryContactCardsUiStateMachine = recoveryContactCardsUiStateMachine,
+    viewingRecoveryContactUiStateMachine = viewingRecoveryContactUiStateMachine,
     hardwareRecoveryStatusCardUiStateMachine = hardwareRecoveryStatusCardUiStateMachine,
     fingerprintResetStatusCardUiStateMachine = fingerprintResetStatusCardUiStateMachine,
     fingerprintResetUiStateMachine = fingerprintResetUiStateMachine,
@@ -190,6 +218,9 @@ class SecurityHubPresenterTests : FunSpec({
     syncFakeServiceState()
     Router.route = null
     featureFlagDao.reset()
+    allSetPillSessionManager.hasAutoHiddenPillInCurrentForegroundSession.value = false
+    allSetPillSessionManager.foregroundSessionGeneration.value = 0
+    allSetPillSessionManager.isAppForegrounded.value = true
     recoveryContactCardsUiStateMachine.reset()
     hardwareRecoveryStatusCardUiStateMachine.reset()
     fingerprintResetStatusCardUiStateMachine.reset()
@@ -204,23 +235,49 @@ class SecurityHubPresenterTests : FunSpec({
     }
   }
 
-  test("all-set waits for security actions to initialize before showing") {
+  test("all-set starts visible and auto-hides later in the session") {
+    presenter.test(createSecurityHubScreen()) {
+      awaitBody<SecurityHubBodyModel> {
+        showAllSetState.shouldBeTrue()
+        autoHideAllSetPillAfterDelay.shouldBeTrue()
+        hideAllSetPillOnEntry.shouldBeFalse()
+      }
+    }
+  }
+
+  test("all-set starts hidden after the pill already auto-hid this session") {
+    allSetPillSessionManager.markPillAutoHidden(allSetPillSessionManager.foregroundSessionGeneration.value)
+
+    presenter.test(createSecurityHubScreen()) {
+      awaitBody<SecurityHubBodyModel> {
+        showAllSetState.shouldBeTrue()
+        autoHideAllSetPillAfterDelay.shouldBeFalse()
+        hideAllSetPillOnEntry.shouldBeTrue()
+      }
+    }
+  }
+
+  test("all-set waits for security actions to initialize before showing or managing the pill") {
     setSecurityActionsSnapshot(null)
 
     presenter.test(createSecurityHubScreen()) {
       awaitBody<SecurityHubBodyModel> {
         showAllSetState.shouldBeFalse()
+        autoHideAllSetPillAfterDelay.shouldBeFalse()
+        hideAllSetPillOnEntry.shouldBeFalse()
       }
 
       syncFakeServiceState()
 
       awaitBody<SecurityHubBodyModel> {
         showAllSetState.shouldBeTrue()
+        autoHideAllSetPillAfterDelay.shouldBeTrue()
+        hideAllSetPillOnEntry.shouldBeFalse()
       }
     }
   }
 
-  test("all-set waits for recovery contact cards to initialize before showing") {
+  test("all-set waits for recovery contact cards to initialize before showing or managing the pill") {
     recoveryContactCardsUiStateMachine.emitModel(
       InitialLoading
     )
@@ -228,6 +285,8 @@ class SecurityHubPresenterTests : FunSpec({
     presenter.test(createSecurityHubScreen()) {
       awaitBody<SecurityHubBodyModel> {
         showAllSetState.shouldBeFalse()
+        autoHideAllSetPillAfterDelay.shouldBeFalse()
+        hideAllSetPillOnEntry.shouldBeFalse()
       }
 
       recoveryContactCardsUiStateMachine.emitModel(
@@ -236,11 +295,13 @@ class SecurityHubPresenterTests : FunSpec({
 
       awaitBody<SecurityHubBodyModel> {
         showAllSetState.shouldBeTrue()
+        autoHideAllSetPillAfterDelay.shouldBeTrue()
+        hideAllSetPillOnEntry.shouldBeFalse()
       }
     }
   }
 
-  test("all-set waits for fingerprint reset card to initialize before showing") {
+  test("all-set waits for fingerprint reset card to initialize before showing or managing the pill") {
     fingerprintResetStatusCardUiStateMachine.emitModel(
       InitialLoading
     )
@@ -248,6 +309,8 @@ class SecurityHubPresenterTests : FunSpec({
     presenter.test(createSecurityHubScreen()) {
       awaitBody<SecurityHubBodyModel> {
         showAllSetState.shouldBeFalse()
+        autoHideAllSetPillAfterDelay.shouldBeFalse()
+        hideAllSetPillOnEntry.shouldBeFalse()
       }
 
       fingerprintResetStatusCardUiStateMachine.emitModel(
@@ -256,11 +319,13 @@ class SecurityHubPresenterTests : FunSpec({
 
       awaitBody<SecurityHubBodyModel> {
         showAllSetState.shouldBeTrue()
+        autoHideAllSetPillAfterDelay.shouldBeTrue()
+        hideAllSetPillOnEntry.shouldBeFalse()
       }
     }
   }
 
-  test("all-set waits for hardware recovery card to initialize before showing") {
+  test("all-set waits for hardware recovery card to initialize before showing or managing the pill") {
     hardwareRecoveryStatusCardUiStateMachine.emitModel(
       InitialLoading
     )
@@ -268,6 +333,8 @@ class SecurityHubPresenterTests : FunSpec({
     presenter.test(createSecurityHubScreen()) {
       awaitBody<SecurityHubBodyModel> {
         showAllSetState.shouldBeFalse()
+        autoHideAllSetPillAfterDelay.shouldBeFalse()
+        hideAllSetPillOnEntry.shouldBeFalse()
       }
 
       hardwareRecoveryStatusCardUiStateMachine.emitModel(
@@ -276,6 +343,32 @@ class SecurityHubPresenterTests : FunSpec({
 
       awaitBody<SecurityHubBodyModel> {
         showAllSetState.shouldBeTrue()
+        autoHideAllSetPillAfterDelay.shouldBeTrue()
+        hideAllSetPillOnEntry.shouldBeFalse()
+      }
+    }
+  }
+
+  test("all-set restarts the auto-hide delay after the app returns to foreground") {
+    presenter.test(createSecurityHubScreen()) {
+      awaitBody<SecurityHubBodyModel> {
+        autoHideAllSetPillAfterDelay.shouldBeTrue()
+        hideAllSetPillOnEntry.shouldBeFalse()
+      }
+
+      allSetPillSessionManager.isAppForegrounded.value = false
+      allSetPillSessionManager.foregroundSessionGeneration.value += 1
+
+      awaitBody<SecurityHubBodyModel> {
+        autoHideAllSetPillAfterDelay.shouldBeFalse()
+        hideAllSetPillOnEntry.shouldBeFalse()
+      }
+
+      allSetPillSessionManager.isAppForegrounded.value = true
+
+      awaitBody<SecurityHubBodyModel> {
+        autoHideAllSetPillAfterDelay.shouldBeTrue()
+        hideAllSetPillOnEntry.shouldBeFalse()
       }
     }
   }
@@ -507,6 +600,23 @@ class SecurityHubPresenterTests : FunSpec({
     }
   }
 
+  test("failed recovery contact card opens recovery contact detail flow") {
+    val failedContact = UnendorsedTrustedContactFake.copy(authenticationState = FAILED)
+
+    presenter.test(createSecurityHubScreen()) {
+      awaitBody<SecurityHubBodyModel>()
+
+      recoveryContactCardsUiStateMachine.props.onClick(failedContact)
+
+      awaitBodyMock<ViewingRecoveryContactProps>(
+        id = viewingRecoveryContactUiStateMachine.id
+      ) {
+        recoveryContact.shouldBe(failedContact)
+        account.shouldBe(FullAccountMock)
+      }
+    }
+  }
+
   test("markAllRecommendationsViewed marks all NEW recommendations as VIEWED with timestamps") {
     securityActionsService.statuses = entries.mapIndexed { i, rec ->
       SecurityRecommendationWithStatus(
@@ -521,7 +631,7 @@ class SecurityHubPresenterTests : FunSpec({
       securityActionsService.markAllRecommendationsViewed()
       securityActionsService.statuses.forEach { status ->
         status.interactionStatus shouldBe SecurityInteractionStatus.VIEWED
-        (status.lastInteractedAt?.toEpochMilliseconds() ?: -1) shouldBe (status.recordUpdatedAt?.toEpochMilliseconds() ?: -2)
+        (status.lastInteractedAt?.toEpochMilliseconds() ?: -1) shouldBe status.recordUpdatedAt.toEpochMilliseconds()
         status.lastInteractedAt shouldNotBe null
       }
     }

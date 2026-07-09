@@ -5,9 +5,7 @@ import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.F8eUnreachable
 import build.wallet.availability.InternetUnreachable
-import build.wallet.coachmark.CoachmarkServiceMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.test
@@ -25,13 +23,9 @@ import kotlin.reflect.KClass
 class SettingsListUiStateMachineImplTests : FunSpec({
 
   val appFunctionalityService = AppFunctionalityServiceFake()
-  val featureFlagDao = FeatureFlagDaoFake()
-
   val migrationService = MigrationServiceFake()
-
   val stateMachine = SettingsListUiStateMachineImpl(
     appFunctionalityService = appFunctionalityService,
-    coachmarkService = CoachmarkServiceMock(turbineFactory = turbines::create),
     migrationService = migrationService
   )
 
@@ -69,13 +63,11 @@ class SettingsListUiStateMachineImplTests : FunSpec({
         ),
       onShowAlert = {},
       onDismissAlert = {},
-      goToSecurityHub = {},
       isLiteAccount = false
     )
 
   afterEach {
     appFunctionalityService.reset()
-    featureFlagDao.reset()
     migrationService.reset()
   }
 

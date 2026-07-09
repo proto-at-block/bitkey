@@ -11,6 +11,7 @@
 #include "hash.h"
 #include "ipc.h"
 #include "key_manager_task_impl.h"
+#include "keyset_repair_impl.h"
 #include "log.h"
 #include "lost_app_recovery_impl.h"
 #include "onboarding.h"
@@ -89,6 +90,7 @@ void key_manager_task_handle_uxc_session_init(void) {
   recovery_composites_clear_sessions();
   eek_restoration_clear_session();
   full_account_cloud_backup_restoration_clear_session();
+  keyset_repair_clear_session();
 
   fwpb_uxc_msg_host* msg = uc_alloc_send_proto();
   ASSERT(msg != NULL);
@@ -1325,8 +1327,8 @@ void key_manager_task_handle_lost_app_recovery_continue(ipc_ref_t* message) {
     };
 
     if (!key_manager_derive_key_descriptor(
-          spending_path, version,
-          &rsp->msg.lost_app_recovery_continue_rsp.spending_key_descriptor)) {
+          spending_path, version, &rsp->msg.lost_app_recovery_continue_rsp.spending_key_descriptor,
+          NULL)) {
       rsp->status = fwpb_status_KEY_DERIVATION_FAILED;
       goto out;
     }
@@ -1432,6 +1434,20 @@ void key_manager_task_handle_full_account_cloud_backup_restoration_continue(ipc_
   full_account_cloud_backup_restoration_handle_continue(message);
 }
 
+// ---------------------------------------------------------------------------
+// Keyset repair unseal symmetric key handler: keyset_repair_unseal_symmetric_key_cmd
+// ---------------------------------------------------------------------------
+void key_manager_task_handle_keyset_repair_unseal_symmetric_key(ipc_ref_t* message) {
+  keyset_repair_unseal_symmetric_key_handle_init(message);
+}
+
+// ---------------------------------------------------------------------------
+// Keyset repair rotate HW key handler: keyset_repair_rotate_hw_key_cmd (composite)
+// ---------------------------------------------------------------------------
+void key_manager_task_handle_keyset_repair_rotate_hw_key(ipc_ref_t* message) {
+  keyset_repair_rotate_hw_key_handle_init(message);
+}
+
 void key_manager_task_register_listeners(void) {
   uc_route_register(fwpb_uxc_msg_device_secure_channel_response_tag,
                     _key_manager_task_handle_uxc_session_response, NULL);
@@ -1455,6 +1471,7 @@ void key_manager_task_register_listeners(void) {
   recovery_composites_register_handlers();
   eek_restoration_register_handlers();
   full_account_cloud_backup_restoration_register_handlers();
+  keyset_repair_register_handlers();
 }
 
 // ---------------------------------------------------------------------------

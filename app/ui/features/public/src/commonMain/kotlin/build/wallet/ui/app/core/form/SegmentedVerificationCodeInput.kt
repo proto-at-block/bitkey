@@ -177,7 +177,7 @@ internal fun SegmentedVerificationCodeInput(
               Phone -> KeyboardType.Phone
               Uri -> KeyboardType.Uri
             },
-          autoCorrect = model.enableAutoCorrect,
+          autoCorrectEnabled = model.enableAutoCorrect,
           capitalization =
             when (model.capitalization) {
               Capitalization.None -> None

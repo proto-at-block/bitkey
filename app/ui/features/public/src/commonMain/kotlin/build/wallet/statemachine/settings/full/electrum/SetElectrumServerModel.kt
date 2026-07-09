@@ -25,7 +25,6 @@ data class SetElectrumServerModel(
 ) : FormBodyModel(
     id = CustomElectrumServerEventTrackerScreenId.CUSTOM_ELECTRUM_SERVER_UPDATE,
     onBack = onClose,
-    onSwipeToDismiss = onClose,
     header = FormHeaderModel(
       headline = "Change Electrum Server",
       subline = "Provide details for a custom Electrum Server: "

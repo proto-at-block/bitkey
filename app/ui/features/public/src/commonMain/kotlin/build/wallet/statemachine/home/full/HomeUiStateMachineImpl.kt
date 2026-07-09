@@ -384,10 +384,7 @@ class HomeUiStateMachineImpl(
               },
               account = props.account,
               settingsListState = rootScreen.screen,
-              homeStatusBannerModel = homeStatusBannerModel,
-              goToSecurityHub = {
-                uiState = uiState.copy(rootScreen = HomeScreen.SecurityHub())
-              }
+              homeStatusBannerModel = homeStatusBannerModel
             )
           )
           is HomeScreen.SecurityHub -> {

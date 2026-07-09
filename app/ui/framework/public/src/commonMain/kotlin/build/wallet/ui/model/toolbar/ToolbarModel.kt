@@ -1,8 +1,8 @@
 package build.wallet.ui.model.toolbar
 
-import build.wallet.statemachine.core.Icon.SmallIconArrowLeft
-import build.wallet.statemachine.core.Icon.SmallIconQuestion
-import build.wallet.statemachine.core.Icon.SmallIconX
+import build.wallet.statemachine.core.Icon.ArrowLeft
+import build.wallet.statemachine.core.Icon.Question
+import build.wallet.statemachine.core.Icon.X
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconBackgroundType.Circle
@@ -15,28 +15,21 @@ data class ToolbarModel(
   val leadingAccessory: ToolbarAccessoryModel? = null,
   val middleAccessory: ToolbarMiddleAccessoryModel? = null,
   val trailingAccessory: ToolbarAccessoryModel? = null,
-  val heroContent: HeroContent? = null,
-) {
-  enum class HeroContent {
-    InheritanceSetup,
-    InheritanceExplainer,
-    PromoCodeHeader,
-  }
-}
+)
 
 data class ToolbarMiddleAccessoryModel(
   val title: String,
   val subtitle: String? = null,
 )
 
-sealed class ToolbarAccessoryModel {
+sealed interface ToolbarAccessoryModel {
   data class ButtonAccessory(
     val model: ButtonModel,
-  ) : ToolbarAccessoryModel()
+  ) : ToolbarAccessoryModel
 
   data class IconAccessory(
     val model: IconButtonModel,
-  ) : ToolbarAccessoryModel() {
+  ) : ToolbarAccessoryModel {
     companion object {
       fun BackAccessory(onClick: () -> Unit) =
         IconAccessory(
@@ -44,7 +37,7 @@ sealed class ToolbarAccessoryModel {
             IconButtonModel(
               iconModel =
                 IconModel(
-                  SmallIconArrowLeft,
+                  ArrowLeft,
                   iconSize = Accessory,
                   iconBackgroundType = Circle(circleSize = Regular)
                 ),
@@ -59,7 +52,7 @@ sealed class ToolbarAccessoryModel {
             IconButtonModel(
               iconModel =
                 IconModel(
-                  SmallIconX,
+                  X,
                   iconSize = Accessory,
                   iconBackgroundType = Circle(circleSize = Regular)
                 ),
@@ -74,7 +67,7 @@ sealed class ToolbarAccessoryModel {
             IconButtonModel(
               iconModel =
                 IconModel(
-                  SmallIconQuestion,
+                  Question,
                   iconSize = Accessory,
                   iconBackgroundType = Circle(circleSize = Regular)
                 ),

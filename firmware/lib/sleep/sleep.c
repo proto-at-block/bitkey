@@ -1,6 +1,7 @@
 #include "sleep.h"
 
 #include "attributes.h"
+#include "log.h"
 #include "rtos.h"
 
 static struct {
@@ -51,6 +52,7 @@ void sleep_start_power_timer(void) {
   uint32_t timeout_ms = get_timeout_ms();
   rtos_timer_stop(&sleep_ctx.power_timer);
   rtos_timer_start(&sleep_ctx.power_timer, timeout_ms);
+  MFLOGI("power timer start %lu ms", (unsigned long)timeout_ms);
 
   rtos_mutex_unlock(&sleep_ctx.lock);
 }
@@ -154,6 +156,7 @@ void sleep_start_power_timer_with_timeout(uint32_t timeout_ms) {
     return;
   }
 
+  MFLOGI("power timer start (abs) %lu ms", (unsigned long)timeout_ms);
   sleep_ctx.timer_running = true;
   sleep_ctx.inhibit_duration_ms = 0;  // Clear inhibit when using absolute timeout
   rtos_timer_stop(&sleep_ctx.power_timer);

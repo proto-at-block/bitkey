@@ -116,7 +116,9 @@ class SocRecF8eClientFake(
         responses =
           challenge.response.responses +
             SocialChallengeResponse(
-              recoveryRelationshipId = challenge.recoveryRelationshipId!!,
+              recoveryRelationshipId = checkNotNull(challenge.recoveryRelationshipId) {
+                "Fake challenge is missing a recoveryRelationshipId"
+              },
               trustedContactRecoveryPakePubkey = trustedContactRecoveryPakePubkey,
               recoveryPakeConfirmation = recoveryPakeConfirmation,
               resealedDek = resealedDek

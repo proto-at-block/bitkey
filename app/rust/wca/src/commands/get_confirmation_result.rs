@@ -13,6 +13,10 @@ use crate::{
 use super::InputSignatureTuple;
 use crate::command_interface::command;
 
+fn compact_signature(signature: &[u8]) -> Result<Signature, CommandError> {
+    Signature::from_compact(signature).map_err(|_| CommandError::InvalidResponse)
+}
+
 #[derive(Debug, Clone)]
 pub enum ConfirmedCommandResult {
     WipeState {
@@ -76,6 +80,13 @@ pub enum ConfirmedCommandResult {
         unsealed_key: Vec<u8>,
     },
     FullAccountCloudBackupRestoration,
+    KeysetRepairUnsealSymmetricKey {
+        unsealed_key: Vec<u8>,
+    },
+    KeysetRepairRotateHwKey {
+        spending_key_dpub: String,
+        access_token_signature: Vec<u8>,
+    },
 }
 
 #[generator(yield(Vec<u8>), resume(Vec<u8>))]
@@ -158,10 +169,8 @@ fn get_confirmation_result(
             Some(ConfirmationResult::LostAppRecoverySignChallengeResult(sign_rsp)) => {
                 // Firmware returns compact (r||s) 64-byte signature.
                 // Convert to DER hex to match the format of `signChallenge`.
-                let sig = Signature::from_compact(&sign_rsp.signature)
-                    .map_err(|_| CommandError::InvalidResponse)?;
                 Ok(ConfirmedCommandResult::LostAppRecoverySignChallenge {
-                    signature: sig.to_string(),
+                    signature: compact_signature(&sign_rsp.signature)?.to_string(),
                 })
             }
             Some(ConfirmationResult::RotateAppAuthKeysRsp(raak_rsp)) => {
@@ -180,14 +189,11 @@ fn get_confirmation_result(
                 })
             }
             Some(ConfirmationResult::SignChallengeAndSealSeksResult(rsp)) => {
-                use bitcoin::secp256k1::ecdsa::Signature as Secp256k1Signature;
                 use prost::Message;
                 // Firmware returns raw 64-byte compact (R||S) signature; convert to DER
                 // for consistency with the W1 SignChallenge which returns DER-encoded sigs.
-                let compact_sig = Secp256k1Signature::from_compact(&rsp.signature)
-                    .map_err(|_| CommandError::InvalidResponse)?;
                 Ok(ConfirmedCommandResult::SignChallengeAndSealSeks {
-                    signature: compact_sig.serialize_der().to_vec(),
+                    signature: compact_signature(&rsp.signature)?.serialize_der().to_vec(),
                     sealed_csek: rsp
                         .sealed_csek
                         .ok_or(CommandError::MissingMessage)?
@@ -237,6 +243,23 @@ fn get_confirmation_result(
             Some(ConfirmationResult::FullAccountCloudBackupRestorationResult(_)) => {
                 Ok(ConfirmedCommandResult::FullAccountCloudBackupRestoration)
             }
+            Some(ConfirmationResult::KeysetRepairUnsealSymmetricKeyResult(rsp)) => {
+                Ok(ConfirmedCommandResult::KeysetRepairUnsealSymmetricKey {
+                    unsealed_key: rsp.unsealed_key,
+                })
+            }
+            Some(ConfirmationResult::KeysetRepairRotateHwKeyResult(rsp)) => {
+                let spending_key_dpub: miniscript::DescriptorPublicKey = rsp
+                    .spending_key_descriptor
+                    .ok_or(CommandError::MissingMessage)?
+                    .try_into()?;
+                Ok(ConfirmedCommandResult::KeysetRepairRotateHwKey {
+                    spending_key_dpub: spending_key_dpub.to_string(),
+                    access_token_signature: compact_signature(&rsp.access_token_signature)?
+                        .serialize_der()
+                        .to_vec(),
+                })
+            }
             None => Err(CommandError::MissingMessage),
             // GetAddressResult is not expected through confirmation protocol
             _ => Err(CommandError::InvalidResponse),
@@ -250,6 +273,8 @@ command!(GetConfirmationResult = get_confirmation_result -> ConfirmedCommandResu
 
 #[cfg(test)]
 mod tests {
+    use bitcoin::base58;
+    use bitcoin::secp256k1::ecdsa::Signature as Secp256k1Signature;
     use prost::Message;
 
     use crate::{
@@ -257,9 +282,10 @@ mod tests {
         errors::CommandError,
         fwpb::{
             get_confirmation_result_rsp::Result as ConfirmationResult, wallet_rsp::Msg,
-            wipe_state_rsp::WipeStateRspStatus, GetConfirmationResultRsp, InputSignature,
+            wipe_state_rsp::WipeStateRspStatus, DerivationPath, GetConfirmationResultRsp,
+            InputSignature, KeyDescriptor, KeysetRepairRotateHwKeyRsp,
             LostAppRecoverySignChallengeRsp, LostAppRecoverySsekRsp, SignActionProofRsp,
-            SignStreamSignaturesReady, SignTxResponse, Status, WalletRsp, WipeStateRsp,
+            SignStreamSignaturesReady, SignTxResponse, Status, WalletRsp, Wildcard, WipeStateRsp,
         },
     };
 
@@ -269,6 +295,31 @@ mod tests {
         let mut buf = wallet_rsp.encode_to_vec();
         buf.extend_from_slice(&[0x90, 0x00]);
         buf
+    }
+
+    #[allow(deprecated)]
+    fn descriptor(account_index: u32, origin_fingerprint: [u8; 4]) -> KeyDescriptor {
+        KeyDescriptor {
+            origin_fingerprint: origin_fingerprint.to_vec(),
+            origin_path: Some(DerivationPath {
+                child: vec![
+                    84 | 0x8000_0000,
+                    0x8000_0000,
+                    account_index | 0x8000_0000,
+                ],
+                wildcard: false,
+            }),
+            xpub_path: None,
+            bare_bip32_key: base58::decode_check("xpub6Gxgx4jtKP3xsM95Rtub11QE4YqGDxTw9imtJ23Bi7nFi2aqE27HwanX2x3m451zuni5tKSuHeFVHexyCkjDEwB74R7NRtQ2UryVKDy1fgK").unwrap(),
+            wildcard: Wildcard::Unhardened.into(),
+        }
+    }
+
+    fn valid_compact_signature() -> Vec<u8> {
+        let mut compact_sig = vec![0u8; 64];
+        compact_sig[31] = 1; // r = 1
+        compact_sig[63] = 1; // s = 1
+        compact_sig
     }
 
     #[test]
@@ -498,17 +549,11 @@ mod tests {
 
     #[test]
     fn get_confirmation_result_lost_app_recovery_sign_challenge() -> Result<(), CommandError> {
-        use bitcoin::secp256k1::ecdsa::Signature as Secp256k1Signature;
-
         let command =
             GetConfirmationResult::new(vec![0x01, 0x02, 0x03, 0x04], vec![0x05, 0x06, 0x07, 0x08]);
         command.next(Vec::default())?;
 
-        // Valid compact signature (r=1, s=1) for testing
-        let mut compact_sig = vec![0u8; 64];
-        compact_sig[31] = 1; // r = 1
-        compact_sig[63] = 1; // s = 1
-
+        let compact_sig = valid_compact_signature();
         let expected_der = Secp256k1Signature::from_compact(&compact_sig)
             .unwrap()
             .to_string();
@@ -532,6 +577,48 @@ mod tests {
                 assert_eq!(sig, expected_der);
             }
             other => panic!("Expected LostAppRecoverySignChallenge, got {:?}", other),
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn get_confirmation_result_keyset_repair_rotate_converts_signature_to_der(
+    ) -> Result<(), CommandError> {
+        let command =
+            GetConfirmationResult::new(vec![0x01, 0x02, 0x03, 0x04], vec![0x05, 0x06, 0x07, 0x08]);
+        command.next(Vec::default())?;
+
+        let compact_sig = valid_compact_signature();
+        let expected_der = Secp256k1Signature::from_compact(&compact_sig)
+            .unwrap()
+            .serialize_der()
+            .to_vec();
+
+        let response = make_response(WalletRsp {
+            status: Status::Success.into(),
+            msg: Some(Msg::GetConfirmationResultRsp(GetConfirmationResultRsp {
+                result: Some(ConfirmationResult::KeysetRepairRotateHwKeyResult(
+                    KeysetRepairRotateHwKeyRsp {
+                        spending_key_descriptor: Some(descriptor(0, [0xde, 0xad, 0xbe, 0xef])),
+                        access_token_signature: compact_sig,
+                    },
+                )),
+            })),
+            ..Default::default()
+        });
+
+        match command.next(response) {
+            Ok(State::Result {
+                value:
+                    ConfirmedCommandResult::KeysetRepairRotateHwKey {
+                        access_token_signature,
+                        ..
+                    },
+            }) => {
+                assert_eq!(access_token_signature, expected_der);
+            }
+            other => panic!("Expected KeysetRepairRotateHwKey, got {:?}", other),
         }
 
         Ok(())

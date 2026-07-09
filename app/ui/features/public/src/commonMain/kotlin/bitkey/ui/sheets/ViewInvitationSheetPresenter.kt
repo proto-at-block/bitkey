@@ -15,9 +15,11 @@ import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.platform.sharing.SharingManager
 import build.wallet.platform.sharing.shareInvitation
+import build.wallet.recovery.socrec.InviteCodeLoadError
 import build.wallet.recovery.socrec.InviteCodeLoader
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.trustedcontact.view.ViewingInvitationBodyModel
+import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.datetime.Clock
 
@@ -38,21 +40,33 @@ class ViewInvitationSheetPresenter(
     navigator: Navigator,
     sheet: ViewInvitationSheet,
   ): SheetModel {
-    var code: String by remember { mutableStateOf("") }
+    var codeState: CodeState by remember { mutableStateOf(CodeState.Loading) }
     val isBeneficiary = sheet.invitation.roles.contains(TrustedContactRole.Beneficiary)
 
-    LaunchedEffect(sheet.invitation.relationshipId) {
+    LaunchedEffect(sheet.invitation.id) {
+      codeState = CodeState.Loading
       inviteCodeLoader.getInviteCode(sheet.invitation)
         .logFailure { "failed to load invite code" }
-        .onSuccess {
-          code = it.inviteCode
+        .onSuccess { codeState = CodeState.Loaded(it.inviteCode) }
+        .onFailure { error ->
+          // Only the "PAKE data is gone" failure makes this invite genuinely unsharable;
+          // other failures (storage hiccups, encoding bugs) shouldn't push the user toward
+          // removing an otherwise-valid invitation.
+          codeState = if (error is InviteCodeLoadError.MissingPakeData) {
+            CodeState.Missing
+          } else {
+            CodeState.Loading
+          }
         }
     }
 
+    val currentCodeState = codeState
     return SheetModel(
       body = ViewingInvitationBodyModel(
         invitation = sheet.invitation,
         isExpired = sheet.invitation.isExpired(clock),
+        isCodeMissing = currentCodeState is CodeState.Missing,
+        isCodeLoading = currentCodeState is CodeState.Loading,
         onRemove = {
           navigator.goTo(
             RemoveTrustedContactScreen(
@@ -72,17 +86,27 @@ class ViewInvitationSheetPresenter(
           )
         },
         onShare = {
-          sharingManager.shareInvitation(
-            code,
-            isBeneficiary = isBeneficiary,
-            onCompletion = {
-              navigator.closeSheet()
-            }
-          )
+          if (currentCodeState is CodeState.Loaded) {
+            sharingManager.shareInvitation(
+              currentCodeState.code,
+              isBeneficiary = isBeneficiary,
+              onCompletion = {
+                navigator.closeSheet()
+              }
+            )
+          }
         },
         onBack = navigator::closeSheet
       ),
       onClosed = navigator::closeSheet
     )
+  }
+
+  private sealed interface CodeState {
+    data object Loading : CodeState
+
+    data class Loaded(val code: String) : CodeState
+
+    data object Missing : CodeState
   }
 }

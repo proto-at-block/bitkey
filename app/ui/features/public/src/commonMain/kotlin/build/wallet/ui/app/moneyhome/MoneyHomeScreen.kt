@@ -32,7 +32,6 @@ import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.button.ButtonContentsList
 import build.wallet.ui.components.button.RowOfButtons
 import build.wallet.ui.components.coachmark.CoachmarkPresenter
-import build.wallet.ui.components.header.Header
 import build.wallet.ui.components.icon.IconButton
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.layout.Divider
@@ -50,7 +49,7 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.immutableListOf
+import kotlinx.collections.immutable.persistentListOf
 
 @Composable
 fun MoneyHomeScreen(
@@ -88,8 +87,6 @@ fun MoneyHomeScreen(
     CoachmarkIdentifier.Bip177Coachmark
   )
 
-  val isDesignSystemV2Enabled = true
-  val listHorizontalAlignment = if (isDesignSystemV2Enabled) Alignment.Start else Alignment.CenterHorizontally
   val collapseProgress by remember(listState, collapseRangePx) {
     derivedStateOf {
       if (collapseRangePx <= 0f) {
@@ -129,15 +126,12 @@ fun MoneyHomeScreen(
 
     LazyColumn(
       modifier = Modifier.fillMaxSize(),
-      horizontalAlignment = listHorizontalAlignment,
+      horizontalAlignment = Alignment.Start,
       state = listState
     ) {
       // Header
       item {
-        MoneyHomeHeader(
-          isDesignSystemV2Enabled = isDesignSystemV2Enabled,
-          trailingToolbarAccessoryModel = model.trailingToolbarAccessoryModel
-        )
+        MoneyHomeHeader()
       }
 
       // Balance + buttons
@@ -176,9 +170,9 @@ fun MoneyHomeScreen(
               primaryAmountAnimationKey = primaryAmountAnimationKey,
               contextLine = secondaryAmount,
               hideBalance = model.hideBalance,
-              centerWhenDesignSystemV2 = true,
+              centerContent = true,
               isLoading = isLoading,
-              animateValueChanges = isDesignSystemV2Enabled
+              animateValueChanges = true
             )
           }
         }
@@ -224,7 +218,6 @@ fun MoneyHomeScreen(
     }
 
     MoneyHomeOverlayToolbar(
-      isDesignSystemV2Enabled = isDesignSystemV2Enabled,
       trailingToolbarAccessoryModel = model.trailingToolbarAccessoryModel,
       collapseProgress = collapseProgress
     )
@@ -232,7 +225,7 @@ fun MoneyHomeScreen(
     val hasCoachmark = remember(model.coachmark, coachmarkHeight) {
       model.coachmark?.identifier in tabBarCoachmarkIds && coachmarkHeight != null
     }
-    val tabs = immutableListOf(
+    val tabs = persistentListOf(
       HomeTab.MoneyHome(
         selected = true,
         onSelected = {}
@@ -266,82 +259,45 @@ fun MoneyHomeScreen(
       tabCount = tabs.size
     ) {
       MoneyHomeTabs(
-        tabs = tabs,
-        isDesignSystemV2Enabled = isDesignSystemV2Enabled
+        tabs = tabs
       )
     }
   }
 }
 
 @Composable
-private fun MoneyHomeHeader(
-  isDesignSystemV2Enabled: Boolean,
-  trailingToolbarAccessoryModel: ToolbarAccessoryModel,
-) {
-  if (isDesignSystemV2Enabled) {
-    // Reserve space for the fixed top toolbar.
-    Spacer(Modifier.height(MONEY_HOME_TOOLBAR_RESERVED_HEIGHT + MONEY_HOME_CONTENT_TOP_PADDING))
-  } else {
-    Row(
-      modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
-      verticalAlignment = Alignment.CenterVertically
-    ) {
-      MoneyHomeLeadingHeader(isDesignSystemV2Enabled = false)
-      Spacer(Modifier.weight(1F))
-      ToolbarAccessory(
-        model = trailingToolbarAccessoryModel.withCircleBackgroundIfDesignSystemV2(
-          isDesignSystemV2Enabled = false
-        )
-      )
-    }
-    Spacer(Modifier.height(40.dp))
-  }
+private fun MoneyHomeHeader() {
+  // Reserve space for the fixed top toolbar.
+  Spacer(Modifier.height(MONEY_HOME_TOOLBAR_RESERVED_HEIGHT + MONEY_HOME_CONTENT_TOP_PADDING))
 }
 
 @Composable
 private fun BoxScope.MoneyHomeOverlayToolbar(
-  isDesignSystemV2Enabled: Boolean,
   trailingToolbarAccessoryModel: ToolbarAccessoryModel,
   collapseProgress: Float,
 ) {
-  if (isDesignSystemV2Enabled) {
-    MoneyHomeCollapsibleToolbar(
-      trailingAccessory = trailingToolbarAccessoryModel.withCircleBackgroundIfDesignSystemV2(
-        isDesignSystemV2Enabled = true
-      ),
-      collapseProgress = collapseProgress,
-      inlineTitle = null
-    )
-  }
+  MoneyHomeCollapsibleToolbar(
+    trailingAccessory = trailingToolbarAccessoryModel.withCircleBackground(),
+    collapseProgress = collapseProgress,
+    inlineTitle = null
+  )
 }
 
 @Composable
 private fun RowScope.MoneyHomeTabs(
   tabs: ImmutableList<HomeTab>,
-  isDesignSystemV2Enabled: Boolean,
 ) {
-  if (isDesignSystemV2Enabled) {
-    tabs.forEachIndexed { index, tab ->
-      Box(
-        modifier = Modifier.weight(1f),
-        contentAlignment = Alignment.Center
-      ) {
-        Tab(
-          selected = tab.selected,
-          onClick = tab.onSelected,
-          icon = tab.icon,
-          badged = tab.badged,
-          modifier = Modifier.offset(x = if (index == 0) 3.dp else (-3).dp)
-        )
-      }
-    }
-  } else {
-    tabs.forEach { tab ->
+  tabs.forEachIndexed { index, tab ->
+    Box(
+      modifier = Modifier.weight(1f),
+      contentAlignment = Alignment.Center
+    ) {
       Tab(
         selected = tab.selected,
         onClick = tab.onSelected,
         icon = tab.icon,
-        badged = tab.badged
+        badged = tab.badged,
+        modifier = Modifier.offset(x = if (index == 0) 3.dp else (-3).dp)
       )
     }
   }
@@ -382,7 +338,7 @@ private fun BoxScope.MoneyHomeCollapsibleToolbar(
       ) {
         Toolbar(
           leadingContent = {
-            MoneyHomeLeadingHeader(isDesignSystemV2Enabled = true)
+            MoneyHomeLeadingHeader()
           },
           trailingContent = {
             ToolbarAccessory(model = trailingAccessory)
@@ -433,7 +389,6 @@ fun LiteMoneyHomeScreen(
   model: LiteMoneyHomeBodyModel,
 ) {
   val listState = rememberLazyListState()
-  val isDesignSystemV2Enabled = true
   Column(
     modifier = modifier
       .background(WalletTheme.colors.background)
@@ -450,14 +405,12 @@ fun LiteMoneyHomeScreen(
         item {
           Row(
             modifier = Modifier.padding(horizontal = 20.dp),
-            verticalAlignment = if (isDesignSystemV2Enabled) Alignment.Top else Alignment.CenterVertically
+            verticalAlignment = Alignment.Top
           ) {
-            MoneyHomeLeadingHeader(isDesignSystemV2Enabled = isDesignSystemV2Enabled)
+            MoneyHomeLeadingHeader()
             Spacer(Modifier.weight(1F))
             ToolbarAccessory(
-              model = model.trailingToolbarAccessoryModel.withCircleBackgroundIfDesignSystemV2(
-                isDesignSystemV2Enabled = isDesignSystemV2Enabled
-              )
+              model = model.trailingToolbarAccessoryModel.withCircleBackground()
             )
           }
         }
@@ -492,23 +445,11 @@ private val MONEY_HOME_INLINE_TITLE_END_PADDING = 56.dp
 private val MONEY_HOME_TITLE_COLLAPSE_RANGE = 120.dp
 
 @Composable
-private fun MoneyHomeLeadingHeader(isDesignSystemV2Enabled: Boolean) {
-  if (isDesignSystemV2Enabled) {
-    Label(text = "Wallet", type = LabelType.Title2)
-  } else {
-    Header(
-      headline = "Bitkey",
-      headlineTopSpacing = 8.dp,
-      fillsMaxWidth = false
-    )
-  }
+private fun MoneyHomeLeadingHeader() {
+  Label(text = "Wallet", type = LabelType.Title2)
 }
 
-private fun ToolbarAccessoryModel.withCircleBackgroundIfDesignSystemV2(
-  isDesignSystemV2Enabled: Boolean,
-): ToolbarAccessoryModel {
-  if (!isDesignSystemV2Enabled) return this
-
+private fun ToolbarAccessoryModel.withCircleBackground(): ToolbarAccessoryModel {
   return when (this) {
     is ToolbarAccessoryModel.ButtonAccessory -> this
     is ToolbarAccessoryModel.IconAccessory -> copy(
@@ -540,8 +481,7 @@ private fun MoneyHomeButtons(model: MoneyHomeButtonsModel) {
         val interButtonSpacing = chunkedWidth / 12
         // Button size is equal to the width of the chunk minus the padding on each side
         val buttonSize = chunkedWidth - (interButtonSpacing * 2)
-        val isDesignSystemV2Enabled = true
-        val buttons = if (isDesignSystemV2Enabled && buttonSize >= 80.dp) {
+        val buttons = if (buttonSize >= 80.dp) {
           model.buttons.map { it.withCircleSize(IconSize.Custom(80)) }
         } else {
           model.buttons

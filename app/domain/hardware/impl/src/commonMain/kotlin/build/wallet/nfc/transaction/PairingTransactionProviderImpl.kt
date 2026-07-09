@@ -25,10 +25,12 @@ import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.platform.sealSymmetricKey
 import build.wallet.nfc.platform.signChallenge
+import build.wallet.nfc.toSpendingKeyProof
 import build.wallet.nfc.transaction.PairingTransactionResponse.*
 import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.getOrThrow
+import com.github.michaelbull.result.onFailure
 import okio.ByteString.Companion.decodeHex
 
 @BitkeyInject(AppScope::class)
@@ -91,6 +93,9 @@ class PairingTransactionProviderImpl(
           val hwAuthKey = commands.getAuthenticationKey(session)
           capturedDeviceInfo = deviceInfo
 
+          val spendingKeyResult = commands.getInitialSpendingKey(session, bitcoinNetwork)
+          val spendingKeyProof = spendingKeyResult.toSpendingKeyProof()
+
           FingerprintEnrolled(
             appGlobalAuthKeyHwSignature = when (hardwareType) {
               HardwareType.W1 -> AppGlobalAuthKeyHwSignature(
@@ -103,10 +108,11 @@ class PairingTransactionProviderImpl(
             },
             keyBundle = HwKeyBundle(
               localId = uuidGenerator.random(),
-              spendingKey = commands.getInitialSpendingKey(session, bitcoinNetwork),
+              spendingKey = spendingKeyResult.publicKey,
               authKey = hwAuthKey,
               networkType = bitcoinNetwork
             ),
+            spendingKeyProof = spendingKeyProof,
             sealedCsek = commands.sealSymmetricKey(session, unsealedCsek.key),
             sealedSsek = commands.sealSymmetricKey(session, unsealedSsek.key),
             serial = deviceInfo.serial,
@@ -131,15 +137,15 @@ class PairingTransactionProviderImpl(
             // when shouldLockHardware), W1 always locks.
             // Non-completion outcomes never reach this branch.
             when (hardwareType) {
-              HardwareType.W3 -> runCatching {
+              HardwareType.W3 -> catchingResult {
                 commands.showConfirmationScreen(session, lockOnDismiss = shouldLockHardware)
-              }.onFailure {
-                logWarn(throwable = it) { "Failed to show device confirmation screen" }
+              }.onFailure { throwable ->
+                logWarn(throwable = throwable) { "Failed to show device confirmation screen" }
               }
-              HardwareType.W1 -> runCatching {
+              HardwareType.W1 -> catchingResult {
                 commands.lockDevice(session)
-              }.onFailure {
-                logWarn(throwable = it) { "Failed to lock W1 device after enrollment" }
+              }.onFailure { throwable ->
+                logWarn(throwable = throwable) { "Failed to lock W1 device after enrollment" }
               }
             }
           }
@@ -207,7 +213,7 @@ class PairingTransactionProviderImpl(
       return
     }
 
-    val minFirmwareVersionInt = runCatching {
+    val minFirmwareVersionInt = catchingResult {
       semverToInt(minFirmwareVersion)
     }.getOrElse { error ->
       logWarn {

@@ -5,6 +5,7 @@ import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.crypto.PublicKey
 import build.wallet.cloud.backup.csek.SealedSsek
@@ -26,7 +27,10 @@ interface W3UpgradeDao {
   /**
    * Save the new hardware key after it is generated.
    */
-  suspend fun saveHardwareKey(hwKey: HwSpendingPublicKey): Result<Unit, DbError>
+  suspend fun saveHardwareKey(
+    hwKey: HwSpendingPublicKey,
+    hwKeyProof: HwSpendingKeyProof? = null,
+  ): Result<Unit, DbError>
 
   /**
    * Save the serial number of the old hardware device being replaced.

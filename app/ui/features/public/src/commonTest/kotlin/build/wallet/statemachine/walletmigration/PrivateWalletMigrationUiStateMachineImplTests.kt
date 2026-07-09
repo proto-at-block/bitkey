@@ -73,6 +73,8 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.collections.immutable.persistentListOf
 
+// Large end-to-end coverage for private wallet migration; splitting would hurt cohesion.
+@Suppress("LargeClass")
 class PrivateWalletMigrationUiStateMachineImplTests : FunSpec({
   val refreshAuthTokensUiStateMachine =
     object : RefreshAuthTokensUiStateMachine,

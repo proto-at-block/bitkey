@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.desktop:desktop",
+    "components": [
+        {
+            "version": "1.9.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "desktop-metadata-1.9.1.jar": "089e24417bf9f6c34eec5720eebb2cbcc82ea2855ecef90133eb17e1079d5868"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

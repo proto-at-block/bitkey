@@ -1,4 +1,3 @@
-use aws_config::BehaviorVersion;
 use aws_sdk_sns::error::ProvideErrorMetadata;
 
 use aws_sdk_sns::Client as SNSClient;
@@ -29,7 +28,7 @@ impl SendPushNotification {
     pub async fn new(mode: SNSMode) -> Self {
         match mode {
             SNSMode::Environment => {
-                let sdk_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
+                let sdk_config = clients_common::aws_sdk::load_default_sdk_config().await;
                 let client = SNSClient::new(&sdk_config);
                 Self::Real(client)
             }

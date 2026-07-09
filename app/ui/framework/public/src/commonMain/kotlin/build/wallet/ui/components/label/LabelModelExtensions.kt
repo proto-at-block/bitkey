@@ -25,6 +25,7 @@ private fun LabelModel.Color.toWalletTheme(colors: StyleDictionaryColors): andro
     LabelModel.Color.BLUE -> colors.deviceLEDBlue
     LabelModel.Color.ON60 -> colors.foreground60
     LabelModel.Color.FOREGROUND -> colors.foreground
+    LabelModel.Color.INVERSE -> colors.inverseBackground
     LabelModel.Color.PRIMARY -> colors.bitkeyPrimary
     LabelModel.Color.UNSPECIFIED -> Color.Unspecified
   }

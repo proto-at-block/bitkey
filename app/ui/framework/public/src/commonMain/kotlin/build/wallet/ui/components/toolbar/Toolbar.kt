@@ -16,10 +16,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
 import androidx.compose.ui.unit.toIntSize
-import bitkey.ui.framework_public.generated.resources.Res
-import bitkey.ui.framework_public.generated.resources.beneficiary_onboarding_start
-import bitkey.ui.framework_public.generated.resources.bitkey_gallery
-import bitkey.ui.framework_public.generated.resources.how_inheritance_works
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.icon.IconButton
 import build.wallet.ui.components.label.Label
@@ -33,7 +29,6 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.ButtonAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
-import build.wallet.ui.model.toolbar.ToolbarModel.HeroContent
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import org.jetbrains.compose.resources.DrawableResource
@@ -71,35 +66,21 @@ fun Toolbar(
       model.trailingAccessory?.let {
         ToolbarAccessory(it)
       }
-    },
-    backgroundDrawable =
-      when (model.heroContent) {
-        HeroContent.InheritanceSetup -> Res.drawable.beneficiary_onboarding_start
-        HeroContent.InheritanceExplainer -> Res.drawable.how_inheritance_works
-        HeroContent.PromoCodeHeader -> Res.drawable.bitkey_gallery
-        else -> null
-      }
+    }
   )
 }
 
 @Composable
 fun ToolbarAccessory(model: ToolbarAccessoryModel) {
-  val isDesignSystemV2Enabled = true
-
   when (model) {
     is ButtonAccessory -> Button(model.model)
     is IconAccessory -> {
-      // Override circle size when design system V2 is enabled
-      val iconBackgroundType = if (isDesignSystemV2Enabled) {
-        when (val bg = model.model.iconModel.iconBackgroundType) {
-          is IconBackgroundType.Circle -> IconBackgroundType.Circle(
-            circleSize = IconSize.Custom(44),
-            color = bg.color
-          )
-          else -> bg
-        }
-      } else {
-        model.model.iconModel.iconBackgroundType
+      val iconBackgroundType = when (val bg = model.model.iconModel.iconBackgroundType) {
+        is IconBackgroundType.Circle -> IconBackgroundType.Circle(
+          circleSize = IconSize.Custom(44),
+          color = bg.color
+        )
+        else -> bg
       }
 
       IconButton(
@@ -140,7 +121,6 @@ fun Toolbar(
   backgroundDrawable: DrawableResource? = null,
 ) {
   val screenSize = getScreenSize()
-  val isDesignSystemV2Enabled = showDesignSystemChrome
 
   Box(
     modifier = Modifier
@@ -162,7 +142,7 @@ fun Toolbar(
       },
     contentAlignment = Alignment.TopCenter
   ) {
-    if (isDesignSystemV2Enabled) {
+    if (showDesignSystemChrome) {
       val hasHeroImage = backgroundDrawable != null
       Column(
         modifier = Modifier

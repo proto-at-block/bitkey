@@ -23,6 +23,7 @@ interface BitcoinAddressRecipientUiStateMachine : StateMachine<BitcoinAddressRec
 data class BitcoinAddressRecipientUiProps(
   val address: BitcoinAddress?,
   val validInvoiceInClipboard: ParsedPaymentData?,
+  val showToolbarIcons: Boolean = true,
   val onBack: () -> Unit,
   val onRecipientEntered: (address: BitcoinAddress) -> Unit,
   val onScanQrCodeClick: () -> Unit,

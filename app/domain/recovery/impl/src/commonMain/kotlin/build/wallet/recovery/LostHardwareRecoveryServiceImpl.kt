@@ -20,6 +20,7 @@ import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.PrivilegedActionProof
@@ -59,6 +60,7 @@ class LostHardwareRecoveryServiceImpl(
   override suspend fun initiate(
     destinationAppKeyBundle: AppKeyBundle,
     destinationHardwareKeyBundle: HwKeyBundle,
+    spendingKeyProof: HwSpendingKeyProof?,
     appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
     hardwareType: HardwareType,
   ): Result<Unit, InitiateDelayNotifyRecoveryError> =
@@ -76,7 +78,8 @@ class LostHardwareRecoveryServiceImpl(
             hwKeyBundle = destinationHardwareKeyBundle,
             appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
             lostFactor = Hardware,
-            originalAppGlobalAuthKey = account.keybox.activeAppKeyBundle.authKey
+            originalAppGlobalAuthKey = account.keybox.activeAppKeyBundle.authKey,
+            spendingKeyProof = spendingKeyProof
           )
         ).mapError { OtherError(it) }
 

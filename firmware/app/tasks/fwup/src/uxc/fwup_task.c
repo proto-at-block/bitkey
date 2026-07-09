@@ -88,6 +88,7 @@ static void fwup_thread(void* args) {
 }
 
 static void _fwup_task_handle_fwup_start(fwpb_uxc_msg_host* msg) {
+  MFLOGI("UXC FWUP start");
   // Copy command to stack and free recv buffer immediately to avoid
   // holding a shared UC recv buffer during flash erase.
   fwpb_fwup_start_cmd cmd_local = msg->msg.fwup_start_cmd;
@@ -118,6 +119,7 @@ static void _fwup_task_handle_fwup_transfer(fwpb_uxc_msg_host* msg) {
 }
 
 static void _fwup_task_handle_fwup_finish(fwpb_uxc_msg_host* msg) {
+  MFLOGI("UXC FWUP finish mode=%d", (int)msg->msg.fwup_finish_cmd.mode);
   fwpb_fwup_finish_cmd fwup_finish_cmd;
   fwpb_uxc_msg_device* rsp = uc_alloc_send_proto();
   ASSERT(rsp != NULL);

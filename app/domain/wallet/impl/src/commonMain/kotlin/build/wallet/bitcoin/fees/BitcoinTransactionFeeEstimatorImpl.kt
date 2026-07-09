@@ -102,10 +102,8 @@ class BitcoinTransactionFeeEstimatorImpl(
           EstimatedTransactionPriority.SIXTY_MINUTES -> feeRates.hourFeeRate
         }
 
-        feeRate?.let { rate ->
-          val feeAmount = ceil(rate.satsPerVByte * vsize).toInt().toBigInteger()
-          Fee(amount = BitcoinMoney.sats(feeAmount))
-        }
+        val feeAmount = ceil(feeRate.satsPerVByte * vsize).toInt().toBigInteger()
+        Fee(amount = BitcoinMoney.sats(feeAmount))
       }.filterNotNull()
     }
   }

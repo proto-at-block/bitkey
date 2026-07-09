@@ -5,6 +5,7 @@ import bitkey.auth.AuthTokenScope.Global
 import bitkey.onboarding.LiteAccountCreationError.LiteAccountCreationDatabaseError.FailedToSaveAuthTokens
 import bitkey.recovery.DelayNotifyCancellationRequest.CancelLostAppAndCloudRecovery
 import bitkey.recovery.DelayNotifyCancellationRequest.CancelLostHardwareRecovery
+import build.wallet.bitkey.hardware.usableOrNull
 import build.wallet.account.AccountService
 import build.wallet.account.getAccountOrNull
 import build.wallet.auth.*
@@ -160,7 +161,8 @@ class DelayNotifyServiceImpl(
             appSpendingKey = recovery.appSpendingKey,
             hardwareSpendingKey = recovery.hardwareSpendingKey,
             network = config.bitcoinNetworkType,
-            appAuthKey = recovery.appGlobalAuthKey
+            appAuthKey = recovery.appGlobalAuthKey,
+            hardwareSpendingKeyProof = recovery.hardwareSpendingKeyProof.usableOrNull()
           )
           .bind()
       } else {
@@ -351,7 +353,7 @@ class DelayNotifyServiceImpl(
           accountId = recovery.fullAccountId,
           proof = null,
           RecoveryScope,
-          protectedCustomer.relationshipId
+          protectedCustomer.id.value
         )
       }
     }

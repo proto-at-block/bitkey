@@ -1,13 +1,12 @@
 package build.wallet.ui.app.backup.health
 
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import build.wallet.statemachine.core.form.FormMainContentVerticalAlignment
+import build.wallet.statemachine.core.form.FormScreenLayoutModel
+import build.wallet.statemachine.core.form.FormScreenTitleModel
 import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardBodyModel
 import build.wallet.ui.app.core.form.FormScreen
-import build.wallet.ui.app.core.form.FormScreenContentVerticalAlignment
 import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
@@ -18,8 +17,6 @@ fun CloudBackupHealthDashboardScreen(
   modifier: Modifier = Modifier,
   model: CloudBackupHealthDashboardBodyModel,
 ) {
-  val isDesignSystemV2Enabled = true
-
   FormScreen(
     modifier = modifier,
     onBack = model.onBack,
@@ -33,15 +30,14 @@ fun CloudBackupHealthDashboardScreen(
           )
       )
     },
-    designSystemV2Title = "Cloud Backup",
-    designSystemV2ContentSpacing = 40,
-    designSystemV2Scrollable = false,
-    designSystemV2MainContentAlignment = FormScreenContentVerticalAlignment.Top,
+    screenTitle = FormScreenTitleModel(title = "Cloud Backup"),
+    layout = FormScreenLayoutModel.LargeTitle(
+      contentSpacing = 40,
+      scrollable = false,
+      mainContentVerticalAlignment = FormMainContentVerticalAlignment.TOP
+    ),
     mainContent = {
       CloudBackupHealthStatusCard(model = model.appKeyBackupStatusCard)
-      if (!isDesignSystemV2Enabled) {
-        Spacer(modifier = Modifier.height(20.dp))
-      }
       model.eekBackupStatusCard?.let {
         CloudBackupHealthStatusCard(model = it)
       }

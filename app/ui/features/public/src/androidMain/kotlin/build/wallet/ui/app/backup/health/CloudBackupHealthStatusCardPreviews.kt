@@ -21,44 +21,14 @@ fun CloudBackupHealthStatusGood() {
 
 @Preview
 @Composable
-fun CloudBackupHealthStatusGoodDesignSystemV2() {
-  PreviewWalletTheme {
-    CloudBackupHealthStatusCard(
-      model =
-        CloudBackupHealthStatusCardModelForPreview.copy(
-          backupStatusActionButton = null,
-          toolbarModel = null
-        )
-    )
-  }
-}
-
-@Preview
-@Composable
 fun CloudBackupHealthStatusError() {
   PreviewWalletTheme {
     CloudBackupHealthStatusCard(
       model = CloudBackupHealthStatusCardModelForPreview.copy(
         toolbarModel = null,
         backupStatus = CloudBackupHealthStatusProblemListItemForPreview,
-        designSystemV2StatusText = "No backup found",
-        designSystemV2StatusTone = CloudBackupHealthStatusTone.DANGER,
-        backupStatusActionButton = CloudBackupHealthStatusActionButtonForPreview
-      )
-    )
-  }
-}
-
-@Preview
-@Composable
-fun CloudBackupHealthStatusErrorDesignSystemV2() {
-  PreviewWalletTheme {
-    CloudBackupHealthStatusCard(
-      model = CloudBackupHealthStatusCardModelForPreview.copy(
-        toolbarModel = null,
-        backupStatus = CloudBackupHealthStatusProblemListItemForPreview,
-        designSystemV2StatusText = "No backup found",
-        designSystemV2StatusTone = CloudBackupHealthStatusTone.DANGER,
+        statusTextOverride = "No backup found",
+        statusToneOverride = CloudBackupHealthStatusTone.DANGER,
         backupStatusActionButton = CloudBackupHealthStatusActionButtonForPreview
       )
     )
@@ -80,42 +50,13 @@ fun CloudBackupHealthStatusEEKGood() {
 
 @Preview
 @Composable
-fun CloudBackupHealthStatusEEKGoodDesignSystemV2() {
-  PreviewWalletTheme {
-    CloudBackupHealthStatusCard(
-      model =
-        CloudBackupHealthStatusCardEekModelForPreview.copy(
-          backupStatusActionButton = null
-        )
-    )
-  }
-}
-
-@Preview
-@Composable
 fun CloudBackupHealthStatusEEKError() {
   PreviewWalletTheme {
     CloudBackupHealthStatusCard(
       model =
         CloudBackupHealthStatusCardEekModelForPreview.copy(
-          designSystemV2StatusText = "No backup found",
-          designSystemV2StatusTone = CloudBackupHealthStatusTone.DANGER,
-          backupStatusActionButton = CloudBackupHealthStatusActionButtonForPreview,
-          backupStatus = CloudBackupHealthStatusEekProblemListItemForPreview
-        )
-    )
-  }
-}
-
-@Preview
-@Composable
-fun CloudBackupHealthStatusEEKErrorDesignSystemV2() {
-  PreviewWalletTheme {
-    CloudBackupHealthStatusCard(
-      model =
-        CloudBackupHealthStatusCardEekModelForPreview.copy(
-          designSystemV2StatusText = "No backup found",
-          designSystemV2StatusTone = CloudBackupHealthStatusTone.DANGER,
+          statusTextOverride = "No backup found",
+          statusToneOverride = CloudBackupHealthStatusTone.DANGER,
           backupStatusActionButton = CloudBackupHealthStatusActionButtonForPreview,
           backupStatus = CloudBackupHealthStatusEekProblemListItemForPreview
         )

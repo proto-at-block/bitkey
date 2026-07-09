@@ -8,9 +8,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.Icon.SmallIconArrowRight
-import build.wallet.statemachine.core.Icon.SmallIconBitkey
+import build.wallet.statemachine.core.Icon.ArrowRight
+import build.wallet.statemachine.core.Icon.Bitkey
 import build.wallet.statemachine.core.TimerDirection.CounterClockwise
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.ui.components.card.Card
@@ -46,12 +45,10 @@ fun NewCard(
   modifier: Modifier = Modifier,
   model: CardModel,
 ) {
-  val isDesignSystemV2Enabled = true
   val theme = LocalTheme.current
-  val cornerRadius = if (isDesignSystemV2Enabled) 8.dp else 16.dp
-  val isInverseBackgroundDsv2Card =
-    isDesignSystemV2Enabled &&
-      model.style is CardModel.CardStyle.Gradient &&
+  val cornerRadius = 8.dp
+  val isInverseBackgroundCard =
+    model.style is CardModel.CardStyle.Gradient &&
       model.style.backgroundColor == CardModel.CardStyle.Gradient.BackgroundColor.InverseBackground
 
   Card(
@@ -63,7 +60,7 @@ fun NewCard(
       ambientColor = Color.Black.copy(.1f)
     ),
     backgroundColor = when {
-      isInverseBackgroundDsv2Card && theme == Theme.DARK -> WalletTheme.colors.subtleBackground
+      isInverseBackgroundCard && theme == Theme.DARK -> WalletTheme.colors.subtleBackground
       else -> WalletTheme.colors.containerBackground
     },
     cornerRadius = cornerRadius,
@@ -108,7 +105,7 @@ fun NewCard(
       Spacer(modifier = Modifier.width(20.dp))
       IconButton(
         iconModel = IconModel(
-          icon = SmallIconArrowRight,
+          icon = ArrowRight,
           iconSize = Accessory,
           iconBackgroundType = Transient,
           iconTint = IconTint.On30
@@ -127,39 +124,32 @@ private fun CardImage(
   model: CardModel.CardImage,
   style: CardModel.CardStyle,
 ) {
-  val isDesignSystemV2Enabled = true
   val theme = LocalTheme.current
 
   when (model) {
     is CardModel.CardImage.StaticImage -> {
-      val icon =
-        when (model.icon) {
-          Icon.MediumIconTrustedContact -> Icon.SmallIconShieldPerson
-          else -> model.icon
-        }
-      val isInverseBackgroundDsv2Card =
-        isDesignSystemV2Enabled &&
-          style is CardModel.CardStyle.Gradient &&
+      val isInverseBackgroundCard =
+        style is CardModel.CardStyle.Gradient &&
           style.backgroundColor == CardModel.CardStyle.Gradient.BackgroundColor.InverseBackground
 
       IconImage(
         model = IconModel(
-          iconImage = LocalImage(icon),
+          iconImage = LocalImage(model.icon),
           iconSize = Small,
           iconTint = when {
-            isInverseBackgroundDsv2Card && theme == Theme.DARK -> null
+            isInverseBackgroundCard && theme == Theme.DARK -> null
             else -> IconTint.White
           },
           iconBackgroundType = IconBackgroundType.Circle(
             color = when {
-              isInverseBackgroundDsv2Card -> IconBackgroundType.Circle.CircleColor.InverseBackground
+              isInverseBackgroundCard -> IconBackgroundType.Circle.CircleColor.InverseBackground
               else -> IconBackgroundType.Circle.CircleColor.BitkeyPrimary
             },
             circleSize = IconSize.Large
           )
         ),
         color = when {
-          isInverseBackgroundDsv2Card && theme == Theme.DARK -> WalletTheme.colors.subtleBackground
+          isInverseBackgroundCard && theme == Theme.DARK -> WalletTheme.colors.subtleBackground
           else -> Color.Unspecified
         }
       )
@@ -179,7 +169,7 @@ private fun CardImage(
           strokeWidth = 5.dp
         )
         Icon(
-          icon = SmallIconBitkey,
+          icon = Bitkey,
           size = Small,
           color = WalletTheme.colors.yourBalancePrimary
         )

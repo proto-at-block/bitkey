@@ -4,8 +4,10 @@ import build.wallet.analytics.events.EventTrackerContext
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.FINGERPRINT_ENROLLMENT_ERROR_SHEET
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_SAVE_FINGERPRINT_INSTRUCTIONS
+import build.wallet.statemachine.account.create.full.OnboardingAppSegment
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel.BackgroundVideo.VideoContent.BitkeyFingerprint
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.ScreenModel
@@ -31,7 +33,6 @@ fun HardwareFingerprintEnrollmentScreenModel(
   eventTrackerContext: EventTrackerContext,
   presentationStyle: ScreenPresentationStyle,
   isNavigatingBack: Boolean,
-  isDesignSystemV2Enabled: Boolean,
   headline: String,
   instructions: String,
 ) = ScreenModel(
@@ -46,9 +47,9 @@ fun HardwareFingerprintEnrollmentScreenModel(
       primaryButton =
         ButtonModel(
           text = "Save fingerprint",
-          requiresBitkeyInteraction = isDesignSystemV2Enabled,
+          requiresBitkeyInteraction = true,
           treatment = ButtonModel.Treatment.Translucent,
-          leadingIcon = Icon.SmallIconBitkey,
+          leadingIcon = Icon.Bitkey,
           size = Footer,
           onClick = onSaveFingerprint
         ),
@@ -82,7 +83,12 @@ fun HardwareFingerprintEnrollmentScreenModel(
                 ),
               renderContext = Sheet,
               eventTrackerScreenId = FINGERPRINT_ENROLLMENT_ERROR_SHEET,
-              eventTrackerContext = eventTrackerContext
+              eventTrackerContext = eventTrackerContext,
+              errorData = ErrorData(
+                segment = OnboardingAppSegment.FullAccount,
+                actionDescription = "Saving hardware fingerprint during onboarding",
+                cause = incompleteFingerprintScanError
+              )
             )
         )
       }
@@ -90,3 +96,5 @@ fun HardwareFingerprintEnrollmentScreenModel(
     },
   themePreference = ThemePreference.Manual(Theme.DARK)
 )
+
+private val incompleteFingerprintScanError = IllegalStateException("Incomplete fingerprint scan")

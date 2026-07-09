@@ -35,7 +35,7 @@ class ExchangeRateDaoFake : ExchangeRateDao {
     // if the exchange rate for the same currency pair and time already exists, update it
     // otherwise, add it to the list
     historicalExchangeRates.update { currentRates ->
-      val existingRates = currentRates[atTime] ?: emptyList()
+      val existingRates = currentRates[atTime].orEmpty()
       val existingRate = existingRates.find {
         it.fromCurrency == exchangeRate.fromCurrency && it.toCurrency == exchangeRate.toCurrency && it.timeRetrieved == exchangeRate.timeRetrieved
       }

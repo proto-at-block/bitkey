@@ -81,7 +81,7 @@ abstract class IosAppComponent internal constructor(
   @get:Provides val signatureUtils: SignatureUtils,
   @get:Provides val bdkTxBuilderFactory: BdkTxBuilderFactory,
   @get:Provides val bdkWalletFactory: BdkWalletFactory,
-  @get:Provides val cloudFileStore: CloudFileStore,
+  @get:Provides @get:Impl val cloudFileStore: CloudFileStore,
   @get:Provides val cloudKitQueryRunner: CloudKitQueryRunner,
   @get:Provides val cryptoBox: CryptoBox,
   @get:Provides val datadogRumMonitor: DatadogRumMonitor,

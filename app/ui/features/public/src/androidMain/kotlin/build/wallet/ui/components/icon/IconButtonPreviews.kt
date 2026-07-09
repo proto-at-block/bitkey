@@ -16,7 +16,7 @@ internal fun IconButtonSmall() {
     IconButton(
       iconModel =
         IconModel(
-          icon = Icon.SmallIconArrowLeft,
+          icon = Icon.ArrowLeft,
           iconSize = IconSize.Small,
           iconBackgroundType = IconBackgroundType.Transient
         ),
@@ -32,7 +32,7 @@ internal fun IconButtonRegular() {
     IconButton(
       iconModel =
         IconModel(
-          icon = Icon.SmallIconArrowLeft,
+          icon = Icon.ArrowLeft,
           iconSize = IconSize.Regular,
           iconBackgroundType = IconBackgroundType.Transient
         ),
@@ -48,7 +48,7 @@ internal fun IconButtonLarge() {
     IconButton(
       iconModel =
         IconModel(
-          icon = Icon.SmallIconArrowLeft,
+          icon = Icon.ArrowLeft,
           iconSize = IconSize.Large,
           iconBackgroundType = IconBackgroundType.Transient
         ),
@@ -64,7 +64,7 @@ internal fun IconButtonAvatar() {
     IconButton(
       iconModel =
         IconModel(
-          icon = Icon.SmallIconArrowLeft,
+          icon = Icon.ArrowLeft,
           iconSize = IconSize.Avatar,
           iconBackgroundType = IconBackgroundType.Transient
         ),
@@ -80,7 +80,7 @@ internal fun IconButtonInsideCircle() {
     IconButton(
       iconModel =
         IconModel(
-          icon = Icon.SmallIconArrowLeft,
+          icon = Icon.ArrowLeft,
           iconSize = IconSize.Small,
           iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Regular)
         ),
@@ -96,7 +96,7 @@ internal fun IconButtonInsideSquarePreview() {
     IconButton(
       iconModel =
         IconModel(
-          icon = Icon.SmallIconArrowRight,
+          icon = Icon.ArrowRight,
           iconSize = IconSize.Accessory,
           iconBackgroundType = IconBackgroundType.Square(
             size = IconSize.Large,
@@ -117,7 +117,7 @@ internal fun IconButtonInsideCircleWithText() {
     IconButton(
       iconModel =
         IconModel(
-          icon = Icon.SmallIconArrowDown,
+          icon = Icon.ArrowDown,
           iconSize = IconSize.Small,
           iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Avatar)
         ),

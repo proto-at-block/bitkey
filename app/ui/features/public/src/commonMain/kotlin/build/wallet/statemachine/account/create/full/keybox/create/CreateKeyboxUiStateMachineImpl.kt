@@ -13,11 +13,13 @@ import build.wallet.onboarding.AppKeyAlreadyInUseError
 import build.wallet.onboarding.ErrorStoringSealedCsekError
 import build.wallet.onboarding.HardwareKeyAlreadyInUseError
 import build.wallet.onboarding.OnboardFullAccountService
+import build.wallet.statemachine.account.create.full.OnboardingAppSegment
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareProps
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachine
 import build.wallet.statemachine.account.create.full.hardware.PairingContext
 import build.wallet.statemachine.account.create.full.keybox.create.CreateKeyboxUiStateMachineImpl.State.*
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
@@ -42,7 +44,7 @@ class CreateKeyboxUiStateMachineImpl(
               state = HasAppKeysState(appKeys = it)
             }
             .onFailure {
-              state = CreateAppKeysErrorState
+              state = CreateAppKeysErrorState(it)
             }
         }
         pairNewHardwareUiStateMachine.model(
@@ -89,16 +91,21 @@ class CreateKeyboxUiStateMachineImpl(
             .onFailure { accountCreationError ->
               // Account creation failed
               state = when (accountCreationError) {
-                is ErrorStoringSealedCsekError -> ErrorStoringSealedCsek(appKeys = currentState.appKeys)
+                is ErrorStoringSealedCsekError -> ErrorStoringSealedCsek(
+                  appKeys = currentState.appKeys,
+                  error = accountCreationError
+                )
 
                 is HardwareKeyAlreadyInUseError -> PairWithServerErrorHardwareKeyAlreadyInUseState(
                   hwActivation = currentState.hwActivation,
-                  appKeys = currentState.appKeys
+                  appKeys = currentState.appKeys,
+                  error = accountCreationError
                 )
 
                 is AppKeyAlreadyInUseError -> PairWithServerErrorAppKeyAlreadyInUseState(
                   hwActivation = currentState.hwActivation,
-                  appKeys = currentState.appKeys
+                  appKeys = currentState.appKeys,
+                  error = accountCreationError
                 )
 
                 else -> PairWithServerErrorState(
@@ -130,14 +137,24 @@ class CreateKeyboxUiStateMachineImpl(
           text = "Retry",
           onClick = { state = HasAppKeysState(appKeys = currentState.appKeys) }
         ),
-        eventTrackerScreenId = NEW_ACCOUNT_CREATION_HW_FAILURE
+        eventTrackerScreenId = NEW_ACCOUNT_CREATION_HW_FAILURE,
+        errorData = ErrorData(
+          segment = OnboardingAppSegment.FullAccount,
+          actionDescription = "Storing sealed CSEK during account creation",
+          cause = currentState.error
+        )
       ).asRootScreen()
       is CreateAppKeysErrorState -> ErrorFormBodyModel(
         onBack = props.onExit,
         title = "We couldn’t create your wallet",
         subline = "We are looking into this. Please try again later.",
         primaryButton = ButtonDataModel(text = "Done", onClick = props.onExit),
-        eventTrackerScreenId = APP_KEYS_CREATION_FAILURE
+        eventTrackerScreenId = APP_KEYS_CREATION_FAILURE,
+        errorData = ErrorData(
+          segment = OnboardingAppSegment.FullAccount,
+          actionDescription = "Creating app keys during account creation",
+          cause = currentState.error
+        )
       ).asRootScreen()
       is PairWithServerErrorAppKeyAlreadyInUseState ->
         ErrorFormBodyModel(
@@ -154,7 +171,12 @@ class CreateKeyboxUiStateMachineImpl(
             }
           ),
           secondaryButton = ButtonDataModel(text = "Back", onClick = props.onExit),
-          eventTrackerScreenId = NEW_ACCOUNT_CREATION_FAILURE_APP_KEY_ALREADY_IN_USE
+          eventTrackerScreenId = NEW_ACCOUNT_CREATION_FAILURE_APP_KEY_ALREADY_IN_USE,
+          errorData = ErrorData(
+            segment = OnboardingAppSegment.FullAccount,
+            actionDescription = "Creating full account with server",
+            cause = currentState.error
+          )
         ).asRootScreen()
       is PairWithServerErrorHardwareKeyAlreadyInUseState ->
         ErrorFormBodyModel(
@@ -162,7 +184,12 @@ class CreateKeyboxUiStateMachineImpl(
           title = "We couldn’t create your wallet",
           subline = "The Bitkey device is already being used by an existing wallet. If it belongs to you, you can use the device to restore your wallet.",
           primaryButton = ButtonDataModel(text = "Got it", onClick = props.onExit),
-          eventTrackerScreenId = NEW_ACCOUNT_CREATION_FAILURE_HW_KEY_ALREADY_IN_USE
+          eventTrackerScreenId = NEW_ACCOUNT_CREATION_FAILURE_HW_KEY_ALREADY_IN_USE,
+          errorData = ErrorData(
+            segment = OnboardingAppSegment.FullAccount,
+            actionDescription = "Creating full account with server",
+            cause = currentState.error
+          )
         ).asRootScreen()
       is PairWithServerErrorState ->
         ErrorFormBodyModel(
@@ -177,7 +204,12 @@ class CreateKeyboxUiStateMachineImpl(
             onClick = currentState.onRetryClick
           ),
           secondaryButton = ButtonDataModel(text = "Back", onClick = props.onExit),
-          eventTrackerScreenId = NEW_ACCOUNT_CREATION_FAILURE
+          eventTrackerScreenId = NEW_ACCOUNT_CREATION_FAILURE,
+          errorData = ErrorData(
+            segment = OnboardingAppSegment.FullAccount,
+            actionDescription = "Creating full account with server",
+            cause = currentState.error
+          )
         ).asRootScreen()
     }
   }
@@ -185,7 +217,9 @@ class CreateKeyboxUiStateMachineImpl(
   private sealed interface State {
     data object CreatingAppKeysState : State
 
-    data object CreateAppKeysErrorState : State
+    data class CreateAppKeysErrorState(
+      val error: Throwable,
+    ) : State
 
     /**
      * App Keys generated. We can now pair with hardware, UI state machine is taking care of this.
@@ -202,6 +236,7 @@ class CreateKeyboxUiStateMachineImpl(
      */
     data class ErrorStoringSealedCsek(
       val appKeys: WithAppKeys,
+      val error: Throwable,
     ) : State
 
     /**
@@ -218,6 +253,7 @@ class CreateKeyboxUiStateMachineImpl(
     data class PairWithServerErrorHardwareKeyAlreadyInUseState(
       val hwActivation: FingerprintEnrolled,
       val appKeys: WithAppKeys,
+      val error: Throwable,
     ) : State
 
     /**
@@ -226,6 +262,7 @@ class CreateKeyboxUiStateMachineImpl(
     data class PairWithServerErrorAppKeyAlreadyInUseState(
       val hwActivation: FingerprintEnrolled,
       val appKeys: WithAppKeys,
+      val error: Throwable,
     ) : State
 
     /**

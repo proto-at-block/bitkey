@@ -112,11 +112,9 @@ class AccessCloudBackupUiStateMachineImpl(
           cloudBackupService.readAllBackups(currentState.account)
             .onSuccess { backups ->
               when {
-                backups.isEmpty() -> handleNewBackup(
-                  props, {
-                    state = CloudBackupNotFoundUiState(currentState.account)
-                  }
-                )
+                backups.isEmpty() -> handleNewBackup(props) {
+                  state = CloudBackupNotFoundUiState(currentState.account)
+                }
                 shouldShowBackupSelection(backups) -> {
                   // Multiple backups with at least one lite account - let user choose
                   state = SelectingBackupUiState(currentState.account, backups)
@@ -147,11 +145,9 @@ class AccessCloudBackupUiStateMachineImpl(
                   )
                 }
 
-                is CloudBackupError.AccountIdMismatched -> handleNewBackup(
-                  props, {
-                    state = CloudBackupNotFoundUiState(currentState.account)
-                  }
-                )
+                is CloudBackupError.AccountIdMismatched -> handleNewBackup(props) {
+                  state = CloudBackupNotFoundUiState(currentState.account)
+                }
                 is UnrectifiableCloudBackupError,
                 -> if (props.showErrorOnBackupMissing) {
                   state = CloudBackupNotFoundUiState(currentState.account)

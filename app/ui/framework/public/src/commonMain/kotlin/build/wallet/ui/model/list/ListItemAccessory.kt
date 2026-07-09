@@ -15,19 +15,27 @@ sealed interface ListItemAccessory {
     val character: Char,
     val circleSize: IconSize = IconSize.Small,
     val characterType: LabelType = LabelType.Label3,
+    val backgroundColor: BackgroundColor = BackgroundColor.Foreground10,
   ) : ListItemAccessory {
     val text = character.toString()
+
+    enum class BackgroundColor {
+      Foreground10,
+      SubtleBackground,
+    }
 
     companion object {
       fun fromLetters(
         input: String,
         circleSize: IconSize = IconSize.Small,
         characterType: LabelType = LabelType.Label3,
+        backgroundColor: BackgroundColor = BackgroundColor.Foreground10,
       ): CircularCharacterAccessory {
         return CircularCharacterAccessory(
           character = input.firstOrNull(Char::isLetter)?.uppercaseChar() ?: '?',
           circleSize = circleSize,
-          characterType = characterType
+          characterType = characterType,
+          backgroundColor = backgroundColor
         )
       }
     }
@@ -38,7 +46,13 @@ sealed interface ListItemAccessory {
     val circleSize: IconSize = IconSize.Small,
     val iconSize: IconSize = IconSize.Small,
     val iconTint: IconTint? = null,
-  ) : ListItemAccessory
+    val backgroundColor: BackgroundColor = BackgroundColor.Foreground10,
+  ) : ListItemAccessory {
+    enum class BackgroundColor {
+      Foreground10,
+      SubtleBackground,
+    }
+  }
 
   data class ContactAvatarAccessory(
     val name: String,
@@ -88,10 +102,6 @@ sealed interface ListItemAccessory {
     val text: String,
   ) : ListItemAccessory
 
-  data class CheckAccessory(
-    val isChecked: Boolean,
-  ) : ListItemAccessory
-
   data class CheckboxAccessory(
     val isChecked: Boolean,
     val onClick: () -> Unit,
@@ -111,13 +121,14 @@ sealed interface ListItemAccessory {
       iconPadding = null,
       opticalOffsetX = opticalOffsetX,
       model = IconModel(
-        icon = Icon.SmallIconCaretRight,
+        icon = Icon.CaretRight,
         iconSize = iconSize,
         iconBackgroundType = IconBackgroundType.Transient,
         iconTint = tint
       )
     )
 
-    fun checkIcon(): ListItemAccessory = CheckAccessory(isChecked = true)
+    fun checkIcon(): ListItemAccessory =
+      CheckboxAccessory(isChecked = true, onClick = {}, isEnabled = false)
   }
 }

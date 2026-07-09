@@ -11,7 +11,6 @@ import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.LEADING
 import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.core.form.RenderContext.Screen
 import build.wallet.statemachine.core.form.RenderContext.Sheet
-import build.wallet.statemachine.core.form.formBodyModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
@@ -29,10 +28,9 @@ fun ErrorFormBodyModel(
   eventTrackerScreenId: EventTrackerScreenId?,
   eventTrackerContext: EventTrackerContext? = null,
   eventTrackerShouldTrack: Boolean = true,
-  onLoaded: (() -> Unit)? = null,
   errorData: ErrorData,
   secondaryButtonIcon: Icon? = null,
-) = ErrorFormBodyModelWithOptionalErrorData(
+) = errorFormBodyModelWithOptionalErrorData(
   title = title,
   subline = subline?.let { StringModel(it) },
   primaryButton = primaryButton,
@@ -43,7 +41,6 @@ fun ErrorFormBodyModel(
   eventTrackerScreenId = eventTrackerScreenId,
   eventTrackerContext = eventTrackerContext,
   eventTrackerShouldTrack = eventTrackerShouldTrack,
-  onLoaded = onLoaded,
   errorData = errorData,
   secondaryButtonIcon = secondaryButtonIcon
 )
@@ -60,9 +57,8 @@ fun ErrorFormBodyModel(
   eventTrackerScreenId: EventTrackerScreenId?,
   eventTrackerContext: EventTrackerContext? = null,
   eventTrackerShouldTrack: Boolean = true,
-  onLoaded: (() -> Unit)? = null,
   secondaryButtonIcon: Icon? = null,
-) = ErrorFormBodyModelWithOptionalErrorData(
+) = errorFormBodyModelWithOptionalErrorData(
   title = title,
   subline = subline?.let { StringModel(it) },
   primaryButton = primaryButton,
@@ -73,7 +69,6 @@ fun ErrorFormBodyModel(
   eventTrackerScreenId = eventTrackerScreenId,
   eventTrackerContext = eventTrackerContext,
   eventTrackerShouldTrack = eventTrackerShouldTrack,
-  onLoaded = onLoaded,
   errorData = null,
   secondaryButtonIcon = secondaryButtonIcon
 )
@@ -90,12 +85,38 @@ fun ErrorFormBodyModelWithOptionalErrorData(
   eventTrackerScreenId: EventTrackerScreenId?,
   eventTrackerContext: EventTrackerContext? = null,
   eventTrackerShouldTrack: Boolean = true,
-  onLoaded: (() -> Unit)? = null,
+  errorData: ErrorData?,
+  secondaryButtonIcon: Icon? = null,
+): FormBodyModel = errorFormBodyModelWithOptionalErrorData(
+  title = title,
+  subline = subline,
+  primaryButton = primaryButton,
+  onBack = onBack,
+  toolbar = toolbar,
+  secondaryButton = secondaryButton,
+  renderContext = renderContext,
+  eventTrackerScreenId = eventTrackerScreenId,
+  eventTrackerContext = eventTrackerContext,
+  eventTrackerShouldTrack = eventTrackerShouldTrack,
+  errorData = errorData,
+  secondaryButtonIcon = secondaryButtonIcon
+)
+
+internal fun errorFormBodyModelWithOptionalErrorData(
+  title: String,
+  subline: LabelModel? = null,
+  primaryButton: ButtonDataModel,
+  onBack: (() -> Unit)? = primaryButton.onClick,
+  toolbar: ToolbarModel? = null,
+  secondaryButton: ButtonDataModel? = null,
+  renderContext: RenderContext = Screen,
+  eventTrackerScreenId: EventTrackerScreenId?,
+  eventTrackerContext: EventTrackerContext? = null,
+  eventTrackerShouldTrack: Boolean = true,
   errorData: ErrorData?,
   secondaryButtonIcon: Icon? = null,
 ): FormBodyModel {
-  return formBodyModel(
-    onLoaded = onLoaded,
+  return ErrorFormBodyModelImpl(
     id = eventTrackerScreenId,
     eventTrackerContext = eventTrackerContext,
     onBack = onBack,
@@ -132,3 +153,27 @@ fun ErrorFormBodyModelWithOptionalErrorData(
     errorData = errorData
   )
 }
+
+private data class ErrorFormBodyModelImpl(
+  override val id: EventTrackerScreenId?,
+  override val onBack: (() -> Unit)?,
+  override val toolbar: ToolbarModel?,
+  override val header: FormHeaderModel?,
+  override val primaryButton: ButtonModel?,
+  override val secondaryButton: ButtonModel?,
+  override val renderContext: RenderContext,
+  override val eventTrackerContext: EventTrackerContext?,
+  override val eventTrackerShouldTrack: Boolean,
+  override val errorData: ErrorData?,
+) : FormBodyModel(
+    id = id,
+    onBack = onBack,
+    toolbar = toolbar,
+    header = header,
+    primaryButton = primaryButton,
+    secondaryButton = secondaryButton,
+    renderContext = renderContext,
+    eventTrackerContext = eventTrackerContext,
+    eventTrackerShouldTrack = eventTrackerShouldTrack,
+    errorData = errorData
+  )

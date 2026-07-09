@@ -2,6 +2,7 @@ package build.wallet.statemachine.utxo
 
 import build.wallet.analytics.events.screen.id.UtxoConsolidationEventTrackerScreenId
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
@@ -19,6 +20,11 @@ internal fun noUtxosToConsolidateErrorModel(onBack: () -> Unit): FormBodyModel {
     primaryButton = ButtonDataModel(
       text = "Got it",
       onClick = onBack
+    ),
+    errorData = ErrorData(
+      segment = UtxoConsolidationAppSegment,
+      actionDescription = "Preparing UTXO consolidation",
+      cause = IllegalStateException("No confirmed UTXOs available to consolidate")
     ),
     eventTrackerScreenId = UtxoConsolidationEventTrackerScreenId.NO_UTXOS_TO_CONSOLIDATE
   )

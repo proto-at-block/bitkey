@@ -16,7 +16,6 @@ import build.wallet.cloud.backup.csek.SealedSsekFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.onboarding.OnboardingF8eClientMock
-import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTask.TaskId
 import build.wallet.home.GettingStartedTask.TaskState
@@ -55,7 +54,6 @@ class OnboardFullAccountServiceImplTests : FunSpec({
   val onboardingF8eClient = OnboardingF8eClientMock(turbines::create)
   val gettingStartedTaskDao = GettingStartedTaskDaoMock(turbines::create)
   val eventTracker = EventTrackerMock(turbines::create)
-  val featureFlagDao = FeatureFlagDaoFake()
   val onboardingKeyboxStepStateDao = OnboardingKeyboxStepStateDaoFake()
 
   val service = OnboardFullAccountServiceImpl(

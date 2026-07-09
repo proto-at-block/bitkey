@@ -361,6 +361,65 @@ where
     }
 }
 
+/// Resolve which [`SigningMethod`] applies for signing `signing_keyset_id`
+/// on `full_account`. A request to sign the active keyset is mobile-pay;
+/// any other keyset is a sweep into the active (destination) keyset.
+/// Pure over already-fetched account state (no PSBT needed), so callers
+/// can use it to classify the request before signing.
+pub fn determine_signing_method(
+    full_account: &FullAccount,
+    signing_keyset_id: &KeysetId,
+) -> Result<SigningMethod, SigningError> {
+    let source_keyset = full_account
+        .spending_keysets
+        .get(signing_keyset_id)
+        .ok_or_else(|| SigningError::NoSpendKeyset(signing_keyset_id.to_owned()))?;
+
+    let is_mobile_pay = full_account.active_keyset_id == *signing_keyset_id;
+
+    Ok(match source_keyset {
+        SpendingKeyset::LegacyMultiSig(legacy_source) => {
+            if is_mobile_pay {
+                SigningMethod::LegacyMobilePay {
+                    source_descriptor: legacy_source.clone().into(),
+                }
+            } else {
+                let active_keyset = full_account
+                    .active_spending_keyset()
+                    .ok_or(SigningError::NoActiveSpendKeyset)?;
+
+                match active_keyset {
+                    SpendingKeyset::LegacyMultiSig(legacy_dest) => SigningMethod::LegacySweep {
+                        source_descriptor: legacy_source.clone().into(),
+                        active_descriptor: legacy_dest.clone().into(),
+                    },
+                    SpendingKeyset::PrivateMultiSig(private_dest) => SigningMethod::MigrationSweep {
+                        source_descriptor: legacy_source.clone().into(),
+                        active_keyset: private_dest.clone(),
+                    },
+                }
+            }
+        }
+        SpendingKeyset::PrivateMultiSig(source_keyset) => {
+            if is_mobile_pay {
+                SigningMethod::PrivateMobilePay {
+                    source_keyset: source_keyset.clone(),
+                }
+            } else {
+                let active_keyset = full_account
+                    .active_spending_keyset()
+                    .ok_or(SigningError::NoActiveSpendKeyset)?
+                    .private_multi_sig_or(SigningError::ConflictingKeysetType)?;
+
+                SigningMethod::PrivateSweep {
+                    source_keyset: source_keyset.clone(),
+                    active_keyset: active_keyset.clone(),
+                }
+            }
+        }
+    })
+}
+
 pub struct SigningStrategyFactory {
     signing_processor: SigningProcessor<Initialized>,
     screener_service: Arc<ScreenerService>,
@@ -399,56 +458,9 @@ impl SigningStrategyFactory {
         rpc_uris: &ElectrumRpcUris,
         context_key: Option<ContextKey>,
     ) -> Result<Box<dyn SigningStrategy>, SigningError> {
-        let source_keyset = full_account
-            .spending_keysets
-            .get(signing_keyset_id)
-            .ok_or_else(|| SigningError::NoSpendKeyset(signing_keyset_id.to_owned()))?;
-
         let is_mobile_pay = full_account.active_keyset_id == *signing_keyset_id;
 
-        let signing_method = match source_keyset {
-            SpendingKeyset::LegacyMultiSig(legacy_source) => {
-                if is_mobile_pay {
-                    SigningMethod::LegacyMobilePay {
-                        source_descriptor: legacy_source.clone().into(),
-                    }
-                } else {
-                    let active_keyset = full_account
-                        .active_spending_keyset()
-                        .ok_or(SigningError::NoActiveSpendKeyset)?;
-
-                    match active_keyset {
-                        SpendingKeyset::LegacyMultiSig(legacy_dest) => SigningMethod::LegacySweep {
-                            source_descriptor: legacy_source.clone().into(),
-                            active_descriptor: legacy_dest.clone().into(),
-                        },
-                        SpendingKeyset::PrivateMultiSig(private_dest) => {
-                            SigningMethod::MigrationSweep {
-                                source_descriptor: legacy_source.clone().into(),
-                                active_keyset: private_dest.clone(),
-                            }
-                        }
-                    }
-                }
-            }
-            SpendingKeyset::PrivateMultiSig(source_keyset) => {
-                if is_mobile_pay {
-                    SigningMethod::PrivateMobilePay {
-                        source_keyset: source_keyset.clone(),
-                    }
-                } else {
-                    let active_keyset = full_account
-                        .active_spending_keyset()
-                        .ok_or(SigningError::NoActiveSpendKeyset)?
-                        .private_multi_sig_or(SigningError::ConflictingKeysetType)?;
-
-                    SigningMethod::PrivateSweep {
-                        source_keyset: source_keyset.clone(),
-                        active_keyset: active_keyset.clone(),
-                    }
-                }
-            }
-        };
+        let signing_method = determine_signing_method(full_account, signing_keyset_id)?;
 
         let signing_strategy: Box<dyn SigningStrategy> = if is_mobile_pay {
             Self::create_mobile_pay_signing_strategy(

@@ -32,7 +32,7 @@ import okio.ByteString.Companion.toByteString
 
 class FirmwareTelemetryInterceptorCoredumpW3CommandsFakeTests : FunSpec({
   test("returns null when BitkeyW3CommandsFake reports zero coredumps") {
-    val (w1Commands, w3Commands) = createW3CommandsFake()
+    val (_, w3Commands) = createW3CommandsFake()
     val session = NfcSessionFake()
 
     val result = readFirmwareTelemetryCoredumpForMcu(w3Commands, session, mcuRole = McuRole.CORE)

@@ -74,7 +74,6 @@ fun MoneyHomeCard(
   modifier: Modifier = Modifier,
   model: CardModel,
 ) {
-  val isDesignSystemV2Enabled = true
   val isDarkTheme = LocalTheme.current == Theme.DARK
 
   AnimatedMoneyHomeCardContainer(
@@ -82,7 +81,7 @@ fun MoneyHomeCard(
     model = model
   ) { cardModifier ->
     val cardKind = model.kind
-    if (isDesignSystemV2Enabled && cardKind is CardModel.Kind.GettingStarted) {
+    if (cardKind is CardModel.Kind.GettingStarted) {
       GettingStartedTilesCard(
         modifier = cardModifier,
         title = model.title?.string.orEmpty(),
@@ -105,7 +104,7 @@ fun MoneyHomeCard(
           }
 
         is Outline -> {
-          val isDesignSystemV2BitcoinPriceCard = isDesignSystemV2Enabled && model.content is BitcoinPrice
+          val isBitcoinPriceCard = model.content is BitcoinPrice
           val backgroundColor = when (style.surfaceTreatment) {
             CardModel.SurfaceTreatment.ContainerBackground -> WalletTheme.colors.containerBackground
             CardModel.SurfaceTreatment.Background -> WalletTheme.colors.background
@@ -114,14 +113,14 @@ fun MoneyHomeCard(
           Card(
             modifier = cardModifier,
             backgroundColor = backgroundColor,
-            cornerRadius = if (isDesignSystemV2BitcoinPriceCard) 8.dp else 16.dp,
-            borderWidth = if (isDesignSystemV2BitcoinPriceCard && !isDarkTheme) 0.dp else 1.dp,
+            cornerRadius = if (isBitcoinPriceCard) 8.dp else 16.dp,
+            borderWidth = if (isBitcoinPriceCard && !isDarkTheme) 0.dp else 1.dp,
             paddingValues = PaddingValues(0.dp)
           ) {
-            val topPadding = if (isDesignSystemV2BitcoinPriceCard) 12.dp else 20.dp
-            val horizontalPadding = if (isDesignSystemV2BitcoinPriceCard) 16.dp else 20.dp
+            val topPadding = if (isBitcoinPriceCard) 12.dp else 20.dp
+            val horizontalPadding = if (isBitcoinPriceCard) 16.dp else 20.dp
             val bottomPadding = when {
-              isDesignSystemV2BitcoinPriceCard -> 14.dp
+              isBitcoinPriceCard -> 14.dp
               model.content == null -> 20.dp
               else -> 0.dp
             }
@@ -324,7 +323,7 @@ private fun GettingStartedTile(
         IconImage(
           modifier = Modifier.thenIf(!task.isEnabled) { Modifier.alpha(0.3f) },
           model = IconModel(
-            icon = build.wallet.statemachine.core.Icon.SmallIconCaretRight,
+            icon = build.wallet.statemachine.core.Icon.CaretRight,
             iconSize = IconSize.Custom(GETTING_STARTED_TILE_CHEVRON_SIZE_DP),
             iconTint = IconTint.On30
           )

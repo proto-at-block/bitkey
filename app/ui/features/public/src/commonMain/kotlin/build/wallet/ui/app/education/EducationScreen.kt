@@ -42,8 +42,8 @@ fun EducationScreen(
       transitionSpec = {
         fadeIn() togetherWith fadeOut()
       }
-    ) { model ->
-      EducationItem(model = model)
+    ) { targetModel ->
+      EducationItem(model = targetModel)
     }
   }
 }
@@ -57,7 +57,7 @@ private fun EducationToolbar(
     IconButton(
       iconModel =
         IconModel(
-          icon = Icon.SmallIconX,
+          icon = Icon.X,
           iconSize = IconSize.Accessory,
           iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Regular)
         ),

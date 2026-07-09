@@ -5,6 +5,7 @@ import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.keys.DescriptorPublicKey
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.crypto.SealedData
 import build.wallet.crypto.SymmetricKey
@@ -23,16 +24,18 @@ import build.wallet.toByteString
 import build.wallet.toUByteList
 import okio.ByteString
 import okio.ByteString.Companion.decodeHex
+import okio.ByteString.Companion.encodeUtf8
 import build.wallet.rust.firmware.BtcDisplayUnit as FfiBtcDisplayUnit
 import build.wallet.rust.firmware.BtcNetwork as FfiBtcNetwork
 import build.wallet.rust.firmware.InputSignatureTuple as FfiInputSignatureTuple
+import build.wallet.rust.firmware.KeysetRepairRotateHwKeyResult as FfiKeysetRepairRotateHwKeyResult
 import build.wallet.rust.firmware.RecoveryAuthorizeLostAppResult as FfiRecoveryAuthorizeLostAppResult
 import build.wallet.rust.firmware.RecoveryAuthorizeLostHwResult as FfiRecoveryAuthorizeLostHwResult
-import build.wallet.rust.firmware.SweepXpub as FfiSweepXpub
 import build.wallet.rust.firmware.RotateAppAuthKeys as FfiRotateAppAuthKeys
 import build.wallet.rust.firmware.RotateAppAuthKeysResult as FfiRotateAppAuthKeysResult
 import build.wallet.rust.firmware.RotateAppAuthKeysResultState as FfiRotateAppAuthKeysResultState
 import build.wallet.rust.firmware.SignChallengeAndSealSeksResult as FfiSignChallengeAndSealSeksResult
+import build.wallet.rust.firmware.SweepXpub as FfiSweepXpub
 import build.wallet.rust.firmware.UpgradeAuthorizeW3 as FfiUpgradeAuthorizeW3
 import build.wallet.rust.firmware.UpgradeAuthorizeW3Result as FfiUpgradeAuthorizeW3Result
 import build.wallet.rust.firmware.UpgradeAuthorizeW3ResultState as FfiUpgradeAuthorizeW3ResultState
@@ -156,6 +159,7 @@ class BitkeyW3Commands(
     psbt: Psbt,
     spendingKeyset: SpendingKeyset,
     displayPreference: HwDisplayPreference?,
+    allowUnfinalized: Boolean,
   ): HardwareInteraction<Psbt> {
     // Decompose the PSBT into raw transaction fields for the non-PSBT signing protocol.
     val decomposed = try {
@@ -177,9 +181,9 @@ class BitkeyW3Commands(
     val needsStreaming = decomposed.inputs.size > MAX_SIGN_TX_ENTRIES ||
       decomposed.outputs.size > MAX_SIGN_TX_ENTRIES
     return if (needsStreaming) {
-      signTransactionStreaming(psbt, decomposed, ffiBtcUnit)
+      signTransactionStreaming(psbt, decomposed, ffiBtcUnit, allowUnfinalized)
     } else {
-      signTransactionOneShot(session, psbt, decomposed, ffiBtcUnit)
+      signTransactionOneShot(session, psbt, decomposed, ffiBtcUnit, allowUnfinalized)
     }
   }
 
@@ -193,6 +197,7 @@ class BitkeyW3Commands(
     psbt: Psbt,
     decomposed: DecomposedPsbt,
     btcDisplayUnit: FfiBtcDisplayUnit,
+    allowUnfinalized: Boolean,
   ): HardwareInteraction<Psbt> {
     val result = executeCommand(
       session = session,
@@ -226,7 +231,7 @@ class BitkeyW3Commands(
                   assemblePsbtSignatures(
                     psbtBase64 = psbt.base64,
                     signatures = ffiSignatures,
-                    allowUnfinalized = false
+                    allowUnfinalized = allowUnfinalized
                   )
                 } catch (e: CommandException) {
                   throw NfcException.CommandError(
@@ -269,6 +274,7 @@ class BitkeyW3Commands(
     psbt: Psbt,
     decomposed: DecomposedPsbt,
     btcDisplayUnit: FfiBtcDisplayUnit,
+    allowUnfinalized: Boolean,
   ): HardwareInteraction<Psbt> {
     // Serialize the canonical binary payload and compute commitment hash eagerly
     // so errors surface immediately, not inside the transfer callback.
@@ -295,7 +301,8 @@ class BitkeyW3Commands(
         decomposed = decomposed,
         streamPayload = streamPayload,
         onProgress = onProgress,
-        btcDisplayUnit = btcDisplayUnit
+        btcDisplayUnit = btcDisplayUnit,
+        allowUnfinalized = allowUnfinalized
       )
     }
   }
@@ -314,6 +321,7 @@ class BitkeyW3Commands(
     streamPayload: StreamPayload,
     onProgress: NfcProgressCallback,
     btcDisplayUnit: FfiBtcDisplayUnit,
+    allowUnfinalized: Boolean,
   ): HardwareInteraction<Psbt> {
     // Step 1: Start the streaming session
     val startResult = executeCommand(
@@ -390,7 +398,7 @@ class BitkeyW3Commands(
                     psbt = psbt,
                     numInputs = confirmResult.numInputs,
                     onProgress = sigProgress,
-                    allowUnfinalized = false
+                    allowUnfinalized = allowUnfinalized
                   )
                 }
               }
@@ -1044,6 +1052,115 @@ class BitkeyW3Commands(
                 throw NfcException.UserDenied()
               else -> throw NfcException.CommandError(
                 message = "eekRestorationUnsealSymmetricKey expected EekRestorationUnsealSymmetricKey result but got: ${confirmResult::class.simpleName}"
+              )
+            }
+          }
+        )
+      }
+    }
+  }
+
+  /**
+   * Stale keyset repair unseal symmetric key on W3 hardware with user confirmation.
+   *
+   * First tap: sends sealed key → firmware shows "DECRYPT WALLET DATA" prompt → RequiresConfirmation.
+   * Second tap: getConfirmationResult returns KeysetRepairUnsealSymmetricKey with the key.
+   */
+  @OptIn(PrivateData::class)
+  override suspend fun keysetRepairUnsealSymmetricKey(
+    session: NfcSession,
+    sealedKey: SealedData,
+  ): HardwareInteraction<SymmetricKey> {
+    val result = executeCommand(
+      session = session,
+      generateCommand = { KeysetRepairUnseal(sealedKey.toUByteList()) },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: KeysetRepairUnsealResultState.Data -> state.response },
+      generateResult = { state: KeysetRepairUnsealResultState.Result -> state.value }
+    )
+
+    return when (result) {
+      is KeysetRepairUnsealResult.ConfirmationPending -> {
+        val handles = ConfirmationHandles(
+          responseHandle = result.responseHandle,
+          confirmationHandle = result.confirmationHandle
+        )
+        HardwareInteraction.RequiresConfirmation(
+          handles = handles,
+          mapResult = confirmationResultMapper<SymmetricKey> { confirmResult ->
+            when (confirmResult) {
+              is ConfirmationResult.KeysetRepairUnsealSymmetricKey ->
+                HardwareInteraction.Completed(
+                  SymmetricKeyImpl(confirmResult.unsealedKey.toByteString())
+                )
+              is ConfirmationResult.Pending ->
+                throw NfcException.ConfirmationPending()
+              is ConfirmationResult.Denied ->
+                throw NfcException.UserDenied()
+              else -> throw NfcException.CommandError(
+                message = "keysetRepairUnsealSymmetricKey expected KeysetRepairUnsealSymmetricKey result but got: ${confirmResult::class.simpleName}"
+              )
+            }
+          }
+        )
+      }
+    }
+  }
+
+  /**
+   * Stale keyset repair rotate composite on W3 hardware with user confirmation.
+   *
+   * Bundles next-spending-key derivation and access-token signing into one confirmable tap.
+   * The Rust binding pre-derives the master to compute the next BIP84 account index from
+   * the supplied existing keys, then issues the composite command. Both operations resolve
+   * after a single user confirmation.
+   *
+   * First tap: pre-derive + send composite cmd → firmware shows "AUTHORIZE WALLET REPAIR" → RequiresConfirmation.
+   * Second tap: getConfirmationResult returns KeysetRepairRotateHwKey with descriptor + signature.
+   */
+  override suspend fun keysetRepairRotateHwKey(
+    session: NfcSession,
+    params: KeysetRepairRotateHwKeyParams,
+  ): HardwareInteraction<KeysetRepairRotateHwKeyResult> {
+    val result = executeCommand(
+      session = session,
+      generateCommand = {
+        KeysetRepairRotateHwKey(
+          accessToken = params.accessToken.raw.encodeUtf8().toUByteList(),
+          existingDescriptorPublicKeys = params.existingHwSpendingKeys.map { it.key.dpub },
+          network = params.network.toBtcNetwork()
+        )
+      },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: KeysetRepairRotateHwKeyResultState.Data -> state.response },
+      generateResult = { state: KeysetRepairRotateHwKeyResultState.Result -> state.value }
+    )
+
+    return when (result) {
+      is FfiKeysetRepairRotateHwKeyResult.ConfirmationPending -> {
+        val handles = ConfirmationHandles(
+          responseHandle = result.responseHandle,
+          confirmationHandle = result.confirmationHandle
+        )
+        HardwareInteraction.RequiresConfirmation(
+          handles = handles,
+          mapResult = confirmationResultMapper<KeysetRepairRotateHwKeyResult> { confirmResult ->
+            when (confirmResult) {
+              is ConfirmationResult.KeysetRepairRotateHwKey ->
+                HardwareInteraction.Completed(
+                  KeysetRepairRotateHwKeyResult(
+                    hwSpendingKey = HwSpendingPublicKey(
+                      DescriptorPublicKey(confirmResult.spendingKeyDpub)
+                    ),
+                    signedAccessToken = confirmResult.accessTokenSignature.toByteString().hex()
+                  )
+                )
+              is ConfirmationResult.Pending ->
+                throw NfcException.ConfirmationPending()
+              is ConfirmationResult.Denied ->
+                throw NfcException.UserDenied()
+              else -> throw NfcException.CommandError(
+                message = "keysetRepairRotateHwKey expected KeysetRepairRotateHwKey result but got: ${confirmResult::class.simpleName}"
               )
             }
           }

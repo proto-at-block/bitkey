@@ -6,7 +6,7 @@ import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.partnerships.PartnerInfo
 import build.wallet.statemachine.core.Icon.Bitcoin
-import build.wallet.statemachine.core.Icon.SmallIconInformation
+import build.wallet.statemachine.core.Icon.Information
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -110,7 +110,6 @@ data class TransferConfirmationScreenModel(
       onNetworkFeesClick = onNetworkFeesClick,
       onArrivalTimeClick = onArrivalTimeClick
     ),
-    ctaWarning = null,
     primaryButton =
       ButtonModel(
         text = when (variant) {
@@ -171,7 +170,7 @@ private fun TransactionDetailsModel.toFormContent(
             onTitle = onNetworkFeesClick,
             titleIcon =
               IconModel(
-                icon = SmallIconInformation,
+                icon = Information,
                 iconSize = IconSize.XSmall,
                 iconTint = IconTint.On30
               ),

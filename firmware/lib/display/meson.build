@@ -87,6 +87,8 @@ font_variants = {
 }
 
 lv_font_conv = find_program('lv_font_conv')
+pngquant = find_program('pngquant', native : true)
+run_command(pngquant, '--version', check : true)
 
 # Generate CashSansMono fonts at build time
 foreach variant_name, font_files : font_variants

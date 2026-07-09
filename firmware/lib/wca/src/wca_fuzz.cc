@@ -29,6 +29,7 @@ secure_bool_t is_allowing_fingerprint_enrollment(void) {
 
 #include <stddef.h>
 #include <stdint.h>
+#include <vector>
 
 #define WCA_BUF_LEN (250)
 
@@ -62,38 +63,41 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 #undef REGIONS
 
   while (fuzzed_data.remaining_bytes() > 0) {
-    uint8_t cmd_buf[WCA_BUF_LEN] = {0};
-    uint8_t rsp_buf[WCA_BUF_LEN] = {0};
-    uint32_t cmd_len = fuzzed_data.ConsumeIntegralInRange<uint16_t>(4, WCA_BUF_LEN);
+    uint32_t cmd_len = fuzzed_data.ConsumeIntegralInRange<uint16_t>(0, WCA_BUF_LEN);
     uint32_t rsp_len = fuzzed_data.ConsumeIntegralInRange<uint16_t>(2, WCA_BUF_LEN);
-    cmd_len = fuzzed_data.ConsumeData(cmd_buf, cmd_len);
-    rsp_len = fuzzed_data.ConsumeData(rsp_buf, rsp_len);
+    std::vector<uint8_t> cmd_buf = fuzzed_data.ConsumeBytes<uint8_t>(cmd_len);
+    std::vector<uint8_t> rsp_buf(WCA_BUF_LEN, 0);
+    cmd_len = cmd_buf.size();
 
-    if (rsp_len < 2 || cmd_len < 4) {
+    if (rsp_len < 2) {
       continue;
     }
 
-    cmd_buf[CLA] = WCA_CLA;
+    if (cmd_len > CLA) {
+      cmd_buf[CLA] = WCA_CLA;
+    }
     int ins = fuzzed_data.ConsumeIntegralInRange(0, 4);  // keep in sync with number of cases
-    switch (ins) {
-      case 0:
-        cmd_buf[INS] = WCA_INS_VERSION;
-        break;
-      case 1:
-        cmd_buf[INS] = WCA_INS_PROTO;
-        break;
-      case 2:
-        cmd_buf[INS] = WCA_INS_PROTO_CONT;
-        break;
-      case 3:
-        cmd_buf[INS] = WCA_INS_GET_RESPONSE;
-        break;
-      case 4:  // passthrough case
-      default:
-        break;
+    if (cmd_len > INS) {
+      switch (ins) {
+        case 0:
+          cmd_buf[INS] = WCA_INS_VERSION;
+          break;
+        case 1:
+          cmd_buf[INS] = WCA_INS_PROTO;
+          break;
+        case 2:
+          cmd_buf[INS] = WCA_INS_PROTO_CONT;
+          break;
+        case 3:
+          cmd_buf[INS] = WCA_INS_GET_RESPONSE;
+          break;
+        case 4:  // passthrough case
+        default:
+          break;
+      }
     }
 
-    wca_handle_command(cmd_buf, cmd_len, rsp_buf, &rsp_len);
+    wca_handle_command(cmd_buf.data(), cmd_len, rsp_buf.data(), &rsp_len);
   }
 
   return 0;

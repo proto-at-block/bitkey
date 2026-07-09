@@ -36,7 +36,6 @@ data class NameInputBodyModel(
   val hasPreviousScreen: Boolean = false,
 ) : FormBodyModel(
     id = id,
-    onSwipeToDismiss = onClose,
     onBack = onClose,
     toolbar = ToolbarModel(
       leadingAccessory = if (hasPreviousScreen) {

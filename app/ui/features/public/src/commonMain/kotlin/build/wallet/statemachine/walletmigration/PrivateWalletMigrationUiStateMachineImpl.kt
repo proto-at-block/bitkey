@@ -28,6 +28,7 @@ import build.wallet.money.BitcoinMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.nfc.platform.sealSymmetricKey
 import build.wallet.nfc.platform.signAccessToken
+import build.wallet.nfc.toSpendingKeyProof
 import build.wallet.platform.random.UuidGenerator
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.recovery.sweep.SweepContext
@@ -161,7 +162,7 @@ class PrivateWalletMigrationUiStateMachineImpl(
                     if (error is MigrationError.InsufficientFundsForMigration) {
                       ShowingInsufficientFundsWarning
                     } else {
-                      Error
+                      MigrationFailed(error.asThrowable())
                     }
                 }
             }
@@ -345,11 +346,12 @@ class PrivateWalletMigrationUiStateMachineImpl(
               // Although the server knows the old hardware xpub, hardened derivation at the account level
               // prevents the server from predicting the next key without the parent private key.
               val existingKeys = listOf(props.account.keybox.activeSpendingKeyset.hardwareKey)
-              val newKey = commands.getNextSpendingKey(
+              val newKeyResult = commands.getNextSpendingKey(
                 session,
                 existingKeys,
                 props.account.keybox.config.bitcoinNetworkType
               )
+              val newKey = newKeyResult.publicKey
 
               val unsealedSsek = sekGenerator.generate()
               val sealedSsek = commands.sealSymmetricKey(
@@ -365,6 +367,7 @@ class PrivateWalletMigrationUiStateMachineImpl(
                   authKey = commands.getAuthenticationKey(session),
                   networkType = props.account.keybox.config.bitcoinNetworkType
                 ),
+                spendingKeyProof = newKeyResult.toSpendingKeyProof(),
                 ssek = unsealedSsek,
                 sealedSsek = sealedSsek
               )
@@ -390,7 +393,8 @@ class PrivateWalletMigrationUiStateMachineImpl(
               newHwSpendingKey = current.nfcData.newHwKeys.spendingKey,
               hwProofOfPossession = current.nfcData.proofOfPossession,
               ssek = current.nfcData.ssek,
-              sealedSsek = current.nfcData.sealedSsek
+              sealedSsek = current.nfcData.sealedSsek,
+              newHwSpendingKeyProof = current.nfcData.spendingKeyProof
             )
 
           // Save the hardware key to the DAO for state persistence
@@ -405,8 +409,8 @@ class PrivateWalletMigrationUiStateMachineImpl(
             currentState !is MigrationProgress.Completed
           ) {
             val result = migrationService.proceed(currentState)
-            result.onFailure {
-              uiState = Error
+            result.onFailure { error ->
+              uiState = MigrationFailed(error.asThrowable())
               return@LaunchedEffect
             }
             result.onSuccess { nextState ->
@@ -436,7 +440,11 @@ class PrivateWalletMigrationUiStateMachineImpl(
             }
             else -> {
               // Unexpected state
-              uiState = Error
+              uiState = MigrationFailed(
+                IllegalStateException(
+                  "Unexpected private wallet migration state: ${terminalState::class.simpleName}"
+                )
+              )
             }
           }
         }
@@ -457,7 +465,11 @@ class PrivateWalletMigrationUiStateMachineImpl(
           FullAccountCloudSignInAndBackupProps(
             sealedCsek = current.sealedCsek,
             keybox = current.keybox,
-            onBackupFailed = { uiState = Error },
+            onBackupFailed = {
+              uiState = MigrationFailed(
+                IllegalStateException("Failed to save private wallet migration cloud backup")
+              )
+            },
             onBackupSaved = {
               scope.launch {
                 // Proceed past the CloudBackup state
@@ -479,8 +491,8 @@ class PrivateWalletMigrationUiStateMachineImpl(
                         }
                       }
                     }
-                    .onFailure {
-                      uiState = Error
+                    .onFailure { error ->
+                      uiState = MigrationFailed(error.asThrowable())
                     }
                 } else {
                   // Fallback for legacy compatibility - no progress tracking
@@ -511,8 +523,8 @@ class PrivateWalletMigrationUiStateMachineImpl(
                     .onSuccess {
                       uiState = Success
                     }
-                    .onFailure {
-                      uiState = Error
+                    .onFailure { error ->
+                      uiState = MigrationFailed(error.asThrowable())
                     }
                 } else {
                   // Fallback for legacy compatibility
@@ -546,7 +558,7 @@ class PrivateWalletMigrationUiStateMachineImpl(
         )
       }
 
-      is Error -> {
+      is MigrationFailed -> {
         ScreenModel(
           body = ErrorFormBodyModel(
             title = "Migration Error",
@@ -561,6 +573,11 @@ class PrivateWalletMigrationUiStateMachineImpl(
               text = "Cancel",
               onClick = props.onExit
             ).takeUnless { isMigrationInProgress },
+            errorData = ErrorData(
+              segment = PrivateWalletMigrationAppSegment,
+              actionDescription = "Migrating private wallet",
+              cause = current.cause
+            ),
             eventTrackerScreenId = WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_MIGRATION_ERROR
           )
         )
@@ -579,7 +596,6 @@ class PrivateWalletMigrationUiStateMachineImpl(
         when (backup) {
           is CloudBackupV2 -> backup.fullAccountFields?.sealedHwEncryptionKey
           is CloudBackupV3 -> backup.fullAccountFields?.sealedHwEncryptionKey
-          else -> null
         }
       }
 
@@ -681,5 +697,28 @@ private sealed interface PrivateWalletMigrationUiState {
   /**
    * Migration failed with error.
    */
-  data object Error : PrivateWalletMigrationUiState
+  data class MigrationFailed(val cause: Throwable) : PrivateWalletMigrationUiState
 }
+
+private fun MigrationError.asThrowable(): Throwable =
+  when (this) {
+    is MigrationError.AppKeyGenerationFailed -> cause
+    is MigrationError.AuthKeyRotationFailed -> cause
+    is MigrationError.CloudBackupFailed -> cause
+    is MigrationError.DdkBackupFailed -> cause
+    is MigrationError.DescriptorBackupFailed -> cause
+    is MigrationError.FeeEstimationFailed -> cause
+    is MigrationError.HardwareAuthKeyAlreadyInUse ->
+      cause ?: IllegalStateException("Hardware auth key is already in use")
+    is MigrationError.HardwareAuthKeyAvailabilityCheckFailed -> cause
+    is MigrationError.InvalidState -> IllegalStateException(message)
+    is MigrationError.KeyboxNotFound -> cause ?: IllegalStateException("Migration keybox not found")
+    is MigrationError.LocalKeyboxActivationFailed -> cause
+    is MigrationError.MigrationCompletionFailed -> cause
+    is MigrationError.MissingContext -> IllegalStateException(message)
+    is MigrationError.ServerKeysetActivationFailed -> cause
+    is MigrationError.ServerKeysetCreationFailed -> cause
+    is MigrationError.StatePersistenceFailed -> cause
+    MigrationError.InsufficientFundsForMigration ->
+      IllegalStateException("Insufficient funds for private wallet migration")
+  }

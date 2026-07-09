@@ -139,7 +139,7 @@ data class AboutDeviceSheetBodyModel(
     primaryButton = null,
     secondaryButton = ButtonModel(
       text = "Sync device info",
-      leadingIcon = Icon.SmallIconRefresh,
+      leadingIcon = Icon.Refresh,
       onClick = StandardClick(onSyncDeviceInfo),
       treatment = ButtonModel.Treatment.Secondary,
       size = ButtonModel.Size.Footer

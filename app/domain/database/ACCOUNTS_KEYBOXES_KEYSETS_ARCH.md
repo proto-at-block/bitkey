@@ -9,11 +9,11 @@ cryptographic keys. This document explains the relationships between Accounts, K
 
 ### Account Types
 
-The Bitkey wallet supports three types of accounts:
+The Bitkey wallet database contains rows for these account shapes:
 
 1. **Full Account** - Complete wallet with hardware device, app, and server components
 2. **Lite Account** - App-only account without hardware device. Serves as recovery contact for a full account.
-3. **Software Account** - Software-based wallet with spending capabilities [note this is not released]
+3. **Software Account** - In-progress software-wallet schema. Do not treat these rows as evidence of shipped customer behavior.
 
 ### Core Entities
 
@@ -84,6 +84,40 @@ Separate tables track these states:
 - `onboardingLiteAccountEntity` - Lite account being onboarded
 - `activeSoftwareAccountEntity` - Currently active software account
 - `onboardingSoftwareAccountEntity` - Software account being onboarded
+
+### Software Account Structure
+
+Software-account rows are separate from the full-account `keyboxEntity`,
+`spendingKeysetEntity`, `appKeyBundleEntity`, and `hwKeyBundleEntity` tables.
+This schema is still in progress:
+
+```sql
+softwareAccountEntity
+├── accountId
+├── bitcoinNetworkType
+├── f8eEnvironment
+├── isTestAccount
+└── isUsingSocRecFakes
+
+onboardingSoftwareAccountEntity
+├── accountId
+├── appGlobalAuthKey
+└── appRecoveryAuthKey
+
+activeSoftwareAccountEntity
+├── accountId
+└── softwareKeyboxId
+
+softwareKeyboxEntity
+├── id
+├── accountId
+├── appGlobalAuthKey
+└── appRecoveryAuthKey
+```
+
+`AccountDaoImpl` still has a TODO for complete software-account persistence.
+Use the software-wallet feature/design docs for current implementation notes;
+do not use this database table list as a shipped product-behavior claim.
 
 ## Entity Relationships
 

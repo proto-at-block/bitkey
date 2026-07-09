@@ -12,7 +12,7 @@ class HardwareUnlockInfoServiceFake : HardwareUnlockInfoService {
     unlockInfo.value = unlockInfoList
   }
 
-  override suspend fun countUnlockInfo(unlockMethod: UnlockMethod): Flow<Int> {
+  override fun countUnlockInfo(unlockMethod: UnlockMethod): Flow<Int> {
     return unlockInfo.map {
       it.count { it.unlockMethod == unlockMethod }
     }

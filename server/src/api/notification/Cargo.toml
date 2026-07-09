@@ -39,6 +39,7 @@ utoipa = { workspace = true }
 account = { workspace = true }
 authn_authz = { workspace = true }
 bdk_utils = { workspace = true }
+clients_common = { workspace = true }
 database = { workspace = true }
 errors = { workspace = true }
 http_server = { workspace = true }

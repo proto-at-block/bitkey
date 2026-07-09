@@ -3,7 +3,7 @@ use miniscript::DescriptorPublicKey;
 use next_gen::generator;
 
 use crate::{
-    commands::{find_next_bip84_derivation, generate_keys::get_initial_spending_key},
+    commands::{find_next_bip84_derivation, generate_keys::get_initial_spending_key_parsed},
     errors::CommandError,
     fwpb::{wallet_rsp::Msg, BtcNetwork, LostAppRecoveryContinueCmd, LostAppRecoveryContinueRsp},
     wca::decode_and_check,
@@ -46,8 +46,9 @@ fn lost_app_recovery_continue(
     network: BtcNetwork,
     app_global_auth_key: Vec<u8>,
 ) -> Result<LostAppRecoveryContinueResult, CommandError> {
-    let ours = yield_from_!(get_initial_spending_key(network))?;
-    let next_account_index = compute_next_account_index(ours, &existing_descriptor_public_keys)?;
+    let (ours_dpub, _) = yield_from_!(get_initial_spending_key_parsed(network))?;
+    let next_account_index =
+        compute_next_account_index(ours_dpub, &existing_descriptor_public_keys)?;
     let apdu: apdu::Command = LostAppRecoveryContinueCmd {
         action_proof_version,
         action,
@@ -182,6 +183,7 @@ mod tests {
             msg: Some(Msg::DeriveRsp(DeriveRsp {
                 status: DeriveRspStatus::Success.into(),
                 descriptor: Some(descriptor(0, [0xde, 0xad, 0xbe, 0xef])),
+                ..Default::default()
             })),
             ..Default::default()
         });

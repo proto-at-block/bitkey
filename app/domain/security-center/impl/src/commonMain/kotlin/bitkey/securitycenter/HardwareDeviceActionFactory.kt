@@ -7,14 +7,14 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 interface HardwareDeviceActionFactory {
-  suspend fun create(): Flow<SecurityAction?>
+  fun create(): Flow<SecurityAction?>
 }
 
 @BitkeyInject(AppScope::class)
 class HardwareDeviceActionFactoryImpl(
   private val firmwareDataService: FirmwareDataService,
 ) : HardwareDeviceActionFactory {
-  override suspend fun create(): Flow<SecurityAction> {
+  override fun create(): Flow<SecurityAction> {
     return firmwareDataService.firmwareData().map {
       HardwareDeviceAction(firmwareData = it)
     }

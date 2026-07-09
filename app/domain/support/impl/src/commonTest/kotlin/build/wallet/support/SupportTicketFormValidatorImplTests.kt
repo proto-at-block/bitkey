@@ -24,6 +24,8 @@ import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 import kotlin.random.nextInt
 
+// Large end-to-end coverage for support ticket form validation; splitting would hurt cohesion.
+@Suppress("LargeClass")
 class SupportTicketFormValidatorImplTests : DescribeSpec({
 
   val emailValidator = EmailValidatorMock()

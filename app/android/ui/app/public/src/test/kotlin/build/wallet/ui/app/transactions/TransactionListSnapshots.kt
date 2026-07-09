@@ -13,7 +13,7 @@ import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
 import build.wallet.ui.model.list.ListItemSideTextTint
-import build.wallet.ui.tokens.market.MarketIcons
+import build.wallet.statemachine.core.Icon
 import io.kotest.core.spec.style.FunSpec
 
 class TransactionListSnapshots : FunSpec({
@@ -125,7 +125,10 @@ class TransactionListSnapshots : FunSpec({
   }
 })
 
-private fun previewPartnerIconImage() = IconImage.MarketIconImage(MarketIcons.CashAppMulticolor)
+private fun previewPartnerIconImage() = IconImage.UrlImage(
+  "https://images.ctfassets.net/mtmp6hzjjvnd/1lJRVmj6pcRnZcmL4eCEET/89cea9f73e867a8e70aa72971dba3586/CashLogo.svg",
+  fallbackIcon = Icon.Bitcoin
+)
 
 private fun previewPartnerTransactionItemModel(
   title: String,

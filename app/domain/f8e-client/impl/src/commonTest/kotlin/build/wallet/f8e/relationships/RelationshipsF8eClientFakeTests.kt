@@ -9,6 +9,7 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.relationships.TrustedContactAlias
 import build.wallet.bitkey.relationships.TrustedContactRole
+import build.wallet.bitkey.relationships.UnendorsedTrustedContactFake
 import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.auth.PrivilegedActionProof
@@ -67,7 +68,7 @@ class RelationshipsF8eClientFakeTests : FunSpec({
         roles = setOf(TrustedContactRole.SocialRecoveryContact)
       )
       .shouldBeOk {
-        it.relationshipId.shouldBe("uuid-0")
+        it.id.value.shouldBe("uuid-0")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       }
 
@@ -77,7 +78,7 @@ class RelationshipsF8eClientFakeTests : FunSpec({
       f8eEnvironment = Development
     ).shouldBeOk { relationships ->
       relationships.invitations.single().should {
-        it.relationshipId.shouldBe("uuid-0")
+        it.id.value.shouldBe("uuid-0")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       }
       relationships.protectedCustomers.shouldBeEmpty()
@@ -94,7 +95,7 @@ class RelationshipsF8eClientFakeTests : FunSpec({
         roles = setOf(TrustedContactRole.SocialRecoveryContact)
       )
       .shouldBeOk {
-        it.relationshipId.shouldBe("uuid-1")
+        it.id.value.shouldBe("uuid-1")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Bob"))
       }
 
@@ -105,12 +106,12 @@ class RelationshipsF8eClientFakeTests : FunSpec({
     ).shouldBeOk { relationships ->
       relationships.invitations.shouldHaveSize(2)
       relationships.invitations[0].should {
-        it.relationshipId.shouldBe("uuid-0")
+        it.id.value.shouldBe("uuid-0")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       }
 
       relationships.invitations[1].should {
-        it.relationshipId.shouldBe("uuid-1")
+        it.id.value.shouldBe("uuid-1")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Bob"))
       }
     }
@@ -127,7 +128,7 @@ class RelationshipsF8eClientFakeTests : FunSpec({
         roles = setOf(TrustedContactRole.SocialRecoveryContact)
       )
       .shouldBeOk {
-        it.relationshipId.shouldBe("uuid-0")
+        it.id.value.shouldBe("uuid-0")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       }
 
@@ -137,7 +138,7 @@ class RelationshipsF8eClientFakeTests : FunSpec({
       f8eEnvironment = Development
     ).shouldBeOk { relationships ->
       relationships.invitations.single().should {
-        it.relationshipId.shouldBe("uuid-0")
+        it.id.value.shouldBe("uuid-0")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       }
       relationships.protectedCustomers.shouldBeEmpty()
@@ -175,7 +176,7 @@ class RelationshipsF8eClientFakeTests : FunSpec({
         roles = setOf(TrustedContactRole.SocialRecoveryContact)
       )
       .shouldBeOk {
-        it.relationshipId.shouldBe("uuid-0")
+        it.id.value.shouldBe("uuid-0")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       }
 
@@ -185,7 +186,7 @@ class RelationshipsF8eClientFakeTests : FunSpec({
       f8eEnvironment = Development
     ).shouldBeOk { relationships ->
       relationships.invitations.single().should {
-        it.relationshipId.shouldBe("uuid-0")
+        it.id.value.shouldBe("uuid-0")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       }
       relationships.protectedCustomers.shouldBeEmpty()
@@ -209,11 +210,30 @@ class RelationshipsF8eClientFakeTests : FunSpec({
       f8eEnvironment = Development
     ).shouldBeOk { relationships ->
       relationships.invitations.single().should {
-        it.relationshipId.shouldBe("uuid-0")
+        it.id.value.shouldBe("uuid-0")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       }
       relationships.protectedCustomers.shouldBeEmpty()
       relationships.endorsedTrustedContacts.shouldBeEmpty()
+    }
+  }
+
+  test("remove unendorsed trusted contact") {
+    serviceFake.unendorsedTrustedContacts += UnendorsedTrustedContactFake
+
+    serviceFake.removeRelationship(
+      accountId = fullAccount1.accountId,
+      f8eEnvironment = fullAccount1.config.f8eEnvironment,
+      proof = PrivilegedActionProof.HwKeyProof(hwPopMock),
+      authTokenScope = AuthTokenScope.Global,
+      relationshipId = UnendorsedTrustedContactFake.id.value
+    ).shouldBeOk()
+
+    serviceFake.getRelationships(
+      accountId = fullAccount1.accountId,
+      f8eEnvironment = Development
+    ).shouldBeOk { relationships ->
+      relationships.unendorsedTrustedContacts.shouldBeEmpty()
     }
   }
 
@@ -228,7 +248,7 @@ class RelationshipsF8eClientFakeTests : FunSpec({
         roles = setOf(TrustedContactRole.SocialRecoveryContact)
       )
       .shouldBeOk {
-        it.relationshipId.shouldBe("uuid-0")
+        it.id.value.shouldBe("uuid-0")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       }
 
@@ -250,7 +270,7 @@ class RelationshipsF8eClientFakeTests : FunSpec({
       proof = proofMock,
       relationshipId = "uuid-0"
     ).shouldBeOk {
-      it.relationshipId.shouldBe("uuid-0")
+      it.id.value.shouldBe("uuid-0")
       it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       it.isExpired(clock).shouldBe(false)
     }
@@ -261,7 +281,7 @@ class RelationshipsF8eClientFakeTests : FunSpec({
       f8eEnvironment = Development
     ).shouldBeOk { relationships ->
       relationships.invitations.single().should {
-        it.relationshipId.shouldBe("uuid-0")
+        it.id.value.shouldBe("uuid-0")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
         it.isExpired(clock).shouldBe(false)
       }
@@ -281,7 +301,7 @@ class RelationshipsF8eClientFakeTests : FunSpec({
         roles = setOf(TrustedContactRole.SocialRecoveryContact)
       )
       .shouldBeOk {
-        it.relationshipId.shouldBe("uuid-0")
+        it.id.value.shouldBe("uuid-0")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       }
 

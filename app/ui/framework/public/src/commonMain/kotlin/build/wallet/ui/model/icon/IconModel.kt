@@ -3,34 +3,25 @@ package build.wallet.ui.model.icon
 import build.wallet.statemachine.core.Icon
 import build.wallet.ui.model.icon.IconBackgroundType.*
 import build.wallet.ui.model.icon.IconImage.LocalImage
-import build.wallet.ui.model.icon.IconImage.MarketIconImage
 import build.wallet.ui.model.icon.IconImage.UrlImage
 import build.wallet.ui.model.icon.IconSize.Regular
-import build.wallet.ui.tokens.market.MarketIcon
 import org.jetbrains.compose.resources.DrawableResource
 
-sealed class IconImage {
+sealed interface IconImage {
   /**
    * Represents images from "app/ui/framework/public/src/commonMain/composeResources/drawable"
    * @property - Refers to [Icon] that represents a saved local image
    */
   data class LocalImage(
     val icon: Icon,
-  ) : IconImage()
-
-  /**
-   * Represents icons sourced from the Market icon library.
-   */
-  data class MarketIconImage(
-    val icon: MarketIcon,
-  ) : IconImage()
+  ) : IconImage
 
   /**
    * Represents drawable resources that should still participate in shared icon tinting.
    */
   data class DrawableResourceImage(
     val resource: DrawableResource,
-  ) : IconImage()
+  ) : IconImage
 
   /**
    * Represents images that can be rendered via a URL
@@ -40,10 +31,10 @@ sealed class IconImage {
   data class UrlImage(
     val url: String,
     val fallbackIcon: Icon,
-  ) : IconImage()
+  ) : IconImage
 
   /** Represents a circular loading badge */
-  data object LoadingBadge : IconImage()
+  data object LoadingBadge : IconImage
 }
 
 /**
@@ -102,24 +93,6 @@ fun IconModel(
 ): IconModel {
   return IconModel(
     iconImage = LocalImage(icon = icon),
-    iconSize = iconSize,
-    iconBackgroundType = iconBackgroundType,
-    iconTint = iconTint,
-    iconOpacity = iconOpacity,
-    iconTopSpacing = iconTopSpacing
-  )
-}
-
-fun IconModel(
-  icon: MarketIcon,
-  iconSize: IconSize,
-  iconBackgroundType: IconBackgroundType = Transient,
-  iconTint: IconTint? = null,
-  iconOpacity: Float? = null,
-  iconTopSpacing: Int? = null,
-): IconModel {
-  return IconModel(
-    iconImage = MarketIconImage(icon = icon),
     iconSize = iconSize,
     iconBackgroundType = iconBackgroundType,
     iconTint = iconTint,

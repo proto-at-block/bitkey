@@ -9,15 +9,15 @@ import build.wallet.ui.theme.Theme
 import build.wallet.ui.tooling.PreviewWalletTheme
 import kotlinx.collections.immutable.toImmutableList
 
-@Preview(name = "Security Hub DSV2 Light")
+@Preview(name = "Security Hub Light")
 @Composable
-fun SecurityHubDesignSystemV2PreviewLight() {
+fun SecurityHubPreviewLight() {
   SecurityHubPreview(theme = Theme.LIGHT)
 }
 
-@Preview(name = "Security Hub DSV2 Dark")
+@Preview(name = "Security Hub Dark")
 @Composable
-fun SecurityHubDesignSystemV2PreviewDark() {
+fun SecurityHubPreviewDark() {
   SecurityHubPreview(theme = Theme.DARK)
 }
 

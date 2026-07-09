@@ -4,9 +4,9 @@ import build.wallet.analytics.events.screen.id.InheritanceEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.core.form.FormScreenLayoutModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.*
@@ -24,7 +24,7 @@ data class InheritanceUpsellBodyModel(
       leadingAccessory = ToolbarAccessoryModel.IconAccessory(
         model = IconButtonModel(
           iconModel = IconModel(
-            icon = Icon.SmallIconX,
+            icon = Icon.X,
             iconSize = IconSize.Accessory,
             iconBackgroundType = IconBackgroundType.Circle(
               circleSize = IconSize.Regular,
@@ -38,11 +38,22 @@ data class InheritanceUpsellBodyModel(
       )
     ),
     header = null,
+    formScreenLayout = FormScreenLayoutModel.LargeTitle(),
     mainContentList = immutableListOf(
       FormMainContentModel.Showcase(
         content = FormMainContentModel.Showcase.Content.IconContent(icon = Icon.InheritanceShowcase),
-        title = "Bitkey Inheritance",
-        body = LabelModel.StringModel("Safeguard the future of your bitcoin."),
+        title = null,
+        body = null,
+        fillAvailableSpace = false
+      )
+    ),
+    preFooterContentList = immutableListOf(
+      FormMainContentModel.HeaderBlock(
+        header = FormHeaderModel(
+          headline = "Bitkey Inheritance",
+          subline = "Safeguard the future of your bitcoin.",
+          headlineLabelType = LabelType.Display3
+        )
       )
     ),
     primaryButton = ButtonModel(
@@ -56,26 +67,6 @@ data class InheritanceUpsellBodyModel(
       size = ButtonModel.Size.Footer,
       treatment = ButtonModel.Treatment.Secondary,
       onClick = StandardClick(onClose)
-    ),
-    designSystemV2Model = FormDesignSystemV2Model(
-      useDesignSystemV2ScreenLayout = true,
-      mainContentList = immutableListOf(
-        FormMainContentModel.Showcase(
-          content = FormMainContentModel.Showcase.Content.IconContent(icon = Icon.InheritanceShowcase),
-          title = null,
-          body = null,
-          fillAvailableSpace = false
-        )
-      ),
-      preFooterMainContentList = immutableListOf(
-        FormMainContentModel.HeaderBlock(
-          header = FormHeaderModel(
-            headline = "Bitkey Inheritance",
-            subline = "Safeguard the future of your bitcoin.",
-            headlineLabelType = LabelType.Display3
-          )
-        )
-      )
     )
   )
 

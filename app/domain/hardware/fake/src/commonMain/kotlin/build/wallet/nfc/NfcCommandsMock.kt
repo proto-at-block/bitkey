@@ -46,6 +46,8 @@ open class NfcCommandsMock(
   val lostAppRecoveryContinueParamsCalls = turbine.invoke("LostAppRecoveryContinueParams calls")
   val rotateAppAuthKeysCalls = turbine.invoke("RotateAppAuthKeys calls")
   val upgradeRotateAppAuthKeysCalls = turbine.invoke("UpgradeRotateAppAuthKeys calls")
+  var lastSignTransactionAllowUnfinalized: Boolean? = null
+    private set
 
   private val defaultEnrollmentResult = FingerprintEnrollmentResult(
     status = FingerprintEnrollmentStatus.COMPLETE,
@@ -202,16 +204,21 @@ open class NfcCommandsMock(
   override suspend fun getInitialSpendingKey(
     session: NfcSession,
     network: BitcoinNetworkType,
+  ) = HwSpendingKeyResult(publicKey = spendingPublicKey(0), attestationSignature = null)
+
+  override suspend fun getInitialSpendingPublicKey(
+    session: NfcSession,
+    network: BitcoinNetworkType,
   ) = spendingPublicKey(0)
 
   override suspend fun getNextSpendingKey(
     session: NfcSession,
     existingDescriptorPublicKeys: List<HwSpendingPublicKey>,
     network: BitcoinNetworkType,
-  ): HwSpendingPublicKey {
+  ): HwSpendingKeyResult {
     getNextSpendingKeyCalls.add(existingDescriptorPublicKeys)
     keyIndex += 1
-    return spendingPublicKey(keyIndex)
+    return HwSpendingKeyResult(publicKey = spendingPublicKey(keyIndex), attestationSignature = null)
   }
 
   override suspend fun lockDevice(session: NfcSession) = true
@@ -243,7 +250,11 @@ open class NfcCommandsMock(
     psbt: Psbt,
     spendingKeyset: SpendingKeyset,
     displayPreference: HwDisplayPreference?,
-  ) = signTransactionResult.also { signTransactionCalls.add(psbt) }
+    allowUnfinalized: Boolean,
+  ) = signTransactionResult.also {
+    lastSignTransactionAllowUnfinalized = allowUnfinalized
+    signTransactionCalls.add(psbt)
+  }
 
   override suspend fun sweepTransaction(
     session: NfcSession,
@@ -358,6 +369,27 @@ open class NfcCommandsMock(
     HardwareInteraction.Completed(
       SymmetricKeyImpl("mock-unsealed-eek-key".encodeUtf8())
     )
+
+  override suspend fun keysetRepairUnsealSymmetricKey(
+    session: NfcSession,
+    sealedKey: SealedData,
+  ): HardwareInteraction<SymmetricKey> =
+    HardwareInteraction.Completed(
+      SymmetricKeyImpl("mock-unsealed-keyset-repair-key".encodeUtf8())
+    )
+
+  override suspend fun keysetRepairRotateHwKey(
+    session: NfcSession,
+    params: KeysetRepairRotateHwKeyParams,
+  ): HardwareInteraction<KeysetRepairRotateHwKeyResult> {
+    keyIndex += 1
+    return HardwareInteraction.Completed(
+      KeysetRepairRotateHwKeyResult(
+        hwSpendingKey = spendingPublicKey(keyIndex),
+        signedAccessToken = "0".repeat(130)
+      )
+    )
+  }
 
   var fullAccountCloudBackupRestorationResult: CsekUnsealResult =
     CsekUnsealResult(index = 0, unsealedCsek = SymmetricKeyImpl("mock-unsealed-csek".encodeUtf8()))
@@ -545,6 +577,7 @@ open class NfcCommandsMock(
     lostAppRecoveryResult = defaultLostAppRecoveryResult
     authenticationKeyResult = HwAuthSecp256k1PublicKeyMock
     deviceInfoResult = FirmwareDeviceInfoMock
+    lastSignTransactionAllowUnfinalized = null
   }
 }
 

@@ -3,6 +3,7 @@ package build.wallet.statemachine.trustedcontact
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import bitkey.relationships.Relationships
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.bitkey.relationships.RelationshipId
@@ -34,10 +35,11 @@ class RecoveryRelationshipNotificationUiStateMachineImpl(
       RecoveryRelationshipNotificationAction.BenefactorInviteAccepted -> inheritanceService.inheritanceRelationships
       RecoveryRelationshipNotificationAction.ProtectedCustomerInviteAccepted -> socRecService.socRecRelationships
     }
-    val uiState by relationships
-      .filterNotNull()
-      .toStateMatching(props.recoveryRelationshipId)
-      .collectAsState(Loading)
+    val uiState by remember(relationships, props.recoveryRelationshipId) {
+      relationships
+        .filterNotNull()
+        .toStateMatching(props.recoveryRelationshipId)
+    }.collectAsState(Loading)
 
     return when (val state = uiState) {
       is Loading -> LoadingBodyModel(
@@ -95,8 +97,8 @@ class RecoveryRelationshipNotificationUiStateMachineImpl(
 
   private fun Flow<Relationships>.toStateMatching(matchId: RelationshipId): Flow<UiState> {
     return map {
-      val endorsed = it.endorsedTrustedContacts.find { it.id == matchId }
-      val unendorsed = it.unendorsedTrustedContacts.find { it.id == matchId }
+      val endorsed = it.endorsedTrustedContacts.find { contact -> contact.id == matchId }
+      val unendorsed = it.unendorsedTrustedContacts.find { contact -> contact.id == matchId }
 
       when {
         unendorsed != null -> Endorsing(unendorsed)

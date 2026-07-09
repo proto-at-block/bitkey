@@ -65,21 +65,21 @@ class OrphanedKeyRecoveryServiceImpl(
   /**
    * Result of successful authentication including the token scope that worked.
    */
-  private sealed class AuthenticationResult {
-    abstract val authData: AuthData
-    abstract val tokenScope: AuthTokenScope
+  private sealed interface AuthenticationResult {
+    val authData: AuthData
+    val tokenScope: AuthTokenScope
 
     data class Global(
       override val authData: AuthData,
       val authKey: PublicKey<AppGlobalAuthKey>,
-    ) : AuthenticationResult() {
+    ) : AuthenticationResult {
       override val tokenScope = AuthTokenScope.Global
     }
 
     data class Recovery(
       override val authData: AuthData,
       val authKey: PublicKey<AppRecoveryAuthKey>,
-    ) : AuthenticationResult() {
+    ) : AuthenticationResult {
       override val tokenScope = AuthTokenScope.Recovery
     }
   }
@@ -211,7 +211,10 @@ class OrphanedKeyRecoveryServiceImpl(
     val hasRecovery = authKeys.recoveryAuthKey != null
     logWarn { "$LOG_TAG Found auth keys - Global: $hasGlobal, Recovery: $hasRecovery" }
 
-    val keysetResponse = fetchKeysets(authKeys.authData!!)
+    val authData = checkNotNull(authKeys.authData) {
+      "authData is guaranteed non-null by validateAuthKeys."
+    }
+    val keysetResponse = fetchKeysets(authData)
     if (keysetResponse == null) {
       logWarn { "$LOG_TAG Failed to fetch keysets for account: $accountId" }
       discoveredButNotRecoverable.add("Account (keyset fetch failed)")
@@ -251,8 +254,12 @@ class OrphanedKeyRecoveryServiceImpl(
 
     return RecoverableAccount(
       accountId = FullAccountId(accountId),
-      globalAuthKey = authKeys.globalAuthKey!!,
-      recoveryAuthKey = authKeys.recoveryAuthKey!!,
+      globalAuthKey = checkNotNull(authKeys.globalAuthKey) {
+        "globalAuthKey is guaranteed non-null by validateAuthKeys."
+      },
+      recoveryAuthKey = checkNotNull(authKeys.recoveryAuthKey) {
+        "recoveryAuthKey is guaranteed non-null by validateAuthKeys."
+      },
       matchingKeysets = orderedMatchingKeysets,
       allKeysets = allKeysets,
       balance = balance,

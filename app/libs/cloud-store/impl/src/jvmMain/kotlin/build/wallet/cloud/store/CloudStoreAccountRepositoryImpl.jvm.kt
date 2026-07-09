@@ -1,11 +1,16 @@
 package build.wallet.cloud.store
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
+import build.wallet.di.Impl
 import build.wallet.logging.logFailure
 import build.wallet.store.KeyValueStoreFactory
 import build.wallet.store.clearWithResult
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
+@Impl
+@BitkeyInject(AppScope::class)
 class CloudStoreAccountRepositoryImpl(
   private val keyValueStoreFactory: KeyValueStoreFactory,
 ) : CloudStoreAccountRepository, WritableCloudStoreAccountRepository {

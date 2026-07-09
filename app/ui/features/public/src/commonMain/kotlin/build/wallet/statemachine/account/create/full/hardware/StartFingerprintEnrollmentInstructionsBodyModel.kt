@@ -16,7 +16,6 @@ fun StartFingerprintEnrollmentInstructionsBodyModel(
   onBack: (() -> Unit)?,
   eventTrackerScreenIdContext: PairHardwareEventTrackerScreenIdContext,
   isNavigatingBack: Boolean,
-  isDesignSystemV2Enabled: Boolean,
 ) = PairNewHardwareBodyModel(
   onBack = onBack,
   header =
@@ -29,10 +28,10 @@ fun StartFingerprintEnrollmentInstructionsBodyModel(
   primaryButton =
     ButtonModel(
       text = "Pair Bitkey Device",
-      requiresBitkeyInteraction = isDesignSystemV2Enabled,
+      requiresBitkeyInteraction = true,
       size = ButtonModel.Size.Footer,
       treatment = ButtonModel.Treatment.Translucent,
-      leadingIcon = Icon.SmallIconBitkey,
+      leadingIcon = Icon.Bitkey,
       onClick = onButtonClick
     ),
   backgroundVideo = PairNewHardwareBodyModel.BackgroundVideo(

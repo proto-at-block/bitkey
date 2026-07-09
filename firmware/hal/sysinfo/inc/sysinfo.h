@@ -16,6 +16,11 @@ typedef struct {
 bool sysinfo_load(void);
 sysinfo_t* sysinfo_get(void);
 
+// Overwrite the in-memory serial buffer. Used by UXC to record the device
+// serial pushed by Core via UC at boot. `length` must equal
+// SYSINFO_SERIAL_NUMBER_LENGTH; the call is a no-op otherwise.
+void sysinfo_set_serial(const char* serial, uint32_t length);
+
 bool sysinfo_mlb_serial_write(char* serial, uint32_t length);
 bool sysinfo_mlb_serial_read(char* serial_out, uint32_t* length_out);
 

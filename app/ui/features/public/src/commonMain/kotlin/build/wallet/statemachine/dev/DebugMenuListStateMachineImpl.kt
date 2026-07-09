@@ -1,47 +1,31 @@
 package build.wallet.statemachine.dev
 
 import androidx.compose.runtime.*
-import bitkey.account.DefaultAccountConfig
 import build.wallet.account.AccountService
-import build.wallet.analytics.events.screen.context.CloudEventTrackerScreenIdContext
 import build.wallet.bitkey.account.Account
-import build.wallet.bitkey.account.FullAccount
 import build.wallet.coachmark.CoachmarkService
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
-import build.wallet.debug.AppDataDeleter
-import build.wallet.debug.cloud.CloudBackupCorrupter
-import build.wallet.debug.cloud.CloudBackupDeleter
-import build.wallet.debug.cloud.CloudBackupKeysetDeleter
-import build.wallet.debug.cloud.CloudBackupStoreType
-import build.wallet.debug.cloud.name
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.notifications.TestNotificationF8eClient
 import build.wallet.feature.FeatureFlagValue.BooleanFlag
 import build.wallet.feature.flags.Bdk2FeatureFlag
-import build.wallet.keybox.keys.OnboardingAppKeyKeystore
-import build.wallet.logging.logWarn
 import build.wallet.money.exchange.ExchangeRateService
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.system.exitProcess
 import build.wallet.statemachine.core.BodyModel
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.dev.analytics.AnalyticsOptionsUiProps
 import build.wallet.statemachine.dev.analytics.AnalyticsOptionsUiStateMachine
 import build.wallet.statemachine.dev.featureFlags.FeatureFlagsOptionsUiProps
 import build.wallet.statemachine.dev.featureFlags.FeatureFlagsOptionsUiStateMachine
 import build.wallet.statemachine.dev.wallet.BitcoinWalletDebugScreen
-import build.wallet.statemachine.recovery.cloud.CloudSignInUiProps
-import build.wallet.statemachine.recovery.cloud.CloudSignInUiStateMachine
 import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
-import com.github.michaelbull.result.onFailure
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.launch
 
@@ -50,20 +34,13 @@ class DebugMenuListStateMachineImpl(
   private val accountService: AccountService,
   private val accountConfigUiStateMachine: AccountConfigUiStateMachine,
   private val analyticsOptionsUiStateMachine: AnalyticsOptionsUiStateMachine,
-  private val appDataDeleter: AppDataDeleter,
-  private val appStateDeleterOptionsUiStateMachine: AppStateDeleterOptionsUiStateMachine,
   private val appVariant: AppVariant,
   private val bitkeyDeviceOptionsUiStateMachine: BitkeyDeviceOptionsUiStateMachine,
   private val bitcoinNetworkPickerUiStateMachine: BitcoinNetworkPickerUiStateMachine,
-  private val cloudBackupDeleter: CloudBackupDeleter,
-  private val cloudBackupCorrupter: CloudBackupCorrupter,
-  private val cloudBackupKeysetDeleter: CloudBackupKeysetDeleter,
   private val f8eEnvironmentPickerUiStateMachine: F8eEnvironmentPickerUiStateMachine,
   private val featureFlagsOptionsUiStateMachine: FeatureFlagsOptionsUiStateMachine,
   private val infoOptionsUiStateMachine: InfoOptionsUiStateMachine,
-  private val onboardingAppKeyKeystore: OnboardingAppKeyKeystore,
   private val onboardingConfigStateMachine: OnboardingConfigStateMachine,
-  private val cloudSignUiStateMachine: CloudSignInUiStateMachine,
   private val coachmarkService: CoachmarkService,
   private val testNotificationF8eClient: TestNotificationF8eClient,
   private val bdk2FeatureFlag: Bdk2FeatureFlag,
@@ -73,35 +50,10 @@ class DebugMenuListStateMachineImpl(
   override fun model(props: DebugMenuListProps): BodyModel {
     val account = remember { accountService.activeAccount() }.collectAsState(null).value
     var actionConfirmation: ActionConfirmationRequest? by remember { mutableStateOf(null) }
-    var deleteAppDataRequest: DeleteAppDataRequest? by remember { mutableStateOf(null) }
     var resetCoachmarks by remember { mutableStateOf(false) }
-    var debugMenuErrorMessage by remember { mutableStateOf("") }
-    var isDeletingOnboardingAppKey by remember { mutableStateOf(false) }
 
     // Search filter state
     var filterText by remember { mutableStateOf("") }
-
-    // Handle onboarding app key deletion
-    if (isDeletingOnboardingAppKey) {
-      LaunchedEffect("delete-onboarding-app-key") {
-        onboardingAppKeyKeystore
-          .clear()
-          .onFailure { error ->
-            logWarn(throwable = error) { "Failed to clear onboarding app key from keystore." }
-            debugMenuErrorMessage = "Failed to delete onboarding app key."
-          }
-        isDeletingOnboardingAppKey = false
-      }
-    }
-
-    if (deleteAppDataRequest != null) {
-      val interstitial = DeleteEffect(account, deleteAppDataRequest!!) {
-        deleteAppDataRequest = null
-      }
-      if (interstitial != null) {
-        return interstitial
-      }
-    }
 
     if (resetCoachmarks) {
       LaunchedEffect("reset-coachmarks") {
@@ -123,9 +75,7 @@ class DebugMenuListStateMachineImpl(
         resetCoachmarks = {
           resetCoachmarks = true
           actionConfirmation = null
-        },
-        onCorruptionFailure = { debugMenuErrorMessage = it },
-        onKeysetDeletionFailure = { debugMenuErrorMessage = it }
+        }
       ),
       // 4. Logs
       LogsListGroupModel(props.onSetState),
@@ -152,13 +102,8 @@ class DebugMenuListStateMachineImpl(
       ),
       // 9. Analytics
       AnalyticsOptionsListGroupModel(props.onSetState),
-      // 10. Data Management (includes onboarding key deletion)
-      KeyboxDeleterOptionsListGroupModel(
-        account = account,
-        onActionConfirmationRequest = { actionConfirmation = it },
-        onDeleteKeybox = { deleteAppDataRequest = it },
-        onDeleteOnboardingAppKey = { isDeletingOnboardingAppKey = true }
-      ),
+      // 10. Data Management
+      DataManagementListGroupModel(props.onSetState),
       // 11. Keybox Configuration (at the end)
       accountConfigUiStateMachine.model(
         AccountConfigProps(
@@ -192,18 +137,6 @@ class DebugMenuListStateMachineImpl(
             actionConfirmation = it,
             onDismiss = { actionConfirmation = null }
           )
-        },
-      bottomSheetModel =
-        debugMenuErrorMessage.takeIf { it.isNotEmpty() }?.let { errorMessage ->
-          ErrorFormBodyModel(
-            title = "An error occurred",
-            subline = errorMessage,
-            primaryButton = ButtonDataModel(
-              text = "Go Back",
-              onClick = { debugMenuErrorMessage = "" }
-            ),
-            eventTrackerScreenId = DebugMenuEventTrackerScreenId.DEBUG_MENU_ERROR
-          ).asSheetModalScreen(onClosed = { debugMenuErrorMessage = "" })
         }
     )
   }
@@ -227,46 +160,6 @@ class DebugMenuListStateMachineImpl(
     } else {
       group.copy(items = matchingItems.toImmutableList())
     }
-  }
-
-  @Composable
-  private fun DeleteEffect(
-    account: Account?,
-    request: DeleteAppDataRequest,
-    onDone: () -> Unit,
-  ): BodyModel? {
-    val requiresLogin = account == null
-    var cloudLoggedIn: Boolean by remember { mutableStateOf(false) }
-
-    if (requiresLogin && !cloudLoggedIn) {
-      return cloudSignUiStateMachine.model(
-        CloudSignInUiProps(
-          forceSignOut = true,
-          onSignedIn = { cloudLoggedIn = true },
-          onSignInFailure = {
-            logWarn(throwable = it) { "Failed to sign in to cloud" }
-            onDone()
-          },
-          eventTrackerContext = CloudEventTrackerScreenIdContext.DEBUG_MENU
-        )
-      )
-    }
-    LaunchedEffect("delete-app-data-$request)") {
-      if (request.deleteAppKeyBackup) {
-        cloudBackupDeleter.delete(account?.accountId)
-      }
-      if (request.deleteAppKey) {
-        appDataDeleter.deleteAll()
-      }
-      if (request.deleteAllBackups) {
-        cloudBackupDeleter.deleteAllBackups()
-      }
-      request.deleteBackupsInStoreTarget?.let { target ->
-        cloudBackupDeleter.deleteBackupsIn(target)
-      }
-      onDone()
-    }
-    return null
   }
 
   @Composable
@@ -338,105 +231,31 @@ class DebugMenuListStateMachineImpl(
     )
   }
 
-  @Composable
-  private fun KeyboxDeleterOptionsListGroupModel(
-    account: Account?,
-    onActionConfirmationRequest: (ActionConfirmationRequest) -> Unit,
-    onDeleteKeybox: (DeleteAppDataRequest) -> Unit,
-    onDeleteOnboardingAppKey: () -> Unit,
-  ): ListGroupModel? {
-    return appStateDeleterOptionsUiStateMachine.model(
-      props =
-        AppStateDeleterOptionsUiProps(
-          onDeleteAppKeyRequest = {
-            onActionConfirmationRequest(
-              ActionConfirmationRequest(
-                gatedActionTitle = "Delete App Key",
-                gatedAction = {
-                  onDeleteKeybox(
-                    DeleteAppDataRequest(
-                      deleteAppKey = true,
-                      deleteAppKeyBackup = false
-                    )
-                  )
-                }
-              )
-            )
-          },
-          onDeleteAppKeyBackupRequest = {
-            onActionConfirmationRequest(
-              ActionConfirmationRequest(
-                gatedActionTitle = "Delete App Key Backup",
-                gatedAction = {
-                  onDeleteKeybox(
-                    DeleteAppDataRequest(
-                      deleteAppKey = false,
-                      deleteAppKeyBackup = true
-                    )
-                  )
-                }
-              )
-            )
-          },
-          onDeleteAppKeyAndBackupRequest = {
-            onActionConfirmationRequest(
-              ActionConfirmationRequest(
-                gatedActionTitle = "Delete App Key and Backup",
-                gatedAction = {
-                  onDeleteKeybox(
-                    DeleteAppDataRequest(
-                      deleteAppKey = true,
-                      deleteAppKeyBackup = true
-                    )
-                  )
-                }
-              )
-            )
-          },
-          onDeleteAllBackupsRequest = {
-            onActionConfirmationRequest(
-              ActionConfirmationRequest(
-                gatedActionTitle = "Delete All App Key Backups",
-                gatedAction = {
-                  onDeleteKeybox(
-                    DeleteAppDataRequest(
-                      deleteAppKey = false,
-                      deleteAppKeyBackup = false,
-                      deleteAllBackups = true
-                    )
-                  )
-                }
-              )
-            )
-          },
-          onDeleteBackupsInStoreRequest = { target ->
-            onActionConfirmationRequest(
-              ActionConfirmationRequest(
-                gatedActionTitle = "Delete App Key Backups (${target.name})",
-                gatedAction = {
-                  onDeleteKeybox(
-                    DeleteAppDataRequest(
-                      deleteAppKey = false,
-                      deleteAppKeyBackup = false,
-                      deleteBackupsInStoreTarget = target
-                    )
-                  )
-                }
-              )
-            )
-          },
-          onDeleteOnboardingAppKeyRequest = {
-            onActionConfirmationRequest(
-              ActionConfirmationRequest(
-                gatedActionTitle = "Delete Onboarding App Key",
-                gatedAction = onDeleteOnboardingAppKey
-              )
-            )
-          },
-          showDeleteAppKey = account != null
+  private fun DataManagementListGroupModel(setState: (DebugMenuState) -> Unit): ListGroupModel =
+    ListGroupModel(
+      header = "Data Management",
+      style = ListGroupStyle.DIVIDER,
+      items = immutableListOf(
+        ListItemModel(
+          title = "Manual Key Deletion",
+          secondaryText = "Choose exact local and cloud key material to delete.",
+          trailingAccessory = ListItemAccessory.drillIcon(),
+          onClick = { setState(DebugMenuState.ShowingManualKeyDeletion) }
+        ),
+        ListItemModel(
+          title = "Recovery Scenario Presets",
+          secondaryText = "Prepare full-reset recovery states like lost app or lost cloud.",
+          trailingAccessory = ListItemAccessory.drillIcon(),
+          onClick = { setState(DebugMenuState.ShowingRecoveryScenarioPresets) }
+        ),
+        ListItemModel(
+          title = "Cloud Storage Browser",
+          secondaryText = "View and delete individual cloud backup entries.",
+          trailingAccessory = ListItemAccessory.drillIcon(),
+          onClick = { setState(DebugMenuState.ShowingCloudStorageDebugOptions) }
         )
+      )
     )
-  }
 
   @Composable
   private fun DebugOptionsListGroupModel(
@@ -444,8 +263,6 @@ class DebugMenuListStateMachineImpl(
     onActionConfirmationRequest: (ActionConfirmationRequest) -> Unit,
     onSetState: (DebugMenuState) -> Unit,
     resetCoachmarks: () -> Unit,
-    onCorruptionFailure: (String) -> Unit,
-    onKeysetDeletionFailure: (String) -> Unit,
   ): ListGroupModel? {
     val scope = rememberStableCoroutineScope()
     val bdk2FlagValue by remember { bdk2FeatureFlag.flagValue() }.collectAsState()
@@ -459,11 +276,6 @@ class DebugMenuListStateMachineImpl(
           header = "Debug Options",
           items =
             immutableListOfNotNull(
-              ListItemModel(
-                title = "Cloud Storage",
-                trailingAccessory = ListItemAccessory.drillIcon(),
-                onClick = { onSetState(DebugMenuState.ShowingCloudStorageDebugOptions) }
-              ),
               ListItemModel(
                 title = "Networking",
                 trailingAccessory = ListItemAccessory.drillIcon(),
@@ -544,38 +356,6 @@ class DebugMenuListStateMachineImpl(
                 }
               ),
               ListItemModel(
-                title = "Delete Cloud Backup Active Keyset",
-                onClick = {
-                  onActionConfirmationRequest(
-                    ActionConfirmationRequest(
-                      gatedActionTitle = "Delete active keyset from cloud backup?",
-                      gatedAction = {
-                        scope.launch {
-                          cloudBackupKeysetDeleter.deleteActiveKeyset()
-                            .onFailure { onKeysetDeletionFailure(it.message) }
-                        }
-                      }
-                    )
-                  )
-                }
-              ),
-              ListItemModel(
-                title = "Corrupt Cloud Backup",
-                onClick = {
-                  onActionConfirmationRequest(
-                    ActionConfirmationRequest(
-                      gatedActionTitle = "Corrupt cloud backup?",
-                      gatedAction = {
-                        scope.launch {
-                          cloudBackupCorrupter.corrupt()
-                            .onFailure { onCorruptionFailure(it.message) }
-                        }
-                      }
-                    )
-                  )
-                }
-              ),
-              ListItemModel(
                 title = "Fake Hardware Seed",
                 secondaryText = "View/share mock hardware seed",
                 trailingAccessory = ListItemAccessory.drillIcon(),
@@ -608,29 +388,7 @@ class DebugMenuListStateMachineImpl(
     }
   }
 
-  private fun Account.isHardwareFake(defaultConfig: DefaultAccountConfig?): Boolean? {
-    if (defaultConfig == null) return null
-    return when (this) {
-      is FullAccount -> keybox.config.isHardwareFake
-      else -> defaultConfig.isHardwareFake
-    }
-  }
 }
-
-/**
- * Represents a keybox unpairing request.
- *
- * @property deleteAppKey - determines if we should delete local app key.
- * @property deleteAppKeyBackup - determines if we should delete app key cloud backup.
- * @property deleteAllBackups - determines if we should delete all backups and local mirror state.
- * @property deleteBackupsInStoreTarget - determines if we should delete backups for a specific store.
- */
-private data class DeleteAppDataRequest(
-  val deleteAppKey: Boolean,
-  val deleteAppKeyBackup: Boolean,
-  val deleteAllBackups: Boolean = false,
-  val deleteBackupsInStoreTarget: CloudBackupStoreType? = null,
-)
 
 private data class ActionConfirmationRequest(
   val gatedActionTitle: String,

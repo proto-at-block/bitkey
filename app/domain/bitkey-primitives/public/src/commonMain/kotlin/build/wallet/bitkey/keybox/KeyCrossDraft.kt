@@ -4,6 +4,7 @@ import bitkey.account.FullAccountConfig
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.bitkey.spending.SpendingKeyset
 
 /**
@@ -41,6 +42,7 @@ sealed interface KeyCrossDraft {
     val appKeyBundle: AppKeyBundle,
     val hardwareKeyBundle: HwKeyBundle,
     val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+    val spendingKeyProof: HwSpendingKeyProof? = null,
     override val config: FullAccountConfig,
   ) : KeyCrossDraft
 

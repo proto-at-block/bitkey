@@ -32,7 +32,8 @@ suspend fun <T> ReceiveTurbine<out T>.awaitUntil(item: T): T = awaitUntil { it =
  *
  * Will suspend if no matching items have been received and throw after turbine timeout.
  */
-suspend fun <T> ReceiveTurbine<out T?>.awaitUntilNotNull(): T = awaitUntil { it != null }!!
+suspend fun <T> ReceiveTurbine<out T?>.awaitUntilNotNull(): T =
+  checkNotNull(awaitUntil { it != null }) { "Awaited item should not be null" }
 
 /**
  * Assert that one of the next events received was an item of type [R], effectively

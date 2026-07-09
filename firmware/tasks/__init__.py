@@ -25,6 +25,41 @@ from bitkey.meson import MesonBuild
 # fmt: on
 
 
+def _configure_macos_fuzz_toolchain():
+    if sys.platform != "darwin":
+        return
+
+    llvm_prefix = Path("/opt/homebrew/opt/llvm")
+    if "CC" not in os.environ and "CXX" not in os.environ:
+        if not llvm_prefix.joinpath("bin/clang").exists():
+            raise RuntimeError(
+                "macOS fuzz builds require Homebrew LLVM because Apple clang "
+                "does not ship libFuzzer. Install it with `brew install llvm`, "
+                "then run `inv clean fuzz`."
+            )
+
+        os.environ["CC"] = str(llvm_prefix / "bin/clang")
+        os.environ["CXX"] = str(llvm_prefix / "bin/clang++")
+        click.echo(
+            click.style(
+                f"Using Homebrew LLVM for fuzzing: {llvm_prefix}",
+                fg="cyan",
+            )
+        )
+
+    if not os.environ.get("SDKROOT"):
+        try:
+            os.environ["SDKROOT"] = subprocess.check_output(
+                ["xcrun", "--sdk", "macosx", "--show-sdk-path"],
+                text=True,
+            ).strip()
+        except (FileNotFoundError, subprocess.CalledProcessError) as e:
+            raise RuntimeError(
+                "Could not determine macOS SDK path. Install Xcode Command Line "
+                "Tools with `xcode-select --install`."
+            ) from e
+
+
 @task(help={
     "subdir": "Clean only the specified sub-directory."
 })
@@ -42,6 +77,7 @@ def clean(c, subdir=""):
 })
 def fuzz(c, verbose=False):
     """Builds fuzz targets"""
+    _configure_macos_fuzz_toolchain()
     m = MesonBuild(c, "posix", BUILD_HOST_DIR)
     m.setup()
     m.build_fuzzers(verbose)

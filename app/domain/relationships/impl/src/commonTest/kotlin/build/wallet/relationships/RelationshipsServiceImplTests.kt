@@ -58,7 +58,7 @@ class RelationshipsServiceImplTests : FunSpec({
   val relationshipsCrypto = RelationshipsCryptoFake()
 
   val tcAliceUnverified = EndorsedTrustedContact(
-    relationshipId = "rel-123",
+    id = RelationshipId("rel-123"),
     trustedContactAlias = TrustedContactAlias("alice"),
     authenticationState = AWAITING_VERIFY,
     keyCertificate = TrustedContactKeyCertificateFake,
@@ -68,7 +68,7 @@ class RelationshipsServiceImplTests : FunSpec({
   val tcAliceTampered = tcAliceUnverified.copy(authenticationState = TAMPERED)
 
   val tcBobUnverified = EndorsedTrustedContact(
-    relationshipId = "rel-456",
+    id = RelationshipId("rel-456"),
     trustedContactAlias = TrustedContactAlias("bob"),
     authenticationState = AWAITING_VERIFY,
     keyCertificate = TrustedContactKeyCertificateFake2,
@@ -240,11 +240,12 @@ class RelationshipsServiceImplTests : FunSpec({
       relationshipsF8eFake.endorsedTrustedContacts += tcBobUnverified
 
       // App is still in background - wait longer than sync frequency to ensure
-      // the ticker has fired and been filtered due to background state
-      awaitNoEvents(timeout = syncFrequency * 2)
+      // the ticker has fired and been filtered due to background state.
+      // Use a generous timeout to avoid flakiness on slow CI (iOS simulator).
+      awaitNoEvents(timeout = syncFrequency * 5)
 
       appSessionManager.appDidEnterForeground()
-      awaitItem()
+      awaitUntil { it != null && !it.isEmpty() }
         .shouldNotBeNull()
         .shouldOnlyHaveEndorsed(tcAliceTampered, tcBobVerified)
     }

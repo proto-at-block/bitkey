@@ -65,7 +65,7 @@ data class UtxoConsolidationConfirmationModel(
           subtitle = LabelModel
             .StringModel("To consolidate all UTXOs, wait until all incoming transactions are confirmed."),
           treatment = CalloutModel.Treatment.Warning,
-          leadingIcon = Icon.SmallIconInformation
+          leadingIcon = Icon.Information
         )
       ).takeIf { showUnconfirmedTransactionsCallout },
       DataList(
@@ -74,7 +74,7 @@ data class UtxoConsolidationConfirmationModel(
             title = "Consolidation time",
             onTitle = onConsolidationTimeClick,
             titleIcon = IconModel(
-              icon = Icon.SmallIconInformation,
+              icon = Icon.Information,
               iconSize = IconSize.XSmall,
               iconTint = IconTint.On30
             ),
@@ -97,7 +97,7 @@ data class UtxoConsolidationConfirmationModel(
             title = "Consolidation cost",
             onTitle = onConsolidationCostClick,
             titleIcon = IconModel(
-              icon = Icon.SmallIconInformation,
+              icon = Icon.Information,
               iconSize = IconSize.XSmall,
               iconTint = IconTint.On30
             ),

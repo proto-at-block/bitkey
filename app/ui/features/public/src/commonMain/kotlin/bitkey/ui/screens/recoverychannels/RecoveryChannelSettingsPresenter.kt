@@ -73,7 +73,6 @@ class RecoveryChannelSettingsScreenPresenter(
   ): ScreenModel {
     val smsErrorHint by remember { uiErrorHintsProvider.errorHintFlow(UiErrorHintKey.Phone) }
       .collectAsState()
-    val isDesignSystemV2Enabled = true
 
     val notificationTouchpointData by remember {
       notificationTouchpointService.notificationTouchpointData()
@@ -154,7 +153,7 @@ class RecoveryChannelSettingsScreenPresenter(
               onApprove = { /* no-op: button loading */ }
             )
           },
-          onTokenRefreshError = { isConnectivityError, _ ->
+          onTokenRefreshError = { _, error, _ ->
             NotificationOperationApprovalInstructionsFormScreenModel(
               onExit = { state = ShowingNotificationsSettingsUiState() },
               operationDescription = currentState.notificationChannel.disableOperationDescription(
@@ -162,7 +161,7 @@ class RecoveryChannelSettingsScreenPresenter(
               ),
               isApproveButtonLoading = false,
               errorBottomSheetState = ErrorBottomSheetState.Showing(
-                isConnectivityError = isConnectivityError,
+                error = error,
                 onClosed = { state = ShowingNotificationsSettingsUiState() }
               ),
               onApprove = { /* no-op: showing error */ }
@@ -186,8 +185,7 @@ class RecoveryChannelSettingsScreenPresenter(
           notificationPreferences = notificationPreferences,
           phoneErrorHint = smsErrorHint,
           updateState = { state = it },
-          notificationTouchpointData = notificationTouchpointData,
-          isDesignSystemV2Enabled = isDesignSystemV2Enabled
+          notificationTouchpointData = notificationTouchpointData
         )
       }
 
@@ -332,7 +330,6 @@ class RecoveryChannelSettingsScreenPresenter(
     phoneErrorHint: UiErrorHint,
     updateState: (RecoveryState) -> Unit,
     notificationTouchpointData: NotificationTouchpointData?,
-    isDesignSystemV2Enabled: Boolean,
   ): ScreenModel {
     val usSmsEnabledFlag by remember {
       usSmsFeatureFlag.flagValue()
@@ -528,7 +525,6 @@ class RecoveryChannelSettingsScreenPresenter(
       learnOnClick = {
         updateState(ShowLearnRecoveryWebView)
       },
-      isDesignSystemV2Enabled = isDesignSystemV2Enabled,
       bottomSheetModel = (state.overlayState as? BottomSheetOverlayState)?.bottomSheetModel
     )
   }

@@ -6,18 +6,53 @@ set -euo pipefail
 ### https://github.com/squareup/runway-pipeline-config/blob/main/pipelines/mdx-ios/wallet.yaml
 ### It `cat` .yml files to populate a BK pipeline based on env vars
 
-# Check if relevant files changed (auto-triggers iOS builds)
-# Covers app/, core/, and .buildkite/ so iOS CI runs even if GitHub's
-# automated labelling is delayed.
+# Check if relevant files changed (auto-triggers iOS builds).
+# Covers app/core/ios labeler paths plus explicit firmware-side inputs consumed by the iOS Rust build.
 relevant_files_changed() {
     local default_branch="${BUILDKITE_PIPELINE_DEFAULT_BRANCH:-main}"
+    local changed_files
+    local changed_file
 
     if ! git fetch origin "${default_branch}" --depth=1 2>/dev/null; then
-        echo "Warning: git fetch origin ${default_branch} failed; skipping change detection." >&2
-        return 1
+        echo "Warning: git fetch origin ${default_branch} failed; running full iOS CI." >&2
+        return 0
     fi
 
-    git diff --name-only "origin/${default_branch}...HEAD" 2>/dev/null | grep -qE "^(\\.buildkite/|app/|core/)"
+    # Prefer the PR-only change set; fail open if shallow history lacks the merge base.
+    if ! changed_files="$(git diff --name-only FETCH_HEAD...HEAD 2>/dev/null)"; then
+        echo "Warning: git merge-base diff against ${default_branch} failed; running full iOS CI." >&2
+        return 0
+    fi
+
+    while IFS= read -r changed_file; do
+        case "${changed_file}" in
+            .buildkite/* | app/* | core/*)
+                return 0
+                ;;
+            .cargo/config.toml | .sqiosbuild.json | allow-spm-packages.yaml)
+                return 0
+                ;;
+            .github/workflows/app.yml | \
+                .github/workflows/core.yml | \
+                .github/workflows/_dispatch-ios-build.yml | \
+                .github/workflows/ios-dependency-lock-verify.yml | \
+                .github/workflows/ios.yml)
+                return 0
+                ;;
+            firmware/config/keys/silabs-certs/*.der | \
+                firmware/hal/memfault/defs/* | \
+                firmware/lib/bitlog/* | \
+                firmware/lib/helpers/* | \
+                firmware/lib/protobuf/protos/* | \
+                firmware/lib/telemetry-translator/* | \
+                firmware/third-party/memfault-firmware-sdk | \
+                firmware/third-party/nanopb)
+                return 0
+                ;;
+        esac
+    done <<< "${changed_files}"
+
+    return 1
 }
 
 if [[ "${BUILDKITE_PULL_REQUEST:-}" != "false" ]]; then
@@ -25,7 +60,7 @@ if [[ "${BUILDKITE_PULL_REQUEST:-}" != "false" ]]; then
         cat .buildkite/mobuild/pipeline.pr.yml
     else
         cat .buildkite/mobuild/pipeline.pr.noop.yml
-    fi 
+    fi
 elif [[ "${BUILDKITE_BRANCH:-}" == "${BUILDKITE_PIPELINE_DEFAULT_BRANCH:-}" ]]; then
     if [[ "${BUILDKITE_SOURCE:-}" == "schedule" ]]; then
         cat .buildkite/mobuild/pipeline.main.scheduled.yml

@@ -20,14 +20,4 @@ class FingerprintEnrollmentHelpScreenSnapshots : FunSpec({
     }
   }
 
-  test("fingerprint enrollment help screen - design system v2") {
-    paparazzi.snapshot {
-      FormScreen(
-        model = FingerprintEnrollmentHelpBodyModel(
-          onBack = {},
-          eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
-        )
-      )
-    }
-  }
 })

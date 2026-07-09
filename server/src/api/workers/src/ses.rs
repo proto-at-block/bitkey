@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use aws_config::BehaviorVersion;
 use aws_sdk_sesv2::types::Destination;
 use aws_sdk_sesv2::types::EmailContent;
 use aws_sdk_sesv2::types::Template;
@@ -29,7 +28,7 @@ impl SESClient {
     pub async fn new(mode: SESMode) -> Self {
         match mode {
             SESMode::Environment => {
-                let sdk_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
+                let sdk_config = clients_common::aws_sdk::load_default_sdk_config().await;
 
                 Self::Real {
                     client: Client::new(&sdk_config),

@@ -125,11 +125,11 @@ class MobilePayStatusRepositoryImpl(
       fullAccountId = account.accountId
     )
 
-  private sealed class F8eAndLocalMobilePayBalanceState {
+  private sealed interface F8eAndLocalMobilePayBalanceState {
     // Both F8e and Local Mobile Pay Balance have matching active state and values
-    data object Match : F8eAndLocalMobilePayBalanceState()
+    data object Match : F8eAndLocalMobilePayBalanceState
 
     // Both F8e and Local Mobile Pay Balance do not have matching active state and values
-    data object Mismatch : F8eAndLocalMobilePayBalanceState()
+    data object Mismatch : F8eAndLocalMobilePayBalanceState
   }
 }

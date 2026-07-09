@@ -34,7 +34,6 @@ import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.theme.LocalTheme
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
-import build.wallet.ui.tokens.market.MarketIcons
 import org.jetbrains.compose.resources.Font
 
 @Composable
@@ -44,7 +43,7 @@ fun PendingClaimContent(
 ) {
   val theme = LocalTheme.current
   val useMonochromeStyle =
-    model.useMonochromeStyleInDesignSystemV2
+    model.useMonochromeStyle
   val cornerRadius = 8.dp
   Box(
     modifier = modifier
@@ -157,7 +156,7 @@ private fun pendingClaimLeadingIconModel(
 ): IconModel {
   if (useMonochromeStyle && isPendingClaim) {
     return IconModel(
-      icon = MarketIcons.ShieldHuman,
+      icon = Icon.ShieldPerson,
       iconSize = IconSize.Accessory,
       iconTint = IconTint.On60,
       iconBackgroundType = IconBackgroundType.Circle(
@@ -168,7 +167,7 @@ private fun pendingClaimLeadingIconModel(
   }
 
   return IconModel(
-    icon = if (isPendingClaim) Icon.SmallIconClockHands else Icon.SmallIconCheckInheritance,
+    icon = if (isPendingClaim) Icon.ClockHands else Icon.CheckInheritance,
     iconSize = IconSize.Accessory,
     iconTint = when {
       useMonochromeStyle -> IconTint.On60
@@ -214,7 +213,7 @@ private fun PendingClaimAction(
         IconButton(
           modifier = Modifier.padding(start = 12.dp, end = 0.dp),
           iconModel = IconModel(
-            icon = Icon.SmallIconXFilled,
+            icon = Icon.XFilled,
             iconSize = IconSize.Accessory,
             iconTint = pendingClaimDismissIconTint(
               useMonochromeStyle = useMonochromeStyle,
@@ -228,7 +227,7 @@ private fun PendingClaimAction(
       }
     } else {
       CalloutButton(
-        Icon.SmallIconArrowRight,
+        Icon.ArrowRight,
         if (useMonochromeStyle) WalletTheme.colors.foreground60 else WalletTheme.colors.calloutDefaultTrailingIcon,
         if (useMonochromeStyle) CalloutModel.Treatment.Default else CalloutModel.Treatment.Information,
         StandardClick { model.onClick?.invoke() },

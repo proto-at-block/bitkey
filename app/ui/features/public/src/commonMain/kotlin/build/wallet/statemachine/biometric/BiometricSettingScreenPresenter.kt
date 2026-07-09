@@ -285,7 +285,7 @@ internal data class NfcPromptSheetBodyModel(
     primaryButton = ButtonModel(
       text = "Scan Bitkey Device",
       size = ButtonModel.Size.Footer,
-      leadingIcon = Icon.SmallIconBitkey,
+      leadingIcon = Icon.Bitkey,
       treatment = ButtonModel.Treatment.BitkeyInteraction,
       onClick = SheetClosingClick { onScanBitkeyDevice() }
     ),

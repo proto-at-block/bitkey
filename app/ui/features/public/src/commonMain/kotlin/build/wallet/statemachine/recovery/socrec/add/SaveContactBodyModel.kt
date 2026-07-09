@@ -7,11 +7,10 @@ import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
-import build.wallet.statemachine.recovery.socrec.recoveryContactDesignSystemV2Header
+import build.wallet.statemachine.recovery.socrec.recoveryContactFormHeader
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
@@ -32,7 +31,7 @@ import dev.zacsweers.redacted.annotations.Redacted
 private fun beneficiaryTosContent(
   tosInfo: TosInfo?,
   termsError: Boolean,
-  emphasizedForDesignSystemV2: Boolean,
+  emphasized: Boolean,
 ) = immutableListOfNotNull(
   FormMainContentModel.Spacer(),
   FormMainContentModel.Callout(
@@ -58,9 +57,9 @@ private fun beneficiaryTosContent(
                     )
                   ),
                   string = "By clicking continue I agree to the inheritance terms and conditions",
-                  underline = emphasizedForDesignSystemV2,
+                  underline = emphasized,
                   bold = false,
-                  color = if (emphasizedForDesignSystemV2) LabelModel.Color.UNSPECIFIED else LabelModel.Color.PRIMARY
+                  color = if (emphasized) LabelModel.Color.UNSPECIFIED else LabelModel.Color.PRIMARY
                 ),
                 treatment = ListItemTreatment.PRIMARY,
                 leadingAccessory = IconAccessory(
@@ -69,11 +68,11 @@ private fun beneficiaryTosContent(
                     icon = if (ti.termsAgree) {
                       Icon.SmallIconCheckFilled
                     } else {
-                      Icon.SmallIconCircleStroked
+                      Icon.CircleStroked
                     },
                     iconSize = IconSize.Regular,
                     iconTint = if (ti.termsAgree) {
-                      if (emphasizedForDesignSystemV2) build.wallet.ui.model.icon.IconTint.Foreground else Primary
+                      if (emphasized) build.wallet.ui.model.icon.IconTint.Foreground else Primary
                     } else {
                       On30
                     }
@@ -135,45 +134,30 @@ data class SaveContactBodyModel(
     toolbar = ToolbarModel(
       leadingAccessory = ToolbarAccessoryModel.IconAccessory.BackAccessory(onBackPressed)
     ),
-    header = FormHeaderModel(
-      icon = Icon.LargeIconShieldPerson,
-      headline = if (isBeneficiary) "Save beneficiary" else "Save $trustedContactName as a Recovery Contact",
-      subline = "Adding a " + (if (isBeneficiary) "beneficiary" else "Recovery Contact") + " requires you to tap your Bitkey device since it impacts the security of your wallet."
-    ),
+    header = if (isBeneficiary) {
+      FormHeaderModel(
+        iconModel = IconModel(
+          icon = Icon.ShieldPerson,
+          iconSize = IconSize.Avatar,
+          iconTint = build.wallet.ui.model.icon.IconTint.Foreground
+        ),
+        headline = "Save beneficiary",
+        subline = "Adding a beneficiary requires you to tap your Bitkey device since it impacts the security of your wallet."
+      )
+    } else {
+      recoveryContactFormHeader(
+        headline = "Save $trustedContactName as a Recovery Contact",
+        subline = "Adding a Recovery Contact requires you to tap your Bitkey device since it impacts the security of your wallet."
+      )
+    },
     mainContentList = beneficiaryTosContent(
       tosInfo = tosInfo,
       termsError = termsError,
-      emphasizedForDesignSystemV2 = false
+      emphasized = true
     ).takeIf { isBeneficiary } ?: emptyImmutableList(),
     primaryButton = BitkeyInteractionButtonModel(
       text = "Save " + if (isBeneficiary) "Beneficiary" else "Recovery Contact",
       size = ButtonModel.Size.Footer,
       onClick = StandardClick(onSave)
-    ),
-    designSystemV2Model = if (isBeneficiary) {
-      FormDesignSystemV2Model(
-        header = FormHeaderModel(
-          iconModel = IconModel(
-            icon = Icon.LargeIconShieldPerson,
-            iconSize = IconSize.Avatar,
-            iconTint = build.wallet.ui.model.icon.IconTint.Foreground
-          ),
-          headline = "Save beneficiary",
-          subline = "Adding a beneficiary requires you to tap your Bitkey device since it impacts the security of your wallet."
-        ),
-        mainContentList = beneficiaryTosContent(
-          tosInfo = tosInfo,
-          termsError = termsError,
-          emphasizedForDesignSystemV2 = true
-        )
-      )
-    } else {
-      FormDesignSystemV2Model(
-        header =
-          recoveryContactDesignSystemV2Header(
-            headline = "Save $trustedContactName as a Recovery Contact",
-            subline = "Adding a Recovery Contact requires you to tap your Bitkey device since it impacts the security of your wallet."
-          )
-      )
-    }
+    )
   )

@@ -10,7 +10,7 @@ import build.wallet.platform.links.OpenDeeplinkResult
 import build.wallet.platform.sharing.SharingManagerMock
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitSheet
-import build.wallet.ui.model.callout.CalloutModel
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -49,7 +49,7 @@ class PromoCodeUpsellUiStateMachineTests : FunSpec({
   test("model functions") {
     stateMachine.test(props) {
       awaitSheet<PromoCodeUpsellBodyModel> {
-        mainContentList[0].shouldBeTypeOf<CalloutModel>().apply {
+        callout.shouldNotBeNull().apply {
           title.shouldBe("fake-promo-code")
         }
 
@@ -69,8 +69,8 @@ class PromoCodeUpsellUiStateMachineTests : FunSpec({
           ClipItem.PlainText(promoCode.value)
         )
 
-        this.toolbar?.leadingAccessory.shouldNotBeNull().apply {
-          onClick()
+        leadingAccessory.shouldNotBeNull().shouldBeTypeOf<ToolbarAccessoryModel.IconAccessory>().apply {
+          model.onClick.invoke()
           onExitCalls.awaitItem()
         }
       }

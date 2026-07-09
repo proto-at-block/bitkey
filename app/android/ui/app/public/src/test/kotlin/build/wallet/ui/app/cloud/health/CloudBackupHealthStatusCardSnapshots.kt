@@ -32,32 +32,6 @@ class CloudBackupHealthStatusCardSnapshots : FunSpec({
     }
   }
 
-  test("backup health good with design system v2") {
-    paparazzi.snapshot {
-      CloudBackupHealthStatusCard(
-        model =
-          CloudBackupHealthStatusCardModelForPreview.copy(
-            backupStatusActionButton = null,
-            toolbarModel = null
-          )
-      )
-    }
-  }
-
-  test("backup health error with design system v2") {
-    paparazzi.snapshot {
-      CloudBackupHealthStatusCard(
-        model = CloudBackupHealthStatusCardModelForPreview.copy(
-          toolbarModel = null,
-          backupStatus = CloudBackupHealthStatusProblemListItemForPreview,
-          designSystemV2StatusText = "No backup found",
-          designSystemV2StatusTone = CloudBackupHealthStatusTone.DANGER,
-          backupStatusActionButton = CloudBackupHealthStatusActionButtonForPreview
-        )
-      )
-    }
-  }
-
   test("EEK good") {
     paparazzi.snapshot {
       CloudBackupHealthStatusCard(
@@ -81,28 +55,4 @@ class CloudBackupHealthStatusCardSnapshots : FunSpec({
     }
   }
 
-  test("EEK good with design system v2") {
-    paparazzi.snapshot {
-      CloudBackupHealthStatusCard(
-        model =
-          CloudBackupHealthStatusCardEekModelForPreview.copy(
-            backupStatusActionButton = null
-          )
-      )
-    }
-  }
-
-  test("EEK error with design system v2") {
-    paparazzi.snapshot {
-      CloudBackupHealthStatusCard(
-        model =
-          CloudBackupHealthStatusCardEekModelForPreview.copy(
-            designSystemV2StatusText = "No backup found",
-            designSystemV2StatusTone = CloudBackupHealthStatusTone.DANGER,
-            backupStatusActionButton = CloudBackupHealthStatusActionButtonForPreview,
-            backupStatus = CloudBackupHealthStatusEekProblemListItemForPreview
-          )
-      )
-    }
-  }
 })

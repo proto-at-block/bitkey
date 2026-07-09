@@ -24,6 +24,7 @@ import com.github.michaelbull.result.Ok
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
+import io.kotest.matchers.shouldBe
 import okio.ByteString.Companion.decodeHex
 import okio.ByteString.Companion.encodeUtf8
 import kotlinx.coroutines.runBlocking
@@ -204,6 +205,20 @@ class NfcCommandsFakeTests : FunSpec({
       shouldThrow<NfcException.DescriptorNotLoaded> {
         w3Commands.signTransaction(sessionFake, PsbtMock, SpendingKeysetMock)
       }
+    }
+
+    test("signTransaction records allowUnfinalized after descriptor delivery") {
+      w3Commands.deliverDescriptor(sessionFake)
+
+      w3Commands.signTransaction(
+        session = sessionFake,
+        psbt = PsbtMock,
+        spendingKeyset = SpendingKeysetMock,
+        displayPreference = null,
+        allowUnfinalized = true
+      )
+
+      w3Commands.lastSignTransactionAllowUnfinalized.shouldBe(true)
     }
 
     test("getAddress works after descriptor delivery") {

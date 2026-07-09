@@ -24,6 +24,10 @@ class HapticsImpl : Haptics {
         }
         return
       }
+      HapticsEffect.Success -> {
+        notificationGenerator.notificationOccurred(UINotificationFeedbackType.UINotificationFeedbackTypeSuccess)
+        return
+      }
       HapticsEffect.DullOneShot -> UIImpactFeedbackStyleRigid
       HapticsEffect.Selection -> {
         selectionGenerator.selectionChanged()

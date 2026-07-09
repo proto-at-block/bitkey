@@ -101,12 +101,6 @@ private fun IconImageContent(
       contentDescription = contentDescription,
       colorFilter = tint
     )
-    is MarketIconImage -> Image(
-      modifier = Modifier.size(model.iconSize.dp).alpha(alpha),
-      painter = painterResource(image.icon.resource),
-      contentDescription = contentDescription,
-      colorFilter = if (image.icon.multiColor) null else tint
-    )
     is UrlImage -> UrlImage(
       image = image,
       iconSize = model.iconSize,

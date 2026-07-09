@@ -5,7 +5,6 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapError
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
-import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Duration
 
@@ -13,12 +12,12 @@ import kotlin.time.Duration
  * Converts this string representing an instant in ISO-8601 format including date and time
  * components and the time zone offset to an [Instant] value.
  *
- * Wraps [String.toInstant] into [Result]:
+ * Wraps [Instant.parse] into [Result]:
  * - on success returns [Instant]
  * - on failure to parse returns [InstantParsingError]
  */
 fun String.toInstantResult(): Result<Instant, InstantParsingError> {
-  return catchingResult { toInstant() }
+  return catchingResult { Instant.parse(this) }
     .mapError { InstantParsingError(it) }
 }
 

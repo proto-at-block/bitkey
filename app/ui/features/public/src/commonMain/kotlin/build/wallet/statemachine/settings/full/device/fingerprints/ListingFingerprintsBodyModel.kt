@@ -64,7 +64,7 @@ private fun enrolledFingerprintListItemModel(
   leadingAccessory = ListItemAccessory.IconAccessory(
     model =
       IconModel(
-        icon = Icon.SmallIconFingerprint,
+        icon = Icon.Fingerprint,
         iconTint = IconTint.Foreground,
         iconSize = IconSize.Small
       )
@@ -88,7 +88,7 @@ private fun placeholderFingerprintListItemModel(
   leadingAccessory = ListItemAccessory.IconAccessory(
     model =
       IconModel(
-        icon = Icon.SmallIconFingerprint,
+        icon = Icon.Fingerprint,
         iconTint = IconTint.On30,
         iconSize = IconSize.Small
       )

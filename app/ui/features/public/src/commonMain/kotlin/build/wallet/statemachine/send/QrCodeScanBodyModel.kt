@@ -18,6 +18,8 @@ data class QrCodeScanBodyModel(
   val onClose: () -> Unit,
   val headline: String? = null,
   val reticleLabel: String? = null,
+  val showActionButtons: Boolean = true,
+  val isScanSuccess: Boolean = false,
   private val primaryButtonData: ButtonDataModel? = null,
   private val secondaryButtonData: ButtonDataModel? = null,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? = null,

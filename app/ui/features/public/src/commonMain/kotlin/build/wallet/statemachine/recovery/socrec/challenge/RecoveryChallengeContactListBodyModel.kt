@@ -51,7 +51,7 @@ data class RecoveryChallengeContactListBodyModel(
               title = contact.trustedContactAlias.alias,
               sideTextTint = ListItemSideTextTint.PRIMARY,
               sideText = "Verified".takeIf {
-                verifiedBy.contains(contact.relationshipId)
+                verifiedBy.contains(contact.id.value)
               },
               trailingAccessory = ListItemAccessory.ButtonAccessory(
                 model = ButtonModel(

@@ -192,7 +192,6 @@ class FwupNfcSessionUiStateMachineImpl(
     getCurrentState: () -> FwupNfcSessionUiState,
     setState: (FwupNfcSessionUiState) -> Unit,
   ): ScreenModel {
-    val designSystemV2Enabled = true
     return when (state) {
       is InNfcSessionUiState -> {
         // NfcTransactionEffect stays alive for the entire InNfcSessionUiState,
@@ -202,7 +201,6 @@ class FwupNfcSessionUiStateMachineImpl(
           state = state,
           isHardwareFake = isHardwareFake,
           hardwareType = hardwareType,
-          designSystemV2Enabled = designSystemV2Enabled,
           hiddenNfcScreenRevealDelayMs = hiddenNfcScreenRevealDelayMs,
           setProgress = setProgress,
           getCurrentState = getCurrentState,
@@ -226,7 +224,7 @@ class FwupNfcSessionUiStateMachineImpl(
               status = FwupNfcBodyModel.Status.Searching(),
               showNativeSheetOnIos = props.showNativeSheetOnIos,
               eventTrackerScreenInfo = EventTrackerScreenInfo(NFC_INITIATE, FWUP)
-            ).asFwupProgressScreen(designSystemV2Enabled)
+            ).asFwupProgressScreen()
           }
           InNfcSessionUiState.DisplayMode.Updating -> {
             FwupNfcBodyModel(
@@ -239,7 +237,7 @@ class FwupNfcSessionUiStateMachineImpl(
               ),
               showNativeSheetOnIos = props.showNativeSheetOnIos,
               eventTrackerScreenInfo = EventTrackerScreenInfo(NFC_UPDATE_IN_PROGRESS_FWUP)
-            ).asFwupProgressScreen(designSystemV2Enabled)
+            ).asFwupProgressScreen()
           }
           InNfcSessionUiState.DisplayMode.LostConnection -> {
             FwupNfcBodyModel(
@@ -253,7 +251,6 @@ class FwupNfcSessionUiStateMachineImpl(
               showNativeSheetOnIos = props.showNativeSheetOnIos,
               eventTrackerScreenInfo = EventTrackerScreenInfo(NFC_DEVICE_LOST_CONNECTION_FWUP)
             ).asPlatformNfcScreen(
-              designSystemV2Enabled = designSystemV2Enabled,
               devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform
             )
           }
@@ -315,7 +312,6 @@ class FwupNfcSessionUiStateMachineImpl(
           showNativeSheetOnIos = props.showNativeSheetOnIos,
           eventTrackerScreenInfo = EventTrackerScreenInfo(NFC_SUCCESS, FWUP)
         ).asPlatformNfcScreen(
-          designSystemV2Enabled = designSystemV2Enabled,
           devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform
         )
       }
@@ -443,15 +439,8 @@ class FwupNfcSessionUiStateMachineImpl(
     }
   }
 
-  private fun FwupNfcBodyModel.asFwupProgressScreen(designSystemV2Enabled: Boolean): ScreenModel =
-    if (designSystemV2Enabled) {
-      asPlatformNfcScreen(
-        designSystemV2Enabled = true,
-        devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform
-      )
-    } else {
-      asFullScreen()
-    }
+  private fun FwupNfcBodyModel.asFwupProgressScreen(): ScreenModel =
+    asPlatformNfcScreen(devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform)
 
   /**
    * Generates the screen model for Android-only UI states (NoNFC, EnableNFC instructions, navigation).
@@ -709,7 +698,6 @@ class FwupNfcSessionUiStateMachineImpl(
     state: InNfcSessionUiState,
     isHardwareFake: Boolean,
     hardwareType: HardwareType,
-    designSystemV2Enabled: Boolean,
     hiddenNfcScreenRevealDelayMs: Int,
     // TODO(W-8034): use Progress type.
     setProgress: (progress: Float) -> Unit,
@@ -742,7 +730,6 @@ class FwupNfcSessionUiStateMachineImpl(
         }
       }
       delayForIosNativeNfcTransition(
-        designSystemV2Enabled = designSystemV2Enabled,
         devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform
       )
       val hwPubKey = keyboxDao.activeKeybox().first().value?.activeHwKeyBundle?.authKey?.pubKey

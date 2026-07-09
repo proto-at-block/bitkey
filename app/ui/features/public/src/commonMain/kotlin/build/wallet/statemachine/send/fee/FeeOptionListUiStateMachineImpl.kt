@@ -32,7 +32,7 @@ class FeeOptionListUiStateMachineImpl(
         feeOptionUiStateMachine.model(
           props = FeeOptionProps(
             bitcoinBalance = bitcoinBalance,
-            feeAmount = props.fees[priority]!!.amount,
+            feeAmount = props.fees.getValue(priority).amount,
             transactionAmount = props.transactionBaseAmount,
             selected = selectedPriority == priority,
             estimatedTransactionPriority = priority,

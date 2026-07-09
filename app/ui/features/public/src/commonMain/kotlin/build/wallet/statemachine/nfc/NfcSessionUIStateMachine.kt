@@ -52,7 +52,6 @@ import build.wallet.statemachine.nfc.NfcSessionUIState.AndroidOnly.*
 import build.wallet.statemachine.nfc.NfcSessionUIState.InSession.*
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
 import build.wallet.statemachine.platform.nfc.EnableNfcNavigator
-import build.wallet.statemachine.settings.showDebugMenu
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -291,21 +290,15 @@ class NfcSessionUIStateMachineImpl(
   @Composable
   @Suppress("CyclomaticComplexMethod")
   override fun model(props: NfcSessionUIStateMachineProps<*>): ScreenModel {
-    val designSystemV2Enabled = true
     val devicePlatform = remember { deviceInfoProvider.getDeviceInfo().devicePlatform }
     val accountConfig = remember { accountConfigService.activeOrDefaultConfig().value }
-    val isHardwareFake = remember {
-      when (accountConfig) {
-        is FullAccountConfig -> accountConfig.isHardwareFake
-        is DefaultAccountConfig -> accountConfig.isHardwareFake
-        // Allow the use of mock hardware to upgrade from Lite -> Full in dev/team apps
-        is LiteAccountConfig -> if (appVariant.showDebugMenu) {
-          accountConfigService.defaultConfig().value.isHardwareFake
-        } else {
-          false
-        }
-        else -> false
-      }
+    val defaultConfig = remember { accountConfigService.defaultConfig().value }
+    val isHardwareFake = remember(appVariant, accountConfig, defaultConfig) {
+      isHardwareFakeForNfc(
+        appVariant = appVariant,
+        accountConfig = accountConfig,
+        defaultConfig = defaultConfig
+      )
     }
     val hardwareType = remember(props.config.hardwareTypeOverride) {
       // Use caller-provided override (e.g. W1 during upgrade flow),
@@ -339,7 +332,6 @@ class NfcSessionUIStateMachineImpl(
       LaunchedEffect("nfc-transaction") {
         sessionCanceledByPlatform = false
         delayForIosNativeNfcTransition(
-          designSystemV2Enabled = designSystemV2Enabled,
           devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform
         )
 
@@ -429,19 +421,13 @@ class NfcSessionUIStateMachineImpl(
               status = SearchingState(onCancel = props.onCancel),
               hardwareType = hardwareType ?: HardwareType.W3,
               showNativeSheetOnIos = props.showNativeSheetOnIos,
-              onHelpClick =
-                if (designSystemV2Enabled) {
-                  { newState = Help(Searching) }
-                } else {
-                  null
-                },
+              onHelpClick = { newState = Help(Searching) },
               eventTrackerScreenInfo =
                 EventTrackerScreenInfo(
                   eventTrackerScreenId = NFC_INITIATE,
                   eventTrackerContext = props.eventTrackerContext
                 )
             ).asPlatformNfcScreen(
-              designSystemV2Enabled = designSystemV2Enabled,
               devicePlatform = devicePlatform
             )
           }
@@ -460,19 +446,13 @@ class NfcSessionUIStateMachineImpl(
               ),
               hardwareType = hardwareType ?: HardwareType.W3,
               showNativeSheetOnIos = props.showNativeSheetOnIos,
-              onHelpClick =
-                if (designSystemV2Enabled) {
-                  { newState = Help(Searching) }
-                } else {
-                  null
-                },
+              onHelpClick = { newState = Help(Searching) },
               eventTrackerScreenInfo =
                 EventTrackerScreenInfo(
                   eventTrackerScreenId = NfcEventTrackerScreenId.NFC_DETECTED,
                   eventTrackerContext = props.eventTrackerContext
                 )
             ).asPlatformNfcScreen(
-              designSystemV2Enabled = designSystemV2Enabled,
               devicePlatform = devicePlatform
             )
           }
@@ -489,7 +469,6 @@ class NfcSessionUIStateMachineImpl(
                   eventTrackerContext = props.eventTrackerContext
                 )
             ).asPlatformNfcScreen(
-              designSystemV2Enabled = designSystemV2Enabled,
               devicePlatform = devicePlatform
             )
           }
@@ -500,15 +479,11 @@ class NfcSessionUIStateMachineImpl(
           body = NfcHelpBodyModel(
             onBack = {
               newState = currentState.previousState
-            }
-          ),
-          presentationStyle =
-            if (designSystemV2Enabled) {
-              ScreenPresentationStyle.ModalFullScreen
-            } else {
-              ScreenPresentationStyle.FullScreen
             },
-          themePreference = nfcThemePreference(designSystemV2Enabled, devicePlatform)
+            devicePlatform = devicePlatform
+          ),
+          presentationStyle = ScreenPresentationStyle.ModalFullScreen,
+          themePreference = nfcThemePreference(devicePlatform)
         )
 
       is AndroidOnly -> {
@@ -618,31 +593,31 @@ class NfcSessionUIStateMachineImpl(
   }
 }
 
-private sealed class NfcSessionUIState {
-  sealed class InSession : NfcSessionUIState() {
-    data object Searching : InSession()
+private sealed interface NfcSessionUIState {
+  sealed interface InSession : NfcSessionUIState {
+    data object Searching : InSession
 
-    data object Communicating : InSession()
+    data object Communicating : InSession
 
-    data object Success : InSession()
+    data object Success : InSession
   }
 
   data class Help(
     val previousState: InSession,
-  ) : NfcSessionUIState()
+  ) : NfcSessionUIState
 
-  sealed class AndroidOnly : NfcSessionUIState() {
+  sealed interface AndroidOnly : NfcSessionUIState {
     /** Showing a message for mobile devices that don't have NFC -- Android-only. */
-    data object NoNFCMessage : AndroidOnly()
+    data object NoNFCMessage : AndroidOnly
 
     /** Showing a message for when NFC is not enabled -- Android-only. */
-    data object EnableNFCInstructions : AndroidOnly()
+    data object EnableNFCInstructions : AndroidOnly
 
     /** Navigating to the settings screen for enabling NFC -- Android-only. */
-    data object NavigateToEnableNFC : AndroidOnly()
+    data object NavigateToEnableNFC : AndroidOnly
   }
 
   data class Error(
     val nfcException: NfcException,
-  ) : NfcSessionUIState()
+  ) : NfcSessionUIState
 }

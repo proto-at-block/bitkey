@@ -53,12 +53,14 @@ psbt_fuzz = executable('psbt-fuzz',
     include_directories('../../third-party/libew'),
     include_directories('../../third-party/libew/third-party/libwally/include'),
   ],
-  c_args   : fuzz_args,
+  # Rename allocator calls only in the fuzz-compiled copy of psbt.c. This is
+  # portable across macOS ld64 and GNU ld, unlike -Wl,--wrap.
+  c_args   : fuzz_args + [
+    '-Dmempool_alloc=psbt_fuzz_mempool_alloc',
+    '-Dmempool_free=psbt_fuzz_mempool_free',
+  ],
   cpp_args : fuzz_args,
-  # --wrap=mempool_alloc redirects mempool_alloc calls to __wrap_mempool_alloc
-  # (defined in psbt_fuzz.cc) which uses malloc() instead of the fixed-size
-  # embedded pool that calls exit(2) on exhaustion.
-  link_args : fuzz_args + ['-Wl,--wrap=mempool_alloc'],
+  link_args : fuzz_args,
   dependencies : [
     bip32_dep,
     crypto_deps['posix'],

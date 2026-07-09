@@ -9,7 +9,7 @@ import build.wallet.statemachine.core.StateMachine
  *
  * @param id The id included with the [BodyModelMock].
  */
-abstract class ScreenStateMachineMock<PropsT : Any>(
+open class ScreenStateMachineMock<PropsT : Any>(
   val id: String,
 ) : StateMachine<PropsT, ScreenModel> {
   @Composable

@@ -92,11 +92,9 @@ fun Screen(
           label = "status-banner-alpha"
         )
 
-        val isDesignSystemV2Enabled = true
         val borderRadius by animateDpAsState(
           targetValue = statusBannerBorderRadius(
-            statusBannerVisible = statusBannerVisible,
-            isDesignSystemV2Enabled = isDesignSystemV2Enabled
+            statusBannerVisible = statusBannerVisible
           ),
           label = "status-banner-border-radius",
           animationSpec = tween(
@@ -152,7 +150,9 @@ fun Screen(
           Screen(
             modifier = Modifier
               .weight(1f)
-              .clip(RoundedCornerShape(topStart = borderRadius, topEnd = borderRadius))
+              .thenIf(!model.body.screenStyle.drawsBehindReservedStatusBar) {
+                Modifier.clip(RoundedCornerShape(topStart = borderRadius, topEnd = borderRadius))
+              }
               .background(style.screenBackgroundColor)
               .then(addSystemBarsPadding),
             bodyContent = {
@@ -195,10 +195,9 @@ private fun statusBannerAlpha(statusBannerVisible: Boolean): Float {
 
 private fun statusBannerBorderRadius(
   statusBannerVisible: Boolean,
-  isDesignSystemV2Enabled: Boolean,
 ): Dp {
   return if (statusBannerVisible) {
-    if (isDesignSystemV2Enabled) 32.dp else 24.dp
+    32.dp
   } else {
     0.dp
   }

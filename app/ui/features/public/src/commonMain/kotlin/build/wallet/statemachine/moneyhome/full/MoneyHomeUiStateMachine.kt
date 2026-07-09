@@ -26,29 +26,28 @@ data class MoneyHomeUiProps(
   val origin: Origin,
   val onDismissOrigin: () -> Unit,
   val onGoToSecurityHub: () -> Unit,
-  val isDesignSystemV2Enabled: Boolean = false,
 ) {
-  sealed class Origin {
-    data object Launch : Origin()
+  sealed interface Origin {
+    data object Launch : Origin
 
-    data object Settings : Origin()
+    data object Settings : Origin
 
-    data object SecurityHub : Origin()
+    data object SecurityHub : Origin
 
-    data class LostHardwareRecovery(val isContinuingRecovery: Boolean) : Origin()
+    data class LostHardwareRecovery(val isContinuingRecovery: Boolean) : Origin
 
     data class PartnershipsSell(
       val partnerId: PartnerId?,
       val event: PartnershipEvent?,
       val partnerTransactionId: PartnershipTransactionId?,
-    ) : Origin()
+    ) : Origin
 
     data class PartnershipTransferLink(
       val request: PartnerTransferLinkRequest,
-    ) : Origin()
+    ) : Origin
 
-    data object W3Upgrade : Origin()
+    data object W3Upgrade : Origin
 
-    data object W3UpgradeComplete : Origin()
+    data object W3UpgradeComplete : Origin
   }
 }

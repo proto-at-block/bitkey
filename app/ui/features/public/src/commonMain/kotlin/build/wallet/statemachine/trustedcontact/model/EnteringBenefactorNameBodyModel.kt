@@ -18,7 +18,6 @@ data class EnteringBenefactorNameBodyModel(
   val retreat: Retreat,
 ) : FormBodyModel(
     id = SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_TC_ADD_BENEFACTOR_NAME,
-    onSwipeToDismiss = retreat.onRetreat,
     onBack = retreat.onRetreat,
     toolbar = ToolbarModel(leadingAccessory = retreat.leadingToolbarAccessory),
     header = FormHeaderModel(

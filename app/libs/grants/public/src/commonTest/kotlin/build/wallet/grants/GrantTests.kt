@@ -1,9 +1,5 @@
-package build.wallet.firmware.grant
+package build.wallet.grants
 
-import build.wallet.grants.Grant
-import build.wallet.grants.GrantAction
-import build.wallet.grants.GrantRequest
-import build.wallet.grants.serializeToPackedStruct
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
@@ -77,7 +73,8 @@ class GrantTests : FunSpec({
     }
 
     test("equality with null should be false") {
-      (baseGrant.equals(null)) shouldBe false
+      val nullGrant: Grant? = null
+      (baseGrant == nullGrant) shouldBe false
     }
 
     test("equality with different type should be false") {

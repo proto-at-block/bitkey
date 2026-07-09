@@ -1,7 +1,7 @@
 package build.wallet.ui.app.send
 
 import build.wallet.kotest.paparazzi.paparazziExtension
-import build.wallet.statemachine.core.Icon.SmallIconBitkey
+import build.wallet.statemachine.core.Icon.Bitkey
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.keypad.KeypadModel
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
@@ -87,7 +87,7 @@ class TransferAmountScreenSnapshots : FunSpec({
                 substringToColor = emptyMap()
               ),
             subtitle = null,
-            leadingImage = CardModel.CardImage.StaticImage(SmallIconBitkey),
+            leadingImage = CardModel.CardImage.StaticImage(Bitkey),
             content = null,
             style = Outline()
           ),
@@ -105,34 +105,7 @@ class TransferAmountScreenSnapshots : FunSpec({
     }
   }
 
-  test("transfer amount entry screen - no entry with design system v2") {
-    paparazzi.snapshot {
-      TransferAmountScreen(
-        model = TransferAmountBodyModel(
-          onBack = {},
-          balanceTitle = "$961.24 available",
-          amountModel =
-            MoneyAmountEntryModel(
-              primaryAmount = "$0.00",
-              primaryAmountGhostedSubstringRange = null,
-              secondaryAmount = "0 sats"
-            ),
-          keypadModel =
-            KeypadModel(
-              showDecimal = true,
-              onButtonPress = {}
-            ),
-          cardModel = null,
-          continueButtonEnabled = true,
-          amountDisabled = false,
-          onContinueClick = {},
-          onSwapCurrencyClick = {}
-        )
-      )
-    }
-  }
-
-  test("sell amount entry screen - below minimum with design system v2") {
+  test("sell amount entry screen - below minimum") {
     paparazzi.snapshot {
       TransferAmountScreen(
         model = TransferAmountBodyModel(
@@ -160,7 +133,7 @@ class TransferAmountScreenSnapshots : FunSpec({
     }
   }
 
-  test("sell amount entry screen - above maximum with design system v2") {
+  test("sell amount entry screen - above maximum") {
     paparazzi.snapshot {
       TransferAmountScreen(
         model = TransferAmountBodyModel(
@@ -188,7 +161,7 @@ class TransferAmountScreenSnapshots : FunSpec({
     }
   }
 
-  test("sell amount entry screen - exceeds balance with design system v2") {
+  test("sell amount entry screen - exceeds balance") {
     paparazzi.snapshot {
       TransferAmountScreen(
         model = TransferAmountBodyModel(
@@ -217,7 +190,7 @@ class TransferAmountScreenSnapshots : FunSpec({
     }
   }
 
-  test("transfer amount entry screen - insufficient funds with design system v2") {
+  test("transfer amount entry screen - insufficient funds") {
     paparazzi.snapshot {
       TransferAmountScreen(
         model = TransferAmountBodyModel(

@@ -1,6 +1,7 @@
 package build.wallet.gradle.logic.rust.extension
 
 import build.wallet.gradle.logic.gradle.libs
+import build.wallet.gradle.logic.extensions.isCi
 import build.wallet.gradle.logic.rust.task.BaseCompileRustTask
 import build.wallet.gradle.logic.rust.task.CompileRustForAndroidTask
 import build.wallet.gradle.logic.rust.task.GenerateKotlinRustBindingsTask
@@ -30,15 +31,15 @@ abstract class AndroidRustTargetConfiguration
     val apiLevel: Property<Int> = objects.property(Int::class.java)
 
     fun arm32() {
-      configureTarget(RustTarget.AndroidArm32)
+      configureAndroidTarget(RustTarget.AndroidArm32)
     }
 
     fun arm64() {
-      configureTarget(RustTarget.AndroidArm64)
+      configureAndroidTarget(RustTarget.AndroidArm64)
     }
 
     fun x64() {
-      configureTarget(RustTarget.AndroidX64)
+      configureAndroidTarget(RustTarget.AndroidX64)
     }
 
     override val kmpTargetName: String = "android"
@@ -51,6 +52,79 @@ abstract class AndroidRustTargetConfiguration
         RustCompilationProfile.Debug,
         RustCompilationProfile.Release
       )
+
+    private val enabledAndroidTargets: Set<RustTarget> by lazy {
+      androidRustTargetsFromProperty()
+    }
+
+    private fun configureAndroidTarget(target: RustTarget) {
+      if (target in enabledAndroidTargets) {
+        configureTarget(target)
+      } else {
+        project.logger.info(
+          "Skipping Rust Android target ${target.flavorName}; not enabled by $ANDROID_RUST_TARGETS_PROPERTY."
+        )
+      }
+    }
+
+    private fun androidRustTargetsFromProperty(): Set<RustTarget> {
+      val configuredTargets =
+        project.findProperty(ANDROID_RUST_TARGETS_PROPERTY)
+          ?.toString()
+          ?.trim()
+
+      val requestedAndroidRustTargets = project.requestedAndroidRustTargets()
+
+      return when {
+        project.isCi() -> ALL_ANDROID_RUST_TARGETS
+        configuredTargets.isNullOrEmpty() -> ALL_ANDROID_RUST_TARGETS
+        else -> parseAndroidRustTargets(configuredTargets) + requestedAndroidRustTargets
+      }
+    }
+
+    private fun parseAndroidRustTargets(value: String): Set<RustTarget> {
+      val targets =
+        value
+          .split(",")
+          .map { it.trim() }
+          .filter { it.isNotEmpty() }
+
+      require(targets.isNotEmpty()) {
+        "$ANDROID_RUST_TARGETS_PROPERTY must be one of: all, arm32, arm64, x64, or a comma-separated subset."
+      }
+
+      return targets
+        .flatMap { target ->
+          when (target.lowercase()) {
+            "all" -> ALL_ANDROID_RUST_TARGETS
+            "arm32", "armeabi-v7a" -> listOf(RustTarget.AndroidArm32)
+            "arm64", "arm64-v8a" -> listOf(RustTarget.AndroidArm64)
+            "x64", "x86_64" -> listOf(RustTarget.AndroidX64)
+            else -> error(
+              "Unsupported $ANDROID_RUST_TARGETS_PROPERTY value: $target. " +
+                "Expected one of: all, arm32, arm64, x64, or a comma-separated subset."
+            )
+          }
+        }
+        .toSet()
+    }
+
+    private fun Project.requestedAndroidRustTargets(): Set<RustTarget> =
+      gradle.startParameter.taskNames
+        .map { it.substringAfterLast(":").lowercase() }
+        .flatMap { taskName ->
+          ALL_ANDROID_RUST_TARGETS.filter { target ->
+            taskName.requestsAndroidRustTarget(target)
+          }
+        }
+        .toSet()
+
+    private fun String.requestsAndroidRustTarget(target: RustTarget): Boolean {
+      val targetName = target.flavorName.lowercase()
+
+      return startsWith("compilerust$targetName") ||
+        startsWith("setuprusttoolchain$targetName")
+    }
 
     override fun onFirstTarget() {
       project.extensions.configure(KotlinMultiplatformExtension::class.java) {
@@ -164,3 +238,12 @@ abstract class AndroidRustTargetConfiguration
           )
         }
   }
+
+private const val ANDROID_RUST_TARGETS_PROPERTY = "build.wallet.rust.androidTargets"
+
+private val ALL_ANDROID_RUST_TARGETS =
+  setOf(
+    RustTarget.AndroidArm32,
+    RustTarget.AndroidArm64,
+    RustTarget.AndroidX64
+  )

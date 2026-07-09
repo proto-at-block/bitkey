@@ -5,13 +5,20 @@ import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.bitkey.relationships.Invitation
 import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.bitkey.relationships.TrustedContact
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.FAILED
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.PAKE_DATA_UNAVAILABLE
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.TAMPERED
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.UNAUTHENTICATED
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.VERIFIED
+import build.wallet.bitkey.relationships.UnendorsedTrustedContact
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.core.form.FormScreenLayoutModel
+import build.wallet.statemachine.core.form.FormScreenTitleModel
 import build.wallet.statemachine.recovery.socrec.list.listItemModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
@@ -23,6 +30,8 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Compani
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.tokens.LabelType
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.ImmutableSet
+import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
 
 private const val TRUSTED_CONTACT_COUNT_LIMIT = 3
@@ -40,6 +49,14 @@ data class TrustedContactsListBodyModel(
    * List of the current user's trusted contacts to be displayed.
    */
   val contacts: List<EndorsedTrustedContact>,
+  /**
+   * List of accepted contacts that could not be endorsed/verified and need customer action.
+   */
+  val unendorsedContacts: List<UnendorsedTrustedContact> = emptyList(),
+  /**
+   * Unendorsed contact relationship ids that no longer have local PAKE enrollment data.
+   */
+  val unendorsedContactRelationshipIdsMissingPakeData: ImmutableSet<String> = persistentSetOf(),
   /**
    * List of the current user's trusted contacts to be displayed.
    */
@@ -73,51 +90,35 @@ data class TrustedContactsListBodyModel(
 ) : FormBodyModel(
     id = TC_MANAGEMENT_SETTINGS_LIST,
     toolbar = ToolbarModel(leadingAccessory = BackAccessory(onBackPressed)),
+    formScreenTitle = FormScreenTitleModel(title = RECOVERY_CONTACTS_TITLE),
+    formScreenLayout = FormScreenLayoutModel.LargeTitle(),
     header = FormHeaderModel(
-      headline = RECOVERY_CONTACTS_TITLE,
-      subline = RECOVERY_CONTACTS_SUBLINE
+      headline = null,
+      sublineModel = StringModel(RECOVERY_CONTACTS_SUBLINE)
     ),
     mainContentList =
       trustedContactsMainContentList(
         contacts = contacts,
+        unendorsedContacts = unendorsedContacts,
+        unendorsedContactRelationshipIdsMissingPakeData = unendorsedContactRelationshipIdsMissingPakeData,
         invitations = invitations,
         protectedCustomers = protectedCustomers,
         now = now,
-        listStyle = ListGroupStyle.CARD_GROUP_DIVIDER,
-        useInlineActionRows = false,
+        listStyle = ListGroupStyle.DIVIDER,
+        useInlineActionRows = true,
         onAddPressed = onAddPressed,
         onContactPressed = onContactPressed,
         onProtectedCustomerPressed = onProtectedCustomerPressed,
         onAcceptInvitePressed = onAcceptInvitePressed
       ),
     onBack = onBackPressed,
-    primaryButton = null,
-    designSystemV2Model =
-      FormDesignSystemV2Model(
-        title = RECOVERY_CONTACTS_TITLE,
-        header =
-          FormHeaderModel(
-            headline = null,
-            sublineModel = StringModel(RECOVERY_CONTACTS_SUBLINE)
-          ),
-        mainContentList =
-          trustedContactsMainContentList(
-            contacts = contacts,
-            invitations = invitations,
-            protectedCustomers = protectedCustomers,
-            now = now,
-            listStyle = ListGroupStyle.DIVIDER,
-            useInlineActionRows = true,
-            onAddPressed = onAddPressed,
-            onContactPressed = onContactPressed,
-            onProtectedCustomerPressed = onProtectedCustomerPressed,
-            onAcceptInvitePressed = onAcceptInvitePressed
-          )
-      )
+    primaryButton = null
   )
 
 private fun trustedContactsMainContentList(
   contacts: List<EndorsedTrustedContact>,
+  unendorsedContacts: List<UnendorsedTrustedContact>,
+  unendorsedContactRelationshipIdsMissingPakeData: ImmutableSet<String>,
   invitations: List<Invitation>,
   protectedCustomers: List<ProtectedCustomer>,
   now: Long,
@@ -128,22 +129,26 @@ private fun trustedContactsMainContentList(
   onContactPressed: (TrustedContact) -> Unit,
   onProtectedCustomerPressed: (ProtectedCustomer) -> Unit,
   onAcceptInvitePressed: () -> Unit,
-): ImmutableList<FormMainContentModel> =
-  immutableListOf(
+): ImmutableList<FormMainContentModel> {
+  val canAddTrustedContact =
+    invitations.size + contacts.size + unendorsedContacts.size < TRUSTED_CONTACT_COUNT_LIMIT
+
+  return immutableListOf(
     FormMainContentModel.ListGroup(
       ListGroupModel(
         header = "Your Recovery Contacts",
         items =
           buildList {
             addAll(
-              (contacts + invitations)
+              (contacts + unendorsedContacts + invitations)
                 .toListItems(
                   now = now,
+                  unendorsedContactRelationshipIdsMissingPakeData = unendorsedContactRelationshipIdsMissingPakeData,
                   onClick = onContactPressed,
                   useLargeLeadingAccessory = useInlineActionRows
                 )
             )
-            if (useInlineActionRows && (invitations + contacts).size < TRUSTED_CONTACT_COUNT_LIMIT) {
+            if (useInlineActionRows && canAddTrustedContact) {
               add(
                 recoveryContactActionListItem(
                   title = ADD_NEW_CONTACT_TITLE,
@@ -161,7 +166,7 @@ private fun trustedContactsMainContentList(
           onClick = StandardClick(onAddPressed)
         ).takeIf {
           // Determine if the user can invite more trusted contacts.
-          !useInlineActionRows && (invitations + contacts).size < TRUSTED_CONTACT_COUNT_LIMIT
+          !useInlineActionRows && canAddTrustedContact
         }
       )
     ),
@@ -198,28 +203,36 @@ private fun trustedContactsMainContentList(
       )
     )
   )
+}
 
 /**
  * Convert a list of recovery contacts to row items for a ListGroup.
  */
 private fun List<TrustedContact>.toListItems(
   now: Long,
+  unendorsedContactRelationshipIdsMissingPakeData: ImmutableSet<String>,
   onClick: (TrustedContact) -> Unit,
   useLargeLeadingAccessory: Boolean,
 ) = map { contact ->
+  val isClickable = contact.isClickable(unendorsedContactRelationshipIdsMissingPakeData)
   ListItemModel(
     titleType = if (useLargeLeadingAccessory) LabelType.Body2Regular else null,
     leadingAccessory =
       ListItemAccessory.CircularCharacterAccessory.fromLetters(
         input = contact.trustedContactAlias.alias,
         circleSize = if (useLargeLeadingAccessory) IconSize.Large else IconSize.Small,
-        characterType = if (useLargeLeadingAccessory) LabelType.Body2Medium else LabelType.Label3
+        characterType = if (useLargeLeadingAccessory) LabelType.Body2Medium else LabelType.Label3,
+        backgroundColor = ListItemAccessory.CircularCharacterAccessory.BackgroundColor.SubtleBackground
       ),
     title = contact.trustedContactAlias.alias,
-    sideText = sideText(contact, now),
-    sideTextTint = ListItemSideTextTint.SECONDARY,
+    secondaryText = statusText(contact, now, unendorsedContactRelationshipIdsMissingPakeData),
+    secondaryTextTint = statusTextTint(contact),
     trailingAccessory = drillIcon(tint = IconTint.On30),
-    onClick = { onClick(contact) }
+    onClick = if (isClickable) {
+      { onClick(contact) }
+    } else {
+      null
+    }
   )
 }
 
@@ -231,24 +244,61 @@ private fun recoveryContactActionListItem(
   titleType = LabelType.Body2Regular,
   leadingAccessory =
     ListItemAccessory.CircularIconAccessory(
-      icon = Icon.SmallIconPlus,
+      icon = Icon.Plus,
       circleSize = IconSize.Large,
-      iconSize = IconSize.Accessory
+      iconSize = IconSize.Accessory,
+      backgroundColor = ListItemAccessory.CircularIconAccessory.BackgroundColor.SubtleBackground
     ),
   trailingAccessory = drillIcon(tint = IconTint.On30),
   onClick = onClick
 )
 
-private fun sideText(
+private fun statusText(
   recoveryContact: TrustedContact,
   now: Long,
+  unendorsedContactRelationshipIdsMissingPakeData: ImmutableSet<String>,
 ): String? =
-  if (recoveryContact is Invitation) {
-    if (recoveryContact.isExpired(now)) {
-      "Expired"
-    } else {
-      "Pending"
-    }
-  } else {
-    null
+  when (recoveryContact) {
+    is Invitation ->
+      if (recoveryContact.isExpired(now)) {
+        "Expired"
+      } else {
+        "Pending"
+      }
+    is EndorsedTrustedContact ->
+      when (recoveryContact.authenticationState) {
+        VERIFIED -> "Active"
+        else -> null
+      }
+    is UnendorsedTrustedContact ->
+      when (recoveryContact.authenticationState) {
+        UNAUTHENTICATED -> if (recoveryContact.id.value in unendorsedContactRelationshipIdsMissingPakeData) {
+          "Failed"
+        } else {
+          "Pending"
+        }
+        FAILED, PAKE_DATA_UNAVAILABLE -> "Failed"
+        TAMPERED -> "Invalid"
+        else -> null
+      }
+  }
+
+private fun statusTextTint(recoveryContact: TrustedContact): ListItemSideTextTint =
+  when (recoveryContact) {
+    is EndorsedTrustedContact ->
+      when (recoveryContact.authenticationState) {
+        VERIFIED -> ListItemSideTextTint.GREEN
+        else -> ListItemSideTextTint.SECONDARY
+      }
+    else -> ListItemSideTextTint.SECONDARY
+  }
+
+private fun TrustedContact.isClickable(
+  unendorsedContactRelationshipIdsMissingPakeData: ImmutableSet<String>,
+): Boolean =
+  when (this) {
+    is UnendorsedTrustedContact ->
+      authenticationState != UNAUTHENTICATED ||
+        id.value in unendorsedContactRelationshipIdsMissingPakeData
+    else -> true
   }

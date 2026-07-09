@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import bitkey.account.AccountConfigServiceFake
 import bitkey.datadog.DatadogRumMonitorFake
 import bitkey.ui.framework.NavigatorPresenterFake
 import build.wallet.account.AccountServiceFake
@@ -14,6 +15,7 @@ import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId.LOADING_APP
 import build.wallet.analytics.v1.Action.ACTION_APP_SCREEN_IMPRESSION
 import build.wallet.bitkey.keybox.AppKeyBundleMock2
+import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.bitkey.keybox.SoftwareAccountMock
@@ -74,6 +76,8 @@ import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.ThemePreference
 import kotlin.time.Duration.Companion.milliseconds
 
+// Large end-to-end coverage for the app-level state machine; splitting would hurt cohesion.
+@Suppress("LargeClass")
 class AppUiStateMachineImplTests : FunSpec({
 
   val eventTracker = EventTrackerMock(turbines::create)
@@ -143,6 +147,7 @@ class AppUiStateMachineImplTests : FunSpec({
         liteAccountCloudBackupRestorationUiStateMachine,
         appWorkerExecutor = appWorkerExecutor,
         accountService = AccountServiceFake(),
+        accountConfigService = AccountConfigServiceFake(),
         datadogRumMonitor = datadogRumMonitor,
         splashScreenDelay = SplashScreenDelay(10.milliseconds),
         welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
@@ -436,6 +441,7 @@ class AppUiStateMachineImplTests : FunSpec({
       liteAccountCloudBackupRestorationUiStateMachine = liteAccountCloudBackupRestorationUiStateMachine,
       appWorkerExecutor = appWorkerExecutor,
       accountService = accountService,
+      accountConfigService = AccountConfigServiceFake(),
       datadogRumMonitor = datadogRumMonitor,
       splashScreenDelay = SplashScreenDelay(10.milliseconds),
       welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
@@ -488,6 +494,7 @@ class AppUiStateMachineImplTests : FunSpec({
       liteAccountCloudBackupRestorationUiStateMachine = liteAccountCloudBackupRestorationUiStateMachine,
       appWorkerExecutor = appWorkerExecutor,
       accountService = accountService,
+      accountConfigService = AccountConfigServiceFake(),
       datadogRumMonitor = datadogRumMonitor,
       splashScreenDelay = SplashScreenDelay(10.milliseconds),
       welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
@@ -552,6 +559,7 @@ class AppUiStateMachineImplTests : FunSpec({
       liteAccountCloudBackupRestorationUiStateMachine = liteAccountCloudBackupRestorationUiStateMachine,
       appWorkerExecutor = appWorkerExecutor,
       accountService = accountService,
+      accountConfigService = AccountConfigServiceFake(),
       datadogRumMonitor = datadogRumMonitor,
       splashScreenDelay = SplashScreenDelay(10.milliseconds),
       welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
@@ -582,24 +590,30 @@ class AppUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("DSV2 iOS keeps previous screen for generic platform NFC models using the native sheet") {
+  test("iOS keeps previous screen for real hardware platform NFC models using the native sheet") {
 
     val deviceInfoProvider = DeviceInfoProviderMock().apply {
       devicePlatformValue = DevicePlatform.IOS
     }
     val localEventTracker = EventTrackerMock { name ->
-      turbines.create("$name dsv2 ios platform nfc")
+      turbines.create("$name ios real hw platform nfc")
     }
-    val homeUiStateMachine = ToggleablePlatformNfcHomeUiStateMachine()
-    loadAppService.appState.value = HasActiveSoftwareAccount(
-      account = SoftwareAccountMock
+    val fullAccountUiStateMachine = ToggleablePlatformNfcFullAccountUiStateMachine()
+    val accountService = AccountServiceFake()
+    accountService.setActiveAccount(FullAccountMock)
+    val accountConfigService = AccountConfigServiceFake()
+    accountConfigService.setActiveConfig(FullAccountConfigMock.copy(isHardwareFake = false))
+    loadAppService.appState.value = AppState.HasActiveFullAccount(
+      account = FullAccountMock,
+      pendingAuthKeyRotation = null
     )
 
     stateMachine = AppUiStateMachineImpl(
       appVariant = AppVariant.Development,
       navigatorPresenter = navigatorPresenter,
       eventTracker = localEventTracker,
-      homeUiStateMachine = homeUiStateMachine,
+      homeUiStateMachine = object : HomeUiStateMachine,
+        ScreenStateMachineMock<HomeUiProps>(id = "home") {},
       liteHomeUiStateMachine = object : LiteHomeUiStateMachine,
         ScreenStateMachineMock<LiteHomeUiProps>(id = "lite-home") {},
       fullAccountUiStateMachine = fullAccountUiStateMachine,
@@ -609,7 +623,8 @@ class AppUiStateMachineImplTests : FunSpec({
       createLiteAccountUiStateMachine = createLiteAccountUiStateMachine,
       liteAccountCloudBackupRestorationUiStateMachine = liteAccountCloudBackupRestorationUiStateMachine,
       appWorkerExecutor = appWorkerExecutor,
-      accountService = AccountServiceFake(),
+      accountService = accountService,
+      accountConfigService = accountConfigService,
       datadogRumMonitor = datadogRumMonitor,
       splashScreenDelay = SplashScreenDelay(10.milliseconds),
       welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
@@ -625,11 +640,11 @@ class AppUiStateMachineImplTests : FunSpec({
         TrackedAction(ACTION_APP_SCREEN_IMPRESSION, GeneralEventTrackerScreenId.SPLASH_SCREEN)
       )
 
-      awaitBodyMock<HomeUiProps> {
-        account.shouldBe(SoftwareAccountMock)
+      awaitBodyMock<FullAccountUiProps> {
+        account.shouldBe(FullAccountMock)
       }
 
-      homeUiStateMachine.shouldShowPlatformNfcScreen = true
+      fullAccountUiStateMachine.shouldShowPlatformNfcScreen = true
 
       awaitItemMaybe(timeout = 100.milliseconds).shouldBe(null)
 
@@ -638,18 +653,83 @@ class AppUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("DSV2 iOS replaces the current screen for generic platform NFC models using a custom background") {
+  test("fake hardware disables iOS preserve previous screen behavior") {
+    val deviceInfoProvider = DeviceInfoProviderMock().apply {
+      devicePlatformValue = DevicePlatform.IOS
+    }
+    val localEventTracker = EventTrackerMock { name ->
+      turbines.create("$name ios fake hw platform nfc")
+    }
+    val fullAccountUiStateMachine = ToggleablePlatformNfcFullAccountUiStateMachine()
+    val accountService = AccountServiceFake()
+    accountService.setActiveAccount(FullAccountMock)
+    val accountConfigService = AccountConfigServiceFake()
+    accountConfigService.setActiveConfig(FullAccountConfigMock.copy(isHardwareFake = true))
+    loadAppService.appState.value = AppState.HasActiveFullAccount(
+      account = FullAccountMock,
+      pendingAuthKeyRotation = null
+    )
+
+    stateMachine = AppUiStateMachineImpl(
+      appVariant = AppVariant.Development,
+      navigatorPresenter = navigatorPresenter,
+      eventTracker = localEventTracker,
+      homeUiStateMachine = object : HomeUiStateMachine,
+        ScreenStateMachineMock<HomeUiProps>(id = "home") {},
+      liteHomeUiStateMachine = object : LiteHomeUiStateMachine,
+        ScreenStateMachineMock<LiteHomeUiProps>(id = "lite-home") {},
+      fullAccountUiStateMachine = fullAccountUiStateMachine,
+      createAccountUiStateMachine = createAccountUiStateMachine,
+      noActiveAccountUiStateMachine = noActiveAccountUiStateMachine,
+      loadAppService = loadAppService,
+      createLiteAccountUiStateMachine = createLiteAccountUiStateMachine,
+      liteAccountCloudBackupRestorationUiStateMachine = liteAccountCloudBackupRestorationUiStateMachine,
+      appWorkerExecutor = appWorkerExecutor,
+      accountService = accountService,
+      accountConfigService = accountConfigService,
+      datadogRumMonitor = datadogRumMonitor,
+      splashScreenDelay = SplashScreenDelay(10.milliseconds),
+      welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
+      deviceInfoProvider = deviceInfoProvider,
+      appUpdateModalFeatureFlag = appUpdateModalFeatureFlag,
+      appStoreUrlProvider = appStoreUrlProvider,
+      deepLinkHandler = deepLinkHandler
+    )
+
+    stateMachine.test(Unit) {
+      awaitBody<SplashBodyModel>()
+      localEventTracker.awaitSplashScreenEvent()
+
+      awaitBodyMock<FullAccountUiProps> {
+        account.shouldBe(FullAccountMock)
+      }
+
+      fullAccountUiStateMachine.shouldShowPlatformNfcScreen = true
+
+      awaitUntilBody<NfcBodyModel> {
+        text.shouldBe("Hold your Bitkey to the back of your phone")
+      }
+      localEventTracker.eventCalls.cancelAndIgnoreRemainingEvents()
+
+      appWorkerExecutor.executeAllCalls.awaitItem()
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("iOS replaces the current screen for generic platform NFC models using a custom background") {
 
     val deviceInfoProvider = DeviceInfoProviderMock().apply {
       devicePlatformValue = DevicePlatform.IOS
     }
     val localEventTracker = EventTrackerMock { name ->
-      turbines.create("$name dsv2 ios platform nfc custom background")
+      turbines.create("$name ios platform nfc custom background")
     }
     val homeUiStateMachine = ToggleablePlatformNfcHomeUiStateMachine(showNativeSheetOnIos = false)
     loadAppService.appState.value = HasActiveSoftwareAccount(
       account = SoftwareAccountMock
     )
+    val accountConfigService = AccountConfigServiceFake()
+    accountConfigService.setIsHardwareFake(false)
 
     stateMachine = AppUiStateMachineImpl(
       appVariant = AppVariant.Development,
@@ -666,6 +746,7 @@ class AppUiStateMachineImplTests : FunSpec({
       liteAccountCloudBackupRestorationUiStateMachine = liteAccountCloudBackupRestorationUiStateMachine,
       appWorkerExecutor = appWorkerExecutor,
       accountService = AccountServiceFake(),
+      accountConfigService = accountConfigService,
       datadogRumMonitor = datadogRumMonitor,
       splashScreenDelay = SplashScreenDelay(10.milliseconds),
       welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
@@ -696,13 +777,13 @@ class AppUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("DSV2 iOS replaces the current screen for FWUP platform NFC models") {
+  test("iOS replaces the current screen for FWUP platform NFC models") {
 
     val deviceInfoProvider = DeviceInfoProviderMock().apply {
       devicePlatformValue = DevicePlatform.IOS
     }
     val localEventTracker = EventTrackerMock { name ->
-      turbines.create("$name dsv2 ios fwup platform nfc")
+      turbines.create("$name ios fwup platform nfc")
     }
     val homeUiStateMachine = ToggleablePlatformFwupHomeUiStateMachine()
     loadAppService.appState.value = HasActiveSoftwareAccount(
@@ -724,6 +805,7 @@ class AppUiStateMachineImplTests : FunSpec({
       liteAccountCloudBackupRestorationUiStateMachine = liteAccountCloudBackupRestorationUiStateMachine,
       appWorkerExecutor = appWorkerExecutor,
       accountService = AccountServiceFake(),
+      accountConfigService = AccountConfigServiceFake(),
       datadogRumMonitor = datadogRumMonitor,
       splashScreenDelay = SplashScreenDelay(10.milliseconds),
       welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
@@ -754,13 +836,13 @@ class AppUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("DSV2 iOS shows FWUP success instead of resurfacing the previous continuation screen") {
+  test("iOS shows FWUP success instead of resurfacing the previous continuation screen") {
 
     val deviceInfoProvider = DeviceInfoProviderMock().apply {
       devicePlatformValue = DevicePlatform.IOS
     }
     val localEventTracker = EventTrackerMock { name ->
-      turbines.create("$name dsv2 ios fwup success")
+      turbines.create("$name ios fwup success")
     }
     val homeUiStateMachine = ToggleablePlatformFwupHomeUiStateMachine()
     loadAppService.appState.value = HasActiveSoftwareAccount(
@@ -782,6 +864,7 @@ class AppUiStateMachineImplTests : FunSpec({
       liteAccountCloudBackupRestorationUiStateMachine = liteAccountCloudBackupRestorationUiStateMachine,
       appWorkerExecutor = appWorkerExecutor,
       accountService = AccountServiceFake(),
+      accountConfigService = AccountConfigServiceFake(),
       datadogRumMonitor = datadogRumMonitor,
       splashScreenDelay = SplashScreenDelay(10.milliseconds),
       welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
@@ -827,18 +910,20 @@ class AppUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("DSV2 iOS keeps previous screen for sign transaction models using the native sheet") {
+  test("iOS keeps previous screen for sign transaction models using the native sheet") {
 
     val deviceInfoProvider = DeviceInfoProviderMock().apply {
       devicePlatformValue = DevicePlatform.IOS
     }
     val localEventTracker = EventTrackerMock { name ->
-      turbines.create("$name dsv2 ios sign transaction native sheet")
+      turbines.create("$name ios sign transaction native sheet")
     }
     val homeUiStateMachine = ToggleableSignTransactionHomeUiStateMachine(showNativeSheetOnIos = true)
     loadAppService.appState.value = HasActiveSoftwareAccount(
       account = SoftwareAccountMock
     )
+    val accountConfigService = AccountConfigServiceFake()
+    accountConfigService.setIsHardwareFake(false)
 
     stateMachine = AppUiStateMachineImpl(
       appVariant = AppVariant.Development,
@@ -855,6 +940,7 @@ class AppUiStateMachineImplTests : FunSpec({
       liteAccountCloudBackupRestorationUiStateMachine = liteAccountCloudBackupRestorationUiStateMachine,
       appWorkerExecutor = appWorkerExecutor,
       accountService = AccountServiceFake(),
+      accountConfigService = accountConfigService,
       datadogRumMonitor = datadogRumMonitor,
       splashScreenDelay = SplashScreenDelay(10.milliseconds),
       welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
@@ -883,18 +969,20 @@ class AppUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("DSV2 iOS still replaces the current screen for sign transaction models that keep custom background") {
+  test("iOS still replaces the current screen for sign transaction models that keep custom background") {
 
     val deviceInfoProvider = DeviceInfoProviderMock().apply {
       devicePlatformValue = DevicePlatform.IOS
     }
     val localEventTracker = EventTrackerMock { name ->
-      turbines.create("$name dsv2 ios sign transaction custom background")
+      turbines.create("$name ios sign transaction custom background")
     }
     val homeUiStateMachine = ToggleableSignTransactionHomeUiStateMachine(showNativeSheetOnIos = false)
     loadAppService.appState.value = HasActiveSoftwareAccount(
       account = SoftwareAccountMock
     )
+    val accountConfigService = AccountConfigServiceFake()
+    accountConfigService.setIsHardwareFake(false)
 
     stateMachine = AppUiStateMachineImpl(
       appVariant = AppVariant.Development,
@@ -911,6 +999,7 @@ class AppUiStateMachineImplTests : FunSpec({
       liteAccountCloudBackupRestorationUiStateMachine = liteAccountCloudBackupRestorationUiStateMachine,
       appWorkerExecutor = appWorkerExecutor,
       accountService = AccountServiceFake(),
+      accountConfigService = accountConfigService,
       datadogRumMonitor = datadogRumMonitor,
       splashScreenDelay = SplashScreenDelay(10.milliseconds),
       welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
@@ -965,6 +1054,7 @@ class AppUiStateMachineImplTests : FunSpec({
       liteAccountCloudBackupRestorationUiStateMachine = liteAccountCloudBackupRestorationUiStateMachine,
       appWorkerExecutor = appWorkerExecutor,
       accountService = AccountServiceFake(),
+      accountConfigService = AccountConfigServiceFake(),
       datadogRumMonitor = datadogRumMonitor,
       splashScreenDelay = SplashScreenDelay(10.milliseconds),
       welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
@@ -1004,6 +1094,33 @@ class AppUiStateMachineImplTests : FunSpec({
 
 })
 
+private fun platformNfcScreen(showNativeSheetOnIos: Boolean = true) =
+  NfcBodyModel(
+    text = "Hold your Bitkey to the back of your phone",
+    status = NfcBodyModel.Status.Searching(onCancel = {}),
+    showNativeSheetOnIos = showNativeSheetOnIos,
+    eventTrackerScreenInfo = null
+  ).asPlatformNfcScreen(
+    devicePlatform = DevicePlatform.IOS
+  )
+
+private class ToggleablePlatformNfcFullAccountUiStateMachine : FullAccountUiStateMachine {
+  var shouldShowPlatformNfcScreen by mutableStateOf(false)
+
+  @Composable
+  override fun model(props: FullAccountUiProps): ScreenModel {
+    return when {
+      shouldShowPlatformNfcScreen -> platformNfcScreen()
+      else -> {
+        BodyModelMock(
+          id = "full-account",
+          latestProps = props
+        ).asRootScreen()
+      }
+    }
+  }
+}
+
 private class ToggleablePlatformNfcHomeUiStateMachine(
   private val showNativeSheetOnIos: Boolean = true,
 ) : HomeUiStateMachine {
@@ -1012,17 +1129,7 @@ private class ToggleablePlatformNfcHomeUiStateMachine(
   @Composable
   override fun model(props: HomeUiProps): ScreenModel {
     return when {
-      shouldShowPlatformNfcScreen -> {
-        NfcBodyModel(
-          text = "Hold your Bitkey to the back of your phone",
-          status = NfcBodyModel.Status.Searching(onCancel = {}),
-          showNativeSheetOnIos = showNativeSheetOnIos,
-          eventTrackerScreenInfo = null
-        ).asPlatformNfcScreen(
-          designSystemV2Enabled = true,
-          devicePlatform = DevicePlatform.IOS
-        )
-      }
+      shouldShowPlatformNfcScreen -> platformNfcScreen(showNativeSheetOnIos)
       else -> {
         BodyModelMock(
           id = "home",
@@ -1049,7 +1156,6 @@ private class ToggleablePlatformFwupHomeUiStateMachine : HomeUiStateMachine {
           status = bodyModel as FwupNfcBodyModel.Status,
           eventTrackerScreenInfo = null
         ).asPlatformNfcScreen(
-          designSystemV2Enabled = true,
           devicePlatform = build.wallet.platform.device.DevicePlatform.IOS
         )
       }
@@ -1059,7 +1165,6 @@ private class ToggleablePlatformFwupHomeUiStateMachine : HomeUiStateMachine {
           status = FwupNfcBodyModel.Status.Searching(),
           eventTrackerScreenInfo = null
         ).asPlatformNfcScreen(
-          designSystemV2Enabled = true,
           devicePlatform = build.wallet.platform.device.DevicePlatform.IOS
         )
       }

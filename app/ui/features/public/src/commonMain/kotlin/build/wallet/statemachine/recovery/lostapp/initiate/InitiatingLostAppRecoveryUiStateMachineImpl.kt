@@ -18,6 +18,7 @@ import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.recovery.HardwareKeysForRecovery
 import build.wallet.cloud.backup.CloudBackup
@@ -32,6 +33,7 @@ import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.auth.PrivilegedActionProof.HwKeyProof
 import build.wallet.f8e.auth.PrivilegedActionProof.HwSignedAction
 import build.wallet.nfc.NfcSession
+import build.wallet.nfc.toSpendingKeyProof
 import build.wallet.nfc.platform.ActionProofAction
 import build.wallet.nfc.platform.LostAppRecoveryContinueParams
 import build.wallet.nfc.platform.NfcCommands
@@ -97,6 +99,16 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
   private val minimumLoadingDuration: MinimumLoadingDuration,
   private val appInstallationDao: AppInstallationDao,
 ) : InitiatingLostAppRecoveryUiStateMachine {
+  private val recoveryConfirmationContent = ConfirmationResultContent(
+    pendingHeadline = "Confirm recovery on Bitkey",
+    pendingSubline = "You\u2019ll need to approve or deny on your Bitkey device before tapping again."
+  )
+
+  private val signChallengeConfirmationContent = ConfirmationResultContent(
+    pendingHeadline = "Confirm on Bitkey",
+    pendingSubline = "You\u2019ll need to approve or deny on your Bitkey device before tapping again."
+  )
+
   @Composable
   override fun model(props: InitiatingLostAppRecoveryUiProps): ScreenModel {
     var state: State by remember {
@@ -501,11 +513,13 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
             completedAuth = currentState.completedAuth
           ).fold(
             success = { existingKeys ->
-              val spendingKey = commands.getNextSpendingKey(
+              val spendingKeyResult = commands.getNextSpendingKey(
                 session = session,
                 existingDescriptorPublicKeys = existingKeys,
                 network = bitcoinNetwork
               )
+              val spendingKey = spendingKeyResult.publicKey
+              val spendingKeyProof = spendingKeyResult.toSpendingKeyProof()
 
               // Sign the new app global auth key with the hardware auth key.
               val appGlobalAuthKeyHwSignature = commands
@@ -518,6 +532,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
               RotateHwKeysResponse.Success(
                 proof = proof,
                 spendingKey = spendingKey,
+                spendingKeyProof = spendingKeyProof,
                 appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature
               )
             },
@@ -537,6 +552,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
                     proof = HwKeyProof(result.proof),
                     hardwareAuthKey = currentState.hardwareAuthKey,
                     spendingKey = result.spendingKey,
+                    spendingKeyProof = result.spendingKeyProof,
                     appGlobalAuthKeyHwSignature = result.appGlobalAuthKeyHwSignature,
                     bitcoinNetworkType = currentState.completedAuth.bitcoinNetworkType,
                     hardwareType = currentState.hardwareType
@@ -628,6 +644,8 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
                 proof = HwSignedAction(actionProof = header),
                 hardwareAuthKey = currentState.hardwareAuthKey,
                 spendingKey = spendingKey,
+                // W3 lost-app firmware path does not yet surface an attestation proof.
+                spendingKeyProof = null,
                 appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(appAuthKeySigHex),
                 bitcoinNetworkType = completedAuth.bitcoinNetworkType,
                 hardwareType = currentState.hardwareType
@@ -779,16 +797,6 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
       }
     }
   }
-
-  private val recoveryConfirmationContent = ConfirmationResultContent(
-    pendingHeadline = "Confirm recovery on Bitkey",
-    pendingSubline = "You\u2019ll need to approve or deny on your Bitkey device before tapping again."
-  )
-
-  private val signChallengeConfirmationContent = ConfirmationResultContent(
-    pendingHeadline = "Confirm on Bitkey",
-    pendingSubline = "You\u2019ll need to approve or deny on your Bitkey device before tapping again."
-  )
 
   private fun InitiateRecoveryErrorScreenModel(
     cause: Throwable,
@@ -947,6 +955,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
     data class Success(
       val proof: HwFactorProofOfPossession,
       val spendingKey: HwSpendingPublicKey,
+      val spendingKeyProof: HwSpendingKeyProof?,
       val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
     ) : RotateHwKeysResponse
 

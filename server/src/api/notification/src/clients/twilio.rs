@@ -3,6 +3,7 @@ use std::env;
 use std::sync::OnceLock;
 
 use base64::{engine::general_purpose::STANDARD as b64, Engine as _};
+use clients_common::http::default_client;
 use hmac::{Hmac, Mac};
 use instrumentation::metrics::KeyValue;
 use instrumentation::metrics::ResultCounter;
@@ -254,7 +255,7 @@ impl TwilioClient {
                 status_callback_override,
             } => Self::Real {
                 endpoint: reqwest::Url::parse(TWILIO_API_URL).unwrap(),
-                client: Client::new(),
+                client: default_client(),
                 account_sid: env::var("TWILIO_ACCOUNT_SID")
                     .expect("TWILIO_ACCOUNT_SID environment variable not set"),
                 auth_token: env::var("TWILIO_AUTH_TOKEN")

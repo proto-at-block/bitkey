@@ -15,6 +15,7 @@ import build.wallet.bitcoin.wallet.SpendingWalletFake
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
+import build.wallet.platform.haptics.HapticsMock
 import build.wallet.statemachine.core.LabelModel.LinkSubstringModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
@@ -24,6 +25,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeSameInstanceAs
 import io.kotest.matchers.types.shouldBeTypeOf
 
 class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
@@ -45,11 +47,13 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
 
   val bitcoinWalletService = BitcoinWalletServiceFake()
   val accountService = AccountServiceFake()
+  val haptics = HapticsMock()
 
   val stateMachine = BitcoinQrCodeScanUiStateMachineImpl(
     paymentDataParser = paymentParserMock,
     bitcoinWalletService = bitcoinWalletService,
-    accountService = accountService
+    accountService = accountService,
+    haptics = haptics
   )
 
   val onEnterAddressClickCalls = turbines.create<Unit>("enter address click calls")
@@ -91,6 +95,10 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
         onQrCodeScanned(validAddress.address)
       }
 
+      awaitBody<QrCodeScanBodyModel> {
+        isScanSuccess.shouldBe(true)
+      }
+
       onRecipientScannedCalls.awaitItem().shouldBe(validAddress)
     }
   }
@@ -99,6 +107,10 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitBody<QrCodeScanBodyModel> {
         onQrCodeScanned(bitcoinAddressP2PKH.address)
+      }
+
+      awaitBody<QrCodeScanBodyModel> {
+        isScanSuccess.shouldBe(true)
       }
 
       onInvoiceScannedCalls.awaitItem().shouldBe(
@@ -118,6 +130,30 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
 
       // Error
       awaitBody<FormBodyModel>()
+    }
+  }
+
+  test("Invalid Address in QR code should use stable error cause") {
+    lateinit var firstCause: Throwable
+
+    stateMachine.test(props) {
+      awaitBody<QrCodeScanBodyModel> {
+        onQrCodeScanned(invalidAddressText)
+      }
+
+      awaitBody<FormBodyModel> {
+        firstCause = errorData.shouldNotBeNull().cause
+      }
+    }
+
+    stateMachine.test(props) {
+      awaitBody<QrCodeScanBodyModel> {
+        onQrCodeScanned(invalidAddressText)
+      }
+
+      awaitBody<FormBodyModel> {
+        errorData.shouldNotBeNull().cause.shouldBeSameInstanceAs(firstCause)
+      }
     }
   }
 
@@ -229,6 +265,30 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
     }
   }
 
+  test("Scanning a self address should use stable error cause") {
+    lateinit var firstCause: Throwable
+
+    stateMachine.test(props) {
+      awaitBody<QrCodeScanBodyModel> {
+        onQrCodeScanned(selfSendAddress)
+      }
+
+      awaitBody<FormBodyModel> {
+        firstCause = errorData.shouldNotBeNull().cause
+      }
+    }
+
+    stateMachine.test(props) {
+      awaitBody<QrCodeScanBodyModel> {
+        onQrCodeScanned(selfSendAddress)
+      }
+
+      awaitBody<FormBodyModel> {
+        errorData.shouldNotBeNull().cause.shouldBeSameInstanceAs(firstCause)
+      }
+    }
+  }
+
   test("Dismissing unrecognized error returns to scanning screen") {
     stateMachine.test(props) {
       awaitBody<QrCodeScanBodyModel> {
@@ -242,6 +302,10 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
 
       awaitBody<QrCodeScanBodyModel> {
         onQrCodeScanned(validAddress.address)
+      }
+
+      awaitBody<QrCodeScanBodyModel> {
+        isScanSuccess.shouldBe(true)
       }
 
       onRecipientScannedCalls.awaitItem().shouldBe(validAddress)
@@ -261,6 +325,10 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
 
       awaitBody<QrCodeScanBodyModel> {
         onQrCodeScanned(validAddress.address)
+      }
+
+      awaitBody<QrCodeScanBodyModel> {
+        isScanSuccess.shouldBe(true)
       }
 
       onRecipientScannedCalls.awaitItem().shouldBe(validAddress)

@@ -54,6 +54,8 @@ Test(sap_parse, parse_action_valid) {
   cr_assert_eq(sap_parse_action("InitiateWalletUpgrade"), SAP_ACTION_INITIATE_WALLET_UPGRADE);
   cr_assert_eq(sap_parse_action("RemoveRecoveryCustomer"), SAP_ACTION_REMOVE_RECOVERY_CUSTOMER);
   cr_assert_eq(sap_parse_action("RemoveBenefactor"), SAP_ACTION_REMOVE_BENEFACTOR);
+  cr_assert_eq(sap_parse_action("KeysetRepairUnseal"), SAP_ACTION_KEYSET_REPAIR_UNSEAL);
+  cr_assert_eq(sap_parse_action("KeysetRepairRotate"), SAP_ACTION_KEYSET_REPAIR_ROTATE);
 }
 
 Test(sap_parse, parse_action_unknown) {
@@ -84,7 +86,9 @@ Test(sap_parse, parse_action_null) {
 // ---------------------------------------------------------------------------
 
 Test(sap_validation, enum_counts) {
-  cr_assert_eq(SAP_ACTION_COUNT, 32, "Expected 32 combined actions");
+  cr_assert_eq(SAP_ACTION_COUNT, 34, "Expected 34 combined actions");
+  cr_assert_eq(SAP_ACTION_KEYSET_REPAIR_UNSEAL, 32, "New SAP actions must append at the end");
+  cr_assert_eq(SAP_ACTION_KEYSET_REPAIR_ROTATE, 33, "New SAP actions must append at the end");
   cr_assert_eq(SAP_ACTION_EEK_RESTORATION, 21, "Existing IPC-carried SAP IDs must remain stable");
   cr_assert_eq(SAP_ACTION_FULL_ACCOUNT_CLOUD_BACKUP_RESTORE, 22,
                "Existing IPC-carried SAP IDs must remain stable");

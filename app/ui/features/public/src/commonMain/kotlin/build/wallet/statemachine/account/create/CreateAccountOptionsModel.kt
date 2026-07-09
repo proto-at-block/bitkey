@@ -37,7 +37,7 @@ data class CreateAccountOptionsModel(
               leadingAccessory = IconAccessory(
                 iconPadding = 12,
                 model = IconModel(
-                  icon = Icon.SmallIconShieldPerson,
+                  icon = Icon.ShieldPerson,
                   iconSize = IconSize.Small
                 )
               ),
@@ -50,7 +50,7 @@ data class CreateAccountOptionsModel(
               leadingAccessory = IconAccessory(
                 iconPadding = 12,
                 model = IconModel(
-                  icon = Icon.SmallIconWallet,
+                  icon = Icon.Wallet,
                   iconSize = IconSize.Small
                 )
               ),

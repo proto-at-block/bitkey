@@ -9,6 +9,7 @@ import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.recovery.HardwareKeysForRecovery
 import build.wallet.cloud.backup.csek.SealedSsek
@@ -116,6 +117,7 @@ interface LostAppAndCloudRecoveryService {
     appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
     bitcoinNetworkType: BitcoinNetworkType,
     hardwareType: HardwareType,
+    spendingKeyProof: HwSpendingKeyProof? = null,
   ): HardwareKeysForRecovery
 
   /**

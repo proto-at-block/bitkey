@@ -1,0 +1,13 @@
+[package]
+edition = { workspace = true }
+name = "clients_common"
+publish = { workspace = true }
+version = "0.1.0"
+
+[dependencies]
+aws-config = { workspace = true }
+aws-types = { workspace = true }
+reqwest = { workspace = true }
+
+[lints]
+workspace = true

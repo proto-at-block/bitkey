@@ -40,6 +40,7 @@ import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
+import build.wallet.statemachine.settings.SettingsAppSegment
 import build.wallet.statemachine.settings.full.device.wipedevice.ScanDeviceToWipeSheetBodyModel
 import build.wallet.statemachine.settings.full.device.wipedevice.WipeContext
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceEventTrackerScreenId
@@ -415,7 +416,7 @@ class WipingDeviceIntroUiStateMachineImpl(
     account: FullAccount,
   ): String? {
     return try {
-      getInitialSpendingKey(session, account.config.bitcoinNetworkType)
+      getInitialSpendingPublicKey(session, account.config.bitcoinNetworkType)
         .key
         .origin
         .fingerprint
@@ -561,6 +562,11 @@ class WipingDeviceIntroUiStateMachineImpl(
       subline = "This Bitkey is already wiped or hasn’t been set up.",
       primaryButton = ButtonDataModel("Done", onClick = onDone),
       onBack = onDone,
+      errorData = ErrorData(
+        segment = SettingsAppSegment.Device,
+        actionDescription = "Preparing device wipe",
+        cause = IllegalStateException("Bitkey device is already wiped or not set up")
+      ),
       eventTrackerScreenId =
         WipingDeviceEventTrackerScreenId.RESET_DEVICE_OLD_DEVICE_ALREADY_WIPED_OR_NOT_SET_UP
     ).asScreen(ScreenPresentationStyle.Modal)

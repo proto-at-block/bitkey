@@ -34,21 +34,16 @@ class RemoveTrustedContactUiStateMachineImpl(
   override fun model(props: RemoveTrustedContactUiProps): ScreenModel {
     var state: State by remember { mutableStateOf(State.RemoveRequestState) }
 
-    val isExpiredInvitation =
-      if (props.trustedContact is Invitation) {
-        props.trustedContact.isExpired(clock)
-      } else {
-        false
-      }
+    val isExpiredInvitation = (props.trustedContact as? Invitation)?.isExpired(clock) == true
 
     val isBeneficiary = props.trustedContact.roles.contains(TrustedContactRole.Beneficiary)
     val actionDescription = if (isBeneficiary) "Removing Beneficiary" else "Removing Recovery Contact"
+    val removalContext = props.trustedContact.removalContext(isExpiredInvitation)
 
     return when (val current = state) {
       is State.RemoveRequestState ->
         RemoveTrustedContactBodyModel(
           trustedContactAlias = props.trustedContact.trustedContactAlias,
-          isExpiredInvitation = isExpiredInvitation,
           onRemove = {
             // For removing expired invitations we don't need to scan hardware
             state =
@@ -59,7 +54,8 @@ class RemoveTrustedContactUiStateMachineImpl(
               }
           },
           onClosed = props.onClosed,
-          isBeneficiary = isBeneficiary
+          isBeneficiary = isBeneficiary,
+          removalContext = removalContext
         ).asModalScreen()
 
       is State.ScanningHardwareState ->
@@ -67,9 +63,9 @@ class RemoveTrustedContactUiStateMachineImpl(
           HardwareAuthUiProps(
             account = props.account,
             actionProofType = if (isBeneficiary) {
-              ActionProofType.RemoveBeneficiary(entityId = props.trustedContact.relationshipId, name = props.trustedContact.trustedContactAlias.alias)
+              ActionProofType.RemoveBeneficiary(entityId = props.trustedContact.id.value, name = props.trustedContact.trustedContactAlias.alias)
             } else {
-              ActionProofType.RemoveRecoveryContact(entityId = props.trustedContact.relationshipId, name = props.trustedContact.trustedContactAlias.alias)
+              ActionProofType.RemoveRecoveryContact(entityId = props.trustedContact.id.value, name = props.trustedContact.trustedContactAlias.alias)
             },
             segment = RecoverySegment.SocRec.ProtectedCustomer.Setup,
             actionDescription = actionDescription,
@@ -89,7 +85,7 @@ class RemoveTrustedContactUiStateMachineImpl(
             account = props.account,
             proof = current.proof,
             authTokenScope = AuthTokenScope.Global,
-            relationshipId = props.trustedContact.relationshipId
+            relationshipId = props.trustedContact.id.value
           ).onSuccess {
             props.onClosed()
           }.onFailure {

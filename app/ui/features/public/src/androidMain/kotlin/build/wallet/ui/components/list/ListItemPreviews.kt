@@ -13,6 +13,7 @@ import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize.Small
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.list.CoachmarkLabelModel
+import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.list.ListItemTitleBackgroundTreatment
 import build.wallet.ui.model.list.ListItemTreatment.PRIMARY_TITLE
@@ -75,14 +76,14 @@ internal fun ListItemWithSpecialTrailingAccessoryPreview() {
         build.wallet.ui.model.list.ListItemAccessory.IconAccessory(
           model =
             IconModel(
-              icon = Icon.SmallIconCloud,
+              icon = Icon.Cloud,
               iconSize = Small
             )
         ),
       trailingAccessory = build.wallet.ui.model.list.ListItemAccessory.drillIcon(),
       specialTrailingAccessory = build.wallet.ui.model.list.ListItemAccessory.IconAccessory(
         model = IconModel(
-          icon = Icon.SmallIconInformation,
+          icon = Icon.Information,
           iconSize = Small,
           iconTint = IconTint.Warning
         )
@@ -102,7 +103,7 @@ internal fun ListItemWithNewCoachmark() {
         build.wallet.ui.model.list.ListItemAccessory.IconAccessory(
           model =
             IconModel(
-              icon = Icon.SmallIconCloud,
+              icon = Icon.Cloud,
               iconSize = Small
             )
         ),
@@ -110,7 +111,7 @@ internal fun ListItemWithNewCoachmark() {
       trailingAccessory = build.wallet.ui.model.list.ListItemAccessory.drillIcon(),
       specialTrailingAccessory = build.wallet.ui.model.list.ListItemAccessory.IconAccessory(
         model = IconModel(
-          icon = Icon.SmallIconInformation,
+          icon = Icon.Information,
           iconSize = Small,
           iconTint = IconTint.Warning
         )
@@ -322,7 +323,7 @@ internal fun ListItemWithCheckboxChecked() {
     ListItem(
       title = "Selected Item",
       secondaryText = "Checkbox is checked",
-      trailingAccessory = build.wallet.ui.model.list.ListItemAccessory.CheckAccessory(isChecked = true),
+      trailingAccessory = ListItemAccessory.CheckboxAccessory(isChecked = true, onClick = {}),
       onClick = {}
     )
   }
@@ -335,7 +336,7 @@ internal fun ListItemWithCheckboxUnchecked() {
     ListItem(
       title = "Unselected Item",
       secondaryText = "Checkbox is unchecked",
-      trailingAccessory = build.wallet.ui.model.list.ListItemAccessory.CheckAccessory(isChecked = false),
+      trailingAccessory = ListItemAccessory.CheckboxAccessory(isChecked = false, onClick = {}),
       onClick = {}
     )
   }

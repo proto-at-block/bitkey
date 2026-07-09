@@ -4,6 +4,9 @@ import bitkey.account.HardwareType
 import bitkey.auth.AuthTokenScope.Global
 import bitkey.auth.AuthTokenScope.Recovery
 import bitkey.backup.DescriptorBackup
+import bitkey.f8e.error.F8eError
+import bitkey.f8e.error.code.HardwareAuthKeyAvailabilityErrorCode
+import bitkey.f8e.error.code.HardwareAuthKeyAvailabilityErrorCode.HW_AUTH_PUBKEY_IN_USE
 import bitkey.recovery.DescriptorBackupService
 import bitkey.recovery.DescriptorBackupVerificationDao
 import bitkey.recovery.VerifiedBackup
@@ -17,7 +20,9 @@ import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.isPrivateWallet
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
+import build.wallet.bitkey.hardware.usableOrNull
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.keybox.withNewSpendingKeyset
 import build.wallet.bitkey.spending.SpendingKeyset
@@ -34,6 +39,8 @@ import build.wallet.f8e.auth.AuthF8eClient
 import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.onboarding.CreateAccountKeysetV2F8eClient
 import build.wallet.f8e.onboarding.SetActiveSpendingKeysetF8eClient
+import build.wallet.f8e.recovery.HardwareAuthKeyAvailabilityF8eClient
+import build.wallet.f8e.recovery.HardwareAuthKeyAvailabilityStatus as F8eHardwareAuthKeyAvailabilityStatus
 import build.wallet.f8e.recovery.LegacyRemoteKeyset
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.f8e.recovery.RotateAuthKeysF8eClient
@@ -83,6 +90,7 @@ class MigrationServiceImpl(
   private val listKeysetsF8eClient: ListKeysetsF8eClient,
   private val setActiveSpendingKeysetF8eClient: SetActiveSpendingKeysetF8eClient,
   private val rotateAuthKeysF8eClient: RotateAuthKeysF8eClient,
+  private val hardwareAuthKeyAvailabilityF8eClient: HardwareAuthKeyAvailabilityF8eClient,
   private val sweepService: SweepService,
   private val delegatedDecryptionKeyService: DelegatedDecryptionKeyService,
   private val relationshipsService: RelationshipsService,
@@ -252,13 +260,14 @@ class MigrationServiceImpl(
   private suspend fun saveHardwareKey(
     type: MigrationType,
     hwKey: HwSpendingPublicKey,
+    hwKeyProof: HwSpendingKeyProof?,
   ): Result<Unit, MigrationError> {
     return when (type) {
       MigrationType.PrivateWalletMigration ->
-        privateWalletMigrationDao.saveHardwareKey(hwKey)
+        privateWalletMigrationDao.saveHardwareKey(hwKey, hwKeyProof)
           .mapError { MigrationError.StatePersistenceFailed(it) }
       MigrationType.W3Upgrade ->
-        w3UpgradeDao.saveHardwareKey(hwKey)
+        w3UpgradeDao.saveHardwareKey(hwKey, hwKeyProof)
           .mapError { MigrationError.StatePersistenceFailed(it) }
     }
   }
@@ -402,7 +411,7 @@ class MigrationServiceImpl(
     }
   }
 
-  private suspend fun handleNotStarted(
+  private fun handleNotStarted(
     @Suppress("UnusedParameter")
     state: MigrationProgress.NotStarted,
   ): Result<MigrationProgress, MigrationError> {
@@ -424,6 +433,7 @@ class MigrationServiceImpl(
     return coroutineBinding {
       val account = getActiveFullAccount().bind()
       val existingHwKey: HwSpendingPublicKey?
+      val existingHwKeyProof: HwSpendingKeyProof?
       val existingAppKey: AppSpendingPublicKey?
       val existingServerKey: F8eSpendingKeyset?
       val existingKeysetLocalId: String?
@@ -434,6 +444,7 @@ class MigrationServiceImpl(
             .mapError { MigrationError.StatePersistenceFailed(it) }
             .bind()
           existingHwKey = entity?.newHardwareKey
+          existingHwKeyProof = entity?.newHardwareKeyProof
           existingAppKey = entity?.newAppKey
           existingServerKey = entity?.newServerKey
           existingKeysetLocalId = entity?.keysetLocalId
@@ -444,21 +455,27 @@ class MigrationServiceImpl(
             .mapError { MigrationError.StatePersistenceFailed(it) }
             .bind()
           existingHwKey = entity?.newHardwareKey
+          existingHwKeyProof = entity?.newHardwareKeyProof
           existingAppKey = entity?.newAppKey
           existingServerKey = entity?.newServerKey
           existingKeysetLocalId = entity?.keysetLocalId
         }
       }
 
-      // Get hardware key - prefer saved state for resumption, otherwise use the one passed in
+      // Get hardware key - prefer saved state for resumption, otherwise use the one passed in.
+      // Persist the (key, proof) pair incrementally for both migration types so that if the
+      // process dies between the NFC tap and createKeyset returning, resume still has the
+      // attestation values needed to authenticate against the server.
       val hwSpendingKey = existingHwKey ?: state.newHwSpendingKey.also {
-        if (state is MigrationProgress.CreateNewKeyset.PrivateWalletMigration) {
-          // Private-wallet migrations still persist this step incrementally until the shared
-          // create-keyset checkpoint is revisited there as well.
-          saveHardwareKey(state.type, it).bind()
-          logInfo { "Saved new hardware key" }
-        }
+        saveHardwareKey(state.type, it, state.newHwSpendingKeyProof).bind()
+        logInfo { "Saved new hardware key" }
       }
+      // Prefer the persisted attestation proof on resume so we still send a valid signature
+      // after restart; fall back to the in-memory value from the current NFC tap. The
+      // `usableOrNull` drops an empty-sentinel proof that the column adapter may have
+      // returned when a row was corrupt.
+      val hwSpendingKeyProof =
+        existingHwKeyProof.usableOrNull() ?: state.newHwSpendingKeyProof.usableOrNull()
 
       // Generate new app spending key if not already saved
       val appKeyBundle = if (existingAppKey != null) {
@@ -476,7 +493,9 @@ class MigrationServiceImpl(
           }
       }
 
-      val appSpendingKey = existingAppKey ?: appKeyBundle!!.spendingKey
+      val appSpendingKey = existingAppKey
+        ?: checkNotNull(appKeyBundle) { "App key bundle must be generated when no existing app key" }
+          .spendingKey
 
       // Create server keyset if not already saved
       val (serverKeyset, keysetLocalId) = if (existingServerKey != null && existingKeysetLocalId != null) {
@@ -489,7 +508,8 @@ class MigrationServiceImpl(
           hardwareSpendingKey = hwSpendingKey,
           appSpendingKey = appSpendingKey,
           network = account.keybox.config.bitcoinNetworkType,
-          appAuthKey = account.keybox.activeAppKeyBundle.authKey
+          appAuthKey = account.keybox.activeAppKeyBundle.authKey,
+          hardwareSpendingKeyProof = hwSpendingKeyProof
         )
           .mapError { MigrationError.ServerKeysetCreationFailed(it) }
           .bind()
@@ -1375,6 +1395,20 @@ class MigrationServiceImpl(
       }
   }
 
+  override suspend fun checkW3UpgradeHardwareAuthKeyAvailability(
+    account: FullAccount,
+    hwAuthPublicKey: HwAuthPublicKey,
+  ): Result<HardwareAuthKeyAvailabilityStatus, MigrationError> {
+    return hardwareAuthKeyAvailabilityF8eClient.checkAvailability(
+      f8eEnvironment = account.config.f8eEnvironment,
+      fullAccountId = account.accountId,
+      hardwareAuthPublicKey = hwAuthPublicKey,
+      appAuthKey = account.keybox.activeAppKeyBundle.authKey
+    )
+      .map { it.toMigrationStatus() }
+      .mapError { it.toMigrationError() }
+  }
+
   override suspend fun clearMigration(type: MigrationType) {
     when (type) {
       MigrationType.PrivateWalletMigration -> privateWalletMigrationDao.clear()
@@ -1412,3 +1446,23 @@ class MigrationServiceImpl(
     return descriptorBackups.map { it.keysetId }.toSet() - localKeysetIds
   }
 }
+
+private fun F8eHardwareAuthKeyAvailabilityStatus.toMigrationStatus():
+  HardwareAuthKeyAvailabilityStatus =
+  when (this) {
+    F8eHardwareAuthKeyAvailabilityStatus.Available ->
+      HardwareAuthKeyAvailabilityStatus.Available
+    F8eHardwareAuthKeyAvailabilityStatus.ClaimedByCurrentAccount ->
+      HardwareAuthKeyAvailabilityStatus.ClaimedByCurrentAccount
+    F8eHardwareAuthKeyAvailabilityStatus.ActiveOnCurrentAccount ->
+      HardwareAuthKeyAvailabilityStatus.ActiveOnCurrentAccount
+  }
+
+private fun F8eError<HardwareAuthKeyAvailabilityErrorCode>.toMigrationError(): MigrationError =
+  when (this) {
+    is F8eError.SpecificClientError<HardwareAuthKeyAvailabilityErrorCode> ->
+      when (errorCode) {
+        HW_AUTH_PUBKEY_IN_USE -> MigrationError.HardwareAuthKeyAlreadyInUse(error)
+      }
+    else -> MigrationError.HardwareAuthKeyAvailabilityCheckFailed(error)
+  }

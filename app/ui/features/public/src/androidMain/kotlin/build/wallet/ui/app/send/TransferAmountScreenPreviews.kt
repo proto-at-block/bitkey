@@ -2,7 +2,7 @@ package build.wallet.ui.app.send
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
-import build.wallet.statemachine.core.Icon.SmallIconBitkey
+import build.wallet.statemachine.core.Icon.Bitkey
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.LabelModel.Color.ON60
 import build.wallet.statemachine.keypad.KeypadModel
@@ -92,7 +92,7 @@ fun TransferAmountScreenWithBannerPreview() {
               substringToColor = emptyMap()
             ),
           subtitle = null,
-          leadingImage = CardModel.CardImage.StaticImage(SmallIconBitkey),
+          leadingImage = CardModel.CardImage.StaticImage(Bitkey),
           content = null,
           style = Outline()
         ),
@@ -131,7 +131,7 @@ fun TransferAmountScreenWithSmartBarPreview() {
               substringToColor = emptyMap()
             ),
           subtitle = null,
-          leadingImage = CardModel.CardImage.StaticImage(SmallIconBitkey),
+          leadingImage = CardModel.CardImage.StaticImage(Bitkey),
           content = null,
           style = Outline()
         ),
@@ -194,38 +194,7 @@ fun TransferAmountScreenWithEqualOrMoreBannerPreview() {
 
 @Preview
 @Composable
-fun TransferAmountScreenNoEntryDesignSystemV2Preview() {
-  PreviewWalletTheme(
-    backgroundColor = lightStyleDictionaryColors.subtleBackground
-  ) {
-    TransferAmountScreen(
-      model = TransferAmountBodyModel(
-        onBack = {},
-        balanceTitle = "$961.24 available",
-        amountModel =
-          MoneyAmountEntryModel(
-            primaryAmount = "$0.00",
-            primaryAmountGhostedSubstringRange = null,
-            secondaryAmount = "0 sats"
-          ),
-        keypadModel =
-          KeypadModel(
-            showDecimal = true,
-            onButtonPress = {}
-          ),
-        cardModel = null,
-        continueButtonEnabled = true,
-        amountDisabled = false,
-        onContinueClick = {},
-        onSwapCurrencyClick = {}
-      )
-    )
-  }
-}
-
-@Preview
-@Composable
-fun TransferAmountScreenDesignSystemV2Preview() {
+fun TransferAmountScreenPreview() {
   PreviewWalletTheme(
     backgroundColor = lightStyleDictionaryColors.subtleBackground
   ) {
@@ -246,7 +215,7 @@ fun TransferAmountScreenDesignSystemV2Preview() {
               substringToColor = emptyMap()
             ),
           subtitle = null,
-          leadingImage = CardModel.CardImage.StaticImage(SmallIconBitkey),
+          leadingImage = CardModel.CardImage.StaticImage(Bitkey),
           content = null,
           style = Outline()
         ),

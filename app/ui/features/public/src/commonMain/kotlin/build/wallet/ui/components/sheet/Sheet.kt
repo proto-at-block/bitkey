@@ -12,6 +12,7 @@ import androidx.compose.material3.SheetState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -19,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.statemachine.core.SheetDragHandleTreatment
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.SheetSize
 import build.wallet.statemachine.core.SheetSize.MIN40
@@ -38,6 +40,7 @@ fun Sheet(
 ) {
   Sheet(
     modifier = modifier,
+    dragHandleTreatment = model.dragHandleTreatment,
     size = model.size,
     sheetState = sheetState,
     onClosed = model.onClosed,
@@ -50,6 +53,7 @@ fun Sheet(
 @Composable
 fun Sheet(
   modifier: Modifier = Modifier,
+  dragHandleTreatment: SheetDragHandleTreatment = SheetDragHandleTreatment.STANDARD,
   size: SheetSize = SheetSize.DEFAULT,
   sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
   onClosed: () -> Unit,
@@ -61,6 +65,7 @@ fun Sheet(
     SheetLayout(
       modifier = modifier,
       containerColor = WalletTheme.colors.background,
+      dragHandleTreatment = dragHandleTreatment,
       size = size,
       onClosed = onClosed,
       sheetState = sheetState,
@@ -74,6 +79,7 @@ fun Sheet(
 private fun SheetLayout(
   modifier: Modifier = Modifier,
   containerColor: Color = WalletTheme.colors.background,
+  dragHandleTreatment: SheetDragHandleTreatment,
   size: SheetSize,
   sheetState: SheetState,
   onClosed: () -> Unit,
@@ -83,8 +89,8 @@ private fun SheetLayout(
   val coroutineScope = rememberStableCoroutineScope()
 
   val sheetShape = RoundedCornerShape(
-    topStart = sheetCornerRadius,
-    topEnd = sheetCornerRadius
+    topStart = SheetCornerRadius,
+    topEnd = SheetCornerRadius
   )
 
   MaterialBottomSheet(
@@ -104,13 +110,18 @@ private fun SheetLayout(
       },
     sheetState = sheetState,
     shape = sheetShape,
-    dragHandle = {
-      DragHandle(Modifier.padding(top = 12.dp, bottom = 16.dp))
+    dragHandle = if (dragHandleTreatment == SheetDragHandleTreatment.STANDARD) {
+      { DragHandle(Modifier.padding(top = 12.dp, bottom = 16.dp)) }
+    } else {
+      null
     },
     tonalElevation = sheetElevation,
     content = {
-      Column(
+      Box(
         modifier = Modifier
+          .thenIf(dragHandleTreatment == SheetDragHandleTreatment.OVERLAY) {
+            Modifier.clip(sheetShape)
+          }
           .animateContentSize(
             alignment = Alignment.Center,
             animationSpec = spring(
@@ -119,7 +130,17 @@ private fun SheetLayout(
             )
           )
       ) {
-        sheetContent()
+        Column {
+          sheetContent()
+        }
+
+        if (dragHandleTreatment == SheetDragHandleTreatment.OVERLAY) {
+          DragHandle(
+            modifier = Modifier
+              .align(Alignment.TopCenter)
+              .padding(top = 12.dp)
+          )
+        }
       }
     },
     scrimColor = WalletTheme.colors.mask,
@@ -127,7 +148,7 @@ private fun SheetLayout(
   )
 }
 
-private val sheetCornerRadius = 32.dp
+internal val SheetCornerRadius = 32.dp
 private val sheetElevation = 24.dp
 
 /**

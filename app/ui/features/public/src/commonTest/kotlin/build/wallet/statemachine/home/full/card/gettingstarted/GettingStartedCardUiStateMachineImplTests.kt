@@ -50,8 +50,6 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
   val onAddBitcoinCalls = turbines.create<Unit>("add bitcoin calls")
   val onEnableSpendingLimitCalls = turbines.create<Unit>("enable spending limit calls")
   val onUpdateFirmwareCalls = turbines.create<Unit>("update firmware calls")
-  val onInviteTrustedContactCalls = turbines.create<Unit>("invite trusted contact calls")
-  val onAddAdditionalFingerprintCalls = turbines.create<Unit>("add additional fingerprint calls")
 
   val appFunctionalityService = AppFunctionalityServiceFake()
   val gettingStartedTaskDao =
@@ -170,7 +168,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
         firmwareItem.leadingAccessory.shouldNotBeNull()
           .shouldBeTypeOf<ListItemAccessory.IconAccessory>()
           .model.iconImage.shouldBeTypeOf<IconImage.LocalImage>()
-          .icon.shouldBe(SmallIconBitkey)
+          .icon.shouldBe(Bitkey)
       }
 
       gettingStartedTaskDao.addTasks(
@@ -409,8 +407,8 @@ private fun CardModel.expectTaskModelWithEnabled(
           Complete -> SmallIconCheckFilled
           Incomplete ->
             when (task.id) {
-              EnableSpendingLimit -> SmallIconMobileLimit
-              AddBitcoin -> SmallIconPlus
+              EnableSpendingLimit -> MobileLimit
+              AddBitcoin -> Plus
             }
         }
       )
@@ -443,7 +441,7 @@ private fun CardModel.expectTaskModelWithEnabled(
             }
         }
       )
-    tile.leadingIcon?.iconTint.shouldBe(
+    tile.leadingIcon.iconTint.shouldBe(
       when (task.state) {
         Complete -> IconTint.On60
         Incomplete ->

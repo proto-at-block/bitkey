@@ -17,7 +17,6 @@ class StartFingerprintEnrollmentInstructionsSnapshots : FunSpec({
             onBack = {},
             onButtonClick = {},
             isNavigatingBack = false,
-            isDesignSystemV2Enabled = true,
             eventTrackerScreenIdContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
           )
       )

@@ -5,6 +5,7 @@ import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel.StringModel
@@ -18,6 +19,7 @@ import build.wallet.statemachine.core.form.FormMainContentModel.Explainer.Statem
 import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput
 import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput.ResendCodeContent
 import build.wallet.statemachine.core.form.RenderContext.Sheet
+import build.wallet.statemachine.notifications.NotificationsAppSegment
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.input.TextFieldModel.KeyboardType.Number
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
@@ -90,7 +92,7 @@ data class VerificationCodeInputFormBodyModel(
               items =
                 immutableListOf(
                   Statement(
-                    leadingIcon = Icon.SmallIconInformation,
+                    leadingIcon = Icon.Information,
                     leadingContentTopPaddingDp = 2,
                     leadingContentSpacingDp = 12,
                     title = null,
@@ -119,6 +121,11 @@ fun ResendCodeErrorSheet(
         },
       primaryButton = ButtonDataModel("Done", onClick = onDismiss),
       renderContext = Sheet,
-      eventTrackerScreenId = NotificationsEventTrackerScreenId.RESEND_CODE_ERROR_SHEET
+      eventTrackerScreenId = NotificationsEventTrackerScreenId.RESEND_CODE_ERROR_SHEET,
+      errorData = ErrorData(
+        segment = NotificationsAppSegment,
+        actionDescription = "Resending notification verification code",
+        cause = IllegalStateException("Failed to resend notification verification code")
+      )
     )
 )

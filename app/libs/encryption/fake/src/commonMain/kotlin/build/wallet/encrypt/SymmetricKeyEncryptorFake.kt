@@ -15,6 +15,7 @@ class SymmetricKeyEncryptorFake : SymmetricKeyEncryptor {
     private set
 
   @OptIn(PrivateData::class)
+  @Deprecated("use #seal instead")
   override fun sealNoMetadata(
     unsealedData: ByteString,
     key: SymmetricKey,

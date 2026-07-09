@@ -22,11 +22,6 @@ import kotlin.math.absoluteValue
 internal class AnimatedAmountTextView(
   context: Context,
 ) : View(context) {
-  enum class AnimationDirection {
-    Increase,
-    Decrease,
-  }
-
   data class Amount(
     val text: String,
     val value: Long,
@@ -202,12 +197,11 @@ internal class AnimatedAmountTextView(
   private fun animationDirectionFor(
     current: AnimatedText,
     next: AnimatedText,
-  ): AnimationDirection {
-    return if ((next.value ?: 0L) > (current.value ?: 0L)) {
-      AnimationDirection.Increase
-    } else {
-      AnimationDirection.Decrease
-    }
+  ): AnimatedAmountDirection {
+    return animatedAmountDirectionFor(
+      previousValue = current.value ?: 0L,
+      currentValue = next.value ?: 0L
+    )
   }
 
   private fun coalesceIntermediateTexts(): Boolean {
@@ -365,7 +359,7 @@ internal class AnimatedAmountTextView(
     private var drawStaticCharacters = true
     private var enterAnimator: ValueAnimator? = null
     private var exitAnimator: ValueAnimator? = null
-    private var animationDirection = AnimationDirection.Increase
+    private var animationDirection = AnimatedAmountDirection.Increase
 
     fun width(): Float = textWidth
 
@@ -503,13 +497,13 @@ internal class AnimatedAmountTextView(
         } else {
           calculateEnterTranslation(enterTimeForIndex)
         }
-      if (animationDirection == AnimationDirection.Decrease) {
+      if (animationDirection == AnimatedAmountDirection.Decrease) {
         yTranslation = -yTranslation
       }
       return CharacterDrawState(alpha = alpha, yTranslation = yTranslation)
     }
 
-    fun enter(animationDirection: AnimationDirection) {
+    fun enter(animationDirection: AnimatedAmountDirection) {
       val resolvedText = text ?: return
       this.animationDirection = animationDirection
       if (animatedCharacterCount(resolvedText) == 0) {
@@ -526,7 +520,7 @@ internal class AnimatedAmountTextView(
     }
 
     fun exit(
-      animationDirection: AnimationDirection,
+      animationDirection: AnimatedAmountDirection,
       onComplete: (AnimatedText) -> Unit,
     ) {
       val resolvedText = text

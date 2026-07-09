@@ -3,6 +3,7 @@ package build.wallet.integration.statemachine.recovery.socrec.add
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.bitkey.relationships.Invitation
 import build.wallet.bitkey.relationships.OutgoingInvitation
+import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.bitkey.relationships.TrustedContactAlias
 import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.coroutines.turbine.turbines
@@ -46,7 +47,7 @@ class AddingTrustedContactFunctionalTests : FunSpec({
       Ok(
         OutgoingInvitation(
           Invitation(
-            "test-id",
+            RelationshipId("test-id"),
             alias,
             setOf(TrustedContactRole.SocialRecoveryContact),
             "test-token",

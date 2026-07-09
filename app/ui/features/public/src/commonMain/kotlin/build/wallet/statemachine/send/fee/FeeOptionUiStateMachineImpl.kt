@@ -26,7 +26,7 @@ class FeeOptionUiStateMachineImpl(
           fromAmount = props.feeAmount,
           toCurrency = props.fiatCurrency,
           rates = props.exchangeRates
-        ).let { moneyDisplayFormatter.format(it) }
+        ).let { fiatAmount -> moneyDisplayFormatter.format(fiatAmount) }
       }
 
     val optionEnabled =

@@ -16,12 +16,10 @@ import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize.Avatar
 import build.wallet.ui.model.icon.IconSize.Regular
-import build.wallet.ui.model.icon.IconSize.Small
 import build.wallet.ui.model.icon.IconTint.Foreground
 import build.wallet.ui.model.icon.IconTint.On30
 import build.wallet.ui.model.list.*
 import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
-import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.QuestionAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
@@ -35,7 +33,6 @@ fun RecoveryChannelsSettingsFormBodyModel(
   onBack: (() -> Unit)?,
   learnOnClick: (() -> Unit),
   continueOnClick: (() -> Unit)?,
-  isDesignSystemV2Enabled: Boolean = false,
   bottomSheetModel: SheetModel?,
   alertModel: ButtonAlertModel? = null,
 ) = ScreenModel(
@@ -48,8 +45,7 @@ fun RecoveryChannelsSettingsFormBodyModel(
     emailItem = emailItem,
     onBack = onBack,
     learnOnClick = learnOnClick,
-    continueOnClick = continueOnClick,
-    isDesignSystemV2Enabled = isDesignSystemV2Enabled
+    continueOnClick = continueOnClick
   ),
   presentationStyle = ScreenPresentationStyle.Root,
   alertModel = alertModel
@@ -64,7 +60,6 @@ data class RecoveryChannelsSettingsFormBodyModel(
   override val onBack: (() -> Unit)?,
   val learnOnClick: (() -> Unit),
   val continueOnClick: (() -> Unit)?,
-  val isDesignSystemV2Enabled: Boolean = false,
 ) : FormBodyModel(
     id = NotificationsEventTrackerScreenId.RECOVERY_CHANNELS_SETTINGS,
     onBack = onBack,
@@ -120,15 +115,13 @@ data class RecoveryChannelsSettingsFormBodyModel(
                 immutableListOf(
                   createListItem(
                     itemModel = emailItem,
-                    icon = if (isDesignSystemV2Enabled) DotNotifyEmail else SmallIconEmail,
-                    isDesignSystemV2Enabled = isDesignSystemV2Enabled,
+                    icon = DotNotifyEmail,
                     title = "Email",
                     secondaryText = emailItem.displayValue ?: "Required"
                   ),
                   createListItem(
                     itemModel = smsItem,
-                    icon = if (isDesignSystemV2Enabled) DotNotifySms else SmallIconMessage,
-                    isDesignSystemV2Enabled = isDesignSystemV2Enabled,
+                    icon = DotNotifySms,
                     title = "SMS",
                     secondaryText = when (smsItem.enabled) {
                       EnabledState.Loading -> ""
@@ -138,8 +131,7 @@ data class RecoveryChannelsSettingsFormBodyModel(
                   ),
                   createListItem(
                     itemModel = pushItem,
-                    icon = if (isDesignSystemV2Enabled) DotNotifyPush else SmallIconNotification,
-                    isDesignSystemV2Enabled = isDesignSystemV2Enabled,
+                    icon = DotNotifyPush,
                     title = "Push notifications",
                     secondaryText = when (pushItem.enabled) {
                       EnabledState.Loading -> ""
@@ -168,12 +160,11 @@ data class RecoveryChannelsSettingsFormBodyModel(
         learnOnClick()
       }
     ).takeIf { source == Source.InheritanceStartClaim }
-)
+  )
 
 private fun createListItem(
   itemModel: RecoveryChannelsSettingsFormItemModel,
   icon: Icon,
-  isDesignSystemV2Enabled: Boolean,
   title: String,
   secondaryText: String,
 ) = with(itemModel) {
@@ -183,8 +174,8 @@ private fun createListItem(
         model =
           IconModel(
             icon = icon,
-            iconTint = if (isDesignSystemV2Enabled) Foreground else On30,
-            iconSize = if (isDesignSystemV2Enabled) Regular else Small
+            iconTint = Foreground,
+            iconSize = Regular
           )
       ),
     title = title,
@@ -215,7 +206,7 @@ private fun createSheetFormHeader(
     ),
     headline = headline,
     sublineModel = LabelModel.StringWithStyledSubstringModel.from(
-      string = subline ?: "",
+      string = subline.orEmpty(),
       substringToColor = emptyMap()
     ).takeIf { subline != null },
     alignment = FormHeaderModel.Alignment.LEADING
@@ -235,7 +226,7 @@ private data class NetworkingErrorBodyModel(
 ) : FormBodyModel(
     id = NotificationsEventTrackerScreenId.RECOVERY_CHANNELS_SETTINGS_NETWORKING_ERROR_SHEET,
     header = FormHeaderModel(
-      icon = LargeIconNetworkError,
+      icon = NetworkError,
       headline = "A networking error has occurred. Please try again.",
       subline = networkingError.message,
       alignment = FormHeaderModel.Alignment.LEADING
@@ -271,7 +262,7 @@ private data class PushToggleFormBodyModel(
 ) : FormBodyModel(
     id = NotificationsEventTrackerScreenId.RECOVERY_CHANNELS_SETTINGS_PUSH_TOGGLE_SHEET,
     header = createSheetFormHeader(
-      icon = SmallIconNotification,
+      icon = Notification,
       headline = "Edit push notifications ${if (source == Source.InheritanceStartClaim) "alerts" else "recovery"}"
     ),
     onBack = onCancel,
@@ -330,7 +321,7 @@ private data class SMSEditFormBodyModel(
 ) : FormBodyModel(
     id = NotificationsEventTrackerScreenId.RECOVERY_CHANNELS_SETTINGS_SMS_EDIT_SHEET,
     header = createSheetFormHeader(
-      icon = SmallIconMessage,
+      icon = Message,
       headline = "Edit SMS ${if (source == Source.InheritanceStartClaim) "alerts" else "recovery"}",
       subline = "You can use a different phone number or disable it entirely."
     ),
@@ -383,7 +374,7 @@ private data class SMSNonUSBodyModel(
 ) : FormBodyModel(
     id = NotificationsEventTrackerScreenId.RECOVERY_CHANNELS_SETTINGS_SMS_NON_US_SHEET,
     header = createSheetFormHeader(
-      icon = SmallIconMessage,
+      icon = Message,
       headline = "SMS updates are not available with US numbers",
       subline = "If you’d like to add SMS as ${if (source == Source.InheritanceStartClaim) "an alert" else "a recovery"} method, you’ll need to use a non-US phone number."
     ),

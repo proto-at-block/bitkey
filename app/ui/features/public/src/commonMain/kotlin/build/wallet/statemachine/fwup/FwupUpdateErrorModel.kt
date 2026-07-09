@@ -6,6 +6,7 @@ import build.wallet.nfc.NfcException
 import build.wallet.platform.device.DeviceInfo
 import build.wallet.platform.device.DevicePlatform.IOS
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBottomSheetModel
 import build.wallet.statemachine.core.SheetModel
 
@@ -23,14 +24,15 @@ fun FwupUpdateErrorModel(
 ): SheetModel {
   val errorMessage = fwupErrorMessage(error, wasInProgress)
   return if (wasInProgress) {
-    InProgressFwupUpdateErrorModel(errorMessage, deviceInfo, onClosed, onRelaunchFwup)
+    InProgressFwupUpdateErrorModel(errorMessage, error, deviceInfo, onClosed, onRelaunchFwup)
   } else {
-    NotInProgressFwupUpdateErrorModel(errorMessage, deviceInfo, onClosed)
+    NotInProgressFwupUpdateErrorModel(errorMessage, error, deviceInfo, onClosed)
   }
 }
 
 private fun InProgressFwupUpdateErrorModel(
   errorMessage: FwupErrorMessage,
+  error: NfcException,
   deviceInfo: DeviceInfo,
   onClosed: () -> Unit,
   onRelaunchFwup: () -> Unit,
@@ -51,12 +53,14 @@ private fun InProgressFwupUpdateErrorModel(
         IOS -> ButtonDataModel(text = "Continue", onClick = onRelaunchFwup)
         else -> ButtonDataModel(text = "Got it", onClick = onClosed)
       },
+    errorData = fwupUpdateErrorData(error),
     eventTrackerScreenId = FwupEventTrackerScreenId.FWUP_UPDATE_ERROR_SHEET
   )
 }
 
 private fun NotInProgressFwupUpdateErrorModel(
   errorMessage: FwupErrorMessage,
+  error: NfcException,
   deviceInfo: DeviceInfo,
   onClosed: () -> Unit,
 ): SheetModel {
@@ -71,9 +75,17 @@ private fun NotInProgressFwupUpdateErrorModel(
     title = errorMessage.title,
     subline = subline,
     primaryButton = ButtonDataModel(text = "Got it", onClick = onClosed),
+    errorData = fwupUpdateErrorData(error),
     eventTrackerScreenId = FwupEventTrackerScreenId.FWUP_UPDATE_ERROR_SHEET
   )
 }
+
+private fun fwupUpdateErrorData(error: NfcException) =
+  ErrorData(
+    segment = FwupSegment(),
+    actionDescription = "Updating firmware",
+    cause = error
+  )
 
 /**
  * Builds the subline text, optionally appending a resume prompt (for in-progress updates)

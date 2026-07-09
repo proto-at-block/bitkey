@@ -21,26 +21,14 @@ import build.wallet.ui.components.loading.LoadingBadgePainter
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tokens.market.painter
 import build.wallet.ui.tokens.painter
 import build.wallet.ui.tooling.LocalIsPreviewTheme
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun StepperIndicator(model: FormMainContentModel.StepperIndicator) {
-  val isDesignSystemV2Enabled = true
-  val highlightedStepColor =
-    if (isDesignSystemV2Enabled) {
-      WalletTheme.colors.inverseBackground
-    } else {
-      WalletTheme.colors.bitkeyPrimary
-    }
-  val upcomingStepColor =
-    if (isDesignSystemV2Enabled) {
-      WalletTheme.colors.subtleBackground
-    } else {
-      WalletTheme.colors.stepperIncomplete
-    }
+  val highlightedStepColor = WalletTheme.colors.inverseBackground
+  val upcomingStepColor = WalletTheme.colors.subtleBackground
 
   val stepData = model.steps.map { step ->
     val circleColor = when (step.style) {
@@ -52,7 +40,6 @@ fun StepperIndicator(model: FormMainContentModel.StepperIndicator) {
     val painter = when (step.icon) {
       is IconImage.DrawableResourceImage -> painterResource(step.icon.resource)
       is IconImage.LocalImage -> step.icon.icon.painter()
-      is IconImage.MarketIconImage -> step.icon.icon.painter()
       is IconImage.UrlImage -> TODO("UrlImage is not currently supported")
       null -> null
       IconImage.LoadingBadge -> LoadingBadgePainter(color = circleColor)

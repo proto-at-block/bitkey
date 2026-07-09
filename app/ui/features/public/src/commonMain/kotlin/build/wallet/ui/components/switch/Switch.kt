@@ -62,16 +62,15 @@ fun Switch(
   disabledThumbColor: Color = WalletTheme.colors.foreground30,
   disabledTrackColor: Color = WalletTheme.colors.foreground10,
 ) {
-  val isDesignSystemV2Enabled = true
   val interopBackgroundColor = LocalContainerBackgroundColor.current ?: WalletTheme.colors.background
   val resolvedCheckedThumbColor =
-    if (isDesignSystemV2Enabled && checkedThumbColor == WalletTheme.colors.primaryForeground) {
+    if (checkedThumbColor == WalletTheme.colors.primaryForeground) {
       WalletTheme.colors.background
     } else {
       checkedThumbColor
     }
   val resolvedCheckedTrackColor =
-    if (isDesignSystemV2Enabled && checkedTrackColor == WalletTheme.colors.bitkeyPrimary) {
+    if (checkedTrackColor == WalletTheme.colors.bitkeyPrimary) {
       WalletTheme.colors.inverseBackground
     } else {
       checkedTrackColor

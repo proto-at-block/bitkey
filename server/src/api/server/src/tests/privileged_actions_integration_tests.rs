@@ -4,7 +4,7 @@ use std::sync::Arc;
 use http::StatusCode;
 use notification::service::FetchForAccountInput;
 use notification::NotificationPayloadType;
-use privileged_action::routes::ProcessPrivilegedActionVerificationRequest;
+use privileged_action::routes::{ConfirmSubmission, ProcessPrivilegedActionVerificationRequest};
 use privileged_action::routes::{
     CancelPendingDelayAndNotifyInstanceByTokenRequest, CancelPendingInstanceResponse,
     ConfigurePrivilegedActionDelayDurationsRequest,
@@ -817,8 +817,8 @@ pub async fn respond_to_privileged_action_request_test() {
     let resp = client
         .respond_to_out_of_band_privileged_action(
             &ProcessPrivilegedActionVerificationRequest::Confirm {
-                privileged_action_type: PrivilegedActionType::LoosenTransactionVerificationPolicy,
                 web_auth_token,
+                submission: ConfirmSubmission::LoosenTransactionVerificationPolicy {},
             },
         )
         .await;

@@ -5,6 +5,7 @@ import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.cloud.backup.csek.SealedSsek
 import build.wallet.crypto.PublicKey
@@ -26,6 +27,7 @@ class W3UpgradeDaoFake : W3UpgradeDao {
     W3UpgradeMigrationEntity(
       rowId = 0,
       newHardwareKey = null,
+      newHardwareKeyProof = null,
       newAppKey = null,
       newServerKey = null,
       keysetLocalId = null,
@@ -56,8 +58,11 @@ class W3UpgradeDaoFake : W3UpgradeDao {
     return state
   }
 
-  override suspend fun saveHardwareKey(hwKey: HwSpendingPublicKey): Result<Unit, DbError> {
-    upsert { it.copy(newHardwareKey = hwKey) }
+  override suspend fun saveHardwareKey(
+    hwKey: HwSpendingPublicKey,
+    hwKeyProof: HwSpendingKeyProof?,
+  ): Result<Unit, DbError> {
+    upsert { it.copy(newHardwareKey = hwKey, newHardwareKeyProof = hwKeyProof) }
     return Ok(Unit)
   }
 
@@ -75,21 +80,21 @@ class W3UpgradeDaoFake : W3UpgradeDao {
     appSpendingPublicKey: AppSpendingPublicKey,
   ): Result<Unit, DbError> {
     state.value = Ok(
-      state.value.value!!.copy(newAppKey = appSpendingPublicKey)
+      checkNotNull(state.value.value) { "No migration state saved" }.copy(newAppKey = appSpendingPublicKey)
     )
     return Ok(Unit)
   }
 
   override suspend fun saveServerKey(serverKey: F8eSpendingKeyset): Result<Unit, DbError> {
     state.value = Ok(
-      state.value.value!!.copy(newServerKey = serverKey)
+      checkNotNull(state.value.value) { "No migration state saved" }.copy(newServerKey = serverKey)
     )
     return Ok(Unit)
   }
 
   override suspend fun saveKeysetLocalId(keysetLocalId: String): Result<Unit, DbError> {
     state.value = Ok(
-      state.value.value!!.copy(keysetLocalId = keysetLocalId)
+      checkNotNull(state.value.value) { "No migration state saved" }.copy(keysetLocalId = keysetLocalId)
     )
     return Ok(Unit)
   }
@@ -99,28 +104,28 @@ class W3UpgradeDaoFake : W3UpgradeDao {
       return Err(DbTransactionError(Exception("Failed to set descriptor backup complete")))
     }
     state.value = Ok(
-      state.value.value!!.copy(descriptorBackupCompleted = true)
+      checkNotNull(state.value.value) { "No migration state saved" }.copy(descriptorBackupCompleted = true)
     )
     return Ok(Unit)
   }
 
   override suspend fun setCloudBackupComplete(): Result<Unit, DbError> {
     state.value = Ok(
-      state.value.value!!.copy(cloudBackupCompleted = true)
+      checkNotNull(state.value.value) { "No migration state saved" }.copy(cloudBackupCompleted = true)
     )
     return Ok(Unit)
   }
 
   override suspend fun setServerKeysetActive(): Result<Unit, DbError> {
     state.value = Ok(
-      state.value.value!!.copy(serverKeysetActivated = true)
+      checkNotNull(state.value.value) { "No migration state saved" }.copy(serverKeysetActivated = true)
     )
     return Ok(Unit)
   }
 
   override suspend fun setAuthKeyRotationComplete(): Result<Unit, DbError> {
     state.value = Ok(
-      state.value.value!!.copy(authKeyRotationCompleted = true)
+      checkNotNull(state.value.value) { "No migration state saved" }.copy(authKeyRotationCompleted = true)
     )
     return Ok(Unit)
   }
@@ -132,14 +137,14 @@ class W3UpgradeDaoFake : W3UpgradeDao {
 
   override suspend fun setDdkBackedUp(): Result<Unit, DbError> {
     state.value = Ok(
-      state.value.value!!.copy(ddkBackedUp = true)
+      checkNotNull(state.value.value) { "No migration state saved" }.copy(ddkBackedUp = true)
     )
     return Ok(Unit)
   }
 
   override suspend fun setSweepCompleted(): Result<Unit, DbError> {
     state.value = Ok(
-      state.value.value!!.copy(sweepCompleted = true)
+      checkNotNull(state.value.value) { "No migration state saved" }.copy(sweepCompleted = true)
     )
     return Ok(Unit)
   }
@@ -152,7 +157,7 @@ class W3UpgradeDaoFake : W3UpgradeDao {
     oldHwAuthPublicKey: HwAuthPublicKey,
   ): Result<Unit, DbError> {
     state.value = Ok(
-      state.value.value!!.copy(
+      checkNotNull(state.value.value) { "No migration state saved" }.copy(
         pendingAppGlobalAuthKey = newAppAuthKeys.appGlobalAuthPublicKey,
         pendingAppRecoveryAuthKey = newAppAuthKeys.appRecoveryAuthPublicKey,
         pendingAppGlobalAuthKeyHwSignature = newAppAuthKeys.appGlobalAuthKeyHwSignature,
@@ -167,28 +172,28 @@ class W3UpgradeDaoFake : W3UpgradeDao {
 
   override suspend fun setServerAuthRotationCompleted(): Result<Unit, DbError> {
     state.value = Ok(
-      state.value.value!!.copy(serverAuthRotationCompleted = true)
+      checkNotNull(state.value.value) { "No migration state saved" }.copy(serverAuthRotationCompleted = true)
     )
     return Ok(Unit)
   }
 
   override suspend fun setTcEndorsementsRegenerated(): Result<Unit, DbError> {
     state.value = Ok(
-      state.value.value!!.copy(tcEndorsementsRegenerated = true)
+      checkNotNull(state.value.value) { "No migration state saved" }.copy(tcEndorsementsRegenerated = true)
     )
     return Ok(Unit)
   }
 
   override suspend fun setSealedSsekForDecryption(sealedSsek: SealedSsek?): Result<Unit, DbError> {
     state.value = Ok(
-      state.value.value!!.copy(sealedSsekForDecryption = sealedSsek)
+      checkNotNull(state.value.value) { "No migration state saved" }.copy(sealedSsekForDecryption = sealedSsek)
     )
     return Ok(Unit)
   }
 
   override suspend fun clearPendingAuthRotationData(): Result<Unit, DbError> {
     state.value = Ok(
-      state.value.value!!.copy(
+      checkNotNull(state.value.value) { "No migration state saved" }.copy(
         pendingAppGlobalAuthKey = null,
         pendingAppRecoveryAuthKey = null,
         pendingAppGlobalAuthKeyHwSignature = null,

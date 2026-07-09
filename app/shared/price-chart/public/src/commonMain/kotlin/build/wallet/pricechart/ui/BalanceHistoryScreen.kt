@@ -40,7 +40,6 @@ import build.wallet.ui.components.label.loadingScrim
 import build.wallet.ui.components.layout.MeasureWithoutPlacement
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
@@ -54,7 +53,6 @@ import build.wallet.ui.tokens.LabelType.Title2
  */
 @Composable
 internal fun BalanceHistoryScreen(model: BitcoinPriceDetailsBodyModel) {
-  val isDesignSystemV2Enabled = true
   val showChart = model.data.isNotEmpty() && (!model.isLoading || model.preservePreviousChartWhileLoading)
   val showDataRow = model.isLoading || model.data.isNotEmpty()
   if (showDataRow) {
@@ -106,8 +104,7 @@ internal fun BalanceHistoryScreen(model: BitcoinPriceDetailsBodyModel) {
           formatYLabel = model.formatFiatValue,
           extractSecondaryYValue = { (it as? BalanceAt)?.balance ?: 0.0 },
           isInteractive = !model.isLoading,
-          useMidpointInterpolation = isDesignSystemV2Enabled,
-          lineCornerRadius = if (isDesignSystemV2Enabled) 12.dp else 0.dp,
+          lineCornerRadius = 12.dp,
           modifier = Modifier
             .fillMaxSize()
             .alpha(alpha)
@@ -122,8 +119,6 @@ private fun EmptyWalletMessage(
   onBuy: () -> Unit,
   onTransfer: () -> Unit,
 ) {
-  val isDesignSystemV2Enabled = true
-
   Column(
     modifier = Modifier
       .background(WalletTheme.colors.background)
@@ -137,19 +132,12 @@ private fun EmptyWalletMessage(
     verticalArrangement = Arrangement.spacedBy(8.dp)
   ) {
     IconImage(
-      model = if (isDesignSystemV2Enabled) {
+      model =
         IconModel(
           icon = Icon.DotBitcoin,
           iconSize = IconSize.Large,
           iconTint = IconTint.Foreground
         )
-      } else {
-        IconModel(
-          Icon.Insights,
-          IconSize.Medium,
-          IconBackgroundType.Circle(IconSize.Avatar)
-        )
-      }
     )
     Label(
       modifier = Modifier.fillMaxWidth(),
@@ -196,9 +184,8 @@ private fun SelectedPointDetails(
   data: SelectedPointData.Balance?,
   modifier: Modifier = Modifier,
 ) {
-  val isDesignSystemV2Enabled = true
-  val shouldAnimateSelectedAmount = isDesignSystemV2Enabled && data?.isUserSelected != true
-  val chartLoadingColor = if (isDesignSystemV2Enabled) WalletTheme.colors.subtleBackground else null
+  val shouldAnimateSelectedAmount = data?.isUserSelected != true
+  val chartLoadingColor = WalletTheme.colors.subtleBackground
   val showPrimaryValueLoadingScrim = isLoading
   val primaryFiatMeasurementText = data?.primaryFiatText.takeUnless {
     it.isNullOrBlank()
@@ -252,7 +239,6 @@ private fun SelectedPointDetails(
             minType = LabelType.Body2Medium,
             treatment = LabelTreatment.Primary,
             animatedAmount = data?.primaryFiatValue
-              ?.takeIf { isDesignSystemV2Enabled }
               ?.let { value ->
                 AnimatedAmount(
                   text = data.primaryFiatText,
@@ -270,7 +256,6 @@ private fun SelectedPointDetails(
           minType = LabelType.Body2Medium,
           treatment = LabelTreatment.Primary,
           animatedAmount = data?.primaryFiatValue
-            ?.takeIf { isDesignSystemV2Enabled }
             ?.let { value ->
                 AnimatedAmount(
                   text = data.primaryFiatText,
@@ -319,7 +304,7 @@ private fun SelectedPointDetails(
           modifier = Modifier
             .size(14.dp)
             .background(
-              color = if (isDesignSystemV2Enabled) WalletTheme.colors.subtleBackground else WalletTheme.colors.chartElement,
+              color = WalletTheme.colors.subtleBackground,
               shape = RoundedCornerShape(4.dp)
             )
         )
@@ -352,7 +337,6 @@ private fun SelectedPointDetails(
             treatment = LabelTreatment.Primary,
             alignment = TextAlign.End,
             animatedAmount = data?.primaryBtcValue
-              ?.takeIf { isDesignSystemV2Enabled }
               ?.let { value ->
                 AnimatedAmount(
                   text = data.primaryBtcText,
@@ -371,7 +355,6 @@ private fun SelectedPointDetails(
           treatment = LabelTreatment.Primary,
           alignment = TextAlign.End,
           animatedAmount = data?.primaryBtcValue
-            ?.takeIf { isDesignSystemV2Enabled }
             ?.let { value ->
                 AnimatedAmount(
                   text = data.primaryBtcText,

@@ -13,14 +13,17 @@ class InviteCodeLoaderImpl(
   private val relationshipsEnrollmentAuthenticationDao: RelationshipsEnrollmentAuthenticationDao,
   private val recoveryCodeBuilder: RelationshipsCodeBuilder,
 ) : InviteCodeLoader {
-  override suspend fun getInviteCode(invitation: Invitation): Result<OutgoingInvitation, Error> =
-    relationshipsEnrollmentAuthenticationDao.getByRelationshipId(invitation.relationshipId)
-      .mapError { Error("error loading pake data", it) }
+  override suspend fun getInviteCode(
+    invitation: Invitation,
+  ): Result<OutgoingInvitation, InviteCodeLoadError> =
+    relationshipsEnrollmentAuthenticationDao.getByRelationshipId(invitation.id.value)
+      .mapError<_, _, InviteCodeLoadError> { InviteCodeLoadError.StorageError(it) }
       .toErrorIfNull {
-        Error("missing pake data for ${invitation.relationshipId}")
+        InviteCodeLoadError.MissingPakeData(invitation.id.value)
       }
       .flatMap {
         recoveryCodeBuilder.buildInviteCode(invitation.code, invitation.codeBitLength, it.pakeCode)
+          .mapError { err -> InviteCodeLoadError.EncodingError(err) }
       }
       .map { OutgoingInvitation(invitation, it) }
 }

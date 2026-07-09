@@ -22,7 +22,7 @@ fun LoadingSuccessPreviewLoading() {
 
 @Preview
 @Composable
-fun LoadingSuccessPreviewLoadingDesignSystemV2() {
+fun LoadingSuccessPreviewLoadingWithMessage() {
   PreviewWalletTheme {
     LoadingSuccessScreen(
         model =
@@ -52,7 +52,7 @@ fun LoadingSuccessPreviewSuccess() {
 
 @Preview
 @Composable
-fun LoadingSuccessPreviewSuccessDesignSystemV2() {
+fun LoadingSuccessPreviewSuccessWithMessage() {
   PreviewWalletTheme {
     LoadingSuccessScreen(
         model =

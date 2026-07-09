@@ -19,25 +19,32 @@ import build.wallet.firmware.HardwareUnlockInfoServiceFake
 import build.wallet.nfc.transaction.PairingTransactionProviderFake
 import build.wallet.nfc.transaction.PairingTransactionResponse
 import build.wallet.nfc.transaction.PairingTransactionResponse.*
+import build.wallet.platform.app.AppSessionManagerFake
+import build.wallet.platform.device.DevicePlatform
+import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.statemachine.ScreenStateMachineMock
+import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormDesignSystemV2Model
+import build.wallet.statemachine.core.form.FormMainContentVerticalAlignment
+import build.wallet.statemachine.core.form.FormScreenLayoutModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationHelpBodyModel
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiProps
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiStateMachine
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.ThemePreference
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
+import build.wallet.statemachine.ui.awaitUntilBody
+import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconBackgroundType.Circle
 import build.wallet.ui.model.icon.IconBackgroundType.Circle.CircleColor.Foreground10
-import build.wallet.ui.model.icon.IconBackgroundType.Circle.CircleColor.Secondary
 import build.wallet.ui.model.icon.IconSize.Regular
-import build.wallet.ui.model.icon.IconTint.Foreground
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
@@ -51,6 +58,8 @@ import okio.ByteString.Companion.encodeUtf8
  * Tests for W3 hardware onboarding flow in PairNewHardwareUiStateMachine.
  * These tests verify the new two-tap W3 flow and hardware type detection/switching.
  */
+// Large end-to-end coverage for the W3 onboarding flow; splitting would hurt cohesion.
+@Suppress("LargeClass")
 class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
 
   val eventTracker = EventTrackerMock(turbines::create)
@@ -65,6 +74,8 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
     object : HelpCenterUiStateMachine,
       ScreenStateMachineMock<HelpCenterUiProps>("help-center") {}
 
+  val appSessionManager = AppSessionManagerFake()
+  val deviceInfoProvider = DeviceInfoProviderMock()
   val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
 
   val featureFlagDao = FeatureFlagDaoFake()
@@ -77,6 +88,8 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
       pairingTransactionProvider = pairingTransactionProvider,
       nfcSessionUIStateMachine = nfcSessionUIStateMachine,
       helpCenterUiStateMachine = helpCenterUiStateMachine,
+      appSessionManager = appSessionManager,
+      deviceInfoProvider = deviceInfoProvider,
       hardwareUnlockInfoService = hardwareUnlockInfoService,
       w3OnboardingFeatureFlag = w3OnboardingFeatureFlag,
       accountConfigService = accountConfigService,
@@ -112,8 +125,13 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
   )
 
   beforeTest {
+    accountConfigService.reset()
+    appSessionManager.reset()
+    appSessionManager.currentSessionId = "session-id"
+    deviceInfoProvider.reset()
     hardwareUnlockInfoService.clear()
     featureFlagDao.reset()
+    pairingTransactionProvider.reset()
   }
 
   // W3 Onboarding Flow Tests
@@ -123,16 +141,181 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
-      awaitBody<PairNewHardwareBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2)
-        header.headline.shouldBe("Set up your Bitkey")
-        header.sublineModel.shouldNotBeNull().string.shouldBe(
-          "Tap the fingerprint sensor to wake your device.\nScan your Bitkey with your phone to get started."
-        )
-        primaryButton.treatment.shouldBe(ButtonModel.Treatment.BitkeyInteraction)
-        secondaryButton.shouldBe(null)
+      awaitItem().apply {
+        body.shouldBeInstanceOf<PairNewHardwareBodyModel>().apply {
+          eventTrackerScreenInfo.shouldNotBeNull()
+            .eventTrackerScreenId
+            .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2)
+          header.headline.shouldBe("Set up your Bitkey")
+          header.sublineModel.shouldNotBeNull().string.shouldBe(
+            "Tap the fingerprint sensor to wake your device.\nScan your Bitkey with your phone to get started."
+          )
+          primaryButton.treatment.shouldBe(ButtonModel.Treatment.BitkeyInteraction)
+          secondaryButton.shouldBe(null)
+          toolbarTrailingIcon.shouldBe(Icon.Question)
+          onToolbarTrailingClick.shouldNotBeNull()
+        }
+      }
+    }
+  }
+
+  test("W3 onboarding -- tap intro sheet shows on Set up your Bitkey screen") {
+    w3OnboardingFeatureFlag.setFlagValue(true)
+    accountConfigService.setHardwareType(HardwareType.W3)
+    val w3StateMachine = createStateMachine()
+
+    w3StateMachine.test(props) {
+      awaitItem().apply {
+        body.shouldBeInstanceOf<PairNewHardwareBodyModel>()
+        bottomSheetModel.shouldNotBeNull()
+          .body.shouldBeInstanceOf<TapBitkeyIntroSheetBodyModel>()
+      }
+    }
+  }
+
+  test("W3 onboarding -- tap intro sheet shows before hardware type is known") {
+    w3OnboardingFeatureFlag.setFlagValue(true)
+    val w3StateMachine = createStateMachine()
+
+    w3StateMachine.test(props) {
+      awaitItem().apply {
+        body.shouldBeInstanceOf<PairNewHardwareBodyModel>()
+        bottomSheetModel.shouldNotBeNull()
+          .body.shouldBeInstanceOf<TapBitkeyIntroSheetBodyModel>()
+      }
+    }
+  }
+
+  test("W3Upgrade context -- tap intro sheet does not show legacy no-screen fallback") {
+    w3OnboardingFeatureFlag.setFlagValue(true)
+    val w3StateMachine = createStateMachine()
+
+    val w3UpgradeProps = props.copy(pairingContext = PairingContext.W3Upgrade)
+
+    w3StateMachine.test(w3UpgradeProps) {
+      awaitItem().apply {
+        body.shouldBeInstanceOf<PairNewHardwareBodyModel>()
+        bottomSheetModel.shouldNotBeNull()
+          .body.shouldBeInstanceOf<TapBitkeyIntroSheetBodyModel>()
+          .secondaryButton.shouldBeNull()
+      }
+    }
+  }
+
+  test("W3 onboarding -- tap intro sheet only shows once per onboarding session") {
+    w3OnboardingFeatureFlag.setFlagValue(true)
+    accountConfigService.setHardwareType(HardwareType.W3)
+    val w3StateMachine = createStateMachine()
+
+    w3StateMachine.test(props) {
+      awaitItem().apply {
+        bottomSheetModel.shouldNotBeNull()
+          .body.shouldBeInstanceOf<TapBitkeyIntroSheetBodyModel>()
+          .primaryButton.shouldNotBeNull()
+          .onClick()
+      }
+    }
+
+    w3StateMachine.test(props) {
+      awaitItem().apply {
+        body.shouldBeInstanceOf<PairNewHardwareBodyModel>()
+        bottomSheetModel.shouldBeNull()
+      }
+    }
+  }
+
+  test("W3 onboarding -- tap intro sheet shows again in a new app session") {
+    w3OnboardingFeatureFlag.setFlagValue(true)
+    accountConfigService.setHardwareType(HardwareType.W3)
+    val w3StateMachine = createStateMachine()
+
+    w3StateMachine.test(props) {
+      awaitItem().apply {
+        bottomSheetModel.shouldNotBeNull()
+          .body.shouldBeInstanceOf<TapBitkeyIntroSheetBodyModel>()
+          .primaryButton.shouldNotBeNull()
+          .onClick()
+      }
+    }
+
+    appSessionManager.currentSessionId = "new-session-id"
+
+    w3StateMachine.test(props) {
+      awaitUntilScreenWithBody<PairNewHardwareBodyModel>(
+        matchingScreen = { it.bottomSheetModel?.body is TapBitkeyIntroSheetBodyModel }
+      )
+    }
+  }
+
+  test("W3 onboarding -- learn more from tap intro sheet shows full setup how it works help") {
+    w3OnboardingFeatureFlag.setFlagValue(true)
+    accountConfigService.setHardwareType(HardwareType.W3)
+    deviceInfoProvider.devicePlatformValue = DevicePlatform.IOS
+    val w3StateMachine = createStateMachine()
+
+    w3StateMachine.test(props) {
+      awaitItem().apply {
+        bottomSheetModel.shouldNotBeNull()
+          .body.shouldBeInstanceOf<TapBitkeyIntroSheetBodyModel>()
+          .header.shouldNotBeNull()
+          .sublineModel.shouldBeInstanceOf<LabelModel.LinkSubstringModel>()
+          .linkedSubstrings.single().onClick()
+      }
+
+      awaitUntilBody<FingerprintEnrollmentHelpBodyModel> {
+        formScreenTitle.shouldNotBeNull().title.shouldBe("How it works")
+        onBack.shouldNotBeNull().invoke()
+      }
+
+      awaitItem().apply {
+        body.shouldBeInstanceOf<PairNewHardwareBodyModel>()
+        bottomSheetModel.shouldBeNull()
+      }
+    }
+  }
+
+  test("W3 onboarding -- no screen from tap intro sheet shows legacy activation flow and marks sheet seen") {
+    w3OnboardingFeatureFlag.setFlagValue(true)
+    accountConfigService.setHardwareType(HardwareType.W3)
+    val w3StateMachine = createStateMachine()
+
+    w3StateMachine.test(props) {
+      awaitItem().apply {
+        bottomSheetModel.shouldNotBeNull()
+          .body.shouldBeInstanceOf<TapBitkeyIntroSheetBodyModel>()
+          .secondaryButton.shouldNotBeNull()
+          .onClick()
+      }
+
+      val firstItemAfterNoScreen = awaitItem().apply {
+        bottomSheetModel.shouldBeNull()
+      }
+      val firstScreenId = firstItemAfterNoScreen.body
+        .shouldBeInstanceOf<PairNewHardwareBodyModel>()
+        .eventTrackerScreenInfo.shouldNotBeNull()
+        .eventTrackerScreenId
+
+      val legacyActivationItem = when (firstScreenId) {
+        PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2 -> awaitItem()
+        PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS -> firstItemAfterNoScreen
+        else -> error("Unexpected screen ID after no-screen selection: $firstScreenId")
+      }
+
+      legacyActivationItem.apply {
+        bottomSheetModel.shouldBeNull()
+        body.shouldBeInstanceOf<PairNewHardwareBodyModel>().apply {
+          eventTrackerScreenInfo.shouldNotBeNull()
+            .eventTrackerScreenId
+            .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
+          header.headline.shouldBe("Wake your Bitkey device")
+        }
+      }
+    }
+
+    w3StateMachine.test(props) {
+      awaitItem().apply {
+        body.shouldBeInstanceOf<PairNewHardwareBodyModel>()
+        bottomSheetModel.shouldBeNull()
       }
     }
   }
@@ -268,31 +451,20 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
           eventTrackerScreenInfo.shouldNotBeNull()
             .eventTrackerScreenId
             .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_COMPLETE_TWO_TAP)
-          header?.headline.shouldBe("Finished on your device?")
-          primaryButton?.text.shouldBe("Yes, continue")
-          designSystemV2Model.shouldNotBeNull().apply {
-            useDesignSystemV2ScreenLayout.shouldBe(true)
-            scrollable.shouldBe(false)
-            mainContentVerticalAlignment.shouldBe(FormDesignSystemV2Model.MainContentVerticalAlignment.CENTER)
-          }
+          header.shouldBeNull()
+          primaryButton?.text.shouldBe("Continue")
+          formScreenLayout.shouldBe(
+            FormScreenLayoutModel.LargeTitle(
+              scrollable = false,
+              mainContentVerticalAlignment = FormMainContentVerticalAlignment.CENTER
+            )
+          )
           toolbar.shouldNotBeNull().leadingAccessory.shouldBeInstanceOf<ToolbarAccessoryModel.IconAccessory>()
-            .model.iconModel.apply {
-              iconBackgroundType.shouldBe(Circle(circleSize = Regular, color = Secondary))
-              iconTint.shouldBe(Foreground)
-            }
-          toolbar.shouldNotBeNull().trailingAccessory.shouldBeInstanceOf<ToolbarAccessoryModel.IconAccessory>()
-            .model.iconModel.apply {
-              iconBackgroundType.shouldBe(Circle(circleSize = Regular, color = Secondary))
-              iconTint.shouldBe(Foreground)
-            }
-          designSystemV2Model.shouldNotBeNull().toolbar.shouldNotBeNull().leadingAccessory
-            .shouldBeInstanceOf<ToolbarAccessoryModel.IconAccessory>()
             .model.iconModel.apply {
               iconBackgroundType.shouldBe(Circle(circleSize = Regular, color = Foreground10))
               iconTint.shouldBeNull()
             }
-          designSystemV2Model.shouldNotBeNull().toolbar.shouldNotBeNull().trailingAccessory
-            .shouldBeInstanceOf<ToolbarAccessoryModel.IconAccessory>()
+          toolbar.shouldNotBeNull().trailingAccessory.shouldBeInstanceOf<ToolbarAccessoryModel.IconAccessory>()
             .model.iconModel.apply {
               iconBackgroundType.shouldBe(Circle(circleSize = Regular, color = Foreground10))
               iconTint.shouldBeNull()
@@ -411,7 +583,7 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_COMPLETE_TWO_TAP)
-        header?.headline.shouldBe("Finished on your device?")
+        header.shouldBeNull()
       }
     }
   }
@@ -457,77 +629,39 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
 
   // W3 How To Add Your Fingerprint Help Screen Tests
 
-  test("W3 onboarding -- help button from Finished On Your Device shows How To Add Fingerprint screen") {
+  test("W3 onboarding -- help button from Set up your Bitkey shows How To Add Fingerprint screen") {
     w3OnboardingFeatureFlag.setFlagValue(true)
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
-      // Start at Let's get set up
       awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2)
-        primaryButton.onClick()
+        onToolbarTrailingClick.shouldNotBeNull().invoke()
       }
 
-      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))
-
-      // First NFC tap - returns FingerprintEnrollmentStarted with W3 hardware
-      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
-        id = nfcSessionUIStateMachine.id
-      ) {
-        onSuccess(FingerprintEnrollmentStarted(hardwareType = HardwareType.W3))
-      }
-
-      // "Finished on your device?" screen - tap help button
-      awaitBody<CompleteTwoTapBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_COMPLETE_TWO_TAP)
-        onHelpClick()
-      }
-
-      // Should show fingerprint help screen
       awaitBody<FormBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_FINGERPRINT_ENROLLMENT_HELP)
-        header.shouldNotBeNull().headline.shouldBe("How it works")
+        formScreenTitle.shouldNotBeNull().title.shouldBe("How it works")
       }
     }
   }
 
-  test("W3 onboarding -- back from How To Add Fingerprint returns to Finished On Your Device screen") {
+  test("W3 onboarding -- back from How To Add Fingerprint returns to Set up your Bitkey screen") {
     w3OnboardingFeatureFlag.setFlagValue(true)
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
-      // Start at Let's get set up
       awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2)
-        primaryButton.onClick()
+        onToolbarTrailingClick.shouldNotBeNull().invoke()
       }
 
-      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))
-
-      // First NFC tap - returns FingerprintEnrollmentStarted with W3 hardware
-      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
-        id = nfcSessionUIStateMachine.id
-      ) {
-        onSuccess(FingerprintEnrollmentStarted(hardwareType = HardwareType.W3))
-      }
-
-      // "Finished on your device?" screen - tap help button
-      awaitBody<CompleteTwoTapBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_COMPLETE_TWO_TAP)
-        onHelpClick()
-      }
-
-      // Fingerprint help screen - go back
       awaitBody<FormBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
@@ -535,11 +669,10 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
         onBack.shouldNotBeNull().invoke()
       }
 
-      // Should return to "Finished on your device?" screen
-      awaitBody<CompleteTwoTapBodyModel> {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_COMPLETE_TWO_TAP)
+          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2)
       }
     }
   }
@@ -549,7 +682,20 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
-      // Start at Let's get set up
+      awaitBody<PairNewHardwareBodyModel> {
+        eventTrackerScreenInfo.shouldNotBeNull()
+          .eventTrackerScreenId
+          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2)
+        onToolbarTrailingClick.shouldNotBeNull().invoke()
+      }
+
+      awaitBody<FormBodyModel> {
+        eventTrackerScreenInfo.shouldNotBeNull()
+          .eventTrackerScreenId
+          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_FINGERPRINT_ENROLLMENT_HELP)
+        onBack.shouldNotBeNull().invoke()
+      }
+
       awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
@@ -559,30 +705,12 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
 
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))
 
-      // First NFC tap - returns FingerprintEnrollmentStarted with W3 hardware
       awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
         id = nfcSessionUIStateMachine.id
       ) {
         onSuccess(FingerprintEnrollmentStarted(hardwareType = HardwareType.W3))
       }
 
-      // "Finished on your device?" screen - tap help button
-      awaitBody<CompleteTwoTapBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_COMPLETE_TWO_TAP)
-        onHelpClick()
-      }
-
-      // View help screen then go back
-      awaitBody<FormBodyModel> {
-        eventTrackerScreenInfo.shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_FINGERPRINT_ENROLLMENT_HELP)
-        onBack.shouldNotBeNull().invoke()
-      }
-
-      // Back at "Finished on your device?" - now continue the flow
       awaitBody<CompleteTwoTapBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
@@ -592,7 +720,6 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
 
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_FINGERPRINT))
 
-      // Second NFC tap - returns FingerprintEnrolled
       awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
         id = nfcSessionUIStateMachine.id
       ) {
@@ -606,48 +733,91 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("W3 onboarding -- How To Add Fingerprint screen has close button in toolbar that returns to previous screen") {
+  test("W3 onboarding -- How To Add Fingerprint screen has back button in toolbar that returns to setup screen") {
     w3OnboardingFeatureFlag.setFlagValue(true)
     val w3StateMachine = createStateMachine()
 
     w3StateMachine.test(props) {
-      // Start at Let's get set up
       awaitBody<PairNewHardwareBodyModel> {
-        primaryButton.onClick()
+        onToolbarTrailingClick.shouldNotBeNull().invoke()
       }
 
-      eventTracker.eventCalls.awaitItem()
-
-      // First NFC tap - returns FingerprintEnrollmentStarted with W3 hardware
-      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
-        id = nfcSessionUIStateMachine.id
-      ) {
-        onSuccess(FingerprintEnrollmentStarted(hardwareType = HardwareType.W3))
-      }
-
-      // "Finished on your device?" screen - tap help button
-      awaitBody<CompleteTwoTapBodyModel> {
-        onHelpClick()
-      }
-
-      // Fingerprint help screen - verify toolbar has close button and click it
       awaitBody<FormBodyModel> {
-        // Verify toolbar exists with leading close accessory
         toolbar.shouldNotBeNull()
           .leadingAccessory.shouldNotBeNull()
 
-        // Click the close button via toolbar leading accessory
         toolbar.shouldNotBeNull()
           .leadingAccessory.shouldNotBeNull()
           .shouldBeInstanceOf<ToolbarAccessoryModel.IconAccessory>()
           .model.onClick.invoke()
       }
 
-      // Should return to "Finished on your device?" screen
-      awaitBody<CompleteTwoTapBodyModel> {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
-          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_COMPLETE_TWO_TAP)
+          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS_V2)
+      }
+    }
+  }
+
+  test("W3 onboarding -- help button from Finished On Your Device shows NFC troubleshooting help") {
+    w3OnboardingFeatureFlag.setFlagValue(true)
+    val w3StateMachine = createStateMachine()
+
+    w3StateMachine.test(props) {
+      awaitBody<PairNewHardwareBodyModel> {
+        primaryButton.onClick()
+      }
+
+      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))
+
+      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
+        id = nfcSessionUIStateMachine.id
+      ) {
+        onSuccess(FingerprintEnrollmentStarted(hardwareType = HardwareType.W3))
+      }
+
+      awaitBody<CompleteTwoTapBodyModel> {
+        onHelpClick.shouldNotBeNull().invoke()
+      }
+
+      awaitBody<HardwareConfirmationHelpBodyModel> {
+        eventTrackerScreenInfo.shouldNotBeNull()
+          .eventTrackerScreenId
+          .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_FINGERPRINT_ENROLLMENT_HELP)
+        eventTrackerShouldTrack.shouldBe(true)
+        formScreenTitle.shouldNotBeNull().title.shouldBe("How it works")
+      }
+    }
+  }
+
+  test("W3 onboarding -- back from Finished On Your Device help returns to review screen") {
+    w3OnboardingFeatureFlag.setFlagValue(true)
+    val w3StateMachine = createStateMachine()
+
+    w3StateMachine.test(props) {
+      awaitBody<PairNewHardwareBodyModel> {
+        primaryButton.onClick()
+      }
+
+      eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))
+
+      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
+        id = nfcSessionUIStateMachine.id
+      ) {
+        onSuccess(FingerprintEnrollmentStarted(hardwareType = HardwareType.W3))
+      }
+
+      awaitBody<CompleteTwoTapBodyModel> {
+        onHelpClick.shouldNotBeNull().invoke()
+      }
+
+      awaitBody<HardwareConfirmationHelpBodyModel> {
+        onBack.shouldNotBeNull().invoke()
+      }
+
+      awaitBody<CompleteTwoTapBodyModel> {
+        header.shouldBeNull()
       }
     }
   }
@@ -740,7 +910,7 @@ class PairNewHardwareW3OnboardingUiStateMachineImplTests : FunSpec({
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_COMPLETE_TWO_TAP)
-        header?.headline.shouldBe("Finished on your device?")
+        header.shouldBeNull()
         onContinue()
       }
 

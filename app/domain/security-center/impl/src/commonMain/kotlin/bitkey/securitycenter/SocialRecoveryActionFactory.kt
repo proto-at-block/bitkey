@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.onStart
 
 interface SocialRecoveryActionFactory {
-  suspend fun create(): Flow<SecurityAction?>
+  fun create(): Flow<SecurityAction?>
 }
 
 @BitkeyInject(AppScope::class)
@@ -18,7 +18,7 @@ class SocialRecoveryActionFactoryImpl(
   private val socRecService: SocRecService,
   private val appFunctionalityService: AppFunctionalityService,
 ) : SocialRecoveryActionFactory {
-  override suspend fun create(): Flow<SecurityAction?> {
+  override fun create(): Flow<SecurityAction?> {
     return combine(
       socRecService.socRecRelationships,
       appFunctionalityService.status

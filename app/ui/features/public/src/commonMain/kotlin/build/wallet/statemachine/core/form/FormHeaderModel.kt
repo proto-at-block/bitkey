@@ -108,7 +108,7 @@ data class FormHeaderModel(
     MONO,
   }
 
-  sealed class CustomContent {
+  sealed interface CustomContent {
     data class PartnershipTransferAnimation(
       val bitkeyIcon: IconModel = IconModel(
         icon = Icon.BitkeyLogo,
@@ -117,14 +117,14 @@ data class FormHeaderModel(
         iconOpacity = null
       ),
       val partnerIcon: IconModel,
-    ) : CustomContent()
+    ) : CustomContent
 
-    data object AsteriskWave : CustomContent()
+    data object AsteriskWave : CustomContent
 
-    data object ScanAnimation : CustomContent()
+    data object ScanAnimation : CustomContent
   }
 
   data class PosterImage(
     val icon: Icon,
-  ) : CustomContent()
+  ) : CustomContent
 }

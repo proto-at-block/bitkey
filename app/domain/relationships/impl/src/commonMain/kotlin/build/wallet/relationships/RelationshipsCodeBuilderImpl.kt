@@ -130,21 +130,21 @@ class RelationshipsCodeBuilderImpl : RelationshipsCodeBuilder {
     inviteCode: String,
   ): Result<InviteCodeParts, RelationshipsCodeBuilderError> =
     binding {
-      val inviteCode = inviteCode.toSanitizedCode()
+      val sanitizedInviteCode = inviteCode.toSanitizedCode()
       val expectedMinBitLength =
         (InviteSchema.VERSION_BITS + InviteSchema.PAKE_BITS + InviteSchema.MIN_SERVER_BITS + InviteSchema.CRC_BITS)
       val expectedMinCharacters = expectedMinBitLength / Base32Encoding.BITS_PER_CHAR
 
-      ensure(inviteCode.length >= expectedMinCharacters) {
+      ensure(sanitizedInviteCode.length >= expectedMinCharacters) {
         RelationshipsCodeEncodingError(
-          "Invalid code length. Got ${inviteCode.length}, but expected at least $expectedMinCharacters."
+          "Invalid code length. Got ${sanitizedInviteCode.length}, but expected at least $expectedMinCharacters."
         )
       }
       val serverBits =
-        inviteCode.length * 5 - InviteSchema.VERSION_BITS - InviteSchema.PAKE_BITS - InviteSchema.CRC_BITS
+        sanitizedInviteCode.length * 5 - InviteSchema.VERSION_BITS - InviteSchema.PAKE_BITS - InviteSchema.CRC_BITS
 
       val data = Base32Encoding
-        .decode(inviteCode.alignBase32Code())
+        .decode(sanitizedInviteCode.alignBase32Code())
         .mapError { error ->
           RelationshipsCodeEncodingError(
             message = "Error decoding invite code.",
@@ -154,7 +154,7 @@ class RelationshipsCodeBuilderImpl : RelationshipsCodeBuilder {
         .bind()
         .toByteArray()
         .let { BigInteger.fromByteArray(it, Sign.POSITIVE) }
-      val significantBits = inviteCode.length * Base32Encoding.BITS_PER_CHAR
+      val significantBits = sanitizedInviteCode.length * Base32Encoding.BITS_PER_CHAR
       val padding = paddingForByteAlignment(significantBits)
       val insignificantPakeBits = paddingForByteAlignment(InviteSchema.PAKE_BITS)
       val insignificantServerBits = paddingForByteAlignment(serverBits)
@@ -211,10 +211,10 @@ class RelationshipsCodeBuilderImpl : RelationshipsCodeBuilder {
   override fun parseRecoveryCode(
     recoveryCode: String,
   ): Result<RecoveryCodeParts, RelationshipsCodeBuilderError> {
-    val recoveryCode = recoveryCode.toSanitizedCode()
+    val sanitizedRecoveryCode = recoveryCode.toSanitizedCode()
     lateinit var fullData: BigInteger
     try {
-      fullData = recoveryCode.toBigInteger()
+      fullData = sanitizedRecoveryCode.toBigInteger()
     } catch (e: NumberFormatException) {
       return Err(RelationshipsCodeEncodingError("Invalid code, can't parse to BigInteger", cause = e))
     } catch (e: ArithmeticException) {

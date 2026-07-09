@@ -88,7 +88,7 @@ class PartnerTransactionItemUiStateMachineImpl(
           else -> details.partnerInfo.logoUrl
         },
         amount = fiatAmountFormatted,
-        amountEquivalent = bitcoinTotal()?.let { moneyDisplayFormatter.format(it) } ?: "",
+        amountEquivalent = bitcoinTotal()?.let { moneyDisplayFormatter.format(it) }.orEmpty(),
         isPending = details.status != PartnershipTransactionStatus.SUCCESS,
         isError = details.status == PartnershipTransactionStatus.FAILED,
         pendingBadgeType = BadgeType.Loading,

@@ -23,7 +23,7 @@ import io.kotest.core.spec.style.FunSpec
 class ButtonLoadingSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
-  test("loading buttons dsv2") {
+  test("loading buttons") {
     paparazzi.snapshot {
       Box(
         modifier =
@@ -45,7 +45,7 @@ class ButtonLoadingSnapshots : FunSpec({
 
           PartnerActionButton(
             iconModel = IconModel(
-              icon = Icon.SmallIconCopy,
+              icon = Icon.Copy,
               iconSize = IconSize.Small,
               iconTint = IconTint.Foreground
             ),

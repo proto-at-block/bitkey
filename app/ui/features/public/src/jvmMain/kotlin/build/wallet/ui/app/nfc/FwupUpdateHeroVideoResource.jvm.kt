@@ -9,6 +9,14 @@ import bitkey.account.HardwareType
 import build.wallet.ui.theme.Theme
 import org.jetbrains.compose.resources.painterResource
 
+/**
+ * Returns `null` on desktop/JVM: the FWUP hero is shipped as a true video file
+ * bundled with the iOS/Android apps and is not available to the Compose Desktop
+ * host (and W-17310 forbids adding a video dependency). Returning `null` routes
+ * the FWUP screen to [FwupUpdateHeroPlatformImage], which renders the real
+ * static hero drawable below — a functional desktop experience rather than a
+ * blank/animated stub.
+ */
 @Composable
 internal actual fun fwupUpdateHeroVideoResource(
   hardwareType: HardwareType,

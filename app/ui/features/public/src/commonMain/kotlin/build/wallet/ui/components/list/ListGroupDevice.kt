@@ -189,8 +189,7 @@ private fun RegularListGroup(
               bottom = if (addsVerticalPadding) 20.dp else 0.dp
             )
             .height(40.dp),
-        model = buttonModel,
-        cornerRadius = 12.dp
+        model = buttonModel
       )
     }
   }

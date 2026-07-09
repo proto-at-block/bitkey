@@ -67,7 +67,7 @@ data class ProblemWithCloudBackupModel(
               leadingAccessory = IconAccessory(
                 iconPadding = 12,
                 model = IconModel(
-                  icon = Icon.SmallIconWallet,
+                  icon = Icon.Wallet,
                   iconSize = IconSize.Small
                 )
               ),

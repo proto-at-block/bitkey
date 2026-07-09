@@ -98,14 +98,14 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
         trustedContactAlias = alias,
         proof = PrivilegedActionProof.HwKeyProof(app.getHardwareFactorProofOfPossession()),
         roles = setOf(TrustedContactRole.SocialRecoveryContact)
-      )
+    )
       .getOrThrow { it.cause }
     // Delete the invitation since we'll be adding it back as an unendorsed trusted contact.
-    relationshipsF8eClientFake.deleteInvitation(invite.invitation.relationshipId)
+    relationshipsF8eClientFake.deleteInvitation(invite.invitation.id.value)
 
     // Get the PAKE code and enrollment public key that should be shared with the TC
     val pakeData = relationshipsEnrollmentAuthenticationDao
-      .getByRelationshipId(invite.invitation.relationshipId)
+      .getByRelationshipId(invite.invitation.id.value)
       .getOrThrow()
       .shouldNotBeNull()
     val delegatedDecryptionKey = relationshipsCrypto.generateDelegatedDecryptionKey().getOrThrow()
@@ -124,7 +124,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
       )
       .getOrThrow()
     val unendorsedTc = UnendorsedTrustedContact(
-      relationshipId = invite.invitation.relationshipId,
+      id = invite.invitation.id,
       trustedContactAlias = alias,
       sealedDelegatedDecryptionKey = tcResponse.sealedDelegatedDecryptionKey,
       enrollmentPakeKey = tcResponse.trustedContactEnrollmentPakeKey,
@@ -135,7 +135,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
 
     // Update unendorsed TC
     relationshipsF8eClientFake.unendorsedTrustedContacts
-      .removeAll { it.relationshipId == unendorsedTc.relationshipId }
+      .removeAll { it.id == unendorsedTc.id }
     relationshipsF8eClientFake.unendorsedTrustedContacts.add(unendorsedTc)
 
     relationshipsService.syncAndVerifyRelationships(account).getOrThrow()
@@ -381,7 +381,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
       .unendorsedTrustedContacts
       .single()
       .run {
-        relationshipId.shouldBe(tcBad.relationshipId)
+        id.shouldBe(tcBad.id)
         authenticationState.shouldBe(TrustedContactAuthenticationState.FAILED)
       }
 

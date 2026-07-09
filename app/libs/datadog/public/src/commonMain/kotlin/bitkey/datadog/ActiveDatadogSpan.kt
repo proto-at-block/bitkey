@@ -12,7 +12,9 @@ class ActiveDatadogSpan(val span: DatadogSpan) : AbstractCoroutineContextElement
   companion object Key : CoroutineContext.Key<ActiveDatadogSpan>
 }
 
-@Suppress("TooGenericExceptionCaught")
+// SuspendFunSwallowedCancellation: every caught exception, including CancellationException,
+// is rethrown after being recorded on the span — cancellation is never swallowed.
+@Suppress("TooGenericExceptionCaught", "SuspendFunSwallowedCancellation")
 suspend fun <T> DatadogTracer.span(
   spanName: String,
   resourceName: String? = null,

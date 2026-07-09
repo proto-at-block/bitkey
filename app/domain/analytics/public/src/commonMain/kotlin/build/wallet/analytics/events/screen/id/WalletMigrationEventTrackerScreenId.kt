@@ -40,6 +40,9 @@ enum class WalletMigrationEventTrackerScreenId : EventTrackerScreenId {
   /** Warning screen shown on W3 when there are multiple transactions to sign during migration */
   PRIVATE_WALLET_MIGRATION_SWEEP_MULTIPLE_TRANSACTIONS_WARNING,
 
+  /** Screen shown while awaiting hardware verification before private wallet migration sweep */
+  PRIVATE_WALLET_MIGRATION_SWEEP_HARDWARE_VERIFICATION_REQUIRED,
+
   /** Sheet shown when UTXO consolidation is required before private wallet migration */
   PRIVATE_WALLET_MIGRATION_UTXO_CONSOLIDATION_REQUIRED,
 
@@ -70,11 +73,17 @@ enum class WalletMigrationEventTrackerScreenId : EventTrackerScreenId {
   /** Creating keyset during W3 upgrade */
   W3_UPGRADE_CREATING_KEYSET,
 
+  /** Loading screen while checking the paired W3 hardware auth key */
+  W3_UPGRADE_CHECKING_HARDWARE_AUTH_KEY_AVAILABILITY,
+
   /** Success screen when W3 upgrade is complete */
   W3_UPGRADE_COMPLETE,
 
   /** Error screen when W3 upgrade fails */
   W3_UPGRADE_ERROR,
+
+  /** Error screen when paired W3 hardware auth key is already in use */
+  W3_UPGRADE_HARDWARE_AUTH_KEY_IN_USE_ERROR,
 
   /** Error screen when wrong hardware type is tapped during W3 upgrade */
   W3_UPGRADE_WRONG_HARDWARE_ERROR,

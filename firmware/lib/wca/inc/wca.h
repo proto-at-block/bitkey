@@ -34,7 +34,8 @@ void wca_init(wca_api_t* api);
 void wca_reset_session_state(void);
 
 bool wca_handle_command(uint8_t* cmd, uint32_t cmd_len, uint8_t* rsp, uint32_t* rsp_len);
-bool wca_is_valid(uint8_t* cmd, uint32_t cmd_len);
+bool wca_is_wca(const uint8_t* cmd, uint32_t cmd_len);
+bool wca_is_valid(const uint8_t* cmd, uint32_t cmd_len);
 
 bool wca_proto(uint8_t* cmd, uint32_t cmd_len, uint8_t* rsp, uint32_t* rsp_len);
 

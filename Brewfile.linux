@@ -1,0 +1,12 @@
+# Linux-only Homebrew dependencies for Blox workstations (BKW-89).
+# Only `brew "pkg"` lines and comments are supported here (no taps/casks).
+
+# libGL for Skia screenshot encoding (Trailblaze on Linux).
+brew "mesa"
+# Video export for Trailblaze; missing ffmpeg fails video export silently.
+brew "ffmpeg"
+# libclang.so for bindgen (rust/ *-sys crates); hard build failure without it.
+# LIBCLANG_PATH is exported via .env.blox.
+brew "llvm"
+# cmake is intentionally absent: the repo's hermit env already provides it
+# (bin/cmake), and boring-sys builds fine with hermit's cmake + brew's llvm.

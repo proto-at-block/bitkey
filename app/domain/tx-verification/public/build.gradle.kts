@@ -11,6 +11,7 @@ kotlin {
 
   sourceSets.commonMain.dependencies {
     implementation(projects.libs.loggingPublic)
+    api(projects.libs.stdlibPublic)
     api(projects.libs.moneyPublic)
     api(projects.domain.walletPublic)
     api(projects.libs.sqldelightPublic)

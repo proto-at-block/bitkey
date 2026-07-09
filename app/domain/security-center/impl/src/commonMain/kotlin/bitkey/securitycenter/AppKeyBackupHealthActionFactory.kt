@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.datetime.Instant
 
 interface AppKeyBackupHealthActionFactory {
-  suspend fun create(): Flow<SecurityAction?>
+  fun create(): Flow<SecurityAction?>
 }
 
 @BitkeyInject(AppScope::class)
@@ -24,7 +24,7 @@ class AppKeyBackupHealthActionFactoryImpl(
   private val accountService: AccountService,
   private val appFunctionalityService: AppFunctionalityService,
 ) : AppKeyBackupHealthActionFactory {
-  override suspend fun create(): Flow<SecurityAction?> {
+  override fun create(): Flow<SecurityAction?> {
     return combine(
       accountService.activeAccount(),
       cloudBackupHealthRepository.appKeyBackupStatus().filterNotNull(),

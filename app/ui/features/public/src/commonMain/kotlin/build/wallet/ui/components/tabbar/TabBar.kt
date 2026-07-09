@@ -30,24 +30,17 @@ fun TabBar(
   tabCount: Int,
   tabs: @Composable RowScope.() -> Unit,
 ) {
-  val isDesignSystemV2Enabled = true
   val gradientBackground = WalletTheme.colors.background
-  val bottomInset = if (isDesignSystemV2Enabled) {
-    WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-  } else {
-    0.dp
-  }
-  val gradient = if (isDesignSystemV2Enabled) {
+  val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+  val gradient =
     Brush.verticalGradient(
-      colorStops = arrayOf(
-        0f to Color.Transparent,
-        0.4f to gradientBackground.copy(alpha = 0.60f),
-        1f to gradientBackground.copy(alpha = 1.0f)
-      )
+      colorStops =
+        arrayOf(
+          0f to Color.Transparent,
+          0.4f to gradientBackground.copy(alpha = 0.60f),
+          1f to gradientBackground.copy(alpha = 1.0f)
+        )
     )
-  } else {
-    Brush.verticalGradient(listOf(Color.Transparent, gradientBackground))
-  }
   Box(
     modifier = modifier.fillMaxWidth()
   ) {
@@ -58,16 +51,11 @@ fun TabBar(
       }
     )
     TabBarPill(
-      modifier = if (isDesignSystemV2Enabled) {
+      modifier =
         Modifier
           .align(Alignment.TopCenter)
           .padding(top = 10.dp)
-          .clickable(false) {}
-      } else {
-        Modifier
-          .align(Alignment.TopCenter)
-          .clickable(false) {}
-      },
+          .clickable(false) {},
       selectedIndex = selectedIndex,
       tabCount = tabCount
     ) {

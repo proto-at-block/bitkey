@@ -7,18 +7,22 @@ use crate::fwpb::wallet_rsp::Msg;
 use crate::fwpb::{BtcNetwork, DeriveKeyDescriptorCmd, DeriveRsp};
 use crate::wca;
 use crate::yield_from_;
-use crate::{errors::CommandError, fwpb};
+use crate::{errors::CommandError, fwpb, SpendingKeyResult};
 
 use crate::command_interface::command;
 
+/// Internal variant of [`derive`] that also returns the parsed `DescriptorPublicKey`
+/// alongside the FFI-friendly [`SpendingKeyResult`]. Use this from other generators
+/// when they need the parsed dpub to feed back into derivation helpers; this
+/// avoids round-tripping through `dpub.to_string()` + `from_str()`.
 #[generator(yield(Vec<u8>), resume(Vec<u8>))]
-pub(crate) fn derive(
+pub(crate) fn derive_parsed(
     network: fwpb::BtcNetwork,
-    derivation_path: &DerivationPath,
-) -> Result<DescriptorPublicKey, CommandError> {
+    derivation_path: DerivationPath,
+) -> Result<(DescriptorPublicKey, SpendingKeyResult), CommandError> {
     let apdu: apdu::Command = DeriveKeyDescriptorCmd {
         network: network.into(),
-        derivation_path: Some(derivation_path.into()),
+        derivation_path: Some((&derivation_path).into()),
     }
     .try_into()?;
     let data = yield_!(apdu.into());
@@ -28,10 +32,26 @@ pub(crate) fn derive(
         .ok_or(CommandError::MissingMessage)?;
 
     match message {
-        Msg::DeriveRsp(DeriveRsp { status, descriptor }) => match DeriveRspStatus::try_from(status)
-        {
+        Msg::DeriveRsp(DeriveRsp {
+            status,
+            descriptor,
+            attestation_signature,
+        }) => match DeriveRspStatus::try_from(status) {
             Ok(DeriveRspStatus::Success) => match descriptor {
-                Some(descriptor) => Ok(descriptor.try_into()?),
+                Some(descriptor) => {
+                    let dpub: DescriptorPublicKey = descriptor.try_into()?;
+                    let result = SpendingKeyResult {
+                        dpub: dpub.to_string(),
+                        // Pre-attestation firmware doesn't populate this field;
+                        // treat empty bytes as absent rather than `Some(vec![])`.
+                        attestation_signature: if attestation_signature.is_empty() {
+                            None
+                        } else {
+                            Some(attestation_signature)
+                        },
+                    };
+                    Ok((dpub, result))
+                }
                 None => Err(CommandError::InvalidResponse),
             },
             Ok(DeriveRspStatus::DerivationFailed) => Err(CommandError::KeyGenerationFailed),
@@ -45,9 +65,15 @@ pub(crate) fn derive(
 }
 
 #[generator(yield(Vec<u8>), resume(Vec<u8>))]
-pub(crate) fn get_initial_spending_key(
-    network: BtcNetwork,
-) -> Result<DescriptorPublicKey, CommandError> {
+pub(crate) fn derive(
+    network: fwpb::BtcNetwork,
+    derivation_path: DerivationPath,
+) -> Result<SpendingKeyResult, CommandError> {
+    let (_, result) = yield_from_!(derive_parsed(network, derivation_path))?;
+    Ok(result)
+}
+
+fn bip84_path(network: BtcNetwork, account_index: u32) -> DerivationPath {
     let purpose = ChildNumber::Hardened { index: 84 };
     let coin_type = ChildNumber::Hardened {
         index: match network {
@@ -55,24 +81,43 @@ pub(crate) fn get_initial_spending_key(
             _ => 1,
         },
     };
-    let account = ChildNumber::Hardened { index: 0 };
-    let derivation_path = [purpose, coin_type, account].as_ref().into();
-    yield_from_!(derive(network, &derivation_path))
+    let account = ChildNumber::Hardened {
+        index: account_index,
+    };
+    [purpose, coin_type, account].as_ref().into()
 }
 
-command!(GetInitialSpendingKey = get_initial_spending_key -> DescriptorPublicKey, network: fwpb::BtcNetwork);
+/// Internal variant of [`get_initial_spending_key`] returning the parsed dpub
+/// alongside the `SpendingKeyResult`, so callers don't need to re-parse
+/// `result.dpub` to use it with `find_next_bip84_derivation`.
+#[generator(yield(Vec<u8>), resume(Vec<u8>))]
+pub(crate) fn get_initial_spending_key_parsed(
+    network: BtcNetwork,
+) -> Result<(DescriptorPublicKey, SpendingKeyResult), CommandError> {
+    yield_from_!(derive_parsed(network, bip84_path(network, 0)))
+}
+
+#[generator(yield(Vec<u8>), resume(Vec<u8>))]
+pub(crate) fn get_initial_spending_key(
+    network: BtcNetwork,
+) -> Result<SpendingKeyResult, CommandError> {
+    let (_, result) = yield_from_!(get_initial_spending_key_parsed(network))?;
+    Ok(result)
+}
+
+command!(GetInitialSpendingKey = get_initial_spending_key -> SpendingKeyResult, network: fwpb::BtcNetwork);
 
 #[generator(yield(Vec<u8>), resume(Vec<u8>))]
 fn get_next_spending_key(
     seen: Vec<DescriptorPublicKey>,
     network: BtcNetwork,
-) -> Result<DescriptorPublicKey, CommandError> {
-    let ours = yield_from_!(get_initial_spending_key(network))?;
-    let next = find_next_bip84_derivation(ours, seen.into_iter())
+) -> Result<SpendingKeyResult, CommandError> {
+    let (ours_dpub, _) = yield_from_!(get_initial_spending_key_parsed(network))?;
+    let next: DerivationPath = find_next_bip84_derivation(ours_dpub, seen.into_iter())
         .ok_or(CommandError::InvalidArguments)?
         .as_slice()
         .into();
-    yield_from_!(derive(network, &next))
+    yield_from_!(derive(network, next))
 }
 
 pub fn find_next_bip84_derivation(
@@ -106,7 +151,7 @@ fn bip84(dpub: &DescriptorPublicKey) -> Option<[ChildNumber; 3]> {
     }
 }
 
-command!(GetNextSpendingKey = get_next_spending_key -> DescriptorPublicKey, seen: Vec<DescriptorPublicKey>, network: fwpb::BtcNetwork);
+command!(GetNextSpendingKey = get_next_spending_key -> SpendingKeyResult, seen: Vec<DescriptorPublicKey>, network: fwpb::BtcNetwork);
 
 #[cfg(test)]
 mod tests {

@@ -53,7 +53,6 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
-import io.ktor.client.call.body
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -110,7 +109,7 @@ class F8eHttpClientImplTests : FunSpec({
 
   val datadogTracer =
     object : DatadogTracer {
-      var spans = mutableListOf<StubDatadogSpan>()
+      val spans = mutableListOf<StubDatadogSpan>()
 
       override fun buildSpan(spanName: String) = StubDatadogSpan(spanName).also { spans += it }
 
@@ -209,6 +208,41 @@ class F8eHttpClientImplTests : FunSpec({
     client.unauthenticated()
       .bodyResult<EmptyResponseBody> {
         get("/soda/can") {
+          withEnvironment(F8eEnvironment.Development)
+        }
+      }
+
+    unauthedNetworkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
+
+    datadogTracer.spans shouldEndWith
+      StubDatadogSpan(
+        resourceName = "/soda/can",
+        tags =
+          mutableMapOf(
+            "http.method" to "GET",
+            "http.url" to "https://api.dev.wallet.build/soda/can",
+            "http.status_code" to "200",
+            "http.version" to "HTTP/1.1"
+          ),
+        finished = true
+      )
+  }
+
+  test("query parameters are removed from request url tracing") {
+    client = buildClient()
+    launch {
+      unauthenticatedMockEngine.handle {
+        respond(
+          content = ByteReadChannel("{}"),
+          status = HttpStatusCode.OK,
+          headers = headersOf(HttpHeaders.ContentType, MimeType.JSON.name)
+        )
+      }
+    }
+
+    client.unauthenticated()
+      .bodyResult<EmptyResponseBody> {
+        get("/soda/can?filename=user@example.com-secret.log") {
           withEnvironment(F8eEnvironment.Development)
         }
       }
@@ -532,6 +566,7 @@ class F8eHttpClientImplTests : FunSpec({
     val request = response.request
     request.headers["Bitkey-App-Installation-ID"].shouldNotBeNull().shouldBeEqual("local-id")
     request.headers["Bitkey-App-Version"].shouldNotBeNull().shouldBeEqual("2023.1.3")
+    request.headers["Bitkey-Firmware-Version"].shouldNotBeNull().shouldBeEqual("1.2.3")
     request.headers["Bitkey-Device-Region"].shouldNotBeNull().shouldBeEqual("US")
     request.headers["Bitkey-OS-Type"].shouldNotBeNull().shouldBeEqual("OS_TYPE_ANDROID")
     request.headers["Bitkey-OS-Version"].shouldNotBeNull().shouldBeEqual("version_num_1")
@@ -540,6 +575,40 @@ class F8eHttpClientImplTests : FunSpec({
     unauthedNetworkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
 
     response.status.isSuccess().shouldBeTrue()
-    response.body<EmptyResponseBody>().shouldBe(EmptyResponseBody)
+    response.bodyResult<EmptyResponseBody>().shouldBe(Ok(EmptyResponseBody))
+  }
+
+  test("targeting plugin omits firmware headers when firmware device info is unavailable") {
+    firmwareDeviceInfoDaoMock.clear()
+    firmwareDeviceInfoDaoMock.clearCalls.awaitItem()
+    client = buildClient()
+    launch {
+      unauthenticatedMockEngine.handle { _ ->
+        respond(
+          content = ByteReadChannel("{}"),
+          status = HttpStatusCode.OK,
+          headers = headersOf(HttpHeaders.ContentType, MimeType.JSON.name)
+        )
+      }
+    }
+
+    val response = client.unauthenticated()
+      .get("/soda/can") {
+        withEnvironment(F8eEnvironment.Development)
+      }
+
+    val request = response.request
+    request.headers["Bitkey-App-Installation-ID"].shouldNotBeNull().shouldBeEqual("local-id")
+    request.headers["Bitkey-App-Version"].shouldNotBeNull().shouldBeEqual("2023.1.3")
+    request.headers["Bitkey-Device-Region"].shouldNotBeNull().shouldBeEqual("US")
+    request.headers["Bitkey-OS-Type"].shouldNotBeNull().shouldBeEqual("OS_TYPE_ANDROID")
+    request.headers["Bitkey-OS-Version"].shouldNotBeNull().shouldBeEqual("version_num_1")
+    request.headers["Bitkey-Hardware-Serial"].shouldBe(null)
+    request.headers["Bitkey-Firmware-Version"].shouldBe(null)
+
+    unauthedNetworkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
+
+    response.status.isSuccess().shouldBeTrue()
+    response.bodyResult<EmptyResponseBody>().shouldBe(Ok(EmptyResponseBody))
   }
 })

@@ -43,7 +43,7 @@ class FwupUpdateDeviceSnapshots : FunSpec({
     }
   }
 
-  test("fwup update device screen - w3 design system v2") {
+  test("fwup update device screen - w3") {
     snapshotFwupUpdateDevice(hardwareType = HardwareType.W3)
   }
 

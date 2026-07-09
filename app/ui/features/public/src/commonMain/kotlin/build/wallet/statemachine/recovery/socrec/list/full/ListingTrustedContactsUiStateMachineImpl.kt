@@ -4,10 +4,12 @@ import androidx.compose.runtime.*
 import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.bitkey.relationships.Invitation
 import build.wallet.bitkey.relationships.ProtectedCustomer
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.UNAUTHENTICATED
 import build.wallet.bitkey.relationships.UnendorsedTrustedContact
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.recovery.socrec.SocRecService
+import build.wallet.relationships.RelationshipsEnrollmentAuthenticationDao
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.recovery.socrec.help.HelpingWithRecoveryUiProps
 import build.wallet.statemachine.recovery.socrec.help.HelpingWithRecoveryUiStateMachine
@@ -16,6 +18,9 @@ import build.wallet.statemachine.trustedcontact.view.ViewingInvitationProps
 import build.wallet.statemachine.trustedcontact.view.ViewingInvitationUiStateMachine
 import build.wallet.statemachine.trustedcontact.view.ViewingRecoveryContactProps
 import build.wallet.statemachine.trustedcontact.view.ViewingRecoveryContactUiStateMachine
+import com.github.michaelbull.result.get
+import kotlinx.collections.immutable.persistentSetOf
+import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.datetime.Clock
 
 @BitkeyInject(ActivityScope::class)
@@ -26,6 +31,7 @@ class ListingTrustedContactsUiStateMachineImpl(
   private val helpingWithRecoveryUiStateMachine: HelpingWithRecoveryUiStateMachine,
   private val clock: Clock,
   private val socRecService: SocRecService,
+  private val relationshipsEnrollmentAuthenticationDao: RelationshipsEnrollmentAuthenticationDao,
 ) : ListingTrustedContactsUiStateMachine {
   @Composable
   override fun model(props: ListingTrustedContactsUiProps): ScreenModel {
@@ -33,6 +39,21 @@ class ListingTrustedContactsUiStateMachineImpl(
 
     val socRecRelationships by remember { socRecService.socRecRelationships }
       .collectAsState()
+    val unendorsedContactRelationshipIdsMissingPakeData by produceState(
+      initialValue = persistentSetOf(),
+      key1 = socRecRelationships?.unendorsedTrustedContacts
+    ) {
+      value = socRecRelationships?.unendorsedTrustedContacts
+        ?.filter { it.authenticationState == UNAUTHENTICATED }
+        ?.mapNotNull { contact ->
+          val pakeData = relationshipsEnrollmentAuthenticationDao
+            .getByRelationshipId(contact.id.value)
+            .get()
+          contact.id.value.takeIf { pakeData == null }
+        }
+        ?.toImmutableSet()
+        ?: persistentSetOf()
+    }
 
     val screenBody =
       TrustedContactsListBodyModel(
@@ -44,13 +65,15 @@ class ListingTrustedContactsUiStateMachineImpl(
             when (it) {
               is EndorsedTrustedContact -> State.ViewingTrustedContactDetailsState(it)
               is Invitation -> State.ViewingInvitationDetailsState(it)
-              is UnendorsedTrustedContact -> error("TODO BKR-852")
+              is UnendorsedTrustedContact -> State.ViewingUnendorsedTrustedContactDetailsState(it)
             }
         },
         onProtectedCustomerPressed = { state = State.ViewingProtectedCustomerDetail(it) },
-        contacts = socRecRelationships?.endorsedTrustedContacts ?: emptyList(),
-        invitations = socRecRelationships?.invitations ?: emptyList(),
-        protectedCustomers = socRecRelationships?.protectedCustomers ?: emptyList(),
+        contacts = socRecRelationships?.endorsedTrustedContacts.orEmpty(),
+        unendorsedContacts = socRecRelationships?.unendorsedTrustedContacts.orEmpty(),
+        unendorsedContactRelationshipIdsMissingPakeData = unendorsedContactRelationshipIdsMissingPakeData,
+        invitations = socRecRelationships?.invitations.orEmpty(),
+        protectedCustomers = socRecRelationships?.protectedCustomers.orEmpty(),
         now = clock.now().toEpochMilliseconds()
       )
 
@@ -73,6 +96,23 @@ class ListingTrustedContactsUiStateMachineImpl(
             screenBody = screenBody,
             recoveryContact = current.endorsedTrustedContact,
             account = props.account,
+            unendorsedContactRelationshipIdsMissingPakeData = unendorsedContactRelationshipIdsMissingPakeData,
+            afterContactRemoved = {
+              state = State.ViewingListState
+            },
+            onExit = {
+              state = State.ViewingListState
+            }
+          )
+        )
+
+      is State.ViewingUnendorsedTrustedContactDetailsState ->
+        viewingRecoveryContactUiStateMachine.model(
+          ViewingRecoveryContactProps(
+            screenBody = screenBody,
+            recoveryContact = current.unendorsedTrustedContact,
+            account = props.account,
+            unendorsedContactRelationshipIdsMissingPakeData = unendorsedContactRelationshipIdsMissingPakeData,
             afterContactRemoved = {
               state = State.ViewingListState
             },
@@ -116,6 +156,10 @@ class ListingTrustedContactsUiStateMachineImpl(
 
     data class ViewingTrustedContactDetailsState(
       val endorsedTrustedContact: EndorsedTrustedContact,
+    ) : State
+
+    data class ViewingUnendorsedTrustedContactDetailsState(
+      val unendorsedTrustedContact: UnendorsedTrustedContact,
     ) : State
 
     data class ViewingInvitationDetailsState(

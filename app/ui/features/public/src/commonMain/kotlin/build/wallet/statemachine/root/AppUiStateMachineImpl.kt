@@ -1,6 +1,7 @@
 package build.wallet.statemachine.root
 
 import androidx.compose.runtime.*
+import bitkey.account.AccountConfigService
 import bitkey.datadog.DatadogRumMonitor
 import bitkey.ui.framework.NavigatorPresenter
 import build.wallet.account.AccountService
@@ -42,6 +43,7 @@ import build.wallet.statemachine.home.full.HomeUiStateMachine
 import build.wallet.statemachine.home.lite.LiteHomeUiProps
 import build.wallet.statemachine.home.lite.LiteHomeUiStateMachine
 import build.wallet.statemachine.nfc.NfcBodyModel
+import build.wallet.statemachine.nfc.isHardwareFakeForNfc
 import build.wallet.statemachine.recovery.cloud.LiteAccountCloudBackupRestorationUiProps
 import build.wallet.statemachine.recovery.cloud.LiteAccountCloudBackupRestorationUiStateMachine
 import build.wallet.statemachine.send.signtransaction.SignTransactionNfcBodyModel
@@ -74,6 +76,7 @@ class AppUiStateMachineImpl(
     LiteAccountCloudBackupRestorationUiStateMachine,
   private val appWorkerExecutor: AppWorkerExecutor,
   private val accountService: AccountService,
+  private val accountConfigService: AccountConfigService,
   private val datadogRumMonitor: DatadogRumMonitor,
   private val splashScreenDelay: SplashScreenDelay,
   private val welcomeToBitkeyScreenDuration: WelcomeToBitkeyScreenDuration,
@@ -90,6 +93,17 @@ class AppUiStateMachineImpl(
    * back to back.
    */
   private var previousScreenModel: ScreenModel? = null
+
+  private val FwupNfcBodyModel.Status.isActiveSession: Boolean
+    get() =
+      when (this) {
+        is FwupNfcBodyModel.Status.Searching,
+        is FwupNfcBodyModel.Status.InProgress,
+        -> true
+        is FwupNfcBodyModel.Status.LostConnection,
+        is FwupNfcBodyModel.Status.Success,
+        -> false
+      }
 
   @Suppress("CyclomaticComplexMethod")
   @Composable
@@ -337,19 +351,21 @@ class AppUiStateMachineImpl(
       )
     }
 
-    val isDesignSystemV2Enabled = true
-
     // On iOS with real hardware, NFC screens are hidden and the previous screen is
     // preserved because the system CoreNFC sheet is shown natively. With fake hardware
     // there is no native CoreNFC sheet, so we skip preservation to allow the NFC
     // screen (and any emulated prompt bottom sheet) to render normally.
-    val isHardwareFake by remember {
-      accountService.accountStatus()
-        .map { result ->
-          val account = (result.get() as? AccountStatus.ActiveAccount)?.account
-          (account as? FullAccount)?.config?.isHardwareFake == true
-        }
-    }.collectAsState(initial = false)
+    // Lite accounts do not carry hardware config, so dev/team Lite -> Full upgrades need
+    // defaultConfig as the fake-hardware fallback while other flows use activeOrDefaultConfig.
+    val accountConfig by remember { accountConfigService.activeOrDefaultConfig() }.collectAsState()
+    val defaultConfig by remember { accountConfigService.defaultConfig() }.collectAsState()
+    val isHardwareFake = remember(appVariant, accountConfig, defaultConfig) {
+      isHardwareFakeForNfc(
+        appVariant = appVariant,
+        accountConfig = accountConfig,
+        defaultConfig = defaultConfig
+      )
+    }
 
     val isIosWithRealHardware = remember(deviceInfo, isHardwareFake) {
       deviceInfo.devicePlatform == DevicePlatform.IOS && !isHardwareFake
@@ -361,7 +377,7 @@ class AppUiStateMachineImpl(
       (screenModel.body as? SignTransactionNfcBodyModel)?.showNativeSheetOnIos == true
 
     val shouldPreservePreviousScreenForPlatformNfc = isIosWithRealHardware &&
-      ((isDesignSystemV2Enabled && isNfcScreen) || (!isDesignSystemV2Enabled && screenModel.platformNfcScreen))
+      isNfcScreen
 
     val targetModel = when {
       shouldPreservePreviousScreenForPlatformNfc -> previousScreenModel ?: screenModel
@@ -372,7 +388,7 @@ class AppUiStateMachineImpl(
     }
 
     // Check if app update modal should be shown
-    val isAppUpdateModalEnabled by appUpdateModalFeatureFlag.flagValue().collectAsState()
+    val isAppUpdateModalEnabled by remember { appUpdateModalFeatureFlag.flagValue() }.collectAsState()
     val shouldShowAppUpdateModal = isAppUpdateModalEnabled.value && !isUpdateModalDismissed
     val finalModel = when {
       shouldShowAppUpdateModal -> {
@@ -396,17 +412,6 @@ class AppUiStateMachineImpl(
       else -> finalModel
     }
   }
-
-  private val FwupNfcBodyModel.Status.isActiveSession: Boolean
-    get() =
-      when (this) {
-        is FwupNfcBodyModel.Status.Searching,
-        is FwupNfcBodyModel.Status.InProgress,
-        -> true
-        is FwupNfcBodyModel.Status.LostConnection,
-        is FwupNfcBodyModel.Status.Success,
-        -> false
-      }
 
   @Composable
   private fun HasActiveSoftwareAccountScreenModel(

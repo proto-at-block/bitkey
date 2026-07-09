@@ -16,13 +16,14 @@ CREATE TABLE defaultAccountConfigEntity(
   delayNotifyDuration           TEXT AS Duration,
   skipCloudBackupOnboarding     INTEGER AS Boolean NOT NULL,
   skipNotificationsOnboarding   INTEGER AS Boolean NOT NULL,
-  skipBuildHardwareDescriptorOnboarding INTEGER AS Boolean NOT NULL DEFAULT 0
+  skipBuildHardwareDescriptorOnboarding INTEGER AS Boolean NOT NULL DEFAULT 0,
+  fakeCloudStore                INTEGER AS Boolean NOT NULL DEFAULT 0
 );
 
 setConfig:
-INSERT OR REPLACE INTO defaultAccountConfigEntity(rowId, bitcoinNetworkType, fakeHardware, hardwareType, f8eEnvironment, isTestAccount, isUsingSocRecFakes, delayNotifyDuration, skipCloudBackupOnboarding, skipNotificationsOnboarding, skipBuildHardwareDescriptorOnboarding)
+INSERT OR REPLACE INTO defaultAccountConfigEntity(rowId, bitcoinNetworkType, fakeHardware, hardwareType, f8eEnvironment, isTestAccount, isUsingSocRecFakes, delayNotifyDuration, skipCloudBackupOnboarding, skipNotificationsOnboarding, skipBuildHardwareDescriptorOnboarding, fakeCloudStore)
 -- Use stable row ID to ensure we only ever have a single config in table.
-VALUES(0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+VALUES(0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 config:
 SELECT * FROM defaultAccountConfigEntity;

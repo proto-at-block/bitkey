@@ -38,7 +38,7 @@ class KeyboxDaoImpl(
         .fullAccountQueries
         .getActiveFullAccount()
         .asFlowOfOneOrNull()
-        .map { it.flatMap { it?.keybox() ?: Ok(null) } }
+        .map { it.flatMap { fullAccount -> fullAccount?.keybox() ?: Ok(null) } }
         .distinctUntilChanged()
         .collect(::emit)
     }
@@ -50,7 +50,7 @@ class KeyboxDaoImpl(
         .fullAccountQueries
         .getOnboardingFullAccount()
         .asFlowOfOneOrNull()
-        .map { it.flatMap { it?.keybox() ?: Ok(null) } }
+        .map { it.flatMap { fullAccount -> fullAccount?.keybox() ?: Ok(null) } }
         .distinctUntilChanged()
         .collect(::emit)
     }

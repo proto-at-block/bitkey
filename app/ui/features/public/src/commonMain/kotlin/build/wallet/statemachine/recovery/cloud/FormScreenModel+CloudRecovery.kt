@@ -78,7 +78,7 @@ data class CloudWarningBodyModel(
                         iconPadding = 12,
                         model =
                           IconModel(
-                            icon = Icon.SmallIconAccount,
+                            icon = Icon.Account,
                             iconSize = IconSize.Small
                           )
                       ),
@@ -99,7 +99,7 @@ data class CloudWarningBodyModel(
                         iconPadding = 12,
                         model =
                           IconModel(
-                            icon = Icon.SmallIconWallet,
+                            icon = Icon.Wallet,
                             iconSize = IconSize.Small
                           )
                       ),
@@ -115,7 +115,7 @@ data class CloudWarningBodyModel(
                           iconPadding = 12,
                           model =
                             IconModel(
-                              icon = Icon.SmallIconRecovery,
+                              icon = Icon.Recovery,
                               iconSize = IconSize.Small
                             )
                         ),
@@ -143,7 +143,7 @@ data class CloudBackupTroubleshootingStepsModel(
     mainContentList = iCloudTroubleshootingStepsMainContentList(),
     primaryButton = ButtonModel(
       text = "Check again",
-      leadingIcon = Icon.SmallIconRefresh,
+      leadingIcon = Icon.Refresh,
       onClick = StandardClick(onTryAgain),
       size = Footer
     ),

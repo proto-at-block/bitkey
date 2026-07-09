@@ -6,6 +6,9 @@ import bitkey.auth.AccountAuthTokens
 import bitkey.auth.AuthTokenScope.Global
 import bitkey.auth.AuthTokenScope.Recovery
 import bitkey.auth.RefreshToken
+import bitkey.f8e.error.F8eError
+import bitkey.f8e.error.SpecificClientErrorMock
+import bitkey.f8e.error.code.HardwareAuthKeyAvailabilityErrorCode.HW_AUTH_PUBKEY_IN_USE
 import build.wallet.account.AccountServiceFake
 import build.wallet.auth.AccountAuthenticator
 import build.wallet.auth.AccountAuthenticatorMock
@@ -39,8 +42,10 @@ import build.wallet.f8e.auth.PrivilegedActionProof
 import build.wallet.f8e.auth.RotateAuthKeysF8eClientMock
 import build.wallet.f8e.onboarding.CreateAccountKeysetV2F8eClientFake
 import build.wallet.f8e.onboarding.SetActiveSpendingKeysetF8eClientFake
-import build.wallet.f8e.recovery.ListKeysetsResponse
+import build.wallet.f8e.recovery.HardwareAuthKeyAvailabilityF8eClientFake
+import build.wallet.f8e.recovery.HardwareAuthKeyAvailabilityStatus as F8eHardwareAuthKeyAvailabilityStatus
 import build.wallet.f8e.recovery.ListKeysetsF8eClientMock
+import build.wallet.f8e.recovery.ListKeysetsResponse
 import build.wallet.f8e.recovery.SignedKeysetVerificationResponseMock
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.keybox.keys.AppKeysGeneratorMock
@@ -68,6 +73,7 @@ import build.wallet.encrypt.XCiphertext
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.get
+import io.ktor.http.HttpStatusCode.Companion.InternalServerError
 import io.ktor.http.HttpStatusCode.Companion.NotFound
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -76,6 +82,8 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
+// Large end-to-end coverage for wallet migration; splitting would hurt cohesion.
+@Suppress("LargeClass")
 class MigrationServiceImplTests : FunSpec({
   val appKeysGenerator = AppKeysGeneratorMock()
   val createKeysetClient = CreateAccountKeysetV2F8eClientFake()
@@ -97,6 +105,7 @@ class MigrationServiceImplTests : FunSpec({
   val descriptorBackupVerificationDao = build.wallet.recovery.DescriptorBackupVerificationDaoFake()
   val listKeysetsClient = ListKeysetsF8eClientMock()
   val setActiveSpendingKeysetF8eClient = SetActiveSpendingKeysetF8eClientFake()
+  val hardwareAuthKeyAvailabilityF8eClient = HardwareAuthKeyAvailabilityF8eClientFake()
   val delegatedDecryptionKeyService = DelegatedDecryptionKeyServiceMock()
   val sweepService = SweepServiceMock()
   val rotateAuthKeysF8eClient = RotateAuthKeysF8eClientMock(turbines::create)
@@ -123,6 +132,7 @@ class MigrationServiceImplTests : FunSpec({
     listKeysetsF8eClient = listKeysetsClient,
     setActiveSpendingKeysetF8eClient = setActiveSpendingKeysetF8eClient,
     rotateAuthKeysF8eClient = rotateAuthKeysF8eClient,
+    hardwareAuthKeyAvailabilityF8eClient = hardwareAuthKeyAvailabilityF8eClient,
     sweepService = sweepService,
     delegatedDecryptionKeyService = delegatedDecryptionKeyService,
     descriptorBackupVerificationDao = descriptorBackupVerificationDao,
@@ -202,12 +212,74 @@ class MigrationServiceImplTests : FunSpec({
     w3UpgradeDao.clear()
     w3UpgradeCheckpointWriter.reset()
     setActiveSpendingKeysetF8eClient.reset()
+    hardwareAuthKeyAvailabilityF8eClient.reset()
     listKeysetsClient.reset()
     ssekDao.reset()
     endorseTrustedContactsService.reset()
     descriptorBackupService.reset()
     rotateAuthKeysF8eClient.reset()
     onboardingKeyboxSealedSsekDao.reset()
+  }
+
+  suspend fun checkHardwareAuthKeyAvailability() =
+    service.checkW3UpgradeHardwareAuthKeyAvailability(
+      account = mockAccount,
+      hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock
+    )
+
+  test("hardware auth key availability maps success statuses") {
+    val statusMappings = mapOf(
+      F8eHardwareAuthKeyAvailabilityStatus.Available to HardwareAuthKeyAvailabilityStatus.Available,
+      F8eHardwareAuthKeyAvailabilityStatus.ClaimedByCurrentAccount to
+        HardwareAuthKeyAvailabilityStatus.ClaimedByCurrentAccount,
+      F8eHardwareAuthKeyAvailabilityStatus.ActiveOnCurrentAccount to
+        HardwareAuthKeyAvailabilityStatus.ActiveOnCurrentAccount
+    )
+
+    statusMappings.forEach { (f8eStatus, expectedStatus) ->
+      hardwareAuthKeyAvailabilityF8eClient.reset()
+      hardwareAuthKeyAvailabilityF8eClient.checkAvailabilityResult = Ok(f8eStatus)
+
+      val result = checkHardwareAuthKeyAvailability()
+
+      result.shouldBeOk(expectedStatus)
+      hardwareAuthKeyAvailabilityF8eClient.checkAvailabilityCalls.single().let { call ->
+        call.fullAccountId.shouldBe(mockAccount.accountId)
+        call.hardwareAuthPublicKey.shouldBe(HwAuthSecp256k1PublicKeyMock)
+        call.appAuthKey.shouldBe(mockAccount.keybox.activeAppKeyBundle.authKey)
+      }
+    }
+  }
+
+  test("hardware auth key availability maps in-use key to specific migration error") {
+    hardwareAuthKeyAvailabilityF8eClient.checkAvailabilityResult =
+      Err(SpecificClientErrorMock(HW_AUTH_PUBKEY_IN_USE))
+
+    val result = checkHardwareAuthKeyAvailability()
+
+    result.shouldBeErrOfType<MigrationError.HardwareAuthKeyAlreadyInUse>()
+  }
+
+  test("hardware auth key availability maps server errors to transient failure") {
+    hardwareAuthKeyAvailabilityF8eClient.checkAvailabilityResult = Err(
+      F8eError.ServerError(
+        HttpError.ServerError(HttpResponseMock(InternalServerError))
+      )
+    )
+
+    val result = checkHardwareAuthKeyAvailability()
+
+    result.shouldBeErrOfType<MigrationError.HardwareAuthKeyAvailabilityCheckFailed>()
+  }
+
+  test("hardware auth key availability maps unknown errors to transient failure") {
+    hardwareAuthKeyAvailabilityF8eClient.checkAvailabilityResult = Err(
+      F8eError.UnhandledError(Error("unknown availability check failure"))
+    )
+
+    val result = checkHardwareAuthKeyAvailability()
+
+    result.shouldBeErrOfType<MigrationError.HardwareAuthKeyAvailabilityCheckFailed>()
   }
 
   test("resume returns NotStarted when no migration state exists") {
@@ -757,7 +829,13 @@ class MigrationServiceImplTests : FunSpec({
     val result = service.proceed(state = createKeysetState)
 
     result.shouldBeErrOfType<MigrationError.StatePersistenceFailed>()
-    w3UpgradeDao.state.value.get().shouldBe(null)
+    // The hardware key is persisted incrementally before later steps run, so the entity
+    // exists — but no later checkpoint columns (app key, server key, keyset id) are set.
+    val state1 = w3UpgradeDao.state.value.get()
+    state1?.newHardwareKey.shouldBe(mockNewHwKeys.spendingKey)
+    state1?.newAppKey.shouldBe(null)
+    state1?.newServerKey.shouldBe(null)
+    state1?.keysetLocalId.shouldBe(null)
     keyboxDao.activeKeybox.value.get().shouldBe(null)
   }
 
@@ -781,7 +859,14 @@ class MigrationServiceImplTests : FunSpec({
     val result = service.proceed(state = createKeysetState)
 
     result.shouldBeErrOfType<MigrationError.StatePersistenceFailed>()
-    w3UpgradeDao.state.value.get().shouldBe(null)
+    // Hardware key is persisted incrementally before the checkpoint writer runs; the rest
+    // of the checkpoint columns remain untouched on failure.
+    val state2 = w3UpgradeDao.state.value.get()
+    state2?.newHardwareKey.shouldBe(mockNewHwKeys.spendingKey)
+    state2?.newAppKey.shouldBe(null)
+    state2?.newServerKey.shouldBe(null)
+    state2?.keysetLocalId.shouldBe(null)
+    state2?.oldDeviceSerial.shouldBe(null)
     keyboxDao.activeKeybox.value.get().shouldBe(null)
     onboardingKeyboxSealedSsekDao.get().get().shouldBe(null)
   }

@@ -68,17 +68,17 @@ class EndorseTrustedContactsServiceImpl(
           newAppGlobalAuthKeyHwSignature = newAppGlobalAuthKeyHwSignature,
           newHwAuthKey = newHwAuthKey
         ).logFailure {
-          "Failed to verify contact ${contact.relationshipId} key certificate for certificate regeneration."
+          "Failed to verify contact ${contact.id.value} key certificate for certificate regeneration."
         }.onFailure {
           relationshipsDao.setTrustedContactAuthenticationState(
-            contact.relationshipId,
+            contact.id.value,
             TrustedContactAuthenticationState.TAMPERED
           ).logFailure {
-            "Failed to set contact ${contact.relationshipId} authentication state to TAMPERED."
+            "Failed to set contact ${contact.id.value} authentication state to TAMPERED."
           }.bind()
         }.map { newCert ->
           TrustedContactEndorsement(
-            relationshipId = RelationshipId(contact.relationshipId),
+            relationshipId = contact.id,
             keyCertificate = newCert
           )
         }
@@ -106,7 +106,7 @@ class EndorseTrustedContactsServiceImpl(
         .map {
           authenticate(it)
             .logFailure {
-              "Unexpected application error handling key confirmation for ${it.relationshipId}. We did not get far enough to attempt PAKE authentication"
+              "Unexpected application error handling key confirmation for ${it.id.value}. We did not get far enough to attempt PAKE authentication"
             }
         }
         // Any successful, non-null results are successful authentications
@@ -129,11 +129,11 @@ class EndorseTrustedContactsServiceImpl(
     coroutineBinding<Pair<UnendorsedTrustedContact, PublicKey<DelegatedDecryptionKey>>?, Throwable> {
       // Make sure PAKE data is available
       val pakeData =
-        relationshipsEnrollmentAuthenticationDao.getByRelationshipId(contact.relationshipId)
+        relationshipsEnrollmentAuthenticationDao.getByRelationshipId(contact.id.value)
           .bind()
       if (pakeData == null) {
         relationshipsDao.setUnendorsedTrustedContactAuthenticationState(
-          contact.relationshipId,
+          contact.id.value,
           TrustedContactAuthenticationState.PAKE_DATA_UNAVAILABLE
         ).bind()
         return@coroutineBinding null
@@ -143,7 +143,7 @@ class EndorseTrustedContactsServiceImpl(
       val delegatedDecryptionKey = authenticateKeys(contact, pakeData)
       if (delegatedDecryptionKey == null) {
         relationshipsDao.setUnendorsedTrustedContactAuthenticationState(
-          contact.relationshipId,
+          contact.id.value,
           TrustedContactAuthenticationState.FAILED
         ).bind()
         return@coroutineBinding null
@@ -173,7 +173,7 @@ class EndorseTrustedContactsServiceImpl(
       // DO NOT REMOVE this log line. We alert on it.
       // See BKR-858
       .logFailure {
-        "[socrec_enrollment_pake_failure] Failed to authenticate keys for ${contact.relationshipId}"
+        "[socrec_enrollment_pake_failure] Failed to authenticate keys for ${contact.id.value}"
       }
       .get()
 
@@ -195,7 +195,7 @@ class EndorseTrustedContactsServiceImpl(
             .bind()
 
           TrustedContactEndorsement(
-            relationshipId = RelationshipId(unendorsedTc.relationshipId),
+            relationshipId = unendorsedTc.id,
             keyCertificate = keyCertificate
           )
         }

@@ -94,8 +94,8 @@ class RelationshipsKeysDaoImpl(
         keys
       }
       .map {
-        it.forEach {
-          appPrivateKeyDao.remove(it.key)
+        it.forEach { socRecKey ->
+          appPrivateKeyDao.remove(socRecKey.key)
         }
       }
   }

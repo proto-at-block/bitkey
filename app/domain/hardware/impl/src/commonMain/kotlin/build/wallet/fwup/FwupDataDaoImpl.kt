@@ -56,7 +56,7 @@ class FwupDataDaoImpl(
   override suspend fun getAllMcuFwupData(): Result<List<McuFwupData>, DbError> {
     return database()
       .awaitTransactionWithResult {
-        fwupDataQueries.getAllMcuFwupData().executeAsList().map { it.toMcuFwupData() }
+        fwupDataQueries.getAllMcuFwupData().executeAsList().map { entity -> entity.toMcuFwupData() }
       }
       .logFailure { "Failed to get all MCU fwup data" }
   }

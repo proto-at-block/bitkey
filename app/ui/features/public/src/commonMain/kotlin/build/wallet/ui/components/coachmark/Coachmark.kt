@@ -1,23 +1,24 @@
 package build.wallet.ui.components.coachmark
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import build.wallet.statemachine.core.Icon
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.icon.IconButton
-import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.model.button.ButtonModel
@@ -32,7 +33,7 @@ import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.darkStyleDictionaryColors
-import build.wallet.ui.tokens.market.MarketIcons
+import build.wallet.statemachine.core.Icon
 import build.wallet.ui.tokens.painter
 
 /**
@@ -46,10 +47,13 @@ fun Coachmark(
   model: CoachmarkModel,
   offset: Offset,
 ) {
-  val isDesignSystemV2Enabled = true
   val density = LocalDensity.current
-  val coachmarkShape = RoundedCornerShape(if (isDesignSystemV2Enabled) 8.dp else 20.dp)
-  val coachmarkColors = coachmarkColors()
+  val coachmarkShape = RoundedCornerShape(8.dp)
+  // Coachmarks always use the dark palette regardless of the active theme.
+  val backgroundColor = darkStyleDictionaryColors.subtleBackground
+  val titleColor = darkStyleDictionaryColors.foreground
+  val descriptionColor = darkStyleDictionaryColors.foreground60
+  val closeIconColor = darkStyleDictionaryColors.foreground30
   val arrowAlignment = when (model.arrowPosition.horizontal) {
     CoachmarkModel.ArrowPosition.Horizontal.Leading -> Alignment.Start
     CoachmarkModel.ArrowPosition.Horizontal.Centered -> Alignment.CenterHorizontally
@@ -66,7 +70,7 @@ fun Coachmark(
     if (model.arrowPosition.vertical == CoachmarkModel.ArrowPosition.Vertical.Top) {
       CoachmarkArrow(
         modifier = Modifier.align(arrowAlignment).offset(y = 1.dp),
-        color = coachmarkColors.background
+        color = backgroundColor
       )
     }
 
@@ -80,7 +84,7 @@ fun Coachmark(
           spotColor = Color(0x0A000000),
           ambientColor = Color(0x0A000000)
         )
-        .background(color = coachmarkColors.background, shape = coachmarkShape)
+        .background(color = backgroundColor, shape = coachmarkShape)
         .padding(16.dp)
     ) {
       model.image?.let {
@@ -101,15 +105,10 @@ fun Coachmark(
         )
         IconButton(
           iconModel = IconModel(
-            iconImage =
-              if (isDesignSystemV2Enabled) {
-                IconImage.MarketIconImage(MarketIcons.XCircleFill)
-              } else {
-                IconImage.LocalImage(Icon.SmallIconXFilled)
-              },
+            iconImage = IconImage.LocalImage(Icon.XCircleFill),
             iconSize = IconSize.Small
           ),
-          color = coachmarkColors.closeIcon,
+          color = closeIconColor,
           onClick = model.dismiss
         )
       }
@@ -118,32 +117,24 @@ fun Coachmark(
 
       Label(
         text = model.title,
-        type = if (isDesignSystemV2Enabled) LabelType.Title3 else LabelType.Title2,
+        type = LabelType.Title3,
         treatment = LabelTreatment.Unspecified,
-        color = coachmarkColors.title
+        color = titleColor
       )
       Label(
         text = model.description,
         type = LabelType.Body3Regular,
         treatment = LabelTreatment.Unspecified,
-        color = coachmarkColors.description
+        color = descriptionColor
       )
       model.button?.let {
         Spacer(modifier = Modifier.height(8.dp))
-        if (isDesignSystemV2Enabled) {
-          CompositionLocalProvider(LocalTheme provides Theme.DARK) {
-            WalletTheme {
-              Button(
-                model = it.copy(treatment = ButtonModel.Treatment.Secondary),
-                cornerRadius = 8.dp
-              )
-            }
+        CompositionLocalProvider(LocalTheme provides Theme.DARK) {
+          WalletTheme {
+            Button(
+              model = it.copy(treatment = ButtonModel.Treatment.Secondary)
+            )
           }
-        } else {
-          Button(
-            model = it,
-            cornerRadius = 16.dp
-          )
         }
       }
     }
@@ -152,7 +143,7 @@ fun Coachmark(
     if (model.arrowPosition.vertical == CoachmarkModel.ArrowPosition.Vertical.Bottom) {
       CoachmarkArrow(
         modifier = Modifier.align(arrowAlignment).offset(y = (-1).dp),
-        color = coachmarkColors.background,
+        color = backgroundColor,
         rotated = true
       )
     }
@@ -165,51 +156,63 @@ private fun CoachmarkArrow(
   color: Color,
   rotated: Boolean = false,
 ) {
-  IconImage(
-    model = IconModel(
-      icon = Icon.CalloutArrow,
-      iconSize = IconSize.Small
-    ),
+  // The arrow is drawn as a triangle pointing up with a rounded apex, inside a box sized
+  // arrowWidthDp x arrowHeightDp. The apex is shaped by a cubic bezier (rather than a single
+  // quadratic) so the tip is a slightly flatter, softer join than a perfectly circular
+  // round-over.
+  val arrowWidthDp = 25.dp
+  val arrowHeightDp = 11.dp
+  val density = LocalDensity.current
+  val path = remember(density) {
+    with(density) {
+      val widthPx = arrowWidthDp.toPx()
+      val heightPx = arrowHeightDp.toPx()
+
+      // Helpers to convert design-space coordinates (in the 25x11 viewport) to pixels.
+      fun x(designX: Float) = widthPx * (designX / 25f)
+      fun y(designY: Float) = heightPx * (designY / 11f)
+
+      // Small horizontal inset from the box edges, preserved from the original design viewport
+      // so the filled shape sits flush with the tooltip body without anti-aliased edges
+      // bleeding past the canvas bounds.
+      val baselineInset = 0.5f
+      val baselineY = 11f
+
+      // Where the straight edges of the triangle stop and the rounded apex begins.
+      val apexStartX = 9.672f
+      val apexEndX = 15.328f
+      val apexStartY = 1.828f
+
+      // Cubic bezier control points that shape the rounded tip.
+      val apexControlLeftX = 11.234f
+      val apexControlRightX = 13.766f
+      val apexControlY = 0.266f
+
+      Path().apply {
+        // Bottom-left corner of the triangle base.
+        moveTo(x(baselineInset), y(baselineY))
+        // Bottom-right corner of the triangle base.
+        lineTo(x(25f - baselineInset), y(baselineY))
+        // Up the right edge to where the rounded apex starts.
+        lineTo(x(apexEndX), y(apexStartY))
+        // Rounded apex: curve across the top from right to left.
+        cubicTo(
+          x(apexControlRightX), y(apexControlY),
+          x(apexControlLeftX), y(apexControlY),
+          x(apexStartX), y(apexStartY)
+        )
+        // Back down the left edge to the starting point.
+        close()
+      }
+    }
+  }
+  Canvas(
     modifier = modifier
       .padding(horizontal = 16.dp)
-      .height(12.dp)
-      .then(if (rotated) Modifier.rotate(180f) else Modifier),
-    color = color
-  )
-}
-
-private data class CoachmarkColors(
-  val background: Color,
-  val title: Color,
-  val description: Color,
-  val closeIcon: Color,
-)
-
-@Composable
-private fun coachmarkColors(): CoachmarkColors {
-  val isDesignSystemV2Enabled = true
-  val useDarkPaletteOnLightDsv2 =
-    isDesignSystemV2Enabled && LocalTheme.current == Theme.LIGHT
-  val contentColors = if (useDarkPaletteOnLightDsv2) darkStyleDictionaryColors else WalletTheme.colors
-
-  return if (isDesignSystemV2Enabled) {
-    CoachmarkColors(
-      background =
-        if (useDarkPaletteOnLightDsv2) {
-          darkStyleDictionaryColors.subtleBackground
-        } else {
-          WalletTheme.colors.subtleBackground
-        },
-      title = contentColors.foreground,
-      description = contentColors.foreground60,
-      closeIcon = contentColors.foreground30
-    )
-  } else {
-    CoachmarkColors(
-      background = WalletTheme.colors.coachmarkBackground,
-      title = Color.White,
-      description = Color.White,
-      closeIcon = WalletTheme.colors.foreground30
-    )
+      .size(width = arrowWidthDp, height = arrowHeightDp)
+      .then(if (rotated) Modifier.rotate(180f) else Modifier)
+  ) {
+    drawPath(path = path, color = color)
   }
 }
+

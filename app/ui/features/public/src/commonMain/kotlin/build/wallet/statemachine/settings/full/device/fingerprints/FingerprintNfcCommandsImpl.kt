@@ -42,7 +42,7 @@ class FingerprintNfcCommandsImpl : FingerprintNfcCommands {
     commands: NfcCommands,
     session: NfcSession,
     enrolledFingerprints: EnrolledFingerprints,
-    fingerprintToEnroll: FingerprintHandle,
+    fingerprintHandle: FingerprintHandle,
   ): EnrollmentStatusResult {
     val enrollmentResult = commands.getFingerprintEnrollmentStatus(
       session = session,
@@ -65,7 +65,7 @@ class FingerprintNfcCommandsImpl : FingerprintNfcCommands {
           EnrollmentStatusResult.Complete(enrolledFingerprints = latestEnrolledFingerprints)
         } else {
           // Otherwise, immediately restart the enrollment
-          commands.startFingerprintEnrollment(session, fingerprintToEnroll)
+          commands.startFingerprintEnrollment(session, fingerprintHandle)
           EnrollmentStatusResult.Incomplete
         }
       }

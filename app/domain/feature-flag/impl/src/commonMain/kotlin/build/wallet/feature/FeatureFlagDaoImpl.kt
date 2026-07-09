@@ -36,8 +36,8 @@ class FeatureFlagDaoImpl(
           .doubleFeatureFlagQueries
           .getFlag(featureFlagId)
           .awaitAsOneOrNullResult()
-          .map {
-            it?.let {
+          .map { getFlagValue ->
+            getFlagValue?.let {
               @Suppress("UNCHECKED_CAST")
               FeatureFlagValue.DoubleFlag(value = it) as T
             }
@@ -47,8 +47,8 @@ class FeatureFlagDaoImpl(
           .stringFeatureFlagQueries
           .getFlag(featureFlagId)
           .awaitAsOneOrNullResult()
-          .map {
-            it?.let {
+          .map { getFlagValue ->
+            getFlagValue?.let {
               @Suppress("UNCHECKED_CAST")
               FeatureFlagValue.StringFlag(value = it) as T
             }
@@ -80,7 +80,6 @@ class FeatureFlagDaoImpl(
           .awaitTransaction {
             setFlag(featureFlagId, flagValue.value)
           }
-      else -> error("Unsupported flag type: ${flagValue::class}")
     }
   }
 

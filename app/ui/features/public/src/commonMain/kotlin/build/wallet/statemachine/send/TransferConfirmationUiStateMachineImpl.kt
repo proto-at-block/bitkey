@@ -3,7 +3,7 @@ package build.wallet.statemachine.send
 import androidx.compose.runtime.*
 import bitkey.account.isW3Hardware
 import bitkey.ui.verification.TxVerificationAppSegment
-import bitkey.verification.ConfirmationState
+import build.wallet.coroutines.flow.ConfirmationState
 import bitkey.verification.TxVerificationApproval
 import bitkey.verification.TxVerificationService
 import bitkey.verification.VerificationRequiredError
@@ -142,8 +142,8 @@ class TransferConfirmationUiStateMachineImpl(
           props = props,
           state = state,
           selectedPriority = selectedPriority,
-          onBdkError = {
-            uiState = ReceivedBdkErrorUiState
+          onBdkError = { error ->
+            uiState = ReceivedBdkErrorUiState(error)
           }
         )
       is SigningWithServerUiState ->
@@ -201,14 +201,14 @@ class TransferConfirmationUiStateMachineImpl(
             },
             onAppSignError = { cause ->
               logError(throwable = cause) { "Unable to sign PSBT" }
-              uiState = ReceivedBdkErrorUiState
+              uiState = ReceivedBdkErrorUiState(cause)
             },
             onPsbtCreateError = { error ->
               logError(throwable = error) { "Unable to create PSBT: $error" }
               uiState =
                 when (error) {
-                  is InsufficientFunds -> ReceivedInsufficientFundsErrorUiState
-                  else -> ReceivedBdkErrorUiState
+                  is InsufficientFunds -> ReceivedInsufficientFundsErrorUiState(error)
+                  else -> ReceivedBdkErrorUiState(error)
                 }
             }
           )
@@ -266,18 +266,28 @@ class TransferConfirmationUiStateMachineImpl(
         id = TxVerificationEventTrackerScreenId.VERIFICATION_CANCELED,
         onExit = props.onBack
       ).asModalScreen()
-      ReceivedBdkErrorUiState ->
+      is ReceivedBdkErrorUiState ->
         ErrorFormBodyModel(
           title = "We couldn’t send this transaction",
           subline = "We are looking into this. Please try again later.",
           primaryButton = ButtonDataModel(text = "Done", onClick = props.onExit),
+          errorData = ErrorData(
+            segment = SendAppSegment,
+            actionDescription = "Sending bitcoin transaction",
+            cause = state.errorDataCause
+          ),
           eventTrackerScreenId = null
         ).asModalScreen()
-      ReceivedInsufficientFundsErrorUiState ->
+      is ReceivedInsufficientFundsErrorUiState ->
         ErrorFormBodyModel(
           title = "We couldn’t send this transaction",
           subline = "The amount you are trying to send is too high. Please decrease the amount and try again.",
           primaryButton = ButtonDataModel(text = "Go Back", onClick = props.onBack),
+          errorData = ErrorData(
+            segment = SendAppSegment,
+            actionDescription = "Creating bitcoin transaction PSBT",
+            cause = state.errorDataCause
+          ),
           eventTrackerScreenId = null
         ).asModalScreen()
       is ReceivedServerSigningErrorUiState ->
@@ -389,7 +399,7 @@ class TransferConfirmationUiStateMachineImpl(
     props: TransferConfirmationUiProps,
     state: BroadcastingTransactionUiState,
     selectedPriority: EstimatedTransactionPriority,
-    onBdkError: () -> Unit,
+    onBdkError: (Throwable) -> Unit,
   ) {
     LaunchedEffect("broadcasting-txn") {
       bitcoinWalletService
@@ -402,9 +412,9 @@ class TransferConfirmationUiStateMachineImpl(
           props.onTransferInitiated(state.twoOfThreeSignedPsbt, selectedPriority)
         }
         .logFailure { "Error broadcasting regular transaction." }
-        .onFailure {
+        .onFailure { error ->
           when (state.cosigner) {
-            Hardware -> onBdkError()
+            Hardware -> onBdkError(error)
             F8e -> {
               // On failure, the Server already published the transaction, so no user error is
               // presented. This can happen due to user-configured server settings or network
@@ -809,12 +819,20 @@ private sealed interface TransferConfirmationUiState {
     /**
      * Not enough funds to generate a transfer
      */
-    data object ReceivedInsufficientFundsErrorUiState : ErrorUiState
+    data class ReceivedInsufficientFundsErrorUiState(
+      val error: Throwable,
+    ) : ErrorUiState {
+      val errorDataCause: Throwable = error.redactBdkErrorDataCause()
+    }
 
     /**
      * Received a BDK error while creating, signing or broadcasting the psbt
      */
-    data object ReceivedBdkErrorUiState : ErrorUiState
+    data class ReceivedBdkErrorUiState(
+      val error: Throwable,
+    ) : ErrorUiState {
+      val errorDataCause: Throwable = error.redactBdkErrorDataCause()
+    }
 
     /**
      * Received a server signing error
@@ -827,6 +845,12 @@ private sealed interface TransferConfirmationUiState {
     ) : ErrorUiState
   }
 }
+
+private fun Throwable.redactBdkErrorDataCause(): Throwable =
+  when (this) {
+    is BdkError -> Error(toString())
+    else -> this
+  }
 
 private fun Map<EstimatedTransactionPriority, Psbt?>.filterNotNull():
   Map<EstimatedTransactionPriority, Psbt> =

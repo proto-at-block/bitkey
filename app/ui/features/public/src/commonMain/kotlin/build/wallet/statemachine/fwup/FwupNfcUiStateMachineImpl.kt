@@ -13,14 +13,20 @@ import build.wallet.di.BitkeyInject
 import build.wallet.keybox.KeyboxDao
 import build.wallet.nfc.NfcException
 import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.platform.device.DevicePlatform
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.ScreenPresentationStyle.ModalFullScreen
 import build.wallet.statemachine.fwup.FwupNfcUiState.*
 import build.wallet.statemachine.fwup.FwupNfcUiState.ShowingUpdateInstructionsUiState.UpdateErrorBottomSheetState
 import build.wallet.statemachine.fwup.FwupNfcUiState.ShowingUpdateInstructionsUiState.UpdateErrorBottomSheetState.Hidden
 import build.wallet.statemachine.fwup.FwupNfcUiState.ShowingUpdateInstructionsUiState.UpdateErrorBottomSheetState.Showing
 import build.wallet.statemachine.fwup.FwupTransactionType.StartFromBeginning
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationHelpBodyModel
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationHelpContent.Companion.FirmwareUpdate as FirmwareUpdateHelpContent
+import build.wallet.ui.theme.Theme
+import build.wallet.ui.theme.ThemePreference
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
@@ -47,6 +53,12 @@ class FwupNfcUiStateMachineImpl(
           state = state,
           onLaunchFwup = {
             uiState = InNfcSessionUiState(state.transactionType)
+          },
+          onHelpClick = { hardwareType ->
+            uiState = ShowingHelpUiState(
+              transactionType = state.transactionType,
+              hardwareType = hardwareType
+            )
           },
           onReleaseNotes = {
             uiState = ReleaseNotesUiState()
@@ -89,6 +101,24 @@ class FwupNfcUiStateMachineImpl(
           }
         ).asModalScreen()
       }
+
+      is ShowingHelpUiState -> {
+        val devicePlatform = remember { deviceInfoProvider.getDeviceInfo().devicePlatform }
+        ScreenModel(
+          body = HardwareConfirmationHelpBodyModel(
+            onBack = {
+              uiState = ShowingUpdateInstructionsUiState(transactionType = state.transactionType)
+            },
+            content = FirmwareUpdateHelpContent,
+            devicePlatform = devicePlatform
+          ),
+          presentationStyle = ModalFullScreen,
+          themePreference = fwupHelpThemePreference(
+            devicePlatform = devicePlatform,
+            hardwareType = state.hardwareType
+          )
+        )
+      }
     }
   }
 
@@ -97,6 +127,7 @@ class FwupNfcUiStateMachineImpl(
     props: FwupNfcUiProps,
     state: ShowingUpdateInstructionsUiState,
     onLaunchFwup: () -> Unit,
+    onHelpClick: (HardwareType) -> Unit,
     onReleaseNotes: () -> Unit,
   ): ScreenModel {
     val activeKeybox by remember {
@@ -124,6 +155,7 @@ class FwupNfcUiStateMachineImpl(
       devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
       hardwareType = hardwareType,
       onClose = props.onDone,
+      onHelpClick = { onHelpClick(hardwareType) },
       onLaunchFwup = {
         eventTracker.track(Action.ACTION_APP_TAP_FWUP_CARD)
         onLaunchFwup()
@@ -169,6 +201,16 @@ class FwupNfcUiStateMachineImpl(
       else -> HardwareType.W1
     }
   }
+
+  private fun fwupHelpThemePreference(
+    devicePlatform: DevicePlatform,
+    hardwareType: HardwareType,
+  ): ThemePreference =
+    when {
+      devicePlatform == DevicePlatform.Android -> fwupThemePreference(devicePlatform)
+      hardwareType == HardwareType.W3 -> fwupThemePreference(devicePlatform)
+      else -> ThemePreference.Manual(Theme.DARK)
+    }
 }
 
 private sealed interface FwupNfcUiState {
@@ -195,6 +237,11 @@ private sealed interface FwupNfcUiState {
   data class InNfcSessionUiState(override val transactionType: FwupTransactionType) : FwupNfcUiState
 
   data class ReleaseNotesUiState(
+    override val transactionType: FwupTransactionType = StartFromBeginning(),
+  ) : FwupNfcUiState
+
+  data class ShowingHelpUiState(
+    val hardwareType: HardwareType,
     override val transactionType: FwupTransactionType = StartFromBeginning(),
   ) : FwupNfcUiState
 }

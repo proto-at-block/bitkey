@@ -25,7 +25,7 @@ import kotlinx.coroutines.flow.transformLatest
 import kotlinx.datetime.Clock
 
 interface FingerprintsActionFactory {
-  suspend fun create(): Flow<SecurityAction?>
+  fun create(): Flow<SecurityAction?>
 }
 
 @BitkeyInject(AppScope::class)
@@ -38,7 +38,7 @@ class FingerprintsActionFactoryImpl(
     FingerprintResetMinFirmwareVersionFeatureFlag,
   private val clock: Clock,
 ) : FingerprintsActionFactory {
-  override suspend fun create(): Flow<SecurityAction?> {
+  override fun create(): Flow<SecurityAction?> {
     return firmwareDeviceInfoDao.deviceInfo().flatMapLatest { firmwareDeviceInfoResult ->
       val firmwareDeviceInfo = firmwareDeviceInfoResult.get() as FirmwareDeviceInfo?
 

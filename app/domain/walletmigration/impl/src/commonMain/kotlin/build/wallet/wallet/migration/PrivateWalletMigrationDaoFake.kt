@@ -2,6 +2,7 @@ package build.wallet.wallet.migration
 
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.database.sqldelight.PrivateWalletMigrationEntity
 import build.wallet.db.DbError
@@ -17,11 +18,19 @@ class PrivateWalletMigrationDaoFake : PrivateWalletMigrationDao {
     return state
   }
 
-  override suspend fun saveHardwareKey(hwKey: HwSpendingPublicKey): Result<Unit, DbError> {
+  override suspend fun saveHardwareKey(
+    hwKey: HwSpendingPublicKey,
+    hwKeyProof: HwSpendingKeyProof?,
+  ): Result<Unit, DbError> {
+    val existing = state.value.value
     state.value = Ok(
-      PrivateWalletMigrationEntity(
+      existing?.copy(
+        newHardwareKey = hwKey,
+        newHardwareKeyProof = hwKeyProof
+      ) ?: PrivateWalletMigrationEntity(
         rowId = 0,
         newHardwareKey = hwKey,
+        newHardwareKeyProof = hwKeyProof,
         newAppKey = null,
         newServerKey = null,
         keysetLocalId = null,
@@ -39,7 +48,7 @@ class PrivateWalletMigrationDaoFake : PrivateWalletMigrationDao {
     appSpendingPublicKey: AppSpendingPublicKey,
   ): Result<Unit, DbError> {
     state.value = Ok(
-      state.value.value!!.copy(
+      checkNotNull(state.value.value) { "No migration state saved" }.copy(
         newAppKey = appSpendingPublicKey
       )
     )
@@ -48,7 +57,7 @@ class PrivateWalletMigrationDaoFake : PrivateWalletMigrationDao {
 
   override suspend fun saveServerKey(serverKey: F8eSpendingKeyset): Result<Unit, DbError> {
     state.value = Ok(
-      state.value.value!!.copy(
+      checkNotNull(state.value.value) { "No migration state saved" }.copy(
         newServerKey = serverKey
       )
     )
@@ -57,7 +66,7 @@ class PrivateWalletMigrationDaoFake : PrivateWalletMigrationDao {
 
   override suspend fun saveKeysetLocalId(keysetLocalId: String): Result<Unit, DbError> {
     state.value = Ok(
-      state.value.value!!.copy(
+      checkNotNull(state.value.value) { "No migration state saved" }.copy(
         keysetLocalId = keysetLocalId
       )
     )
@@ -66,7 +75,7 @@ class PrivateWalletMigrationDaoFake : PrivateWalletMigrationDao {
 
   override suspend fun setDescriptorBackupComplete(): Result<Unit, DbError> {
     state.value = Ok(
-      state.value.value!!.copy(
+      checkNotNull(state.value.value) { "No migration state saved" }.copy(
         descriptorBackupCompleted = true
       )
     )
@@ -75,7 +84,7 @@ class PrivateWalletMigrationDaoFake : PrivateWalletMigrationDao {
 
   override suspend fun setCloudBackupComplete(): Result<Unit, DbError> {
     state.value = Ok(
-      state.value.value!!.copy(
+      checkNotNull(state.value.value) { "No migration state saved" }.copy(
         cloudBackupCompleted = true
       )
     )
@@ -84,7 +93,7 @@ class PrivateWalletMigrationDaoFake : PrivateWalletMigrationDao {
 
   override suspend fun setServerKeysetActive(): Result<Unit, DbError> {
     state.value = Ok(
-      state.value.value!!.copy(
+      checkNotNull(state.value.value) { "No migration state saved" }.copy(
         serverKeysetActivated = true
       )
     )
@@ -93,7 +102,7 @@ class PrivateWalletMigrationDaoFake : PrivateWalletMigrationDao {
 
   override suspend fun setSweepCompleted(): Result<Unit, DbError> {
     state.value = Ok(
-      state.value.value!!.copy(
+      checkNotNull(state.value.value) { "No migration state saved" }.copy(
         sweepCompleted = true
       )
     )

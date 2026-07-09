@@ -504,7 +504,8 @@ class TransactionDetailsUiStateMachineImpl(
               }
               onTransactionIdCopy()
             },
-            endIcon = Icon.SmallIconCopy
+            endIcon = Icon.Copy,
+            endIconTint = IconTint.Foreground
           ).asTransactionDetailTypography()
         )
       ),
@@ -546,7 +547,7 @@ class TransactionDetailsUiStateMachineImpl(
               showTopDivider = true,
               iconButton = IconButtonModel(
                 iconModel = IconModel(
-                  icon = Icon.SmallIconInformation,
+                  icon = Icon.Information,
                   iconSize = IconSize.Accessory,
                   iconBackgroundType = IconBackgroundType.Circle(
                     circleSize = IconSize.Accessory

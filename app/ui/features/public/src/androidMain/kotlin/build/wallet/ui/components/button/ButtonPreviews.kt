@@ -61,7 +61,7 @@ fun RegularButtonsWithIconEnabledDesignSystemDark() {
   }
 }
 
-@Preview(name = "Bitkey Interaction DSV2 Light")
+@Preview(name = "Bitkey Interaction Light")
 @Composable
 fun BitkeyInteractionButtonDesignSystemPreview() {
   PreviewWalletTheme(
@@ -71,7 +71,7 @@ fun BitkeyInteractionButtonDesignSystemPreview() {
   }
 }
 
-@Preview(name = "Bitkey Interaction DSV2 Dark")
+@Preview(name = "Bitkey Interaction Dark")
 @Composable
 fun BitkeyInteractionButtonDesignSystemDarkPreview() {
   PreviewWalletTheme(
@@ -277,7 +277,7 @@ private fun AllButtonsForSizeAndIcon(
           text = treatment.name.readable(),
           treatment = treatment,
           isLoading = isLoading,
-          leadingIcon = if (showLeadingIcon) Icon.SmallIconBitkey else null,
+          leadingIcon = if (showLeadingIcon) Icon.Bitkey else null,
           size = size,
           enabled = enabled,
           onClick = StandardClick {}
@@ -299,7 +299,7 @@ private fun BitkeyInteractionButtonPreview() {
     Button(
       text = "Review on Bitkey",
       treatment = ButtonModel.Treatment.BitkeyInteraction,
-      leadingIcon = Icon.SmallIconBitkey,
+      leadingIcon = Icon.Bitkey,
       size = Regular,
       enabled = true,
       onClick = StandardClick {}

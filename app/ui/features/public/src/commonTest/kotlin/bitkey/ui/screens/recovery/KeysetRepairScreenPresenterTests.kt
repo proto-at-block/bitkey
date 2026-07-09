@@ -1,15 +1,25 @@
 package bitkey.ui.screens.recovery
 
 import bitkey.ui.framework.test
+import build.wallet.auth.AccountAuthTokensMock
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.bitkey.keybox.FullAccountW3Mock
 import build.wallet.bitkey.keybox.KeyboxMock
+import build.wallet.bitkey.keybox.KeyboxW3Mock
 import build.wallet.bitkey.spending.SpendingKeysetMock
+import build.wallet.bitkey.spending.HwSpendingPublicKeyMock
+import build.wallet.chaincode.delegation.ChaincodeExtractorFake
 import build.wallet.cloud.backup.csek.SealedSsekFake
 import build.wallet.cloud.backup.csek.SsekDaoFake
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.nfc.NfcCommandsMock
+import build.wallet.encrypt.WsmVerifierMock
+import build.wallet.f8e.auth.ActionProofHeader
+import build.wallet.f8e.auth.PrivilegedActionProof
+import build.wallet.f8e.recovery.SignedKeysetVerificationResponseMock
+import build.wallet.keybox.KeyboxDaoMock
+import build.wallet.nfc.platform.KeysetRepairRotateHwKeyResult
+import build.wallet.recovery.keyset.PreparedRegeneratedKeyset
 import build.wallet.recovery.keyset.KeysetRepairError
 import build.wallet.recovery.keyset.KeysetRepairState
 import build.wallet.recovery.keyset.PrivateKeysetInfo
@@ -21,13 +31,20 @@ import build.wallet.recovery.sweep.SweepServiceMock
 import build.wallet.recovery.sweep.SweepSignaturePlan
 import build.wallet.statemachine.BodyModelMock
 import build.wallet.statemachine.ScreenStateMachineMock
+import build.wallet.statemachine.auth.ActionProofType
+import build.wallet.statemachine.auth.HardwareAuthUiProps
+import build.wallet.statemachine.auth.HardwareAuthUiStateMachine
 import build.wallet.statemachine.auth.RefreshAuthTokensProps
 import build.wallet.statemachine.auth.RefreshAuthTokensUiStateMachine
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachineFake
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachineMock
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.sweep.SweepUiProps
 import build.wallet.statemachine.recovery.sweep.SweepUiStateMachine
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitUntilBody
 import com.github.michaelbull.result.Err
@@ -42,7 +59,6 @@ class KeysetRepairScreenPresenterTests : FunSpec({
   val spendingKeysetRepairService = SpendingKeysetRepairServiceFake()
   val sweepService = SweepServiceMock()
   val ssekDao = SsekDaoFake()
-  val nfcCommandsMock = NfcCommandsMock(turbines::create)
 
   val sweepUiStateMachine = object : SweepUiStateMachine,
     ScreenStateMachineMock<SweepUiProps>("sweep-ui") {}
@@ -50,15 +66,30 @@ class KeysetRepairScreenPresenterTests : FunSpec({
   val refreshAuthTokensUiStateMachine = object : RefreshAuthTokensUiStateMachine,
     ScreenStateMachineMock<RefreshAuthTokensProps>("refresh-auth-tokens") {}
 
+  val hardwareAuthUiStateMachine = object : HardwareAuthUiStateMachine,
+    ScreenStateMachineMock<HardwareAuthUiProps>("hardware-auth") {}
+
+  val nfcSessionUIStateMachine = object : NfcSessionUIStateMachine,
+    ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>("nfc-session") {}
+
+  val keyboxDao = KeyboxDaoMock(turbines::create)
+  val chaincodeExtractor = ChaincodeExtractorFake()
+  val wsmVerifier = WsmVerifierMock()
+
   val presenter = SpendingKeysetRepairScreenPresenter(
     spendingKeysetRepairService = spendingKeysetRepairService,
-    nfcSessionUIStateMachine = NfcSessionUIStateMachineFake(
-      nfcCommands = nfcCommandsMock
+    nfcConfirmableSessionUiStateMachine = NfcConfirmableSessionUiStateMachineMock(
+      id = "keyset-repair-nfc"
     ),
+    nfcSessionUIStateMachine = nfcSessionUIStateMachine,
+    hardwareAuthUiStateMachine = hardwareAuthUiStateMachine,
     sweepUiStateMachine = sweepUiStateMachine,
     sweepService = sweepService,
     ssekDao = ssekDao,
     refreshAuthTokensUiStateMachine = refreshAuthTokensUiStateMachine,
+    keyboxDao = keyboxDao,
+    chaincodeExtractor = chaincodeExtractor,
+    wsmVerifier = wsmVerifier,
   )
 
   val screen = KeysetRepairScreen(
@@ -69,6 +100,8 @@ class KeysetRepairScreenPresenterTests : FunSpec({
     spendingKeysetRepairService.reset()
     sweepService.reset()
     ssekDao.reset()
+    keyboxDao.reset()
+    chaincodeExtractor.reset()
   }
 
   test("shows loading screen when checking private keysets") {
@@ -111,6 +144,29 @@ class KeysetRepairScreenPresenterTests : FunSpec({
           headline.shouldBe("Wallet repair needed")
           sublineModel.shouldNotBeNull().string.shouldContain("Bitkey device")
         }
+      }
+    }
+  }
+
+  test("W3 SSEK unseal tap does not lock hardware") {
+    spendingKeysetRepairService.checkPrivateKeysetsResult =
+      Ok(
+        PrivateKeysetInfo.NeedsUnsealing(
+          cachedResponseData = FakeCachedData.copy(
+            response = FakeCachedData.response.copy(
+              wrappedSsek = SealedSsekFake
+            )
+          )
+        )
+      )
+
+    presenter.test(KeysetRepairScreen(account = FullAccountW3Mock)) { _ ->
+      awaitUntilBody<ExplanationFormBodyModel> {
+        primaryButton.shouldNotBeNull().onClick()
+      }
+
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<*>>(id = "keyset-repair-nfc") {
+        shouldLock.shouldBe(false)
       }
     }
   }
@@ -376,6 +432,92 @@ class KeysetRepairScreenPresenterTests : FunSpec({
 
       // Should go back to key regeneration explanation
       awaitUntilBody<KeyRegenerationExplanationFormBodyModel>()
+    }
+  }
+
+  test("W3 key regeneration collects action proofs after creating keyset") {
+    val cachedData = FakeCachedData.copy(
+      response = FakeCachedData.response.copy(wrappedSsek = SealedSsekFake)
+    )
+    spendingKeysetRepairService.checkPrivateKeysetsResult =
+      Ok(PrivateKeysetInfo.None(cachedData))
+    spendingKeysetRepairService.attemptRepairResult =
+      Err(
+        KeysetRepairError.MissingPrivateKeyForActiveKeyset(
+          cause = RuntimeException("Missing key"),
+          updatedKeybox = KeyboxW3Mock
+        )
+      )
+    spendingKeysetRepairService.prepareRegeneratedActiveKeysetResult =
+      Ok(
+        PreparedRegeneratedKeyset(
+          keybox = KeyboxW3Mock,
+          newKeyset = SpendingKeysetMock
+        )
+      )
+    spendingKeysetRepairService.completeRegeneratedActiveKeysetResult =
+      Ok(
+        KeysetRepairState.RepairComplete(
+          updatedKeybox = KeyboxW3Mock,
+          signedKeysetVerification = SignedKeysetVerificationResponseMock
+        )
+      )
+
+    presenter.test(KeysetRepairScreen(account = FullAccountW3Mock)) { _ ->
+      awaitUntilBody<ExplanationFormBodyModel> {
+        primaryButton.shouldNotBeNull().onClick()
+      }
+      awaitBody<LoadingSuccessBodyModel>()
+      awaitBody<KeyRegenerationExplanationFormBodyModel> {
+        primaryButton.shouldNotBeNull().onClick()
+      }
+
+      awaitUntilBody<BodyModelMock<RefreshAuthTokensProps>> {
+        latestProps.onSuccess(AccountAuthTokensMock)
+      }
+      awaitBodyMock<NfcConfirmableSessionUIStateMachineProps<KeysetRepairRotateHwKeyResult>>(
+        id = "keyset-repair-nfc"
+      ) {
+        shouldLock.shouldBe(false)
+        onSuccess(
+          KeysetRepairRotateHwKeyResult(
+            hwSpendingKey = HwSpendingPublicKeyMock,
+            signedAccessToken = "unused-w3-proof"
+          )
+        )
+      }
+
+      awaitUntilBody<BodyModelMock<HardwareAuthUiProps>> {
+        latestProps.actionProofType.shouldBe(ActionProofType.UpdateDescriptorBackups)
+        latestProps.refreshAuthTokens.shouldBe(true)
+        latestProps.shouldLock.shouldBe(false)
+        latestProps.onSuccess(
+          PrivilegedActionProof.HwSignedAction(
+            ActionProofHeader(signatures = listOf("descriptor-signature"))
+          )
+        )
+      }
+
+      awaitUntilBody<BodyModelMock<HardwareAuthUiProps>> {
+        latestProps.actionProofType.shouldBe(
+          ActionProofType.RotateSpendingKeyset(
+            keysetId = SpendingKeysetMock.f8eSpendingKeyset.keysetId
+          )
+        )
+        latestProps.refreshAuthTokens.shouldBe(false)
+        latestProps.shouldLock.shouldBe(false)
+        latestProps.onSuccess(
+          PrivilegedActionProof.HwSignedAction(
+            ActionProofHeader(signatures = listOf("keyset-signature"))
+          )
+        )
+      }
+
+      awaitBody<LoadingSuccessBodyModel>()
+
+      awaitUntilBody<BodyModelMock<NfcSessionUIStateMachineProps<*>>> {
+        latestProps.shouldLock.shouldBe(true)
+      }
     }
   }
 })

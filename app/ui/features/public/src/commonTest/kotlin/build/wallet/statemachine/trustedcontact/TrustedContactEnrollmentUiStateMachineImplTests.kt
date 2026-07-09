@@ -52,6 +52,8 @@ import io.ktor.http.*
 import okio.ByteString.Companion.encodeUtf8
 import kotlin.time.Duration.Companion.hours
 
+// Large end-to-end coverage for trusted contact enrollment; splitting would hurt cohesion.
+@Suppress("LargeClass")
 class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
   val clock = ClockFake()
   val relationshipsCrypto = RelationshipsCryptoFake()

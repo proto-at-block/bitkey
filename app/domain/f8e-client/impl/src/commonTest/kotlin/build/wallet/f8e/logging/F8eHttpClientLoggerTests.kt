@@ -2,6 +2,7 @@ package build.wallet.f8e.logging
 
 import build.wallet.ktor.result.RedactedRequestBody
 import build.wallet.ktor.result.RedactedResponseBody
+import build.wallet.ktor.result.bodyResult
 import build.wallet.ktor.result.setRedactedBody
 import build.wallet.logging.LogEntry
 import co.touchlab.kermit.LogWriter
@@ -11,7 +12,6 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.ktor.client.HttpClient
-import io.ktor.client.call.body
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -95,7 +95,7 @@ class F8eHttpClientLoggerTests : FunSpec({
       withExtras("Test Extra", Unit)
     }
 
-    response.body<TestResponseData>()
+    response.bodyResult<TestResponseData>()
 
     response.call.attributes[F8eCallLogger].awaitClose()
 
@@ -150,7 +150,7 @@ class F8eHttpClientLoggerTests : FunSpec({
       withExtras("Test Extra", Unit)
     }
 
-    response.body<TestResponseData>()
+    response.bodyResult<TestResponseData>()
 
     response.call.attributes[F8eCallLogger].awaitClose()
 

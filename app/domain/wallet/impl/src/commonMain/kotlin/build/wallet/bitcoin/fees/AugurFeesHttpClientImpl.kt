@@ -80,7 +80,7 @@ class AugurFeesHttpClientImpl(
       // Check for all required fee rates and fail if any are missing
       val fastestFeeRate = body.estimates.threeBlocks?.probabilities?.ninetyFivePercent?.feeRate
         ?: Err(Error("Missing fastest fee rate data from Augur API")).bind()
-      val halfHourFeeRate = body.estimates.threeBlocks?.probabilities?.eightyPercent?.feeRate
+      val halfHourFeeRate = body.estimates.threeBlocks.probabilities.eightyPercent?.feeRate
         ?: Err(Error("Missing half-hour fee rate data from Augur API")).bind()
       val hourFeeRate = body.estimates.sixBlocks?.probabilities?.eightyPercent?.feeRate
         ?: Err(Error("Missing hour fee rate data from Augur API")).bind()

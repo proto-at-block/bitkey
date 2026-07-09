@@ -20,7 +20,7 @@ fun UpsellContainerPreview() {
       title = "Add a beneficiary",
       body = "Your investment is worth passing on. Add a beneficiary to ensure it stays in good hands.",
       iconModel = IconModel(
-        icon = Icon.SmallIconInheritance,
+        icon = Icon.Inheritance,
         iconSize = IconSize.Large,
         iconBackgroundType = IconBackgroundType.Circle(
           IconSize.Avatar,
@@ -31,7 +31,7 @@ fun UpsellContainerPreview() {
         text = "Add",
         size = ButtonModel.Size.Regular,
         onClick = StandardClick {},
-        leadingIcon = Icon.SmallIconPlus,
+        leadingIcon = Icon.Plus,
         treatment = ButtonModel.Treatment.Accent
       ),
       secondaryButton = ButtonModel(

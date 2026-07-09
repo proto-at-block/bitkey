@@ -147,7 +147,7 @@ class RelationshipsServiceImpl(
         .flatMap { invitation ->
           relationshipsEnrollmentAuthenticationDao
             .insert(
-              invitation.relationshipId,
+              invitation.id.value,
               protectedCustomerEnrollmentPakeKey,
               enrollmentPakeCode
             )
@@ -264,7 +264,7 @@ class RelationshipsServiceImpl(
             enrollmentPakeConfirmation = it.keyConfirmation,
             sealedDelegateDecryptionKeyCipherText = it.sealedDelegatedDecryptionKey
           )
-          .mapError { AcceptInvitationCodeError.F8ePropagatedError(it) }
+          .mapError { error -> AcceptInvitationCodeError.F8ePropagatedError(error) }
       }
       .also { syncAndVerifyRelationships(account) }
   }

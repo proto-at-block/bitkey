@@ -141,6 +141,8 @@ class SetElectrumServerUiStateMachineImplTests : FunSpec({
 
       awaitBody<FormBodyModel> {
         header?.headline.shouldBe("Unable to contact Electrum server")
+        header?.sublineModel.shouldNotBeNull().string
+          .shouldBe("Check your server host and port and try again.")
         eventTrackerScreenInfo?.eventTrackerScreenId
           .shouldBe(CustomElectrumServerEventTrackerScreenId.CUSTOM_ELECTRUM_SERVER_UPDATE_ERROR)
         clickPrimaryButton()
@@ -198,6 +200,8 @@ class SetElectrumServerUiStateMachineImplTests : FunSpec({
 
       awaitBody<FormBodyModel> {
         header?.headline.shouldBe("Incompatible Electrum server")
+        header?.sublineModel.shouldNotBeNull().string
+          .shouldBe(INCOMPATIBLE_ELECTRUM_NETWORK_SUBLINE)
         eventTrackerScreenInfo?.eventTrackerScreenId
           .shouldBe(CustomElectrumServerEventTrackerScreenId.CUSTOM_ELECTRUM_SERVER_UPDATE_ERROR)
         clickPrimaryButton()
@@ -210,3 +214,7 @@ class SetElectrumServerUiStateMachineImplTests : FunSpec({
     }
   }
 })
+
+private const val INCOMPATIBLE_ELECTRUM_NETWORK_SUBLINE =
+  "This Electrum server is connected to a different Bitcoin network. " +
+    "Check the server network and try again."

@@ -46,7 +46,7 @@ data class NotificationPreferencesSetupFormBodyModel(
                         IconAccessory(
                           model =
                             IconModel(
-                              iconImage = LocalImage(state.icon(SmallIconNotification)),
+                              iconImage = LocalImage(state.icon(Notification)),
                               iconTint = state.iconTint(),
                               iconSize = build.wallet.ui.model.icon.IconSize.Small
                             )
@@ -63,7 +63,7 @@ data class NotificationPreferencesSetupFormBodyModel(
                         IconAccessory(
                           model =
                             IconModel(
-                              icon = state.icon(SmallIconMessage),
+                              icon = state.icon(Message),
                               iconTint = state.iconTint(),
                               iconSize = build.wallet.ui.model.icon.IconSize.Small
                             )
@@ -80,7 +80,7 @@ data class NotificationPreferencesSetupFormBodyModel(
                         IconAccessory(
                           model =
                             IconModel(
-                              iconImage = LocalImage(state.icon(SmallIconEmail)),
+                              iconImage = LocalImage(state.icon(Email)),
                               iconTint = state.iconTint(),
                               iconSize = build.wallet.ui.model.icon.IconSize.Small
                             )
@@ -105,7 +105,7 @@ private fun NotificationPreferencesSetupFormItemModel.State.icon(needsActionIcon
   when (this) {
     NeedsAction -> needsActionIcon
     Completed -> SmallIconCheckFilled
-    Skipped -> SmallIconXFilled
+    Skipped -> XFilled
   }
 
 private fun NotificationPreferencesSetupFormItemModel.State.treatment(): ListItemTreatment =

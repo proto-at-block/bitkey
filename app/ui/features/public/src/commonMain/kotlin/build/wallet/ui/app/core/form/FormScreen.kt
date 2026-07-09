@@ -7,18 +7,18 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import build.wallet.statemachine.core.form.FormMainContentVerticalAlignment
+import build.wallet.statemachine.core.form.FormScreenLayoutModel
+import build.wallet.statemachine.core.form.FormScreenTitleModel
 import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.core.form.RenderContext.Screen
 import build.wallet.ui.components.label.Label
@@ -29,12 +29,6 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.system.BackHandler
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-
-enum class FormScreenContentVerticalAlignment {
-  Top,
-  Center,
-  Bottom,
-}
 
 /**
  * A slot-based screen for rendering form views.
@@ -50,12 +44,8 @@ fun FormScreen(
   headerToMainContentSpacing: Int = 16,
   background: Color = WalletTheme.colors.background,
   toolbarModel: ToolbarModel? = null,
-  designSystemV2Eyebrow: String? = null,
-  designSystemV2Title: String? = null,
-  designSystemV2UseLayout: Boolean = false,
-  designSystemV2ContentSpacing: Int = 24,
-  designSystemV2Scrollable: Boolean = true,
-  designSystemV2MainContentAlignment: FormScreenContentVerticalAlignment = FormScreenContentVerticalAlignment.Top,
+  screenTitle: FormScreenTitleModel? = null,
+  layout: FormScreenLayoutModel = FormScreenLayoutModel.Legacy,
   toolbarContent: @Composable (() -> Unit)? = null,
   headerContent: @Composable (() -> Unit)? = null,
   mainContent: @Composable (ColumnScope.() -> Unit)? = null,
@@ -66,26 +56,31 @@ fun FormScreen(
     BackHandler(onBack = it)
   }
 
-  val isDesignSystemV2Screen =
-    designSystemV2UseLayout || designSystemV2Eyebrow != null || designSystemV2Title != null
+  val resolvedLayout = when {
+    layout != FormScreenLayoutModel.Legacy -> layout
+    screenTitle != null -> FormScreenLayoutModel.LargeTitle()
+    else -> FormScreenLayoutModel.Legacy
+  }
+  val largeTitleLayout = resolvedLayout as? FormScreenLayoutModel.LargeTitle
 
-  if (isDesignSystemV2Screen) {
-    require(designSystemV2Title == null || toolbarModel?.middleAccessory == null) {
-      "FormScreen with a designSystemV2Title manages its own centered toolbar title."
+  if (largeTitleLayout != null) {
+    require(screenTitle?.title == null || toolbarModel?.middleAccessory == null) {
+      "FormScreen with a large title manages its own centered toolbar title."
     }
 
-    FormScreenDesignSystemV2(
+    FormScreenLargeTitle(
       modifier = modifier,
       isFullScreen = isFullScreen,
       background = background,
       horizontalPadding = horizontalPadding.dp,
       headerToMainContentSpacing = headerToMainContentSpacing.dp,
       toolbarModel = toolbarModel,
-      eyebrow = designSystemV2Eyebrow,
-      title = designSystemV2Title,
-      contentSpacing = designSystemV2ContentSpacing.dp,
-      isScrollable = designSystemV2Scrollable || designSystemV2MainContentAlignment == FormScreenContentVerticalAlignment.Top,
-      mainContentAlignment = designSystemV2MainContentAlignment,
+      eyebrow = screenTitle?.eyebrow,
+      title = screenTitle?.title,
+      contentSpacing = largeTitleLayout.contentSpacing.dp,
+      isScrollable = largeTitleLayout.scrollable ||
+        largeTitleLayout.mainContentVerticalAlignment == FormMainContentVerticalAlignment.TOP,
+      mainContentAlignment = largeTitleLayout.mainContentVerticalAlignment,
       headerContent = headerContent,
       mainContent = mainContent,
       footerContent = footerContent
@@ -97,7 +92,6 @@ fun FormScreen(
       background = background,
       horizontalPadding = horizontalPadding,
       headerToMainContentSpacing = headerToMainContentSpacing,
-      toolbarModel = toolbarModel,
       toolbarContent = toolbarContent,
       headerContent = headerContent,
       mainContent = mainContent,
@@ -113,7 +107,6 @@ private fun FormScreenLegacy(
   background: Color,
   horizontalPadding: Int,
   headerToMainContentSpacing: Int,
-  toolbarModel: ToolbarModel?,
   toolbarContent: @Composable (() -> Unit)?,
   headerContent: @Composable (() -> Unit)?,
   mainContent: @Composable (ColumnScope.() -> Unit)?,
@@ -142,10 +135,10 @@ private fun FormScreenLegacy(
           .padding(bottom = contentShadowHeight)
           .padding(horizontal = horizontalPadding.dp)
       ) {
-        when {
-          toolbarContent != null -> toolbarContent()
-          toolbarModel != null -> Toolbar(model = toolbarModel)
-          else -> EmptyToolbar()
+        if (toolbarContent != null) {
+          toolbarContent()
+        } else {
+          EmptyToolbar()
         }
         headerContent?.invoke()
         Spacer(Modifier.height(headerToMainContentSpacing.dp))
@@ -178,7 +171,7 @@ private fun FormScreenLegacy(
 }
 
 @Composable
-private fun FormScreenDesignSystemV2(
+private fun FormScreenLargeTitle(
   modifier: Modifier = Modifier,
   isFullScreen: Boolean,
   background: Color,
@@ -189,7 +182,7 @@ private fun FormScreenDesignSystemV2(
   title: String?,
   contentSpacing: Dp,
   isScrollable: Boolean,
-  mainContentAlignment: FormScreenContentVerticalAlignment,
+  mainContentAlignment: FormMainContentVerticalAlignment,
   headerContent: @Composable (() -> Unit)?,
   mainContent: @Composable (ColumnScope.() -> Unit)?,
   footerContent: @Composable (ColumnScope.() -> Unit)?,
@@ -208,7 +201,7 @@ private fun FormScreenDesignSystemV2(
         .thenIf(isFullScreen) { Modifier.weight(1F) }
     ) {
       if (isScrollable) {
-        FormScreenDesignSystemV2Scrollable(
+        FormScreenLargeTitleScrollable(
           isFullScreen = isFullScreen,
           background = background,
           horizontalPadding = horizontalPadding,
@@ -231,7 +224,7 @@ private fun FormScreenDesignSystemV2(
               .fillMaxSize()
           ) {
             Spacer(modifier = Modifier.height(FormScreenToolbarReservedHeight))
-            FormScreenDesignSystemV2TitleBlock(
+            FormScreenLargeTitleBlock(
               eyebrow = eyebrow,
               title = title
             )
@@ -249,15 +242,16 @@ private fun FormScreenDesignSystemV2(
                 .padding(
                   top = if (headerContent != null && mainContent != null) headerToMainContentSpacing else 0.dp,
                   bottom = when (mainContentAlignment) {
-                    FormScreenContentVerticalAlignment.Top,
-                    FormScreenContentVerticalAlignment.Bottom -> FormScreenBottomContentPadding
-                    FormScreenContentVerticalAlignment.Center -> 0.dp
+                    FormMainContentVerticalAlignment.TOP,
+                    FormMainContentVerticalAlignment.BOTTOM,
+                    -> FormScreenBottomContentPadding
+                    FormMainContentVerticalAlignment.CENTER -> 0.dp
                   }
                 ),
               contentAlignment = when (mainContentAlignment) {
-                FormScreenContentVerticalAlignment.Top -> Alignment.TopCenter
-                FormScreenContentVerticalAlignment.Center -> Alignment.Center
-                FormScreenContentVerticalAlignment.Bottom -> Alignment.BottomCenter
+                FormMainContentVerticalAlignment.TOP -> Alignment.TopCenter
+                FormMainContentVerticalAlignment.CENTER -> Alignment.Center
+                FormMainContentVerticalAlignment.BOTTOM -> Alignment.BottomCenter
               }
             ) {
               mainContent?.let { content ->
@@ -296,7 +290,7 @@ private fun FormScreenDesignSystemV2(
 }
 
 @Composable
-private fun BoxScope.FormScreenDesignSystemV2Scrollable(
+private fun BoxScope.FormScreenLargeTitleScrollable(
   isFullScreen: Boolean,
   background: Color,
   horizontalPadding: Dp,
@@ -320,27 +314,6 @@ private fun BoxScope.FormScreenDesignSystemV2Scrollable(
     }
   }
 
-  val hasHeroContent = toolbarModel?.heroContent != null
-  var heroImageHeightPx by remember { mutableIntStateOf(0) }
-  val solidToolbarHeightPx = with(LocalDensity.current) {
-    (FormScreenToolbarTopPadding + FormScreenToolbarHeight + FormScreenToolbarBottomPadding).toPx()
-  }
-  val toolbarBackgroundAlpha by remember(scrollState, heroImageHeightPx, solidToolbarHeightPx) {
-    derivedStateOf {
-      if (!hasHeroContent || heroImageHeightPx <= 0) {
-        1f
-      } else {
-        val fadeStart = (heroImageHeightPx - solidToolbarHeightPx).coerceAtLeast(0f)
-        val fadeEnd = heroImageHeightPx.toFloat()
-        if (fadeStart >= fadeEnd) {
-          if (scrollState.value >= fadeEnd) 1f else 0f
-        } else {
-          ((scrollState.value - fadeStart) / (fadeEnd - fadeStart)).coerceIn(0f, 1f)
-        }
-      }
-    }
-  }
-
   val contentShadowHeight = 12.dp
   Column(
     modifier = Modifier
@@ -348,25 +321,11 @@ private fun BoxScope.FormScreenDesignSystemV2Scrollable(
       .background(background)
       .verticalScroll(scrollState)
       .padding(bottom = contentShadowHeight)
-      .thenIf(!hasHeroContent) { Modifier.padding(horizontal = horizontalPadding) }
+      .padding(horizontal = horizontalPadding)
   ) {
-    if (hasHeroContent) {
-      // Render only the hero image at full width (no buttons — those are in the sticky toolbar)
-      Box(modifier = Modifier.onSizeChanged { heroImageHeightPx = it.height }) {
-        Toolbar(
-          model = ToolbarModel(heroContent = toolbarModel!!.heroContent),
-          showDesignSystemChrome = false,
-          showDesignSystemBottomGradient = false
-        )
-      }
-    } else {
-      Spacer(modifier = Modifier.height(FormScreenToolbarReservedHeight))
-    }
-    Column(
-      modifier = Modifier
-        .thenIf(hasHeroContent) { Modifier.padding(horizontal = horizontalPadding) }
-    ) {
-      FormScreenDesignSystemV2TitleBlock(
+    Spacer(modifier = Modifier.height(FormScreenToolbarReservedHeight))
+    Column {
+      FormScreenLargeTitleBlock(
         eyebrow = eyebrow,
         title = title,
         collapseProgress = collapseProgress
@@ -408,13 +367,12 @@ private fun BoxScope.FormScreenDesignSystemV2Scrollable(
     toolbarModel = toolbarModel,
     collapseProgress = collapseProgress,
     horizontalPadding = horizontalPadding,
-    background = background,
-    backgroundAlpha = toolbarBackgroundAlpha
+    background = background
   )
 }
 
 @Composable
-private fun FormScreenDesignSystemV2TitleBlock(
+private fun FormScreenLargeTitleBlock(
   eyebrow: String?,
   title: String?,
   collapseProgress: Float = 0f,
@@ -528,8 +486,10 @@ private fun formScreenExpandedTitleAlpha(collapseProgress: Float): Float =
   (1f - collapseProgress).coerceIn(0f, 1f)
 
 private fun formScreenInlineTitleAlpha(collapseProgress: Float): Float =
-  ((collapseProgress - FORM_SCREEN_INLINE_TITLE_FADE_START_PROGRESS) /
-    (1f - FORM_SCREEN_INLINE_TITLE_FADE_START_PROGRESS)).coerceIn(0f, 1f)
+  (
+    (collapseProgress - FORM_SCREEN_INLINE_TITLE_FADE_START_PROGRESS) /
+      (1f - FORM_SCREEN_INLINE_TITLE_FADE_START_PROGRESS)
+  ).coerceIn(0f, 1f)
 
 private val FormScreenToolbarTopPadding = 8.dp
 private val FormScreenToolbarHeight = 48.dp

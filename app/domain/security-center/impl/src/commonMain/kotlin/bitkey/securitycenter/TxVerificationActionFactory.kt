@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
 interface TxVerificationActionFactory {
-  suspend fun create(): Flow<SecurityAction?>
+  fun create(): Flow<SecurityAction?>
 }
 
 @BitkeyInject(AppScope::class)
@@ -22,7 +22,7 @@ class TxVerificationActionFactoryImpl(
   private val appFunctionalityService: AppFunctionalityService,
   private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
 ) : TxVerificationActionFactory {
-  override suspend fun create(): Flow<SecurityAction?> {
+  override fun create(): Flow<SecurityAction?> {
     return combine(
       flag.flagValue(),
       txVerificationService.getCurrentThreshold(),

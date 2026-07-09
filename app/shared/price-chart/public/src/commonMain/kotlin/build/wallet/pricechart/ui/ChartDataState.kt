@@ -42,7 +42,7 @@ internal data class ChartDataState(
       precise = false
     }
 
-    var rawRange = yMax - yMin
+    val rawRange = yMax - yMin
     val rawInterval = (rawRange / intervals.toFloat())
     val step = 10.0.pow(floor(log10(rawInterval)))
     val error = step * intervals / rawRange
@@ -116,14 +116,12 @@ internal data class ChartDataState(
    * @param canvasWidth The width to evenly distribute data points across.
    * @param canvasHeight The height to distribute data points in.
    * @param stopAtDataPoint The data point at which the [Path] should terminate.
-   * @param useMidpointInterpolation Whether to interpolate line segments using midpoint smoothing.
    */
   fun createLinePath(
     path: Path,
     canvasWidth: Float,
     canvasHeight: Float,
     stopAtDataPoint: DataPoint? = null,
-    useMidpointInterpolation: Boolean = false,
   ): Path {
     path.rewind()
     // Use the pathSize as the base offset to ensure drawing
@@ -144,67 +142,39 @@ internal data class ChartDataState(
 
     path.moveTo(baseOffset, normalizedData[0])
     val scaleX = canvasWidth / data.size
-    if (useMidpointInterpolation) {
-      val stopAtIndexInclusive = stopAtIndex ?: normalizedData.lastIndex
-      if (stopAtIndexInclusive == 0) {
-        path.lineTo(baseOffset + 1, normalizedData[0])
-        return path
-      }
-
-      val points = normalizedData.mapIndexed { index, y ->
-        Offset(
-          x = baseOffset + (index * scaleX),
-          y = y
-        )
-      }
-      for (targetIndex in 1 until stopAtIndexInclusive) {
-        val startPoint = points[targetIndex - 1]
-        val targetPoint = points[targetIndex]
-        val midPointX = (startPoint.x + targetPoint.x) / 2f
-        val midPointY = (startPoint.y + targetPoint.y) / 2f
-        path.quadraticTo(
-          x1 = startPoint.x,
-          y1 = startPoint.y,
-          x2 = midPointX,
-          y2 = midPointY
-        )
-      }
-
-      val penultimatePoint = points[stopAtIndexInclusive - 1]
-      val finalPoint = points[stopAtIndexInclusive]
-      path.quadraticTo(
-        x1 = penultimatePoint.x,
-        y1 = penultimatePoint.y,
-        x2 = finalPoint.x,
-        y2 = finalPoint.y
-      )
+    val stopAtIndexInclusive = stopAtIndex ?: normalizedData.lastIndex
+    if (stopAtIndexInclusive == 0) {
+      path.lineTo(baseOffset + 1, normalizedData[0])
       return path
     }
 
-    // Start at `i = 1` and make lines from `i - 1` to `i`.
-    // use `..` to include the last point in the loop.
-    for (targetIndex in 1..normalizedData.lastIndex) {
-      val startIndex = targetIndex - 1
-      if (startIndex == stopAtIndex) {
-        if (stopAtIndex == 0) {
-          // if we stop drawing before creating a line,
-          // add a small line to allow UI anchoring.
-          path.lineTo(baseOffset + 1, normalizedData[0])
-        }
-        return path
-      }
-
-      val startPointX = baseOffset + (startIndex * scaleX)
-      val startPointY = normalizedData[startIndex]
-      val targetPointX = baseOffset + (targetIndex * scaleX)
-      val targetPointY = normalizedData[targetIndex]
-      path.quadraticTo(
-        x1 = startPointX,
-        y1 = startPointY,
-        x2 = targetPointX,
-        y2 = targetPointY
+    val points = normalizedData.mapIndexed { index, y ->
+      Offset(
+        x = baseOffset + (index * scaleX),
+        y = y
       )
     }
+    for (targetIndex in 1 until stopAtIndexInclusive) {
+      val startPoint = points[targetIndex - 1]
+      val targetPoint = points[targetIndex]
+      val midPointX = (startPoint.x + targetPoint.x) / 2f
+      val midPointY = (startPoint.y + targetPoint.y) / 2f
+      path.quadraticTo(
+        x1 = startPoint.x,
+        y1 = startPoint.y,
+        x2 = midPointX,
+        y2 = midPointY
+      )
+    }
+
+    val penultimatePoint = points[stopAtIndexInclusive - 1]
+    val finalPoint = points[stopAtIndexInclusive]
+    path.quadraticTo(
+      x1 = penultimatePoint.x,
+      y1 = penultimatePoint.y,
+      x2 = finalPoint.x,
+      y2 = finalPoint.y
+    )
 
     return path
   }

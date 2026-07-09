@@ -66,6 +66,7 @@ sealed interface BeneficiaryClaim : InheritanceClaim {
    * Construction of this type is hidden, as this type should only
    * be the result of deserialization.
    */
+  @ConsistentCopyVisibility
   data class UnknownStatus internal constructor(
     override val claimId: InheritanceClaimId,
     override val relationshipId: RelationshipId,

@@ -580,7 +580,7 @@ struct TicketAttachmentQuery {
         (status = 500, description = "Ticket attachment upload failed")
     )
 )]
-#[instrument(err, skip(zendesk_client, headers, body))]
+#[instrument(err, skip(zendesk_client, headers, query, body))]
 pub async fn upload_attachment(
     State(zendesk_client): State<ZendeskClient>,
     headers: HeaderMap,

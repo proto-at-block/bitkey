@@ -5,7 +5,7 @@ import kotlin.random.Random
 
 val InvitationFake =
   Invitation(
-    relationshipId = "recoveryRelationshipId",
+    id = RelationshipId("recoveryRelationshipId"),
     trustedContactAlias = TrustedContactAlias("trustedContactAlias fake"),
     code = Random.nextBytes(3).toHexString(),
     codeBitLength = 20,

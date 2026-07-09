@@ -8,6 +8,7 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.SealedCsek
@@ -45,6 +46,16 @@ sealed interface Recovery {
     val appGlobalAuthKey: PublicKey<AppGlobalAuthKey>
     val appRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>
     val hardwareSpendingKey: HwSpendingPublicKey
+
+    /**
+     * Hardware-attested proof for [hardwareSpendingKey], if one was produced when the new
+     * hardware key was derived during pairing. Persisted alongside the local recovery so
+     * that `createKeyset` can still send a valid attestation after a process death /
+     * resumption. May be `null` for recoveries originating from pre-attestation firmware,
+     * pre-enrollment-gate clients, or paths that don't yet thread it through.
+     */
+    val hardwareSpendingKeyProof: HwSpendingKeyProof? get() = null
+
     val hardwareAuthKey: HwAuthPublicKey
     val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature
 
@@ -119,6 +130,7 @@ sealed interface Recovery {
         override val appGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
         override val appRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
         override val hardwareSpendingKey: HwSpendingPublicKey,
+        override val hardwareSpendingKeyProof: HwSpendingKeyProof? = null,
         override val hardwareAuthKey: HwAuthPublicKey,
         override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
         override val factorToRecover: PhysicalFactor,

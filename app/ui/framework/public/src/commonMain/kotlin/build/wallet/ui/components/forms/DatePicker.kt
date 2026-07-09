@@ -31,11 +31,9 @@ fun DatePickerField(
   var isShowingDatePicker by remember {
     mutableStateOf(false)
   }
-  val isDesignSystemV2Enabled = true
   val backgroundColor =
-    when {
-      !isDesignSystemV2Enabled -> WalletTheme.colors.foreground10
-      LocalTheme.current == Theme.LIGHT -> WalletTheme.colors.subtleBackground
+    when (LocalTheme.current) {
+      Theme.LIGHT -> WalletTheme.colors.subtleBackground
       else -> WalletTheme.colors.foreground10
     }
 
@@ -50,7 +48,7 @@ fun DatePickerField(
         )
         .clip(
           RoundedCornerShape(
-            size = if (isDesignSystemV2Enabled) 8.dp else 32.dp
+            size = 8.dp
           )
         )
         .defaultMinSize(

@@ -49,6 +49,7 @@ private fun activationInstructionsV2PreviewModel() =
   ActivationInstructionsV2BodyModel(
     onBack = {},
     onContinue = {},
+    onHelpClick = {},
     isNavigatingBack = false,
     eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
   )

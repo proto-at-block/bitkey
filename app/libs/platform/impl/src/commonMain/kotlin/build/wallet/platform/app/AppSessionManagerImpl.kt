@@ -40,12 +40,10 @@ class AppSessionManagerImpl(
   override fun appDidEnterForeground() {
     logInfo { "App did enter foreground" }
     appSessionStateFlow.value = AppSessionState.FOREGROUND
-    if (applicationDidEnterBackgroundTime == null) {
-      return
-    }
+    val backgroundTime = applicationDidEnterBackgroundTime ?: return
 
     // Update the session ID if the app spent > 5 minutes backgrounded
-    val timeInBackground = clock.now() - applicationDidEnterBackgroundTime!!
+    val timeInBackground = clock.now() - backgroundTime
     if (timeInBackground > 5.minutes) {
       sessionId = uuidGenerator.random()
       logDebug { "Refreshing session ID" }

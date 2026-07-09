@@ -28,7 +28,7 @@ fun PriceChartPreview() {
 
 @Preview
 @Composable
-fun YourBalanceEmptyStateDesignSystemV2LightPreview() {
+fun YourBalanceEmptyStateLightPreview() {
   PreviewWalletTheme(
     theme = Theme.LIGHT,
     backgroundColor = lightStyleDictionaryColorsDesignSystemUpdates.background,

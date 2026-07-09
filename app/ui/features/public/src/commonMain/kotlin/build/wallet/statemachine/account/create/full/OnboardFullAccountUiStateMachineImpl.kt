@@ -69,7 +69,12 @@ class OnboardFullAccountUiStateMachineImpl(
               state = LoadingOnboardingState
             }
           ),
-          eventTrackerScreenId = null
+          eventTrackerScreenId = null,
+          errorData = ErrorData(
+            segment = OnboardingAppSegment.FullAccount,
+            actionDescription = "Loading onboarding step",
+            cause = currentState.error
+          )
         ).asRootScreen()
       }
       is HandlingOnboardingStep -> {
@@ -105,7 +110,11 @@ class OnboardFullAccountUiStateMachineImpl(
                       // lite account to a full account. That means the previous descriptor backup
                       // step is void, and we'll need to do it again.
                       onboardAccountService.markStepIncomplete(DescriptorBackup(null))
-                      props.onFoundLiteAccountWithDifferentId(cloudBackup!!)
+                      props.onFoundLiteAccountWithDifferentId(
+                        checkNotNull(cloudBackup) {
+                          "Expected a lite account cloud backup to upgrade."
+                        }
+                      )
                     }
                   }
                 },
@@ -189,7 +198,12 @@ class OnboardFullAccountUiStateMachineImpl(
                   state = HandlingOnboardingStep(step = currentState.step)
                 }
               ),
-              eventTrackerScreenId = null
+              eventTrackerScreenId = null,
+              errorData = ErrorData(
+                segment = OnboardingAppSegment.FullAccount,
+                actionDescription = "Setting up onboarding notifications",
+                cause = currentState.error
+              )
             ).asRootScreen()
           }
           is BuildHardwareDescriptor -> {
@@ -202,7 +216,12 @@ class OnboardFullAccountUiStateMachineImpl(
                   state = HandlingOnboardingStep(step = currentState.step)
                 }
               ),
-              eventTrackerScreenId = null
+              eventTrackerScreenId = null,
+              errorData = ErrorData(
+                segment = OnboardingAppSegment.FullAccount,
+                actionDescription = "Building hardware descriptor during onboarding",
+                cause = currentState.error
+              )
             ).asRootScreen()
           }
           is DescriptorBackup -> {
@@ -215,7 +234,12 @@ class OnboardFullAccountUiStateMachineImpl(
                   state = HandlingOnboardingStep(step = currentState.step)
                 }
               ),
-              eventTrackerScreenId = NEW_ACCOUNT_DESCRIPTOR_BACKUP_FAILURE
+              eventTrackerScreenId = NEW_ACCOUNT_DESCRIPTOR_BACKUP_FAILURE,
+              errorData = ErrorData(
+                segment = OnboardingAppSegment.FullAccount,
+                actionDescription = "Setting up descriptor backup during onboarding",
+                cause = currentState.error
+              )
             ).asRootScreen()
           }
         }
@@ -231,9 +255,9 @@ class OnboardFullAccountUiStateMachineImpl(
                     else -> state = HandlingOnboardingStep(step)
                   }
                 }
-                .onFailure {
+                .onFailure { pendingStepError ->
                   state = ErrorCompletingOnboardingStep(
-                    error = it,
+                    error = pendingStepError,
                     step = currentState.step
                   )
                 }
@@ -263,7 +287,12 @@ class OnboardFullAccountUiStateMachineImpl(
               state = CompletingOnboardingStep(currentState.step)
             }
           ),
-          eventTrackerScreenId = null
+          eventTrackerScreenId = null,
+          errorData = ErrorData(
+            segment = OnboardingAppSegment.FullAccount,
+            actionDescription = "Completing onboarding step",
+            cause = currentState.error
+          )
         ).asRootScreen()
       }
     }

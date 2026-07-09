@@ -229,6 +229,6 @@ class BalanceHistoryServiceImpl(
     return transactions?.mapNotNull { (it as? Transaction.BitcoinWalletTransaction)?.details }
       ?.filter { it.confirmationStatus is Confirmed }
       ?.sortedBy { it.confirmationTime() }
-      ?: emptyList()
+      .orEmpty()
   }
 }

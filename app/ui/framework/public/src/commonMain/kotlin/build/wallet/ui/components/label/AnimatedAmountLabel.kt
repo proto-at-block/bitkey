@@ -15,6 +15,22 @@ data class AnimatedAmount(
   val animationKey: Long = 0L,
 )
 
+internal enum class AnimatedAmountDirection {
+  Increase,
+  Decrease,
+}
+
+internal fun animatedAmountDirectionFor(
+  previousValue: Long,
+  currentValue: Long,
+): AnimatedAmountDirection {
+  return if (currentValue < previousValue) {
+    AnimatedAmountDirection.Decrease
+  } else {
+    AnimatedAmountDirection.Increase
+  }
+}
+
 @Composable
 expect fun AnimatedAmountAutoResizedLabel(
   amount: AnimatedAmount,

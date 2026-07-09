@@ -89,7 +89,7 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
             socRecSealedDekMap = mapOf()
           )
         )
-        else -> throw IllegalStateException("Unknown backup version")
+        else -> error("Unknown backup version")
       }
 
       context("cloud backup $backupVersion") {

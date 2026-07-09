@@ -1,9 +1,5 @@
-package build.wallet.firmware.grant
+package build.wallet.grants
 
-import build.wallet.grants.Grant
-import build.wallet.grants.GrantAction
-import build.wallet.grants.GrantRequest
-import build.wallet.grants.serializeToPackedStruct
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import kotlin.random.Random

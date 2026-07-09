@@ -135,9 +135,6 @@ class NetworkReachabilityProviderImpl(
   private fun f8eStatusMutableFlow(
     environment: F8eEnvironment,
   ): MutableStateFlow<NetworkReachability> {
-    if (!f8eStatusMutableFlowMap.containsKey(environment)) {
-      f8eStatusMutableFlowMap[environment] = MutableStateFlow(REACHABLE)
-    }
-    return f8eStatusMutableFlowMap[environment]!!
+    return f8eStatusMutableFlowMap.getOrPut(environment) { MutableStateFlow(REACHABLE) }
   }
 }

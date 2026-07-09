@@ -34,8 +34,8 @@ fun CalloutCardPreviews() {
               title = "Inheritance claim initiated",
               subtitle = LabelModel.StringModel("Decline claim by 10/21/2024 to retain control of your funds"),
               treatment = Treatment.Danger,
-              leadingIcon = Icon.SmallIconInformation,
-              trailingIcon = Icon.SmallIconArrowRight,
+              leadingIcon = Icon.Information,
+              trailingIcon = Icon.ArrowRight,
               onClick = null
             )
           )

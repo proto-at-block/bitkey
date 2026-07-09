@@ -25,6 +25,12 @@ pub mod fwpb {
 
 const BIP32_HARDENED_BIT: u32 = 1 << 31;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SpendingKeyResult {
+    pub dpub: String,
+    pub attestation_signature: Option<Vec<u8>>,
+}
+
 // NOTE:
 // We use #[allow(deprecated)] in a few places to accommodate deprecated proto fields.
 // Rust’s strict type system requires us to reference these fields even if they are deprecated.

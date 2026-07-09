@@ -112,7 +112,9 @@ class W3UpgradeCheckpointWriterImplTests : FunSpec({
     val migrationState = w3UpgradeDao.currentState().first().get().shouldNotBeNull()
     migrationState.oldDeviceSerial.shouldBe("old-device-serial")
     migrationState.oldHardwareFingerprint.shouldBe("old-hardware-fingerprint")
-    migrationState.newHardwareKey.shouldBe(newKeyset.hardwareKey)
+    // Hardware key is persisted earlier (in MigrationServiceImpl.createNewKeyset),
+    // not by the checkpoint writer.
+    migrationState.newHardwareKey.shouldBe(null)
     migrationState.newAppKey.shouldBe(newKeyset.appKey)
     migrationState.newServerKey.shouldBe(newKeyset.f8eSpendingKeyset)
     migrationState.keysetLocalId.shouldBe(newKeyset.localId)

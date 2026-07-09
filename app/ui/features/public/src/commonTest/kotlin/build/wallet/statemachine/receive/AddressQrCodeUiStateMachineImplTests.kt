@@ -394,7 +394,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
 
       awaitBody<AddressQrCodeBodyModel> {
         content.shouldBeTypeOf<AddressQrCodeBodyModel.Content.QrCode>()
-          .copyButtonIcon.shouldBe(Icon.SmallIconCopy)
+          .copyButtonIcon.shouldBe(Icon.Copy)
       }
     }
   }

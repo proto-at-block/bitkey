@@ -101,15 +101,35 @@ pub enum ErrorCode {
     MaxProtectedCustomersReached,
     // Money Movement,
     NoSpendingLimitExists,
+    // Hardware verification
+    HardwareAttestationRequired,
+    HardwareAttestationInvalid,
+    // `detail` carries `{"remainingAttempts": N}`.
+    HardwareSerialMismatch,
+    // Covers both max-attempts exhaustion and `expiry_time` lazy-expiry.
+    OutOfBandVerificationSessionEnded,
+    // Invariant violation — sweep gate should only initiate
+    // VerifyHardwareSerial against a `Some(Pending(_))` keyset.
+    KeysetNotAttested,
+    // A hardware-verification-enrolled account hit a v1 keyset-creating
+    // endpoint. v1 keysets carry no attestation, so enrolled accounts
+    // must use the v2 surface.
+    AccountEnrolledRequiresV2,
+    // A resend of the out-of-band verification email was requested before the
+    // per-instance cooldown elapsed. Retriable once the cooldown passes.
+    OutOfBandResendThrottled,
+    // The out-of-band verification email has already been resent the maximum
+    // number of times for this instance. Terminal for the instance.
+    OutOfBandResendLimitExceeded,
 }
 
 // An ErrorCode always maps to a single ErrorCategory
 impl From<ErrorCode> for ErrorCategory {
     fn from(value: ErrorCode) -> Self {
         match value {
-            ErrorCode::InternalServerError | ErrorCode::ServiceUnavailable => {
-                ErrorCategory::ApiError
-            }
+            ErrorCode::InternalServerError
+            | ErrorCode::ServiceUnavailable
+            | ErrorCode::KeysetNotAttested => ErrorCategory::ApiError,
             ErrorCode::Forbidden
             | ErrorCode::Unauthorized
             | ErrorCode::CommsVerificationRequired => ErrorCategory::AuthenticationError,
@@ -134,6 +154,13 @@ impl From<ErrorCode> for ErrorCategory {
             | ErrorCode::MaxTrustedContactsReached
             | ErrorCode::MaxProtectedCustomersReached
             | ErrorCode::AppUpgradeRequired
+            | ErrorCode::HardwareAttestationRequired
+            | ErrorCode::HardwareAttestationInvalid
+            | ErrorCode::HardwareSerialMismatch
+            | ErrorCode::OutOfBandVerificationSessionEnded
+            | ErrorCode::AccountEnrolledRequiresV2
+            | ErrorCode::OutOfBandResendThrottled
+            | ErrorCode::OutOfBandResendLimitExceeded
             | ErrorCode::UnavailableForLegalReasons => ErrorCategory::InvalidRequestError,
         }
     }
@@ -143,7 +170,9 @@ impl From<ErrorCode> for ErrorCategory {
 impl From<ErrorCode> for StatusCode {
     fn from(value: ErrorCode) -> Self {
         match value {
-            ErrorCode::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR,
+            ErrorCode::InternalServerError | ErrorCode::KeysetNotAttested => {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
             ErrorCode::ServiceUnavailable => StatusCode::SERVICE_UNAVAILABLE,
             ErrorCode::Forbidden | ErrorCode::CommsVerificationRequired => StatusCode::FORBIDDEN,
             ErrorCode::UnavailableForLegalReasons => StatusCode::UNAVAILABLE_FOR_LEGAL_REASONS,
@@ -157,7 +186,11 @@ impl From<ErrorCode> for StatusCode {
             | ErrorCode::InvalidPhoneNumber
             | ErrorCode::InvalidEmailAddress
             | ErrorCode::AppUpgradeRequired
+            | ErrorCode::HardwareAttestationRequired
+            | ErrorCode::HardwareAttestationInvalid
             | ErrorCode::InvitationRoleMismatch => StatusCode::BAD_REQUEST,
+            ErrorCode::HardwareSerialMismatch => StatusCode::UNPROCESSABLE_ENTITY,
+            ErrorCode::OutOfBandVerificationSessionEnded => StatusCode::GONE,
             ErrorCode::NotFound | ErrorCode::AccountNotFound => StatusCode::NOT_FOUND,
             ErrorCode::TouchpointAlreadyActive
             | ErrorCode::RecoveryAlreadyExists
@@ -165,7 +198,10 @@ impl From<ErrorCode> for StatusCode {
             | ErrorCode::Conflict
             | ErrorCode::InvitationExpired
             | ErrorCode::MaxTrustedContactsReached
-            | ErrorCode::MaxProtectedCustomersReached => StatusCode::CONFLICT,
+            | ErrorCode::MaxProtectedCustomersReached
+            | ErrorCode::AccountEnrolledRequiresV2
+            | ErrorCode::OutOfBandResendLimitExceeded => StatusCode::CONFLICT,
+            ErrorCode::OutOfBandResendThrottled => StatusCode::TOO_MANY_REQUESTS,
             ErrorCode::NoSpendingLimitExists => StatusCode::METHOD_NOT_ALLOWED,
             ErrorCode::Unauthorized => StatusCode::UNAUTHORIZED,
         }

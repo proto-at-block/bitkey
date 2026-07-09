@@ -142,21 +142,16 @@ internal actual fun BitkeyDeviceMedia(
   hardwareType: HardwareType,
   interactionState: BitkeyDeviceMediaInteractionState,
 ) {
-  val isDesignSystemV2Enabled = true
   val supports3DMedia = supportsBitkeyDevice3DMedia(hardwareType)
-  val modelScene = remember(isDesignSystemV2Enabled, supports3DMedia, hardwareType) {
-    if (!isDesignSystemV2Enabled || !supports3DMedia) {
+  val modelScene = remember(supports3DMedia, hardwareType) {
+    if (!supports3DMedia) {
       null
     } else {
       loadBitkeyDeviceScene()
     }
   }
-  val lightingEnvironmentUrl = remember(isDesignSystemV2Enabled) {
-    if (!isDesignSystemV2Enabled) {
-      null
-    } else {
-      loadBitkeyDeviceLightingEnvironmentUrl()
-    }
+  val lightingEnvironmentUrl = remember {
+    loadBitkeyDeviceLightingEnvironmentUrl()
   }
   val sceneInteractionDelegate = remember(modelScene) {
     modelScene?.let {
@@ -164,11 +159,7 @@ internal actual fun BitkeyDeviceMedia(
     }
   }
   val debugSettings = BitkeyDeviceSceneDebugTuning.currentSettings()
-  val sceneBackgroundColor =
-    when {
-      isDesignSystemV2Enabled -> WalletTheme.colors.secondary
-      else -> Color.Transparent
-    }
+  val sceneBackgroundColor = WalletTheme.colors.secondary
 
   DisposableEffect(interactionState, sceneInteractionDelegate) {
     interactionState.setDelegate(sceneInteractionDelegate)
@@ -207,7 +198,7 @@ internal actual fun BitkeyDeviceMedia(
           applyBackgroundColor(
             color = sceneBackgroundColor.toUIColor(),
             useThemeBackgroundColor = false,
-            useSecondaryThemeColor = isDesignSystemV2Enabled
+            useSecondaryThemeColor = true
           )
         }
       },
@@ -215,7 +206,7 @@ internal actual fun BitkeyDeviceMedia(
         containerView.applyBackgroundColor(
           color = sceneBackgroundColor.toUIColor(),
           useThemeBackgroundColor = false,
-          useSecondaryThemeColor = isDesignSystemV2Enabled
+          useSecondaryThemeColor = true
         )
         sceneInteractionDelegate?.updateSceneBackground(sceneBackgroundColor)
         sceneInteractionDelegate?.updateSerialNumber(serialNumber)

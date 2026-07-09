@@ -20,8 +20,8 @@ data class CloudBackupHealthStatusCardModel(
   val toolbarModel: ToolbarModel?,
   val headerModel: FormHeaderModel,
   val backupStatus: ListItemModel,
-  val designSystemV2StatusText: String? = null,
-  val designSystemV2StatusTone: CloudBackupHealthStatusTone? = null,
+  val statusTextOverride: String? = null,
+  val statusToneOverride: CloudBackupHealthStatusTone? = null,
   val backupStatusActionButton: ButtonModel?,
   val type: CloudBackupHealthStatusCardType,
 )

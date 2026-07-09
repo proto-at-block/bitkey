@@ -285,7 +285,7 @@ class BalanceHistoryServiceImplTest : FunSpec({
   }
 
   test("service can be instantiated") {
-    val service = BalanceHistoryServiceImpl(
+    BalanceHistoryServiceImpl(
       fiatCurrencyPreferenceRepository = FakeFiatCurrencyPreferenceRepository(),
       chartDataFetcherService = FakeChartDataFetcherService(),
       transactionsActivityService = FakeTransactionsActivityService(),
@@ -355,22 +355,17 @@ private class FakeChartDataFetcherService : ChartDataFetcherService {
 }
 
 private class FakeTransactionsActivityService : TransactionsActivityService {
-  override val transactionsState: StateFlow<TransactionsActivityState>
-    get() = (
-      transactions.value?.let {
-        if (it.isEmpty()) {
-          TransactionsActivityState.Empty
-        } else {
-          TransactionsActivityState.Loaded(it)
-        }
-      } ?: TransactionsActivityState.InitialLoading
-    ).let { MutableStateFlow(it) }
-
-  override val transactions = MutableStateFlow<List<Transaction>?>(emptyList())
+  private val _transactionsState = MutableStateFlow<TransactionsActivityState>(
+    TransactionsActivityState.InitialLoading
+  )
+  override val transactionsState: StateFlow<TransactionsActivityState> = _transactionsState
   override val activeAndInactiveWalletTransactions = MutableStateFlow<List<Transaction>?>(emptyList())
 
   fun setTransactions(txs: List<Transaction>) {
-    transactions.value = txs
+    _transactionsState.value = when {
+      txs.isEmpty() -> TransactionsActivityState.Empty
+      else -> TransactionsActivityState.Loaded(txs)
+    }
     activeAndInactiveWalletTransactions.value = txs
   }
 

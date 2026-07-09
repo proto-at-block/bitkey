@@ -33,7 +33,7 @@ class W3UpgradeCheckpointWriterIntegrationFake(
 
     w3UpgradeDao.saveOldDeviceSerial(oldDeviceSerial)
     w3UpgradeDao.saveOldHardwareFingerprint(oldHardwareFingerprint)
-    w3UpgradeDao.saveHardwareKey(newKeyset.hardwareKey)
+    // Hardware key + proof are persisted incrementally by MigrationServiceImpl; mirror prod.
     w3UpgradeDao.saveAppKey(newKeyset.appKey)
     w3UpgradeDao.saveServerKey(newKeyset.f8eSpendingKeyset)
     w3UpgradeDao.saveKeysetLocalId(newKeyset.localId)

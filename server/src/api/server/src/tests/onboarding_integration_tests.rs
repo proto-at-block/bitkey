@@ -2397,6 +2397,8 @@ async fn activate_touchpoint_with_action_proof_both_signatures_succeeds() {
             network: Network::Signet,
             app_pub: spending_app_pub,
             hardware_pub: spending_hw_pub,
+
+            hardware_attestation: None,
         },
         is_test_account: true,
     };
@@ -2518,6 +2520,8 @@ async fn activate_touchpoint_with_action_proof_wrong_value_fails() {
             network: Network::Signet,
             app_pub: spending_app_pub,
             hardware_pub: spending_hw_pub,
+
+            hardware_attestation: None,
         },
         is_test_account: true,
     };
@@ -2651,6 +2655,8 @@ async fn activate_touchpoint_with_action_proof_missing_hw_signature_fails() {
             network: Network::Signet,
             app_pub: spending_app_pub,
             hardware_pub: spending_hw_pub,
+
+            hardware_attestation: None,
         },
         is_test_account: true,
     };
@@ -2787,6 +2793,8 @@ async fn action_proof_replay_returns_idempotent_success() {
             network: Network::Signet,
             app_pub: spending_app_pub,
             hardware_pub: spending_hw_pub,
+
+            hardware_attestation: None,
         },
         is_test_account: true,
     };

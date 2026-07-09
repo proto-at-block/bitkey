@@ -23,7 +23,7 @@ interface TxVerificationDao {
    *
    * If there are no policies set yet, this will return null.
    */
-  suspend fun getActivePolicy(): Flow<Result<TxVerificationPolicy.Active?, Error>>
+  fun getActivePolicy(): Flow<Result<TxVerificationPolicy.Active?, Error>>
 
   /**
    * Remove a policy from the database.

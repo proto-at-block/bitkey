@@ -20,6 +20,7 @@ import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwKeyBundle
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.recovery.HardwareKeysForRecovery
 import build.wallet.di.AppScope
@@ -115,7 +116,9 @@ class LostAppAndCloudRecoveryServiceImpl(
             destinationAppKeys = destinationAppKeys,
             bitcoinNetworkType = accountConfig.bitcoinNetworkType,
             descriptorBackups = descriptorBackups,
-            wrappedSsek = wrappedSsek!!
+            wrappedSsek = checkNotNull(wrappedSsek) {
+              "wrappedSsek must be present when descriptor backups exist."
+            }
           )
         } else {
           // No descriptor backups available, use keysets directly
@@ -152,7 +155,8 @@ class LostAppAndCloudRecoveryServiceImpl(
               hwKeyBundle = hardwareKeysForRecovery.newKeyBundle,
               lostFactor = App,
               appGlobalAuthKeyHwSignature = hardwareKeysForRecovery.newAppGlobalAuthKeyHwSignature,
-              originalAppGlobalAuthKey = null // No original auth key for Lost App recovery since there's no pre-existing keybox.
+              originalAppGlobalAuthKey = null, // No original auth key for Lost App recovery since there's no pre-existing keybox.
+              spendingKeyProof = hardwareKeysForRecovery.spendingKeyProof
             )
           )
           .logFailure { "Failed to set local recovery progress when initiating DN recovery for Lost App." }
@@ -203,6 +207,7 @@ class LostAppAndCloudRecoveryServiceImpl(
     appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
     bitcoinNetworkType: BitcoinNetworkType,
     hardwareType: HardwareType,
+    spendingKeyProof: HwSpendingKeyProof?,
   ): HardwareKeysForRecovery =
     HardwareKeysForRecovery(
       proof = proof,
@@ -213,7 +218,8 @@ class LostAppAndCloudRecoveryServiceImpl(
         authKey = hardwareAuthKey,
         networkType = bitcoinNetworkType
       ),
-      hardwareType = hardwareType
+      hardwareType = hardwareType,
+      spendingKeyProof = spendingKeyProof
     )
 
   override suspend fun cancelRecovery(

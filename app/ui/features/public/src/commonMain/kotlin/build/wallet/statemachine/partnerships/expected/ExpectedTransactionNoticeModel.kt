@@ -46,7 +46,7 @@ data class ExpectedTransactionNoticeModel(
         steps = immutableListOf(
           FormMainContentModel.StepperIndicator.Step(
             style = FormMainContentModel.StepperIndicator.StepStyle.PENDING,
-            icon = IconImage.LocalImage(icon = Icon.SmallIconCheck),
+            icon = IconImage.LocalImage(icon = Icon.Check),
             label = "Submitted"
           ),
           FormMainContentModel.StepperIndicator.Step(
@@ -77,7 +77,7 @@ data class ExpectedTransactionNoticeModel(
         onClick = StandardClick { onViewInPartnerApp(link) },
         treatment = ButtonModel.Treatment.Secondary,
         size = ButtonModel.Size.Footer,
-        leadingIcon = Icon.SmallIconArrowUpRight
+        leadingIcon = Icon.ArrowUpRight
       )
     },
     primaryButton = ButtonModel(

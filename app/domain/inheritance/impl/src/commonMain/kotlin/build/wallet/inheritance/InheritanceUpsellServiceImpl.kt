@@ -63,7 +63,8 @@ class InheritanceUpsellServiceImpl(
         shouldShow = completionTime?.let { nonNullTime ->
           val now = clock.now()
           now.minus(nonNullTime) >= 14.days
-        } ?: true // Show immediately for existing users (they won't have an onboarding timestamp)
+        } ?: false // No timestamp yet (pre-feature install or fresh recovery); Money Home
+        // records one on first render, which starts the 14-day window deterministically.
       }
 
     return shouldShow

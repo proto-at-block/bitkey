@@ -9,6 +9,7 @@ import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.relationships.DelegatedDecryptionKey
 import build.wallet.bitkey.relationships.EndorsedTrustedContactFake1
 import build.wallet.bitkey.relationships.PrivateKeyEncryptionKey
+import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.bitkey.spending.AppSpendingPrivateKeyMock
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.crypto.PublicKey
@@ -63,7 +64,7 @@ class InheritanceMaterialCreatorTests : FunSpec({
 
     inheritanceRelationshipsProvider.endorsedInheritanceContactsResult = listOf(
       EndorsedTrustedContactFake1.copy(
-        relationshipId = "test-modified-contact"
+        id = RelationshipId("test-modified-contact")
       )
     )
     val result2 = creator.getInheritanceMaterialHashData(KeyboxMock)
@@ -75,10 +76,10 @@ class InheritanceMaterialCreatorTests : FunSpec({
 
   test("Contact ordering does not change hash") {
     val firstContact = EndorsedTrustedContactFake1.copy(
-      relationshipId = "first-contact"
+      id = RelationshipId("first-contact")
     )
     val secondContact = EndorsedTrustedContactFake1.copy(
-      relationshipId = "second-contact"
+      id = RelationshipId("second-contact")
     )
 
     inheritanceRelationshipsProvider.endorsedInheritanceContactsResult =
@@ -96,7 +97,7 @@ class InheritanceMaterialCreatorTests : FunSpec({
 
   test("Contact property changes do not affect hash if ID and key unchanged") {
     val contact = EndorsedTrustedContactFake1.copy(
-      relationshipId = "test-contact"
+      id = RelationshipId("test-contact")
     )
 
     inheritanceRelationshipsProvider.endorsedInheritanceContactsResult = listOf(contact)
@@ -116,7 +117,7 @@ class InheritanceMaterialCreatorTests : FunSpec({
 
   test("Contact key changes should result in different hash") {
     val firstContact = EndorsedTrustedContactFake1.copy(
-      relationshipId = "test-contact"
+      id = RelationshipId("test-contact")
     )
 
     inheritanceRelationshipsProvider.endorsedInheritanceContactsResult = listOf(firstContact)
@@ -207,10 +208,10 @@ class InheritanceMaterialCreatorTests : FunSpec({
   test("Packages are encrypted for each contact") {
     privateKeyDao.appSpendingKeys[KeyboxMock.activeAppKeyBundle.spendingKey] = AppSpendingPrivateKeyMock
     val firstContact = EndorsedTrustedContactFake1.copy(
-      relationshipId = "first-contact"
+      id = RelationshipId("first-contact")
     )
     val secondContact = EndorsedTrustedContactFake1.copy(
-      relationshipId = "second-contact"
+      id = RelationshipId("second-contact")
     )
     inheritanceRelationshipsProvider.endorsedInheritanceContactsResult = listOf(firstContact, secondContact)
 

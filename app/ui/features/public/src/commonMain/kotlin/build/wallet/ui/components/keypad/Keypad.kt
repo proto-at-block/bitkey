@@ -24,7 +24,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,10 +33,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import build.wallet.amount.KeypadButton
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.platform.haptics.HapticsEffect
-import build.wallet.statemachine.core.Icon
 import build.wallet.ui.components.icon.IconImage
-import build.wallet.ui.components.icon.IconStyle
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.compose.LocalHaptics
@@ -45,7 +43,7 @@ import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tokens.market.MarketIcons
+import build.wallet.statemachine.core.Icon
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -154,38 +152,17 @@ private fun RowScope.KeypadButton(
   onClick: (KeypadButton) -> Unit,
   hapticsEffectForButtonPress: (KeypadButton) -> HapticsEffect?,
 ) {
-  val isDesignSystemV2Enabled = true
   val interactionSource = remember { MutableInteractionSource() }
   var isVisuallyPressed by remember { mutableStateOf(false) }
   var releaseVisualPressJob by remember { mutableStateOf<Job?>(null) }
-  val scope = rememberCoroutineScope()
+  val scope = rememberStableCoroutineScope()
   val haptics = LocalHaptics.current
-
-  val outerScale by animateFloatAsState(
-    targetValue =
-      if (!isDesignSystemV2Enabled && isVisuallyPressed) {
-        0.98f
-      } else {
-        1f
-      },
-    animationSpec =
-      if (isVisuallyPressed) {
-        snap()
-      } else {
-        tween(durationMillis = KEYPAD_PRESS_OUT_DURATION_MS)
-      },
-    label = "keypad-button-outer-scale"
-  )
 
   Box(
     modifier =
       Modifier
         .weight(1F)
         .height(72.dp)
-        .graphicsLayer {
-          scaleX = outerScale
-          scaleY = outerScale
-        }
         .pointerInput(show, button) {
           if (!show) return@pointerInput
 
@@ -232,10 +209,9 @@ private fun KeypadButtonContent(
   button: KeypadButton,
   isPressed: Boolean,
 ) {
-  val isDesignSystemV2Enabled = true
   val surfaceScale by animateFloatAsState(
     targetValue =
-      if (isDesignSystemV2Enabled && isPressed) {
+      if (isPressed) {
         1.06f
       } else {
         1f
@@ -250,7 +226,7 @@ private fun KeypadButtonContent(
   )
   val contentScale by animateFloatAsState(
     targetValue =
-      if (isDesignSystemV2Enabled && isPressed) {
+      if (isPressed) {
         1.08f
       } else {
         1f
@@ -265,62 +241,32 @@ private fun KeypadButtonContent(
   )
   when (button) {
     KeypadButton.Decimal -> {
-      if (isDesignSystemV2Enabled) {
-        DsV2KeypadButtonSurface(
-          isPressed = isPressed,
-          scale = surfaceScale
-        ) {
-          DecimalIcon(
-            color = WalletTheme.colors.secondaryForeground,
-            scale = contentScale
-          )
-        }
-      } else {
+      KeypadButtonSurface(
+        isPressed = isPressed,
+        scale = surfaceScale
+      ) {
         DecimalIcon(
-          color = WalletTheme.colors.primaryIcon,
+          color = WalletTheme.colors.secondaryForeground,
           scale = contentScale
         )
       }
     }
     KeypadButton.Delete -> {
-      if (isDesignSystemV2Enabled) {
-        DsV2KeypadButtonSurface(
-          isPressed = isPressed,
-          scale = surfaceScale
-        ) {
-          DeleteIcon(
-            color = WalletTheme.colors.secondaryForeground,
-            useMarketIcon = true,
-            scale = contentScale
-          )
-        }
-      } else {
+      KeypadButtonSurface(
+        isPressed = isPressed,
+        scale = surfaceScale
+      ) {
         DeleteIcon(
-          color = WalletTheme.colors.primaryIcon,
-          useMarketIcon = false,
+          color = WalletTheme.colors.secondaryForeground,
           scale = contentScale
         )
       }
     }
     is KeypadButton.Digit -> {
-      if (isDesignSystemV2Enabled) {
-        DsV2KeypadButtonSurface(
-          isPressed = isPressed,
-          scale = surfaceScale
-        ) {
-          Label(
-            modifier =
-              Modifier.graphicsLayer {
-                scaleX = contentScale
-                scaleY = contentScale
-              },
-            text = button.value.toString(),
-            type = LabelType.Keypad,
-            treatment = LabelTreatment.Unspecified,
-            color = WalletTheme.colors.secondaryForeground
-          )
-        }
-      } else {
+      KeypadButtonSurface(
+        isPressed = isPressed,
+        scale = surfaceScale
+      ) {
         Label(
           modifier =
             Modifier.graphicsLayer {
@@ -328,7 +274,9 @@ private fun KeypadButtonContent(
               scaleY = contentScale
             },
           text = button.value.toString(),
-          type = LabelType.Keypad
+          type = LabelType.Keypad,
+          treatment = LabelTreatment.Unspecified,
+          color = WalletTheme.colors.secondaryForeground
         )
       }
     }
@@ -336,7 +284,7 @@ private fun KeypadButtonContent(
 }
 
 @Composable
-private fun DsV2KeypadButtonSurface(
+private fun KeypadButtonSurface(
   isPressed: Boolean,
   scale: Float,
   content: @Composable () -> Unit,
@@ -364,7 +312,6 @@ private fun DsV2KeypadButtonSurface(
 @Composable
 private fun DeleteIcon(
   color: Color,
-  useMarketIcon: Boolean,
   scale: Float,
 ) {
   IconImage(
@@ -373,18 +320,10 @@ private fun DeleteIcon(
         scaleX = scale
         scaleY = scale
       },
-    model =
-      if (useMarketIcon) {
-        IconModel(
-          icon = MarketIcons.Backspace,
-          iconSize = IconSize.Small
-        )
-      } else {
-        IconModel(
-          icon = Icon.SmallIconCaretLeft,
-          iconSize = IconSize.Keypad
-        )
-      },
+    model = IconModel(
+      icon = Icon.Backspace,
+      iconSize = IconSize.Small
+    ),
     color = color
   )
 }

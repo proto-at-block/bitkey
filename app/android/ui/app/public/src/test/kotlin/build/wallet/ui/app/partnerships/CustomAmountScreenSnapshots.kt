@@ -90,29 +90,4 @@ class CustomAmountScreenSnapshots : FunSpec({
     }
   }
 
-  test("custom amount entry screen - valid entry with design system v2") {
-    paparazzi.snapshot {
-      CustomAmountScreen(
-        model = CustomAmountBodyModel(
-          onBack = {},
-          limits = "From $20.00 to $100.00",
-          amountModel =
-            MoneyAmountEntryModel(
-              primaryAmount = "$50.00",
-              primaryAmountGhostedSubstringRange = null,
-              secondaryAmount = "50,000 sats"
-            ),
-          keypadModel =
-            KeypadModel(
-              showDecimal = true,
-              onButtonPress = {}
-            ),
-          isAmountAboveMaximum = false,
-
-          continueButtonEnabled = true,
-          onNext = {}
-        )
-      )
-    }
-  }
 })

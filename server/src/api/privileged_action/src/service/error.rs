@@ -55,6 +55,11 @@ pub enum ServiceError {
 
     #[error("Cannot have multiple concurrent privileged action instances of type {0}")]
     MultipleConcurrentInstancesConflict(PrivilegedActionType),
+
+    #[error("Out-of-band verification email resend requested before the cooldown elapsed")]
+    OutOfBandResendThrottled,
+    #[error("Out-of-band verification email resend limit reached for this instance")]
+    OutOfBandResendLimitExceeded,
 }
 
 impl From<AccountError> for ServiceError {
@@ -94,6 +99,16 @@ impl From<ServiceError> for ApiError {
                 ApiError::GenericInternalApplicationError(msg)
             }
             ServiceError::CannotUpdateDelayForNonTestAccount => ApiError::GenericForbidden(msg),
+            ServiceError::OutOfBandResendThrottled => ApiError::Specific {
+                code: errors::ErrorCode::OutOfBandResendThrottled,
+                detail: Some(msg),
+                field: None,
+            },
+            ServiceError::OutOfBandResendLimitExceeded => ApiError::Specific {
+                code: errors::ErrorCode::OutOfBandResendLimitExceeded,
+                detail: Some(msg),
+                field: None,
+            },
         }
     }
 }

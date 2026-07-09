@@ -5,7 +5,7 @@ import build.wallet.bitkey.relationships.IncomingInvitation
 import build.wallet.bitkey.relationships.InvitationFake
 
 val IncomingRecoveryContactInvitationFake = IncomingInvitation(
-  relationshipId = InvitationFake.relationshipId,
+  id = InvitationFake.id,
   code = InvitationFake.code,
   protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey,
   recoveryRelationshipRoles = InvitationFake.roles,
@@ -13,7 +13,7 @@ val IncomingRecoveryContactInvitationFake = IncomingInvitation(
 )
 
 val IncomingBeneficiaryInvitationFake = IncomingRecoveryContactInvitationFake.copy(
-  relationshipId = BeneficiaryInvitationFake.relationshipId,
+  id = BeneficiaryInvitationFake.id,
   code = BeneficiaryInvitationFake.code,
   protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey,
   recoveryRelationshipRoles = BeneficiaryInvitationFake.roles,

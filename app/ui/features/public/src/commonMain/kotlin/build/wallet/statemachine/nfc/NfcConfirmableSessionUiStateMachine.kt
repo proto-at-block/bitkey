@@ -1,10 +1,7 @@
 package build.wallet.statemachine.nfc
 
 import androidx.compose.runtime.*
-import bitkey.account.AccountConfig
 import bitkey.account.AccountConfigService
-import bitkey.account.DefaultAccountConfig
-import bitkey.account.FullAccountConfig
 import bitkey.account.HardwareType
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId
@@ -225,13 +222,6 @@ class NfcConfirmableSessionUiStateMachineImpl(
     return modelInternal(props as NfcConfirmableSessionUIStateMachineProps<Any?>)
   }
 
-  private fun isHardwareFake(accountConfig: AccountConfig): Boolean =
-    when (accountConfig) {
-      is FullAccountConfig -> accountConfig.isHardwareFake
-      is DefaultAccountConfig -> accountConfig.isHardwareFake
-      else -> false
-    }
-
   @Composable
   private fun <T> modelInternal(props: NfcConfirmableSessionUIStateMachineProps<T>): ScreenModel {
     var uiState: NfcConfirmableSessionUiState<T> by remember {
@@ -423,7 +413,7 @@ class NfcConfirmableSessionUiStateMachineImpl(
           onStateChange(InNfcSession(fetchResult = currentState.fetchResult))
         },
         content = props.confirmationContent,
-        isHardwareFake = isHardwareFake(accountConfig)
+        isHardwareFake = isAccountHardwareFakeForNfc(accountConfig)
       )
     )
   }
@@ -504,7 +494,7 @@ class NfcConfirmableSessionUiStateMachineImpl(
 /**
  * Internal state for [NfcConfirmableSessionUiStateMachineImpl].
  */
-private sealed class NfcConfirmableSessionUiState<T> {
+private sealed interface NfcConfirmableSessionUiState<T> {
   /**
    * Delegating to [NfcSessionUIStateMachine].
    *
@@ -514,7 +504,7 @@ private sealed class NfcConfirmableSessionUiState<T> {
   data class InNfcSession<T>(
     val fetchResult: (suspend (NfcSession, NfcCommands) -> HardwareInteraction<T>)? = null,
     val emulatedPrompt: HardwareInteraction.ConfirmWithEmulatedPrompt<T>? = null,
-  ) : NfcConfirmableSessionUiState<T>()
+  ) : NfcConfirmableSessionUiState<T>
 
   /**
    * The NFC state machine returned [HardwareInteraction.RequiresConfirmation], and we need to display
@@ -524,7 +514,7 @@ private sealed class NfcConfirmableSessionUiState<T> {
    */
   data class AwaitingConfirmation<T>(
     val fetchResult: suspend (NfcSession, NfcCommands) -> HardwareInteraction<T>,
-  ) : NfcConfirmableSessionUiState<T>()
+  ) : NfcConfirmableSessionUiState<T>
 
   /**
    * The firmware returned [NfcException.ConfirmationPending] - user tapped before deciding
@@ -534,7 +524,7 @@ private sealed class NfcConfirmableSessionUiState<T> {
    */
   data class ShowingConfirmationPending<T>(
     val fetchResult: (suspend (NfcSession, NfcCommands) -> HardwareInteraction<T>)? = null,
-  ) : NfcConfirmableSessionUiState<T>()
+  ) : NfcConfirmableSessionUiState<T>
 
   /**
    * The firmware returned [NfcException.UserDenied] - user explicitly denied on the device.
@@ -544,5 +534,5 @@ private sealed class NfcConfirmableSessionUiState<T> {
    */
   data class ShowingConfirmationDenied<T>(
     val fetchResult: (suspend (NfcSession, NfcCommands) -> HardwareInteraction<T>)? = null,
-  ) : NfcConfirmableSessionUiState<T>()
+  ) : NfcConfirmableSessionUiState<T>
 }

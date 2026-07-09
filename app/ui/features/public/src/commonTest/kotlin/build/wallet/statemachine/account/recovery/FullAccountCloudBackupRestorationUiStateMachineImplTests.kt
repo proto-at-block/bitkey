@@ -89,6 +89,8 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import kotlinx.datetime.Instant
 
+// Large end-to-end coverage for cloud backup restoration; splitting would hurt cohesion.
+@Suppress("LargeClass")
 class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
 
   context("parameterized tests for all backup versions") {

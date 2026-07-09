@@ -25,7 +25,10 @@ use types::{
     },
     currencies::CurrencyCode::USD,
     privileged_action::{
-        repository::PrivilegedActionInstanceRecord, router::generic::PrivilegedActionResponse,
+        repository::{PrivilegedActionInstanceRecord, RecordStatus},
+        router::generic::PrivilegedActionResponse,
+        router::AuthorizationStrategyDiscriminants,
+        shared::PrivilegedActionType,
     },
     transaction_verification::{
         entities::{
@@ -621,6 +624,162 @@ async fn transaction_verification_requires_verification_idempotent(
         _ => panic!("Expected transaction to require verification"),
     };
     assert_eq!(original_verification_id, idempotent_verification_id);
+}
+
+/// The OOB concurrency guard must dedup only *identical* pending
+/// requests. Two different loosening policies must each get their own
+/// pending privileged-action record (so confirming one applies the
+/// policy actually requested, not a stale earlier one); an identical
+/// re-request reuses the existing record.
+#[tokio::test]
+async fn loosening_with_different_policies_does_not_dedup_pending_oob() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+    let (account, _) =
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
+    let keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .unwrap();
+    let account_id = account.id.clone();
+
+    // Baseline: verify above $118. Both targets below loosen relative to it.
+    bootstrap
+        .services
+        .account_repository
+        .persist(&Account::Full(FullAccount {
+            transaction_verification_policy: Some(TransactionVerificationPolicy::Threshold(
+                Money {
+                    amount: 118,
+                    currency_code: USD,
+                },
+            )),
+            ..account
+        }))
+        .await
+        .expect("persist baseline policy");
+
+    let loosen_to_threshold = PutTransactionVerificationPolicyRequest {
+        policy: PolicyUpdate::Threshold(PolicyUpdateMoney {
+            amount_sats: 2000,
+            amount_fiat: 236,
+            currency_code: USD,
+        }),
+        use_bip_177: false,
+    };
+    let loosen_to_never = PutTransactionVerificationPolicyRequest {
+        policy: PolicyUpdate::Never,
+        use_bip_177: false,
+    };
+
+    let pending_oob_count = || async {
+        bootstrap
+            .services
+            .privileged_action_repository
+            .fetch_for_account_id::<serde_json::Value>(
+                &account_id,
+                Some(AuthorizationStrategyDiscriminants::OutOfBand),
+                Some(PrivilegedActionType::LoosenTransactionVerificationPolicy),
+                Some(RecordStatus::Pending),
+            )
+            .await
+            .expect("fetch pending oob")
+            .len()
+    };
+
+    // Two distinct loosening requests → two distinct pending records.
+    for req in [&loosen_to_threshold, &loosen_to_never] {
+        let resp = client
+            .update_transaction_verification_policy(&account_id, true, true, &keys, req)
+            .await;
+        assert_eq!(resp.status_code, StatusCode::OK, "{}", resp.body_string);
+    }
+    assert_eq!(
+        pending_oob_count().await,
+        2,
+        "different loosening policies must not be deduplicated",
+    );
+
+    // A repeat of an identical request reuses its record (guard dedups).
+    let resp = client
+        .update_transaction_verification_policy(&account_id, true, true, &keys, &loosen_to_threshold)
+        .await;
+    assert_eq!(resp.status_code, StatusCode::OK, "{}", resp.body_string);
+    assert_eq!(
+        pending_oob_count().await,
+        2,
+        "an identical re-request must reuse the existing pending record",
+    );
+}
+
+/// The initiate validator (app+hw signature for loosening) must run on
+/// every initiate, including a retry that would reuse an existing
+/// session. A JWT-only retry with an identical loosening payload must
+/// still be Forbidden — not reuse the pending session and return 200.
+#[tokio::test]
+async fn loosening_retry_without_hw_signature_is_forbidden_not_reused() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+    let (account, _) =
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
+    let keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .unwrap();
+    let account_id = account.id.clone();
+
+    bootstrap
+        .services
+        .account_repository
+        .persist(&Account::Full(FullAccount {
+            transaction_verification_policy: Some(TransactionVerificationPolicy::Threshold(
+                Money {
+                    amount: 118,
+                    currency_code: USD,
+                },
+            )),
+            ..account
+        }))
+        .await
+        .expect("persist baseline policy");
+
+    let loosen = PutTransactionVerificationPolicyRequest {
+        policy: PolicyUpdate::Never,
+        use_bip_177: false,
+    };
+
+    // First, a properly app+hw-signed loosening establishes a pending session.
+    let resp = client
+        .update_transaction_verification_policy(&account_id, true, true, &keys, &loosen)
+        .await;
+    assert_eq!(resp.status_code, StatusCode::OK, "{}", resp.body_string);
+
+    // Retry the identical loosening WITHOUT a hardware signature. The
+    // initiate validator must reject it (403) rather than the reuse path
+    // returning 200 Pending.
+    let resp = client
+        .update_transaction_verification_policy(&account_id, true, false, &keys, &loosen)
+        .await;
+    assert_eq!(
+        resp.status_code,
+        StatusCode::FORBIDDEN,
+        "{}",
+        resp.body_string
+    );
+
+    // The unsigned retry created nothing; the original session stands alone.
+    let pending = bootstrap
+        .services
+        .privileged_action_repository
+        .fetch_for_account_id::<serde_json::Value>(
+            &account_id,
+            Some(AuthorizationStrategyDiscriminants::OutOfBand),
+            Some(PrivilegedActionType::LoosenTransactionVerificationPolicy),
+            Some(RecordStatus::Pending),
+        )
+        .await
+        .expect("fetch pending oob");
+    assert_eq!(pending.len(), 1);
 }
 
 /// Helper function to generate random amounts so we don't end up with the same txids

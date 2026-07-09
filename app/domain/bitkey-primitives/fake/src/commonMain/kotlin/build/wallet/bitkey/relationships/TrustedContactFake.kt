@@ -4,7 +4,7 @@ import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.VERIF
 
 val EndorsedTrustedContactFake1 =
   EndorsedTrustedContact(
-    relationshipId = "someRelationshipId",
+    id = RelationshipId("someRelationshipId"),
     trustedContactAlias = TrustedContactAlias("someContact"),
     authenticationState = VERIFIED,
     keyCertificate = TrustedContactKeyCertificateFake,
@@ -12,10 +12,10 @@ val EndorsedTrustedContactFake1 =
   )
 
 val EndorsedTrustedContactFake2 =
-  EndorsedTrustedContactFake1.copy(relationshipId = "someOtherRelationshipId")
+  EndorsedTrustedContactFake1.copy(id = RelationshipId("someOtherRelationshipId"))
 
 val EndorsedBeneficiaryFake = EndorsedTrustedContactFake1.copy(
-  relationshipId = "endorsedBeneficiaryRelationshipId",
+  id = RelationshipId("endorsedBeneficiaryRelationshipId"),
   trustedContactAlias = TrustedContactAlias("endorsedBeneficiaryAlias"),
   roles = setOf(TrustedContactRole.Beneficiary)
 )

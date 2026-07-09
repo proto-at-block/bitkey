@@ -10,7 +10,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.LabelModel
-import build.wallet.statemachine.core.form.resolveLegacyHeaderWarningIconModelForDesignSystemV2
+import build.wallet.statemachine.core.form.resolveLegacyHeaderWarningIconModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.CENTER
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.LEADING
@@ -35,7 +35,7 @@ fun Header(
   theme: Theme = LocalTheme.current,
 ) {
   val resolvedIconModel =
-    resolveLegacyHeaderWarningIconModelForDesignSystemV2(
+    resolveLegacyHeaderWarningIconModel(
       iconModel = model.iconModel
     )
 
@@ -45,19 +45,6 @@ fun Header(
     customContent = model.customContent,
     headline = model.headline,
     subline = model.sublineModel?.buildAnnotatedString(),
-    sublineOnClick = { index ->
-      model.sublineModel?.let {
-        when (it) {
-          is LabelModel.LinkSubstringModel ->
-            it.linkedSubstrings.forEach { link ->
-              if (link.range.contains(index)) {
-                link.onClick()
-              }
-            }
-          else -> Unit
-        }
-      }
-    },
     horizontalAlignment =
       when (model.alignment) {
         LEADING -> Alignment.Start

@@ -7,6 +7,7 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
+import build.wallet.bitkey.hardware.HwSpendingKeyProof
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.SealedCsek
@@ -34,6 +35,12 @@ sealed interface LocalRecoveryAttemptProgress {
     val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
     val lostFactor: PhysicalFactor,
     val originalAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>?,
+    /**
+     * Hardware-attested proof for [hwKeyBundle.spendingKey], if firmware produced one
+     * during pairing. Persisted so `createKeyset` can still send a valid attestation
+     * after process death. Null for pre-attestation firmware.
+     */
+    val spendingKeyProof: HwSpendingKeyProof? = null,
   ) : LocalRecoveryAttemptProgress
 
   /**

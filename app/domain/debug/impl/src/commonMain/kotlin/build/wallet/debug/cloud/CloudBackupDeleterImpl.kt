@@ -2,16 +2,19 @@ package build.wallet.debug.cloud
 
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.cloud.backup.CloudBackupService
+import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.logging.logError
-import build.wallet.logging.logFailure
+import build.wallet.ensureNotNull
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.Customer
-import com.github.michaelbull.result.onFailure
-import com.github.michaelbull.result.onSuccess
+import com.github.michaelbull.result.Err
+import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.coroutines.coroutineBinding
+import com.github.michaelbull.result.mapError
 
 @BitkeyInject(AppScope::class)
 class CloudBackupDeleterImpl(
@@ -20,67 +23,65 @@ class CloudBackupDeleterImpl(
   private val cloudBackupStoreCleaner: CloudBackupStoreCleaner,
   private val cloudStoreAccountRepository: CloudStoreAccountRepository,
 ) : CloudBackupDeleter {
-  override suspend fun delete(accountId: AccountId?) {
-    check(appVariant != Customer) {
-      "Not allowed to clear cloud backups in Customer builds."
+  override suspend fun delete(accountId: AccountId?): Result<Unit, Error> =
+    coroutineBinding {
+      debugDeletionAllowed().bind()
+      val cloudAccount = cloudAccount().bind()
+      cloudBackupService.clear(
+        accountId = accountId,
+        cloudStoreAccount = cloudAccount,
+        // Keep local and remote cloud backup states aligned for debug deletion flows.
+        clearRemoteOnly = false
+      )
+        .mapError { Error("Error deleting cloud backup", it) }
+        .bind()
+      clearCloudAccount().bind()
     }
 
-    cloudStoreAccountRepository.currentAccount(cloudServiceProvider())
-      .onSuccess { cloudAccount ->
-        cloudAccount?.let {
-          cloudBackupService.clear(
-            accountId = accountId,
-            cloudStoreAccount = it,
-            // Keep local and remote cloud backup states aligned for debug deletion flows.
-            clearRemoteOnly = false
-          ).logFailure { "Error deleting cloud backup" }
-        }
-      }
-      .onFailure { error ->
-        logError { "Failed to find cloud account for deleting backup: $error" }
-      }
-    cloudStoreAccountRepository.clear()
-      .logFailure { "Failed to clear cloud storage account" }
-  }
-
-  override suspend fun deleteAllBackups() {
-    check(appVariant != Customer) {
-      "Not allowed to clear cloud backups in Customer builds."
+  override suspend fun deleteAllBackups(): Result<Unit, Error> =
+    coroutineBinding {
+      debugDeletionAllowed().bind()
+      val cloudAccount = cloudAccount().bind()
+      cloudBackupService.clearAll(
+        cloudStoreAccount = cloudAccount,
+        // Keep local and remote cloud backup states aligned for debug deletion flows.
+        clearRemoteOnly = false
+      )
+        .mapError { Error("Error deleting cloud backup", it) }
+        .bind()
+      clearCloudAccount().bind()
     }
 
-    cloudStoreAccountRepository.currentAccount(cloudServiceProvider())
-      .onSuccess { cloudAccount ->
-        cloudAccount?.let {
-          cloudBackupService.clearAll(
-            cloudStoreAccount = it,
-            // Keep local and remote cloud backup states aligned for debug deletion flows.
-            clearRemoteOnly = false
-          ).logFailure { "Error deleting cloud backup" }
-        }
-      }
-      .onFailure { error ->
-        logError { "Failed to find cloud account for deleting backup: $error" }
-      }
-    cloudStoreAccountRepository.clear()
-      .logFailure { "Failed to clear cloud storage account" }
-  }
-
-  override suspend fun deleteBackupsIn(type: CloudBackupStoreType) {
-    check(appVariant != Customer) {
-      "Not allowed to clear cloud backups in Customer builds."
+  override suspend fun deleteBackupsIn(type: CloudBackupStoreType): Result<Unit, Error> =
+    coroutineBinding {
+      debugDeletionAllowed().bind()
+      val cloudAccount = cloudAccount().bind()
+      cloudBackupStoreCleaner.deleteBackupsIn(type, cloudAccount)
+        .mapError { Error("Error deleting cloud backup", it) }
+        .bind()
+      clearCloudAccount().bind()
     }
 
-    cloudStoreAccountRepository.currentAccount(cloudServiceProvider())
-      .onSuccess { cloudAccount ->
-        cloudAccount?.let {
-          cloudBackupStoreCleaner.deleteBackupsIn(type, it)
-            .logFailure { "Error deleting cloud backup" }
-        }
+  private suspend fun cloudAccount(): Result<CloudStoreAccount, Error> =
+    coroutineBinding {
+      val cloudAccount = cloudStoreAccountRepository.currentAccount(cloudServiceProvider())
+        .mapError { Error("Failed to find cloud account", it) }
+        .bind()
+      ensureNotNull(cloudAccount) {
+        Error("No cloud account")
       }
-      .onFailure { error ->
-        logError { "Failed to find cloud account for deleting backup: $error" }
-      }
+    }
+
+  private suspend fun clearCloudAccount(): Result<Unit, Error> =
     cloudStoreAccountRepository.clear()
-      .logFailure { "Failed to clear cloud storage account" }
-  }
+      .mapError { Error("Failed to clear cloud storage account", it) }
+
+  private fun debugDeletionAllowed(): Result<Unit, Error> =
+    if (appVariant == Customer) {
+      Err(
+        Error("Not allowed to clear cloud backups in Customer builds.")
+      )
+    } else {
+      Ok(Unit)
+    }
 }

@@ -37,14 +37,8 @@ fun WalletTheme.iconStyle(
         }
 
         is DrawableResourceImage -> applyTint(color, tint)
-        is MarketIconImage ->
-          if (!icon.icon.multiColor) {
-            applyTint(color, tint)
-          } else {
-            Color.Unspecified
-          }
         is UrlImage -> color
-        IconImage.LoadingBadge -> Color.Unspecified
+        LoadingBadge -> Color.Unspecified
       }
   )
 }
@@ -80,18 +74,12 @@ private fun WalletTheme.applyTint(
 internal fun Icon.canApplyTint(): Boolean {
   return when (this) {
     // Assets that don't support tint.
-    Icon.LargeIconNetworkError,
-    Icon.MediumIconTrustedContact,
-    Icon.MoneyHomeHero,
+    Icon.NetworkError,
     Icon.Bitcoin,
-    Icon.BitkeyDevice3D,
     Icon.BitkeyFrontLit,
-    Icon.SmallIconCheckboxSelected,
-    Icon.SmallIconSettingsBadged,
     Icon.BitkeyLogo,
     Icon.BitcoinConsolidation,
     Icon.BitcoinBadged,
-    Icon.LargeIconWarning
     -> false
 
     else -> true

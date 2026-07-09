@@ -23,7 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.unit.dp
-import build.wallet.statemachine.core.Icon.SmallIconCaretDown
+import build.wallet.statemachine.core.Icon.CaretDown
 import build.wallet.statemachine.dev.DebugMenuBodyModel
 import build.wallet.ui.components.alertdialog.AlertDialog
 import build.wallet.ui.components.forms.TextField
@@ -149,7 +149,7 @@ private fun CollapsibleListGroup(
         contentAlignment = Alignment.Center
       ) {
         Icon(
-          icon = SmallIconCaretDown,
+          icon = CaretDown,
           size = IconSize.Small,
           color = WalletTheme.colors.foreground60
         )

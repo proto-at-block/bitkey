@@ -20,13 +20,3 @@ fun KeypadNoDecimalPreview() {
     Keypad(showDecimal = false, onButtonPress = {})
   }
 }
-
-@Preview
-@Composable
-fun KeypadWithDecimalDesignSystemV2Preview() {
-  PreviewWalletTheme(
-    backgroundColor = lightStyleDictionaryColors.subtleBackground
-  ) {
-    Keypad(showDecimal = true, onButtonPress = {})
-  }
-}

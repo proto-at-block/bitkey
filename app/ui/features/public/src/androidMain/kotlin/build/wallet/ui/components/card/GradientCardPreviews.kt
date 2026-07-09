@@ -29,7 +29,7 @@ internal fun GradientCardPreview() {
         verticalAlignment = Alignment.CenterVertically
       ) {
         Image(
-          painter = Icon.SmallIconBitkey.painter(),
+          painter = Icon.Bitkey.painter(),
           contentDescription = ""
         )
         Spacer(modifier = Modifier.width(12.dp))

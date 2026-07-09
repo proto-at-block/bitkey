@@ -5,6 +5,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.list.ListModel
 import build.wallet.statemachine.transactions.PartnerTransactionItemModel
 import build.wallet.statemachine.transactions.TransactionItemModel
@@ -15,7 +16,6 @@ import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
 import build.wallet.ui.model.list.ListItemSideTextTint
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.tooling.PreviewWalletTheme
-import build.wallet.ui.tokens.market.MarketIcons
 
 @Preview
 @Composable
@@ -27,9 +27,9 @@ fun TransactionListPreview() {
   }
 }
 
-@Preview(name = "DS V2 Empty Transaction List Light")
+@Preview(name = "Empty Transaction List Light")
 @Composable
-fun EmptyTransactionListPreviewDesignSystemV2Light() {
+fun EmptyTransactionListPreviewLight() {
   PreviewWalletTheme {
     TransactionList(
       model = emptyTransactionListModel()
@@ -37,11 +37,11 @@ fun EmptyTransactionListPreviewDesignSystemV2Light() {
   }
 }
 
-@Preview(name = "DS V2 Empty Transaction List Dark")
+@Preview(name = "Empty Transaction List Dark")
 @Composable
-fun EmptyTransactionListPreviewDesignSystemV2Dark() {
+fun EmptyTransactionListPreviewDark() {
   PreviewWalletTheme(
-    theme = Theme.DARK,
+    theme = Theme.DARK
   ) {
     TransactionList(
       model = emptyTransactionListModel()
@@ -143,7 +143,10 @@ private fun emptyTransactionListModel() =
     sections = immutableListOf()
   )
 
-private fun previewPartnerIconImage() = IconImage.MarketIconImage(MarketIcons.CashAppMulticolor)
+private fun previewPartnerIconImage() = IconImage.UrlImage(
+  "https://images.ctfassets.net/mtmp6hzjjvnd/1lJRVmj6pcRnZcmL4eCEET/89cea9f73e867a8e70aa72971dba3586/CashLogo.svg",
+  fallbackIcon = Icon.Bitcoin
+)
 
 private fun previewPartnerTransactionItemModel(
   title: String,

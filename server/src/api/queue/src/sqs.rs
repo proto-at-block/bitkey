@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use aws_config::BehaviorVersion;
 use aws_sdk_sqs::error::BuildError;
 use aws_sdk_sqs::error::ProvideErrorMetadata;
 use aws_sdk_sqs::operation::delete_message_batch::DeleteMessageBatchError;
@@ -47,7 +46,7 @@ impl SqsQueue {
     pub async fn new(config: Config) -> Self {
         match config.sqs {
             SQSMode::Environment => {
-                let sdk_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
+                let sdk_config = clients_common::aws_sdk::load_default_sdk_config().await;
                 let client = SQSClient::new(&sdk_config);
                 Self::Real(client)
             }

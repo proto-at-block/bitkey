@@ -2,12 +2,11 @@ package build.wallet.statemachine.fwup
 
 import build.wallet.analytics.events.screen.id.FwupEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormDesignSystemV2Model
 import build.wallet.statemachine.core.form.FormHeaderModel
+import build.wallet.statemachine.core.form.FormMainContentVerticalAlignment
 import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.core.form.FormScreenLayoutModel
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.tokens.LabelType
 
@@ -29,33 +28,19 @@ data class FwupNextComponentReadyModel(
     onBack = onBack,
     toolbar = null,
     header = null,
+    formScreenLayout = FormScreenLayoutModel.LargeTitle(
+      scrollable = false,
+      mainContentVerticalAlignment = FormMainContentVerticalAlignment.CENTER
+    ),
     mainContentList = immutableListOf(
-      FormMainContentModel.Showcase(
-        content = FormMainContentModel.Showcase.Content.IconContent(
-          icon = Icon.BitkeyDevice3D
-        ),
-        title = "Update $completedIndex of $totalMcus complete",
-        body = LabelModel.StringModel(
-          "Press the button below and hold your unlocked device to the back of your phone to continue the update."
+      FormMainContentModel.HeaderBlock(
+        header = FormHeaderModel(
+          headline = "Update $completedIndex of $totalMcus complete",
+          subline = "Press the button below and hold your unlocked device to the back of your phone to continue the update.",
+          alignment = FormHeaderModel.Alignment.CENTER,
+          headlineLabelType = LabelType.Body2Mono
         )
       )
-    ),
-    designSystemV2Model = FormDesignSystemV2Model(
-      header = null,
-      useLegacyHeaderFallback = false,
-      mainContentList = immutableListOf(
-        FormMainContentModel.HeaderBlock(
-          header = FormHeaderModel(
-            headline = "Update $completedIndex of $totalMcus complete",
-            subline = "Press the button below and hold your unlocked device to the back of your phone to continue the update.",
-            alignment = FormHeaderModel.Alignment.CENTER,
-            headlineLabelType = LabelType.Body2Mono
-          )
-        )
-      ),
-      useDesignSystemV2ScreenLayout = true,
-      scrollable = false,
-      mainContentVerticalAlignment = FormDesignSystemV2Model.MainContentVerticalAlignment.CENTER
     ),
     primaryButton = ButtonModel(
       text = "Continue update",

@@ -3,7 +3,6 @@ use std::str::FromStr;
 use std::sync::{Arc, RwLock};
 
 use async_trait::async_trait;
-use aws_config::BehaviorVersion;
 use aws_sdk_cognitoidentityprovider::error::BuildError;
 use aws_sdk_cognitoidentityprovider::operation::admin_create_user::AdminCreateUserError;
 use aws_sdk_cognitoidentityprovider::operation::admin_get_user::AdminGetUserError;
@@ -214,7 +213,7 @@ pub struct CognitoConnection {
 impl CognitoConnection {
     pub async fn new_from_env() -> Self {
         Self {
-            sdk_config: aws_config::load_defaults(BehaviorVersion::latest()).await,
+            sdk_config: clients_common::aws_sdk::load_default_sdk_config().await,
             user_pool_id: std::env::var("COGNITO_USER_POOL")
                 .expect("Could not get value of COGNITO_USER_POOL env variable"),
             client_id: std::env::var("COGNITO_CLIENT_ID")

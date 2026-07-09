@@ -1,7 +1,9 @@
 package build.wallet.statemachine.settings.full.feedback
 
 import androidx.compose.runtime.*
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -16,6 +18,7 @@ import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.root.ActionSuccessDuration
+import build.wallet.statemachine.settings.SettingsAppSegment
 import build.wallet.support.*
 import build.wallet.time.DateTimeFormatter
 import build.wallet.ui.compose.normalizeTestTagValue
@@ -435,7 +438,7 @@ class FeedbackFormUiStateMachineImpl(
     title = title,
     fieldModel =
       build.wallet.ui.model.datetime.DatePickerModel(
-        valueStringRepresentation = value?.let { dateTimeFormatter.longLocalDate(it) } ?: "",
+        valueStringRepresentation = value?.let { dateTimeFormatter.longLocalDate(it) }.orEmpty(),
         value = value,
         onValueChange = onValueChange,
         testTag = testTag
@@ -569,9 +572,20 @@ class FeedbackFormUiStateMachineImpl(
         dismissButton
       },
       secondaryButton = if (retryable) dismissButton else null,
+      errorData = ErrorData(
+        segment = SettingsAppSegment.Feedback,
+        actionDescription = "Submitting feedback form",
+        cause = error.asThrowable()
+      ),
       eventTrackerScreenId = FeedbackEventTrackerScreenId.FEEDBACK_SUBMIT_FAILED
     ).asModalScreen()
   }
+
+  private fun SupportTicketError.asThrowable(): Throwable =
+    when (this) {
+      SupportTicketError.InvalidEmailAddress -> IllegalArgumentException("Invalid feedback email address")
+      is SupportTicketError.NetworkFailure -> cause
+    }
 
   @Composable
   private fun <Option : Any> PickerModel(
@@ -720,22 +734,20 @@ class FeedbackFormUiStateMachineImpl(
           val linkedText = "PRIVACY NOTICE"
           append(text)
           val start = text.indexOf(linkedText)
-          addStyle(
-            style = SpanStyle(textDecoration = TextDecoration.Underline),
+          addLink(
+            clickable = LinkAnnotation.Clickable(
+              tag = linkedText,
+              linkInteractionListener = { onClick() },
+              styles = TextLinkStyles(
+                style = SpanStyle(textDecoration = TextDecoration.Underline)
+              )
+            ),
             start = start,
             end = start + linkedText.length
           )
         },
       type = Body4Mono,
-      alignment = TextAlign.Start,
-      onClick = { index ->
-        val linkedText = "PRIVACY NOTICE"
-        val text = "YOUR INFORMATION WILL BE COLLECTED AND USED IN ACCORDANCE WITH OUR PRIVACY NOTICE"
-        val start = text.indexOf(linkedText)
-        if (index in start until start + linkedText.length) {
-          onClick()
-        }
-      }
+      alignment = TextAlign.Start
     )
 
   enum class LearnMore {

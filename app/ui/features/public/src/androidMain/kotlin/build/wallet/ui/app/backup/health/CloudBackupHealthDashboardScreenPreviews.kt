@@ -16,32 +16,11 @@ fun CloudBackupHealthDashboardScreenPreview() {
         appKeyBackupStatusCard =
           CloudBackupHealthStatusCardModelForPreview.copy(
             backupStatus = CloudBackupHealthStatusProblemListItemForPreview,
-            designSystemV2StatusText = "No backup found",
-            designSystemV2StatusTone = CloudBackupHealthStatusTone.DANGER,
+            statusTextOverride = "No backup found",
+            statusToneOverride = CloudBackupHealthStatusTone.DANGER,
             backupStatusActionButton = CloudBackupHealthStatusActionButtonForPreview
           ),
         eekBackupStatusCard = CloudBackupHealthStatusCardEekModelForPreview
       )
   )
-}
-
-@Preview
-@Composable
-fun CloudBackupHealthDashboardScreenDesignSystemV2Preview() {
-  PreviewWalletTheme {
-    CloudBackupHealthDashboardScreen(
-      model =
-        CloudBackupHealthDashboardBodyModel(
-          onBack = {},
-          appKeyBackupStatusCard =
-            CloudBackupHealthStatusCardModelForPreview.copy(
-              backupStatus = CloudBackupHealthStatusProblemListItemForPreview,
-              designSystemV2StatusText = "No backup found",
-              designSystemV2StatusTone = CloudBackupHealthStatusTone.DANGER,
-              backupStatusActionButton = CloudBackupHealthStatusActionButtonForPreview
-            ),
-          eekBackupStatusCard = CloudBackupHealthStatusCardEekModelForPreview
-        )
-    )
-  }
 }

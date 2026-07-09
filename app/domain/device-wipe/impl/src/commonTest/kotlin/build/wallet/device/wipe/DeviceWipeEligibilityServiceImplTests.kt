@@ -32,6 +32,7 @@ import build.wallet.feature.setFlagValue
 import build.wallet.firmware.FirmwareDeviceInfoDaoFake
 import build.wallet.firmware.FirmwareDeviceInfoMock
 import build.wallet.money.BitcoinMoney
+import build.wallet.nfc.HwSpendingKeyResult
 import build.wallet.nfc.NfcCommandsMock
 import build.wallet.nfc.NfcException
 import build.wallet.nfc.NfcSession
@@ -744,7 +745,7 @@ private fun nfcCommands(
 private fun nfcCommandsWithInitialSpendingKeyError(
   initialSpendingKeyError: NfcException,
 ) = object : NfcCommandsMock(turbine = { name -> Turbine(name = name) }) {
-  override suspend fun getInitialSpendingKey(
+  override suspend fun getInitialSpendingPublicKey(
     session: NfcSession,
     network: BitcoinNetworkType,
   ): HwSpendingPublicKey {

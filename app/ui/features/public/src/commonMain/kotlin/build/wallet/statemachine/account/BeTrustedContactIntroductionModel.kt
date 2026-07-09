@@ -31,12 +31,12 @@ data class BeTrustedContactIntroductionModel(
       FormMainContentModel.Explainer(
         items = immutableListOf(
           FormMainContentModel.Explainer.Statement(
-            leadingIcon = Icon.SmallIconTicket,
+            leadingIcon = Icon.Ticket,
             title = "Accept an invite",
             body = "You will need to enter the code your contact sent you to start safeguarding their wallet."
           ),
           FormMainContentModel.Explainer.Statement(
-            leadingIcon = Icon.SmallIconCloud,
+            leadingIcon = Icon.Cloud,
             title = "Save a recovery key",
             body = when (devicePlatform) {
               DevicePlatform.Jvm, DevicePlatform.Android -> SAVE_RECOVERY_KEY_BODY_ANDROID

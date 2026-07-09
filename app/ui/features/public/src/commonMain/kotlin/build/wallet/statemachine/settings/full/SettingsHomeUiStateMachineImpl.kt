@@ -8,7 +8,6 @@ import bitkey.ui.verification.TxVerificationPolicyStateMachine
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.fwup.FirmwareDataService
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.biometric.BiometricSettingScreen
 import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardScreen
@@ -58,7 +57,6 @@ class SettingsHomeUiStateMachineImpl(
   private val settingsListUiStateMachine: SettingsListUiStateMachine,
   private val rotateAuthKeyUIStateMachine: RotateAuthKeyUIStateMachine,
   private val navigatorPresenter: NavigatorPresenter,
-  private val firmwareDataService: FirmwareDataService,
   private val utxoConsolidationUiStateMachine: UtxoConsolidationUiStateMachine,
   private val inheritanceManagementUiStateMachine: InheritanceManagementUiStateMachine,
   private val exportToolsUiStateMachine: ExportToolsUiStateMachine,
@@ -73,11 +71,6 @@ class SettingsHomeUiStateMachineImpl(
 
     return when (state) {
       is ShowingAllSettingsUiState -> {
-        // Check for new FW whenever we navigate to the Settings screen
-        LaunchedEffect("check-for-new-fw") {
-          firmwareDataService.syncLatestFwupData()
-        }
-
         var alertModel: ButtonAlertModel? by remember { mutableStateOf(null) }
 
         ScreenModel(
@@ -130,7 +123,6 @@ class SettingsHomeUiStateMachineImpl(
                     ),
                   onShowAlert = { alertModel = it },
                   onDismissAlert = { alertModel = null },
-                  goToSecurityHub = props.goToSecurityHub,
                   isLiteAccount = false
                 )
             ),
@@ -289,68 +281,68 @@ class SettingsHomeUiStateMachineImpl(
     }
   }
 
-  sealed class SettingsListState {
+  sealed interface SettingsListState {
     /**
      * Showing home of all settings.
      */
-    data object ShowingAllSettingsUiState : SettingsListState()
+    data object ShowingAllSettingsUiState : SettingsListState
 
     /**
      * Showing settings for Mobile Pay.
      */
-    data object ShowingMobilePaySettingsUiState : SettingsListState()
+    data object ShowingMobilePaySettingsUiState : SettingsListState
 
     /**
      * Showing notification preferences for transactions and marketing
      */
-    data object ShowingNotificationPreferencesUiState : SettingsListState()
+    data object ShowingNotificationPreferencesUiState : SettingsListState
 
     /**
      * Showing recovery channel configuration
      */
-    data object ShowingRecoveryChannelsUiState : SettingsListState()
+    data object ShowingRecoveryChannelsUiState : SettingsListState
 
     /**
      * Showing settings for custom Electrum server
      */
-    data object ShowingCustomElectrumServerSettingsUiState : SettingsListState()
+    data object ShowingCustomElectrumServerSettingsUiState : SettingsListState
 
-    data object ShowingAppearancePreferenceUiState : SettingsListState()
+    data object ShowingAppearancePreferenceUiState : SettingsListState
 
-    data object ShowingSendFeedbackUiState : SettingsListState()
+    data object ShowingSendFeedbackUiState : SettingsListState
 
-    data object ShowingHelpCenterUiState : SettingsListState()
+    data object ShowingHelpCenterUiState : SettingsListState
 
-    data object ShowingTrustedContactsUiState : SettingsListState()
+    data object ShowingTrustedContactsUiState : SettingsListState
 
-    data object ShowingCloudBackupHealthUiState : SettingsListState()
+    data object ShowingCloudBackupHealthUiState : SettingsListState
 
     /**
      * Showing the UI for rotating the app auth key,
      * removing access from other mobile devices.
      */
-    data object ShowingRotateAuthKeyUiState : SettingsListState()
+    data object ShowingRotateAuthKeyUiState : SettingsListState
 
-    data object ShowingDebugMenuUiState : SettingsListState()
+    data object ShowingDebugMenuUiState : SettingsListState
 
-    data object ShowingBiometricSettingUiState : SettingsListState()
+    data object ShowingBiometricSettingUiState : SettingsListState
 
-    data object ShowingUtxoConsolidationUiState : SettingsListState()
+    data object ShowingUtxoConsolidationUiState : SettingsListState
 
     data class ShowingInheritanceUiState(
       val selectedTab: ManagingInheritanceTab,
-    ) : SettingsListState()
+    ) : SettingsListState
 
-    data object ShowingExportToolsUiState : SettingsListState()
+    data object ShowingExportToolsUiState : SettingsListState
 
     /**
      * Showing the UI for toggling/changing the Transaction Verification Policy.
      */
-    data object ShowingTransactionVerificationPolicyState : SettingsListState()
+    data object ShowingTransactionVerificationPolicyState : SettingsListState
 
     /**
      * Showing the UI for private wallet migration.
      */
-    data object ShowingPrivateWalletMigrationUiState : SettingsListState()
+    data object ShowingPrivateWalletMigrationUiState : SettingsListState
   }
 }

@@ -50,6 +50,10 @@ messages:
       auth: always
     - name: fwpb_full_account_cloud_backup_restoration_continue_cmd
       auth: always
+    - name: fwpb_keyset_repair_unseal_symmetric_key_cmd
+      auth: always
+    - name: fwpb_keyset_repair_rotate_hw_key_cmd
+      auth: always
     - name: fwpb_upgrade_authorize_w3_cmd
       auth: always
     - name: fwpb_upgrade_rotate_app_auth_keys_cmd

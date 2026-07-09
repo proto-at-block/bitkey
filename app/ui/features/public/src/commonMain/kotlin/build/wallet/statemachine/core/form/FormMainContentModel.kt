@@ -8,7 +8,7 @@ import bitkey.account.HardwareType
 import build.wallet.Progress
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.Icon.SmallIconCaretRight
+import build.wallet.statemachine.core.Icon.CaretRight
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.TimerDirection
@@ -25,31 +25,31 @@ import build.wallet.ui.model.icon.IconButtonModel
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListItemTreatment
 import build.wallet.ui.model.picker.ItemPickerModel
 import build.wallet.ui.model.tab.CircularTabRowModel
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tokens.market.MarketIcon
 import dev.zacsweers.redacted.annotations.Redacted
 import kotlinx.collections.immutable.ImmutableList
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
-sealed class FormMainContentModel {
+sealed interface FormMainContentModel {
   /**
    * A content object used to add space between elements as needed.
    */
   data class Spacer(
     /** The amount of space, or null if it should try to fill as much space as possible. */
     val height: Float? = null,
-  ) : FormMainContentModel()
+  ) : FormMainContentModel
 
   /**
    * A basic horizontal divider line.
    */
-  data object Divider : FormMainContentModel()
+  data object Divider : FormMainContentModel
 
   /**
    * A container that allows the bitkey image/video and callout to live together
@@ -61,7 +61,7 @@ sealed class FormMainContentModel {
     val deviceBatteryPercentage: Int? = null,
     val hardwareType: HardwareType = HardwareType.W3,
     val statusCallout: CalloutModel,
-  ) : FormMainContentModel() {
+  ) : FormMainContentModel {
     init {
       require((deviceImage != null) || (deviceVideo != null)) {
         "DeviceStatusCard must have either deviceImage or deviceVideo, but not both"
@@ -79,7 +79,7 @@ sealed class FormMainContentModel {
   data class SettingsList(
     val header: String,
     val items: ImmutableList<SettingsListItem>,
-  ) : FormMainContentModel() {
+  ) : FormMainContentModel {
     data class SettingsListItem(
       val title: String,
       val icon: IconModel,
@@ -101,19 +101,6 @@ sealed class FormMainContentModel {
           onClick = onClick
         )
 
-      constructor(
-        title: String,
-        icon: MarketIcon,
-        isEnabled: Boolean = true,
-        treatment: ListItemTreatment = ListItemTreatment.PRIMARY,
-        onClick: (() -> Unit)?,
-      ) : this(
-          title = title,
-          icon = IconModel(icon = icon, iconSize = IconSize.Small),
-          isEnabled = isEnabled,
-          treatment = treatment,
-          onClick = onClick
-        )
     }
   }
 
@@ -123,7 +110,7 @@ sealed class FormMainContentModel {
    */
   data class Explainer(
     val items: ImmutableList<Statement>,
-  ) : FormMainContentModel() {
+  ) : FormMainContentModel {
     data class Statement(
       val leadingIcon: Icon? = null,
       val leadingIconSize: IconSize = IconSize.Small,
@@ -172,13 +159,13 @@ sealed class FormMainContentModel {
     val title: String? = null,
     val body: LabelModel? = null,
     val fillAvailableSpace: Boolean = true,
-  ) : FormMainContentModel() {
-    sealed class Content {
+  ) : FormMainContentModel {
+    sealed interface Content {
       data class IconContent(
         val icon: Icon,
         val widthDp: Int? = null,
         val heightDp: Int? = null,
-      ) : Content() {
+      ) : Content {
         init {
           require((widthDp == null) == (heightDp == null)) {
             "IconContent widthDp and heightDp must both be null or both be set."
@@ -189,7 +176,7 @@ sealed class FormMainContentModel {
       data class VideoContent(
         val video: Video,
         val hardwareType: HardwareType = HardwareType.W3,
-      ) : Content() {
+      ) : Content {
         enum class Video {
           BITKEY_ROTATE,
           ;
@@ -203,7 +190,7 @@ sealed class FormMainContentModel {
       data class ImageContent(
         val image: Image,
         val scale: Float = 1f,
-      ) : Content() {
+      ) : Content {
         init {
           require(scale > 0f) {
             "ImageContent scale must be greater than 0."
@@ -225,7 +212,7 @@ sealed class FormMainContentModel {
    */
   data class HeaderBlock(
     val header: FormHeaderModel,
-  ) : FormMainContentModel()
+  ) : FormMainContentModel
 
   /**
    * A display list of data with a left-aligned label and a right-aligned primary and secondary
@@ -238,7 +225,7 @@ sealed class FormMainContentModel {
     val total: Data? = null,
     val buttons: ImmutableList<ButtonModel> = emptyImmutableList(),
     val containerStyle: ContainerStyle = ContainerStyle.DEFAULT,
-  ) : FormMainContentModel() {
+  ) : FormMainContentModel {
     init {
       require(items.isNotEmpty())
     }
@@ -274,7 +261,8 @@ sealed class FormMainContentModel {
       val explainer: Explainer? = null,
       val onClick: (() -> Unit)? = null,
       // only displayed if onClick is not null
-      val endIcon: Icon = SmallIconCaretRight,
+      val endIcon: Icon = CaretRight,
+      val endIconTint: IconTint = IconTint.On30,
     ) {
       enum class TitleTextType { REGULAR, BODY2REGULAR, BODY1REGULAR, BOLD }
 
@@ -297,20 +285,13 @@ sealed class FormMainContentModel {
   }
 
   /**
-   * A device-specific data list that uses DataGroupDevice with corner radius styling
-   */
-  data class DeviceDataList(
-    val rows: DataList,
-  ) : FormMainContentModel()
-
-  /**
    * A selectable list of fee options.
    * Only one option can be selected at a time, like a radio button.
    */
   @Redacted
   data class FeeOptionList(
     val options: ImmutableList<FeeOption>,
-  ) : FormMainContentModel() {
+  ) : FormMainContentModel {
     init {
       require(options.isNotEmpty())
     }
@@ -347,7 +328,7 @@ sealed class FormMainContentModel {
     val fieldModel: TextFieldModel,
     val expectedCodeLength: Int,
     val resendCodeContent: ResendCodeContent,
-  ) : FormMainContentModel() {
+  ) : FormMainContentModel {
     sealed interface ResendCodeContent {
       data class Text(val value: String) : ResendCodeContent
 
@@ -374,7 +355,7 @@ sealed class FormMainContentModel {
   data class TextInput(
     val title: String? = null,
     val fieldModel: TextFieldModel,
-  ) : FormMainContentModel()
+  ) : FormMainContentModel
 
   /**
    * A multiline input field.
@@ -385,7 +366,7 @@ sealed class FormMainContentModel {
   data class TextArea(
     val title: String? = null,
     val fieldModel: TextFieldModel,
-  ) : FormMainContentModel()
+  ) : FormMainContentModel
 
   /**
    * An input field with an optional trailing button contained inside
@@ -395,7 +376,7 @@ sealed class FormMainContentModel {
   data class AddressInput(
     val fieldModel: TextFieldModel,
     val trailingButtonModel: ButtonModel?,
-  ) : FormMainContentModel()
+  ) : FormMainContentModel
 
   /**
    * A field allowing user to pick a date
@@ -404,12 +385,12 @@ sealed class FormMainContentModel {
   data class DatePicker(
     val title: String? = null,
     val fieldModel: DatePickerModel,
-  ) : FormMainContentModel()
+  ) : FormMainContentModel
 
   data class Picker(
     val title: String? = null,
     val fieldModel: ItemPickerModel<*>,
-  ) : FormMainContentModel()
+  ) : FormMainContentModel
 
   /**
    * A circular progress indicator to display a countdown by showing progress
@@ -428,7 +409,7 @@ sealed class FormMainContentModel {
     val timerRemainingSeconds: Long,
     val display: Display = Display.Text(title = title, subtitle = subtitle),
     val style: Style = Style.PRIMARY,
-  ) : FormMainContentModel() {
+  ) : FormMainContentModel {
     sealed interface Display {
       data class Text(
         val title: String,
@@ -450,26 +431,11 @@ sealed class FormMainContentModel {
   }
 
   /**
-   * Used to embed a Web View within a form
-   */
-  data class WebView(
-    val url: String,
-  ) : FormMainContentModel()
-
-  /**
    * Will display a list using the [ListGroupModel]
    */
   data class ListGroup(
     val listGroupModel: ListGroupModel,
-  ) : FormMainContentModel()
-
-  /**
-   * Allows a [ButtonModel] to be rendered in the [FormMainContentModel] list
-   * @property item - the [ButtonModel] to be rendered
-   */
-  data class Button(
-    val item: ButtonModel,
-  ) : FormMainContentModel()
+  ) : FormMainContentModel
 
   data class AnnotatedText(
     val text: AnnotatedString,
@@ -477,14 +443,14 @@ sealed class FormMainContentModel {
     val treatment: LabelTreatment = LabelTreatment.Primary,
     val alignment: TextAlign = TextAlign.Start,
     val onClick: ((Int) -> Unit)? = null,
-  ) : FormMainContentModel()
+  ) : FormMainContentModel
 
   /**
    * A linear progress indicator with labeled icons as "steps".
    */
   data class StepperIndicator(
     val steps: ImmutableList<Step>,
-  ) : FormMainContentModel() {
+  ) : FormMainContentModel {
     /**
      * A step on the progress indicator. Each step is represented by an icon enclosed
      * within a circle on the line, with a label underneath the circle.
@@ -516,12 +482,12 @@ sealed class FormMainContentModel {
     }
   }
 
-  data object Loader : FormMainContentModel()
+  data object Loader : FormMainContentModel
 
   /**
-   * A design-system-v2 loading treatment using the dots loader artwork.
+   * A loading treatment using the dots loader artwork.
    */
-  data object DotLoader : FormMainContentModel()
+  data object DotLoader : FormMainContentModel
 
   /**
    * Allows a [CalloutModel] to be rendered in the [FormMainContentModel] list
@@ -529,7 +495,7 @@ sealed class FormMainContentModel {
    */
   data class Callout(
     val item: CalloutModel,
-  ) : FormMainContentModel()
+  ) : FormMainContentModel
 
   /**
    * Allows a [CardModel] to be rendered in the [FormMainContentModel] list
@@ -537,24 +503,14 @@ sealed class FormMainContentModel {
    */
   data class CalloutCard(
     val item: CardModel,
-  ) : FormMainContentModel()
-
-  /**
-   * Shows a hero of the Money Home screen with the given primary and secondary amount
-   * display strings.
-   */
-  data class MoneyHomeHero(
-    val primaryAmount: String,
-    val secondaryAmount: String,
-    val isHidden: Boolean = false,
-  ) : FormMainContentModel()
+  ) : FormMainContentModel
 
   /**
    * A circular tab row that allows the user to select between different tabs.
    */
   data class CircularTabRow(
     val item: CircularTabRowModel,
-  ) : FormMainContentModel()
+  ) : FormMainContentModel
 
   /**
    * A collapsible address section with a chevron toggle and label.
@@ -567,7 +523,7 @@ sealed class FormMainContentModel {
   data class CollapsibleAddress(
     val address: String,
     val label: String,
-  ) : FormMainContentModel()
+  ) : FormMainContentModel
 
   /**
    * An information container with two action buttons and hero icon image.
@@ -578,7 +534,7 @@ sealed class FormMainContentModel {
     val body: String,
     val primaryButton: ButtonModel,
     val secondaryButton: ButtonModel,
-  ) : FormMainContentModel(), ComposeModel {
+  ) : FormMainContentModel, ComposeModel {
     override val key: String = "upsell"
 
     @Composable
@@ -589,4 +545,11 @@ sealed class FormMainContentModel {
       )
     }
   }
+
+  /**
+   * Allows a bespoke compose model to be embedded in form main content.
+   */
+  data class CustomContent(
+    val item: ComposeModel,
+  ) : FormMainContentModel
 }

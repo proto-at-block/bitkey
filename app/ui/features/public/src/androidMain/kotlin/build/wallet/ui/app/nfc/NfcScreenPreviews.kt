@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
+import build.wallet.platform.device.DevicePlatform.Android
 import build.wallet.statemachine.nfc.NfcBodyModel
 import build.wallet.statemachine.nfc.NfcBodyModel.Status.*
 import build.wallet.statemachine.nfc.NfcHelpBodyModel
@@ -16,7 +17,7 @@ import build.wallet.ui.tooling.PreviewWalletTheme
 @Composable
 fun NfcScreenSearchingPreview() {
   PreviewWalletTheme {
-    NfcScreenInternal(
+    NfcScreenInternalAndroid(
       model =
         NfcBodyModel(
           text = "Hold your Bitkey to the back of your phone",
@@ -28,14 +29,14 @@ fun NfcScreenSearchingPreview() {
 }
 
 @Preview(
-  name = "NFC iOS DSV2 Searching",
+  name = "NFC iOS Searching",
   widthDp = 390,
   heightDp = 844,
   showBackground = true,
   backgroundColor = 0xFF000000
 )
 @Composable
-fun NfcScreenSearchingIosDsv2Preview() {
+fun NfcScreenSearchingIosPreview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
@@ -51,14 +52,14 @@ fun NfcScreenSearchingIosDsv2Preview() {
   }
 }
 
-@Preview(name = "Android DSV2")
+@Preview(name = "Android")
 @Composable
-fun NfcScreenSearchingAndroidDsv2Preview() {
+fun NfcScreenSearchingAndroidPreview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
   ) {
-    NfcScreenInternalV2(
+    NfcScreenInternalAndroid(
       model =
         NfcBodyModel(
           text = "Hold your Bitkey to the back of your phone",
@@ -70,14 +71,14 @@ fun NfcScreenSearchingAndroidDsv2Preview() {
   }
 }
 
-@Preview(name = "Android DSV2 Help")
+@Preview(name = "Android Help")
 @Composable
-fun NfcHelpScreenAndroidDsv2Preview() {
+fun NfcHelpScreenAndroidPreview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
   ) {
-    NfcHelpBodyModel(onBack = {}).render(Modifier)
+    NfcHelpBodyModel(onBack = {}, devicePlatform = Android).render(Modifier)
   }
 }
 
@@ -85,7 +86,7 @@ fun NfcHelpScreenAndroidDsv2Preview() {
 @Composable
 fun NfcScreenConnectedPreview() {
   PreviewWalletTheme {
-    NfcScreenInternal(
+    NfcScreenInternalAndroid(
       model =
         NfcBodyModel(
           text = "Hold your Bitkey to the back of your phone",
@@ -97,14 +98,14 @@ fun NfcScreenConnectedPreview() {
 }
 
 @Preview(
-  name = "NFC iOS DSV2 Connected",
+  name = "NFC iOS Connected",
   widthDp = 390,
   heightDp = 844,
   showBackground = true,
   backgroundColor = 0xFF000000
 )
 @Composable
-fun NfcScreenConnectedIosDsv2Preview() {
+fun NfcScreenConnectedIosPreview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
@@ -120,14 +121,14 @@ fun NfcScreenConnectedIosDsv2Preview() {
   }
 }
 
-@Preview(name = "Android DSV2")
+@Preview(name = "Android")
 @Composable
-fun NfcScreenConnectedAndroidDsv2Preview() {
+fun NfcScreenConnectedAndroidPreview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
   ) {
-    NfcScreenInternalV2(
+    NfcScreenInternalAndroid(
       model =
         NfcBodyModel(
           text = "Hold your Bitkey to the back of your phone",
@@ -143,7 +144,7 @@ fun NfcScreenConnectedAndroidDsv2Preview() {
 @Composable
 fun NfcScreenConnectedWithSpinnerPreview() {
   PreviewWalletTheme {
-    NfcScreenInternal(
+    NfcScreenInternalAndroid(
       model =
         NfcBodyModel(
           text = "This can take up to 1 minute…",
@@ -155,14 +156,14 @@ fun NfcScreenConnectedWithSpinnerPreview() {
 }
 
 @Preview(
-  name = "NFC iOS DSV2 Connected With Spinner",
+  name = "NFC iOS Connected With Spinner",
   widthDp = 390,
   heightDp = 844,
   showBackground = true,
   backgroundColor = 0xFF000000
 )
 @Composable
-fun NfcScreenConnectedWithSpinnerIosDsv2Preview() {
+fun NfcScreenConnectedWithSpinnerIosPreview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
@@ -178,14 +179,14 @@ fun NfcScreenConnectedWithSpinnerIosDsv2Preview() {
   }
 }
 
-@Preview(name = "Android DSV2")
+@Preview(name = "Android")
 @Composable
-fun NfcScreenConnectedWithSpinnerAndroidDsv2Preview() {
+fun NfcScreenConnectedWithSpinnerAndroidPreview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
   ) {
-    NfcScreenInternalV2(
+    NfcScreenInternalAndroid(
       model =
         NfcBodyModel(
           text = "This can take up to 1 minute…",
@@ -201,7 +202,7 @@ fun NfcScreenConnectedWithSpinnerAndroidDsv2Preview() {
 @Composable
 fun NfcScreenSuccessPreview() {
   PreviewWalletTheme {
-    NfcScreenInternal(
+    NfcScreenInternalAndroid(
       model =
         NfcBodyModel(
           text = "Success",
@@ -213,14 +214,14 @@ fun NfcScreenSuccessPreview() {
 }
 
 @Preview(
-  name = "NFC iOS DSV2 Success",
+  name = "NFC iOS Success",
   widthDp = 390,
   heightDp = 844,
   showBackground = true,
   backgroundColor = 0xFF000000
 )
 @Composable
-fun NfcScreenSuccessIosDsv2Preview() {
+fun NfcScreenSuccessIosPreview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
@@ -236,14 +237,14 @@ fun NfcScreenSuccessIosDsv2Preview() {
   }
 }
 
-@Preview(name = "Android DSV2")
+@Preview(name = "Android")
 @Composable
-fun NfcScreenSuccessAndroidDsv2Preview() {
+fun NfcScreenSuccessAndroidPreview() {
   PreviewWalletTheme(
     theme = Theme.DARK,
     backgroundColor = Color.Black,
   ) {
-    NfcScreenInternalV2(
+    NfcScreenInternalAndroid(
       model =
         NfcBodyModel(
           text = "Success",

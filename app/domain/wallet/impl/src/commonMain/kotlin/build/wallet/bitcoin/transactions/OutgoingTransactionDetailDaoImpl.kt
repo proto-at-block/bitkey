@@ -29,11 +29,11 @@ class OutgoingTransactionDetailDaoImpl(
           broadcastTime = broadcastTime,
           estimatedConfirmationTime = estimatedConfirmationTime
         )
-        exchangeRates?.forEach {
+        exchangeRates?.forEach { exchangeRate ->
           historicalExchangeRateQueries.insertHistoricalExchangeRate(
-            fromCurrency = it.fromCurrency,
-            toCurrency = it.toCurrency,
-            rate = it.rate,
+            fromCurrency = exchangeRate.fromCurrency,
+            toCurrency = exchangeRate.toCurrency,
+            rate = exchangeRate.rate,
             time = broadcastTime
           )
         }

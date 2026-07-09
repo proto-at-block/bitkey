@@ -66,6 +66,7 @@ kotlin {
         api(projects.ui.routerPublic)
         api(projects.domain.dataStateMachinePublic)
         api(projects.domain.deviceWipePublic)
+        api(projects.domain.debugPublic)
         api(projects.libs.stateMachinePublic)
         api(projects.ui.frameworkPublic)
         api(projects.domain.hardwarePublic)

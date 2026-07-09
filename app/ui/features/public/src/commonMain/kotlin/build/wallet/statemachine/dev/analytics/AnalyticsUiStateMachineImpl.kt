@@ -5,11 +5,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.AnalyticsTrackingPreference
 import build.wallet.analytics.events.EventStore
 import build.wallet.analytics.v1.Event
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.BodyModel
@@ -33,7 +33,7 @@ class AnalyticsUiStateMachineImpl(
     val isEnabled by remember { analyticsTrackingPreference.isEnabled() }
       .collectAsState(false)
 
-    val scope = rememberCoroutineScope()
+    val scope = rememberStableCoroutineScope()
 
     return when (val presentedEvent = presentedEventDetail) {
       null ->

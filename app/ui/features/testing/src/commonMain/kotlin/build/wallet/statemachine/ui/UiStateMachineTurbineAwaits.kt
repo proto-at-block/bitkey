@@ -170,6 +170,27 @@ suspend inline fun <reified T : BodyModel> ReceiveTurbine<SheetModel>.awaitSheet
   }
 }
 
+/**
+ * Skips emissions until a [SheetModel] with body of type [T] (optionally satisfying [matching])
+ * is observed, then runs [validate] against it. Mirrors [awaitUntilBody] for sheets.
+ */
+@JvmName("awaitUntilSheetFromSheetModelTurbine")
+suspend inline fun <reified T : BodyModel> ReceiveTurbine<SheetModel>.awaitUntilSheet(
+  crossinline matching: (T) -> Boolean = { true },
+  validate: T.() -> Unit = {},
+): T {
+  val body = awaitUntil { sheetModel ->
+    val body = sheetModel.body
+    body is T && body !is BodyModelMock<*> && matching(body)
+  }.body as T
+  body.asClue {
+    assertSoftly {
+      validate(body)
+    }
+  }
+  return body
+}
+
 suspend inline fun <reified T : BodyModel> ReceiveTurbine<ScreenModel>.awaitUntilScreenWithBody(
   id: EventTrackerScreenId? = null,
   crossinline matchingBody: (T) -> Boolean = { _ -> true },

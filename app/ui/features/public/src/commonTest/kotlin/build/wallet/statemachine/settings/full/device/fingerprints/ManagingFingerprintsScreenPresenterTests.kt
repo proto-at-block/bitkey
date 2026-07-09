@@ -660,7 +660,7 @@ private fun ListItemModel.shouldBeFingerprintListItem(
   leadingAccessory.apply {
     shouldBeInstanceOf<ListItemAccessory.IconAccessory>()
     model.apply {
-      iconImage.shouldBe(IconImage.LocalImage(icon = Icon.SmallIconFingerprint))
+      iconImage.shouldBe(IconImage.LocalImage(icon = Icon.Fingerprint))
       iconTint.shouldBe(iconTint)
       iconSize.shouldBe(IconSize.Small)
     }

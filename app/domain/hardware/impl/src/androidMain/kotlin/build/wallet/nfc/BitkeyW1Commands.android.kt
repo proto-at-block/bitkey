@@ -2,11 +2,14 @@ package build.wallet.nfc
 
 import bitkey.data.PrivateData
 import build.wallet.bitcoin.BitcoinNetworkType
+import build.wallet.bitcoin.keys.DescriptorPublicKey
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
+import build.wallet.catchingResult
 import build.wallet.crypto.SealedData
+import com.github.michaelbull.result.getOrElse
 import build.wallet.crypto.SymmetricKey
 import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.di.AppScope
@@ -43,16 +46,10 @@ import build.wallet.nfc.platform.ConfirmationHandles
 import build.wallet.nfc.platform.ConfirmationResult
 import build.wallet.nfc.platform.HardwareInteraction
 import build.wallet.nfc.platform.HwDisplayPreference
+import build.wallet.nfc.platform.KeysetRepairRotateHwKeyParams
+import build.wallet.nfc.platform.KeysetRepairRotateHwKeyResult
 import build.wallet.nfc.platform.NfcCommands
-import build.wallet.nfc.platform.RecoveryAuthorizeLostAppResult
-import build.wallet.nfc.platform.RecoveryAuthorizeLostHwResult
-import build.wallet.nfc.platform.RotateAppAuthKeysCompositeResult
-import build.wallet.nfc.platform.RotateAppAuthKeysContinueParams
-import build.wallet.nfc.platform.SignChallengeAndSealSeksResult
 import build.wallet.nfc.platform.SweepSigningContext
-import build.wallet.nfc.platform.UpgradeAuthorizeW3Result
-import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysParams
-import build.wallet.nfc.platform.UpgradeRotateAppAuthKeysResult
 import build.wallet.nfc.platform.confirmationResultMapper
 import build.wallet.rust.firmware.*
 import build.wallet.rust.firmware.FirmwareSlot.A
@@ -64,6 +61,9 @@ import io.ktor.utils.io.CancellationException
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import okio.ByteString
+import okio.ByteString.Companion.encodeUtf8
+import okio.ByteString.Companion.toByteString
+import kotlin.reflect.KClass
 import build.wallet.rust.firmware.CoredumpFragment as CoreCoredumpFragment
 import build.wallet.rust.firmware.EnrolledFingerprints as CoreEnrolledFingerprints
 import build.wallet.rust.firmware.EventFragment as CoreEventFragment
@@ -77,7 +77,6 @@ import build.wallet.rust.firmware.McuName as CoreMcuName
 import build.wallet.rust.firmware.McuRole as CoreMcuRole
 import build.wallet.rust.firmware.UnlockInfo as CoreUnlockInfo
 import build.wallet.rust.firmware.UnlockMethod as CoreUnlockMethod
-import kotlin.reflect.KClass
 
 @Suppress("LargeClass")
 @Impl
@@ -337,22 +336,38 @@ class BitkeyW1Commands(
   override suspend fun getInitialSpendingKey(
     session: NfcSession,
     network: BitcoinNetworkType,
-  ) = HwSpendingPublicKey(
-    executeCommand(
+  ): HwSpendingKeyResult {
+    val result = getInitialSpendingPublicKeyInternal(session, network)
+    return result.toHwSpendingKeyResult(fetchAttestationCertChain(session, result))
+  }
+
+  override suspend fun getInitialSpendingPublicKey(
+    session: NfcSession,
+    network: BitcoinNetworkType,
+  ): HwSpendingPublicKey {
+    return getInitialSpendingPublicKeyInternal(session, network).toHwSpendingPublicKey()
+  }
+
+  private suspend fun getInitialSpendingPublicKeyInternal(
+    session: NfcSession,
+    network: BitcoinNetworkType,
+  ): SpendingKeyResult {
+    val result = executeCommand(
       session = session,
       generateCommand = { GetInitialSpendingKey(network = network.toBtcNetwork()) },
       getNext = { command, data -> command.next(data) },
-      getResponse = { state: DescriptorPublicKeyState.Data -> state.response },
-      generateResult = { state: DescriptorPublicKeyState.Result -> state.value }
+      getResponse = { state: SpendingKeyResultState.Data -> state.response },
+      generateResult = { state: SpendingKeyResultState.Result -> state.value }
     )
-  )
+    return result
+  }
 
   override suspend fun getNextSpendingKey(
     session: NfcSession,
     existingDescriptorPublicKeys: List<HwSpendingPublicKey>,
     network: BitcoinNetworkType,
-  ) = HwSpendingPublicKey(
-    executeCommand(
+  ): HwSpendingKeyResult {
+    val result = executeCommand(
       session = session,
       generateCommand = {
         GetNextSpendingKey(
@@ -361,10 +376,39 @@ class BitkeyW1Commands(
         )
       },
       getNext = { command, data -> command.next(data) },
-      getResponse = { state: DescriptorPublicKeyState.Data -> state.response },
-      generateResult = { state: DescriptorPublicKeyState.Result -> state.value }
+      getResponse = { state: SpendingKeyResultState.Data -> state.response },
+      generateResult = { state: SpendingKeyResultState.Result -> state.value }
     )
-  )
+    return result.toHwSpendingKeyResult(fetchAttestationCertChain(session, result))
+  }
+
+  /**
+   * Fetch the device identity + batch certs needed to validate the spending-key
+   * attestation signature. Returns an empty list only when firmware didn't
+   * attest the key (pre-attestation firmware). If firmware did attest the key,
+   * failures fetching the cert chain are surfaced so the caller can retry the
+   * NFC flow instead of silently dropping proof.
+   */
+  private suspend fun fetchAttestationCertChain(
+    session: NfcSession,
+    result: SpendingKeyResult,
+  ): List<String> {
+    val signature = result.attestationSignature
+    if (signature.isNullOrEmpty()) return emptyList()
+    return catchingResult {
+      val identityCert = getCert(session, FirmwareCertType.IDENTITY)
+      val batchCert = getCert(session, FirmwareCertType.BATCH)
+      check(identityCert.isNotEmpty() && batchCert.isNotEmpty()) {
+        "Spending key attestation present but identity/batch cert was empty."
+      }
+      listOf(identityCert, batchCert).map { it.toUByteArray().toByteArray().toByteString().base64() }
+    }.getOrElse { e ->
+      if (e !is CancellationException) {
+        logWarn(throwable = e) { "Failed to fetch attestation cert chain for an attested spending key." }
+      }
+      throw e
+    }
+  }
 
   override suspend fun lockDevice(session: NfcSession) =
     executeCommand(
@@ -441,6 +485,7 @@ class BitkeyW1Commands(
     psbt: Psbt,
     spendingKeyset: SpendingKeyset,
     displayPreference: HwDisplayPreference?,
+    allowUnfinalized: Boolean,
   ) = HardwareInteraction.Completed(
     result = executeCommand(
       session = session,
@@ -543,6 +588,34 @@ class BitkeyW1Commands(
     HardwareInteraction.Completed(
       SymmetricKeyImpl(unsealData(session, sealedKey))
     )
+
+  @OptIn(PrivateData::class)
+  override suspend fun keysetRepairUnsealSymmetricKey(
+    session: NfcSession,
+    sealedKey: SealedData,
+  ): HardwareInteraction<SymmetricKey> =
+    HardwareInteraction.Completed(
+      SymmetricKeyImpl(unsealData(session, sealedKey))
+    )
+
+  override suspend fun keysetRepairRotateHwKey(
+    session: NfcSession,
+    params: KeysetRepairRotateHwKeyParams,
+  ): HardwareInteraction<KeysetRepairRotateHwKeyResult> {
+    val spendingKeyResult = getNextSpendingKey(
+      session = session,
+      existingDescriptorPublicKeys = params.existingHwSpendingKeys,
+      network = params.network
+    )
+    val signedAccessToken = signChallenge(session, params.accessToken.raw.encodeUtf8())
+    return HardwareInteraction.Completed(
+      KeysetRepairRotateHwKeyResult(
+        hwSpendingKey = spendingKeyResult.publicKey,
+        signedAccessToken = signedAccessToken,
+        hwSpendingKeyProof = spendingKeyResult.toSpendingKeyProof()
+      )
+    )
+  }
 
   override suspend fun getCert(
     session: NfcSession,
@@ -716,6 +789,13 @@ class BitkeyW1Commands(
             )
           is ConfirmedCommandResult.EekRestorationUnsealSymmetricKey ->
             ConfirmationResult.EekRestorationUnsealSymmetricKey(result.unsealedKey)
+          is ConfirmedCommandResult.KeysetRepairUnsealSymmetricKey ->
+            ConfirmationResult.KeysetRepairUnsealSymmetricKey(result.unsealedKey)
+          is ConfirmedCommandResult.KeysetRepairRotateHwKey ->
+            ConfirmationResult.KeysetRepairRotateHwKey(
+              spendingKeyDpub = result.spendingKeyDpub,
+              accessTokenSignature = result.accessTokenSignature
+            )
           is ConfirmedCommandResult.FullAccountCloudBackupRestoration ->
             ConfirmationResult.FullAccountCloudBackupRestoration
         }
@@ -731,7 +811,7 @@ private val QUIET_NFC_COMMANDS: Set<KClass<*>> = setOf(
   SignStreamStart::class,
   SignStreamTransfer::class,
   SignStreamFinalize::class,
-  SignTransaction::class,
+  SignTransaction::class
 )
 
 @Suppress(
@@ -789,7 +869,7 @@ internal suspend inline fun <
   }
 }
 
-private fun BitcoinNetworkType.toBtcNetwork() =
+internal fun BitcoinNetworkType.toBtcNetwork() =
   when (this) {
     BitcoinNetworkType.BITCOIN -> BtcNetwork.BITCOIN
     BitcoinNetworkType.TESTNET -> BtcNetwork.TESTNET
@@ -969,6 +1049,18 @@ private fun FirmwareCertType.toCoreCertType() =
     FirmwareCertType.BATCH -> CertType.BATCH_CERT
     FirmwareCertType.IDENTITY -> CertType.DEVICE_HOST_CERT
   }
+
+@OptIn(ExperimentalUnsignedTypes::class)
+private fun SpendingKeyResult.toHwSpendingKeyResult(certChain: List<String>) =
+  HwSpendingKeyResult(
+    publicKey = HwSpendingPublicKey(key = DescriptorPublicKey(dpub)),
+    attestationSignature = attestationSignature
+      ?.toUByteArray()?.toByteArray()?.toByteString()?.base64(),
+    certChain = certChain
+  )
+
+private fun SpendingKeyResult.toHwSpendingPublicKey() =
+  HwSpendingPublicKey(key = DescriptorPublicKey(dpub))
 
 private fun CoreEnrolledFingerprints.toEnrolledFingerprints() =
   EnrolledFingerprints(

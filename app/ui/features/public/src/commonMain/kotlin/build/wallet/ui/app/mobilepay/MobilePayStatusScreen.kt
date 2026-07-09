@@ -7,9 +7,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.form.FormMainContentVerticalAlignment
+import build.wallet.statemachine.core.form.FormScreenLayoutModel
+import build.wallet.statemachine.core.form.FormScreenTitleModel
 import build.wallet.statemachine.settings.full.mobilepay.MobilePayStatusModel
 import build.wallet.ui.app.core.form.FormScreen
-import build.wallet.ui.app.core.form.FormScreenContentVerticalAlignment
 import build.wallet.ui.components.alertdialog.AlertDialog
 import build.wallet.ui.components.limit.SpendingLimitCard
 import build.wallet.ui.components.switch.SwitchCard
@@ -33,10 +35,12 @@ fun MobilePayStatusScreen(
     toolbarModel = ToolbarModel(
       leadingAccessory = BackAccessory(onClick = onBack)
     ),
-    designSystemV2Title = "Transfer Settings",
-    designSystemV2ContentSpacing = 40,
-    designSystemV2Scrollable = false,
-    designSystemV2MainContentAlignment = FormScreenContentVerticalAlignment.Top,
+    screenTitle = FormScreenTitleModel(title = "Transfer Settings"),
+    layout = FormScreenLayoutModel.LargeTitle(
+      contentSpacing = 40,
+      scrollable = false,
+      mainContentVerticalAlignment = FormMainContentVerticalAlignment.TOP
+    ),
     mainContent = {
       SwitchCard(model = model.switchCardModel)
       model.spendingLimitCardModel?.let { cardModel ->

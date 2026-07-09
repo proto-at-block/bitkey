@@ -3,16 +3,21 @@
 package build.wallet.statemachine.nfc
 
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId
+import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.statemachine.core.form.formBodyModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 
-internal fun NoNfcMessageModel(onBack: () -> Unit) =
-  formBodyModel(
+internal fun NoNfcMessageModel(onBack: () -> Unit): FormBodyModel =
+  NoNfcMessageBodyModel(onBack)
+
+private data class NoNfcMessageBodyModel(
+  override val onBack: () -> Unit,
+) : FormBodyModel(
+    id = NfcEventTrackerScreenId.NFC_NOT_AVAILABLE,
     onBack = onBack,
     toolbar = ToolbarModel(leadingAccessory = BackAccessory(onClick = onBack)),
     header =
@@ -27,6 +32,5 @@ internal fun NoNfcMessageModel(onBack: () -> Unit) =
         text = "Continue",
         onClick = StandardClick(onBack),
         size = Footer
-      ),
-    id = NfcEventTrackerScreenId.NFC_NOT_AVAILABLE
+      )
   )

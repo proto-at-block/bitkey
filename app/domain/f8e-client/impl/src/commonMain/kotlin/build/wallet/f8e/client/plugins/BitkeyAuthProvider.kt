@@ -69,34 +69,6 @@ internal class BitkeyAuthProvider(
     }
   }
 
-  private val loadTokens: suspend (Attributes) -> BearerTokens? =
-    loadTokens@{ attributes: Attributes ->
-      val accountId = attributes.getOrNull(AccountIdAttribute) ?: return@loadTokens null
-      val authTokenScope = requireNotNull(attributes.getOrNull(AuthTokenScopeAttribute)) {
-        "Missing default `AuthTokenScopeAttribute` or `withAccountId(.., authTokenScope)`"
-      }
-
-      authTokensService
-        .getTokens(accountId, authTokenScope)
-        .get()
-        ?.let { tokens ->
-          if (tokens.isRefreshTokenExpired()) {
-            // If the refresh token is expired (or soon to be), proactively refresh it. By doing this
-            // proactively instead of relying on ktor to invoke refreshToken after a 401, we can
-            // reduce 401 noise so it is easier to spot real refresh issues.
-            refreshRefreshToken(attributes)
-          } else if (tokens.isAccessTokenExpired()) {
-            // If the access token is expired (or soon to be), preemptively refresh it.
-            refreshAccessToken(attributes)
-          } else {
-            BearerTokens(
-              accessToken = tokens.accessToken.raw,
-              refreshToken = tokens.refreshToken.raw
-            )
-          }
-        }
-    }
-
   private val refreshAccessToken: suspend Attributes.() -> BearerTokens? =
     refreshAccessToken@{
       val f8eEnvironment = this[F8eEnvironmentAttribute]
@@ -127,28 +99,6 @@ internal class BitkeyAuthProvider(
         }
     }
 
-  @Suppress("OverridingDeprecatedMember")
-  @Deprecated("Please use sendWithoutRequest function instead")
-  override val sendWithoutRequest: Boolean
-    get() = error("Deprecated")
-
-  override fun sendWithoutRequest(request: HttpRequestBuilder): Boolean = true
-
-  override fun isApplicable(auth: HttpAuthHeader): Boolean {
-    if (auth.authScheme != AuthScheme.Bearer) {
-      logDev(LogLevel.Verbose) { "Bearer Auth Provider is not applicable for $auth" }
-      return false
-    }
-    val isSameRealm = when {
-      auth !is HttpAuthHeader.Parameterized -> false
-      else -> true
-    }
-    if (!isSameRealm) {
-      logDev(LogLevel.Verbose) { "Bearer Auth Provider is not applicable for this realm" }
-    }
-    return isSameRealm
-  }
-
   private val refreshRefreshToken: suspend Attributes.() -> BearerTokens? =
     refreshRefreshToken@{
       val f8eEnvironment = this[F8eEnvironmentAttribute]
@@ -176,6 +126,56 @@ internal class BitkeyAuthProvider(
           )
         }
     }
+
+  private val loadTokens: suspend (Attributes) -> BearerTokens? =
+    loadTokens@{ attributes: Attributes ->
+      val accountId = attributes.getOrNull(AccountIdAttribute) ?: return@loadTokens null
+      val authTokenScope = requireNotNull(attributes.getOrNull(AuthTokenScopeAttribute)) {
+        "Missing default `AuthTokenScopeAttribute` or `withAccountId(.., authTokenScope)`"
+      }
+
+      authTokensService
+        .getTokens(accountId, authTokenScope)
+        .get()
+        ?.let { tokens ->
+          if (tokens.isRefreshTokenExpired()) {
+            // If the refresh token is expired (or soon to be), proactively refresh it. By doing this
+            // proactively instead of relying on ktor to invoke refreshToken after a 401, we can
+            // reduce 401 noise so it is easier to spot real refresh issues.
+            refreshRefreshToken(attributes)
+          } else if (tokens.isAccessTokenExpired()) {
+            // If the access token is expired (or soon to be), preemptively refresh it.
+            refreshAccessToken(attributes)
+          } else {
+            BearerTokens(
+              accessToken = tokens.accessToken.raw,
+              refreshToken = tokens.refreshToken.raw
+            )
+          }
+        }
+    }
+
+  @Suppress("OverridingDeprecatedMember")
+  @Deprecated("Please use sendWithoutRequest function instead")
+  override val sendWithoutRequest: Boolean
+    get() = error("Deprecated")
+
+  override fun sendWithoutRequest(request: HttpRequestBuilder): Boolean = true
+
+  override fun isApplicable(auth: HttpAuthHeader): Boolean {
+    if (auth.authScheme != AuthScheme.Bearer) {
+      logDev(LogLevel.Verbose) { "Bearer Auth Provider is not applicable for $auth" }
+      return false
+    }
+    val isSameRealm = when {
+      auth !is HttpAuthHeader.Parameterized -> false
+      else -> true
+    }
+    if (!isSameRealm) {
+      logDev(LogLevel.Verbose) { "Bearer Auth Provider is not applicable for this realm" }
+    }
+    return isSameRealm
+  }
 
   /**
    * Adds an authentication method headers and credentials.

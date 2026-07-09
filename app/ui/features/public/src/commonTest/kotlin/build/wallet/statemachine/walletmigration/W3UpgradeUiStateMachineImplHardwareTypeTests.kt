@@ -620,8 +620,19 @@ class W3UpgradeUiStateMachineImplHardwareTypeTests : FunSpec({
 })
 
 private val noopEventTracker = object : EventTracker {
-  override fun track(action: Action, context: EventTrackerContext?) {}
-  override fun track(eventTrackerCountInfo: EventTrackerCountInfo) {}
-  override fun track(eventTrackerScreenInfo: EventTrackerScreenInfo) {}
-  override fun track(eventTrackerFingerprintScanStatsInfo: EventTrackerFingerprintScanStatsInfo) {}
+  override fun track(action: Action, context: EventTrackerContext?) {
+    // No-op: events are not tracked in these tests.
+  }
+
+  override fun track(eventTrackerCountInfo: EventTrackerCountInfo) {
+    // No-op: events are not tracked in these tests.
+  }
+
+  override fun track(eventTrackerScreenInfo: EventTrackerScreenInfo) {
+    // No-op: events are not tracked in these tests.
+  }
+
+  override fun track(eventTrackerFingerprintScanStatsInfo: EventTrackerFingerprintScanStatsInfo) {
+    // No-op: events are not tracked in these tests.
+  }
 }

@@ -13,5 +13,8 @@ interface Model {
    machine output to render individually (e.g. push/pop to on a stack, replace an existing view,
    render as a card, etc) should maintain a stable key as their content changes.
    */
-  val key: String get() = this::class.qualifiedName!!
+  val key: String
+    get() = checkNotNull(this::class.qualifiedName) {
+      "Model implementations must not be anonymous or local classes."
+    }
 }

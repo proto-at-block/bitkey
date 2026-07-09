@@ -6,10 +6,10 @@ version = "0.1.0"
 
 [dependencies]
 async-trait = { workspace = true }
-aws-config = { workspace = true }
 aws-sdk-sns = { workspace = true }
 http_server = { workspace = true }
 isocountry = { workspace = true }
+once_cell = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
@@ -17,9 +17,13 @@ tracing = { workspace = true }
 
 # path dependencies
 bdk_utils = { workspace = true }
+clients_common = { workspace = true }
 database = { workspace = true }
+device-attestation = { workspace = true }
 errors = { workspace = true }
 external_identifier = { workspace = true }
+feature_flags = { workspace = true }
+instrumentation = { workspace = true }
 migration = { workspace = true }
 repository = { workspace = true, features = ["account", "consent", "public_key"] }
 types = { workspace = true, features = [

@@ -4,7 +4,7 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.Bitcoin
-import build.wallet.statemachine.core.Icon.SmallIconCopy
+import build.wallet.statemachine.core.Icon.Copy
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -58,7 +58,7 @@ class TransactionDetailScreenSnapshots :
                         title = "Transaction ID",
                         sideText = "c4f5...67be",
                         onClick = {},
-                        endIcon = SmallIconCopy
+                        endIcon = Copy
                       )
                     )
                   ),
@@ -120,7 +120,7 @@ class TransactionDetailScreenSnapshots :
                               subtitle = "You can speed up this transaction by increasing the network fee.",
                               iconButton = IconButtonModel(
                                 iconModel = IconModel(
-                                  icon = Icon.SmallIconInformation,
+                                  icon = Icon.Information,
                                   iconSize = IconSize.XSmall,
                                   iconBackgroundType = IconBackgroundType.Circle(
                                     circleSize = IconSize.XSmall
@@ -140,7 +140,7 @@ class TransactionDetailScreenSnapshots :
                         title = "Transaction ID",
                         sideText = "c4f5...67be",
                         onClick = {},
-                        endIcon = SmallIconCopy
+                        endIcon = Copy
                       )
                     )
                   ),
@@ -212,7 +212,7 @@ class TransactionDetailScreenSnapshots :
                         title = "Transaction ID",
                         sideText = "c4f5...67be",
                         onClick = {},
-                        endIcon = SmallIconCopy
+                        endIcon = Copy
                       )
                     )
                   ),
@@ -284,7 +284,7 @@ class TransactionDetailScreenSnapshots :
                         title = "Transaction ID",
                         sideText = "c4f5...67be",
                         onClick = {},
-                        endIcon = SmallIconCopy
+                        endIcon = Copy
                       )
                     )
                   ),
@@ -344,7 +344,7 @@ class TransactionDetailScreenSnapshots :
                         title = "Transaction ID",
                         sideText = "c4f5...67be",
                         onClick = {},
-                        endIcon = SmallIconCopy
+                        endIcon = Copy
                       )
                     )
                   ),
@@ -488,7 +488,7 @@ class TransactionDetailScreenSnapshots :
                         title = "Transaction ID",
                         sideText = "c4f5...67be",
                         onClick = {},
-                        endIcon = SmallIconCopy
+                        endIcon = Copy
                       )
                     )
                   ),
@@ -559,7 +559,7 @@ class TransactionDetailScreenSnapshots :
                         title = "Transaction ID",
                         sideText = "c4f5...67be",
                         onClick = {},
-                        endIcon = SmallIconCopy
+                        endIcon = Copy
                       )
                     )
                   ),

@@ -103,6 +103,7 @@ fun module(name: String) {
 
 module(":android:app")
 module(":android:kotest-paparazzi:public")
+module(":desktop:app")
 module(":android:ui:app:public")
 module(":android:ui:core:public")
 module(":domain:account:fake")

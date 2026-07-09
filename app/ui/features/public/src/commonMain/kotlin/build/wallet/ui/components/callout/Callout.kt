@@ -31,10 +31,10 @@ import build.wallet.ui.tokens.LabelType
 fun Callout(model: CalloutModel) {
   val style = model.calloutStyle()
   val useMonochromeStyle =
-    model.useMonochromeStyleInDesignSystemV2
+    model.useMonochromeStyle
   val cornerRadius = 8.dp
   val leadingIcon =
-    model.leadingIconOverrideInDesignSystemV2 ?: model.leadingIcon
+    model.leadingIconOverride ?: model.leadingIcon
 
   // Track the alignment of the leading icon, which varies based on the number of text lines in the
   // subtitle.
@@ -185,7 +185,7 @@ data class CalloutStyle(
 @ReadOnlyComposable
 private fun CalloutModel.calloutStyle() =
   when {
-    useMonochromeStyleInDesignSystemV2 -> CalloutStyle(
+    useMonochromeStyle -> CalloutStyle(
       titleColor = WalletTheme.colors.foreground,
       subtitleColor = WalletTheme.colors.foreground60,
       backgroundColor = WalletTheme.colors.secondary,

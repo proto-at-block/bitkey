@@ -13,6 +13,7 @@ import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiState
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiStateMachine
 import build.wallet.statemachine.root.AppUiStateMachine
 import build.wallet.statemachine.settings.full.feedback.FeedbackUiStateMachine
+import build.wallet.ui.theme.ThemePreferenceService
 import software.amazon.lastmile.kotlin.inject.anvil.ContributesSubcomponent
 
 /**
@@ -41,6 +42,7 @@ interface JvmActivityComponent {
   val claimsRepository: InheritanceClaimsRepository
   val ageRangeVerificationServiceImpl: AgeRangeVerificationServiceImpl
   val shortenClaimF8eClient: ShortenInheritanceClaimF8eClient
+  val themePreferenceService: ThemePreferenceService
 
   /**
    * Factory for creating [JvmActivityComponent] instance:

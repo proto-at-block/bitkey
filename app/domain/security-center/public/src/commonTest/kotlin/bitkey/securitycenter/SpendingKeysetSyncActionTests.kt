@@ -33,6 +33,19 @@ class SpendingKeysetSyncActionTests : FunSpec({
     )
   }
 
+  test("returns REPAIR_KEYSET_MISMATCH recommendation when status is IncompleteKeysetList") {
+    val action = SpendingKeysetSyncAction(
+      syncStatus = SpendingKeysetSyncStatus.IncompleteKeysetList(
+        activeKeysetId = "active-keyset-id",
+        missingKeysetIds = setOf("missing-keyset-id")
+      )
+    )
+
+    action.getRecommendations().shouldContainExactly(
+      SecurityActionRecommendation.REPAIR_KEYSET_MISMATCH
+    )
+  }
+
   test("returns empty recommendations when status is Synced") {
     val action = SpendingKeysetSyncAction(
       syncStatus = SpendingKeysetSyncStatus.Synced
@@ -80,6 +93,17 @@ class SpendingKeysetSyncActionTests : FunSpec({
     val action = SpendingKeysetSyncAction(
       syncStatus = SpendingKeysetSyncStatus.IncompletePrivateWallet(
         activeKeysetId = "active-keyset-id"
+      )
+    )
+
+    action.state().shouldBe(SecurityActionState.HasCriticalActions)
+  }
+
+  test("returns HasCriticalActions state when status is IncompleteKeysetList") {
+    val action = SpendingKeysetSyncAction(
+      syncStatus = SpendingKeysetSyncStatus.IncompleteKeysetList(
+        activeKeysetId = "active-keyset-id",
+        missingKeysetIds = setOf("missing-keyset-id")
       )
     )
 

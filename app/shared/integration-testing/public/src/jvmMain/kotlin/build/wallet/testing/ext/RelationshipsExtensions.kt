@@ -32,7 +32,7 @@ suspend fun AppTester.awaitTcIsVerifiedAndBackedUp(relationshipId: String) =
         timeout = 60.seconds
       ) { relationships ->
         relationships.endorsedTrustedContacts.any {
-          it.relationshipId == relationshipId && it.authenticationState == TrustedContactAuthenticationState.VERIFIED
+          it.id.value == relationshipId && it.authenticationState == TrustedContactAuthenticationState.VERIFIED
         }
       }
 
@@ -59,20 +59,20 @@ suspend fun AppTester.createTcInvite(tcName: String): TrustedContactFullInvite {
       IllegalStateException("Failed to create invitation: $error", error.cause)
     }
   awaitRelationships { relationships ->
-    relationships.invitations.any { it.relationshipId == invitation.invitation.relationshipId }
+    relationships.invitations.any { it.id == invitation.invitation.id }
   }
   val pakeData = relationshipsEnrollmentAuthenticationDao
-    .getByRelationshipId(invitation.invitation.relationshipId)
+    .getByRelationshipId(invitation.invitation.id.value)
     .getOrThrow()
     .shouldNotBeNull()
   return TrustedContactFullInvite(
     invitation.inviteCode,
     IncomingInvitation(
-      invitation.invitation.relationshipId,
-      invitation.invitation.code,
-      pakeData.protectedCustomerEnrollmentPakeKey.publicKey,
-      setOf(TrustedContactRole.SocialRecoveryContact),
-      invitation.invitation.expiresAt
+      id = invitation.invitation.id,
+      code = invitation.invitation.code,
+      protectedCustomerEnrollmentPakeKey = pakeData.protectedCustomerEnrollmentPakeKey.publicKey,
+      recoveryRelationshipRoles = setOf(TrustedContactRole.SocialRecoveryContact),
+      expiresAt = invitation.invitation.expiresAt
     )
   )
 }

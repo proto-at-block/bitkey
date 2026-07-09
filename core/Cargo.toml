@@ -2,6 +2,7 @@
 members = [
   "action-proof",
   "crypto",
+  "device-attestation",
   "enclave-tools",
   "picocert",
   "wsm-grant",

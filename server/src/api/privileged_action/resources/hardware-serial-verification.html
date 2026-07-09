@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Bitkey Device</title>
+    <link rel="stylesheet" href="/static/main.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script type="text/javascript" src="/static/hardware-serial/main.js"></script>
+</head>
+<body>
+    <header class="secure-banner">
+        <div class="secure-message">
+            <img src="/static/Bitkeylogo.png" srcset="/static/Bitkeylogo.png 1x, /static/Bitkeylogo@2x.png 2x, /static/Bitkeylogo@3x.png 3x" alt="BitKey Logo" class="logo">
+            This site is secure. <a href="#" class="learn-more">Learn More</a>
+        </div>
+    </header>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="verification-container active">
+            <div class="animation-container">
+                <img src="/static/DarkLoader.gif" alt="Loading animation" style="width: 80px; height: 80px;">
+            </div>
+            <h1 class="loading-text">Loading device verification...</h1>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="content" id="mainContent">
+
+        <!-- Serial Entry Screen -->
+        <div id="serialEntry" class="verification-container">
+            <h1>Verify your new Bitkey device</h1>
+            <p class="subtitle">
+                Find the serial number on the back of your Bitkey case
+                (W1) or on the device's screen via NFC tap (W3) and enter
+                it below.
+            </p>
+            <div class="input-row">
+                <label for="serialInput" class="input-label">Serial number</label>
+                <input id="serialInput" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" />
+                <p id="errorMessage" class="error-message" style="display: none;"></p>
+                <p id="attemptsHint" class="subtitle" style="display: none;"></p>
+            </div>
+        </div>
+
+        <!-- Success Screen -->
+        <div id="successScreen" class="verification-container">
+            <h1>Your Bitkey device is verified</h1>
+            <p class="subtitle">You can return to the Bitkey app on your mobile device to continue.</p>
+        </div>
+
+        <!-- Cancellation Screen -->
+        <main id="cancellationScreen" class="verification-container">
+            <h1>Device verification was canceled</h1>
+            <p class="subtitle">You can try again from your Bitkey app at any time.</p>
+        </main>
+
+        <!-- Lockout Screen (attempts exhausted) -->
+        <main id="lockoutScreen" class="verification-container">
+            <h1>Too many incorrect attempts</h1>
+            <p class="subtitle">
+                This verification request is no longer valid. Return to
+                your Bitkey app to start a new verification.
+            </p>
+        </main>
+
+    </div>
+
+    <!-- Button container with top border -->
+    <div class="button-container">
+        <div class="action-buttons" id="serialButtons">
+            <button id="approveBtn" class="primary-button">Approve</button>
+            <button id="cancelBtn" class="secondary-button">Cancel</button>
+        </div>
+        <div class="action-buttons" id="supportButtons" style="display: none;">
+            <a class="primary-button" href="https://bitkey.world/links/app" data-app-link="true">Return to Bitkey</a>
+        </div>
+    </div>
+
+    <!-- MOCK DATA: this will be replaced by the server with real data -->
+    <script type="application/json" id="privileged-action-params">
+    {
+        "privilegedActionId": "mock-verify-hardware-serial-id",
+        "privilegedActionType": "PLACEHOLDER",
+        "attemptsRemaining": 5
+    }
+    </script>
+</body>
+</html>

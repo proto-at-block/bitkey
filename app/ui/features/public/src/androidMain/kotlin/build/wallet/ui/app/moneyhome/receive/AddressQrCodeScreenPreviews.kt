@@ -28,7 +28,7 @@ fun AddressQrCodeScreenPreview() {
               data = BooleanArray(2026) { it % 4 == 0 }
             )
           ),
-          copyButtonIcon = Icon.SmallIconCopy,
+          copyButtonIcon = Icon.Copy,
           copyButtonLabelText = "Copy",
           onCopyClick = {},
           onPartnerClick = {},
@@ -56,7 +56,7 @@ fun AddressQrCodeScreenPreviewWithPartner() {
               data = BooleanArray(2026) { it % 4 == 0 }
             )
           ),
-          copyButtonIcon = Icon.SmallIconCopy,
+          copyButtonIcon = Icon.Copy,
           copyButtonLabelText = "Copy",
           onCopyClick = {},
           onShareClick = {},
@@ -69,34 +69,6 @@ fun AddressQrCodeScreenPreviewWithPartner() {
               PartnerId("Robinhood")
             )
           ).toImmutableList()
-        )
-      )
-    )
-  }
-}
-
-@Preview
-@Composable
-fun AddressQrCodeScreenPreviewDesignSystemV2() {
-  val address = "bc1q42lja79elem0anu8q8s3h2n687re9jax556pcc"
-  PreviewWalletTheme {
-    AddressQrCodeScreen(
-      model = AddressQrCodeBodyModel(
-        onBack = {},
-        onRefreshClick = {},
-        content = AddressQrCodeBodyModel.Content.QrCode(
-          address = address,
-          qrCodeState = QrCodeState.Success(
-            matrix = QRMatrix(
-              columnWidth = 45,
-              data = BooleanArray(2026) { it % 4 == 0 }
-            )
-          ),
-          copyButtonIcon = Icon.SmallIconCopy,
-          copyButtonLabelText = "Copy",
-          onCopyClick = {},
-          onPartnerClick = {},
-          onShareClick = {}
         )
       )
     )
@@ -120,7 +92,7 @@ fun AddressQrCodeScreenPreviewWithPartners() {
               data = BooleanArray(2026) { it % 4 == 0 }
             )
           ),
-          copyButtonIcon = Icon.SmallIconCopy,
+          copyButtonIcon = Icon.Copy,
           copyButtonLabelText = "Copy",
           onCopyClick = {},
           onShareClick = {},
@@ -164,7 +136,7 @@ fun AddressQrCodeScreenQrCodeErrorPreview() {
           AddressQrCodeBodyModel.Content.QrCode(
             address = address,
             qrCodeState = QrCodeState.Error,
-            copyButtonIcon = Icon.SmallIconCopy,
+            copyButtonIcon = Icon.Copy,
             copyButtonLabelText = "Copy",
             onCopyClick = {},
             onPartnerClick = {},
@@ -187,7 +159,7 @@ fun AddressQrCodeScreenLoadingPreview() {
           AddressQrCodeBodyModel.Content.QrCode(
             address = null,
             qrCodeState = QrCodeState.Loading,
-            copyButtonIcon = Icon.SmallIconCopy,
+            copyButtonIcon = Icon.Copy,
             copyButtonLabelText = "Copy",
             onCopyClick = {},
             onPartnerClick = {},

@@ -46,6 +46,19 @@ class FeatureFlagsF8eClientImpl(
   private val localeCountryCodeProvider: LocaleCountryCodeProvider,
   private val localeLanguageCodeProvider: LocaleLanguageCodeProvider,
 ) : FeatureFlagsF8eClient {
+  private val PlatformInfo.platformInfoBody
+    get() =
+      PlatformInfoBody(
+        deviceId = device_id,
+        clientType = client_type.name,
+        applicationVersion = application_version,
+        osType = os_type.name,
+        osVersion = os_version,
+        deviceMake = device_make,
+        deviceModel = device_model,
+        appId = app_id
+      )
+
   override suspend fun getF8eFeatureFlags(
     f8eEnvironment: F8eEnvironment,
     accountId: AccountId?,
@@ -149,17 +162,4 @@ class FeatureFlagsF8eClientImpl(
     @SerialName("app_id")
     private val appId: String,
   )
-
-  private val PlatformInfo.platformInfoBody
-    get() =
-      PlatformInfoBody(
-        deviceId = device_id,
-        clientType = client_type.name,
-        applicationVersion = application_version,
-        osType = os_type.name,
-        osVersion = os_version,
-        deviceMake = device_make,
-        deviceModel = device_model,
-        appId = app_id
-      )
 }

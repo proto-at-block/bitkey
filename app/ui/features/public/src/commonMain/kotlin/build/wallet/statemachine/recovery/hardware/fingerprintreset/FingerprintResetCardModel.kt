@@ -18,7 +18,7 @@ fun FingerprintResetCardModel(
   subtitle = subtitle,
   leadingImage =
     CardModel.CardImage.StaticImage(
-      icon = Icon.SmallIconFingerprint
+      icon = Icon.Fingerprint
     ),
   content = null,
   style = CardModel.CardStyle.Gradient(

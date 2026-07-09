@@ -19,6 +19,7 @@ fun FwupUpdateDeviceModel(
   hardwareType: HardwareType,
   onLaunchFwup: () -> Unit,
   onClose: () -> Unit,
+  onHelpClick: (() -> Unit)? = null,
   onReleaseNotes: () -> Unit,
   bottomSheetModel: FwupUpdateDeviceBottomSheet?,
 ) = ScreenModel(
@@ -47,6 +48,7 @@ fun FwupUpdateDeviceModel(
       buttonText = "Update Bitkey",
       onButtonClick = onLaunchFwup,
       hardwareType = hardwareType,
+      onHelpClick = onHelpClick,
       eventTrackerScreenId = FwupEventTrackerScreenId.FWUP_UPDATE_INSTRUCTIONS
     ),
   presentationStyle = ScreenPresentationStyle.ModalFullScreen,

@@ -47,7 +47,7 @@ import build.wallet.ui.tooling.LocalIsPreviewTheme
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
 
-private val DesignSystemV2HeroImageBottomSpacing = 40.dp
+private val HeroImageBottomSpacing = 40.dp
 
 @Composable
 fun PairNewHardwareScreen(
@@ -60,8 +60,7 @@ fun PairNewHardwareScreen(
   }
 
   var videoView: VideoPlayerHandler? by remember { mutableStateOf(null) }
-  val isDesignSystemV2Enabled = true
-  val showsHeroImage = isDesignSystemV2Enabled && model.heroImageContent != null
+  val showsHeroImage = model.heroImageContent != null
 
   var videoAlpha: Float by remember { mutableStateOf(0.0f) }
 
@@ -79,7 +78,7 @@ fun PairNewHardwareScreen(
     onBack = model.onBack,
     toolbarModel = model.toolbarModel(
       showReplayAction = !showsHeroImage,
-      useAdaptiveStyle = isDesignSystemV2Enabled,
+      useAdaptiveStyle = true,
       onRefreshClick = {
         // Replay the video
         videoView?.seekTo(0)
@@ -119,7 +118,7 @@ fun PairNewHardwareScreen(
     backgroundVideo = model.backgroundVideo,
     videoAlpha = videoAlpha,
     isNavigatingBack = model.isNavigatingBack,
-    useDesignSystemV2HeroLayout = showsHeroImage,
+    useHeroLayout = showsHeroImage,
     debugHeroLayout = debugHeroLayout
   )
 }
@@ -137,7 +136,7 @@ fun PairNewHardwareScreen(
   heroImageContent: PairNewHardwareBodyModel.HeroImageContent? = null,
   backgroundVideo: PairNewHardwareBodyModel.BackgroundVideo,
   videoAlpha: Float = 1f,
-  useDesignSystemV2HeroLayout: Boolean = false,
+  useHeroLayout: Boolean = false,
   debugHeroLayout: Boolean = false,
 ) {
   onBack?.let {
@@ -145,8 +144,8 @@ fun PairNewHardwareScreen(
   }
 
   Box(modifier = modifier) {
-    if (useDesignSystemV2HeroLayout && heroImageContent != null) {
-      PairNewHardwareDesignSystemV2HeroScreen(
+    if (useHeroLayout && heroImageContent != null) {
+      PairNewHardwareHeroScreen(
         modifier = Modifier.fillMaxSize(),
         toolbarModel = toolbarModel,
         headerModel = headerModel,
@@ -173,7 +172,7 @@ fun PairNewHardwareScreen(
 }
 
 @Composable
-private fun PairNewHardwareDesignSystemV2HeroScreen(
+private fun PairNewHardwareHeroScreen(
   modifier: Modifier = Modifier,
   toolbarModel: ToolbarModel?,
   headerModel: FormHeaderModel,
@@ -288,7 +287,7 @@ private fun PairNewHardwareDesignSystemV2HeroScreen(
           contentScale = ContentScale.FillWidth
         )
 
-        Spacer(Modifier.height(DesignSystemV2HeroImageBottomSpacing))
+        Spacer(Modifier.height(HeroImageBottomSpacing))
       }
 
       Column(

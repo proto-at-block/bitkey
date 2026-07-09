@@ -120,9 +120,9 @@ class DeviceSettingsScreenPresenter(
     val firmwareData = remember {
       firmwareDataService.firmwareData()
     }.collectAsState().value
-    val isFingerprintResetEnabled by fingerprintResetAvailabilityService
-      .isAvailable()
-      .collectAsState(initial = false)
+    val isFingerprintResetEnabled by remember {
+      fingerprintResetAvailabilityService.isAvailable()
+    }.collectAsState(initial = false)
 
     val recovery by remember {
       recoveryStatusService.status

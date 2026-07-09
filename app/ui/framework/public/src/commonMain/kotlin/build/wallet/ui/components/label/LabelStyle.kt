@@ -29,7 +29,6 @@ import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.LabelType.Body3Mono
 import build.wallet.ui.tokens.currentStyle
 import build.wallet.ui.typography.font.cashSansFontFamily
-import build.wallet.ui.typography.font.interFontFamily
 
 /**
  * Use this to method to customize label style:
@@ -77,10 +76,9 @@ fun WalletTheme.textStyle(
       else -> None
     }
 
-  val isDesignSystemV2Enabled = true
   val baseFont =
     TextStyle(
-      fontFamily = if (isDesignSystemV2Enabled) cashSansFontFamily else interFontFamily,
+      fontFamily = cashSansFontFamily,
       fontStyle = FontStyle.Normal
     )
 
@@ -106,10 +104,9 @@ fun buttonTextStyle(
   underline: Boolean,
   textColor: Color,
 ): TextStyle {
-  val isDesignSystemV2Enabled = true
   val baseFont =
     TextStyle(
-      fontFamily = if (isDesignSystemV2Enabled) cashSansFontFamily else interFontFamily,
+      fontFamily = cashSansFontFamily,
       fontStyle = FontStyle.Normal
     )
 
@@ -119,7 +116,7 @@ fun buttonTextStyle(
     textAlign = TextAlign.Center,
     color = textColor,
     textDecoration = if (underline) Underline else None,
-    letterSpacing = if (isDesignSystemV2Enabled && type == Body3Mono) 0.sp else resolvedStyle.letterSpacing,
+    letterSpacing = if (type == Body3Mono) 0.sp else resolvedStyle.letterSpacing,
     lineHeightStyle =
       LineHeightStyle(
         alignment = Alignment.Center,

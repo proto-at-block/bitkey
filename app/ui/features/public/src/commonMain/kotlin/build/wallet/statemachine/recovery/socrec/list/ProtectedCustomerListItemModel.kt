@@ -6,6 +6,7 @@ import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemAccessory.Companion.drillIcon
 import build.wallet.ui.model.list.ListItemModel
+import build.wallet.ui.model.list.ListItemSideTextTint
 import build.wallet.ui.tokens.LabelType
 
 fun ProtectedCustomer.listItemModel(onClick: (ProtectedCustomer) -> Unit) =
@@ -17,11 +18,14 @@ fun ProtectedCustomer.listItemModel(
 ) = ListItemModel(
   title = alias.alias,
   titleType = if (useLargeLeadingAccessory) LabelType.Body2Regular else null,
+  secondaryText = "Active",
+  secondaryTextTint = ListItemSideTextTint.GREEN,
   leadingAccessory =
     ListItemAccessory.CircularCharacterAccessory.fromLetters(
       input = alias.alias,
       circleSize = if (useLargeLeadingAccessory) IconSize.Large else IconSize.Small,
-      characterType = if (useLargeLeadingAccessory) LabelType.Body2Medium else LabelType.Label3
+      characterType = if (useLargeLeadingAccessory) LabelType.Body2Medium else LabelType.Label3,
+      backgroundColor = ListItemAccessory.CircularCharacterAccessory.BackgroundColor.SubtleBackground
     ),
   trailingAccessory = drillIcon(tint = IconTint.On30),
   onClick = { onClick(this) }

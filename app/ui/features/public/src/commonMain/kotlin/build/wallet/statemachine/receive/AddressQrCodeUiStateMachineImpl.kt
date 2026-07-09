@@ -30,7 +30,7 @@ import build.wallet.platform.links.DeepLinkHandler
 import build.wallet.platform.sharing.SharingManager
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.SmallIconCheckFilled
-import build.wallet.statemachine.core.Icon.SmallIconCopy
+import build.wallet.statemachine.core.Icon.Copy
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.nfc.DescriptorRepairUiProps
@@ -516,7 +516,7 @@ class AddressQrCodeUiStateMachineImpl(
 
       fun icon(): Icon {
         return when (this) {
-          Ready -> SmallIconCopy
+          Ready -> Copy
           Copied -> SmallIconCheckFilled
         }
       }

@@ -61,7 +61,6 @@ private class WrappedPath(
  * @param formatYLabel Callback to format the given Y axis value for the label.
  * @param initialSelectedPoint An initially selected point in the graph, only useful for previews.
  * @param sparkLineMode When true, disables data labels and chart visual effects.
- * @param useMidpointInterpolation Whether to interpolate line segments using midpoint smoothing.
  * @param showSparkLineEndPoint Whether to show the dot at the end of the sparkline.
  * @param lineCornerRadius Corner radius used to smooth line bends.
  * @param animateDataTransition Whether to morph between old and new data sets.
@@ -81,14 +80,12 @@ fun PriceChart(
   initialSelectedPoint: DataPoint? = null,
   isInteractive: Boolean = true,
   sparkLineMode: Boolean = false,
-  useMidpointInterpolation: Boolean = sparkLineMode,
   showSparkLineEndPoint: Boolean = true,
   lineCornerRadius: Dp = if (sparkLineMode) 6.dp else 0.dp,
   sparklineValuePaddingFraction: Float = 0f,
-  animateDataTransition: Boolean = useMidpointInterpolation && !sparkLineMode,
+  animateDataTransition: Boolean = !sparkLineMode,
   modifier: Modifier = Modifier,
 ) {
-  val isDesignSystemV2Enabled = true
   val shouldAnimateDataTransition = animateDataTransition
   val transitionProgress = remember { Animatable(1f) }
   var transitionStartData by remember { mutableStateOf(dataPoints) }
@@ -274,11 +271,7 @@ fun PriceChart(
     )
     val chartElementColor = WalletTheme.colors.chartElement
     val chartPriceColor = WalletTheme.colors.foreground60
-    val inactivePathColor = if (isDesignSystemV2Enabled) {
-      WalletTheme.colors.subtleBackground
-    } else {
-      chartElementColor
-    }
+    val inactivePathColor = WalletTheme.colors.subtleBackground
     val backgroundPathColorTarget = when {
       sparkLineMode -> colorSparkLine
       selectedPoint == null -> colorPrimary
@@ -298,7 +291,6 @@ fun PriceChart(
       pathSize,
       yAxisIntervals,
       range,
-      useMidpointInterpolation,
       transitionStartValuePaddingFraction,
       transitionEndValuePaddingFraction
     ) {
@@ -316,8 +308,7 @@ fun PriceChart(
             yAxisIntervals = yAxisIntervals,
             chartRange = range,
             startValuePaddingFraction = transitionStartValuePaddingFraction,
-            endValuePaddingFraction = transitionEndValuePaddingFraction,
-            useMidpointInterpolation = useMidpointInterpolation
+            endValuePaddingFraction = transitionEndValuePaddingFraction
           )
         }
       }
@@ -335,8 +326,7 @@ fun PriceChart(
         chartDataState.createLinePath(
           path = Path(),
           canvasWidth = adjustedCanvasWidth,
-          canvasHeight = canvasHeight,
-          useMidpointInterpolation = useMidpointInterpolation
+          canvasHeight = canvasHeight
         )
       } else {
         Path()
@@ -349,8 +339,7 @@ fun PriceChart(
         chartDataState.createLinePath(
           path = path,
           canvasWidth = adjustedCanvasWidth,
-          canvasHeight = canvasHeight,
-          useMidpointInterpolation = useMidpointInterpolation
+          canvasHeight = canvasHeight
         )
       }
       if (sparkLineMode && updatedDataPoints.isNotEmpty()) {
@@ -361,20 +350,28 @@ fun PriceChart(
       }
       backgroundPath = WrappedPath(path)
     }
-    // foreground line path used to preserve the primary color during selection
-    var foregroundPath by remember {
-      val initialPath = if (isPreview) {
-        chartDataState.createLinePath(
-          path = Path(),
-          stopAtDataPoint = selectedPoint ?: previousSelectedPoint,
-          canvasWidth = adjustedCanvasWidth,
-          canvasHeight = canvasHeight,
-          useMidpointInterpolation = useMidpointInterpolation
+    // Previews and Paparazzi snapshots capture the first frame before effects
+    // calculate lineSplitOffset, so keep the initial active segment available.
+    val previewForegroundPath = remember(
+      isPreview,
+      chartDataState,
+      selectedPoint,
+      previousSelectedPoint,
+      adjustedCanvasWidth,
+      canvasHeight
+    ) {
+      if (isPreview) {
+        WrappedPath(
+          chartDataState.createLinePath(
+            path = Path(),
+            stopAtDataPoint = selectedPoint ?: previousSelectedPoint,
+            canvasWidth = adjustedCanvasWidth,
+            canvasHeight = canvasHeight
+          )
         )
       } else {
-        Path()
+        null
       }
-      mutableStateOf(WrappedPath(initialPath))
     }
     val pointXPositions by remember(updatedDataPoints, chartDataState, adjustedCanvasWidth, canvasHeight) {
       derivedStateOf {
@@ -394,9 +391,8 @@ fun PriceChart(
       adjustedCanvasWidth,
       canvasHeight
     ) {
-      val targetPoint = selectedPoint ?: previousSelectedPoint
       val selectedPointOffset =
-        targetPoint
+        (selectedPoint ?: previousSelectedPoint)
           ?.let { chartDataState.pointOffset(it, adjustedCanvasWidth, canvasHeight) }
           ?.let { targetOffset ->
             activePathMeasurer.run {
@@ -406,33 +402,17 @@ fun PriceChart(
           }
 
       lineSplitOffsetTarget = when {
-        useMidpointInterpolation && inputHoverOffset != Offset.Unspecified -> {
+        inputHoverOffset != Offset.Unspecified -> {
           activePathMeasurer.run {
             setPath(backgroundPath.path, false)
             positionAtX(inputHoverOffset.x.coerceIn(pathSize, adjustedCanvasWidth))
           }.also { lastInteractiveLineSplitOffsetTarget = it }
         }
-        useMidpointInterpolation -> lastInteractiveLineSplitOffsetTarget ?: selectedPointOffset ?: Offset.Unspecified
-        else -> selectedPointOffset ?: Offset.Unspecified
-      }
-
-      if (!useMidpointInterpolation) {
-        val path = foregroundPath.path.copy()
-        withContext(Dispatchers.Default) {
-          chartDataState.createLinePath(
-            path = path,
-            stopAtDataPoint = targetPoint,
-            canvasWidth = adjustedCanvasWidth,
-            canvasHeight = canvasHeight,
-            useMidpointInterpolation = useMidpointInterpolation
-          )
-        }
-        foregroundPath = WrappedPath(path)
+        else -> lastInteractiveLineSplitOffsetTarget ?: selectedPointOffset ?: Offset.Unspecified
       }
     }
     LaunchedEffect(
       lineSplitOffsetTarget,
-      useMidpointInterpolation,
       inputHoverOffset != Offset.Unspecified,
       pointXPositions
     ) {
@@ -463,18 +443,6 @@ fun PriceChart(
     val thumbScale by animateFloatAsState(
       targetValue = if (selectedPoint == null) 0.5f else 1f
     )
-    val thumbShadowBrush by remember {
-      derivedStateOf {
-        Brush.radialGradient(
-          colors = listOf(
-            colorPrimary.copy(alpha = 0.2f),
-            Color.Transparent
-          ),
-          center = lineSplitOffset,
-          radius = with(density) { thumbScale * (24.dp.toPx()) }
-        )
-      }
-    }
     val sparkThumbShadowBrush by remember {
       derivedStateOf {
         Brush.radialGradient(
@@ -515,16 +483,8 @@ fun PriceChart(
       )
     }
 
-    val activeSecondaryValueColor = if (isDesignSystemV2Enabled) {
-      colorPrimary
-    } else {
-      WalletTheme.colors.chartElement
-    }
-    val inactiveSecondaryValueColor = if (isDesignSystemV2Enabled) {
-      WalletTheme.colors.subtleBackground
-    } else {
-      WalletTheme.colors.stepperIncomplete
-    }
+    val activeSecondaryValueColor = colorPrimary
+    val inactiveSecondaryValueColor = WalletTheme.colors.subtleBackground
     Spacer(
       modifier = Modifier
         .align(Alignment.BottomStart)
@@ -661,7 +621,7 @@ fun PriceChart(
 
             if (!sparkLineMode) {
               // foreground line path
-              if (useMidpointInterpolation && lineSplitOffset != Offset.Unspecified) {
+              if (lineSplitOffset != Offset.Unspecified) {
                 clipRect(right = lineSplitOffset.x) {
                   drawPath(
                     path = backgroundPath.path,
@@ -670,11 +630,13 @@ fun PriceChart(
                   )
                 }
               } else {
-                drawPath(
-                  path = foregroundPath.path,
-                  color = colorPrimary,
-                  style = priceLineStroke
-                )
+                previewForegroundPath?.let { foregroundPath ->
+                  drawPath(
+                    path = foregroundPath.path,
+                    color = colorPrimary,
+                    style = priceLineStroke
+                  )
+                }
               }
             }
           }
@@ -701,15 +663,6 @@ fun PriceChart(
           }
 
           if (lineSplitOffset != Offset.Unspecified) {
-            if (!isDesignSystemV2Enabled) {
-              // Keep the legacy scrubber glow outside the DS V2 chart treatment.
-              drawCircle(
-                center = lineSplitOffset,
-                alpha = animatedSelectedStateAlpha,
-                brush = thumbShadowBrush
-              )
-            }
-
             // thumb indicator background
             drawCircle(
               color = Color.White,
@@ -827,7 +780,6 @@ private fun createMorphPath(
   chartRange: ChartRange,
   startValuePaddingFraction: Float,
   endValuePaddingFraction: Float,
-  useMidpointInterpolation: Boolean,
 ): Path {
   val clampedProgress = progress.coerceIn(0f, 1f)
   val startChartState = ChartDataState(
@@ -868,8 +820,7 @@ private fun createMorphPath(
   }
 
   return createLinePathFromOffsets(
-    points = blendedOffsets,
-    useMidpointInterpolation = useMidpointInterpolation
+    points = blendedOffsets
   )
 }
 
@@ -924,7 +875,6 @@ private fun sampleOffsetAt(
 
 private fun createLinePathFromOffsets(
   points: List<Offset>,
-  useMidpointInterpolation: Boolean,
 ): Path {
   return Path().apply {
     if (points.isEmpty()) return@apply
@@ -935,41 +885,28 @@ private fun createLinePathFromOffsets(
     }
 
     moveTo(points[0].x, points[0].y)
-    if (useMidpointInterpolation) {
-      for (targetIndex in 1 until points.lastIndex) {
-        val startPoint = points[targetIndex - 1]
-        val targetPoint = points[targetIndex]
-        val midPoint = Offset(
-          x = (startPoint.x + targetPoint.x) / 2f,
-          y = (startPoint.y + targetPoint.y) / 2f
-        )
-        quadraticTo(
-          x1 = startPoint.x,
-          y1 = startPoint.y,
-          x2 = midPoint.x,
-          y2 = midPoint.y
-        )
-      }
-      val penultimatePoint = points[points.lastIndex - 1]
-      val finalPoint = points.last()
-      quadraticTo(
-        x1 = penultimatePoint.x,
-        y1 = penultimatePoint.y,
-        x2 = finalPoint.x,
-        y2 = finalPoint.y
+    for (targetIndex in 1 until points.lastIndex) {
+      val startPoint = points[targetIndex - 1]
+      val targetPoint = points[targetIndex]
+      val midPoint = Offset(
+        x = (startPoint.x + targetPoint.x) / 2f,
+        y = (startPoint.y + targetPoint.y) / 2f
       )
-    } else {
-      for (targetIndex in 1..points.lastIndex) {
-        val startPoint = points[targetIndex - 1]
-        val targetPoint = points[targetIndex]
-        quadraticTo(
-          x1 = startPoint.x,
-          y1 = startPoint.y,
-          x2 = targetPoint.x,
-          y2 = targetPoint.y
-        )
-      }
+      quadraticTo(
+        x1 = startPoint.x,
+        y1 = startPoint.y,
+        x2 = midPoint.x,
+        y2 = midPoint.y
+      )
     }
+    val penultimatePoint = points[points.lastIndex - 1]
+    val finalPoint = points.last()
+    quadraticTo(
+      x1 = penultimatePoint.x,
+      y1 = penultimatePoint.y,
+      x2 = finalPoint.x,
+      y2 = finalPoint.y
+    )
   }
 }
 

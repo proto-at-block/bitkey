@@ -17,8 +17,8 @@ val FullAccountFieldsMock =
     sealedHwEncryptionKey = SealedCsekFake,
     socRecSealedDekMap =
       mapOf(
-        EndorsedTrustedContactFake1.relationshipId to SocRecSealedPkek1,
-        EndorsedTrustedContactFake2.relationshipId to SocRecSealedPkek2
+        EndorsedTrustedContactFake1.id.value to SocRecSealedPkek1,
+        EndorsedTrustedContactFake2.id.value to SocRecSealedPkek2
       ),
     isFakeHardware = false,
     hwFullAccountKeysCiphertext = SealedDataMock,

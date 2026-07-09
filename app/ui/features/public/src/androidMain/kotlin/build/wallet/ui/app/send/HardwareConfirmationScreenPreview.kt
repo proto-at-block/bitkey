@@ -25,25 +25,6 @@ fun HardwareConfirmationScreenPreview() {
   }
 }
 
-@Preview(name = "Hardware Confirmation (Design System V2)")
-@Composable
-fun HardwareConfirmationScreenPreviewDesignSystemV2() {
-  PreviewWalletTheme {
-    Box(
-      modifier = Modifier
-        .fillMaxSize()
-        .background(WalletTheme.colors.background)
-    ) {
-      FormScreen(
-        model = HardwareConfirmationScreenModel(
-          onBack = {},
-          onConfirm = {}
-        )
-      )
-    }
-  }
-}
-
 @Preview
 @Composable
 fun HardwareConfirmationCanceledScreenPreview() {
@@ -53,23 +34,5 @@ fun HardwareConfirmationCanceledScreenPreview() {
         onBack = {}
       )
     )
-  }
-}
-
-@Preview(name = "Hardware Confirmation Canceled (Design System V2)")
-@Composable
-fun HardwareConfirmationCanceledScreenPreviewDesignSystemV2() {
-  PreviewWalletTheme {
-    Box(
-      modifier = Modifier
-        .fillMaxSize()
-        .background(WalletTheme.colors.background)
-    ) {
-      FormScreen(
-        model = HardwareConfirmationCanceledScreenModel(
-          onBack = {}
-        )
-      )
-    }
   }
 }

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.material:material",
+    "components": [
+        {
+            "version": "1.9.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "material-1.9.1.jar": "7c7c3fa4592730edc5d46d660c6c32505f101b73b9c37fdf253da94e8c827ee6"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

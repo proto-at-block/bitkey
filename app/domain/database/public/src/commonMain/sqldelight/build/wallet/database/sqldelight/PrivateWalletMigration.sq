@@ -1,5 +1,6 @@
 import build.wallet.bitkey.app.AppSpendingPublicKey;
 import build.wallet.bitkey.f8e.F8eSpendingKeyset;
+import build.wallet.bitkey.hardware.HwSpendingKeyProof;
 import build.wallet.bitkey.hardware.HwSpendingPublicKey;
 import kotlin.Boolean;
 
@@ -12,15 +13,19 @@ CREATE TABLE privateWalletMigrationEntity(
   descriptorBackupCompleted INTEGER AS Boolean NOT NULL DEFAULT 0,
   cloudBackupCompleted INTEGER AS Boolean NOT NULL DEFAULT 0,
   serverKeysetActivated INTEGER AS Boolean NOT NULL DEFAULT 0,
-  sweepCompleted INTEGER AS Boolean NOT NULL DEFAULT 0
+  sweepCompleted INTEGER AS Boolean NOT NULL DEFAULT 0,
+  newHardwareKeyProof TEXT AS HwSpendingKeyProof
 );
 
 getState:
 SELECT * FROM privateWalletMigrationEntity WHERE rowId = 0;
 
 saveHardwareKey:
-INSERT OR REPLACE INTO privateWalletMigrationEntity(rowId, newHardwareKey)
-VALUES (0, ?);
+INSERT INTO privateWalletMigrationEntity(rowId, newHardwareKey, newHardwareKeyProof)
+VALUES (0, :newHardwareKey, :newHardwareKeyProof)
+ON CONFLICT(rowId) DO UPDATE SET
+  newHardwareKey = excluded.newHardwareKey,
+  newHardwareKeyProof = excluded.newHardwareKeyProof;
 
 saveAppKey:
 UPDATE privateWalletMigrationEntity

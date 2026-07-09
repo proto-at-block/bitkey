@@ -37,7 +37,7 @@ data class PrivateWalletMigrationFeeEstimateSheetModel(
             FormMainContentModel.DataList.Data(
               title = "Estimated network fees",
               titleIcon = IconModel(
-                icon = Icon.SmallIconInformation,
+                icon = Icon.Information,
                 iconSize = IconSize.XSmall,
                 iconTint = IconTint.On30
               ),

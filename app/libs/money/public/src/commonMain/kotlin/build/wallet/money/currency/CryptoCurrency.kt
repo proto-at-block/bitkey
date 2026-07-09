@@ -2,6 +2,7 @@ package build.wallet.money.currency
 
 import build.wallet.money.currency.code.IsoCurrencyTextCode
 
+@ConsistentCopyVisibility
 data class CryptoCurrency internal constructor(
   override val textCode: IsoCurrencyTextCode,
   override val unitSymbol: String,

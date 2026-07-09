@@ -66,6 +66,10 @@ class CoachmarkServiceTests :
       coachmarksGlobalFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
       bip177CoachmarkEligibilityDao.reset()
       onboardingCompletionService.reset()
+      // The W3 upgrade blocker coachmark requires onboarding completion 14+ days ago. Default
+      // to a long-past completion so tests exercise other criteria; time-gating tests override.
+      onboardingCompletionService.completionTimestamp = Instant.DISTANT_PAST
+      onboardingCompletionService.getCompletionTimestampResult = Ok(Instant.DISTANT_PAST)
       service = CoachmarkServiceImpl(
         CoachmarkDaoImpl(BitkeyDatabaseProviderImpl(sqlDriver.factory)),
         accountService,
@@ -79,62 +83,65 @@ class CoachmarkServiceTests :
     }
 
     test("coachmarksToDisplay") {
+      w3UpgradeBlockerFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       service
         .coachmarksToDisplay(
           setOf(
-            CoachmarkIdentifier.SecurityHubSettingsCoachmark
+            CoachmarkIdentifier.W3UpgradeBlockerCoachmark
           )
         ).shouldBe(
           Ok(
             listOf(
-              CoachmarkIdentifier.SecurityHubSettingsCoachmark
+              CoachmarkIdentifier.W3UpgradeBlockerCoachmark
             )
           )
         )
     }
 
     test("didDisplayCoachmark") {
+      w3UpgradeBlockerFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       service
-        .coachmarksToDisplay(setOf(CoachmarkIdentifier.SecurityHubSettingsCoachmark))
-        .shouldBe(Ok(listOf(CoachmarkIdentifier.SecurityHubSettingsCoachmark)))
-      service.markCoachmarkAsDisplayed(CoachmarkIdentifier.SecurityHubSettingsCoachmark)
+        .coachmarksToDisplay(setOf(CoachmarkIdentifier.W3UpgradeBlockerCoachmark))
+        .shouldBe(Ok(listOf(CoachmarkIdentifier.W3UpgradeBlockerCoachmark)))
+      service.markCoachmarkAsDisplayed(CoachmarkIdentifier.W3UpgradeBlockerCoachmark)
       eventTracker.eventCalls
         .awaitItem()
         .action
-        .shouldBe(Action.ACTION_APP_COACHMARK_VIEWED_SECURITY_HUB_SETTINGS)
+        .shouldBe(Action.ACTION_APP_COACHMARK_VIEWED_W3_UPGRADE_BLOCKER)
       service
-        .coachmarksToDisplay(setOf(CoachmarkIdentifier.SecurityHubSettingsCoachmark))
+        .coachmarksToDisplay(setOf(CoachmarkIdentifier.W3UpgradeBlockerCoachmark))
         .shouldBe(Ok(emptyList()))
     }
 
     test("resetCoachmarks") {
+      w3UpgradeBlockerFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       service
         .coachmarksToDisplay(
           setOf(
-            CoachmarkIdentifier.SecurityHubSettingsCoachmark
+            CoachmarkIdentifier.W3UpgradeBlockerCoachmark
           )
         ).shouldBe(
           Ok(
             listOf(
-              CoachmarkIdentifier.SecurityHubSettingsCoachmark
+              CoachmarkIdentifier.W3UpgradeBlockerCoachmark
             )
           )
         )
-      service.markCoachmarkAsDisplayed(CoachmarkIdentifier.SecurityHubSettingsCoachmark)
+      service.markCoachmarkAsDisplayed(CoachmarkIdentifier.W3UpgradeBlockerCoachmark)
       eventTracker.eventCalls
         .awaitItem()
         .action
-        .shouldBe(Action.ACTION_APP_COACHMARK_VIEWED_SECURITY_HUB_SETTINGS)
+        .shouldBe(Action.ACTION_APP_COACHMARK_VIEWED_W3_UPGRADE_BLOCKER)
       service.resetCoachmarks()
       service
         .coachmarksToDisplay(
           setOf(
-            CoachmarkIdentifier.SecurityHubSettingsCoachmark
+            CoachmarkIdentifier.W3UpgradeBlockerCoachmark
           )
         ).shouldBe(
           Ok(
             listOf(
-              CoachmarkIdentifier.SecurityHubSettingsCoachmark
+              CoachmarkIdentifier.W3UpgradeBlockerCoachmark
             )
           )
         )
@@ -152,11 +159,12 @@ class CoachmarkServiceTests :
     }
 
     test("no coachmarks to display for lite accounts") {
+      w3UpgradeBlockerFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       accountService.setActiveAccount(LiteAccountMock)
       service
         .coachmarksToDisplay(
           setOf(
-            CoachmarkIdentifier.SecurityHubSettingsCoachmark
+            CoachmarkIdentifier.W3UpgradeBlockerCoachmark
           )
         ).shouldBe(
           Ok(emptyList())
@@ -164,8 +172,9 @@ class CoachmarkServiceTests :
     }
 
     test("don't return expired coachmarks") {
+      w3UpgradeBlockerFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       val coachmarkDao = CoachmarkDaoFake()
-      coachmarkDao.insertCoachmark(CoachmarkIdentifier.SecurityHubSettingsCoachmark, Instant.DISTANT_PAST)
+      coachmarkDao.insertCoachmark(CoachmarkIdentifier.W3UpgradeBlockerCoachmark, Instant.DISTANT_PAST)
       service = CoachmarkServiceImpl(
         coachmarkDao,
         accountService,
@@ -176,15 +185,16 @@ class CoachmarkServiceTests :
         AppVariant.Development
       )
       service
-        .coachmarksToDisplay(setOf(CoachmarkIdentifier.SecurityHubSettingsCoachmark))
+        .coachmarksToDisplay(setOf(CoachmarkIdentifier.W3UpgradeBlockerCoachmark))
         .shouldBe(Ok(emptyList()))
     }
 
     test("don't return viewed coachmarks") {
+      w3UpgradeBlockerFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       val coachmarkDao = CoachmarkDaoFake()
       coachmarkDao
-        .insertCoachmark(CoachmarkIdentifier.SecurityHubSettingsCoachmark, Instant.DISTANT_FUTURE)
-      coachmarkDao.setViewed(CoachmarkIdentifier.SecurityHubSettingsCoachmark)
+        .insertCoachmark(CoachmarkIdentifier.W3UpgradeBlockerCoachmark, Instant.DISTANT_FUTURE)
+      coachmarkDao.setViewed(CoachmarkIdentifier.W3UpgradeBlockerCoachmark)
       service = CoachmarkServiceImpl(
         coachmarkDao,
         accountService,
@@ -195,7 +205,7 @@ class CoachmarkServiceTests :
         AppVariant.Development
       )
       service
-        .coachmarksToDisplay(setOf(CoachmarkIdentifier.SecurityHubSettingsCoachmark))
+        .coachmarksToDisplay(setOf(CoachmarkIdentifier.W3UpgradeBlockerCoachmark))
         .shouldBe(Ok(emptyList()))
     }
 
@@ -204,7 +214,7 @@ class CoachmarkServiceTests :
       service
         .coachmarksToDisplay(
           setOf(
-            CoachmarkIdentifier.SecurityHubSettingsCoachmark
+            CoachmarkIdentifier.W3UpgradeBlockerCoachmark
           )
         ).shouldBe(
           Ok(emptyList())
@@ -212,6 +222,7 @@ class CoachmarkServiceTests :
     }
 
     test("don't return any coachmarks for EEK builds") {
+      w3UpgradeBlockerFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       val eekService = CoachmarkServiceImpl(
         CoachmarkDaoImpl(BitkeyDatabaseProviderImpl(sqlDriver.factory)),
         accountService,
@@ -224,7 +235,7 @@ class CoachmarkServiceTests :
       eekService
         .coachmarksToDisplay(
           setOf(
-            CoachmarkIdentifier.SecurityHubSettingsCoachmark
+            CoachmarkIdentifier.W3UpgradeBlockerCoachmark
           )
         ).shouldBe(
           Ok(emptyList())
@@ -331,11 +342,12 @@ class CoachmarkServiceTests :
 
       test("coachmark without expiration never expires") {
         accountService.setActiveAccount(FullAccountMock)
+        w3UpgradeBlockerFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
 
         val clock = ClockFake()
         val coachmarkDao = CoachmarkDaoFake()
         // Pre-insert with null expiration to test the no-expiration code path
-        coachmarkDao.insertCoachmark(CoachmarkIdentifier.SecurityHubSettingsCoachmark, null)
+        coachmarkDao.insertCoachmark(CoachmarkIdentifier.W3UpgradeBlockerCoachmark, null)
         val serviceWithFakeDao = CoachmarkServiceImpl(
           coachmarkDao,
           accountService,
@@ -347,14 +359,14 @@ class CoachmarkServiceTests :
         )
 
         serviceWithFakeDao
-          .coachmarksToDisplay(setOf(CoachmarkIdentifier.SecurityHubSettingsCoachmark))
-          .shouldBe(Ok(listOf(CoachmarkIdentifier.SecurityHubSettingsCoachmark)))
+          .coachmarksToDisplay(setOf(CoachmarkIdentifier.W3UpgradeBlockerCoachmark))
+          .shouldBe(Ok(listOf(CoachmarkIdentifier.W3UpgradeBlockerCoachmark)))
 
         // Coachmark should still be visible even after a long time since it has no expiration
         clock.advanceBy(15.days)
         serviceWithFakeDao
-          .coachmarksToDisplay(setOf(CoachmarkIdentifier.SecurityHubSettingsCoachmark))
-          .shouldBe(Ok(listOf(CoachmarkIdentifier.SecurityHubSettingsCoachmark)))
+          .coachmarksToDisplay(setOf(CoachmarkIdentifier.W3UpgradeBlockerCoachmark))
+          .shouldBe(Ok(listOf(CoachmarkIdentifier.W3UpgradeBlockerCoachmark)))
       }
     }
 

@@ -19,8 +19,7 @@ import kotlinx.datetime.Instant
  *  @param codeBitLength [code] length in bits.
  */
 data class Invitation(
-  @Deprecated("Use typed ID", ReplaceWith("id"))
-  override val relationshipId: String,
+  override val id: RelationshipId,
   override val trustedContactAlias: TrustedContactAlias,
   override val roles: Set<TrustedContactRole>,
   @Redacted

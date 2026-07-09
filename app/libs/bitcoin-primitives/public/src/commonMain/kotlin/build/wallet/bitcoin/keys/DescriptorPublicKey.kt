@@ -40,6 +40,11 @@ data class DescriptorPublicKey(
   }
 
   companion object {
+    private val dpubPattern =
+      Regex(
+        """(?:\[([0-9a-fA-F]{8})((?:/[0-9]+[hH']?)*)])?([a-zA-Z0-9]{111,112})((?:/[0-9]+[hH']?)*)(/\*[hH']?)?"""
+      )
+
     /**
      * Parses xpubs ONLY according to BIP-380 Key Expressions
      * https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki#key-expressions
@@ -78,11 +83,6 @@ data class DescriptorPublicKey(
         wildcard = wildcard
       )
     }
-
-    private val dpubPattern =
-      Regex(
-        """(?:\[([0-9a-fA-F]{8})((?:/[0-9]+[hH']?)*)])?([a-zA-Z0-9]{111,112})((?:/[0-9]+[hH']?)*)(/\*[hH']?)?"""
-      )
   }
 }
 

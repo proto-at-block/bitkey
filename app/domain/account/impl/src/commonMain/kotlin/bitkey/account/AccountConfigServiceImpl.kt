@@ -89,12 +89,21 @@ class AccountConfigServiceImpl(
     return updateDefaultAppConfig { it.copy(isHardwareFake = value) }
   }
 
+  override suspend fun setIsCloudStoreFake(value: Boolean): Result<Unit, Error> {
+    return updateDefaultAppConfig { it.copy(isCloudStoreFake = value && it.isTestAccount) }
+  }
+
   override suspend fun setHardwareType(value: HardwareType?): Result<Unit, Error> {
     return updateDefaultAppConfig { it.copy(hardwareType = value) }
   }
 
   override suspend fun setIsTestAccount(value: Boolean): Result<Unit, Error> {
-    return updateDefaultAppConfig { it.copy(isTestAccount = value) }
+    return updateDefaultAppConfig {
+      it.copy(
+        isTestAccount = value,
+        isCloudStoreFake = it.isCloudStoreFake && value
+      )
+    }
   }
 
   override suspend fun setUsingSocRecFakes(value: Boolean): Result<Unit, Error> {
@@ -161,6 +170,7 @@ class AccountConfigServiceImpl(
         f8eEnvironment = updatedConfig.f8eEnvironment,
         isTestAccount = updatedConfig.isTestAccount,
         isUsingSocRecFakes = updatedConfig.isUsingSocRecFakes,
+        fakeCloudStore = updatedConfig.isCloudStoreFake,
         delayNotifyDuration = updatedConfig.delayNotifyDuration,
         skipNotificationsOnboarding = updatedConfig.skipNotificationsOnboarding,
         skipCloudBackupOnboarding = updatedConfig.skipCloudBackupOnboarding,
@@ -178,6 +188,7 @@ private fun DefaultAccountConfigEntity.toConfig(): DefaultAccountConfig {
     f8eEnvironment = f8eEnvironment,
     isTestAccount = isTestAccount,
     isUsingSocRecFakes = isUsingSocRecFakes,
+    isCloudStoreFake = fakeCloudStore,
     delayNotifyDuration = delayNotifyDuration,
     skipNotificationsOnboarding = skipNotificationsOnboarding,
     skipCloudBackupOnboarding = skipCloudBackupOnboarding,
