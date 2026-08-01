@@ -320,7 +320,7 @@ class TransferAmountEntryUiStateMachineImpl(
         )
       }
 
-    val cardModel = sendMaxCardModel ?: sendFlow?.let { send ->
+    val chooseCoinsCardModel = sendFlow?.let { send ->
       when {
         send.onChooseCoinsClick == null -> null
         send.coinControlLabel != null -> CardModel(
@@ -354,6 +354,11 @@ class TransferAmountEntryUiStateMachineImpl(
           onClick = { send.onChooseCoinsClick.invoke(enteredBitcoinMoney) }
         )
       }
+    }
+    val cardModel = when {
+      chooseCoinsCardModel != null && sendFlow?.coinControlLabel != null -> chooseCoinsCardModel
+      sendMaxCardModel != null -> sendMaxCardModel
+      else -> chooseCoinsCardModel
     }
 
     val useSmartBar by remember(isSellFlow, allowSendAll, bitcoinBalance) {
