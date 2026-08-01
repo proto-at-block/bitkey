@@ -15,7 +15,9 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.transactions.PsbtsForSendAmount
 import build.wallet.bitcoin.transactions.TransactionPriorityPreferenceFake
+import build.wallet.bdk.bindings.BdkUtxoMock
 import build.wallet.bitcoin.transactions.TransactionsDataMock
+import build.wallet.bitcoin.utxo.CoinControl
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
@@ -31,8 +33,10 @@ import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.get
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 
@@ -88,6 +92,7 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
           SIXTY_MINUTES to Fee(BitcoinMoney.btc(1.0))
         )
       )
+    bitcoinTransactionFeeEstimator.lastCoinControl = null
     transactionPriorityPreference.preference = null
     bitcoinTransactionBaseCalculator.minimumSatsRequired = BitcoinMoney.zero()
   }
@@ -405,6 +410,27 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
       }
 
       onContinueCalls.awaitItem().shouldBe(THIRTY_MINUTES)
+    }
+  }
+
+  test("passes coinControl into fee estimator") {
+    val coinControl = CoinControl.create(
+      inventory = setOf(BdkUtxoMock),
+      selected = setOf(BdkUtxoMock.outPoint)
+    ).get().shouldNotBeNull()
+
+    stateMachine.test(props.copy(coinControl = coinControl)) {
+      awaitBody<LoadingSuccessBodyModel> {}
+      awaitBody<FormBodyModel> {}
+      bitcoinTransactionFeeEstimator.lastCoinControl.shouldBe(coinControl)
+    }
+  }
+
+  test("null coinControl means automatic selection at fee estimator") {
+    stateMachine.test(props) {
+      awaitBody<LoadingSuccessBodyModel> {}
+      awaitBody<FormBodyModel> {}
+      bitcoinTransactionFeeEstimator.lastCoinControl.shouldBeNull()
     }
   }
 })

@@ -7,6 +7,7 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
+import build.wallet.bitcoin.utxo.CoinControl
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.money.BitcoinMoney
@@ -156,13 +157,18 @@ class SendUiStateMachineImpl(
             },
             initialAmount = state.transferMoney,
             exchangeRates = exchangeRates,
+            coinControl = state.coinControl,
+            onCoinControlChanged = { coinControl ->
+              uiState = state.copy(coinControl = coinControl)
+            },
             onContinueClick = { sendAmount ->
               // Lock exchange rates for consistency in fee selection and confirmation screens
               lockedExchangeRates = exchangeRates
               rateLocked = true
               uiState = SelectingTransactionPriorityUiState(
                 recipientAddress = state.recipientAddress,
-                sendAmount = sendAmount
+                sendAmount = sendAmount,
+                coinControl = state.coinControl
               )
             },
             onContinueWithPreBuiltPsbts = { sendAmount, psbts ->
@@ -171,7 +177,8 @@ class SendUiStateMachineImpl(
               uiState = SelectingTransactionPriorityUiState(
                 recipientAddress = state.recipientAddress,
                 sendAmount = sendAmount,
-                preBuiltPsbts = psbts
+                preBuiltPsbts = psbts,
+                coinControl = state.coinControl
               )
             }
           )
@@ -195,11 +202,13 @@ class SendUiStateMachineImpl(
                   when (val amount = state.sendAmount) {
                     is ExactAmount -> amount.money
                     is SendAll -> defaultAmountEntryAmount
-                  }
+                  },
+                coinControl = state.coinControl
               )
             },
             fees = state.fees,
             preBuiltPsbts = state.preBuiltPsbts,
+            coinControl = state.coinControl,
             onTransferFailed = props.onExit,
             exchangeRates = exchangeRates,
             onTransferInitiated = { psbt, priority ->
@@ -241,6 +250,7 @@ class SendUiStateMachineImpl(
               sendAmount = state.sendAmount,
               exchangeRates = exchangeRates,
               preBuiltPsbts = state.preBuiltPsbts,
+              coinControl = state.coinControl,
               onBack = {
                 // Unlock rates so amount entry can observe live rates again.
                 // Keep lockedExchangeRates as fallback if fresh rates aren't available.
@@ -252,7 +262,8 @@ class SendUiStateMachineImpl(
                       when (val amount = state.sendAmount) {
                         is ExactAmount -> amount.money
                         is SendAll -> defaultAmountEntryAmount
-                      }
+                      },
+                    coinControl = state.coinControl
                   )
               },
               onContinue = { priority, fees ->
@@ -262,7 +273,8 @@ class SendUiStateMachineImpl(
                     recipientAddress = state.recipientAddress,
                     sendAmount = state.sendAmount,
                     fees = fees,
-                    preBuiltPsbts = state.preBuiltPsbts
+                    preBuiltPsbts = state.preBuiltPsbts,
+                    coinControl = state.coinControl
                   )
               }
             )
@@ -516,6 +528,7 @@ private sealed interface SendUiState {
     val recipientAddress: BitcoinAddress,
     val sendAmount: BitcoinTransactionSendAmount,
     val preBuiltPsbts: build.wallet.bitcoin.transactions.PsbtsForSendAmount? = null,
+    val coinControl: CoinControl? = null,
   ) : SendUiState
 
   /**
@@ -524,6 +537,7 @@ private sealed interface SendUiState {
   data class EnteringAmountUiState(
     val recipientAddress: BitcoinAddress,
     val transferMoney: Money,
+    val coinControl: CoinControl? = null,
   ) : SendUiState
 
   /**
@@ -535,6 +549,7 @@ private sealed interface SendUiState {
     val sendAmount: BitcoinTransactionSendAmount,
     val fees: ImmutableMap<EstimatedTransactionPriority, Fee>,
     val preBuiltPsbts: build.wallet.bitcoin.transactions.PsbtsForSendAmount? = null,
+    val coinControl: CoinControl? = null,
   ) : SendUiState
 
   /**

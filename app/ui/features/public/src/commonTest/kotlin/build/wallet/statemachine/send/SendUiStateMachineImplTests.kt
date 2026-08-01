@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.bdk.bindings.BdkUtxoMock
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.balance.BitcoinBalanceFake
 import build.wallet.bitcoin.fees.Fee
@@ -14,6 +15,7 @@ import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.transactions.TransactionsDataMock
+import build.wallet.bitcoin.utxo.CoinControl
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
@@ -41,6 +43,7 @@ import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.get
 import com.ionspin.kotlin.bignum.integer.toBigInteger
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
@@ -168,6 +171,38 @@ class SendUiStateMachineImplTests : FunSpec({
             feeAmount.shouldBe(feeMap.getValue(FASTEST).amount)
             this.transferAmount.shouldBe(transferAmount)
           }
+        }
+      }
+    }
+
+    test("threads coinControl through fee and confirmation") {
+      val selectedCoins = CoinControl.create(
+        inventory = setOf(BdkUtxoMock),
+        selected = setOf(BdkUtxoMock.outPoint)
+      ).get().shouldNotBeNull()
+
+      stateMachine.test(props) {
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
+          onRecipientEntered(someBitcoinAddress)
+        }
+
+        awaitBodyMock<SendAmountEntryUiProps> {
+          this.coinControl.shouldBeNull()
+          onCoinControlChanged(selectedCoins)
+        }
+
+        awaitBodyMock<SendAmountEntryUiProps> {
+          this.coinControl.shouldBe(selectedCoins)
+          onContinueClick(ExactAmount(BitcoinMoney.sats(amountToSend.toBigInteger())))
+        }
+
+        awaitBodyMock<FeeSelectionUiProps> {
+          this.coinControl.shouldBe(selectedCoins)
+          onContinue(FASTEST, feeMap)
+        }
+
+        awaitBodyMock<TransferConfirmationUiProps> {
+          this.coinControl.shouldBe(selectedCoins)
         }
       }
     }

@@ -3,6 +3,7 @@ package build.wallet.statemachine.send
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.PsbtsForSendAmount
+import build.wallet.bitcoin.utxo.CoinControl
 import build.wallet.money.Money
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.statemachine.core.ScreenModel
@@ -23,6 +24,8 @@ interface SendAmountEntryUiStateMachine : StateMachine<SendAmountEntryUiProps, S
  * @property initialAmount - initial bitcoin transfer amount.
  * @property exchangeRates - exchange rates to use for currency conversion. We do this so we can use
  * a consistent set of exchange rates for the entire send flow.
+ * @property coinControl - optional user-selected confirmed UTXOs; null means automatic selection.
+ * @property onCoinControlChanged - updates parent selection (null restores Automatic).
  * @property onContinueClick - handler for proceeding with the transaction without pre-built PSBTs.
  * @property onContinueWithPreBuiltPsbts - handler for proceeding with pre-built PSBTs when the
  *   feature flag is enabled.
@@ -33,6 +36,8 @@ data class SendAmountEntryUiProps(
   val initialAmount: Money,
   val exchangeRates: ImmutableList<ExchangeRate>?,
   val allowSendAll: Boolean = true,
+  val coinControl: CoinControl? = null,
+  val onCoinControlChanged: (CoinControl?) -> Unit = {},
   val onContinueClick: (BitcoinTransactionSendAmount) -> Unit,
   val onContinueWithPreBuiltPsbts: (
     BitcoinTransactionSendAmount,

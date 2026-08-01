@@ -13,6 +13,10 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.transactions.TransactionPriorityPreferenceFake
+import build.wallet.bdk.bindings.BdkUtxoMock
+import build.wallet.bitcoin.utxo.CoinControl
+import build.wallet.bitcoin.wallet.CoinSelectionStrategy
+import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.FullAccountConfigMock
@@ -44,6 +48,7 @@ import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.ui.model.icon.IconImage
 import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.get
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactly
@@ -408,5 +413,26 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
     }
 
     onTransferInitiatedCalls.awaitItem()
+  }
+
+  test("classic rebuild passes Strict coinSelectionStrategy from coinControl") {
+    val coinControl = CoinControl.create(
+      inventory = setOf(BdkUtxoMock),
+      selected = setOf(BdkUtxoMock.outPoint)
+    ).get().shouldNotBeNull()
+    spendingWallet.createSignedPsbtResult = Ok(appSignedPsbt)
+
+    stateMachine.test(props.copy(coinControl = coinControl)) {
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      mobilePayService.getDailySpendingLimitStatusCalls.awaitItem()
+
+      val construction = spendingWallet.lastCreateSignedPsbtConstructionType
+        .shouldBeInstanceOf<SpendingWallet.PsbtConstructionMethod.Regular>()
+      construction.coinSelectionStrategy.shouldBeInstanceOf<CoinSelectionStrategy.Strict>()
+      cancelAndIgnoreRemainingEvents()
+    }
   }
 })

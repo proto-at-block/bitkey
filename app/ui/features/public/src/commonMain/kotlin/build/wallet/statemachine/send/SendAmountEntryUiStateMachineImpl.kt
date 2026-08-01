@@ -8,10 +8,14 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.PreBuiltPsbtFlowFeatureFlag
 import build.wallet.feature.isEnabled
+import build.wallet.money.BitcoinMoney
+import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.moneyhome.MoneyHomeAppSegment
+import build.wallet.statemachine.send.utxo.UtxoSelectionUiProps
+import build.wallet.statemachine.send.utxo.UtxoSelectionUiStateMachine
 import build.wallet.statemachine.transactions.fee.FeeEstimationErrorContext
 import build.wallet.statemachine.transactions.fee.FeeEstimationErrorUiError
 import build.wallet.statemachine.transactions.fee.FeeEstimationErrorUiProps
@@ -22,9 +26,11 @@ import com.github.michaelbull.result.onSuccess
 @BitkeyInject(ActivityScope::class)
 class SendAmountEntryUiStateMachineImpl(
   private val transferAmountEntryUiStateMachine: TransferAmountEntryUiStateMachine,
+  private val utxoSelectionUiStateMachine: UtxoSelectionUiStateMachine,
   private val preBuiltPsbtFlowFeatureFlag: PreBuiltPsbtFlowFeatureFlag,
   private val bitcoinWalletService: BitcoinWalletService,
   private val feeEstimationErrorUiStateMachine: FeeEstimationErrorUiStateMachine,
+  private val moneyDisplayFormatter: MoneyDisplayFormatter,
 ) : SendAmountEntryUiStateMachine {
   @Composable
   override fun model(props: SendAmountEntryUiProps): ScreenModel {
@@ -36,20 +42,32 @@ class SendAmountEntryUiStateMachineImpl(
 
     return when (val state = uiState) {
       is UiState.ViewingCalculator -> {
+        val coinControlLabel = props.coinControl?.let { control ->
+          val countLabel = if (control.count == 1) "1 coin" else "${control.count} coins"
+          "$countLabel · ${moneyDisplayFormatter.format(control.spendableTotal)}"
+        }
+
         transferAmountEntryUiStateMachine.model(
           props = TransferAmountEntryUiProps(
             onBack = props.onBack,
             initialAmount = props.initialAmount,
             exchangeRates = props.exchangeRates,
-            flow = TransferAmountEntryUiProps.Flow.Send(allowSendAll = props.allowSendAll),
+            flow = TransferAmountEntryUiProps.Flow.Send(
+              allowSendAll = props.allowSendAll,
+              coinControlLabel = coinControlLabel,
+              onChooseCoinsClick = { enteredAmount ->
+                uiState = UiState.ChoosingUtxos(targetAmount = enteredAmount)
+              },
+              onClearCoinControl = {
+                props.onCoinControlChanged(null)
+              }
+            ),
             onContinueClick = { continueParams ->
               if (isPreBuiltPsbtFlowEnabled) {
-                // Transition to building state when feature flag is enabled
                 uiState = UiState.BuildingTransactions(
                   sendAmount = continueParams.sendAmount
                 )
               } else {
-                // Continue with standard flow
                 props.onContinueClick(continueParams.sendAmount)
               }
             }
@@ -57,16 +75,33 @@ class SendAmountEntryUiStateMachineImpl(
         )
       }
 
+      is UiState.ChoosingUtxos -> utxoSelectionUiStateMachine.model(
+        props = UtxoSelectionUiProps(
+          targetAmount = state.targetAmount,
+          initialSelection = props.coinControl,
+          onConfirm = { coinControl ->
+            props.onCoinControlChanged(coinControl)
+            uiState = UiState.ViewingCalculator
+          },
+          onClear = {
+            props.onCoinControlChanged(null)
+            uiState = UiState.ViewingCalculator
+          },
+          onBack = {
+            uiState = UiState.ViewingCalculator
+          }
+        )
+      )
+
       is UiState.BuildingTransactions -> {
         LaunchedEffect("build-transactions") {
           bitcoinWalletService.createPsbtsForSendAmount(
             sendAmount = state.sendAmount,
-            recipientAddress = props.recipientAddress
+            recipientAddress = props.recipientAddress,
+            coinControl = props.coinControl
           ).onSuccess { psbts ->
-            // Pass pre-built PSBTs to the next state
             props.onContinueWithPreBuiltPsbts(state.sendAmount, psbts)
           }.onFailure { error ->
-            // Transition to error state
             uiState = UiState.ViewingError(
               sendAmount = state.sendAmount,
               error = error
@@ -87,7 +122,6 @@ class SendAmountEntryUiStateMachineImpl(
         props = FeeEstimationErrorUiProps(
           error = FeeEstimationErrorUiError.InsufficientFunds,
           onBack = {
-            // Return to calculator on back from error
             uiState = UiState.ViewingCalculator
           },
           errorData = ErrorData(
@@ -103,21 +137,16 @@ class SendAmountEntryUiStateMachineImpl(
 }
 
 private sealed interface UiState {
-  /**
-   * Customer is viewing the amount calculator.
-   */
   data object ViewingCalculator : UiState
 
-  /**
-   * Building transactions with pre-built PSBTs.
-   */
+  data class ChoosingUtxos(
+    val targetAmount: BitcoinMoney,
+  ) : UiState
+
   data class BuildingTransactions(
     val sendAmount: BitcoinTransactionSendAmount,
   ) : UiState
 
-  /**
-   * Viewing error after failed transaction building.
-   */
   data class ViewingError(
     val sendAmount: BitcoinTransactionSendAmount,
     val error: Throwable,

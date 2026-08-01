@@ -39,6 +39,9 @@ data class TransferAmountEntryUiProps(
       val allowSendAll: Boolean = true,
       val minAmount: BitcoinMoney? = null,
       val maxAmount: BitcoinMoney? = null,
+      val coinControlLabel: String? = null,
+      val onChooseCoinsClick: ((BitcoinMoney) -> Unit)? = null,
+      val onClearCoinControl: (() -> Unit)? = null,
     ) : Flow
 
     data class Sell(

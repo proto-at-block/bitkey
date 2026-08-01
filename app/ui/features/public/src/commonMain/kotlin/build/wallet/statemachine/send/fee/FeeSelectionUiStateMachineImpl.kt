@@ -262,7 +262,8 @@ class FeeSelectionUiStateMachineImpl(
           ?: EstimatedTransactionPriority.entries,
         account = account,
         recipientAddress = props.recipientAddress,
-        amount = props.sendAmount
+        amount = props.sendAmount,
+        coinControl = props.coinControl
       )
         .onFailure { onFeesLoadFailed(it) }
         .onSuccess {

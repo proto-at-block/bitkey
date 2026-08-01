@@ -42,4 +42,7 @@ enum class SendEventTrackerScreenId : EventTrackerScreenId {
 
   /** Error screen shown when server signing fails and hardware is required */
   SEND_SERVER_SIGNING_ERROR,
+
+  /** Optional advanced screen for selecting confirmed UTXOs during send */
+  SEND_UTXO_SELECTION,
 }

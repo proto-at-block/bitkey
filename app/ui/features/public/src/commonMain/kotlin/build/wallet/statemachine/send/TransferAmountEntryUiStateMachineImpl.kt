@@ -20,10 +20,13 @@ import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiProps
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiStateMachine
+import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.send.amountentry.TransferCardUiProps
 import build.wallet.statemachine.send.amountentry.TransferCardUiStateMachine
 import build.wallet.ui.components.label.LabelTreatment.Destructive
 import build.wallet.ui.components.label.LabelTreatment.Secondary
+import build.wallet.ui.model.StandardClick
+import build.wallet.ui.model.button.ButtonModel
 
 @BitkeyInject(ActivityScope::class)
 class TransferAmountEntryUiStateMachineImpl(
@@ -41,7 +44,8 @@ class TransferAmountEntryUiStateMachineImpl(
   @Suppress("CyclomaticComplexMethod")
   override fun model(props: TransferAmountEntryUiProps): ScreenModel {
     val flow = props.flow
-    val allowSendAll = (flow as? TransferAmountEntryUiProps.Flow.Send)?.allowSendAll ?: false
+    val sendFlow = flow as? TransferAmountEntryUiProps.Flow.Send
+    val allowSendAll = sendFlow?.allowSendAll ?: false
     val minimumAmount =
       when (flow) {
         is TransferAmountEntryUiProps.Flow.Send -> flow.minAmount
@@ -298,7 +302,7 @@ class TransferAmountEntryUiStateMachineImpl(
       }
     }
 
-    val cardModel =
+    val sendMaxCardModel =
       if (isSellFlow) {
         null
       } else {
@@ -315,6 +319,42 @@ class TransferAmountEntryUiStateMachineImpl(
           )
         )
       }
+
+    val cardModel = sendMaxCardModel ?: sendFlow?.let { send ->
+      when {
+        send.onChooseCoinsClick == null -> null
+        send.coinControlLabel != null -> CardModel(
+          title = LabelModel.StringWithStyledSubstringModel.from(
+            string = send.coinControlLabel,
+            substringToColor = emptyMap()
+          ),
+          subtitle = "Tap to edit selection",
+          leadingImage = null,
+          content = null,
+          style = CardModel.CardStyle.Outline(),
+          onClick = { send.onChooseCoinsClick.invoke(enteredBitcoinMoney) },
+          trailingButton = send.onClearCoinControl?.let { onClear ->
+            ButtonModel(
+              text = "Clear",
+              treatment = ButtonModel.Treatment.Tertiary,
+              size = ButtonModel.Size.Compact,
+              onClick = StandardClick(onClear)
+            )
+          }
+        )
+        else -> CardModel(
+          title = LabelModel.StringWithStyledSubstringModel.from(
+            string = "Choose coins",
+            substringToColor = emptyMap()
+          ),
+          subtitle = "Optional advanced selection",
+          leadingImage = null,
+          content = null,
+          style = CardModel.CardStyle.Outline(),
+          onClick = { send.onChooseCoinsClick.invoke(enteredBitcoinMoney) }
+        )
+      }
+    }
 
     val useSmartBar by remember(isSellFlow, allowSendAll, bitcoinBalance) {
       derivedStateOf { !isSellFlow && allowSendAll && !bitcoinBalance.total.isZero }

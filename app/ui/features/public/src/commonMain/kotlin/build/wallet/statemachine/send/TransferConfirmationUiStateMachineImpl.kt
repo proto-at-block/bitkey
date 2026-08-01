@@ -18,6 +18,7 @@ import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.TransactionPriorityPreference
+import build.wallet.bitcoin.utxo.toCoinSelectionStrategy
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.bitkey.factor.SigningFactor
 import build.wallet.bitkey.factor.SigningFactor.F8e
@@ -475,7 +476,8 @@ class TransferConfirmationUiStateMachineImpl(
           val constructionMethod = SpendingWallet.PsbtConstructionMethod.Regular(
             recipientAddress = props.recipientAddress,
             amount = props.sendAmount,
-            feePolicy = FeePolicy.Absolute(entry.value)
+            feePolicy = FeePolicy.Absolute(entry.value),
+            coinSelectionStrategy = props.coinControl.toCoinSelectionStrategy()
           )
           val psbtResult =
             createAppSignedPsbt(

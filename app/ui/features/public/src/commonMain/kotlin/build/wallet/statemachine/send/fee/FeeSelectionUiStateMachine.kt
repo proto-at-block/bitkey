@@ -5,6 +5,7 @@ import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.PsbtsForSendAmount
+import build.wallet.bitcoin.utxo.CoinControl
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.StateMachine
@@ -17,6 +18,7 @@ interface FeeSelectionUiStateMachine : StateMachine<FeeSelectionUiProps, BodyMod
  * @property fiatCurrency: The fiat currency to convert BTC amounts to and from.
  * @property preBuiltPsbts: Pre-built PSBTs for different transaction priorities. When provided,
  *   the state machine will use these PSBTs instead of creating new ones.
+ * @property coinControl: optional user-selected confirmed UTXOs; null means automatic selection.
  */
 data class FeeSelectionUiProps(
   val recipientAddress: BitcoinAddress,
@@ -24,6 +26,7 @@ data class FeeSelectionUiProps(
   val exchangeRates: ImmutableList<ExchangeRate>?,
   val preselectedPriority: EstimatedTransactionPriority? = null,
   val preBuiltPsbts: PsbtsForSendAmount? = null,
+  val coinControl: CoinControl? = null,
   val onBack: () -> Unit,
   val onContinue: (
     EstimatedTransactionPriority,

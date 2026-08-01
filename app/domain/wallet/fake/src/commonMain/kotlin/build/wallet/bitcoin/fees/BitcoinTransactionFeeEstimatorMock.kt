@@ -24,6 +24,8 @@ class BitcoinTransactionFeeEstimatorMock(
       )
     ),
 ) : BitcoinTransactionFeeEstimator {
+  var lastCoinControl: CoinControl? = null
+
   override suspend fun getFeesForTransaction(
     priorities: List<EstimatedTransactionPriority>,
     account: FullAccount,
@@ -31,6 +33,7 @@ class BitcoinTransactionFeeEstimatorMock(
     amount: BitcoinTransactionSendAmount,
     coinControl: CoinControl?,
   ): Result<Map<EstimatedTransactionPriority, Fee>, FeeEstimationError> {
+    lastCoinControl = coinControl
     return feesResult
   }
 }

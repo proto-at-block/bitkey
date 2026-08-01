@@ -55,12 +55,14 @@ class BitcoinWalletServiceFake : BitcoinWalletService {
   }
 
   var createPsbtsForSendAmountResult: Result<PsbtsForSendAmount, Error>? = null
+  var lastCreatePsbtsCoinControl: CoinControl? = null
 
   override suspend fun createPsbtsForSendAmount(
     sendAmount: BitcoinTransactionSendAmount,
     recipientAddress: BitcoinAddress,
     coinControl: CoinControl?,
   ): Result<PsbtsForSendAmount, Error> {
+    lastCreatePsbtsCoinControl = coinControl
     return createPsbtsForSendAmountResult ?: Ok(
       PsbtsForSendAmount(
         fastest = PsbtMock,
@@ -78,5 +80,6 @@ class BitcoinWalletServiceFake : BitcoinWalletService {
     spendingWallet.value = null
     syncResult = Ok(Unit)
     createPsbtsForSendAmountResult = null
+    lastCreatePsbtsCoinControl = null
   }
 }
