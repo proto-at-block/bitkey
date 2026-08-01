@@ -1,6 +1,7 @@
 package build.wallet.bitcoin.transactions
 
 import build.wallet.bitcoin.address.BitcoinAddress
+import build.wallet.bitcoin.utxo.CoinControl
 import build.wallet.bitcoin.wallet.SpendingWallet
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.StateFlow
@@ -43,10 +44,12 @@ interface BitcoinWalletService {
    *
    * @param sendAmount - the amount to send
    * @param recipientAddress - the address to send to
+   * @param coinControl - optional user-selected confirmed UTXOs; null uses default coin selection
    */
   suspend fun createPsbtsForSendAmount(
     sendAmount: BitcoinTransactionSendAmount,
     recipientAddress: BitcoinAddress,
+    coinControl: CoinControl? = null,
   ): Result<PsbtsForSendAmount, Error>
 }
 

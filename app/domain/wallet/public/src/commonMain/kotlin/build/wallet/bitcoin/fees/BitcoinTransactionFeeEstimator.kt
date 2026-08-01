@@ -3,6 +3,7 @@ package build.wallet.bitcoin.fees
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
+import build.wallet.bitcoin.utxo.CoinControl
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.money.Money
 import com.github.michaelbull.result.Result
@@ -26,6 +27,7 @@ interface BitcoinTransactionFeeEstimator {
     account: FullAccount,
     recipientAddress: BitcoinAddress,
     amount: BitcoinTransactionSendAmount,
+    coinControl: CoinControl? = null,
   ): Result<Map<EstimatedTransactionPriority, Fee>, FeeEstimationError>
 
   /**

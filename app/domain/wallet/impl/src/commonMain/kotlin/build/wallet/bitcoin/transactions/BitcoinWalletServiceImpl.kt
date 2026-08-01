@@ -16,7 +16,9 @@ import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.fees.FeeRatesByPriority
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceImpl.Balances.LoadedBalance
+import build.wallet.bitcoin.utxo.CoinControl
 import build.wallet.bitcoin.utxo.Utxos
+import build.wallet.bitcoin.utxo.toCoinSelectionStrategy
 import build.wallet.bitcoin.wallet.CoinSelectionStrategy
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.bitcoin.wallet.SpendingWalletV2Impl
@@ -252,6 +254,7 @@ class BitcoinWalletServiceImpl(
   override suspend fun createPsbtsForSendAmount(
     sendAmount: BitcoinTransactionSendAmount,
     recipientAddress: BitcoinAddress,
+    coinControl: CoinControl?,
   ): Result<PsbtsForSendAmount, Error> =
     coroutineBinding {
       val wallet = spendingWallet.value
@@ -266,62 +269,101 @@ class BitcoinWalletServiceImpl(
       val feeRates = feeRateEstimator.getEstimatedFeeRates(wallet.networkType)
         .bind()
 
+      val coinSelectionStrategy = coinControl.toCoinSelectionStrategy()
       when (sendAmount) {
-        is BitcoinTransactionSendAmount.ExactAmount -> createExactAmountPsbts(
-          wallet = wallet,
-          recipientAddress = recipientAddress,
-          sendAmount = sendAmount,
-          feeRates = feeRates
-        ).bind()
+        is BitcoinTransactionSendAmount.ExactAmount ->
+          if (coinSelectionStrategy is CoinSelectionStrategy.Strict) {
+            createPsbtsWithFixedStrategy(
+              wallet = wallet,
+              recipientAddress = recipientAddress,
+              sendAmount = sendAmount,
+              feeRates = feeRates,
+              coinSelectionStrategy = coinSelectionStrategy
+            ).bind()
+          } else {
+            createExactAmountPsbts(
+              wallet = wallet,
+              recipientAddress = recipientAddress,
+              sendAmount = sendAmount,
+              feeRates = feeRates
+            ).bind()
+          }
         is BitcoinTransactionSendAmount.SendAll -> createSendAllPsbts(
           wallet = wallet,
           recipientAddress = recipientAddress,
-          feeRates = feeRates
+          feeRates = feeRates,
+          coinSelectionStrategy = coinSelectionStrategy
         ).bind()
       }
+    }
+
+  private suspend fun createPsbtsWithFixedStrategy(
+    wallet: SpendingWallet,
+    recipientAddress: BitcoinAddress,
+    sendAmount: BitcoinTransactionSendAmount,
+    feeRates: FeeRatesByPriority,
+    coinSelectionStrategy: CoinSelectionStrategy,
+  ): Result<PsbtsForSendAmount, Error> =
+    coroutineBinding {
+      val sixtyMinutesPsbt = wallet.createSignedPsbt(
+        constructionType = SpendingWallet.PsbtConstructionMethod.Regular(
+          recipientAddress = recipientAddress,
+          amount = sendAmount,
+          feePolicy = FeePolicy.Rate(feeRate = feeRates.hourFeeRate),
+          coinSelectionStrategy = coinSelectionStrategy
+        )
+      ).mapError { Error("Error creating PSBT for 60 minutes") }
+        .bind()
+
+      val thirtyMinutesPsbt = wallet.createSignedPsbt(
+        constructionType = SpendingWallet.PsbtConstructionMethod.Regular(
+          recipientAddress = recipientAddress,
+          amount = sendAmount,
+          feePolicy = FeePolicy.Rate(feeRate = feeRates.halfHourFeeRate),
+          coinSelectionStrategy = coinSelectionStrategy
+        )
+      ).getOrElse {
+        return@coroutineBinding PsbtsForSendAmount(
+          fastest = null,
+          thirtyMinutes = null,
+          sixtyMinutes = sixtyMinutesPsbt
+        )
+      }
+
+      val fastestPsbt = wallet.createSignedPsbt(
+        constructionType = SpendingWallet.PsbtConstructionMethod.Regular(
+          recipientAddress = recipientAddress,
+          amount = sendAmount,
+          feePolicy = FeePolicy.Rate(feeRate = feeRates.fastestFeeRate),
+          coinSelectionStrategy = coinSelectionStrategy
+        )
+      ).getOrElse {
+        return@coroutineBinding PsbtsForSendAmount(
+          fastest = null,
+          thirtyMinutes = thirtyMinutesPsbt,
+          sixtyMinutes = sixtyMinutesPsbt
+        )
+      }
+
+      PsbtsForSendAmount(
+        fastest = fastestPsbt,
+        thirtyMinutes = thirtyMinutesPsbt,
+        sixtyMinutes = sixtyMinutesPsbt
+      )
     }
 
   private suspend fun createSendAllPsbts(
     wallet: SpendingWallet,
     recipientAddress: BitcoinAddress,
     feeRates: FeeRatesByPriority,
-  ) = coroutineBinding {
-    val sixtyMinutesPsbt = wallet.createSignedPsbt(
-      constructionType = SpendingWallet.PsbtConstructionMethod.Regular(
-        recipientAddress = recipientAddress,
-        amount = BitcoinTransactionSendAmount.SendAll,
-        feePolicy = FeePolicy.Rate(feeRate = feeRates.hourFeeRate),
-        coinSelectionStrategy = CoinSelectionStrategy.Default
-      )
-    ).mapError { Error("Error creating PSBT for 60 minutes") }
-      .bind()
-
-    val thirtyMinutesPsbt = wallet.createSignedPsbt(
-      constructionType = SpendingWallet.PsbtConstructionMethod.Regular(
-        recipientAddress = recipientAddress,
-        amount = BitcoinTransactionSendAmount.SendAll,
-        feePolicy = FeePolicy.Rate(feeRate = feeRates.halfHourFeeRate),
-        coinSelectionStrategy = CoinSelectionStrategy.Default
-      )
-    ).mapError { Error("Error creating PSBT for 30 minutes") }
-      .bind()
-
-    val fastestPsbt = wallet.createSignedPsbt(
-      constructionType = SpendingWallet.PsbtConstructionMethod.Regular(
-        recipientAddress = recipientAddress,
-        amount = BitcoinTransactionSendAmount.SendAll,
-        feePolicy = FeePolicy.Rate(feeRate = feeRates.fastestFeeRate),
-        coinSelectionStrategy = CoinSelectionStrategy.Default
-      )
-    ).mapError { Error("Error creating PSBT for fastest") }
-      .bind()
-
-    PsbtsForSendAmount(
-      fastest = fastestPsbt,
-      thirtyMinutes = thirtyMinutesPsbt,
-      sixtyMinutes = sixtyMinutesPsbt
-    )
-  }
+    coinSelectionStrategy: CoinSelectionStrategy,
+  ) = createPsbtsWithFixedStrategy(
+    wallet = wallet,
+    recipientAddress = recipientAddress,
+    sendAmount = BitcoinTransactionSendAmount.SendAll,
+    feeRates = feeRates,
+    coinSelectionStrategy = coinSelectionStrategy
+  )
 
   private suspend fun createExactAmountPsbts(
     wallet: SpendingWallet,

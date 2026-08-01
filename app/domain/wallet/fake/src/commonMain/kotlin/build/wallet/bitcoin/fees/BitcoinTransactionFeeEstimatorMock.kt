@@ -7,6 +7,7 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MINUTES
+import build.wallet.bitcoin.utxo.CoinControl
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.money.BitcoinMoney
 import com.github.michaelbull.result.Ok
@@ -28,6 +29,7 @@ class BitcoinTransactionFeeEstimatorMock(
     account: FullAccount,
     recipientAddress: BitcoinAddress,
     amount: BitcoinTransactionSendAmount,
+    coinControl: CoinControl?,
   ): Result<Map<EstimatedTransactionPriority, Fee>, FeeEstimationError> {
     return feesResult
   }

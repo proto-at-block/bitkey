@@ -1,6 +1,7 @@
 package build.wallet.bitcoin.transactions
 
 import build.wallet.bitcoin.address.BitcoinAddress
+import build.wallet.bitcoin.utxo.CoinControl
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.time.someInstant
 import com.github.michaelbull.result.Err
@@ -58,6 +59,7 @@ class BitcoinWalletServiceFake : BitcoinWalletService {
   override suspend fun createPsbtsForSendAmount(
     sendAmount: BitcoinTransactionSendAmount,
     recipientAddress: BitcoinAddress,
+    coinControl: CoinControl?,
   ): Result<PsbtsForSendAmount, Error> {
     return createPsbtsForSendAmountResult ?: Ok(
       PsbtsForSendAmount(

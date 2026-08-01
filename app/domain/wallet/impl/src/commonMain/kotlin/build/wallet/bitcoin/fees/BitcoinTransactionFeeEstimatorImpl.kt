@@ -11,6 +11,8 @@ import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimator.FeeEstimationErr
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
+import build.wallet.bitcoin.utxo.CoinControl
+import build.wallet.bitcoin.utxo.toCoinSelectionStrategy
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -39,6 +41,7 @@ class BitcoinTransactionFeeEstimatorImpl(
     account: FullAccount,
     recipientAddress: BitcoinAddress,
     amount: BitcoinTransactionSendAmount,
+    coinControl: CoinControl?,
   ): Result<Map<EstimatedTransactionPriority, Fee>, FeeEstimationError> {
     return coroutineBinding {
       // Fetch the fee rates for transaction priorities and use them to create transactions for each
@@ -60,7 +63,8 @@ class BitcoinTransactionFeeEstimatorImpl(
           .createPsbt(
             recipientAddress = recipientAddress,
             amount = amount,
-            feePolicy = FeePolicy.MinRelayRate
+            feePolicy = FeePolicy.MinRelayRate,
+            coinSelectionStrategy = coinControl.toCoinSelectionStrategy()
           )
           .logFailure { "Error creating psbt with tracking keyset" }
           .onFailure {
