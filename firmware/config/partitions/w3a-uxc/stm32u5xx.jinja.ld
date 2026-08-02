@@ -329,13 +329,26 @@ SECTIONS
   /* Check if data + heap + stack exceeds RAM limit */
   ASSERT(__StackLimit >= __HeapLimit, "region RAM overflowed with stack")
 
-  /* SRAM4 section for STM32U5 specific use */
+  /* SRAM4 section for STM32U5 specific use.
+   *
+   * The SEGGER RTT control block (.sram4.rtt_cb) is forced to the *very
+   * start* of SRAM4 (= 0x28000000) so the J-Link host tools can attach to a
+   * fixed, well-known address without searching memory or reading the ELF.
+   * The RTT/SystemView ring buffers follow in .sram4.rtt_buf, and any other
+   * .sram4 placements come last.
+   */
   .sram4 (NOLOAD) :
   {
+    __sram4_start__ = .;
+    . = ALIGN(4);
+    KEEP(*(.sram4.rtt_cb))
+    . = ALIGN(4);
+    KEEP(*(.sram4.rtt_buf))
     . = ALIGN(4);
     *(.sram4)
     *(.sram4*)
     . = ALIGN(4);
+    __sram4_end__ = .;
   } > SRAM4
 
   /* Remove information from the compiler libraries */

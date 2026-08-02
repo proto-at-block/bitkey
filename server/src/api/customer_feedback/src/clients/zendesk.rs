@@ -21,7 +21,7 @@ use crate::clients::entities::CreateRequestResponse;
 use crate::clients::error::GetTicketFormError::GetFormResponse;
 
 const ZENDESK_API_URL: &str = "https://bitkeysupport.zendesk.com/api/";
-const ZENDESK_FORM_ID: &str = "24564153085204";
+const ZENDESK_FORM_ID: &str = "48437524860180";
 
 #[derive(Deserialize, EnumString, Clone)]
 #[serde(rename_all = "lowercase", tag = "mode")]
@@ -210,8 +210,51 @@ mod tests {
     use crate::clients::entities::{CreateRequestPayload, RequestCommentPayload, RequesterPayload};
     use errors::{ApiError, ErrorCode};
     use serde_json::json;
-    use wiremock::matchers::{method, path};
+    use wiremock::matchers::{method, path, query_param};
     use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    #[tokio::test]
+    async fn load_form_requests_new_zendesk_form_id() {
+        let mock_server = MockServer::start().await;
+        let endpoint = reqwest::Url::parse(&format!("{}/api/", mock_server.uri())).unwrap();
+        let expected_form_id = ZENDESK_FORM_ID.parse::<i64>().unwrap();
+
+        let client = ZendeskClient::Real {
+            endpoint,
+            client: reqwest::Client::new(),
+            authorization: "unused".to_string(),
+        };
+
+        Mock::given(method("GET"))
+            .and(path(format!("/api/v2/ticket_forms/{}", ZENDESK_FORM_ID)))
+            .and(query_param("include", "ticket_fields"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "ticket_form": {
+                    "id": expected_form_id,
+                    "ticket_field_ids": [],
+                    "end_user_conditions": []
+                },
+                "ticket_fields": []
+            })))
+            .mount(&mock_server)
+            .await;
+
+        let form = client.load_form().await.expect("form should load");
+
+        assert_eq!(form.ticket_form.id, expected_form_id);
+    }
+
+    #[tokio::test]
+    async fn test_mode_loads_embedded_form_fixture() {
+        let expected_form_id = ZENDESK_FORM_ID.parse::<i64>().unwrap();
+        let form = ZendeskClient::Test
+            .load_form()
+            .await
+            .expect("embedded form fixture should load");
+
+        assert_eq!(form.ticket_form.id, expected_form_id);
+        assert_eq!(form.ticket_fields.len(), 57);
+    }
 
     #[tokio::test]
     async fn create_ticket_returns_invalid_email_address() {

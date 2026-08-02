@@ -1,3 +1,4 @@
+import os
 import re
 import sys
 import json
@@ -74,6 +75,7 @@ class BuildOptions:
 option('config_prod', type : 'boolean', value : false)
 option('log_tokenized', type : 'boolean', value : true,
   description : 'Emit tokenized binary log frames on UART instead of formatted ASCII (Memfault Compact Logs)')
+option('enable_sysview', type : 'boolean', value : false)
 option(
   'chip_id',
   type : 'string',
@@ -95,8 +97,34 @@ option(
             raise RuntimeError("chip_id must contain only hex characters")
         return chip_id.lower()
 
-    def configure(self, build_variant, log_tokenized: bool = True) -> str:
+    def _sysview_enabled(self) -> bool:
+        env_value = os.getenv("USE_SYSVIEW", "").strip().lower()
+        env_enabled = env_value in {"1", "true", "yes", "on"}
+        alias_enabled = bool(getattr(self._ctx, "enable_sysview", False))
+        return env_enabled or alias_enabled
+
+    def configure(
+        self, build_variant, log_tokenized: bool = True, allow_sysview: bool = True
+    ) -> str:
         chip_id = self._normalized_chip_id()
+
+        # SystemView widens task MPU privilege and exposes an RTT command
+        # surface, so it must never be compiled into a prod-signed image. It is
+        # enabled only for dev-signed build passes (the dev app and mfgtest-dev);
+        # callers building prod-signed images (the prod app and mfgtest-prod)
+        # pass allow_sysview=False. When --sysview is requested for a target set
+        # that spans both (e.g. `inv build.targets -p w3-uxc --sysview`), the
+        # prod-signed passes are skipped instead of failing the whole build.
+        requested_sysview = self._sysview_enabled()
+        enable_sysview = (
+            requested_sysview and allow_sysview and build_variant == BuildVariant.DEV
+        )
+        if requested_sysview and not enable_sysview:
+            print(
+                "SystemView requested but skipped for this prod-signed build "
+                "pass; dev-signed images (dev / mfgtest-dev) in this build still "
+                "have it enabled."
+            )
 
         if build_variant == BuildVariant.DEV:
             opts = "-Ddisable_printf=false -Dconfig_prod=false"
@@ -114,6 +142,7 @@ option(
             [
                 opts,
                 f"-Dlog_tokenized={'true' if log_tokenized else 'false'}",
+                f"-Denable_sysview={'true' if enable_sysview else 'false'}",
                 f"-Dchip_id={shlex.quote(chip_id)}",
             ]
         )
@@ -202,18 +231,35 @@ class MesonBuild:
         mfgtest_targets = [t for t in dev_targets if "mfgtest" in t]
         dev_targets = [t for t in dev_targets if "mfgtest" not in t]
 
+        # mfgtest images all build with dev flags (config_prod=false), but come
+        # in both dev-signed and prod-signed flavours. SystemView must stay out
+        # of anything signed with the prod key, so the prod-signed mfgtest
+        # images get their own pass with sysview disabled.
+        mfgtest_dev_targets = [t for t in mfgtest_targets if "prod" not in t]
+        mfgtest_prod_targets = [t for t in mfgtest_targets if "prod" in t]
+
         platform_config = self._platforms.all[self._platform]
 
-        # Build each (variant, log_tokenized) combo separately, since they
-        # require different project-wide options.
+        # Build each (variant, log_tokenized, sysview) combo separately, since
+        # they require different project-wide options.
 
         if dev_targets:
             self._build_options.configure(BuildVariant.DEV, log_tokenized=True)
             self._build_firmware(dev_targets, platform_config, verbose, all_targets)
 
-        if mfgtest_targets:
+        if mfgtest_dev_targets:
             self._build_options.configure(BuildVariant.DEV, log_tokenized=False)
-            self._build_firmware(mfgtest_targets, platform_config, verbose, all_targets)
+            self._build_firmware(
+                mfgtest_dev_targets, platform_config, verbose, all_targets
+            )
+
+        if mfgtest_prod_targets:
+            self._build_options.configure(
+                BuildVariant.DEV, log_tokenized=False, allow_sysview=False
+            )
+            self._build_firmware(
+                mfgtest_prod_targets, platform_config, verbose, all_targets
+            )
 
         if prod_targets:
             self._build_options.configure(BuildVariant.PROD, log_tokenized=False)
@@ -317,6 +363,7 @@ class MesonBuild:
         if not self._build_dir.exists():
             options = ""
             cross_file_arg = ""
+            env_prefix = ""
             if self._platform != "posix":
                 cross_file_arg = f"--cross-file {self._crossfile}"
             else:
@@ -327,18 +374,29 @@ class MesonBuild:
                         f"-Db_sanitize={sanitize_opt} -Db_lundef=false -Dc_args='-std=gnu11'"
                     )
                 else:
+                    # On Linux the hermit firmware environment sets GCC_EXEC_PREFIX to
+                    # the ARM cross-compiler prefix, which makes the native host gcc
+                    # unable to locate cc1.  Unset it so the native toolchain works.
+                    # Use clang (available via Homebrew) to keep LLVM coverage flags valid.
+                    env_prefix = "env -u GCC_EXEC_PREFIX CC=clang CXX=clang++ "
                     options = (
                         f"-Db_sanitize={sanitize_opt} -Db_lundef=false -Dc_args='-std=gnu11 -fprofile-instr-generate "
                         "-fcoverage-mapping' -Dcpp_args='-fprofile-instr-generate -fcoverage-mapping'"
                     )
             with self._ctx.cd(ROOT_DIR):
                 self._ctx.run(
-                    f"meson setup {self._build_dir} {cross_file_arg} {options}",
+                    f"{env_prefix}meson setup {self._build_dir} {cross_file_arg} {options}",
                     pty=True,
                 )
         else:
+            reconfigure_env_prefix = ""
+            if self._platform == "posix" and sys.platform != "darwin":
+                reconfigure_env_prefix = "env -u GCC_EXEC_PREFIX CC=clang CXX=clang++ "
             with self._ctx.cd(ROOT_DIR):
-                self._ctx.run(f"meson setup --reconfigure {self._build_dir}", pty=True)
+                self._ctx.run(
+                    f"{reconfigure_env_prefix}meson setup --reconfigure {self._build_dir}",
+                    pty=True,
+                )
 
         self._targets = None
 

@@ -25,11 +25,9 @@ screener = { mode = "test" }
 linear = "test"
 allow_test_accounts_with_mainnet_keysets = true
 known_fields.18558334323604 = "Country"
-known_fields.17171619135892 = "HardwareSerialNumber"
-known_fields.17171594621332 = "PhoneMakeAndModel"
-known_fields.19386550194836 = "SystemNameAndVersion"
-known_fields.19386560407956 = "AppVersion"
-known_fields.19386627184148 = "HardwareFirmwareVersion"
+known_fields.48437738262292 = "HardwareType"
+known_fields.48437788401428 = "PhoneMakeAndModel"
+known_fields.50115369646740 = "HardwareSerialNumber"
 monitored_electrum_nodes = []
 kms = "test"
 encrypted_attachment_kms_key_id = "fake-encrypted-attachment-kms-key-id"

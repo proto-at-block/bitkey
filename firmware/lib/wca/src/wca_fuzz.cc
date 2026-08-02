@@ -24,6 +24,7 @@ secure_bool_t is_allowing_fingerprint_enrollment(void) {
 }
 }
 #include "mempool.h"
+#include "proto_helpers.h"
 #include "wallet.pb.h"
 #include "wca_impl.h"
 
@@ -51,7 +52,7 @@ bool nop_false(void) {
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   FuzzedDataProvider fuzzed_data(data, size);
 
-#define REGIONS(X) X(fuzz_pool, proto_scratch, sizeof(fwpb_wallet_cmd), 3)
+#define REGIONS(X) X(fuzz_pool, proto_scratch, PROTO_CMD_ALLOC_SIZE, 3)
   mempool_t* mempool = mempool_create(fuzz_pool);
   wca_api_t api = {
     .mempool = mempool,

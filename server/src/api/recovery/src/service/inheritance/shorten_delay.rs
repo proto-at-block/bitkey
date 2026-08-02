@@ -6,12 +6,10 @@ use types::account::entities::Account;
 use types::account::identifiers::AccountId;
 use types::recovery::inheritance::claim::InheritanceClaimId;
 use types::recovery::inheritance::claim::{InheritanceClaim, InheritanceClaimPending};
-use types::recovery::social::relationship::RecoveryRelationship;
-use types::recovery::trusted_contacts::TrustedContactRole;
 
-use crate::service::social::relationship::get_recovery_relationships::GetRecoveryRelationshipsInput;
-
-use super::{error::ServiceError, Service};
+use super::{
+    error::ServiceError, fetch_relationships_and_claim, filter_endorsed_relationship, Service,
+};
 
 #[derive(Debug)]
 pub struct ShortenDelayForBeneficiaryInput {
@@ -36,14 +34,24 @@ impl Service {
         &self,
         input: ShortenDelayForBeneficiaryInput,
     ) -> Result<InheritanceClaim, ServiceError> {
-        let (beneficiary_account, claim, recovery_relationship) = try_join!(
-            self.fetch_account(&input.beneficiary_account_id),
-            self.fetch_claim(&input.inheritance_claim_id),
-            self.fetch_recovery_relationship_for_beneficiary(&input.beneficiary_account_id),
+        let (relationships, claim) = fetch_relationships_and_claim(
+            self,
+            &input.beneficiary_account_id,
+            &input.inheritance_claim_id,
+        )
+        .await?;
+
+        // Ensure the claim belongs to the calling beneficiary before mutating it, and derive the
+        // benefactor from the claim's own relationship rather than from an unrelated one.
+        let recovery_relationship = filter_endorsed_relationship(
+            relationships.customers,
+            &claim.common_fields().recovery_relationship_id,
         )?;
-        let benefactor_account = self
-            .fetch_account(&recovery_relationship.common_fields().customer_account_id)
-            .await?;
+
+        let (beneficiary_account, benefactor_account) = try_join!(
+            self.fetch_account(&input.beneficiary_account_id),
+            self.fetch_account(&recovery_relationship.common_fields().customer_account_id),
+        )?;
 
         let are_test_accounts = beneficiary_account
             .get_common_fields()
@@ -74,27 +82,6 @@ impl Service {
         Ok(claim)
     }
 
-    /// This function fetches the inheritance claim given an inheritance claim id
-    ///
-    /// # Arguments
-    ///
-    /// * `service` - The inheritance service object
-    /// * `claim_id` - The inheritance claim id
-    ///
-    /// # Returns
-    ///
-    /// * The inheritance claim
-    ///
-    async fn fetch_claim(
-        &self,
-        claim_id: &InheritanceClaimId,
-    ) -> Result<InheritanceClaim, ServiceError> {
-        self.repository
-            .fetch_inheritance_claim(claim_id)
-            .await
-            .map_err(ServiceError::from)
-    }
-
     /// This function fetches the account given an account id
     ///
     /// # Arguments
@@ -110,24 +97,5 @@ impl Service {
             .fetch_account(FetchAccountInput { account_id })
             .await
             .map_err(ServiceError::from)
-    }
-
-    async fn fetch_recovery_relationship_for_beneficiary(
-        &self,
-        account_id: &AccountId,
-    ) -> Result<RecoveryRelationship, ServiceError> {
-        let relationships = self
-            .recovery_relationship_service
-            .get_recovery_relationships(GetRecoveryRelationshipsInput {
-                account_id,
-                trusted_contact_role_filter: Some(TrustedContactRole::Beneficiary),
-            })
-            .await?;
-
-        relationships
-            .customers
-            .into_iter()
-            .next()
-            .ok_or(ServiceError::RecoveryRelationshipNotFound)
     }
 }

@@ -41,6 +41,7 @@ base_deps = [
   secure_channel_deps['w3-uxc'],
   telemetry_storage_dep,
   uc_device_dep,
+  sysview_generated_dep,
 
   # Tasks
   fwup_task_deps['uxc'],

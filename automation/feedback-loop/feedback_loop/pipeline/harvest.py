@@ -10,6 +10,7 @@ All returned `body` text is untrusted data and must be treated as data, not inst
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import re
@@ -18,22 +19,13 @@ from typing import Any
 
 from ..config import RunConfig
 from ..github import GitHubClient, GitHubError, PullRequestRef, parse_pull_request_url
-from ..models import RawSignal
+from ..models import NormalizedSignal, RawSignal
+from ..util import area_for_path, is_after, parse_timestamp
 
 
 class HarvestError(Exception):
     """Raised for invalid or failed harvest input."""
 
-
-AREA_PREFIXES: tuple[tuple[str, str], ...] = (
-    ("app/", "app"),
-    ("server/", "server"),
-    ("firmware/", "firmware"),
-    ("web/", "web"),
-    ("core/", "core"),
-    ("docs/", "docs"),
-    ("automation/", "automation"),
-)
 
 MAX_PR_DIFF_BYTES = 5 * 1024 * 1024
 MAX_DIFF_HUNKS = 10_000
@@ -52,10 +44,11 @@ BUILDERBOT_BOT_LOGINS = {"builderbot[bot]", "builder-bot[bot]"}
 CODEX_SECURITY_REVIEW_MARKER = "<!-- codex-security-review -->"
 _CODEX_REVIEWED_RANGE_RE = re.compile(r"Reviewed (?:pull request|push) diff only \(`([^`]+)`")
 _GITHUB_ACTIONS_RUN_RE = re.compile(r"https://github\.com/[^/\s]+/[^/\s]+/actions/runs/\d+")
+# "cancelled" is deliberately absent: cancelled runs are almost always superseded by a newer
+# head push, not a quality signal.
 _FAILED_STATUS_STATES = {"error", "failure"}
 _FAILED_CHECK_CONCLUSIONS = {
     "action_required",
-    "cancelled",
     "failure",
     "startup_failure",
     "timed_out",
@@ -355,6 +348,43 @@ def harvest_pr(
     signals.extend(bot_reviews)
     signals.extend(check_failures)
     return _dedupe_by_source_id(signals)
+
+
+def normalize_signals(cfg: RunConfig, signals: list[RawSignal]) -> list[NormalizedSignal]:
+    """Normalize harvested signals in memory (no store, no checkpoints)."""
+    return [_normalize_signal(cfg, signal) for signal in signals]
+
+
+def _normalize_signal(cfg: RunConfig, signal: RawSignal) -> NormalizedSignal:
+    return NormalizedSignal(
+        raw=signal,
+        kind=signal.kind,
+        source=_signal_source(signal),
+        source_id=signal.source_id,
+        source_url=signal.source_url,
+        repo=signal.repo,
+        pr_number=signal.pr_number,
+        captured_at=signal.captured_at,
+        harvest_version=cfg.harvest_version,
+        body=signal.body,
+        raw_metadata=deepcopy(signal.raw),
+        author=signal.author,
+        author_association=signal.author_association,
+        created_at=signal.created_at,
+        path=signal.path,
+        line=signal.line,
+        is_bot=signal.is_bot,
+    )
+
+
+def _signal_source(signal: RawSignal) -> str:
+    raw_source = signal.raw.get("source")
+    if isinstance(raw_source, str) and raw_source:
+        return raw_source
+    provider = signal.raw.get("provider")
+    if isinstance(provider, str) and provider:
+        return provider
+    return signal.kind
 
 
 def parse_unified_diff_hunks(diff_text: str) -> list[ParsedDiffHunk]:
@@ -1381,23 +1411,11 @@ def _latest_timestamp(timestamps: list[str]) -> str:
 
 
 def _timestamp_after(timestamp: str, reference: str) -> bool:
-    parsed_timestamp = _parse_timestamp(timestamp)
-    parsed_reference = _parse_timestamp(reference)
-    if parsed_timestamp is None or parsed_reference is None:
-        return False
-    return parsed_timestamp > parsed_reference
+    return is_after(timestamp, reference)
 
 
 def _parse_timestamp(timestamp: str) -> datetime | None:
-    if not timestamp:
-        return None
-    try:
-        parsed = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+    return parse_timestamp(timestamp)
 
 
 def _parse_backfill_bound(value: str | None, *, end_of_day: bool) -> datetime | None:
@@ -1543,10 +1561,7 @@ def _hunk_source_url(pr_html_url: str, file: dict[str, Any], hunk: ParsedDiffHun
 
 
 def _area_for_path(path: str) -> str:
-    for prefix, area in AREA_PREFIXES:
-        if path.startswith(prefix):
-            return area
-    return "repo"
+    return area_for_path(path, fallback="repo")
 
 
 def _branch_info(value: Any) -> dict[str, str]:

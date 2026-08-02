@@ -12,10 +12,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from feedback_loop.config import RunConfig  # noqa: E402
 from feedback_loop.github import GitHubClient, GitHubError, parse_pull_request_url  # noqa: E402
+from feedback_loop.models import RawSignal  # noqa: E402
 from feedback_loop.pipeline.harvest import (  # noqa: E402
     HarvestError,
     harvest_pr,
     list_merged_prs,
+    normalize_signals,
     parse_unified_diff_hunks,
 )
 
@@ -1492,10 +1494,13 @@ class TestHarvestPr(unittest.TestCase):
                 check_runs=[
                     check_run_payload(id=2001, conclusion="failure"),
                     check_run_payload(id=2002, conclusion="success"),
+                    # Cancelled runs are superseded-head noise, not quality signals.
+                    check_run_payload(id=2003, conclusion="cancelled"),
                 ],
                 workflow_runs=[
                     workflow_run_payload(id=3001, conclusion="timed_out"),
                     workflow_run_payload(id=3002, conclusion="success"),
+                    workflow_run_payload(id=3003, conclusion="cancelled"),
                 ],
             ),
         )
@@ -1525,8 +1530,8 @@ class TestHarvestPr(unittest.TestCase):
             self.assertIn(check.raw["url"], check.body)
 
         self.assertEqual(metadata.raw["commit_statuses"]["reported"], 2)
-        self.assertEqual(metadata.raw["check_runs"]["reported"], 2)
-        self.assertEqual(metadata.raw["workflow_runs"]["reported"], 2)
+        self.assertEqual(metadata.raw["check_runs"]["reported"], 3)
+        self.assertEqual(metadata.raw["workflow_runs"]["reported"], 3)
         self.assertEqual(metadata.raw["check_failures"], {
             "reported": 3,
             "fetched": 3,
@@ -2101,6 +2106,63 @@ class TestUnifiedDiffParsing(unittest.TestCase):
         self.assertEqual((hunks[2].new_start, hunks[2].new_count), (0, 0))
         self.assertEqual((hunks[3].old_path, hunks[3].new_path), ("web/old.ts", "web/new.ts"))
         self.assertEqual(hunks[3].text, "@@ -5 +5 @@\n-old\n+new\n")
+
+
+def raw_bot_review_signal(**updates) -> RawSignal:
+    signal = RawSignal(
+        kind="bot_review",
+        source_id="bot_review:squareup/wallet#123:444",
+        source_url="https://github.com/squareup/wallet/pull/123#issuecomment-444",
+        repo="squareup/wallet",
+        pr_number=123,
+        captured_at="2026-05-04T01:00:00Z",
+        author="github-actions[bot]",
+        author_association="MEMBER",
+        created_at="2026-05-04T00:59:00Z",
+        body="Automated review finding",
+        is_bot=True,
+        raw={
+            "provider": "codex_security_review",
+            "body": "Automated review finding",
+            "nested": {"url": "https://github.com/squareup/wallet/actions/runs/1"},
+        },
+    )
+    for key, value in updates.items():
+        setattr(signal, key, value)
+    return signal
+
+
+class TestNormalizeSignals(unittest.TestCase):
+    def test_normalizes_provenance_and_body_in_memory(self):
+        signal = raw_bot_review_signal()
+
+        normalized = normalize_signals(RunConfig(harvest_version="7"), [signal])
+
+        self.assertEqual(len(normalized), 1)
+        item = normalized[0]
+        self.assertIs(item.raw, signal)
+        self.assertEqual(item.kind, "bot_review")
+        self.assertEqual(item.source, "codex_security_review")
+        self.assertEqual(item.source_id, signal.source_id)
+        self.assertEqual(item.harvest_version, "7")
+        self.assertEqual(item.body, "Automated review finding")
+        self.assertEqual(item.raw_metadata["provider"], "codex_security_review")
+
+    def test_copies_raw_metadata_before_returning(self):
+        signal = raw_bot_review_signal()
+
+        normalized = normalize_signals(RunConfig(), [signal])
+        signal.raw["nested"]["url"] = "changed"
+
+        self.assertEqual(
+            normalized[0].raw_metadata["nested"]["url"],
+            "https://github.com/squareup/wallet/actions/runs/1",
+        )
+
+    def test_falls_back_to_kind_when_source_metadata_is_missing(self):
+        normalized = normalize_signals(RunConfig(), [raw_bot_review_signal(raw={})])
+
+        self.assertEqual(normalized[0].source, "bot_review")
 
 
 if __name__ == "__main__":

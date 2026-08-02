@@ -57,5 +57,12 @@ void usart_task_mpu_init(void) {
                  MPU_PARAMS_PERIPHERAL);
 #endif
 
+  /* SystemView needs privileged access to the DWT cycle counter and RTT
+     control block in the PPB region (0xE000xxxx), which the MPU blocks
+     for unprivileged threads. */
+#if defined(USE_SYSVIEW) && (USE_SYSVIEW == 1)
+  _usart_task_thread_regions.privilege = rtos_thread_privileged_bit;
+#else
   _usart_task_thread_regions.privilege = rtos_thread_unprivileged_bit;
+#endif
 }

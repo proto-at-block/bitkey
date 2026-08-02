@@ -62,6 +62,12 @@ message uxc_boot_status_msg {
 
 // Messages sent from the host to the UXC device.
 message uxc_msg_host {
+  // WCA command sequence for NFC-originated requests. UXC echoes this in the
+  // matching uxc_msg_device response so Core can reject stale NFC responses
+  // without keeping task-local sequence state. Zero means absent.
+  // Any UXC command that backs a wallet_rsp must echo this value.
+  uint32 seq = 100; // intentionally outside the low oneof tag range to avoid competing with normal UXC messages
+
   oneof msg {
     // Empty command.
     empty_cmd empty_cmd = 1;
@@ -121,6 +127,10 @@ message uxc_msg_host {
 
 // Messages sent from the UXC device to the Host (e.g. Main IC).
 message uxc_msg_device {
+  // Echo of uxc_msg_host.seq for responses to NFC-originated requests. Zero
+  // means absent; Core treats it as uncorrelatable for wallet-backed responses.
+  uint32 seq = 100;
+
   oneof msg {
     // Empty command response.
     empty_rsp empty_rsp = 1;

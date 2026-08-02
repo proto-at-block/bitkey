@@ -9,6 +9,7 @@ on:
       # Keep these Hermit filters specific as we want to minimize Atlantis disruptions
       - 'bin/terragrunt'
       - 'bin/terraform'
+      - 'bin/conftest'
   push:
     branches:
       - main
@@ -19,6 +20,7 @@ on:
       # Keep these Hermit filters specific as we want to minimize Atlantis disruptions
       - 'bin/terragrunt'
       - 'bin/terraform'
+      - 'bin/conftest'
 
 jobs:
   build:

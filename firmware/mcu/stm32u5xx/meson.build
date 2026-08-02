@@ -2,6 +2,7 @@ private_includes = [
   'src',
   'inc',
   'inc-private',
+  '../../lib/sysview/src/stm32',
   mcu_common_includes,
   rtos_includes,
   config_includes,
@@ -29,6 +30,7 @@ mcu_srcs = [
   'src/mcu_rng.c',
   'src/mcu_startup.c',
   'src/mcu_systick.c',
+  '../../lib/sysview/src/stm32/mcu_sysview.c',
   'src/mcu_tamper.c',
   'src/mcu_usart.c',
   'src/mcu_usart_rx.c',
@@ -36,7 +38,7 @@ mcu_srcs = [
   'src/mcu_wdog.c',
 ]
 
-deps = [assert_dep, freertos_dep, stm32u5xx_hal_dep, ringbuf_dep, wstd_dep]
+deps = [assert_dep, freertos_dep, stm32u5xx_hal_dep, ringbuf_dep, wstd_dep, sysview_generated_dep]
 mcu_stm32u5xx_includes = [
   include_directories('inc'),
   mcu_common_includes,

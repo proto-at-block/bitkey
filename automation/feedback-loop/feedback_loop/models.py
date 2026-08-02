@@ -39,6 +39,9 @@ PrimaryClass = Literal[
 ]
 
 REVIEW_ONLY_CLASSES: frozenset[PrimaryClass] = frozenset({"false_positive", "not_actionable"})
+ACTIONABLE_CLASSES: frozenset[PrimaryClass] = frozenset(
+    {"miss", "ci_failure", "validation_failure", "post_merge_fix"}
+)
 
 Severity = Literal["critical", "high", "medium", "low"]
 
@@ -64,7 +67,15 @@ EvalState = Literal["proposed", "eval_running", "eval_passed", "eval_failed", "p
 
 EvalFailureDestination = Literal["none", "research", "triage"]
 
-ProposalFileChangeMode = Literal["create_or_update"]
+ProposalFileChangeMode = Literal["create_or_update", "unified_diff"]
+
+ProposalRouteRole = Literal["deterministic", "primary", "supporting"]
+
+ResolutionState = Literal[
+    "unresolved",
+    "resolved_without_durable_coverage",
+    "resolved_with_durable_coverage",
+]
 
 
 @dataclass
@@ -113,7 +124,7 @@ class NormalizedSignal:
     line: Optional[int] = None
     is_bot: bool = False
     area: str = ""
-    correlation: Optional["Correlation"] = None
+    facts: Optional["SignalFacts"] = None
     exclusion: Optional["Exclusion"] = None
     # Filled by classify stage (BKW-75).
     primary_class: Optional[PrimaryClass] = None
@@ -124,20 +135,44 @@ class NormalizedSignal:
     suggested_destination: Optional[Destination] = None
     evidence_ids: list[str] = field(default_factory=list)
     manual_triage: bool = False
+    resolution: Optional["Resolution"] = None
 
     @property
     def is_excluded(self) -> bool:
         return self.exclusion is not None
 
 
-@dataclass
-class Correlation:
-    """Evidence linking reviewer/bot feedback to code, test, doc, or validation changes."""
+@dataclass(frozen=True)
+class SignalFacts:
+    """Objective, deterministic facts about one feedback signal within its PR.
 
-    likely_miss: bool
-    confidence: float
-    reasons: list[str] = field(default_factory=list)
-    evidence_ids: list[str] = field(default_factory=list)
+    No scores, no keyword interpretation — only structure the LLM classifier reasons over.
+    """
+
+    thread_id: str = ""
+    in_reply_to_source_id: str = ""
+    is_reply: bool = False
+    later_reply_source_ids: tuple[str, ...] = ()
+    thread_resolved: bool = False
+    later_commit_source_ids: tuple[str, ...] = ()
+    later_failed_check_source_ids: tuple[str, ...] = ()
+    path_in_diff: bool = False
+    line_in_changed_hunk: bool = False
+    reviewed_head_sha: str = ""
+    final_head_sha: str = ""
+    reviewed_earlier_head: bool = False
+    author_is_bot: bool = False
+    author_trusted: bool = False
+
+
+@dataclass
+class Resolution:
+    """LLM-judged same-PR resolution state, grounded in deterministic facts."""
+
+    state: ResolutionState
+    evidence_signal_ids: tuple[str, ...] = ()
+    coverage_paths: tuple[str, ...] = ()
+    rationale: str = ""
 
 
 @dataclass
@@ -152,15 +187,29 @@ class Exclusion:
 
 @dataclass
 class Cluster:
-    """A group of normalized signals sharing a theme (BKW-76)."""
+    """A group of normalized signals sharing one durable semantic theme.
 
-    theme: str
+    `slug` is the stable identity used for Linear memory keys; the LLM clusterer either matches
+    an existing memory record's slug or mints a new one, validated deterministically.
+    """
+
+    slug: str
     signals: list[NormalizedSignal]
+    title: str = ""
     area: str = ""
     severity: str = ""
-    frequency: int = 0  # distinct PRs, not raw comment count
+    frequency: int = 0  # reconciled distinct PRs (current run merged with Linear memory history)
+    current_pr_numbers: tuple[int, ...] = ()
+    merged_pr_numbers: tuple[int, ...] = ()
     rank: float = 0.0
     suggested_destination: Optional[Destination] = None
+    # promote | convert_to_mechanical_check | gather_more_evidence | already_covered |
+    # review_only | ignore — computed deterministically after clustering.
+    decision: str = ""
+    matched_memory_key: str = ""
+    matched_issue_identifier: str = ""
+    matched_issue_url: str = ""
+    rationale: str = ""
     summary: str = ""
     representative_examples: list[str] = field(default_factory=list)
     source_urls: list[str] = field(default_factory=list)
@@ -173,10 +222,108 @@ class Cluster:
     def excluded_only(self) -> bool:
         return bool(self.signals) and not self.promotable_signals
 
+    @property
+    def learning_signals(self) -> list[NormalizedSignal]:
+        return [
+            signal for signal in self.promotable_signals
+            if signal.primary_class in ACTIONABLE_CLASSES
+        ]
+
+    @property
+    def already_covered(self) -> bool:
+        learning_signals = self.learning_signals
+        return bool(learning_signals) and all(
+            signal.resolution is not None
+            and signal.resolution.state == "resolved_with_durable_coverage"
+            for signal in learning_signals
+        )
+
+
+@dataclass(frozen=True)
+class CommitFact:
+    """Objective commit metadata used by the facts layer."""
+
+    source_id: str
+    sha: str
+    created_at: str
+    message_first_line: str
+
+
+@dataclass(frozen=True)
+class CheckFact:
+    """Objective failed-check metadata used by the facts layer."""
+
+    source_id: str
+    name: str
+    conclusion: str
+    completed_at: str
+    primary_class: PrimaryClass
+
+
+@dataclass(frozen=True)
+class PrFacts:
+    """Per-PR objective facts shared by the facts layer and replay-corpus suggestions."""
+
+    pr_number: int
+    repo: str
+    pr_url: str
+    merged_at: str = ""
+    base_sha: str = ""
+    head_sha: str = ""
+    merge_sha: str = ""
+    changed_paths: tuple[str, ...] = ()
+    commits: tuple[CommitFact, ...] = ()
+    failed_checks: tuple[CheckFact, ...] = ()
+
+
+@dataclass(frozen=True)
+class LearningRoute:
+    """One destination proposed for an LLM-extracted learning."""
+
+    destination: Destination
+    role: ProposalRouteRole
+    summary: str
+    rationale: str = ""
+    target_artifacts: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class Learning:
+    """Durable lesson extracted from PR evidence before route-specific proposals."""
+
+    learning_id: str
+    cluster_slug: str
+    evidence_urls: tuple[str, ...]
+    evidence_summary: str
+    agent_miss: str
+    human_standard: str
+    severity: Severity
+    confidence: float
+    affected_area: str
+    routes: tuple[LearningRoute, ...] = ()
+
+
+@dataclass(frozen=True)
+class PlannedRoute:
+    """A route-specific patch plan produced after learning extraction."""
+
+    learning_id: str
+    destination: Destination
+    route_role: ProposalRouteRole
+    summary: str
+    target_artifacts: tuple[str, ...]
+    file_changes: tuple["ProposalFileChange", ...]
+    validation_commands: tuple[str, ...]
+    acceptance_criteria: tuple[str, ...]
+    false_positive_controls: tuple[str, ...]
+    implementation_notes: str = ""
+    non_goals: tuple[str, ...] = ()
+    handoff_title: str = ""
+
 
 @dataclass
 class Proposal:
-    """A minimal guardrail proposal for one cluster before eval-gate approval."""
+    """A minimal guardrail proposal for one cluster before PR-ready approval."""
 
     cluster: Cluster
     destination: Destination
@@ -189,7 +336,14 @@ class Proposal:
     sections: dict[str, str] = field(default_factory=dict)
     validation_commands: list[str] = field(default_factory=list)
     replay_cases: list[str] = field(default_factory=list)
-    # Populated by the eval gate; emit() must refuse to act unless this reaches pr_ready.
+    learning_id: str = ""
+    route_id: str = ""
+    route_role: ProposalRouteRole = "deterministic"
+    linked_route_destinations: list[Destination] = field(default_factory=list)
+    handoff_title: str = ""
+    change_set_id: str = ""
+    llm_rubric_scores: dict[str, int] = field(default_factory=dict)
+    # Populated by proposal evaluation; emit() must refuse to act unless this reaches pr_ready.
     eval_passed: bool = False
     eval_state: EvalState = "proposed"
     eval_artifact: Optional["ProposalEvalArtifact"] = None
@@ -202,15 +356,17 @@ class Proposal:
 
 @dataclass(frozen=True)
 class ProposalEvalArtifact:
-    """Replay/rubric evidence attached to a proposal eval decision."""
+    """Evidence attached to a proposal eval decision."""
 
     state: EvalState
-    cluster_theme: str
+    cluster_slug: str
     rubric_markdown: str
+    matched_replay_case_ids: tuple[str, ...] = ()
     blocking_reasons: tuple[str, ...] = ()
     failure_destination: EvalFailureDestination = "none"
     manual_override: str = ""
     future_pr_url: str = ""
+    llm_rubric_scores: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

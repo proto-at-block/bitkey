@@ -504,14 +504,14 @@ impl From<TicketFormEndUserConditionPayload> for TicketFormCondition {
         (status = 500, description = "Couldn't fetch feedback form structure")
     )
 )]
-#[instrument(err, skip(zendesk_client,))]
+#[instrument(err, skip(zendesk_client))]
 pub async fn load_form(
     State(zendesk_client): State<ZendeskClient>,
     State(known_fields): State<TicketFormKnownFields>,
 ) -> Result<Json<TicketFormResponse>, ApiError> {
     let response = zendesk_client.load_form().await?;
 
-    let mut fields_by_id = HashMap::new();
+    let mut fields_by_id = HashMap::with_capacity(response.ticket_fields.len());
     for field in response.ticket_fields {
         fields_by_id.insert(field.id, field);
     }

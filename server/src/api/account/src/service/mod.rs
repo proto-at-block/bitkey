@@ -6,7 +6,7 @@ use repository::public_key::PublicKeyRepository;
 use types::account::bitcoin::Network;
 use types::account::entities::{
     CommsVerificationClaim, CommsVerificationScope, DescriptorBackupsSet, FullAccount,
-    HardwareType, Keyset, LiteAccount, TouchpointPlatform,
+    HardwareType, Keyset, LiteAccount, TouchpointPlatform, WalletMetadataBackup,
 };
 use types::account::identifiers::{AccountId, AuthKeysId, KeyDefinitionId, KeysetId, TouchpointId};
 use types::account::keys::{FullAccountAuthKeys, LiteAccountAuthKeys, SoftwareAccountAuthKeys};
@@ -38,6 +38,7 @@ mod rotate_to_spending_key_definition;
 mod rotate_to_spending_keyset;
 pub mod tests;
 mod update_descriptor_backups;
+mod update_wallet_metadata_backup;
 mod upgrade_lite_account_to_full_account;
 
 #[derive(Clone)]
@@ -227,6 +228,12 @@ pub struct RotateToSpendingKeyDefinitionInput<'a> {
 pub struct UpdateDescriptorBackupsInput<'a> {
     pub account: &'a FullAccount,
     pub descriptor_backups_set: DescriptorBackupsSet,
+}
+
+#[derive(Debug, Clone)]
+pub struct UpdateWalletMetadataBackupInput<'a> {
+    pub account: &'a FullAccount,
+    pub wallet_metadata_backup: WalletMetadataBackup,
 }
 
 fn descriptor_backup_exists_for_private_keyset(

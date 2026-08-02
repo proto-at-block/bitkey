@@ -31,5 +31,12 @@ void fwup_task_mpu_init(void) {
     mpu_calc_region_size(&__shared_task_protected_start__, &__shared_task_protected_end__),
     MPU_PARAMS_RO_NOEXEC);
 
+  /* SystemView needs privileged access to the DWT cycle counter and RTT
+     control block in the PPB region (0xE000xxxx), which the MPU blocks
+     for unprivileged threads. */
+#if defined(USE_SYSVIEW) && (USE_SYSVIEW == 1)
+  _fwup_thread_regions.privilege = rtos_thread_privileged_bit;
+#else
   _fwup_thread_regions.privilege = rtos_thread_unprivileged_bit;
+#endif
 }

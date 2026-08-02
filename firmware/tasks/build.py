@@ -17,6 +17,10 @@ def _set_chip_id(c, chip_id: Optional[str]) -> None:
         c.chip_id = chip_id
 
 
+def _set_sysview(c, sysview: bool) -> None:
+    c.enable_sysview = sysview
+
+
 def _infer_platform(target: str) -> Optional[str]:
     """Infer the platform from a target name using partitions prefixes in platforms.yaml."""
     defaults = get_defaults() or {}
@@ -34,6 +38,7 @@ def _infer_platform(target: str) -> Optional[str]:
           "verbose": "Set to true for more build output",
           "ignore_codegen_cache": "Set to true always re-generate code, ignoring the cache",
           "chip_id": "Optional per-device chip ID (hex)",
+          "sysview": "Alias for USE_SYSVIEW=1; enable SEGGER SystemView tracing for this build",
       })
 def build(
     c,
@@ -42,6 +47,7 @@ def build(
     verbose: bool = False,
     ignore_codegen_cache: bool = False,
     chip_id: Optional[str] = None,
+    sysview: bool = False,
 ) -> None:
     """Builds the configured target and platform.
 
@@ -51,6 +57,7 @@ def build(
     With neither: uses invoke.json defaults.
     """
     _set_chip_id(c, chip_id)
+    _set_sysview(c, sysview)
 
     if platform and target:
         # Explicit platform and target: build just that target.
@@ -93,16 +100,19 @@ def build(
           "platform": "Platform to build",
           "verbose": "Set to true for more build output",
           "chip_id": "Optional per-device chip ID (hex)",
+          "sysview": "Alias for USE_SYSVIEW=1; enable SEGGER SystemView tracing for this build",
       })
 def build_all_targets(
     c,
     platform: Optional[str] = None,
     verbose: bool = False,
     chip_id: Optional[str] = None,
+    sysview: bool = False,
 ):
     """Builds firmware targets for the configured or supplied platform"""
     platform = platform or c.platform
     _set_chip_id(c, chip_id)
+    _set_sysview(c, sysview)
     target = (get_defaults() or {}).get(platform, {}).get("target", c.target)
     m = MesonBuild(c, platform, target=target)
     m.setup()
@@ -113,12 +123,14 @@ def build_all_targets(
     "platforms": "List of platforms to build",
     "verbose": "Set to true for more build output",
     "chip_id": "Optional per-device chip ID (hex)",
+    "sysview": "Alias for USE_SYSVIEW=1; enable SEGGER SystemView tracing for this build",
 })
 def build_platforms(
     c,
     platforms: Optional[List[str]] = None,
     verbose: bool = False,
     chip_id: Optional[str] = None,
+    sysview: bool = False,
 ):
     """Builds all firmware platforms and targets"""
 
@@ -134,7 +146,48 @@ def build_platforms(
             platform=p,
             verbose=verbose,
             chip_id=chip_id,
+            sysview=sysview,
         )
+
+
+@task(name='core-sim',
+      help={
+          "with_ui": "Also build the ui-simulate companion renderer",
+          "verbose": "Set to true for more build output",
+          "sanitize": "Enable ASAN (off by default; deadlocks during dyld init on recent macOS)",
+      })
+def build_core_sim(c, with_ui: bool = False, verbose: bool = False, sanitize: bool = False):
+    """Builds the POSIX firmware simulator (core-sim).
+
+    Sets up a native (posix) meson build directory at build/core-sim --
+    including meson option generation, IPC codegen, and the nfc posix patch --
+    then compiles the core-sim-w3 / core-sim-w1 emulators.
+    """
+    build_dir = BUILD_ROOT_DIR / "core-sim"
+
+    # Regenerate the simulator's auth-check table from the IPC YAML
+    # definitions so it can't silently drift. Generate into the Meson build
+    # directory before setup so clean checkouts can configure without source
+    # tree generated files.
+    auth_check_out_dir = build_dir / "app/core-sim/generated"
+    with c.cd(str(ROOT_DIR)):
+        c.run(
+            "python app/core-sim/scripts/gen_auth_check.py",
+            env={"CORE_SIM_AUTH_CHECK_OUT_DIR": str(auth_check_out_dir)},
+        )
+
+    # Reuse the standard posix host setup (same as `inv test` / `inv ui-sim`):
+    # writes meson.options, runs lib/ipc/ipc_codegen.py, and runs
+    # `meson setup <build_dir>` with native-build options.
+    m = MesonBuild(c, "posix", build_dir, sanitize=sanitize)
+    m.setup()
+
+    targets = "core-sim app/core-sim/core-sim-w1"
+    if with_ui:
+        targets += " ui-sim"
+    v = "-v" if verbose else ""
+    with c.cd(str(build_dir)):
+        c.run(f"meson compile {v} {targets}")
 
 
 @task(name='commands', help={

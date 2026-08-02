@@ -4,6 +4,7 @@ use http::StatusCode;
 
 use notification::NotificationPayloadType;
 use recovery::routes::relationship::CreateRelationshipRequest;
+use recovery::routes::relationship::CustomerRecoveryRelationshipStatus;
 use recovery::routes::relationship::UpdateRecoveryRelationshipRequest;
 use recovery::routes::relationship::UpdateRecoveryRelationshipResponse;
 use time::OffsetDateTime;
@@ -481,6 +482,25 @@ async fn test_endorse_recovery_relationship(
             1,
         )
         .await;
+
+        if expected_status_code == StatusCode::OK {
+            let rc_get_response = client
+                .get_relationships(&tc_account.get_id().to_string(), None)
+                .await;
+            assert_eq!(
+                rc_get_response.status_code,
+                StatusCode::OK,
+                "{:?}",
+                rc_get_response.body_string
+            );
+
+            let rc_get_body = rc_get_response.body.unwrap();
+            assert_eq!(rc_get_body.customers.len(), 1);
+            assert_eq!(
+                rc_get_body.customers[0].relationship_status,
+                CustomerRecoveryRelationshipStatus::Unendorsed
+            );
+        }
     }
 
     try_endorse_recovery_relationship(
@@ -496,6 +516,26 @@ async fn test_endorse_recovery_relationship(
         expected_status_code,
     )
     .await;
+
+    if expected_status_code == StatusCode::OK {
+        let rc_get_response = client
+            .get_relationships(&tc_account.get_id().to_string(), None)
+            .await;
+        assert_eq!(
+            rc_get_response.status_code,
+            StatusCode::OK,
+            "{:?}",
+            rc_get_response.body_string
+        );
+
+        let rc_get_body = rc_get_response.body.unwrap();
+        assert_eq!(rc_get_body.customers.len(), 1);
+        assert_eq!(
+            rc_get_body.customers[0].relationship_status,
+            CustomerRecoveryRelationshipStatus::Endorsed
+        );
+    }
+
     let get_response = client
         .get_recovery_relationships(&customer_account.id.to_string())
         .await;

@@ -1,5 +1,6 @@
 #include "secure_channel_common.h"
 
+#include "attributes.h"
 #include "ecc.h"
 #include "hash.h"
 #include "key_exchange.h"
@@ -73,7 +74,7 @@ secure_channel_err_t secure_channel_establish_impl(secure_channel_ctx_t* secure_
   // Always establish new keys, even if we already have one. The other party may have lost theirs.
   memzero(secure_channel_ctx->send_key_buf, sizeof(secure_channel_ctx->send_key_buf));
   memzero(secure_channel_ctx->recv_key_buf, sizeof(secure_channel_ctx->recv_key_buf));
-  secure_channel_ctx->established = false;
+  secure_channel_ctx->established = SECURE_FALSE;
 
   if (pk_device->key.size > SECURE_CHANNEL_PUBKEY_MAX_LEN) {
     MFLOGE("Pubkey too large: max %d", SECURE_CHANNEL_PUBKEY_MAX_LEN);
@@ -123,15 +124,17 @@ secure_channel_err_t secure_channel_establish_impl(secure_channel_ctx_t* secure_
     return SECURE_CHANNEL_FAILED_TO_DERIVE_KEY;
   }
 
-  secure_channel_ctx->established = true;
+  secure_channel_ctx->established = SECURE_TRUE;
 
   return SECURE_CHANNEL_OK;
 }
 
-secure_channel_err_t secure_channel_cipher(secure_channel_ctx_t* secure_channel_ctx,
-                                           secure_channel_cipher_op_t op, uint8_t const* data_in,
-                                           uint8_t* data_out, uint32_t data_len, uint8_t const* aad,
-                                           uint32_t aad_len, uint8_t* nonce, uint8_t* mac) {
+NO_OPTIMIZE secure_channel_err_t secure_channel_cipher(secure_channel_ctx_t* secure_channel_ctx,
+                                                       secure_channel_cipher_op_t op,
+                                                       uint8_t const* data_in, uint8_t* data_out,
+                                                       uint32_t data_len, uint8_t const* aad,
+                                                       uint32_t aad_len, uint8_t* nonce,
+                                                       uint8_t* mac) {
   ASSERT(secure_channel_ctx);
   ASSERT(data_in && data_out && nonce && mac);
 
@@ -139,7 +142,7 @@ secure_channel_err_t secure_channel_cipher(secure_channel_ctx_t* secure_channel_
 
   secure_channel_err_t result = SECURE_CHANNEL_CIPHER_FAILED;
 
-  if (!secure_channel_ctx->established) {
+  SECURE_IF_FAILIN(secure_channel_ctx->established != SECURE_TRUE) {
     MFLOGE("SC not established");
     result = SECURE_CHANNEL_NO_KEY;
     goto out;

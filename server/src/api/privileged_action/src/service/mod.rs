@@ -10,6 +10,7 @@ use types::time::Clock;
 pub mod authorize_privileged_action;
 pub mod cancel_pending_instance;
 pub mod configure_delay_duration_for_test;
+pub mod configure_delay_notify_period;
 pub mod configure_privileged_action_delay_durations;
 pub mod error;
 pub mod expire_pending_out_of_band;

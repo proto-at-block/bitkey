@@ -1,4 +1,5 @@
 use account::service::tests::create_private_spend_keyset;
+use account::service::FetchAccountInput;
 use axum::response::IntoResponse;
 use bdk_utils::bdk::bitcoin::Network;
 use comms_verification::TEST_CODE;
@@ -17,6 +18,7 @@ use onboarding::{
 use recovery::entities::{RecoveryDestination, RecoveryStatus};
 use rstest::rstest;
 use std::collections::HashMap;
+use std::str::FromStr;
 use time::{Duration, OffsetDateTime};
 use types::{
     account::{
@@ -26,7 +28,7 @@ use types::{
                 FullAccountAuthKeysInputV2, SpendingKeysetInputV2,
                 UpgradeLiteAccountAuthKeysInputV2,
             },
-            DescriptorBackup, DescriptorBackupsSet, Factor, HardwareType,
+            DescriptorBackup, DescriptorBackupsSet, Factor, HardwareType, WalletMetadataBackup,
         },
     },
     privileged_action::router::generic::PrivilegedActionRequest,
@@ -1683,6 +1685,181 @@ async fn w3_update_descriptor_backups_post_onboarding_rejects_keyclaims() {
         response.status_code,
         StatusCode::FORBIDDEN,
         "W3 post-onboarding descriptor backup with KeyClaims should be rejected"
+    );
+}
+
+#[tokio::test]
+async fn wallet_metadata_backup_round_trips_without_descriptor_backup() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let (account_id, _keyset_id, _keys) =
+        create_non_onboarded_v2_account(&mut context, &client, HardwareType::W1).await;
+
+    let request = WalletMetadataBackup {
+        wrapped_ssek: b"wrapped-ssek".to_vec(),
+        sealed_wallet_metadata_snapshot: "sealed-wallet-metadata".to_string(),
+    };
+
+    let put_response = client
+        .update_wallet_metadata_backup(&account_id, &request)
+        .await;
+    assert_eq!(put_response.status_code, StatusCode::OK);
+
+    let get_response = client.get_wallet_metadata_backup(&account_id).await;
+    assert_eq!(get_response.status_code, StatusCode::OK);
+    assert_eq!(
+        get_response.body.unwrap().wallet_metadata_backup,
+        Some(request)
+    );
+}
+
+#[tokio::test]
+async fn wallet_metadata_backup_rejects_payloads_that_do_not_fit_inline() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let (account_id, _keyset_id, _keys) =
+        create_non_onboarded_v2_account(&mut context, &client, HardwareType::W1).await;
+
+    let request = WalletMetadataBackup {
+        wrapped_ssek: vec![],
+        sealed_wallet_metadata_snapshot: "a"
+            .repeat(onboarding::routes::MAX_METADATA_BACKUP_SIZE_BYTES + 1),
+    };
+
+    let put_response = client
+        .update_wallet_metadata_backup(&account_id, &request)
+        .await;
+    assert_eq!(put_response.status_code, StatusCode::BAD_REQUEST);
+
+    let get_response = client.get_wallet_metadata_backup(&account_id).await;
+    assert_eq!(get_response.status_code, StatusCode::OK);
+    assert_eq!(get_response.body.unwrap().wallet_metadata_backup, None);
+}
+
+#[tokio::test]
+async fn wallet_metadata_backup_last_write_wins() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let (account_id, _keyset_id, _keys) =
+        create_non_onboarded_v2_account(&mut context, &client, HardwareType::W1).await;
+
+    let first_request = WalletMetadataBackup {
+        wrapped_ssek: b"wrapped-ssek".to_vec(),
+        sealed_wallet_metadata_snapshot: "first-snapshot".to_string(),
+    };
+    let second_request = WalletMetadataBackup {
+        sealed_wallet_metadata_snapshot: "second-snapshot".to_string(),
+        ..first_request.clone()
+    };
+
+    assert_eq!(
+        client
+            .update_wallet_metadata_backup(&account_id, &first_request)
+            .await
+            .status_code,
+        StatusCode::OK
+    );
+    assert_eq!(
+        client
+            .update_wallet_metadata_backup(&account_id, &second_request)
+            .await
+            .status_code,
+        StatusCode::OK
+    );
+
+    assert_eq!(
+        client
+            .get_wallet_metadata_backup(&account_id)
+            .await
+            .body
+            .unwrap()
+            .wallet_metadata_backup,
+        Some(second_request)
+    );
+}
+
+#[tokio::test]
+async fn wallet_metadata_backup_accepts_an_idempotent_retry() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let (account_id, _keyset_id, _keys) =
+        create_non_onboarded_v2_account(&mut context, &client, HardwareType::W1).await;
+
+    let request = WalletMetadataBackup {
+        wrapped_ssek: b"wrapped-ssek".to_vec(),
+        sealed_wallet_metadata_snapshot: "sealed-wallet-metadata".to_string(),
+    };
+
+    assert_eq!(
+        client
+            .update_wallet_metadata_backup(&account_id, &request)
+            .await
+            .status_code,
+        StatusCode::OK
+    );
+    assert_eq!(
+        client
+            .update_wallet_metadata_backup(&account_id, &request)
+            .await
+            .status_code,
+        StatusCode::OK
+    );
+}
+
+#[tokio::test]
+async fn wallet_metadata_backup_retries_a_lost_conditional_write() {
+    let (mut context, bootstrap) = gen_services().await;
+    let account_service = bootstrap.services.account_service.clone();
+    let client = TestClient::new(bootstrap.router).await;
+
+    let (account_id, _keyset_id, _keys) =
+        create_non_onboarded_v2_account(&mut context, &client, HardwareType::W1).await;
+
+    // Take a snapshot of the account, then advance `updated_at` from under it with a PUT so the
+    // snapshot's conditional persist loses the compare-and-swap on the first attempt.
+    let parsed_account_id =
+        types::account::identifiers::AccountId::from_str(&account_id).expect("valid account id");
+    let stale_account = account_service
+        .fetch_full_account(FetchAccountInput {
+            account_id: &parsed_account_id,
+        })
+        .await
+        .expect("account exists");
+
+    let first_backup = WalletMetadataBackup {
+        wrapped_ssek: b"wrapped-ssek".to_vec(),
+        sealed_wallet_metadata_snapshot: "first-snapshot".to_string(),
+    };
+    assert_eq!(
+        client
+            .update_wallet_metadata_backup(&account_id, &first_backup)
+            .await
+            .status_code,
+        StatusCode::OK
+    );
+
+    // Writing through the stale snapshot must refetch and succeed rather than surface the lost
+    // compare-and-swap as an error.
+    let second_backup = WalletMetadataBackup {
+        wrapped_ssek: b"wrapped-ssek".to_vec(),
+        sealed_wallet_metadata_snapshot: "second-snapshot".to_string(),
+    };
+    account_service
+        .update_wallet_metadata_backup(account::service::UpdateWalletMetadataBackupInput {
+            account: &stale_account,
+            wallet_metadata_backup: second_backup.clone(),
+        })
+        .await
+        .expect("lost conditional write should be retried, not surfaced");
+
+    let get_response = client.get_wallet_metadata_backup(&account_id).await;
+    assert_eq!(
+        get_response.body.unwrap().wallet_metadata_backup,
+        Some(second_backup)
     );
 }
 

@@ -35,8 +35,7 @@ impl PublicKeyRepository {
 
         match result.item() {
             Some(item) => {
-                let record: PublicKeyRecord =
-                    try_from_item(item.clone(), database_object)?;
+                let record: PublicKeyRecord = try_from_item(item.clone(), database_object)?;
                 Ok(Some(record))
             }
             None => Ok(None),

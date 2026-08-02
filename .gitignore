@@ -57,7 +57,15 @@ cli/wallet.db/*
 # AI Tooling
 **/.claude/settings.local.json
 AGENTS.local.md
+.dry-runs/
+automation/feedback-loop/.dry-runs/
+.feedback-loop-runs/
+automation/feedback-loop/.feedback-loop-runs/
 **/.gradle-logs/
 
 # SPM
 .swiftpm
+
+# Trailblaze runtime artifacts (session logs, settings) - not source
+/logs/
+/.trailblaze/

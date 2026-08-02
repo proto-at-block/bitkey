@@ -90,6 +90,214 @@
         "test-validity",
         "bot-review"
       ]
+    },
+    {
+      "id": "wallet-pr-27010-agent-check-generated-context",
+      "repo": "squareup/wallet",
+      "pr_number": 27010,
+      "pr_url": "https://github.com/squareup/wallet/pull/27010",
+      "commit_range": {
+        "base": "27010-base-generated-context",
+        "head": "27010-head-generated-context",
+        "merge_commit": "27010-merge-generated-context"
+      },
+      "changed_files": [
+        ".agents/checks/ai-context-generated-files.md",
+        "tools/ai-context/fixtures/generated-context.txt"
+      ],
+      "miss_class": "miss",
+      "source_kind": "review_comment",
+      "source_comment_url": "https://github.com/squareup/wallet/pull/27010#discussion_r3301000010",
+      "expected_destination": "agents_check",
+      "summary": "Generated AI context files were updated directly without the source AI context inputs being regenerated through the repository workflow.",
+      "expected_finding": "Flag direct edits to generated AI context files and require the repository-level agent check to enforce source-first updates.",
+      "labels": [
+        "automation",
+        "agents-check",
+        "ai-context"
+      ]
+    },
+    {
+      "id": "wallet-pr-27011-agent-check-runbook-links",
+      "repo": "squareup/wallet",
+      "pr_number": 27011,
+      "pr_url": "https://github.com/squareup/wallet/pull/27011",
+      "commit_range": {
+        "base": "27011-base-runbook-links",
+        "head": "27011-head-runbook-links",
+        "merge_commit": "27011-merge-runbook-links"
+      },
+      "changed_files": [
+        ".agents/checks/runbook-link-policy.md",
+        "docs/docs/runbooks/example.md"
+      ],
+      "miss_class": "miss",
+      "source_kind": "review_comment",
+      "source_comment_url": "https://github.com/squareup/wallet/pull/27011#discussion_r3301000011",
+      "expected_destination": "agents_check",
+      "summary": "Runbook references were added in agent-facing guidance without checking that the target documentation links resolve.",
+      "expected_finding": "Flag agent-facing runbook links that cannot be resolved and require a deterministic repository check for linkable runbook targets.",
+      "labels": [
+        "automation",
+        "agents-check",
+        "runbooks"
+      ]
+    },
+    {
+      "id": "wallet-pr-27012-ai-skill-ios-ci-debugging",
+      "repo": "squareup/wallet",
+      "pr_number": 27012,
+      "pr_url": "https://github.com/squareup/wallet/pull/27012",
+      "commit_range": {
+        "base": "27012-base-ios-ci",
+        "head": "27012-head-ios-ci",
+        "merge_commit": "27012-merge-ios-ci"
+      },
+      "changed_files": [
+        "app/.ai/skills/debug-ios-ci/SKILL.md",
+        "app/.ai/AGENTS.md"
+      ],
+      "miss_class": "miss",
+      "source_kind": "review_comment",
+      "source_comment_url": "https://github.com/squareup/wallet/pull/27012#discussion_r3301000012",
+      "expected_destination": "ai_skill",
+      "summary": "A recurring iOS CI investigation required several ordered steps that reviewers kept restating across pull requests.",
+      "expected_finding": "Flag repeated multi-step iOS CI debugging guidance and route it to an AI skill with trigger, workflow steps, and validation commands.",
+      "labels": [
+        "app",
+        "ai-skill",
+        "ios-ci"
+      ]
+    },
+    {
+      "id": "wallet-pr-27013-ai-skill-release-dual-control",
+      "repo": "squareup/wallet",
+      "pr_number": 27013,
+      "pr_url": "https://github.com/squareup/wallet/pull/27013",
+      "commit_range": {
+        "base": "27013-base-release",
+        "head": "27013-head-release",
+        "merge_commit": "27013-merge-release"
+      },
+      "changed_files": [
+        "app/.ai/skills/release-dual-control/SKILL.md",
+        "docs/docs/runbooks/apps/mobile/release/app-release-dual-control-modification-proposal.md"
+      ],
+      "miss_class": "miss",
+      "source_kind": "review_comment",
+      "source_comment_url": "https://github.com/squareup/wallet/pull/27013#discussion_r3301000013",
+      "expected_destination": "ai_skill",
+      "summary": "Release dual-control changes needed a repeatable agent procedure rather than a short one-line instruction.",
+      "expected_finding": "Flag repeated release dual-control workflow guidance and require an AI skill that captures the ordered procedure and evidence checks.",
+      "labels": [
+        "app",
+        "ai-skill",
+        "release"
+      ]
+    },
+    {
+      "id": "wallet-pr-27014-agents-md-gradle-wrapper-rule",
+      "repo": "squareup/wallet",
+      "pr_number": 27014,
+      "pr_url": "https://github.com/squareup/wallet/pull/27014",
+      "commit_range": {
+        "base": "27014-base-gradle",
+        "head": "27014-head-gradle",
+        "merge_commit": "27014-merge-gradle"
+      },
+      "changed_files": [
+        "app/.ai/AGENTS.md",
+        "app/AGENTS.md"
+      ],
+      "miss_class": "miss",
+      "source_kind": "review_comment",
+      "source_comment_url": "https://github.com/squareup/wallet/pull/27014#discussion_r3301000014",
+      "expected_destination": "ai_agents_md",
+      "summary": "A short always-on app rule about the Gradle wrapper belonged in scoped AGENTS guidance rather than a skill or docs page.",
+      "expected_finding": "Flag recurring short always-on agent conventions and route them to the narrowest AGENTS.md source file.",
+      "labels": [
+        "app",
+        "ai-agents-md",
+        "gradle"
+      ]
+    },
+    {
+      "id": "wallet-pr-27015-agents-md-doc-source-rule",
+      "repo": "squareup/wallet",
+      "pr_number": 27015,
+      "pr_url": "https://github.com/squareup/wallet/pull/27015",
+      "commit_range": {
+        "base": "27015-base-doc-source",
+        "head": "27015-head-doc-source",
+        "merge_commit": "27015-merge-doc-source"
+      },
+      "changed_files": [
+        ".ai/AGENTS.md",
+        "AGENTS.md"
+      ],
+      "miss_class": "miss",
+      "source_kind": "review_comment",
+      "source_comment_url": "https://github.com/squareup/wallet/pull/27015#discussion_r3301000015",
+      "expected_destination": "ai_agents_md",
+      "summary": "A repository-wide always-on convention about editing generated agent context needed to live in the root AGENTS source.",
+      "expected_finding": "Flag short repository-wide agent rules and require updating AGENTS.md instead of duplicating guidance elsewhere.",
+      "labels": [
+        "automation",
+        "ai-agents-md",
+        "agent-context"
+      ]
+    },
+    {
+      "id": "wallet-pr-27016-docs-mobile-architecture-rationale",
+      "repo": "squareup/wallet",
+      "pr_number": 27016,
+      "pr_url": "https://github.com/squareup/wallet/pull/27016",
+      "commit_range": {
+        "base": "27016-base-mobile-docs",
+        "head": "27016-head-mobile-docs",
+        "merge_commit": "27016-merge-mobile-docs"
+      },
+      "changed_files": [
+        "docs/docs/mobile/architecture/state-machines.md",
+        "app/.ai/AGENTS.md"
+      ],
+      "miss_class": "miss",
+      "source_kind": "review_comment",
+      "source_comment_url": "https://github.com/squareup/wallet/pull/27016#discussion_r3301000016",
+      "expected_destination": "docs",
+      "summary": "A recurring mobile architecture rationale was explained in review instead of being captured in canonical documentation.",
+      "expected_finding": "Flag repeated human-facing architecture rationale and route it to the canonical docs source with agent guidance linking back.",
+      "labels": [
+        "app",
+        "docs",
+        "architecture"
+      ]
+    },
+    {
+      "id": "wallet-pr-27017-docs-oncall-runbook-gap",
+      "repo": "squareup/wallet",
+      "pr_number": 27017,
+      "pr_url": "https://github.com/squareup/wallet/pull/27017",
+      "commit_range": {
+        "base": "27017-base-runbook",
+        "head": "27017-head-runbook",
+        "merge_commit": "27017-merge-runbook"
+      },
+      "changed_files": [
+        "docs/docs/runbooks/apps/mobile/mobile-incident.md",
+        "docs/docs/runbooks/oncall.md"
+      ],
+      "miss_class": "miss",
+      "source_kind": "review_comment",
+      "source_comment_url": "https://github.com/squareup/wallet/pull/27017#discussion_r3301000017",
+      "expected_destination": "docs",
+      "summary": "A mobile incident response detail was repeatedly supplied by reviewers because the oncall runbook lacked the canonical step.",
+      "expected_finding": "Flag repeated human-facing incident response knowledge and route it to the owning runbook documentation.",
+      "labels": [
+        "mobile",
+        "docs",
+        "runbook"
+      ]
     }
   ]
 }

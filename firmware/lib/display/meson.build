@@ -63,6 +63,7 @@ deps = [
   lvgl_dep,
   mcu_dep,
   protos_dep,
+  sap_core_dep,
 
   uc_dep,
 ]
@@ -284,6 +285,7 @@ if system == 'darwin' or system == 'linux'
     lvgl_test_dep,
     mcu_dep,
     protos_dep,
+    sap_core_dep,
     uc_dep,
   ]
 

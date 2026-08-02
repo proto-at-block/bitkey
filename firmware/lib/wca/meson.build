@@ -2,7 +2,7 @@ srcs = [
   'src/wca.c',
 ]
 
-deps = [helpers_dep, mempool_dep, ipc_dep, iso7816_dep, log_dep, ui_messaging_dep]
+deps = [helpers_dep, mempool_dep, ipc_dep, iso7816_dep, log_dep, ui_messaging_dep, proto_helpers_dep]
 includes = ['inc', shell_includes]
 
 wca_lib = library('wca',

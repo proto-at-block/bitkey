@@ -3,7 +3,7 @@ FROM alpine:3 AS builder
 
 ARG TERRAGRUNT_VERSION
 ARG TERRAFORM_VERSION
-ARG TERRAGRUNT_ATLANTIS_CONFIG_VERSION
+ARG CONFTEST_VERSION
 
 RUN apk add curl unzip && mkdir -p /binaries/out/
 WORKDIR /binaries/
@@ -23,17 +23,29 @@ EOF
 
 RUN <<EOF
 set -ex
-curl -sSL https://github.com/transcend-io/terragrunt-atlantis-config/releases/download/v${TERRAGRUNT_ATLANTIS_CONFIG_VERSION}/terragrunt-atlantis-config_${TERRAGRUNT_ATLANTIS_CONFIG_VERSION}_linux_amd64.tar.gz | \
-  tar xz --strip-components=1
-mv terragrunt-atlantis-config_${TERRAGRUNT_ATLANTIS_CONFIG_VERSION}_linux_amd64 out/terragrunt-atlantis-config
-chmod +x out/terragrunt-atlantis-config
+curl -sSL "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz" | \
+  tar xz conftest
+mv conftest out/conftest
+chmod +x out/conftest
 EOF
 
 FROM ghcr.io/runatlantis/atlantis:v0.41-alpine@sha256:7e9cfcf03ad31492e1c806335ef51bcf9c39c8b1e10a8eb434ef2568c2a9eda8
 COPY ./policies /policies
 COPY --from=builder /binaries/out/* /usr/local/bin
 
-# terragrunt prefers tofu to terraform if both are installed, and atlantis installs both; delete tofu
+# Our Terraform and conftest copies replace the base image's defaults; keep the advertised
+# default versions in sync so Atlantis resolves the patched, baked-in binaries.
+ARG TERRAFORM_VERSION
+ARG CONFTEST_VERSION
+ENV DEFAULT_TERRAFORM_VERSION=${TERRAFORM_VERSION}
+ENV DEFAULT_CONFTEST_VERSION=${CONFTEST_VERSION}
+
+# terragrunt prefers tofu to terraform if both are installed, and atlantis installs both; delete tofu.
+# Also delete the base image's versioned terraform/tofu side binaries: they embed go-getter < 1.8.6
+# (CVE-2026-4660). Atlantis resolves built-in steps using versioned binary names and otherwise
+# downloads them at runtime, so point those names at our patched, baked-in copies.
 USER root
-RUN rm -f /usr/local/bin/tofu
+RUN rm -f /usr/local/bin/tofu /usr/local/bin/tofu1* /usr/local/bin/terraform1* && \
+    ln -s /usr/local/bin/terraform /usr/local/bin/terraform${TERRAFORM_VERSION} && \
+    ln -s /usr/local/bin/conftest /usr/local/bin/conftest${CONFTEST_VERSION}
 USER atlantis

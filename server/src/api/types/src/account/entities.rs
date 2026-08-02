@@ -367,6 +367,8 @@ pub struct CommonAccountFields {
     pub notifications_preferences_state: NotificationsPreferencesState,
     #[serde(default)]
     pub configured_privileged_action_delay_durations: Vec<PrivilegedActionDelayDuration>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delay_notify_period_secs: Option<usize>,
     #[serde(default)]
     pub comms_verification_claims: Vec<CommsVerificationClaim>,
     #[serde(default)]
@@ -397,6 +399,8 @@ pub struct FullAccount {
     pub spending_keysets: HashMap<KeysetId, SpendingKeyset>,
     #[serde(default)]
     pub descriptor_backups_set: Option<DescriptorBackupsSet>,
+    #[serde(default)]
+    pub wallet_metadata_backup: Option<WalletMetadataBackup>,
     // Spending limit
     pub spending_limit: Option<SpendingLimit>,
     #[serde(default)]
@@ -437,6 +441,7 @@ impl FullAccount {
             auth_keys: HashMap::from([(active_auth_keys_id.clone(), auth)]),
             spending_keysets: HashMap::from([(active_keyset_id, spending)]),
             descriptor_backups_set: None,
+            wallet_metadata_backup: None,
             spending_limit: None,
             transaction_verification_policy: None,
             application_auth_pubkey,
@@ -452,6 +457,7 @@ impl FullAccount {
                 recovery_auth_pubkey,
                 notifications_preferences_state: Default::default(),
                 configured_privileged_action_delay_durations: Default::default(),
+                delay_notify_period_secs: None,
                 comms_verification_claims: Default::default(),
                 notifications_triggers: Default::default(),
             },
@@ -543,6 +549,7 @@ impl LiteAccount {
                 recovery_auth_pubkey,
                 notifications_preferences_state: Default::default(),
                 configured_privileged_action_delay_durations: Default::default(),
+                delay_notify_period_secs: None,
                 comms_verification_claims: Default::default(),
                 notifications_triggers: Default::default(),
             },
@@ -566,6 +573,7 @@ impl LiteAccount {
             active_keyset_id: keyset_id.clone(),
             spending_keysets: HashMap::from([(keyset_id, spending_keyset)]),
             descriptor_backups_set: None,
+            wallet_metadata_backup: None,
             spending_limit: None,
             transaction_verification_policy: None,
             application_auth_pubkey: Some(auth_keys.app_pubkey),
@@ -629,6 +637,7 @@ impl SoftwareAccount {
                 recovery_auth_pubkey,
                 notifications_preferences_state: Default::default(),
                 configured_privileged_action_delay_durations: Default::default(),
+                delay_notify_period_secs: None,
                 comms_verification_claims: Default::default(),
                 notifications_triggers: Default::default(),
             },
@@ -788,6 +797,21 @@ pub struct DescriptorBackupsSet {
     #[serde_as(as = "Base64")]
     pub wrapped_ssek: Vec<u8>,
     pub descriptor_backups: Vec<DescriptorBackup>,
+}
+
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, ToSchema)]
+pub struct WalletMetadataBackup {
+    /// Wallet Key Encryption Key-wrapped Server Storage Encryption Key (SSEK)
+    #[serde_as(as = "Base64")]
+    pub wrapped_ssek: Vec<u8>,
+    /// Server Storage Encryption Key-sealed wallet metadata snapshot.
+    ///
+    /// Writes are last-write-wins: the snapshot is client-encrypted and carries its own schema
+    /// version internally, and clients are responsible for merging concurrent edits when they
+    /// pull the latest backup. Concurrent PUTs within a single handler race are still serialized
+    /// by the account repository's `updated_at` compare-and-swap.
+    pub sealed_wallet_metadata_snapshot: String,
 }
 
 impl DescriptorBackupsSet {
@@ -1091,6 +1115,7 @@ mod tests {
                 ),
             )]),
             descriptor_backups_set: None,
+            wallet_metadata_backup: None,
             spending_limit: None,
             transaction_verification_policy: None,
             application_auth_pubkey: None,
@@ -1106,6 +1131,7 @@ mod tests {
                 recovery_auth_pubkey: None,
                 notifications_preferences_state: Default::default(),
                 configured_privileged_action_delay_durations: Default::default(),
+                delay_notify_period_secs: None,
                 comms_verification_claims: Default::default(),
                 notifications_triggers: Default::default(),
             },

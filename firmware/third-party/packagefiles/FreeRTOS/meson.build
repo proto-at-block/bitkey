@@ -2,6 +2,7 @@ src_dir = '../../FreeRTOS'
 config_dir = '../../../config/'
 mcu_dir = '../../../mcu/'
 lib_rtos_dir = '../../../lib/rtos/'
+sysview_dir = '../../../lib/sysview'
 
 freertos_port_c = custom_target('freertos_port_c',
   input: [
@@ -83,6 +84,27 @@ foreach platform_name : freertos_platform_configs.keys()
     # No standard-library available on embedded targets.
     _freertos_platform_includes += [
       printf_includes
+    ]
+  endif
+
+  if platform_config['embedded'] and get_option('enable_sysview') and platform_config['hardware'] == 'stm32u5xx'
+    _freertos_srcs += files(
+      sysview_dir/'SEGGER/SEGGER_RTT.c',
+      sysview_dir/'SEGGER/SEGGER_RTT_ASM_ARMv7M.S',
+      sysview_dir/'SEGGER/SEGGER_RTT_printf.c',
+      sysview_dir/'SEGGER/SEGGER_SYSVIEW.c',
+      sysview_dir/'freertos/SEGGER_SYSVIEW_FreeRTOS.c',
+      sysview_dir/'src/rtos_sysview.c',
+    )
+
+    _freertos_platform_includes += [
+      include_directories(
+        sysview_dir/'Config',
+        sysview_dir/'SEGGER',
+        sysview_dir/'freertos',
+        sysview_dir/'inc',
+        lib_rtos_dir/'inc',
+      )
     ]
   endif
 

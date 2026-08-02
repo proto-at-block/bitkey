@@ -25,6 +25,34 @@ if get_option('log_tokenized')
 endif
 
 fs = import('fs')
+py = import('python').find_installation('python3', required : true)
+
+sysview_peripherals_desc = files('lib/sysview/Description/SYSVIEW_Peripherals.txt')
+sysview_desc_script = files('lib/sysview/scripts/description_to_h.py')
+sysview_peripherals_header = custom_target(
+  'sysview-peripherals-header',
+  input : sysview_peripherals_desc,
+  output : 'SYSVIEW_Peripherals.h',
+  command : [
+    py,
+    sysview_desc_script,
+    '--runtime-module-offset',
+    '-desc',
+    '@INPUT@',
+    '-header',
+    '@OUTPUT@',
+  ],
+  depend_files : [sysview_desc_script],
+  build_by_default : true,
+)
+sysview_generated_dep = declare_dependency(
+  include_directories : [
+    include_directories('.'),
+    include_directories('lib/sysview/include'),
+    include_directories('lib/sysview/SEGGER'),
+  ],
+  sources : [sysview_peripherals_header],
+)
 
 system = meson.get_external_property('system', build_machine.system())
 embedded_build = meson.get_external_property('embedded_build', false)
@@ -32,7 +60,53 @@ platform = meson.get_external_property('platform', build_machine.system())
 
 message('Building for ' + system)
 
-get_version = ['python', '-m', 'python.bitkey.fw_version']
+if get_option('enable_sysview')
+  if get_option('config_prod')
+    # Defense-in-depth for direct `meson setup` use. The inv build wrapper
+    # (python/bitkey/meson.py) already drops sysview from prod/mfgtest build
+    # passes, so a normal `inv build ... --sysview` never reaches this.
+    error('SystemView cannot be enabled for production builds (config_prod=true)')
+  elif system != 'stm32u5xx'
+    # SystemView is only wired up for stm32u5xx (UXC). Skip it here rather than
+    # failing, so a multi-platform build (e.g. `inv build.platforms --sysview`)
+    # still builds w1 / w3-core normally instead of aborting the whole run.
+    warning('SystemView is only supported on stm32u5xx; skipping for ' + system)
+  else
+    add_project_arguments([
+      '-DUSE_SYSVIEW=1',
+      '-DUSE_RTT=1',
+      '-DSYSVIEW_APP_NAME="wallet"',
+      '-DSYSVIEW_DEVICE_NAME="STM32U585"',
+      # Place the SEGGER RTT control block + buffers (and therefore the
+      # SystemView event buffer) in SRAM4 (16 KiB at 0x28000000) so the buffer
+      # lives at a fixed absolute address and does not eat into the main
+      # 768 KiB SRAM partition. The linker script (stm32u5xx.jinja.ld) pins
+      # .sram4.rtt_cb to the start of SRAM4, so _SEGGER_RTT is *guaranteed*
+      # to live at 0x28000000 regardless of buffer/CB layout. The host
+      # capture tool relies on this address.
+      '-DSEGGER_RTT_SECTION=".sram4.rtt_cb"',
+      '-DSEGGER_RTT_BUFFER_SECTION=".sram4.rtt_buf"',
+      # Force the SystemView up-buffer into .sram4.rtt_buf as well.
+      # ConfDefaults.h falls back to SEGGER_RTT_SECTION (not _BUFFER_SECTION),
+      # which would otherwise pile the SystemView buffer into .sram4.rtt_cb
+      # and shove _SEGGER_RTT past 0x28003000.
+      # 10 KiB leaves room for the sysview resource/marker registries in SRAM4.
+      '-DSEGGER_SYSVIEW_SECTION=".sram4.rtt_buf"',
+      '-DSEGGER_SYSVIEW_RTT_BUFFER_SIZE=10240',
+      '-DSEGGER_RTT_MAX_NUM_UP_BUFFERS=2',
+      '-DSEGGER_RTT_MAX_NUM_DOWN_BUFFERS=2',
+      '-DBUFFER_SIZE_UP=256',
+      # Wallet has 8 application tasks + IDLE + Tmr Svc, plus headroom for
+      # any future tasks. The default cap of 8 in SEGGER_SYSVIEW_FreeRTOS.h
+      # silently drops the timer-service task and shows it as "Task 0xXXXX".
+      '-DSYSVIEW_FREERTOS_MAX_NOF_TASKS=32',
+    ], language: 'c')
+
+    message('SEGGER SystemView tracing enabled')
+  endif
+endif
+
+get_version = [py, '-m', 'python.bitkey.fw_version']
 fw_version = run_command(get_version, 'get-fw-version', check: true).stdout()
 bl_version = run_command(get_version, 'get-bl-version', check: true).stdout()
 
@@ -87,7 +161,7 @@ endif
 
 # The following includes must be declared
 # before `mcu` since `mcu` depends on the following headers.
-rtos_includes = include_directories('lib/rtos/inc')
+rtos_includes = include_directories('lib/rtos/inc', 'lib/sysview/inc')
 config_includes = include_directories(
   'config/rtos/' + platform,
   'config/platform/' + platform,
@@ -116,6 +190,7 @@ subdir('hal/clock')
 # here in order to intermix them.
 subdir('lib/shell')
 subdir('lib/rtos')
+subdir('lib/platform')
 subdir('lib/secutils')
 subdir('hal/secure-engine')
 subdir('hal/memfault/memfault-log')

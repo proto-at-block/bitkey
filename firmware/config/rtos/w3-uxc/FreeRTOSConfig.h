@@ -46,7 +46,9 @@
 /* USER CODE BEGIN Includes */
 #ifdef EMBEDDED_BUILD
 #include "mcu_freertos.h"
+#if !defined(USE_SYSVIEW) || (USE_SYSVIEW != 1)
 #include "memfault/ports/freertos_trace.h"
+#endif
 #endif
 /* USER CODE END Includes */
 
@@ -87,6 +89,13 @@ extern uint32_t SystemCoreClock;
 #define configHEAP_CLEAR_MEMORY_ON_FREE           0
 #define configUSE_MINI_LIST_ITEM                  1
 #define configUSE_SB_COMPLETED_CALLBACK           0
+#if defined(USE_SYSVIEW) && (USE_SYSVIEW == 1)
+/* Store pxEndOfStack in the TCB so SystemView can report accurate stack
+   bounds on downward-growing-stack Cortex-M targets. */
+#define configRECORD_STACK_HIGH_ADDRESS 1
+#else
+#define configRECORD_STACK_HIGH_ADDRESS 0
+#endif
 /* USER CODE BEGIN MESSAGE_BUFFER_LENGTH_TYPE */
 /* Defaults to size_t for backward compatibility, but can be changed
    if lengths will always be less than the number of bytes in a size_t. */
@@ -193,5 +202,55 @@ header file. */
 #endif
 
 /* USER CODE END Defines */
+
+/* SystemView and Memfault both hook FreeRTOS via the same trace macros
+   (traceTASK_CREATE, traceTASK_DELETE, etc.).  FreeRTOS only allows one
+   definition of each, so include order matters:
+     1. SEGGER_SYSVIEW_FreeRTOS.h defines the SystemView-only versions.
+     2. memfault/ports/freertos_trace.h defines the Memfault-only versions.
+     3. The block below #undefs and redefines the macros that need to notify
+        both systems, chaining the SystemView and Memfault callbacks together. */
+#if defined(USE_SYSVIEW) && (USE_SYSVIEW == 1)
+
+#if !defined(__ASSEMBLER__) && !defined(__IAR_SYSTEMS_ASM__)
+#include "SEGGER_SYSVIEW_FreeRTOS.h"
+/* The SEGGER header provides a fallback portSTACK_GROWTH that the FreeRTOS
+   port header (portmacrocommon.h) redefines unconditionally, triggering
+   -Werror. Remove it here; the port's authoritative definition wins and
+   traceTASK_CREATE below is hardcoded for downward-growing stacks. */
+#undef portSTACK_GROWTH
+#endif
+
+#ifdef EMBEDDED_BUILD
+#include "memfault/ports/freertos_trace.h"
+
+#if !defined(__ASSEMBLER__) && !defined(__IAR_SYSTEMS_ASM__)
+
+/* Cortex-M stacks grow downward. Hardcode the downward-stack variant so we
+   don't need portSTACK_GROWTH defined at this point in the include order
+   (SEGGER_SYSVIEW_FreeRTOS.h and the port header both define it, which
+   triggers -Werror=macro-redefined). */
+#undef traceTASK_CREATE
+#define traceTASK_CREATE(pxNewTCB)                                                       \
+  if ((pxNewTCB) != NULL) {                                                              \
+    SEGGER_SYSVIEW_OnTaskCreate((U32)(pxNewTCB));                                        \
+    SYSVIEW_AddTask((U32)(pxNewTCB), &(pxNewTCB)->pcTaskName[0], (pxNewTCB)->uxPriority, \
+                    (U32)(pxNewTCB)->pxStack,                                            \
+                    ((U32)(pxNewTCB)->pxEndOfStack - (U32)(pxNewTCB)->pxStack));         \
+    memfault_freertos_trace_task_create((pxNewTCB));                                     \
+  }
+
+#undef traceTASK_DELETE
+#define traceTASK_DELETE(pxTCB)                                      \
+  do {                                                               \
+    SEGGER_SYSVIEW_RecordU32(apiID_OFFSET + apiID_VTASKDELETE,       \
+                             SEGGER_SYSVIEW_ShrinkId((U32)(pxTCB))); \
+    SYSVIEW_DeleteTask((U32)(pxTCB));                                \
+    memfault_freertos_trace_task_delete((pxTCB));                    \
+  } while (0)
+
+#endif /* !__ASSEMBLER__ */
+#endif /* EMBEDDED_BUILD */
+#endif /* USE_SYSVIEW */
 
 #endif /* __FREERTOS_CONFIG_H */

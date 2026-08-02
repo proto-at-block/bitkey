@@ -39,6 +39,12 @@
 #include "log_uart.h"
 #endif
 
+#if defined(USE_SYSVIEW) && (USE_SYSVIEW == 1)
+#include "SEGGER_SYSVIEW.h"
+#include "SYSVIEW_Peripherals.h"
+void SEGGER_SYSVIEW_Conf(void);
+#endif
+
 // These are here instead of in sysinfo.c because propagating cflags to dependencies
 // in Meson is hard (impossible?).
 USED char _sysinfo_software_type[SYSINFO_SOFTWARE_TYPE_MAX_LENGTH] = SYSINFO_SOFTWARE_TYPE;
@@ -120,6 +126,18 @@ NO_OPTIMIZE int main(void) {
 
   // Initialize sysevent system
   sysevent_init();
+
+#if defined(USE_SYSVIEW) && (USE_SYSVIEW == 1)
+  // Zero SRAM4 before SystemView init so that stale RTT control blocks,
+  // task tables, and module registries from a previous boot don't cause
+  // the SEGGER code to skip reinit or dereference bogus pointers.
+  {
+    extern uint32_t __sram4_start__[];
+    extern uint32_t __sram4_end__[];
+    memset(__sram4_start__, 0, (uintptr_t)__sram4_end__ - (uintptr_t)__sram4_start__);
+  }
+  SEGGER_SYSVIEW_Conf();
+#endif
 
   // Initialize UXC comms.
   // No message encryption on MFG test devices
@@ -208,5 +226,9 @@ NO_OPTIMIZE int main(void) {
   mcu_wdog_init();
 
   // Start RTOS scheduler
+#if defined(USE_SYSVIEW) && (USE_SYSVIEW == 1)
+  SEGGER_SYSVIEW_Print("scheduler_start");
+  SEGGER_SYSVIEW_RecordVoid(SYSVIEW_PERIPHERALS_scheduler_start);
+#endif
   rtos_thread_start_scheduler();
 }

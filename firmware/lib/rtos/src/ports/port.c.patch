@@ -127,7 +127,17 @@
 +    #endif
  }
  /*-----------------------------------------------------------*/
- 
+
+@@ -972,6 +1037,9 @@
+     uint32_t ulPreviousMask;
+
+     ulPreviousMask = portSET_INTERRUPT_MASK_FROM_ISR();
++#if defined(USE_SYSVIEW) && (USE_SYSVIEW == 1)
++    SEGGER_SYSVIEW_Poll();
++#endif
+     {
+         /* Increment the RTOS tick. */
+         if( xTaskIncrementTick() != pdFALSE )
 @@ -1084,6 +1149,17 @@
              break;
  

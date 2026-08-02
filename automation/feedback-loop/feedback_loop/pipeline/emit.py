@@ -23,17 +23,15 @@ from ..linear_control import (
 )
 from ..models import Proposal
 from ..pr_policy import (
+    AI_AGENTS_MD_SOURCES,
     PrPolicyOverride,
     PrPolicyResult,
     require_pr_policy_passed,
     reviewer_checklist_markdown,
     validate_pr_policy,
 )
-
-AI_CONTEXT_COMMANDS = (
-    "./tools/ai-context/ai-context-generate.sh",
-    "./tools/ai-context/ai-context-check.sh",
-)
+from ..route_metadata import proposal_change_set_id, sanitize_handoff_title
+from .reality_preflight import AI_CONTEXT_COMMANDS
 
 
 @dataclass(frozen=True)
@@ -64,22 +62,19 @@ def emit(
     *,
     linear_writer: ClusterIssueWriter | None = None,
     policy_override: PrPolicyOverride | None = None,
+    suggested_replay_case: dict | None = None,
 ) -> list[EmitResult]:
     """Build or create one Linear code-engine issue per eval-ready proposal."""
-    for proposal in proposals:
-        require_pr_ready(proposal)
+    results = build_emit_results(
+        cfg,
+        proposals,
+        policy_override=policy_override,
+        suggested_replay_case=suggested_replay_case,
+    )
 
     if not cfg.dry_run and linear_writer is None:
         raise NotImplementedError("emit.emit requires a Linear cluster issue writer for --execute")
 
-    results = [
-        _build_emit_result(
-            cfg,
-            proposal,
-            policy_override=policy_override,
-        )
-        for proposal in proposals
-    ]
     if cfg.dry_run:
         return results
 
@@ -95,11 +90,33 @@ def emit(
     ]
 
 
+def build_emit_results(
+    cfg: RunConfig,
+    proposals: list[Proposal],
+    *,
+    policy_override: PrPolicyOverride | None = None,
+    suggested_replay_case: dict | None = None,
+) -> list[EmitResult]:
+    """Preflight and build emit plans without writing to Linear."""
+    for proposal in proposals:
+        require_pr_ready(proposal)
+    return [
+        _build_emit_result(
+            cfg,
+            proposal,
+            policy_override=policy_override,
+            suggested_replay_case=suggested_replay_case,
+        )
+        for proposal in proposals
+    ]
+
+
 def _build_emit_result(
     cfg: RunConfig,
     proposal: Proposal,
     *,
     policy_override: PrPolicyOverride | None = None,
+    suggested_replay_case: dict | None = None,
 ) -> EmitResult:
     draft_pr = build_draft_pr_plan(
         proposal,
@@ -112,6 +129,13 @@ def _build_emit_result(
         validation_commands=draft_pr.validation_commands,
         draft_pr_title=draft_pr.title,
         draft_pr_body=draft_pr.body,
+        window={
+            "pr_url": cfg.pr_url,
+            "since": cfg.since,
+            "until": cfg.until,
+            "limit": cfg.limit,
+        },
+        suggested_replay_case=suggested_replay_case,
     )
     return EmitResult(
         proposal=proposal,
@@ -142,9 +166,7 @@ def build_draft_pr_plan(
 
 def _draft_pr_title(proposal: Proposal) -> str:
     destination = proposal.destination.replace("_", " ")
-    summary = proposal.summary.split(".")[0].strip() or proposal.template_title
-    if len(summary) > 72:
-        summary = f"{summary[:69].rstrip()}..."
+    summary = _handoff_title(proposal)
     return f"Feedback loop: {destination} guardrail - {summary}"
 
 
@@ -162,6 +184,8 @@ def _draft_pr_body(
         f"- Destination: `{proposal.destination}`",
         f"- Template: {proposal.template_title or 'n/a'}",
         f"- Confidence: {proposal.confidence:.2f}",
+        f"- Change set: `{proposal_change_set_id(proposal)}`",
+        *_learning_lines(proposal),
         *_artifact_lines("Target artifacts", proposal.target_artifacts),
         *_artifact_lines("Proposed file changes", file_changes),
         *_artifact_lines("Evidence", proposal.evidence_urls),
@@ -181,6 +205,18 @@ def _draft_pr_body(
         reviewer_checklist_markdown(policy_result),
     ]
     return "\n".join(lines).strip() + "\n"
+
+
+def _learning_lines(proposal: Proposal) -> list[str]:
+    if not proposal.learning_id:
+        return []
+    linked = ", ".join(proposal.linked_route_destinations) or "n/a"
+    return [
+        f"- Learning id: `{proposal.learning_id}`",
+        f"- Route id: `{proposal.route_id}`",
+        f"- Route role: `{proposal.route_role}`",
+        f"- Linked routes: `{linked}`",
+    ]
 
 
 def _artifact_lines(title: str, items: tuple[str, ...] | list[str]) -> list[str]:
@@ -207,7 +243,16 @@ def _validation_commands(proposal: Proposal) -> tuple[str, ...]:
 
 def _touches_ai_context(proposal: Proposal) -> bool:
     paths = [*proposal.target_artifacts, *(change.path for change in proposal.file_changes)]
-    return any(path.startswith(".ai/") or "/.ai/" in path for path in paths)
+    return any(path in AI_AGENTS_MD_SOURCES or _ai_skill_source(path) for path in paths)
+
+
+def _ai_skill_source(path: str) -> bool:
+    return path.startswith(".ai/skills/") and path.endswith("/SKILL.md")
+
+
+def _handoff_title(proposal: Proposal) -> str:
+    raw = proposal.handoff_title or proposal.summary.split(".")[0].strip() or proposal.template_title
+    return sanitize_handoff_title(raw)
 
 
 def _eval_markdown(proposal: Proposal) -> str:

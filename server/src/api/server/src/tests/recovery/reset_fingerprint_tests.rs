@@ -298,6 +298,65 @@ async fn test_update_delay_duration_for_test(
     }
 }
 
+#[tokio::test]
+async fn test_update_delay_duration_for_another_accounts_instance_is_forbidden() {
+    // arrange
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let victim = create_account(&mut context, &bootstrap.services, AccountType::Full, false).await;
+    // The caller is a legitimate test account, just not the owner of the target instance.
+    let attacker = create_account(&mut context, &bootstrap.services, AccountType::Full, true).await;
+
+    let original_delay_end_time = OffsetDateTime::now_utc() + Duration::seconds(1000);
+    let instance = PrivilegedActionInstanceRecord {
+        id: PrivilegedActionInstanceId::gen().unwrap(),
+        account_id: victim.get_id().to_owned(),
+        privileged_action_type: PrivilegedActionType::ResetFingerprint,
+        authorization_strategy: AuthorizationStrategyRecord::DelayAndNotify(DelayAndNotifyRecord {
+            status: RecordStatus::Pending,
+            delay_end_time: original_delay_end_time,
+            cancellation_token: "test".to_string(),
+            completion_token: "test".to_string(),
+        }),
+        created_at: OffsetDateTime::now_utc(),
+        updated_at: OffsetDateTime::now_utc(),
+        request: PrivilegedActionRequest::Initiate(get_pregenerated_request()),
+    };
+    bootstrap
+        .services
+        .privileged_action_repository
+        .persist(&instance)
+        .await
+        .expect("Failed to persist privileged action instance");
+
+    // act: authenticate as the attacker, target the victim's instance
+    let response = client
+        .update_delay_duration_for_test(&attacker.get_id().to_string(), &instance.id.to_string(), 0)
+        .await;
+
+    // assert
+    assert_eq!(
+        response.status_code,
+        StatusCode::FORBIDDEN,
+        "{}",
+        response.body_string
+    );
+
+    let persisted: PrivilegedActionInstanceRecord<Value> = bootstrap
+        .services
+        .privileged_action_repository
+        .fetch_by_id(&instance.id)
+        .await
+        .expect("Failed to fetch privileged action instance");
+    let AuthorizationStrategyRecord::DelayAndNotify(persisted_record) =
+        persisted.authorization_strategy
+    else {
+        panic!("Expected delay and notify strategy");
+    };
+    assert_eq!(persisted_record.delay_end_time, original_delay_end_time);
+}
+
 // Pregenerated request with a signature that matches the hw_auth_public_key
 fn get_pregenerated_request() -> ResetFingerprintRequest {
     ResetFingerprintRequest {

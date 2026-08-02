@@ -1,0 +1,305 @@
+33        vTaskAllocateMPURegions             xTask = %t pxRegions = %u
+34        vTaskDelete                         xTaskToDelete = %t
+35        vTaskDelay                          xTicksToDelay = %u
+36        vTaskDelayUntil
+37        uxTaskPriorityGet                   xTask = %t
+38        uxTaskPriorityGetFromISR            xTask = %t
+39        eTaskGetState                       xTask = %t
+40        vTaskPrioritySet                    xTask = %t uxNewPriority = %u
+41        vTaskSuspend                        xTaskToSuspend = %t
+42        vTaskResume                         xTaskToResume = %t
+43        xTaskResumeFromISR                  xTaskToResume = %t
+44        vTaskStartScheduler
+45        vTaskEndScheduler
+46        vTaskSuspendAll
+47        xTaskResumeAll
+48        xTaskGetTickCount
+49        xTaskGetTickCountFromISR
+50        uxTaskGetNumberOfTasks
+51        pcTaskGetTaskName                   xTaskToQuery = %t
+52        uxTaskGetStackHighWaterMark         xTask = %t
+53        vTaskSetApplicationTaskTag          xTask = %t pxHookFunction = %u
+54        xTaskGetApplicationTaskTag          xTask = %t
+55        vTaskSetThreadLocalStoragePointer   xTaskToSet = %T xIndex = %u pvValue = %u
+56        pvTaskGetThreadLocalStoragePointer  xTaskToQuery = %T xIndex = %u
+57        xTaskCallApplicationTaskHook        xTask = %T pvParameter = %u
+58        xTaskGetIdleTaskHandle
+59        uxTaskGetSystemState                pxTaskStatusArray = %u uxArraySize = %u pulTotalRunTime = %u
+60        vTaskList                           pcWriteBuffer = %u
+61        vTaskGetRunTimeStats                pcWriteBuffer = %u
+62        xTaskGenericNotify                  xTaskToNotify = %t ulValue = %u eAction = %u pulPreviousNotificationValue = %u
+63        xTaskGenericNotifyFromISR           xTaskToNotify = %t ulValue = %u eAction = %u pulPreviousNotificationValue = %u pxHigherPriorityTaskWoken = %u
+64        xTaskNotifyWait                     ulBitsToClearOnEntry = %u ulBitsToClearOnExit = %u pulNotificationValue = %u xTicksToWait = %u
+65        vTaskNotifyGiveFromISR              xTaskToNotify = %t pxHigherPriorityTaskWoken = %u
+66        ulTaskNotifyTake                    xClearCountOnExit = %u xTicksToWait = %u
+67        xTaskNotifyStateClear               xTask = %t
+68        xTaskGetCurrentTaskHandle
+69        vTaskSetTimeOutState                pxTimeOut = %u
+70        xTaskCheckForTimeOut                pxTimeOut = %u pxTicksToWait = %u
+71        vTaskMissedYield
+72        xTaskGetSchedulerState
+73        vTaskPriorityInherit                pxMutexHolder = %p
+74        xTaskPriorityDisinherit             pxMutexHolder = %p
+75        xTaskGenericCreate                  pxTaskCode = %u pcName = %u usStackDepth = %u pvParameters = %u uxPriority = %u pxCreatedTask = %u puxStackBuffer = %u xRegions = %u
+76        uxTaskGetTaskNumber                 xTask = %u
+77        vTaskSetTaskNumber                  xTask = %u uxHandle = %u
+78        vTaskStepTick                       xTicksToJump = %u
+79        eTaskConfirmSleepModeStatus
+80        xTimerCreate                        pcTimerName = %u xTimerPeriodInTicks = %u uxAutoReload = %u pvTimerID = %u pxCallbackFunction = %u
+81        pvTimerGetTimerID                   xTimer = %u
+82        vTimerSetTimerID                    xTimer = %u pvNewID = %u
+83        xTimerIsTimerActive                 xTimer = %u
+84        xTimerGetTimerDaemonTaskHandle
+85        xTimerPendFunctionCallFromISR       xFunctionToPend = %u pvParameter1 = %u ulParameter2 = %u pxHigherPriorityTaskWoken = %u
+86        xTimerPendFunctionCall              xFunctionToPend = %u pvParameter1 = %u ulParameter2 = %u xTicksToWait = %u
+87        pcTimerGetTimerName                 xTimer = %u
+88        xTimerCreateTimerTask
+89        xTimerGenericCommand                xTimer = %u xCommandID = %u xOptionalValue = %u pxHigherPriorityTaskWoken = %u xTicksToWait = %u
+90        xQueueGenericSend                   xQueue = %I pvItemToQueue = %p xTicksToWait = %u xCopyPosition = %u
+91        xQueuePeekFromISR                   xQueue = %I pvBuffer = %p
+92        xQueueGenericReceive                xQueue = %I pvBuffer = %p xTicksToWait = %u xJustPeek = %u
+93        uxQueueMessagesWaiting              xQueue = %I
+94        uxQueueSpacesAvailable              xQueue = %I
+95        vQueueDelete                        xQueue = %I
+96        xQueueGenericSendFromISR            xQueue = %I pvItemToQueue = %p pxHigherPriorityTaskWoken = %u xCopyPosition = %u
+97        xQueueGiveFromISR                   xQueue = %I pxHigherPriorityTaskWoken = %u
+98        xQueueReceiveFromISR                xQueue = %I pvBuffer = %p pxHigherPriorityTaskWoken = %u
+99        xQueueIsQueueEmptyFromISR           xQueue = %I
+100       xQueueIsQueueFullFromISR            xQueue = %I
+101       uxQueueMessagesWaitingFromISR       xQueue = %I
+102       xQueueAltGenericSend                xQueue = %I pvItemToQueue = %p xTicksToWait = %u xCopyPosition = %u
+103       xQueueAltGenericReceive             xQueue = %I pvBuffer = %p xTicksToWait = %u xJustPeeking = %u
+104       xQueueCRSendFromISR                 xQueue = %I pvItemToQueue = %p xCoRoutinePreviouslyWoken = %u
+105       xQueueCRReceiveFromISR              xQueue = %I pvBuffer = %p pxTaskWoken = %u
+106       xQueueCRSend                        xQueue = %I pvItemToQueue = %p xTicksToWait = %u
+107       xQueueCRReceive                     xQueue = %I pvBuffer = %p xTicksToWait = %u
+108       xQueueCreateMutex                   ucQueueType = %u
+109       xQueueCreateCountingSemaphore       uxMaxCount = %u uxInitialCount = %u
+110       xQueueGetMutexHolder                xSemaphore = %u
+111       xQueueTakeMutexRecursive            xMutex = %u xTicksToWait = %u
+112       xQueueGiveMutexRecursive            pxMutex = %u
+113       vQueueAddToRegistry                 xQueue = %I pcName = %u
+114       vQueueUnregisterQueue               xQueue = %I
+115       xQueueGenericCreate                 uxQueueLength = %u uxItemSize = %u ucQueueType = %u
+116       xQueueCreateSet                     uxEventQueueLength = %u
+117       xQueueAddToSet                      xQueueOrSemaphore = %u xQueueSet = %u
+118       xQueueRemoveFromSet                 xQueueOrSemaphore = %u xQueueSet = %u
+119       xQueueSelectFromSet                 xQueueSet = %u xTicksToWait = %u
+120       xQueueSelectFromSetFromISR          xQueueSet = %u
+121       xQueueGenericReset                  xQueue = %I xNewQueue = %u
+122       vListInitialise                     pxList = %u
+123       vListInitialiseItem                 pxItem = %u
+124       vListInsert                         pxList = %u pxNewListItem = %u
+125       vListInsertEnd                      pxList = %u pxNewListItem = %u
+126       uxListRemove                        pxItemToRemove = %u
+127       xEventGroupCreate
+128       xEventGroupWaitBits                 xEventGroup = %u uxBitsToWaitFor = %u xClearOnExit = %u xWaitForAllBits = %u xTicksToWait = %u
+129       xEventGroupClearBits                xEventGroup = %u uxBitsToClear = %u
+130       xEventGroupClearBitsFromISR         xEventGroup = %u uxBitsToSet = %u
+131       xEventGroupSetBits                  xEventGroup = %u uxBitsToSet = %u
+132       xEventGroupSetBitsFromISR           xEventGroup = %u uxBitsToSet = %u pxHigherPriorityTaskWoken = %u
+133       xEventGroupSync                     xEventGroup = %u uxBitsToSet = %u uxBitsToWaitFor = %u xTicksToWait = %u
+134       xEventGroupGetBitsFromISR           xEventGroup = %u
+135       vEventGroupDelete                   xEventGroup = %u
+136       uxEventGroupGetNumber               xEventGroup = %u
+137       xStreamBufferCreate                 xIsMessageBuffer = %u xStreamBuffer = %p
+138       vStreamBufferDelete                 xStreamBuffer = %p
+139       xStreamBufferReset                  xStreamBuffer = %p
+140       xStreamBufferSend                   xStreamBuffer = %p xBytesSent = %u
+141       xStreamBufferSendFromISR            xStreamBuffer = %p xBytesSent = %u
+142       xStreamBufferReceive                xStreamBuffer = %p xReceivedLength = %u
+143       xStreamBufferReceiveFromISR         xStreamBuffer = %p xReceivedLength = %u
+144       xQueueSetSend                       xQueue = %I
+
+
+150        xQueueGenericReset                        xQueue = %I, xNewQueue = %u                                                                        | Returns %u
+151        xQueueGenericCreateStatic                 uxQueueLength = %u, uxItemSize = %u, pucQueueStorage = %p, pxStaticQueue = %p, ucQueueType = %u    | Returns %p
+152        xQueueGenericCreate                       uxQueueLength = %u, uxItemSize = %u, ucQueueType = %u                                              | Returns %p
+153        xQueueCreateMutex                         ucQueueType = %u                                                                                   | Returns %p
+154        xQueueCreateMutexStatic                   ucQueueType = %u, pxStaticQueue = %p                                                               | Returns %p
+155        xQueueGetMutexHolder                      xSemaphore = %I                                                                                    | Returns %p
+156        xQueueGetMutexHolderFromISR               xSemaphore = %I                                                                                    | Returns %p
+157        xQueueGiveMutexRecursive                  xMutex = %I                                                                                        | Returns %u
+158        xQueueTakeMutexRecursive                  xMutex = %I, xTicksToWait = %u                                                                     | Returns %u
+159        xQueueCreateCountingSemaphoreStatic       uxMaxCount = %u, uxInitialCount = %u, pxStaticQueue = %p                                           | Returns %p
+160        xQueueCreateCountingSemaphore             uxMaxCount = %u, uxInitialCount = %u                                                               | Returns %p
+161        xQueueGenericSend                         xQueue = %I, pvItemToQueue = %p, xTicksToWait = %u, xCopyPosition = %u                             | Returns %u
+162        xQueueGenericSendFromISR                  xQueue = %I, pvItemToQueue = %p, pxHigherPriorityTaskWoken = %p, xCopyPosition = %u                | Returns %u
+163        xQueueGiveFromISR                         xQueue = %I, pxHigherPriorityTaskWoken = %p                                                        | Returns %u
+164        xQueueReceive                             xQueue = %I, pvBuffer = %p, xTicksToWait = %u                                                      | Returns %u
+165        xQueueSemaphoreTake                       xQueue = %I, xTicksToWait = %u                                                                     | Returns %u
+166        xQueuePeek                                xQueue = %I, pvBuffer = %p, xTicksToWait = %u                                                      | Returns %u
+167        xQueueReceiveFromISR                      xQueue = %I, pvBuffer = %p, pxHigherPriorityTaskWoken = %u                                         | Returns %u
+168        xQueuePeekFromISR                         xQueue = %I, pvBuffer = %p                                                                         | Returns %u
+169        uxQueueMessagesWaiting                    xQueue = %I                                                                                        | Returns %u
+170        uxQueueSpacesAvailable                    xQueue = %I                                                                                        | Returns %u
+171        uxQueueMessagesWaitingFromISR             xQueue = %I                                                                                        | Returns %u
+172        vQueueDelete                              xQueue = %I
+173        uxQueueGetQueueNumber                     xQueue = %I                                                                                        | Returns %u
+174        vQueueSetQueueNumber                      xQueue = %I, uxQueueNumber = %u
+175        ucQueueGetQueueType                       xQueue = %I                                                                                        | Returns %u
+176        xQueueIsQueueEmptyFromISR                 xQueue = %I                                                                                        | Returns %u
+177        xQueueIsQueueFullFromISR                  xQueue = %I                                                                                        | Returns %u
+178        xQueueCRSend                              xQueue = %I, pvItemToQueue = %p, xTicksToWait = %u                                                 | Returns %u
+179        xQueueCRReceive                           xQueue = %I, pvBuffer = %p, xTicksToWait = %u                                                      | Returns %u
+180        xQueueCRSendFromISR                       xQueue = %I, pvItemToQueue = %p, xCoRoutinePreviouslyWoken = %u                                    | Returns %u
+181        xQueueCRReceiveFromISR                    xQueue = %I, pvBuffer = %p, pxCoRoutineWoken = %u                                                  | Returns %u
+182        vQueueAddToRegistry                       xQueue = %I, pcQueueName = %s
+183        pcQueueGetName                            xQueue = %I                                                                                        | Returns %p
+184        vQueueUnregisterQueue                     xQueue = %I
+185        vQueueWaitForMessageRestricted            xQueue = %I, xTicksToWait = %u, xWaitIndefinitely = %u
+186        xQueueCreateSet                           uxEventQueueLength = %u,                                                                           | Returns %p
+187        xQueueAddToSet                            xQueueOrSemaphore = %p, xQueueSet = %p                                                             | Returns %u
+188        xQueueRemoveFromSet                       xQueueOrSemaphore = %p, xQueueSet = %p                                                             | Returns %u
+189        xQueueSelectFromSet                       xQueueSet = %p, xTicksToWait = %u                                                                  | Returns %p
+190        xQueueSelectFromSetFromISR                xQueueSet = %p                                                                                     | Returns %p
+
+191        xTaskCreateStatic                         pxTaskCode = %p, pcName = %s ulStackDepth = %u, pvParameters = %p, uxPriority = %u, puxStackBuffer = %p, pxTaskBuffer = %p                 | Returns %p
+192        xTaskCreateRestrictedStatic               pxTaskDefinition = %p, pxCreatedTask = %p                                                                                                  | Returns %u
+193        xTaskCreateRestricted                     pxTaskDefinition = %p, pxCreatedTask = %p                                                                                                  | Returns %u
+194        xTaskCreate                               pxTaskCode = %p, pcName = %s, usStackDepth = %u, pvParameters = %p, uxPriority = %u, pxCreatedTask = %p                                    | Returns %u
+195        vTaskDelete                               xTaskToDelete = %t
+196        xTaskDelayUntil                           pxPreviousWakeTime = %p, xTimeIncrement = %u                                                                                               | Returns %u
+197        vTaskDelay                                xTicksToDelay = %u
+198        eTaskGetState                             xTask = %t                                                                                                                                 | Returns %u
+199        uxTaskPriorityGet                         xTask = %t                                                                                                                                 | Returns %u
+200        uxTaskPriorityGetFromISR                  xTask = %t                                                                                                                                 | Returns %u
+201        vTaskPrioritySet                          xTask = %t, uxNewPriority = %u
+202        vTaskSuspend                              xTaskToSuspend = %t
+203        vTaskResume                               xTaskToResume = %t
+204        xTaskResumeFromISR                        xTaskToResume = %t                                                                                                                         | Returns %u
+205        vTaskStartScheduler
+206        vTaskEndScheduler
+207        vTaskSuspendAll
+208        xTaskResumeAll                                                                                                                                                                       | Returns %u
+209        xTaskGetTickCount                                                                                                                                                                    | Returns %u
+210        xTaskGetTickCountFromISR                                                                                                                                                             | Returns %u
+211        uxTaskGetNumberOfTasks                                                                                                                                                               | Returns %u
+212        pcTaskGetName                             xTaskToQuery = %t                                                                                                                          | Returns %p
+213        xTaskGetHandle                            pcNameToQuery = %s                                                                                                                         | Returns %p
+214        uxTaskGetSystemState                      pxTaskStatusArray = %p, uxArraySize = %u, pulTotalRunTime = %p                                                                             | Returns %u
+215        xTaskGetIdleTaskHandle                                                                                                                                                               | Returns %p
+216        vTaskStepTick                             xTicksToJump = %u
+217        xTaskCatchUpTicks                         xTicksToCatchUp = %u                                                                                                                       | Returns %u
+218        xTaskAbortDelay                           xTask = %t                                                                                                                                 | Returns %u
+219        xTaskIncrementTick                                                                                                                                                                   | Returns %u
+220        vTaskSetApplicationTaskTag                xTask = %t, pxHookFunction = %p
+221        xTaskGetApplicationTaskTag                xTask = %t                                                                                                                                 | Returns %p
+222        xTaskGetApplicationTaskTagFromISR         xTask = %t                                                                                                                                 | Returns %p
+223        xTaskCallApplicationTaskHook              xTask = %t, pvParameter = %p                                                                                                               | Returns %u
+225        vTaskPlaceOnEventList                     pxEventList = %p, xTicksToWait = %u
+226        vTaskPlaceOnUnorderedEventList            pxEventList = %p, xItemValue = %u, xTicksToWait = %u
+227        vTaskPlaceOnEventListRestricted           pxEventList = %p, xTicksToWait = %u, xWaitIndefinitely = %u
+228        xTaskRemoveFromEventList                  pxEventList = %p                                                                                                                           | Returns %u
+229        vTaskRemoveFromUnorderedEventList         pxEventListItem = %p, xItemValue = %u
+230        vTaskSetTimeOutState                      pxTimeOut = %p
+231        vTaskInternalSetTimeOutState              pxTimeOut = %p
+232        xTaskCheckForTimeOut                      pxTimeOut = %p, pxTicksToWait = %p                                                                                                         | Returns %u
+233        vTaskMissedYield
+234        uxTaskGetTaskNumber                       xTask = %t                                                                                                                                 | Returns %u
+235        vTaskSetTaskNumber                        xTask = %t, uxHandle = %u
+236        eTaskConfirmSleepModeStatus                                                                                                                                                          | Returns %u
+237        vTaskSetThreadLocalStoragePointer         xTaskToSet = %p, xIndex = %u, pvValue = %p
+238        pvTaskGetThreadLocalStoragePointer        xTaskToQuery = %p, xIndex = %u                                                                                                             | Returns %p
+239        vTaskAllocateMPURegions                   xTaskToModify = %p, xRegions = %p
+240        vTaskGetInfo                              xTask = %t, pxTaskStatus = %p, xGetFreeStackSpace = %u, eState = %u
+241        uxTaskGetStackHighWaterMark2              xTask = %t                                                                                                                                 | Returns %u
+242        uxTaskGetStackHighWaterMark               xTask = %t                                                                                                                                 | Returns %u
+243        pxTaskGetStackStart                       xTask = %t                                                                                                                                 | Returns %p
+244        xTaskGetCurrentTaskHandle                                                                                                                                                            | Returns %p
+245        xTaskGetSchedulerState                                                                                                                                                               | Returns %u
+246        xTaskPriorityInherit                      pxMutexHolder = %p                                                                                                                         | Returns %u
+247        xTaskPriorityDisinherit                   pxMutexHolder = %p                                                                                                                         | Returns %u
+248        vTaskPriorityDisinheritAfterTimeout       pxMutexHolder = %p, uxHighestPriorityWaitingTask = %u
+249        vTaskEnterCritical
+250        vTaskExitCritical
+251        vTaskList                                 pcWriteBuffer = %p
+252        vTaskGetRunTimeStats                      pcWriteBuffer = %p
+253        uxTaskResetEventItemValue                                                                                                                                                            | Returns %u
+254        pvTaskIncrementMutexHeldCount                                                                                                                                                        | Returns %p
+255        ulTaskGenericNotifyTake                   uxIndexToWait = %u, xClearCountOnExit = %u, xTicksToWait = %u                                                                              | Returns %u
+256        xTaskGenericNotifyWait                    uxIndexToWait = %u, ulBitsToClearOnEntry = %u, ulBitsToClearOnExit = %u, pulNotificationValue = %u, xTicksToWait = %u                      | Returns %u
+257        xTaskGenericNotify                        xTaskToNotify = %t, uxIndexToNotify = %u, ulValue = %u, eAction = %u, pulPreviousNotificationValue = %u                                    | Returns %u
+258        xTaskGenericNotifyFromISR                 xTaskToNotify = %t, uxIndexToNotify = %u, ulValue = %u, eAction = %u, pulPreviousNotificationValue = %p, pxHigherPriorityTaskWoken = %p    | Returns %u
+259        vTaskGenericNotifyGiveFromISR             xTaskToNotify = %t, uxIndexToNotify = %u, pxHigherPriorityTaskWoken = %p
+260        xTaskGenericNotifyStateClear              xTask = %t, uxIndexToClear = %u                                                                                                            | Returns %u
+261        ulTaskGenericNotifyValueClear             xTask = %t, uxIndexToClear = %u, ulBitsToClear = %u                                                                                        | Returns %u
+262        ulTaskGetIdleRunTimeCounter                                                                                                                                                          | Returns %u
+263        ulTaskGetIdleRunTimePercent                                                                                                                                                          | Returns %u
+
+264        xTimerCreateTimerTask                                                                                                                                                  | Returns %u
+265        xTimerCreate                              pcTimerName = %s, xTimerPeriodInTicks = %u, xAutoReload = %u, pvTimerID = %p, pxCallbackFunction = %p                        | Returns %p
+266        xTimerCreateStatic                        pcTimerName = %s, xTimerPeriodInTicks = %u, xAutoReload = %u, pvTimerID = %p, pxCallbackFunction = %p, pxTimerBuffer = %p    | Returns %p
+267        xTimerGenericCommand                      xTimer = %I, xCommandID = %u, xOptionalValue = %u, pxHigherPriorityTaskWoken = %p, xTicksToWait = %u                         | Returns %u
+268        xTimerGetTimerDaemonTaskHandle                                                                                                                                         | Returns %p
+269        xTimerGetPeriod                           xTimer = %I                                                                                                                  | Returns %u
+270        vTimerSetReloadMode                       xTimer = %I, xAutoReload = %u
+271        xTimerGetReloadMode                       xTimer = %I                                                                                                                  | Returns %u
+272        xTimerGetExpiryTime                       xTimer = %I                                                                                                                  | Returns %u
+273        pcTimerGetName                            xTimer = %I                                                                                                                  | Returns %p
+274        xTimerIsTimerActive                       xTimer = %I                                                                                                                  | Returns %u
+275        pvTimerGetTimerID                         xTimer = %I                                                                                                                  | Returns %p
+276        vTimerSetTimerID                          xTimer = %I, pvNewID = %p
+277        xTimerPendFunctionCallFromISR             xFunctionToPend = %p, pvParameter1 = %p, ulParameter2 = %u, pxHigherPriorityTaskWoken = %p                                   | Returns %u
+278        xTimerPendFunctionCall                    xFunctionToPend = %p, pvParameter1 = %p, ulParameter2 = %u, xTicksToWait = %u                                                | Returns %u
+279        uxTimerGetTimerNumber                     xTimer = %I                                                                                                                  | Returns %u
+280        vTimerSetTimerNumber                      xTimer = %I, uxTimerNumber = %u
+
+281        vListInitialise                           pxList = %I
+282        vListInitialiseItem                       pxItem = %I
+283        vListInsertEnd                            pxList = %I, pxNewListItem = %p
+284        vListInsert                               pxList = %I, pxNewListItem = %p
+285        uxListRemove                              pxItemToRemove = %I                | Returns %u
+
+286        xCoRoutineCreate                          pxCoRoutineCode = %p, uxPriority = %u, uxIndex = %u    | Returns %u
+287        vCoRoutineAddToDelayedList                xTicksToDelay = %u, pxEventList = %p
+288        vCoRoutineSchedule
+289        xCoRoutineRemoveFromEventList             pxEventList = %p                                       | Returns %u
+
+290        xEventGroupCreateStatic                   pxEventGroupBuffer = %p                                                                               | Returns %p
+291        xEventGroupCreate                                                                                                                               | Returns %p
+292        xEventGroupSync                           xEventGroup = %I, uxBitsToSet = %u, uxBitsToWaitFor = %u, xTicksToWait = %u                           | Returns %u
+293        xEventGroupWaitBits                       xEventGroup = %I, uxBitsToWaitFor = %u, xClearOnExit = %u, xWaitForAllBits = %u, xTicksToWait = %u    | Returns %u
+294        xEventGroupClearBits                      xEventGroup = %I, uxBitsToClear = %u                                                                  | Returns %u
+295        xEventGroupClearBitsFromISR               xEventGroup = %I, uxBitsToClear = %u                                                                  | Returns %u
+296        xEventGroupGetBitsFromISR                 xEventGroup = %I                                                                                      | Returns %u
+297        xEventGroupSetBits                        xEventGroup = %I, uxBitsToSet = %u                                                                    | Returns %u
+298        vEventGroupDelete                         xEventGroup = %I
+299        vEventGroupSetBitsCallback                pvEventGroup = %p, ulBitsToSet = %u
+300        vEventGroupClearBitsCallback              pvEventGroup = %p, ulBitsToClear = %u
+301        xEventGroupSetBitsFromISR                 xEventGroup = %I, uxBitsToSet = %u, pxHigherPriorityTaskWoken = %p                                    | Returns %u
+302        uxEventGroupGetNumber                     xEventGroup = %I                                                                                      | Returns %u
+303        vEventGroupSetNumber                      xEventGroup = %I, uxEventGroupNumber = %u
+
+304        xStreamBufferGenericCreate                xBufferSizeBytes = %u, xTriggerLevelBytes = %u, xIsMessageBuffer = %u, pxSendCompletedCallback = %p, pxReceiveCompletedCallback = %p                                                                | Returns %p
+305        xStreamBufferGenericCreateStatic          xBufferSizeBytes = %u, xTriggerLevelBytes = %u, xIsMessageBuffer = %u, pucStreamBufferStorageArea = %p, pxStaticStreamBuffer = %p, pxSendCompletedCallback = %p, pxReceiveCompletedCallback = %p    | Returns %p
+306        vStreamBufferDelete                       xStreamBuffer = %I
+307        xStreamBufferReset                        xStreamBuffer = %I                                                                                                                                                                                  | Returns %u
+308        xStreamBufferSetTriggerLevel              xStreamBuffer = %I, xTriggerLevel = %u                                                                                                                                                              | Returns %u
+309        xStreamBufferSpacesAvailable              xStreamBuffer = %I                                                                                                                                                                                  | Returns %u
+310        xStreamBufferBytesAvailable               xStreamBuffer = %I                                                                                                                                                                                  | Returns %u
+311        xStreamBufferSend                         xStreamBuffer = %I, pvTxData = %p, xDataLengthBytes = %u, xTicksToWait = %u                                                                                                                         | Returns %u
+312        xStreamBufferSendFromISR                  xStreamBuffer = %I, pvTxData = %p, xDataLengthBytes = %u, pxHigherPriorityTaskWoken = %p                                                                                                            | Returns %u
+313        xStreamBufferReceive                      xStreamBuffer = %I, pvRxData = %p, xBufferLengthBytes = %u, xTicksToWait = %u                                                                                                                       | Returns %u
+314        xStreamBufferNextMessageLengthBytes       xStreamBuffer = %I                                                                                                                                                                                  | Returns %u
+315        xStreamBufferReceiveFromISR               xStreamBuffer = %I, pvRxData = %p, xBufferLengthBytes = %u, pxHigherPriorityTaskWoken = %p                                                                                                          | Returns %u
+316        xStreamBufferIsEmpty                      xStreamBuffer = %I                                                                                                                                                                                  | Returns %u
+317        xStreamBufferIsFull                       xStreamBuffer = %I                                                                                                                                                                                  | Returns %u
+318        xStreamBufferSendCompletedFromISR         xStreamBuffer = %I, pxHigherPriorityTaskWoken = %p                                                                                                                                                  | Returns %u
+319        xStreamBufferReceiveCompletedFromISR      xStreamBuffer = %I, pxHigherPriorityTaskWoken = %p                                                                                                                                                  | Returns %u
+320        uxStreamBufferGetStreamBufferNumber       xStreamBuffer = %I                                                                                                                                                                                  | Returns %u
+321        vStreamBufferSetStreamBufferNumber
+322        ucStreamBufferGetStreamBufferType         xStreamBuffer = %I                                                                                                                                                                                  | Returns %u
+323        vQueueBlockingOnReceive                   xQueue = %I, xTicksToWait = %u
+324        vQueueBlockingOnSend                      xQueue = %I, xTicksToWait = %u
+325        vQueueUnblockReceiver                     xQueue = %I, xTask = %t, xFromISR = %u
+326        vQueueUnblockSender                       xQueue = %I, xTask = %t, xFromISR = %u
+327        vSemaphoreBlockingOnTake                  sem = %I, xTicksToWait = %u
+328        vSemaphoreUnblockReceiver                 sem = %I, xTask = %t, xFromISR = %u
+329        vMutexBlockingOnLock                      mutex = %I, xTicksToWait = %u
+330        vMutexUnblockReceiver                     mutex = %I, xTask = %t, xFromISR = %u
+
+#
+# Task States
+#
+TaskState 0xFF 4=Delayed, 27=Suspended

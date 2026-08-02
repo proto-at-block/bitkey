@@ -9,6 +9,9 @@ python/*egg*
 python/automation/allure
 python/.pytest_cache
 lib/ipc/generated
+# Generated at build time by lib/sysview/scripts/description_to_h.py from
+# Description/SYSVIEW_Peripherals.txt; not a committed source file.
+lib/sysview/include/SYSVIEW_Peripherals.h
 lib/protobuf/dist
 lib/protobuf/*egg*
 lib/protobuf/bitkey_proto/*_pb2.py
@@ -31,3 +34,5 @@ nscope.*
 *fwup-bundle/
 *fwup-bundle*.zip
 release/
+app/core-sim/core-sim
+ui-simulate.app/

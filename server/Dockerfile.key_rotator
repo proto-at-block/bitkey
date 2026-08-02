@@ -3,6 +3,7 @@ RUN apk update && apk add --no-cache openssl-dev musl-dev make automake protoc g
 RUN rustup update
 WORKDIR /usr/src/lambdas
 COPY --from=core . ../core
+COPY --from=silabs-certs . ../firmware/config/keys/silabs-certs
 COPY . .
 RUN cd src/api/partnerships/partnerships_lib/src/partners/cash_app/lambdas && cargo install --locked --bin key_rotator --path .
 

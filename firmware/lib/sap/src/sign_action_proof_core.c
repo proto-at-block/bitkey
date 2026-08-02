@@ -35,6 +35,7 @@ const char* const sap_action_strings[SAP_ACTION_COUNT] = {
   "RemoveBenefactor",
   "KeysetRepairUnseal",
   "KeysetRepairRotate",
+  "SetDelayNotifyPeriod",
 };
 
 sap_action_t sap_parse_action(const char* str) {

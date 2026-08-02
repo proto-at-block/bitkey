@@ -2,6 +2,7 @@ from pathlib import Path
 
 TASKS_DIR = Path(__file__).parent.parent.absolute()
 ROOT_DIR = TASKS_DIR.parent.absolute()
+FIRMWARE_ROOT_DIR = ROOT_DIR
 APPS_DIR = ROOT_DIR.joinpath("app")
 BUILD_ROOT_DIR = ROOT_DIR.joinpath("build")
 BUILD_HOST_DIR = BUILD_ROOT_DIR.joinpath("host")

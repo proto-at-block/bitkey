@@ -10,7 +10,6 @@ use bdk_utils::bdk::Wallet;
 use http::StatusCode;
 use notification::service::FetchForAccountInput;
 use notification::NotificationPayloadType;
-use recovery::routes::relationship::UpdateRecoveryRelationshipResponse;
 use recovery::routes::relationship::{
     CreateRecoveryRelationshipRequest, UpdateRecoveryRelationshipRequest,
 };
@@ -18,6 +17,9 @@ use recovery::routes::relationship::{CreateRelationshipRequest, OutboundInvitati
 use recovery::routes::relationship::{
     CreateRelationshipResponse, EndorseRecoveryRelationshipsRequest,
     EndorseRecoveryRelationshipsResponse,
+};
+use recovery::routes::relationship::{
+    CustomerRecoveryRelationshipStatus, UpdateRecoveryRelationshipResponse,
 };
 use time::Duration;
 use types::account::entities::Account;
@@ -305,6 +307,10 @@ pub(super) async fn try_accept_recovery_relationship_invitation(
         };
 
         assert_eq!(customer.customer_alias, CUSTOMER_ALIAS);
+        assert_eq!(
+            customer.relationship_status,
+            CustomerRecoveryRelationshipStatus::Unendorsed
+        );
 
         assert_relationship_counts(
             client,

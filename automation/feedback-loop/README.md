@@ -9,272 +9,90 @@ Governed by `docs/docs/automation/ai-feedback-loop.md` (binding policy),
 `docs/docs/automation/feedback-loop-taxonomy.md` (classification + promotion matrix), and the
 architecture/threat notes in `docs/docs/automation/`.
 
-> **Status: partial implementation.** Single-PR structural/comment/review/bot/CI harvest is
-> implemented. Normalize-only in-memory records are implemented.
-> Replay corpus, current-vs-proposed harness, scoring rubric, proposal eval gate, draft PR
-> planning, generated-PR policy checks, and Linear cluster issue planning with Builderbot
-> `code-engine:approved` label handoff support are implemented.
-> Historical backfill remains scaffolded.
-
 ## Design principles
 
 - **Stateless + event-driven**: no datastore. GitHub is the re-fetchable source of record for raw
-  evidence; Linear cluster issues are the durable memory of recurring themes. Metrics are deferred.
-- **Substrate-agnostic**: all logic lives behind a CLI (`run --pr <url>` / `run --backfill`). The
-  harvest trigger only invokes this CLI. Builderbot code-engine execution is triggered separately by
-  Linear issues labeled `code-engine:approved`, so swapping either substrate does not touch pipeline
-  logic.
-- **Rerun-idempotent**: the CLI uses deterministic run keys plus Linear reconciliation so duplicated
-  events, retries, and overlapping backfills can re-fetch current state without a repo-owned scheduler
-  or persisted checkpoint.
-- **Untrusted input**: all harvested PR/review/bot/CI text is **data, never instructions**.
-  Normalize preserves it as in-memory data for deterministic downstream stages.
+  evidence; Linear cluster issues are the durable memory of recurring themes.
+- **Substrate-agnostic**: all logic lives behind a CLI (`run --pr <url>` / `run --backfill` /
+  `reconcile-outcomes`). The harvest trigger only invokes this CLI. Builderbot code-engine
+  execution is triggered separately by Linear issues labeled `code-engine:approved`.
+- **Deterministic facts, LLM judgment**: the deterministic layer extracts only objective facts
+  (thread structure, timestamps, diff membership, check conclusions, head tracking). Taxonomy,
+  severity, exclusions, resolution, clustering, and route planning are LLM judgments — validated
+  structurally, never trusted on identity or evidence.
+- **Reality-checked gates**: plans are verified against the actual repository (paths must exist or
+  belong to allowed new-path families, validation commands must execute a real runner, new fixture
+  files must be referenced by something) — never against their own text.
+- **Untrusted input**: all harvested PR/review/bot/CI text is **data, never instructions**, at
+  every LLM stage.
 - **Mechanical-first promotion**: prefer tests/linters, then `.agents/checks`, then `.ai`
-  rules/skills, then docs, then world model.
-- **Human-gated**: the loop produces Linear issues that Builderbot turns into draft PRs; a human owner approves every merge.
+  rules/skills, then docs, then world model. The taxonomy promotion matrix (critical 1 / high 2 /
+  medium 3 / low 5-and-mechanical-only distinct PRs) is a hard readiness gate.
+- **Human-gated at merge**: `--execute` creates Linear issues and auto-applies the
+  `code-engine:approved` label to pr_ready proposals; Builderbot opens the draft PR. The human
+  gate is draft-PR review/merge — a human owner approves every merge, and the gates exist to make
+  what reaches review worth reviewing.
+- **Provider-neutral LLMs**: a JSON subprocess adapter configured by environment. No provider SDK
+  is coupled to the feedback-loop core.
 
 ## Pipeline stages
 
-`harvest -> normalize -> classify -> cluster -> triage -> propose -> emit`
+`harvest -> normalize -> facts -> noise -> llm_classify -> llm_cluster -> triage -> llm_evaluator
+(extract -> plan -> reality preflight -> replay gate -> judge -> one repair) -> readiness -> emit
+-> plan_cluster_memory_upserts`
 
-Each stage is a module under `pipeline/` with a typed contract. Scaffolded stages raise
-`NotImplementedError` with the stage name so incomplete behavior fails loudly.
+| Stage | Responsibility |
+|---|---|
+| `harvest` | Fetch raw evidence from GitHub for merged PRs (bounded, trust-checked, truncation-tracked). |
+| `normalize` | Shape/provenance normalization in memory (part of `harvest`). |
+| `facts` | Deterministic objective facts per signal: thread structure, timestamp ordering, diff membership, reviewed-vs-final head, author trust. Check signals are classified here (pure metadata: ci/validation failure). |
+| `noise` | Deterministic prefilter for pure bot/process noise (Linear linkbacks, merge-gatekeeper, owner-table, codex wrappers, agent acknowledgements). |
+| `llm_classify` | LLM taxonomy/severity/exclusion/resolution per feedback signal, grounded in facts, batched by PR, structurally validated (unknown ids rejected; unsupported durable-coverage claims downgraded). |
+| `llm_cluster` | LLM groups actionable signals into durable themes and matches them against existing Linear memory records. Identity (slug + idempotency key) is forced from matched records; frequency/severity/rank/decision are computed deterministically from members + matched history. |
+| `triage` | Human-readable report of clusters, decisions, and audit-only signals. |
+| `llm_evaluator` | Learning extraction, per-route concrete patch planning, reality preflight, replay gate, LLM judge, one repair attempt. |
+| `emit` | Draft PR plans + Linear code-engine issues for pr_ready proposals. |
+| `plan_cluster_memory_upserts` | Decision-gated Linear memory upserts (promote / convert_to_mechanical_check / gather_more_evidence only), capped at 30/run with logged drops. |
+| `reconcile-outcomes` | Separate subcommand: syncs Linear issue states from draft-PR results (merged→adopted, closed→rejected, open→pr_open). |
 
-Current stage responsibilities:
+## The gates
 
-| Stage | Responsibility | Status |
-|---|---|---|
-| `harvest` | Fetch raw evidence from GitHub for one merged PR. | Partially implemented. |
-| `normalize` | Normalize harvested records without persistence. | Implemented. |
-| `classify` | Correlate signals, apply exclusions, and assign taxonomy classes. | Implemented. |
-| `cluster` | Group normalized signals into recurring themes. | Implemented. |
-| `triage` | Build human-readable and machine-readable cluster review reports. | Implemented. |
-| `propose` | Create durable guidance proposals from eligible clusters. | Templates and generator implemented. |
-| `emit` | Build human-gated draft PR plans and Linear code-engine issues from evaluated proposals. | Draft PR planning and Linear issue planning implemented; execute mode hands off to Builderbot by adding `code-engine:approved`. |
+A route proposal reaches Builderbot handoff only if **all** of these pass:
 
-## Single-PR Harvest
+1. **Reality preflight** (deterministic, `pipeline/reality_preflight.py`): new files must land in
+   existing directories (the only allowed new paths are `.agents/checks/<slug>.md` and
+   `.ai/skills/<name>/SKILL.md`); unified diffs must target existing files; validation-command
+   path tokens must exist; inspection-only command sets (jq/rg/grep/cat) are vacuous;
+   `test_or_linter` plans must invoke the real runner for their area (`bin/ai-gradle` for app,
+   `cargo test` for server/core, `python -m unittest` for automation, `inv`/`meson test` for
+   firmware); new fixture/data files nothing in the repo references are rejected.
+2. **Promotion frequency gate** (`eval_gate.frequency_gate_blocking_reason`): the taxonomy matrix
+   enforced on memory-reconciled distinct-PR frequency.
+3. **Replay gate** (`replay_gate.py`, mechanical routes): matched historical corpus cases are
+   reconstructed from local git history and an LLM runner applies ONLY the proposed guardrail
+   content to each diff — every matched case must be caught. The runner never sees the expected
+   finding; matching stays deterministic. Zero resolvable matches is recorded as `sparse`, not
+   blocking. Every run also emits curatable corpus suggestions with real commit SHAs
+   (`suggested-replay-cases.json` + a Linear issue section).
+4. **LLM judge** (one proposal per call, 1–5 scores, every dimension must be ≥4): instructed to
+   treat unshown infrastructure as nonexistent (`invented_infrastructure`) and to block plans
+   already covered by existing guidance (`already_covered_by_guidance`), with the deterministic
+   runner-vs-inspection command classification and existing guidance (scoped AGENTS.md, checks,
+   skills) in its input.
 
-`feedback_loop.pipeline.harvest.harvest_pr` processes exactly one merged GitHub pull request URL
-for the configured repo. It rejects non-GitHub PR URLs, repo mismatches, and unmerged PRs.
+One repair attempt is shared across the gates; hard blockers (wrong destination, unsupported
+evidence, frequency, invented infrastructure, replay runtime failures) are never repaired.
 
-The stage collects these raw signals in memory:
+## Linear cluster memory (schema v2)
 
-- `pr_metadata`: title, body, author, labels, requested reviewers/teams, branch refs, SHAs,
-  timestamps, merge metadata, aggregate changed-file areas, and commit/file count metadata.
-- `commit`: commit SHA, message, author/committer metadata, parent SHAs, and commit URL.
-- `changed_file`: filename, optional previous filename, status, additions/deletions/changes, blob
-  URLs, patch presence, and area tag.
-- `diff_hunk`: exact unified diff hunk text in `body`, plus old/new ranges, path, area, and
-  best-effort source URL.
-- `issue_comment`: GitHub issue comment ID, author, author association, created timestamp, body, and
-  comment URL.
-- `review_comment`: GitHub inline review comment ID, author, author association, created timestamp,
-  body, path, line number with original-line fallback, and comment URL.
-- `review`: GitHub submitted review ID, author, author association, submitted timestamp with
-  created-timestamp fallback, body, review state, and review URL.
-- `bot_review`: derived bot-review output from the issue-comment stream. Codex Security Review is
-  matched by the stable `<!-- codex-security-review -->` marker and preserves the reviewed commit
-  range plus workflow-run URL when present. Builderbot output is matched by Builderbot bot authors.
-- `check`: failed non-human quality signals from commit statuses, check runs, and Actions workflow
-  runs for the PR head SHA, including check name, status/conclusion, URL, and timing relative to the
-  latest harvested feedback and commit timestamp.
-
-Area tags are derived from path prefixes: `app/`, `server/`, `firmware/`, `web/`, `core/`,
-`docs/`, and `automation/`. Anything else maps to `repo`.
-
-The GitHub boundary is owned by `feedback_loop.github.GitHubClient`, which shells out to `gh api`,
-pins requests to GitHub.com, validates JSON shape, paginates list endpoints for commits, files,
-issue comments, inline review comments, reviews, check runs, and Actions workflow runs, reads commit
-statuses for the PR head SHA, and fetches the PR-level unified diff. Diff parsing normalizes
-Git-quoted paths and rejects oversized diffs before creating hunk records. If GitHub reports more
-commits or changed files than the paginated API returned,
-`pr_metadata.raw["commits"]["truncated"]` or `pr_metadata.raw["changed_files"]["truncated"]` is set
-so downstream stages can treat aggregate structural signals as incomplete. Comment and review
-payloads are fetched as bounded raw candidate windows. Harvest then de-duplicates duplicate GitHub
-IDs in memory while preserving the first occurrence, applies trust/processability checks, and enters
-only selected items into the capped feedback signal stream. Trusted feedback comes from repo owners,
-members, collaborators, GitHub `[bot]` accounts, and explicitly allowed bot logins such as
-`Copilot`; empty reviews/comments, dismissed reviews, review comments with unsafe unknown parent
-review state, and untrusted authors are counted in `pr_metadata.raw` but are not emitted as
-downstream feedback signals. Each comment/review stream is capped by raw lookback, processable item
-count, and harvested body bytes; `pr_metadata.raw` records per-stream and aggregate truncation
-summaries so downstream stages can treat incomplete feedback evidence conservatively. Bot-review and
-check metadata also records per-source counts and truncation state. The harvest stage does not import
-helper scripts from `.ai` skills.
-
-## Normalize-Only Stage
-
-`feedback_loop.pipeline.normalize.normalize` turns `RawSignal` records into `NormalizedSignal`
-records in memory only. It does not write records, checkpoints, dedup stores, or
-harvest-versioned tables.
-
-Normalization preserves each raw signal as evidence while also exposing stable provenance directly:
-signal kind, source, source ID, source URL, repo, PR number, capture timestamp, harvest version,
-author metadata, path/line, bot flag, body text, and copied raw metadata.
-
-## Comment-to-Change Correlation
-
-`feedback_loop.pipeline.classify.classify` attaches deterministic BKW-84 correlation metadata to
-reviewer, issue-comment, review, and bot-review feedback, then assigns BKW-75 taxonomy fields.
-
-Correlation uses bounded, reviewable evidence only: matching changed paths and diff hunk lines,
-later commits and commit-message fix language, later fixed/covered/done replies, resolved thread
-metadata, failed validation signals after the feedback timestamp, and bot-review ranges that point
-at an earlier head than the final PR head.
-
-Every feedback signal gets a confidence, rationale, and evidence IDs. Signals below the likely-miss
-threshold still carry a rationale so false or weak correlations remain visible to the future human
-triage report.
-
-Classifier output includes primary class, severity, confidence, rationale, evidence IDs, affected
-area, source/area tags, suggested destination, and a `manual_triage` flag. Promotable classes below
-confidence `0.5` are held for manual triage and do not get an automatic destination. The labeled eval
-set lives in [`validation/bkw-75-classifier-eval.md`](./validation/bkw-75-classifier-eval.md).
-
-## Exclusion Rules
-
-BKW-83 exclusion rules run after correlation. They mark nits, subjective preferences, product
-decisions, speculative questions, and not-actionable operational noise with auditable `Exclusion`
-metadata instead of silently dropping those signals.
-
-Excluded signals can still be summarized as context when useful, but excluded-only clusters are
-blocked from creating guardrail proposals. The manual validation notes, including false
-include/false exclude examples, live in [`validation/bkw-83-exclusion-validation.md`](./validation/bkw-83-exclusion-validation.md).
-
-## Theme Clustering
-
-`feedback_loop.pipeline.cluster.cluster` groups classified actionable and excluded feedback into
-stable reviewable themes. The cluster key is deterministic: primary class, affected area,
-destination/manual-triage/excluded state, and a normalized topic from path/body/rationale.
-
-Clusters include frequency by distinct PR, highest severity, `severity_weight x frequency` rank,
-representative examples, and source URLs. Excluded-only clusters are retained for audit with rank
-`0.0` and no suggested destination.
-
-## Triage Report
-
-`feedback_loop.pipeline.triage.build_triage_report` turns ranked clusters into a markdown report and
-a machine-readable summary. Each cluster includes decision guidance (`promote`,
-`gather_more_evidence`, `ignore`, or `convert_to_mechanical_check`), source links, representative
-examples, severity, frequency, confidence, suggested destination, and explicit open questions.
-
-## Promotion Templates
-
-`feedback_loop.pipeline.propose` defines one promotion template for every destination in the
-promotion matrix: tests/linters, `.agents/checks`, `.ai/skills`, scoped `.ai/AGENTS.md`, docs, and
-world model. The templates require evidence, scope, examples, non-goals, validation steps, reviewer
-instructions, and rollback guidance.
-
-Evidence is summarized with source IDs and URLs. Templates explicitly avoid pasting raw PR comments
-verbatim when a concise summary is enough.
-
-## Guardrail Proposal Generator
-
-`feedback_loop.pipeline.propose.propose` turns eligible clusters into dry-run `Proposal` artifacts.
-It selects the destination from the cluster, fills the matching template, includes evidence links and
-confidence, and records validation commands plus replay cases for the future P4 eval harness.
-
-The generator creates at most one proposal per cluster and skips excluded-only, manual-triage,
-low-confidence, and below-threshold research-only clusters. It does not edit the repo; the
-replay/eval gate remains separate and generated proposals stay at `eval_passed=False` until that
-gate approves them.
-
-## Replay Corpus
-
-`feedback_loop.replay.load_replay_corpus` loads the committed historical miss fixture at
-[`replay/corpus.json`](./replay/corpus.json). Each case records the PR, commit range, changed files,
-miss class, source comment URL, expected finding, labels, and a short summary. The corpus stores
-links and summaries only; raw review comment bodies stay in GitHub as the source of record.
-
-## Replay Harness
-
-`feedback_loop.replay.run_replay_harness` runs two caller-provided guidance runners, `current` and
-`proposed`, over the same replay cases. The harness is pure and deterministic: it does not edit the
-repo, open PRs, comment, or write files unless the caller explicitly passes the returned report to
-`write_replay_report`.
-
-Each runner returns `ReplayFinding` objects for one `ReplayCase`. The harness classifies each
-case result into comparable artifacts:
-
-- `caught_miss`: the runner emitted a finding for the replay case, with the expected destination
-  when the corpus case declares one.
-- `missed_miss`: the runner returned successfully but did not catch the expected miss.
-- `extra_findings`: findings that do not match the case expectation.
-- `runtime_failure`: runner exceptions or invalid runner output.
-
-`ReplayReport.proposal_publishable` is `False` when proposed guidance misses a replay case or
-fails at runtime. The scoring rubric records noisy extra findings, and the proposal eval gate
-enforces the publication decision.
-
-## Replay Scoring Rubric
-
-`feedback_loop.rubric.score_proposal` scores a `Proposal` plus `ReplayReport` before the proposal
-can be published. The default thresholds require:
-
-- perfect proposed-guidance recall on replayed historical misses;
-- no proposed-guidance runtime failures;
-- correct expected severity when replay cases declare one, otherwise recognized severity
-  (`critical`, `high`, `medium`, or `low`);
-- actionable proposal details: target artifacts, validation commands, replay cases, scope, and
-  validation steps;
-- source grounding: evidence links, an evidence section, and source URLs on caught replay findings;
-- noise cost no higher than `0.5` extra findings per replay case;
-- at least two replay cases unless a high/critical severity proposal has an explicit manual
-  override.
-
-The rubric records recall and noise/regression cost separately. `rubric_markdown` renders the
-result for draft PR descriptions so reviewers can see the gate inputs.
-
-## Proposal Eval Gate
-
-`feedback_loop.eval_gate.evaluate_proposal` runs the rubric and moves proposals through the eval
-state machine:
-
-`proposed -> eval_running -> eval_passed | eval_failed -> pr_ready`
-
-Failed evals attach a `ProposalEvalArtifact` with rubric markdown, blocking reasons, and a failure
-destination. Sparse high/critical evidence returns to research unless an explicit manual override
-is recorded; other weak proposals return to triage. `mark_pr_ready` is the only transition from
-`eval_passed` to `pr_ready`, and `pipeline.emit.emit` refuses every proposal that is not both
-`eval_passed` and `pr_ready` before any Builderbot-triggering Linear write can happen.
-
-## Draft PR Emission
-
-`feedback_loop.pipeline.emit.emit` builds one `DraftPrPlan` and one Linear cluster issue plan per
-`pr_ready` proposal. Dry-run mode returns the plans without writing to Linear or triggering
-Builderbot. Execute mode calls an injected Linear writer; the Linear issue receives the
-`code-engine:approved` label so the existing Builderbot code-engine automation opens the draft PR
-and comments back in Linear. Generated draft PR plans are handed to Builderbot through the Linear
-issue and include:
-
-- proposal summary, destination, target artifacts, and proposed file changes;
-- evidence links instead of pasted source comments;
-- attached replay rubric markdown;
-- validation commands, with AI context regenerate/check commands added when `.ai` sources change;
-- reviewer instructions from the proposal template.
-
-Each Linear issue represents one conceptual feedback-loop improvement, and the trigger label lets the
-shared Builderbot automation own branch checkout, code edits, PR creation, and Linear follow-up.
-
-## Generated PR Policy
-
-`feedback_loop.pr_policy.validate_pr_policy` enforces one cluster or one guardrail per generated PR.
-It fails local validation when a proposal mixes unrelated artifact families, such as `.agents/checks`
-and docs, or when a proposal routes AI/doc files to the wrong destination. A human can apply an
-explicit `PrPolicyOverride` with approver and rationale for tightly coupled changes.
-
-Every generated draft PR body includes a reviewer checklist covering evidence quality, destination
-choice, eval results, noise risk, source-of-truth compliance, and rollback.
-
-## Linear Cluster Issues
-
-`feedback_loop.linear_control.build_cluster_issue_plan` builds an idempotent Linear upsert plan for
-each accepted cluster. Plans keep `assignee=None`, attach the `Linear-driven code engine` project,
-include evidence links, proposal routing, eval markdown, target artifacts, proposed file changes,
-validation commands, and the draft PR URL when available. Execute mode adds the
-`code-engine:approved` label to trigger the shared Builderbot code-engine automation. The
-deterministic idempotency key is derived from the stable cluster theme and destination so reruns can
-update the same issue instead of duplicating it when summary text changes.
+`feedback_loop.cluster_memory` treats Linear cluster issues as the durable memory of recurring
+themes. Identity is the semantic cluster slug + destination
+(`idempotency_key_for_memory(slug, destination)`); matched records keep their original keys
+verbatim, so legacy v1/lexical issues upgrade in place the first time a cluster matches them.
+Writes are decision-gated (`promote`, `convert_to_mechanical_check`, `gather_more_evidence` —
+sub-threshold themes must persist so frequency can accumulate across runs), capped at 30 per run
+with every drop logged, and would-be duplicate creates fold into existing records on ≥50% PR
+overlap. The reader pages past the per-page limit and warns loudly if the CLI exposes no cursor.
 
 Feedback-loop status maps onto the Bitkey Linear workflow as:
 
@@ -286,8 +104,8 @@ Feedback-loop status maps onto the Bitkey Linear workflow as:
 | `adopted` | `Done` |
 | `rejected` | `Canceled` |
 
-Execute mode requires an injected Linear writer before any external write; dry-run returns the plans
-without applying the Builderbot trigger label to Linear.
+`reconcile-outcomes` drives the last three transitions from actual PR state, using the
+`change-set:<sha16>` marker every generated draft PR body carries.
 
 ## Usage
 
@@ -295,53 +113,170 @@ without applying the Builderbot trigger label to Linear.
 # Single merged PR (the Builderbot/Blox trigger and the GitHub-Action fallback both call this form)
 python -m feedback_loop run --pr https://github.com/squareup/wallet/pull/12345 --dry-run
 
-# Bounded historical backfill
+# Bounded historical backfill (classified and clustered as one window)
 python -m feedback_loop run --backfill --since 2026-05-01 --limit 100 --dry-run
+
+# Reviewable local run bundle
+python -m feedback_loop run --pr https://github.com/squareup/wallet/pull/12345 \
+  --dry-run --output-dir automation/feedback-loop/.dry-runs/single-pr
+
+# Sync Linear issue states from draft-PR outcomes
+python -m feedback_loop reconcile-outcomes --dry-run
 ```
 
-`--dry-run` (default in the scaffold) performs no writes: no Linear issue, no Builderbot trigger
-label, no comments.
+`--dry-run` (default) performs no writes. `--execute` writes Linear issues, auto-applies the
+Builderbot trigger label to pr_ready proposals, and always records a run bundle (defaulting to
+`.feedback-loop-runs/<mode>-<timestamp>` when `--output-dir` is omitted) plus a stdout summary of
+every Linear write and Builderbot trigger.
 
-Scheduling is Builderbot configuration, not feedback-loop code. The repo CLI only provides
-event/backfill entrypoints plus rerun/reconcile idempotency for repeated invocations.
+Without `FEEDBACK_LOOP_LLM_COMMAND` configured, dry-run degrades to a facts-only inventory and
+`--execute` refuses to run: memory writes depend on LLM classification.
+
+The run bundle contains `run-summary.json`, concise/full triage reports, `classifications.json`,
+`clusters.json`, `proposals.json`, `proposal-evals.json`, `llm-learnings.json`, `llm-debug.json`,
+`eval-blocked.json`, `cluster-memory.json`, `replay-gate.json`, `suggested-replay-cases.json`,
+emit previews, and (execute) `linear-writes.json`.
+
+### LLM adapters
+
+In-repo adapters under `adapters/` implement the contract for two backends — **Claude**
+(Anthropic) and **Codex** (OpenAI). The command string is shlex-split (no shell), so use
+absolute paths:
+
+```bash
+REPO="$(git rev-parse --show-toplevel)"
+export FEEDBACK_LOOP_LLM_COMMAND="$REPO/bin/python3 $REPO/automation/feedback-loop/adapters/llm_adapter.py --provider claude"
+export FEEDBACK_LOOP_LLM_TIMEOUT=600   # core per-call kill; keep above adapter retries x HTTP timeout
+```
+
+The adapter receives one JSON request on stdin (`task`, `prompt_version`, `system_prompt`,
+`input`, `response_contract`) and returns one strict JSON object on stdout; any nonzero exit
+leaves stdout empty so the core's transport retry fires.
+
+**Transport is API-first.** When the provider's key env var is set
+(`ANTHROPIC_API_KEY` / `OPENAI_API_KEY`), the adapter calls the provider API directly via stdlib
+HTTP — no agent-harness boot per call, and the stage-constant prefix (system prompt + response
+contract) is served from the provider prompt cache. Claude can fall back to the authenticated
+`claude -p` CLI when `ANTHROPIC_API_KEY` is absent (slower and more expensive per call; keep
+concurrency <= 2 in CLI mode). Codex is API-only: `--provider codex` requires `OPENAI_API_KEY`
+and fails closed when CLI fallback is forced.
+
+| Env var | Default | Purpose |
+|---|---|---|
+| `FEEDBACK_LOOP_LLM_PROVIDER` | `claude` | provider when `--provider` is absent |
+| `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | unset | presence selects API mode |
+| `FEEDBACK_LOOP_ADAPTER_FORCE_CLI` | `0` | force Claude CLI fallback despite a key (testing); unsupported for Codex |
+| `FEEDBACK_LOOP_CLAUDE_MODEL` / `FEEDBACK_LOOP_OPENAI_MODEL` | flagship | provider default model |
+| `FEEDBACK_LOOP_CLAUDE_MODEL_<TASK>` / `FEEDBACK_LOOP_OPENAI_MODEL_<TASK>` | unset | per-task model override (task uppercased, e.g. `..._CLASSIFY_FEEDBACK_SIGNALS`) |
+| `FEEDBACK_LOOP_ADAPTER_ANTHROPIC_BASE_URL` / `..._OPENAI_BASE_URL` | provider default | internal-gateway override |
+| `FEEDBACK_LOOP_ADAPTER_MAX_TOKENS` | `16000` | API output-token cap |
+| `FEEDBACK_LOOP_ADAPTER_HTTP_TIMEOUT` / `..._CLI_TIMEOUT` | `240` | per-attempt deadlines (seconds) |
+| `FEEDBACK_LOOP_ADAPTER_RETRIES` | `2` | internal retries on 429/5xx (honors retry-after) |
+| `FEEDBACK_LOOP_ADAPTER_USAGE_LOG` | unset | JSONL usage sidecar path (else one stderr line per call) |
+
+### Concurrency
+
+Stage-internal fan-out is env-gated and **default-off** (sequential, byte-identical to the
+single-threaded pipeline). Recommended production values:
+
+```bash
+export FEEDBACK_LOOP_LLM_CONCURRENCY=4      # classify batches, evaluator routes, replay cases
+export FEEDBACK_LOOP_HARVEST_CONCURRENCY=3  # per-PR harvest; keep small (gh secondary rate limits)
+```
+
+One shared semaphore caps in-flight adapter subprocesses across all stages, and each stage merges
+results in submission order, so artifacts are ordering-identical at any concurrency. The
+clustering stage stays sequential by design (chunks chain through pending clusters).
+
+### Usage telemetry
+
+With `FEEDBACK_LOOP_ADAPTER_USAGE_LOG=/tmp/fl-usage.jsonl` set, every call appends one JSON line
+(task, provider, mode, model, duration, token + cache counters). Aggregate per task with:
+
+```bash
+bin/python3 -c "
+import collections, json, sys
+rows = [json.loads(line) for line in open(sys.argv[1])]
+by_task = collections.defaultdict(list)
+for row in rows: by_task[row['task']].append(row)
+for task, items in sorted(by_task.items()):
+    read = sum(r['cache_read_input_tokens'] or 0 for r in items)
+    write = sum(r['cache_creation_input_tokens'] or 0 for r in items)
+    fresh = sum(r['input_tokens'] or 0 for r in items)
+    ms = sum(r['duration_ms'] for r in items) / len(items)
+    rate = read / (read + write + fresh) if read + write + fresh else 0.0
+    print(f'{task}: {len(items)} calls, avg {ms:.0f}ms, cache hit {rate:.0%}')
+" /tmp/fl-usage.jsonl
+```
+
+A near-zero cache-hit rate on a high-volume task (classify) means a silent prefix invalidator —
+diff two rendered request bodies.
+
+### Deferred follow-ups
+
+- Message Batches API mode for `--backfill` (50% token cost, async).
+- Cluster-stage map-reduce (parallel chunks + one merge call).
+- Raising `MAX_CLASSIFY_SIGNALS_PER_CALL` above 40 — gated on re-running the BKW-75 classifier
+  eval (`validation/bkw-75-classifier-eval.md`) at the larger batch size.
+
+Rerun idempotency is owned by Linear memory reconciliation: semantic slug matching lets repeated
+invocations update the same issues instead of duplicating them. Scheduling is Builderbot
+configuration, not feedback-loop code.
 
 ## Layout
 
 ```
 automation/feedback-loop/
 ├── README.md                 # this file
+├── adapters/
+│   ├── llm_adapter.py        # executable entry (--provider claude|codex), API-first; Codex API-only
+│   ├── common.py             # request/prompt assembly, HTTP retry, CLI runner, usage log
+│   ├── anthropic_provider.py # Claude: Messages API (prompt caching) + `claude -p` fallback
+│   └── openai_provider.py    # Codex: Chat Completions API
 ├── feedback_loop/
 │   ├── __init__.py
 │   ├── __main__.py           # `python -m feedback_loop`
-│   ├── cli.py                # arg parsing + stage orchestration (run --pr / --backfill)
-│   ├── config.py             # repo, idempotency, dry-run
-│   ├── eval_gate.py          # proposal eval state machine and emit guard
-│   ├── linear_control.py     # Linear cluster issue plans and state mapping
-│   ├── models.py             # typed records (RawSignal, NormalizedSignal, Cluster, Proposal)
+│   ├── cli.py                # arg parsing + stage orchestration (run / reconcile-outcomes)
+│   ├── concurrency.py        # bounded fan-out helpers (default-off, env-gated)
+│   ├── config.py             # repo, harvest version, dry-run, repo root
+│   ├── artifacts.py          # run bundle writer (dry-run and execute)
+│   ├── cluster_memory.py     # Linear-backed durable memory (schema v2)
+│   ├── corpus_suggest.py     # replay-corpus suggestions from judged learnings
+│   ├── eval_gate.py          # PR-ready guard + promotion frequency gate
+│   ├── github.py             # gh CLI boundary (harvest, change-set search, PR status)
+│   ├── gitio.py              # read-only git boundary (replay diff reconstruction)
+│   ├── linear_control.py     # Linear issue plans and state mapping
+│   ├── llm.py                # provider-neutral JSON subprocess adapter + shared retry
+│   ├── models.py             # typed records (RawSignal, SignalFacts, Cluster, Proposal, ...)
+│   ├── outcomes.py           # reconcile-outcomes implementation
 │   ├── pr_policy.py          # one-change generated PR policy and reviewer checklist
+│   ├── repo_reality.py       # injectable read-only checkout boundary for reality checks
 │   ├── replay.py             # replay corpus loader + current-vs-proposed harness
-│   ├── rubric.py             # replay scoring rubric + PR markdown
+│   ├── replay_gate.py        # runtime replay gate (LLM runner over historical diffs)
+│   ├── rubric.py             # replay scoring rubric
+│   ├── route_metadata.py     # handoff titles + change-set ids
+│   ├── util.py               # shared helpers (dedupe, severity weights, promotion matrix, ...)
 │   └── pipeline/
 │       ├── __init__.py
-│       ├── harvest.py        # GitHub harvest inputs
-│       ├── normalize.py      # normalization, no store
-│       ├── classify.py       # correlation + taxonomy classification
-│       ├── cluster.py        # theme clustering
+│       ├── harvest.py        # GitHub harvest + normalization
+│       ├── facts.py          # deterministic objective facts layer
+│       ├── noise.py          # bot/process-noise prefilter
+│       ├── llm_classify.py   # LLM signal classification
+│       ├── llm_cluster.py    # LLM clustering + semantic memory matching
 │       ├── triage.py         # human triage report
-│       ├── propose.py        # proposal generation + eval gate
+│       ├── templates.py      # promotion templates (titles/sections per destination)
+│       ├── reality_preflight.py # repo-reality checks for plans
+│       ├── llm_evaluator.py  # learning extraction, route planning, gates, judge, repair
 │       └── emit.py           # draft PR + Linear issue planning
 ├── replay/
-│   └── corpus.json           # small versioned historical miss corpus
-└── trigger/                  # DESIGN ONLY — UI-configured Builderbot automation; no cash-server, no SA
-    ├── README.md             # trigger overview (Builderbot automations UI → blox-vanilla → CLI)
-    ├── automation-setup-ui.md # primary: exact UI steps/fields + identity/permission notes
-    ├── PROVISIONING.md        # minimal human checklist (UI + two capability confirms)
-    └── routing-rule.json      # advanced/alternative: equivalent rule body for the Builderbot API
+│   └── corpus.json           # versioned historical miss corpus (grown via suggestions)
+└── trigger/                  # DESIGN ONLY — UI-configured Builderbot automation
 ```
 
 ## See also
 
 - `docs/docs/automation/ai-feedback-loop.md` — binding scope/owners/source-of-truth policy.
-- `docs/docs/automation/feedback-loop-taxonomy.md` — taxonomy + promotion matrix.
-- `docs/docs/automation/feedback-loop-data-source.md` — data-source recommendation.
+- `docs/docs/automation/feedback-loop-taxonomy.md` — taxonomy + promotion matrix (enforced at the gate).
+- `docs/docs/automation/feedback-loop-architecture.md` — architecture notes.
 - `docs/docs/automation/feedback-loop-checks-integration.md` — `.agents/checks` integration.
+- `docs/docs/automation/feedback-loop-threat-model.md` — threat model.

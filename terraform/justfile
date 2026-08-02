@@ -32,7 +32,7 @@ clean:
 
 fmt:
   terraform fmt --recursive
-  terragrunt hclfmt
+  terragrunt hcl format
 
 fmt-ci:
   just fmt

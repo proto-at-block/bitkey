@@ -39,9 +39,12 @@ workflows:
             # Reduce Terraform suggestion output
             name: TF_IN_AUTOMATION
             value: 'true'
-        # Needs to happen before plan to have intended security benefits
+        # Needs to happen before plan to have intended security benefits.
+        # Terragrunt 1.x requires `run --` for `providers schema`; the fallback keeps this
+        # working if this config rolls out ahead of the Terragrunt 1.x image (or vice versa).
+        # TODO(BKW-645): drop the fallback once the Terragrunt 1.x image is applied.
         - run:
-            command: terragrunt providers schema -json > providers-schema.json
+            command: terragrunt run -- providers schema -json > providers-schema.json || terragrunt providers schema -json > providers-schema.json
             output: hide
         # Needs to happen before plan to have intended security benefits
         - run: /policies/provider-allowlist/check.sh

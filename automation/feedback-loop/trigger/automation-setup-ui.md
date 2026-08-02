@@ -50,7 +50,12 @@ Run the AI feedback loop for a merged wallet PR.
 
 1. Clone squareup/wallet at {{ pull_request.merge_commit_sha }}.
 2. From automation/feedback-loop/, run:
+     export FEEDBACK_LOOP_LLM_COMMAND="$PWD/../../bin/python3 $PWD/adapters/llm_adapter.py --provider claude"
+     export FEEDBACK_LOOP_LLM_TIMEOUT=600
+     export FEEDBACK_LOOP_LLM_CONCURRENCY=4
+     export FEEDBACK_LOOP_HARVEST_CONCURRENCY=3
      python -m feedback_loop run --pr "{{ pull_request.html_url }}" --execute
+   (ANTHROPIC_API_KEY arrives via the operator's Blox vendor key; see trigger/PROVISIONING.md.)
 3. The CLI harvests the PR's review feedback, classifies/clusters it, and — only for
    eval-passing clusters — creates/updates a Linear cluster issue with the code-engine:approved
    label. Builderbot code engine opens the draft PR and comments back in Linear.

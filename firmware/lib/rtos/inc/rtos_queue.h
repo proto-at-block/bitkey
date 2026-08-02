@@ -11,6 +11,10 @@ typedef struct {
   QueueHandle_t handle;
 } rtos_queue_t;
 
+#include "rtos_sysview.h"
+#define _RTOS_QUEUE_NAME(handle, name_str) \
+  rtos_sysview_register_resource((uint32_t)(uintptr_t)(handle), name_str)
+
 // TODO(W-4581)
 #define rtos_queue_create(name, item_type, queue_length)                          \
   ({                                                                              \
@@ -19,6 +23,7 @@ typedef struct {
     static StaticQueue_t _##name##_static_queue = {0};                            \
     _rtos_queue_create_static(&_##name##_queue, sizeof(item_type), queue_length,  \
                               (void*)&_##name##_buffer, &_##name##_static_queue); \
+    _RTOS_QUEUE_NAME(_##name##_queue.handle, #name);                              \
     &_##name##_queue;                                                             \
   })
 

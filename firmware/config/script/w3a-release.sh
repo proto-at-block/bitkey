@@ -105,18 +105,47 @@ resolve_run_id() {
   gh run list --workflow=firmware --branch="${tag}" --status=success --limit=1 --json databaseId --jq '.[0].databaseId'
 }
 
+tag_revision() {
+  local version=$1
+  git -C "${FIRMWARE_DIR}" rev-list -n 1 "fw-${version}"
+}
+
+run_head_sha() {
+  gh run view "$1" --json headSha --jq '.headSha'
+}
+
+validate_run_matches_tag() {
+  local version=$1 run_id=$2
+  local tag_sha run_sha
+  tag_sha=$(tag_revision "${version}") || die "Could not resolve git revision for tag fw-${version}"
+  run_sha=$(run_head_sha "${run_id}") || die "Could not resolve head SHA for GH run ${run_id}"
+  [ "${run_sha}" = "${tag_sha}" ] || \
+    die "GH run ${run_id} head SHA ${run_sha} does not match fw-${version} tag SHA ${tag_sha}"
+}
+
 download_firmware_build() {
   local run_id=$1 out_dir=$2 label=$3
   rm -rf "${out_dir}"
   mkdir -p "${out_dir}"
   echo "  Downloading firmware-build artifact (${label}) from run ${run_id}..."
   gh run download "${run_id}" --name "firmware-build" --dir "${out_dir}"
+  echo "${run_id}" > "${out_dir}/.run_id"
 }
 
 ensure_firmware_build_downloaded() {
-  local run_id=$1 out_dir=$2 label=$3
-  if [ -n "$(find "${out_dir}" -type f 2>/dev/null | head -1)" ]; then
-    echo "  Reusing existing CI artifacts: ${out_dir}"
+  local run_id=$1 out_dir=$2 label=$3 force_refresh=${4:-false}
+  local run_id_file="${out_dir}/.run_id"
+
+  if [ "${force_refresh}" = "true" ]; then
+    echo "  GH_RUN_ID override provided; refreshing CI artifacts: ${out_dir}"
+    download_firmware_build "${run_id}" "${out_dir}" "${label}"
+  elif [ -n "$(find "${out_dir}" -type f ! -name .run_id 2>/dev/null | head -1)" ]; then
+    if [ -f "${run_id_file}" ] && [ "$(cat "${run_id_file}")" = "${run_id}" ]; then
+      echo "  Reusing existing CI artifacts from run ${run_id}: ${out_dir}"
+    else
+      echo "  Cached CI artifacts do not match run ${run_id}; refreshing: ${out_dir}"
+      download_firmware_build "${run_id}" "${out_dir}" "${label}"
+    fi
   else
     download_firmware_build "${run_id}" "${out_dir}" "${label}"
   fi
@@ -513,14 +542,20 @@ resolve_runs() {
   RUN_ID_TO=$(resolve_run_id "${TO_VERSION}" "${GH_RUN_ID_TO:-}")
   [[ -n "${RUN_ID_FROM}" && "${RUN_ID_FROM}" != "null" ]] || die "Could not resolve GH run for FROM_VERSION=${FROM_VERSION}"
   [[ -n "${RUN_ID_TO}" && "${RUN_ID_TO}" != "null" ]] || die "Could not resolve GH run for TO_VERSION=${TO_VERSION}"
+  validate_run_matches_tag "${FROM_VERSION}" "${RUN_ID_FROM}"
+  validate_run_matches_tag "${TO_VERSION}" "${RUN_ID_TO}"
   echo "  FROM run: ${RUN_ID_FROM}"
   echo "  TO run:   ${RUN_ID_TO}"
 }
 
 ensure_ci_artifacts_downloaded() {
   resolve_runs
-  ensure_firmware_build_downloaded "${RUN_ID_FROM}" "${FROM_CI_DIR}" "FROM"
-  ensure_firmware_build_downloaded "${RUN_ID_TO}" "${TO_CI_DIR}" "TO"
+  local force_from=false force_to=false
+  [ -z "${GH_RUN_ID_FROM:-}" ] || force_from=true
+  [ -z "${GH_RUN_ID_TO:-}" ] || force_to=true
+
+  ensure_firmware_build_downloaded "${RUN_ID_FROM}" "${FROM_CI_DIR}" "FROM" "${force_from}"
+  ensure_firmware_build_downloaded "${RUN_ID_TO}" "${TO_CI_DIR}" "TO" "${force_to}"
 }
 
 # ─── Upload helpers (Memfault) ───────────────────────────────────────────────
@@ -750,18 +785,25 @@ cmd_stage() {
 
   local base_dir="$(pwd)/w3a-release"
   local ci_dir="${base_dir}/ci-artifacts/${version}"
+  local signed_stage_dir="${base_dir}/signed-artifacts/${version}/${image_type}"
 
   echo "=== W3A Stage ==="
   echo "  Version: v${version}  HW: ${hw_rev}  Image: ${image_type}"
 
-  mkdir -p "${ci_dir}" "${base_dir}/raw-signing-input" "${base_dir}/signed-artifacts/${version}/${image_type}"
+  mkdir -p "${ci_dir}" "${base_dir}/raw-signing-input"
+  rm -rf "${signed_stage_dir}"
+  mkdir -p "${signed_stage_dir}"
 
   # Download CI artifacts
   local run_id
   run_id=$(resolve_run_id "${version}" "${GH_RUN_ID:-}")
   [[ -n "${run_id}" && "${run_id}" != "null" ]] || die "Could not resolve GH run for version=${version}. Expected tag: fw-${version}"
+  validate_run_matches_tag "${version}" "${run_id}"
 
-  ensure_firmware_build_downloaded "${run_id}" "${ci_dir}" "${version}"
+  local force_refresh=false
+  [ -z "${GH_RUN_ID:-}" ] || force_refresh=true
+
+  ensure_firmware_build_downloaded "${run_id}" "${ci_dir}" "${version}" "${force_refresh}"
 
   # Stage raw ELFs for signing
   RAW_SIGNING_INPUT_DIR="${base_dir}/raw-signing-input"

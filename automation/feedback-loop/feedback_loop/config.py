@@ -1,8 +1,8 @@
 """Run configuration for the feedback loop.
 
 Stateless by design (BKW-64): config carries only what a single ephemeral run needs. No datastore
-handles, no checkpoints persisted to disk. Reruns reconcile by using a stable key derived from
-(repo, PR number, harvest version).
+handles, no checkpoints persisted to disk. Rerun idempotency is owned by Linear cluster-memory
+reconciliation (see cluster_memory.py).
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ DEFAULT_REPO = "squareup/wallet"
 
 # Bump when the harvest/normalize schema changes so reruns are distinguishable. Part of the
 # idempotency key (BKW-80/BKW-81 acceptance: running the same PR twice does not duplicate work).
-HARVEST_VERSION = "1"
+HARVEST_VERSION = "2"
 
 
 @dataclass(frozen=True)
@@ -30,16 +30,8 @@ class RunConfig:
     limit: int = 100
     # Single-PR mode (used by `run --pr`).
     pr_url: str | None = None
+    # Optional local dry-run artifact bundle directory.
+    output_dir: str | None = None
+    # Local checkout root used for plan reality checks; resolved by the CLI (default: git toplevel).
+    repo_root: str | None = None
     extra: dict = field(default_factory=dict)
-
-    def idempotency_key(self, pr_number: int) -> str:
-        """Stable run key for stateless retries and overlapping backfills."""
-        if pr_number <= 0:
-            raise ValueError("pr_number must be positive")
-        repo = self.repo.strip().lower()
-        harvest_version = self.harvest_version.strip()
-        if not repo or "/" not in repo:
-            raise ValueError("repo must be OWNER/REPO")
-        if not harvest_version:
-            raise ValueError("harvest_version must be non-empty")
-        return f"{repo}/pr/{pr_number}/harvest-v{harvest_version}"

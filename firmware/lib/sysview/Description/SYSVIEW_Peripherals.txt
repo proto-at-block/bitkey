@@ -1,0 +1,106 @@
+#
+# Wallet STM32U5 peripheral tracing for SEGGER SystemView.
+#
+# API names must stay short enough for SystemView display.
+#
+
+NamedType Bool 0=FALSE 1=TRUE
+NamedType I2CInst 1=I2C1
+NamedType I2CFreq 0=I2C_FREQ_100K 1=I2C_FREQ_400K 2=I2C_FREQ_MAX
+NamedType I2CErr 1=I2C_TRANSFER_IN_PROGRESS 0=I2C_TRANSFER_DONE 4294967295=I2C_TRANSFER_NACK 4294967294=I2C_TRANSFER_BUS_ERR 4294967293=I2C_TRANSFER_ARB_LOST 4294967292=I2C_TRANSFER_USAGE_FAULT 4294967291=I2C_TRANSFER_SW_FAULT 4294967290=I2C_TRANSFER_TIMEOUT
+NamedType I2CEvent 0=NONE 1=TRANSFER_DONE 2=BUS_ERROR 4=ADDR_NACK 8=TRANSFER_NACK
+NamedType ExtiTrig 0=EXTI_TRIGGER_RISING 1=EXTI_TRIGGER_FALLING 2=EXTI_TRIGGER_BOTH
+NamedType TouchEvt 0=TOUCH_NONE 1=TOUCH_DOWN 2=TOUCH_UP 3=TOUCH_CONTACT
+NamedType TouchReq 0=REQ_NONE 1=REQ_NORMAL 2=REQ_FORCE
+
+128 dma_init                 prio=%u | Returns %d
+129 dma_alloc_channel        channel=%u | Returns %d
+130 dma_channel_free         channel=%u | Returns %d
+131 dma_config_basic         channel=%u, req=%u, len=%u | Returns %d
+132 dma_config_circular      channel=%u, req=%u, len=%u | Returns %d
+133 dma_channel_start        channel=%u | Returns %d
+134 dma_channel_stop         channel=%u | Returns %d
+135 dma_irq                  channel=%u, flags=0x%x
+
+136 i2c_bus_init             inst=%I2CInst, addr=0x%x, en=%Bool
+137 i2c_set_bus_freq         inst=%I2CInst, freq=%I2CFreq
+138 i2c_transfer             inst=%I2CInst, addr=0x%x, bytes=%u | Returns %I2CErr
+139 i2c_transfer_done        inst=%I2CInst, bytes=%u
+140 i2c_transfer_error       inst=%I2CInst, bits=0x%x, err=%I2CErr
+141 i2c_irq                  inst=%I2CInst, rem=%u, flags=0x%x
+142 i2c_err_irq              inst=%I2CInst, isr=0x%x, event=0x%x
+143 i2c_dma_event            inst=%I2CInst, flags=0x%x
+
+144 usart_init               base=0x%x, baud=%u
+145 usart_read               base=0x%x, len=%u, timeout=%u
+146 usart_write              base=0x%x, len=%u
+147 usart_irq                base=0x%x
+148 usart_rx_init_dma        base=0x%x
+149 usart_rx_ready           base=0x%x, avail=%u
+150 usart_rx_dma_event       base=0x%x, flags=0x%x
+151 usart_tx_init_dma        base=0x%x
+152 usart_tx_write           base=0x%x, len=%u
+153 usart_tx_dma_start       base=0x%x, len=%u
+154 usart_tx_dma_event       base=0x%x, flags=0x%x
+
+155 qspi_init                port=0x%x, mode=%u
+156 qspi_command             port=0x%x, len=%u, dir=%u | Returns %d
+157 qspi_command_async       port=0x%x, len=%u, dir=%u | Returns %d
+158 qspi_command_async_dma   port=0x%x, len=%u, dir=%u | Returns %d
+159 qspi_abort               port=0x%x | Returns %d
+160 qspi_irq                 port=0x%x, sr=0x%x, state=%u
+161 qspi_dma_event           port=0x%x, flags=0x%x
+
+162 flash_init
+163 flash_write_word         addr=0x%x, len=%u | Returns %d
+164 flash_erase_page         addr=0x%x | Returns %d
+165 flash_opt_verify         profile=%u | Returns %Bool
+166 flash_opt_write          profile=%u, rdp=%u, wr_rdp=%Bool | Returns %d
+167 flash_opt_get_rdp        target=%u | Returns %d
+168 flash_opt_read           info=0x%x | Returns %d
+169 flash_status_error       op=%u, status=%d
+
+170 touch_init               ifc=%u, addr=0x%x
+171 touch_enable             ifc=%u | Returns %Bool
+172 touch_disable            ifc=%u | Returns %Bool
+173 touch_get_coord          ifc=%u, int=%Bool | Returns %Bool
+174 touch_pend_event         timeout=%u | Returns %Bool
+175 touch_i2c_xfer           flags=0x%x, reg=0x%x, bytes=%u | Returns %Bool
+176 touch_event              type=%TouchEvt, x=%u, y=%u
+177 touch_fwup_exec          bytes=%u, valid=%Bool | Returns %Bool
+178 touch_fwup_packet        ofs=0x%x, bytes=%u
+179 touch_fwup_ecc           host=0x%x, dev=0x%x
+180 touch_fwup_pending       req=%TouchReq | Returns %Bool
+
+181 gfx_init                 width=%u, height=%u | Returns %Bool
+182 gfx_set_brightness       level=%u, verify=%Bool | Returns %Bool
+183 gfx_set_rotation         rotate=%Bool
+184 gfx_flush                x1=%u, y1=%u, bytes=%u | Returns %d
+185 gfx_display_id           mfr=0x%x, id=0x%x, rev=0x%x
+
+186 disp_init                width=%u, height=%u
+187 disp_touch_init          scroll=%u, long=%u | Returns %Bool
+188 disp_touch_read          type=%TouchEvt, x=%u, y=%u
+189 disp_set_rotation        rotate=%Bool
+190 disp_cmd                 which=%u, cmd=%u | Returns %u
+191 disp_send_msg            flags=0x%x, sent_ptr=0x%x | Returns %Bool
+192 scheduler_start
+193 i2c_tx_data             inst=%I2CInst, addr=0x%x, ofs=%u, bytes=%u, data0=0x%x, data1=0x%x
+194 i2c_rx_data             inst=%I2CInst, addr=0x%x, ofs=%u, bytes=%u, data0=0x%x, data1=0x%x
+195 exti_enable             line=%u, port=0x%x, trigger=%ExtiTrig | Returns %Bool
+196 exti_irq                line=%u, rpr=0x%x, fpr=0x%x
+197 exti_signal             line=%u, woken=%Bool
+198 exti_irq_spurious       line=%u, rpr=0x%x, fpr=0x%x
+199 sem_take               sem=%I, timeout_ms=%u | Returns %Bool
+200 sem_take_ticks         sem=%I, ticks=%u | Returns %Bool
+201 sem_give               sem=%I | Returns %Bool
+202 sem_take_from_isr      sem=%I | Returns %Bool
+203 sem_give_from_isr      sem=%I, woken=%Bool | Returns %Bool
+204 mutex_lock             mutex=%I | Returns %Bool
+205 mutex_take             mutex=%I, timeout_ms=%u | Returns %Bool
+206 mutex_unlock           mutex=%I | Returns %Bool
+207 mutex_lock_from_isr    mutex=%I | Returns %Bool
+208 mutex_unlock_from_isr  mutex=%I | Returns %Bool
+209 i2c_wait               inst=%I2CInst, task=0x%x, events=%I2CEvent, timeout_ms=%u
+210 i2c_post_event         inst=%I2CInst, task=0x%x, event=%I2CEvent, woken=%Bool
+211 i2c_wait_done          inst=%I2CInst, task=0x%x, bits=%I2CEvent

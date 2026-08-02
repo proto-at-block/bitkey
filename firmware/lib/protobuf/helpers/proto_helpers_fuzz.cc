@@ -51,8 +51,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   /* This is a fuzzing implementation testing the protobuf encode/decode functionality */
   FuzzedDataProvider fuzzed_data(data, size);
 
-#define REGIONS(X)                                            \
-  X(fuzz_pool, proto_cmd_scratch, sizeof(fwpb_wallet_cmd), 1) \
+#define REGIONS(X)                                         \
+  X(fuzz_pool, proto_cmd_scratch, PROTO_CMD_ALLOC_SIZE, 1) \
   X(fuzz_pool, proto_rsp_scratch, sizeof(fwpb_wallet_rsp), 1)
   mempool_t* mempool = mempool_create(fuzz_pool);
 #undef REGIONS
@@ -68,6 +68,14 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
     if (!cmd_buf.data()) {
       return -1;
+    }
+
+    // Use a nonzero active WCA seq so proto_send_rsp() exercises the response
+    // encoding path instead of treating every fuzzed command as stale.
+    static uint32_t fuzz_seq = 1;
+    proto_set_cmd_seq(fuzz_seq++);
+    if (fuzz_seq == 0) {
+      fuzz_seq = 1;
     }
 
     cmd = proto_get_cmd(cmd_buf.data(), cmd_buf.size());

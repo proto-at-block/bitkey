@@ -225,6 +225,55 @@ class GitHubClient:
             max_items=max_items,
         )
 
+    def search_prs_by_change_set(
+        self,
+        repo: str,
+        change_set_id: str,
+        *,
+        max_items: int = 5,
+    ) -> list[dict[str, Any]]:
+        """Find PRs whose body carries the generated change-set marker."""
+        if not change_set_id.strip():
+            return []
+        ref = _repo_ref(repo)
+        query = f'repo:{ref.repo} "{change_set_id}" in:body type:pr'
+        data = self._api_json(
+            ref,
+            "search/issues",
+            extra_args=[
+                "--method",
+                "GET",
+                "-f",
+                f"q={query}",
+                "-f",
+                f"per_page={max_items}",
+            ],
+        )
+        if not isinstance(data, dict):
+            raise GitHubError("GitHub returned non-object search response")
+        items = data.get("items")
+        if not isinstance(items, list):
+            return []
+        return [item for item in items if isinstance(item, dict)][:max_items]
+
+    def pull_request_status(self, ref: PullRequestRef) -> dict[str, Any]:
+        """Return the merge/closure status fields for one PR."""
+        data = self._api_json(ref, f"repos/{ref.repo}/pulls/{ref.number}")
+        if not isinstance(data, dict):
+            raise GitHubError(
+                f"GitHub returned non-object pull status for {ref.repo}#{ref.number}"
+            )
+        merged_at = data.get("merged_at")
+        html_url = data.get("html_url")
+        return {
+            "state": str(data.get("state") or ""),
+            "merged": bool(data.get("merged")) or bool(merged_at),
+            "merged_at": str(merged_at or ""),
+            "draft": bool(data.get("draft")),
+            "html_url": str(html_url or ""),
+            "number": data.get("number") if isinstance(data.get("number"), int) else ref.number,
+        }
+
     def pull_diff(self, ref: PullRequestRef) -> str:
         return self._run_gh(
             [

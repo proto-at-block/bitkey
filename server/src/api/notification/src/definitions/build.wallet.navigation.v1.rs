@@ -58,6 +58,8 @@ pub enum NavigationScreenId {
     TxVerificationPolicy = 20,
     /// * Screen for repairing local keysets if there is an issue
     KeysetRepair = 21,
+    /// * Screen for configuring the delay & notify security period. *
+    DelayNotifyPeriod = 22,
 }
 impl NavigationScreenId {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -116,6 +118,9 @@ impl NavigationScreenId {
                 "NAVIGATION_SCREEN_ID_TX_VERIFICATION_POLICY"
             }
             NavigationScreenId::KeysetRepair => "NAVIGATION_SCREEN_ID_KEYSET_REPAIR",
+            NavigationScreenId::DelayNotifyPeriod => {
+                "NAVIGATION_SCREEN_ID_DELAY_NOTIFY_PERIOD"
+            }
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -159,6 +164,7 @@ impl NavigationScreenId {
                 Some(Self::TxVerificationPolicy)
             }
             "NAVIGATION_SCREEN_ID_KEYSET_REPAIR" => Some(Self::KeysetRepair),
+            "NAVIGATION_SCREEN_ID_DELAY_NOTIFY_PERIOD" => Some(Self::DelayNotifyPeriod),
             _ => None,
         }
     }

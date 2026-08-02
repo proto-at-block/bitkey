@@ -1,0 +1,12 @@
+<SystemViewProject Name="Wallet_W3UXC_SystemView">
+  <Recorder Type="J-Link">
+    <J-Link CMB_HOST_IF="USB" TXT_USB_SN="" TXT_IP="" TXT_TUNNEL="" TXT_TARGET_DEVICE="STM32U585ZI" CMB_TARGET_IF="SWD" SPN_TIF_SPEED="4000" SPN_TIF_IRPRE="-1" SPN_TIF_DRPRE="-1" SPN_NUM_CORES="1" RDG_RTT_MODE="Address" TXT_RTT_CB_LOCATION="0x28000000" TXT_RTT_CB_RANGE="" CHK_ADVANCED="0" FLE_SETTINGS="" FLE_SCRIPT="" FLE_LOG=""/>
+    <IP TXT_IP="127.0.0.1" TXT_PORT="19111"/>
+    <UART CMB_COM_PORT="cu.usbserial-FT7EWNMC" TXT_BAUDRATE="115200"/>
+  </Recorder>
+  <RecordingFiles/>
+  <DescriptionsFiles>
+    <DescriptionFile Module="FreeRTOS" File="/Users/davidwhitfield/Documents/GitHub/wallet/sysview/Description/SYSVIEW_FreeRTOS.txt"/>
+    <DescriptionFile Module="Peripherals" File="/Users/davidwhitfield/Documents/GitHub/wallet/sysview/Description/SYSVIEW_Peripherals.txt"/>
+  </DescriptionsFiles>
+</SystemViewProject>

@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import json
 import os
+from pathlib import Path
 import sys
+import tempfile
 import unittest
+from types import SimpleNamespace
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from feedback_loop.artifacts import write_run_bundle  # noqa: E402
 from feedback_loop.config import RunConfig  # noqa: E402
 from feedback_loop.eval_gate import evaluate_proposal, mark_pr_ready  # noqa: E402
 from feedback_loop.linear_control import BUILDERBOT_APPROVAL_LABEL  # noqa: E402
@@ -15,6 +20,7 @@ from feedback_loop.models import (  # noqa: E402
     Cluster,
     NormalizedSignal,
     Proposal,
+    ProposalEvalArtifact,
     ProposalFileChange,
     RawSignal,
     ReplayCase,
@@ -26,6 +32,7 @@ from feedback_loop.pipeline.emit import (  # noqa: E402
     build_draft_pr_plan,
     emit,
 )
+from feedback_loop.pr_policy import PrPolicyBlocked  # noqa: E402
 from feedback_loop.replay import run_replay_harness  # noqa: E402
 
 
@@ -102,6 +109,93 @@ class TestEmit(unittest.TestCase):
             self.assertIn(command, plan.body)
             self.assertIn(command, results[0].cluster_issue.description)
 
+    def test_test_or_linter_plans_under_ai_trees_are_blocked(self):
+        # The canonical gamed plan shape: a test_or_linter change writing a fixture under .ai/
+        # for a runner that does not exist. The path family must be rejected outright.
+        ready = ready_llm_proposal(
+            destination="test_or_linter",
+            path=".ai/feedback-loop/fixtures/planner-schema.json",
+            validation_commands=("python -m unittest discover automation/feedback-loop/tests",),
+        )
+
+        with self.assertRaisesRegex(PrPolicyBlocked, "destination_path_mismatch"):
+            build_draft_pr_plan(ready)
+
+    def test_ai_context_commands_are_not_added_for_plain_test_paths(self):
+        ready = ready_llm_proposal(
+            destination="test_or_linter",
+            path="automation/feedback-loop/tests/test_planner_schema.py",
+            validation_commands=("python -m unittest discover automation/feedback-loop/tests",),
+        )
+
+        plan = build_draft_pr_plan(ready)
+
+        for command in AI_CONTEXT_COMMANDS:
+            self.assertNotIn(command, plan.validation_commands)
+            self.assertNotIn(command, plan.body)
+
+    def test_handoff_title_is_sanitized_for_draft_pr_title(self):
+        ready = ready_llm_proposal(
+            destination="docs",
+            path="docs/docs/automation/feedback-loop.md",
+            handoff_title="Update `planner` output handling at the boundary with enough extra detail to force trimming at",
+        )
+
+        plan = build_draft_pr_plan(ready)
+
+        self.assertNotIn("`", plan.title)
+        self.assertNotRegex(plan.title, r"\bat$")
+        self.assertLessEqual(len(plan.title), 120)
+
+    def test_one_learning_two_routes_writes_separate_previews_and_linear_keys(self):
+        agents = ready_llm_proposal(
+            destination="agents_check",
+            path=".agents/checks/route-planning.md",
+            learning_id="learn-route-split",
+            route_id="llm:learn-route-split:agents_check",
+        )
+        ai_agents = ready_llm_proposal(
+            destination="ai_agents_md",
+            path=".ai/AGENTS.md",
+            learning_id="learn-route-split",
+            route_id="llm:learn-route-split:ai_agents_md",
+            validation_commands=AI_CONTEXT_COMMANDS,
+        )
+        results = emit(RunConfig(dry_run=True), [agents, ai_agents])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp)
+            write_run_bundle(
+                RunConfig(dry_run=True, output_dir=str(output_dir)),
+                mode="pr",
+                pr_urls=[],
+                counts={"pr_ready_proposals": 2},
+                proposal_eval={},
+                proposal_evals=[],
+                llm_learnings=[],
+                llm_debug={},
+                triage_report=triage_report(),
+                full_triage_report=triage_report(),
+                proposals=[agents, ai_agents],
+                blocked_proposals=[],
+                emit_results=results,
+            )
+            metadata_files = sorted((output_dir / "emit-preview").glob("*-metadata.json"))
+            draft_files = sorted((output_dir / "emit-preview").glob("*-draft-pr.md"))
+
+            metadata = [json.loads(path.read_text()) for path in metadata_files]
+            drafts = [path.read_text() for path in draft_files]
+
+        self.assertEqual(len(metadata), 2)
+        self.assertEqual({item["destination"] for item in metadata}, {"agents_check", "ai_agents_md"})
+        self.assertEqual(len({result.cluster_issue.idempotency_key for result in results}), 2)
+        self.assertTrue(any("learn-route-split-agents-check" in path.name for path in metadata_files))
+        self.assertTrue(any("learn-route-split-ai-agents-md" in path.name for path in metadata_files))
+        agents_draft = next(text for text in drafts if ".agents/checks/route-planning.md" in text)
+        ai_agents_draft = next(text for text in drafts if ".ai/AGENTS.md" in text)
+        self.assertNotIn(".ai/AGENTS.md", agents_draft)
+        self.assertNotIn(".agents/checks/route-planning.md", ai_agents_draft)
+
     def test_execute_checks_pr_policy_before_linear_write(self):
         linear_plans = []
         ready = ready_proposal(
@@ -164,6 +258,50 @@ def ready_proposal(
     return mark_pr_ready(evaluate_proposal(proposal, report))
 
 
+def ready_llm_proposal(
+    *,
+    destination: str,
+    path: str,
+    learning_id: str = "learn-emit",
+    route_id: str = "",
+    validation_commands: tuple[str, ...] = ("python -m unittest discover -s tests",),
+    handoff_title: str = "",
+) -> Proposal:
+    proposal = Proposal(
+        cluster=proposal_cluster(
+            ["https://github.com/squareup/wallet/pull/123#discussion_llm"],
+            destination=destination,
+        ),
+        destination=destination,
+        summary="Add a specific guardrail for the replayed wallet miss.",
+        evidence_urls=["https://github.com/squareup/wallet/pull/123#discussion_llm"],
+        confidence=0.9,
+        template_title="LLM route guardrail",
+        target_artifacts=[path],
+        file_changes=[ProposalFileChange(path=path, content="route content\n")],
+        sections={
+            "evidence": "Source links show the repeated miss.",
+            "scope": "Apply to the observed route boundary.",
+            "validation_steps": "Run focused validation.",
+            "reviewer_instructions": "Review the route scope.",
+        },
+        validation_commands=list(validation_commands),
+        learning_id=learning_id,
+        route_id=route_id or f"llm:{learning_id}:{destination}",
+        route_role="primary",
+        linked_route_destinations=[destination],
+        handoff_title=handoff_title,
+        eval_passed=True,
+        eval_state="eval_passed",
+        eval_artifact=ProposalEvalArtifact(
+            state="eval_passed",
+            cluster_slug="miss:automation:guardrail",
+            rubric_markdown="Status: PASS",
+        ),
+    )
+    return mark_pr_ready(proposal)
+
+
 def grounded_finding(case: ReplayCase) -> ReplayFinding:
     return ReplayFinding(
         case_id=case.case_id,
@@ -207,11 +345,12 @@ def proposal_cluster(source_urls: list[str], *, destination: str = "agents_check
         for index, url in enumerate(source_urls)
     ]
     return Cluster(
-        theme="miss:automation:guardrail",
+        slug="miss:automation:guardrail",
         signals=signals,
         area="automation",
         severity="medium",
-        frequency=len(source_urls),
+        # Reconciled frequency meets the medium promotion threshold for gate-passing fixtures.
+        frequency=max(len(source_urls), 3),
         rank=2.0,
         suggested_destination=destination,
         summary="Repeated wallet review miss.",
@@ -260,6 +399,10 @@ def replay_case(case_id: str) -> ReplayCase:
         expected_finding="Flag the historical miss.",
         summary="Historical miss summary.",
     )
+
+
+def triage_report() -> SimpleNamespace:
+    return SimpleNamespace(markdown="", summary=[], comment_volume_summary={})
 
 
 if __name__ == "__main__":
