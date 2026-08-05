@@ -5,7 +5,6 @@
 #include "pb_common.h"
 #include "pb_decode.h"
 #include "pb_encode.h"
-#include "proto_helpers.h"
 #include "secutils.h"
 #include "test.pb.h"
 #include "wca.h"
@@ -55,42 +54,11 @@ bool nop_false(void) {
 
 static int drain_counter = 0;
 static int drain_remaining = 0;
-static int wait_take_count = 0;
-static uint32_t wait_expected_seq = 0;
 
 static bool drain_once_then_empty(void) {
   drain_counter += 1;
   if (drain_remaining > 0) {
     drain_remaining -= 1;
-    return true;
-  }
-  return false;
-}
-
-static void seed_wait_response(uint32_t seq, uint8_t byte, uint32_t size) {
-  proto_set_rsp_seq(seq);
-  memset(wca_priv.encoded_proto_rsp_ctx.buffer, byte, size);
-  wca_priv.encoded_proto_rsp_ctx.size = size;
-  wca_priv.encoded_proto_rsp_ctx.offset = 0;
-}
-
-static bool sem_take_stale_then_valid(void) {
-  wait_take_count += 1;
-  if (wait_take_count == 1) {
-    seed_wait_response(wait_expected_seq - 1, 0xaa, 3);
-    return true;
-  }
-  if (wait_take_count == 2) {
-    seed_wait_response(wait_expected_seq, 0x42, 4);
-    return true;
-  }
-  return false;
-}
-
-static bool sem_take_stale_then_timeout(void) {
-  wait_take_count += 1;
-  if (wait_take_count == 1) {
-    seed_wait_response(wait_expected_seq - 1, 0xaa, 3);
     return true;
   }
   return false;
@@ -657,45 +625,6 @@ Test(wca, get_response_rejected_after_reset, .init = setup) {
   cr_assert(status_words == 0x6f00);
 }
 
-Test(wca, wait_for_proto_response_discards_stale_then_drains_valid, .init = setup) {
-  wait_take_count = 0;
-  wait_expected_seq = 9;
-  wca_priv.encoded_proto_rsp_ctx.sem_take = &sem_take_stale_then_valid;
-
-  uint8_t rsp[WCA_BUF_LEN] = {0};
-  uint32_t rsp_len = sizeof(rsp);
-  cr_assert(wca_wait_for_proto_response(wait_expected_seq, rsp, &rsp_len));
-
-  cr_assert_eq(wait_take_count, 2);
-  cr_assert_eq(rsp_len, 4 + SW_SIZE);
-  for (uint32_t i = 0; i < 4; i++) {
-    cr_assert_eq(rsp[i], 0x42);
-  }
-  cr_assert_eq(read_status_words(&rsp[rsp_len - SW_SIZE]), 0x9000);
-}
-
-Test(wca, wait_for_proto_response_times_out_after_stale, .init = setup) {
-  wait_take_count = 0;
-  wait_expected_seq = 9;
-  wca_priv.encoded_proto_rsp_ctx.sem_take = &sem_take_stale_then_timeout;
-  proto_set_cmd_seq(wait_expected_seq);
-
-  uint8_t rsp[WCA_BUF_LEN] = {0};
-  uint32_t rsp_len = sizeof(rsp);
-  cr_assert_not(wca_wait_for_proto_response(wait_expected_seq, rsp, &rsp_len));
-
-  cr_assert_eq(wait_take_count, 2);
-  cr_assert_eq(rsp_len, SW_SIZE);
-  cr_assert_eq(read_status_words(rsp), 0x6f00);
-  cr_assert_eq(wca_priv.encoded_proto_rsp_ctx.size, 0);
-
-  fwpb_wallet_rsp* late_rsp = proto_get_rsp();
-  late_rsp->status = fwpb_status_SUCCESS;
-  late_rsp->which_msg = fwpb_wallet_rsp_query_authentication_rsp_tag;
-  cr_assert_not(proto_send_rsp_with_seq(wait_expected_seq, late_rsp));
-  cr_assert_eq(wca_priv.encoded_proto_rsp_ctx.size, 0);
-}
-
 Test(wca, reset_session_state_drains_orphaned_semaphore) {
 #define REGIONS(X) X(test_pool_drain, r0, 4096, 1)
   mempool = mempool_create(test_pool_drain);
@@ -716,22 +645,4 @@ Test(wca, reset_session_state_drains_orphaned_semaphore) {
 
   cr_assert(drain_counter == 2);
   cr_assert(drain_remaining == 0);
-}
-
-Test(wca, reset_session_state_retires_active_proto_seq, .init = setup) {
-  wca_priv.cmd_seq = 77;
-  proto_set_cmd_seq(77);
-  proto_set_rsp_seq(77);
-  seed_wait_response(77, 0xaa, 3);
-
-  wca_reset_session_state();
-
-  cr_assert_eq(proto_get_last_rsp_seq(), 0);
-  cr_assert_eq(wca_priv.encoded_proto_rsp_ctx.size, 0);
-
-  fwpb_wallet_rsp* late_rsp = proto_get_rsp();
-  late_rsp->status = fwpb_status_SUCCESS;
-  late_rsp->which_msg = fwpb_wallet_rsp_query_authentication_rsp_tag;
-  cr_assert_not(proto_send_rsp_with_seq(77, late_rsp));
-  cr_assert_eq(wca_priv.encoded_proto_rsp_ctx.size, 0);
 }

@@ -6,7 +6,6 @@ pub mod authn_authz;
 pub mod consent;
 #[cfg(feature = "currencies")]
 pub mod currencies;
-pub mod delay_notify;
 #[cfg(feature = "encrypted_attachment")]
 pub mod encrypted_attachment;
 #[cfg(feature = "exchange_rate")]

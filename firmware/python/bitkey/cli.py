@@ -1243,7 +1243,6 @@ def mfgtest_touch_data_disable(ctx, fetch_all):
     'AddRecoveryContact', 'RemoveRecoveryContact', 'RemoveRecoveryCustomer',
     'AddBeneficiary', 'RemoveBeneficiary', 'RemoveBenefactor',
     'AcceptRecoveryContactsInvite', 'AcceptBeneficiariesInvite',
-    'SetDelayNotifyPeriod',
 ], case_sensitive=True), required=True, help='Action to sign')
 @click.option('--value', type=click.STRING, default='',
               help='Value for the action (e.g. email address)')

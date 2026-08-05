@@ -5,26 +5,19 @@ from bitkey_fwa import dwarf_tools
 class SymbolChecks(bitkey_fwa.TestCase):
     """Satisfy various properties of the firmware symbol table"""
 
-    def _symbol_exists(self, symbol_name):
-        return self.get_elf_num_symbols_with_match(symbol_name) > 0
-
-    def _symbol_pair_exists(self, sym1, sym2):
-        return self._symbol_exists(sym1) and self._symbol_exists(sym2)
-
-    def _assert_symbol_pair(self, sym1, sym2, alignment):
-        sym1_addr = self.get_elf_symbol_value_from_name(sym1)
-        sym2_addr = self.get_elf_symbol_value_from_name(sym2)
-        self.assertGreater(sym2_addr, sym1_addr, f"No data between {sym1} and {sym2}")
-        self.assertEqual(
-            sym1_addr % alignment, 0, f"symbol {sym1} is not aligned to {alignment}"
-        )
-        self.assertEqual(
-            sym2_addr % alignment, 0, f"symbol {sym2} is not aligned to {alignment}"
-        )
-
     def _assert_symbol_pairs(self, symbol_pairs):
         for sym1, sym2, alignment in symbol_pairs:
-            self._assert_symbol_pair(sym1, sym2, alignment)
+            sym1_addr = self.get_elf_symbol_value_from_name(sym1)
+            sym2_addr = self.get_elf_symbol_value_from_name(sym2)
+            self.assertGreater(
+                sym2_addr, sym1_addr, f"No data between {sym1} and {sym2}"
+            )
+            self.assertEqual(
+                sym1_addr % alignment, 0, f"symbol {sym1} is not aligned to {alignment}"
+            )
+            self.assertEqual(
+                sym2_addr % alignment, 0, f"symbol {sym2} is not aligned to {alignment}"
+            )
 
     @bitkey_fwa.suffix("elf")
     def fwtest_elf_check_global_symbols_required(self):
@@ -147,6 +140,7 @@ class SymbolChecks(bitkey_fwa.TestCase):
             ("__fwup_task_data_start__", "__fwup_task_data_end__", 32),
             ("__shared_task_data_start__", "__shared_task_data_end__", 32),
             ("__nfc_task_data_start__", "__nfc_task_data_end__", 32),
+            ("__ui_task_data_start__", "__ui_task_data_end__", 32),
             ("__nfc_task_bss_start__", "__nfc_task_bss_end__", 32),
             ("__fwup_task_bss_start__", "__fwup_task_bss_end__", 32),
             ("__shared_task_bss_start__", "__shared_task_bss_end__", 32),
@@ -154,25 +148,6 @@ class SymbolChecks(bitkey_fwa.TestCase):
         ]
 
         self._assert_symbol_pairs(symbol_pairs)
-
-        ui_task_data_pair = ("__ui_task_data_start__", "__ui_task_data_end__", 32)
-        legacy_led_task_data_pair = (
-            "__led_task_data_start__",
-            "__led_task_data_end__",
-            32,
-        )
-
-        if self._symbol_pair_exists(*ui_task_data_pair[:2]):
-            self._assert_symbol_pair(*ui_task_data_pair)
-        elif self._symbol_pair_exists(*legacy_led_task_data_pair[:2]):
-            self._assert_symbol_pair(*legacy_led_task_data_pair)
-        else:
-            self.fail(
-                "Expected either current W1 UI task data symbols "
-                f"({ui_task_data_pair[0]}, {ui_task_data_pair[1]}) or legacy W1 "
-                f"LED task data symbols ({legacy_led_task_data_pair[0]}, "
-                f"{legacy_led_task_data_pair[1]})"
-            )
 
     @bitkey_fwa.suffix("elf")
     @bitkey_fwa.asset("app")
@@ -316,7 +291,7 @@ class SymbolChecks(bitkey_fwa.TestCase):
             # is_authenticated can regress if AUTOMATED_TESTING is set
             Parent_Function_Info(
                 b"is_authenticated",
-                (b"*/auth.c", b"*/auth_task.c"),
+                b"*/auth.c",
                 [
                     b"secure_glitch_random_delay",
                     b"secure_glitch_detect",
@@ -327,21 +302,12 @@ class SymbolChecks(bitkey_fwa.TestCase):
         ]
 
         for parent_func in parent_func_list:
-            _func = None
-            for file_glob in parent_func.file_glob:
-                _func = dwarf_tools.get_function_from_file(
-                    dwarf, parent_func.name, file_glob
-                )
-                if _func is not None:
-                    break
-
-            self.assertIsNotNone(
-                _func,
-                f"function {parent_func.name} not found in {parent_func.file_glob}",
+            _func = dwarf_tools.get_function_from_file(
+                dwarf, parent_func.name, parent_func.file_glob
             )
             _func_call_sites = list(dwarf_tools.gen_function_call_names(dwarf, _func))
 
-            self.assertTrue(
-                all(c in _func_call_sites for c in parent_func.expected_calls),
-                f"expected function calls missing from: {parent_func.name}",
-            )
+        self.assertTrue(
+            all(c in _func_call_sites for c in parent_func.expected_calls),
+            f"expected function calls missing from: {parent_func.name}",
+        )

@@ -31,7 +31,7 @@ bool crypto_hash(const uint8_t* message, uint32_t message_size, uint8_t* digest,
       ASSERT(digest_size == HASH160_DIGEST_SIZE);
       uint8_t tmp_digest[SHA256_DIGEST_SIZE];
       SHA256(message, message_size, tmp_digest);
-      // Use firmware impl for test coverage
+      // use the firmware impl. of ripemd160 to get some extra test coverage
       ASSERT(mbedtls_ripemd160(tmp_digest, sizeof(tmp_digest), digest));
       break;
     default:
@@ -68,17 +68,14 @@ bool crypto_sha256_stream_init(void* ctx) {
   SHA256_Init((SHA256_CTX*)ctx);
   return true;
 }
-
 bool crypto_sha256_stream_update(void* ctx, uint8_t* buffer, uint32_t size) {
-  ASSERT(ctx);
-  ASSERT(buffer);
+  ASSERT(ctx && buffer);
   SHA256_Update((SHA256_CTX*)ctx, buffer, size);
   return true;
 }
 
 bool crypto_sha256_stream_final(void* ctx, uint8_t* digest_out) {
-  ASSERT(ctx);
-  ASSERT(digest_out);
+  ASSERT(ctx && digest_out);
   SHA256_Final(digest_out, (SHA256_CTX*)ctx);
   return true;
 }

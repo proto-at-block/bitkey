@@ -42,7 +42,7 @@ fn expected_bdk_config() -> BdkConfigResponse {
             },
             signet: ElectrumServer {
                 scheme: "ssl".into(),
-                host: "bitkey-test.mempool.space".into(),
+                host: "bitkey.mempool.space".into(),
                 port: 60602,
             },
             regtest: None,
@@ -66,7 +66,7 @@ fn expected_bdk_config_with_regtest() -> BdkConfigResponse {
             },
             signet: ElectrumServer {
                 scheme: "ssl".into(),
-                host: "bitkey-test.mempool.space".into(),
+                host: "bitkey.mempool.space".into(),
                 port: 60602,
             },
             regtest: Some(ElectrumServer {
@@ -94,7 +94,7 @@ fn expected_bdk_config_with_regtest_external_uri() -> BdkConfigResponse {
             },
             signet: ElectrumServer {
                 scheme: "ssl".into(),
-                host: "bitkey-test.mempool.space".into(),
+                host: "bitkey.mempool.space".into(),
                 port: 60602,
             },
             regtest: Some(ElectrumServer {

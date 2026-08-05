@@ -21,22 +21,6 @@ cash-server routine and no service-account provisioning.** Full field-by-field s
 - [ ] **2. Create the routing rule (UI).** Automations → Routing → Create, with the merged-PR conditions,
       `blox-vanilla` label, idempotency key, and task-description prompt from `automation-setup-ui.md`.
       (Optionally also a Scheduled Trigger for backfill.)
-- [ ] **2.5. Provision the LLM API key (vendor key).** The in-repo adapter
-      (`automation/feedback-loop/adapters/llm_adapter.py`) is API-first: it needs
-      `ANTHROPIC_API_KEY` (or `OPENAI_API_KEY` for `--provider codex`) in the run env. Claude can
-      fall back to the workstation CLI; Codex is API-only and fails closed without `OPENAI_API_KEY`.
-      - Create a named Anthropic key in the **Development workspace** via
-        https://console.anthropic.com (SSO; see the "Anthropic" dev guide,
-        `docs/tools/anthropic/getting-started`). Name it for the project, e.g.
-        `bitkey-feedback-loop`.
-      - Register it as a Blox vendor key: `sq blox vendor-key set anthropic` (or the Blox
-        Settings UI → API Keys). Vendor keys are injected as env vars into the owning user's
-        Blox workstations, including Builderbot-triggered runs executing as that user.
-      - OpenAI (optional, for the codex provider): personal keys come from the
-        `LDAP-based-local-keys` project (see `docs/tools/llms/getting-started`); a durable
-        service key needs a go/swops project. Security approval: go/genaiapproval.
-      - The trigger prompt must export `FEEDBACK_LOOP_LLM_COMMAND` (see
-        `automation-setup-ui.md`); without it the run degrades to a facts-only report.
 - [ ] **3. Confirm the managed run can create/update Linear issues and apply labels.** If not
       ambiently available, add a **least-privilege Linear token** to the Blox run env (the one
       possible grant; still no bespoke SA). Security note per BKW-60.
@@ -46,11 +30,11 @@ cash-server routine and no service-account provisioning.** Full field-by-field s
       `--dry-run` (no writes); then `--execute` (Linear issue + label only); kill switch = disable
       the rule in the UI.
 
-## Explicitly NOT required
+## Explicitly NOT required anymore (dropped vs. the earlier design)
 
-- A `BloxRepoCommandRoutine` in `squareup/cash-server` — the generic `blox-vanilla` run covers it.
-- Provisioning / pinning `sa-code-review` — the Blox run uses Builderbot/Blox-managed execution.
-- Code or config landed outside `squareup/wallet` — setup is entirely in the UI.
+- ~~A `BloxRepoCommandRoutine` in `squareup/cash-server`~~ — replaced by the generic `blox-vanilla` run.
+- ~~Provisioning / pinning `sa-code-review`~~ — the Blox run uses Builderbot/Blox-managed execution.
+- ~~Any code or config landed outside `squareup/wallet`~~ — setup is entirely in the UI.
 
 ## What the agent team did NOT do (constraints honored)
 
@@ -64,8 +48,3 @@ cash-server routine and no service-account provisioning.** Full field-by-field s
 - Whether the `blox-vanilla` execution identity can write **Linear** without an added token, and
   whether the BKW `code-engine:approved` label starts the intended Builderbot code-engine automation.
   Everything else is droppable.
-- Whether **vendor keys are injected into Builderbot-triggered runs** (Glean-synthesized from the
-  Blox image/runbooks: ephemeral workstations run as the triggering user with that user's vendor
-  keys; `claude` CLI preinstalled for Claude fallback). Confirm in #blox / #builderbot-team.
-- Outbound HTTPS to `api.anthropic.com` / `api.openai.com` from `blox-vanilla` (allowlisted in the
-  Builderbot egress manifests per Glean; prod render not independently confirmed).

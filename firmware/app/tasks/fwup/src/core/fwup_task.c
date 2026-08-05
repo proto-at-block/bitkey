@@ -183,7 +183,7 @@ static NO_OPTIMIZE void fwup_task_handle_finish_cmd(ipc_ref_t* message) {
       // and do the patching outside of the NFC field.
       rsp->msg.fwup_finish_rsp.rsp_status =
         fwpb_fwup_finish_rsp_fwup_finish_rsp_status_WILL_APPLY_PATCH;
-      proto_send_rsp_without_free(cmd, rsp);
+      proto_send_rsp_without_free(rsp);
       UI_SHOW_EVENT(UI_EVENT_FWUP_VERIFYING);
       rtos_thread_sleep(FWUP_UI_YIELD_MS);
       success = fwup_finish(&cmd->msg.fwup_finish_cmd, &rsp->msg.fwup_finish_rsp);

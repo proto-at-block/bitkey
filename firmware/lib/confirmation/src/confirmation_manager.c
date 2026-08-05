@@ -28,8 +28,8 @@ _Static_assert(MAX_OPERATION_DATA_SIZE >= sizeof(fwpb_fwup_start_cmd),
                "Operation data size too small for FWUP command");
 
 typedef struct {
-  secure_bool_t active;
-  secure_bool_t user_approved;  // SECURE_TRUE if user approved on device screen
+  bool active;
+  bool user_approved;  // True if user approved on device screen
   confirmation_type_t type;
   uint8_t response_handle[CONFIRMATION_HANDLE_SIZE];
   uint8_t confirmation_handle[CONFIRMATION_HANDLE_SIZE];
@@ -40,12 +40,6 @@ typedef struct {
 
 static SHARED_TASK_BSS pending_confirmation_t pending_confirmation = {0};
 
-static void reset_pending_confirmation(void) {
-  memset(&pending_confirmation, 0, sizeof(pending_confirmation));
-  pending_confirmation.active = SECURE_FALSE;
-  pending_confirmation.user_approved = SECURE_FALSE;
-}
-
 // Mutex for thread-safe access to confirmation state
 static SHARED_TASK_BSS rtos_mutex_t confirmation_mutex = {0};
 
@@ -55,8 +49,6 @@ static SHARED_TASK_BSS confirmation_result_handler_t result_handlers[CONFIRMATIO
 
 void confirmation_manager_init(void) {
   rtos_mutex_create(&confirmation_mutex);
-  // reset to init the secure_bool_t values since the struct is stored in bss to save space
-  reset_pending_confirmation();
 }
 
 NO_OPTIMIZE confirmation_result_t
@@ -85,16 +77,16 @@ confirmation_manager_create(confirmation_type_t type, const void* operation_data
     return CONFIRMATION_RESULT_INVALID_PARAMS;
   }
 
-  if (pending_confirmation.active == SECURE_TRUE) {
+  if (pending_confirmation.active) {
     LOGW("Replacing confirm");
-    reset_pending_confirmation();
+    memset(&pending_confirmation, 0, sizeof(pending_confirmation));
   }
 
   // Generate cryptographically secure random handles
   if (!crypto_random(pending_confirmation.response_handle,
                      sizeof(pending_confirmation.response_handle))) {
     LOGE("RNG fail");
-    reset_pending_confirmation();
+    memset(&pending_confirmation, 0, sizeof(pending_confirmation));
     rtos_mutex_unlock(&confirmation_mutex);
     return CONFIRMATION_RESULT_ERROR;
   }
@@ -102,14 +94,13 @@ confirmation_manager_create(confirmation_type_t type, const void* operation_data
   if (!crypto_random(pending_confirmation.confirmation_handle,
                      sizeof(pending_confirmation.confirmation_handle))) {
     LOGE("RNG fail");
-    reset_pending_confirmation();
+    memset(&pending_confirmation, 0, sizeof(pending_confirmation));
     rtos_mutex_unlock(&confirmation_mutex);
     return CONFIRMATION_RESULT_ERROR;
   }
 
   // Store confirmation state
-  pending_confirmation.active = SECURE_TRUE;
-  pending_confirmation.user_approved = SECURE_FALSE;
+  pending_confirmation.active = true;
   pending_confirmation.type = type;
   pending_confirmation.timestamp = rtos_thread_systime();
   memcpy(pending_confirmation.operation_data, operation_data, data_size);
@@ -132,7 +123,7 @@ NO_OPTIMIZE confirmation_result_t confirmation_manager_validate(const uint8_t* r
   ASSERT(confirmation_mutex.handle != NULL);
   rtos_mutex_lock(&confirmation_mutex);
 
-  SECURE_IF_FAILIN(pending_confirmation.active != SECURE_TRUE) {
+  if (!pending_confirmation.active) {
     LOGE("No active confirm");
     rtos_mutex_unlock(&confirmation_mutex);
     return CONFIRMATION_RESULT_INVALID_PARAMS;
@@ -154,7 +145,7 @@ NO_OPTIMIZE confirmation_result_t confirmation_manager_validate(const uint8_t* r
   uint32_t elapsed_time = current_time - pending_confirmation.timestamp;
   if (elapsed_time > CONFIRMATION_TIMEOUT_MS) {
     LOGE("Confirm timeout");
-    reset_pending_confirmation();
+    memset(&pending_confirmation, 0, sizeof(pending_confirmation));
     rtos_mutex_unlock(&confirmation_mutex);
     return CONFIRMATION_RESULT_TIMEOUT;
   }
@@ -170,7 +161,7 @@ NO_OPTIMIZE confirmation_result_t confirmation_manager_validate(const uint8_t* r
   }
 
   // Check if user approved on device screen
-  SECURE_IF_FAILIN(pending_confirmation.user_approved != SECURE_TRUE) {
+  SECURE_IF_FAILIN(!pending_confirmation.user_approved) {
     LOGE("Not approved on device");
     rtos_mutex_unlock(&confirmation_mutex);
     return CONFIRMATION_RESULT_NOT_APPROVED;
@@ -185,7 +176,7 @@ bool confirmation_manager_get_operation_data(confirmation_type_t expected_type, 
   ASSERT(confirmation_mutex.handle != NULL);
   rtos_mutex_lock(&confirmation_mutex);
 
-  if (pending_confirmation.active != SECURE_TRUE) {
+  if (!pending_confirmation.active) {
     rtos_mutex_unlock(&confirmation_mutex);
     return false;
   }
@@ -208,13 +199,12 @@ bool confirmation_manager_get_operation_data(confirmation_type_t expected_type, 
   return true;
 }
 
-NO_OPTIMIZE void confirmation_manager_approve(void) {
+void confirmation_manager_approve(void) {
   ASSERT(confirmation_mutex.handle != NULL);
   rtos_mutex_lock(&confirmation_mutex);
 
-  // Approval is granted here: FAILOUT so a glitched check declines rather than grants
-  SECURE_IF_FAILOUT(pending_confirmation.active == SECURE_TRUE) {
-    pending_confirmation.user_approved = SECURE_TRUE;
+  if (pending_confirmation.active) {
+    pending_confirmation.user_approved = true;
   }
 
   rtos_mutex_unlock(&confirmation_mutex);
@@ -226,8 +216,7 @@ NO_OPTIMIZE bool confirmation_manager_is_approved(void) {
 
   bool result = false;
 
-  SECURE_IF_FAILOUT((pending_confirmation.active == SECURE_TRUE) &&
-                    (pending_confirmation.user_approved == SECURE_TRUE)) {
+  SECURE_IF_FAILOUT(pending_confirmation.active && pending_confirmation.user_approved) {
     result = true;
   }
 
@@ -239,7 +228,7 @@ void confirmation_manager_clear(void) {
   ASSERT(confirmation_mutex.handle != NULL);
   rtos_mutex_lock(&confirmation_mutex);
 
-  reset_pending_confirmation();
+  memset(&pending_confirmation, 0, sizeof(pending_confirmation));
 
   rtos_mutex_unlock(&confirmation_mutex);
 }
@@ -248,7 +237,7 @@ bool confirmation_manager_is_pending(void) {
   ASSERT(confirmation_mutex.handle != NULL);
   rtos_mutex_lock(&confirmation_mutex);
 
-  bool result = (pending_confirmation.active == SECURE_TRUE);
+  bool result = pending_confirmation.active;
 
   rtos_mutex_unlock(&confirmation_mutex);
   return result;
@@ -258,9 +247,8 @@ confirmation_type_t confirmation_manager_get_type(void) {
   ASSERT(confirmation_mutex.handle != NULL);
   rtos_mutex_lock(&confirmation_mutex);
 
-  confirmation_type_t result = (pending_confirmation.active == SECURE_TRUE)
-                                 ? pending_confirmation.type
-                                 : CONFIRMATION_TYPE_NONE;
+  confirmation_type_t result =
+    pending_confirmation.active ? pending_confirmation.type : CONFIRMATION_TYPE_NONE;
 
   rtos_mutex_unlock(&confirmation_mutex);
   return result;
@@ -270,7 +258,7 @@ void confirmation_manager_refresh_timestamp(void) {
   ASSERT(confirmation_mutex.handle != NULL);
   rtos_mutex_lock(&confirmation_mutex);
 
-  if (pending_confirmation.active == SECURE_TRUE) {
+  if (pending_confirmation.active) {
     pending_confirmation.timestamp = rtos_thread_systime();
   }
 
@@ -282,8 +270,7 @@ bool confirmation_manager_is_expired(void) {
   rtos_mutex_lock(&confirmation_mutex);
 
   bool expired = false;
-  if ((pending_confirmation.active == SECURE_TRUE) &&
-      (pending_confirmation.user_approved != SECURE_TRUE)) {
+  if (pending_confirmation.active && !pending_confirmation.user_approved) {
     uint32_t elapsed = rtos_thread_systime() - pending_confirmation.timestamp;
     expired = (elapsed > CONFIRMATION_TIMEOUT_MS);
   }

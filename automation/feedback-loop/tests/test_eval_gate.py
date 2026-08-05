@@ -1,4 +1,4 @@
-"""Tests for proposal PR-ready state guarding and offline replay/rubric evaluation."""
+"""Tests for the proposal eval gate."""
 
 from __future__ import annotations
 
@@ -13,7 +13,6 @@ from feedback_loop.config import RunConfig  # noqa: E402
 from feedback_loop.eval_gate import (  # noqa: E402
     ProposalEvalBlocked,
     evaluate_proposal,
-    frequency_gate_blocking_reason,
     mark_pr_ready,
 )
 from feedback_loop.models import (  # noqa: E402
@@ -107,47 +106,6 @@ class TestEvalGate(unittest.TestCase):
         with self.assertRaisesRegex(ProposalEvalBlocked, "PR-ready"):
             emit.emit(RunConfig(dry_run=False), [forged])
 
-    def test_frequency_gate_blocks_below_promotion_threshold(self):
-        cases = [replay_case("case-1"), replay_case("case-2")]
-        gated = evaluate_proposal(actionable_proposal(cases), replay_report(cases))
-        ready = mark_pr_ready(gated)
-        below = replace(
-            ready,
-            cluster=replace(ready.cluster, frequency=2, severity="medium"),
-        )
-
-        with self.assertRaisesRegex(ProposalEvalBlocked, "below_frequency_threshold:2<3:medium"):
-            emit.emit(RunConfig(dry_run=True), [below])
-
-    def test_frequency_gate_thresholds_follow_promotion_matrix(self):
-        base = actionable_proposal([replay_case("case-1")]).cluster
-
-        for severity, threshold in (("critical", 1), ("high", 2), ("medium", 3), ("low", 5)):
-            with self.subTest(severity=severity):
-                at_threshold = replace(base, severity=severity, frequency=threshold)
-                below_threshold = replace(base, severity=severity, frequency=threshold - 1)
-                destination = "test_or_linter" if severity == "low" else "agents_check"
-
-                self.assertIsNone(
-                    frequency_gate_blocking_reason(at_threshold, destination=destination)
-                )
-                if threshold > 1:
-                    reason = frequency_gate_blocking_reason(
-                        below_threshold, destination=destination
-                    )
-                    self.assertIsNotNone(reason)
-                    self.assertTrue(reason.startswith("below_frequency_threshold"))
-
-    def test_frequency_gate_requires_mechanical_destination_for_low_severity(self):
-        base = actionable_proposal([replay_case("case-1")]).cluster
-        low = replace(base, severity="low", frequency=6)
-
-        self.assertIsNone(frequency_gate_blocking_reason(low, destination="test_or_linter"))
-        self.assertEqual(
-            frequency_gate_blocking_reason(low, destination="agents_check"),
-            "low_severity_not_mechanically_enforceable",
-        )
-
     def test_emit_dry_run_returns_plan_for_pr_ready_proposals(self):
         cases = [replay_case("case-1"), replay_case("case-2")]
         gated = evaluate_proposal(actionable_proposal(cases), replay_report(cases))
@@ -218,12 +176,11 @@ def vague_proposal(cases: list[ReplayCase]) -> Proposal:
 def proposal_cluster(source_urls: list[str], *, severity: str = "medium") -> Cluster:
     signals = [normalized_signal(index, url) for index, url in enumerate(source_urls)]
     return Cluster(
-        slug="miss:automation:guardrail",
+        theme="miss:automation:guardrail",
         signals=signals,
         area="automation",
         severity=severity,
-        # Reconciled frequency meets the promotion matrix so gate tests exercise eval state.
-        frequency=max(len(source_urls), 3),
+        frequency=len(source_urls),
         rank=2.0,
         suggested_destination="agents_check",
         summary="Repeated wallet review miss.",

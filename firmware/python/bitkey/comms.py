@@ -37,7 +37,6 @@ class NFCTransaction:
 
         self.transceive_timeout = transceive_timeout if transceive_timeout is not None else 0.25
         self.global_timeout = timeout
-        self.show_retries = False
         self.tag = None
 
         spec = self.port_spec_to_usb_device(usbstr)
@@ -138,17 +137,11 @@ class NFCTransaction:
                 return self.tag.transceive(bytes(payload), timeout=per_transceive_timeout)
             except nfc.tag.tt4.Type4TagCommandError as _err:
                 if _err.errno == nfc.tag.TIMEOUT_ERROR:
-                    if self.show_retries:
-                        print(f"NFC timeout during transceive (attempt {attempt + 1}/{self.retry_max}), retrying...")
-                    else:
-                        logger.info(
-                            f"Timed out during NFC transceive ({attempt=}), retrying...")
+                    logger.info(
+                        f"Timed out during NFC transceive ({attempt=}), retrying...")
                 else:
                     err = _err
-                    if self.show_retries:
-                        print(f"NFC error during transceive (attempt {attempt + 1}/{self.retry_max}), retrying...")
-                    else:
-                        print(f"NFC error during transceive, retrying...")
+                    print(f"NFC error during transceive, retrying...")
                     timed_out = False
                 self._connect()
                 self._resume()
@@ -517,20 +510,13 @@ class WalletComms:
                     return rsp
 
             last_response_tag = response_tag
-            if getattr(self.transport, "show_retries", False):
-                print(
-                    "Unexpected wallet_rsp tag; retrying "
-                    f"(attempt {attempt + 1}/{self.send_retry_max}, "
-                    f"expected={expected_response_tag}, actual={response_tag})"
-                )
-            else:
-                logger.warning(
-                    "Unexpected wallet_rsp tag. expected=%s actual=%s retry=%d/%d",
-                    expected_response_tag,
-                    response_tag,
-                    attempt + 1,
-                    self.send_retry_max,
-                )
+            logger.warning(
+                "Unexpected wallet_rsp tag. expected=%s actual=%s retry=%d/%d",
+                expected_response_tag,
+                response_tag,
+                attempt + 1,
+                self.send_retry_max,
+            )
 
         raise IOError(
             f"wallet_rsp tag mismatch after {self.send_retry_max} retries: "

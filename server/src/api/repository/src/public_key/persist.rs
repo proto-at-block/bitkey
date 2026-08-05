@@ -48,7 +48,9 @@ impl PublicKeyRepository {
             .put_item()
             .table_name(table_name)
             .set_item(Some(item))
-            .condition_expression("attribute_not_exists(public_key) OR account_id = :account_id")
+            .condition_expression(
+                "attribute_not_exists(public_key) OR account_id = :account_id",
+            )
             .expression_attribute_values(
                 ":account_id",
                 try_to_attribute_val(account_id, database_object)?,
@@ -102,4 +104,5 @@ impl PublicKeyRepository {
         ops.persist(&self.get_connection().client, &table_name, database_object)
             .await
     }
+
 }

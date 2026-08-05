@@ -17,6 +17,7 @@ kotlin {
         implementation(projects.domain.debugPublic)
         implementation(projects.domain.f8eClientPublic)
         implementation(projects.domain.walletPublic)
+        implementation(projects.libs.encryptionPublic)
         implementation(projects.libs.stdlibPublic)
       }
     }

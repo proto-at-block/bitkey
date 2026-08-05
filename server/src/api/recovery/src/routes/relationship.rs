@@ -180,7 +180,6 @@ impl From<RouteState> for SwaggerEndpoint {
             CreateRelationshipRequest,
             CreateRelationshipResponse,
             CustomerRecoveryRelationshipView,
-            CustomerRecoveryRelationshipStatus,
             EndorseRecoveryRelationshipsRequest,
             EndorseRecoveryRelationshipsResponse,
             EndorsedTrustedContact,
@@ -355,14 +354,6 @@ pub struct CustomerRecoveryRelationshipView {
     pub recovery_relationship_id: RecoveryRelationshipId,
     pub customer_alias: String,
     pub trusted_contact_roles: Vec<TrustedContactRole>,
-    pub relationship_status: CustomerRecoveryRelationshipStatus,
-}
-
-#[derive(Serialize, Deserialize, Debug, ToSchema, PartialEq)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum CustomerRecoveryRelationshipStatus {
-    Endorsed,
-    Unendorsed,
 }
 
 impl TryFrom<RecoveryRelationship> for CustomerRecoveryRelationshipView {
@@ -374,13 +365,11 @@ impl TryFrom<RecoveryRelationship> for CustomerRecoveryRelationshipView {
                 recovery_relationship_id: connection.common_fields.id,
                 customer_alias: connection.connection_fields.customer_alias,
                 trusted_contact_roles: connection.common_fields.trusted_contact_info.roles,
-                relationship_status: CustomerRecoveryRelationshipStatus::Endorsed,
             }),
             RecoveryRelationship::Unendorsed(connection) => Ok(Self {
                 recovery_relationship_id: connection.common_fields.id,
                 customer_alias: connection.connection_fields.customer_alias,
                 trusted_contact_roles: connection.common_fields.trusted_contact_info.roles,
-                relationship_status: CustomerRecoveryRelationshipStatus::Unendorsed,
             }),
             _ => Err(RecoveryError::InvalidRecoveryRelationshipType),
         }
@@ -647,7 +636,8 @@ pub async fn delete_recovery_relationship(
                 .get_recovery_relationship(&recovery_relationship_id)
                 .await?;
             let roles = &relationship.common_fields().trusted_contact_info.roles;
-            let is_customer = relationship.common_fields().customer_account_id == account_id;
+            let is_customer =
+                relationship.common_fields().customer_account_id == account_id;
 
             // Action and alias both depend on who is acting:
             //   - Customer → removes the TC, signs the TC's alias
@@ -655,12 +645,18 @@ pub async fn delete_recovery_relationship(
             let (action, proof_alias) = if is_customer {
                 (
                     customer_remove_action_for_roles(roles),
-                    alias_for_proof(&relationship.common_fields().trusted_contact_info.alias),
+                    alias_for_proof(
+                        &relationship.common_fields().trusted_contact_info.alias,
+                    ),
                 )
             } else {
                 let customer_alias = match &relationship {
-                    RecoveryRelationship::Unendorsed(r) => &r.connection_fields.customer_alias,
-                    RecoveryRelationship::Endorsed(r) => &r.connection_fields.customer_alias,
+                    RecoveryRelationship::Unendorsed(r) => {
+                        &r.connection_fields.customer_alias
+                    }
+                    RecoveryRelationship::Endorsed(r) => {
+                        &r.connection_fields.customer_alias
+                    }
                     RecoveryRelationship::Invitation(_) => {
                         // A TC cannot delete an invitation — they haven't accepted yet,
                         // so they have no relationship to delete.

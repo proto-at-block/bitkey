@@ -7,7 +7,6 @@
 #include "log.h"
 #include "pb.h"
 #include "pb_decode.h"
-#include "proto_helpers.h"
 #include "ui_messaging.h"
 #include "wallet.pb.h"
 #include "wca_impl.h"
@@ -24,8 +23,8 @@ wca_priv_t wca_priv SHARED_TASK_BSS = {
 PB_STATIC_ASSERT(sizeof(pb_size_t) == sizeof(uint16_t), "wrong pb_size_t");
 
 static void clear_proto_cmd_ctx(void) {
-  // Routed IPC commands own a copied encoded payload; this only resets WCA's
-  // assembly state for the next APDU exchange.
+  // The command buffer is routed through IPC by reference, so a timed-out WCA
+  // exchange must not clear bytes that a queued consumer may still decode.
   wca_priv.encoded_proto_cmd_ctx.tag = 0;
   wca_priv.encoded_proto_cmd_ctx.size = 0;
   wca_priv.encoded_proto_cmd_ctx.offset = 0;
@@ -51,10 +50,6 @@ static void clear_proto_state(void) {
 }
 
 void wca_reset_session_state(void) {
-  // NFC session teardown is also the boundary for proto response correlation.
-  // Retire the last routed command seq so an async response that arrives after
-  // field loss cannot repopulate GET_RESPONSE for a later NFC session.
-  proto_retire_cmd_seq(wca_priv.cmd_seq);
   clear_proto_state();
 }
 
@@ -74,14 +69,6 @@ static void handle_proto_response(uint8_t* encoded_proto, uint32_t size) {
 
 static inline bool received_full_proto(void) {
   return (wca_priv.encoded_proto_cmd_ctx.offset >= wca_priv.encoded_proto_cmd_ctx.size);
-}
-
-static uint32_t next_cmd_seq(void) {
-  wca_priv.cmd_seq++;
-  if (wca_priv.cmd_seq == 0) {
-    wca_priv.cmd_seq = 1;
-  }
-  return wca_priv.cmd_seq;
 }
 
 static bool wca_has_readable_lc(const uint8_t* cmd, uint32_t cmd_len) {
@@ -121,55 +108,17 @@ void drain_response_buffer(uint8_t* rsp, uint32_t* rsp_len) {
   *rsp_len = data_bytes_written + SW_SIZE;
 }
 
-bool wca_wait_for_proto_response(uint32_t expected_seq, uint8_t* rsp, uint32_t* rsp_len) {
-  // Wait for a response. Discard stale responses from previously timed-out
-  // commands. Proto helpers also drop stale producers before they write the
-  // shared buffer; this loop handles orphaned semaphore gives and direct
-  // response paths that bypass proto_send_rsp().
-  for (;;) {
-    bool status = wca_priv.encoded_proto_rsp_ctx.sem_take();
-
-    if (!status) {
-      MFLOGE("Proto rsp timeout");
-      UI_SHOW_EVENT(UI_EVENT_NFC_ERROR);
-      RSP_FCI_GENERIC_FAILURE(rsp, 0);
-      *rsp_len = SW_SIZE;
-      proto_retire_cmd_seq(expected_seq);
-      clear_proto_state();
-      return false;
-    }
-
-    (void)ipc_proto_get_response_buffer();  // Takes the response buffer mutex.
-    const uint32_t rsp_seq = proto_get_last_rsp_seq();
-    if (rsp_seq == expected_seq) {
-      drain_response_buffer(rsp, rsp_len);
-      ipc_proto_release_response_buffer();
-      return true;
-    }
-    ipc_proto_release_response_buffer();
-
-    // Stale response — discard and wait again.
-    MFLOGW("Discarding stale response (seq %lu, expected %lu)", (unsigned long)rsp_seq,
-           (unsigned long)expected_seq);
-  }
-}
-
 static bool handle_proto_exchange(uint8_t* rsp, uint32_t* rsp_len) {
   clear_proto_rsp_ctx();
 
 #ifndef EMBEDDED_BUILD
-  return true;  // Host tests call wca_wait_for_proto_response() directly.
+  return true;  // TODO Replace with function hook for unit tests
 #endif
-
-  // Advance the command sequence. ipc_proto_route binds this value to the
-  // queued command so delayed task decode cannot inherit a newer WCA sequence.
-  const uint32_t my_seq = next_cmd_seq();
-  proto_set_cmd_seq(my_seq);
 
   // Send proto to receiving task.
   bool status =
     ipc_proto_route(wca_priv.encoded_proto_cmd_ctx.tag, wca_priv.encoded_proto_cmd_ctx.buffer,
-                    wca_priv.encoded_proto_cmd_ctx.size, my_seq);
+                    wca_priv.encoded_proto_cmd_ctx.size);
   if (!status) {
     MFLOGE("Failed to route proto %d", wca_priv.encoded_proto_cmd_ctx.tag);
     UI_SHOW_EVENT(UI_EVENT_NFC_ERROR);
@@ -177,17 +126,31 @@ static bool handle_proto_exchange(uint8_t* rsp, uint32_t* rsp_len) {
     return false;
   }
 
-  return wca_wait_for_proto_response(my_seq, rsp, rsp_len);
+  status = wca_priv.encoded_proto_rsp_ctx.sem_take();  // Wait until task gives us a response
+
+  if (!status) {
+    // Expired.
+    MFLOGE("Proto rsp timeout");
+    UI_SHOW_EVENT(UI_EVENT_NFC_ERROR);
+    RSP_FCI_GENERIC_FAILURE(rsp, 0);
+    clear_proto_state();
+    return false;
+  }
+
+  // Handle response
+  drain_response_buffer(rsp, rsp_len);
+
+  return true;
 }
 
 void wca_init(wca_api_t* api) {
   wca_priv.mempool = api->mempool;
+  wca_reset_session_state();
   wca_priv.encoded_proto_rsp_ctx.sem_take = api->sem_take;
   wca_priv.encoded_proto_rsp_ctx.sem_take_nowait = api->sem_take_nowait;
   wca_priv.encoded_proto_rsp_ctx.sem_give = api->sem_give;
   ipc_proto_register_api(wca_priv.mempool, wca_priv.encoded_proto_rsp_ctx.buffer,
                          &handle_proto_response);
-  wca_reset_session_state();
 }
 
 bool wca_handle_command(uint8_t* cmd, uint32_t cmd_len, uint8_t* rsp, uint32_t* rsp_len) {

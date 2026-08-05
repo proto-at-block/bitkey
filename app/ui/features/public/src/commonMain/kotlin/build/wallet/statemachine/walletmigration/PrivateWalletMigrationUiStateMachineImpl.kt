@@ -1,7 +1,10 @@
 package build.wallet.statemachine.walletmigration
 
 import androidx.compose.runtime.*
+import bitkey.account.HardwareType
 import bitkey.auth.AccountAuthTokens
+import bitkey.recovery.DescriptorBackupService
+import bitkey.recovery.DescriptorBackupService.SsekUnsealCheckResult
 import build.wallet.account.AccountService
 import build.wallet.account.getAccount
 import build.wallet.analytics.events.EventTracker
@@ -12,12 +15,16 @@ import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.transactions.getTransactionData
 import build.wallet.bitcoin.utxo.UtxoConsolidationContext
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV3
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.cloud.backup.csek.SealedSsek
+import build.wallet.cloud.backup.csek.Sek
 import build.wallet.cloud.backup.csek.SekGenerator
+import build.wallet.cloud.backup.csek.SsekDao
 import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
@@ -39,8 +46,13 @@ import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiStateMac
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.money.amount.MoneyAmountUiProps
 import build.wallet.statemachine.money.amount.MoneyAmountUiStateMachine
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcConfirmableSessionUiStateMachine
+import build.wallet.statemachine.nfc.NfcSessionConfig
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
+import build.wallet.statemachine.send.hardwareconfirmation.HardwareConfirmationContent
 import build.wallet.statemachine.recovery.sweep.SweepUiProps
 import build.wallet.statemachine.recovery.sweep.SweepUiStateMachine
 import build.wallet.statemachine.send.NetworkFeesInfoSheetModel
@@ -59,6 +71,7 @@ import kotlinx.coroutines.launch
 @BitkeyInject(ActivityScope::class)
 class PrivateWalletMigrationUiStateMachineImpl(
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
+  private val nfcConfirmableSessionUiStateMachine: NfcConfirmableSessionUiStateMachine,
   private val refreshAuthTokensUiStateMachine: RefreshAuthTokensUiStateMachine,
   private val sweepUiStateMachine: SweepUiStateMachine,
   private val utxoConsolidationUiStateMachine: UtxoConsolidationUiStateMachine,
@@ -75,6 +88,8 @@ class PrivateWalletMigrationUiStateMachineImpl(
     FullAccountCloudSignInAndBackupUiStateMachine,
   private val cloudBackupDao: CloudBackupDao,
   private val accountService: AccountService,
+  private val descriptorBackupService: DescriptorBackupService,
+  private val ssekDao: SsekDao,
 ) : PrivateWalletMigrationUiStateMachine {
   @Suppress("CyclomaticComplexMethod")
   @Composable
@@ -179,7 +194,7 @@ class PrivateWalletMigrationUiStateMachineImpl(
             onClosed = { uiState = ShowingIntroduction },
             body = PrivateWalletMigrationFeeEstimateSheetModel(
               onBack = { uiState = ShowingIntroduction },
-              onConfirm = { uiState = RefreshingAuthTokens },
+              onConfirm = { uiState = CheckingSsekAvailability },
               feeEstimateData = FeeEstimateData.Loading
             )
           )
@@ -240,7 +255,7 @@ class PrivateWalletMigrationUiStateMachineImpl(
             onClosed = { uiState = ShowingIntroduction },
             body = PrivateWalletMigrationFeeEstimateSheetModel(
               onBack = { uiState = ShowingIntroduction },
-              onConfirm = { uiState = RefreshingAuthTokens },
+              onConfirm = { uiState = CheckingSsekAvailability },
               feeEstimateData = FeeEstimateData.Loaded(
                 estimatedFee = feeAmountFormatted.secondaryAmount,
                 estimatedFeeSats = feeAmountFormatted.primaryAmount,
@@ -262,7 +277,7 @@ class PrivateWalletMigrationUiStateMachineImpl(
             onClosed = { uiState = ShowingIntroduction },
             body = PrivateWalletMigrationFeeEstimateSheetModel(
               onBack = { uiState = ShowingIntroduction },
-              onConfirm = { uiState = RefreshingAuthTokens },
+              onConfirm = { uiState = CheckingSsekAvailability },
               feeEstimateData = FeeEstimateData.InsufficientFunds
             )
           )
@@ -313,6 +328,65 @@ class PrivateWalletMigrationUiStateMachineImpl(
               uiState = ShowingIntroduction
             },
             context = UtxoConsolidationContext.PrivateWalletMigration
+          )
+        )
+      }
+
+      is CheckingSsekAvailability -> {
+        LaunchedEffect(Unit) {
+          descriptorBackupService.checkSsekUnsealingNeeded(
+            accountId = props.account.accountId,
+            factorToRecover = PhysicalFactor.App
+          )
+            .onSuccess { result ->
+              uiState = when (result) {
+                is SsekUnsealCheckResult.NeedsUnsealing ->
+                  UnsealingSsek(result.sealedSsek)
+                SsekUnsealCheckResult.NotNeeded -> RefreshingAuthTokens
+              }
+            }
+            .onFailure { error ->
+              uiState = MigrationFailed(error)
+            }
+        }
+
+        ScreenModel(
+          body = LoadingSuccessBodyModel(
+            state = LoadingSuccessBodyModel.State.Loading,
+            message = "Preparing private wallet upgrade",
+            id = WalletMigrationEventTrackerScreenId.PRIVATE_WALLET_CREATING_KEYSET,
+            primaryButton = null,
+            secondaryButton = null
+          )
+        )
+      }
+
+      is UnsealingSsek -> {
+        nfcConfirmableSessionUiStateMachine.model(
+          NfcConfirmableSessionUIStateMachineProps(
+            session = { session, commands ->
+              commands.keysetRepairUnsealSymmetricKey(
+                session = session,
+                sealedKey = current.sealedSsek
+              )
+            },
+            onSuccess = { unsealedKey ->
+              ssekDao.set(current.sealedSsek, Sek(unsealedKey))
+                .onSuccess {
+                  uiState = RefreshingAuthTokens
+                }
+                .onFailure { error ->
+                  uiState = MigrationFailed(error)
+                }
+            },
+            config = NfcSessionConfig(
+              onCancel = { uiState = ShowingIntroduction },
+              hardwareVerification = NotRequired,
+              shouldLock = props.account.config.hardwareType != HardwareType.W3,
+              screenPresentationStyle = ScreenPresentationStyle.Root,
+              eventTrackerContext = NfcEventTrackerScreenIdContext.UNSEAL_SSEK
+            ),
+            confirmationContent = HardwareConfirmationContent.KeysetRepairUnseal
           )
         )
       }
@@ -632,6 +706,12 @@ private sealed interface PrivateWalletMigrationUiState {
    * Opens the browser to the Enhanced Wallet Privacy help center article.
    */
   data object LearnHow : PrivateWalletMigrationUiState
+
+  /** Checking whether existing descriptor backups require the old SSEK to be unsealed. */
+  data object CheckingSsekAvailability : PrivateWalletMigrationUiState
+
+  /** Unsealing the old SSEK before rotating descriptor backups. */
+  data class UnsealingSsek(val sealedSsek: SealedSsek) : PrivateWalletMigrationUiState
 
   /**
    * Refreshing auth tokens before initiating Hardware proof-of-possession.

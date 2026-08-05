@@ -64,7 +64,6 @@ pub struct RouteState(
     pub UserPoolService,
     pub PrivilegedActionService,
     pub AccountService,
-    pub repository::anti_replay::AntiReplayRepository,
 );
 
 impl RouterBuilder for RouteState {

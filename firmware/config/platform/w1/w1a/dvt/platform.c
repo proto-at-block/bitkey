@@ -253,16 +253,6 @@ power_config_t power_config = {
         },
       .trigger = EXTI_TRIGGER_FALLING,
     },
-  .fuel_gauge_irq =
-    {
-      .gpio =
-        {
-          .port = PORT_A,
-          .pin = 8,  // MAX17262 ALRT pin
-          .mode = MCU_GPIO_MODE_INPUT,
-        },
-      .trigger = EXTI_TRIGGER_FALLING,  // ALRT is active low
-    },
   .ldo =
     {
       .ldo_en = 0b00,  // Auto mode

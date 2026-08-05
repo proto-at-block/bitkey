@@ -145,7 +145,7 @@ foreach hardware : w1_hardware_configs.keys()
           )
         ],
         output : ldscript_name,
-        command : [invoke, 'gen.linker', '--target', prog, '--platform', 'w1', '--output', '@OUTPUT@'],
+        command : [invoke, 'gen.linker', '--target', prog, '--output', '@OUTPUT@'],
         build_by_default: true
       )
 

@@ -4,7 +4,6 @@ notify:
 
 steps:
   - label: "Release build"
-    key: "release-build"
     retry:
       automatic:
         - exit_status: -1  # Agent was lost
@@ -19,18 +18,3 @@ steps:
       - squareup/ios-builder#v1.2.0:
           build_action: release
           options: --manual-mpp
-
-  - label: "Upload iOS dSYMs"
-    depends_on: "release-build"
-    retry:
-      automatic:
-        - exit_status: -1  # Agent was lost
-          limit: 2
-        - exit_status: 255 # Forced agent shutdown
-          limit: 2
-    agents:
-      xcode: 26.2.0
-    env:
-      FASTLANE_SYMBOL_UPLOAD_LANE: "upload_wallet_customer_build_symbols"
-      IOS_RELEASE_ARCHIVE_NAME: "release_archive.xcarchive.tar.gz"
-    command: .buildkite/upload-ios-dsyms.sh

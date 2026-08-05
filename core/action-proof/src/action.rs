@@ -29,8 +29,7 @@ define_enum!(Action, ParseActionError, "invalid action: {0}" {
     CancelConflictingRecovery,
     SendRecoveryVerificationCode,
     VerifyRecoveryVerificationCode,
-    RotateAppAuthKeys,
-    SetDelayNotifyPeriod
+    RotateAppAuthKeys
 });
 
 impl Action {
@@ -63,7 +62,6 @@ impl Action {
             Self::SendRecoveryVerificationCode => "Send Recovery Verification Code",
             Self::VerifyRecoveryVerificationCode => "Verify Recovery Verification Code",
             Self::RotateAppAuthKeys => "Rotate App Auth Keys",
-            Self::SetDelayNotifyPeriod => "Set Delay Notify Period",
         }
     }
 
@@ -93,8 +91,7 @@ impl Action {
             | Self::CancelConflictingRecovery
             | Self::SendRecoveryVerificationCode
             | Self::VerifyRecoveryVerificationCode
-            | Self::RotateAppAuthKeys
-            | Self::SetDelayNotifyPeriod => None,
+            | Self::RotateAppAuthKeys => None,
         }
     }
 }

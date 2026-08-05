@@ -16,7 +16,6 @@
 #include "telemetry_storage.h"
 #include "uc.h"
 #include "uc_route.h"
-#include "uc_uxc.h"
 #include "uxc.pb.h"
 #include "wallet.pb.h"
 
@@ -49,14 +48,14 @@ static void _sysinfo_wdog_refresh_callback(rtos_timer_handle_t UNUSED(timer)) {
 }
 
 static void _sysinfo_task_send_empty_msg(void* proto) {
-  const uint32_t seq = ((fwpb_uxc_msg_host*)proto)->seq;
+  // Proto is always empty besides tag.
   uc_free_recv_proto(proto);
 
   fwpb_uxc_msg_device* msg = uc_alloc_send_proto();
   ASSERT(msg != NULL);
 
   msg->which_msg = fwpb_uxc_msg_device_empty_rsp_tag;
-  (void)uc_send_rsp_with_seq(seq, msg);
+  (void)uc_send(msg);
 }
 
 static void _sysinfo_task_copy_metadata_to_proto(metadata_t* metadata,
@@ -80,7 +79,7 @@ static void _sysinfo_task_copy_metadata_to_proto(metadata_t* metadata,
 }
 
 static void _sysinfo_task_send_metadata(void* proto) {
-  const uint32_t seq = ((fwpb_uxc_msg_host*)proto)->seq;
+  // Proto is always empty besides tag.
   uc_free_recv_proto(proto);
 
   fwpb_uxc_msg_device* msg = uc_alloc_send_proto();
@@ -119,7 +118,7 @@ static void _sysinfo_task_send_metadata(void* proto) {
   rsp->mcu_name = fwpb_mcu_name_MCU_NAME_STM32U5;
   rsp->mcu_role = fwpb_mcu_role_MCU_ROLE_UXC;
 
-  (void)uc_send_rsp_with_seq(seq, msg);
+  (void)uc_send(msg);
 }
 
 static void _sysinfo_task_handle_coredump_command(void* proto) {
@@ -128,7 +127,6 @@ static void _sysinfo_task_handle_coredump_command(void* proto) {
   fwpb_uxc_msg_device* msg = uc_alloc_send_proto();
   ASSERT(msg != NULL);
 
-  const uint32_t seq = cmd->seq;
   msg->which_msg = fwpb_uxc_msg_device_coredump_get_rsp_tag;
   fwpb_coredump_get_rsp* rsp = &msg->msg.coredump_get_rsp;
 
@@ -158,11 +156,11 @@ static void _sysinfo_task_handle_coredump_command(void* proto) {
   }
 
   uc_free_recv_proto(proto);
-  (void)uc_send_rsp_with_seq(seq, msg);
+  (void)uc_send(msg);
 }
 
 static void _sysinfo_task_send_events(void* proto) {
-  const uint32_t seq = ((fwpb_uxc_msg_host*)proto)->seq;
+  // Proto is always empty besides tag.
   uc_free_recv_proto(proto);
 
   fwpb_uxc_msg_device* msg = uc_alloc_send_proto();
@@ -179,7 +177,7 @@ static void _sysinfo_task_send_events(void* proto) {
     bitlog_drain(rsp->fragment.data.bytes, sizeof(rsp->fragment.data.bytes), &bytes_written);
   rsp->fragment.data.size = bytes_written;
 
-  (void)uc_send_rsp_with_seq(seq, msg);
+  (void)uc_send(msg);
 }
 
 static void _sysinfo_task_handle_cert_command(void* proto) {
@@ -187,7 +185,6 @@ static void _sysinfo_task_handle_cert_command(void* proto) {
   fwpb_cert_get_cmd* cmd = &msg_host->msg.cert_get_cmd;
 
   fwpb_cert_get_cmd cmd_local = *cmd;
-  const uint32_t seq = msg_host->seq;
   uc_free_recv_proto(proto);
 
   fwpb_uxc_msg_device* msg = uc_alloc_send_proto();
@@ -198,7 +195,7 @@ static void _sysinfo_task_handle_cert_command(void* proto) {
 
   secure_channel_cert_handle_cmd_get(&cmd_local, rsp);
 
-  (void)uc_send_rsp_with_seq(seq, msg);
+  (void)uc_send(msg);
 }
 
 static void _sysinfo_send_cert_request(void) {

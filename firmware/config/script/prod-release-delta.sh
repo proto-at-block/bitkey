@@ -4,14 +4,9 @@ set -euo pipefail
 
 usage() {
   cat <<EOF
-Usage: $0 [--dry-run] VERSION HW_REV PRODUCT SIGNED_DIR ORG_TOKEN [SW_TYPE] [REVISION]
+Usage: $0 [--dry-run] VERSION HW_REV PRODUCT SIGNED_DIR ORG_TOKEN [SW_TYPE]
 
-Creates a full release plus delta releases from signed images downloaded from the new firmware signer.
-
-For W1, the full bundle uses production-signed app A/B artifacts from the
-signer and the CI-built loader artifact. W1 loader production signing is not
-part of this flow; the loader is included to preserve the existing V1 full
-bundle shape and to seed Memfault with a full bundle for future delta sources.
+Creates delta releases from signed images downloaded from the new firmware signer.
 
 Options:
   --dry-run    Extract and generate patches but don't upload anything
@@ -26,7 +21,6 @@ Arguments:
                  sha256:*_____<product>_____b_____VERSION-signed.tar.gz
   ORG_TOKEN    Memfault organization token
   SW_TYPE      Optional software type (defaults to 'prod')
-  REVISION     Optional git revision to send to Memfault (defaults to current HEAD)
 
 Example:
   $0 1.0.101 dvt w1a ~/Development/btc-fw-signer \$MEMFAULT_ORG_TOKEN
@@ -43,7 +37,7 @@ if [ "${1:-}" = "--dry-run" ]; then
   shift
 fi
 
-if [[ "$#" -ne 5 && "$#" -ne 6 && "$#" -ne 7 ]]; then
+if [[ "$#" -ne 5 && "$#" -ne 6 ]]; then
   usage
 fi
 
@@ -57,12 +51,6 @@ if [ "$#" -eq 5 ]; then
   SW_TYPE=prod
 else
   SW_TYPE=$6
-fi
-
-if [ "$#" -eq 7 ]; then
-  REVISION=$7
-else
-  REVISION=""
 fi
 
 if [ "${SW_TYPE}" = "prod" ] && [ -z "${DELTA_PATCH_SIGNING_KEY_PROD:-}" ]; then
@@ -93,33 +81,20 @@ trap cleanup EXIT
 echo ""
 echo "=== Extracting signed images ==="
 
-find_signed_tarball() {
-  local slot=$1
-  local pattern="*_____${PRODUCT}_____${slot}_____${VERSION}-signed.tar.gz"
-  local matches=()
+SLOT_A_TARBALL=$(find "$SIGNED_DIR" -name "*_____${PRODUCT}_____a_____${VERSION}-signed.tar.gz" | head -1)
+SLOT_B_TARBALL=$(find "$SIGNED_DIR" -name "*_____${PRODUCT}_____b_____${VERSION}-signed.tar.gz" | head -1)
 
-  while IFS= read -r match; do
-    matches+=("${match}")
-  done < <(find "$SIGNED_DIR" -name "$pattern")
+if [ -z "$SLOT_A_TARBALL" ]; then
+  echo "ERROR: Could not find slot A tarball for version $VERSION in $SIGNED_DIR"
+  echo "Expected pattern: *_____${PRODUCT}_____a_____${VERSION}-signed.tar.gz"
+  exit 1
+fi
 
-  if [ "${#matches[@]}" -eq 0 ]; then
-    echo "ERROR: Could not find slot ${slot^^} tarball for version $VERSION in $SIGNED_DIR" >&2
-    echo "Expected pattern: $pattern" >&2
-    exit 1
-  fi
-
-  if [ "${#matches[@]}" -gt 1 ]; then
-    echo "ERROR: Found multiple slot ${slot^^} tarballs for version $VERSION in $SIGNED_DIR" >&2
-    printf '  %s\n' "${matches[@]}" >&2
-    echo "Refusing to guess which signed artifact to use." >&2
-    exit 1
-  fi
-
-  echo "${matches[0]}"
-}
-
-SLOT_A_TARBALL=$(find_signed_tarball a)
-SLOT_B_TARBALL=$(find_signed_tarball b)
+if [ -z "$SLOT_B_TARBALL" ]; then
+  echo "ERROR: Could not find slot B tarball for version $VERSION in $SIGNED_DIR"
+  echo "Expected pattern: *_____${PRODUCT}_____b_____${VERSION}-signed.tar.gz"
+  exit 1
+fi
 
 echo "Slot A: $SLOT_A_TARBALL"
 echo "Slot B: $SLOT_B_TARBALL"
@@ -130,77 +105,10 @@ tar -xzf "$SLOT_B_TARBALL" -C "$TO_VERSION_DIR"
 echo "Extracted to: $TO_VERSION_DIR"
 ls -la "$TO_VERSION_DIR"
 
-if [ -n "${REVISION}" ]; then
-  SHA="${REVISION}"
-else
-  SHA=$(cd "$REPO_ROOT" && git rev-parse HEAD)
-fi
-
-if [[ "${PRODUCT}" == "w1" || "${PRODUCT}" == "w1a" ]]; then
-  echo ""
-  echo "=== Uploading full bundle to Memfault ==="
-
-  FULL_BUNDLE_DIR="$WORK_DIR/$VERSION-fwup-bundle"
-  FULL_BUNDLE_ZIP="${FULL_BUNDLE_DIR}.zip"
-  HARDWARE_VERSION="${HW_REV}-${SW_TYPE}"
-
-  # W1 full bundle manifests require a bootloader entry. This flow intentionally
-  # production-signs app A/B only, then uses the CI-built loader artifact to
-  # preserve the existing V1 full-bundle shape and seed Memfault with a full
-  # bundle for future delta sources. W1 loader production signing is not part of
-  # this release path.
-  CI_ARTIFACTS_DIR="${W1A_CI_ARTIFACTS_DIR:-}"
-  if [ -z "${CI_ARTIFACTS_DIR}" ]; then
-    case "${SIGNED_DIR}" in
-      */signed-artifacts|*/signed-artifacts/*)
-        CI_ARTIFACTS_DIR="${SIGNED_DIR%%/signed-artifacts*}/ci-artifacts/${VERSION}"
-        ;;
-    esac
-  fi
-
-  if [ -z "${CI_ARTIFACTS_DIR}" ] || [ ! -d "${CI_ARTIFACTS_DIR}" ]; then
-    echo "ERROR: Could not resolve CI artifacts for W1 loader files." >&2
-    echo "Set W1A_CI_ARTIFACTS_DIR or pass SIGNED_DIR under w1a-release/signed-artifacts." >&2
-    exit 1
-  fi
-
-  loader_bin=$(find "${CI_ARTIFACTS_DIR}" -type f -name "${PRODUCT}-${HW_REV}-loader-${SW_TYPE}.signed.bin" | head -1)
-  loader_sig=$(find "${CI_ARTIFACTS_DIR}" -type f -name "${PRODUCT}-${HW_REV}-loader-${SW_TYPE}.detached_signature" | head -1)
-  [ -n "${loader_bin}" ] || { echo "ERROR: Missing W1 loader signed bin in ${CI_ARTIFACTS_DIR}" >&2; exit 1; }
-  [ -n "${loader_sig}" ] || { echo "ERROR: Missing W1 loader detached signature in ${CI_ARTIFACTS_DIR}" >&2; exit 1; }
-  cp "${loader_bin}" "${TO_VERSION_DIR}/"
-  cp "${loader_sig}" "${TO_VERSION_DIR}/"
-
-  (
-    cd "$REPO_ROOT" && \
-    inv fwup.bundle \
-      --product "$PRODUCT" \
-      --platform "$PRODUCT" \
-      --image-type "$SW_TYPE" \
-      --hardware-revision "$HW_REV" \
-      --version "$VERSION" \
-      --build-dir "$TO_VERSION_DIR" \
-      --bundle-dir "$FULL_BUNDLE_DIR"
-  )
-
-  if [ "$DRY_RUN" = true ]; then
-    echo "[DRY RUN] Would upload full bundle: $FULL_BUNDLE_ZIP"
-  else
-    memfault \
-      --org-token "${ORG_TOKEN}" \
-      --org block-wallet \
-      --project w1a \
-      upload-ota-payload \
-      --hardware-version "${HARDWARE_VERSION}" \
-      --software-type Dev \
-      --software-version "${VERSION}" \
-      --revision "${SHA}" \
-      "${FULL_BUNDLE_ZIP}"
-  fi
-fi
-
 echo ""
 echo "=== Uploading symbols to Memfault ==="
+
+SHA=$(cd "$REPO_ROOT" && git rev-parse HEAD)
 SLOTS=("a" "b")
 for SLOT in "${SLOTS[@]}"; do
   IMAGES="${TO_VERSION_DIR}/${PRODUCT}*-${HW_REV}-app-${SLOT}-${SW_TYPE}.signed.elf"

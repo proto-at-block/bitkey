@@ -215,13 +215,7 @@ pub struct PutTransactionVerificationPolicyResponse {}
         (status = 404, description = "Account could not be found")
     ),
 )]
-#[instrument(skip(
-    account_service,
-    privileged_action_service,
-    anti_replay_repository,
-    auth,
-    request
-))]
+#[instrument(skip(account_service, privileged_action_service, anti_replay_repository, auth, request))]
 async fn put_transaction_verification_policy(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,

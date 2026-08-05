@@ -7,7 +7,6 @@
 #include "log.h"
 #include "mempool.h"
 #include "nfc_control.h"
-#include "proto_helpers.h"
 #include "rtos.h"
 #include "secutils.h"
 #include "sysevent.h"
@@ -104,16 +103,8 @@ void nfc_task_create(void) {
   nfc_priv.thread_handle = rtos_thread_create(nfc_thread, NULL, RTOS_THREAD_PRIORITY_HIGH, 2048);
   ASSERT(nfc_priv.thread_handle);
 
-  // Routed IPC commands are transient encoded wrappers freed by proto_get_cmd()
-  // immediately after decode. During decode, the pool briefly holds both the
-  // routed wrapper and the decoded command allocation for the same WCA command.
-  _Static_assert(PROTO_ROUTED_CMD_ALLOC_SIZE <= sizeof(fwpb_wallet_rsp),
-                 "routed proto commands must fit in the response proto pool");
-  _Static_assert(PROTO_DECODED_CMD_ALLOC_SIZE <= sizeof(fwpb_wallet_rsp),
-                 "decoded proto commands must fit before the response proto pool");
-
-#define REGIONS(X)                                         \
-  X(nfc_pool, cmd_protos, PROTO_DECODED_CMD_ALLOC_SIZE, 4) \
+#define REGIONS(X)                                    \
+  X(nfc_pool, cmd_protos, sizeof(fwpb_wallet_cmd), 4) \
   X(nfc_pool, rsp_protos, sizeof(fwpb_wallet_rsp), 4)
   nfc_priv.mempool = mempool_create(nfc_pool);
 #undef REGIONS

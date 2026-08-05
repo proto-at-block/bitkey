@@ -37,71 +37,10 @@ static void _handle_fwup_finish(void* proto, void* UNUSED(context));
 static void _handle_commit_sig(void* proto, void* UNUSED(context));
 static bool fwup_atomic_commit(const fwpb_semver* core_version, const fwpb_semver* uxc_version);
 
-typedef enum {
-  FWUP_UXC_PENDING_NONE = 0,
-  FWUP_UXC_PENDING_START_DIRECT,
-  FWUP_UXC_PENDING_START_CONFIRMATION_RESULT,
-  FWUP_UXC_PENDING_TRANSFER,
-  FWUP_UXC_PENDING_FINISH,
-  FWUP_UXC_PENDING_DELTA_RESULT,
-  FWUP_UXC_PENDING_CACHED_CONFIRMATION_RESULT,
-} fwup_uxc_pending_kind_t;
-
-typedef struct {
-  uint32_t seq;
-  fwup_uxc_pending_kind_t kind;
-  bool cached_start_result_ready;
-  fwpb_fwup_start_rsp cached_start_result;
-} fwup_uxc_pending_t;
-
-static SHARED_TASK_BSS fwup_uxc_pending_t pending_uxc_fwup = {0};
-
-static bool fwup_uxc_response_pending(void) {
-  // Do not allow a second UXC FWUP command while any UXC FWUP response is still
-  // outstanding. New UXC can echo uxc_msg.seq, but mixed-version dev devices may
-  // run older UXC firmware with a newer semver, so we cannot reliably know ahead
-  // of time whether the response will be sequenced. Keeping one in-flight UXC
-  // FWUP command preserves the seqless recovery path without letting an old
-  // response satisfy a retried command. If the UXC response is truly lost, UXC
-  // boot/reset is the recovery path; replacing this latch on retry would let a
-  // stale seqless response satisfy the new request.
-  return pending_uxc_fwup.kind != FWUP_UXC_PENDING_NONE;
-}
-
-static void fwup_uxc_set_pending(fwup_uxc_pending_kind_t kind, uint32_t seq) {
-  pending_uxc_fwup.kind = kind;
-  pending_uxc_fwup.seq = seq;
-  if (kind != FWUP_UXC_PENDING_CACHED_CONFIRMATION_RESULT) {
-    pending_uxc_fwup.cached_start_result_ready = false;
-  }
-}
-
-static void fwup_uxc_clear_pending(void) {
-  pending_uxc_fwup = (fwup_uxc_pending_t){0};
-}
-
-static void fwup_uxc_cache_start_result(const fwpb_fwup_start_rsp* result) {
-  pending_uxc_fwup.cached_start_result = *result;
-  pending_uxc_fwup.cached_start_result_ready = true;
-  pending_uxc_fwup.seq = 0;
-  pending_uxc_fwup.kind = FWUP_UXC_PENDING_CACHED_CONFIRMATION_RESULT;
-}
-
-static bool fwup_send_confirmation_result_rsp(uint32_t seq, const fwpb_fwup_start_rsp* result,
-                                              bool clear_on_send) {
-  fwpb_wallet_rsp* rsp = proto_get_rsp();
-  rsp->which_msg = fwpb_wallet_rsp_get_confirmation_result_rsp_tag;
-  rsp->msg.get_confirmation_result_rsp.which_result =
-    fwpb_get_confirmation_result_rsp_fwup_start_result_tag;
-  rsp->msg.get_confirmation_result_rsp.result.fwup_start_result = *result;
-
-  const bool sent = proto_send_rsp_with_seq(seq, rsp);
-  if (sent && clear_on_send) {
-    confirmation_manager_clear();
-    fwup_uxc_clear_pending();
-  }
-  return sent;
-}
+// Tracks whether we're awaiting an async UXC response to a get_confirmation_result command.
+// Set to true when forwarding a confirmed UXC fwup_start to UXC over UART.
+// Cleared when the UXC response arrives via _handle_fwup_start callback.
+static SHARED_TASK_BSS bool awaiting_uxc_confirmation_response = false;
 
 // Tracks the version the user most recently confirmed via the FWUP confirmation UI.
 // Used to allow skipping a second confirmation when both UXC and Core are being
@@ -127,8 +66,6 @@ static SHARED_TASK_DATA nfc_disable_token_t coproc_delta_nfc_token = NFC_CONTROL
 // True when an atomic commit is in progress — Core has sent fwup_commit_sig_cmd
 // to UXC and is waiting for the ACK before committing its own signature.
 static SHARED_TASK_BSS bool awaiting_atomic_commit_rsp = false;
-static SHARED_TASK_BSS uint32_t coproc_commit_seq = 0;
-static SHARED_TASK_BSS uint32_t coproc_commit_seq_counter = 0;
 
 // Session flag: true when the app requested deferred commit via fwup_start_cmd.
 // Set when UXC FWUP starts with defer_commit=true; cleared on failure or reset.
@@ -137,49 +74,6 @@ static SHARED_TASK_BSS bool session_defer_commit = false;
 // True after UXC verification succeeded in deferred mode.  Core uses this to
 // reject a defer_commit Core FWUP start if UXC isn't ready to commit.
 static SHARED_TASK_BSS bool uxc_verified = false;
-
-static bool fwup_uxc_take_rsp_seq(const fwpb_uxc_msg_device* msg, uint32_t* seq, const char* name) {
-  ASSERT(msg != NULL);
-  ASSERT(seq != NULL);
-  ASSERT(name != NULL);
-
-  if (!fwup_uxc_response_pending()) {
-    LOGW("Dropping unexpected %s response", name);
-    return false;
-  }
-
-  if (msg->seq == 0) {
-    // Mixed-version/dev FWUP recovery: accept one seqless response for the
-    // current operation. Since Core allows only one outstanding UXC FWUP
-    // command, a seqless response is still attributable to that command; if WCA
-    // timed out, proto_send_rsp_with_seq() will drop the host response because
-    // the seq was retired.
-    LOGW("Accepting seqless %s response", name);
-    *seq = pending_uxc_fwup.seq;
-    return true;
-  }
-
-  if (!proto_uxc_take_rsp_seq(msg, seq, name)) {
-    return false;
-  }
-
-  if (*seq != pending_uxc_fwup.seq) {
-    LOGW("Dropping stale %s seq %lu expected %lu", name, (unsigned long)*seq,
-         (unsigned long)pending_uxc_fwup.seq);
-    return false;
-  }
-  return true;
-}
-
-static uint32_t fwup_next_internal_uxc_seq(void) {
-  // Internal UXC requests are not WCA commands, but still need a nonzero token
-  // so delayed responses cannot be mistaken for the active operation.
-  coproc_commit_seq_counter++;
-  if (coproc_commit_seq_counter == 0) {
-    coproc_commit_seq_counter = 1;
-  }
-  return coproc_commit_seq_counter;
-}
 
 static fwup_confirmation_data_t fwup_build_confirmation_data(const fwpb_fwup_start_cmd* cmd) {
   fwup_confirmation_data_t data = {
@@ -201,18 +95,14 @@ static bool fwup_forward_coproc_start(fwpb_wallet_cmd* cmd) {
 
   msg->which_msg = fwpb_uxc_msg_host_fwup_start_cmd_tag;
   msg->msg.fwup_start_cmd = cmd->msg.fwup_start_cmd;
-  const uint32_t cmd_seq = proto_get_cmd_seq(cmd);
-  proto_uxc_prepare_cmd(msg, cmd);
-  fwup_uxc_set_pending(FWUP_UXC_PENDING_START_DIRECT, cmd_seq);
-  proto_free_buffers(cmd, NULL);
+  ipc_proto_free((uint8_t*)cmd);
 
   const bool sent = uc_send(msg);
   if (!sent) {
     fwpb_wallet_rsp* rsp = proto_get_rsp();
     rsp->which_msg = fwpb_wallet_rsp_fwup_start_rsp_tag;
     rsp->msg.fwup_start_rsp.rsp_status = fwpb_fwup_start_rsp_fwup_start_rsp_status_ERROR;
-    proto_send_rsp_with_seq(cmd_seq, rsp);
-    fwup_uxc_clear_pending();
+    proto_send_rsp(NULL, rsp);
     session_defer_commit = false;
   } else {
     fwup_mark_coproc_pending(true);
@@ -237,15 +127,6 @@ void fwup_task_register_listeners(void) {
 
 NO_OPTIMIZE bool fwup_task_send_coproc_fwup_start_cmd(fwpb_wallet_cmd* cmd) {
   ASSERT(cmd->msg.fwup_start_cmd.mcu_role == fwpb_mcu_role_MCU_ROLE_UXC);
-
-  if (fwup_uxc_response_pending()) {
-    LOGW("UXC FWUP response pending; wait for response/reset");
-    fwpb_wallet_rsp* rsp = proto_get_rsp();
-    rsp->which_msg = fwpb_wallet_rsp_fwup_start_rsp_tag;
-    rsp->msg.fwup_start_rsp.rsp_status = fwpb_fwup_start_rsp_fwup_start_rsp_status_ERROR;
-    proto_send_rsp(cmd, rsp);
-    return false;
-  }
 
   // Record whether the app requested atomic (deferred) commit for this session.
   session_defer_commit = cmd->msg.fwup_start_cmd.defer_commit;
@@ -341,15 +222,6 @@ NO_OPTIMIZE bool fwup_task_send_coproc_fwup_start_cmd(fwpb_wallet_cmd* cmd) {
 void fwup_task_send_coproc_fwup_transfer_cmd(fwpb_wallet_cmd* cmd) {
   ASSERT(cmd->msg.fwup_transfer_cmd.mcu_role == fwpb_mcu_role_MCU_ROLE_UXC);
 
-  if (fwup_uxc_response_pending()) {
-    LOGW("UXC FWUP response pending; wait for response/reset");
-    fwpb_wallet_rsp* rsp = proto_get_rsp();
-    rsp->which_msg = fwpb_wallet_rsp_fwup_transfer_rsp_tag;
-    rsp->msg.fwup_transfer_rsp.rsp_status = fwpb_fwup_transfer_rsp_fwup_transfer_rsp_status_ERROR;
-    proto_send_rsp(cmd, rsp);
-    return;
-  }
-
   fwpb_uxc_msg_host* msg = uc_alloc_send_proto();
   ASSERT(msg != NULL);
 
@@ -366,10 +238,7 @@ void fwup_task_send_coproc_fwup_transfer_cmd(fwpb_wallet_cmd* cmd) {
          num_bytes);
   msg->msg.fwup_transfer_cmd.fwup_data.size = num_bytes;
 
-  const uint32_t cmd_seq = proto_get_cmd_seq(cmd);
-  proto_uxc_prepare_cmd(msg, cmd);
-  fwup_uxc_set_pending(FWUP_UXC_PENDING_TRANSFER, cmd_seq);
-  proto_free_buffers(cmd, NULL);
+  ipc_proto_free((uint8_t*)cmd);
 
   const bool sent = uc_send(msg);
   if (!sent) {
@@ -378,25 +247,15 @@ void fwup_task_send_coproc_fwup_transfer_cmd(fwpb_wallet_cmd* cmd) {
     fwpb_wallet_rsp* rsp = proto_get_rsp();
     rsp->which_msg = fwpb_wallet_rsp_fwup_transfer_rsp_tag;
     rsp->msg.fwup_transfer_rsp.rsp_status = fwpb_fwup_transfer_rsp_fwup_transfer_rsp_status_ERROR;
-    proto_send_rsp_with_seq(cmd_seq, rsp);
+    proto_send_rsp(NULL, rsp);
 
     user_confirmed_version.valid = false;
     fwup_mark_coproc_pending(false);
-    fwup_uxc_clear_pending();
   }
 }
 
 void fwup_task_send_coproc_fwup_finish_cmd(fwpb_wallet_cmd* cmd) {
   ASSERT(cmd->msg.fwup_finish_cmd.mcu_role == fwpb_mcu_role_MCU_ROLE_UXC);
-
-  if (fwup_uxc_response_pending()) {
-    LOGW("UXC FWUP response pending; wait for response/reset");
-    fwpb_wallet_rsp* rsp = proto_get_rsp();
-    rsp->which_msg = fwpb_wallet_rsp_fwup_finish_rsp_tag;
-    rsp->msg.fwup_finish_rsp.rsp_status = fwpb_fwup_finish_rsp_fwup_finish_rsp_status_ERROR;
-    proto_send_rsp(cmd, rsp);
-    return;
-  }
 
   fwpb_uxc_msg_host* msg = uc_alloc_send_proto();
   ASSERT(msg != NULL);
@@ -408,10 +267,7 @@ void fwup_task_send_coproc_fwup_finish_cmd(fwpb_wallet_cmd* cmd) {
   msg->msg.fwup_finish_cmd.bl_upgrade = cmd->msg.fwup_finish_cmd.bl_upgrade;
   msg->msg.fwup_finish_cmd.mode = cmd->msg.fwup_finish_cmd.mode;
   msg->msg.fwup_finish_cmd.mcu_role = cmd->msg.fwup_finish_cmd.mcu_role;
-  const uint32_t cmd_seq = proto_get_cmd_seq(cmd);
-  proto_uxc_prepare_cmd(msg, cmd);
-  fwup_uxc_set_pending(FWUP_UXC_PENDING_FINISH, cmd_seq);
-  proto_free_buffers(cmd, NULL);
+  ipc_proto_free((uint8_t*)cmd);
 
   // Block new FWUP commands before sending finish to UXC
   fwup_mark_reset_pending();
@@ -423,12 +279,11 @@ void fwup_task_send_coproc_fwup_finish_cmd(fwpb_wallet_cmd* cmd) {
     fwpb_wallet_rsp* rsp = proto_get_rsp();
     rsp->which_msg = fwpb_wallet_rsp_fwup_finish_rsp_tag;
     rsp->msg.fwup_finish_rsp.rsp_status = fwpb_fwup_finish_rsp_fwup_finish_rsp_status_ERROR;
-    proto_send_rsp_with_seq(cmd_seq, rsp);
+    proto_send_rsp(NULL, rsp);
 
     user_confirmed_version.valid = false;
     fwup_mark_coproc_pending(false);
     fwup_clear_reset_pending();
-    fwup_uxc_clear_pending();
   }
 }
 
@@ -440,25 +295,20 @@ void fwup_task_handle_coproc_fwup_start(ipc_ref_t* message) {
     msg_device->msg.fwup_start_rsp.rsp_status;
   const bool success = (rsp_status == fwpb_fwup_start_rsp_fwup_start_rsp_status_SUCCESS);
 
-  uint32_t seq = 0;
-  if (!fwup_uxc_take_rsp_seq(msg_device, &seq, "fwup start")) {
-    uc_free_recv_proto(msg_device);
-    return;
-  }
+  if (awaiting_uxc_confirmation_response) {
+    // This is a response to get_confirmation_result for UXC
+    awaiting_uxc_confirmation_response = false;
 
-  const bool is_confirmation_result =
-    (pending_uxc_fwup.kind == FWUP_UXC_PENDING_START_CONFIRMATION_RESULT);
-  if (is_confirmation_result) {
-    // This is a response to get_confirmation_result for UXC. If the NFC exchange
-    // timed out before UXC responded, cache the result and let the existing app
-    // retry get_confirmation_result with the same confirmation handles.
-    pending_uxc_fwup.cached_start_result = msg_device->msg.fwup_start_rsp;
-    pending_uxc_fwup.cached_start_result_ready = true;
-    uc_free_recv_proto(msg_device);
+    fwpb_wallet_rsp* rsp = proto_get_rsp();
+    rsp->which_msg = fwpb_wallet_rsp_get_confirmation_result_rsp_tag;
+    rsp->msg.get_confirmation_result_rsp.which_result =
+      fwpb_get_confirmation_result_rsp_fwup_start_result_tag;
+    rsp->msg.get_confirmation_result_rsp.result.fwup_start_result.rsp_status = rsp_status;
+    rsp->msg.get_confirmation_result_rsp.result.fwup_start_result.max_chunk_size =
+      msg_device->msg.fwup_start_rsp.max_chunk_size;
 
-    if (!fwup_send_confirmation_result_rsp(seq, &pending_uxc_fwup.cached_start_result, true)) {
-      fwup_uxc_cache_start_result(&pending_uxc_fwup.cached_start_result);
-    }
+    uc_free_recv_proto(msg_device);
+    proto_send_rsp(NULL, rsp);
   } else {
     // Normal UXC FWUP start response (direct, not confirmation)
     fwpb_wallet_rsp* rsp = proto_get_rsp();
@@ -467,8 +317,8 @@ void fwup_task_handle_coproc_fwup_start(ipc_ref_t* message) {
     rsp->msg.fwup_start_rsp.max_chunk_size = msg_device->msg.fwup_start_rsp.max_chunk_size;
     uc_free_recv_proto(msg_device);
 
-    (void)proto_send_rsp_with_seq(seq, rsp);
-    fwup_uxc_clear_pending();
+    // Send the IPC message.
+    proto_send_rsp(NULL, rsp);
   }
 
   if (!success) {
@@ -483,19 +333,13 @@ void fwup_task_handle_coproc_fwup_transfer(ipc_ref_t* message) {
   fwpb_uxc_msg_device* msg_device = message->object;
   const fwpb_fwup_transfer_rsp_fwup_transfer_rsp_status rsp_status =
     msg_device->msg.fwup_transfer_rsp.rsp_status;
-  uint32_t seq = 0;
-  if (!fwup_uxc_take_rsp_seq(msg_device, &seq, "fwup transfer")) {
-    uc_free_recv_proto(msg_device);
-    return;
-  }
-
   fwpb_wallet_rsp* rsp = proto_get_rsp();
   rsp->which_msg = fwpb_wallet_rsp_fwup_transfer_rsp_tag;
   rsp->msg.fwup_transfer_rsp.rsp_status = rsp_status;
   uc_free_recv_proto(msg_device);
 
-  (void)proto_send_rsp_with_seq(seq, rsp);
-  fwup_uxc_clear_pending();
+  // Send the IPC message.
+  proto_send_rsp(NULL, rsp);
 
   if (rsp_status != fwpb_fwup_transfer_rsp_fwup_transfer_rsp_status_SUCCESS) {
     user_confirmed_version.valid = false;
@@ -545,30 +389,17 @@ NO_OPTIMIZE void fwup_task_handle_coproc_fwup_finish(ipc_ref_t* message) {
   fwpb_uxc_msg_device* msg_device = message->object;
   const fwpb_fwup_finish_rsp_fwup_finish_rsp_status rsp_status =
     msg_device->msg.fwup_finish_rsp.rsp_status;
+  uc_free_recv_proto(msg_device);
 
   if (awaiting_coproc_delta_result) {
     // This is the second fwup_finish_rsp after UXC applied the delta patch.
     // Don't send to host (they already received WILL_APPLY_PATCH).
-    uint32_t seq = 0;
-    if (!fwup_uxc_take_rsp_seq(msg_device, &seq, "fwup delta finish")) {
-      uc_free_recv_proto(msg_device);
-      return;
-    }
-
     awaiting_coproc_delta_result = false;
-    fwup_uxc_clear_pending();
     nfc_enable(coproc_delta_nfc_token);
     coproc_delta_nfc_token = NFC_CONTROL_INVALID_TOKEN;
     bool success = (rsp_status == fwpb_fwup_finish_rsp_fwup_finish_rsp_status_SUCCESS);
     LOGI("Delta rsp %d", rsp_status);
-    uc_free_recv_proto(msg_device);
     fwup_coproc_finish_ui(success);
-    return;
-  }
-
-  uint32_t seq = 0;
-  if (!fwup_uxc_take_rsp_seq(msg_device, &seq, "fwup finish")) {
-    uc_free_recv_proto(msg_device);
     return;
   }
 
@@ -576,8 +407,7 @@ NO_OPTIMIZE void fwup_task_handle_coproc_fwup_finish(ipc_ref_t* message) {
   fwpb_wallet_rsp* rsp = proto_get_rsp();
   rsp->which_msg = fwpb_wallet_rsp_fwup_finish_rsp_tag;
   rsp->msg.fwup_finish_rsp.rsp_status = rsp_status;
-  uc_free_recv_proto(msg_device);
-  (void)proto_send_rsp_with_seq(seq, rsp);
+  proto_send_rsp(NULL, rsp);
 
   if (rsp_status == fwpb_fwup_finish_rsp_fwup_finish_rsp_status_WILL_APPLY_PATCH) {
     // UXC is applying a delta patch — switch display to "Verifying..." and
@@ -591,11 +421,9 @@ NO_OPTIMIZE void fwup_task_handle_coproc_fwup_finish(ipc_ref_t* message) {
     // from interfering.  Re-enabled when the result (or version fallback) arrives.
     coproc_delta_nfc_token = nfc_disable(FWUP_NFC_DISABLE_TIMEOUT);
     awaiting_coproc_delta_result = true;
-    pending_uxc_fwup.kind = FWUP_UXC_PENDING_DELTA_RESULT;
     return;
   }
 
-  fwup_uxc_clear_pending();
   fwup_coproc_finish_ui(rsp_status == fwpb_fwup_finish_rsp_fwup_finish_rsp_status_SUCCESS);
 }
 
@@ -616,25 +444,21 @@ static void _handle_commit_sig(void* proto, void* UNUSED(context)) {
 }
 
 NO_OPTIMIZE bool fwup_task_port_handle_start_cmd(fwpb_wallet_cmd* cmd) {
-  const bool core_defer_commit = cmd->msg.fwup_start_cmd.defer_commit;
+  // Pick up defer_commit from Core's start command.
+  if (cmd->msg.fwup_start_cmd.defer_commit) {
+    session_defer_commit = true;
+  }
 
   // Reject Core FWUP with defer_commit if UXC hasn't successfully verified
   // in this session.  Without a pending UXC signature, the atomic commit
-  // would fail at commit time — better to fail fast here. Use the current
-  // command's flag so a rejected deferred start cannot poison later retries.
-  if (core_defer_commit && !uxc_verified) {
+  // would fail at commit time — better to fail fast here.
+  if (session_defer_commit && !uxc_verified) {
     LOGW("Core defer_commit rejected: UXC not verified");
-    session_defer_commit = false;
     fwpb_wallet_rsp* rsp = proto_get_rsp();
     rsp->which_msg = fwpb_wallet_rsp_fwup_start_rsp_tag;
     rsp->msg.fwup_start_rsp.rsp_status = fwpb_fwup_start_rsp_fwup_start_rsp_status_ERROR;
     proto_send_rsp(cmd, rsp);
     return false;
-  }
-
-  session_defer_commit = core_defer_commit;
-  if (!session_defer_commit) {
-    uxc_verified = false;
   }
 
   SECURE_IF_FAILOUT(fwup_get_require_confirmation() == SECURE_FALSE) {
@@ -794,21 +618,6 @@ bool fwup_handle_confirmation_result(ipc_ref_t* message) {
 
   // Check if this is a UXC update confirmation
   if (saved_cmd.mcu_role == fwpb_mcu_role_MCU_ROLE_UXC) {
-    if (pending_uxc_fwup.cached_start_result_ready) {
-      const uint32_t cmd_seq = proto_get_cmd_seq(cmd);
-      fwup_send_confirmation_result_rsp(cmd_seq, &pending_uxc_fwup.cached_start_result, true);
-      proto_free_buffers(cmd, NULL);
-      return true;
-    }
-
-    if (fwup_uxc_response_pending()) {
-      LOGW("Confirmed UXC fwup start still pending");
-      fwpb_wallet_rsp* rsp = proto_get_rsp();
-      rsp->status = fwpb_status_CONFIRMATION_PENDING;
-      proto_send_rsp(cmd, rsp);
-      return true;
-    }
-
     // Forward to UXC over UART
     fwpb_uxc_msg_host* msg = uc_alloc_send_proto();
     if (msg == NULL) {
@@ -824,14 +633,13 @@ bool fwup_handle_confirmation_result(ipc_ref_t* message) {
     msg->which_msg = fwpb_uxc_msg_host_fwup_start_cmd_tag;
     msg->msg.fwup_start_cmd = saved_cmd;
 
-    const uint32_t cmd_seq = proto_get_cmd_seq(cmd);
-    proto_uxc_prepare_cmd(msg, cmd);
-    fwup_uxc_set_pending(FWUP_UXC_PENDING_START_CONFIRMATION_RESULT, cmd_seq);
+    // Set flag to handle async UXC response
+    awaiting_uxc_confirmation_response = true;
 
     const bool sent = uc_send(msg);
     if (!sent) {
       LOGE("UXC FWUP send fail");
-      fwup_uxc_clear_pending();
+      awaiting_uxc_confirmation_response = false;
       user_confirmed_version.valid = false;
       fwpb_wallet_rsp* rsp = proto_get_rsp();
       rsp->status = fwpb_status_ERROR;
@@ -845,12 +653,12 @@ bool fwup_handle_confirmation_result(ipc_ref_t* message) {
     // Show UI transition to in-progress
     UI_SHOW_EVENT(UI_EVENT_FWUP_START);
 
-    // Keep confirmation state until the async UXC response is delivered. If this
-    // WCA exchange times out first, the app can retry get_confirmation_result
-    // with the same handles and receive the cached UXC result.
+    // Clean up confirmation state
+    confirmation_manager_clear();
 
-    // Response will come asynchronously via fwup_task_handle_coproc_fwup_start.
-    proto_free_buffers(cmd, NULL);
+    // Response will come asynchronously via _handle_fwup_start callback
+    // Don't send response here - it will be sent from fwup_task_handle_coproc_fwup_start
+    ipc_proto_free((uint8_t*)cmd);
     return true;
   } else {
     // Execute the saved FWUP start command (CORE MCU path)
@@ -887,8 +695,7 @@ bool fwup_task_port_is_deferred_session(void) {
 }
 
 bool fwup_task_port_try_atomic_commit(void) {
-  if (!session_defer_commit || !uxc_verified || !fwup_is_coproc_pending() ||
-      !user_confirmed_version.valid) {
+  if (!session_defer_commit || !fwup_is_coproc_pending() || !user_confirmed_version.valid) {
     return false;
   }
 
@@ -928,21 +735,15 @@ static bool fwup_atomic_commit(const fwpb_semver* core_version, const fwpb_semve
   }
 
   msg->which_msg = fwpb_uxc_msg_host_fwup_commit_sig_cmd_tag;
-  coproc_commit_seq = fwup_next_internal_uxc_seq();
-  msg->seq = coproc_commit_seq;
-  awaiting_atomic_commit_rsp = true;
   if (!uc_send(msg)) {
-    // Ambiguous transport failure: UXC may not have received the command, or it
-    // may have committed before Core observed the send failure. Do not commit
-    // Core based on an unconfirmed response. If UXC is ahead of Core, the app can
-    // detect the split version and continue the Core update. Keep staged_sig as
-    // best-effort recovery state for a later UXC boot/version report.
+    // Don't delete staged_sig here — UXC may have received the message
+    // and committed before the ACK was lost.  Recovery will check UXC's
+    // booted version and either complete or abort.
     LOGE("Commit sig send fail");
-    awaiting_atomic_commit_rsp = false;
-    coproc_commit_seq = 0;
     return false;
   }
 
+  awaiting_atomic_commit_rsp = true;
   // Block new FWUP commands while waiting for the commit ACK — a new
   // fwup_start would clear the pending signature buffer that we need
   // to commit when the ACK arrives.
@@ -954,40 +755,11 @@ NO_OPTIMIZE void fwup_task_handle_commit_sig_rsp(ipc_ref_t* message) {
   ASSERT((message != NULL) && (message->object != NULL));
 
   fwpb_uxc_msg_device* msg_device = message->object;
-  if (!awaiting_atomic_commit_rsp) {
-    LOGW("Dropping unexpected UXC commit sig rsp");
-    uc_free_recv_proto(msg_device);
-    return;
-  }
-
-  if (msg_device->seq == 0) {
-    // Mixed-version UXC may commit and reply without echoing the internal seq.
-    // Do not trust that response to commit Core, because it is uncorrelated and
-    // could be stale. Fail the atomic attempt instead of waiting forever; if UXC
-    // is now ahead of Core, the normal version-detection/update flow can recover
-    // by continuing the Core update.
-    LOGW("Failing atomic commit after unsequenced UXC commit sig rsp");
-    uc_free_recv_proto(msg_device);
-    awaiting_atomic_commit_rsp = false;
-    coproc_commit_seq = 0;
-    fwup_coproc_finish_ui(false);
-    return;
-  }
-
-  uint32_t seq = 0;
-  if (!proto_uxc_take_rsp_seq(msg_device, &seq, "fwup commit sig") || seq != coproc_commit_seq) {
-    LOGW("Dropping stale UXC commit sig rsp seq %lu expected %lu", (unsigned long)seq,
-         (unsigned long)coproc_commit_seq);
-    uc_free_recv_proto(msg_device);
-    return;
-  }
-
   const fwpb_fwup_commit_sig_rsp_fwup_commit_sig_rsp_status rsp_status =
     msg_device->msg.fwup_commit_sig_rsp.rsp_status;
   uc_free_recv_proto(msg_device);
 
   awaiting_atomic_commit_rsp = false;
-  coproc_commit_seq = 0;
 
   if (rsp_status != fwpb_fwup_commit_sig_rsp_fwup_commit_sig_rsp_status_SUCCESS) {
     LOGE("UXC commit sig fail %d", rsp_status);
@@ -1032,7 +804,6 @@ NO_OPTIMIZE void fwup_task_handle_commit_sig_rsp(ipc_ref_t* message) {
 void fwup_task_handle_coproc_version(ipc_ref_t* message) {
   ASSERT(message != NULL);
   ASSERT(message->object != NULL);
-  fwup_coproc_version_t* version_msg = (fwup_coproc_version_t*)message->object;
 
   // If we were waiting for a delta patch result that never arrived, UXC rebooted
   // without sending it (e.g. UART failure). Check whether UXC booted into the
@@ -1044,8 +815,8 @@ void fwup_task_handle_coproc_version(ipc_ref_t* message) {
     nfc_enable(coproc_delta_nfc_token);
     coproc_delta_nfc_token = NFC_CONTROL_INVALID_TOKEN;
 
-    fwup_uxc_clear_pending();
     bool success = true;
+    fwup_coproc_version_t* version_msg = (fwup_coproc_version_t*)message->object;
     if (user_confirmed_version.valid) {
       success = fwup_semver_equals(&user_confirmed_version.version, &version_msg->version);
       LOGW("Delta rsp lost, ver %s", success ? "ok" : "mismatch");
@@ -1061,6 +832,7 @@ void fwup_task_handle_coproc_version(ipc_ref_t* message) {
   // In either case the staged_sig file is the durable intent record, and UXC's
   // reported version is the ground truth for whether UXC committed.
   {
+    fwup_coproc_version_t* version_msg = (fwup_coproc_version_t*)message->object;
     fwup_staged_sig_t staged;
 
     if (fwup_staged_sig_read(&staged)) {
@@ -1085,8 +857,6 @@ void fwup_task_handle_coproc_version(ipc_ref_t* message) {
   // Preserve user_confirmed_version so legacy (non-deferred) Core FWUP
   // can skip re-confirmation after UXC resets.
   awaiting_atomic_commit_rsp = false;
-  coproc_commit_seq = 0;
-  fwup_uxc_clear_pending();
   uxc_verified = false;
   fwup_mark_coproc_pending(false);
   // If Core's own FWUP is still in progress, preserve session_defer_commit

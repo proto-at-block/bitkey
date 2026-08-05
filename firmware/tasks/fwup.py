@@ -25,18 +25,12 @@ from invoke import Exit, task
 from .lib.paths import BUILD_FW_DIR, BUILD_FWUP_BUNDLE_DIR
 from .memfault import fetch_release, released_versions
 
-# Only publish non-W1 delta releases for source versions at or above this floor.
+# Only publish delta releases for source versions at or above this floor,
+# regardless of product.
 MIN_DELTA_RELEASE_FROM_VERSION = "1.2.0"
 
 # W1 firmware cannot apply delta updates from 1.0.44 or earlier.
 W1_MIN_DELTA_FROM_VERSION = "1.0.45"
-
-# W1 release tooling intentionally limits newly published direct deltas to
-# recent 1.0.x releases instead of every technically valid historical source
-# version. All field devices are updatable to this floor via existing W1
-# releases, so newer releases only need direct deltas from this pass-through
-# point forward.
-W1_MIN_DELTA_RELEASE_FROM_VERSION = "1.0.100"
 
 # Due to Memfault limitations around signals, we cannot have per-product
 # projects, so all products are namespaced under the `w1a` project.
@@ -77,16 +71,9 @@ def _fwup_valid_delta_update(product: str, start_version: str, end_version: str)
     return semver.compare(start_version, end_version) < 0
 
 
-def _fwup_delta_release_floor(product: str) -> str:
-    """Returns the minimum source version for publishing delta releases."""
-    if product.lower().startswith("w1"):
-        return W1_MIN_DELTA_RELEASE_FROM_VERSION
-    return MIN_DELTA_RELEASE_FROM_VERSION
-
-
 def _fwup_publishable_delta_update(product: str, start_version: str, end_version: str) -> bool:
     """Returns whether this delta transition is eligible for publication."""
-    if semver.compare(start_version, _fwup_delta_release_floor(product)) < 0:
+    if semver.compare(start_version, MIN_DELTA_RELEASE_FROM_VERSION) < 0:
         return False
 
     return _fwup_valid_delta_update(product, start_version, end_version)
@@ -121,7 +108,6 @@ def _fwup_memfault_revision_name(product: str, revision: str, image_type: str) -
         "mcu": "",
         "product": "",
         "deferred": "Use deferred-commit mode for atomic UXC+Core updates",
-        "show_retries": "Print when NFC/proto communication retries occur; useful for detecting bad comms",
     },
 )
 def fwup(
@@ -135,7 +121,6 @@ def fwup(
     mcu="efr32",
     product="w1",
     deferred=False,
-    show_retries=False,
 ):
     """Firmware update"""
     bundle = check_exists(fwup_bundle)
@@ -153,12 +138,9 @@ def fwup(
         mcu=mcu) if not bundle else None
 
     if serial_port != None:
-        transport = ShellTransaction(port=serial_port)
+        comms = WalletComms(ShellTransaction(port=serial_port))
     else:
-        transport = NFCTransaction()
-    if show_retries:
-        transport.show_retries = True
-    comms = WalletComms(transport)
+        comms = WalletComms(NFCTransaction())
 
     wallet = Wallet(comms=comms, product=product)
     update = FirmwareUpdater(wallet=wallet)
@@ -505,7 +487,7 @@ def delta_release_local(
             elif not _fwup_publishable_delta_update(product, version, to_version):
                 click.echo(
                     f"Skipping upload for {version} - delta releases require from_version >= "
-                    f"{_fwup_delta_release_floor(product)} and < {to_version}"
+                    f"{MIN_DELTA_RELEASE_FROM_VERSION} and < {to_version}"
                 )
             else:
                 for sw_type in sw_types:

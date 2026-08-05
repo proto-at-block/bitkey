@@ -1,4 +1,0 @@
-# Private keys that are not needed for runtime
-# (only needed to regenerate the cert chain)
-dev-root.key
-dev-factory.key

@@ -312,9 +312,7 @@ void mfgtest_task_port_handle_coproc_gpio_command(fwpb_wallet_cmd* wallet_cmd) {
   msg_host->msg.mfgtest_gpio_cmd.port = cmd->port;
   msg_host->msg.mfgtest_gpio_cmd.pin = cmd->pin;
   msg_host->msg.mfgtest_gpio_cmd.mcu_role = cmd->mcu_role;
-  const uint32_t cmd_seq = proto_get_cmd_seq(wallet_cmd);
-  proto_uxc_prepare_cmd(msg_host, wallet_cmd);
-  proto_free_buffers(wallet_cmd, NULL);
+  ipc_proto_free((uint8_t*)wallet_cmd);
 
   if (!uc_send(msg_host)) {
     // Failed to send, so just fake a response.
@@ -324,7 +322,7 @@ void mfgtest_task_port_handle_coproc_gpio_command(fwpb_wallet_cmd* wallet_cmd) {
     wallet_rsp->which_msg = fwpb_wallet_rsp_mfgtest_gpio_rsp_tag;
     rsp->output = 0;
 
-    proto_send_rsp_with_seq(cmd_seq, wallet_rsp);
+    proto_send_rsp(NULL, wallet_rsp);
   }
 }
 
@@ -337,9 +335,7 @@ void mfgtest_task_port_handle_coproc_device_set_production_lock_command(
 
   msg_host->which_msg = fwpb_uxc_msg_host_mfgtest_device_set_production_lock_cmd_tag;
   msg_host->msg.mfgtest_device_set_production_lock_cmd.mcu_role = cmd->mcu_role;
-  const uint32_t cmd_seq = proto_get_cmd_seq(wallet_cmd);
-  proto_uxc_prepare_cmd(msg_host, wallet_cmd);
-  proto_free_buffers(wallet_cmd, NULL);
+  ipc_proto_free((uint8_t*)wallet_cmd);
 
   if (!uc_send(msg_host)) {
     // Failed to send, so just fake an error response.
@@ -351,7 +347,7 @@ void mfgtest_task_port_handle_coproc_device_set_production_lock_command(
     rsp->rsp_status =
       fwpb_mfgtest_device_set_production_lock_rsp_mfgtest_device_set_production_lock_rsp_status_ERROR;
 
-    proto_send_rsp_with_seq(cmd_seq, wallet_rsp);
+    proto_send_rsp(NULL, wallet_rsp);
   }
 }
 
@@ -364,9 +360,7 @@ void mfgtest_task_port_handle_coproc_device_get_production_lock_command(
 
   msg_host->which_msg = fwpb_uxc_msg_host_mfgtest_device_get_production_lock_cmd_tag;
   msg_host->msg.mfgtest_device_get_production_lock_cmd.mcu_role = cmd->mcu_role;
-  const uint32_t cmd_seq = proto_get_cmd_seq(wallet_cmd);
-  proto_uxc_prepare_cmd(msg_host, wallet_cmd);
-  proto_free_buffers(wallet_cmd, NULL);
+  ipc_proto_free((uint8_t*)wallet_cmd);
 
   if (!uc_send(msg_host)) {
     // Failed to send, so just fake an error response.
@@ -379,69 +373,54 @@ void mfgtest_task_port_handle_coproc_device_get_production_lock_command(
       fwpb_mfgtest_device_get_production_lock_rsp_mfgtest_device_get_production_lock_rsp_status_ERROR;
     rsp->is_production = false;
 
-    proto_send_rsp_with_seq(cmd_seq, wallet_rsp);
+    proto_send_rsp(NULL, wallet_rsp);
   }
 }
 
 void mfgtest_task_port_handle_coproc_gpio_response(ipc_ref_t* message) {
   ASSERT(message != NULL);
 
+  fwpb_wallet_rsp* wallet_rsp = proto_get_rsp();
   fwpb_uxc_msg_device* msg_device = (fwpb_uxc_msg_device*)message->object;
   ASSERT(msg_device != NULL);
   ASSERT(msg_device->which_msg == fwpb_uxc_msg_device_mfgtest_gpio_rsp_tag);
-  uint32_t seq = 0;
-  if (!proto_uxc_take_rsp_seq(msg_device, &seq, "mfgtest gpio")) {
-    uc_free_recv_proto(msg_device);
-    return;
-  }
 
-  fwpb_wallet_rsp* wallet_rsp = proto_get_rsp();
   wallet_rsp->which_msg = fwpb_wallet_rsp_mfgtest_gpio_rsp_tag;
   wallet_rsp->msg.mfgtest_gpio_rsp.output = msg_device->msg.mfgtest_gpio_rsp.output;
   uc_free_recv_proto(msg_device);
-  proto_send_rsp_with_seq(seq, wallet_rsp);
+  proto_send_rsp(NULL, wallet_rsp);
 }
 
 void mfgtest_task_port_handle_coproc_device_set_production_lock_response(ipc_ref_t* message) {
   ASSERT(message != NULL);
 
+  fwpb_wallet_rsp* wallet_rsp = proto_get_rsp();
   fwpb_uxc_msg_device* msg_device = (fwpb_uxc_msg_device*)message->object;
   ASSERT(msg_device != NULL);
   ASSERT(msg_device->which_msg == fwpb_uxc_msg_device_mfgtest_device_set_production_lock_rsp_tag);
-  uint32_t seq = 0;
-  if (!proto_uxc_take_rsp_seq(msg_device, &seq, "mfgtest production lock set")) {
-    uc_free_recv_proto(msg_device);
-    return;
-  }
 
-  fwpb_wallet_rsp* wallet_rsp = proto_get_rsp();
   wallet_rsp->which_msg = fwpb_wallet_rsp_mfgtest_device_set_production_lock_rsp_tag;
   wallet_rsp->msg.mfgtest_device_set_production_lock_rsp.rsp_status =
     msg_device->msg.mfgtest_device_set_production_lock_rsp.rsp_status;
   uc_free_recv_proto(msg_device);
-  proto_send_rsp_with_seq(seq, wallet_rsp);
+  proto_send_rsp(NULL, wallet_rsp);
 }
 
 void mfgtest_task_port_handle_coproc_device_get_production_lock_response(ipc_ref_t* message) {
   ASSERT(message != NULL);
 
+  fwpb_wallet_rsp* wallet_rsp = proto_get_rsp();
   fwpb_uxc_msg_device* msg_device = (fwpb_uxc_msg_device*)message->object;
   ASSERT(msg_device != NULL);
   ASSERT(msg_device->which_msg == fwpb_uxc_msg_device_mfgtest_device_get_production_lock_rsp_tag);
-  uint32_t seq = 0;
-  if (!proto_uxc_take_rsp_seq(msg_device, &seq, "mfgtest production lock get")) {
-    uc_free_recv_proto(msg_device);
-    return;
-  }
 
-  fwpb_wallet_rsp* wallet_rsp = proto_get_rsp();
   wallet_rsp->which_msg = fwpb_wallet_rsp_mfgtest_device_get_production_lock_rsp_tag;
   wallet_rsp->msg.mfgtest_device_get_production_lock_rsp.rsp_status =
     msg_device->msg.mfgtest_device_get_production_lock_rsp.rsp_status;
   wallet_rsp->msg.mfgtest_device_get_production_lock_rsp.is_production =
     msg_device->msg.mfgtest_device_get_production_lock_rsp.is_production;
   uc_free_recv_proto(msg_device);
-  proto_send_rsp_with_seq(seq, wallet_rsp);
+  proto_send_rsp(NULL, wallet_rsp);
 }
 
 // Touch data buffer helper functions

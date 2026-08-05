@@ -95,8 +95,9 @@ module "atlantis" {
       value = "no-autoplan"
     },
     {
-      name  = "TERRAGRUNT_FORWARD_TF_STDOUT"
-      value = "1"
+      // Renamed from TERRAGRUNT_FORWARD_TF_STDOUT in the Terragrunt 1.x CLI redesign
+      name  = "TG_TF_FORWARD_STDOUT"
+      value = "true"
     }
   ]
 
@@ -124,8 +125,11 @@ module "atlantis" {
     client_id                           = "0oa5s1qiy31dsiQgD697"
     client_secret                       = data.aws_secretsmanager_secret_version.okta_client_secret.secret_string
   }
-  # Allow GitHub webhooks to go through without authentication. Webhooks are signed using the webhook secret.
-  allow_unauthenticated_access     = true
+  # Don't let the module create its OIDC-bypass listener rules: they forward /events from any
+  # source IP and any path from GitHub's CIDRs. A stricter replacement rule requiring both the
+  # /events path and a GitHub source IP is defined in alb-security.tf, alongside a WAF.
+  allow_unauthenticated_access = false
+  # Still referenced by the module for the ALB security group ingress rules.
   allow_github_webhooks            = true
   github_webhooks_cidr_blocks      = data.github_ip_ranges.ips.hooks_ipv4
   github_webhooks_ipv6_cidr_blocks = data.github_ip_ranges.ips.hooks_ipv6

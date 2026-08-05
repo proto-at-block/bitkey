@@ -29,7 +29,7 @@ mv conftest out/conftest
 chmod +x out/conftest
 EOF
 
-FROM ghcr.io/runatlantis/atlantis:v0.41-alpine@sha256:7e9cfcf03ad31492e1c806335ef51bcf9c39c8b1e10a8eb434ef2568c2a9eda8
+FROM ghcr.io/runatlantis/atlantis:v0.46-alpine@sha256:e79363da6b55182d0cb13d7d9deb1cef51528f309a64254755c80df09cbfd698
 COPY ./policies /policies
 COPY --from=builder /binaries/out/* /usr/local/bin
 

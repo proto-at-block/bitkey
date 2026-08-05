@@ -38,9 +38,9 @@ use onboarding::routes::{
     CompleteOnboardingResponseV2, ContinueDistributedKeygenRequest,
     ContinueDistributedKeygenResponse, CreateAccountRequest, CreateAccountResponse,
     CreateKeysetRequest, CreateKeysetResponse, GetAccountKeysetsResponse, GetAccountStatusResponse,
-    GetWalletMetadataBackupResponse, InititateDistributedKeygenRequest,
-    InititateDistributedKeygenResponse, RotateSpendingKeysetRequest, RotateSpendingKeysetResponse,
-    UpdateDescriptorBackupsResponse, UpdateWalletMetadataBackupResponse, UpgradeAccountRequest,
+    InititateDistributedKeygenRequest, InititateDistributedKeygenResponse,
+    RotateSpendingKeysetRequest, RotateSpendingKeysetResponse, UpdateDescriptorBackupsResponse,
+    UpgradeAccountRequest,
 };
 use onboarding::routes_v2::{
     CreateAccountRequestV2, CreateAccountResponseV2, CreateKeysetResponseV2,
@@ -56,13 +56,12 @@ use privileged_action::routes::{
     UpdateDelayDurationForTestRequest, UpdateDelayDurationForTestResponse,
 };
 use recovery::routes::delay_notify::{
-    CompleteDelayNotifyRequest, ConfigureDelayNotifyPeriodRequest,
-    ConfigureDelayNotifyPeriodResponse, CreateAccountDelayNotifyRequest, EvaluatePinRequest,
-    EvaluatePinResponse, GetDelayNotifyPeriodResponse, HardwareAuthKeyAvailabilityRequest,
-    HardwareAuthKeyAvailabilityResponse, RotateAuthenticationKeysRequest,
-    RotateAuthenticationKeysResponse, SendAccountVerificationCodeRequest,
-    SendAccountVerificationCodeResponse, UpdateDelayForTestRecoveryRequest,
-    VerifyAccountVerificationCodeRequest, VerifyAccountVerificationCodeResponse,
+    CompleteDelayNotifyRequest, CreateAccountDelayNotifyRequest, EvaluatePinRequest,
+    EvaluatePinResponse, HardwareAuthKeyAvailabilityRequest, HardwareAuthKeyAvailabilityResponse,
+    RotateAuthenticationKeysRequest, RotateAuthenticationKeysResponse,
+    SendAccountVerificationCodeRequest, SendAccountVerificationCodeResponse,
+    UpdateDelayForTestRecoveryRequest, VerifyAccountVerificationCodeRequest,
+    VerifyAccountVerificationCodeResponse,
 };
 use recovery::routes::distributed_keys::{
     CreateSelfSovereignBackupRequest, CreateSelfSovereignBackupResponse,
@@ -98,7 +97,7 @@ use transaction_verification::routes::{
     PutTransactionVerificationPolicyResponse,
 };
 use types::account::entities::v2::SpendingKeysetInputV2;
-use types::account::entities::{DescriptorBackupsSet, Factor, HardwareType, WalletMetadataBackup};
+use types::account::entities::{DescriptorBackupsSet, Factor, HardwareType};
 use types::account::identifiers::{AccountId, KeysetId};
 use types::notification::NotificationsPreferences;
 use types::privileged_action::router::generic::{
@@ -659,78 +658,6 @@ impl TestClient {
                     None
                 },
                 if hw_signed {
-                    Some(keys.hw.secret_key)
-                } else {
-                    None
-                },
-            )
-            .put(request)
-            .call(&self.router)
-            .await
-    }
-
-    pub(crate) async fn get_delay_notify_period(
-        &self,
-        account_id: &str,
-    ) -> Response<GetDelayNotifyPeriodResponse> {
-        Request::builder()
-            .uri(format!("/api/accounts/{account_id}/delay-notify-period"))
-            .authenticated(&AccountId::from_str(account_id).unwrap(), None, None)
-            .get()
-            .call(&self.router)
-            .await
-    }
-
-    pub(crate) async fn configure_delay_notify_period(
-        &self,
-        account_id: &str,
-        request: &ConfigureDelayNotifyPeriodRequest,
-        app_signed: bool,
-        hw_signed: bool,
-        keys: &TestAuthenticationKeys,
-    ) -> Response<ConfigureDelayNotifyPeriodResponse> {
-        Request::builder()
-            .uri(format!("/api/accounts/{account_id}/delay-notify-period"))
-            .authenticated(
-                &AccountId::from_str(account_id).expect("Account id not valid"),
-                if app_signed {
-                    Some(keys.app.secret_key)
-                } else {
-                    None
-                },
-                if hw_signed {
-                    Some(keys.hw.secret_key)
-                } else {
-                    None
-                },
-            )
-            .put(request)
-            .call(&self.router)
-            .await
-    }
-
-    pub(crate) async fn configure_delay_notify_period_with_action_proof(
-        &self,
-        account_id: &str,
-        request: &ConfigureDelayNotifyPeriodRequest,
-        keys: &TestAuthenticationKeys,
-        sign_with_app: bool,
-        sign_with_hw: bool,
-    ) -> Response<ConfigureDelayNotifyPeriodResponse> {
-        let value = request.delay_period_days.to_string();
-        Request::builder()
-            .uri(format!("/api/accounts/{account_id}/delay-notify-period"))
-            .action_proof_authenticated(
-                &AccountId::from_str(account_id).expect("Account id not valid"),
-                action_proof::Action::SetDelayNotifyPeriod,
-                Some(&value),
-                None,
-                if sign_with_app {
-                    Some(keys.app.secret_key)
-                } else {
-                    None
-                },
-                if sign_with_hw {
                     Some(keys.hw.secret_key)
                 } else {
                     None
@@ -2149,31 +2076,6 @@ impl TestClient {
                 keys.map(|k| k.app.secret_key),
                 keys.map(|k| k.hw.secret_key),
             )
-            .put(request)
-            .call(&self.router)
-            .await
-    }
-
-    pub(crate) async fn get_wallet_metadata_backup(
-        &self,
-        account_id: &str,
-    ) -> Response<GetWalletMetadataBackupResponse> {
-        Request::builder()
-            .uri(format!("/api/accounts/{account_id}/client-backup/metadata"))
-            .authenticated(&AccountId::from_str(account_id).unwrap(), None, None)
-            .get()
-            .call(&self.router)
-            .await
-    }
-
-    pub(crate) async fn update_wallet_metadata_backup(
-        &self,
-        account_id: &str,
-        request: &WalletMetadataBackup,
-    ) -> Response<UpdateWalletMetadataBackupResponse> {
-        Request::builder()
-            .uri(format!("/api/accounts/{account_id}/client-backup/metadata"))
-            .authenticated(&AccountId::from_str(account_id).unwrap(), None, None)
             .put(request)
             .call(&self.router)
             .await

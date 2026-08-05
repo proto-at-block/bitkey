@@ -29,7 +29,7 @@ external_identifier = { workspace = true }
 http_server = { workspace = true }
 instrumentation = { workspace = true }
 notification = { workspace = true }
-repository = { workspace = true, features = ["anti_replay", "privileged_action"] }
+repository = { workspace = true, features = ["privileged_action"] }
 secure_site = { workspace = true }
 types = { workspace = true, features = [
   "account",

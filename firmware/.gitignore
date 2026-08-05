@@ -34,5 +34,3 @@ nscope.*
 *fwup-bundle/
 *fwup-bundle*.zip
 release/
-app/core-sim/core-sim
-ui-simulate.app/

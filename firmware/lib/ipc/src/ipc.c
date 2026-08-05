@@ -22,13 +22,11 @@ const ipc_options_t ipc_default_recv_opts = {
 static struct {
   mempool_t* mempool;  // Mempool for external protobuf comms
   uint8_t* response_buffer;
-  uint32_t response_seq;
   ipc_proto_ready_cb_t ready_callback;
   rtos_mutex_t response_lock;
 } ipc_priv SHARED_TASK_BSS = {
   .mempool = NULL,
   .response_buffer = NULL,
-  .response_seq = 0,
   .ready_callback = NULL,
   .response_lock = {0},
 };
@@ -94,21 +92,7 @@ void ipc_proto_send_response_buffer(uint8_t* encoded_proto, uint32_t size) {
   rtos_mutex_unlock(&ipc_priv.response_lock);
 }
 
-void ipc_proto_set_response_seq(uint32_t seq) {
-  ipc_priv.response_seq = seq;
-}
-
-uint32_t ipc_proto_get_response_seq(void) {
-  return ipc_priv.response_seq;
-}
-
-void ipc_proto_release_response_buffer(void) {
-  rtos_mutex_unlock(&ipc_priv.response_lock);
-}
-
 void ipc_proto_notify_done(void) {
-  // This path does not update response_seq; it is not valid for WCA
-  // seq-correlated responses.
   ipc_priv.ready_callback(NULL, 0);
   rtos_mutex_unlock(&ipc_priv.response_lock);
 }
@@ -127,19 +111,4 @@ uint8_t* ipc_proto_alloc(uint32_t size) {
 
 void ipc_proto_free(uint8_t* buffer) {
   mempool_free(ipc_priv.mempool, buffer);
-}
-
-bool ipc_proto_owns_buffer(uint8_t* buffer) {
-  if (ipc_priv.mempool == NULL || buffer == NULL) {
-    return false;
-  }
-
-  for (uint32_t i = 0; i < ipc_priv.mempool->num_regions; i++) {
-    mempool_region_t* region = &ipc_priv.mempool->regions[i];
-    if (buffer >= region->buffer && buffer < &region->buffer[region->total_size]) {
-      return true;
-    }
-  }
-
-  return false;
 }

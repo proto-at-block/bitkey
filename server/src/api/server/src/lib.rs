@@ -589,7 +589,6 @@ impl BootstrapBuilder {
             self.services.userpool_service.clone(),
             self.services.privileged_action_service.clone(),
             self.services.account_service.clone(),
-            self.services.anti_replay_repository.clone(),
         );
 
         let notification_state = notification::routes::RouteState(
@@ -651,7 +650,6 @@ impl BootstrapBuilder {
             self.services.comms_verification_service.clone(),
             self.services.userpool_service.clone(),
             self.services.recovery_service.clone(),
-            self.services.privileged_action_service.clone(),
             self.services.social_challenge_service.clone(),
             self.services.feature_flags_service.clone(),
             self.services.wsm_client.clone(),

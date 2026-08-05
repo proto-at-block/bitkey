@@ -32,13 +32,6 @@ impl Service {
             .privileged_action_repository
             .fetch_by_id(input.privilege_action_id)
             .await?;
-
-        // The test-account check above only vouches for the caller. Without this, any account that
-        // self-declares as a test account could rewrite the delay on someone else's instance.
-        if instance.account_id != *input.account_id {
-            return Err(ServiceError::RecordAccountIdForbidden);
-        }
-
         let AuthorizationStrategyRecord::DelayAndNotify(delay_and_notify_record) =
             instance.authorization_strategy
         else {
@@ -49,12 +42,7 @@ impl Service {
             return Err(ServiceError::RecordDelayAndNotifyStatusConflict);
         }
 
-        // `OffsetDateTime + Duration` panics rather than saturating, so a caller-supplied duration
-        // near i64::MAX would take down the handler.
-        let delay_end_time = instance
-            .created_at
-            .checked_add(Duration::seconds(input.delay_duration))
-            .ok_or(ServiceError::InvalidDelayDuration(input.delay_duration))?;
+        let delay_end_time = instance.created_at + Duration::seconds(input.delay_duration);
         let updated_record = DelayAndNotifyRecord {
             delay_end_time,
             ..delay_and_notify_record

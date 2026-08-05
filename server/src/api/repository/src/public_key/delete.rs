@@ -26,9 +26,9 @@ impl PublicKeyRepository {
                 PARTITION_KEY,
                 try_to_attribute_val(public_key, database_object)?,
             )
-            .condition_expression(format!(
-                "attribute_not_exists({PARTITION_KEY}) OR account_id = :account_id"
-            ))
+            .condition_expression(
+                format!("attribute_not_exists({PARTITION_KEY}) OR account_id = :account_id"),
+            )
             .expression_attribute_values(
                 ":account_id",
                 try_to_attribute_val(account_id, database_object)?,

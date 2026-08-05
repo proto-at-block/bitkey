@@ -79,29 +79,6 @@ class TestComms(unittest.TestCase):
         self.assertEqual(2, wallet_comms._transceive_once.call_count)
         wallet_comms._transceive_once.assert_called_with(cmd, timeout=2)
 
-    def test_send_prints_retries_when_enabled(self: TestComms) -> None:
-        transport = unittest.mock.Mock()
-        transport.show_retries = True
-        wallet_comms = comms.WalletComms(transport=transport)
-        wallet_comms.send_retry_max = 3
-
-        cmd = wallet_pb.wallet_cmd()
-        cmd.device_id_cmd.SetInParent()
-        expected_tag = comms.WalletComms.response_tag_for_command(cmd)
-
-        wrong_rsp = wallet_pb.wallet_rsp()
-        wrong_rsp.meta_rsp.SetInParent()
-        right_rsp = wallet_pb.wallet_rsp()
-        right_rsp.device_id_rsp.SetInParent()
-
-        wallet_comms._transceive_once = unittest.mock.Mock(side_effect=[wrong_rsp, right_rsp])
-        with unittest.mock.patch("builtins.print") as mocked_print:
-            rsp = wallet_comms.send(cmd, expected_tag, timeout=2)
-
-        self.assertIs(rsp, right_rsp)
-        mocked_print.assert_called_once()
-        self.assertIn("Unexpected wallet_rsp tag; retrying", mocked_print.call_args.args[0])
-
     def test_send_raises_after_retry_exhaustion(self: TestComms) -> None:
         wallet_comms = comms.WalletComms(transport=unittest.mock.Mock())
         wallet_comms.send_retry_max = 2

@@ -38,7 +38,7 @@ static secure_channel_ctx_t secure_channel_ctx USART_TASK_DATA = {
       .key.bytes = secure_channel_ctx.conf_key_buf,
       .key.size = sizeof(secure_channel_ctx.conf_key_buf),
     },
-  .established = SECURE_FALSE,
+  .established = false,
   .channel_type = SECURE_CHANNEL_NONE,
 };
 
@@ -50,8 +50,8 @@ static struct {
   key_handle_t pubkey;
   uint32_t recv_sequence_number;
   uint32_t send_sequence_number;
-  secure_bool_t have_keys;
-  secure_bool_t confirmed;
+  bool have_keys;
+  bool confirmed;
 } uxc_channel_local_state USART_TASK_DATA = {
   .privkey_buf = {0},
   .privkey =
@@ -73,8 +73,8 @@ static struct {
     },
   .recv_sequence_number = 0,
   .send_sequence_number = 0,
-  .have_keys = SECURE_FALSE,
-  .confirmed = SECURE_FALSE,
+  .have_keys = false,
+  .confirmed = false,
 };
 
 static secure_channel_err_t _secure_uart_sign(uint8_t const* pk_device, uint32_t pk_device_len,
@@ -167,22 +167,21 @@ void secure_uart_channel_reset_session(void) {
   memzero(uxc_channel_local_state.privkey_buf, sizeof(uxc_channel_local_state.privkey_buf));
   memzero(uxc_channel_local_state.pubkey_buf, sizeof(uxc_channel_local_state.pubkey_buf));
   memzero(uxc_channel_local_state.peer_pubkey_buf, sizeof(uxc_channel_local_state.peer_pubkey_buf));
-  secure_channel_ctx.established = SECURE_FALSE;
+  secure_channel_ctx.established = false;
   uxc_channel_local_state.recv_sequence_number = 0;
   uxc_channel_local_state.send_sequence_number = 0;
-  uxc_channel_local_state.have_keys = SECURE_FALSE;
-  uxc_channel_local_state.confirmed = SECURE_FALSE;
+  uxc_channel_local_state.have_keys = false;
+  uxc_channel_local_state.confirmed = false;
   sysevent_clear(SYSEVENT_UXC_SECURE_COMMS_ESTABLISHED);
   rtos_mutex_unlock(&secure_channel_ctx.lock);
 }
 
-NO_OPTIMIZE bool secure_uart_channel_confirmed(void) {
+bool secure_uart_channel_confirmed(void) {
   if (secure_channel_ctx.channel_type == SECURE_CHANNEL_NONE) {
     return false;
   }
   rtos_mutex_lock(&secure_channel_ctx.lock);
-  bool confirmed = false;
-  SECURE_IF_FAILOUT(uxc_channel_local_state.confirmed == SECURE_TRUE) { confirmed = true; }
+  bool confirmed = uxc_channel_local_state.confirmed;
   rtos_mutex_unlock(&secure_channel_ctx.lock);
   return confirmed;
 }
@@ -228,20 +227,13 @@ NO_OPTIMIZE secure_channel_err_t secure_uart_channel_confirm_session(uint8_t* re
     goto out;
   });
 
-  // A replayed confirmation must not reset the sequence numbers
-  SECURE_IF_FAILOUT(uxc_channel_local_state.confirmed == SECURE_FALSE) {
-    uxc_channel_local_state.confirmed = SECURE_TRUE;
+  // Prevent sequence numbers from being reset if an additional confirmation message is received
+  if (!uxc_channel_local_state.confirmed) {
+    uxc_channel_local_state.confirmed = true;
     uxc_channel_local_state.recv_sequence_number = 0;
     uxc_channel_local_state.send_sequence_number = 0;
     MFLOGI("SC UART confirmed");
   }
-
-  SECURE_IF_FAILIN(uxc_channel_local_state.confirmed != SECURE_TRUE) {
-    MFLOGE("SC UART confirm incomplete");
-    ret = SECURE_CHANNEL_CONFIRMATION_FAILED;
-    goto out;
-  }
-
   sysevent_set(SYSEVENT_UXC_SECURE_COMMS_ESTABLISHED);
 out:
   rtos_mutex_unlock(&secure_channel_ctx.lock);
@@ -249,7 +241,7 @@ out:
 }
 
 static secure_channel_err_t init_keys(void) {
-  if (uxc_channel_local_state.have_keys != SECURE_TRUE) {
+  if (!uxc_channel_local_state.have_keys) {
     if (!generate_key(&uxc_channel_local_state.privkey)) {
       return SECURE_CHANNEL_FAILED_TO_DERIVE_KEY;
     }
@@ -258,7 +250,7 @@ static secure_channel_err_t init_keys(void) {
       memzero(uxc_channel_local_state.privkey_buf, sizeof(uxc_channel_local_state.privkey_buf));
       return SECURE_CHANNEL_FAILED_TO_DERIVE_KEY;
     }
-    uxc_channel_local_state.have_keys = SECURE_TRUE;
+    uxc_channel_local_state.have_keys = true;
   }
   return SECURE_CHANNEL_OK;
 }
@@ -300,7 +292,7 @@ secure_channel_err_t secure_uart_channel_establish(uint8_t* pk_peer, uint32_t pk
   }
   rtos_mutex_lock(&secure_channel_ctx.lock);
 
-  uxc_channel_local_state.confirmed = SECURE_FALSE;
+  uxc_channel_local_state.confirmed = false;
 
   ret = init_keys();
   if (ret != SECURE_CHANNEL_OK) {
@@ -323,14 +315,14 @@ secure_channel_err_t secure_uart_channel_establish(uint8_t* pk_peer, uint32_t pk
   if (ret != SECURE_CHANNEL_OK) {
     MFLOGE("SC UART establish_impl ret=%d", (int)ret);
     memzero(uxc_channel_local_state.privkey_buf, sizeof(uxc_channel_local_state.privkey_buf));
-    uxc_channel_local_state.have_keys = SECURE_FALSE;
+    uxc_channel_local_state.have_keys = false;
     goto out;
   }
   // Private key no longer needed after establishing secrets
   // Set have_keys to false to allow new keys to be established
   // This allows the establishment process to be restarted if one MCU is reset
   memzero(uxc_channel_local_state.privkey_buf, sizeof(uxc_channel_local_state.privkey_buf));
-  uxc_channel_local_state.have_keys = SECURE_FALSE;
+  uxc_channel_local_state.have_keys = false;
 
   ret = secure_channel_compute_confirmation(
     secure_channel_ctx.channel_type, &secure_channel_ctx.session_conf_key, key_confirmation_tag);
@@ -355,13 +347,14 @@ out:
   return ret;
 }
 
-NO_OPTIMIZE secure_bool_t secure_uart_channel_encrypt(uint8_t const* plaintext, uint8_t* ciphertext,
-                                                      uint32_t len, uint8_t const* aad,
-                                                      uint32_t aad_len,
-                                                      uint8_t nonce[AES_GCM_IV_LENGTH],
-                                                      uint8_t mac[AES_GCM_TAG_LENGTH]) {
+secure_bool_t secure_uart_channel_encrypt(uint8_t const* plaintext, uint8_t* ciphertext,
+                                          uint32_t len, uint8_t const* aad, uint32_t aad_len,
+                                          uint8_t nonce[AES_GCM_IV_LENGTH],
+                                          uint8_t mac[AES_GCM_TAG_LENGTH]) {
   ASSERT(secure_channel_ctx.channel_type != SECURE_CHANNEL_NONE);
-  SECURE_IF_FAILIN(uxc_channel_local_state.confirmed != SECURE_TRUE) { return SECURE_FALSE; }
+  if (!uxc_channel_local_state.confirmed) {
+    return SECURE_FALSE;
+  }
   if (secure_channel_cipher(&secure_channel_ctx, SECURE_CHANNEL_ENCRYPT, plaintext, ciphertext, len,
                             aad, aad_len, nonce, mac) != SECURE_CHANNEL_OK) {
     return SECURE_FALSE;
@@ -369,13 +362,14 @@ NO_OPTIMIZE secure_bool_t secure_uart_channel_encrypt(uint8_t const* plaintext, 
   return SECURE_TRUE;
 }
 
-NO_OPTIMIZE secure_bool_t secure_uart_channel_decrypt(uint8_t const* ciphertext, uint8_t* plaintext,
-                                                      uint32_t len, uint8_t const* aad,
-                                                      uint32_t aad_len,
-                                                      uint8_t nonce[AES_GCM_IV_LENGTH],
-                                                      uint8_t mac[AES_GCM_TAG_LENGTH]) {
+secure_bool_t secure_uart_channel_decrypt(uint8_t const* ciphertext, uint8_t* plaintext,
+                                          uint32_t len, uint8_t const* aad, uint32_t aad_len,
+                                          uint8_t nonce[AES_GCM_IV_LENGTH],
+                                          uint8_t mac[AES_GCM_TAG_LENGTH]) {
   ASSERT(secure_channel_ctx.channel_type != SECURE_CHANNEL_NONE);
-  SECURE_IF_FAILIN(uxc_channel_local_state.confirmed != SECURE_TRUE) { return SECURE_FALSE; }
+  if (!uxc_channel_local_state.confirmed) {
+    return SECURE_FALSE;
+  }
   if (secure_channel_cipher(&secure_channel_ctx, SECURE_CHANNEL_DECRYPT, ciphertext, plaintext, len,
                             aad, aad_len, nonce, mac) != SECURE_CHANNEL_OK) {
     return SECURE_FALSE;

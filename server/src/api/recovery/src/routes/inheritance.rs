@@ -532,10 +532,7 @@ pub struct CompleteInheritanceClaimResponse {
 /// 4) provide a valid singly signed psbt
 /// 5) In case of RBF, the PSBT must have the same receiver address.
 ///
-#[instrument(
-    err,
-    skip(account_service, inheritance_service, feature_flags_service, request)
-)]
+#[instrument(err, skip(account_service, inheritance_service, feature_flags_service, request))]
 #[utoipa::path(
     put,
     path = "/api/accounts/{account_id}/recovery/inheritance/claims/{inheritance_claim_id}/complete",

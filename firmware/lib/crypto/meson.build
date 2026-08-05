@@ -62,11 +62,8 @@ crypto_platform_configs = {
       'src/posix/aes.c',
       'src/posix/ecc.c',
       'src/posix/hash.c',
-      'src/posix/hkdf.c',
       'src/posix/key_management.c',
-      'src/posix/secure_engine.c',
       'src/posix/secure_rng.c',
-      'src/stm32/curve25519.c',
     ],
     'dependencies' : [
       secutils_dep,
@@ -152,30 +149,18 @@ foreach crypto_platform : crypto_platform_configs.keys()
     endif
   endif
 
-  crypto_inc_dirs = ['inc', 'inc-private', 'src']
-  if crypto_platform == 'posix'
-    crypto_inc_dirs += 'src/posix'
-  endif
-
   crypto_libs += {
     crypto_platform : library('crypto-' + crypto_platform,
       srcs + crypto_config['sources'],
-      include_directories : crypto_inc_dirs,
+      include_directories : ['inc', 'inc-private', 'src'],
       c_args : ['-DIMAGE_TYPE_APPLICATION=1'],
       dependencies : deps + dependencies,
     )
   }
-  # Public include directories for the crypto dependency
-  crypto_public_inc = ['inc']
-  if crypto_platform == 'posix'
-    # POSIX builds also expose the SE emulation headers
-    crypto_public_inc += 'src/posix'
-  endif
-
   crypto_deps += {
     crypto_platform : declare_dependency(
       link_with : crypto_libs[crypto_platform],
-      include_directories : crypto_public_inc,
+      include_directories : ['inc'],
       dependencies : dependencies,
     )
   }
@@ -183,7 +168,7 @@ foreach crypto_platform : crypto_platform_configs.keys()
   crypto_bl_libs += {
     crypto_platform : library('crypto-bl-' + crypto_platform,
       srcs + crypto_config['sources'],
-      include_directories : crypto_inc_dirs,
+      include_directories : ['inc', 'inc-private', 'src'],
       # LOG_FORCE_RAW: bootloaders never link log_uart_dep, so any LOG* call
       # must take the legacy printf path instead of log_uart_emit_compact().
       # See lib/log/inc/log.h.
@@ -227,7 +212,7 @@ foreach crypto_platform : crypto_platform_configs.keys()
     crypto_cmd_libs += {
       crypto_platform : library('crypto-cmd-' + crypto_platform,
         crypto_config['cmd_sources'],
-        include_directories : crypto_inc_dirs,
+        include_directories : ['inc', 'inc-private', 'src'],
         dependencies : cmd_deps,
       )
     }

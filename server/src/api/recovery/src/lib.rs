@@ -1,9 +1,9 @@
 use crate::repository::RecoveryRepository;
-use ::repository::public_key::PublicKeyRepository;
 use account::service::{FetchAccountByAuthKeyInput, Service as AccountService};
 use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
 use entities::RecoveryStatus;
 use error::RecoveryError;
+use ::repository::public_key::PublicKeyRepository;
 use types::account::identifiers::AccountId;
 
 pub mod entities;

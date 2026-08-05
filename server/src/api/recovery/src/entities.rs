@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use time::{serde::rfc3339, Duration, OffsetDateTime};
 use types::account::entities::{Factor, FullAccount, HardwareType};
 use types::account::identifiers::{AccountId, AuthKeysId};
-use types::delay_notify::effective_delay_notify_period_secs;
 use utoipa::ToSchema;
 
 use crate::error::RecoveryError;
@@ -174,13 +173,9 @@ pub trait RecoveryValuesPerAccountType {
 
 impl RecoveryValuesPerAccountType for FullAccount {
     fn recovery_delay_period(&self) -> Duration {
-        let secs = self
-            .common_fields
-            .delay_notify_period_secs
-            .unwrap_or(7 * 24 * 60 * 60);
-        let effective_secs =
-            effective_delay_notify_period_secs(secs, self.common_fields.properties.is_test_account);
-
-        Duration::seconds(effective_secs as i64)
+        match self.common_fields.properties.is_test_account {
+            true => Duration::seconds(20),
+            false => Duration::days(7),
+        }
     }
 }

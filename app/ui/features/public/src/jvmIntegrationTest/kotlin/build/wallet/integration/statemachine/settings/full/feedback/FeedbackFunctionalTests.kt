@@ -202,28 +202,32 @@ class FeedbackFunctionalTests : FunSpec({
           form.mainContentList
             .shouldContainCategoryPicker()
 
-        val ordersAndShipping = categoryPicker.options.elementAtOrNull(1).shouldNotBeNull()
-        ordersAndShipping.title shouldBe "Orders & Shipping"
+        val categoryWithSubcategory =
+          categoryPicker.options
+            .firstOrNull { it.title == "I can’t access my wallet or funds" }
+            .shouldNotBeNull()
 
-        categoryPicker.onOptionSelected(ordersAndShipping)
+        categoryPicker.onOptionSelected(categoryWithSubcategory)
       }
 
       awaitFeedbackFilling {
         form.mainContentList
-          .shouldContainSubcategoryPicker("Order & Shipping (required)")
+          .shouldContainSubcategoryPicker()
       }
     }
   }
 }) {
   private companion object {
-    private object FieldIndices {
-      const val EMAIL = 0
-      const val COUNTRY = 1
-      const val CATEGORY = 2
-      const val SUBCATEGORY = 3
-      const val SUBJECT = -6
-      const val DESCRIPTION = -5
-    }
+    private val countryPickerTitles = setOf("Where are you located? (required)")
+    private val categoryPickerTitles = setOf("How can we help? (required)")
+    private val subcategoryPickerTitles =
+      setOf(
+        "Please specify (required)"
+      )
+    private val descriptionAreaTitles =
+      setOf(
+        "Please provide additional details (required)"
+      )
 
     data class FormFillingContext(
       val screen: ScreenModel,
@@ -238,6 +242,8 @@ class FeedbackFunctionalTests : FunSpec({
       beforeEach: FormFillingContext.() -> Unit = {},
       afterLast: FormFillingContext.() -> Unit = {},
     ) {
+      var countrySelected = false
+
       awaitFeedbackFilling {
         withClue("before email") {
           beforeEach()
@@ -249,31 +255,38 @@ class FeedbackFunctionalTests : FunSpec({
       }
 
       awaitFeedbackFilling {
-        withClue("before country") {
-          beforeEach()
+        mainContentList
+          .findCountryPicker()
+          ?.let { countryPicker ->
+            withClue("before country") {
+              beforeEach()
+            }
+
+            countrySelected = true
+            countryPicker.onOptionSelected(countryPicker.options.first())
+          }
+          ?: run {
+            selectCategory(beforeEach)
+          }
+      }
+
+      if (countrySelected) {
+        awaitFeedbackFilling {
+          selectCategory(beforeEach)
         }
-
-        val countryPicker =
-          mainContentList
-            .shouldContainCountryPicker()
-
-        countryPicker.onOptionSelected(countryPicker.options.first())
       }
 
       awaitFeedbackFilling {
-        withClue("before category") {
+        val subcategoryPicker =
+          mainContentList
+            .shouldContainSubcategoryPicker()
+
+        withClue("before subcategory") {
           beforeEach()
         }
 
-        val categoryPicker =
-          mainContentList
-            .shouldContainCategoryPicker()
-
-        // We know that this category has no subcategories
-        val firstItem = categoryPicker.options.first()
-        firstItem.title shouldBe "Feedback & Suggestions"
-
-        categoryPicker.onOptionSelected(firstItem)
+        val firstSubcategory = subcategoryPicker.options.first()
+        subcategoryPicker.onOptionSelected(firstSubcategory)
       }
 
       awaitFeedbackFilling {
@@ -318,9 +331,31 @@ class FeedbackFunctionalTests : FunSpec({
       }
     }
 
+    inline fun FormFillingContext.selectCategory(
+      beforeEach: FormFillingContext.() -> Unit,
+) {
+      withClue("before category") {
+        beforeEach()
+      }
+
+      val categoryPicker =
+        mainContentList
+          .shouldContainCategoryPicker()
+
+      val generalQuestion =
+        categoryPicker.options
+          .firstOrNull { it.title == "I have a general question or request" }
+          .shouldNotBeNull()
+
+      categoryPicker.onOptionSelected(generalQuestion)
+    }
+
     fun ImmutableList<FormMainContentModel>.shouldContainEmailField(): TextFieldModel {
       return withClue("email field") {
-        val field = shouldContainField<FormMainContentModel.TextInput>(FieldIndices.EMAIL)
+        val field =
+          filterIsInstance<FormMainContentModel.TextInput>()
+            .firstOrNull { it.title == "Email (required)" }
+            .shouldNotBeNull()
 
         field.title shouldBe "Email (required)"
         field.fieldModel.keyboardType shouldBe TextFieldModel.KeyboardType.Email
@@ -329,24 +364,9 @@ class FeedbackFunctionalTests : FunSpec({
       }
     }
 
-    fun ImmutableList<FormMainContentModel>.shouldContainCountryPicker(): ItemPickerModel<SupportTicketField.Picker.Item> {
-      return withClue("country field") {
-        val picker = shouldContainField<FormMainContentModel.Picker>(FieldIndices.COUNTRY)
-
-        picker.title shouldBe "Where are you located? (required)"
-        picker.fieldModel.options.shouldNotBeEmpty()
-        picker.fieldModel.options.forEachAsClue {
-          it.shouldBeInstanceOf<SupportTicketField.Picker.Item>()
-        }
-
-        @Suppress("UNCHECKED_CAST")
-        picker.fieldModel as ItemPickerModel<SupportTicketField.Picker.Item>
-      }
-    }
-
     fun ImmutableList<FormMainContentModel>.shouldContainCategoryPicker(): ItemPickerModel<SupportTicketField.Picker.Item> {
       return withClue("category field") {
-        val picker = shouldContainField<FormMainContentModel.Picker>(FieldIndices.CATEGORY)
+        val picker = findPicker(categoryPickerTitles).shouldNotBeNull()
 
         picker.title shouldBe "How can we help? (required)"
         picker.fieldModel.options.shouldNotBeEmpty()
@@ -359,13 +379,10 @@ class FeedbackFunctionalTests : FunSpec({
       }
     }
 
-    fun ImmutableList<FormMainContentModel>.shouldContainSubcategoryPicker(
-      title: String,
-    ): ItemPickerModel<SupportTicketField.Picker.Item> {
-      return withClue("subcategory field - $title") {
-        val picker = shouldContainField<FormMainContentModel.Picker>(FieldIndices.SUBCATEGORY)
+    fun ImmutableList<FormMainContentModel>.shouldContainSubcategoryPicker(): ItemPickerModel<SupportTicketField.Picker.Item> {
+      return withClue("subcategory field") {
+        val picker = findPicker(subcategoryPickerTitles).shouldNotBeNull()
 
-        picker.title shouldBe title
         picker.fieldModel.options.shouldNotBeEmpty()
         picker.fieldModel.options.forEachAsClue {
           it.shouldBeInstanceOf<SupportTicketField.Picker.Item>()
@@ -376,9 +393,24 @@ class FeedbackFunctionalTests : FunSpec({
       }
     }
 
+    fun ImmutableList<FormMainContentModel>.findCountryPicker(): ItemPickerModel<SupportTicketField.Picker.Item>? {
+      val picker = findPicker(countryPickerTitles) ?: return null
+
+      picker.fieldModel.options.shouldNotBeEmpty()
+      picker.fieldModel.options.forEachAsClue {
+        it.shouldBeInstanceOf<SupportTicketField.Picker.Item>()
+      }
+
+      @Suppress("UNCHECKED_CAST")
+      return picker.fieldModel as ItemPickerModel<SupportTicketField.Picker.Item>
+    }
+
     fun ImmutableList<FormMainContentModel>.shouldContainSubjectField(): TextFieldModel {
       return withClue("subject field") {
-        val field = shouldContainField<FormMainContentModel.TextInput>(FieldIndices.SUBJECT)
+        val field =
+          filterIsInstance<FormMainContentModel.TextInput>()
+            .firstOrNull { it.title == "Subject (required)" }
+            .shouldNotBeNull()
 
         field.title shouldBe "Subject (required)"
         field.fieldModel.keyboardType shouldBe TextFieldModel.KeyboardType.Default
@@ -389,31 +421,22 @@ class FeedbackFunctionalTests : FunSpec({
 
     fun ImmutableList<FormMainContentModel>.shouldContainDescriptionArea(): TextFieldModel {
       return withClue("description area") {
-        val area = shouldContainField<FormMainContentModel.TextArea>(FieldIndices.DESCRIPTION)
+        val area =
+          filterIsInstance<FormMainContentModel.TextArea>()
+            .firstOrNull { it.title in descriptionAreaTitles }
+            .shouldNotBeNull()
 
-        area.title shouldBe "Description (required)"
         area.fieldModel.keyboardType shouldBe TextFieldModel.KeyboardType.Default
 
         area.fieldModel
       }
     }
 
-    inline fun <reified Field : FormMainContentModel> ImmutableList<FormMainContentModel>.shouldContainField(
-      index: Int,
-    ): Field {
-      return withClue("field at $index") {
-        this.elementAtIndexOrNegativeIndexOrNull(index)
-          .shouldNotBeNull()
-          .shouldBeInstanceOf<Field>()
-      }
-    }
-
-    private fun <T> List<T>.elementAtIndexOrNegativeIndexOrNull(indexOrNegativeIndex: Int): T? {
-      return if (indexOrNegativeIndex >= 0) {
-        elementAtOrNull(indexOrNegativeIndex)
-      } else {
-        elementAtOrNull(size + indexOrNegativeIndex)
-      }
+    fun ImmutableList<FormMainContentModel>.findPicker(
+      titles: Set<String>,
+    ): FormMainContentModel.Picker? {
+      return filterIsInstance<FormMainContentModel.Picker>()
+        .firstOrNull { it.title in titles }
     }
   }
 }

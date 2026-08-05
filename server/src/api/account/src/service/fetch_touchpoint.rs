@@ -14,7 +14,7 @@ use crate::error::AccountError;
 const SANCTIONED_TLDS: &[&str] = &[
     ".cu",              // Cuba
     ".ir",              // Iran
-    ".ایران",           // Iran (IDN)
+    ".ایران",            // Iran (IDN)
     ".xn--mgba3a4f16a", // Iran (punycode)
     ".kp",              // North Korea
     ".sy",              // Syria
@@ -35,7 +35,9 @@ const SANCTIONED_TLDS: &[&str] = &[
 
 fn has_sanctioned_tld(email: &str) -> bool {
     let email_lower = email.to_lowercase();
-    SANCTIONED_TLDS.iter().any(|tld| email_lower.ends_with(tld))
+    SANCTIONED_TLDS
+        .iter()
+        .any(|tld| email_lower.ends_with(tld))
 }
 
 impl Service {
@@ -152,9 +154,9 @@ mod tests {
     #[test]
     fn test_sanctioned_tlds_punycode_blocked() {
         assert!(has_sanctioned_tld("user@example.xn--mgba3a4f16a")); // .ایران
-        assert!(has_sanctioned_tld("user@example.xn--p1ai")); // .рф
-        assert!(has_sanctioned_tld("user@example.xn--j1amh")); // .укр
-        assert!(has_sanctioned_tld("user@example.xn--90ais")); // .бел
+        assert!(has_sanctioned_tld("user@example.xn--p1ai"));        // .рф
+        assert!(has_sanctioned_tld("user@example.xn--j1amh"));       // .укр
+        assert!(has_sanctioned_tld("user@example.xn--90ais"));       // .бел
     }
 
     #[test]

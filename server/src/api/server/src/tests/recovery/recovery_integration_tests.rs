@@ -13,11 +13,10 @@ use http::StatusCode;
 use http_body_util::BodyExt;
 use notification::service::FetchForAccountInput;
 use notification::NotificationPayloadType;
-use privileged_action::service::configure_delay_notify_period::ConfigureDelayNotifyPeriodInput;
 use recovery::entities::{RecoveryDestination, RecoveryStatus, RecoveryType};
 use recovery::error::RecoveryError;
 use recovery::routes::delay_notify::{
-    CompleteDelayNotifyRequest, ConfigureDelayNotifyPeriodRequest, CreateAccountDelayNotifyRequest,
+    CompleteDelayNotifyRequest, CreateAccountDelayNotifyRequest,
     SendAccountVerificationCodeRequest, UpdateDelayForTestRecoveryRequest,
     VerifyAccountVerificationCodeRequest,
 };
@@ -26,10 +25,6 @@ use types::account::bitcoin::Network;
 use types::account::entities::{Factor, FullAccountAuthKeysInput, HardwareType};
 use types::account::identifiers::AccountId;
 use types::account::keys::FullAccountAuthKeys;
-use types::privileged_action::repository::{
-    AuthorizationStrategyRecord, DelayAndNotifyRecord, PrivilegedActionInstanceRecord, RecordStatus,
-};
-use types::privileged_action::shared::{PrivilegedActionInstanceId, PrivilegedActionType};
 
 use crate::tests::gen_services;
 use crate::tests::lib::{
@@ -40,8 +35,6 @@ use crate::tests::lib::{
 use crate::tests::requests::axum::TestClient;
 use crate::tests::requests::Response;
 use rstest::rstest;
-
-const ONE_DAY_SECS: usize = 24 * 60 * 60;
 
 #[rstest]
 #[case::invalid_wallet_id(Some(AccountId::gen().unwrap()), Factor::Hw, (true, true), true, StatusCode::NOT_FOUND, true, false, false)]
@@ -275,7 +268,7 @@ async fn test_create_delay_notify(
     let fetch_delay_end_time = response.pending_delay_notify.unwrap().delay_end_time;
     assert_eq!(fetch_delay_end_time, create_delay_end_time);
     let delay_period = if create_test_account {
-        Duration::seconds(60)
+        Duration::seconds(20)
     } else {
         Duration::days(7)
     };
@@ -1115,384 +1108,11 @@ async fn test_update_delay_for_test_recovery(
     let expected_delay_end_time = if let Some(delay_period) = delay_period_num_sec {
         recovery.created_at + Duration::seconds(delay_period)
     } else {
-        recovery.created_at + Duration::seconds(60)
+        recovery.created_at + Duration::seconds(20)
     };
     assert_eq!(
         payload.pending_delay_notify.delay_end_time,
         expected_delay_end_time
-    );
-}
-
-#[rstest]
-#[case::fourteen_days(14, 2 * 60)]
-#[case::thirty_days(30, 3 * 60)]
-#[tokio::test]
-async fn test_create_delay_notify_uses_configured_period_for_test_account(
-    #[case] delay_period_days: u32,
-    #[case] expected_delay_secs: i64,
-) {
-    let (mut context, bootstrap) = gen_services().await;
-    let client = TestClient::new(bootstrap.router).await;
-
-    let account = create_full_account(
-        &mut context,
-        &bootstrap.services,
-        Network::BitcoinSignet,
-        None,
-    )
-    .await;
-    let account_id = account.id;
-    let keys = context
-        .get_authentication_keys_for_account_id(&account_id)
-        .expect("Invalid keys for account");
-
-    bootstrap
-        .services
-        .privileged_action_service
-        .configure_delay_notify_period(ConfigureDelayNotifyPeriodInput {
-            account_id: &account_id,
-            delay_period_days,
-        })
-        .await
-        .unwrap();
-
-    let response = client
-        .create_delay_notify_recovery(
-            &account_id.to_string(),
-            &CreateAccountDelayNotifyRequest {
-                lost_factor: Factor::Hw,
-                delay_period_num_sec: Some(20),
-                auth: FullAccountAuthKeysInput {
-                    app: create_pubkey(),
-                    hardware: create_pubkey(),
-                    recovery: Some(create_pubkey()),
-                    hardware_type: HardwareType::default(),
-                },
-            },
-            true,
-            false,
-            &keys,
-        )
-        .await;
-    assert_eq!(
-        response.status_code,
-        StatusCode::OK,
-        "{}",
-        response.body_string
-    );
-    let payload = response.body.expect("Expected pending recovery response");
-
-    let recovery = bootstrap
-        .services
-        .recovery_service
-        .fetch_pending(&account_id, RecoveryType::DelayAndNotify)
-        .await
-        .unwrap()
-        .expect("Existing Recovery for Account");
-    assert_eq!(
-        payload.pending_delay_notify.delay_end_time,
-        recovery.created_at + Duration::seconds(expected_delay_secs)
-    );
-}
-
-#[tokio::test]
-async fn test_get_and_configure_delay_notify_period_routes() {
-    let (mut context, bootstrap) = gen_services().await;
-    let client = TestClient::new(bootstrap.router).await;
-
-    let account = create_full_account(
-        &mut context,
-        &bootstrap.services,
-        Network::BitcoinSignet,
-        None,
-    )
-    .await;
-    let account_id = account.id;
-    let keys = context
-        .get_authentication_keys_for_account_id(&account_id)
-        .expect("Invalid keys for account");
-
-    let get_response = client
-        .get_delay_notify_period(&account_id.to_string())
-        .await;
-    assert_eq!(
-        get_response.status_code,
-        StatusCode::OK,
-        "{}",
-        get_response.body_string
-    );
-    assert_eq!(
-        get_response
-            .body
-            .expect("Expected delay notify period response")
-            .delay_period_days,
-        7
-    );
-
-    let put_response = client
-        .configure_delay_notify_period(
-            &account_id.to_string(),
-            &ConfigureDelayNotifyPeriodRequest {
-                delay_period_days: 14,
-            },
-            true,
-            true,
-            &keys,
-        )
-        .await;
-    assert_eq!(
-        put_response.status_code,
-        StatusCode::OK,
-        "{}",
-        put_response.body_string
-    );
-    assert_eq!(
-        put_response
-            .body
-            .expect("Expected configure delay notify period response")
-            .delay_period_days,
-        14
-    );
-
-    let get_response = client
-        .get_delay_notify_period(&account_id.to_string())
-        .await;
-    assert_eq!(
-        get_response.status_code,
-        StatusCode::OK,
-        "{}",
-        get_response.body_string
-    );
-    assert_eq!(
-        get_response
-            .body
-            .expect("Expected delay notify period response")
-            .delay_period_days,
-        14
-    );
-
-    let account = bootstrap
-        .services
-        .account_service
-        .fetch_full_account(FetchAccountInput {
-            account_id: &account_id,
-        })
-        .await
-        .unwrap();
-    assert_eq!(
-        account.common_fields.delay_notify_period_secs,
-        Some(14 * ONE_DAY_SECS)
-    );
-    assert!(account
-        .common_fields
-        .configured_privileged_action_delay_durations
-        .iter()
-        .any(
-            |duration| duration.privileged_action_type == PrivilegedActionType::ResetFingerprint
-                && duration.delay_duration_secs == 14 * ONE_DAY_SECS
-        ));
-}
-
-#[tokio::test]
-async fn test_configure_delay_notify_period_route_accepts_w3_action_proof() {
-    let (mut context, bootstrap) = gen_services().await;
-    let client = TestClient::new(bootstrap.router).await;
-    let (account_id, keys) = create_onboarded_w3_account(&mut context, &client).await;
-
-    let response = client
-        .configure_delay_notify_period_with_action_proof(
-            &account_id,
-            &ConfigureDelayNotifyPeriodRequest {
-                delay_period_days: 30,
-            },
-            &keys,
-            true,
-            true,
-        )
-        .await;
-    assert_eq!(
-        response.status_code,
-        StatusCode::OK,
-        "{}",
-        response.body_string
-    );
-    assert_eq!(
-        response
-            .body
-            .expect("Expected configure delay notify period response")
-            .delay_period_days,
-        30
-    );
-
-    let account_id = account_id.parse::<AccountId>().unwrap();
-    let account = bootstrap
-        .services
-        .account_service
-        .fetch_full_account(FetchAccountInput {
-            account_id: &account_id,
-        })
-        .await
-        .unwrap();
-    assert_eq!(
-        account.common_fields.delay_notify_period_secs,
-        Some(30 * ONE_DAY_SECS)
-    );
-}
-
-#[rstest]
-#[case::too_short(1)]
-#[case::unsupported_period(21)]
-#[case::too_long(365)]
-#[tokio::test]
-async fn test_configure_delay_notify_period_rejects_invalid_days(#[case] delay_period_days: u32) {
-    let (mut context, bootstrap) = gen_services().await;
-    let client = TestClient::new(bootstrap.router).await;
-
-    let account = create_full_account(
-        &mut context,
-        &bootstrap.services,
-        Network::BitcoinSignet,
-        None,
-    )
-    .await;
-    let account_id = account.id;
-    let keys = context
-        .get_authentication_keys_for_account_id(&account_id)
-        .expect("Invalid keys for account");
-
-    let response = client
-        .configure_delay_notify_period_with_action_proof(
-            &account_id.to_string(),
-            &ConfigureDelayNotifyPeriodRequest { delay_period_days },
-            &keys,
-            true,
-            true,
-        )
-        .await;
-    assert_eq!(
-        response.status_code,
-        StatusCode::BAD_REQUEST,
-        "{}",
-        response.body_string
-    );
-}
-
-#[tokio::test]
-async fn test_configure_delay_notify_period_rejects_pending_recovery() {
-    let (mut context, bootstrap) = gen_services().await;
-    let client = TestClient::new(bootstrap.router).await;
-
-    let account = create_full_account(
-        &mut context,
-        &bootstrap.services,
-        Network::BitcoinSignet,
-        None,
-    )
-    .await;
-    let account_id = account.id;
-    let keys = context
-        .get_authentication_keys_for_account_id(&account_id)
-        .expect("Invalid keys for account");
-
-    let create_response = client
-        .create_delay_notify_recovery(
-            &account_id.to_string(),
-            &CreateAccountDelayNotifyRequest {
-                lost_factor: Factor::Hw,
-                delay_period_num_sec: None,
-                auth: FullAccountAuthKeysInput {
-                    app: create_pubkey(),
-                    hardware: create_pubkey(),
-                    recovery: Some(create_pubkey()),
-                    hardware_type: HardwareType::default(),
-                },
-            },
-            true,
-            false,
-            &keys,
-        )
-        .await;
-    assert_eq!(
-        create_response.status_code,
-        StatusCode::OK,
-        "{}",
-        create_response.body_string
-    );
-
-    let response = client
-        .configure_delay_notify_period_with_action_proof(
-            &account_id.to_string(),
-            &ConfigureDelayNotifyPeriodRequest {
-                delay_period_days: 30,
-            },
-            &keys,
-            true,
-            true,
-        )
-        .await;
-    assert_eq!(
-        response.status_code,
-        StatusCode::CONFLICT,
-        "{}",
-        response.body_string
-    );
-}
-
-#[tokio::test]
-async fn test_configure_delay_notify_period_rejects_pending_privileged_action() {
-    let (mut context, bootstrap) = gen_services().await;
-    let client = TestClient::new(bootstrap.router).await;
-
-    let account = create_full_account(
-        &mut context,
-        &bootstrap.services,
-        Network::BitcoinSignet,
-        None,
-    )
-    .await;
-    let account_id = account.id;
-    let keys = context
-        .get_authentication_keys_for_account_id(&account_id)
-        .expect("Invalid keys for account");
-    let privileged_action_instance_id = PrivilegedActionInstanceId::gen().unwrap();
-    bootstrap
-        .services
-        .privileged_action_repository
-        .persist(&PrivilegedActionInstanceRecord {
-            id: privileged_action_instance_id,
-            account_id: account_id.clone(),
-            privileged_action_type: PrivilegedActionType::ResetFingerprint,
-            authorization_strategy: AuthorizationStrategyRecord::DelayAndNotify(
-                DelayAndNotifyRecord {
-                    status: RecordStatus::Pending,
-                    cancellation_token: "cancel-token".to_string(),
-                    completion_token: "complete-token".to_string(),
-                    delay_end_time: OffsetDateTime::now_utc() + Duration::days(14),
-                },
-            ),
-            request: serde_json::json!({ "test": "pending reset fingerprint" }),
-            created_at: OffsetDateTime::now_utc(),
-            updated_at: OffsetDateTime::now_utc(),
-        })
-        .await
-        .expect("Failed to persist privileged action instance");
-
-    let response = client
-        .configure_delay_notify_period_with_action_proof(
-            &account_id.to_string(),
-            &ConfigureDelayNotifyPeriodRequest {
-                delay_period_days: 30,
-            },
-            &keys,
-            true,
-            true,
-        )
-        .await;
-    assert_eq!(
-        response.status_code,
-        StatusCode::CONFLICT,
-        "{}",
-        response.body_string
     );
 }
 

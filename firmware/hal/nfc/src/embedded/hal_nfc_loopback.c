@@ -135,11 +135,6 @@ static bool hal_nfc_loopback_poll(void);
  */
 static bool hal_nfc_loopback_anti_collision(void);
 
-/**
- * @brief Returns true if the NFC mode is valid for loopback operations.
- */
-static bool hal_nfc_loopback_mode_is_supported(hal_nfc_mode_t mode);
-
 #endif
 
 void hal_nfc_loopback_test_start(hal_nfc_mode_t mode, uint32_t timeout_ms, bool continuous,
@@ -331,15 +326,8 @@ static void hal_nfc_loopback_step(void) {
       break;
 
     case HAL_NFC_LOOPBACK_STATE_NONE:
-      // The mode transition requested by RESET is asynchronous. Loopback can be dispatched once
-      // more before the transition completes, so allow the NFC worker to finish tearing it down.
-      LOGW("[NFC] Ignoring stale loopback step after reset");
-      break;
-
     default:
-      LOGW("[NFC] Failing loopback test in invalid state %u",
-           (unsigned)hal_nfc_loopback_priv.state);
-      hal_nfc_loopback_priv.state = HAL_NFC_LOOPBACK_STATE_TIMEOUT;
+      ASSERT(false);
       break;
   }
 }
@@ -347,23 +335,12 @@ static void hal_nfc_loopback_step(void) {
 static bool hal_nfc_loopback_poll(void) {
   const hal_nfc_mode_t mode = hal_nfc_get_mode();
 
-  // Treat stale dispatches and transient RFAL setup failures as unsuccessful poll attempts. This
-  // preserves the loopback test's retry/timeout behavior without turning a failed attempt into a
-  // pass.
-  if (!hal_nfc_loopback_mode_is_supported(mode)) {
-    LOGW("[NFC] Ignoring stale loopback poll in mode %u", (unsigned)mode);
-    return false;
-  }
-
-  st_ret_t err = RFAL_ERR_NONE;
+  st_ret_t err;
   switch (mode) {
     case HAL_NFC_MODE_LOOPBACK_A: {
       if (rfalGetMode() != RFAL_MODE_POLL_NFCA) {
         err = rfalNfcaPollerInitialize();
-        if (err != RFAL_ERR_NONE) {
-          LOGW("[NFC] Loopback A poller init failed: %d", (int)err);
-          return false;
-        }
+        ASSERT(err == RFAL_ERR_NONE);
       }
       break;
     }
@@ -372,24 +349,20 @@ static bool hal_nfc_loopback_poll(void) {
     case HAL_NFC_MODE_LOOPBACK_B: {
       if (rfalGetMode() != RFAL_MODE_POLL_NFCB) {
         err = rfalNfcbPollerInitialize();
-        if (err != RFAL_ERR_NONE) {
-          LOGW("[NFC] Loopback B poller init failed: %d", (int)err);
-          return false;
-        }
+        ASSERT(err == RFAL_ERR_NONE);
       }
       break;
     }
 #endif
+
     default:
-      return false;
+      ASSERT(false);
+      break;
   }
 
   rfalSetErrorHandling(RFAL_ERRORHANDLING_NONE);
   err = rfalFieldOnAndStartGT();
-  if (err != RFAL_ERR_NONE) {
-    LOGW("[NFC] Loopback field-on failed: %d", (int)err);
-    return false;
-  }
+  ASSERT(err == RFAL_ERR_NONE);
 
   if (mode == HAL_NFC_MODE_LOOPBACK_A) {
     rfalNfcaSensRes sens;
@@ -400,7 +373,7 @@ static bool hal_nfc_loopback_poll(void) {
     uint8_t sens_len;
     err = rfalNfcbPollerTechnologyDetection(RFAL_COMPLIANCE_MODE_NFC, &sens, &sens_len);
 #else
-    return false;
+    ASSERT(false);
 #endif
   }
 
@@ -416,35 +389,22 @@ static bool hal_nfc_loopback_anti_collision(void) {
   } nfc_devs NFC_TASK_DATA = {0};
 
   const hal_nfc_mode_t mode = hal_nfc_get_mode();
-  st_ret_t err = RFAL_ERR_NONE;
-
-  // As in the poll step, returning false keeps the test on its normal retry/timeout path.
-  if (!hal_nfc_loopback_mode_is_supported(mode)) {
-    LOGW("[NFC] Ignoring stale loopback anti-collision in mode %u", (unsigned)mode);
-    return false;
-  }
+  st_ret_t err;
 
   if (mode == HAL_NFC_MODE_LOOPBACK_A) {
     err = rfalNfcaPollerInitialize();
-    if (err != RFAL_ERR_NONE) {
-      LOGW("[NFC] Loopback A anti-collision init failed: %d", (int)err);
-      return false;
-    }
+    ASSERT(err == RFAL_ERR_NONE);
 #if defined(RFAL_FEATURE_NFCB) && (RFAL_FEATURE_NFCB)
   } else if (mode == HAL_NFC_MODE_LOOPBACK_B) {
     err = rfalNfcbPollerInitialize();
-    if (err != RFAL_ERR_NONE) {
-      LOGW("[NFC] Loopback B anti-collision init failed: %d", (int)err);
-      return false;
-    }
+    ASSERT(err == RFAL_ERR_NONE);
 #endif
+  } else {
+    ASSERT(false);
   }
 
   err = rfalFieldOnAndStartGT();
-  if (err != RFAL_ERR_NONE) {
-    LOGW("[NFC] Loopback anti-collision field-on failed: %d", (int)err);
-    return false;
-  }
+  ASSERT(err == RFAL_ERR_NONE);
 
   uint8_t num_cards = 0;
   uint8_t num_tries;
@@ -457,6 +417,8 @@ static bool hal_nfc_loopback_anti_collision(void) {
       err = rfalNfcbPollerCollisionResolution(RFAL_COMPLIANCE_MODE_NFC, 0 /* collision detection */,
                                               &nfc_devs.nfcb, &num_cards);
 #endif
+    } else {
+      ASSERT(false);
     }
 
     if ((err == RFAL_ERR_NONE) && (num_cards == HAL_NFC_LOOPBACK_EXPECTED_CARDS)) {
@@ -468,21 +430,6 @@ static bool hal_nfc_loopback_anti_collision(void) {
 
   rfalFieldOff();
   return (num_tries < HAL_NFC_LOOPBACK_MAX_RETRIES);
-}
-
-static bool hal_nfc_loopback_mode_is_supported(hal_nfc_mode_t mode) {
-  switch (mode) {
-    case HAL_NFC_MODE_LOOPBACK_A:
-      return true;
-
-#if defined(RFAL_FEATURE_NFCB) && (RFAL_FEATURE_NFCB)
-    case HAL_NFC_MODE_LOOPBACK_B:
-      return true;
-#endif
-
-    default:
-      return false;
-  }
 }
 
 #endif

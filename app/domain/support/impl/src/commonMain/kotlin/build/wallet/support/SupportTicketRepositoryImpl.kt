@@ -7,6 +7,7 @@ import build.wallet.account.AccountService
 import build.wallet.account.analytics.AppInstallationDao
 import build.wallet.analytics.events.PlatformInfoProvider
 import build.wallet.analytics.v1.OSType
+import build.wallet.analytics.v1.PlatformInfo
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -26,6 +27,13 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import okio.Buffer
+
+private const val HARDWARE_TYPE_W1 = "W1"
+private const val HARDWARE_TYPE_W3 = "W3"
+private const val BITKEY_WITH_SCREEN_DEVICE_VALUE = "bitkey__with_a_screen_device"
+private const val BITKEY_WITHOUT_SCREEN_DEVICE_VALUE = "bitkey__without_a_screen_device"
+private const val IPHONE_BITKEY_PHONE_VALUE = "iphone_bitkey_phone"
+private const val ANDROID_BITKEY_PHONE_VALUE = "android_bitkey_phone"
 
 @BitkeyInject(AppScope::class)
 class SupportTicketRepositoryImpl(
@@ -248,12 +256,18 @@ class SupportTicketRepositoryImpl(
   }
 
   override suspend fun prefillKnownFields(form: SupportTicketForm): SupportTicketData {
-    val debugData = getDebugData()
+    val platformInfo = platformInfoProvider.getPlatformInfo()
+    val debugData = getDebugData(platformInfo)
 
     return buildSupportTicketData {
       this[form, SupportTicketField.KnownFieldType.AppInstallationID] = debugData.appInstallationId
       this[form, SupportTicketField.KnownFieldType.AppVersion] = debugData.appVersion
       this[form, SupportTicketField.KnownFieldType.PhoneMakeAndModel] = debugData.phoneMakeAndModel
+      form[SupportTicketField.KnownFieldType.PhoneTypePicker]?.let { phoneTypePicker ->
+        phoneTypePicker.itemForPhoneType(platformInfo.os_type)?.let { phoneTypeItem ->
+          this[phoneTypePicker] = phoneTypeItem
+        }
+      }
       this[form, SupportTicketField.KnownFieldType.SystemNameAndVersion] =
         debugData.systemNameAndVersion
 
@@ -263,6 +277,11 @@ class SupportTicketRepositoryImpl(
         debugData.hardwareFirmwareVersion
       this[form, SupportTicketField.KnownFieldType.HardwareType] =
         debugData.hardwareType
+      form[SupportTicketField.KnownFieldType.HardwareTypePicker]?.let { hardwareTypePicker ->
+        hardwareTypePicker.itemForHardwareType(debugData.hardwareType)?.let { hardwareTypeItem ->
+          this[hardwareTypePicker] = hardwareTypeItem
+        }
+      }
     }
   }
 
@@ -276,11 +295,21 @@ class SupportTicketRepositoryImpl(
         TicketFormFieldDTO.KnownType.Country -> SupportTicketField.KnownFieldType.Country
         TicketFormFieldDTO.KnownType.AppVersion -> SupportTicketField.KnownFieldType.AppVersion
         TicketFormFieldDTO.KnownType.AppInstallationID -> SupportTicketField.KnownFieldType.AppInstallationID
-        TicketFormFieldDTO.KnownType.PhoneMakeAndModel -> SupportTicketField.KnownFieldType.PhoneMakeAndModel
+        TicketFormFieldDTO.KnownType.PhoneMakeAndModel ->
+          when (Field::class) {
+            SupportTicketField.TextField::class -> SupportTicketField.KnownFieldType.PhoneMakeAndModel
+            SupportTicketField.Picker::class -> SupportTicketField.KnownFieldType.PhoneTypePicker
+            else -> return null
+          }
         TicketFormFieldDTO.KnownType.SystemNameAndVersion -> SupportTicketField.KnownFieldType.SystemNameAndVersion
         TicketFormFieldDTO.KnownType.HardwareSerialNumber -> SupportTicketField.KnownFieldType.HardwareSerialNumber
         TicketFormFieldDTO.KnownType.HardwareFirmwareVersion -> SupportTicketField.KnownFieldType.HardwareFirmwareVersion
-        TicketFormFieldDTO.KnownType.HardwareType -> SupportTicketField.KnownFieldType.HardwareType
+        TicketFormFieldDTO.KnownType.HardwareType ->
+          when (Field::class) {
+            SupportTicketField.TextField::class -> SupportTicketField.KnownFieldType.HardwareType
+            SupportTicketField.Picker::class -> SupportTicketField.KnownFieldType.HardwareTypePicker
+            else -> return null
+          }
         null -> return null
       }
 
@@ -357,10 +386,11 @@ class SupportTicketRepositoryImpl(
         OSType.OS_TYPE_UNIX -> "Unix"
       }
 
-  private suspend fun getDebugData(): TicketDebugDataDTO {
+  private suspend fun getDebugData(
+    platformInfo: PlatformInfo = platformInfoProvider.getPlatformInfo(),
+  ): TicketDebugDataDTO {
     val appInstallation = appInstallationDao.getOrCreateAppInstallation().get()
     val deviceInfo = firmwareDeviceInfoDao.getDeviceInfo().get()
-    val platformInfo = platformInfoProvider.getPlatformInfo()
 
     return TicketDebugDataDTO(
       appInstallationId = appInstallation?.localId.orEmpty(),
@@ -384,5 +414,31 @@ class SupportTicketRepositoryImpl(
           flag.identifier to flag.flagValue().value.toString()
         }
     )
+  }
+
+  private fun SupportTicketField.Picker.itemForHardwareType(
+    hardwareType: String,
+  ): SupportTicketField.Picker.Item? {
+    val expectedValue =
+      when (hardwareType) {
+        HARDWARE_TYPE_W3 -> BITKEY_WITH_SCREEN_DEVICE_VALUE
+        HARDWARE_TYPE_W1 -> BITKEY_WITHOUT_SCREEN_DEVICE_VALUE
+        else -> return null
+      }
+
+    return items.firstOrNull { it.value == expectedValue }
+  }
+
+  private fun SupportTicketField.Picker.itemForPhoneType(
+    osType: OSType,
+  ): SupportTicketField.Picker.Item? {
+    val expectedValue =
+      when (osType) {
+        OSType.OS_TYPE_ANDROID -> ANDROID_BITKEY_PHONE_VALUE
+        OSType.OS_TYPE_IOS -> IPHONE_BITKEY_PHONE_VALUE
+        else -> return null
+      }
+
+    return items.firstOrNull { it.value == expectedValue }
   }
 }

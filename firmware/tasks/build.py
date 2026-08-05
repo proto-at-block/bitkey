@@ -150,46 +150,6 @@ def build_platforms(
         )
 
 
-@task(name='core-sim',
-      help={
-          "with_ui": "Also build the ui-simulate companion renderer",
-          "verbose": "Set to true for more build output",
-          "sanitize": "Enable ASAN (off by default; deadlocks during dyld init on recent macOS)",
-      })
-def build_core_sim(c, with_ui: bool = False, verbose: bool = False, sanitize: bool = False):
-    """Builds the POSIX firmware simulator (core-sim).
-
-    Sets up a native (posix) meson build directory at build/core-sim --
-    including meson option generation, IPC codegen, and the nfc posix patch --
-    then compiles the core-sim-w3 / core-sim-w1 emulators.
-    """
-    build_dir = BUILD_ROOT_DIR / "core-sim"
-
-    # Regenerate the simulator's auth-check table from the IPC YAML
-    # definitions so it can't silently drift. Generate into the Meson build
-    # directory before setup so clean checkouts can configure without source
-    # tree generated files.
-    auth_check_out_dir = build_dir / "app/core-sim/generated"
-    with c.cd(str(ROOT_DIR)):
-        c.run(
-            "python app/core-sim/scripts/gen_auth_check.py",
-            env={"CORE_SIM_AUTH_CHECK_OUT_DIR": str(auth_check_out_dir)},
-        )
-
-    # Reuse the standard posix host setup (same as `inv test` / `inv ui-sim`):
-    # writes meson.options, runs lib/ipc/ipc_codegen.py, and runs
-    # `meson setup <build_dir>` with native-build options.
-    m = MesonBuild(c, "posix", build_dir, sanitize=sanitize)
-    m.setup()
-
-    targets = "core-sim app/core-sim/core-sim-w1"
-    if with_ui:
-        targets += " ui-sim"
-    v = "-v" if verbose else ""
-    with c.cd(str(build_dir)):
-        c.run(f"meson compile {v} {targets}")
-
-
 @task(name='commands', help={
     "output": "Output path for merged compile_commands.json (default: firmware root)"
 })

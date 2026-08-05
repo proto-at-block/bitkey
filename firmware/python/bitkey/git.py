@@ -1,10 +1,7 @@
 import subprocess
 import sys
 
-try:
-    from semver import VersionInfo
-except ImportError:
-    from .semver_stub import VersionInfo
+from semver import VersionInfo
 
 
 class Git():

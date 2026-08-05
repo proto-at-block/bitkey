@@ -145,6 +145,10 @@ sealed interface SupportTicketField<Value : Any> {
       override val fieldClass = TextField::class
     }
 
+    data object PhoneTypePicker : KnownFieldType<Picker> {
+      override val fieldClass = Picker::class
+    }
+
     data object SystemNameAndVersion : KnownFieldType<TextField> {
       override val fieldClass = TextField::class
     }
@@ -159,6 +163,10 @@ sealed interface SupportTicketField<Value : Any> {
 
     data object HardwareType : KnownFieldType<TextField> {
       override val fieldClass = TextField::class
+    }
+
+    data object HardwareTypePicker : KnownFieldType<Picker> {
+      override val fieldClass = Picker::class
     }
   }
 }

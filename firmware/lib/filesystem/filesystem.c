@@ -649,14 +649,4 @@ bool fs_is_busy(void) {
 void set_lfs(void* test_lfs) {
   lfs = test_lfs;
 }
-
-void fs_init_globals(void) {
-  static bool initialized = false;
-  if (!initialized) {
-    rtos_mutex_create(&fs_lock);
-    rtos_semaphore_create(&g_file_access_lock);
-    rtos_semaphore_give(&g_file_access_lock);
-    initialized = true;
-  }
-}
 #endif

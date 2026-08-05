@@ -54,9 +54,7 @@ static void proto_ready_cb(uint8_t* encoded_proto, uint32_t size) {
 }
 
 static void setup(void) {
-#define REGIONS(X)                                                       \
-  X(proto_helpers_test_pool, proto_cmd_scratch, PROTO_CMD_ALLOC_SIZE, 2) \
-  X(proto_helpers_test_pool, proto_rsp_scratch, sizeof(fwpb_wallet_rsp), 4)
+#define REGIONS(X) X(proto_helpers_test_pool, proto_scratch, sizeof(fwpb_wallet_rsp), 4)
   pool = mempool_create(proto_helpers_test_pool);
 #undef REGIONS
 
@@ -64,20 +62,6 @@ static void setup(void) {
   memzero(proto_rsp_buffer, sizeof(proto_rsp_buffer));
   memzero(captured_rsp, sizeof(captured_rsp));
   ipc_proto_register_api(pool, proto_rsp_buffer, &proto_ready_cb);
-}
-
-static fwpb_wallet_cmd* make_cmd_with_seq(uint32_t seq) {
-  fwpb_wallet_cmd sent_cmd = fwpb_wallet_cmd_init_default;
-  sent_cmd.which_msg = fwpb_wallet_cmd_query_authentication_cmd_tag;
-
-  uint8_t encoded_cmd[fwpb_wallet_cmd_size] = {0};
-  pb_ostream_t ostream = pb_ostream_from_buffer(encoded_cmd, sizeof(encoded_cmd));
-  cr_assert(pb_encode(&ostream, fwpb_wallet_cmd_fields, &sent_cmd));
-
-  proto_set_cmd_seq(seq);
-  fwpb_wallet_cmd* cmd = proto_get_cmd(encoded_cmd, ostream.bytes_written);
-  cr_assert_not_null(cmd);
-  return cmd;
 }
 
 Test(proto_helpers, fill_bytes) {
@@ -113,13 +97,12 @@ Test(proto_helpers, set_repeated) {
 }
 
 Test(proto_helpers, encode_failure_falls_back_to_minimal_error_response, .init = setup) {
-  fwpb_wallet_cmd* cmd = make_cmd_with_seq(12);
   fwpb_wallet_rsp* rsp = proto_get_rsp();
   rsp->status = fwpb_status_SUCCESS;
   rsp->which_msg = fwpb_wallet_rsp_empty_rsp_tag;
   rsp->response_handle.size = sizeof(rsp->response_handle.bytes) + 1;
 
-  proto_send_rsp_without_free(cmd, rsp);
+  proto_send_rsp_without_free(rsp);
 
   cr_assert_gt(captured_rsp_len, 0);
 
@@ -135,126 +118,7 @@ Test(proto_helpers, encode_failure_falls_back_to_minimal_error_response, .init =
   cr_assert_eq(rsp->which_msg, fwpb_wallet_rsp_empty_rsp_tag);
   cr_assert_eq(rsp->response_handle.size, sizeof(rsp->response_handle.bytes) + 1);
 
-  proto_free_buffers(cmd, rsp);
-}
-
-Test(proto_helpers, routed_command_uses_bound_seq, .init = setup) {
-  fwpb_wallet_cmd sent_cmd = fwpb_wallet_cmd_init_default;
-  sent_cmd.which_msg = fwpb_wallet_cmd_query_authentication_cmd_tag;
-
-  uint8_t encoded_cmd[fwpb_wallet_cmd_size] = {0};
-  pb_ostream_t ostream = pb_ostream_from_buffer(encoded_cmd, sizeof(encoded_cmd));
-  cr_assert(pb_encode(&ostream, fwpb_wallet_cmd_fields, &sent_cmd));
-
-  const uint32_t routed_size = sizeof(ipc_proto_routed_cmd_t) + ostream.bytes_written;
-  ipc_proto_routed_cmd_t* routed_cmd = (ipc_proto_routed_cmd_t*)ipc_proto_alloc(routed_size);
-  cr_assert_not_null(routed_cmd);
-  routed_cmd->seq = 42;
-  memcpy(routed_cmd->encoded_cmd, encoded_cmd, ostream.bytes_written);
-
-  proto_set_cmd_seq(99);
-  fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)routed_cmd, routed_size);
-  cr_assert_not_null(cmd);
-  cr_assert_eq(proto_get_cmd_seq(cmd), 42);
-
-  proto_free_buffers(cmd, NULL);
-}
-
-Test(proto_helpers, stale_response_is_dropped_before_send, .init = setup) {
-  fwpb_wallet_cmd* cmd = make_cmd_with_seq(10);
-  proto_set_cmd_seq(11);
-  proto_set_rsp_seq(11);
-
-  fwpb_wallet_rsp* rsp = proto_get_rsp();
-  rsp->status = fwpb_status_SUCCESS;
-  rsp->which_msg = fwpb_wallet_rsp_query_authentication_rsp_tag;
-  proto_send_rsp(cmd, rsp);
-
-  cr_assert_eq(captured_rsp_len, 0);
-  cr_assert_eq(proto_get_last_rsp_seq(), 11);
-}
-
-Test(proto_helpers, send_rsp_with_seq_reports_stale_drop, .init = setup) {
-  proto_set_cmd_seq(22);
-
-  fwpb_wallet_rsp* rsp = proto_get_rsp();
-  rsp->status = fwpb_status_SUCCESS;
-  rsp->which_msg = fwpb_wallet_rsp_query_authentication_rsp_tag;
-
-  cr_assert_not(proto_send_rsp_with_seq(21, rsp));
-  cr_assert_eq(captured_rsp_len, 0);
-}
-
-Test(proto_helpers, retired_cmd_seq_drops_late_same_seq_response, .init = setup) {
-  proto_set_cmd_seq(33);
-  proto_set_rsp_seq(33);
-  proto_retire_cmd_seq(33);
-  cr_assert_eq(proto_get_last_rsp_seq(), 0);
-
-  fwpb_wallet_rsp* rsp = proto_get_rsp();
-  rsp->status = fwpb_status_SUCCESS;
-  rsp->which_msg = fwpb_wallet_rsp_query_authentication_rsp_tag;
-
-  cr_assert_not(proto_send_rsp_with_seq(33, rsp));
-  cr_assert_eq(captured_rsp_len, 0);
-}
-
-Test(proto_helpers, retiring_old_seq_preserves_newer_active_seq, .init = setup) {
-  proto_set_cmd_seq(44);
-  proto_set_rsp_seq(44);
-  proto_retire_cmd_seq(43);
-
-  cr_assert_eq(proto_get_last_rsp_seq(), 44);
-
-  fwpb_wallet_rsp* rsp = proto_get_rsp();
-  rsp->status = fwpb_status_SUCCESS;
-  rsp->which_msg = fwpb_wallet_rsp_query_authentication_rsp_tag;
-
-  cr_assert(proto_send_rsp_with_seq(44, rsp));
-  cr_assert_gt(captured_rsp_len, 0);
-}
-
-Test(proto_helpers, zero_seq_response_is_never_accepted, .init = setup) {
-  proto_set_cmd_seq(0);
-
-  fwpb_wallet_rsp* rsp = proto_get_rsp();
-  rsp->status = fwpb_status_SUCCESS;
-  rsp->which_msg = fwpb_wallet_rsp_query_authentication_rsp_tag;
-
-  cr_assert_not(proto_send_rsp_with_seq(0, rsp));
-  cr_assert_eq(captured_rsp_len, 0);
-}
-
-Test(proto_helpers, uxc_prepare_cmd_sets_wire_seq, .init = setup) {
-  fwpb_wallet_cmd* cmd = make_cmd_with_seq(123);
-  fwpb_uxc_msg_host host = fwpb_uxc_msg_host_init_default;
-  host.which_msg = fwpb_uxc_msg_host_meta_cmd_tag;
-
-  proto_uxc_prepare_cmd(&host, cmd);
-  cr_assert_eq(host.seq, 123);
-
-  proto_free_buffers(cmd, NULL);
-}
-
-Test(proto_helpers, uxc_rsp_seq_uses_wire_seq, .init = setup) {
-  fwpb_uxc_msg_device device = fwpb_uxc_msg_device_init_default;
-  device.seq = 456;
-  device.which_msg = fwpb_uxc_msg_device_events_get_rsp_tag;
-
-  uint32_t seq = 0;
-  cr_assert(proto_uxc_take_rsp_seq(&device, &seq, "test"));
-  cr_assert_eq(seq, 456);
-}
-
-Test(proto_helpers, uxc_rsp_seq_rejects_missing_seq, .init = setup) {
-  proto_set_cmd_seq(789);
-
-  fwpb_uxc_msg_device device = fwpb_uxc_msg_device_init_default;
-  device.which_msg = fwpb_uxc_msg_device_fwup_start_rsp_tag;
-
-  uint32_t seq = 0;
-  cr_assert_not(proto_uxc_take_rsp_seq(&device, &seq, "test"));
-  cr_assert_eq(seq, 0);
+  proto_free_buffers(NULL, rsp);
 }
 
 Test(proto_helpers, secure_channel_message_requires_exact_sizes) {

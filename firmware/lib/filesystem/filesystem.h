@@ -116,6 +116,4 @@ bool fs_is_busy(void);
 #ifndef EMBEDDED_BUILD
 // Test only.
 void set_lfs(void* test_lfs);
-// Initialize filesystem globals (mutex/semaphore) for POSIX builds
-void fs_init_globals(void);
 #endif

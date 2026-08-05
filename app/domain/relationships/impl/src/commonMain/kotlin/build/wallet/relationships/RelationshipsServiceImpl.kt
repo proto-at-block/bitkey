@@ -13,8 +13,11 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.promotions.PromotionCode
 import build.wallet.bitkey.relationships.*
+import build.wallet.catchingResult
 import build.wallet.coroutines.flow.tickerFlow
 import build.wallet.crypto.PublicKey
+import build.wallet.crypto.random.SecureRandom
+import build.wallet.crypto.random.nextBytes
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.PrivilegedActionProof
@@ -28,7 +31,6 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.datetime.Clock
-import kotlin.random.Random
 
 @BitkeyInject(AppScope::class)
 class RelationshipsServiceImpl(
@@ -128,9 +130,16 @@ class RelationshipsServiceImpl(
     roles: Set<TrustedContactRole>,
   ): Result<OutgoingInvitation, CreateInvitationError> =
     coroutineBinding {
-      // TODO: Use RelationshipsCrypto to generate.
       val enrollmentPakeCode =
-        InviteCodeParts.Schema.maskPakeData(Random.nextBytes(InviteCodeParts.Schema.pakeByteArraySize()))
+        catchingResult {
+          InviteCodeParts.Schema.maskPakeData(
+            SecureRandom().nextBytes(InviteCodeParts.Schema.pakeByteArraySize())
+          )
+        }.mapError {
+          CreateInvitationError.LocalCryptoError(
+            RelationshipsCryptoError.KeyGenerationFailed(it)
+          )
+        }.bind()
       val protectedCustomerEnrollmentPakeKey =
         relationshipsCrypto.generateProtectedCustomerEnrollmentPakeKey(enrollmentPakeCode)
           .mapError { CreateInvitationError.LocalCryptoError(it) }

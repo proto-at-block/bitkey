@@ -201,7 +201,7 @@ secure_channel_err_t secure_channel_establish_impl(secure_channel_ctx_t* secure_
   }
 
   if (force_establish_failure) {
-    secure_channel_ctx->established = SECURE_FALSE;
+    secure_channel_ctx->established = false;
     return SECURE_CHANNEL_FAILED_TO_DERIVE_KEY;
   }
 
@@ -215,7 +215,7 @@ secure_channel_err_t secure_channel_establish_impl(secure_channel_ctx_t* secure_
   memset(secure_channel_ctx->send_key_buf, send_key_seed, sizeof(secure_channel_ctx->send_key_buf));
   memset(secure_channel_ctx->recv_key_buf, recv_key_seed, sizeof(secure_channel_ctx->recv_key_buf));
   memset(secure_channel_ctx->conf_key_buf, conf_key_seed, sizeof(secure_channel_ctx->conf_key_buf));
-  secure_channel_ctx->established = SECURE_TRUE;
+  secure_channel_ctx->established = true;
   return SECURE_CHANNEL_OK;
 }
 

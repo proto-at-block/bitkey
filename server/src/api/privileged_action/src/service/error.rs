@@ -35,10 +35,6 @@ pub enum ServiceError {
     CannotConfigureDelay(PrivilegedActionType, AccountType),
     #[error("Cannot update delay for non-test account")]
     CannotUpdateDelayForNonTestAccount,
-    #[error("Invalid delay notify period: {0} days. Allowed values: 7, 14, 30")]
-    InvalidDelayNotifyPeriod(u32),
-    #[error("Delay duration of {0} seconds is out of range")]
-    InvalidDelayDuration(i64),
 
     #[error(
         "No authorization strategy defined for privileged action type {0} and account type {1}"
@@ -95,9 +91,7 @@ impl From<ServiceError> for ApiError {
             ServiceError::BadInputAuthorizationStrategyType
             | ServiceError::BadInputCompletionToken
             | ServiceError::BadInputWebAuthToken
-            | ServiceError::CannotConfigureDelay(_, _)
-            | ServiceError::InvalidDelayNotifyPeriod(_)
-            | ServiceError::InvalidDelayDuration(_) => ApiError::GenericBadRequest(msg),
+            | ServiceError::CannotConfigureDelay(_, _) => ApiError::GenericBadRequest(msg),
             ServiceError::RecordAuthorizationStrategyTypeUnexpected
             | ServiceError::TryFromInt(_)
             | ServiceError::ExternalIdentifier(_)

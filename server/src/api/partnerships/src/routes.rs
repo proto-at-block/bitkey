@@ -13,9 +13,7 @@ use aws_utils::secrets_manager::{FetchSecret, SecretsManager};
 use feature_flags::service::Service as FeatureFlagsService;
 use http_server::swagger::{SwaggerEndpoint, Url};
 use partnerships_lib::models::partners::Partner;
-use partnerships_lib::models::{
-    PartnerTransaction, PurchaseOptions, SaleOptions, SaleQuote, TransactionType,
-};
+use partnerships_lib::models::{PartnerTransaction, PurchaseOptions, SaleQuote, TransactionType};
 use partnerships_lib::{
     errors::ApiError,
     models::{partners::PartnerInfo, PaymentMethod, Quote, RedirectInfo},
@@ -83,7 +81,6 @@ impl RouterBuilder for RouteState {
                 get(get_partner_transaction),
             )
             .route("/api/partnerships/partners/:partner", get(get_partner))
-            .route("/api/partnerships/sales/options", get(get_sale_options))
             .route("/api/partnerships/sales/quotes", post(list_sale_quotes))
             .route(
                 "/api/partnerships/sales/redirects",
@@ -118,7 +115,6 @@ impl From<RouteState> for SwaggerEndpoint {
         list_purchase_quotes,
         get_purchase_redirect,
         get_purchase_options,
-        get_sale_options,
         list_sale_quotes,
         get_sales_redirect,
         get_partner_transaction,
@@ -411,47 +407,6 @@ async fn get_partner(
 ) -> Result<Json<PartnerInfo>, ApiError> {
     let partner_info = partnerships.get_partner(request.partner).await?;
     Ok(Json(partner_info))
-}
-
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct SaleOptionsRequest {
-    //TODO: W-5560 use ISO country code based enum
-    pub country: String,
-    pub fiat_currency: CurrencyCode,
-}
-
-#[derive(Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct SaleOptionsResponse {
-    sale_options: SaleOptions,
-}
-
-#[utoipa::path(
-    get,
-    path = "/api/partnerships/sales/options",
-    params(
-        ("country" = String, Query, description = "Country code"),
-        ("fiat_currency" = CurrencyCode, Query, description = "Currency code")
-    ),
-    responses(
-        (status = 200, description = "Sale options were successfully retrieved", body=SaleOptionsResponse),
-        (status = 422, description = "Invalid parameters"),
-    ),
-)]
-async fn get_sale_options(
-    State(partnerships): State<Partnerships>,
-    experimentation_claims: ExperimentationClaims,
-    request: Query<SaleOptionsRequest>,
-) -> Result<Json<SaleOptionsResponse>, ApiError> {
-    let sale_options = partnerships
-        .sale_options(
-            request.country.clone(),
-            request.fiat_currency,
-            experimentation_claims.account_context_key()?,
-        )
-        .await;
-    Ok(Json(SaleOptionsResponse { sale_options }))
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]

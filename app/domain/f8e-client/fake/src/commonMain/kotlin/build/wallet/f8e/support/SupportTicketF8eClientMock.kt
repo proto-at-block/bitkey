@@ -10,12 +10,16 @@ import com.github.michaelbull.result.Result
 import okio.Source
 
 class SupportTicketF8eClientMock(
-  private val ticketFormDTO: TicketFormDTO,
+  private val initialTicketFormDTO: TicketFormDTO,
 ) : SupportTicketF8eClient {
+  var ticketFormDTO = initialTicketFormDTO
+  val createTicketCalls = mutableListOf<CreateTicketDTO>()
+
   override suspend fun createTicket(
     f8eEnvironment: F8eEnvironment,
     ticket: CreateTicketDTO,
   ): Result<Unit, F8eError<SupportTicketClientErrorCode>> {
+    createTicketCalls.add(ticket)
     return Ok(Unit)
   }
 
@@ -32,5 +36,10 @@ class SupportTicketF8eClientMock(
     source: Source,
   ): Result<String, NetworkingError> {
     return Ok("123456")
+  }
+
+  fun reset() {
+    ticketFormDTO = initialTicketFormDTO
+    createTicketCalls.clear()
   }
 }

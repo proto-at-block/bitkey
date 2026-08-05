@@ -56,7 +56,6 @@ Test(sap_parse, parse_action_valid) {
   cr_assert_eq(sap_parse_action("RemoveBenefactor"), SAP_ACTION_REMOVE_BENEFACTOR);
   cr_assert_eq(sap_parse_action("KeysetRepairUnseal"), SAP_ACTION_KEYSET_REPAIR_UNSEAL);
   cr_assert_eq(sap_parse_action("KeysetRepairRotate"), SAP_ACTION_KEYSET_REPAIR_ROTATE);
-  cr_assert_eq(sap_parse_action("SetDelayNotifyPeriod"), SAP_ACTION_SET_DELAY_NOTIFY_PERIOD);
 }
 
 Test(sap_parse, parse_action_unknown) {
@@ -87,7 +86,7 @@ Test(sap_parse, parse_action_null) {
 // ---------------------------------------------------------------------------
 
 Test(sap_validation, enum_counts) {
-  cr_assert_eq(SAP_ACTION_COUNT, 35, "Expected 35 combined actions");
+  cr_assert_eq(SAP_ACTION_COUNT, 34, "Expected 34 combined actions");
   cr_assert_eq(SAP_ACTION_KEYSET_REPAIR_UNSEAL, 32, "New SAP actions must append at the end");
   cr_assert_eq(SAP_ACTION_KEYSET_REPAIR_ROTATE, 33, "New SAP actions must append at the end");
   cr_assert_eq(SAP_ACTION_EEK_RESTORATION, 21, "Existing IPC-carried SAP IDs must remain stable");
@@ -104,7 +103,6 @@ Test(sap_validation, enum_counts) {
   cr_assert_eq(SAP_ACTION_INITIATE_WALLET_UPGRADE, 29, "New SAP actions must append at the end");
   cr_assert_eq(SAP_ACTION_REMOVE_RECOVERY_CUSTOMER, 30, "New SAP actions must append at the end");
   cr_assert_eq(SAP_ACTION_REMOVE_BENEFACTOR, 31, "New SAP actions must append at the end");
-  cr_assert_eq(SAP_ACTION_SET_DELAY_NOTIFY_PERIOD, 34, "New SAP actions must append at the end");
 }
 
 Test(sap_validation, strings_array_matches_enum_count) {
