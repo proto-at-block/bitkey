@@ -1,15 +1,15 @@
 #!/bin/bash
 
-# Converts locally built AAB to a set of APKs based on the configuration of the connected Android device.
+# Converts locally built AAB to a set of APKs based on the provided device specification or connected Android device.
 
-if [ "$#" -ne 2 ]; then
-    echo "Usage: $0 <path-to-aab> <path-to-output-directory>" >&2
+if [ "$#" -lt 2 ] || [ "$#" -gt 3 ]; then
+    echo "Usage: $0 <path-to-aab> <path-to-output-directory> [path-to-device-spec.json]" >&2
     exit 1
 fi
 
 if [ ! -f "$1" ] || [[ $1 != *.aab ]]; then
     echo "$1 is not an AAB"
-    echo "Usage: $0 <path-to-aab> <path-to-output-directory>" >&2
+    echo "Usage: $0 <path-to-aab> <path-to-output-directory> [path-to-device-spec.json]" >&2
     exit 2
 fi
 
@@ -36,13 +36,19 @@ if ! which "unzip" > /dev/null 2>&1; then
     exit 100
 fi
 
-
 mkdir -p "$2"
 mkdir -p "$2/tmp"
 
-java -jar "$BUNDLETOOL" build-apks --connected-device --bundle="$1" --output="$2/tmp/apks.apks" || exit $?
+if [ -n "$3" ]; then
+    if [ ! -f "$3" ]; then
+        echo "Specified device-spec.json file does not exist." >&2
+        exit 4
+    fi
+    java -jar "$BUNDLETOOL" build-apks --device-spec="$3" --bundle="$1" --output="$2/tmp/apks.apks" || exit $?
+else
+    java -jar "$BUNDLETOOL" build-apks --connected-device --bundle="$1" --output="$2/tmp/apks.apks" || exit $?
+fi
+
 unzip "$2/tmp/apks.apks" -d "$2/tmp"
-
 find "$2/tmp" -type f -name "*.apk" -exec mv {} "$2" \;
-
 rm -rf "$2/tmp"
