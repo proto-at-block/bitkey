@@ -226,6 +226,10 @@ fn verify_signatures(
         }
     });
 
+    if hw_pk.is_some() && hw_pk == app_pk {
+        crate::metrics::ACTION_PROOF_EQUAL_REGISTERED_FACTORS.add(1, &[]);
+    }
+
     let mut hw_signed = false;
     let mut app_signed = false;
 
@@ -252,6 +256,10 @@ fn verify_signatures(
                 "action-proof: signature does not match any registered key"
             );
             return Err(ERR_UNKNOWN_KEY_SIGNATURE);
+        }
+
+        if is_hw && is_app {
+            crate::metrics::ACTION_PROOF_SIGNATURE_MATCHES_BOTH_FACTORS.add(1, &[]);
         }
 
         if (is_hw && hw_signed) || (is_app && app_signed) {
@@ -498,5 +506,17 @@ mod tests {
                 *expected
             );
         }
+    }
+
+    #[test]
+    fn equal_registered_keys_preserve_legacy_proof_flags() {
+        let secp = Secp256k1::new();
+        let app_sk = SecretKey::from_slice(&[2u8; 32]).unwrap();
+        let app_pk = app_sk.public_key(&secp).to_string();
+        let app_sig = sign(&secp, &app_sk);
+
+        let result = verify_signatures(&[app_sig], TEST_MESSAGE, Some(&app_pk), Some(&app_pk));
+
+        assert_eq!(result, Ok((true, true)));
     }
 }

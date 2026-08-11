@@ -15,6 +15,7 @@
 #include "log.h"
 #include "lost_app_recovery_impl.h"
 #include "mcu_reset.h"
+#include "memfault.h"
 #include "mempool.h"
 #include "onboarding.h"
 #include "pb_decode.h"
@@ -357,7 +358,10 @@ static void handle_seal_csek(ipc_ref_t* message) {
   _Static_assert(sizeof(cmd->msg.seal_csek_cmd.csek.mac.bytes) == AES_GCM_TAG_LENGTH,
                  "mismatched CSEK tag sizes");
 
-  uint8_t* csek = NULL;
+  // csek is consumed and cleared after the branch below, so decrypted storage
+  // must remain alive through the common cleanup path.
+  uint8_t decrypted_csek[CSEK_LENGTH] = {0};
+  uint8_t* csek = decrypted_csek;
   if (!cmd->msg.seal_csek_cmd.has_csek) {
     csek = cmd->msg.seal_csek_cmd.unsealed_csek.bytes;
     if (cmd->msg.seal_csek_cmd.unsealed_csek.size != CSEK_LENGTH) {
@@ -372,8 +376,7 @@ static void handle_seal_csek(ipc_ref_t* message) {
       goto out;
     }
 
-    uint8_t decrypted_csek[CSEK_LENGTH] = {0};
-    if (secure_nfc_channel_decrypt(cmd->msg.seal_csek_cmd.csek.ciphertext.bytes, decrypted_csek,
+    if (secure_nfc_channel_decrypt(cmd->msg.seal_csek_cmd.csek.ciphertext.bytes, csek,
                                    cmd->msg.seal_csek_cmd.csek.ciphertext.size,
                                    cmd->msg.seal_csek_cmd.csek.nonce.bytes,
                                    cmd->msg.seal_csek_cmd.csek.mac.bytes) != SECURE_CHANNEL_OK) {
@@ -381,8 +384,6 @@ static void handle_seal_csek(ipc_ref_t* message) {
       rsp->status = fwpb_status_SECURE_CHANNEL_ERROR;
       goto out;
     }
-
-    csek = decrypted_csek;
   }
 
   wallet_res_t result =
@@ -644,6 +645,10 @@ void key_manager_thread(void* UNUSED(args)) {
     ipc_ref_t message = {0};
     ipc_recv(key_manager_port, &message);
 
+    // Handlers can derive seeds and private keys into memory and CPU registers. Suppress coredumps
+    // until the handler returns and its cleanup callbacks have wiped those values.
+    memfault_port_coredump_sensitive_operation_begin();
+
 #if 0
     if (sysevent_get(SYSEVENT_BREAK_GLASS_READY)) {
       LOGW("Break glass: policies off");
@@ -806,6 +811,8 @@ void key_manager_thread(void* UNUSED(args)) {
       default:
         LOGE("Unknown msg: %ld", message.tag);
     }
+
+    memfault_port_coredump_sensitive_operation_end();
   }
 }
 

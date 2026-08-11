@@ -19,6 +19,11 @@ typedef struct {
 } ipc_ref_t;
 
 typedef struct {
+  uint32_t seq;
+  uint8_t encoded_cmd[];
+} ipc_proto_routed_cmd_t;
+
+typedef struct {
   uint32_t timeout_ms;  // The time to wait for the receiving queue to have a slot available to
                         // receive the message.
   bool take_ownership;  // Take ownership of the memory, copying it into the IPC mempool.
@@ -121,7 +126,8 @@ bool ipc_recv_opt(ipc_port_t port, ipc_ref_t* ref, ipc_options_t options);
 /**
  * ipc_proto_get_response_buffer() - Get a scratch buffer to fill in an encoded protobuf.
  *
- * Context: Must be freed by ipc_proto_send_response_buffer().
+ * Context: Must be freed by ipc_proto_send_response_buffer() or
+ * ipc_proto_release_response_buffer().
  * Return: The buffer.
  */
 uint8_t* ipc_proto_get_response_buffer(void);
@@ -134,7 +140,28 @@ uint8_t* ipc_proto_get_response_buffer(void);
 void ipc_proto_send_response_buffer(uint8_t* encoded_proto, uint32_t size);
 
 /**
+ * ipc_proto_set_response_seq() - Set the sequence associated with the response buffer.
+ *
+ * When pairing this with a response buffer write, call while holding the response
+ * buffer lock returned by ipc_proto_get_response_buffer().
+ */
+void ipc_proto_set_response_seq(uint32_t seq);
+
+/**
+ * ipc_proto_get_response_seq() - Get the sequence associated with the response buffer.
+ */
+uint32_t ipc_proto_get_response_seq(void);
+
+/**
+ * ipc_proto_release_response_buffer() - Release the currently held scratch buffer without sending.
+ */
+void ipc_proto_release_response_buffer(void);
+
+/**
  * ipc_proto_notify_done() - Release the currently held scratch buffer.
+ *
+ * This does not stamp a WCA response sequence. Do not use it for responses
+ * consumed by wca_wait_for_proto_response().
  */
 void ipc_proto_notify_done(void);
 
@@ -160,10 +187,16 @@ uint8_t* ipc_proto_alloc(uint32_t size);
 void ipc_proto_free(uint8_t* buffer);
 
 /**
+ * ipc_proto_owns_buffer() - Check whether a buffer belongs to the shared proto mempool.
+ * @buffer: The buffer.
+ */
+bool ipc_proto_owns_buffer(uint8_t* buffer);
+
+/**
  * ipc_proto_route() - Send a proto to the associated port.
  * You probably don't need to call this! There should only be one callsite.
  */
-bool ipc_proto_route(uint16_t pb_tag, uint8_t* buffer, uint32_t size);
+bool ipc_proto_route(uint16_t pb_tag, uint8_t* buffer, uint32_t size, uint32_t seq);
 
 // Private functions, but are exposed because they are used in public macros.
 // Do not call!

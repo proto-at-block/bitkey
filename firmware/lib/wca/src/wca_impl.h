@@ -21,6 +21,7 @@
 
 typedef struct {
   mempool_t* mempool;
+  uint32_t cmd_seq;  // Incremented before routing; bound into routed IPC command
   struct {
     uint8_t buffer[RESPONSE_BUFFER_SIZE];
     uint32_t offset;
@@ -45,3 +46,4 @@ bool wca_proto_cont(uint8_t* cmd, uint32_t cmd_len, uint8_t* rsp, uint32_t* rsp_
 bool wca_get_response(uint8_t* cmd, uint32_t cmd_len, uint8_t* rsp, uint32_t* rsp_len);
 
 void drain_response_buffer(uint8_t* rsp, uint32_t* rsp_len);
+bool wca_wait_for_proto_response(uint32_t expected_seq, uint8_t* rsp, uint32_t* rsp_len);

@@ -188,12 +188,10 @@ async fn main() -> Result<(), Error> {
                         Box::new(bootstrap.services.notification_service),
                         Box::new(bootstrap.services.daily_spend_record_service),
                         Box::new(bootstrap.services.recovery_relationship_service),
-                        Box::new(
-                            server::migrations::CrossServiceMigrationService {
-                                account_service: bootstrap.services.account_service,
-                                public_key_repo: bootstrap.services.public_key_repository,
-                            },
-                        ),
+                        Box::new(server::migrations::CrossServiceMigrationService {
+                            account_service: bootstrap.services.account_service,
+                            public_key_repo: bootstrap.services.public_key_repository,
+                        }),
                     ],
                 );
                 migration_runner.run_migrations().await?;

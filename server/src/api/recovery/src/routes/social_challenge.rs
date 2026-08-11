@@ -197,7 +197,12 @@ pub struct StartSocialChallengeResponse {
 ///
 #[instrument(
     err,
-    skip(account_service, social_challenge_service, _feature_flags_service, request)
+    skip(
+        account_service,
+        social_challenge_service,
+        _feature_flags_service,
+        request
+    )
 )]
 #[utoipa::path(
     post,

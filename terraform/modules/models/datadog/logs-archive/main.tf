@@ -14,6 +14,12 @@ module "logs_bucket" {
 
   bucket = var.bucket_name
 
+  metric_configuration = [
+    {
+      name = "EntireBucket"
+    }
+  ]
+
   lifecycle_rule = [
     {
       id      = "log"

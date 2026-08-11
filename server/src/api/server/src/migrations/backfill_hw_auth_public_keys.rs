@@ -42,11 +42,7 @@ impl<'a> BackfillHwAuthPublicKeys<'a> {
         phase: &'static str,
     ) -> Result<(), MigrationError> {
         for chunk in records.chunks(WRITE_BATCH_MAX) {
-            if let Err(e) = self
-                .public_key_repo
-                .batch_persist_public_keys(chunk)
-                .await
-            {
+            if let Err(e) = self.public_key_repo.batch_persist_public_keys(chunk).await {
                 error!(
                     phase,
                     error = ?e,
@@ -124,8 +120,7 @@ impl Migration for BackfillHwAuthPublicKeys<'_> {
             }
         }
 
-        let historical_records: Vec<PublicKeyRecord> =
-            historical_by_key.into_values().collect();
+        let historical_records: Vec<PublicKeyRecord> = historical_by_key.into_values().collect();
         let active_records: Vec<PublicKeyRecord> = active_by_key.into_values().collect();
 
         info!(
@@ -137,7 +132,8 @@ impl Migration for BackfillHwAuthPublicKeys<'_> {
         );
 
         // Phase 1: write historical (rotated-away) hw auth pubkeys.
-        self.write_batches(&historical_records, "historical").await?;
+        self.write_batches(&historical_records, "historical")
+            .await?;
 
         // Phase 2: write currently-active hw auth pubkeys. These land after
         // phase 1 so any historical entry for the same key from a different

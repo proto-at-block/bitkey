@@ -65,3 +65,20 @@ ui_task_display_mfgtest_dep = declare_dependency(
   include_directories : includes,
   dependencies : common_deps + [display_controller_mfgtest_dep, button_dep, uc_host_dep],
 )
+
+# Headless backend variant (for core-sim testing)
+# POSIX rtos headers must come first to override embedded rtos_mpu.h
+posix_rtos_includes = include_directories('../../../lib/rtos/inc/posix')
+headless_includes = [posix_rtos_includes] + includes
+
+ui_task_headless_lib = library('ui_task_headless',
+  common_srcs + ['src/backends/ui_backend_headless.c'],
+  include_directories : headless_includes,
+  dependencies : common_deps + [display_controller_dep],
+  c_args : ['-DUI_BACKEND_HEADLESS'],
+)
+ui_task_headless_dep = declare_dependency(
+  link_with : ui_task_headless_lib,
+  include_directories : headless_includes,
+  dependencies : common_deps + [display_controller_dep],
+)

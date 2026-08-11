@@ -93,12 +93,14 @@ fn create_account_v2_request(
 /// Gate-trips path: 400 if attestation is missing. Implicitly confirms
 /// the gate trips (otherwise we'd see 200 OK).
 #[tokio::test]
-async fn create_account_v2_requires_attestation_when_both_flags_on() {
+async fn create_account_v2_enrolled_mainnet_requires_attestation() {
     let overrides = GenServiceOverrides::new().feature_flags(flag_overrides(true, true));
     let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let (request, _keys) = create_account_v2_request(&mut context);
+    let (mut request, _keys) = create_account_v2_request(&mut context);
+    request.is_test_account = false;
+    request.spend.network = Network::Bitcoin;
     let response = client
         .create_account_v2_with_headers(&mut context, experimentation_headers(), &request)
         .await;
@@ -137,14 +139,16 @@ async fn create_account_v2_rejects_invalid_attestation() {
     );
 }
 
-/// Pre-enrollment path: gate off → keyset persists with no attested serial.
+/// Pre-enrollment compatibility: mainnet keysets may omit attestation.
 #[tokio::test]
-async fn create_account_v2_persists_no_attested_serial_when_gate_off() {
+async fn create_account_v2_allows_unenrolled_mainnet_without_attestation() {
     let overrides = GenServiceOverrides::new().feature_flags(flag_overrides(false, true));
     let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let (request, _keys) = create_account_v2_request(&mut context);
+    let (mut request, _keys) = create_account_v2_request(&mut context);
+    request.is_test_account = false;
+    request.spend.network = Network::Bitcoin;
     let response = client
         .create_account_v2_with_headers(&mut context, experimentation_headers(), &request)
         .await;
@@ -170,6 +174,110 @@ async fn create_account_v2_persists_no_attested_serial_when_gate_off() {
         active.attested_hardware_serial.is_none(),
         "pre-enrollment keysets must persist without attested_hardware_serial",
     );
+}
+
+#[tokio::test]
+async fn upgrade_account_v2_allows_unenrolled_mainnet_without_attestation() {
+    let overrides = GenServiceOverrides::new().feature_flags(flag_overrides(false, true));
+    let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
+    let client = TestClient::new(bootstrap.router).await;
+    let lite = create_lite_account(&mut context, &bootstrap.services, None, false).await;
+    let keys = create_new_authkeys(&mut context);
+    let request = UpgradeAccountRequestV2 {
+        auth: UpgradeLiteAccountAuthKeysInputV2 {
+            app_pub: keys.app.public_key,
+            hardware_pub: keys.hw.public_key,
+            hardware_type: HardwareType::default(),
+        },
+        spend: SpendingKeysetInputV2 {
+            network: Network::Bitcoin,
+            app_pub: create_pubkey(),
+            hardware_pub: create_pubkey(),
+            hardware_attestation: None,
+        },
+    };
+
+    let response = client
+        .upgrade_account_v2_with_headers(
+            &mut context,
+            experimentation_headers(),
+            &lite.id.to_string(),
+            &request,
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "{}",
+        response.body_string
+    );
+
+    let account = bootstrap
+        .services
+        .account_service
+        .fetch_account(FetchAccountInput {
+            account_id: &lite.id,
+        })
+        .await
+        .expect("account should be fetchable after upgrade");
+    let Account::Full(full) = account else {
+        panic!("expected FullAccount after upgrade");
+    };
+    let active = full
+        .active_spending_keyset()
+        .and_then(|keyset| keyset.optional_private_multi_sig())
+        .expect("active keyset is private");
+    assert!(active.attested_hardware_serial.is_none());
+}
+
+#[tokio::test]
+async fn create_keyset_v2_allows_unenrolled_mainnet_without_attestation() {
+    let overrides = GenServiceOverrides::new().feature_flags(flag_overrides(false, true));
+    let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
+    let client = TestClient::new(bootstrap.router).await;
+    let account = create_full_account_v2(
+        &mut context,
+        &bootstrap.services,
+        types::account::bitcoin::Network::BitcoinMain,
+        None,
+    )
+    .await;
+    assert!(!account.hardware_verification_required);
+    let request = SpendingKeysetInputV2 {
+        network: Network::Bitcoin,
+        app_pub: create_pubkey(),
+        hardware_pub: create_pubkey(),
+        hardware_attestation: None,
+    };
+
+    let response = client
+        .create_keyset_v2_with_headers(&account.id.to_string(), experimentation_headers(), &request)
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "{}",
+        response.body_string
+    );
+    let keyset_id = response.body.expect("keyset response").keyset_id;
+
+    let refreshed = bootstrap
+        .services
+        .account_service
+        .fetch_account(FetchAccountInput {
+            account_id: &account.id,
+        })
+        .await
+        .expect("account should be fetchable");
+    let Account::Full(refreshed) = refreshed else {
+        panic!("expected FullAccount");
+    };
+    let keyset = refreshed
+        .spending_keysets
+        .get(&keyset_id)
+        .and_then(|keyset| keyset.optional_private_multi_sig())
+        .expect("new keyset is private");
+    assert!(keyset.attested_hardware_serial.is_none());
 }
 
 /// Kill switch off must suppress enrollment even when version eligibility
@@ -277,9 +385,9 @@ async fn get_tokens_enrolls_existing_unenrolled_account_when_both_flags_on() {
     );
 }
 
-/// Magic-fixture happy path: a test account submitting the bypass
-/// attestation persists `Pending(TEST_ACCOUNT_ATTESTED_SERIAL)` instead
-/// of running the Silicon Labs verifier.
+/// Magic-fixture happy path: a test account submitting the bypass attestation
+/// persists `Pending(TEST_ACCOUNT_ATTESTED_SERIAL)` instead of running the
+/// Silicon Labs verifier.
 #[tokio::test]
 async fn create_account_v2_accepts_magic_attestation_on_test_account() {
     let overrides = GenServiceOverrides::new().feature_flags(flag_overrides(true, true));
@@ -747,4 +855,3 @@ async fn create_keyset_v2_does_not_inherit_when_active_keyset_still_pending() {
         "new keyset must stay Pending when active keyset is still Pending, got {serial:?}",
     );
 }
-

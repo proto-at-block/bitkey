@@ -317,6 +317,18 @@ projects:
       when_modified:
         - '*.hcl'
         - '*.tf*'
+        - ../../../terragrunt.hcl
+        - ../provider_datadog.hcl
+        - ../../../../../modules/models/datadog/rollout-monitors/*.tf*
+    dir: aws/bitkey/prod/datadog/rollout-monitors
+    name: aws_bitkey_prod_datadog_rollout-monitors
+    workflow: terragrunt
+    execution_order_group: 3
+  - autoplan:
+      enabled: true
+      when_modified:
+        - '*.hcl'
+        - '*.tf*'
         - ../../../../terragrunt.hcl
         - ../../../../../../modules/pieces/ecr-repo/*.tf*
     dir: aws/bitkey/prod/shared/atlantis/ecr

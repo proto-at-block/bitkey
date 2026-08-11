@@ -43,6 +43,7 @@ static NO_OPTIMIZE bool wipe_state_confirmation_result_handler(ipc_ref_t* messag
 
 /** Pending host request for peer cert */
 static SHARED_TASK_BSS bool peer_cert_request_pending = false;
+static SHARED_TASK_BSS uint32_t peer_cert_request_seq = 0;
 static SHARED_TASK_BSS bool host_peer_cert_requests_allowed = false;
 
 /**
@@ -76,6 +77,7 @@ extern power_config_t power_config;
 
 static SHARED_TASK_BSS device_info_t device_info_for_ui;
 static SHARED_TASK_BSS fwpb_device_info_rsp_device_info_mcu uxc_mcu_info = {0};
+static SHARED_TASK_BSS uint32_t coproc_metadata_seq = 0;
 
 static void _sysinfo_task_handle_coproc_boot_message(void* proto, void* UNUSED(context));
 static void _sysinfo_task_handle_coproc_metadata(void* proto, void* UNUSED(context));
@@ -179,14 +181,32 @@ static void handle_device_get_cert_rsp(ipc_ref_t* message) {
   fwpb_cert_get_rsp* get_cert_rsp = &msg_device->msg.cert_get_rsp;
 
   if (peer_cert_request_pending) {
+    uint32_t seq = 0;
+    if (!proto_uxc_take_rsp_seq(msg_device, &seq, "sysinfo cert")) {
+      // Peer cert is not part of the old-UXC FWUP recovery surface. Missing seq
+      // cannot satisfy this strict host request; clear the latch so a retry can
+      // send a fresh request rather than adding another cached/timeout path.
+      // Keep mismatched nonzero seqs from consuming the active request below.
+      peer_cert_request_pending = false;
+      peer_cert_request_seq = 0;
+      uc_free_recv_proto(msg_device);
+      return;
+    }
+    if (seq != peer_cert_request_seq) {
+      LOGW("Dropping stale sysinfo cert seq %lu expected %lu", (unsigned long)seq,
+           (unsigned long)peer_cert_request_seq);
+      uc_free_recv_proto(msg_device);
+      return;
+    }
     peer_cert_request_pending = false;
+    peer_cert_request_seq = 0;
 
     fwpb_wallet_rsp* rsp = proto_get_rsp();
     rsp->which_msg = fwpb_wallet_rsp_cert_get_rsp_tag;
     memcpy(&rsp->msg.cert_get_rsp, get_cert_rsp, sizeof(*get_cert_rsp));
 
     uc_free_recv_proto(msg_device);
-    proto_send_rsp(NULL, rsp);
+    proto_send_rsp_with_seq(seq, rsp);
     return;
   }
 
@@ -275,10 +295,13 @@ bool sysinfo_task_port_handle_host_secure_channel_cert_get(fwpb_wallet_cmd* cmd,
   strncpy(msg->msg.cert_get_cmd.cert_id, cert_id, sizeof(msg->msg.cert_get_cmd.cert_id) - 1);
   msg->msg.cert_get_cmd.cert_id[sizeof(msg->msg.cert_get_cmd.cert_id) - 1] = '\0';
 
+  proto_uxc_prepare_cmd(msg, cmd);
+  peer_cert_request_seq = proto_get_cmd_seq(cmd);
   peer_cert_request_pending = true;
 
   if (!uc_send(msg)) {
     peer_cert_request_pending = false;
+    peer_cert_request_seq = 0;
     rsp->msg.cert_get_rsp.rsp_status = fwpb_cert_get_rsp_cert_get_rsp_status_CERT_READ_FAIL;
     return true;
   }
@@ -309,6 +332,8 @@ void sysinfo_task_handle_coproc_boot(ipc_ref_t* message) {
   ASSERT(msg != NULL);
 
   peer_cert_request_pending = false;
+  peer_cert_request_seq = 0;
+  coproc_metadata_seq = 0;
   host_peer_cert_requests_allowed = false;
 
   secure_channel_cert_data_t cert_data;
@@ -363,19 +388,49 @@ void sysinfo_task_handle_coproc_metadata(ipc_ref_t* message) {
   ASSERT((message != NULL) && (message->object != NULL));
 
   fwpb_uxc_msg_device* msg_device = message->object;
+  uint32_t seq = 0;
+  if (coproc_metadata_seq == 0) {
+    LOGW("Dropping unexpected sysinfo metadata response");
+    uc_free_recv_proto(msg_device);
+    return;
+  }
+
+  if (msg_device->seq == 0) {
+    // Old-UXC recovery exception: host bundle FWUP needs UXC metadata to choose
+    // the target slot/image before it can update old UXC into the seq-capable
+    // protocol. Accept exactly one seqless metadata response while a metadata
+    // request is pending; other UXC-backed sysinfo/mfgtest responses remain
+    // strict-seq because they are not required for recovery.
+    LOGW("Accepting seqless sysinfo metadata response");
+    seq = coproc_metadata_seq;
+  } else if (!proto_uxc_take_rsp_seq(msg_device, &seq, "sysinfo metadata")) {
+    uc_free_recv_proto(msg_device);
+    return;
+  } else if (seq != coproc_metadata_seq) {
+    LOGW("Dropping stale sysinfo metadata seq %lu expected %lu", (unsigned long)seq,
+         (unsigned long)coproc_metadata_seq);
+    uc_free_recv_proto(msg_device);
+    return;
+  }
+
+  coproc_metadata_seq = 0;
   fwpb_wallet_rsp* rsp = proto_get_rsp();
   rsp->which_msg = fwpb_wallet_rsp_meta_rsp_tag;
   memcpy(&rsp->msg.meta_rsp, &msg_device->msg.meta_rsp, sizeof(msg_device->msg.meta_rsp));
   uc_free_recv_proto(msg_device);
 
-  // Send the IPC message.
-  proto_send_rsp(NULL, rsp);
+  proto_send_rsp_with_seq(seq, rsp);
 }
 
 void sysinfo_task_handle_coproc_coredump(ipc_ref_t* message) {
   ASSERT((message != NULL) && (message->object != NULL));
 
   fwpb_uxc_msg_device* msg_device = message->object;
+  uint32_t seq = 0;
+  if (!proto_uxc_take_rsp_seq(msg_device, &seq, "sysinfo coredump")) {
+    uc_free_recv_proto(msg_device);
+    return;
+  }
   fwpb_wallet_rsp* rsp = proto_get_rsp();
   rsp->which_msg = fwpb_wallet_rsp_coredump_get_rsp_tag;
   rsp->msg.coredump_get_rsp.rsp_status = msg_device->msg.coredump_get_rsp.rsp_status;
@@ -403,14 +458,18 @@ void sysinfo_task_handle_coproc_coredump(ipc_ref_t* message) {
   }
   uc_free_recv_proto(msg_device);
 
-  // Send the IPC message.
-  proto_send_rsp(NULL, rsp);
+  proto_send_rsp_with_seq(seq, rsp);
 }
 
 void sysinfo_task_handle_coproc_events(ipc_ref_t* message) {
   ASSERT((message != NULL) && (message->object != NULL));
 
   fwpb_uxc_msg_device* msg_device = message->object;
+  uint32_t seq = 0;
+  if (!proto_uxc_take_rsp_seq(msg_device, &seq, "sysinfo events")) {
+    uc_free_recv_proto(msg_device);
+    return;
+  }
   fwpb_wallet_rsp* rsp = proto_get_rsp();
   rsp->which_msg = fwpb_wallet_rsp_events_get_rsp_tag;
   rsp->msg.events_get_rsp.rsp_status = msg_device->msg.events_get_rsp.rsp_status;
@@ -431,18 +490,34 @@ void sysinfo_task_handle_coproc_events(ipc_ref_t* message) {
   }
   uc_free_recv_proto(msg_device);
 
-  // Send the IPC message.
-  proto_send_rsp(NULL, rsp);
+  proto_send_rsp_with_seq(seq, rsp);
 }
 
 void sysinfo_task_request_coproc_metadata(fwpb_wallet_cmd* cmd) {
-  fwpb_uxc_msg_host* msg = uc_alloc_send_proto();
   const uint8_t mcu_role = cmd->msg.meta_cmd.mcu_role;
+  if (coproc_metadata_seq != 0) {
+    // Do not replace a pending metadata request on retry. Old UXC metadata
+    // responses can be seqless, so replacing the pending seq would allow a
+    // stale response from the abandoned request to satisfy the retry. UXC
+    // boot/reset clears the latch if the response is truly lost.
+    LOGW("UXC metadata response pending; wait for response/reset");
+    fwpb_wallet_rsp* rsp = proto_get_rsp();
+    rsp->which_msg = fwpb_wallet_rsp_meta_rsp_tag;
+    rsp->msg.meta_rsp.rsp_status = fwpb_meta_rsp_meta_rsp_status_ERROR;
+    rsp->msg.meta_rsp.mcu_role = mcu_role;
+    proto_send_rsp(cmd, rsp);
+    return;
+  }
+
+  fwpb_uxc_msg_host* msg = uc_alloc_send_proto();
 
   // Copy over the message.
   msg->which_msg = fwpb_uxc_msg_host_meta_cmd_tag;
   msg->msg.meta_cmd.mcu_role = mcu_role;
-  ipc_proto_free((uint8_t*)cmd);
+  const uint32_t cmd_seq = proto_get_cmd_seq(cmd);
+  proto_uxc_prepare_cmd(msg, cmd);
+  coproc_metadata_seq = cmd_seq;
+  proto_free_buffers(cmd, NULL);
 
   const bool sent = uc_send(msg);
   if (!sent) {
@@ -451,20 +526,23 @@ void sysinfo_task_request_coproc_metadata(fwpb_wallet_cmd* cmd) {
     rsp->which_msg = fwpb_wallet_rsp_meta_rsp_tag;
     rsp->msg.meta_rsp.rsp_status = fwpb_meta_rsp_meta_rsp_status_ERROR;
     rsp->msg.meta_rsp.mcu_role = mcu_role;
-    proto_send_rsp(NULL, rsp);
+    proto_send_rsp_with_seq(cmd_seq, rsp);
+    coproc_metadata_seq = 0;
   }
 }
 
 void sysinfo_task_request_coproc_coredump(fwpb_wallet_cmd* cmd) {
-  fwpb_uxc_msg_host* msg = uc_alloc_send_proto();
   const uint8_t mcu_role = cmd->msg.coredump_get_cmd.mcu_role;
+  fwpb_uxc_msg_host* msg = uc_alloc_send_proto();
 
   // Copy over the message.
   msg->which_msg = fwpb_uxc_msg_host_coredump_get_cmd_tag;
   msg->msg.coredump_get_cmd.type = cmd->msg.coredump_get_cmd.type;
   msg->msg.coredump_get_cmd.offset = cmd->msg.coredump_get_cmd.offset;
   msg->msg.coredump_get_cmd.mcu_role = mcu_role;
-  ipc_proto_free((uint8_t*)cmd);
+  const uint32_t cmd_seq = proto_get_cmd_seq(cmd);
+  proto_uxc_prepare_cmd(msg, cmd);
+  proto_free_buffers(cmd, NULL);
 
   const bool sent = uc_send(msg);
   if (!sent) {
@@ -473,18 +551,20 @@ void sysinfo_task_request_coproc_coredump(fwpb_wallet_cmd* cmd) {
     rsp->which_msg = fwpb_wallet_rsp_coredump_get_rsp_tag;
     rsp->msg.coredump_get_rsp.rsp_status = fwpb_coredump_get_rsp_coredump_get_rsp_status_ERROR;
     rsp->msg.coredump_get_rsp.mcu_role = mcu_role;
-    proto_send_rsp(NULL, rsp);
+    proto_send_rsp_with_seq(cmd_seq, rsp);
   }
 }
 
 void sysinfo_task_request_coproc_events(fwpb_wallet_cmd* cmd) {
-  fwpb_uxc_msg_host* msg = uc_alloc_send_proto();
   const uint8_t mcu_role = cmd->msg.events_get_cmd.mcu_role;
+  fwpb_uxc_msg_host* msg = uc_alloc_send_proto();
 
   // Copy over the message.
   msg->which_msg = fwpb_uxc_msg_host_events_get_cmd_tag;
   msg->msg.events_get_cmd.mcu_role = mcu_role;
-  ipc_proto_free((uint8_t*)cmd);
+  const uint32_t cmd_seq = proto_get_cmd_seq(cmd);
+  proto_uxc_prepare_cmd(msg, cmd);
+  proto_free_buffers(cmd, NULL);
 
   const bool sent = uc_send(msg);
   if (!sent) {
@@ -493,7 +573,7 @@ void sysinfo_task_request_coproc_events(fwpb_wallet_cmd* cmd) {
     rsp->which_msg = fwpb_wallet_rsp_events_get_rsp_tag;
     rsp->msg.events_get_rsp.rsp_status = fwpb_events_get_rsp_events_get_rsp_status_ERROR;
     rsp->msg.events_get_rsp.mcu_role = mcu_role;
-    proto_send_rsp(NULL, rsp);
+    proto_send_rsp_with_seq(cmd_seq, rsp);
   }
 }
 

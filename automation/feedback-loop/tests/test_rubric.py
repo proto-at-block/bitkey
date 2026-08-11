@@ -198,7 +198,7 @@ def vague_proposal(cases: list[ReplayCase]) -> Proposal:
 def proposal_cluster(source_urls: list[str], *, severity: str = "medium") -> Cluster:
     signals = [normalized_signal(index, url) for index, url in enumerate(source_urls)]
     return Cluster(
-        theme="miss:automation:guardrail",
+        slug="miss:automation:guardrail",
         signals=signals,
         area="automation",
         severity=severity,

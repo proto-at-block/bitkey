@@ -11,7 +11,10 @@ from pathlib import Path
 from .git import Git
 import json
 import unittest
-import semver
+try:
+    import semver
+except ImportError:
+    from . import semver_stub as semver
 import click
 
 cli = click.Group()

@@ -30,6 +30,13 @@ pub async fn sats_for<T>(
 where
     T: SpotExchangeRateProvider + 'static,
 {
+    // A Bitcoin-denominated amount is already in satoshis, so there is no rate to apply. This
+    // mirrors the Bitcoin branch in `money_for_sats`; without it BTC falls through to the fiat
+    // path below, where the cent shift inflates the amount by a factor of 1,000,000.
+    if money.currency_code == BTC {
+        return Ok(money.amount);
+    }
+
     let rate = exchange_rate_service
         .get_latest_rate(rate_provider, money.currency_code)
         .await?
@@ -284,11 +291,33 @@ impl SpotExchangeRateProvider for LocalRateProvider {
 #[cfg(test)]
 mod sats_for_tests {
     use types::account::money::Money;
-    use types::currencies::CurrencyCode::{JPY, USD};
+    use types::currencies::CurrencyCode::{BTC, JPY, USD};
     use types::exchange_rate::local_rate_provider::LocalRateProvider;
 
     use crate::currency_conversion::sats_for;
     use crate::service::Service;
+
+    #[tokio::test]
+    async fn test_btc_amount_is_already_sats() {
+        let rate_provider = LocalRateProvider::new();
+        // A BTC amount is already denominated in satoshis, so it must come back unchanged
+        // without consulting the rate provider. Without the short-circuit the fiat cent
+        // shift inflated it 1,000,000x.
+        for sat_amount in [0, 1, 546, 100_000_000, u64::MAX] {
+            let result = sats_for(
+                &Service::new(),
+                rate_provider.clone(),
+                &Money {
+                    amount: sat_amount,
+                    currency_code: BTC,
+                },
+            )
+            .await
+            .unwrap();
+            assert_eq!(result, sat_amount);
+        }
+        assert_eq!(rate_provider.get_network_call_count().await, 0);
+    }
 
     #[tokio::test]
     async fn test_sats_for_conversion() {

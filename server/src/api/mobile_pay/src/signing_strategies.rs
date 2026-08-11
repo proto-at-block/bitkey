@@ -26,9 +26,9 @@ use instrumentation::metrics::KeyValue;
 use instrumentation::middleware::CLIENT_REQUEST_CONTEXT;
 use screener::service::Service as ScreenerService;
 use std::sync::Arc;
-use tracing::warn;
+use transaction_verification::gating::{account_context_key, transaction_verification_enabled};
 use types::account::entities::{Account, FullAccount, TransactionVerificationPolicy};
-use types::account::identifiers::KeysetId;
+use types::account::identifiers::{AccountId, KeysetId};
 use types::account::spending::SpendingKeyset;
 use types::transaction_verification::router::TransactionVerificationGrantView;
 
@@ -44,6 +44,7 @@ pub struct MobilePaySigningStrategy {
     keyset_id: KeysetId,
     signer: SigningProcessor<Validated>,
     today_spending_record: DailySpendingRecord,
+    spend_already_recorded: bool,
     signed_psbt_cache_service: SignedPsbtCacheService,
     daily_spend_record_service: DailySpendRecordService,
 }
@@ -69,6 +70,8 @@ impl MobilePaySigningStrategy {
         let mut today_spending_record = mobile_pay_spending_record.today.clone();
         // bundle up yesterday and today's spending records for spend rule checking
         let spending_entries = mobile_pay_spending_record.spending_entries();
+        let txid = unsigned_psbt.unsigned_tx.compute_txid();
+        let spend_already_recorded = spending_entries.iter().any(|entry| entry.txid == txid);
 
         let signer = match &signing_method {
             SigningMethod::LegacyMobilePay { source_descriptor } => {
@@ -124,6 +127,7 @@ impl MobilePaySigningStrategy {
             keyset_id,
             signer,
             today_spending_record,
+            spend_already_recorded,
             signed_psbt_cache_service,
             daily_spend_record_service,
         })
@@ -164,44 +168,25 @@ impl SigningStrategy for MobilePaySigningStrategy {
         let txid = signed_psbt.unsigned_tx.compute_txid();
 
         let cache_hit = self.signed_psbt_cache_service.get(txid).await?.is_some();
-
-        if !cache_hit {
-            // Persist state before broadcasting; if broadcast fails, we'll roll back.
-            self.signed_psbt_cache_service
-                .put(signed_psbt.clone())
-                .await?;
-
+        if !self.spend_already_recorded {
+            // The spending record is authoritative. A cache entry can exist without a matching
+            // record if an earlier request lost an optimistic-lock race, so charge the spend
+            // independently of the cache state and before writing a new cache entry.
             self.daily_spend_record_service
                 .save_daily_spending_record(self.today_spending_record.clone())
                 .await?;
         }
 
-        if let Err(error) = broadcaster.broadcast_transaction(&self.rpc_uris, self.network) {
-            if !cache_hit {
-                // Best-effort rollback so failed broadcasts don't count against limits.
-                if let Err(rollback_err) = self.signed_psbt_cache_service.delete(txid).await {
-                    warn!(
-                        ?rollback_err,
-                        "failed to roll back PSBT cache after broadcast error"
-                    );
-                }
-                if let Err(rollback_err) = self
-                    .daily_spend_record_service
-                    .remove_spending_entry(
-                        &self.today_spending_record.account_id,
-                        self.today_spending_record.date,
-                        &txid,
-                    )
-                    .await
-                {
-                    warn!(
-                        ?rollback_err,
-                        "failed to roll back daily spend record after broadcast error"
-                    );
-                }
-            }
-            return Err(error);
+        if !cache_hit {
+            self.signed_psbt_cache_service
+                .put(signed_psbt.clone())
+                .await?;
         }
+
+        // Keep the charge and cache entry if broadcast fails. The broadcast result is ambiguous,
+        // and another request may have successfully broadcast the same signed transaction. A
+        // later retry deduplicates the charge by txid.
+        broadcaster.broadcast_transaction(&self.rpc_uris, self.network)?;
 
         self.emit_success_metric();
 
@@ -531,10 +516,12 @@ impl SigningStrategyFactory {
         };
 
         let transaction_verification_features = Self::create_transaction_verification_features(
+            &full_account.id,
             &full_account.transaction_verification_policy,
             grant,
             config,
             exchange_rate_service,
+            feature_flags_service,
         )
         .await?;
         let mobile_pay_spending_record =
@@ -594,12 +581,29 @@ impl SigningStrategyFactory {
         )?))
     }
 
+    /// `None` means "no verification is required of this spend", which is what
+    /// the rule below treats as a pass.
+    ///
+    /// The kill switch is checked first: with the feature off, the routes that
+    /// would let a customer satisfy a policy are closed, so continuing to
+    /// enforce a stored policy would strand the account behind an approval
+    /// path it cannot complete. Resolved against the same bare account-keyed
+    /// context the routes use, so both halves agree per account.
     async fn create_transaction_verification_features(
+        account_id: &AccountId,
         policy: &Option<TransactionVerificationPolicy>,
         grant: Option<TransactionVerificationGrantView>,
         config: &Config,
         exchange_rate_service: &ExchangeRateService,
+        feature_flags_service: &FeatureFlagsService,
     ) -> Result<Option<TransactionVerificationFeatures>, SigningError> {
+        if !transaction_verification_enabled(
+            feature_flags_service,
+            &account_context_key(account_id),
+        ) {
+            return Ok(None);
+        }
+
         match policy {
             Some(TransactionVerificationPolicy::Threshold(amount)) => {
                 Ok(Some(TransactionVerificationFeatures {

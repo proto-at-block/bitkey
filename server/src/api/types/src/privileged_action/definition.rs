@@ -6,6 +6,8 @@ use utoipa::ToSchema;
 
 use crate::account::AccountType;
 
+use crate::delay_notify::effective_delay_notify_period_secs;
+
 use super::shared::{PrivilegedActionDelayDuration, PrivilegedActionType};
 
 const ONE_DAY_SECS: usize = 24 * 60 * 60;
@@ -24,13 +26,8 @@ pub struct DelayAndNotifyDefinition {
 
 impl DelayAndNotifyDefinition {
     /// Returns the effective delay duration in seconds, accounting for test accounts.
-    /// Test accounts use a fixed 60-second delay regardless of the configured duration.
     pub fn effective_delay_duration_secs(&self, is_test_account: bool) -> usize {
-        if is_test_account {
-            60
-        } else {
-            self.delay_duration_secs
-        }
+        effective_delay_notify_period_secs(self.delay_duration_secs, is_test_account)
     }
 }
 
@@ -135,7 +132,7 @@ impl From<&PrivilegedActionType> for PrivilegedActionDefinition {
                     AccountType::Full,
                     AuthorizationStrategyDefinition::DelayAndNotify(DelayAndNotifyDefinition {
                         delay_duration_secs: SEVEN_DAYS_SECS,
-                        delay_configurable: false,
+                        delay_configurable: true,
                         expose_tokens_on_fetch: true,
                         concurrency: false,
                         skip_during_onboarding: false,

@@ -421,6 +421,85 @@ async fn get_partner() {
 }
 
 #[tokio::test]
+async fn sales_options() {
+    let app = authed_router(partner_blocklist_overrides("")).await;
+
+    let (status, body) = call_api(
+        app,
+        true,
+        http::Method::GET,
+        "/api/partnerships/sales/options?country=US&fiat_currency=USD",
+        None,
+    )
+    .await;
+
+    let expected_body = json!({
+        "sale_options": {
+            "country": "US",
+            "fiat_currency": "USD",
+            "min_fiat_amount": 0.0,
+            "max_fiat_amount": f64::MAX,
+            "partner_limits": [
+                {
+                    "partner": "SignetFaucet",
+                    "min_fiat_amount": 0.0,
+                    "max_fiat_amount": f64::MAX
+                },
+                {
+                    "partner": "TestnetFaucet",
+                    "min_fiat_amount": 0.0,
+                    "max_fiat_amount": f64::MAX
+                }
+            ]
+        }
+    });
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, expected_body);
+}
+
+#[tokio::test]
+async fn sales_options_returns_empty_options_when_no_options_are_available() {
+    let app = authed_router(partner_blocklist_overrides("SignetFaucet,TestnetFaucet")).await;
+
+    let (status, body) = call_api(
+        app,
+        true,
+        http::Method::GET,
+        "/api/partnerships/sales/options?country=US&fiat_currency=USD",
+        None,
+    )
+    .await;
+
+    let expected_body = json!({
+        "sale_options": {
+            "country": "US",
+            "fiat_currency": "USD",
+            "min_fiat_amount": 0.0,
+            "max_fiat_amount": 0.0,
+            "partner_limits": []
+        }
+    });
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, expected_body);
+}
+
+#[tokio::test]
+async fn sales_options_unauthorized_error() {
+    let app = authed_router(partner_blocklist_overrides("")).await;
+
+    let (status, _body) = call_api(
+        app,
+        false,
+        http::Method::GET,
+        "/api/partnerships/sales/options?country=US&fiat_currency=USD",
+        None,
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
 async fn sales_quotes() {
     let app = authed_router(partner_blocklist_overrides("")).await;
     let request_body = json!({

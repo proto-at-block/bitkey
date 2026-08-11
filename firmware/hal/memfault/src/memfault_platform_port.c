@@ -8,15 +8,20 @@
 #include "memfault/core/log.h"
 #include "memfault/core/math.h"
 #include "memfault/core/platform/debug_log.h"
+#include "memfault/core/reboot_tracking.h"
 #include "memfault/panics/arch/arm/cortex_m.h"
 #include "memfault/panics/fault_handling.h"
+#include "memfault/panics/platform/coredump.h"
 #include "memfault/ports/freertos.h"
 #include "memfault/ports/freertos_coredump.h"
 #include "memfault/ports/reboot_reason.h"
 #include "memfault_platform_translate.h"
+#include "memfault_reboot_tracking_private.h"
 #include "sysinfo.h"
 #include "telemetry_storage.h"
 
+#include <limits.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -28,22 +33,86 @@
 
 extern char ram_addr[];
 extern char ram_size[];
+extern char __privileged_functions_start__[];
+extern char __unprivileged_flash_end__[];
 
 static void platform_coredump_init(void);
 
 MEMFAULT_PUT_IN_SECTION(".noinit.mflt_reboot_tracking")
 static uint8_t s_reboot_tracking[MEMFAULT_REBOOT_TRACKING_REGION_SIZE];
 
-// NOTE: We deliberately do not provide a `memfault_platform_fault_handler`
-// override here. The hook runs in fault/handler mode where the FreeRTOS
-// scheduler is stopped. Any call into the Memfault logging APIs takes
-// `memfault_lock()` via `xSemaphoreTakeRecursive(..., portMAX_DELAY)` — if
-// the mutex was held by a task at fault time, the wait can never resolve
-// and the watchdog times the device out (~3s) instead of letting the
-// coredump path reboot cleanly. The reboot reason, faulting PC/LR, and SCB
-// fault registers (CFSR/MMFAR/BFAR/HFSR/SHCSR) are already captured in the
-// coredump itself via memfault_reboot_tracking_mark_reset_imminent and
-// memfault_coredump_get_arch_regions, so no platform-side log is needed.
+// A counter keeps coredump capture disabled until all overlapping sensitive operations finish.
+_Static_assert(ATOMIC_INT_LOCK_FREE == 2,
+               "The coredump sensitivity guard must be lock-free in fault context");
+static atomic_uint s_sensitive_operation_depth;
+
+void memfault_port_coredump_sensitive_operation_begin(void) {
+  const unsigned int previous_depth =
+    atomic_fetch_add_explicit(&s_sensitive_operation_depth, 1, memory_order_seq_cst);
+  MEMFAULT_ASSERT(previous_depth != UINT_MAX);
+}
+
+void memfault_port_coredump_sensitive_operation_end(void) {
+  const unsigned int previous_depth =
+    atomic_fetch_sub_explicit(&s_sensitive_operation_depth, 1, memory_order_seq_cst);
+  MEMFAULT_ASSERT(previous_depth > 0);
+}
+
+static bool sensitive_operation_active(void) {
+  return atomic_load_explicit(&s_sensitive_operation_depth, memory_order_seq_cst) > 0;
+}
+
+static uint32_t sanitize_fault_pc(uint32_t pc) {
+  const uintptr_t address = (uintptr_t)(pc & ~1u);
+  if (address < (uintptr_t)__privileged_functions_start__ ||
+      address > (uintptr_t)__unprivileged_flash_end__) {
+    return 0;
+  }
+  return pc;
+}
+
+// This hook runs in fault/handler mode, where the scheduler cannot release an RTOS lock held by
+// the interrupted task. Keep this path limited to lock-free atomics, direct RAM access, and the
+// non-returning hardware reset. In particular, do not log, acquire an RTOS primitive, or touch the
+// filesystem here: those operations can block forever and leave the watchdog to reset the device.
+void memfault_platform_fault_handler(const sMfltRegState* regs, eMemfaultRebootReason reason) {
+  if (!sensitive_operation_active()) {
+    return;
+  }
+
+  // Memfault calls this hook before it serializes the register block. A fault during a sensitive
+  // operation must not return to that path: general-purpose registers can contain key material,
+  // and LR can be used as a scratch register. Preserve only the fault reason and instruction
+  // address in reboot tracking so the crash remains visible after reboot.
+  uint32_t pc = (regs != NULL && regs->exception_frame != NULL)
+                  ? sanitize_fault_pc(regs->exception_frame->pc)
+                  : 0;
+  eMemfaultRebootReason tracked_reason = reason;
+
+  // Memfault can record a more specific reason and callsite before trapping into this hook. For
+  // example, its assert path records an Assert before the UDF instruction enters here as a
+  // UsageFault. Preserve that first record when present, then replace it so its LR cannot survive.
+  sMfltResetReasonInfo previous_info = {0};
+  if (memfault_reboot_tracking_read_reset_info(&previous_info)) {
+    tracked_reason = previous_info.reason;
+    const uint32_t previous_pc = sanitize_fault_pc(previous_info.pc);
+    if (previous_pc != 0) {
+      pc = previous_pc;
+    }
+  }
+
+  const sMfltRebootTrackingRegInfo info = {
+    .pc = pc,
+    .lr = 0,
+  };
+  memfault_reboot_tracking_clear_reset_info();
+  memfault_reboot_tracking_mark_reset_imminent(tracked_reason, &info);
+
+  // Do not log or touch the filesystem from fault context. Clearing the RAM buffer ensures no
+  // stale or partially assembled coredump can be persisted by another reset path.
+  memfault_platform_coredump_storage_clear();
+  mcu_reset_with_reason(MCU_RESET_FAULT_COREDUMP_SKIPPED);
+}
 
 void memfault_platform_get_device_info(sMemfaultDeviceInfo* info) {
   // IMPORTANT: All strings returned in info must be constant

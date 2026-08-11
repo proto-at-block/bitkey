@@ -10,6 +10,7 @@
 #include "rtos.h"
 #include "uc.h"
 #include "uc_route.h"
+#include "uc_uxc.h"
 #include "uxc.pb.h"
 
 #include <stdint.h>
@@ -57,6 +58,7 @@ static bool _mfgtest_task_get_port(mcu_gpio_config_t* gpio, uint8_t port) {
 
 static void _mfgtest_task_handle_gpio_cmd(fwpb_uxc_msg_host* proto) {
   fwpb_mfgtest_gpio_cmd* cmd = &proto->msg.mfgtest_gpio_cmd;
+  const uint32_t seq = proto->seq;
   fwpb_uxc_msg_device* msg = uc_alloc_send_proto();
   ASSERT(msg != NULL);
 
@@ -91,10 +93,11 @@ static void _mfgtest_task_handle_gpio_cmd(fwpb_uxc_msg_host* proto) {
   }
 
   uc_free_recv_proto(proto);
-  (void)uc_send(msg);
+  (void)uc_send_rsp_with_seq(seq, msg);
 }
 
 static void _mfgtest_task_handle_device_set_production_lock_cmd(fwpb_uxc_msg_host* proto) {
+  const uint32_t seq = proto->seq;
   fwpb_uxc_msg_device* msg = uc_alloc_send_proto();
   ASSERT(msg != NULL);
 
@@ -112,10 +115,11 @@ static void _mfgtest_task_handle_device_set_production_lock_cmd(fwpb_uxc_msg_hos
   }
 
   uc_free_recv_proto(proto);
-  (void)uc_send(msg);
+  (void)uc_send_rsp_with_seq(seq, msg);
 }
 
 static void _mfgtest_task_handle_device_get_production_lock_cmd(fwpb_uxc_msg_host* proto) {
+  const uint32_t seq = proto->seq;
   fwpb_uxc_msg_device* msg = uc_alloc_send_proto();
   ASSERT(msg != NULL);
 
@@ -128,7 +132,7 @@ static void _mfgtest_task_handle_device_get_production_lock_cmd(fwpb_uxc_msg_hos
   rsp->is_production = opt_device_is_production();
 
   uc_free_recv_proto(proto);
-  (void)uc_send(msg);
+  (void)uc_send_rsp_with_seq(seq, msg);
 }
 
 static void mfgtest_thread(void* args) {

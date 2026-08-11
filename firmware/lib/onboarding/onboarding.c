@@ -13,9 +13,11 @@ secure_bool_t onboarding_complete(void) {
   bool biometrics_auth_setup = bio_fingerprint_exists();
 
   bool unlock_secret_setup = false;
+#ifndef CONFIG_PROD
   if (unlock_secret_exists(&unlock_secret_setup) != UNLOCK_OK) {
     unlock_secret_setup = false;  // As a precaution, default to false.
   }
+#endif
 
   bool wallet_initialized = wallet_is_initialized();
 

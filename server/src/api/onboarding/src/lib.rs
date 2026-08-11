@@ -11,9 +11,12 @@ use types::account::identifiers::AccountId;
 use types::account::identifiers::TouchpointId;
 use types::notification::NotificationCategory;
 
-use crate::metrics::APP_ID_KEY;
-use crate::metrics::KEYSET_CREATED;
-use crate::metrics::KEYSET_TYPE_KEY;
+use crate::metrics::{
+    V1HardwareKeysetOperation, V1HardwareKeysetOutcome, V2HardwareAttestationNetwork,
+    V2HardwareAttestationOperation, APP_ID_KEY, KEYSET_CREATED, KEYSET_TYPE_KEY,
+    TEST_HARDWARE_ATTESTATION_FIXTURE_USE, V1_HARDWARE_KEYSET_USE, V1_OPERATION_KEY,
+    V1_OUTCOME_KEY, V2_NETWORK_KEY, V2_OPERATION_KEY,
+};
 
 pub mod account_validation;
 pub(crate) mod metrics;
@@ -89,4 +92,31 @@ fn emit_keyset_created(keyset_type: &str) {
         attributes.push(KeyValue::new(APP_ID_KEY, app_id));
     }
     KEYSET_CREATED.add(1, &attributes);
+}
+
+// `attempted` is the request denominator; `created` and `existing` are terminal subsets.
+fn emit_v1_hardware_keyset_use(
+    operation: V1HardwareKeysetOperation,
+    outcome: V1HardwareKeysetOutcome,
+) {
+    V1_HARDWARE_KEYSET_USE.add(
+        1,
+        &[
+            KeyValue::new(V1_OPERATION_KEY, operation.as_str()),
+            KeyValue::new(V1_OUTCOME_KEY, outcome.as_str()),
+        ],
+    );
+}
+
+fn emit_test_hardware_attestation_fixture_use(
+    operation: V2HardwareAttestationOperation,
+    network: V2HardwareAttestationNetwork,
+) {
+    TEST_HARDWARE_ATTESTATION_FIXTURE_USE.add(
+        1,
+        &[
+            KeyValue::new(V2_OPERATION_KEY, operation.as_str()),
+            KeyValue::new(V2_NETWORK_KEY, network.as_str()),
+        ],
+    );
 }

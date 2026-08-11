@@ -14,6 +14,7 @@ use utoipa::{OpenApi, ToSchema};
 
 use crate::{
     error::TransactionVerificationError,
+    gating::{account_context_key, transaction_verification_enabled},
     service::Service as TransactionVerificationService,
     static_handler::{get_template, static_handler},
 };
@@ -152,7 +153,6 @@ impl From<RouteState> for SwaggerEndpoint {
     ),
     components(
         schemas(
-            CancelTransactionVerificationResponse,
             GetTransactionVerificationPolicyResponse,
             PutTransactionVerificationPolicyRequest,
             PutTransactionVerificationPolicyResponse,
@@ -166,6 +166,25 @@ impl From<RouteState> for SwaggerEndpoint {
     ),
 )]
 struct ApiDoc;
+
+/// Rejects with `403` while the transaction-verification kill switch is off.
+///
+/// Every account-authed route below opens with this check so the API
+/// disappears as one unit — a client cannot read policy state through one
+/// route while another is closed. The switch is resolved against a bare
+/// account-keyed context (no client attributes) here and at the `mobile_pay`
+/// enforcement site alike, so both halves of the feature always see the same
+/// value for a given account.
+fn ensure_enabled(
+    feature_flags_service: &FeatureFlagsService,
+    account_id: &AccountId,
+) -> Result<(), ApiError> {
+    if transaction_verification_enabled(feature_flags_service, &account_context_key(account_id)) {
+        Ok(())
+    } else {
+        Err(TransactionVerificationError::Disabled.into())
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -182,14 +201,18 @@ pub struct GetTransactionVerificationPolicyResponse {
     ),
     responses(
         (status = 200, description = "Transaction verification policy was successfully retrieved", body=GetTransactionVerificationPolicyResponse),
+        (status = 403, description = "Transaction verification is disabled"),
         (status = 404, description = "Account could not be found")
     ),
 )]
-#[instrument(skip(account_service))]
+#[instrument(skip(account_service, feature_flags_service))]
 async fn get_transaction_verification_policy(
     State(account_service): State<AccountService>,
+    State(feature_flags_service): State<FeatureFlagsService>,
     Path(account_id): Path<AccountId>,
 ) -> Result<Json<GetTransactionVerificationPolicyResponse>, ApiError> {
+    ensure_enabled(&feature_flags_service, &account_id)?;
+
     let account = account_service
         .fetch_full_account(FetchAccountInput {
             account_id: &account_id,
@@ -203,6 +226,38 @@ async fn get_transaction_verification_policy(
 #[serde(rename_all = "snake_case")]
 pub struct PutTransactionVerificationPolicyResponse {}
 
+/// Returns true when `new_policy` is less restrictive than `current_policy`, and therefore
+/// requires the full privileged-action (out-of-band + both factors) authorization.
+///
+/// Threshold amounts are only comparable when both policies are denominated in the same currency.
+/// A currency change is treated as a loosening rather than compared by raw amount, so that a
+/// smaller number in a different unit can never be mistaken for a tightening. The exception is a
+/// zero threshold, which verifies every transaction (`total_spend_sats >= 0`) whatever its
+/// currency, so moving to it is never a loosening.
+fn is_policy_loosening(
+    current_policy: Option<&TransactionVerificationPolicy>,
+    new_policy: &TransactionVerificationPolicy,
+) -> bool {
+    use TransactionVerificationPolicy::{Always, Never, Threshold};
+
+    match (current_policy, new_policy) {
+        // `Never` is the least restrictive state, so nothing loosens it further. An account with
+        // no policy on file is treated the same way, matching the previous behaviour.
+        (None, _) | (Some(Never), _) => false,
+        // `Always` is the most restrictive state, so moving to it is never a loosening. A zero
+        // threshold verifies every transaction regardless of its currency, so it is equivalent
+        // to `Always` and treated the same way.
+        (_, Always) => false,
+        (_, Threshold(new)) if new.amount == 0 => false,
+        // Anything left (`Never` or a non-zero threshold) loosens `Always`.
+        (Some(Always), _) => true,
+        (Some(Threshold(_)), Never) => true,
+        (Some(Threshold(current)), Threshold(new)) => {
+            new.currency_code != current.currency_code || new.amount > current.amount
+        }
+    }
+}
+
 #[utoipa::path(
     put,
     path = "/api/accounts/{account_id}/tx-verify/policy",
@@ -212,45 +267,59 @@ pub struct PutTransactionVerificationPolicyResponse {}
     request_body = PutTransactionVerificationPolicyRequest,
     responses(
         (status = 200, description = "Mobile Pay Spend Limit was successfully set", body=PutTransactionVerificationPolicyResponse),
+        (status = 403, description = "Transaction verification is disabled"),
         (status = 404, description = "Account could not be found")
     ),
 )]
-#[instrument(skip(account_service, privileged_action_service, anti_replay_repository, auth, request))]
+#[instrument(skip(
+    account_service,
+    feature_flags_service,
+    privileged_action_service,
+    anti_replay_repository,
+    auth,
+    request
+))]
 async fn put_transaction_verification_policy(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
+    State(feature_flags_service): State<FeatureFlagsService>,
     State(privileged_action_service): State<PrivilegedActionService>,
     State(anti_replay_repository): State<repository::anti_replay::AntiReplayRepository>,
     auth: Authorization,
     Json(request): Json<PutTransactionVerificationPolicyRequest>,
 ) -> Result<Json<PrivilegedActionResponse<PutTransactionVerificationPolicyResponse>>, ApiError> {
+    // Refuse before the privileged-action machinery runs: an initiated
+    // loosening would otherwise leave a pending record and send an
+    // out-of-band email for a policy change that can never be applied.
+    ensure_enabled(&feature_flags_service, &account_id)?;
+
     // No route-level signature requirement — for policy tightening, JWT alone is sufficient.
     // For policy loosening the full both-factors check is enforced inside the validator closure.
     let result = AuthorizationRequirements::keyclaims_only()
         .proof(authn_authz::ProofRequirement::JwtOnly)
         .execute(&auth, &anti_replay_repository, |ctx| async move {
             let policy = TransactionVerificationPolicy::from(request.policy.clone());
+
+            // An unsupported currency has no exchange rate, so a threshold denominated in one
+            // could not be enforced against a spend. Reject it here, as `setup_mobile_pay` does.
+            if !policy.uses_supported_currency() {
+                return Err(ApiError::GenericForbidden(
+                    "valid supported currency required to set a transaction verification policy"
+                        .to_string(),
+                ));
+            }
+
             let account = account_service
                 .fetch_full_account(FetchAccountInput {
                     account_id: &account_id,
                 })
                 .await?;
 
-            let get_threshold_amount = |policy: &TransactionVerificationPolicy| match policy {
-                TransactionVerificationPolicy::Always => 0,
-                TransactionVerificationPolicy::Threshold(v) => v.amount,
-                TransactionVerificationPolicy::Never => u64::MAX,
-            };
-
-            let current_threshold = account
-                .transaction_verification_policy
-                .as_ref()
-                .map(get_threshold_amount)
-                .unwrap_or(u64::MAX);
-            let new_threshold = get_threshold_amount(&policy);
-
-            // Requires out-of-band if we're making verification LESS restrictive (increasing threshold)
-            if new_threshold > current_threshold {
+            // Requires out-of-band if we're making verification LESS restrictive
+            if is_policy_loosening(
+                account.transaction_verification_policy.as_ref(),
+                &policy,
+            ) {
                 let is_app_signed = ctx.app_signed();
                 let is_hw_signed = ctx.hw_signed();
                 let authorize_result = privileged_action_service
@@ -301,14 +370,15 @@ async fn put_transaction_verification_policy(
     Ok(Json(result))
 }
 
-#[instrument(skip(transaction_verification_service), fields(account_id = %account_id))]
+#[instrument(skip(transaction_verification_service, feature_flags_service), fields(account_id = %account_id))]
 #[utoipa::path(
     get,
     path = "/api/accounts/:account_id/tx-verify/requests/:verification_id",
     responses(
-        (status = 200, description = "Transaction verification request processed successfully", body = CheckTransactionVerificationResponse),
+        (status = 200, description = "Transaction verification request processed successfully", body = TransactionVerificationView),
         (status = 400, description = "Bad Request - missing or invalid request"),
         (status = 401, description = "Unauthorized - invalid API key"),
+        (status = 403, description = "Transaction verification is disabled"),
         (status = 500, description = "Internal server error processing transaction verification")
     ),
     tag = "Transaction Verification"
@@ -316,24 +386,25 @@ async fn put_transaction_verification_policy(
 async fn check_transaction_verification(
     Path((account_id, verification_id)): Path<(AccountId, TransactionVerificationId)>,
     State(transaction_verification_service): State<TransactionVerificationService>,
+    State(feature_flags_service): State<FeatureFlagsService>,
 ) -> Result<Json<TransactionVerificationView>, ApiError> {
+    ensure_enabled(&feature_flags_service, &account_id)?;
+
     let tx_verification = transaction_verification_service
         .fetch(&account_id, &verification_id)
         .await?;
     Ok(Json(tx_verification.into()))
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct CancelTransactionVerificationResponse {}
-
-#[instrument(skip(transaction_verification_service), fields(account_id = %account_id))]
+#[instrument(skip(transaction_verification_service, feature_flags_service), fields(account_id = %account_id))]
 #[utoipa::path(
     delete,
     path = "/api/accounts/:account_id/tx-verify/requests/:verification_id",
     responses(
-        (status = 200, description = "Transaction verification request cancelled successfully", body = CancelTransactionVerificationResponse),
+        (status = 200, description = "Transaction verification request cancelled successfully", body = TransactionVerificationView),
         (status = 400, description = "Bad Request - missing or invalid request"),
         (status = 401, description = "Unauthorized - invalid API key"),
+        (status = 403, description = "Transaction verification is disabled"),
         (status = 500, description = "Internal server error processing transaction verification")
     ),
     tag = "Transaction Verification"
@@ -341,7 +412,10 @@ pub struct CancelTransactionVerificationResponse {}
 async fn cancel_transaction_verification(
     Path((account_id, verification_id)): Path<(AccountId, TransactionVerificationId)>,
     State(transaction_verification_service): State<TransactionVerificationService>,
+    State(feature_flags_service): State<FeatureFlagsService>,
 ) -> Result<Json<TransactionVerificationView>, ApiError> {
+    ensure_enabled(&feature_flags_service, &account_id)?;
+
     let updated_tx_verification = transaction_verification_service
         .cancel(&account_id, &verification_id)
         .await?;
@@ -375,9 +449,10 @@ pub struct InitiateTransactionVerificationRequest {
     path = "/api/accounts/:account_id/tx-verify/requests",
     request_body = InitiateTransactionVerificationRequest,
     responses(
-        (status = 200, description = "Transaction verification request processed successfully", body = TxVerificationResponse),
+        (status = 200, description = "Transaction verification request processed successfully", body = InitiateTransactionVerificationView),
         (status = 400, description = "Bad Request - missing or invalid request"),
         (status = 401, description = "Unauthorized - invalid API key"),
+        (status = 403, description = "Transaction verification is disabled"),
         (status = 500, description = "Internal server error processing transaction verification")
     ),
     tag = "Transaction Verification"
@@ -390,6 +465,10 @@ async fn initiate_transaction_verification(
     experimentation_claims: ExperimentationClaims,
     Json(request): Json<InitiateTransactionVerificationRequest>,
 ) -> Result<Json<InitiateTransactionVerificationView>, ApiError> {
+    // Refuse before any side effects: initiating persists a verification
+    // record, emails the customer, and may ask WSM for a grant.
+    ensure_enabled(&feature_flags_service, &account_id)?;
+
     let context_key = experimentation_claims.account_context_key().ok();
     let rpc_uris = generate_electrum_rpc_uris(&feature_flags_service, context_key.clone());
     let psbt = Psbt::from_str(&request.psbt).map_err(TransactionVerificationError::from)?;
@@ -585,7 +664,95 @@ mod tests {
     use super::*;
     use serde_json::json;
     use types::account::money::Money;
-    use types::currencies::CurrencyCode::USD;
+    use types::currencies::CurrencyCode::{BTC, EUR, GBP, USD};
+
+    fn threshold(amount: u64, currency_code: CurrencyCode) -> TransactionVerificationPolicy {
+        TransactionVerificationPolicy::Threshold(Money {
+            amount,
+            currency_code,
+        })
+    }
+
+    #[test]
+    fn test_is_policy_loosening_same_currency() {
+        let current = threshold(10_000, USD);
+
+        // Raising the threshold in the same currency verifies fewer transactions.
+        assert!(is_policy_loosening(Some(&current), &threshold(10_001, USD)));
+        // Lowering or holding it does not.
+        assert!(!is_policy_loosening(Some(&current), &threshold(9_999, USD)));
+        assert!(!is_policy_loosening(
+            Some(&current),
+            &threshold(10_000, USD)
+        ));
+    }
+
+    #[test]
+    fn test_is_policy_loosening_across_currencies() {
+        let current = threshold(10_000, USD);
+
+        // A numerically smaller amount in a different currency is not a tightening: the units
+        // are not comparable, so it must still require authorization.
+        assert!(is_policy_loosening(Some(&current), &threshold(9_999, BTC)));
+        assert!(is_policy_loosening(Some(&current), &threshold(1, GBP)));
+        assert!(is_policy_loosening(
+            Some(&threshold(100_000, EUR)),
+            &threshold(99_999, GBP)
+        ));
+    }
+
+    #[test]
+    fn test_is_policy_loosening_zero_threshold() {
+        // A zero threshold verifies every transaction regardless of its currency, so moving to
+        // one is never a loosening — even from a zero threshold in another currency.
+        assert!(!is_policy_loosening(
+            Some(&threshold(0, USD)),
+            &threshold(0, GBP)
+        ));
+        assert!(!is_policy_loosening(
+            Some(&threshold(10_000, USD)),
+            &threshold(0, GBP)
+        ));
+        assert!(!is_policy_loosening(
+            Some(&threshold(0, USD)),
+            &threshold(0, USD)
+        ));
+
+        // Leaving a zero threshold for anything less strict still loosens.
+        assert!(is_policy_loosening(
+            Some(&threshold(0, USD)),
+            &threshold(1, USD)
+        ));
+        assert!(is_policy_loosening(
+            Some(&threshold(0, USD)),
+            &threshold(1, GBP)
+        ));
+        assert!(is_policy_loosening(
+            Some(&threshold(0, USD)),
+            &TransactionVerificationPolicy::Never
+        ));
+    }
+
+    #[test]
+    fn test_is_policy_loosening_state_transitions() {
+        use TransactionVerificationPolicy::{Always, Never};
+
+        // `Never` verifies nothing and is the least restrictive state.
+        assert!(!is_policy_loosening(Some(&Never), &Always));
+        assert!(!is_policy_loosening(Some(&Never), &threshold(1, USD)));
+        assert!(is_policy_loosening(Some(&Always), &Never));
+        assert!(is_policy_loosening(Some(&threshold(1, USD)), &Never));
+
+        // `Always` verifies everything and is the most restrictive state.
+        assert!(!is_policy_loosening(Some(&threshold(1, USD)), &Always));
+        assert!(!is_policy_loosening(Some(&Always), &Always));
+        assert!(is_policy_loosening(Some(&Always), &threshold(1, USD)));
+        assert!(!is_policy_loosening(Some(&Always), &threshold(0, USD)));
+
+        // No policy on file is treated as the least restrictive state.
+        assert!(!is_policy_loosening(None, &Never));
+        assert!(!is_policy_loosening(None, &threshold(u64::MAX, USD)));
+    }
 
     #[test]
     fn test_transaction_verification_policy_serialization() {

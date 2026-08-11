@@ -99,7 +99,7 @@ static void fuzz_handler_delete_fingerprint(const uint8_t* raw, size_t len) {
   rsp->which_msg = fwpb_wallet_rsp_delete_fingerprint_rsp_tag;
   rsp->status = fwpb_status_ERROR;
   /* BCW-07: cmd may be NULL here; real handler does not check. */
-  (void)cmd->msg.delete_fingerprint_cmd.index;  /* SIGSEGV if cmd == NULL */
+  (void)cmd->msg.delete_fingerprint_cmd.index; /* SIGSEGV if cmd == NULL */
   proto_free_buffers(cmd, rsp);
 }
 
@@ -123,6 +123,18 @@ static void fuzz_handler_unlock_secret(const uint8_t* raw, size_t len) {
   rsp->status = fwpb_status_ERROR;
   /* BCW-07: NULL deref on failed decode */
   (void)cmd->msg.send_unlock_secret_cmd.secret.ciphertext.size;
+  proto_free_buffers(cmd, rsp);
+}
+
+/* Mirrors the non-production parsing path in handle_provision_unlock_secret():
+ * accesses cmd->msg.provision_unlock_secret_cmd.secret.ciphertext.size. */
+static void fuzz_handler_provision_unlock_secret(const uint8_t* raw, size_t len) {
+  fwpb_wallet_cmd* cmd = proto_get_cmd(const_cast<uint8_t*>(raw), (uint32_t)len);
+  fwpb_wallet_rsp* rsp = proto_get_rsp();
+  rsp->which_msg = fwpb_wallet_rsp_provision_unlock_secret_rsp_tag;
+  rsp->status = fwpb_status_ERROR;
+  /* BCW-07: NULL deref on failed decode */
+  (void)cmd->msg.provision_unlock_secret_cmd.secret.ciphertext.size;
   proto_free_buffers(cmd, rsp);
 }
 
@@ -161,8 +173,7 @@ static void fuzz_handler_seal_csek(const uint8_t* raw, size_t len) {
   fwpb_wallet_cmd* cmd = proto_get_cmd(const_cast<uint8_t*>(raw), (uint32_t)len);
   fwpb_wallet_rsp* rsp = proto_get_rsp();
   rsp->which_msg = fwpb_wallet_rsp_seal_csek_rsp_tag;
-  rsp->msg.seal_csek_rsp.rsp_status =
-    fwpb_seal_csek_rsp_seal_csek_rsp_status_ERROR;
+  rsp->msg.seal_csek_rsp.rsp_status = fwpb_seal_csek_rsp_seal_csek_rsp_status_ERROR;
   /* BCW-07: cmd may be NULL here — same pattern as auth_task handlers. */
   if (!cmd->msg.seal_csek_cmd.has_csek) {
     /* BCW-31: ASSERT fires when size field doesn't match declared byte size.
@@ -198,8 +209,8 @@ typedef void (*handler_fn_t)(const uint8_t*, size_t);
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   FuzzedDataProvider fuzzed_data(data, size);
 
-#define REGIONS(X)                                              \
-  X(fuzz_pool, proto_cmd_scratch, sizeof(fwpb_wallet_cmd), 2)  \
+#define REGIONS(X)                                         \
+  X(fuzz_pool, proto_cmd_scratch, PROTO_CMD_ALLOC_SIZE, 2) \
   X(fuzz_pool, proto_rsp_scratch, sizeof(fwpb_wallet_rsp), 2)
   mempool_t* mempool = mempool_create(fuzz_pool);
 #undef REGIONS
@@ -210,9 +221,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     fuzz_handler_delete_fingerprint,
     fuzz_handler_start_fp_enrollment,
     fuzz_handler_unlock_secret,
+    fuzz_handler_provision_unlock_secret,
     fuzz_handler_get_fp_enrollment_status,
     fuzz_handler_set_fp_label,
-    fuzz_handler_seal_csek,              /* BCW-31: ASSERT on CSEK size mismatch */
+    fuzz_handler_seal_csek,                  /* BCW-31: ASSERT on CSEK size mismatch */
     fuzz_handler_fingerprint_reset_finalize, /* BCW-19: arbitrary bytes to grant path */
   };
   constexpr int kNumHandlers = static_cast<int>(sizeof(handlers) / sizeof(handlers[0]));
@@ -220,8 +232,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   while (fuzzed_data.remaining_bytes() > 0) {
     int idx = fuzzed_data.ConsumeIntegralInRange<int>(0, kNumHandlers - 1);
 
-    uint32_t proto_len =
-      fuzzed_data.ConsumeIntegralInRange<uint32_t>(0, sizeof(fwpb_wallet_cmd));
+    uint32_t proto_len = fuzzed_data.ConsumeIntegralInRange<uint32_t>(0, sizeof(fwpb_wallet_cmd));
     std::vector<uint8_t> proto_bytes = fuzzed_data.ConsumeBytes<uint8_t>(proto_len);
 
     if (proto_bytes.empty()) {

@@ -4,13 +4,24 @@ use crate::entities::Features;
 use crate::metrics;
 use crate::spend_rules::errors::SpendRuleCheckError;
 use crate::util::total_sats_spent_today;
-use bdk_utils::bdk::bitcoin::psbt::Psbt;
+use bdk_utils::bdk::bitcoin::{psbt::Psbt, Txid};
 use bdk_utils::bdk::Wallet;
 use bdk_utils::{
     get_total_outflow_for_psbt, ChaincodeDelegationCollaboratorWallet, ChaincodeDelegationPsbt,
 };
 use time::OffsetDateTime;
 use types::account::spending::PrivateMultiSigSpendingKeyset;
+
+fn spending_history_excluding<'a>(
+    spending_history: &[&'a SpendingEntry],
+    txid: Txid,
+) -> Vec<&'a SpendingEntry> {
+    spending_history
+        .iter()
+        .copied()
+        .filter(|entry| entry.txid != txid)
+        .collect()
+}
 
 pub(crate) struct DailySpendingLimitRule<'a> {
     wallet: &'a Wallet,
@@ -43,8 +54,12 @@ impl Rule for DailySpendingLimitRule<'_> {
             return Err(SpendRuleCheckError::SpendLimitInactive);
         }
 
+        // A retry of an already-recorded transaction must not count the same txid once in
+        // history and again as the transaction currently being evaluated.
+        let spending_history =
+            spending_history_excluding(self.spending_history, psbt.unsigned_tx.compute_txid());
         let total_spent = total_sats_spent_today(
-            self.spending_history,
+            &spending_history,
             &self.features.settings.limit,
             self.now_utc,
         )
@@ -79,8 +94,10 @@ impl Rule for DailySpendingLimitRuleV2<'_> {
             return Err(SpendRuleCheckError::SpendLimitInactive);
         }
 
+        let spending_history =
+            spending_history_excluding(self.spending_history, psbt.unsigned_tx.compute_txid());
         let total_spent = total_sats_spent_today(
-            self.spending_history,
+            &spending_history,
             &self.features.settings.limit,
             self.now_utc,
         )
@@ -142,6 +159,7 @@ mod tests {
     use bdk_utils::bdk::bitcoin::psbt::Psbt;
     use bdk_utils::bdk::bitcoin::{Amount, FeeRate, ScriptBuf, Txid};
     use bdk_utils::bdk::{AddressInfo, KeychainKind, Wallet};
+    use bdk_utils::get_total_outflow_for_psbt;
     use exchange_rate::currency_conversion::sats_for;
     use exchange_rate::service::Service as ExchangeRateService;
     use time::macros::datetime;
@@ -300,6 +318,45 @@ mod tests {
             &spending_entries,
             OffsetDateTime::now_utc(),
         );
+        assert!(rule.check_transaction(&psbt).is_ok());
+    }
+
+    #[tokio::test]
+    async fn daily_spend_limit_rule_counts_replayed_transaction_once() {
+        let (mut alice_wallet, bob_address) = generate_test_wallets_and_address();
+        let psbt = generate_psbt(
+            &mut alice_wallet,
+            bob_address.address.script_pubkey(),
+            &Money {
+                amount: 2_00,
+                currency_code: USD,
+            },
+        )
+        .await;
+        let outflow_amount = get_total_outflow_for_psbt(&alice_wallet, &psbt);
+        let now = OffsetDateTime::now_utc();
+        let features = Features {
+            settings: Settings {
+                limit: SpendingLimit {
+                    active: true,
+                    amount: Money {
+                        amount: 2_00,
+                        currency_code: USD,
+                    },
+                    ..Default::default()
+                },
+            },
+            daily_limit_sats: outflow_amount,
+        };
+        let transaction_history = [SpendingEntry {
+            txid: psbt.unsigned_tx.compute_txid(),
+            timestamp: now,
+            outflow_amount,
+        }];
+        let spending_entries = transaction_history.iter().collect();
+
+        let rule = DailySpendingLimitRule::new(&alice_wallet, &features, &spending_entries, now);
+
         assert!(rule.check_transaction(&psbt).is_ok());
     }
 

@@ -7,11 +7,14 @@ build-tools;35.0.0
 platforms;android-35
 ndk;25.2.9519653
 emulator
-# API 29 default x86_64 image: smallest/fastest headless boot; primary image
-# for onboarding and fake-hardware smoke flows that need no Google services
-# (minSdk is 24, so 29 is in range).
+# API 35 google_apis image: the primary verification image (BKW-106). Reports
+# Build.MODEL sdk_gphone64_x86_64, which passes the app's isEmulator heuristic
+# so Local F8e resolves to 10.0.2.2 natively (no adb reverse needed). Also
+# matches the Trailblaze CI emulator configuration and is the prerequisite for
+# Google-account-dependent flows (recovery).
+system-images;android-35;google_apis;x86_64
+# API 29 default x86_64 image: smallest/fastest headless boot, kept as a
+# lightweight fallback (--device 29-1080-1920). NOTE: reports Build.MODEL
+# "Android SDK built for x86_64", which FAILS the isEmulator heuristic —
+# flows against local F8e then need adb reverse (see trails/README.md).
 system-images;android-29;default;x86_64
-# google_apis variant: required for Google-account-dependent flows, e.g. the
-# legacy cloud-backup recovery Maestro flow that drives the Google account
-# picker (app/maestro-test/recovery.yaml).
-system-images;android-29;google_apis;x86_64

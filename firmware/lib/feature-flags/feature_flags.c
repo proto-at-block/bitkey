@@ -16,9 +16,29 @@ static uint32_t feature_flags_len = 0;
 static bool feature_flags_read(void);
 static bool feature_flags_write(void);
 
+static bool feature_flag_is_writable(fwpb_feature_flag flag) {
+#ifdef CONFIG_PROD
+  return flag != fwpb_feature_flag_FEATURE_FLAG_UNLOCK;
+#else
+  (void)flag;
+  return true;
+#endif
+}
+
 bool feature_flags_init(void) {
   sysevent_wait(SYSEVENT_FILESYSTEM_READY, true);
   bool ret = feature_flags_read();
+
+#ifdef CONFIG_PROD
+  // Password/PIN unlock is not a supported production authentication method. Force the dormant
+  // flag off even if an older firmware version persisted it before this invariant was enforced.
+  if (feature_flags[fwpb_feature_flag_FEATURE_FLAG_UNLOCK]) {
+    feature_flags[fwpb_feature_flag_FEATURE_FLAG_UNLOCK] = false;
+    bool write_ret = feature_flags_write();
+    ret = ret && write_ret;
+  }
+#endif
+
   sysevent_set(SYSEVENT_FEATURE_FLAGS_READY);
   return ret;
 }
@@ -27,7 +47,7 @@ bool feature_flags_get(fwpb_feature_flag flag) {
   return feature_flags[flag];
 }
 
-bool* feature_flags_get_all(pb_size_t* len) {
+const bool* feature_flags_get_all(pb_size_t* len) {
   *len = feature_flags_len;
   return feature_flags;
 }
@@ -36,6 +56,10 @@ bool feature_flags_set(fwpb_feature_flag flag, bool value) {
   int32_t flag_i = (int32_t)flag;
   if (flag_i < 0 || flag_i >= (int32_t)FEATURE_FLAG_COUNT) {
     LOGE("Invalid feature flag %ld", (long)flag_i);
+    return false;
+  }
+  if (!feature_flag_is_writable(flag)) {
+    LOGE("Read-only feature flag %ld", (long)flag_i);
     return false;
   }
 
@@ -48,6 +72,10 @@ bool feature_flags_set_multiple(fwpb_feature_flag_cfg* flags, pb_size_t num_flag
     int32_t flag_i = (int32_t)flags[i].flag;
     if (flag_i < 0 || flag_i >= (int32_t)FEATURE_FLAG_COUNT) {
       LOGE("Invalid feature flag %ld", (long)flag_i);
+      return false;
+    }
+    if (!feature_flag_is_writable(flags[i].flag)) {
+      LOGE("Read-only feature flag %ld", (long)flag_i);
       return false;
     }
   }

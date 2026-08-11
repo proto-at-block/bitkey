@@ -30,6 +30,7 @@
 //!     }).await?;
 //! ```
 
+use std::fmt;
 use std::str::FromStr;
 
 use async_trait::async_trait;
@@ -57,7 +58,7 @@ use types::account::entities::HardwareType;
 ///
 /// Automatically detects whether the request uses Action Proof or legacy KeyClaims
 /// authentication and provides a unified interface for both.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Authorization {
     pub jwt: String,
     pub account_id: AccountId,
@@ -68,7 +69,16 @@ pub struct Authorization {
     pub(crate) inner: AuthorizationInner,
 }
 
-#[derive(Debug, Clone)]
+impl fmt::Debug for Authorization {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Authorization")
+            .field("token_exp", &self.token_exp)
+            .field("inner", &self.inner)
+            .finish_non_exhaustive()
+    }
+}
+
+#[derive(Clone)]
 pub(crate) enum AuthorizationInner {
     /// Action Proof: signatures verified lazily in check()
     ActionProof {
@@ -80,6 +90,25 @@ pub(crate) enum AuthorizationInner {
     },
     /// Legacy KeyClaims: signatures already verified in extractor
     KeyClaims { hw_signed: bool, app_signed: bool },
+}
+
+impl fmt::Debug for AuthorizationInner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ActionProof { version, .. } => f
+                .debug_struct("ActionProof")
+                .field("version", version)
+                .finish_non_exhaustive(),
+            Self::KeyClaims {
+                hw_signed,
+                app_signed,
+            } => f
+                .debug_struct("KeyClaims")
+                .field("hw_signed", hw_signed)
+                .field("app_signed", app_signed)
+                .finish(),
+        }
+    }
 }
 
 impl Authorization {
@@ -564,6 +593,50 @@ mod tests {
             },
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn debug_redacts_action_proof_credentials_and_customer_identifiers() {
+        let sensitive_values = [
+            "secret-jwt",
+            "secret-signature",
+            "secret-nonce",
+            "secret-hw-pubkey",
+            "secret-app-pubkey",
+        ];
+        let auth = Authorization {
+            jwt: sensitive_values[0].to_string(),
+            inner: AuthorizationInner::ActionProof {
+                version: 1,
+                signatures: vec![sensitive_values[1].to_string()],
+                nonce: sensitive_values[2].to_string(),
+                hw_pubkey: Some(sensitive_values[3].to_string()),
+                app_pubkey: Some(sensitive_values[4].to_string()),
+            },
+            ..Default::default()
+        };
+
+        let output = format!("{auth:?}");
+
+        assert_eq!(
+            output,
+            "Authorization { token_exp: 9999999999, inner: ActionProof { version: 1, .. }, .. }"
+        );
+        for sensitive_value in sensitive_values {
+            assert!(!output.contains(sensitive_value));
+        }
+        assert!(!output.contains(auth.account_id.to_string().as_str()));
+        assert!(!output.contains(auth.username.to_string().as_str()));
+    }
+
+    #[test]
+    fn debug_preserves_non_sensitive_key_claims_results() {
+        let auth = make_key_claims_auth(true, false);
+
+        assert_eq!(
+            format!("{auth:?}"),
+            "Authorization { token_exp: 9999999999, inner: KeyClaims { hw_signed: true, app_signed: false }, .. }"
+        );
     }
 
     #[test]

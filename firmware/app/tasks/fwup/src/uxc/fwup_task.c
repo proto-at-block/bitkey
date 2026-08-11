@@ -9,6 +9,7 @@
 #include "sysevent.h"
 #include "uc.h"
 #include "uc_route.h"
+#include "uc_uxc.h"
 #include "uxc.pb.h"
 #include "wallet.pb.h"
 
@@ -92,6 +93,7 @@ static void _fwup_task_handle_fwup_start(fwpb_uxc_msg_host* msg) {
   // Copy command to stack and free recv buffer immediately to avoid
   // holding a shared UC recv buffer during flash erase.
   fwpb_fwup_start_cmd cmd_local = msg->msg.fwup_start_cmd;
+  const uint32_t seq = msg->seq;
   uc_free_recv_proto(msg);
 
   uxc_defer_commit = cmd_local.defer_commit;
@@ -104,22 +106,24 @@ static void _fwup_task_handle_fwup_start(fwpb_uxc_msg_host* msg) {
   // core.
   (void)fwup_start(&cmd_local, &rsp->msg.fwup_start_rsp);
 
-  (void)uc_send(rsp);
+  (void)uc_send_rsp_with_seq(seq, rsp);
 }
 
 static void _fwup_task_handle_fwup_transfer(fwpb_uxc_msg_host* msg) {
   fwpb_uxc_msg_device* rsp = uc_alloc_send_proto();
   ASSERT(rsp != NULL);
+  const uint32_t seq = msg->seq;
   rsp->which_msg = fwpb_uxc_msg_device_fwup_transfer_rsp_tag;
 
   fwup_transfer(&msg->msg.fwup_transfer_cmd, &rsp->msg.fwup_transfer_rsp);
 
   uc_free_recv_proto(msg);
-  (void)uc_send(rsp);
+  (void)uc_send_rsp_with_seq(seq, rsp);
 }
 
 static void _fwup_task_handle_fwup_finish(fwpb_uxc_msg_host* msg) {
   MFLOGI("UXC FWUP finish mode=%d", (int)msg->msg.fwup_finish_cmd.mode);
+  const uint32_t seq = msg->seq;
   fwpb_fwup_finish_cmd fwup_finish_cmd;
   fwpb_uxc_msg_device* rsp = uc_alloc_send_proto();
   ASSERT(rsp != NULL);
@@ -133,7 +137,7 @@ static void _fwup_task_handle_fwup_finish(fwpb_uxc_msg_host* msg) {
     if (!fwup_pre_apply_check(&fwup_finish_cmd, &rsp->msg.fwup_finish_rsp)) {
       // Version header check failed while still connected; send the error so
       // Core can surface it to the host. No patch is applied.
-      (void)uc_send(rsp);
+      (void)uc_send_rsp_with_seq(seq, rsp);
       rtos_thread_sleep(FWUP_FINISH_RESET_MS);
       mcu_reset_with_reason(MCU_RESET_FWUP);
     } else {
@@ -141,7 +145,7 @@ static void _fwup_task_handle_fwup_finish(fwpb_uxc_msg_host* msg) {
       rsp->msg.fwup_finish_rsp.rsp_status =
         fwpb_fwup_finish_rsp_fwup_finish_rsp_status_WILL_APPLY_PATCH;
 
-      (void)uc_send(rsp);
+      (void)uc_send_rsp_with_seq(seq, rsp);
 
       // Give the Core a chance to receive the message before the slow patch.
       rtos_thread_sleep(FWUP_FINISH_RESET_MS);
@@ -157,7 +161,7 @@ static void _fwup_task_handle_fwup_finish(fwpb_uxc_msg_host* msg) {
       result_rsp->msg.fwup_finish_rsp.rsp_status =
         patch_success ? fwpb_fwup_finish_rsp_fwup_finish_rsp_status_SUCCESS
                       : fwpb_fwup_finish_rsp_fwup_finish_rsp_status_ERROR;
-      (void)uc_send(result_rsp);
+      (void)uc_send_rsp_with_seq(seq, result_rsp);
 
       if (!uxc_defer_commit) {
         // Legacy mode: commit if successful, then reset.
@@ -178,7 +182,7 @@ static void _fwup_task_handle_fwup_finish(fwpb_uxc_msg_host* msg) {
       // Legacy mode: commit signature and reset.
       (void)fwup_commit_signature();
     }
-    (void)uc_send(rsp);
+    (void)uc_send_rsp_with_seq(seq, rsp);
 
     if (!uxc_defer_commit) {
       rtos_thread_sleep(FWUP_FINISH_RESET_MS);
@@ -190,6 +194,7 @@ static void _fwup_task_handle_fwup_finish(fwpb_uxc_msg_host* msg) {
 }
 
 static void _fwup_task_handle_commit_sig(fwpb_uxc_msg_host* msg) {
+  const uint32_t seq = msg->seq;
   uc_free_recv_proto(msg);
 
   fwpb_uxc_msg_device* rsp = uc_alloc_send_proto();
@@ -204,7 +209,7 @@ static void _fwup_task_handle_commit_sig(fwpb_uxc_msg_host* msg) {
       fwpb_fwup_commit_sig_rsp_fwup_commit_sig_rsp_status_ERROR;
   }
 
-  (void)uc_send(rsp);
+  (void)uc_send_rsp_with_seq(seq, rsp);
   // Do not reset — Core will hold UXC in reset via GPIO and then
   // reset itself, bringing both chips up on the new firmware.
 }

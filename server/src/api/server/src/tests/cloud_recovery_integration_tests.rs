@@ -364,7 +364,9 @@ async fn rotate_authentication_keys_accepts_unchanged_app_and_rotated_recovery_a
     let new_keys = create_new_authkeys(&mut context);
     let message = message_to_digest(account_id_string.as_ref());
     let app_signature = secp.sign_ecdsa(&message, &keys.app.secret_key).to_string();
-    let hardware_signature = secp.sign_ecdsa(&message, &new_keys.hw.secret_key).to_string();
+    let hardware_signature = secp
+        .sign_ecdsa(&message, &new_keys.hw.secret_key)
+        .to_string();
     let recovery_signature = secp
         .sign_ecdsa(&message, &new_keys.recovery.secret_key)
         .to_string();
@@ -392,7 +394,12 @@ async fn rotate_authentication_keys_accepts_unchanged_app_and_rotated_recovery_a
         )
         .await;
 
-    assert_eq!(response.status_code, StatusCode::OK, "{}", response.body_string);
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "{}",
+        response.body_string
+    );
 
     let after = bootstrap
         .services

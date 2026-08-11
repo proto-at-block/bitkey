@@ -41,7 +41,7 @@ class TestLinearControl(unittest.TestCase):
         self.assertTrue(plan.idempotency_key.startswith("feedback-loop:"))
         self.assertIn("Feedback cluster:", plan.title)
         self.assertEqual(plan.team_key, "BKW")
-        self.assertEqual(plan.project_name, "Linear-driven code engine")
+        self.assertEqual(plan.project_name, "Bitkey Feedback Loop")
         self.assertEqual(plan.assignee, None)
         self.assertEqual(plan.linear_state, "In Review")
         self.assertIn("https://github.com/squareup/wallet/pull/123", plan.description)
@@ -161,7 +161,7 @@ def actionable_proposal(cases: list[ReplayCase]) -> Proposal:
 def proposal_cluster(source_urls: list[str]) -> Cluster:
     signals = [normalized_signal(index, url) for index, url in enumerate(source_urls)]
     return Cluster(
-        theme="miss:automation:guardrail",
+        slug="miss:automation:guardrail",
         signals=signals,
         area="automation",
         severity="medium",

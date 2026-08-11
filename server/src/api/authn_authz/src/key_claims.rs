@@ -56,6 +56,10 @@ where
         let (app_pubkey, hw_pubkey, _) =
             get_pubkeys_from_cognito(&user_pool, account_id.clone()).await?;
 
+        if authentication_factor_keys_are_equal(app_pubkey.as_deref(), hw_pubkey.as_deref()) {
+            crate::metrics::KEY_CLAIMS_EQUAL_REGISTERED_FACTORS.add(1, &[]);
+        }
+
         let app_signed = app_sig_header
             .and_then(|value| value.to_str().ok().map(String::from))
             .is_some_and(|app_sig_header| match app_pubkey {
@@ -76,6 +80,20 @@ where
             app_signed,
             hw_signed,
         })
+    }
+}
+
+fn authentication_factor_keys_are_equal(app_pubkey: Option<&str>, hw_pubkey: Option<&str>) -> bool {
+    let (Some(app_pubkey), Some(hw_pubkey)) = (app_pubkey, hw_pubkey) else {
+        return false;
+    };
+
+    match (
+        PublicKey::from_str(app_pubkey),
+        PublicKey::from_str(hw_pubkey),
+    ) {
+        (Ok(app_pubkey), Ok(hw_pubkey)) => app_pubkey == hw_pubkey,
+        _ => false,
     }
 }
 
@@ -112,12 +130,17 @@ mod tests {
     use axum::body::Body;
     use axum::extract::FromRequestParts;
     use axum::http::Request;
+    use secp256k1::{PublicKey, Secp256k1};
+    use types::account::identifiers::AccountId;
     use types::authn_authz::cognito::CognitoUsername;
     use userpool::userpool::{CognitoMode, UserPoolService};
 
-    use crate::key_claims::{KeyClaims, APP_SIG_HEADER, HW_SIG_HEADER};
+    use crate::key_claims::{
+        authentication_factor_keys_are_equal, KeyClaims, APP_SIG_HEADER, HW_SIG_HEADER,
+    };
     use crate::test_utils::{
-        get_test_access_token, sign_with_test_app_key, sign_with_test_hw_key, TEST_USERNAME,
+        get_test_access_token, get_test_app_key, get_test_app_pubkey, sign_with_test_app_key,
+        sign_with_test_hw_key, TEST_USERNAME,
     };
 
     #[test]
@@ -131,6 +154,60 @@ mod tests {
                     .expect("Could not parse username")
             )
         );
+    }
+
+    #[test]
+    fn test_equal_authentication_factor_keys_are_detected_semantically() {
+        let app_pubkey = get_test_app_pubkey();
+        let uncompressed_app_pubkey = PublicKey::from_str(&app_pubkey)
+            .unwrap()
+            .serialize_uncompressed();
+        let uncompressed_app_pubkey = hex::encode(uncompressed_app_pubkey);
+
+        assert!(authentication_factor_keys_are_equal(
+            Some(&app_pubkey),
+            Some(&uncompressed_app_pubkey),
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_equal_registered_keys_preserve_legacy_proof_flags() {
+        let access_token = get_test_access_token();
+        let signature = sign_with_test_app_key(&access_token);
+        let account_id = AccountId::from_str(TEST_USERNAME).unwrap();
+        let app_pubkey = get_test_app_key().public_key(&Secp256k1::new());
+        let userpool = UserPoolService::new(
+            userpool::userpool::Config {
+                cognito: CognitoMode::Test,
+            }
+            .to_connection()
+            .await,
+        );
+        userpool
+            .create_or_update_account_users_if_necessary(
+                &account_id,
+                Some(app_pubkey),
+                Some(app_pubkey),
+                None,
+            )
+            .await
+            .unwrap();
+
+        let request = Request::builder()
+            .uri("http://example.com/")
+            .header("Authorization", format!("Bearer {}", access_token))
+            .header(APP_SIG_HEADER, &signature)
+            .header(HW_SIG_HEADER, signature)
+            .body(Body::empty())
+            .unwrap();
+        let (mut request_parts, _) = request.into_parts();
+
+        let key_claims = KeyClaims::from_request_parts(&mut request_parts, &userpool)
+            .await
+            .unwrap();
+
+        assert!(key_claims.app_signed);
+        assert!(key_claims.hw_signed);
     }
 
     #[tokio::test]

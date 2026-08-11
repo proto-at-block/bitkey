@@ -2,14 +2,16 @@
 use http::StatusCode;
 use rand::distributions::{Alphanumeric, DistString};
 use rstest::rstest;
+use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 use time::OffsetDateTime;
 
 // Internal crate imports
 use crate::tests::{
-    gen_services,
+    gen_services, gen_services_with_overrides,
     lib::{create_default_account_with_predefined_wallet, wallet_protocol::setup_fixture},
     requests::axum::TestClient,
+    GenServiceOverrides,
 };
 
 // Workspace crate imports
@@ -23,7 +25,7 @@ use types::{
         entities::{Account, FullAccount, TransactionVerificationPolicy},
         money::Money,
     },
-    currencies::CurrencyCode::USD,
+    currencies::CurrencyCode::{AUD, BTC, GBP, USD},
     privileged_action::{
         repository::{PrivilegedActionInstanceRecord, RecordStatus},
         router::generic::PrivilegedActionResponse,
@@ -40,6 +42,7 @@ use types::{
             InitiateTransactionVerificationViewSigned, PutTransactionVerificationPolicyRequest,
             TransactionVerificationView,
         },
+        TransactionVerificationId,
     },
 };
 
@@ -108,6 +111,51 @@ use types::{
     true, // has_hw_signed
     StatusCode::OK,
     true // expect_out_of_band
+)]
+// A threshold in a different currency is not comparable by raw amount, so it must be treated
+// as a loosening even when the number goes down.
+#[case::threshold_lower_amount_different_currency(
+    TransactionVerificationPolicy::Threshold(Money {
+        amount: 100000,
+        currency_code: AUD,
+    }),
+    PolicyUpdate::Threshold(PolicyUpdateMoney {
+        amount_sats: 1000,
+        amount_fiat: 99999,
+        currency_code: GBP,
+    }),
+    true, // has_hw_signed
+    StatusCode::OK,
+    true // expect_out_of_band
+)]
+#[case::threshold_lower_amount_different_currency_no_hw(
+    TransactionVerificationPolicy::Threshold(Money {
+        amount: 100000,
+        currency_code: AUD,
+    }),
+    PolicyUpdate::Threshold(PolicyUpdateMoney {
+        amount_sats: 1000,
+        amount_fiat: 99999,
+        currency_code: GBP,
+    }),
+    false, // has_hw_signed
+    StatusCode::FORBIDDEN,
+    true // expect_out_of_band (irrelevant since it fails)
+)]
+// A threshold denominated in an unsupported currency is rejected outright.
+#[case::threshold_unsupported_currency(
+    TransactionVerificationPolicy::Threshold(Money {
+        amount: 10000,
+        currency_code: USD,
+    }),
+    PolicyUpdate::Threshold(PolicyUpdateMoney {
+        amount_sats: 1000,
+        amount_fiat: 9999,
+        currency_code: BTC,
+    }),
+    false, // has_hw_signed
+    StatusCode::FORBIDDEN,
+    false // expect_out_of_band (irrelevant since it fails)
 )]
 // Cases that should fail (loosening policies without hw signature)
 #[case::always_to_never_no_hw(
@@ -781,6 +829,112 @@ async fn loosening_retry_without_hw_signature_is_forbidden_not_reused() {
         .expect("fetch pending oob");
     assert_eq!(pending.len(), 1);
 }
+
+/// Kill switch off → every account-authed `/tx-verify` route is refused, so a
+/// custom authenticated client cannot drive the feature while the mobile flow
+/// is disabled. The switch fails safe, so `overrides/test.toml` turns it on for
+/// every other test in this file.
+#[tokio::test]
+async fn transaction_verification_routes_forbidden_when_disabled() {
+    let (mut context, bootstrap) =
+        gen_services_with_overrides(GenServiceOverrides::new().feature_flags(disabled_flags()))
+            .await;
+    let client = TestClient::new(bootstrap.router).await;
+    let (account, _) =
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
+
+    let keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .unwrap();
+
+    assert_eq!(
+        client
+            .get_transaction_verification_policy(&account.id, &keys)
+            .await
+            .status_code,
+        StatusCode::FORBIDDEN,
+    );
+
+    assert_eq!(
+        client
+            .update_transaction_verification_policy(
+                &account.id,
+                true,
+                true,
+                &keys,
+                &PutTransactionVerificationPolicyRequest {
+                    policy: PolicyUpdate::Always,
+                    use_bip_177: false,
+                },
+            )
+            .await
+            .status_code,
+        StatusCode::FORBIDDEN,
+    );
+
+    let psbt_request = InitiateTransactionVerificationRequest {
+        psbt: PLACEHOLDER_PSBT.to_string(),
+        fiat_currency: USD,
+        bitcoin_display_unit: BitcoinDisplayUnit::Satoshi,
+        signing_keyset_id: account.active_keyset_id.clone(),
+        should_prompt_user: true,
+        use_bip_177: false,
+    };
+    assert_eq!(
+        client
+            .initiate_transaction_verification(&account.id, &keys, &psbt_request)
+            .await
+            .status_code,
+        StatusCode::FORBIDDEN,
+    );
+
+    // Refused before the id is looked up, so a nonexistent one is fine here —
+    // an enabled server answers this with a 404 rather than a 403.
+    let verification_id = TransactionVerificationId::gen().expect("generate verification id");
+    assert_eq!(
+        client
+            .check_transaction_verification(&account.id, &verification_id, &keys)
+            .await
+            .status_code,
+        StatusCode::FORBIDDEN,
+    );
+    assert_eq!(
+        client
+            .cancel_transaction_verification(&account.id, &verification_id, &keys)
+            .await
+            .status_code,
+        StatusCode::FORBIDDEN,
+    );
+
+    // Nothing was persisted along the way.
+    let account = bootstrap
+        .services
+        .account_service
+        .fetch_full_account(FetchAccountInput {
+            account_id: &account.id,
+        })
+        .await
+        .expect("fetch account");
+    assert_eq!(account.transaction_verification_policy, None);
+}
+
+/// Feature-flag overrides replace the `test.toml` defaults wholesale, so the
+/// flags the account-creation and signing paths resolve have to be repeated
+/// here alongside the kill switch.
+fn disabled_flags() -> HashMap<String, String> {
+    HashMap::from([
+        (
+            "f8e-transaction-verification-enabled".to_string(),
+            "false".to_string(),
+        ),
+        ("f8e-mobile-pay-enabled".to_string(), "true".to_string()),
+    ])
+}
+
+/// Not a valid transaction — the kill switch is checked before the PSBT is
+/// parsed, so the gated path never looks at it.
+const PLACEHOLDER_PSBT: &str = "cHNidP8BAAA=";
 
 /// Helper function to generate random amounts so we don't end up with the same txids
 fn get_unique_test_amount(base_amount: u64) -> u64 {

@@ -5,6 +5,7 @@
 #include "display_action.h"
 #include "langpack.h"
 #include "lvgl/lvgl.h"
+#include "sign_action_proof_core.h"
 #include "ui.h"
 #include "widgets/address_display.h"
 #include "widgets/approval_button.h"
@@ -17,9 +18,7 @@
 #include <string.h>
 
 // SAP combined action display name lookup via langpack. Keep in sync with sap_action_t.
-#define SAP_ACTION_DISPLAY_COUNT 34
-
-static const langpack_string_id_t sap_action_langpack_ids[SAP_ACTION_DISPLAY_COUNT] = {
+static const langpack_string_id_t sap_action_langpack_ids[] = {
   LANGPACK_ID_SAP_SET_SPEND_WITHOUT_HARDWARE,
   LANGPACK_ID_SAP_DISABLE_SPEND_WITHOUT_HARDWARE,
   LANGPACK_ID_SAP_SET_VERIFICATION_THRESHOLD,
@@ -54,7 +53,14 @@ static const langpack_string_id_t sap_action_langpack_ids[SAP_ACTION_DISPLAY_COU
   LANGPACK_ID_SAP_REMOVE_BENEFACTOR,
   LANGPACK_ID_KEYSET_REPAIR_UNSEAL,
   LANGPACK_ID_KEYSET_REPAIR_ROTATE,
+  LANGPACK_ID_SAP_SET_DELAY_NOTIFY_PERIOD,
 };
+
+#define SAP_ACTION_DISPLAY_COUNT \
+  (sizeof(sap_action_langpack_ids) / sizeof(sap_action_langpack_ids[0]))
+
+_Static_assert(SAP_ACTION_DISPLAY_COUNT == SAP_ACTION_COUNT,
+               "Every SAP action must have a privileged action display string");
 
 static const char* get_privileged_action_title(
   const fwpb_display_params_privileged_action* params) {

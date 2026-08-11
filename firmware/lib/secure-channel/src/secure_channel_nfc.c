@@ -34,7 +34,7 @@ static secure_channel_ctx_t secure_channel_ctx SECTION("privileged_data") = {
       .key.bytes = secure_channel_ctx.conf_key_buf,
       .key.size = sizeof(secure_channel_ctx.conf_key_buf),
     },
-  .established = false,
+  .established = SECURE_FALSE,
 };
 
 void secure_nfc_channel_init(void) {

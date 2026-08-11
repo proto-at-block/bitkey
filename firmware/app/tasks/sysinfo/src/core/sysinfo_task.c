@@ -381,7 +381,7 @@ void handle_feature_flags_get(ipc_ref_t* message) {
 
   rsp->which_msg = fwpb_wallet_rsp_feature_flags_get_rsp_tag;
 
-  bool* flags = feature_flags_get_all(&rsp->msg.feature_flags_get_rsp.flags_count);
+  const bool* flags = feature_flags_get_all(&rsp->msg.feature_flags_get_rsp.flags_count);
 
   for (fwpb_feature_flag i = 0; i < rsp->msg.feature_flags_get_rsp.flags_count; i++) {
     rsp->msg.feature_flags_get_rsp.flags[i].flag = i;

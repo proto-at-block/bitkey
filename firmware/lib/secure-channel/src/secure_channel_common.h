@@ -31,7 +31,7 @@ typedef struct {
   key_handle_t session_send_key;              /**< Handle for sending key */
   key_handle_t session_recv_key;              /**< Handle for receiving key */
   key_handle_t session_conf_key;              /**< Handle for confirmation key */
-  bool established;                           /**< True if channel is established */
+  secure_bool_t established;                  /**< SECURE_TRUE if channel is established */
   rtos_mutex_t lock;                          /**< Mutex for thread-safe access */
 } secure_channel_ctx_t;
 

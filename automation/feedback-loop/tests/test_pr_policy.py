@@ -75,6 +75,20 @@ class TestPrPolicy(unittest.TestCase):
                 self.assertFalse(result.passed)
                 self.assertTrue(has_blocking_reason(result, "destination_path_mismatch"))
 
+    def test_agents_check_requires_slug_markdown_check_path(self):
+        cases = [
+            ".agents/checks/foo/run_check.py",
+            ".agents/checks/README",
+            ".agents/checks/Foo.md",
+            ".agents/checks/foo_bar.md",
+        ]
+        for path in cases:
+            with self.subTest(path=path):
+                result = validate_pr_policy(proposal(destination="agents_check", paths=[path]))
+
+                self.assertFalse(result.passed)
+                self.assertTrue(has_blocking_reason(result, "destination_path_mismatch"))
+
     def test_rejects_unsafe_paths_before_destination_allowlist(self):
         cases = [
             ("docs", "../README.md"),
@@ -190,6 +204,47 @@ class TestPrPolicy(unittest.TestCase):
 
                 self.assertFalse(result.passed)
                 self.assertTrue(has_blocking_reason(result, "destination_path_mismatch"))
+
+    def test_test_or_linter_rejects_ai_guidance_trees(self):
+        # AI-guidance trees must never qualify as test_or_linter targets, even when a path
+        # segment ("fixtures", "tests") matches the test dir-name family.
+        cases = [
+            ".ai/feedback-loop/fixtures/ci-failure-close-the-loop.json",
+            ".ai/skills/foo/fixtures/case.json",
+            ".agents/checks/fixtures/case.json",
+            ".agents/testdata/sample.txt",
+            "app/.ai/tests/case.json",
+        ]
+        for path in cases:
+            with self.subTest(path=path):
+                result = validate_pr_policy(
+                    proposal(destination="test_or_linter", paths=[path])
+                )
+
+                self.assertFalse(result.passed)
+                self.assertTrue(has_blocking_reason(result, "destination_path_mismatch"))
+
+    def test_ai_skill_requires_root_skill_directory_paths(self):
+        allowed = [
+            ".ai/skills/run-tests/SKILL.md",
+            ".ai/skills/run-tests/references/usage.md",
+        ]
+        rejected = [
+            ".ai/skills/SKILL.md",
+            ".ai/skills/Run_Tests/SKILL.md",
+            "app/.ai/skills/run-tests/SKILL.md",
+            ".ai/skills/run-tests/",
+        ]
+        for path in allowed:
+            with self.subTest(path=path):
+                self.assertTrue(
+                    validate_pr_policy(proposal(destination="ai_skill", paths=[path])).passed
+                )
+        for path in rejected:
+            with self.subTest(path=path):
+                result = validate_pr_policy(proposal(destination="ai_skill", paths=[path]))
+
+                self.assertFalse(result.passed)
 
     def test_override_allows_tightly_coupled_policy_blockers(self):
         result = validate_pr_policy(
@@ -348,7 +403,7 @@ def cluster(destination: str) -> Cluster:
         suggested_destination=destination,
     )
     return Cluster(
-        theme="miss:automation:guardrail",
+        slug="miss:automation:guardrail",
         signals=[signal],
         area="automation",
         severity="medium",

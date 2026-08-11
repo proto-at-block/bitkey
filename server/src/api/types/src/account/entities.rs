@@ -367,6 +367,8 @@ pub struct CommonAccountFields {
     pub notifications_preferences_state: NotificationsPreferencesState,
     #[serde(default)]
     pub configured_privileged_action_delay_durations: Vec<PrivilegedActionDelayDuration>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delay_notify_period_secs: Option<usize>,
     #[serde(default)]
     pub comms_verification_claims: Vec<CommsVerificationClaim>,
     #[serde(default)]
@@ -387,6 +389,22 @@ pub enum TransactionVerificationPolicy {
     Always,
 }
 
+impl TransactionVerificationPolicy {
+    /// Returns true unless the policy carries a threshold denominated in an unsupported
+    /// currency. Such a threshold has no exchange rate, so it could not be enforced against a
+    /// spend. Checked wherever a policy is persisted, not just at the public route, so that
+    /// stored requests predating the check cannot land one.
+    pub fn uses_supported_currency(&self) -> bool {
+        match self {
+            TransactionVerificationPolicy::Threshold(money) => {
+                crate::currencies::Currency::supported_currency_codes()
+                    .contains(&money.currency_code)
+            }
+            TransactionVerificationPolicy::Never | TransactionVerificationPolicy::Always => true,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct FullAccount {
     #[serde(rename = "partition_key")]
@@ -397,6 +415,8 @@ pub struct FullAccount {
     pub spending_keysets: HashMap<KeysetId, SpendingKeyset>,
     #[serde(default)]
     pub descriptor_backups_set: Option<DescriptorBackupsSet>,
+    #[serde(default)]
+    pub wallet_metadata_backup: Option<WalletMetadataBackup>,
     // Spending limit
     pub spending_limit: Option<SpendingLimit>,
     #[serde(default)]
@@ -437,6 +457,7 @@ impl FullAccount {
             auth_keys: HashMap::from([(active_auth_keys_id.clone(), auth)]),
             spending_keysets: HashMap::from([(active_keyset_id, spending)]),
             descriptor_backups_set: None,
+            wallet_metadata_backup: None,
             spending_limit: None,
             transaction_verification_policy: None,
             application_auth_pubkey,
@@ -452,6 +473,7 @@ impl FullAccount {
                 recovery_auth_pubkey,
                 notifications_preferences_state: Default::default(),
                 configured_privileged_action_delay_durations: Default::default(),
+                delay_notify_period_secs: None,
                 comms_verification_claims: Default::default(),
                 notifications_triggers: Default::default(),
             },
@@ -543,6 +565,7 @@ impl LiteAccount {
                 recovery_auth_pubkey,
                 notifications_preferences_state: Default::default(),
                 configured_privileged_action_delay_durations: Default::default(),
+                delay_notify_period_secs: None,
                 comms_verification_claims: Default::default(),
                 notifications_triggers: Default::default(),
             },
@@ -566,6 +589,7 @@ impl LiteAccount {
             active_keyset_id: keyset_id.clone(),
             spending_keysets: HashMap::from([(keyset_id, spending_keyset)]),
             descriptor_backups_set: None,
+            wallet_metadata_backup: None,
             spending_limit: None,
             transaction_verification_policy: None,
             application_auth_pubkey: Some(auth_keys.app_pubkey),
@@ -629,6 +653,7 @@ impl SoftwareAccount {
                 recovery_auth_pubkey,
                 notifications_preferences_state: Default::default(),
                 configured_privileged_action_delay_durations: Default::default(),
+                delay_notify_period_secs: None,
                 comms_verification_claims: Default::default(),
                 notifications_triggers: Default::default(),
             },
@@ -790,6 +815,21 @@ pub struct DescriptorBackupsSet {
     pub descriptor_backups: Vec<DescriptorBackup>,
 }
 
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, ToSchema)]
+pub struct WalletMetadataBackup {
+    /// Wallet Key Encryption Key-wrapped Server Storage Encryption Key (SSEK)
+    #[serde_as(as = "Base64")]
+    pub wrapped_ssek: Vec<u8>,
+    /// Server Storage Encryption Key-sealed wallet metadata snapshot.
+    ///
+    /// Writes are last-write-wins: the snapshot is client-encrypted and carries its own schema
+    /// version internally, and clients are responsible for merging concurrent edits when they
+    /// pull the latest backup. Concurrent PUTs within a single handler race are still serialized
+    /// by the account repository's `updated_at` compare-and-swap.
+    pub sealed_wallet_metadata_snapshot: String,
+}
+
 impl DescriptorBackupsSet {
     pub fn get_sealed_descriptor(&self, keyset_id: &KeysetId) -> Option<String> {
         self.descriptor_backups
@@ -923,6 +963,31 @@ mod tests {
         spend_limit::SpendingLimit,
         spending::LegacyMultiSigSpendingKeyset,
     };
+
+    #[test]
+    fn test_transaction_verification_policy_uses_supported_currency() {
+        use crate::account::entities::TransactionVerificationPolicy;
+        use crate::account::money::Money;
+        use crate::currencies::CurrencyCode::{BTC, USD, XXX};
+
+        assert!(TransactionVerificationPolicy::Never.uses_supported_currency());
+        assert!(TransactionVerificationPolicy::Always.uses_supported_currency());
+        assert!(TransactionVerificationPolicy::Threshold(Money {
+            amount: 100,
+            currency_code: USD,
+        })
+        .uses_supported_currency());
+        assert!(!TransactionVerificationPolicy::Threshold(Money {
+            amount: 100,
+            currency_code: BTC,
+        })
+        .uses_supported_currency());
+        assert!(!TransactionVerificationPolicy::Threshold(Money {
+            amount: 100,
+            currency_code: XXX,
+        })
+        .uses_supported_currency());
+    }
 
     #[test]
     fn test_is_spending_limit_active() {
@@ -1091,6 +1156,7 @@ mod tests {
                 ),
             )]),
             descriptor_backups_set: None,
+            wallet_metadata_backup: None,
             spending_limit: None,
             transaction_verification_policy: None,
             application_auth_pubkey: None,
@@ -1106,6 +1172,7 @@ mod tests {
                 recovery_auth_pubkey: None,
                 notifications_preferences_state: Default::default(),
                 configured_privileged_action_delay_durations: Default::default(),
+                delay_notify_period_secs: None,
                 comms_verification_claims: Default::default(),
                 notifications_triggers: Default::default(),
             },

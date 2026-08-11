@@ -1,26 +1,42 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 set -euo pipefail
 
-if [[ "$#" -ne 5 && "$#" -ne 6 ]]; then
-  echo "Usage: $0 VERSION HW_REV PRODUCT RELEASE_DIR ORG_TOKEN [SW_TYPE]"
+if [[ "$#" -ne 4 && "$#" -ne 5 && "$#" -ne 6 && "$#" -ne 7 ]]; then
+  echo "Usage:"
+  echo "  $0 VERSION HW_REV RELEASE_DIR ORG_TOKEN"
+  echo "  $0 VERSION HW_REV PRODUCT RELEASE_DIR ORG_TOKEN [SW_TYPE] [REVISION]"
   exit 1
 fi
 
 VERSION=$1
 HW_REV=$2
-PRODUCT=$3
-RELEASE_DIR=$4
-ORG_TOKEN=$5
 
-if [ "$#" -eq 5 ]; then
+if [ "$#" -eq 4 ]; then
+  PRODUCT=w1a
+  RELEASE_DIR=$3
+  ORG_TOKEN=$4
   SW_TYPE=prod
 else
-  SW_TYPE=$6
+  PRODUCT=$3
+  RELEASE_DIR=$4
+  ORG_TOKEN=$5
+
+  if [ "$#" -eq 5 ]; then
+    SW_TYPE=prod
+  else
+    SW_TYPE=$6
+  fi
+fi
+
+if [ "$#" -eq 7 ]; then
+  REVISION=$7
+else
+  REVISION=$(git rev-parse HEAD)
 fi
 
 # Generate OTA bundle
-inv fwup.bundle --product $PRODUCT --platform $PRODUCT -i $SW_TYPE -h $HW_REV --build-dir $RELEASE_DIR --bundle-dir $VERSION-fwup-bundle
+inv fwup.bundle --product $PRODUCT --platform $PRODUCT -i $SW_TYPE -h $HW_REV --version $VERSION --build-dir $RELEASE_DIR --bundle-dir $VERSION-fwup-bundle
 
 rm -f fwup-bundle.zip
 cp $VERSION-fwup-bundle.zip fwup-bundle.zip
@@ -33,7 +49,7 @@ fi
 
 # Upload OTA bundle to Memfault
 # Note: Due to memfault limitations, we always upload to the w1a project.
-SHA=$(git rev-parse HEAD)
+SHA=$REVISION
 memfault \
   --org-token $ORG_TOKEN \
   --org block-wallet \

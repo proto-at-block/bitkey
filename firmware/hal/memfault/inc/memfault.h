@@ -11,3 +11,13 @@
 
 void memfault_port_drain_only_events(void);
 void memfault_port_drain_all(void);
+
+#ifdef EMBEDDED_BUILD
+// Prevent a coredump from being persisted while secret material may be live. Calls may be nested or
+// overlap across tasks.
+void memfault_port_coredump_sensitive_operation_begin(void);
+void memfault_port_coredump_sensitive_operation_end(void);
+#else
+static inline void memfault_port_coredump_sensitive_operation_begin(void) {}
+static inline void memfault_port_coredump_sensitive_operation_end(void) {}
+#endif

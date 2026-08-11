@@ -26,3 +26,11 @@ onboarding_dep = declare_dependency(
   include_directories : ['inc'],
   dependencies : deps,
 )
+
+onboarding_prod_test = executable('onboarding-prod-test',
+  ['onboarding_test.c', 'onboarding.c'],
+  include_directories : onboarding_incs,
+  c_args : ['-DCONFIG_PROD=1'],
+  dependencies : deps + [test_deps],
+)
+test('onboarding production policy test', onboarding_prod_test)

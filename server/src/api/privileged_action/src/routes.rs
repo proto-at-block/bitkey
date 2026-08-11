@@ -34,10 +34,13 @@ use crate::{
 
 use account::service::{FetchAccountInput, Service as AccountService};
 use errors::{ApiError, ErrorCode};
-use subtle::ConstantTimeEq;
-use types::account::{entities::Account, spending::AttestedHardwareSerial};
 use http_server::swagger::{SwaggerEndpoint, Url};
 use secure_site::static_handler::{html_error, inject_json_into_template};
+use subtle::ConstantTimeEq;
+use types::account::{
+    entities::{Account, TransactionVerificationPolicy},
+    spending::AttestedHardwareSerial,
+};
 use types::{
     account::identifiers::AccountId,
     privileged_action::{
@@ -64,6 +67,7 @@ pub struct RouteState(
     pub UserPoolService,
     pub PrivilegedActionService,
     pub AccountService,
+    pub repository::anti_replay::AntiReplayRepository,
 );
 
 impl RouterBuilder for RouteState {
@@ -717,9 +721,7 @@ async fn confirm_hardware_serial_verification(
         None => {
             return Err(ApiError::Specific {
                 code: ErrorCode::KeysetNotAttested,
-                detail: Some(
-                    "active keyset has no attested hardware serial".to_string(),
-                ),
+                detail: Some("active keyset has no attested hardware serial".to_string()),
                 field: None,
             });
         }
@@ -727,12 +729,7 @@ async fn confirm_hardware_serial_verification(
 
     let expected = normalize_serial_for_comparison(&attested);
     let submitted = normalize_serial_for_comparison(&submission.serial);
-    if expected
-        .as_bytes()
-        .ct_eq(submitted.as_bytes())
-        .unwrap_u8()
-        == 0
-    {
+    if expected.as_bytes().ct_eq(submitted.as_bytes()).unwrap_u8() == 0 {
         let outcome = privileged_action_service
             .increment_out_of_band_attempts::<()>(&privileged_action.id)
             .await?;
@@ -797,8 +794,20 @@ async fn confirm_transaction_verification_policy(
 
     validate_out_of_band_authorization(&privileged_action.authorization_strategy)?;
 
+    // The initiate route rejects unsupported currencies, but a pending request stored before
+    // that check existed is only caught here. Validate before continuing the privileged
+    // action: continuing marks the record Completed and sends the completion notification,
+    // which must not happen for a request that will never be applied.
+    let policy: TransactionVerificationPolicy = privileged_action.request.policy.clone().into();
+    if !policy.uses_supported_currency() {
+        return Err(ApiError::GenericForbidden(
+            "valid supported currency required to set a transaction verification policy"
+                .to_string(),
+        ));
+    }
+
     // Continue the privileged action flow
-    let authorized_action = continue_out_of_band_privileged_action(
+    continue_out_of_band_privileged_action(
         privileged_action_service,
         &privileged_action,
         web_auth_token,
@@ -808,7 +817,7 @@ async fn confirm_transaction_verification_policy(
     // Apply the policy change
     let account_id = privileged_action.account_id.clone();
     account_service
-        .put_transaction_verification_policy(&account_id, authorized_action.policy.into())
+        .put_transaction_verification_policy(&account_id, policy)
         .await?;
 
     Ok(())

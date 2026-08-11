@@ -145,6 +145,7 @@ fn init_twilio_supported_sms_countries() -> HashMap<&'static str, CountryCode> {
     map.insert("91", CountryCode::IND); // India
     map.insert("353", CountryCode::IRL); // Ireland
     map.insert("354", CountryCode::ISL); // Iceland
+    map.insert("972", CountryCode::ISR); // Israel
     map.insert("39", CountryCode::ITA); // Italy
 
     map.insert("1658", CountryCode::JAM); // Jamaica
@@ -546,6 +547,10 @@ mod tests {
         assert_eq!(
             find_supported_sms_country_code("+12045555555".to_string()),
             Some(CountryCode::CAN)
+        );
+        assert_eq!(
+            find_supported_sms_country_code("+9725555555555".to_string()),
+            Some(CountryCode::ISR)
         );
     }
 }

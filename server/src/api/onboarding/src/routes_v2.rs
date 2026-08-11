@@ -13,7 +13,10 @@ use axum::{
     extract::{Path, State},
     Json,
 };
-use bdk_utils::bdk::{bitcoin::secp256k1::PublicKey, keys::DescriptorPublicKey};
+use bdk_utils::bdk::{
+    bitcoin::{secp256k1::PublicKey, Network},
+    keys::DescriptorPublicKey,
+};
 use errors::{ApiError, ErrorCode, RouteError};
 use experimentation::claims::ExperimentationClaims;
 use external_identifier::ExternalIdentifier;
@@ -54,8 +57,8 @@ use crate::{
     account_validation::{
         error::AccountValidationError, AccountValidation, AccountValidationRequest,
     },
-    emit_keyset_created,
-    metrics::PRIVATE_VALUE,
+    emit_keyset_created, emit_test_hardware_attestation_fixture_use,
+    metrics::{V2HardwareAttestationNetwork, V2HardwareAttestationOperation, PRIVATE_VALUE},
     routes::Config,
     upsert_account_iterable_user,
 };
@@ -82,6 +85,8 @@ fn collect_attested_hardware_serial(
     request_attestation: Option<&HardwareAttestation>,
     hardware_pub: &PublicKey,
     is_test_account: bool,
+    operation: V2HardwareAttestationOperation,
+    network: Network,
 ) -> Result<Option<AttestedHardwareSerial>, ApiError> {
     let Some(attestation) = request_attestation else {
         return if required {
@@ -98,6 +103,12 @@ fn collect_attested_hardware_serial(
         };
     };
     if is_test_account && test_fixture::matches(&attestation.signature, &attestation.cert_chain) {
+        let network = if network == Network::Bitcoin {
+            V2HardwareAttestationNetwork::Mainnet
+        } else {
+            V2HardwareAttestationNetwork::NonMainnet
+        };
+        emit_test_hardware_attestation_fixture_use(operation, network);
         return Ok(Some(AttestedHardwareSerial::Pending(
             test_fixture::TEST_ACCOUNT_ATTESTED_SERIAL.to_string(),
         )));
@@ -276,6 +287,8 @@ pub async fn create_account_v2(
         request.spend.hardware_attestation.as_ref(),
         &request.spend.hardware_pub,
         request.is_test_account,
+        V2HardwareAttestationOperation::FullAccountCreation,
+        request.spend.network,
     )?;
 
     // Record hw auth pubkey in public_keys table before any external side
@@ -503,6 +516,8 @@ pub async fn upgrade_account_v2(
         request.spend.hardware_attestation.as_ref(),
         &request.spend.hardware_pub,
         lite_account.common_fields.properties.is_test_account,
+        V2HardwareAttestationOperation::LiteToFullUpgrade,
+        request.spend.network,
     )?;
 
     // Record hw auth pubkey in public_keys table before any external side
@@ -768,6 +783,8 @@ pub async fn create_keyset_v2(
         request.hardware_attestation.as_ref(),
         &request.hardware_pub,
         account.common_fields.properties.is_test_account,
+        V2HardwareAttestationOperation::CreateKeyset,
+        request.network,
     )?;
     let attested_hardware_serial =
         inherit_verified_status_from_active_keyset(attested_hardware_serial, &account);

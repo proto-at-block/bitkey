@@ -363,6 +363,7 @@ class MesonBuild:
         if not self._build_dir.exists():
             options = ""
             cross_file_arg = ""
+            env_prefix = ""
             if self._platform != "posix":
                 cross_file_arg = f"--cross-file {self._crossfile}"
             else:
@@ -373,18 +374,29 @@ class MesonBuild:
                         f"-Db_sanitize={sanitize_opt} -Db_lundef=false -Dc_args='-std=gnu11'"
                     )
                 else:
+                    # On Linux the hermit firmware environment sets GCC_EXEC_PREFIX to
+                    # the ARM cross-compiler prefix, which makes the native host gcc
+                    # unable to locate cc1.  Unset it so the native toolchain works.
+                    # Use clang (available via Homebrew) to keep LLVM coverage flags valid.
+                    env_prefix = "env -u GCC_EXEC_PREFIX CC=clang CXX=clang++ "
                     options = (
                         f"-Db_sanitize={sanitize_opt} -Db_lundef=false -Dc_args='-std=gnu11 -fprofile-instr-generate "
                         "-fcoverage-mapping' -Dcpp_args='-fprofile-instr-generate -fcoverage-mapping'"
                     )
             with self._ctx.cd(ROOT_DIR):
                 self._ctx.run(
-                    f"meson setup {self._build_dir} {cross_file_arg} {options}",
+                    f"{env_prefix}meson setup {self._build_dir} {cross_file_arg} {options}",
                     pty=True,
                 )
         else:
+            reconfigure_env_prefix = ""
+            if self._platform == "posix" and sys.platform != "darwin":
+                reconfigure_env_prefix = "env -u GCC_EXEC_PREFIX CC=clang CXX=clang++ "
             with self._ctx.cd(ROOT_DIR):
-                self._ctx.run(f"meson setup --reconfigure {self._build_dir}", pty=True)
+                self._ctx.run(
+                    f"{reconfigure_env_prefix}meson setup --reconfigure {self._build_dir}",
+                    pty=True,
+                )
 
         self._targets = None
 

@@ -1,7 +1,10 @@
 use std::{
     collections::{HashMap, HashSet},
     str::FromStr,
-    sync::Arc,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
 };
 
 use crypto::chaincode_delegation::{
@@ -39,7 +42,10 @@ use rstest::rstest;
 use types::{
     account::{
         bitcoin::Network,
-        entities::{DescriptorBackup, DescriptorBackupsSet},
+        entities::{
+            Account, DescriptorBackup, DescriptorBackupsSet, FullAccount,
+            TransactionVerificationPolicy,
+        },
         identifiers::AccountId,
         money::Money,
         spend_limit::SpendingLimit,
@@ -67,7 +73,6 @@ use crate::tests::lib::{
 use crate::tests::mobile_pay_tests::build_mobile_pay_request;
 use crate::tests::requests::axum::TestClient;
 use crate::tests::{gen_services, gen_services_with_overrides, GenServiceOverrides};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use wsm_compat::{
     fingerprint_0_32_to_0_30, psbt_0_30_to_0_32, psbt_0_32_to_0_30, xpub_0_32_to_0_30,
 };
@@ -93,7 +98,6 @@ async fn sign_transaction_test(
     broadcast_failure_mode: Option<BroadcastFailureMode>, // Should the test double return an ApiError?
     wallet_protocol: WalletTestProtocol,
 ) {
-    let broadcast_will_succeed = broadcast_failure_mode.is_none();
     let mut broadcaster_mock = MockTransactionBroadcaster::new();
     broadcaster_mock
         .expect_broadcast()
@@ -214,11 +218,11 @@ async fn sign_transaction_test(
 
     // Only assert on spent amounts if we have valid mobile pay data
     if let (Some(current), Some(final_amount)) = (current_spent, final_spent) {
-        if expect_broadcast && broadcast_will_succeed {
-            // When broadcast succeeds, the spent amount should increase by the transaction amount
+        if expect_broadcast {
+            // Once broadcast is attempted, the spent amount remains recorded even if broadcast fails.
             assert_eq!(final_amount.amount, current.amount + transfer_amount);
         } else {
-            // When broadcast fails or is not attempted, spent amount should remain unchanged
+            // If broadcast is not attempted, spent amount should remain unchanged.
             assert_eq!(final_amount.amount, current.amount);
         }
     }
@@ -400,8 +404,13 @@ async fn test_sign_transaction_private_ccd(
     .await
 }
 
+#[rstest]
+#[case::new_transaction(false)]
+#[case::orphaned_cache_entry(true)]
 #[tokio::test]
-async fn test_failed_broadcast_does_not_count_against_spending_limit() {
+async fn test_failed_broadcast_remains_counted_against_spending_limit(
+    #[case] prepopulate_cache: bool,
+) {
     let attempts = AtomicUsize::new(0);
     let mut broadcaster_mock = MockTransactionBroadcaster::new();
     broadcaster_mock
@@ -459,8 +468,17 @@ async fn test_failed_broadcast_does_not_count_against_spending_limit() {
         gen_external_wallet_address(),
         transfer_amount,
         &[],
-    )
-    .to_string();
+    );
+    let txid = psbt.unsigned_tx.compute_txid();
+    if prepopulate_cache {
+        bootstrap
+            .services
+            .signed_psbt_cache_service
+            .put(psbt.clone())
+            .await
+            .unwrap();
+    }
+    let psbt = psbt.to_string();
 
     let request_data = SignTransactionData {
         psbt: psbt.clone(),
@@ -477,7 +495,7 @@ async fn test_failed_broadcast_does_not_count_against_spending_limit() {
         .spent
         .amount;
 
-    // First attempt: broadcast fails, should not count toward spent.
+    // The broadcast result is ambiguous, so the failed request remains charged.
     let first_response = client
         .sign_transaction_with_keyset(
             &fixture.account.id,
@@ -499,9 +517,16 @@ async fn test_failed_broadcast_does_not_count_against_spending_limit() {
         .unwrap()
         .spent
         .amount;
-    assert_eq!(spent_after_failure, current_spent);
+    assert_eq!(spent_after_failure, current_spent + transfer_amount);
+    assert!(bootstrap
+        .services
+        .signed_psbt_cache_service
+        .get(txid)
+        .await
+        .unwrap()
+        .is_some());
 
-    // Retry: broadcast succeeds; spent should increase by transfer_amount.
+    // A retry can broadcast the transaction without charging it a second time.
     let second_response = client
         .sign_transaction_with_keyset(
             &fixture.account.id,
@@ -521,6 +546,101 @@ async fn test_failed_broadcast_does_not_count_against_spending_limit() {
         .spent
         .amount;
     assert_eq!(spent_after_success, current_spent + transfer_amount);
+}
+
+#[rstest]
+#[case::legacy(WalletTestProtocol::Legacy)]
+#[case::private_ccd(WalletTestProtocol::PrivateCcd)]
+#[tokio::test]
+async fn test_orphaned_cache_entry_does_not_skip_spending_record(
+    #[case] wallet_protocol: WalletTestProtocol,
+) {
+    let mut broadcaster_mock = MockTransactionBroadcaster::new();
+    broadcaster_mock
+        .expect_broadcast()
+        .once()
+        .returning(|_, _, _| Ok(()));
+
+    let overrides = GenServiceOverrides::new().broadcaster(Arc::new(broadcaster_mock));
+    let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
+    let client = TestClient::new(bootstrap.router).await;
+    let mut fixture =
+        setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
+    let keys = context
+        .get_authentication_keys_for_account_id(&fixture.account.id)
+        .unwrap();
+    let transfer_amount = 1_000;
+
+    let mobile_pay_response = client
+        .put_mobile_pay(
+            &fixture.account.id,
+            &build_mobile_pay_request(SpendingLimit {
+                active: true,
+                amount: Money {
+                    amount: 5_000,
+                    currency_code: USD,
+                },
+                ..Default::default()
+            }),
+            &keys,
+        )
+        .await;
+    assert_eq!(
+        mobile_pay_response.status_code,
+        StatusCode::OK,
+        "{}",
+        mobile_pay_response.body_string
+    );
+
+    let app_signed_psbt = build_app_signed_psbt_for_protocol(
+        &mut fixture,
+        gen_external_wallet_address(),
+        transfer_amount,
+        &[],
+    );
+    bootstrap
+        .services
+        .signed_psbt_cache_service
+        .put(app_signed_psbt.clone())
+        .await
+        .unwrap();
+
+    let current_spent = client
+        .get_mobile_pay(&fixture.account.id, &keys)
+        .await
+        .body
+        .unwrap()
+        .mobile_pay()
+        .unwrap()
+        .spent
+        .amount;
+    let response = client
+        .sign_transaction_with_keyset(
+            &fixture.account.id,
+            &fixture.account.active_keyset_id,
+            &SignTransactionData {
+                psbt: app_signed_psbt.to_string(),
+                ..Default::default()
+            },
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "{}",
+        response.body_string
+    );
+
+    let final_spent = client
+        .get_mobile_pay(&fixture.account.id, &keys)
+        .await
+        .body
+        .unwrap()
+        .mobile_pay()
+        .unwrap()
+        .spent
+        .amount;
+    assert_eq!(final_spent, current_spent + transfer_amount);
 }
 
 async fn sign_transaction_with_transaction_verification_test(
@@ -645,6 +765,121 @@ async fn sign_transaction_with_transaction_verification_test(
     if expect_success {
         check_finalized_psbt(response.body, &fixture.wallet);
     }
+}
+
+/// A policy stored before the kill switch was flipped off must not block
+/// co-signing: the routes that would let the customer satisfy it are closed, so
+/// enforcing it would strand the account behind an approval path it cannot
+/// complete. `Always` with no grant is refused when the feature is on (see the
+/// `always_without_verification` case below).
+#[rstest]
+#[case::legacy(WalletTestProtocol::Legacy)]
+#[case::private_ccd(WalletTestProtocol::PrivateCcd)]
+#[tokio::test]
+async fn sign_transaction_ignores_verification_policy_when_disabled(
+    #[case] wallet_protocol: WalletTestProtocol,
+) {
+    let mut broadcaster_mock = MockTransactionBroadcaster::new();
+    broadcaster_mock
+        .expect_broadcast()
+        .times(1)
+        .returning(move |_, _, _| Ok(()));
+
+    // Overrides replace the `test.toml` defaults wholesale, so every flag the
+    // signing path resolves has to be repeated alongside the kill switch —
+    // unset ones panic on resolution against the offline test LD client.
+    let flags = HashMap::from([
+        (
+            "f8e-transaction-verification-enabled".to_string(),
+            "false".to_string(),
+        ),
+        ("f8e-mobile-pay-enabled".to_string(), "true".to_string()),
+        (
+            "electrum-rpc-uri-mainnet".to_string(),
+            "ssl://electrum.blockstream.info:50002".to_string(),
+        ),
+        (
+            "electrum-rpc-uri-testnet".to_string(),
+            "ssl://electrum.blockstream.info:60002".to_string(),
+        ),
+        (
+            "electrum-rpc-uri-signet".to_string(),
+            "ssl://bitkey-test.mempool.space:60602".to_string(),
+        ),
+    ]);
+    let overrides = GenServiceOverrides::new()
+        .broadcaster(Arc::new(broadcaster_mock))
+        .feature_flags(flags);
+    let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let mut fixture =
+        setup_fixture(&mut context, &client, &bootstrap.services, wallet_protocol).await;
+
+    let keys = context
+        .get_authentication_keys_for_account_id(&fixture.account.id)
+        .unwrap();
+
+    let app_signed_psbt =
+        build_app_signed_psbt_for_protocol(&mut fixture, gen_external_wallet_address(), 2_000, &[]);
+
+    let limit = SpendingLimit {
+        active: true,
+        amount: Money {
+            amount: 5_000,
+            currency_code: USD,
+        },
+        ..Default::default()
+    };
+    let mobile_pay_response = client
+        .put_mobile_pay(&fixture.account.id, &build_mobile_pay_request(limit), &keys)
+        .await;
+    assert_eq!(
+        mobile_pay_response.status_code,
+        StatusCode::OK,
+        "{}",
+        mobile_pay_response.body_string
+    );
+
+    // The policy route is closed while the switch is off, so write the policy
+    // straight to the repository — which is also how a real account would come
+    // to hold one, having set it before the switch was flipped. Re-fetch first
+    // so persisting doesn't clobber the spending limit just written.
+    let account = bootstrap
+        .services
+        .account_service
+        .fetch_full_account(FetchAccountInput {
+            account_id: &fixture.account.id,
+        })
+        .await
+        .expect("fetch account");
+    bootstrap
+        .services
+        .account_repository
+        .persist(&Account::Full(FullAccount {
+            transaction_verification_policy: Some(TransactionVerificationPolicy::Always),
+            ..account
+        }))
+        .await
+        .expect("persist policy");
+
+    let response = client
+        .sign_transaction_with_keyset(
+            &fixture.account.id,
+            &fixture.account.active_keyset_id,
+            &SignTransactionData {
+                psbt: app_signed_psbt.to_string(),
+                grant: None,
+            },
+        )
+        .await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "{}",
+        response.body_string
+    );
+    check_finalized_psbt(response.body, &fixture.wallet);
 }
 
 #[rstest::rstest]

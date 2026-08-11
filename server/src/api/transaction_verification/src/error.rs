@@ -20,6 +20,8 @@ pub enum TransactionVerificationError {
     DatabaseError(#[from] database::ddb::DatabaseError),
     #[error("Exchange rate error")]
     ExchangeRateError(#[from] exchange_rate::error::ExchangeRateError),
+    #[error("Transaction verification is disabled")]
+    Disabled,
     #[error("Verification request not found")]
     InvalidVerificationId,
     #[error("Expected verification state: {0:?}, but got: {1:?}")]
@@ -71,6 +73,7 @@ impl From<TransactionVerificationError> for ApiError {
             | TransactionVerificationError::WsmError(_) => {
                 ApiError::GenericInternalApplicationError(err_msg)
             }
+            TransactionVerificationError::Disabled => ApiError::GenericForbidden(err_msg),
             TransactionVerificationError::InvalidVerificationId => {
                 ApiError::GenericNotFound(err_msg)
             }

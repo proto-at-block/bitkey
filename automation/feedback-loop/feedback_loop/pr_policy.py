@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import PurePosixPath
+import re
 
 from .models import Destination, Proposal
 
@@ -143,7 +144,7 @@ def reviewer_checklist_markdown(result: PrPolicyResult) -> str:
         "## Reviewer checklist",
         "- [ ] Evidence quality: linked source PRs/comments support the proposed guardrail.",
         "- [ ] Destination choice: the change uses the most enforceable correct destination.",
-        "- [ ] Eval results: replay/rubric results are present and acceptable.",
+        "- [ ] Eval results: proposal judge results are present and acceptable.",
         "- [ ] Noise risk: false-positive or broad-match risk is understood.",
         "- [ ] Source-of-truth: AI guidance changes edit source files, not generated artifacts.",
         "- [ ] Rollback: the PR can be reverted or narrowed cleanly if it causes noise.",
@@ -223,9 +224,12 @@ def _normalize_policy_path(path: str) -> str | None:
 
 def _path_allowed(destination: Destination, path: str) -> bool:
     if destination == "agents_check":
-        return path.startswith(".agents/checks/")
+        return re.fullmatch(r"\.agents/checks/[a-z0-9][a-z0-9-]*\.md", path) is not None
     if destination == "ai_skill":
-        return path.startswith(".ai/skills/")
+        return (
+            re.fullmatch(r"\.ai/skills/[a-z0-9][a-z0-9-]*/[A-Za-z0-9][A-Za-z0-9._/-]*", path)
+            is not None
+        )
     if destination == "ai_agents_md":
         return path in AI_AGENTS_MD_SOURCES
     if destination == "docs":
@@ -263,6 +267,10 @@ def _ai_guidance_path(path: str) -> bool:
 
 
 def _test_or_linter_path(path: str) -> bool:
+    # AI-guidance trees are never test/linter targets, even when a path segment looks like a
+    # test/fixture directory (e.g. .ai/feedback-loop/fixtures/...).
+    if _ai_guidance_path(path):
+        return False
     original_parts = [part for part in path.split("/") if part]
     parts = [part.lower() for part in original_parts]
     if not parts:

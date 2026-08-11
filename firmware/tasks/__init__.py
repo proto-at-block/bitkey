@@ -15,6 +15,7 @@ from . import (build, install, generate, fwup, lfs,
 
 from .mcu import (chipinfo, erase, flash, debug, secinfo)
 from .simulator import ui_sim
+from .launcher import build_launcher, launcher, launcher_ensure
 
 # This hack is needed for pyinvoke version >=2.1.1
 # fmt: off
@@ -199,6 +200,9 @@ ns.add_task(flash)
 ns.add_task(debug)
 ns.add_task(secinfo)
 ns.add_task(ui_sim)
+ns.add_task(build_launcher)
+ns.add_task(launcher)
+ns.add_task(launcher_ensure)
 
 # add namespaced tasks to the root
 ns.add_collection(build)

@@ -1,5 +1,6 @@
 core_common_deps = [
   rtos_dep,
+  memfault_dep,
   ipc_dep,
   mempool_dep,
   proto_helpers_dep,
@@ -53,6 +54,7 @@ key_manager_platform_configs = {
     ],
     'deps' : [
       rtos_dep,
+      memfault_dep,
       uc_dep,
       secure_channel_deps['w3-uxc'],
     ],

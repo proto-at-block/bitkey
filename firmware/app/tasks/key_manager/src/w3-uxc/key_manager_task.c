@@ -1,5 +1,6 @@
 #include "hex.h"
 #include "log.h"
+#include "memfault.h"
 #include "rtos.h"
 #include "secure_channel.h"
 #include "uc.h"
@@ -31,10 +32,13 @@ NO_OPTIMIZE static void handle_secure_channel_establish(void* proto) {
   fwpb_secure_channel_establish_rsp* rsp = &msg->msg.secure_channel_response;
 
   uint32_t pk_len = sizeof(rsp->pk_device.bytes);
-  if (secure_uart_channel_establish(establish_local.pk_host.bytes, establish_local.pk_host.size,
-                                    rsp->pk_device.bytes, &pk_len, rsp->exchange_sig.bytes,
-                                    sizeof(rsp->exchange_sig.bytes),
-                                    rsp->key_confirmation_tag.bytes) != SECURE_CHANNEL_OK) {
+  memfault_port_coredump_sensitive_operation_begin();
+  const secure_channel_err_t result = secure_uart_channel_establish(
+    establish_local.pk_host.bytes, establish_local.pk_host.size, rsp->pk_device.bytes, &pk_len,
+    rsp->exchange_sig.bytes, sizeof(rsp->exchange_sig.bytes), rsp->key_confirmation_tag.bytes);
+  memfault_port_coredump_sensitive_operation_end();
+
+  if (result != SECURE_CHANNEL_OK) {
     LOGE("UXC SC: key derive fail");
     uc_free_send_proto(msg);
     return;
@@ -61,9 +65,12 @@ NO_OPTIMIZE static void handle_secure_channel_confirm(void* proto) {
     return;
   }
 
-  secure_channel_err_t ret = secure_uart_channel_confirm_session(
+  memfault_port_coredump_sensitive_operation_begin();
+  const secure_channel_err_t ret = secure_uart_channel_confirm_session(
     confirm_local.key_confirmation_tag.bytes, confirm_local.exchange_sig.bytes,
     confirm_local.exchange_sig.size);
+  memfault_port_coredump_sensitive_operation_end();
+
   if (ret != SECURE_CHANNEL_OK) {
     LOGE("UXC SC: confirm fail: %d", ret);
   } else {

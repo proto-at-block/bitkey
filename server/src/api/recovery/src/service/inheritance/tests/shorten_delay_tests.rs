@@ -5,8 +5,8 @@ use types::recovery::inheritance::claim::InheritanceClaim;
 use crate::service::inheritance::error::ServiceError;
 use crate::service::inheritance::shorten_delay::ShortenDelayForBeneficiaryInput;
 use crate::service::inheritance::tests::{
-    construct_test_inheritance_service, create_locked_claim, create_pending_inheritance_claim,
-    get_auth_keys, setup_accounts, setup_accounts_with_network,
+    construct_inheritance_repository, construct_test_inheritance_service, create_locked_claim,
+    create_pending_inheritance_claim, get_auth_keys, setup_accounts, setup_accounts_with_network,
 };
 
 #[tokio::test]
@@ -94,6 +94,60 @@ async fn test_shorten_claim_delay_for_nontest_account_fails() {
         result.unwrap_err().to_string(),
         ServiceError::ShortenDelayForNonTestAccount.to_string()
     );
+}
+
+#[tokio::test]
+async fn test_shorten_claim_delay_for_another_beneficiarys_claim_fails() {
+    // arrange
+    let inheritance_service = construct_test_inheritance_service().await;
+
+    let (victim_benefactor, victim_beneficiary) = setup_accounts().await;
+    let victim_auth_keys = get_auth_keys(&victim_beneficiary);
+    let victim_claim = create_pending_inheritance_claim(
+        &victim_benefactor,
+        &victim_beneficiary,
+        &victim_auth_keys,
+        None,
+    )
+    .await;
+
+    // The caller is a legitimate beneficiary, but of an unrelated benefactor.
+    let (attacker_benefactor, attacker_beneficiary) = setup_accounts().await;
+    let attacker_auth_keys = get_auth_keys(&attacker_beneficiary);
+    create_pending_inheritance_claim(
+        &attacker_benefactor,
+        &attacker_beneficiary,
+        &attacker_auth_keys,
+        None,
+    )
+    .await;
+
+    // act: target the victim's claim while authenticating as the attacker
+    let input = ShortenDelayForBeneficiaryInput {
+        inheritance_claim_id: victim_claim.common_fields.id.clone(),
+        beneficiary_account_id: attacker_beneficiary.id,
+        delay_period_seconds: 0,
+    };
+    let result = inheritance_service
+        .shorten_delay_for_beneficiary(input)
+        .await;
+
+    // assert
+    assert_eq!(
+        result.unwrap_err().to_string(),
+        ServiceError::RecoveryRelationshipNotFound.to_string()
+    );
+
+    // the victim's delay is untouched
+    let repository = construct_inheritance_repository().await;
+    let persisted = repository
+        .fetch_inheritance_claim(&victim_claim.common_fields.id)
+        .await
+        .expect("fetch victim claim");
+    let InheritanceClaim::Pending(persisted) = persisted else {
+        panic!("Expected victim claim to still be pending");
+    };
+    assert_eq!(persisted.delay_end_time, victim_claim.delay_end_time);
 }
 
 #[tokio::test]

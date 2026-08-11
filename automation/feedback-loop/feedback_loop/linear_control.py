@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 from dataclasses import dataclass
 from typing import Callable, Literal
 
@@ -67,30 +66,30 @@ def build_cluster_issue_plan(
     pr_url: str = "",
     status: ClusterIssueStatus = "proposal_drafted",
     team_key: str = "BKW",
-    project_name: str = "Linear-driven code engine",
+    project_name: str = "Bitkey Feedback Loop",
     trigger_builderbot: bool = False,
     validation_commands: tuple[str, ...] = (),
     draft_pr_title: str = "",
     draft_pr_body: str = "",
+    window: dict | None = None,
+    suggested_replay_case: dict | None = None,
 ) -> ClusterIssuePlan:
     """Build a Linear issue upsert plan without assigning an owner."""
-    return ClusterIssuePlan(
-        idempotency_key=_idempotency_key(proposal),
-        title=_issue_title(proposal),
-        description=_issue_description(
-            proposal,
-            pr_url,
-            trigger_builderbot=trigger_builderbot,
-            validation_commands=validation_commands,
-            draft_pr_title=draft_pr_title,
-            draft_pr_body=draft_pr_body,
-        ),
+    from .cluster_memory import build_cluster_memory_issue_plan
+
+    return build_cluster_memory_issue_plan(
+        proposal.cluster,
+        proposal=proposal,
+        pr_url=pr_url,
+        status=status,
         team_key=team_key,
         project_name=project_name,
-        status=status,
-        linear_state=linear_state_for_cluster_status(status),
-        assignee=None,
-        labels=_issue_labels(proposal, trigger_builderbot),
+        trigger_builderbot=trigger_builderbot,
+        validation_commands=validation_commands,
+        draft_pr_title=draft_pr_title,
+        draft_pr_body=draft_pr_body,
+        window=window,
+        suggested_replay_case=suggested_replay_case,
     )
 
 
@@ -105,66 +104,6 @@ def create_or_update_cluster_issue(
 def linear_state_for_cluster_status(status: ClusterIssueStatus) -> str:
     """Return the Bitkey Linear workflow state for one feedback-loop status."""
     return LINEAR_STATE_BY_CLUSTER_STATUS[status]
-
-
-def _idempotency_key(proposal: Proposal) -> str:
-    raw_key = "|".join([proposal.cluster.theme, proposal.destination])
-    digest = hashlib.sha256(raw_key.encode("utf-8")).hexdigest()[:16]
-    return f"feedback-loop:{digest}"
-
-
-def _issue_title(proposal: Proposal) -> str:
-    summary = proposal.cluster.summary or proposal.summary or proposal.cluster.theme
-    if len(summary) > 80:
-        summary = f"{summary[:77].rstrip()}..."
-    return f"Feedback cluster: {summary}"
-
-
-def _issue_labels(proposal: Proposal, trigger_builderbot: bool) -> tuple[str, ...]:
-    labels = ["feedback-loop", proposal.destination]
-    if trigger_builderbot:
-        labels.append(BUILDERBOT_APPROVAL_LABEL)
-    return tuple(labels)
-
-
-def _issue_description(
-    proposal: Proposal,
-    pr_url: str,
-    *,
-    trigger_builderbot: bool,
-    validation_commands: tuple[str, ...],
-    draft_pr_title: str,
-    draft_pr_body: str,
-) -> str:
-    commands = validation_commands or tuple(proposal.validation_commands)
-    lines = [
-        "## Summary",
-        proposal.summary,
-        "",
-        "## Routing",
-        f"- Destination: `{proposal.destination}`",
-        f"- Cluster: `{proposal.cluster.theme}`",
-        f"- Eval state: `{proposal.eval_state}`",
-        "",
-        "## Links",
-        *_item_lines("Evidence", proposal.evidence_urls),
-        *_item_lines("Target artifacts", proposal.target_artifacts),
-        *_item_lines("Proposed file changes", [change.path for change in proposal.file_changes]),
-        *_item_lines("Draft PR", [pr_url] if pr_url else []),
-        "",
-        "## Builderbot handoff",
-        *_builderbot_lines(trigger_builderbot),
-        "",
-        "## Builderbot implementation context",
-        *_builderbot_context_lines(proposal, draft_pr_title, draft_pr_body),
-        "",
-        "## Validation commands",
-        *_item_lines("Commands", commands),
-        "",
-        "## Eval artifact",
-        _eval_markdown(proposal),
-    ]
-    return "\n".join(lines).strip() + "\n"
 
 
 def _builderbot_lines(trigger_builderbot: bool) -> list[str]:

@@ -416,10 +416,9 @@ void handle_provision_unlock_secret(ipc_ref_t* message) {
   rsp->status = fwpb_status_ERROR;
 
 #ifdef CONFIG_PROD
-  if (!feature_flags_get(fwpb_feature_flag_FEATURE_FLAG_UNLOCK)) {
-    rsp->status = fwpb_status_FEATURE_NOT_SUPPORTED;
-    goto out;
-  }
+  // Password/PIN unlock is disabled in production, so provisioning and replacement are unsupported.
+  rsp->status = fwpb_status_FEATURE_NOT_SUPPORTED;
+  goto out;
 #endif
 
   if (!proto_secure_channel_message_has_valid_sizes(&cmd->msg.provision_unlock_secret_cmd.secret,

@@ -12,7 +12,9 @@ use account::service::{
     PutInactiveSpendingDistributedKeyInput, RotateToSpendingKeyDefinitionInput,
     RotateToSpendingKeysetInput, Service as AccountService, UpgradeLiteAccountToFullAccountInput,
 };
-use account::service::{CreateSoftwareAccountInput, UpdateDescriptorBackupsInput};
+use account::service::{
+    CreateSoftwareAccountInput, UpdateDescriptorBackupsInput, UpdateWalletMetadataBackupInput,
+};
 use argon2::{
     password_hash::{PasswordHash, PasswordVerifier},
     Argon2,
@@ -77,7 +79,7 @@ use types::account::entities::{
     Account, CommsVerificationScope, DescriptorBackup, DescriptorBackupsSet, FullAccount,
     FullAccountAuthKeysInput, HardwareType, Keyset, LiteAccount, LiteAccountAuthKeysInput,
     SoftwareAccountAuthKeysInput, SpendingKeysetInput, Touchpoint, TouchpointPlatform,
-    UpgradeLiteAccountAuthKeysInput,
+    UpgradeLiteAccountAuthKeysInput, WalletMetadataBackup,
 };
 use types::{
     account::{
@@ -103,14 +105,15 @@ use wsm_rust_client::{SigningService, WsmClient};
 use crate::account_validation::{
     error::AccountValidationError, AccountValidation, AccountValidationRequest,
 };
-use crate::metrics::LEGACY_VALUE;
+use crate::metrics::{V1HardwareKeysetOperation, V1HardwareKeysetOutcome, LEGACY_VALUE};
 use crate::routes_v2::{
     create_account_v2, create_keyset_v2, upgrade_account_v2, CreateAccountRequestV2,
     CreateAccountResponseV2, CreateKeysetResponseV2, UpgradeAccountRequestV2,
     __path_create_account_v2, __path_create_keyset_v2, __path_upgrade_account_v2,
 };
 use crate::{
-    create_touchpoint_iterable_user, emit_keyset_created, metrics, upsert_account_iterable_user,
+    create_touchpoint_iterable_user, emit_keyset_created, emit_v1_hardware_keyset_use, metrics,
+    upsert_account_iterable_user,
 };
 
 static EMAIL_REGEX: Lazy<Regex> = Lazy::new(|| {
@@ -203,6 +206,10 @@ impl RouterBuilder for RouteState {
             .route(
                 "/api/accounts/:account_id/descriptor-backups",
                 put(update_descriptor_backups),
+            )
+            .route(
+                "/api/accounts/:account_id/client-backup/metadata",
+                get(get_wallet_metadata_backup).put(update_wallet_metadata_backup),
             )
             // V2 routes
             .route(
@@ -336,6 +343,9 @@ impl From<RouteState> for SwaggerEndpoint {
             DescriptorBackup,
             DescriptorBackupsSet,
             UpdateDescriptorBackupsResponse,
+            GetWalletMetadataBackupResponse,
+            UpdateWalletMetadataBackupResponse,
+            WalletMetadataBackup,
 
             // V2 types
             FullAccountAuthKeysInputV2,
@@ -971,6 +981,11 @@ async fn account_status(
 
 pub const MAINNET_DERIVATION_PATH: &str = "m/84'/0'/0'";
 pub const TESTNET_DERIVATION_PATH: &str = "m/84'/1'/0'";
+/// Maximum size for an inline wallet metadata backup payload.
+///
+/// Wallet metadata is stored on the `FullAccount` DynamoDB item, whose total limit is 400 KiB.
+/// Reserve most of that budget for the account's existing fields and DynamoDB attribute overhead.
+pub const MAX_METADATA_BACKUP_SIZE_BYTES: usize = 50 * 1024;
 
 #[derive(Deserialize, Serialize, PartialEq, Debug, ToSchema)]
 #[serde(untagged)]
@@ -1154,6 +1169,10 @@ pub async fn create_account(
     if matches!(request, CreateAccountRequest::Full { .. }) {
         HardwareType::require_w1_serial(hw_serial.as_deref())
             .map_err(|e| ApiError::GenericForbidden(e.to_string()))?;
+        emit_v1_hardware_keyset_use(
+            V1HardwareKeysetOperation::FullCreate,
+            V1HardwareKeysetOutcome::Attempted,
+        );
     }
 
     if let Some(v) = AccountValidation::default()
@@ -1172,8 +1191,7 @@ pub async fn create_account(
                 reject_enrolled_account_on_v1(
                     full_account,
                     &feature_flags_service,
-                    &experimentation_claims
-                        .overridden_account_context_key(full_account.id.clone()),
+                    &experimentation_claims.overridden_account_context_key(full_account.id.clone()),
                 )?;
                 let spending_sig = maybe_get_wsm_integrity_sig(
                     &wsm_client,
@@ -1183,6 +1201,10 @@ pub async fn create_account(
                 if let Some(keyset) = &mut create_account_response.keyset {
                     keyset.spending_sig = spending_sig;
                 }
+                emit_v1_hardware_keyset_use(
+                    V1HardwareKeysetOperation::FullCreate,
+                    V1HardwareKeysetOutcome::Existing,
+                );
             }
             Account::Lite(_) | Account::Software(_) => {}
         }
@@ -1284,6 +1306,10 @@ pub async fn create_account(
             let account = account_service.create_account_and_keysets(input).await?;
 
             emit_keyset_created(LEGACY_VALUE);
+            emit_v1_hardware_keyset_use(
+                V1HardwareKeysetOperation::FullCreate,
+                V1HardwareKeysetOutcome::Created,
+            );
 
             // Attempt to create account Iterable user early, but don't fail the account creation if
             // this fails. We upsert the users later when they're needed anyway; this is an optimization
@@ -1405,6 +1431,10 @@ pub async fn upgrade_account(
     // V1 upgrade requires W1 hardware serial
     HardwareType::require_w1_serial(hw_serial.as_deref())
         .map_err(|e| ApiError::GenericForbidden(e.to_string()))?;
+    emit_v1_hardware_keyset_use(
+        V1HardwareKeysetOperation::LiteUpgrade,
+        V1HardwareKeysetOutcome::Attempted,
+    );
     let existing_account = &account_service
         .fetch_account(FetchAccountInput {
             account_id: &account_id,
@@ -1442,6 +1472,10 @@ pub async fn upgrade_account(
                             .await;
                     keyset.spending_sig = spending_sig;
                 }
+                emit_v1_hardware_keyset_use(
+                    V1HardwareKeysetOperation::LiteUpgrade,
+                    V1HardwareKeysetOutcome::Existing,
+                );
                 return Ok(Json(account));
             } else {
                 return Err(ApiError::GenericConflict(
@@ -1554,6 +1588,10 @@ pub async fn upgrade_account(
         .await?;
 
     emit_keyset_created(LEGACY_VALUE);
+    emit_v1_hardware_keyset_use(
+        V1HardwareKeysetOperation::LiteUpgrade,
+        V1HardwareKeysetOutcome::Created,
+    );
 
     Ok(Json(CreateAccountResponse {
         account_id: full_account.id,
@@ -1581,7 +1619,12 @@ pub struct CreateKeysetResponse {
     pub spending_sig: Option<String>,
 }
 
-#[instrument(skip(account_service, feature_flags_service, experimentation_claims, request))]
+#[instrument(skip(
+    account_service,
+    feature_flags_service,
+    experimentation_claims,
+    request
+))]
 #[utoipa::path(
     post,
     path = "/api/accounts/{account_id}/keysets",
@@ -1606,6 +1649,10 @@ pub async fn create_keyset(
     // V1 keyset creation requires W1 hardware serial
     HardwareType::require_w1_serial(hw_serial.as_deref())
         .map_err(|e| ApiError::GenericForbidden(e.to_string()))?;
+    emit_v1_hardware_keyset_use(
+        V1HardwareKeysetOperation::CreateKeyset,
+        V1HardwareKeysetOutcome::Attempted,
+    );
     let account = account_service
         .fetch_full_account(FetchAccountInput {
             account_id: &account_id,
@@ -1637,6 +1684,10 @@ pub async fn create_keyset(
     {
         let spending_sig = maybe_get_wsm_integrity_sig(&wsm_client, &keyset_id.to_string()).await;
 
+        emit_v1_hardware_keyset_use(
+            V1HardwareKeysetOperation::CreateKeyset,
+            V1HardwareKeysetOutcome::Existing,
+        );
         return Ok(Json(CreateKeysetResponse {
             keyset_id: keyset_id.to_owned(),
             spending: keyset.server_dpub.to_owned(),
@@ -1688,6 +1739,10 @@ pub async fn create_keyset(
         .await?;
 
     emit_keyset_created(LEGACY_VALUE);
+    emit_v1_hardware_keyset_use(
+        V1HardwareKeysetOperation::CreateKeyset,
+        V1HardwareKeysetOutcome::Created,
+    );
 
     Ok(Json(CreateKeysetResponse {
         keyset_id: inactive_spend_keyset_id,
@@ -2557,6 +2612,117 @@ pub async fn initiate_demo_mode(
     } else {
         Err(ApiError::GenericBadRequest("Invalid code".to_string()))
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct GetWalletMetadataBackupResponse {
+    pub wallet_metadata_backup: Option<WalletMetadataBackup>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct UpdateWalletMetadataBackupResponse {}
+
+#[instrument(skip(account_service))]
+#[utoipa::path(
+    get,
+    path = "/api/accounts/{account_id}/client-backup/metadata",
+    params(
+        ("account_id" = AccountId, Path, description = "AccountId"),
+    ),
+    responses(
+        (status = 200, description = "Retrieved wallet metadata backup", body=GetWalletMetadataBackupResponse),
+        (status = 404, description = "Account not found")
+    ),
+)]
+pub async fn get_wallet_metadata_backup(
+    Path(account_id): Path<AccountId>,
+    _auth: ProofAuthorization,
+    State(account_service): State<AccountService>,
+) -> Result<Json<GetWalletMetadataBackupResponse>, ApiError> {
+    let full_account = account_service
+        .fetch_full_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await?;
+
+    Ok(Json(GetWalletMetadataBackupResponse {
+        wallet_metadata_backup: full_account.wallet_metadata_backup,
+    }))
+}
+
+#[instrument(skip(account_service, anti_replay_repository, request))]
+#[utoipa::path(
+    put,
+    path = "/api/accounts/{account_id}/client-backup/metadata",
+    params(
+        ("account_id" = AccountId, Path, description = "AccountId"),
+    ),
+    request_body = WalletMetadataBackup,
+    responses(
+        (status = 200, description = "Updated wallet metadata backup", body=UpdateWalletMetadataBackupResponse),
+        (status = 404, description = "Account not found")
+    ),
+)]
+pub async fn update_wallet_metadata_backup(
+    Path(account_id): Path<AccountId>,
+    State(account_service): State<AccountService>,
+    State(anti_replay_repository): State<repository::anti_replay::AntiReplayRepository>,
+    auth: ProofAuthorization,
+    Json(request): Json<WalletMetadataBackup>,
+) -> Result<Json<UpdateWalletMetadataBackupResponse>, ApiError> {
+    let full_account = account_service
+        .fetch_full_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await?;
+
+    let hardware_type = full_account
+        .active_hardware_type()
+        .map_err(|e| ApiError::GenericInternalApplicationError(e.to_string()))?;
+
+    // The backup is stored inline on the FullAccount DynamoDB item, which has a 400 KiB limit.
+    // Keep this payload well below that ceiling so an accepted request cannot fail only when the
+    // whole account is persisted.
+    let payload_size = request.wrapped_ssek.len() + request.sealed_wallet_metadata_snapshot.len();
+    if payload_size > MAX_METADATA_BACKUP_SIZE_BYTES {
+        return Err(ApiError::GenericBadRequest(format!(
+            "Metadata backup payload exceeds maximum size: {} > {} bytes",
+            payload_size, MAX_METADATA_BACKUP_SIZE_BYTES
+        )));
+    }
+
+    // Writes are last-write-wins: the snapshot is client-encrypted, carries its own schema
+    // version internally, and clients merge concurrent edits when they pull the latest backup.
+    // Concurrent PUTs racing within this handler are still serialized by the account
+    // repository's conditional `updated_at` compare-and-swap. Skip the write entirely when the
+    // payload matches what is stored so retries are cheap no-ops.
+    let is_idempotent_retry = full_account
+        .wallet_metadata_backup
+        .as_ref()
+        .is_some_and(|existing_backup| request == *existing_backup);
+
+    // TODO(BKW-140): migrate this to an app-only UpdateWalletMetadataBackup action proof.
+    // The metadata payload is client-encrypted and non-fund-recovery-critical; for this slice,
+    // require only a valid account JWT so note edits can enqueue/retry server backup without
+    // hardware friction. Do not reuse UpdateDescriptorBackups: this is a standalone account-level
+    // backup object with separate criticality and recovery semantics.
+    let result = AuthorizationRequirements::jwt_only(hardware_type)
+        .execute(&auth, &anti_replay_repository, |_ctx| async move {
+            if !is_idempotent_retry {
+                account_service
+                    .update_wallet_metadata_backup(UpdateWalletMetadataBackupInput {
+                        account: &full_account,
+                        wallet_metadata_backup: request,
+                    })
+                    .await?;
+            }
+            Ok::<_, ApiError>(UpdateWalletMetadataBackupResponse {})
+        })
+        .await?;
+
+    Ok(Json(result))
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]

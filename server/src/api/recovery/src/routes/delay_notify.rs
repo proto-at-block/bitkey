@@ -47,6 +47,10 @@ use http_server::{
 use instrumentation::metrics::KeyValue;
 use instrumentation::middleware::HardwareSerialHeader;
 use notification::{entities::NotificationTouchpoint, service::Service as NotificationService};
+use privileged_action::service::{
+    configure_delay_notify_period::ConfigureDelayNotifyPeriodInput,
+    get_pending_instances::GetPendingInstancesInput, Service as PrivilegedActionService,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_with::{base64::Base64, serde_as};
@@ -65,6 +69,9 @@ use wsm_rust_client::{SigningService, WsmClient};
 
 use super::INHERITANCE_ENABLED_FLAG_KEY;
 
+const ALLOWED_DELAY_PERIOD_DAYS: [u32; 3] = [7, 14, 30];
+const ONE_DAY_SECS: usize = 24 * 60 * 60;
+
 #[derive(Clone, axum_macros::FromRef)]
 pub struct RouteState(
     pub AccountService,
@@ -73,6 +80,7 @@ pub struct RouteState(
     pub CommsVerificationService,
     pub UserPoolService,
     pub RecoveryRepository,
+    pub PrivilegedActionService,
     pub SocialChallengeService,
     pub FeatureFlagsService,
     pub WsmClient,
@@ -116,6 +124,10 @@ impl RouterBuilder for RouteState {
                 delete(cancel_delay_notify),
             )
             .route(
+                "/api/accounts/:account_id/delay-notify-period",
+                get(get_delay_notify_period).put(configure_delay_notify_period),
+            )
+            .route(
                 "/api/accounts/:account_id/recovery",
                 get(get_recovery_status),
             )
@@ -154,7 +166,9 @@ impl From<RouteState> for SwaggerEndpoint {
     paths(
         cancel_delay_notify,
         complete_delay_notify_transaction,
+        configure_delay_notify_period,
         create_delay_notify,
+        get_delay_notify_period,
         get_recovery_status,
         check_hardware_auth_key_availability,
         rotate_authentication_keys,
@@ -165,9 +179,12 @@ impl From<RouteState> for SwaggerEndpoint {
         schemas(
             CompleteDelayNotifyRequest,
             CompleteDelayNotifyResponse,
+            ConfigureDelayNotifyPeriodRequest,
+            ConfigureDelayNotifyPeriodResponse,
             CreateAccountDelayNotifyRequest,
             Factor,
             FullAccountAuthKeysInput,
+            GetDelayNotifyPeriodResponse,
             PendingRecoveryResponse,
             PendingDelayNotifyRecovery,
             HardwareAuthKeyAvailabilityRequest,
@@ -202,6 +219,145 @@ fn cancel_recovery_action(lost_factor: Factor) -> Action {
         Factor::App => Action::CancelLostAppRecovery,
         Factor::Hw => Action::CancelLostHardwareRecovery,
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ConfigureDelayNotifyPeriodRequest {
+    pub delay_period_days: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ConfigureDelayNotifyPeriodResponse {
+    pub delay_period_days: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct GetDelayNotifyPeriodResponse {
+    pub delay_period_days: u32,
+}
+
+#[instrument(err, skip(account_service))]
+#[utoipa::path(
+    get,
+    path = "/api/accounts/{account_id}/delay-notify-period",
+    responses(
+        (status = 200, description = "Current delay notify period", body=GetDelayNotifyPeriodResponse),
+        (status = 404, description = "Account not found")
+    ),
+)]
+pub async fn get_delay_notify_period(
+    Path(account_id): Path<AccountId>,
+    State(account_service): State<AccountService>,
+    _auth: Authorization,
+) -> Result<Json<GetDelayNotifyPeriodResponse>, ApiError> {
+    let account = account_service
+        .fetch_full_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await?;
+
+    let delay_secs = account
+        .common_fields
+        .delay_notify_period_secs
+        .unwrap_or(7 * ONE_DAY_SECS);
+    let delay_days = (delay_secs / ONE_DAY_SECS) as u32;
+
+    Ok(Json(GetDelayNotifyPeriodResponse {
+        delay_period_days: delay_days,
+    }))
+}
+
+#[instrument(
+    err,
+    skip(
+        account_service,
+        privileged_action_service,
+        recovery_repository,
+        anti_replay_repository
+    )
+)]
+#[utoipa::path(
+    put,
+    path = "/api/accounts/{account_id}/delay-notify-period",
+    request_body = ConfigureDelayNotifyPeriodRequest,
+    responses(
+        (status = 200, description = "Delay notify period configured", body=ConfigureDelayNotifyPeriodResponse),
+        (status = 400, description = "Invalid delay period"),
+        (status = 409, description = "Cannot change while a waiting period is active"),
+        (status = 404, description = "Account not found")
+    ),
+)]
+pub async fn configure_delay_notify_period(
+    Path(account_id): Path<AccountId>,
+    State(account_service): State<AccountService>,
+    State(recovery_repository): State<RecoveryRepository>,
+    State(privileged_action_service): State<PrivilegedActionService>,
+    State(anti_replay_repository): State<repository::anti_replay::AntiReplayRepository>,
+    auth: Authorization,
+    Json(request): Json<ConfigureDelayNotifyPeriodRequest>,
+) -> Result<Json<ConfigureDelayNotifyPeriodResponse>, ApiError> {
+    if !ALLOWED_DELAY_PERIOD_DAYS.contains(&request.delay_period_days) {
+        return Err(ApiError::GenericBadRequest(format!(
+            "Invalid delay period: {} days. Allowed values: {:?}",
+            request.delay_period_days, ALLOWED_DELAY_PERIOD_DAYS
+        )));
+    }
+
+    let account = account_service
+        .fetch_full_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await?;
+    let hardware_type = account
+        .active_hardware_type()
+        .map_err(|e| ApiError::GenericInternalApplicationError(e.to_string()))?;
+
+    let has_pending_recovery = recovery_repository
+        .has_pending_recovery(&account_id, RecoveryType::DelayAndNotify)
+        .await
+        .map_err(|e| ApiError::GenericInternalApplicationError(e.to_string()))?;
+    if has_pending_recovery {
+        return Err(ApiError::GenericConflict(
+            "Cannot change delay & notify period while a recovery is in progress".to_string(),
+        ));
+    }
+
+    let pending_instances = privileged_action_service
+        .get_pending_instances(GetPendingInstancesInput {
+            account_id: &account_id,
+            authorization_strategy: None,
+            privileged_action_type: None,
+        })
+        .await
+        .map_err(|e| ApiError::GenericInternalApplicationError(e.to_string()))?;
+    if !pending_instances.is_empty() {
+        return Err(ApiError::GenericConflict(
+            "Cannot change delay & notify period while a privileged action is pending".to_string(),
+        ));
+    }
+
+    let cloned_privileged_action_service = privileged_action_service.clone();
+    let cloned_account_id = account_id.clone();
+    let delay_period_days = request.delay_period_days;
+
+    let result = AuthorizationRequirements::new(Action::SetDelayNotifyPeriod, hardware_type)
+        .value(delay_period_days.to_string())
+        .execute(&auth, &anti_replay_repository, move |_ctx| async move {
+            cloned_privileged_action_service
+                .configure_delay_notify_period(ConfigureDelayNotifyPeriodInput {
+                    account_id: &cloned_account_id,
+                    delay_period_days,
+                })
+                .await?;
+
+            Ok::<_, ApiError>(ConfigureDelayNotifyPeriodResponse { delay_period_days })
+        })
+        .await?;
+
+    Ok(Json(result))
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -308,9 +464,15 @@ pub async fn create_delay_notify(
                     .await
                     .map(|r| r.response())?;
 
-                    //TODO: Remove this once recovery syncer on mobile isn't running always
+                    // Legacy mobile clients can still send a test-only create-time delay
+                    // override. Once an account has a configured period, that account-level
+                    // setting must win so test accounts use the mapped minute-scale period.
                     if request.delay_period_num_sec.is_some()
                         && full_account.common_fields.properties.is_test_account
+                        && full_account
+                            .common_fields
+                            .delay_notify_period_secs
+                            .is_none()
                     {
                         let Json(v) = update_recovery_delay_for_test_account(
                             account_id,

@@ -190,6 +190,7 @@ subdir('hal/clock')
 # here in order to intermix them.
 subdir('lib/shell')
 subdir('lib/rtos')
+subdir('lib/platform')
 subdir('lib/secutils')
 subdir('hal/secure-engine')
 subdir('hal/memfault/memfault-log')

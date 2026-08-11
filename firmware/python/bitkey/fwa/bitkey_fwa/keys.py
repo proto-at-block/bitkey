@@ -39,17 +39,19 @@ def _collect_possible_keys(key_fmt: str, product: str, security: str) -> list[Pa
         signer_env = FirmwareUnderTest.signer_env
         stack_name = getattr(FirmwareUnderTest, "stack_name", None)
 
-        # the three app signing key cases are:
+        # The app signing key names mirror bitkey.key_manager.SigningKeys and
+        # scripts/sync-kms-keys.py:
         # 1. dev-stack -> use stack_name
-        # 2. dev local build -> use empty string unless dev-signed prod build
-        # 3. all other app cases -> append -{signer_env}
+        # 2. W3A-UXC shared stacks -> use no signer-env suffix
+        # 3. personal prod for non-UXC -> use production suffix
+        # 4. all other app cases -> append -{signer_env}
         if stack_name and signer_env == SIGNER_DEVELOPMENT:
             pattern = f"{product}-app-signing-key-{stack_name}-development.*.pub.pem"
+        elif product == PRODUCT_W3A_UXC:
+            pattern = key_fmt.format(product, security, "")
         elif signer_env == SIGNER_PERSONAL:
             suffix = ""
-            # Match bitkey.key_manager.SigningKeys naming:
-            # prod app keys for UXC do not use the "-production" suffix.
-            if security == SECURITY_PROD and product != PRODUCT_W3A_UXC:
+            if security == SECURITY_PROD:
                 suffix = f"-{SIGNER_PRODUCTION}"
             pattern = key_fmt.format(product, security, suffix)
         else:
