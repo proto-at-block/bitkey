@@ -122,7 +122,7 @@ impl TransactionVerificationFeaturesExt for TransactionVerificationFeatures {
         };
 
         validate_commitment(grant, psbt)?;
-        verify_grant_signature(grant, &self.wik_pub_key)?;
+        verify_grant_signature(grant, &self.wik_pub_key, &self.expected_hw_auth_public_key)?;
 
         Ok(false)
     }
@@ -131,7 +131,12 @@ impl TransactionVerificationFeaturesExt for TransactionVerificationFeatures {
 fn verify_grant_signature(
     grant: &TransactionVerificationGrantView,
     wik_pub_key: &PublicKey,
+    expected_hw_auth_public_key: &PublicKey,
 ) -> Result<(), SpendRuleCheckError> {
+    if &grant.hw_auth_public_key != expected_hw_auth_public_key {
+        return Err(SpendRuleCheckError::InvalidTransactionVerificationGrant);
+    }
+
     let secp = Secp256k1::verification_only();
     let hw_auth_public_key_wsm = wsm_pubkey_from_bdk(&grant.hw_auth_public_key)
         .map_err(|_| SpendRuleCheckError::InvalidTransactionVerificationGrant)?;
@@ -177,4 +182,48 @@ fn validate_commitment(
         return Err(SpendRuleCheckError::InvalidCommitment);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use bdk_utils::bdk::bitcoin::secp256k1::{ecdsa::Signature, SecretKey};
+
+    use super::*;
+
+    #[test]
+    fn grant_from_another_account_is_rejected() {
+        let secp = Secp256k1::new();
+        let wik_secret_key = SecretKey::from_slice(&[1u8; 32]).unwrap();
+        let wik_public_key = wik_secret_key.public_key(&secp);
+        let grant_hw_auth_key = SecretKey::from_slice(&[2u8; 32]).unwrap().public_key(&secp);
+        let current_account_hw_auth_key =
+            SecretKey::from_slice(&[3u8; 32]).unwrap().public_key(&secp);
+        let commitment = vec![4u8; 32];
+        let message =
+            wsm_grant::tx_verification::generate_message(grant_hw_auth_key, commitment.clone())
+                .unwrap();
+        let grant = TransactionVerificationGrantView {
+            version: 0,
+            hw_auth_public_key: grant_hw_auth_key,
+            commitment,
+            signature: Signature::from_compact(
+                &secp
+                    .sign_ecdsa(&message, &wik_secret_key)
+                    .serialize_compact(),
+            )
+            .unwrap(),
+            reverse_hash_chain: vec![vec![0u8; 32]],
+        };
+
+        assert!(verify_grant_signature(&grant, &wik_public_key, &grant_hw_auth_key).is_ok());
+        let result = verify_grant_signature(
+            &grant,
+            &wik_public_key,
+            &current_account_hw_auth_key,
+        );
+        assert!(matches!(
+            result,
+            Err(SpendRuleCheckError::InvalidTransactionVerificationGrant)
+        ));
+    }
 }

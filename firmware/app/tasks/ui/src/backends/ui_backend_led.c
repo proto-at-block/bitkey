@@ -155,11 +155,10 @@ static void led_backend_init(void) {
 
   sysevent_wait(SYSEVENT_POWER_READY, true);
 
-  // Initialize rest animation
-  led_state.rest_animation = animation_get(ANI_REST);
-  ASSERT(led_state.rest_animation != NULL);
-
-  led_state.idle_state = UI_EVENT_IDLE;
+  // Default to no rest animation (LEDs stay off); the pulsing-white ANI_REST
+  // onboarding indicator is opted into via UI_SET_IDLE_STATE(UI_EVENT_IDLE).
+  led_state.rest_animation = NULL;
+  led_state.idle_state = UI_EVENT_NO_IDLE;
   led_state.initialized = true;
 }
 
@@ -202,12 +201,21 @@ static void led_backend_show_event_with_data(ui_event_type_t event, const uint8_
 static void led_backend_set_idle_state(ui_event_type_t idle_state) {
   led_state.idle_state = idle_state;
 
-  // Update rest animation based on idle state
+  // Update rest animation based on idle state. NO_IDLE maps to ANI_OFF,
+  // which we represent as no rest animation (LEDs stay off).
   animation_name_t ani_name = ui_event_to_animation(idle_state);
-  const animation_t* animation = animation_get(ani_name);
-  if (animation) {
-    led_state.rest_animation = animation;
+  const animation_t* animation = (ani_name == ANI_OFF) ? NULL : animation_get(ani_name);
+
+  // If the old rest animation is currently playing, replace it immediately;
+  // rest animations loop, so it would otherwise never be picked up.
+  if (led_state.animation != NULL && led_state.animation == led_state.rest_animation) {
+    if (animation == NULL) {
+      stop_all_leds();
+    }
+    led_state.animation = animation;
+    reset_animation();
   }
+  led_state.rest_animation = animation;
 
   LOGI("LED idle state set to: %d", idle_state);
 }

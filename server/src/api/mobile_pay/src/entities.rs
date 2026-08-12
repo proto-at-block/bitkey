@@ -25,4 +25,5 @@ pub struct TransactionVerificationFeatures {
     pub verification_sats: u64,
     pub grant: Option<TransactionVerificationGrantView>,
     pub wik_pub_key: PublicKey,
+    pub expected_hw_auth_public_key: PublicKey,
 }

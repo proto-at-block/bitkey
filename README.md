@@ -4,6 +4,8 @@ Bitkey is the safe, easy way to own and manage your bitcoin. Learn more at [bitk
 
 For more information about our release of Bitkey's code, read [our blog post on the topic](https://bitkey.build/sharing-the-code-behind-bitkey/).
 
+This repository is a published copy of Bitkey's internal development repository. See [PUBLISH_HISTORY.md](PUBLISH_HISTORY.md) for how and when code lands here, and for what the commit, tag, and release history means.
+
 ## Repository Structure
 
 Each directory in our repository is a separate project— each with its own build and often in its own language(s) / platform(s).

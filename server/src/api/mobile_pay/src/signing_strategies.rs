@@ -17,7 +17,7 @@ use crate::{
     get_mobile_pay_spending_record, sats_for_limit, sats_for_threshold, MobilePaySpendingRecord,
 };
 use async_trait::async_trait;
-use bdk_utils::bdk::bitcoin::{psbt::Psbt, Network};
+use bdk_utils::bdk::bitcoin::{psbt::Psbt, secp256k1::PublicKey, Network};
 use bdk_utils::{ChaincodeDelegationCollaboratorWallet, ElectrumRpcUris};
 use exchange_rate::service::Service as ExchangeRateService;
 use feature_flags::flag::ContextKey;
@@ -519,6 +519,7 @@ impl SigningStrategyFactory {
             &full_account.id,
             &full_account.transaction_verification_policy,
             grant,
+            full_account.hardware_auth_pubkey,
             config,
             exchange_rate_service,
             feature_flags_service,
@@ -593,6 +594,7 @@ impl SigningStrategyFactory {
         account_id: &AccountId,
         policy: &Option<TransactionVerificationPolicy>,
         grant: Option<TransactionVerificationGrantView>,
+        expected_hw_auth_public_key: PublicKey,
         config: &Config,
         exchange_rate_service: &ExchangeRateService,
         feature_flags_service: &FeatureFlagsService,
@@ -612,6 +614,7 @@ impl SigningStrategyFactory {
                         .await?,
                     grant,
                     wik_pub_key: config.wik_pub_key,
+                    expected_hw_auth_public_key,
                 }))
             }
             Some(TransactionVerificationPolicy::Always) => {
@@ -620,6 +623,7 @@ impl SigningStrategyFactory {
                     verification_sats: 0,
                     grant,
                     wik_pub_key: config.wik_pub_key,
+                    expected_hw_auth_public_key,
                 }))
             }
             Some(TransactionVerificationPolicy::Never) | None => Ok(None),
