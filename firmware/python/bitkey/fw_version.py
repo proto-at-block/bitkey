@@ -22,16 +22,33 @@ CONFIG_FILE = Path(
 _FW_VERSION = "fw_version"
 _BL_VERSION = "bl_version"
 
+_SEMVER_COMPONENT_LIMITS = (
+    ("major", 99),
+    ("minor", 99),
+    ("patch", 999),
+)
+
+
+def _validate_semver(version: semver.VersionInfo) -> semver.VersionInfo:
+    for component, maximum in _SEMVER_COMPONENT_LIMITS:
+        if getattr(version, component) > maximum:
+            raise ValueError(
+                f"Version {version} cannot be represented by the signing format: "
+                f"{component} must not exceed {maximum}"
+            )
+
+    return version
+
 
 def _get_semver(field: str) -> semver.VersionInfo:
     try:
         with open(CONFIG_FILE, "r") as f:
             config = json.load(f)
             if field in config:
-                return semver.VersionInfo.parse(config[field])
+                return _validate_semver(semver.VersionInfo.parse(config[field]))
     except FileNotFoundError:
         pass
-    return Git().semver_tag
+    return _validate_semver(Git().semver_tag)
 
 
 def _set(field: str, new_version: str):
